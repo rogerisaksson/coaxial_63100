@@ -58,10 +58,10 @@ class Watch:
         m = self.world.model
         self.furn = {i for i in range(m.ngeom) if _named(m, i, FURNITURE) and float(self.world.data.geom_xpos[i][1]) > -0.5}
         self.hers = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in self.furn and not _named(m, i, SCENERY)}
-        self.last, self.read, self.fast, self.lo, self.hi = None, -1.0, {}, {}, {}
+        self.last, self.read, self.fast, self.lo, self.hi, self.when = None, -1.0, {}, {}, {}, {}
         self.phases, self.bumps = [], {}
         self.go(0.5)
-        self.fast, self.lo, self.hi = {}, {}, {}
+        self.fast, self.lo, self.hi, self.when = {}, {}, {}, {}
 
     def go(self, seconds, until=None):
         """`seconds` of passes, or to her fall or `until(self)`: whether `until` came."""
@@ -79,7 +79,7 @@ class Watch:
         return False
 
     def _read(self):
-        from machine import worker
+        from machine import sprung, worker
         g, d, m = self.g, self.world.data, self.world.model
         if g['t'] - self.read < EVERY_S:
             return
@@ -87,8 +87,9 @@ class Watch:
         for name, joints in GROUPS.items():
             for j in joints:
                 v = float(angles.get(j, 0.0))
-                if self.last is not None:
-                    self.fast[name] = max(self.fast.get(name, 0.0), abs(v - self.last.get(j, v)) / dt)
+                if self.last is not None and abs(v - self.last.get(j, v)) / dt > self.fast.get(name, 0.0):
+                    self.fast[name] = abs(v - self.last.get(j, v)) / dt
+                    self.when[name] = (round(g['t'], 2), j, sprung.doing(g), (g.get('_errand') or {}).get('phase'))
                 self.lo[name], self.hi[name] = min(self.lo.get(name, v), v), max(self.hi.get(name, v), v)
         self.last, self.read = {j: float(angles.get(j, 0.0)) for js in GROUPS.values() for j in js}, g['t']
         phase = (g.get('_errand') or {}).get('phase')
@@ -99,8 +100,8 @@ class Watch:
                     self.bumps.setdefault('%s@%s' % (m.geom(f).name, phase), round(g['t'], 2))
 
     def spasm(self):
-        return {name: (round(self.fast.get(name, 0.0)), round(self.hi.get(name, 0.0) - self.lo.get(name, 0.0)))
-                for name in GROUPS}
+        return {name: (round(self.fast.get(name, 0.0)), round(self.hi.get(name, 0.0) - self.lo.get(name, 0.0)),
+                       self.when.get(name)) for name in GROUPS}
 
 
 def walked():
@@ -234,7 +235,7 @@ def main(argv=None):
     spasms = {}
     for k, r in enumerate(rows):
         got = r.get('spasm')
-        spasms[k] = [n for n, (fast, _wide) in (got if isinstance(got, dict) else {}).items() if n in SPASM and fast > bound.get(n, (math.inf,))[0]]
+        spasms[k] = [n for n, (fast, *_more) in (got if isinstance(got, dict) else {}).items() if n in SPASM and fast > bound.get(n, (math.inf,))[0]]
         spasm = spasms[k]
         key = '%s%s' % (r.get('result'), ' spasm' if spasm and r.get('result') == 'ok' else '')
         counts[key] = counts.get(key, 0) + 1

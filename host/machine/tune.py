@@ -149,6 +149,18 @@ def walked(root, gr, texts):
     return table
 
 
+def kind(root, got):
+    """What `root` is: 'stunt' she plays (`maneuver.PLAYED`), 'schedule' (a compile-to-soa's), 'gait'
+    of the suite; anything else refused."""
+    g = got.get(root)
+    found = next((name for name, holds in (('stunt', root in maneuver.PLAYED),
+                                           ('schedule', isinstance(g, dict) and 'schedule' in g),
+                                           ('gait', isinstance(g, dict))) if holds), None)
+    if found is None:
+        raise MachineError('%s: no gait, schedule or stunt she plays' % root)
+    return found
+
+
 def _phased(phases):
     out = {}
     for k, p in enumerate(phases):
@@ -158,18 +170,45 @@ def _phased(phases):
     return out
 
 
-def voices(root, got, fr):
-    """{voice: value} of what `root` moves of her: a played stunt's phases (`maneuver.phases`), else
-    the gait's voiced row, twist and grip (`voicing.voiced`, of her statics `fr`)."""
-    if root in maneuver.PLAYED:
-        return _phased(maneuver.phases(root, None, got))
-    if not isinstance(got.get(root), dict):
-        raise MachineError('%s: no gait of the suite nor a stunt she plays' % root)
-    row, told = voicing.voiced(got[root], got['nominal-biped-manifold'], fr)
+def _voiced(g, got, fr):
+    row, told = voicing.voiced(g, got['nominal-biped-manifold'], fr)
     out: dict = {('slot', k): v for k, v in row.items()}
     out.update({('twist', k): v for k, v in enumerate(told['twist'])})
     out.update({('grip',): told['grip']} if 'grip' in told else {})
     return out
+
+
+def _morphed(m, got, fr):
+    wire, span = voicing.morphed(m, got['nominal-biped-manifold'], fr)
+    return dict({('row', k): float(v) for k, v in enumerate(v for row in ortho.ROW.iter_unpack(wire) for v in row)},
+                **{('span',): span})
+
+
+def _scheduled(root, got, fr):
+    """A schedule's segments voiced in order, a morph by its rows, to the first she cannot play -
+    as it plays -: a refusal, a one-shot or a dwell (the gym's)."""
+    out = {}
+    for k, seg in enumerate(dsp.schedule(got[root])):
+        try:
+            said = (_morphed if isinstance(seg[-1], dsp.Morph) else _voiced)(seg[2], got, fr) if len(seg) == 3 else None
+        except MachineError:
+            said = None
+        if said is None:
+            break
+        out.update({(k,) + key: v for key, v in said.items()})
+    return out
+
+
+#: How a root's voices are read, by its kind (`kind`).
+VOICED = {'stunt': lambda root, got, fr: _phased(maneuver.phases(root, None, got)), 'schedule': _scheduled,
+          'gait': lambda root, got, fr: _voiced(got[root], got, fr)}
+
+
+def voices(root, got, fr):
+    """{voice: value} of what `root` moves of her (VOICED): a played stunt's phases
+    (`maneuver.phases`), a schedule's segments, a gait's voiced row, twist and grip (`voicing.voiced`,
+    of her statics `fr`)."""
+    return VOICED[kind(root, got)](root, got, fr)
 
 
 def scale(lit, got):
@@ -184,6 +223,13 @@ def scale(lit, got):
 
 def _same(a, b):
     return a == b or (isinstance(a, float) and isinstance(b, float) and math.isnan(a) and math.isnan(b))
+
+
+def _slope(up, down, h):
+    try:
+        return (up - down) / (2.0 * h)
+    except TypeError:
+        return math.nan
 
 
 def reach(root, table, texts, fr):
