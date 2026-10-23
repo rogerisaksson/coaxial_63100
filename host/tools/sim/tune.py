@@ -128,9 +128,10 @@ def run_report(gr, before, after, table, live, cur, new):
     return '\n'.join(lines)
 
 
-def tuned(root, steps):
+def tuned(root, steps, ran=None):
     """(the kept state {span: value}, whether the norm converged) of `root`'s live literals stepped
-    up to `steps` times from the texts as they are, each step printed."""
+    up to `steps` times from the texts as they are, each step printed; its runs `ran`'s (`runs`'s
+    signature: the relay's where none, windows on her running loop at runtime)."""
     from machine import tune, voicing
     gr, tx, fr = tune.grammar(), tune.texts(), suite._her()
     table = tune.walked(root, gr, tx)
@@ -138,12 +139,12 @@ def tuned(root, steps):
     print(walk_report(root, table, cols, refused), flush=True)
     (got, gym), live, k = tune.evaluated(tx), sorted(cols), tune.knobs()
     row = voicing.walk(fr, gym)
-    c = {'root': root, 'gr': gr, 'table': table, 'live': live, 'digits': k[('sync-mutated-packages-to-disk', 'float-precision')],
+    c = {'root': root, 'gr': gr, 'table': table, 'live': live, 'runs': ran or runs, 'digits': k[('sync-mutated-packages-to-disk', 'float-precision')],
          'scales': np.array([tune.scale(table[i][0], got, row) for i in live]),
          'span': [(table[i][0].path, table[i][0].start, table[i][0].end) for i in live]}
     c['h'] = k[('compute-adjoint-ast-deltas', 'trust-region-scale')] * c['scales']
     state, converged = {}, False
-    before = runs([(root, state)])[0]
+    before = c['runs']([(root, state)])[0]
     print('\nas the texts are: |r| %.4f (%s)' % (norm(before), ', '.join('%.4f' % x for x in before['r'])) if 'r' in before
           else 'not run: %s' % before.get('error', '')[-300:], flush=True)
     for n in range(steps if live and 'r' in before else 0):
@@ -170,17 +171,20 @@ def floors(before, floor):
 
 def measured_at(c, state, cur, before, n):
     """(J, held, ok): the residuals' and her form's Jacobians over the live literals `ok` that felled
-    her neither way, a run pair a literal its h either side; `before`'s floors set (`floors`), each
-    literal a unit of the text's last place off either way."""
+    her neither way, a run pair a literal its h either side - a form measure's slope where its pair
+    moved it past its floor, else 0 -; `before`'s floors set (`floors`), each literal a unit of the
+    text's last place off either way."""
     unit = 10.0 ** -c['digits']
-    pairs = runs([(c['root'], {**state, c['span'][j]: cur[j] + s * c['h'][j]}) for j in range(len(cur)) for s in (1.0, -1.0)]
+    pairs = c['runs']([(c['root'], {**state, c['span'][j]: cur[j] + s * c['h'][j]}) for j in range(len(cur)) for s in (1.0, -1.0)]
                  + [(c['root'], {**state, **{c['span'][j]: cur[j] + s * unit for j in range(len(cur))}}) for s in (1.0, -1.0)])
     pairs, floor = pairs[:-2], pairs[-2:]
     floors(before, floor)
     ok = [j for j in range(len(cur)) if all('r' in p and p['fell'] is None for p in pairs[2 * j:2 * j + 2])]
     d = lambda j, of: (of(pairs[2 * j]) - of(pairs[2 * j + 1])) / (2.0 * c['h'][j])
     J = np.array([[d(j, lambda p: p['r'][k]) for j in ok] for k in range(len(c['gr']))]).reshape(len(c['gr']), len(ok))
-    held = [[d(j, lambda p: off(p)[name]) for j in ok] for name, _least, _most in looks.FORM] if _formed(before) else []
+    past = lambda j, name: abs(off(pairs[2 * j])[name] - off(pairs[2 * j + 1])[name]) > before['off_floor'][name]
+    held = [[d(j, lambda p: off(p)[name]) if past(j, name) else 0.0 for j in ok]
+            for name, _least, _most in looks.FORM] if _formed(before) else []
     print('\nstep %d: %d of %d literals measured (%s), its floor %.4f' % (
         n + 1, len(ok), len(cur), ', '.join('%.0f s' % p.get('wall', math.nan) for p in pairs[:2]), before['floor']), flush=True)
     return J, held, ok
@@ -195,7 +199,7 @@ def stepped(c, state, cur, before, measured):
     J, held, ok = measured
     r, shrink = np.array(before['r']), 1.0
     while ok:
-        d = tune.step(J, r, c['scales'][ok], held, shrink)
+        d = tune.step(J, r, c['scales'][ok], held, shrink, [before['off_floor'][name] for name, _l, _m in looks.FORM])
         gain = norm(before) - float(np.linalg.norm(r + J @ d))
         if gain <= before['floor']:
             print('  at %.3g of its trust region its model gains %.4f, under its floor: none kept' % (shrink, gain), flush=True)
@@ -207,7 +211,7 @@ def stepped(c, state, cur, before, measured):
             print("  at %.3g of its trust region it moves nothing at the text's last place: none kept" % shrink, flush=True)
             break
         trial = {**state, **{c['span'][j]: new[j] for j in ok}}
-        after = runs([(c['root'], trial)])[0]
+        after = c['runs']([(c['root'], trial)])[0]
         if after.get('r') == before['r']:
             print('  at %.3g of its trust region her run is the one before it, bit for bit: none kept' % shrink, flush=True)
             break
@@ -284,14 +288,20 @@ def main(argv=None):
         table = tune.walked(args.root, gr, tx)
         print(walk_report(args.root, table, *tune.reach(args.root, table, tx, suite._her())))
         return 0
-    state, converged = tuned(args.root, args.steps)
+    kept(args.root, *tuned(args.root, args.steps), args.write)
+    return 0
+
+
+def kept(root, state, converged, write):
+    """The kept `state` said; written (`write`) where it converged and holds on every other root it
+    moves (`elsewhere`)."""
+    from machine import tune
     lits = [tune.Literal(p_, a, z, None, None, None, None, v) for (p_, a, z), v in state.items()]
     texts = tune.spliced(tune.texts(), lits, [lit.value for lit in lits],
                          tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')])
     print('\n%d literals kept moved; %s' % (len(state), 'converged' if converged else 'not converged'))
-    if state and converged and not elsewhere(args.root, state) and args.write:
+    if state and converged and not elsewhere(root, state) and write:
         print('written: ' + ', '.join(os.path.basename(path) for path in tune.written(texts)))
-    return 0
 
 
 if __name__ == '__main__':

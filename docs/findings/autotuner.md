@@ -72,3 +72,16 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
 - A table laid 0.04 s past her lateral crossing (0.25 rad), both soles
   locked, her last blend done; minimum-jerk its target's rate leaving 0.0042
   of its mean and arriving 0.0003, linear 1.0002 both ways.
+- Her walk tuned while she walks (`tools/sim/runtime.py`, her loop a process
+  of its own, a window 6 s from 2 s past a table's laying, 9-10 s on the
+  wall): |r| 5.66 (pivot 2.29, cone 0.40, peak 0.41, tank 5.14) to 5.06 in
+  one step, her stand's axial spring 3000 to 3450 and damper 600 to 510, her
+  step's lift 1.0 to 0.85; the tank bled 54.7 J a window for 61.7, 379 J/m
+  for 388. The next step not kept: her hip over stance, then her landing
+  load worse, then under its floor. Held elsewhere on 39 roots; written. Her
+  page's walk (40 s): 401 J/m for 408, off a woman's walk 2.42 for 2.51, her
+  knee at landing 31.3 deg for 32.7, behind plumb 10.9 for 10.7.
+- Held strictly (no form measure growing at all) the step was 0: five form
+  rows of noise-sized slopes over three literals; free it gained 0.47. A
+  held measure now grows by its floor at most, as the verdict judges it, and
+  a slope counts only where its pair moved it past that floor.

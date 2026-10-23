@@ -229,6 +229,7 @@ TOUCHES = (
     ('host/tools/sim/suite.py',                (STRUCTURE,)),
     ('host/tools/sim/tune.py',                 (STRUCTURE, TUNE)),
     ('host/tools/sim/telemetry.py',            (STRUCTURE, TUNE)),
+    ('host/tools/sim/runtime.py',              (STRUCTURE, TUNE)),
     ('host/tools/sim/quad_race.py',            QUADS + (STREAMS,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).

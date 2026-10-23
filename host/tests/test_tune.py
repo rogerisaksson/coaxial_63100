@@ -4,7 +4,7 @@
 given play as her files, every literal is walked where it stands and reaches her where a voice reads
 it, the step is the text's, a run's residuals and the verdicts on a step; at runtime a link between
 her loop and a tuner apart, her walk linked as unlinked, her raw passes cooked as MuJoCo reads
-them, a table laid at her barrier blending C2."""
+them, her walk measured at runtime with her loop apart, a table laid at her barrier blending C2."""
 import math
 import sys
 
@@ -71,8 +71,8 @@ def test_her_texts_given_play_as_her_files(report):
 def test_a_literal_is_walked_where_it_stands(report):
     """Each keyword's number, each op's and each of her gym's clauses' where it stands: written back
     in full the suite and her gym read the same; a value at the text's precision reads back; her gym's
-    stiffness the suite's compliance, its slot her axial spring's."""
-    from machine import dsp, modal, ortho, sprung, tune
+    stiffness the suite's compliance, its value her walk's row's axial spring."""
+    from machine import dsp, modal, ortho, sprung, tune, voicing
     tx = tune.texts()
     lits = [lit for path, text in tx.items() for lit in tune.literals(path, text)]
     report.check('%d literals, each span its value' % len(lits),
@@ -82,7 +82,8 @@ def test_a_literal_is_walked_where_it_stands(report):
                  dsp.read(dsp.SUITE, back) == _got() and sprung.entries(texts=back) == sprung.entries(), '')
     spring = next(lit for lit in lits if lit.symbol == 'stand' and lit.node == 'impedance stiffness mode_axial_compression')
     report.check("her stand's axial stiffness is the suite's compliance, in her row's axial spring",
-                 spring.key == 'compliance' and spring.slot == ortho.K + modal.AXIAL and spring.value == 3000.0, str(spring))
+                 spring.key == 'compliance' and spring.slot == ortho.K + modal.AXIAL
+                 and float(voicing.walk(_her(), sprung.entries())[spring.slot]) == spring.value, str(spring))
     op = next(lit for lit in lits if lit.symbol == 'surface-granular-dissipative' and lit.key == 'stride-length-mm')
     moved = tune.spliced(tx, [op], [0.71234567], 4)
     report.check("an op's number said of its keyword, written at four places",
@@ -265,6 +266,33 @@ def test_her_raw_passes_cook_as_mujoco_reads_them(report):
                  % (len(raws), off[:3].max(), off[3], off[4]), bool(off.max() < 1e-12), str(off))
 
 
+def test_her_walk_measured_at_runtime(report):
+    """Her loop in a process of its own, linked: her walk's row compiled from her texts as they are
+    is her loop's, and a window of it published once she walks is measured standing, its six
+    residuals finite, her form measured."""
+    import multiprocessing
+    import numpy as np
+    from machine import modal, tap, tune, voicing
+    from tools.sim import runtime, suite
+    tx, fr = tune.texts(), suite._her()
+    c = {'gr': tune.grammar(), 'texts': tx, 'fr': fr, 'got': tune.evaluated(tx)[0], 'weight': float(fr[modal.WEIGHT]),
+         'seq': 0, 'slots': [11, 22, 38], 'link': tap.made(runtime.RING_S)}
+    walked = voicing.walk(fr, tune.evaluated(tx)[1])
+    c['her'] = multiprocessing.get_context('spawn').Process(target=runtime.loop, args=(c['link'].name,), daemon=True)
+    c['her'].start()
+    try:
+        out = runtime.runs(c)([(runtime.ROOT, {})])[0]
+    finally:
+        c['link'].said('halt', 1)
+        c['her'].join(10.0)
+        c['link'].closed()
+    report.check('her walk as her loop holds it; a window standing, |r| %.3f, her form measured in %d of %d'
+                 % (float(np.linalg.norm(out.get('r', [math.inf]))), sum(v is not None for v in out.get('form', {}).values()),
+                    len(out.get('form', {}))),
+                 runtime.row(c, {}) == {k: float(walked[k]) for k in c['slots']} and out.get('fell', 0) is None
+                 and bool(np.all(np.isfinite(out['r']))) and any(v is not None for v in out['form'].values()), str(out)[:300])
+
+
 def test_a_table_is_laid_at_her_barrier_and_blends_c2(report):
     """Her walk linked, a table of her lean published walking: laid at a pass with both soles locked
     and her last blend done; her lean's target leaves and meets its new value minimum-jerk, its rate
@@ -305,7 +333,7 @@ ROSTER = (test_the_autotuner_reads_as_written, test_her_texts_given_play_as_her_
           test_the_step_is_damped_least_squares_in_its_trust_region,
           test_a_run_measured_and_a_step_judged, test_a_link_between_her_loop_and_a_tuner,
           test_her_loop_linked_passes_as_unlinked, test_her_raw_passes_cook_as_mujoco_reads_them,
-          test_a_table_is_laid_at_her_barrier_and_blends_c2)
+          test_her_walk_measured_at_runtime, test_a_table_is_laid_at_her_barrier_and_blends_c2)
 
 
 def main(argv=None):

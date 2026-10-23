@@ -116,10 +116,32 @@ def ran(root, said):
     rows, fell, scene, extra = RUNS[kind](root, got, gym, texts, rec)
     if not rec['raws']:
         raise MachineError('%s: nothing sampled, she fell at %s s, before its window' % (root, fell))
+    return dict(scored(got, tap.measured(tap.cooked(rec['raws']), rec['weight']), rows, extra), kind=kind, fell=fell,
+                scene=scene, wall=round(time.time() - began, 1))
+
+
+def scored(got, measures, rows, extra):
+    """A run's {r, measures, form, broken, ..extra} of its `measures` (`tap.measured`) and her look's
+    `rows` - her form measured where `extra` says it is formed -, bounded by the suite `got`'s."""
+    from machine import tune
     form = strides.measured(rows) if extra['formed'] else {}
-    measures = tap.measured(tap.cooked(rec['raws']), rec['weight'])
     limits, pivot = bounds(got), measures['pivot']
-    return dict(extra, r=residuals(measures, tune.grammar(), limits).tolist(), kind=kind, fell=fell, scene=scene,
+    return dict(extra, r=residuals(measures, tune.grammar(), limits).tolist(),
                 measures=dict(measures, pivot=[float(np.median(pivot)), float(np.mean(pivot < limits['min-zmp-margin-mm']))]),
                 form={name: form.get(name) for name, _least, _most in looks.FORM},
-                broken=[name for name, _v, _b in looks.broken(form)] if form else [], wall=round(time.time() - began, 1))
+                broken=[name for name, _v, _b in looks.broken(form)] if form else [])
+
+
+def rows(seen):
+    """Her looks (`tap.look`'s, n) as the page's rows (`humanoid_keys.row`), as `scenarios._row` lays them."""
+    from machine import tap
+    from machine.figure import JOINTS
+    from terminal.views.humanoid_keys import HEADER, row
+    out, n = [], len(tap.LOOK)
+    for x in seen:
+        angles = dict(zip(JOINTS, (float(v) for v in x[n:n + len(JOINTS)])))
+        now = {'t': float(x[0]), 'stage': '', 'speed': float(x[1]), 'phase': 0.0, 'loads': (float(x[2]), float(x[3])),
+               'where': tuple(float(v) for v in x[4:7]), 'turn': tuple(float(v) for v in x[7:11]), 'angles': angles,
+               'set': angles, 'watts': 0.0}
+        out.append(dict(zip(HEADER, row(now, 0.0))))
+    return out
