@@ -312,6 +312,20 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   17.47 of |r| 17.47, the text's energy class the whole norm. Its first step
   kept by 0.125 over its 0.118 floor bought 1 734 J/m with slip 81 -> 94 mm,
   on ice; then none past its floor.
+- Any root run (`tools/sim/telemetry.py`), the classes over whatever bears
+  her, the impact the world's peak load, the energy her cost of transport (J
+  a metre of her centre of mass's way over her model's 305.5 N): the runway's
+  |r| 2.392, the same step kept (her peak 1.663 -> 1.596), converged. Run on
+  every other root its literals reach, the omnidirectional schedule fell at
+  22.03 s: not written.
+- The omnidirectional schedule (48 s, four morphs): 36 walked, 10 live, 5 of
+  them felling her at 0.15 of their scale; its floor 0.209 over its model's
+  best gain 0.173: nothing to resolve.
+- The chair's sit: its descent's duration fells her at 0.15 either way; its
+  hand-over's 320 ms moved 0.75-48 ms felled her 3 times in 7 (6.46-9.87 s)
+  and raised |r| the rest - her sit is chaotic in it -; under 0.4 ms her law
+  rounds it away, her run the same bit for bit. Its |r| 8.23 is 8.23 of
+  energy: a sit is no transport.
 
 ## Takes as modifiers
 

@@ -155,8 +155,34 @@ def test_surety_contracts_authority_and_damps_fall(report):
                  % (s_wide, s_up, s_walk, s_seat, s_mid, knee_tuck, sh_reach, s_col, s_bnc, power))
 
 
+def test_her_master_bus_and_buffers(report):
+    """Her master bus laid of the anti-spasm insert (`machine.supervisor`): each drive's slew its peak
+    through its board's current loop, its jerk that over its rotor's inertia; a buffer before each
+    stop of the insert's boundary nodes' joints, critically damped."""
+    import math
+    from coaxial.model import inverter, sensorless
+    from machine import drives, supervisor, wbc
+    from machine.figure import JOINTS
+    names = [j for j in JOINTS if drives.passive(j) is None]
+    _k, _s, laid = supervisor.bus(names, 1000.0)
+    loop = sensorless.current_loop(0.0, 0.0, inverter.FSW, 0.0, drives.PACK_V)['bw_hz']
+    report.check("each slew its peak x 2 pi x its board's loop, %.0f Hz; its jerk that over its rotor's inertia" % loop,
+                 set(drives.LOOP_HZ.values()) == {loop}
+                 and all(math.isclose(v, drives.peak(n) * 2.0 * math.pi * loop) for n, v in zip(names, laid['slew']))
+                 and all(math.isclose(j, v / drives.armature(n)) for n, v, j in zip(names, laid['slew'], laid['jerk'])),
+                 str([(n, round(v / 1e3)) for n, v in zip(names, laid['slew'])]))
+    body = wbc.Body()
+    rows, (width, stiff, damp) = body.buffers
+    ends = sorted((names[i], side) for i, _stop, side in rows)
+    report.check('a buffer %.2f rad before each stop of %d joints, critically damped' % (width, len(ends) // 2),
+                 ends == sorted((names[i], side) for i in supervisor.joints_of(
+                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
+                 and math.isclose(damp * damp, 4.0 * stiff), str(ends))
+
+
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
-          test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall)
+          test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
+          test_her_master_bus_and_buffers)
 
 
 def main(argv=None):

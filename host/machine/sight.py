@@ -366,7 +366,7 @@ class Keep:
                 by.setdefault(k, []).append((int(col), int(row)))
         out = []
         for k, pts in by.items():
-            hull = _hull(pts)
+            hull = convex(pts)
             if len(hull) >= 3:
                 out.append((kinds[k], INK.get(kinds[k], INK['thing']), hull))
         return out
@@ -379,7 +379,7 @@ def thumbnail(rgb, w, h):
     return rgb[:hh, :ww].reshape(h, hh // h, w, ww // w, 3).mean(axis=(1, 3)).astype(np.uint8)
 
 
-def _hull(pts):
+def convex(pts):
     """The convex hull of (x, y) points, counter-clockwise (Andrew's monotone chain)."""
     pts = sorted(set(pts))
     if len(pts) < 3:

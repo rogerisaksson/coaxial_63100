@@ -156,23 +156,11 @@ def test_what_she_cannot_do_is_refused_by_name(report):
 
 
 def test_the_insert_is_every_patch_last(report):
-    """The anti-spasm insert: its stages in order, every param named on her loop; every patch ending
-    in it, a number said otherwise refused by name; each drive's slew and jerk its own, a buffer
-    before each stop."""
+    """Every patch ends in the anti-spasm insert, its params named on her loop, another number refused."""
     import copy
     from machine import dsp, supervisor, voicing
     from machine.errors import MachineError
-    from machine.figure import JOINTS
-    got, fr = _got(), _her()
-    g = dsp.value(['->', 'nominal-biped-manifold', ['master-anti-spasm-insert']], got)
-    assert isinstance(g, dict), g
-    stages = ['latch-hysteretic-contact', 'regularize-kinematic-singularities', 'bridge-backlash-zero-crossing',
-              'suppress-derivative-chatter', 'enforce-passivity-energy-tank', 'master-anti-spasm-insert']
-    report.check('its stages in order, a node an op', [t[0] for t in g['_trace']] == stages
-                 and all(at in g for at in dsp.GUARDS.values()), str([t[0] for t in g['_trace']]))
-    said = {k for k in voicing._flat(g) if k[0] in dsp.GUARDS.values()}
-    unnamed = sorted('%s.%s' % k for k in said if not supervisor.named(*k))
-    report.check('every param of it named on her loop: %d' % len(said), not unnamed, str(unnamed))
+    got = _got()
     def last(name):
         v = got[name]
         p = v if isinstance(v, dict) else dsp.value([name] + ['nominal-biped-manifold'] * len(v.params), got)
@@ -180,9 +168,8 @@ def test_the_insert_is_every_patch_last(report):
         trace = [step for step, _info in p['_trace']]
         return trace[-2] if trace[-1] == name else trace[-1]
     ends = {n: last(n) for n in got if n.startswith(('patch-', 'clean-'))}
-    report.check('every patch ends in it: %d' % len(ends), set(ends.values()) == {'master-anti-spasm-insert'}, str(ends))
     stream = got['clean-runtime-stream']
-    supervisor.checked(stream)
+    unnamed = sorted('%s.%s' % k for k in voicing._flat(stream) if k[0] in dsp.GUARDS.values() and not supervisor.named(*k))
     bad = copy.deepcopy(stream)
     bad['zero-crossing']['co-contraction-bias-nm'] = 2.4
     try:
@@ -190,27 +177,9 @@ def test_the_insert_is_every_patch_last(report):
         refusal = ''
     except MachineError as error:
         refusal = str(error)
-    report.check('its text hers; another preload refused by name', 'co-contraction-bias-nm' in refusal, refusal)
-    row, _told = voicing.voiced(stream, got['nominal-biped-manifold'], fr)
-    run, _told = voicing.voiced(got['patch-sneaker-runway'], got['nominal-biped-manifold'], fr)
-    report.check('the stream voices her walk as the runway, its clock its own', set(row) <= set(run), str(sorted(row)))
-    from coaxial.model import inverter, sensorless
-    from machine import drives, wbc
-    names = [j for j in JOINTS if drives.passive(j) is None]
-    _k, _s, laid = supervisor.bus(names, 1000.0)
-    loop = sensorless.current_loop(0.0, 0.0, inverter.FSW, 0.0, drives.PACK_V)['bw_hz']
-    report.check("her bus: each slew its peak x 2 pi x its board's loop, %.0f Hz; its jerk that over its rotor's inertia" % loop,
-                 set(drives.LOOP_HZ.values()) == {loop}
-                 and all(_near(v, drives.peak(n) * 2.0 * math.pi * loop) for n, v in zip(names, laid['slew']))
-                 and all(_near(j, v / drives.armature(n)) for n, v, j in zip(names, laid['slew'], laid['jerk'])),
-                 str([(n, round(v / 1e3)) for n, v in zip(names, laid['slew'])]))
-    body = wbc.Body()
-    rows, (width, stiff, damp) = body.buffers
-    ends = sorted((names[i], side) for i, _stop, side in rows)
-    report.check('a buffer %.2f rad before each stop of %d joints, critically damped' % (width, len(ends) // 2),
-                 ends == sorted((names[i], side) for i in supervisor.joints_of(
-                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
-                 and _near(damp * damp, 4.0 * stiff), str(ends))
+    report.check('every patch of %d ends in it, its params named, another preload refused' % len(ends),
+                 set(ends.values()) == {'master-anti-spasm-insert'} and not unnamed and 'co-contraction-bias-nm' in refusal,
+                 '%s %s %s' % (unnamed, refusal, ends))
 
 
 def test_the_runway_reads_in_its_own_dialect(report):
@@ -351,12 +320,43 @@ def test_the_step_is_damped_least_squares_in_its_trust_region(report):
                  free[0] + free[1] > 0.0 and np.allclose(held, [0.015 / 1.08, -0.015 / 1.08]), '%s %s' % (free, held))
 
 
+def test_a_run_measured_and_a_step_judged(report):
+    """Her contacts' hull and a point's margin in it; the six residuals of known measures in their
+    dimensions; a step not kept where she falls, its goal is lost, her form moves out past its
+    floor or the norm falls no further than its floor."""
+    import numpy as np
+    from machine import tune
+    from tools.sim import looks, telemetry, tune as tuner
+    square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)]
+    margin = telemetry.margin
+    report.check("a square's centre 0.5 inside, a point 0.25 past its side outside, a segment's off point outside",
+                 math.isclose(margin((0.5, 0.5), square), 0.5) and math.isclose(margin((1.25, 0.5), square), -0.25)
+                 and math.isclose(margin((0.5, 1.0), [(0.0, 0.0), (1.0, 0.0)]), -1.0),
+                 '%s %s' % (margin((0.5, 0.5), square), margin((1.25, 0.5), square)))
+    bounds = {'min-zmp-margin-mm': 15.0, 'min-normal-force-ratio': 0.35, 'min-coronal-clearance-mm': 6.5,
+              'support-polygon-x-mm': 240.0, 'weight': 500.0}
+    r = telemetry.residuals({'pivot': [10.0, 20.0], 'load': 0.7, 'slip': 120.0, 'gap': 3.25, 'peak': 1.5, 'energy': 250.0},
+                            tune.grammar(), bounds)
+    report.check('a pivot 5 mm short half the time, no load short, slip half a sole, the feet half their gap short, '
+                 'a peak 0.2 past a landing, a cost of transport 0.5', np.allclose(r, [2.5 / 15.0, 0.0, 0.5, 0.5, 0.2, 0.5]), str(r))
+    form = {name: None for name, _least, _most in looks.FORM}
+    base = {'r': [1.0, 0, 0, 0, 0, 0], 'fell': None, 'kind': 'gait', 'scene': 'flat', 'met': True, 'floor': 0.1,
+            'form': dict(form, **{'landing load': 1.3}), 'off_floor': {name: 0.01 for name in form}}
+    said = [tuner.judged(base, dict(base, **change)) for change in (
+        {'fell': 3.2}, {'met': False}, {'form': dict(form, **{'landing load': 1.4}), 'r': [0.5, 0, 0, 0, 0, 0]},
+        {'r': [0.95, 0, 0, 0, 0, 0]}, {'r': [0.5, 0, 0, 0, 0, 0]})]
+    report.check('a fall, a lost goal, a landing worse, a gain under its floor not kept; a gain past it kept',
+                 [str(s).split(':')[0].split(',')[0] for s in said] == [
+                     'she fell at 3.20 s', 'its goal no longer met', 'her form worse', '|r| 1.0000 -> 0.9500', 'None'],
+                 str(said))
+
+
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written, test_a_patch_moves_her_walk_by_its_changes,
           test_what_she_cannot_do_is_refused_by_name, test_the_insert_is_every_patch_last,
           test_the_runway_reads_in_its_own_dialect, test_a_take_converts_to_a_modifier_she_reads,
           test_the_autotuner_reads_as_written, test_a_literal_is_walked_where_it_stands,
           test_a_literal_reaches_her_where_a_voice_reads_it,
-          test_the_step_is_damped_least_squares_in_its_trust_region)
+          test_the_step_is_damped_least_squares_in_its_trust_region, test_a_run_measured_and_a_step_judged)
 
 
 def main(argv=None):

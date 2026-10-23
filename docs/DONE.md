@@ -221,7 +221,14 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     by linear rows (`route.planned`, `qp.solve`), walked on her arc's twist
     while she lags it (`tour._steer`; test_sight.py,
     [errands](findings/errands.md)).
-42. The anti-spasm insert her master bus, the last stage of every patch: its
+42. The autotuner on her loop: the text as given
+    (machine/meta_ast_autotuner.lisp) read, a root's literals walked by its
+    grammar, their reach on her by evaluation, a gait, a stunt or a schedule
+    run on the relay, its six classes over whatever bears her, the text's
+    step a QP with her form held, judged against its floors, a write held on
+    every root it reaches (`machine.tune`, `tools/sim/tune.py`, `telemetry`;
+    test_dsp.py, [sequencer](findings/sequencer.md)).
+43. The anti-spasm insert her master bus, the last stage of every patch: its
     tank on her drives' 1 kHz pass, each slew and jerk its drive's own,
     buffers before her stops; her heel's cap a woman's (`machine.supervisor`,
     `wbc_bus.c`, `stride.HEEL_RAD`; [synth](architecture/synth.md),
