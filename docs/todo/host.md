@@ -31,6 +31,13 @@
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
   chair at 0 rad (fell at 10.905 s, 3.14). DOD: both workflows green on
   main.
+- **The autotuner on her loop** (asked; machine/meta_ast_autotuner.lisp,
+  `machine.tune`, `tools/sim/tune.py`): a root's literals walked by the
+  text's grammar, each one's reach on her voices by evaluation, its six
+  classes measured on her run, a Jacobian of the live ones on the relay, the
+  text's damped step kept where her form holds
+  ([sequencer](../findings/sequencer.md)). DOD: a step on a gait of the suite
+  measured and judged, kept or named; a stunt's and a schedule's root run.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's

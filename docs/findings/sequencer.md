@@ -274,6 +274,20 @@ mass stands over her ankles, no further than a buttock behind the seen edge
 - Open on the chair: off its seat at 10.5 s now and then; docked 3-6 cm
   nearer, risen 4 of 6.
 
+## The autotuner
+
+The text as given (machine/meta_ast_autotuner.lisp), read by `machine.tune`:
+six classes, 33 keys (32 in the suite's names); its step's numbers its own (lambda
+0.08, a literal's move 0.15 of its scale, tol 1e-3, four places).
+
+- The suite's 331 keyword literals: the grammar names 75, 18 move her - a
+  gait's voices or the chair's phases, by evaluation -; 57 no voice or phase
+  of hers reads, their columns 0 (114 runs a pass not run).
+- The runway reaches 17, 3 live, each by its voice's rule: the nominal's
+  stride on her twist, its thoracic lean -2.0 on her pitch (unit 0.5), the
+  catwalk's attack 1e-3 on her duck; a circumduction of 0 has no scale. The
+  sit reaches 3, its hand-over's and descent's ms live.
+
 ## Takes as modifiers
 
 A take converted against her walk (`tools/sim/identify.py`: Zeni's strikes,

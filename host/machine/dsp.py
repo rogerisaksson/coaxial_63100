@@ -330,16 +330,22 @@ DEFINE = {
 }
 
 
-def read(paths):
-    """{name: what it defines} of lisp files `paths` in order: constants as {param: value},
-    states and patches as gaits, stages, transitions, a schedule as compile-to-soa's keys."""
+def text(path):
+    """A lisp file's text as it is on disk, its line ends kept."""
+    with open(path, encoding='utf-8', newline='') as f:
+        return f.read()
+
+
+def read(paths, texts=None):
+    """{name: what it defines} of lisp files `paths` in order, `texts` ({path: text}) read in place
+    of their files: constants as {param: value}, states and patches as gaits, stages, transitions,
+    a schedule as compile-to-soa's keys."""
     env = {}
     for path in paths:
-        with open(path, encoding='utf-8') as f:
-            for form in patch.forms(f.read()):
-                if form[0] not in DEFINE:
-                    raise MachineError('(%s ..): a patch file has %s' % (form[0], ', '.join(DEFINE)))
-                env.update(DEFINE[form[0]](env, form))
+        for form in patch.forms(texts[path] if texts and path in texts else text(path)):
+            if form[0] not in DEFINE:
+                raise MachineError('(%s ..): a patch file has %s' % (form[0], ', '.join(DEFINE)))
+            env.update(DEFINE[form[0]](env, form))
     return env
 
 

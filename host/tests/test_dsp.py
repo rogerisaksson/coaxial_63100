@@ -205,9 +205,95 @@ def test_a_take_converts_to_a_modifier_she_reads(report):
                  and ortho.DUCK.start not in row and told['twist'][1] == 0.0, '%s %s' % (row, told))
 
 
+def test_the_autotuner_reads_as_written(report):
+    """The autotuner's text: its six classes in order, its keys and invariants the suite's names,
+    each primitive done here, its step's numbers its own."""
+    from machine import tune
+    gr = tune.grammar()
+    report.check("six classes in its order, their invariants the manifold's",
+                 [(r.name, r.invariant) for r in gr.values()] == [
+                     ('com-wrench-balance', 'min-zmp-margin-mm'), ('normal-force-floor', 'min-normal-force-ratio'),
+                     ('tangential-shear-slip', None), ('spatial-sdf-clearance', 'min-coronal-clearance-mm'),
+                     ('contact-transient-ringdown', None), ('actuator-thermal-passivity', None)]
+                 and all(r.invariant in _got()['physical-invariants'] for r in gr.values() if r.invariant),
+                 str([(r.name, r.invariant) for r in gr.values()]))
+    report.check("its keys the suite's: a duck's depth its modulation, a cutoff its low-pass's",
+                 'modulation-depth-mm' in gr['normal-force-floor'].keys
+                 and 'lpf-cutoff-hz' in gr['actuator-thermal-passivity'].keys, str(gr['normal-force-floor'].keys))
+    k = tune.knobs()
+    said = [k[('compute-adjoint-ast-deltas', 'damping-lambda')], k[('compute-adjoint-ast-deltas', 'trust-region-scale')],
+            k[('universal-autotune-daemon', 'tol')], k[('sync-mutated-packages-to-disk', 'float-precision')],
+            k[('introspect-active-ast', 'max-nodes')]]
+    report.check('each primitive done here; lambda, trust, tol, precision, table its own',
+                 tune.primitives() == list(tune.PRIMITIVES) and said == [0.08, 0.15, 1e-3, 4.0, 512.0],
+                 '%s %s' % (tune.primitives(), said))
+
+
+def test_a_literal_is_walked_where_it_stands(report):
+    """Each keyword's number and each op's where it stands: written back in full the suite reads
+    the same; a value at the text's precision reads back."""
+    from machine import dsp, tune
+    tx = tune.texts()
+    lits = [lit for path, text in tx.items() for lit in tune.literals(path, text)]
+    report.check('%d literals, each span its value' % len(lits),
+                 lits and all(float(tx[lit.path][lit.start:lit.end]) == lit.value for lit in lits), '')
+    report.check('every literal written back: the suite reads the same',
+                 dsp.read(dsp.SUITE, tune.spliced(tx, lits, [lit.value for lit in lits])) == _got(), '')
+    op = next(lit for lit in lits if lit.symbol == 'surface-granular-dissipative' and lit.key == 'stride-length-mm')
+    moved = tune.spliced(tx, [op], [0.71234567], 4)
+    report.check("an op's number said of its keyword, written at four places",
+                 op.op == 'scale' and op.value == 0.82 and '(:scale 0.7123)' in moved[op.path]
+                 and dsp.read(dsp.SUITE, moved)['surface-granular-dissipative'] != _got()['surface-granular-dissipative'],
+                 str(op))
+
+
+def test_a_literal_reaches_her_where_a_voice_reads_it(report):
+    """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move her
+    voices by their rules, nothing voiceless does, a 0 the manifold says nothing larger of has no
+    scale. The chair's sit: its hand-over's and its descent's times move her phases."""
+    from machine import modal, ortho, tune, voicing
+    tx, fr, gr = tune.texts(), _her(), tune.grammar()
+    table = tune.walked('patch-sneaker-runway', gr, tx)
+    cols, refused = tune.reach('patch-sneaker-runway', table, tx, fr)
+    live = {table[i][0].key: col for i, col in cols.items()}
+    twist = voicing.voiced(_got()['patch-sneaker-runway'], _got()['nominal-biped-manifold'], fr)[1]['twist'][0]
+    h = 0.15 * 640.0
+    want = {'stride-length-mm': {('twist', 0): -twist * 640.0 / (640.0 ** 2 - h * h)},
+            'dc-offset-rad': {('slot', ortho.Z + modal.PITCH): -1.0 / fr[modal.UNIT][modal.PITCH]},
+            'attack-ms': {('slot', ortho.DUCK.start + 1): 1e-3}}
+    report.check('17 walked: stride, lean and attack move her by their rules, the rest inert',
+                 len(table) == 17 and set(live) == set(want)
+                 and all(set(live[k]) == set(v) and all(_near(live[k][j], x) for j, x in v.items()) for k, v in want.items()),
+                 '%d %s' % (len(table), live))
+    report.check('a circumduction of 0 has no scale', [table[i][0].key for i in refused] == ['swing-circumduction-mm'],
+                 str(refused))
+    table = tune.walked('sit_chair', gr, tx)
+    cols, refused = tune.reach('sit_chair', table, tx, fr)
+    report.check("the sit: its hand-over's and descent's ms move her phases' times",
+                 sorted(table[i][0].key for i in cols) == ['descent-duration-ms', 'transfer-time-ms']
+                 and all(v == 1.0 for col in cols.values() for v in col.values()), str(cols))
+
+
+def test_the_step_is_damped_least_squares_in_its_trust_region(report):
+    """The step solves (J^T J + lambda I) x = -J^T r in the literals' scales; its largest move is
+    the text's trust region of its scale."""
+    import numpy as np
+    from machine import tune
+    J, scales = np.array([[2.0, 0.0], [0.0, 0.5]]), np.array([1.0, 4.0])
+    small = tune.step(J, np.array([0.01, -0.02]), scales)
+    a = np.diag(J) * scales
+    want = -a * np.array([0.01, -0.02]) / (a * a + 0.08) * scales
+    big = tune.step(J, np.array([10.0, 0.0]), scales)
+    report.check('a small residual: the damped solve; a large one: held to 0.15 of its scale',
+                 np.allclose(small, want) and math.isclose(abs(big[0]), 0.15 * scales[0]) and big[1] == 0.0,
+                 '%s %s %s' % (small, want, big))
+
+
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written, test_a_patch_moves_her_walk_by_its_changes,
           test_what_she_cannot_do_is_refused_by_name, test_the_runway_reads_in_its_own_dialect,
-          test_a_take_converts_to_a_modifier_she_reads)
+          test_a_take_converts_to_a_modifier_she_reads, test_the_autotuner_reads_as_written,
+          test_a_literal_is_walked_where_it_stands, test_a_literal_reaches_her_where_a_voice_reads_it,
+          test_the_step_is_damped_least_squares_in_its_trust_region)
 
 
 def main(argv=None):

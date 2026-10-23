@@ -112,6 +112,8 @@ TOUCHES = (
     ('host/machine/dsp.py',                    (STRUCTURE, DSP)),
     ('host/machine/voicing.py',                (STRUCTURE, DSP)),
     ('host/machine/patch.py',                  (STRUCTURE, DSP)),
+    ('host/machine/tune.py',                   (STRUCTURE, DSP)),
+    ('host/machine/meta_ast_autotuner.lisp',   (DSP,)),
     ('host/machine/ortho_dsp/',                (DSP,)),
     ('host/machine/runway.lisp',               (DSP,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
