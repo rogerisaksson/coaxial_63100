@@ -72,7 +72,9 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
     import numpy as np
     from machine import latent, se2
     name = g['active_entry'] = entry[0]
-    sprung.said(g, 'brake', sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, ('brake',), at=t0, reset=True)
+    brake = np.frombuffer(sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, latent.WIRE).copy()
+    brake['blend'] = round(1e3 * se2.braked(spd))
+    sprung.said(g, 'brake', brake.tobytes(), ('brake',), at=t0, reset=True)
     if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS):
         ts, tg = se2.stand_lead(spd)
         sprung.said(g, *by['stand'], at=t0 + ts, reset=True)

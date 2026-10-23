@@ -5,10 +5,18 @@ from machine import ortho
 
 #: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
-#: Her walk's stopping distance, m: told to stand she goes on 0.70 m and is still 2.7 s later,
-#: 0.81 m/s felt whatever speed was asked - she has the one walk; her walk back's 0.05 m on, her
-#: sidestep's 0.15.
-STOP_M, BACK_STOP_M, SIDE_STOP_M = 0.70, 0.05, 0.15
+#: Her walk's stopping distance, m: told to stand she goes on 0.81-0.93 m, under 0.02 m/s 1.7-2.0 s
+#: later (eight phases of her stride) - she has the one walk; her walk back's 0.05 m on, her
+#: sidestep's 0.11-0.15.
+STOP_M, BACK_STOP_M, SIDE_STOP_M = 0.87, 0.05, 0.15
+#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride, both soles
+#: braking her - over 0.5 s her plan stopped before a sole could, she walked on at 0.6-0.85 m/s and
+#: one landing took 0.85 to 0.10 m/s in 0.2 s, her trunk 13 deg ahead and her arms at 344 deg/s.
+WALK_HZ = 0.9
+BRAKE_S = 1.0 / WALK_HZ
+#: Her stand's blend, s (gait_base.lisp's stand): no brake shorter - braked over a stride, her turns on
+#: the spot fell in 41 more errands of 336, her chair's settle and turn.
+STAND_S = 0.5
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
@@ -57,10 +65,15 @@ def brake_lead(spd, back_to=0.0):
     return b * (0.38 + 0.14 * w_fast) + (1.0 - b) * (0.45 + 0.25 * w_fast)
 
 
+def braked(spd):
+    """Her brake's blend from speed `spd` (m/s), s: her walk's stride at its rate, no shorter than her stand's."""
+    return max(STAND_S, BRAKE_S * min(1.0, abs(float(spd)) / WALK_SPEED))
+
+
 def stand_lead(spd):
-    """Continuous braking-to-stand settling and follow-up horizons `(ts, tg)` (s) from speed `spd` (m/s)."""
-    w_fast = min(1.0, max(0.0, (float(spd) - 0.45) / 1e-6))
-    ts = 0.55 + 0.65 * w_fast
+    """Her brake's horizons `(ts, tg)` (s) from speed `spd`: she is told to stand once it has braked her
+    (`braked`); what follows twice that."""
+    ts = braked(spd)
     return ts, 2.0 * ts
 
 

@@ -55,10 +55,11 @@
     (amplitude mode_stance_width 0.0)
     (phase_offset mode_lateral_shift mode_sagittal_drive -108deg)))
 
-;; Shared deceleration / braking phase prototype
+;; Shared deceleration / braking phase prototype: blended over one stride of its rhythm, both soles
+;; braking her (se2.BRAKE_S)
 (deftrait gait_brake
   (duration 1800ms)
-  (blend_duration 500ms)
+  (blend_duration 1176ms)
   (impedance (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
   (cpg_config
     (frequency 0.85Hz)
@@ -148,7 +149,7 @@
       (amplitude mode_foot_rock 0.64) (amplitude mode_pelvis_list 0.44)
       (amplitude mode_pelvis_turn 0.44) (amplitude mode_arm_swing 1.0)))
   (phase brake (use gait_brake)
-    (blend_duration 700ms)
+    (blend_duration 1205ms)
     (latent_targets (mode_axial_compression 0.02) (mode_pitch_attitude 0.0))
     (cpg_config
       (frequency 0.83Hz)

@@ -221,6 +221,16 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   42), head 898 -> 354, fell 55 -> 41, held 315 -> 320, risen 97 -> 93;
   the chair the same to the bit. Held through a sit too, she fell off the
   seat in the chair scenario (6.85 s): the sit's coupling stays.
+- Her stop braked over 0.5 s: her plan reached 0 m/s while she walked on at
+  0.6-0.85, and one landing took 0.85 to 0.10 m/s in 0.2 s - her trunk 13
+  deg ahead, both arms 27 deg (atan of the 5 m/s^2) at 280-344 deg/s. Braked
+  over a stride of her walk's 0.9 Hz, scaled by her speed, no shorter than
+  her stand's 0.5 s: eight stop phases her trunk 1.8 deg at most, arms 118
+  deg/s, 0.81-0.93 m to a stand (STOP_M 0.87). Chair wobbled with its rise
+  149/171 fell/risen where 165/141, its arms braking 60 runs where 232; bed
+  33/69 where 41/93. A fixed 13 deg lean back in the brake: the chair 207
+  falls; the arms held stiff: not kept; a stride's brake on a turn in place:
+  her settle and turn fell 41 more.
 
 ## The keys that send her
 

@@ -21,7 +21,7 @@ HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'rest
 STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
 ALIASES = {'#201': 'stand', '#202': 'sway', '#203': 'step', '#204': 'walk', '#205': 'walk_back', 'back': 'walk_back'}
 WALK = (('stand', 0.5), ('sway', 2.0), ('step', 5.0), ('walk', 9.0))
-BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.04)'
+BRAKE = ('(stream_inject (sequence_id 200) (blend_duration %dms) (latent_targets (mode_axial_compression 0.04)'
          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
          ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 800)'
          ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600) (stiffness mode_sagittal_shift 0)'
@@ -30,7 +30,7 @@ BRAKE = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_target
          ' (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
          ' (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0) (amplitude mode_stance_width 0.0)'
          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg) (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
-         ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
+         ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))') % round(1e3 * se2.BRAKE_S)
 _TOUCH = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.0)'
           ' (mode_lateral_shift 0.0) (mode_limb_lift 0.0) (mode_pelvis_list 0.0)) (impedance'
           ' (stiffness mode_axial_compression 6000) (damping mode_axial_compression 800) (stiffness mode_lateral_shift 6000)'
