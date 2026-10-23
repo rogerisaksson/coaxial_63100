@@ -75,6 +75,21 @@
   (phase shift
     (latent_targets (mode_lateral_shift -0.08))))
 
+;; spin in place: the turn's stepping on her stand - no lean into a curve, no cruise -, her
+;; yaw her twist's: on the walking turn a half turn in place crept her 0.45-0.58 m
+(defbehavior spin_left
+  (phase turn (use reverse_gait)
+    (duration 60s) (blend_duration 360ms)
+    (latent_targets (mode_axial_compression 0.045) (mode_stance_width 0.14))
+    (cpg_config
+      (frequency 0.96Hz)
+      (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.04)
+      (amplitude mode_limb_lift 1.02))))
+
+;; spin right: the same stepping, her twist's yaw the other way
+(derive spin_right spin_left
+  (phase turn))
+
 ;; turn left: forward cruise with left yaw turn
 (defbehavior turn_left
   (phase turn (use forward_gait)

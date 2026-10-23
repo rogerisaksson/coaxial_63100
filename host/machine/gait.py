@@ -28,12 +28,13 @@ ROW_ID = 301
 BLEND_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 
 
-def said():
-    """The walk's parameters (`ortho.P`): each as the last of the walk's streams that says it,
-    nan where none does - her loop keeps what she had there, her rest (`modal.rest`) from a stand."""
+def said(gym=None):
+    """The walk's parameters (`ortho.P`) of her gym's entries `gym` (else her files', `sprung.entries`):
+    each as the last of the walk's streams that says it, nan where none does - her loop keeps what
+    she had there, her rest (`modal.rest`) from a stand."""
     import numpy as np
     from machine import latent, sprung
-    by = {entry[0]: entry for entry in sprung.entries()}
+    by = {entry[0]: entry for entry in (sprung.entries() if gym is None else gym)}
     std = np.full(ortho.P, math.nan)
     for name in STREAMS:
         for row in np.frombuffer(by[name][1], latent.WIRE):

@@ -56,13 +56,13 @@ def scene_of(g):
     return found
 
 
-def played(row, told, scene, seconds=SECONDS, laid=None):
+def played(row, told, scene, seconds=SECONDS, laid=None, texts=None):
     """(her look's rows from SETTLE_S on, the s she fell at or None): her walk told `told` from
-    1 s - its twist and grip -, `row` ({slot: value}) laid LAY_S in; `laid(s)` each pass after,
-    a schedule's hand."""
+    1 s - its twist and grip, a behaviour said -, `row` ({slot: value}) laid LAY_S in; `laid(s)`
+    each pass after, a schedule's hand; of her texts `texts` where given (`worker.session`)."""
     from machine import gait, ortho, patch, worker
     from tools.sim import scenarios
-    s = worker.session()
+    s = worker.session(texts=texts)
     scenarios.placed(s, scene)
     g = s['g']
     while g['t'] < 1.0:
@@ -75,6 +75,7 @@ def played(row, told, scene, seconds=SECONDS, laid=None):
                'entries': [('patch', ortho.ROW.pack(patch.ROW_ID, int(1e3 * (LAY_S - 1.0)), int(1e3 * gait.BLEND_S), 0, *p),
                             ('patch',))] if row else []}
     command.update({'grip': float(told['grip'])} if 'grip' in told else {})
+    command.update({'say': told['say']} if 'say' in told else {})
     worker.apply(s, command)
     rows, last = [], -math.inf
     while g['t'] < seconds and s['fallen_at'] is None:
@@ -187,28 +188,34 @@ def table(lines, ref):
     return '\n'.join(out)
 
 
-def schedule(name='compile-omnidirectional-suite', also=None):
+def _step(seg, dry, fr, gym):
+    """A schedule's segment as her loop lays it, her walk `gym`'s: ('patch', from bar, to bar, row,
+    told) or ('morph', from bar, to bar, rows, span); a one-shot or a dwell, the gym's, refused."""
+    from machine import dsp, voicing
+    from machine.errors import MachineError
+    if len(seg) != 3:
+        raise MachineError("a %s: the gym's" % seg[0])
+    b0, b1, item = seg
+    if isinstance(item, dsp.Morph):
+        return ('morph', b0, b1) + voicing.morphed(item, dry, fr, gym)
+    return ('patch', b0, b1) + voicing.voiced(item, dry, fr, gym)
+
+
+def schedule(name='compile-omnidirectional-suite', also=lambda s: None, texts=None):
     """The suite's schedule `name` played to its first refusal - a one-shot or a dwell the gym's -
     on a flat floor, its worlds named, not laid: each patch's row at its bar, each morph's rows from
-    the lock past its crossing; `also(s)` each pass. [(from bar, to bar, what, laid at s or the
-    refusal)] and her rows."""
-    from machine import dsp, patch, voicing, worker
+    the lock past its crossing; `also(s)` each pass; of her texts `texts` where given. [(from bar,
+    to bar, what, laid at s or the refusal)] and her rows."""
+    from machine import dsp, patch, sprung, worker
     from machine.errors import MachineError
-    got = dsp.read(dsp.SUITE)
-    dry, fr = got['nominal-biped-manifold'], _her()
+    got = dsp.read(dsp.SUITE, texts)
+    dry, fr, gym = got['nominal-biped-manifold'], _her(), sprung.entries(texts=texts, suite=got)
     plan, at, steps = [], LAY_S, []
-    for b0, b1, item in (seg if len(seg) == 3 else (seg[0], None, None) for seg in dsp.schedule(got[name])):
+    for seg in dsp.schedule(got[name]):
         try:
-            if item is None:
-                raise MachineError("a %s: the gym's" % b0)
-            if isinstance(item, dsp.Morph):
-                wire, span = voicing.morphed(item, dry, fr)
-                steps.append(('morph', b0, b1, wire, span))
-            else:
-                row, told = voicing.voiced(item, dry, fr)
-                steps.append(('patch', b0, b1, row, told))
+            steps.append(_step(seg, dry, fr, gym))
         except MachineError as error:
-            plan.append((b0, b1, 'refused', str(error)))
+            plan.append((seg[0], seg[1] if len(seg) == 3 else None, 'refused', str(error)))
             break
     state = {'k': 0, 'next': None, 'due': at}
 
@@ -242,9 +249,13 @@ def schedule(name='compile-omnidirectional-suite', also=None):
         elif g['t'] > state['next'] + patch.window(g['st']):
             state['next'] = patch.crossing(g['st'], g['t'] + 1e-3)
 
+    def both(s):
+        laid(s)
+        also(s)
+
     from tools.sim import scenarios
     total = LAY_S + sum((st[2] - st[1]) * 1.4 for st in steps) + 4.0
-    rows, fell = played({}, {'twist': scenarios.WALK}, 'flat', total, laid if also is None else lambda s: (laid(s), also(s)))
+    rows, fell = played({}, {'twist': scenarios.WALK}, 'flat', total, both, texts)
     return plan, rows, fell
 
 

@@ -358,29 +358,64 @@ def _behavior(body, base=(), traits=None, row_traits=()):
     return wire + ROW.pack(0, at, REST_MS, REST, *[math.nan] * P), tuple(names), raw
 
 
-def _forms(text, here, seen=(), done=None):
-    """Top-level forms of `text`, expanding `(include FILE ..)` and `(extends FILE ..)` once."""
+def key(path):
+    """A text's key among her texts: its absolute path, its case folded where the system folds it."""
+    return os.path.normcase(os.path.abspath(path))
+
+
+def source(path, texts=None):
+    """`path`'s text: `texts`' ({key: text}) where given - none there refused -, else its file's,
+    its line ends kept."""
+    if texts is None:
+        with open(key(path), encoding='utf-8', newline='') as f:
+            return f.read()
+    if key(path) not in texts:
+        raise SyntaxError('no text of %s among her texts' % os.path.basename(path))
+    return texts[key(path)]
+
+
+def _included(form):
+    """The file names an `(include FILE ..)` or `(extends FILE ..)` form names, else none."""
+    head = form[0] if isinstance(form, list) and form else None
+    if head not in ('include', 'extends'):
+        return ()
+    if len(form) < 2 or not all(isinstance(x, str) and x for x in form[1:]):
+        raise SyntaxError('%s: (%s FILE ..) wants a .lisp file name' % (said(form)[:60], head))
+    return tuple(name if name.endswith('.lisp') else name + '.lisp' for name in form[1:])
+
+
+def _forms(text, here, seen=(), done=None, texts=None):
+    """Top-level forms of `text`, expanding `(include FILE ..)` and `(extends FILE ..)` once, each
+    file's text `texts`' where given (`source`)."""
     if done is None:
         done = set(seen)
     for form in read(text):
-        head = form[0] if isinstance(form, list) and form else None
-        if head in ('include', 'extends'):
-            if len(form) < 2 or not all(isinstance(x, str) and x for x in form[1:]):
-                raise SyntaxError('%s: (%s FILE ..) wants a .lisp file name' % (said(form)[:60], head))
-            for name in form[1:]:
-                rel = name if name.endswith('.lisp') else name + '.lisp'
-                path = os.path.normcase(os.path.abspath(os.path.join(here, rel)))
-                if path in seen:
-                    raise SyntaxError('(%s %s): circular include' % (head, name))
-                if path in done:
-                    continue
-                if not os.path.isfile(path):
-                    raise SyntaxError('(%s %s): no file %s' % (head, name, rel))
-                done.add(path)
-                with open(path, encoding='utf-8') as f:
-                    yield from _forms(f.read(), os.path.dirname(path), seen + (path,), done)
-        else:
+        names = _included(form)
+        for rel in names:
+            path = key(os.path.join(here, rel))
+            if path in seen:
+                raise SyntaxError('(%s %s): circular include' % (form[0], rel))
+            if path in done:
+                continue
+            if texts is None and not os.path.isfile(path):
+                raise SyntaxError('(%s %s): no file %s' % (form[0], rel, rel))
+            done.add(path)
+            yield from _forms(source(path, texts), os.path.dirname(path), seen + (path,), done, texts)
+        if not names:
             yield form
+
+
+def sources(path=None):
+    """{key: text} of her gym's file (`_FILE`) or `path`, and every file it includes, as on disk:
+    her texts as her gym's compile reads them."""
+    out, todo = {}, [key(path or _FILE)]
+    while todo:
+        at = todo.pop()
+        with open(at, encoding='utf-8', newline='') as f:
+            out[at] = f.read()
+        todo += [p for p in (key(os.path.join(os.path.dirname(at), rel)) for form in read(out[at]) for rel in _included(form))
+                 if p not in out and p not in todo]
+    return out
 
 
 def _robot(form):
@@ -408,9 +443,7 @@ def robot(text=None, here=None):
     {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; the one named ROBOT where a
     text extends another robot's, else the first; None with none."""
     here = here or os.path.dirname(_FILE)
-    if text is None:
-        with open(_FILE, encoding='utf-8') as f:
-            text = f.read()
+    text = source(_FILE) if text is None else text
     found = [_robot(f) for f in _forms(text, here) if isinstance(f, list) and f and f[0] == 'defrobot']
     return next((r for r in found if r['name'] == mechatronics.ROBOT), found[0] if found else None)
 
@@ -420,18 +453,14 @@ def rows(wire):
     return list(ROW.iter_unpack(wire))
 
 
-def compiled(text=None, here=None):
-    """(tables, phases) of `text` (or `_FILE` if None): tables[''] its (stream_inject ..) payloads'
-    rows in the order said, tables[NAME] each (defbehavior NAME ..)'s or (derive NAME BASE ..)'s,
-    as bytes; phases[NAME] its phases' names."""
+def compiled(text=None, here=None, texts=None):
+    """(tables, phases) of `text` (or `_FILE` if None), its includes `texts`' where given
+    (`source`): tables[''] its (stream_inject ..) payloads' rows in the order said, tables[NAME] each
+    (defbehavior NAME ..)'s or (derive NAME BASE ..)'s, as bytes; phases[NAME] its phases' names."""
     here = here or os.path.dirname(_FILE)
-    seen = ()
-    if text is None:
-        with open(_FILE, encoding='utf-8') as f:
-            text = f.read()
-        seen = (os.path.normcase(os.path.abspath(_FILE)),)
+    seen, text = ((key(_FILE),), source(_FILE, texts)) if text is None else ((), text)
     tables, phases, raw, traits = {'': b''}, {}, {}, {}
-    for form in _forms(text, here, seen):
+    for form in _forms(text, here, seen, texts=texts):
         head = form[0] if isinstance(form, list) and form else None
         if head == 'defrobot':
             _robot(form)

@@ -1,21 +1,24 @@
-"""The autotuner (meta_ast_autotuner.lisp) on the suite's texts: its grammar, walk, reach and step.
+"""The autotuner (meta_ast_autotuner.lisp) on her texts: its grammar, walk, reach and step.
 
     gr = tune.grammar()                              # {class: Residual}, the text's order
-    texts = tune.texts()                             # {path: text} of the suite as on disk
-    table = tune.walked('patch-sneaker-runway', gr, texts)   # [(Literal, class)] the root reaches
-    cols, refused = tune.reach('patch-sneaker-runway', table, texts, fr)  # what each moves of her
+    texts = tune.texts()                             # {key: text}: every text her loop reads
+    table = tune.walked('walk', gr, texts)           # [(Literal, class)] the root reaches
+    cols, refused = tune.reach('walk', table, texts, fr)   # what each moves of her
     texts = tune.spliced(texts, lits, values, digits)  # values written at the literals' spans
     d = tune.step(J, r, scales)                      # the damped least-squares step, in their scales
 
-A literal is a keyword's number in a text (`:compliance 0.80`), or an op's said of the keyword
-before its form (`:stride-length-mm (:scale 0.82)`), where it stands. A root reaches its own
-definition, those it names, theirs; a stunt (`maneuver.PLAYED`) its patch and those of the stunts it
-rises from. A literal moves her where her voices change as it does - a gait's row, twist and grip
-(`voicing.voiced`), a played stunt's phases (`maneuver.phases`) -, by evaluation, nothing run: the
-rest are inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`); what
-the text names that her loop does another way is named (INSTEAD).
+Her texts are the suite's and her gym's, its includes (`ortho.sources`). A literal is a keyword's
+number in the suite's dialect (`:compliance 0.80`) or an op's said of the keyword before its form
+(`:stride-length-mm (:scale 0.82)`); in her gym's, a clause's number (`(stiffness MODE 3000)`), the
+suite's name it is the one voicing reads into that clause's slot of her row (`ortho.SLOTS`,
+`voicing.VOICES`): either where it stands. A root - a gait, a schedule, a stunt she plays, a
+behaviour of her gym, her walk its streams (WHOLE) - reaches its definitions, those they name,
+theirs. A literal moves her where her voices change as it does, by evaluation, nothing run: the
+rest are inert, their Jacobian's columns zero. The step's numbers are the text's (`knobs`); what the
+text names that her loop does another way is named (INSTEAD).
 """
 import collections
+import functools
 import math
 import os
 import re
@@ -28,9 +31,9 @@ TEXT = os.path.join(os.path.dirname(__file__), 'meta_ast_autotuner.lisp')
 #: A residual class: its telemetry, the keys it matches (the suite's names), the text's sign, the
 #: invariant bounding it or None.
 Residual = collections.namedtuple('Residual', 'name telemetry keys sign invariant')
-#: A literal: its file and span, the definition it is in, the node or stage it is said of, its key
-#: (the suite's name), the op it is of or None, its value.
-Literal = collections.namedtuple('Literal', 'path start end symbol node key op value')
+#: A literal: its file and span, the definition it is in, the node or clause it is said of, its key
+#: (the suite's name), the op it is of or None, its value, its slot of her row where her gym's.
+Literal = collections.namedtuple('Literal', 'path start end symbol node key op value slot', defaults=(None,))
 #: The text's names of the manifold's invariants (core_manifold.lisp's physical-invariants).
 NAMES = {'min-normal-fz-ratio': 'min-normal-force-ratio'}
 #: The text's primitives and daemon, each by what does it here.
@@ -39,48 +42,133 @@ PRIMITIVES = {'introspect-active-ast': 'tune.walked', 'compute-adjoint-ast-delta
               'atomic-rcu-soa-swap': 'suite.played: a row laid on her walk, a morph at her lateral crossing, both soles locked',
               'sync-mutated-packages-to-disk': 'tune.written', 'universal-autotune-daemon': 'tools/sim/tune.py, a run a window'}
 #: What the text names that her loop does another way, or not.
-INSTEAD = {'ortho-dsp.supervisor': "no module of the suite: her drives' energy is the world's (World.drawn)",
-           'adjoint-sign': "the measured Jacobian's signs; the text's are not read",
+INSTEAD = {'adjoint-sign': "the measured Jacobian's signs; the text's are not read",
            'binding-deadband': "none said: a step under the text's float precision writes nothing",
-           'substrate-eigenfreq-hz': 'no substrate mode on a rigid floor',
-           'energy-tank-bleed-joules': "her drives' energy a metre: her loop keeps no energy tank"}
+           'substrate-eigenfreq-hz': "no substrate mode on a rigid floor; fitted, her vertical mode read her step's rate"}
+#: A root that is several definitions: her walk, its streams as her loop composes them (`gait.said`).
+WHOLE = {'walk': ('stand', 'sway', 'step', 'walk')}
+#: The forms of her gym that are knobs: a behaviour's, a trait's, a derivation's, a stream's - not
+#: her manifest's numbers nor a situation's caps.
+KNOBS = ('defbehavior', 'deftrait', 'derive', 'stream_inject')
+#: Where her gym's payload clauses begin: a definition's own, a stream's, a phase's.
+PAYLOADS = KNOBS + ('phase',)
+#: Her texts' names of her modes (`ortho.MODES`).
+MODES = {'mode_' + m for m in ortho.MODES}
 _NUMBER = re.compile(r'[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$')
+_UNITS = re.compile(r'([-+]?(?:\d+\.?\d*|\.\d+))(ms|s|Hz|deg)$')
 
 
 def _keyword(tok):
     return isinstance(tok, str) and tok.startswith(':')
 
 
-def texts(paths=None):
-    """{path: text} of the suite's files, or `paths`', as on disk."""
-    return {path: dsp.text(path) for path in paths or dsp.SUITE}
+def _numeral(tok):
+    """A token's number as written, its unit cut (`108deg` -> `108`), or None."""
+    m = _UNITS.match(tok)
+    return m.group(1) if m else tok if _NUMBER.match(tok) else None
 
 
-def literals(path, text):
-    """[Literal] of a text: each keyword's number, and each op's number said of the keyword before
-    its form, in the text's order."""
-    out, frames, symbol, said = [], [], None, None
+def texts():
+    """{key: text} of every text her loop reads, as on disk: the suite's and her gym's."""
+    return dict(ortho.sources(), **{path: ortho.source(path) for path in dsp.SUITE})
+
+
+def _named(form):
+    """A top-level form's name: a stream's by its sequence id (`sprung.STREAM_NAMES`), else its
+    second word."""
+    from machine import sprung
+    if form[0] == 'stream_inject':
+        ids = [int(x[1]) for x in form[1:] if isinstance(x, list) and x[:1] == ['sequence_id']]
+        return sprung.STREAM_NAMES.get(ids[0], '#%d' % ids[0]) if ids else None
+    return form[1] if len(form) > 1 and isinstance(form[1], str) else None
+
+
+@functools.lru_cache(maxsize=None)
+def _laid(clause):
+    """The slots of her row a payload clause lays: compiled alone in a stream (`ortho.compiled`), its
+    number 1, the parameters it says."""
+    import numpy as np
+    try:
+        row = ortho.rows(ortho.compiled('(stream_inject (sequence_id 1) %s)' % clause)[0][''])[0]
+    except (SyntaxError, ValueError):
+        return ()
+    return tuple(int(i) for i in np.flatnonzero(np.isfinite(np.array(row[4:], float))))
+
+
+def _bound(slots):
+    """(slot, the suite's name voicing reads into it - a derived param's source first) of one slot,
+    else None."""
+    voiced = [p for _n, p, s, _r in voicing.VOICES if (s,) == slots]
+    derived = [src for _n, p, srcs, _h in voicing.DERIVED if p in voiced for src in srcs]
+    names = [n.split('.')[-1] for n in derived + voiced]
+    return (slots[0], names[0]) if names else None
+
+
+def _tops(text):
+    """[(the top-level form, its tokens (tok, start, end))] of a text."""
+    out, depth, toks = [], 0, []
     for tok, start, end in patch.spans(text):
+        toks.append((tok, start, end))
+        depth += (tok in ('(', '[')) - (tok in (')', ']'))
+        if depth == 0 and toks:
+            out.append((patch.forms(text[toks[0][1]:end])[0] if toks[0][0] in ('(', '[') else None, toks))
+            toks = []
+    return [(form, toks) for form, toks in out if isinstance(form, list) and form]
+
+
+def _suite_literals(path, name, toks):
+    out, frames, said = [], [], None
+    for tok, start, end in toks:
         if tok in ('(', '['):
             frames.append([said if _keyword(said) else None, None, 0, None])
         elif tok in (')', ']'):
             frames.pop()
         elif frames:
             owner, head, n, last = frames[-1]
-            symbol = tok if len(frames) == 1 and n == 1 else symbol
             if _NUMBER.match(tok) and _keyword(last):
                 key, op = (owner[1:], last[1:]) if last[1:] in dsp.OPS and n == 1 and owner else (last[1:], None)
-                out.append(Literal(path, start, end, symbol, (owner or head or '').lstrip(':'),
+                out.append(Literal(path, start, end, name, (owner or head or '').lstrip(':'),
                                    dsp.ALIASES.get(key, key), op, float(tok)))
             frames[-1] = [owner, head if n else tok, n + 1, tok]
         said = tok
     return out
 
 
+def _gym_literals(path, name, toks):
+    out, frames = [], []
+    for tok, start, end in toks:
+        if tok in ('(', '['):
+            frames.append([])
+        elif tok in (')', ']'):
+            frames.pop()
+        elif frames:
+            frames[-1].append(tok)
+            num = _numeral(tok)
+            if num is None:
+                continue
+            heads = tuple(f[0] for f in frames)
+            under = heads[max(i for i, h in enumerate(heads) if h in PAYLOADS) + 1:-1]
+            clause = ''.join('(%s ' % h for h in under) + '(%s)' % ' '.join(frames[-1][:-1] + ['1' + tok[len(num):]]) + ')' * len(under)
+            bound = _bound(_laid(clause))
+            node = ' '.join(under + (heads[-1],) + tuple(t for t in frames[-1][1:-1] if t in MODES))
+            out += [Literal(path, start, start + len(num), name, node, bound[1], None, float(num), bound[0])] if bound else []
+    return out
+
+
+def literals(path, text):
+    """[Literal] of a text in its order: the suite's keyword numbers and ops' numbers; her gym's
+    clauses' numbers in its knobs' forms (KNOBS), each the suite's name its slot is voiced by."""
+    out = []
+    for form, toks in _tops(text):
+        out += (_gym_literals(path, _named(form), toks) if form[0] in KNOBS
+                else _suite_literals(path, _named(form), toks))
+    return out
+
+
 def grammar(path=TEXT):
     """{class: Residual} of the text's define-residual-grammar in its order; a key two classes name
     refused."""
-    form = next(f for f in patch.forms(dsp.text(path)) if f[0] == 'define-residual-grammar')
+    form = next(f for f in patch.forms(ortho.source(path)) if f[0] == 'define-residual-grammar')
     out, seen = {}, {}
     for clause in form[2:]:
         said = dict(zip(clause[::2], clause[1::2]))
@@ -99,12 +187,12 @@ def grammar(path=TEXT):
 def knobs(path=TEXT):
     """{(definition, key): number} of the text's own numbers: its step's damping and trust region,
     its tolerance, its precision, its table's size."""
-    return {(lit.symbol, lit.key): lit.value for lit in literals(path, dsp.text(path))}
+    return {(lit.symbol, lit.key): lit.value for lit in literals(path, ortho.source(path))}
 
 
 def primitives(path=TEXT):
     """The names the text's defprimitive and defdaemon forms define, in its order."""
-    return [f[1] for f in patch.forms(dsp.text(path)) if f[0] in ('defprimitive', 'defdaemon')]
+    return [f[1] for f in patch.forms(ortho.source(path)) if f[0] in ('defprimitive', 'defdaemon')]
 
 
 def _atoms(x):
@@ -112,27 +200,29 @@ def _atoms(x):
 
 
 def starts(root):
-    """The suite's names `root` begins at: a stunt's patch and those of the stunts it rises from
-    (`maneuver.PLAYED`), else itself."""
+    """The definitions `root` begins at: a stunt's patch and those of the stunts it rises from
+    (`maneuver.PLAYED`), a whole's parts (WHOLE), else itself."""
     out = []
     while root in maneuver.PLAYED:
         out.append(maneuver.PLAYED[root][0])
         root = maneuver.PLAYED[root][1]
-    return out or [root]
+    return out or list(WHOLE.get(root, (root,)))
 
 
 def reached(roots, texts):
     """The names of the definitions `roots` reach in `texts`: theirs, those they name, and so on."""
-    defined = {f[1]: f for text in texts.values() for f in patch.forms(text) if len(f) > 1 and isinstance(f[1], str)}
+    defined = {}
+    for text in texts.values():
+        defined.update({_named(f): f for f in patch.forms(text) if isinstance(f, list) and f and _named(f)})
     missing = sorted(set(roots) - set(defined))
     if missing:
-        raise MachineError('%s: no definition of the suite' % ', '.join(missing))
+        raise MachineError('%s: no definition among her texts' % ', '.join(missing))
     seen, todo = set(), list(roots)
     while todo:
         name = todo.pop()
         if name in defined and name not in seen:
             seen.add(name)
-            todo.extend(_atoms(defined[name][2:]))
+            todo.extend(_atoms(defined[name][1:]))
     return seen
 
 
@@ -150,15 +240,17 @@ def walked(root, gr, texts):
     return table
 
 
-def kind(root, got):
-    """What `root` is: 'stunt' she plays (`maneuver.PLAYED`), 'schedule' (a compile-to-soa's), 'gait'
-    of the suite; anything else refused."""
+def kind(root, got, gym=()):
+    """What `root` is: a 'stunt' she plays (`maneuver.PLAYED`), a 'schedule' (a compile-to-soa's), a
+    'gait' of the suite (a state or patch: a trace), a 'behaviour' among her gym's entries `gym`;
+    anything else refused."""
     g = got.get(root)
     found = next((name for name, holds in (('stunt', root in maneuver.PLAYED),
                                            ('schedule', isinstance(g, dict) and 'schedule' in g),
-                                           ('gait', isinstance(g, dict))) if holds), None)
+                                           ('gait', isinstance(g, dict) and '_trace' in g),
+                                           ('behaviour', root in {e[0] for e in gym})) if holds), None)
     if found is None:
-        raise MachineError('%s: no gait, schedule or stunt she plays' % root)
+        raise MachineError('%s: no gait, schedule, stunt or behaviour of hers' % root)
     return found
 
 
@@ -171,56 +263,74 @@ def _phased(phases):
     return out
 
 
-def _voiced(g, got, fr):
-    row, told = voicing.voiced(g, got['nominal-biped-manifold'], fr)
+def _voiced(g, got, fr, gym):
+    row, told = voicing.voiced(g, got['nominal-biped-manifold'], fr, gym)
     out: dict = {('slot', k): v for k, v in row.items()}
     out.update({('twist', k): v for k, v in enumerate(told['twist'])})
     out.update({('grip',): told['grip']} if 'grip' in told else {})
     return out
 
 
-def _morphed(m, got, fr):
-    wire, span = voicing.morphed(m, got['nominal-biped-manifold'], fr)
-    out: dict = {('row', k): float(v) for k, v in enumerate(v for row in ortho.ROW.iter_unpack(wire) for v in row)}
+def _wired(wire):
+    return {('row', k): float(v) for k, v in enumerate(v for row in ortho.ROW.iter_unpack(wire) for v in row)}
+
+
+def _morphed(m, got, fr, gym):
+    wire, span = voicing.morphed(m, got['nominal-biped-manifold'], fr, gym)
+    out: dict = _wired(wire)
     out[('span',)] = span
     return out
 
 
-def _scheduled(root, got, fr):
-    """A schedule's segments voiced in order, a morph by its rows, to the first she cannot play -
-    as it plays -: a refusal, a one-shot or a dwell (the gym's)."""
+def _segment(seg, got, fr, gym):
+    """A schedule's segment voiced (a morph by its rows); a one-shot or a dwell, the gym's, refused."""
+    if len(seg) != 3:
+        raise MachineError("a %s: the gym's" % seg[0])
+    return _morphed(seg[2], got, fr, gym) if isinstance(seg[2], dsp.Morph) else _voiced(seg[2], got, fr, gym)
+
+
+def _scheduled(root, got, fr, gym):
+    """A schedule's segments voiced in order to the first she cannot play, as it plays."""
     out = {}
     for k, seg in enumerate(dsp.schedule(got[root])):
         try:
-            said = (_morphed if isinstance(seg[-1], dsp.Morph) else _voiced)(seg[2], got, fr) if len(seg) == 3 else None
+            said = _segment(seg, got, fr, gym)
         except MachineError:
-            said = None
-        if said is None:
             break
         out.update({(k,) + key: v for key, v in said.items()})
     return out
 
 
+def _behaved(root, got, fr, gym):
+    """A behaviour's rows: her walk's row as her loop holds it (`voicing.walk`) where it is a whole of
+    streams (WHOLE), else its entry's wire."""
+    if root in WHOLE:
+        return {('slot', k): float(v) for k, v in enumerate(voicing.walk(fr, gym))}
+    return _wired({e[0]: e for e in gym}[root][1])
+
+
 #: How a root's voices are read, by its kind (`kind`).
-VOICED = {'stunt': lambda root, got, fr: _phased(maneuver.phases(root, None, got)), 'schedule': _scheduled,
-          'gait': lambda root, got, fr: _voiced(got[root], got, fr)}
+VOICED = {'stunt': lambda root, got, fr, gym: _phased(maneuver.phases(root, None, got)), 'schedule': _scheduled,
+          'gait': lambda root, got, fr, gym: _voiced(got[root], got, fr, gym), 'behaviour': _behaved}
 
 
-def voices(root, got, fr):
-    """{voice: value} of what `root` moves of her (VOICED): a played stunt's phases
-    (`maneuver.phases`), a schedule's segments, a gait's voiced row, twist and grip (`voicing.voiced`,
-    of her statics `fr`)."""
-    return VOICED[kind(root, got)](root, got, fr)
+def voices(root, got, fr, gym):
+    """{voice: value} of what `root` moves of her (VOICED), of the suite `got` and her gym's entries
+    `gym`: a played stunt's phases (`maneuver.phases`), a schedule's segments, a gait's voiced row,
+    twist and grip (`voicing.voiced`, her statics `fr`), a behaviour's rows."""
+    return VOICED[kind(root, got, gym)](root, got, fr, gym)
 
 
-def scale(lit, got):
-    """A literal's scale: its size, or its key's in the suite's manifold where that is larger; a
-    scaling op's its own, a ratio."""
+def scale(lit, got, row):
+    """A literal's scale: its size, or where larger the manifold's of its key (the suite's) or her
+    row's in its slot (her gym's, `row` her walk's row as her loop holds it); a scaling op's its own,
+    a ratio."""
     if lit.op == 'scale':
         return abs(lit.value)
-    said = [abs(v) for node, params in got['nominal-biped-manifold'].items() if not node.startswith('_')
-            for k, v in params.items() if k == lit.key and isinstance(v, float)]
-    return max([abs(lit.value)] + said)
+    said = ([abs(float(row[lit.slot]))] if lit.slot is not None else
+            [abs(v) for node, params in got['nominal-biped-manifold'].items() if not node.startswith('_')
+             for k, v in params.items() if k == lit.key and isinstance(v, float)])
+    return max([abs(lit.value)] + [s for s in said if math.isfinite(s)])
 
 
 def _same(a, b):
@@ -234,22 +344,36 @@ def _slope(up, down, h):
         return math.nan
 
 
+def evaluated(texts):
+    """(the suite, her gym's entries) of her texts `texts`: what her loop plays from them."""
+    from machine import sprung
+    got = dsp.read(dsp.SUITE, texts)
+    return got, sprung.entries(texts=texts, suite=got)
+
+
+def _voices_of(root, texts, lit, fr, gym):
+    """`root`'s voices of `texts` moved at `lit`: her gym re-read where it is her gym's, else `gym`."""
+    got, gym = evaluated(texts) if lit.slot is not None else (dsp.read(dsp.SUITE, texts), gym)
+    return voices(root, got, fr, gym)
+
+
 def reach(root, table, texts, fr):
     """({i: {voice: d voice / d literal}} of the literals of `table` that move her, {i: why} of those
-    refused): literal i its scale times the text's trust region up and down, the suite re-read, her
-    voices compared - a voice there one way alone d nan. The rest are inert."""
-    got = dsp.read(dsp.SUITE, texts)
-    base = voices(root, got, fr)
+    refused): literal i its scale times the text's trust region up and down, the suite and - for
+    her gym's literals - her gym re-read, her voices compared, a voice there one way alone d nan.
+    The rest are inert."""
+    got, gym = evaluated(texts)
+    base, row = voices(root, got, fr, gym), voicing.walk(fr, gym)
     trust = knobs()[('compute-adjoint-ast-deltas', 'trust-region-scale')]
     cols, refused = {}, {}
     for i, (lit, _cls) in enumerate(table):
-        h = trust * scale(lit, got)
+        h = trust * scale(lit, got, row)
         if not h:
-            refused[i] = 'no scale: 0, and 0 or none in the manifold'
+            refused[i] = 'no scale: 0, and 0 or none in the manifold or her row'
             continue
         try:
-            up, down = (voices(root, dsp.read(dsp.SUITE, spliced(texts, [lit], [lit.value + s * h])), fr) for s in (1, -1))
-        except MachineError as error:
+            up, down = (_voices_of(root, spliced(texts, [lit], [lit.value + s * h]), lit, fr, gym) for s in (1, -1))
+        except (MachineError, SyntaxError, ValueError) as error:
             refused[i] = str(error)
             continue
         col = {k: _slope(up.get(k), down.get(k), h) for k in set(base) | set(up) | set(down) if not _same(up.get(k), down.get(k))}
@@ -258,10 +382,10 @@ def reach(root, table, texts, fr):
 
 
 def number(v, digits=None):
-    """A literal's text: `digits` after the point, its trailing zeros cut to one; else in full."""
-    if digits is None:
-        return repr(float(v))
-    s = ('%.*f' % (int(digits), v)).rstrip('0')
+    """A literal's text, positional - her gym's reader takes no exponent: `digits` after the point,
+    else the fewest that read back as it; its trailing zeros cut to one."""
+    import numpy as np
+    s = np.format_float_positional(float(v), trim='0') if digits is None else ('%.*f' % (int(digits), v)).rstrip('0')
     return s + '0' if s.endswith('.') else s
 
 
@@ -293,7 +417,7 @@ def step(J, r, scales, held=(), shrink=1.0):
 
 def written(texts):
     """[path] of each file of `texts` unlike its disk's, written whole and swapped in at once."""
-    changed = [path for path, text in texts.items() if text != dsp.text(path)]
+    changed = [path for path, text in texts.items() if text != ortho.source(path)]
     for path in changed:
         with open(path + '.tmp', 'w', encoding='utf-8', newline='') as f:
             f.write(texts[path])

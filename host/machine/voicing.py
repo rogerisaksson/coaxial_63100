@@ -130,18 +130,18 @@ def _covered(node, param):
             or any(n == node and param in s for n, _p, s, _h in DERIVED) or supervisor.named(node, param))
 
 
-def walk(fr):
-    """Her walk's row as her loop holds it: what the walk says (`gait.said`), her rest where it
-    says nothing (`modal.rest`, of her statics `fr`)."""
+def walk(fr, gym=None):
+    """Her walk's row as her loop holds it: what the walk says (`gait.said`, of her gym's entries
+    `gym` where given), her rest where it says nothing (`modal.rest`, of her statics `fr`)."""
     import numpy as np
     from machine import gait
-    said = gait.said()
+    said = gait.said(gym)
     return np.where(np.isnan(said), modal.rest(fr), said)
 
 
-def voiced(g, dry, fr):
-    """({slot: value} of her walk's row (`walk`) moved by gait `g`'s changes off gait `dry` -
-    only the slots it moves -, {'twist': (vx, vy, wz) told her, within her walk's box ahead,
+def voiced(g, dry, fr, gym=None):
+    """({slot: value} of her walk's row (`walk`, of `gym`) moved by gait `g`'s changes off gait
+    `dry` - only the slots it moves -, {'twist': (vx, vy, wz) told her, within her walk's box ahead,
     'grip': her floor's mu told, 'asked': the twist asked where it is past the box})."""
     for node, test, why in REFUSED:
         if test(g.get(node, {}), dry.get(node, {})):
@@ -152,7 +152,7 @@ def voiced(g, dry, fr):
     unknown = sorted('%s.%s' % k for k in changed if not _covered(*k))
     if unknown:
         raise MachineError('no voice of hers, none named: ' + ', '.join(unknown))
-    std, row = walk(fr), {}
+    std, row = walk(fr, gym), {}
     for node, param, slot, rule in VOICES:
         v, vd = now.get((node, param)), was.get((node, param), UNSAID.get((node, param)))
         if v is None or v == vd:
@@ -173,12 +173,12 @@ def voiced(g, dry, fr):
     return row, told
 
 
-def morphed(m, dry, fr):
-    """(rows, span s) of Morph `m` on her loop (`patch.morph`): each slot either end moves on its
-    node's band, her clock from one end's Hz to the other's on the clock's slew."""
-    src, _told = voiced(m.source, dry, fr)
-    dst, _told = voiced(m.target, dry, fr)
-    std = walk(fr)
+def morphed(m, dry, fr, gym=None):
+    """(rows, span s) of Morph `m` on her loop (`patch.morph`), her walk `gym`'s: each slot either end
+    moves on its node's band, her clock from one end's Hz to the other's on the clock's slew."""
+    src, _told = voiced(m.source, dry, fr, gym)
+    dst, _told = voiced(m.target, dry, fr, gym)
+    std = walk(fr, gym)
     slots = (set(src) | set(dst)) - {ortho.HZ}
     src, dst = ({k: x.get(k, float(std[k])) for k in slots | {ortho.HZ}} for x in (src, dst))
     bands = {slot: (b['curve'].lstrip(':'), b['window-bars'][0], b['window-bars'][-1])

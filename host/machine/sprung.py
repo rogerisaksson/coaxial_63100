@@ -47,14 +47,15 @@ STACK_EVERY, DOWN_DEG, DOWN_M = 3, 50.0, 0.45
 GYMS = (mechatronics.ROBOT, 'examples')
 
 
-def entries(text=None, name=GYMS[0]):
+def entries(text=None, name=GYMS[0], texts=None, suite=None):
     """[(label, wire, names)]: the gym's entries of `text` - machine/`name`.lisp's, hers with the
-    ortho-DSP suite's stunts played on it (`maneuver.texts`)."""
+    ortho-DSP suite's stunts played on it (`maneuver.texts`) -, of her texts `texts` ({key: text})
+    and the suite `suite` where given, else their files'."""
     if text is None:
         from machine import maneuver
-        with open(os.path.join(os.path.dirname(__file__), name + '.lisp'), encoding='utf-8') as f:
-            text = f.read() + ('\n' + maneuver.texts() if name == GYMS[0] else '')
-    tables, phases = ortho.compiled(text)
+        text = ortho.source(os.path.join(os.path.dirname(__file__), name + '.lisp'), texts) + (
+            '\n' + maneuver.texts(suite) if name == GYMS[0] else '')
+    tables, phases = ortho.compiled(text, texts=texts)
     sz = ortho.ROW.size
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]
     return ([(STREAM_NAMES.get(ortho.rows(w)[0][0], '#%d' % ortho.rows(w)[0][0]), w,
@@ -62,8 +63,9 @@ def entries(text=None, name=GYMS[0]):
             + [(n, tables[n], phases[n] + ('rest',)) for n in phases])
 
 
-def laid(every=1, inner=None, solver=None):
-    """She stands on the floor on the loop, at rest: one dict of what a run holds."""
+def laid(every=1, inner=None, solver=None, texts=None, suite=None):
+    """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
+    entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
     from machine import figure, heat, latent, modal, motion, physics, servos, wbc, wrench
     from machine.drives import kind, peak
@@ -93,7 +95,7 @@ def laid(every=1, inner=None, solver=None):
     a[modal.STANCE] = 1.0
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
-    sit = situation.text()
+    sit, gym = situation.text(), entries(texts=texts, suite=suite)
     from tools.cores import bodied
     sensed = bodied.on_body(wbc.sense, 'sense')
     if (solver or SOLVER) == 'c':
@@ -116,7 +118,8 @@ def laid(every=1, inner=None, solver=None):
          'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
          'eso': np.array([q0, np.zeros(len(q0)), np.zeros(len(q0))]), 'jeff': np.diag(s['M'])[body.act].copy(), 'surety': 1.0,
-         '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in entries() if e[0] == 'stand'), None),
+         '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in gym if e[0] == 'stand'), None),
+         'gym': gym, 'texts': texts, 'suite': suite,
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
@@ -136,7 +139,7 @@ def _sensed(body, est, sense, limbs):
 
 
 def walked(g):
-    by = {e[0]: e for e in entries()}
+    by = {e[0]: e for e in g['gym']}
     _dropped(g)
     for label, at in WALK:
         said(g, *by[label], at=g['t'] + at)
