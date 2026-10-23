@@ -60,7 +60,7 @@
       (trigger-one-shot-envelope
         :mode :momentum-preload
         :duration-ms 350.0
-        :curve :exponential-fast
+        :curve :minimum-jerk-deceleration
         :joint-targets '((:talocrural 0.36))
         :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad pre-pitch-thorax-rad))
 

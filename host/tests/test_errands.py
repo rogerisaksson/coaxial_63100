@@ -315,7 +315,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
     by = {e[0]: e for e in sprung.entries()}
     r_horizons = (se2.rise_lead(by['rise_chair'][1]), se2.rise_lead(by['rise_bed'][1]), se2.rise_lead(by['rise_floor'][1]))
     report.check('zero discrete delay tables in se2/worker; a rise leads her walk by its own length',
-                 no_tables and r_horizons == (2.106, 5.5, 3.6), r_horizons)
+                 no_tables and r_horizons == (1.881, 5.5, 3.6), r_horizons)
     times = []
     fell = False
     for after in (0.0, 0.5, 1.0, 2.0, 3.0, 4.0):

@@ -231,6 +231,12 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   33/69 where 41/93. A fixed 13 deg lean back in the brake: the chair 207
   falls; the arms held stiff: not kept; a stride's brake on a turn in place:
   her settle and turn fell 41 more.
+- The rise's preload on the suite's exponential-fast curve, paced to her
+  springs, took 575 ms with its bend at the start; on a minimum-jerk
+  deceleration it keeps the suite's 350 ms (manifold_handover.lisp). Chair
+  wobbled with its rise: fell 149 -> 114, risen 171 -> 206, held 268 both;
+  trunk p90 698 -> 631 deg/s, arms 478 -> 424; the bed the same to the bit.
+  The chair a hair off rises 4 of 12 offsets (0-1 mm) on either curve.
 
 ## The keys that send her
 
