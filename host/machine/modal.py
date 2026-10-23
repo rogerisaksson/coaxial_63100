@@ -104,7 +104,10 @@ CELL = slice(60, 62)
 DUCKING = slice(62, 64)
 #: And how far each sole rests where it is, 0 to 1 - her step's swing rows weigh so.
 RESTS = slice(64, 66)
-ASK = 66
+#: And, kept, her support's comparator (`impedance._borne`): latched, the s it has been under its
+#: release, the s since its strike; its box's corners along and across, low then high.
+PROPPED, PROPPED_BELOW, PROPPED_SINCE, PROPPED_BOX = 66, 67, 68, slice(69, 73)
+ASK = 73
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's

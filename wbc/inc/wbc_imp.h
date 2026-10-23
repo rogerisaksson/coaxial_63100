@@ -23,11 +23,12 @@ typedef struct
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
-  int           a_ducking, a_rests;
+  int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
-  double        on[2], going_s, ahead, yaw_k, throw_m_s2, prop_on, low_m, low_leg, falls[3], upward[3];
+  double        on[2], going_s, ahead, yaw_k, throw_m_s2, prop_on, prop_engage, prop_release, prop_dwell_s;
+  double        prop_blank_s, low_m, low_leg, falls[3], upward[3];
   double        between[3];
   /* machine.modal, machine.wbc */
   double        g, axial_m, pitch_rad, clear_m, list_rad, turn_rad, arm_rad, leg_m, pelvis[2];
