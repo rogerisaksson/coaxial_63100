@@ -225,8 +225,10 @@ serves its DOD; none an entry a case.
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
     furniture too; turning and backing in the 1 m before the table she
-    brushes it and the loft; docking takes 19 s. DOD: the chair's, the bed's
-    and the door's errands from every pose she sees them from, no fall.
+    brushes it and the loft; docking takes 19 s, still at each corner of her
+    way - walked through instead: A* -> convex corridors on her cells -> a
+    B-spline held in them by linear rows (`qp.solve`). DOD: the chair's, the
+    bed's and the door's errands from every pose she sees them from, no fall.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go
     through a brake, a stop nods 1-4 deg; left: a spin's stop through a stand
     34 deg (53 before), 36 mid-gait in reverse and moves, 106 seated (the
