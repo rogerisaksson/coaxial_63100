@@ -216,3 +216,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     patches, paced to her springs, her arms held, docked at the patch's
     standoff (`machine.maneuver`, `seated`, `swing`; test_errands.py,
     [sequencer](findings/sequencer.md)).
+41. Her way walked through a corner where a curve fits her arc: A* ->
+    convex corridors on her cells -> a clamped cubic B-spline held in them
+    by linear rows (`route.planned`, `qp.solve`), walked on her arc's twist
+    while she lags it (`tour._steer`; test_sight.py,
+    [errands](findings/errands.md)).

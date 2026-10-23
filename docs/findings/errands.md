@@ -126,6 +126,8 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 | --- | --- | --- | --- | --- |
 | straight at the chair's normal | 4 | 36 (16 into the chair) | 12 | 6 |
 | round the furniture, still at each turn | 21 | 14 | 7 | 16 |
+| the same, measured again (6 short) | 21 | 9 | 7 | 15 |
+| walked through where a curve fits her arc (5 short) | 23 | 10 | 7 | 13 |
 
 - Her way (`route`): A* on her map's cells, the furniture grown by her
   radius and a cell; she sets off within 26 deg of her leg (her walk's arc,
@@ -133,6 +135,23 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   from there. Turned mid-rhythm her feet met and she went 0.4 m back into
   the chair. Docked 2.9 cm along its edge and 0.054 rad askew at the median,
   in 19.4 s.
+- Walked through (`route.planned`): a convex corridor round each of A*'s
+  segments, carried past its corners by her arc's tangent and a stride, its
+  half-planes at the nearest blocked cells (a cell's face where the whole
+  segment lies beyond it); in them a clamped cubic B-spline, a knot a
+  stride, its acceleration within `WALK_SPEED * YAW_RATE`, its last 1.23 m
+  straight; a solve 0.31 ms median where one fits, 12.6 where none, a plan
+  1.1 ms median, 29.9 most. Bent past her arc or none found, the corner
+  stays a stop: a curve fits from 3 of the 27 spots whose way turns (the
+  chair's 20, the bed's 7), the chair's slot from above tighter than her
+  arc. Held by her heading a 0.5
+  rad turn left her path on its line 2 s; on her arc's twist her path
+  turned 0.48 rad/s, 0.3-0.5 rad behind her; arced while she lags the
+  curve she keeps within 0.15 m of it, the chair from (-1.9, -1.0) seated
+  and risen where she fell, docked in 17.7 s where 27.3. Told to stand
+  from her walk she goes on 0.5-1.0 rad left of her heading, at every stop
+  traced, the old way's too: off the bed's curve at 0.87 m/s it threw her,
+  the bed's falls 4 -> 5.
 - Her stage before the chair: the middle of the free run on its normal, 0.5
   m where the table leaves 1.03 m; her back-walk's 0.05 m on and her
   sidestep's 0.15 counted in her stops.

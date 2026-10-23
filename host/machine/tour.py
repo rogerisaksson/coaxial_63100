@@ -291,13 +291,15 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
     nx, nz = math.sin(hdd), math.cos(hdd)
     cells = route.blocked(g)
     d_stage = d_stage if sc == 'exit_door' else route.staged((x_dock, z_dock), (nx, nz), d_stage, cells)
+    stage = (x_dock + d_stage * nx, z_dock + d_stage * nz)
+    way, curve, held = ([], (), ()) if sc == 'exit_door' else route.planned(g, stage, cells)
     g['_errand'] = {
         'kind': sc, 'phase': 'door' if sc == 'exit_door' else 'walk',
         'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx,
-        'xd': x_dock + d_stage * nx, 'zd': z_dock + d_stage * nz,
+        'xd': stage[0], 'zd': stage[1],
         'hdd': hdd, 'lat_tol': lat_tol, 'd_stage': d_stage, 'turn_dir': 0.0,
         'standoff': maneuver.standoff(sc) if sc in maneuver.PLAYED else 0.0,
-        'way': [] if sc == 'exit_door' else route.way(g, (x_dock + d_stage * nx, z_dock + d_stage * nz), cells),
+        'way': way, 'curve': curve, 'k': 0, 'held': held,
     }
     step_errand(g, gym, heard_fn, heard_say_fn)
     return True
@@ -324,9 +326,8 @@ def _cornered(g, gym, er, c, heard_fn, _say_fn):
     """Stood still on her way round the furniture: the rest of it planned from where she stands, its
     corners within a stride of her passed - her stage the last."""
     from machine import route, stride
-    way = route.way(g, (er['xd'], er['zd']), route.blocked(g))
-    er['way'], er['turn_dir'] = [p for k, p in enumerate(way) if any(
-        math.hypot(c['gx'] - q[0], c['gz'] - q[1]) > stride.STRIDE_M for q in way[:k + 1])], 0.0
+    er['way'], er['curve'], er['held'] = route.planned(g, (er['xd'], er['zd']), route.blocked(g), er['held'], stride.STRIDE_M)
+    er['k'], er['turn_dir'] = 0, 0.0
 
 
 def _faced(g, gym, er, c, heard_fn, _say_fn):
@@ -360,32 +361,33 @@ def _to_door(g, gym, er, c, heard_fn, _say_fn):
     _tell(g, gym, heard_fn, {'twist': WALK})
 
 
-def _steer(g, gym, heard_fn, err, wz_dir, speed):
-    """Turn in place toward `err` rad past her list, standing, or past `route.CONE` - her walk's arc
-    a cell off her way at most - as far as her rhythm runs (`latent.GAIN`) toward `speed`; within
-    it, walk `speed` steering by `err`."""
+def _steer(g, gym, heard_fn, err, wz_dir, speed, off, lag):
+    """Turn in place toward `err` rad while she is `off` her way past her list, standing, or past
+    `route.CONE` as far as her rhythm runs (`latent.GAIN`) toward `speed`; within it, walk `speed`,
+    on her arc while she `lag`s `route.ARCED` or more, else by `err`."""
     from machine import edge, latent, modal, route, se2
     w = min(1.0, float(g['st'][latent.NOW][latent.GAIN])) * float(speed > 0.0)
-    cone = (1.0 - w) * modal.LIST_RAD + w * route.CONE
-    turn = abs(err) > cone
-    g['has_heading'] = float(not turn) * float(speed > 0.0)
-    g['target_heading'] = se2.wrap_angle(edge.yaw(g['sense']) + err) * float(not turn) + float(g.get('target_heading', 0.0)) * float(turn)
-    _tell(g, gym, heard_fn, {'twist': (0.0, 0.0, se2.YAW_RATE * wz_dir) if turn else (speed, 0.0, 0.0)})
+    turn = abs(off) > (1.0 - w) * modal.LIST_RAD + w * route.CONE
+    arc = not turn and abs(lag) >= route.ARCED
+    steer = float(not turn) * float(not arc)
+    g['has_heading'] = steer * float(speed > 0.0)
+    g['target_heading'] = se2.wrap_angle(edge.yaw(g['sense']) + err) * steer + float(g.get('target_heading', 0.0)) * (1.0 - steer)
+    twists = ((turn, (0.0, 0.0, se2.YAW_RATE * wz_dir)), (arc, (speed, 0.0, math.copysign(se2.YAW_RATE, lag))), (True, (speed, 0.0, 0.0)))
+    _tell(g, gym, heard_fn, {'twist': next(t for on, t in twists if on)})
 
 
 def _to_aim(g, gym, er, c, heard_fn, _say_fn):
-    """Walking to the look-ahead on the prop's normal line; her turn's way held while the aim is
-    all but behind her."""
+    """Walking to her aim (`step_errand`'s); her turn's way held while it is all but behind her."""
     from machine import modal, se2
     err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
     er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
-    _steer(g, gym, heard_fn, err_w, er['turn_dir'], se2.WALK_SPEED)
+    _steer(g, gym, heard_fn, err_w, er['turn_dir'], se2.WALK_SPEED, c['off_w'], c['lag'])
 
 
 def _to_face(g, gym, er, c, heard_fn, _say_fn):
     """Turning in place to face away from the prop, the shorter way, held once begun."""
     er['turn_dir'] = er['turn_dir'] or math.copysign(1.0, c['err_yaw'])
-    _steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0)
+    _steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'], 0.0)
 
 
 def _to_line(g, gym, er, c, heard_fn, _say_fn):
@@ -447,9 +449,10 @@ def _settled(g):
 def step_errand(g, gym, heard_fn, heard_say_fn):
     """Advance an active autonomous SE(2) room errand (`sit_chair`, `lie_bed`, `exit_door`): her
     place in the dock's frame (along its normal, along its edge), where her walk would stop
-    her, the look-ahead on its normal line a stopping distance ahead, never short of the box,
-    and which way her left is to the line; then the phase's row (`_on_rows`)."""
-    from machine import edge, latent, se2, sight, stride
+    her, her aim - on her curve, else her next stop, else on its normal line a stopping distance
+    ahead, never short of the box -, which way her left is to the line; then the phase's row
+    (`_on_rows`)."""
+    from machine import edge, latent, route, se2, sight, stride
     er = g.get('_errand')
     if not er:
         return
@@ -466,15 +469,17 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     s_perp_stop = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * t_stop
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
-    ax, az = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
-    dx_a, dz_a = ax - gx, az - gz
+    stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
+    e['k'], (ax, az), along, there = (route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
+                                      else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw))
     ctx = {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -s_perp * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
                                       or math.hypot(s_par_stop - e['d_stage'], s_perp_stop) <= stride.STRIDE_M),
-        'corner': bool(e['way']) and math.hypot(dx_a, dz_a) <= math.hypot(vx_w, vz_w) * t_stop + sight.CELL_M,
-        'err_w': se2.wrap_angle(math.atan2(dx_a, dz_a) - pyaw),
+        'corner': bool(e['way']) and math.hypot(stop[0] - gx, stop[1] - gz) <= math.hypot(vx_w, vz_w) * t_stop + sight.CELL_M,
+        'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
+        'lag': se2.wrap_angle(there - pyaw),
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),
         'idle': _settled(g) > 0.0,
         'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6,

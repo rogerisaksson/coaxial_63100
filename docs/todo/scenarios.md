@@ -220,14 +220,15 @@ serves its DOD; none an entry a case.
    sight telling its door and its glass; the ground snowed and the valley
    drawn beyond the rail.
 10. **An errand from every spot** (`tools/sim/house.py`, her way round the
-    furniture `route`): the chair from 21 of the 58 spots that offer it, 4
+    furniture `route`): the chair from 23 of the 58 spots that offer it, 21
     before; the bed from 17 of 52 ([errands](../findings/errands.md)). Open:
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
     furniture too; turning and backing in the 1 m before the table she
-    brushes it and the loft; docking takes 19 s, still at each corner of her
-    way - walked through instead: A* -> convex corridors on her cells -> a
-    B-spline held in them by linear rows (`qp.solve`). Said from every spot
+    brushes it and the loft; docking takes 19 s; a curve through a corner
+    fits her arc from 3 of 27 turning ways, and told to stand from her walk
+    she goes on 0.5-1.0 rad left of her heading - off the bed's curve it
+    threw her. Said from every spot
     (112 runs a verb) none is free of a spasm: her arms at her stop - the
     suite's phase-locked brake (`dock-terminal-stance`) -, her neck seated
     and reclining - its `lock-horizon-gaze`; the dock the suite's
