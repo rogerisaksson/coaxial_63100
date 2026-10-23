@@ -271,8 +271,13 @@ mass stands over her ankles, no further than a buttock behind the seen edge
   tangentially she lay back and rolled over as the cascade went high-Z
   mid-motion; the mattress gives 2.3 N/mm to the patch's 18.5, her descent
   2 cm short.
-- Open on the chair: off its seat at 10.5 s now and then; docked 3-6 cm
-  nearer, risen 4 of 6.
+- Her hips landed at her soles' back edge with her thighs clear of the
+  seat's edge (`seated.landed`, `clear`), her pelvis turned square to the
+  seat and the arm on its side ahead (`maneuver._envelope`): laid at its dock
+  grid she sits and holds 30 of 50 (16 before), rises 27 (8), falls 3 (18);
+  said from every spot the chair 75 of 112 (67), 7 falls in the sit (16).
+  Open: 20 placements never borne, 8 at her root 0.14 m off the edge, 12 at
+  0.19.
 
 ## The autotuner
 
