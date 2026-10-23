@@ -74,7 +74,7 @@
   (blend_duration 500ms)
   (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0))
   (impedance
-    (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)
+    (stiffness mode_axial_compression 3450.0) (damping mode_axial_compression 510.0)
     (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300)
     (stiffness mode_sagittal_shift 300) (damping mode_sagittal_shift 150))
   (cpg_config (enable false)))
@@ -95,7 +95,7 @@
   (impedance
     (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 150)
     (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))
-  (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 1.0))
+  (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 0.85))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))
 
 ;; walk on: 0.69 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing

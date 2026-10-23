@@ -83,6 +83,12 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   her knee at landing 31.3 deg for 32.7, behind plumb 10.9 for 10.7; but the
   wall's scenario no longer met (she went -0.78 m): undone. A write is now
   held on the bench's scenarios and shoves too (`tune.benched`).
+- Run again on main with the insert's comparator: the same step kept (|r|
+  5.66 to 5.03), the next refused twice on her unloading, then under its
+  floor: converged; held on 39 roots and the bench (142 of 256 met as the
+  texts are, all still met); written. Her page's walk 402 J/m for 408, off
+  a woman's walk 2.42 for 2.51, knee behind plumb 10.1 for 10.7, unloading
+  0.665 for 0.68. Three steps from the texts reached 4.82, not converged.
 - Held strictly (no form measure growing at all) the step was 0: five form
   rows of noise-sized slopes over three literals; free it gained 0.47. A
   held measure now grows by its floor at most, as the verdict judges it, and
