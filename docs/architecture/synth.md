@@ -91,11 +91,11 @@ named on her loop (`machine.supervisor`); a gait saying another is refused:
 | jerk | each drive's current loop, cubic soft knee | each drive's asked acceleration and its torque's share of what is cut: its slew over its rotor's inertia, 5.75-16.1 M rad/s^3 |
 | torque slew | each drive's current loop | its peak x 2 pi x 2.5 kHz, the loop's sampling bound: 806-3 089 kN m/s |
 | damped least squares | sigma_min 0.045, lambda_max 0.18, raised cosine | open: lambda 0.02 at every sigma (`wrench.DAMP`) |
-| boundary buffers | 0.06 rad, 140 /s^2, zeta 1.0; knee, ankle, shoulder, neck | rows of her step before her stops: the knee's straight lock and high stop, the neck's and head's; the ankle and shoulder have none (`wbc.Body.buffers`) |
+| boundary buffers | 0.06 rad, 140 /s^2, zeta 1.0; knee, ankle, shoulder, neck | rows of her step before the stops her drives do not cushion - the knee's fold, the neck's and head's stacks' travel -, each engaged as far again as its spring takes to stop the approach (v / (e w)); the knee's straight lock is her drive pass's spring and damper; her ankles and shoulders have none (`wbc.Body.buffers`) |
 | Schmitt comparators | 0.18 / 0.06 of her weight, 45 ms dwell, 18 ms blanking | open: a sole stands from 15 N, a segment bears from 5 N |
 | bumpless handover | C2, 85 ms, critically damped | open |
 | zero-crossing bridge | 0.85 N m window, 0.35 kept, no preload; hips, knees, ankles, lumbar | open; no preload: one reversible drive a joint, no antagonist |
-| energy tank | 12 J, 6-35 Hz, 3 reversals past 4.5 W; 3.2 x damping, -9 dB, 450 ms | each drive's rate and torque in the window, its half cycles' energy; on a parasitic oscillation, its own damping injected and its gain rolled back |
+| energy tank | 12 J, 6-35 Hz, 3 reversals past 4.5 W; 3.2 x damping, -9 dB, 450 ms | each drive's rate and torque in the window, its half cycles' energy; on a parasitic oscillation, its own damping injected and its command's band rolled back - her drives are pure torque, no P gain of their own |
 
 ## No voice yet
 

@@ -523,10 +523,11 @@ int wbc_step(wbc_step_t *p)
     const int    j = p->act[p->buffer_at[b]];
     const double depth = p->buffer_side[b] * (p->buffer_stop[b] - p->q[p->buffer_at[b]]) + p->buffer[0];
 
-    c[0] = ((p->buffer[1] * p->buffer_side[b]) * depth - p->buffer[2] * p->v[j]) - full0[j];
+    c[0] = ((p->buffer[1] * p->buffer_side[b]) * pymax(depth, 0.0) - p->buffer[2] * p->v[j]) - full0[j];
     c0[0] = -full0[j];
     at = lay(R0, rhs, rhs0, at, nu, VIEW(full + j * nu, nu, 1), 1, c,
-             p->w_stop * pymin(pymax(depth / p->buffer[0], 0.0), 1.0), c0);
+             p->w_stop * pymin(pymax((depth + p->buffer[3] * pymax(-p->buffer_side[b] * p->v[j], 0.0)) / p->buffer[0],
+                                     0.0), 1.0), c0);
   }
   for (int i = 0; i < 3; i++)
   {

@@ -167,9 +167,11 @@ class Body:
         self.stop_lo = np.array([r[0] for _k, r in stops])
         self.stop_hi = np.array([r[1] for _k, r in stops])
         from machine import supervisor
-        #: The master insert's buffers before her stops (`supervisor.buffers`): rows of her step.
+        #: The master insert's buffers before her stops (`supervisor.buffers`), rows of her step - the
+        #: neck's and head's their stacks' travel (RANGES), MuJoCo's stopping neither: without them her
+        #: chair's sit fell at 6.44 s.
         self.buffers = supervisor.buffers(names, dict(stops))
-        self.feet =(m.body('left_foot').id, m.body('right_foot').id)
+        self.feet = (m.body('left_foot').id, m.body('right_foot').id)
         self.corners = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL)
                                  for x in (-SOLE_HALF, SOLE_HALF)])
         self.sole = np.array((0.0, -ANKLE_H, (BALL - HEEL) / 2.0))

@@ -30,7 +30,7 @@ const double wbc_buffer_stop[WBC_BUFFERS][2] = {
   {2.8797932657906435, -1.0},
   {0.0, 1.0},
   {2.8797932657906435, -1.0}};
-const double wbc_buffer[3] = {0.06, 140.0, 23.664319132398465};
+const double wbc_buffer[4] = {0.06, 140.0, 23.664319132398465, 0.031091487493319348};
 const int wbc_trunk = 3;
 
 const double wbc_sole_at[3] = {0.0, -0.075, 0.031000000000000003};

@@ -157,19 +157,23 @@ def reset(laid):
     s.energy, s.power, s.primed = insert()['energy-tank']['initial-energy-joules'], 0.0, 0
 
 
-#: A low end before the model's: the knee's straight lock, its singularity, rad.
+#: A low end before the model's: the knee's straight lock, its singularity, rad. Left to her drive
+#: pass's knee spring alone, 9 of 11 shoves from behind, weaves and chairs fell.
 LOCKS = {'knee': 0.0}
 
 
 def buffers(names, stops):
-    """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping): the
-    insert's buffers before the stops `stops` ({index: (lo, hi)}, her body's) of the driven joints
-    `names` its nodes are, critically damped as its text says. A joint with none has none: at her
-    law's room, her shoulders' rows threw a jump's landing 0.35 m on."""
+    """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping, reach):
+    the insert's buffers before the stops `stops` ({index: (lo, hi)}, her body's) of the driven
+    joints `names` its nodes are, critically damped as its text says, each engaged as far again as
+    its spring takes to stop an approach (speed x reach, 1/(e w)): at its width alone her jump's
+    neck met it at 13 rad/s and ran 0.36 rad past. A joint with none has none: at her law's room,
+    her shoulders' rows threw a jump's landing 0.35 m on."""
     b = insert()['joint-boundary']
     k = b['boundary-repulsion-stiffness']
     rows = []
     for i in (i for i in joints_of(b['nodes'], names) if i in stops):
         lo, hi = stops[i]
         rows += [(i, LOCKS.get(drives.kind(names[i]), float(lo)), 1.0), (i, float(hi), -1.0)]
-    return tuple(rows), (b['extension-soft-knee-rad'], k, 2.0 * b['boundary-damping-ratio'] * math.sqrt(k))
+    return tuple(rows), (b['extension-soft-knee-rad'], k, 2.0 * b['boundary-damping-ratio'] * math.sqrt(k),
+                         1.0 / (math.e * math.sqrt(k)))

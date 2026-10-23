@@ -262,14 +262,18 @@ serves its DOD; none an entry a case.
     [jerk](../findings/jerk.md)): its velocity gate - under her encoders' step
     (0.05 rad/s at 1 kHz), it shut a seated drive's rate and her chair's rise
     ended on 0.78 of her soles -; its damped least squares on a swung leg - her
-    walk 2.63 off where 2.49, her head aside 48 where its form's 35 -; its D
+    walk 2.63 off where 2.49, her head aside 48 where its form's 35; with it her
+    heel's cap must be a woman's at lift (36.2 deg), which fells the charged run
+    leap -; its D
     low-pass at 42 Hz, its zero crossing's
     bridge and its C2 85 ms handover each alone felled her walking a right turn
     (replay walk_turn_right_at_0.69, 8.4-8.9 s at every nudge; the base stands
     to 13.5 s); the handover lagged her step's regime while her ask switched,
     both soles let go. Its Schmitt comparators on her soles and her borne
     segments not begun. Red where the base is green with the rest on: the
-    standing jump (the neck's and head's buffers; the knee's alone passes),
+    standing jump (in its crouch the step whips her neck to -1.22 rad at 13
+    rad/s, 20 deg past its stack's travel, and the neck's buffer's push lands
+    her 0.35 m on; without the neck's and head's buffers her chair falls),
     the walk leap's 0.38 m at no charge and the run leap's landing at full,
     F's rise within 6 s, the bed's dock from south_face, the turning replay
     at -0.2 mm. DOD: each on her loop at its text's numbers, every suite as

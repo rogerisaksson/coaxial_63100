@@ -172,12 +172,14 @@ def test_her_master_bus_and_buffers(report):
                  and all(math.isclose(j, v / drives.armature(n)) for n, v, j in zip(names, laid['slew'], laid['jerk'])),
                  str([(n, round(v / 1e3)) for n, v in zip(names, laid['slew'])]))
     body = wbc.Body()
-    rows, (width, stiff, damp) = body.buffers
+    rows, (width, stiff, damp, reach) = body.buffers
     ends = sorted((names[i], side) for i, _stop, side in rows)
-    report.check('a buffer %.2f rad before each stop of %d joints, critically damped' % (width, len(ends) // 2),
+    report.check('a buffer %.2f rad before each stop of %d joints, critically damped, reached 1/(e w) ahead'
+                 % (width, len(ends) // 2),
                  ends == sorted((names[i], side) for i in supervisor.joints_of(
                      supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
-                 and math.isclose(damp * damp, 4.0 * stiff), str(ends))
+                 and math.isclose(damp * damp, 4.0 * stiff) and math.isclose(reach * math.e * math.sqrt(stiff), 1.0),
+                 str(ends))
 
 
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
