@@ -112,6 +112,8 @@ TOUCHES = (
     ('host/machine/dsp.py',                    (STRUCTURE, DSP)),
     ('host/machine/voicing.py',                (STRUCTURE, DSP)),
     ('host/machine/patch.py',                  (STRUCTURE, DSP)),
+    ('host/machine/tune.py',                   (STRUCTURE, DSP)),
+    ('host/machine/meta_ast_autotuner.lisp',   (DSP,)),
     ('host/machine/ortho_dsp/',                (DSP,)),
     ('host/machine/runway.lisp',               (DSP,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
@@ -225,6 +227,7 @@ TOUCHES = (
     ('host/tools/sim/fbx.py',                  (STRUCTURE, ORTHO, DSP)),
     ('host/tools/sim/identify.py',             (STRUCTURE, DSP)),
     ('host/tools/sim/suite.py',                (STRUCTURE,)),
+    ('host/tools/sim/tune.py',                 (STRUCTURE, DSP)),
     ('host/tools/sim/quad_race.py',            QUADS + (STREAMS,)),
     # BENCH: firmware in the main loop is what slows the board (the thermal
     # observer's per-poll ADC and SPI reads; a poll that lost a Modbus byte).

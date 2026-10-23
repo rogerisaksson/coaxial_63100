@@ -1,15 +1,15 @@
 """The ortho-DSP suite's maneuvers (`machine.dsp`) as her texts: her sits, lies and rises as it says.
 
-    text = maneuver.text('sit_chair', (0.47, 0.17))   # the suite's patch, a seat seen 0.47 m up, its edge 0.17 m behind
-    label, wire, names = maneuver.entry('sit_chair', (0.47, 0.17))    # its gym entry
+    text = maneuver.text('sit_chair', (0.47, 0.17, 0.0, 0.0))   # the suite's patch, a seat seen (`furniture.seen`)
+    label, wire, names = maneuver.entry('sit_chair', (0.47, 0.17, 0.0, 0.0))    # its gym entry
     texts = maneuver.texts()                  # every stunt the suite plays (PLAYED), its own seats
 
 A stunt plays a suite patch (PLAYED), the height of the furniture her eyes see its key; its acts
 in order (`dsp`'s '_events') are phases of her text (ACTS), named by their stage of the stunt as her
 stunts' phases are. They are her law's own quantities: an envelope's knee is her height (`modal`'s
 axial, her legs' shortening), where a seat is seen the knee and ankle that land her hips on it (her
-hips over a surface sat on: `figure.SEAT_Y`, `SEAT_R`, `HIP_DROP`) her centre of mass over her
-ankles, its counterweight her trunk's pitch, her centre of mass where its posture puts it
+hips over a surface sat on: `figure.SEAT_Y`, `SEAT_R`, `HIP_DROP`) her centre of mass at her
+soles' back edge, its counterweight her trunk's pitch, her centre of mass where its posture puts it
 (`seated.com`). Her errand docks her heels the patch's standoff off the furniture's edge (`standoff`,
 `tour`). A contact's threshold is her support's own (`impedance.PROP_ON`):
 the acts it releases are laid from the descent's start and wait till the seat bears her
@@ -95,14 +95,18 @@ def _curve(p):
 
 def _envelope(p, at, modes, body):
     """An envelope: a phase to its targets along its curve over its time, its counterweight her
-    trunk's pitch. Her arms' is no voice of hers - her arm mode swings them opposite
-    (`mode_arm_swing`): flexed so, one 25 deg ahead and one behind, her rise lifted a sole 58 mm and
-    she fell -, held where they hang (`_armed`). A descent over a seen seat bends her knee and ankle as
-    land her hips on it (`seated.landed`), pressed in as far as it bears her support's share at her
-    height's stiffness (`impedance.PROP_ON`, 5.7 mm): its curve lands them, the contact released
-    (`waits.borne_back`), her centre of mass over her ankles till then - pressed 40 mm, her hips met
-    it at 0.3 m/s, it bore 2.5 of her weight and threw her back onto her soles. Sat, a preload's
-    knee and ankle are where the seat and her soles hold them."""
+    trunk's pitch. A descent over a seen seat bends her knee and ankle as land her hips on it
+    (`seated.landed`), pressed in as far as it bears her support's share at her height's stiffness
+    (`impedance.PROP_ON`, 5.7 mm): its curve lands them, the contact released (`waits.borne_back`),
+    her centre of mass in her soles till then - pressed 40 mm, her hips met it at 0.3 m/s, it bore
+    2.5 of her weight and threw her back onto her soles. It turns her pelvis square to the seat's
+    edge - 0.05-0.1 rad off one thigh met it 1 s before the other and 11 docks of 20 fell -, and
+    its arms' counterweight is her one arm mode's, one ahead and one behind (`mode_arm_swing`), the
+    one on the seat's side ahead: hanging at the descent's trunk her hands are 4.5 cm under her
+    buttocks and 0.27 m out, a 0.22 m seat's side 2 cm in - 3 cm off its middle one met it first,
+    held (`_armed`), and propped her up off it or rolled her (34 docks of 50). Sat, a preload's
+    knee and ankle are where the seat and her soles hold them, her pelvis square to her soles, her
+    arms hanging: swung 25 deg either way through her rise's lean, a sole rose 58 mm and she fell."""
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
@@ -110,12 +114,15 @@ def _envelope(p, at, modes, body):
     sat = stage == 'preload' and at['seat'] is not None
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
     told = (at['knee'], at['ankle']) if sat else (joints.get(':tibiofemoral', at['knee']), joints.get(':talocrural', at['ankle']))
-    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE - figure.SEAT_Z[0], trunk) if seen else told
+    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE, at['seat'], trunk) if seen else told
     at['leaned'] = (p['duration-ms'], _curve(p))
     # her height only where it bends her knee: a preload's asked her seat's modelled 10 mm under where
     # she sat, her legs let go and her soles bore nothing in 20 ms
     targets = {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seen or ':tibiofemoral' in joints else {}
     targets['mode_sagittal_shift'] = seated.com(at['knee'], at['ankle'], trunk, modes, body)
+    seat = {'mode_arm_swing': math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
+            'mode_pelvis_turn': at['turn']}
+    targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
     targets.update({'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0]} if 'axial-counterweight' in p else {})
     return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, {}, None, None, shape=_curve(p))]
 
@@ -256,7 +263,8 @@ def phases(name, seen=None, got=None):
     told = next((info[SEEN] for step, info in g['_trace'] if isinstance(info, dict) and SEEN in info), None)
     at = {'knee': math.radians(body['knee']), 'ankle': 0.5 * math.radians(body['knee']),
           'seat': None if told is None else 1e-3 * told,
-          'behind': seen[1] if seen else standoff(name) + 0.5 * (figure.BALL + figure.HEEL)}
+          'behind': seen[1] if seen else standoff(name) + 0.5 * (figure.BALL + figure.HEEL),
+          'aside': seen[2] if seen else 0.0, 'turn': seen[3] if seen else 0.0}
     out, own = [], []
     for k, (op, p, then) in enumerate(g['_events']):
         if op not in ACTS:

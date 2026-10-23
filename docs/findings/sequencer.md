@@ -271,8 +271,47 @@ mass stands over her ankles, no further than a buttock behind the seen edge
   tangentially she lay back and rolled over as the cascade went high-Z
   mid-motion; the mattress gives 2.3 N/mm to the patch's 18.5, her descent
   2 cm short.
-- Open on the chair: off its seat at 10.5 s now and then; docked 3-6 cm
-  nearer, risen 4 of 6.
+- Her hips landed at her soles' back edge with her thighs clear of the
+  seat's edge (`seated.landed`, `clear`), her pelvis turned square to the
+  seat and the arm on its side ahead (`maneuver._envelope`): laid at its dock
+  grid she sits and holds 30 of 50 (16 before), rises 27 (8), falls 3 (18);
+  said from every spot the chair 75 of 112 (67), 7 falls in the sit (16).
+  Open: 20 placements never borne, 8 at her root 0.14 m off the edge, 12 at
+  0.19.
+
+## The autotuner
+
+The text as given (machine/meta_ast_autotuner.lisp), read by `machine.tune`:
+six classes, 33 keys (32 in the suite's names); its step's numbers its own (lambda
+0.08, a literal's move 0.15 of its scale, tol 1e-3, four places).
+
+- The suite's 331 keyword literals: the grammar names 75, 18 move her - a
+  gait's voices or the chair's phases, by evaluation -; 57 no voice or phase
+  of hers reads, their columns 0 (114 runs a pass not run).
+- The runway reaches 17, 3 live, each by its voice's rule: the nominal's
+  stride on her twist, its thoracic lean -2.0 on her pitch (unit 0.5), the
+  catwalk's attack 1e-3 on her duck; a circumduction of 0 has no scale. The
+  sit reaches 3, its hand-over's and descent's ms live.
+- On her loop (`tools/sim/tune.py`, the suite's harness, 16 s from 4 s, 19 s
+  a run) her walk with the runway's row: the centroidal pivot under the
+  text's 15 mm on 55 % of passes, its median 12 mm - she rolls over her toes
+  each step, no walk's invariant -; her load never under 0.698 of her weight
+  (0.35), her feet never nearer than 12.6 mm (6.5), 274 mm of slip, 350 J/m:
+  |r| 4.074, its energy 3.50 of it. A run repeats to the last digit; each live
+  literal a unit of the text's fourth place off moves |r| 0.002-0.009: a
+  step's floor.
+- Each step that lowered |r| on the runway raised her landing (1.424 ->
+  1.433-1.450 of her weight): the pivot bought with her form. Held in the step
+  (each form measure's measured gradient kept from growing, `qp.solve`), its
+  trust region halved on a refusal, at half it kept 640 -> 688 mm stride, lean
+  0.04 -> 0.0295, attack 105 -> 112.9 ms: the pivot's shortfall 1.73 -> 1.26,
+  slip 274 -> 221 mm, landing 1.42 -> 1.41, 350 -> 360 J/m, |r| 4.074 ->
+  3.926. From there no step keeps her form (her landing's knee and load, her
+  knee behind plumb) till the model's gain, 0.0079, is under its 0.009 floor.
+- The stealth crouch on ice (22 walked, 7 live): her 1 747 J/m at 0.13 m/s is
+  17.47 of |r| 17.47, the text's energy class the whole norm. Its first step
+  kept by 0.125 over its 0.118 floor bought 1 734 J/m with slip 81 -> 94 mm,
+  on ice; then none past its floor.
 
 ## Takes as modifiers
 

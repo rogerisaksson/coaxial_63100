@@ -45,15 +45,17 @@ def nearest(g, verb, at=None, where=(0.0, 0.0)):
 
 
 def seen(g, stunt, at=None):
-    """(its top, its near edge behind her soles' middle along her way), m, of the furniture stunt
-    `stunt` is on nearest `at` (her without one) - a rise's that of the stunt it rises from -; None
-    where she sees none."""
+    """(its top, its near edge behind her soles' middle along her way, its middle to her left of
+    theirs, m; its edge's turn off square to her way, rad) of the furniture stunt `stunt` is on
+    nearest `at` (her without one) - a rise's that of the stunt it rises from -; None where she sees
+    none."""
     from machine import edge, maneuver, modal
     hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at)
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]
     mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0), edge.yaw(g['sense'])
-    way = (math.sin(yaw), math.cos(yaw))
+    way, off = (math.sin(yaw), math.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
     reach = sum(abs(way[0] * turn[0][j] + way[1] * turn[2][j]) * half[j] for j in range(3))
-    return (py + half[1], -((px - float(mid[0])) * way[0] + (pz - float(mid[2])) * way[1]) - reach)
+    return (py + half[1], -(off[0] * way[0] + off[1] * way[1]) - reach, off[0] * way[1] - off[1] * way[0],
+            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi))

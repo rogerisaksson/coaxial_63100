@@ -1,6 +1,7 @@
 """A transition on her loop: a patch's lisp read as forms, a morph as rows, when it may begin.
 
     forms = patch.forms(text)                     # lists, vectors as tuples, keywords, numbers
+    for tok, start, end in patch.spans(text): ..  # each token where it stands
     wire, span = patch.morph(dry, wet, bands, clock)  # contiguous curve rows on the bar grid
     at = patch.crossing(st, now)                  # her lateral voice's next zero crossing, s
     span = patch.window(st)                       # its double support, s, to wait in for the lock
@@ -28,7 +29,8 @@ ROW_ID = 302
 _TOKEN = re.compile(r'\s*(?:(;[^\n]*)|([()\[\]])|(->)|("(?:[^"\\]|\\.)*")|([^\s()\[\];"]+))')
 
 
-def _tokens(text):
+def spans(text):
+    """(token, start, end) of each of the text's tokens, its comments skipped."""
     pos = 0
     while pos < len(text):
         m = _TOKEN.match(text, pos)
@@ -37,9 +39,9 @@ def _tokens(text):
                 raise SyntaxError('unreadable at %r' % text[pos:pos + 30])
             return
         pos = m.end()
-        comment, paren, arrow, string, atom = m.groups()
-        if not comment:
-            yield paren or arrow or string or atom
+        k = next((k for k in range(2, 6) if m.group(k) is not None), None)
+        if k:
+            yield m.group(k), m.start(k), m.end(k)
 
 
 def _atom(tok):
@@ -62,7 +64,7 @@ def forms(text):
     """The text's forms: lists, vectors as tuples, keywords and symbols as strings, numbers, a
     quoted form (quote form)."""
     stack = [[]]
-    for tok in _tokens(text):
+    for tok, _start, _end in spans(text):
         if tok in ('(', '['):
             stack.append([] if tok == '(' else ['[]'])
         elif tok in (')', ']'):

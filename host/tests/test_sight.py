@@ -1,9 +1,13 @@
 """Her eyes (`machine.sight`): the stereo's depth held to the renderer's own on one look into the
 room; a look round, posed standing, into her map, its occupied cells against the room's walls and
 things, the chair and the table told where they stand; a way to the chair planned round what
-she knows, clear of it all; the page's picture of her view (`coaxial.graphics.inset`)."""
+she knows, clear of it all; the page's picture of her view (`coaxial.graphics.inset`); her way
+round the lodge's furniture walked through its corners (`machine.route`)."""
+import itertools
 import math
 import sys
+import time
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -139,7 +143,83 @@ def test_her_map_is_the_room(report):
         body.close()
 
 
-ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth]
+def _laid(x, z, yaw=0.0):
+    """`g` as `route.planned` reads it: her place, her heading, her rhythm at rest."""
+    from machine import edge, latent
+    sense = np.zeros(edge.SENSED)
+    sense[edge.QUAT] = (math.cos(yaw / 2.0), 0.0, math.sin(yaw / 2.0), 0.0)
+    return {'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([x, 0.0, z]))), 'sense': sense,
+            'st': np.zeros(latent.STATE)}
+
+
+def _bent(curve):
+    """Her curve's sharpest bend, 1/m: its chords' turn over their length."""
+    d = np.diff(curve[:, :2], axis=0)
+    turn = np.abs(np.diff(np.unwrap(np.arctan2(d[:, 0], d[:, 1]))))
+    return float((turn / np.maximum(0.5 * (np.hypot(*d[1:].T) + np.hypot(*d[:-1].T)), 1e-9)).max(initial=0.0))
+
+
+def test_her_way_walked_through(report):
+    """Her way to the chair's and the bed's stages from house.py's spots on the lodge's cells: every
+    corridor holds no blocked cell's centre and the next overlaps it, every curve's samples lie in
+    free cells and bend within her arc, her last stop her stage; to a walled-off goal and from
+    inside a grown prop her stops are `route.way`'s corners, no curve; a plan within a look of her
+    eyes (`sight.LOOK_S`), timed."""
+    from machine import furniture, physics, route, sight, worker
+    from tools.sim import house
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    g = worker.session()['g']
+    cells = route.blocked(g)
+    at = route.centres(cells)
+    held, inside, overlap, off, bent, last, walked, kept, took = [], 0, True, 0, 0.0, True, 0, 0, []
+    for verb in ('sit_chair', 'lie_bed'):
+        dx, dz, hdd, _lat, most, where = route.docks()[verb]
+        _d, px, pz, _top = furniture.nearest(g, verb, None, where)
+        out = (math.sin(hdd), math.cos(hdd))
+        d = route.staged((px + dx, pz + dz), out, most, cells)
+        to = (px + dx + d * out[0], pz + dz + d * out[1])
+        for x, z in house.spots():
+            g_at = _laid(x, z)
+            corners = route.way(g_at, to, cells)
+            walls = [route.corridor(at, a, b) for a, b in route.carried(cells, [(x, z)] + corners)]
+            inside += sum(int(((at @ A.T) < b).all(axis=1).sum()) for A, b in walls)
+            overlap = overlap and all(_meets(w0, w1) for w0, w1 in zip(walls, walls[1:]))
+            t0 = time.perf_counter()
+            stops, curve, held = route.planned(g_at, to, cells, held)
+            took.append(time.perf_counter() - t0)
+            off += sum(int(cells[route._cell(px_, pz_)]) for px_, pz_ in curve[:, :2])
+            bent = max(bent, _bent(curve) if len(curve) > 2 else 0.0)
+            last = last and stops[-1] == to and stops == corners[len(corners) - len(stops):]
+            walked += len(corners) - len(stops)
+            kept += len(stops) - 1
+    report.check('no corridor holds a blocked cell\'s centre, each meets the next', inside == 0 and overlap,
+                 '%d centres inside' % inside)
+    report.check('the curves\' samples all in free cells, bent within her arc', off == 0 and bent <= 1.0 / route.ARC_M,
+                 '%d samples blocked, %.3f/m of %.3f' % (off, bent, 1.0 / route.ARC_M))
+    report.check('her stops `way`\'s corners she does not walk through, her stage last', last,
+                 '%d corners walked through, %d kept' % (walked, kept))
+    report.check('a plan within a look (%.1f s)' % sight.LOOK_S, max(took) < sight.LOOK_S,
+                 'median %.1f ms, most %.1f ms over %d plans' % (1e3 * float(np.median(took)), 1e3 * max(took), len(took)))
+    walled = cells.copy()
+    goal = route._cell(-0.2, 1.4)
+    walled[goal[0] - 3:goal[0] + 4, goal[1] - 3:goal[1] + 4] = True
+    walled[goal[0] - 2:goal[0] + 3, goal[1] - 2:goal[1] + 3] = False
+    edge_ = [(-1.9, -1.0), (1.5, 0.8)]
+    same = [(route.planned(_laid(*p), to_, c)[:2], route.way(_laid(*p), to_, c)) for p, to_, c in (
+        (edge_[0], route._centre(*goal), walled), (edge_[1], (-0.35, 1.8), cells))]
+    report.check('to a walled-off goal and from inside the chair\'s grown cells, `way`\'s corners, no curve',
+                 all(stops == way and not len(curve) for (stops, curve), way in same),
+                 [(stops, len(curve), way) for (stops, curve), way in same])
+
+
+def _meets(w0, w1):
+    """Whether two corridors share a point: where two of their rows cross, inside all of them."""
+    A, b = np.vstack([w0[0], w1[0]]), np.r_[w0[1], w1[1]]
+    pairs = [list(m) for m in itertools.combinations(range(len(b)), 2) if abs(np.linalg.det(A[list(m)])) > 1e-9]
+    return any((A @ np.linalg.solve(A[m], b[m]) <= b + 1e-9).all() for m in pairs)
+
+
+ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through]
 
 
 def main(argv=None):

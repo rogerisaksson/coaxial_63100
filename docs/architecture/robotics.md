@@ -55,10 +55,11 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; the bed's patches read, not played |
 | seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |
 | furniture | what her eyes tell her of a thing a verb goes to: its top, its near edge, its centre |
-| route | her way round the furniture to an errand's dock: what stands on her floor grown by her radius on her map's cells, A* through the rest; each errand's dock |
+| route | her way round the furniture to an errand's dock: what stands on her floor grown by her radius on her map's cells, A* through the rest, its corners walked through on a B-spline held in convex corridors by linear rows where it fits her arc; each errand's dock |
 | curves | the suite's curves as shares of the way, and as quintics for a row's blend |
 | swing | a sole that does not stand: where her modes put it, or at rest on the floor while something bears her |
 | voicing | a gait voiced on her walk's row by its changes off the nominal; what has no voice named, what she cannot do refused by name |
+| tune | the autotuner's text (meta_ast_autotuner.lisp) on the suite's: its grammar, each literal a root reaches where it stands, what each moves of her by evaluation, the damped least-squares step, the texts spliced |
 | takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
 | tour | the scenes one after another, commanded as an agent commands them |
@@ -85,7 +86,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | --- | --- |
 | `test_gynoid.py` | the body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
-| `test_dsp.py` | the ortho-DSP suite read as written, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk |
+| `test_dsp.py` | the ortho-DSP suite read as written, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk; the autotuner's text read, its literals walked and spliced, each one's reach on her voices, its step |
 | `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the situations that cap humanoid robot rhythm |
 | `test_situation.py` | humanoid robot situation: the text's bounds and caps, each entered unannounced told within a second |
 | `test_gvs.py` | the measures' dimensionless frame (Hof), SO(3)'s geodesic, the gates on them (`tools/sim/gvs.py`) |

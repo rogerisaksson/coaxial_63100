@@ -220,23 +220,19 @@ serves its DOD; none an entry a case.
    sight telling its door and its glass; the ground snowed and the valley
    drawn beyond the rail.
 10. **An errand from every spot** (`tools/sim/house.py`, her way round the
-    furniture `route`): the chair from 21 of the 58 spots that offer it, 4
-    before; the bed from 17 of 52 ([errands](../findings/errands.md)). Open:
+    furniture `route`): said from every spot (112 runs a verb) the chair 73,
+    32 down; the bed 103, 4 down ([errands](../findings/errands.md)). Open:
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
-    furniture too; turning and backing in the 1 m before the table she
-    brushes it and the loft; docking takes 19 s, still at each corner of her
-    way - walked through instead: A* -> convex corridors on her cells -> a
-    B-spline held in them by linear rows (`qp.solve`). Said from every spot
-    (112 runs a verb) none is free of a spasm: her arms at her stop - the
-    suite's phase-locked brake (`dock-terminal-stance`) -, her neck seated
-    and reclining - its `lock-horizon-gaze`; traced ([jerk](../findings/jerk.md)),
-    her step's strides 1 -> 0 in a pass at a landing, a borne point let go and
-    back, the seat's force flipping each pass - the anti-spasm insert her
-    master bus ([synth](../architecture/synth.md)), its Schmitt comparators no
-    part of her yet; the dock the suite's
-    (`pivot-single-anchor-arc`) where tour's turn in place and back fell 13;
-    the chair's sit held laid at its dock 16 of 50. DOD: the chair's, the
+    furniture too; turning and backing in the 1 m before the table her hands
+    touch the loft; docking takes 19 s; a curve through a corner fits her
+    arc from 2-3 of 27 turning ways. None is free of a spasm: her arms at
+    her stop - her stride let go in one pass (`a[STRIDES]`) -, her neck
+    seated and reclining, her head the step's pitch counterweight on a seat
+    that gives it none - the anti-spasm insert her master bus
+    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock the suite's (`pivot-single-anchor-arc`)
+    where tour's turn in place and back fell 13; the chair's sit held laid
+    at its dock 30 of 50. DOD: the chair's, the
     bed's and the door's errands from every pose she sees them from and said
     from every spot, no fall, no spasm.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go

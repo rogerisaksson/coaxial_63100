@@ -46,6 +46,25 @@ her dock, its stunt; the scenes themselves in [scenarios](scenarios.md).
   from 0.69 m/s overshot the staging point by 0.95 m, and a cone of 0.3 rad
   flipped her between walking and turning in place every half second, 16 s
   round one spot, surety 0.36.
+- Her stop's spasms: the brake cuts her drive in 500 ms and lets her stride go
+  (`a[STRIDES]` 1 to 0 in a law pass) mid-step at 0.5-0.9 m/s; her step's
+  rounds, its projection gone, trade what her soles cannot give to her arms
+  and head - a shoulder at -294 rad/s^2 (under 6 with her stride held), -99
+  deg at 1 168 deg/s. Her stand lets her neck go while her rhythm's gain falls
+  to 0.05 (the brake's hold reads the gain told, the rest's the gain as it
+  is): 97 deg at 900 deg/s. The suite's stop (`dock-terminal-stance`) laid on
+  her loop - from her lateral crossing every voice's amplitude to 0 on the log
+  brake over two bars, her stand at its end, her clock's rate kept - meets the
+  22 held scenes unwobbled and stops a steady walk with her arms at her walk's
+  own swing, her neck at 16 deg/s at most, her stride let go at 0.16-0.23 m/s;
+  but she goes on 1.24 m and is still 3.9 s after the word (0.72 m, 2.2 s by
+  the same reading), and in the lodge her errands lose to her stops by the
+  furniture and to the clock: the chair 66 down and 29 short of 112 (38, 7),
+  the bed 9 and 52 (3, 4). Her clock slowed with the rest stalled her last
+  swing, a sole 16-21 cm up for 0.9-2.0 s, 3 runs of 4 down; her neck held
+  through the stand cut the runs whose neck spasm is at a stop 52 -> 22 and
+  moved the trade to her arms (corner stops' median 208 -> 261 deg/s). Not
+  kept.
 - Asked flat on the bed from recline (pitch -3.0, sagittal -2.5) she lies at
   -84 deg by 6 s and rolls: yaw 3.7 to 157 deg, the bed's share 1.10 to 0.20,
   surety 0.51, the rise stuck in sit_up; sagittal -3.5 with her arms back
@@ -107,6 +126,8 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 | --- | --- | --- | --- | --- |
 | straight at the chair's normal | 4 | 36 (16 into the chair) | 12 | 6 |
 | round the furniture, still at each turn | 21 | 14 | 7 | 16 |
+| the same, measured again (6 short) | 21 | 9 | 7 | 15 |
+| walked through where a curve fits her arc (5 short) | 23 | 10 | 7 | 13 |
 
 - Her way (`route`): A* on her map's cells, the furniture grown by her
   radius and a cell; she sets off within 26 deg of her leg (her walk's arc,
@@ -114,6 +135,26 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   from there. Turned mid-rhythm her feet met and she went 0.4 m back into
   the chair. Docked 2.9 cm along its edge and 0.054 rad askew at the median,
   in 19.4 s.
+- Walked through (`route.planned`): a convex corridor round each of A*'s
+  segments, carried past its corners by her arc's tangent and a stride, its
+  half-planes at the nearest blocked cells (a cell's face where the whole
+  segment lies beyond it); in them a clamped cubic B-spline, a knot a
+  stride, its acceleration within `WALK_SPEED * YAW_RATE`, its last 1.23 m
+  straight; a solve 0.31 ms median where one fits, 12.6 where none, a plan
+  1.1 ms median, 29.9 most. Bent past her arc or none found, the corner
+  stays a stop: a curve fits from 2-3 of the 27 spots whose way turns (the
+  chair's 20, the bed's 7), the chair's slot from above tighter than her
+  arc. Held by her heading, a 0.5 rad step turned her path's chord 0.32 rad
+  in 1 s; on her arc's twist her path turned 0.33-0.40 rad/s, a median 0.17
+  rad behind her heading; walking a curve she kept within 0.05-0.33 m of
+  it, the chair from (-1.9, -1.0) seated and risen where she fell, docked
+  in 17.7 s where 27.3. Off the bed's curve her stop drifted 0.8 rad off her
+  heading at 0.87 m/s and threw her, the bed's falls 4 -> 5.
+- Said from every spot (`--said`, 28 spots x 4 headings, the lamp's post
+  kept clear): which spot falls is chaotic in her start - a heading 0.4
+  mrad off 3pi/2 sat where its exact value fell -, a change in her loop
+  moves 110 of 112 rows, and the chair's tally spreads about 5 of 112; a
+  difference is judged with each heading also +-2e-4 rad (336 runs).
 - Her stage before the chair: the middle of the free run on its normal, 0.5
   m where the table leaves 1.03 m; her back-walk's 0.05 m on and her
   sidestep's 0.15 counted in her stops.
