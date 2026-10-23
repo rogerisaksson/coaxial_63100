@@ -269,8 +269,9 @@ serves its DOD; none an entry a case.
     bridge and its C2 85 ms handover each alone felled her walking a right turn
     (replay walk_turn_right_at_0.69, 8.4-8.9 s at every nudge; the base stands
     to 13.5 s); the handover lagged her step's regime while her ask switched,
-    both soles let go. Its Schmitt comparators on her soles not begun (on
-    her support off them, done). Red as on main: the walk leap's 0.38 m at
+    both soles let go. Its Schmitt comparators on her soles - held
+    through a sole's unloading, her step pushes on it as it leaves (insert) -
+    (on her support off them, done). Red as on main: the walk leap's 0.38 m at
     no charge, the run leap's landing at full (after it her law asks her
     down 4-6 m/s^2 on one sole on its ball; her knee's lock buffered, she
     sinks), snow at +0.0002. DOD: each on her loop at its text's numbers,

@@ -201,10 +201,11 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   back she slides off its edge 12 of 336 wobbled runs, her pelvis's
   contact coming and going, her feet on the floor.
 - The sit begun only docked within the dock's tolerance and her list, her
-  sidestep onto the line (branch `dock-in-tolerance`): wobbled the chair 237
-  where 228, the bed as it was; not on main, the viewport's chair seated
-  1.5 s past test_errands' 40 s, corner stops overshooting 0.5-0.7 m into
-  the nook before it.
+  sidestep onto the line: wobbled on 99e87de4 the chair 79/237/20
+  (fell/ok/short) where 77/232/27, the bed 21/315/0 as it was.
+- A corner turned on the spin, replanned a stride before it instead of
+  braked to a stand: the chair 291/33/12 where 83/233/20, the bed 43/286/7
+  where 23/313/0; she spins in from her walking speed.
 
 ## The keys that send her
 
