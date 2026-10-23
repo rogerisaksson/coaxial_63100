@@ -13,8 +13,9 @@ the centroidal pivot's shortfall inside her soles' contact hull, her load's belo
 floor, her soles' slip over a sole's length, her feet's gap's shortfall, her landing's load past
 her form's, her drives' energy a metre over her walk's price. Its Jacobian is a run pair a live
 literal (`tune.reach`), its scale times the text's trust region either side, on the relay's batons;
-the step the text's (`tune.step`), kept unless VERDICTS say otherwise. Written (--write) where the
-residuals' norm moved less than the text's tol.
+the step the text's (`tune.step`), her form's measures held from growing by it, kept unless
+VERDICTS say otherwise, its trust region halved till its model's gain is under the floor. Written
+(--write) where the residuals' norm moved less than the text's tol.
 """
 import argparse
 import json
@@ -47,16 +48,31 @@ def norm(run):
     return float(np.linalg.norm(run['r']))
 
 
-def _newly(before, after):
-    """The conditions of her form `after` breaks that `before` met, on a flat floor."""
-    return sorted(set(after['broken']) - set(before['broken'])) if after['scene'] == 'flat' else []
+def off(run):
+    """{measure: how far a run's form is outside its band (`looks.FORM`)}: unmeasured, infinitely."""
+    out = {}
+    for name, least, most in looks.FORM:
+        v = run['form'].get(name)
+        out[name] = math.inf if v is None or v != v else max(0.0, (least - v) if least is not None else 0.0,
+                                                             (v - most) if most is not None else 0.0)
+    return out
 
 
-#: Why a step is not kept: (its test on the runs before and after it, what it says).
+def _worse(before, after):
+    """The measures of her form `after` moves further outside its band than `before`'s floor, on a
+    flat floor: its form is a condition, never a price."""
+    b, a = off(before), off(after)
+    return sorted(name for name in a if a[name] - b[name] > before['off_floor'][name]) if after['scene'] == 'flat' else []
+
+
+#: Why a step is not kept: (its test on the runs before and after it, what it says). A floor is
+#: how far a measure moves with each live literal a unit of the text's last place off before's.
 VERDICTS = ((lambda b, a: 'error' in a, lambda b, a: 'not run: %s' % a.get('error', '')[-160:]),
             (lambda b, a: a['fell'] is not None, lambda b, a: 'she fell at %.2f s' % a['fell']),
-            (lambda b, a: bool(_newly(b, a)), lambda b, a: 'her form broken: ' + ', '.join(_newly(b, a))),
-            (lambda b, a: norm(a) >= norm(b), lambda b, a: '|r| %.4f -> %.4f' % (norm(b), norm(a))))
+            (lambda b, a: bool(_worse(b, a)), lambda b, a: 'her form worse: ' + ', '.join(
+                '%s %.3f -> %.3f' % (n, b['form'][n], a['form'][n]) for n in _worse(b, a))),
+            (lambda b, a: norm(b) - norm(a) <= b['floor'],
+             lambda b, a: '|r| %.4f -> %.4f' % (norm(b), norm(a))))
 
 
 def judged(before, after):
@@ -250,31 +266,72 @@ def tuned(root, steps):
     cols, refused = tune.reach(root, table, tx, fr)
     print(walk_report(root, table, cols, refused), flush=True)
     live, got, k = sorted(cols), dsp.read(dsp.SUITE, tx), tune.knobs()
-    scales = np.array([tune.scale(table[i][0], got) for i in live])
-    h = k[('compute-adjoint-ast-deltas', 'trust-region-scale')] * scales
-    span = lambda i: (table[i][0].path, table[i][0].start, table[i][0].end)
-    state, converged, digits = {}, False, k[('sync-mutated-packages-to-disk', 'float-precision')]
+    c = {'root': root, 'gr': gr, 'table': table, 'live': live, 'digits': k[('sync-mutated-packages-to-disk', 'float-precision')],
+         'scales': np.array([tune.scale(table[i][0], got) for i in live]),
+         'span': [(table[i][0].path, table[i][0].start, table[i][0].end) for i in live]}
+    c['h'] = k[('compute-adjoint-ast-deltas', 'trust-region-scale')] * c['scales']
+    state, converged = {}, False
     before = runs(root, [state])[0]
+    print('' if 'r' in before else 'her walk with it not run: %s' % before.get('error', '')[-300:], flush=True)
     for n in range(steps if live and 'r' in before else 0):
-        cur = np.array([state.get(span(i), table[i][0].value) for i in live])
-        pairs = runs(root, [{**state, span(i): cur[j] + s * h[j]} for j, i in enumerate(live) for s in (1.0, -1.0)])
-        ok = [j for j in range(len(live)) if all('r' in p and p['fell'] is None for p in pairs[2 * j:2 * j + 2])]
-        J = np.array([[(pairs[2 * j]['r'][c] - pairs[2 * j + 1]['r'][c]) / (2.0 * h[j]) for j in ok] for c in range(len(gr))])
-        new = cur.copy()
-        new[ok] += tune.step(J.reshape(len(gr), len(ok)), np.array(before['r']), scales[ok])
-        new = np.array([float(tune.number(v, digits)) for v in new])
-        trial = {**state, **{span(i): new[j] for j, i in enumerate(live)}}
-        after = runs(root, [trial])[0]
-        why = judged(before, after)
-        print('\nstep %d: %d of %d literals measured (%s), %s' % (
-            n + 1, len(ok), len(live), ', '.join('%.0f s' % p.get('wall', math.nan) for p in pairs[:2]),
-            'kept' if why is None else 'not kept: ' + why), flush=True)
-        print(run_report(gr, before, after, table, live, cur, new), flush=True)
-        if why is not None:
+        cur = np.array([state.get(c['span'][j], table[i][0].value) for j, i in enumerate(live)])
+        J, held, ok = measured_at(c, state, cur, before, n)
+        trial, after = stepped(c, state, cur, before, (J, held, ok))
+        if after is None:
+            converged = bool(ok)
             break
         converged = abs(norm(after) - norm(before)) < k[('universal-autotune-daemon', 'tol')] * norm(before)
         state, before = trial, after
     return state, converged
+
+
+def measured_at(c, state, cur, before, n):
+    """(J, held, ok) of the live literals at `cur`, a run pair a literal its h either side: the
+    residuals' Jacobian and her form's (on a flat floor) over the literals `ok` measured - none
+    felled her -; `before`'s floors set by two runs, each literal a unit of the text's last place
+    off either way."""
+    unit = 10.0 ** -c['digits']
+    pairs = runs(c['root'], [{**state, c['span'][j]: cur[j] + s * c['h'][j]} for j in range(len(cur)) for s in (1.0, -1.0)]
+                 + [{**state, **{c['span'][j]: cur[j] + s * unit for j in range(len(cur))}} for s in (1.0, -1.0)])
+    pairs, floor = pairs[:-2], [f for f in pairs[-2:] if 'r' in f]
+    before['floor'] = max([abs(norm(f) - norm(before)) for f in floor] or [math.inf])
+    offs = [off(f) for f in floor]
+    before['off_floor'] = {name: max([abs(o[name] - v) for o in offs if math.isfinite(o[name] - v)] or [math.inf])
+                           for name, v in off(before).items()}
+    ok = [j for j in range(len(cur)) if all('r' in p and p['fell'] is None for p in pairs[2 * j:2 * j + 2])]
+    d = lambda j, of: (of(pairs[2 * j]) - of(pairs[2 * j + 1])) / (2.0 * c['h'][j])
+    J = np.array([[d(j, lambda p: p['r'][k]) for j in ok] for k in range(len(c['gr']))]).reshape(len(c['gr']), len(ok))
+    held = [[d(j, lambda p: off(p)[name]) for j in ok] for name, _least, _most in looks.FORM] if before['scene'] == 'flat' else []
+    print('\nstep %d: %d of %d literals measured (%s), its floor %.4f' % (
+        n + 1, len(ok), len(cur), ', '.join('%.0f s' % p.get('wall', math.nan) for p in pairs[:2]), before['floor']), flush=True)
+    return J, held, ok
+
+
+def stepped(c, state, cur, before, measured):
+    """(the state a kept step leaves, its run) - or (`state`, None) where none is kept -: the
+    text's step on `measured` (J, held, ok), its trust region halved while a step is not kept,
+    till the gain its own model predicts is under the floor."""
+    from machine import tune
+    J, held, ok = measured
+    r, shrink = np.array(before['r']), 1.0
+    while ok:
+        d = tune.step(J, r, c['scales'][ok], held, shrink)
+        gain = norm(before) - float(np.linalg.norm(r + J @ d))
+        if gain <= before['floor']:
+            print('  at %.3g of its trust region its model gains %.4f, under its floor: none kept' % (shrink, gain), flush=True)
+            break
+        new = cur.copy()
+        new[ok] += d
+        new = np.array([float(tune.number(v, c['digits'])) for v in new])
+        trial = {**state, **{c['span'][j]: new[j] for j in ok}}
+        after = runs(c['root'], [trial])[0]
+        why = judged(before, after)
+        print('  at %.3g of its trust region: %s' % (shrink, 'kept' if why is None else 'not kept, ' + why), flush=True)
+        print(run_report(c['gr'], before, after, c['table'], c['live'], cur, new), flush=True)
+        if why is None:
+            return trial, after
+        shrink /= 2.0
+    return state, None
 
 
 def main(argv=None):

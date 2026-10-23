@@ -292,6 +292,26 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   stride on her twist, its thoracic lean -2.0 on her pitch (unit 0.5), the
   catwalk's attack 1e-3 on her duck; a circumduction of 0 has no scale. The
   sit reaches 3, its hand-over's and descent's ms live.
+- On her loop (`tools/sim/tune.py`, the suite's harness, 16 s from 4 s, 19 s
+  a run) her walk with the runway's row: the centroidal pivot under the
+  text's 15 mm on 55 % of passes, its median 12 mm - she rolls over her toes
+  each step, no walk's invariant -; her load never under 0.698 of her weight
+  (0.35), her feet never nearer than 12.6 mm (6.5), 274 mm of slip, 350 J/m:
+  |r| 4.074, its energy 3.50 of it. A run repeats to the last digit; each live
+  literal a unit of the text's fourth place off moves |r| 0.002-0.009: a
+  step's floor.
+- Each step that lowered |r| on the runway raised her landing (1.424 ->
+  1.433-1.450 of her weight): the pivot bought with her form. Held in the step
+  (each form measure's measured gradient kept from growing, `qp.solve`), its
+  trust region halved on a refusal, at half it kept 640 -> 688 mm stride, lean
+  0.04 -> 0.0295, attack 105 -> 112.9 ms: the pivot's shortfall 1.73 -> 1.26,
+  slip 274 -> 221 mm, landing 1.42 -> 1.41, 350 -> 360 J/m, |r| 4.074 ->
+  3.926. From there no step keeps her form (her landing's knee and load, her
+  knee behind plumb) till the model's gain, 0.0079, is under its 0.009 floor.
+- The stealth crouch on ice (22 walked, 7 live): her 1 747 J/m at 0.13 m/s is
+  17.47 of |r| 17.47, the text's energy class the whole norm. Its first step
+  kept by 0.125 over its 0.118 floor bought 1 734 J/m with slip 81 -> 94 mm,
+  on ice; then none past its floor.
 
 ## Takes as modifiers
 

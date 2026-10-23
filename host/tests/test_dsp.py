@@ -275,8 +275,8 @@ def test_a_literal_reaches_her_where_a_voice_reads_it(report):
 
 
 def test_the_step_is_damped_least_squares_in_its_trust_region(report):
-    """The step solves (J^T J + lambda I) x = -J^T r in the literals' scales; its largest move is
-    the text's trust region of its scale."""
+    """The step solves (J^T J + lambda I) x = -J^T r in the literals' scales, each move within the
+    text's trust region of its scale, a held measure not growing."""
     import numpy as np
     from machine import tune
     J, scales = np.array([[2.0, 0.0], [0.0, 0.5]]), np.array([1.0, 4.0])
@@ -285,8 +285,12 @@ def test_the_step_is_damped_least_squares_in_its_trust_region(report):
     want = -a * np.array([0.01, -0.02]) / (a * a + 0.08) * scales
     big = tune.step(J, np.array([10.0, 0.0]), scales)
     report.check('a small residual: the damped solve; a large one: held to 0.15 of its scale',
-                 np.allclose(small, want) and math.isclose(abs(big[0]), 0.15 * scales[0]) and big[1] == 0.0,
+                 np.allclose(small, want) and math.isclose(abs(big[0]), 0.15 * scales[0]) and abs(big[1]) < 1e-12,
                  '%s %s %s' % (small, want, big))
+    free = tune.step(np.eye(2), np.array([-0.02, 0.01]), np.ones(2))
+    held = tune.step(np.eye(2), np.array([-0.02, 0.01]), np.ones(2), [[1.0, 1.0]])
+    report.check('a measure growing with both literals held: free it grows, held they move against each other',
+                 free[0] + free[1] > 0.0 and np.allclose(held, [0.015 / 1.08, -0.015 / 1.08]), '%s %s' % (free, held))
 
 
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written, test_a_patch_moves_her_walk_by_its_changes,

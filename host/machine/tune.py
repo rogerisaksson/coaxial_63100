@@ -226,17 +226,22 @@ def spliced(texts, lits, values, digits=None):
     return out
 
 
-def step(J, r, scales):
+def step(J, r, scales, held=(), shrink=1.0):
     """Each literal's step against residuals `r` (`J` their Jacobian, a column a literal): the damped
-    least-squares (J^T J + lambda I)^-1 J^T r in the literals' `scales`, its largest move held to
-    the text's trust region of its scale."""
+    least squares min |r + J d|^2 + lambda |d|^2 in the literals' `scales`, each move within
+    `shrink` of the text's trust region of its scale, no measure of `held` (rows of its Jacobian)
+    growing by them (`qp.solve`; d = 0 always holds)."""
     import numpy as np
+    from machine import qp
     k = knobs()
-    a = np.asarray(J, float) * np.asarray(scales, float)
-    x = -np.linalg.solve(a.T @ a + k[('compute-adjoint-ast-deltas', 'damping-lambda')] * np.eye(a.shape[1]), a.T @ r)
-    most = float(np.max(np.abs(x))) if x.size else 0.0
-    trust = k[('compute-adjoint-ast-deltas', 'trust-region-scale')]
-    return x * min(1.0, trust / most if most else 1.0) * np.asarray(scales, float)
+    s = np.asarray(scales, float)
+    a, rows = np.asarray(J, float) * s, [np.asarray(row, float) * s for row in held]
+    rows = [row for row in rows if np.all(np.isfinite(row)) and np.any(row)]
+    n, trust = a.shape[1], shrink * k[('compute-adjoint-ast-deltas', 'trust-region-scale')]
+    x = qp.solve(a.T @ a + k[('compute-adjoint-ast-deltas', 'damping-lambda')] * np.eye(n), a.T @ r,
+                 np.vstack([np.eye(n), -np.eye(n)] + rows),
+                 np.concatenate([np.full(2 * n, trust), np.zeros(len(rows))]))[0]
+    return x * s
 
 
 def written(texts):
