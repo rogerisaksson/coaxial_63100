@@ -31,14 +31,6 @@
   3.12 the chair borne 0.34 and the door at z 3.35 too; test_scenarios'
   chair at 0 rad (fell at 10.905 s, 3.14). DOD: both workflows green on
   main.
-- **The autotuner on her loop** (asked; machine/meta_ast_autotuner.lisp,
-  `machine.tune`, `tools/sim/tune.py`): a gait's literals stepped and judged,
-  her form held ([sequencer](../findings/sequencer.md)). Open: a stunt and a
-  schedule as roots of a run (her gym's suite the run's spliced copy, the
-  channels over whatever bears her); the nominal's literals are every
-  patch's, so a write moves roots it was not judged on. DOD: the chair's sit
-  and the suite's schedule stepped and judged; --write holding every root a
-  moved literal reaches.
 - **native://**: a limb's world on a fixed mount as board/emu's. A frame on
   an idle limb of four 32 ms, the wire's 10: three boards awake t3.5 and each
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
