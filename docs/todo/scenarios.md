@@ -225,7 +225,8 @@ serves its DOD; none an entry a case.
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
     furniture too; turning and backing in the 1 m before the table her hands
-    touch the loft; docking takes 19 s; a curve through a corner fits her
+    touch the loft - a half turn in place creeps her 0.45-0.58 m -; docking
+    takes 19 s; a curve through a corner fits her
     arc from 2-3 of 27 turning ways. None is free of a spasm: her arms at
     her stop - her stride let go in one pass (`a[STRIDES]`) -, her neck
     seated and reclining, her head the step's pitch counterweight on a seat

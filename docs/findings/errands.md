@@ -155,6 +155,13 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   mrad off 3pi/2 sat where its exact value fell -, a change in her loop
   moves 110 of 112 rows, and the chair's tally spreads about 5 of 112; a
   difference is judged with each heading also +-2e-4 rad (336 runs).
+- The dock's turns fell her on the loft (x >= 2.0, its top 0.75 m, 0.28 m
+  beside the seat, a ground of hers to the referee): her right fingers on
+  its edge, turning at 0.1-0.2 m/s 0.13-0.21 m past the dock's line her
+  stop left her at. A half turn in place on the open floor creeps her
+  centre 0.45-0.58 m in 9-9.5 s, her hands 0.65-0.74 m from where she
+  stood; at half her yaw rate 0.65-0.80 m in 13-14 s - about 0.05 m/s
+  turning with her, not the spin's cruise (zeroed, 0.43-0.54 m).
 - Her stage before the chair: the middle of the free run on its normal, 0.5
   m where the table leaves 1.03 m; her back-walk's 0.05 m on and her
   sidestep's 0.15 counted in her stops.
