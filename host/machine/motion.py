@@ -204,7 +204,9 @@ def control(g, dt):
     ax = float(z_to[modal.AXIAL])
     rec = min(float(z_to[modal.PITCH]), float(np.min(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH], initial=0.0)))
     w_sit = min(1.0, max(0.0, (ax - 1.5) / 0.01)) * min(1.0, max(0.0, (rec + 0.2) / 0.01))
-    rest = (1.0 - float(g['a'][modal.STRIDES])) * w_gait
+    # a sole up while what bears her bears her is no stride: counted one, lying back her neck let
+    # go 0.36 s and flexed 64 deg at 1034 deg/s
+    rest = (1.0 - float(g['a'][modal.STRIDES]) * (1.0 - float(g['a'][modal.BORNE]))) * w_gait
     w_base = sw * max(w_hop, rest * (1.0 - w_sit))
     # her neck holds her head's pitch itself also while her rhythm is told to run, held to her
     # landings' footprint, but told no drive - a brake: coupled, her step's rounds threw her head

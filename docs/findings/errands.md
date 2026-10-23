@@ -214,6 +214,13 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   -0.025, -0.015) she sat. Her soles about her root placed where the
   props are read: the chair 46/268/22 where 57/265/14, its sit's falls 16
   where 27, the bed 18/318/0 as it was.
+- Lying back on the bed a sole left the floor, read as a stride, and her
+  neck's own hold let go for 0.36 s: it flexed 64 deg at 1034 deg/s, her
+  head to 84 deg. A sole up while the bed bears her is no stride: the bed
+  wobbled with its rise, neck median 932 -> 152 deg/s (recline 296 runs ->
+  42), head 898 -> 354, fell 55 -> 41, held 315 -> 320, risen 97 -> 93;
+  the chair the same to the bit. Held through a sit too, she fell off the
+  seat in the chair scenario (6.85 s): the sit's coupling stays.
 
 ## The keys that send her
 
