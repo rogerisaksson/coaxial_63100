@@ -40,12 +40,12 @@ def test_the_humanoid_pages_mouse(report):
     keys._buffer = ''.join(sum((keys._mouse_of(SN(pos=SN(X=x, Y=10), buttons=b, flags=console.MOUSE_MOVED))
                                 for x, b in ((10, 1), (15, 1), (18, 0))), []))
     keys.poll()
-    d_ok = (keys.clicked() == [(55, 22), (11, 11)] and keys.dragged() == (5, 0)
+    d_ok = (keys.clicked() == [(55, 22)] and keys.dragged() == (5, 0)
             and keys._buttons == 0 and not keys._holding)
     keys._grabbed, keys._holding, keys._buttons, keys._held_at = True, True, 1, 0.0
     keys._hold = lambda: setattr(keys, '_held_at', 999.0)
     keys.poll()
-    report.check('a click by key records, a drag and its release, a stuck drag reset',
+    report.check('a click by key records, a drag and its release no click, a stuck drag reset',
                  lv_c is None and d_ok and keys._buttons == 0 and not keys._holding and keys._held_at == 999.0)
 
 

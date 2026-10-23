@@ -136,7 +136,7 @@ class Keys:
         self._quits, self._select, self._pan, self._menus = frozenset(quits), frozenset(select), pan, frozenset(menus)
         self.console, self.mouse, self.reports = console, mouse and console, 0
         self._clicked, self._typed, self._keys_down = [], [], set()
-        self._saved = self._was_mode = self._posix = self._last_row = self._grip = self._term_hwnd = None
+        self._saved = self._was_mode = self._posix = self._last_row = self._grip = self._term_hwnd = self._pressed = None
         self._dragging = self._holding = self._grabbed = self._async_keys = self._latched_wasd = self._hw_seen = False
         self._buffer = self._pending = ''
         self._pan_at, self._panned, self._spun = (0, 0), (0.0, 0.0), (0.0, 0.0)
@@ -218,7 +218,7 @@ class Keys:
                 self._held_at = time.monotonic()
             else:
                 self._holding = self._dragging = False
-                self._buttons = 0
+                self._buttons, self._pressed = 0, None
                 self._hold()
         keys, zoom = self._strip_sequences()
         leave = None
@@ -279,7 +279,10 @@ class Keys:
             self._dragging = False
             return 0.0
         if button in (0, 32) and kind == 'm':
-            self._holding = False
+            # a click is a press let go where it was: on the press, every look round the view
+            # said F's first offer, and that offer is what the view faces
+            self._clicked += [self._pressed] if self._pressed is not None else []
+            self._holding, self._pressed = False, None
             return 0.0
         if button == 2 and kind == 'M':
             self._dragging, self._last_row, self._pan_at = True, row, (col, row)
@@ -296,8 +299,7 @@ class Keys:
             self._last_row = row
             return -moved * DRAG_STEP
         if button == 0 and kind == 'M':
-            self._holding, self._grip = True, (col, row)
-            self._clicked.append((col, row))
+            self._holding, self._grip, self._pressed = True, (col, row), (col, row)
             return 0.0
         if button == 32 and kind == 'M':
             if not self._holding or self._grip is None:
@@ -305,7 +307,7 @@ class Keys:
             last = self._grip
             dx, dy = self._spun
             self._spun = (dx + (col - last[0]), dy + (row - last[1]))
-            self._grip = (col, row)
+            self._grip, self._pressed = (col, row), self._pressed if (col, row) == self._pressed else None
             return 0.0
         if kind == 'm':
             self._holding = self._dragging = False
@@ -322,7 +324,7 @@ class Keys:
         return out
 
     def clicked(self):
-        """Left-button presses as (column, row) since the last call."""
+        """Left clicks - a press let go where it was - as (column, row) since the last call."""
         out, self._clicked = self._clicked, []
         return out
 
