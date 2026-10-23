@@ -48,13 +48,16 @@ def seen(g, stunt, at=None):
     """(its top, its near edge behind her soles' middle along her way, its middle to her left of
     theirs, m; its edge's turn off square to her way, rad) of the furniture stunt `stunt` is on
     nearest `at` (her without one) - a rise's that of the stunt it rises from -; None where she sees
-    none."""
+    none. Her soles about her root as her estimate has them, her root where `_found` reads her: a
+    look is taken from her, her odometry's drift none of it - an errand drifted her estimate 3 cm,
+    the seat seen 2.2 cm deep of where it stood, a thigh met its edge and she fell."""
     from machine import edge, maneuver, modal
     hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at)
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]
-    mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0), edge.yaw(g['sense'])
+    root = g['world'].data.qpos[:3] - g['est']['pos']
+    mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0) + root, edge.yaw(g['sense'])
     way, off = (math.sin(yaw), math.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
     reach = sum(abs(way[0] * turn[0][j] + way[1] * turn[2][j]) * half[j] for j in range(3))
     return (py + half[1], -(off[0] * way[0] + off[1] * way[1]) - reach, off[0] * way[1] - off[1] * way[0],

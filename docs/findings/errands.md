@@ -206,6 +206,14 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 - A corner turned on the spin, replanned a stride before it instead of
   braked to a stand: the chair 291/33/12 where 83/233/20, the bed 43/286/7
   where 23/313/0; she spins in from her walking speed.
+- Her seat seen from her estimated soles against the room's props: her
+  root's estimate drifted (-0.029, +0.104, -0.022) m over an errand, her
+  soles the same to 1 mm, the seat seen 2.2 cm deeper than it stood; a
+  thigh met its edge, her pelvis 2 cm over the seat, and her trunk's
+  straightening tipped her off. Laid at the errand's own start (0.133,
+  -0.025, -0.015) she sat. Her soles about her root placed where the
+  props are read: the chair 46/268/22 where 57/265/14, its sit's falls 16
+  where 27, the bed 18/318/0 as it was.
 
 ## The keys that send her
 
