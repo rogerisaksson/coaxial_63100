@@ -319,6 +319,27 @@ anti_spasm_supervisor.lisp):
   0.3-0.47 of her, and her rise fell at 9.26 s; every manifold latched, she
   rose. A debounce on what the step plans on hides a force: hysteresis is a
   mode's, her stance's.
+- The buffers at their width alone stop an approach of 1.9 rad/s at most
+  (0.06 rad, 140 /s^2, zeta 1): in the standing jump's crouch her soles'
+  centres of pressure sat on their heels and her step threw her head for her
+  trunk's lean (her neck 55-73 rad/s^2, its posture's row the cheapest), her
+  neck met its buffer at 13 rad/s, ran 0.36 rad past its stop and she landed
+  0.35 m on. Engaged as far again as the spring takes to stop the approach
+  (v / (e w), 0.4 rad at 13 rad/s): 0.044 rad past.
+- Her swung knee's torque steps - -36 to +39 N m at its lift, -40 to 0 at
+  its rise's end, the clearance's cubic stepping its sole 37 m/s^2 - count
+  three hot half cycles and trip its tank: at a 0.6 rad heel's cap with the
+  knee's lock buffered, 28 trips in 12 bed errands and, wobbled 3 poses x 8
+  headings, 13 docked, 7 fell. At a woman's heel (36.2 deg) the lock
+  buffered, 12 of 12; the lock left to the drive pass's knee spring alone, 9
+  of 11 shoves from behind, weaves and chairs fell. The clearance on a
+  quintic, C2: 2.80 off a woman's, 441 J/m; on a quartic, C2 at its top:
+  3.22, 455 J/m (as built 2.52, 409); neither kept.
+- After the run leap her law asks her down 4-6 m/s^2 and on 2-6 m/s^2 on one
+  sole on its ball (5.86-6.26 s); her step plans that sole 243 -> 0 N as
+  asked. Unbuffered, her knee hits its lock at 7.8 rad/s and she lands on
+  both (the base the same); its lock's buffer reached ahead, she sank to
+  0.47 m and fell, 4 starts in 5.
 - Her drives damp a step of their rates once the D channel settles: a pass
   after it 0.3 % of the damping and the preload's sign, +2.5 W; at the gate's
   attack and the low-pass's 2 % time (26 ms), -6.64 W where -6.55 bare.

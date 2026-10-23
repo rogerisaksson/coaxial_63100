@@ -174,11 +174,10 @@ def test_her_master_bus_and_buffers(report):
     body = wbc.Body()
     rows, (width, stiff, damp, reach) = body.buffers
     ends = sorted((names[i], side) for i, _stop, side in rows)
-    report.check('a buffer %.2f rad before each of %d stops her drives do not cushion, critically damped, reached'
-                 ' 1/(e w) ahead' % (width, len(ends)),
+    report.check('a buffer %.2f rad before each stop of %d joints, critically damped, reached 1/(e w) ahead'
+                 % (width, len(ends) // 2),
                  ends == sorted((names[i], side) for i in supervisor.joints_of(
-                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0)
-                     if supervisor.CUSHIONED.get(drives.kind(names[i])) != side)
+                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
                  and math.isclose(damp * damp, 4.0 * stiff) and math.isclose(reach * math.e * math.sqrt(stiff), 1.0),
                  str(ends))
 

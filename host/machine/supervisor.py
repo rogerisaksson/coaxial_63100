@@ -157,10 +157,9 @@ def reset(laid):
     s.energy, s.power, s.primed = insert()['energy-tank']['initial-energy-joules'], 0.0, 0
 
 
-#: An end her drive pass cushions itself, by its joint's kind (1 its low end): the knee's straight
-#: lock, its spring and damper (`wbc_pass.c`'s). A buffer there too, her swung knee's torque steps
-#: set its tank's detector off and 3 of 12 bed errands fell, 12 of 12 without it.
-CUSHIONED = {'knee': 1.0}
+#: A low end before the model's: the knee's straight lock, its singularity, rad. Left to her drive
+#: pass's knee spring alone, 9 of 11 shoves from behind, weaves and chairs fell.
+LOCKS = {'knee': 0.0}
 
 
 def buffers(names, stops):
@@ -175,7 +174,6 @@ def buffers(names, stops):
     rows = []
     for i in (i for i in joints_of(b['nodes'], names) if i in stops):
         lo, hi = stops[i]
-        rows += [(i, end, side) for end, side in ((float(lo), 1.0), (float(hi), -1.0))
-                 if CUSHIONED.get(drives.kind(names[i])) != side]
+        rows += [(i, LOCKS.get(drives.kind(names[i]), float(lo)), 1.0), (i, float(hi), -1.0)]
     return tuple(rows), (b['extension-soft-knee-rad'], k, 2.0 * b['boundary-damping-ratio'] * math.sqrt(k),
                          1.0 / (math.e * math.sqrt(k)))
