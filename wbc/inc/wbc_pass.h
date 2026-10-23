@@ -134,6 +134,7 @@ typedef struct
   int                  off_frame;
   int                  off_dim;
   int                  off_efc;
+  int                  off_friction;
   double               middle_m;   /**< a sole's middle along it: its heel's cell behind, its ball's ahead */
   const int           *gb;         /**< each geom's body */
   const unsigned char *hers;       /**< each body: hers or not */
@@ -156,6 +157,13 @@ typedef struct
 
 /** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`. */
 void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force);
+
+/** Her contacts copied as they stand (machine.live.raw): of `ncon` contacts at `pos`, each between a
+    body of hers and one not with rows of the solver's, a row of `width` doubles in `out`, at most
+    `cap` - at `at`'s offsets whether hers is the first geom, its place, frame, force (the solver's
+    rows), friction and tangential velocity (the solver's velocity rows). Returns how many she has. */
+int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force,
+                    const double *efc_vel, const int *at, int width, int cap, double *out);
 
 /** The bins into `y` at its offsets: the loads, the touch, the insoles' loads and centres of pressure,
     the cells, where each segment's touch is. */

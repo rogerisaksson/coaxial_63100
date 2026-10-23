@@ -278,6 +278,7 @@ Six firmware defects, no hardware fault:
 | Her place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
 | The mocap takes as her scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
 | The takes as a sequencer's score: beats, voices, a gait's pattern | [findings/sequencer.md](findings/sequencer.md) |
+| The autotuner on her texts, offline and at runtime: reach, step, her loop linked | [findings/autotuner.md](findings/autotuner.md) |
 | Support, whatever bears her: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
 | The board's thermal: the network, the camera, the observer, the envelope | [findings/thermal.md](findings/thermal.md) |
 | Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |

@@ -109,6 +109,16 @@ def _read():
     return _cores().library().wbh_pass_felt
 
 
+def layout(c, con):
+    """The contacts' layout on `c` (wbc_contacts_t), laid at their first: a contact's bytes, its
+    fields' offsets from its place."""
+    if not c.stride:
+        base = con.pos.ctypes.data
+        c.stride, c.off_geom, c.off_frame = con.pos.strides[0], con.geom.ctypes.data - base, con.frame.ctypes.data - base
+        c.off_dim, c.off_efc = con.dim.ctypes.data - base, con.efc_address.ctypes.data - base
+        c.off_friction = con.friction.ctypes.data - base
+
+
 def read(world, y):
     """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch and
     where on each it is."""
@@ -120,10 +130,7 @@ def read(world, y):
     # solver's (the cone elliptic, `mjcf.CONE`), a bin a segment in the contacts' order
     if ncon:
         con = d.contact
-        if not c.stride:
-            base = con.pos.ctypes.data
-            c.stride, c.off_geom, c.off_frame = con.pos.strides[0], con.geom.ctypes.data - base, con.frame.ctypes.data - base
-            c.off_dim, c.off_efc = con.dim.ctypes.data - base, con.efc_address.ctypes.data - base
+        layout(c, con)
         contacts(ctypes.byref(c), ncon, con.pos.ctypes.data, d.efc_force.ctypes.data)
     else:
         contacts(ctypes.byref(c), 0, None, None)

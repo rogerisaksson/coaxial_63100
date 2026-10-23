@@ -277,7 +277,7 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None):
     from machine import dsp
     suite = None if texts is None else dsp.read(dsp.SUITE, texts)
     s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(texts=texts, suite=suite),
-         'texts': texts, 'suite': suite,
+         'texts': texts, 'suite': suite, 'each': [], 'links': [],
          'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None)}
     s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
     laid(s)
@@ -299,11 +299,17 @@ def laid(s):
 
 
 def apply(s, command):
-    """`command` heard at this pass, logged before it is done; a restart lays a new epoch."""
+    """`command` heard at this pass, logged before it is done; a restart lays a new epoch, a link a
+    tuner's hook on each pass (`tap.attached`)."""
     s['heard']((s['epoch'], s['passes'], s['g']['t'], command))
     if command.get('restart'):
         laid(s)
         s['refused'] = None
+    if 'link' in command:
+        from machine import tap
+        hook, link = tap.attached(command['link'])
+        s['each'].append(hook)
+        s['links'].append(link)
     try:
         if command.get('gym') in sprung.GYMS:
             s['gym_name'], s['gym'] = command['gym'], sprung.entries(name=command['gym'], texts=s['texts'], suite=s['suite'])
@@ -358,6 +364,8 @@ def stepped(s):
     _paired, averaged, address = _passing()
     averaged(ctypes.byref(world.passing), K, address(s['torque']), address(s['power']))
     s['watts'] += K * (world.drawn() - s['watts'])
+    for hook in s['each']:
+        hook(s)
 
 
 def told(s):

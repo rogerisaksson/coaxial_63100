@@ -102,7 +102,8 @@ class Contacts(ctypes.Structure):
     """wbc_contacts_t: her soles' and skin's contacts read, pointing at the edge's bins (`machine.edge.laid`)."""
 
     _fields_ = [('nbody', _i), ('nskin', _i), ('ninsoles', _i), ('nfeet', _i), ('stride', _i), ('off_geom', _i),
-                ('off_frame', _i), ('off_dim', _i), ('off_efc', _i), ('middle_m', _d),
+                ('off_frame', _i), ('off_dim', _i), ('off_efc', _i), ('off_friction', _i),
+                ('middle_m', _d),
                 ('gb', _vp), ('hers', _vp), ('sole_side', _vp), ('insole', _vp), ('foot', _vp), ('skin', _vp),
                 ('xmat', _vp), ('xpos', _vp), ('loads', _vp), ('touch', _vp), ('pressed', _vp), ('at', _vp),
                 ('cells', _vp), ('felt_n', _vp), ('felt_at', _vp)]
@@ -249,6 +250,7 @@ def typed(lib):
     lib.wbh_pass_metered.argtypes = [ctypes.POINTER(World), _vp, d]
     lib.wbh_pass_felt.argtypes = [ctypes.POINTER(World), _vp, i, i, i, i, i, i]
     lib.wbh_pass_contacts.argtypes = [ctypes.POINTER(Contacts), i, _vp, _vp]
+    lib.wbh_pass_tapped.argtypes, lib.wbh_pass_tapped.restype = [ctypes.POINTER(Contacts), i] + [_vp] * 4 + [i, i, _vp], i
     lib.wbh_pass_sensed.argtypes = [ctypes.POINTER(Contacts), _vp, i, i, i, i, i, i]
     lib.wbh_pass_heat_load.argtypes = [ctypes.POINTER(Heat), _vp, _vp]
     lib.wbh_pass_heat.argtypes = [ctypes.POINTER(Heat), d, _vp, _vp, i]

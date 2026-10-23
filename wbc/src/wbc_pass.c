@@ -360,6 +360,43 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
   }
 }
 
+int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force,
+                    const double *efc_vel, const int *at, int width, int cap, double *out)
+{
+  int n = 0;
+
+  for (int i = 0; i < ncon; i++)
+  {
+    const char *row = pos + (size_t)i * (size_t)c->stride;
+    const int  *geom = (const int *)(row + c->off_geom);
+    const int   dim = *(const int *)(row + c->off_dim), adr = *(const int *)(row + c->off_efc);
+    const int   h0 = c->hers[c->gb[geom[0]]], h1 = c->hers[c->gb[geom[1]]];
+    double     *x = out + (size_t)n * (size_t)width;
+
+    if (h0 == h1 || adr < 0)
+    {
+      continue;
+    }
+    if (n < cap)
+    {
+      x[at[0]] = h0 ? 1.0 : 0.0;
+      memcpy(x + at[1], row, 3 * sizeof(double));
+      memcpy(x + at[2], row + c->off_frame, 9 * sizeof(double));
+      for (int k = 0; k < 3; k++)
+      {
+        x[at[3] + k] = dim > k ? efc_force[adr + k] : 0.0;
+      }
+      x[at[4]] = *(const double *)(row + c->off_friction);
+      for (int k = 0; k < 2; k++)
+      {
+        x[at[5] + k] = dim > k + 1 ? efc_vel[adr + 1 + k] : 0.0;
+      }
+    }
+    n++;
+  }
+  return n;
+}
+
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
                      int cells_at, int at_at)
 {
