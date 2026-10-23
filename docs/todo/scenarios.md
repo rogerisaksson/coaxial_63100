@@ -226,16 +226,16 @@ serves its DOD; none an entry a case.
     stays down - a borne point held still in its three axes, away from the
     furniture too; turning and backing in the 1 m before the table her hands
     touch the loft - a half turn in place creeps her 0.45-0.58 m -; docking
-    takes 19 s; a curve through a corner fits her
-    arc from 2-3 of 27 turning ways. None is free of a spasm: her arms at
-    her stop - her stride let go in one pass (`a[STRIDES]`) -, her neck
-    seated and reclining, her head the step's pitch counterweight on a seat
-    that gives it none - the anti-spasm insert her master bus
-    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock the suite's (`pivot-single-anchor-arc`)
-    where tour's turn in place and back fell 13; the chair's sit held laid
-    at its dock 30 of 50. DOD: the chair's, the
-    bed's and the door's errands from every pose she sees them from and said
-    from every spot, no fall, no spasm.
+    takes 19 s; a curve through a corner fits her arc from 2-3 of 27
+    turning ways. None is free of a spasm: her arms at her stop - her
+    stride let go in one pass (`a[STRIDES]`) -, her neck seated and
+    reclining, her head the step's pitch counterweight on a seat that gives
+    it none - the anti-spasm insert her master bus
+    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock
+    the suite's (`pivot-single-anchor-arc`) where tour's turn in place and
+    back fell 13; the chair's sit held laid at its dock 30 of 50. DOD: the
+    chair's, the bed's and the door's errands from every pose she sees them
+    from and said from every spot, no fall, no spasm.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go
     through a brake, a stop nods 1-4 deg; left: a spin's stop through a stand
     34 deg (53 before), 36 mid-gait in reverse and moves, 106 seated (the
