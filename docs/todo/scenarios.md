@@ -224,8 +224,10 @@ serves its DOD; none an entry a case.
     32 down; the bed 103, 4 down ([errands](../findings/errands.md)). Open:
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
-    furniture too; turning and backing in the 1 m before the table her hands
-    touch the loft - a half turn in place creeps her 0.18 m -; docking
+    furniture too, and lain flat her trunk pulls on her hips twice what her
+    hanging legs do: her arms on the bed raise her; turning and backing in
+    the 1 m before the table her hands touch the loft - a half turn in place
+    creeps her 0.18 m -; docking
     takes 19 s; a curve through a corner fits her arc from 2-3 of 27
     turning ways. None is free of a spasm: her arms at her stop in 60
     chair errands of 336 (a stride's brake; 232 at 0.5 s), her neck seated and
@@ -290,3 +292,11 @@ serves its DOD; none an entry a case.
     friction and kt as she slid off - the seat's and the fall's forces read as
     drift; the bus strip drew them red as bus faults (it no longer does).
     DOD: no alarm through the chair's sit, rise and a shove's fall.
+17. **A seat higher than her shins** (found): the chair's top 0.47 m, the bed's
+    0.44, her thighs' underside at the knee 0.383 (8.7 and 5.7 cm under). Flat
+    footed a thigh meets the edge before her buttocks are on it (the slide off
+    the chair, errands.md). A human goes on her toes before she sits, or takes
+    the seat with her hands and draws herself onto it. DOD: a seat over her
+    shins taken from her toes - her heels up by what her ankle reaches of the
+    excess, lowered once it bears her -, both buttocks a buttock's length on;
+    the chair's sit 0 of 336 down or unborne (5 and 8 now).

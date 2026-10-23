@@ -254,6 +254,24 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   with its rise fell 56 -> 28, held 286 -> 306, ok 267 -> 292; the bed
   the same to the bit. Of the 33, 9 were falls: hands on slab_a 7,
   stair4 1, pelvis 1.
+- The bed's rise stops in sit_up because her lie rolls flat: reclined 0.5
+  rad (the text's -1.0) on a bed bearing her hips 0.15 m behind her ankles,
+  a sole lets go and her trunk goes on to 1.6-1.75 rad, her pelvis 0.14-0.3
+  m into the bed. Flat, her upper body pulls 6.05 kg m about her hips
+  against her hanging legs' 2.84: sit_up asks +1.0 and she stays at -3.24
+  for 5 s. Reclined 0.38 rad, her centre of mass where the pose has it
+  (`seated.com`), she rose 108 of 336 (69), stopped 161 (234) and fell 67
+  (33): lain so a knee kicks to 151 deg and her pitch rocks -0.6 to -1.7,
+  sit_up threw her trunk 3 rad forward. Not kept; neither its height held
+  at the sit's (rose 3 of 24, rolling), nor the suite's patches: its sit
+  lands her pelvis on the bed's edge (22 of 24 fell), its wake from the
+  text's lie felled 15 of 24.
+- The chair's rise throws her head: sat, her neck 3-30 deg and her head
+  2-4; the lean's first 120 ms take them to -49 and -88 deg at up to 1 322
+  deg/s (the head's drive held at its -0.85 rad stop), the thrust her neck
+  85 deg back at 1 477. Her neck braced through the sit too, 58 errands
+  fell 10 where 2 - 6 in the thrust - and its median 1 356 where 1 187:
+  the lean's and thrust's centre of mass is asked of her head.
 
 ## The keys that send her
 
