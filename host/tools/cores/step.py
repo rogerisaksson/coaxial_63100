@@ -24,7 +24,7 @@ def _step_typed():
     fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs nbuffers'.split()]
     fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
                ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('past', i),
-               ('buffer_at', i * (2 * d)), ('buffer_stop', f * (2 * d)), ('buffer_side', f * (2 * d)), ('buffer', f * 3),
+               ('buffer_at', i * (2 * d)), ('buffer_stop', f * (2 * d)), ('buffer_side', f * (2 * d)), ('buffer', f * 4),
                ('mass', f), ('moment', f * u), ('room', f * 2), ('arms', f * d)]
     fields += [(name, f) for name in ('yaw_m damp2 w_com w_turn w_swing w_knee w_posture w_height w_moment '
                                       'w_fold w_stop w_part w_air w_pin w_keep w_still grow_n ridge contact_k '

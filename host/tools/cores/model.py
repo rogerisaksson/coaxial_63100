@@ -189,7 +189,7 @@ def render(rows, b):
         'extern const int    wbc_knee[2];             /**< the knees\' links */',
         'extern const int    wbc_buffer_link[WBC_BUFFERS]; /**< the master insert\'s buffers: each one\'s link */',
         'extern const double wbc_buffer_stop[WBC_BUFFERS][2]; /**< its stop rad and side, 1 a low end */',
-        'extern const double wbc_buffer[3];           /**< their width rad, stiffness 1/s^2, damping 1/s */',
+        'extern const double wbc_buffer[4];           /**< their width rad, stiffness 1/s^2, damping 1/s, reach s */',
         'extern const int    wbc_trunk;               /**< the trunk\'s link */',
         'extern const double wbc_sole_at[3];          /**< a sole\'s middle, in its foot\'s frame */',
         'extern const double wbc_sole_corner[4][3];   /**< its corners */',
@@ -216,7 +216,7 @@ def render(rows, b):
         _ints('wbc_buffer_link[WBC_BUFFERS]', [driven[i] for i, _s, _d in buffers]),
         'const double wbc_buffer_stop[WBC_BUFFERS][2] = {\n  %s};'
         % (',\n  '.join('{%s}' % _nums((stop, side)) for _i, stop, side in buffers)),
-        'const double wbc_buffer[3] = {%s};' % _nums(buffer),
+        'const double wbc_buffer[4] = {%s};' % _nums(buffer),
         'const int wbc_trunk = %d;' % names.index(_last_joint(b, 'torso')), '',
         'const double wbc_sole_at[3] = {%s};' % _nums(b.sole),
         'const double wbc_sole_corner[4][3] = {\n  %s};'

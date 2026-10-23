@@ -655,7 +655,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     }
   }
   /* the master insert's buffers: each joint sprung back, critically damped, from its width
-     before its stop (wbc_model.h) */
+     before its stop, engaged as far again as its approach's speed reaches (wbc_model.h) */
   for (int i = 0; i < WBC_BUFFERS; i++)
   {
     const int    dof = 5 + wbc_buffer_link[i];
@@ -665,8 +665,9 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
     memset(pick, 0, sizeof(pick));
     pick[dof] = 1.0;
     left = over(w, pick, row);
-    stop = (wbc_buffer[1] * side) * depth - wbc_buffer[2] * u[dof];
-    lay(w, row, stop - left, -left, W_STOP * clip(depth / wbc_buffer[0], 0.0, 1.0));
+    stop = (wbc_buffer[1] * side) * fmax(depth, 0.0) - wbc_buffer[2] * u[dof];
+    lay(w, row, stop - left, -left,
+        W_STOP * clip((depth + wbc_buffer[3] * fmax(-side * u[dof], 0.0)) / wbc_buffer[0], 0.0, 1.0));
   }
   wbc_body_momentum(b, com, k3);
   for (int i = 0; i < 3; i++)

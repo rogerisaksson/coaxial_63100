@@ -157,19 +157,25 @@ def reset(laid):
     s.energy, s.power, s.primed = insert()['energy-tank']['initial-energy-joules'], 0.0, 0
 
 
-#: A low end before the model's: the knee's straight lock, its singularity, rad.
-LOCKS = {'knee': 0.0}
+#: An end her drive pass cushions itself, by its joint's kind (1 its low end): the knee's straight
+#: lock, its spring and damper (`wbc_pass.c`'s). A buffer there too, her swung knee's torque steps
+#: set its tank's detector off and 3 of 12 bed errands fell, 12 of 12 without it.
+CUSHIONED = {'knee': 1.0}
 
 
 def buffers(names, stops):
-    """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping): the
-    insert's buffers before the stops `stops` ({index: (lo, hi)}, her model's) of the driven joints
-    `names` its nodes are, critically damped as its text says. A joint with none has none: at her
-    law's room, her shoulders' rows threw a jump's landing 0.35 m on."""
+    """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping, reach):
+    the insert's buffers before the stops `stops` ({index: (lo, hi)}, her body's) of the driven
+    joints `names` its nodes are, critically damped as its text says, each engaged as far again as
+    its spring takes to stop an approach (speed x reach, 1/(e w)): at its width alone her jump's
+    neck met it at 13 rad/s and ran 0.36 rad past. A joint with none has none: at her law's room,
+    her shoulders' rows threw a jump's landing 0.35 m on."""
     b = insert()['joint-boundary']
     k = b['boundary-repulsion-stiffness']
     rows = []
     for i in (i for i in joints_of(b['nodes'], names) if i in stops):
         lo, hi = stops[i]
-        rows += [(i, LOCKS.get(drives.kind(names[i]), float(lo)), 1.0), (i, float(hi), -1.0)]
-    return tuple(rows), (b['extension-soft-knee-rad'], k, 2.0 * b['boundary-damping-ratio'] * math.sqrt(k))
+        rows += [(i, end, side) for end, side in ((float(lo), 1.0), (float(hi), -1.0))
+                 if CUSHIONED.get(drives.kind(names[i])) != side]
+    return tuple(rows), (b['extension-soft-knee-rad'], k, 2.0 * b['boundary-damping-ratio'] * math.sqrt(k),
+                         1.0 / (math.e * math.sqrt(k)))

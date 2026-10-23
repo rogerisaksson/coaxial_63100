@@ -271,7 +271,9 @@ serves its DOD; none an entry a case.
     to 13.5 s); the handover lagged her step's regime while her ask switched,
     both soles let go. Its Schmitt comparators on her soles and her borne
     segments not begun. Red where the base is green with the rest on: the
-    standing jump (the neck's and head's buffers; the knee's alone passes),
+    standing jump (in its crouch the step whips her neck to -1.22 rad at 13
+    rad/s, 20 deg past its stack's travel, and the neck's buffer's push lands
+    her 0.35 m on; without the neck's and head's buffers her chair falls),
     the walk leap's 0.38 m at no charge and the run leap's landing at full,
     F's rise within 6 s, the bed's dock from south_face, the turning replay
     at -0.2 mm. DOD: each on her loop at its text's numbers, every suite as

@@ -63,13 +63,15 @@ double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double q
   b->half_t[i] *= 1.0 - npmax(rev, stale);
   b->sign[i] = s + (double)(s == 0.0) * b->sign[i];
   b->power += p;
-  /* the passivity controller: on a parasitic oscillation, the detector's - the command's gain rolled
-     back, the damping injected; released over recover_s. Tripped by the tank at its floor too, a
-     hop's push drained it in 30 ms, every drive rolled back and she rose 669 mm off one sole */
+  /* the passivity controller: on a parasitic oscillation, the detector's - the command's band rolled
+     back, the damping injected; released over recover_s. Its whole command rolled back, a swung
+     knee's tripped by its swing's own torque steps lost its weight's share and she fell on the bed
+     7 times in 24. Tripped by the tank at its floor too, a hop's push drained it in 30 ms, every
+     drive rolled back and she rose 669 mm off one sole */
   trip = (double)(b->count[i] >= k->reversals);
   b->alpha[i] = npmax(trip, b->alpha[i] - dt / k->recover_s);
-  gain = 1.0 - b->alpha[i] * (1.0 - k->rollback);
-  cmd = gain * feed - ((b->alpha[i] * k->inject) * damping) * qd;
+  gain = b->alpha[i] * (1.0 - k->rollback);
+  cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * qd;
   /* what the bus changed of the command, for her drive's observer to know what moved its rotor */
   b->given[i] = cmd - feed;
   return cmd;

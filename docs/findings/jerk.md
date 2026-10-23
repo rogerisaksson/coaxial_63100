@@ -312,6 +312,13 @@ anti_spasm_supervisor.lisp):
   8.4-8.9 s at every nudge; the base stands to 13.5 s): with the handover her
   law stood her at 7.58 s while her step still strode (0.96-0.88), both soles
   let go, she landed on one at 360 N and tilted 17 deg. Out of the bus, open.
+- The insert's comparators on what bears her off her soles, gating which
+  borne segments her step plans on (on 0.18 of her weight, off 0.06, 45 ms
+  dwell): the chair's pelvis bounced off the seat - its share 0.32, 0, 0.47,
+  0, 0.42, 0 -, each landing held out of her step up to 45 ms while it bore
+  0.3-0.47 of her, and her rise fell at 9.26 s; every manifold latched, she
+  rose. A debounce on what the step plans on hides a force: hysteresis is a
+  mode's, her stance's.
 - Her drives damp a step of their rates once the D channel settles: a pass
   after it 0.3 % of the damping and the preload's sign, +2.5 W; at the gate's
   attack and the low-pass's 2 % time (26 ms), -6.64 W where -6.55 bare.

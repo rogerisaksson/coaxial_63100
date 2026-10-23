@@ -364,11 +364,11 @@ def step(b, s, ask):
         j = knees[k]
         lay(full[j], acc + SWING_KD[0] * (knee - s['q'][KNEES[k]]) + SWING_KD[1] * (rate - v[j]) - full0[j], W_FOLD,
             -full0[j])
-    stops, (width, stiff, damp) = b.buffers
+    stops, (width, stiff, damp, reach) = b.buffers
     for i, stop, side in stops:
         j, depth = act[i], side * (stop - s['q'][i]) + width
-        lay(full[j], stiff * side * depth - damp * v[j] - full0[j], W_STOP * np.clip(depth / width, 0.0, 1.0),
-            -full0[j])
+        lay(full[j], stiff * side * max(depth, 0.0) - damp * v[j] - full0[j],
+            W_STOP * np.clip((depth + reach * max(-side * v[j], 0.0)) / width, 0.0, 1.0), -full0[j])
     kdot = ask.get('kdot')
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
     part, inv_mg, inv_mgr = np.zeros(nu), 1.0 / (mass * G), 1.0 / (mass * G * ROOM[0])
