@@ -39,12 +39,14 @@ Passive toes, the sole's give, and the heel's rise on the loop
 - A flat foot at her walking height reaches 0.124 m along the floor
   ([kinematics](kinematics.md)); her stride rolls the standing sole about its
   ball (`stride.rocks`, `stride.heels`), its heel rising as far as its leg at
-  its length needs for her hip under where it stood, at most a woman's as her
-  toes leave (36.2 deg, the reference take's), at 6 rad/s. Bus and DLS on, by
-  the cap: 0.6 rad on stilts (2.87 off, knee at lift 18.5); 36.2 deg 0.71 m/s,
-  411 J/m, 2.58 off (without them at 0.6, 0.70, 409, 2.55); 37.6 2.47; 40 deg
-  2.42, 62 (the band's) 2.36 - past 37.6 her sprint, stutter, start and stop,
-  rug, hole, snow and moves fell at 5-12 s, all eight standing at 36.2.
+  its length needs for her hip under where it stood, 0.6 rad at most at 6 rad/s.
+  Bus and the swung leg's DLS on, by the cap: 0.6 rad on stilts (2.87 off, knee
+  at lift 18.5); 36.2 deg 0.71 m/s, 411 J/m, 2.58 off (without them at 0.6,
+  0.70, 409, 2.55); 37.6 2.47; 40 deg 2.42, 62 (the band's) 2.36 - past 37.6 her
+  sprint, stutter, start and stop, rug, hole, snow and moves fell at 5-12 s, all
+  eight standing at 36.2; at 36.2 the charged run leap fell landing (6.41 s,
+  every turn of her start), at 0.6 rad it lands: back at 0.6 till the DLS
+  returns.
 - As the trailing sole's load leaves it, its knee folds (`stride.FOLD_RAD`
   0.26 rad with none on it), its leg that much shorter for its heel's rise
   ([orthokinematics](orthokinematics.md)). The heel's cap at 40-46 deg, the

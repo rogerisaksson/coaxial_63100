@@ -230,6 +230,5 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     test_dsp.py, [sequencer](findings/sequencer.md)).
 43. The anti-spasm insert her master bus, the last stage of every patch: its
     tank on her drives' 1 kHz pass, each slew and jerk its drive's own,
-    buffers before her stops; her heel's cap a woman's (`machine.supervisor`,
-    `wbc_bus.c`, `stride.HEEL_RAD`; [synth](architecture/synth.md),
-    [jerk](findings/jerk.md)).
+    buffers before her knees' stops (`machine.supervisor`, `wbc_bus.c`;
+    [synth](architecture/synth.md), [jerk](findings/jerk.md)).

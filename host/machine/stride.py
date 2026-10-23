@@ -63,15 +63,12 @@ REACH_M_S, REACH_S = 0.45, 0.25
 #: anywhere under it, a heel asked 6 deg up under all of her stayed down till the other
 #: sole landed.
 FLAT_K = 400.0
-#: A standing sole's heel rises no further than HEEL_RAD, a woman's as her toes leave (the
-#: reference take's heel at lift, `tools/sim/mocap.py tests/takes/walk.fbx`) - at 0.6 rad, a swung
-#: leg damped as the master insert has it, she walked on stilts; at the band's 62 deg her sprint,
-#: stutter, rug and snow fell -, no faster than HEEL_RAD_S, as her hip goes ahead of it: her hip
-#: let DIP_M down from where it stood over a sole first. It is on its edge in full from EDGE_RAD
-#: of pitch. Striding only: her soles stand 0.5 deg toes up, and held on their heels for that she
-#: went over them 0.7 s after a hop's landing; let 1.1 deg before an edge counts, her walk was
-#: down in 17 s.
-HEEL_RAD, HEEL_RAD_S, DIP_M, EDGE_RAD = np.radians(36.2), 6.0, 0.006, 0.03
+#: A standing sole's heel rises no further than HEEL_RAD, no faster than HEEL_RAD_S, as her
+#: hip goes ahead of it: her hip let DIP_M down from where it stood over a sole first. It
+#: is on its edge in full from EDGE_RAD of pitch. Striding only: her soles stand 0.5 deg
+#: toes up, and held on their heels for that she went over them 0.7 s after a hop's
+#: landing; let 1.1 deg before an edge counts, her walk was down in 17 s.
+HEEL_RAD, HEEL_RAD_S, DIP_M, EDGE_RAD = 0.6, 6.0, 0.006, 0.03
 #: A standing sole its stride has off folds its knee as its load leaves it, FOLD_RAD with
 #: none on it - its leg that much shorter for its heel's rise, her knees' row told. Asked by
 #: nothing, the leg stayed at its length till its toes left, 18 deg where a woman's is 30:

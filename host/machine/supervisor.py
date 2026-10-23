@@ -163,7 +163,7 @@ LOCKS = {'knee': 0.0}
 
 def buffers(names, stops):
     """((driven index, stop, side: 1 a low end, -1 a high), ..), (width, stiffness, damping): the
-    insert's buffers before the stops `stops` ({index: (lo, hi)}, her body's) of the driven joints
+    insert's buffers before the stops `stops` ({index: (lo, hi)}, her model's) of the driven joints
     `names` its nodes are, critically damped as its text says. A joint with none has none: at her
     law's room, her shoulders' rows threw a jump's landing 0.35 m on."""
     b = insert()['joint-boundary']

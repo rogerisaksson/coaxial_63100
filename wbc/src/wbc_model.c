@@ -20,12 +20,8 @@ const int wbc_driven[WBC_DRIVEN] = {1, 2, 3, 4, 5, 8, 9, 16, 17, 18, 19, 22, 23,
 const int wbc_held[WBC_HELD] = {10, 11, 14, 15};
 const int wbc_sole[2] = {23, 32};
 const int wbc_knee[2] = {19, 28};
-const int wbc_buffer_link[WBC_BUFFERS] = {4, 4, 5, 5, 19, 19, 28, 28};
+const int wbc_buffer_link[WBC_BUFFERS] = {19, 19, 28, 28};
 const double wbc_buffer_stop[WBC_BUFFERS][2] = {
-  {-0.7853981633974483, 1.0},
-  {1.0471975511965976, -1.0},
-  {-1.3962634015954636, 1.0},
-  {1.3962634015954636, -1.0},
   {0.0, 1.0},
   {2.8797932657906435, -1.0},
   {0.0, 1.0},

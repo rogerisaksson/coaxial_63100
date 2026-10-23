@@ -230,9 +230,10 @@ serves its DOD; none an entry a case.
     her stop - her stride let go in one pass (`a[STRIDES]`) -, her neck
     seated and reclining, her head the step's pitch counterweight on a seat
     that gives it none - the anti-spasm insert her master bus
-    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock the suite's (`pivot-single-anchor-arc`)
-    where tour's turn in place and back fell 13; the chair's sit held laid
-    at its dock 30 of 50. DOD: the chair's, the
+    ([synth](../architecture/synth.md)), its open stages item 14 -; the dock
+    the suite's (`pivot-single-anchor-arc`) where tour's turn in place and
+    back fell 13; the chair's sit held laid at its dock 30 of 50. DOD: the
+    chair's, the
     bed's and the door's errands from every pose she sees them from and said
     from every spot, no fall, no spasm.
 11. **Her head's spasms left** ([jerk](../findings/jerk.md)): her neck let go
@@ -261,7 +262,9 @@ serves its DOD; none an entry a case.
     [jerk](../findings/jerk.md)): its velocity gate - under her encoders' step
     (0.05 rad/s at 1 kHz), it shut a seated drive's rate and her chair's rise
     ended on 0.78 of her soles -; its damped least squares on a swung leg - her
-    walk 2.63 off where 2.49, her head aside 48 where its form's 35 -; its D
+    walk 2.63 off where 2.49, her head aside 48 where its form's 35; with it her
+    heel's cap must be a woman's at lift (36.2 deg), which fells the charged run
+    leap -; its D
     low-pass at 42 Hz, its zero crossing's
     bridge and its C2 85 ms handover each alone felled her walking a right turn
     (replay walk_turn_right_at_0.69, 8.4-8.9 s at every nudge; the base stands

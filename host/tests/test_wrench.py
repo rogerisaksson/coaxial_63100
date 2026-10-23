@@ -176,7 +176,8 @@ def test_her_master_bus_and_buffers(report):
     ends = sorted((names[i], side) for i, _stop, side in rows)
     report.check('a buffer %.2f rad before each stop of %d joints, critically damped' % (width, len(ends) // 2),
                  ends == sorted((names[i], side) for i in supervisor.joints_of(
-                     supervisor.insert()['joint-boundary']['nodes'], names) if i in body.stops for side in (1.0, -1.0))
+                     supervisor.insert()['joint-boundary']['nodes'], names)
+                     if body.m.jnt_limited[body.m.joint(names[i]).id] for side in (1.0, -1.0))
                  and math.isclose(damp * damp, 4.0 * stiff), str(ends))
 
 
