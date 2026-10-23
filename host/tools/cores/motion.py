@@ -30,10 +30,15 @@ Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm pr
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
       ' map_at map_way map_along map_rise map_n').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
-     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests').split()
+     'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests propped '
+     'propped_below propped_since propped_box').split()
 
 
 def _at(x):
+    """An offset's start: a float is another constant of the same name (modal's SUPPORT, a ZMP's
+    mode, once took its slot as 1 - her right sole's stance)."""
+    if not isinstance(x, (slice, int, np.integer)):
+        raise TypeError('an offset, not %r' % (x,))
     return x.start if isinstance(x, slice) else int(x)
 
 
@@ -41,7 +46,9 @@ def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
     from machine import edge, figure, impedance as imp, leap, modal, poise, stride, wbc as law
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
-            ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
+            ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', imp.PROP_ENGAGE),
+            ('prop_release', imp.PROP_RELEASE), ('prop_dwell_s', imp.PROP_DWELL_S), ('prop_blank_s', imp.PROP_BLANK_S),
+            ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
             ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
             ('g', modal.G), ('axial_m', modal.AXIAL_M), ('pitch_rad', modal.PITCH_RAD), ('clear_m', modal.CLEAR_M),
             ('list_rad', modal.LIST_RAD), ('turn_rad', modal.TURN_RAD), ('arm_rad', modal.ARM_RAD),

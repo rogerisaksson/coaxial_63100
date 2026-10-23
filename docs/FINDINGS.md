@@ -284,6 +284,7 @@ Six firmware defects, no hardware fault:
 | Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
 | Her situation read from her sensors | [findings/situation.md](findings/situation.md) |
 | Her jerk through transitions against her steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
+| The anti-spasm insert, her master bus: each stage on her | [findings/insert.md](findings/insert.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
 | Her pace against real time: MuJoCo's step, her law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |

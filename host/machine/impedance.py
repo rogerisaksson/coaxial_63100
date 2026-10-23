@@ -17,13 +17,14 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, poise, stride, swing
+from machine import latent, poise, stride, supervisor, swing
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
-    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
+    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG,
+    TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
 from machine.stride import ALONG, LEFT, LIMBS, UP
@@ -53,6 +54,11 @@ FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 #: Borne off her soles this share of her weight, she is supported there wholly: her support
 #: region spans where, her centre of mass asked of her springs, not let fall.
 PROP_ON = 0.15
+#: Her support's comparator, the master insert's (`supervisor`): latched from PROP_ENGAGE of her
+#: weight, let go under PROP_RELEASE held PROP_DWELL_S, never within PROP_BLANK_S of its strike.
+_CMP = supervisor.insert()['contact-comparators']
+PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
+PROP_DWELL_S, PROP_BLANK_S = 1e-3 * _CMP['min-state-dwell-ms'], 1e-3 * _CMP['impact-blanking-window-ms']
 #: Her pelvis's axes a seat holds once it bears her - its pitch and list on her two ischia -, its
 #: turn hers: let go with them, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole.
 SEAT_HOLDS = np.array([[1.0], [1.0], [0.0]])
@@ -71,7 +77,7 @@ def ask(out, y, fr, a):
     flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
     low, high = poise.boxes(flat, a[EDGE], tilt)
     floors, rise = under(y, fr, stood)
-    propped, prop = _borne(y, rot)
+    propped, prop = _borne(y, rot, a, fr[DT])
     # the lift's own rhythm is her stride's clearance, not a sole's place
     beat = out[latent.PSI][LIFT]
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
@@ -185,17 +191,26 @@ def ask(out, y, fr, a):
     return a
 
 
-def _borne(y, rot):
-    """(her support off her soles, 0 to 1; (its box's low and high corners along and across in her
-    way's frame, that support)): what bears her - a seat, a bed, a knee's floor -, PROP_ON of her
-    weight and she is supported there wholly, less so below: counted and spanned by its share
-    alone (a chair's 670 to 33 N made the whole count come and go) a brush of the bed's frame at the
-    dock, 0.07 of her, counted 0.07, her parry stepped her back into it and over the edge; counted
-    whole she stood there and lay (the viewport's errand)."""
+def _borne(y, rot, a, dt):
+    """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
+    way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
+    comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
+    release. Its share ramped to PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
+    counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
+    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
+    lifted in turn and she slid onto the mattress."""
+    share, latched = y[PROP], a[PROPPED]
+    on = (1.0 - latched) * float(share >= PROP_ENGAGE)
+    under = latched * float(share < PROP_RELEASE)
+    a[PROPPED_BELOW] = under * (a[PROPPED_BELOW] + dt)
+    a[PROPPED_SINCE] = (1.0 - on) * (a[PROPPED_SINCE] + dt)
+    off = under * float(a[PROPPED_SINCE] >= PROP_BLANK_S) * float(a[PROPPED_BELOW] >= PROP_DWELL_S)
+    a[PROPPED] = latched + on - off
     xs, zs = np.array([y[PROP_LO][0], y[PROP_HI][0]]), np.array([y[PROP_LO][2], y[PROP_HI][2]])
     way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
-    propped = poise.clip(y[PROP] / PROP_ON, 0.0, 1.0)
-    return propped, (way[:, :2].min(axis=0), way[:, :2].max(axis=0), propped)
+    box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
+    a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
+    return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
 
 
 def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying):

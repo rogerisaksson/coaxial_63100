@@ -136,11 +136,29 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
     npmmt(&corner[0][0], 4, rot, &way4[0][0]);
   }
-  propped = npclip(y[k->y_prop] / k->prop_on, 0.0, 1.0);
-  for (int j = 0; j < 2; j++)
+  /* her support's comparator, the master insert's: latched from its engage, let go under its
+     release held its dwell, never within its strike's blanking; its box held under the release */
   {
-    plo[j] = npmin(npmin(npmin(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
-    phig[j] = npmax(npmax(npmax(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
+    const double share = y[k->y_prop], latched = a[k->a_propped];
+    const double struck = (1.0 - latched) * (double)(share >= k->prop_engage);
+    const double under = latched * (double)(share < k->prop_release);
+    double       freed;
+
+    a[k->a_propped_below] = under * (a[k->a_propped_below] + fr[k->f_dt]);
+    a[k->a_propped_since] = (1.0 - struck) * (a[k->a_propped_since] + fr[k->f_dt]);
+    freed = (under * (double)(a[k->a_propped_since] >= k->prop_blank_s)) * (double)(a[k->a_propped_below] >= k->prop_dwell_s);
+    a[k->a_propped] = (latched + struck) - freed;
+    for (int j = 0; j < 2; j++)
+    {
+      const double lo_j = npmin(npmin(npmin(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
+      const double hi_j = npmax(npmax(npmax(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
+
+      a[k->a_propped_box + j] = share >= k->prop_release ? lo_j : a[k->a_propped_box + j];
+      a[k->a_propped_box + 2 + j] = share >= k->prop_release ? hi_j : a[k->a_propped_box + 2 + j];
+      plo[j] = a[k->a_propped_box + j];
+      phig[j] = a[k->a_propped_box + 2 + j];
+    }
+    propped = a[k->a_propped];
   }
   /* the lift's own rhythm is her stride's clearance */
   {
