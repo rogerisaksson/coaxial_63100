@@ -5,6 +5,7 @@ import os
 import platform
 import subprocess
 import time
+from contextlib import suppress
 from shutil import which
 
 from tools import REPO
@@ -87,7 +88,15 @@ def cached(sources, includes, name, extra=()):
             return made, warnings           # another process's is there, loaded
         return lib, warnings
     finally:
-        os.remove(lib + '.building')
+        _unmarked(lib + '.building')
+
+
+def _unmarked(marker):
+    """`marker` gone, or left where a waiting process holds it open to read its pid: Windows
+    removes no open file (WinError 32 crashed a suite as its library came). One left beside its
+    library is read by none; one left by a failed build goes with its process (`_claimed`)."""
+    with suppress(OSError):
+        os.remove(marker)
 
 
 def _claimed(lib):
@@ -108,16 +117,13 @@ def _claimed(lib):
             if os.path.exists(lib):
                 return False
             if pid and not _alive(pid):
-                try:
-                    os.remove(marker)
-                except OSError:
-                    pass
+                _unmarked(marker)
             time.sleep(0.2)
             continue
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write(str(os.getpid()))
         if os.path.exists(lib):
-            os.remove(marker)
+            _unmarked(marker)
             return False
         return True
 
