@@ -336,3 +336,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 67. Her eyes' things as her registry's looks under `physics.SIGHT`
     (`sight.told`, `sprung.LOOKS`), the world's boxes their stand-in without
     it; the chair, table and bed told within 0.10 m.
+68. Tour's corner on her closing speed toward the stop (`se2.closing`), a
+    spin's drift away no approach; the brake's wire by the gait she was told,
+    not her sway's phase: the chair errand sits at 23.7 s where 25.5.

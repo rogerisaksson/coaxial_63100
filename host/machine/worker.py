@@ -113,8 +113,8 @@ def heard_say(g, gym, entry):
         return
     striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                 or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
-    lph, lamp = float(g['st'][latent.NOW][latent.PHASE][modal.LATERAL]), float(g['st'][latent.NOW][latent.AMP][modal.LATERAL])
-    back_now = (math.sin(lph) * (1.0 if lamp >= 0.0 else -1.0)) < -0.2
+    # her gait's direction is the one she was told, not her sway's phase: a spin's read as a backward walk
+    back_now = g.get('active_entry') in sprung._BACK_GAITS
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
     off_c = not striding and cur_d not in ('stand', 'rest') and (

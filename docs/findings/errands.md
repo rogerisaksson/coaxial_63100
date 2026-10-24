@@ -336,3 +336,15 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 - VS Code's terminal took F3 (find next), F5 (debug), F6 (next part) and
   F10 (step over) from a page: HUMANOID's F3 balloon did nothing. They pass
   to the page now (.vscode/settings.json).
+
+## Spin to walk
+
+The viewport's chair errand after 0.6 s of walking (a probe of its planner's
+transitions): tour's 'corner' row fired on her speed, not her approach - at
+6.32 s, receding from her stop at 0.36 m/s in a spin's drift, it stopped her
+(stand 7.36 s, walk 7.88) and sat her at 25.5 s. On her closing speed toward
+the stop (`se2.closing`, none receding) she sits at 23.7 s; 0.5-1.0 s of
+walking before the click all sit, 15.6-25.2 s. The brake's wire was chosen by
+her sway's phase (sin of its lateral phase under -0.2), which read a spin as
+a backward walk; it is the gait she was told (`active_entry` among the
+backward gaits).

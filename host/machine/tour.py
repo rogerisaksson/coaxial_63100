@@ -471,12 +471,13 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
     e['k'], (ax, az), along, there = (route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
                                       else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw))
+    gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     ctx = {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -s_perp * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
                                       or math.hypot(s_par_stop - e['d_stage'], s_perp_stop) <= stride.STRIDE_M),
-        'corner': bool(e['way']) and math.hypot(stop[0] - gx, stop[1] - gz) <= math.hypot(vx_w, vz_w) * t_stop + sight.CELL_M,
+        'corner': bool(e['way']) and gap <= closing * t_stop + sight.CELL_M,
         'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
         'lag': se2.wrap_angle(there - pyaw),
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),

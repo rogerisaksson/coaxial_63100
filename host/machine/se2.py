@@ -110,6 +110,13 @@ def doing(g):
     return max(come)[1] if come else 'rest'
 
 
+def closing(vx, vz, dx, dz):
+    """(the gap to a stop `dx, dz` off her, her closing speed on it going `vx, vz`, m/s - none receding:
+    a spin's drift away from it is no approach)."""
+    gap = math.hypot(dx, dz)
+    return gap, max(0.0, (vx * dx + vz * dz) / max(gap, 1e-9))
+
+
 def wrap_angle(angle):
     return math.atan2(math.sin(angle), math.cos(angle))
 
