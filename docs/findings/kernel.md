@@ -92,4 +92,3 @@ past an edge, no further out.
   bore her). On as far as her rows lean on what her comparator does not
   feel: chair, bed and bed rise as before (the chair's pelvis 283, head 744
   m/s^3 against 266, 783), her walk to the bit.
-
