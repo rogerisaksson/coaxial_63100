@@ -140,7 +140,10 @@ class _Tube:
         self._live = live
 
     def update(self, renderable, *, refresh=False):
+        from terminal.ui import tube
         LAST[0] = Crt(renderable)
+        if tube.OPENING[0] is not None:
+            tube.opening(last_rows(self._live.console))
         self._live.update(LAST[0], refresh=refresh)
 
     def __getattr__(self, name):

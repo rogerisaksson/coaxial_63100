@@ -9,16 +9,24 @@ from views_kit import Report
 WIDTH, HEIGHT = 80, 24
 
 
+def _white(row):
+    """The cells of the beam's white in `row`."""
+    return len(row.split('255;255;255m', 1)[-1].split('\x1b', 1)[0]) if '255;255;255m' in row else 0
+
+
 def test_the_tube_switches_on_over_the_shell(report):
-    """On: the shell's text kept outside the band as it opens, a white beam at the centre first,
-    black at the end - the front page next."""
+    """On: the shell's text kept, a white dot at its centre, drawn out to a line, the first frame
+    unfolding from it over the shell, whole at the end."""
     from terminal.ui import tube
     shell = ['PS C:\\> .\\coaxial_tty.ps1'] + [''] * (HEIGHT - 1)
-    frame = tube._on_frame(shell)
-    beam, opening, end = (frame(u, WIDTH, HEIGHT) for u in (tube.BEAM / 2, (tube.BEAM + tube.OPEN) / 2, 1.0))
-    report.check('the shell kept while the beam is drawn and the band opens; black at the end',
-                 'coaxial_tty' in beam[0] and 'coaxial_tty' in opening[0] and '255;255;255' in beam[HEIGHT // 2]
-                 and all('48;2;0;0;0m' in row for row in end), repr(beam[HEIGHT // 2][:40]))
+    lines = ['row %02d' % r for r in range(HEIGHT)]
+    frame = tube._on_frame(shell, lines)
+    dot, line, unfolding, whole = (frame(u, WIDTH, HEIGHT) for u in (tube.DOT / 2, (tube.DOT + tube.LINE) / 2,
+                                                                     (tube.LINE + 1.0) / 2, 1.0))
+    report.check('a dot, a line, the frame unfolding over the shell, whole at the end',
+                 'coaxial_tty' in dot[0] and _white(dot[HEIGHT // 2]) < _white(line[HEIGHT // 2])
+                 and 'coaxial_tty' in unfolding[0] and 0 < sum(r.startswith('row') for r in unfolding) < HEIGHT
+                 and whole == lines, '%d rows unfolded' % sum(r.startswith('row') for r in unfolding))
 
 
 def test_the_tube_switches_off_from_the_last_frame(report):

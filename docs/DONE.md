@@ -326,6 +326,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     corrupt frame refused once and resent the next pass; a bus refusing past
     her horizon 1/omega (306 passes) turns her drives off till a restart;
     Renode's limb takes the same noise on its socket (test_buses).
-65. The tube on and off (`terminal.ui.tube`): the shell's text kept under a
-    beam and a band opening into the front page, the last frame folded to a
-    line and a dot on leaving, 0.4 and 0.3 s.
+65. The tube on and off (`terminal.ui.tube`), a retro set's switch: a dot over
+    the shell's text, a line, the front page unfolding from it; the last frame
+    folded to a line and a dot on leaving, 0.4 and 0.3 s.
