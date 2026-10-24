@@ -285,6 +285,16 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   `_rounds`): the paced rise stood 2 of 4 in a probe, but in her step bed 6
   of 24 (8), chair 49 of 58 (53), its trunk p90 453 -> 266. Her arms counted
   as supports (`touch.ABOVE` leaves them out): 0 of 4 stood.
+- The bed's rise with her ZMP let go, 24 errands: latched and 1.65 s up 12
+  rose, 12 fell; then the chair's lean, hand-over and drive 6 and 10, 8
+  waiting on her soles; her back's hold one-sided only while her ZMP is let
+  go 11 and 10, the chair 48 of 58 and 7 down (53, 2) - its rise lets her
+  ZMP go too, and its seat left her in the lean. Not kept.
+- The chair's rise with her momentum's row off: her neck 896-1273 deg/s
+  (955-1632), her head 1146-1421 (1146-1524) - not what throws them; her
+  neck is let go while she sits (`w_sit`) and the lean whips her head. Her
+  sit's depth on its seat (pelvis 3.4-13 cm behind her feet) does not follow
+  her dock: every sit met it at 0.190 m and began 0.129-0.142.
 
 ## The keys that send her
 
