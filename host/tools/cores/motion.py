@@ -183,7 +183,8 @@ def numpy_blas():
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.
 LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig shape vals said at '
-            'lerp curve shaped table ref rate acc ks ds psi sway turns held yawed bend duck ducked').split()
+            'lerp curve shaped table ref rate acc ks ds psi sway turns held yawed bend duck ducked manifold '
+            'manifolded').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 
@@ -213,8 +214,8 @@ def latent_laid():
     """wbc_law_t filled of machine.latent, machine.ortho and machine.support as they are now, and
     its steps: (struct, latent, couple)."""
     from machine import latent, ortho, support
-    if ortho.N > 16 or ortho.P > 87 or support.DRIVEN > 32:
-        raise ValueError('wbc_law.c lays 16 modes, 87 parameters and 32 drives at most')
+    if ortho.N > 16 or ortho.P > 91 or len(ortho.MANIFOLDS) != 4 or support.DRIVEN > 32:
+        raise ValueError('wbc_law.c lays 16 modes, 91 parameters, 4 manifolds and 32 drives at most')
     names = {'n': ortho.N, 'p': ortho.P, 'driven': support.DRIVEN, 'gain': latent.GAIN, 'hz': latent.HZ,
              'zmp': latent.ZMP, 'yaw': latent.YAW, 't0': latent.T0, 'blend': latent.BLEND, 'theta': latent.THETA,
              'contig': latent.CONTIG,

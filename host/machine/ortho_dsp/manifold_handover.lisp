@@ -43,6 +43,7 @@
           :transfer-time-ms 320.0
           :curve :equal-power
           :release-source-zmp true
+          :source-residual-weight 0.15 ; her soles' share sat
           :thoracic-settle-rad 0.0)))) ; the spine straightened as the seat takes her
 
 ;; -----------------------------------------------------------------------------

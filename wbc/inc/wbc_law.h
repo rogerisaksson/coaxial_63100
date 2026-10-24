@@ -8,7 +8,7 @@
 
 /** The most modes, row parameters, driven joints. */
 #define WBC_LAW_N 16
-#define WBC_LAW_P (5 * WBC_LAW_N + 7)
+#define WBC_LAW_P (5 * WBC_LAW_N + 7 + 4)
 #define WBC_LAW_D 32
 
 /** What the step and the coupling are laid on, filled once from machine.latent, machine.ortho
@@ -19,7 +19,7 @@ typedef struct
   int           z, k, d, amp, phase, gain, hz, zmp, yaw;
   int           now, from, to, t0, blend, theta, v0, v1, contig, shape;
   int           vals, said, at, lerp, curve, shaped, table;
-  int           ref, rate, acc, ks, ds, psi, sway, turns, held, yawed, bend, duck, ducked;
+  int           ref, rate, acc, ks, ds, psi, sway, turns, held, yawed, bend, duck, ducked, manifold, manifolded;
   double        edge_s, tau, tau_v, eso_0, eso_s, sigma, bleed;
   const double *pi;    /**< the coupling (n, driven) */
   const double *gamma; /**< each driven joint's admittance */

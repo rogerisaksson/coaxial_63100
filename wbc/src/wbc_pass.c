@@ -98,7 +98,7 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
        pushed against the rest - a jamb's touch yielded her arm 0.24 rad where 0.55 */
     p->feed[i] = (((wbc_bus_slew(p->bus, i, dt, p->tau[i] * ys) + p->sb[i]) - p->jeff[i] * eso2[i]) - b_pas * qvel)
                  - p->jeff[i] * (asked - qa);
-    p->limit[i] = p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i];
+    p->limit[i] = (p->hold[i] > 0.0 ? (wb ? p->wep_lim[i] : p->wep[i]) : p->clamp_j[i]) * p->release[i];
   }
   /* the master bus insert (wbc_bus.c): her torque command through the tank, the zero crossing, the slew */
   for (int i = 0; i < n; i++)

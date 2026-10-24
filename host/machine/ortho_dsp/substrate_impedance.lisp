@@ -66,4 +66,5 @@
         :stagger-ms 50.0
         :torque-ramp-ms 250.0
         :bridge-state :pwm-active-closed-loop
+        :manifold-pan '((:plantar-bilateral 0.85) (:ischial-bilateral 0.15)) ; her soles' drives back, the seat bearing
         :master-clock :armed)))

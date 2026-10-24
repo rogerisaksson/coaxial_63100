@@ -48,6 +48,7 @@ typedef struct
   double              *sb;         /**< the knees' spring this pass */
   double              *feed;       /**< out: each drive's feed and its clamp this pass */
   double              *limit;
+  const double        *release;    /**< each drive's share of its clamp: let go to its passive cone */
   const wbc_bus_k     *bus_k;      /**< the master bus insert (machine.supervisor): its numbers, its state */
   wbc_bus_t           *bus;
   double               posture_kd; /**< a drive's own damping over its inertia, 1/s */

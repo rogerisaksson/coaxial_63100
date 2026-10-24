@@ -23,6 +23,11 @@ from machine import borne, edge, estimate, grip, latent, modal, poise, se2, situ
 #: (N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
 HOP_K = 15000.0
+#: A joint none of what bears her needs, of its clamp: the suite's passive cone (-32 dB). Her ankles
+#: and knees are her soles' (`ortho.MANIFOLDS`), the rest of her let go as she lies (dorsal) or on
+#: her side (trochanter): lying back on the bed, her law held to her soles, her legs swung 483 deg/s.
+RELEASED = 10.0 ** (-32.0 / 20.0)
+DISTAL = ('knee', 'ankle', 'ankle_roll')
 
 
 def axial_k(st):
@@ -223,6 +228,8 @@ def control(g, dt):
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
     _told(g)
+    w = g['out'][latent.MANIFOLDED]
+    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * w[0] + (1.0 - g['distal']) * (1.0 - w[2] - w[3])))
 
 
 def _told(g):
@@ -311,7 +318,9 @@ def laid(g):
             'act': np.ascontiguousarray(body.act, dtype=np.int32), 'sb': np.zeros(n), 'feed': np.zeros(n),
             'limit': np.zeros(n), 'clamp_j': np.ascontiguousarray(g['clamp'][joints], dtype=np.float64),
             'qacc': np.zeros(body.n, dtype=np.float64), 'tau': np.zeros(n, dtype=np.float64),
-            'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_)}
+            'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_),
+            'release': np.ones(n)}
+    g['release'], g['distal'] = kept['release'], np.array([float(nm.endswith(DISTAL)) for nm in names])
     g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
     k, bus, _arrays = g['bus'] = supervisor.bus(names, g['rate_hz'])
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,
@@ -325,7 +334,7 @@ def laid(g):
                       ('clamp_j', kept['clamp_j']), ('q_lo', g['q_lo']), ('q_hi', g['q_hi']), ('eso', g['eso']),
                       ('ref_q', g['ref_q']), ('ref_v', g['ref_v']), ('hold', g['hold']), ('sb', kept['sb']),
                       ('feed', kept['feed']), ('limit', kept['limit']), ('qacc', kept['qacc']),
-                      ('tau', kept['tau']), ('jeff', kept['jeff'])):
+                      ('tau', kept['tau']), ('jeff', kept['jeff']), ('release', kept['release'])):
         setattr(p, name, cores.pointer(arr))
     p.over = cores.address(kept['over'])
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}

@@ -58,11 +58,14 @@ N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the
 #: support polygon, 2 the dynamic footprint), her yaw momentum's limit, N m s; her sidechain
-#: (DUCK): her height ducked on each touchdown, m (down negative), its attack and its release, s.
+#: (DUCK): her height ducked on each touchdown, m (down negative), its attack and its release, s;
+#: the weight of what bears her (MANIFOLDS), her soles' 1 at rest.
 Z, K, D, AMP, PHASE = (i * N for i in range(5))
 GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
 DUCK = slice(5 * N + 4, 5 * N + 7)
-P = 5 * N + 7
+MANIFOLDS = ('plantar', 'ischial', 'trochanter', 'dorsal')
+MANIFOLD = slice(5 * N + 7, 5 * N + 7 + len(MANIFOLDS))
+P = MANIFOLD.stop
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flags: REST every parameter back to her rest (a behaviour's last row, blended REST_MS);
@@ -92,7 +95,8 @@ _HAS = ('(sequence_id N), (blend_duration 800ms), (duration 400ms) a phase, (lat
         '(impedance (stiffness MODE|global N|MAX_SYS_K) (damping MODE|global N) ..), (cpg_config (enable '
         'true|false) (frequency 1.1Hz) (amplitude MODE N) (phase_offset MODE OF_MODE 90deg)), (cpg_override '
         '(halt_oscillators)) a phase, (wait contact|soles SHARE) a phase, (latch) a phase, (shape equal_power) a phase, (task_constraints (maintain_zmp (polygon support_polygon|'
-        'dynamic_footprint)) (limit_yaw_momentum N)), (sidechain (duck -0.026) (attack 12ms) (release 280ms))')
+        'dynamic_footprint)) (limit_yaw_momentum N) (contact_manifolds (MANIFOLD W))), (sidechain (duck -0.026) '
+        '(attack 12ms) (release 280ms))')
 
 
 def read(text):
@@ -218,6 +222,7 @@ _PAYLOAD = {
     ('cpg_config', 'phase_offset'): _offset,
     ('task_constraints', 'maintain_zmp', 'polygon'): _one(ZMP, 0.0, 2.0),
     ('task_constraints', 'limit_yaw_momentum'): _one(YAW, 0.0),
+    ('task_constraints', 'contact_manifolds', 'MODE'): _mode(MANIFOLD.start, 0.0, 1.0, {m: (i,) for i, m in enumerate(MANIFOLDS)}),
     ('sidechain', 'duck'): _one(DUCK.start),
     ('sidechain', 'attack'): _one(DUCK.start + 1, 0.0, unit='s'),
     ('sidechain', 'release'): _one(DUCK.start + 2, 0.0, unit='s'),

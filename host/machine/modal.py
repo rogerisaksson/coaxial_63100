@@ -206,6 +206,7 @@ def rest(fr):
                                        LIMB_KD[kd], LIMB_KD[kd], TURN_KD[kd], TURN_KD[kd],
                                        POSTURE_KD[kd], TURN_KD[kd], POSTURE_KD[kd]])
     p[latent.HZ], p[latent.ZMP], p[latent.YAW] = 1.0, SUPPORT, FREE
+    p[latent.MANIFOLD] = 1.0, 0.0, 0.0, 0.0
     return p
 
 

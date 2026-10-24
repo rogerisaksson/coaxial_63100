@@ -5,21 +5,17 @@
     texts = maneuver.texts()                  # every stunt the suite plays (PLAYED), its own seats
 
 A stunt plays a suite patch (PLAYED), the height of the furniture her eyes see its key; its acts
-in order (`dsp`'s '_events') are phases of her text (ACTS), named by their stage of the stunt as her
-stunts' phases are. They are her law's own quantities: an envelope's knee is her height (`modal`'s
-axial, her legs' shortening), where a seat is seen the knee and ankle that land her hips on it (her
-hips over a surface sat on: `figure.SEAT_Y`, `SEAT_R`, `HIP_DROP`) her centre of mass at her
-soles' back edge, its counterweight her trunk's pitch, her centre of mass where its posture puts it
-(`seated.com`). Her errand docks her heels the patch's standoff off the furniture's edge (`standoff`,
-`tour`). A contact's threshold is her support's own (`impedance.PROP_ON`):
-the acts it releases are laid from the descent's start and wait till the seat bears her
-(`ortho.CONTACT`, `waits.borne_back`), the seat met where it is. A cross-fade is the furniture
-taking her - her ZMP let go, her legs at its post-contact gain, her trunk settled: she rocks back
-onto it, the support its till her soles take her back - or her soles, her ZMP engaged; a
-cascade or a gate a phase a node, its modes' stiffness at its dB, -inf none (no turn of her trunk
-asked, no reaction wheel of her arms); a recline her trunk's ramp. Her units and rest stiffness
-are her manifest's (`ortho.robot`). What has no phase of hers is named (PASSED), any other act
-refused.
+in order (`dsp`'s '_events') are phases of her text (ACTS), named by their stage of the stunt. They
+are her law's own quantities: an envelope's knee is her height (`modal`'s axial), where a seat is
+seen the knee and ankle that land her hips on it (`figure.SEAT_Y`, `SEAT_R`, `HIP_DROP`), her
+centre of mass where its posture puts it (`seated.com`). Her errand docks her heels the patch's
+standoff off the furniture's edge (`standoff`, `tour`). A contact's threshold is her support's own
+(`impedance.PROP_ON`): the acts it releases are laid from the descent's start and wait till the
+seat bears her (`waits.borne_back`). A cross-fade is the furniture taking her - her ZMP let go,
+her legs at its post-contact gain, what bears her panned to it (`ortho.MANIFOLDS`) - or her soles;
+a cascade or a gate a phase a node, its modes' stiffness at its dB (no reaction wheel of her
+arms); a recline her trunk's ramp. Her units and rest stiffness are her manifest's (`ortho.robot`).
+What has no phase of hers is named (PASSED), any other act refused.
 """
 import collections
 import functools
@@ -32,9 +28,7 @@ from machine.errors import MachineError
 #: one's gait, as the suite's lifecycle plays it), her phases' names by the stunt's stages. Her chair
 #: the rigid one's: the confident sit's upright trunk stands on a foot staggered under the seat's
 #: edge (`pivot-single-anchor-arc`'s footprint), and her errand docks her feet together - upright,
-#: her hips landed on its front edge and she slid off it. Her bed's patches are not played yet: her
-#: step holds each point a bed bears still, her pelvis could not roll back on it and lying back
-#: stopped at her spine's 0.6 rad (docs/TODO.md).
+#: her hips landed on its front edge and she slid off it. Her bed's land her on its soft edge.
 PLAYED = {
     'sit_chair': ('patch-sit-rigid-chair', None, {'descent': 'lower', 'contact': 'seated', 'rest': 'seated'}),
     'rise_chair': ('patch-rise-chair', 'sit_chair', {'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
@@ -73,8 +67,16 @@ PASSED = {'dock-terminal-stance': 'her errand docks her heels its standoff off t
 #: A phase of her text: its stage, what it does, ms, blend ms, {mode: target}, {mode: (stiffness,
 #: damping)}, ZMP or None, the event it waits for or None, whether it latches her where she is, its
 #: blend's shape (`ortho.SHAPES`).
-Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape',
-                               defaults=(False, 'linear'))
+Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape weighs',
+                               defaults=(False, 'linear', None))
+#: A support bus's contact manifold (`ortho.MANIFOLDS`).
+BUSES = {':plantar-bilateral': 0, ':ischial-bilateral': 1, ':trochanter-lateral': 2, ':scapular-dorsal': 3,
+         ':occipital': 3}
+
+
+def _weighs(pan):
+    """Each manifold's weight of a pan ((bus weight) ..), None unsaid."""
+    return None if pan is None else tuple(sum(w for bus, w in pan if BUSES[bus] == k) for k in range(4))
 
 
 def _manifest():
@@ -95,18 +97,12 @@ def _curve(p):
 
 def _envelope(p, at, modes, body):
     """An envelope: a phase to its targets along its curve over its time, its counterweight her
-    trunk's pitch. A descent over a seen seat bends her knee and ankle as land her hips on it
-    (`seated.landed`), pressed in as far as it bears her support's share at her height's stiffness
-    (`impedance.PROP_ON`, 5.7 mm): its curve lands them, the contact released (`waits.borne_back`),
-    her centre of mass in her soles till then - pressed 40 mm, her hips met it at 0.3 m/s, it bore
-    2.5 of her weight and threw her back onto her soles. It turns her pelvis square to the seat's
-    edge - 0.05-0.1 rad off one thigh met it 1 s before the other and 11 docks of 20 fell -, and
-    its arms' counterweight is her one arm mode's, one ahead and one behind (`mode_arm_swing`), the
-    one on the seat's side ahead: hanging at the descent's trunk her hands are 4.5 cm under her
-    buttocks and 0.27 m out, a 0.22 m seat's side 2 cm in - 3 cm off its middle one met it first,
-    held (`_armed`), and propped her up off it or rolled her (34 docks of 50). Sat, a preload's
-    knee and ankle are where the seat and her soles hold them, her pelvis square to her soles, her
-    arms hanging: swung 25 deg either way through her rise's lean, a sole rose 58 mm and she fell."""
+    trunk's pitch, what bears her panned as it says (`manifold-pan`). A descent over a seen seat
+    lands her hips on it (`seated.landed`) pressed 5.7 mm (`impedance.PROP_ON`; 40 mm, it bore 2.5
+    of her and threw her off), her pelvis square to its edge (0.05-0.1 rad off, 11 docks of 20
+    fell), her arms one ahead and one behind, the seat's side's ahead (hanging, a hand met it in 34
+    docks of 50). Sat, a preload's knee and ankle are where the seat and her soles hold them, her
+    arms hanging: swung 25 deg either way, a sole rose 58 mm and she fell."""
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
@@ -129,7 +125,8 @@ def _envelope(p, at, modes, body):
     # held at her rest's springs, as `_paced` paces it: on her stand's sagittal 300 her centre of mass
     # ended 2.1 cm behind a descent's, her hips 2.8 cm back, a thigh on the seat's edge and not her buttocks
     springs = {m: _sprung(m, 1.0, 1.0, modes) for m in targets if m != 'mode_arm_swing'}
-    return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p))]
+    return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p),
+                  weighs=_weighs(p.get('manifold-pan')))]
 
 
 def _contact(p, then, at, modes, body):
@@ -156,8 +153,10 @@ def _crossfade(p, then, at, modes, body):
     at['knee'] = seated.knee(seated.sat(at['seat']), at['ankle']) if seat else at['knee']
     gain = 1.0 if plantar else 10.0 ** (at.get('legs-db', 0.0) / 20.0)
     springs = {m: _sprung(m, gain, 1.0, modes) for node in LEGS for m in NODES[node]}
+    left = p.get('source-residual-weight', 0.0)
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
-                 springs, SUPPORT if plantar else NONE, None, shape=shape)
+                 springs, SUPPORT if plantar else NONE, None, shape=shape,
+                 weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))))
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
@@ -183,20 +182,21 @@ def _cascade(p, then, at, modes, body):
 
 
 def _resting(mode, gain, zeta, modes):
-    """(stiffness, damping) of `mode` let go to `gain` of her rest's: her arms' own, held where they
-    rest as a pressing contact's point is (`wrench.W_STILL`) - gravity's compensation, high-Z: no
-    drive of her balance - every other mode's at `gain` (`_sprung`)."""
+    """(stiffness, damping) of `mode` let go to `gain` of her rest's, her arms' held where they rest as
+    a pressing contact's point is (`wrench.W_STILL`)."""
     held = mode == 'mode_arm_swing'
     return _sprung(mode, wrench.W_STILL / wrench.W_POSTURE if held else gain, 1.0 if held else zeta, modes)
 
 
 def _gates(p, then, at, modes, body):
-    """Gates a node at a time: high-Z her modes' springs none, closed-loop her rest's."""
+    """Gates a node at a time: high-Z her modes' springs none, closed-loop her rest's, what bears her
+    panned as they say - her soles' drives back before she leans: back as she leaned, her knees took
+    the seat's let-go at 0.27 of their clamp, she dropped onto it at 1.58 of her weight and bounced."""
     on = p['bridge-state'] == ':pwm-active-closed-loop'
     ms = p.get('torque-ramp-ms', p.get('torque-decay-ms'))
     return [Phase('wake' if on else 'rest', node, p['stagger-ms'], ms, {},
                   {m: _sprung(m, 1.0, 1.0, modes) if on else _resting(m, 0.0, 1.0, modes) for m in NODES[node]},
-                  None, None) for node in p['nodes']]
+                  None, None, weighs=_weighs(p.get('manifold-pan'))) for node in p['nodes']]
 
 
 def _equilibrium(p, then, at, modes, body):
@@ -303,10 +303,11 @@ def _paced(p, modes):
 def _supported(ps):
     """`ps`, each after a cross-fade on the support it gave her - the furniture's, her ZMP let go,
     till one gives her soles back - where her stunts' own (`stance_hold`) would hold her polygon."""
-    out, zmp = [], None
+    out, zmp, weighs = [], None, None
     for p in ps:
         zmp = p.zmp if p.zmp is not None else zmp
-        out.append(p._replace(zmp=zmp))
+        weighs = p.weighs if p.weighs is not None else weighs
+        out.append(p._replace(zmp=zmp, weighs=weighs))
     return out
 
 
@@ -319,7 +320,8 @@ def _form(name, p, last):
     lines += ['(latent_targets %s)' % ' '.join('(%s %.4f)' % kv for kv in p.targets.items())] if p.targets else []
     lines += ['(impedance %s)' % ' '.join('(stiffness %s %.2f) (damping %s %.2f)' % (m, k, m, d)
                                           for m, (k, d) in p.springs.items())] if p.springs else []
-    lines += ['(task_constraints (maintain_zmp (polygon %g)))' % p.zmp] if p.zmp is not None else []
+    pan = ' (contact_manifolds %s)' % ' '.join('(%s %g)' % kv for kv in zip(ortho.MANIFOLDS, p.weighs)) if p.weighs else ''
+    lines += ['(task_constraints (maintain_zmp (polygon %g))%s)' % (p.zmp, pan)] if p.zmp is not None else []
     return '  (phase %s\n    %s)' % (name, '\n    '.join(lines))
 
 
