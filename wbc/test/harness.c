@@ -6,6 +6,7 @@
 #include "wbc_np.h"
 #include "wbc_step.h"
 #include "wbc_pass.h"
+#include "wbc_rcu.h"
 
 #include <string.h>
 #include <time.h>
@@ -516,4 +517,25 @@ API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                        unsigned char *last_frame, int *last_len)
 {
   wbc_sil_stats(bus_id, counts, wire_s, last_frame, last_len);
+}
+
+API long long wbh_rcu_at(const void *block, int what, int k)
+{
+  const int64_t at[3] = {wbc_rcu_ring_at(k), wbc_rcu_slots_at(block, k), wbc_rcu_bank_at(block, k)};
+
+  return (long long)at[what];
+}
+
+API int wbh_rcu_tap(void *block, int ring, const double *sample, int n)
+{
+  return wbc_rcu_tap(block, ring, sample, n);
+}
+
+API long long wbh_rcu_taken(void *block, double *table, long long *rows)
+{
+  int64_t     n = 0;
+  long long   seq = (long long)wbc_rcu_taken(block, table, &n);
+
+  *rows = (long long)n;
+  return seq;
 }

@@ -244,3 +244,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     modules) read whole: quasiquotes, laws her world resolves, pipelines
     threaded later, gates; each op its mechanism's node (`machine.kernel`);
     90 names, the room's schedule (test_dsp.py, todo/protocol.md).
+46. The kernel's SoA bridge in C: `rcu`'s block laid by wbc/inc/wbc_rcu.h
+    (64-byte lines, two banks, acquire/release words), her loop's taps and
+    takes through wbc_rcu.c, the block locked in memory; her walk linked bit
+    for bit as unlinked (test_tune.py).

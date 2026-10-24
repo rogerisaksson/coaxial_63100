@@ -175,13 +175,19 @@ def test_a_run_measured_and_a_step_judged(report):
 
 
 def test_a_link_between_her_loop_and_a_tuner(report):
-    """Two sides of one block of shared memory: a ring's samples drained in order, a full one dropping
-    and counting; a table published, a second refused till her loop took the first; every section on
-    a 64-byte line."""
+    """Two sides of one block of shared memory, her loop's in C: a ring's samples drained in order, a
+    full one dropping and counting; a table published, a second refused till her loop took the first;
+    every section on a 64-byte line where both sides lay it; the block locked in memory here."""
+    import sys
     import numpy as np
     from machine import rcu
     a = rcu.Link.made(((13, 4), (5, 3)), 5, 3)
     b = rcu.Link.found(a.name)
+    lib, words = rcu._core(), lambda x: (x.ctypes.data - a.base) // rcu.WORD
+    laid = [[lib.wbh_rcu_at(a.base, what, k) for what in range(3)] for k in range(2)]
+    report.check("C lays the rings' lines, their slots and the banks where rcu does; locked on Windows",
+                 laid == [[words(a.r[k]), words(a.rings[k]), words(a.banks[k])] for k in range(2)]
+                 and (b.locked or sys.platform != 'win32'), '%s %s' % (laid, b.locked))
     tapped = [b.tap(np.arange(13.0) + k) for k in range(5)]
     dropped, drained = b.word('dropped', 0), a.drained()
     first, second = a.published(np.ones((5, 2))), a.published(np.full((5, 2), 2.0))

@@ -17,7 +17,7 @@ from tools.cores.model import HEADER, rotation
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass bus imp stride swing floor surety touch twist wait brace blas law step rounds sil').split()]
+               'body stack solve wrench cone shrunk model pass bus imp stride swing floor surety touch twist wait brace blas law step rounds sil rcu').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
@@ -266,6 +266,9 @@ def typed(lib):
     lib.wbh_sil_transceive.restype = i
     lib.wbh_sil_drive.argtypes = [ctypes.POINTER(World), i, _vp, _vp, _vp, _vp, _vp]
     lib.wbh_sil_stats.argtypes = [i, _vp, _vp, _vp, _vp]
+    lib.wbh_rcu_at.argtypes, lib.wbh_rcu_at.restype = [_vp, i, i], ctypes.c_longlong
+    lib.wbh_rcu_tap.argtypes, lib.wbh_rcu_tap.restype = [_vp, i, _vp, i], i
+    lib.wbh_rcu_taken.argtypes, lib.wbh_rcu_taken.restype = [_vp, _vp, _vp], ctypes.c_longlong
     for name in ('wbh_pass_drives', 'wbh_pass_ctrl', 'wbh_pass_motor', 'wbh_pass_metered', 'wbh_pass_averaged', 'wbh_pass_felt',
                  'wbh_pass_contacts', 'wbh_pass_sensed', 'wbh_pass_heat_load', 'wbh_pass_heat',
                  'wbh_pass_heat_peak', 'wbh_sil_init', 'wbh_sil_drive', 'wbh_sil_stats'):

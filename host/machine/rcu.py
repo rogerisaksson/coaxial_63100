@@ -14,7 +14,11 @@ rows contiguous, each column on its own lines (SoA). The tuner writes the bank h
 then BANK, then SEQ; her loop copies the bank SEQ names, keeps it only where SEQ held through the copy
 (a seqlock), then writes TOOK: the tuner writes no bank before TOOK says her loop has the last one, so
 neither waits on the other. On x86-64 an aligned 8-byte store is atomic and stores are seen in order.
+Her loop's side is C (wbc/inc/wbc_rcu.h), the same words; the block locked in memory where the
+system grants it (`link.locked`).
 """
+import ctypes
+import sys
 from multiprocessing import shared_memory
 
 from machine.errors import MachineError
@@ -37,6 +41,35 @@ def _lines(words):
     return -(-words // PER_LINE) * PER_LINE
 
 
+def _core():
+    """wbc_rcu.c, her loop's side of the block, through the core's harness."""
+    from tools.cores import wbc
+    return wbc.library()
+
+
+def _virtual_lock(addr, size):
+    k = ctypes.windll.kernel32
+    k.GetCurrentProcess.restype = ctypes.c_void_p
+    k.GetProcessWorkingSetSize.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+    k.SetProcessWorkingSetSize.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t]
+    k.VirtualLock.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+    proc, lo, hi = k.GetCurrentProcess(), ctypes.c_size_t(), ctypes.c_size_t()
+    k.GetProcessWorkingSetSize(proc, ctypes.byref(lo), ctypes.byref(hi))
+    k.SetProcessWorkingSetSize(proc, lo.value + size, hi.value + size)
+    return bool(k.VirtualLock(addr, size))
+
+
+def _mlock(addr, size):
+    libc = ctypes.CDLL(None)
+    libc.mlock.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+    return libc.mlock(addr, size) == 0
+
+
+#: How a block's pages are kept in memory, by platform: past a working set grown by it, or mlock -
+#: bounded by RLIMIT_MEMLOCK.
+LOCKS = {'win32': _virtual_lock}
+
+
 class Link:
 
     """One block of shared memory between her loop and a tuner: its header, rings and banks as views."""
@@ -54,6 +87,9 @@ class Link:
         at = int(self.r[-1][R['at']]) + self.rings[-1].size
         self.banks = np.ndarray((2, cols, _lines(capacity)), np.float64, shm.buf, at * WORD)
         self.capacity = capacity
+        self.base = self.h.ctypes.data
+        self.locked = LOCKS.get(sys.platform, _mlock)(self.base, shm.size)
+        self.table, self.rows = np.empty((cols, capacity)), ctypes.c_longlong()
 
     @classmethod
     def made(cls, rings, cols, capacity):
@@ -81,14 +117,9 @@ class Link:
 
     def tap(self, sample, ring=0):
         """Her loop: `sample` onto `ring`, then its count; a full ring drops it and counts that."""
-        r, slots = self.r[ring], self.rings[ring].shape[0]
-        head = int(r[R['head']])
-        if head - int(r[R['tail']]) >= slots:
-            r[R['dropped']] += 1
-            return False
-        self.rings[ring][head % slots, :len(sample)] = sample
-        r[R['head']] = head + 1
-        return True
+        import numpy as np
+        sample = np.ascontiguousarray(sample, np.float64)
+        return bool(_core().wbh_rcu_tap(self.base, ring, sample.ctypes.data, len(sample)))
 
     def drained(self, ring=0):
         """The tuner: every sample of `ring` since its last drain, oldest first, (n, width)."""
@@ -119,14 +150,8 @@ class Link:
     def taken(self):
         """Her loop: (its sequence, the table the tuner published since her last take, copied) - kept
         where the sequence held through the copy -, its taking said; else None."""
-        seq = int(self.h[H['seq']])
-        if seq == int(self.h[H['took']]):
-            return None
-        table = self.banks[int(self.h[H['bank']]), :, :int(self.h[H['rows']])].copy()
-        if int(self.h[H['seq']]) != seq:
-            return None
-        self.h[H['took']] = seq
-        return seq, table
+        seq = _core().wbh_rcu_taken(self.base, self.table.ctypes.data, ctypes.byref(self.rows))
+        return (int(seq), self.table[:, :self.rows.value].copy()) if seq else None
 
     def said(self, word, value):
         """One side's header word written: her loop's `laid`, the tuner's `halt`."""
@@ -138,7 +163,7 @@ class Link:
 
     def closed(self):
         """The block let go, its views first; its maker unlinks it."""
-        del self.h, self.r, self.rings, self.banks
+        del self.h, self.r, self.rings, self.banks, self.table
         self.shm.close()
         if self.owner:
             self.shm.unlink()
