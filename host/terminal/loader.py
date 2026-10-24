@@ -257,6 +257,10 @@ def main(argv=None):
         return front_page(args, None, state)
     view = by_name(args.name) if args.name else None
     opened, code = None, 0
+    tubed = sys.stdout.isatty()
+    if tubed:
+        from terminal.ui import stage, tube
+        tube.on()
     while True:
         if view is None:
             if not preloading:
@@ -273,6 +277,8 @@ def main(argv=None):
         if view is None and code != TO_MENU:
             break
         kept(args, pages())
+    if tubed:
+        tube.off(stage.last_rows(stage.stage()))
     from terminal.ui import ahead
     ahead.let_go()
     leave(args)

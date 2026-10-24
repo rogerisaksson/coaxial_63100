@@ -86,3 +86,8 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
+- **A corrupt request costs the bystanders more** (found): on Renode one
+  request's bit flipped is that request alone unanswered, but each node of a
+  limb of three counts 3-7 comm errors against 0 in a clean run
+  ([emulation](../findings/emulation.md)). DOD: the reason in `modbus_rtu.c`'s
+  framing after a bad frame, one count a node a corrupt frame.

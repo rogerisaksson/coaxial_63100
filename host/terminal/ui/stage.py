@@ -18,6 +18,7 @@ Every style is named here in the Theme and nowhere else - a view says
 `value` or `label`, never a colour number, so the palette is one edit.
 """
 import ctypes
+import io
 import re
 import threading
 import time
@@ -117,6 +118,21 @@ def curtain(console):
             yield live
 
 
+#: The last frame a curtain showed, the tube's to switch off from (`tube.off`, `last_rows`).
+LAST: list = [None]
+
+
+def last_rows(console):
+    """The last frame shown, as `console`'s size draws it: its ANSI rows; [] for none."""
+    if LAST[0] is None:
+        return []
+    drawn = Console(file=io.StringIO(), width=console.width, height=console.height, force_terminal=True,
+                    color_system='truecolor', theme=THEME, highlight=False)
+    with drawn.capture() as cap:
+        drawn.print(LAST[0], end='')
+    return cap.get().split('\n')
+
+
 class _Tube:
     """A Live whose every frame is shown on the CRT."""
 
@@ -124,7 +140,8 @@ class _Tube:
         self._live = live
 
     def update(self, renderable, *, refresh=False):
-        self._live.update(Crt(renderable), refresh=refresh)
+        LAST[0] = Crt(renderable)
+        self._live.update(LAST[0], refresh=refresh)
 
     def __getattr__(self, name):
         return getattr(self._live, name)

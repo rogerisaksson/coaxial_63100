@@ -309,3 +309,7 @@ board's findings: [FINDINGS](../FINDINGS.md).
   meet its world's links under gravity: the waist on its stop unringing at 2
   A, the pelvis spun as a quad's rotor at overcurrent. On the stand-in, done in
   4.2, 8.7 and 2.3 s.
+- One request's bit flipped on a limb of three (`Serial.burst`, 24 echoes): that
+  echo alone unanswered (NoReplyError), the next answered; the nodes counted
+  +7 +5 +3 and +3 +5 +1 comm errors for one, +7 +3 +9 and +9 +3 +5 for three
+  in a row, against +0 +0 +0 in a clean run.
