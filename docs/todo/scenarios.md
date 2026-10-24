@@ -225,7 +225,10 @@ serves its DOD; none an entry a case.
     the chair's rise's lean tips her trunk back, sat up on the bed her back
     stays down - a borne point held still in its three axes, away from the
     furniture too, and lain flat her trunk pulls on her hips twice what her
-    hanging legs do: her arms on the bed raise her; turning and backing in
+    hanging legs do: her arms on the bed raise her - and lain, her ZMP is held
+    to her support (her centre of mass asked nowhere), her soles aloft are
+    asked by her centre of mass (her legs fold past a hip's stop, whose rows
+    shrink her whole ask), her arms bear nothing; turning and backing in
     the 1 m before the table her hands touch the loft - a half turn in place
     creeps her 0.18 m -; docking
     takes 19 s; a curve through a corner fits her arc from 2-3 of 27

@@ -272,6 +272,19 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   85 deg back at 1 477. Her neck braced through the sit too, 58 errands
   fell 10 where 2 - 6 in the thrust - and its median 1 356 where 1 187:
   the lean's and thrust's centre of mass is asked of her head.
+- Lain on the bed, what holds her rise there: her ZMP held to her support
+  (`stance_hold`), her centre of mass is asked 0 across (W_COM) and she
+  rises none of the way; let go in its plant and sit_up she rose 14 of 24
+  (7) and fell 9 (4), her neck at 842 deg/s (194); paced as the suite's
+  rise (latched, 1.65 s up, the chair's lean, hand-over and drive), 8 and 12.
+  Lying, her soles aloft are asked 0.13 m from her centre of mass (the
+  text's sagittal -1.5): her legs fold till a hip is at -2.22 rad past its
+  -2.00, and its stop shrinks her whole ask to 0.05-0.13 (`scale`); asked
+  out at the floor (-6) her legs hang, hips +0.3 to +0.6, and no sit-up comes.
+  Her back's hold let go once its row would lift it (its residual up, in
+  `_rounds`): the paced rise stood 2 of 4 in a probe, but in her step bed 6
+  of 24 (8), chair 49 of 58 (53), its trunk p90 453 -> 266. Her arms counted
+  as supports (`touch.ABOVE` leaves them out): 0 of 4 stood.
 
 ## The keys that send her
 
