@@ -55,9 +55,14 @@ def _atom(tok):
         return tok
 
 
+#: A quote's mark before a form, and the form it makes.
+QUOTES = {"'": 'quote', '`': 'quasiquote', ',': 'unquote'}
+
+
 def _put(into, item):
-    """`item` onto the open form `into`, as (quote item) where a quote stands before it."""
-    into[-1:] = [['quote', item]] if into[-1:] == ["'"] else into[-1:] + [item]
+    """`item` onto the open form `into`, as (quote item) where a quote's mark stands before it."""
+    mark = into[-1] if into and isinstance(into[-1], str) else None
+    into[-1:] = [[QUOTES[mark], item]] if mark in QUOTES else into[-1:] + [item]
 
 
 def forms(text):
@@ -72,6 +77,8 @@ def forms(text):
                 raise SyntaxError('a %s closes nothing' % tok)
             done = stack.pop()
             _put(stack[-1], tuple(done[1:]) if done[:1] == ['[]'] else done)
+        elif tok[0] in QUOTES and len(tok) > 1:
+            _put(stack[-1], [QUOTES[tok[0]], _atom(tok[1:])])
         else:
             _put(stack[-1], _atom(tok))
     if len(stack) != 1:

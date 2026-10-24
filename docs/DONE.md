@@ -240,3 +240,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     and held on her suite's roots and the bench (`tools/sim/runtime.py`;
     test_tune.py,
     [autotuner](findings/autotuner.md)).
+45. The dual-domain kernel's texts as given (host/machine/ortho_kernel/, 22
+    modules) read whole: quasiquotes, laws her world resolves, pipelines
+    threaded later, gates; each op its mechanism's node (`machine.kernel`);
+    90 names, the room's schedule (test_dsp.py, todo/protocol.md).

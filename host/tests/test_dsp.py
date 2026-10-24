@@ -59,6 +59,41 @@ def test_the_suite_reads_as_written(report):
                  str([(b0, b1, type(x).__name__) for b0, b1, x in plan]))
 
 
+def test_the_kernel_reads_whole(report):
+    """The dual-domain kernel's texts (machine/ortho_kernel/) evaluated, each op its mechanism's
+    node: the room's schedule; the bed's gait with its bus, bands and registry, its relocation
+    gated on its funnel; each funnel's executor run from her nominal, the sit's blind settle at the
+    observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18 mm."""
+    from machine import dsp
+    got = dsp.read(dsp.KERNEL)
+    plan = dsp.schedule(got['compile-complete-humanoid-soa'])
+    report.check('the room schedule: 16 bars of forest, a morph, ice to 32, a morph, the bed, 10 s, the chair',
+                 [p[0] for p in plan] == [0.0, 16.0, 18.0, 32.0, 'oneshot', 'dwell', 'oneshot']
+                 and isinstance(plan[1][2], dsp.Morph) and plan[5][1] == 10.0, str([p[:2] for p in plan]))
+    bed = plan[4][1]
+    report.check('the bed: its bus 48 / 56.5 / 60 V, bands cut at 260 and 980 mm, 256 quadrics, relocation gated',
+                 (bed['dc-bus']['nominal-voltage-v'], bed['dc-bus']['bleed-threshold-v'], bed['dc-bus']['max-voltage-v'])
+                 == (48.0, 56.5, 60.0)
+                 and [s[2] for s in bed['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
+                 and got['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'] == 256.0
+                 and bed['_gates'][0][0] == 'when-funnel-active' and 'object-coupling' in bed['_gates'][0][2],
+                 str(bed['_gates']))
+    report.check('the manifolds: five patches, the soles 0.80 mu', len(got['anatomical-manifold-registry']) == 5
+                 and got['anatomical-manifold-registry']['plantar-bilateral']['default-mu'] == 0.80, '')
+    runs = {(t['from'], t['to']): dsp.run(t['execute'], got['nominal-biped-gait'])
+            for t in bed['funnel-executors']['transitions']}
+    sit = runs[(':bipedal-upright', ':ischial-seated')]
+    report.check("each executor runs; the sit's observer 35 Hz, weights 4.5 / 45 per s, barrier 14 /s 18 mm",
+                 len(runs) == 4 and sit['momentum-observer']['filter-cutoff-hz'] == 35.0
+                 and sit['manifold-weights']['asymmetric-slew'] == {'attack-rate': 4.5, 'release-rate': 45.0}
+                 and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0),
+                 str(sit['manifold-weights']))
+    egress = plan[6][1]
+    brace = egress['adjoint-cones']['opportunistic-egress-brace']
+    report.check("the egress's brace: a hand's cone on what her registry finds within 680 mm",
+                 isinstance(brace['mu-static'], dsp.Law) and brace['mu-static'].name == 'slot-estimated-mu', str(brace))
+
+
 def test_the_maneuvers_read_as_written(report):
     """A patch of a gait threads its stages and transitions in order, a maneuver's acts in theirs:
     the chair's pivot with its stagger and overlap, its envelope at 450 + 18 mm, the contact that

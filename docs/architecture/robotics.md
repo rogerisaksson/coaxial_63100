@@ -51,7 +51,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
 | gait | her standard gait and its modifiers: the walk's parameters as the lisp's streams fold them, moved by named amounts (pace, stride, swing, sway, roll, turn, rock, crouch, lean, width): a gait take's, a catwalk's roll |
 | patch | a transition on her loop: lisp read as forms, a morph as contiguous curve rows on the bar grid, begun locked to her double support |
-| dsp | the ortho-DSP suite (machine/ortho_dsp/) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
+| dsp | the ortho-DSP suite (machine/ortho_dsp/), the dual-domain kernel's (machine/ortho_kernel/, its ops' mechanisms `kernel`) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
 | maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; the bed's patches read, not played |
 | seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |
 | furniture | what her eyes tell her of a thing a verb goes to: its top, its near edge, its centre |
@@ -88,7 +88,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | --- | --- |
 | `test_gynoid.py` | the body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
-| `test_dsp.py` | the ortho-DSP suite read as written, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk |
+| `test_dsp.py` | the ortho-DSP suite read as written, the kernel read whole, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk |
 | `test_tune.py` | the autotuner's text read; her texts given play as her files; every literal walked where it stands, her gym's by its slot; each one's reach on her - the runway's, the sit's, her walk's -; its step a QP; a run's residuals and the verdicts on a step; a link's rings and banks, her walk linked as unlinked bit for bit, her raw passes cooked as MuJoCo reads them, her walk measured at runtime with her loop apart, a table laid at her barrier blending C2 |
 | `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the situations that cap humanoid robot rhythm |
 | `test_situation.py` | humanoid robot situation: the text's bounds and caps, each entered unannounced told within a second |

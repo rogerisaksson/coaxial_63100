@@ -115,6 +115,8 @@ TOUCHES = (
     ('host/machine/tune.py',                   (STRUCTURE, TUNE)),
     ('host/machine/meta_ast_autotuner.lisp',   (TUNE,)),
     ('host/machine/ortho_dsp/',                (DSP, TUNE)),
+    ('host/machine/ortho_kernel/',             (DSP,)),
+    ('host/machine/kernel.py',                 (STRUCTURE, DSP)),
     ('host/machine/runway.lisp',               (DSP,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, FLOOR, SITUATION, ERRANDS, CYCLIC, REPLAYS, SCENES,

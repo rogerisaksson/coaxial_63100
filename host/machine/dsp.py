@@ -21,6 +21,7 @@ import os
 from typing import Any
 
 from machine import ortho, patch
+from machine.kernel import KEYED, MECHANISMS
 from machine.errors import MachineError
 
 
@@ -46,13 +47,24 @@ def _ordered(paths):
     return out
 
 
-#: The suite's modules, read each after those it uses.
-SUITE = _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(os.path.dirname(__file__), 'ortho_dsp', '*.lisp'))))
-#: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound.
+def _modules(folder):
+    return _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(os.path.dirname(__file__), folder, '*.lisp'))))
+
+
+#: The suite's modules, read each after those it uses; the dual-domain kernel's (docs/todo/protocol.md).
+SUITE = _modules('ortho_dsp')
+KERNEL = _modules('ortho_kernel')
+#: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound;
+#: scaled or added, it keeps the op for her own value.
 Op = collections.namedtuple('Op', 'name value')
 OPS = {'set': lambda old, v: v, 'scale': operator.mul, 'add': operator.add,
        'clamp-min': lambda old, v: v if old is None else max(old, v),
        'clamp-max': lambda old, v: v if old is None else min(old, v)}
+#: A law or a datum her world resolves as she goes, `(:wrench-proportional :max-share 0.18)`,
+#: `(:active-obstacle-handle-se3)`: its name and its params ({key: value}) or values (a tuple).
+Law = collections.namedtuple('Law', 'name args')
+#: Stage forms threaded from the gait they are given later: `(-> (lock-horizon-gaze) ..)`.
+Pipeline = collections.namedtuple('Pipeline', 'forms env')
 #: A stage: its parameters, its keys' default forms, its body; a transition's ops its body.
 Stage = collections.namedtuple('Stage', 'name params keys body')
 #: A transition from a gait (to a gait): its sync trigger, its clock's slew, its bands, its bars,
@@ -71,7 +83,7 @@ SPLIT = {'stance-duty-pwm': ('duty-factor-l', 'duty-factor-r')}
 #: The runway's transient shaper's params that land on its soft-clip node, the knee.
 CLIP = ('stance-yield-rad', 'compliance')
 #: The runway's filter bank: each filter modulates its :target's params.
-FILTERS = ('dc-bias', 'butterworth-lpf', 'phase-delay', 'hard-mute')
+FILTERS = ('dc-bias', 'butterworth-lpf', 'phase-delay', 'hard-mute', 'compressor-gain', 'brickwall-limit')
 
 
 def node(key):
@@ -92,7 +104,8 @@ def _plist(args, env):
 
 def _applied(old, v, where):
     try:
-        return OPS[v.name](old, v.value) if isinstance(v, Op) else v
+        kept = isinstance(v, Op) and old is None and v.name in ('scale', 'add')
+        return v if kept or not isinstance(v, Op) else OPS[v.name](old, v.value)
     except TypeError as error:
         raise MachineError('%s: (:%s %r) of %r' % (where, v.name, v.value, old)) from error
 
@@ -174,8 +187,41 @@ GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-chann
           'enforce-joint-boundary-buffer': 'joint-boundary', 'configure-contact-comparators': 'contact-comparators',
           'enforce-bumpless-handover': 'bumpless-handover', 'apply-zero-crossing-governor': 'zero-crossing',
           'monitor-energy-tank': 'energy-tank'}
+def _targeted(g, args, env):
+    said = _plist(args, env)
+    return _modulated(g, node(said.pop('target')), said)
+
+
+def _keyed_on(at, key):
+    def op(g, args, env):
+        said = _plist(args, env)
+        g = dict(g)
+        g[at] = dict(g.get(at, {}), **{str(said.pop(key)).lstrip(':'): said})
+        return g
+    return op
+
+
+def _gated(op):
+    """A gate: its forms threaded on the gait unless its condition is false, the nodes they moved
+    held as gated by it (`_gates`) where her world decides it as she goes."""
+    def gate(g, args, env):
+        cond = value(args[0], env)
+        if cond is False or cond is None:
+            return g
+        out = g
+        for form in args[1:]:
+            out = _into(out, form, env)
+        moved = sorted(k for k in out if not k.startswith('_') and out[k] is not g.get(k))
+        return dict(out, _gates=g.get('_gates', []) + [(op, cond, moved)])
+    return gate
+
+
 #: The ops on a gait: (gait, raw args, env) -> a new gait.
 GAIT_OPS = {**{op: _event(op) for op in EVENTS}, **{op: _on(at) for op, at in GUARDS.items()},
+    **{op: _on(at) for op, at in MECHANISMS.items()}, **{op: _keyed_on(*k) for op, k in KEYED.items()},
+    **{op: _gated(op) for op in ('when-modifier', 'when-funnel-active', 'when-target-affordance-occluded',
+                                 'when-funnel-transition')},
+    'engage-sub-oscillator': _targeted, 'sample-and-hold-terrain': _targeted,
     'modulate-oscillator': _on('oscillator'), 'quantize-grid': _on('oscillator'),
     'set-plantar-boundary': _on('plantar-boundary'), 'modulate-plantar-boundary': _on('plantar-boundary'),
     'modulate-node': lambda g, a, env: _modulated(g, node(a[0]), _plist(a[1:], env)),
@@ -204,7 +250,9 @@ FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*'
              ('get-bpm', 'bpm'), ('get-phase-diff', 'inter-limb-phase-rad'), ('get-duty-l', 'duty-factor-l'),
              ('get-duty-r', 'duty-factor-r'), ('get-duty', 'duty-factor-l'))},
          **{name: lambda *a: {k.lstrip(':'): v for k, v in zip(a[::2], a[1::2])}
-            for name in ('compile-to-soa', 'engage-virtual-dissipative-load')}}
+            for name in ('compile-to-soa', 'engage-virtual-dissipative-load')},
+         **{name: (lambda name: lambda *a: Law(name, a))(name)
+            for name in ('query-nearest-affordance', 'slot-surface-normal', 'slot-estimated-mu')}}
 
 
 def _let(args, env):
@@ -229,11 +277,41 @@ def _given(form, env):
     return [value(a, env) for a in form[1:lead + 1]], form[lead + 1:]
 
 
+def _into(g, form, env):
+    """Gait `g` through `form`: a stage or op called on it, a let's forms in its bindings, a
+    thread of its own seed."""
+    if form[0] == '->':
+        return value(form, env)
+    if form[0] == 'let':
+        inner = dict(env)
+        for name, bound in zip(form[1][::2], form[1][1::2]):
+            inner[name] = value(bound, inner)
+        for each in form[2:]:
+            g = _into(g, each, inner)
+        return g
+    given, rest = ([], form[1:]) if form[0] in GAIT_OPS else _given(form, env)
+    return _then(g, form[0], called(form[0], [g] + given, rest, env))
+
+
+def _short(form, env):
+    """Whether `form` calls a stage short of the gait it threads."""
+    stage = env.get(form[0]) if isinstance(form, list) and form and isinstance(form[0], str) else None
+    return isinstance(stage, Stage) and len(_given(form, env)[0]) < len(stage.params)
+
+
 def _threaded(args, env):
+    if _short(args[0], env):
+        return Pipeline(tuple(args), env)
     g = value(args[0], env)
     for form in args[1:]:
-        given, rest = ([], form[1:]) if form[0] in GAIT_OPS else _given(form, env)
-        g = _then(g, form[0], called(form[0], [g] + given, rest, env))
+        g = _into(g, form, env)
+    return g
+
+
+def run(pipeline, g):
+    """Gait `g` through a pipeline's forms."""
+    for form in pipeline.forms:
+        g = _into(g, form, pipeline.env)
     return g
 
 
@@ -247,8 +325,25 @@ def _datum(x):
     return tuple(_datum(e) for e in x) if isinstance(x, (list, tuple)) else x
 
 
+def _pairs_of(args):
+    return len(args) % 2 == 0 and _keyed(args) == len(args)
+
+
+def _law_args(args, env):
+    """A law's params as {key: value} where its args are keyword pairs, else their values."""
+    return _plist(args, env) if _pairs_of(args) else tuple(value(a, env) for a in args)
+
+
+def _quasi(x, env):
+    """A quasiquoted form as data, its unquoted forms evaluated."""
+    if isinstance(x, list) and x[:1] == ['unquote']:
+        return value(x[1], env)
+    return tuple(_quasi(e, env) for e in x) if isinstance(x, (list, tuple)) else x
+
+
 #: The lisp's special forms, their arguments unevaluated.
 SPECIAL = {'let': _let, 'case': _case, '->': _threaded, 'quote': lambda a, env: _datum(a[0]),
+           'quasiquote': lambda a, env: _quasi(a[0], env),
            'if': lambda a, env: value(a[1] if value(a[0], env) else (a[2] if len(a) > 2 else None), env),
            'and': lambda a, env: all(value(x, env) for x in a), 'or': lambda a, env: any(value(x, env) for x in a)}
 
@@ -265,10 +360,14 @@ def value(x, env) -> Any:
     if not isinstance(x, list) or not x:
         return x
     head = x[0]
+    if not isinstance(head, str):
+        return tuple(value(e, env) for e in x)
     if head in SPECIAL:
         return SPECIAL[head](x[1:], env)
     if head.startswith(':'):
-        return Op(head[1:], value(x[1], env)) if head[1:] in OPS else _plist(x, env)
+        if head[1:] in OPS:
+            return Op(head[1:], value(x[1], env))
+        return _plist(x, env) if _pairs_of(x) else Law(head[1:], _law_args(x[1:], env))
     if head in FUNCS:
         return FUNCS[head](*(value(a, env) for a in x[1:]))
     return called(head, *_given(x, env), env)
@@ -317,7 +416,7 @@ def _state(clauses):
         nodes = ([(clause[k], clause[k + 1]) for k in range(1, len(clause), 2)] if clause[0] == ':kinematics'
                  else [(clause[0], clause[1:])])
         for at, params in nodes:
-            g[node(at)] = {k: value(v, {}) for k, v in _pairs(params)}
+            g[node(at)] = {p: value(v, {}) for k, v in _pairs(params) for p in SPLIT.get(k, (k,))}
     return dict(g, _trace=[], _events=[])
 
 
@@ -338,6 +437,10 @@ DEFINE = {
     'deftransition': lambda env, f: ({f[1]: _morph([['endpoints', *f[2]]] + list(f[3:]), env)}
                                      if f[2] and str(f[2][0]).startswith(':') else {f[1]: _stage(f, 'transition')}),
     'defpatch': lambda env, f: {f[1]: _stage(f) if isinstance(f[2], tuple) else value(f[2], env)},
+    'defprimitive': lambda env, f: {f[1]: _stage(f)},
+    'defcontact-patch': lambda env, f: {f[1]: {str(c[1]).lstrip(':'): _plist(c[2:], env) for c in f[2:]}},
+    'define-residual-grammar': lambda env, f: {f[1]: tuple(_plist(c, env) for c in f[2:])},
+    'defdaemon': lambda env, f: {f[1]: dict(_pairs(f[3:]), params=f[2])},
 }
 
 

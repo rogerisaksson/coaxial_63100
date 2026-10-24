@@ -33,6 +33,7 @@ the table under [Subjects](#subjects).
 | Subject | File |
 | --- | --- |
 | Scenarios, by the general case: each a test in MuJoCo, in order | [todo/scenarios.md](todo/scenarios.md) |
+| The dual-domain kernel: its six steps on her loop, its four tests in the lodge | [todo/protocol.md](todo/protocol.md) |
 | The bench: what the board has still to show | [todo/bench.md](todo/bench.md) |
 | Flight pages: the crafts in wind, the aerobat's landing | [todo/flight.md](todo/flight.md) |
 | Host: native://, identification on the robot, her law compiled | [todo/host.md](todo/host.md) |
