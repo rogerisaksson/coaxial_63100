@@ -198,7 +198,79 @@ def test_the_invariant_ekf_drifts_less(report):
         i['floor'] < e['floor'] and abs(i['height']) < abs(e['height']) and i['speed'] < e['speed'], '')
 
 
-ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def test_the_lowering_lays_the_texts_abi(report):
+    """The room's schedule lowered (`machine.lowering`): C lays every section where Python does, the
+    text's offsets held by wbc_soa.h; each bank's fields as its gait says them in SI over her
+    nominal's, a field past its bounds clamped; each node's biquad the text's, seeded on her value."""
+    import numpy as np
+    from machine import dsp, kernel, lowering as L, rcu
+    lib, got = rcu._core(), kernel.read()
+    at = np.zeros(len(L.SECTIONS) + 1, np.int64)
+    lib.wbh_soa_offsets(at.ctypes.data)
+    report.check("C lays %d sections where Python does, %d bytes, the text's fields at its offsets" % (len(L.SECTIONS), L.SIZE),
+                 at.tolist() == [a for _n, a, _c in L.SECTIONS] + [L.SIZE]
+                 and [a for k, a, *_r in L.SECTIONS[:len(L.FIELDS)]] == [a for k, a, *_r in L.FIELDS], str(at.tolist()))
+    banks = [b for _seg, b in L.scheduled(got['compile-complete-humanoid-soa']) if b is not None]
+    room, stairs = banks[0], banks[-1]
+    fast = L.lowered(dsp.value(['->', 'nominal-biped-gait', ['quantize-grid', ':bpm', 600.0]], got))
+    report.check('four banks; the room 110 BPM as 1.833 Hz, its sole 32 mm, its track her nominal 103 mm where '
+                 'her world says it, shins 32 mm; the stairs 1.5 Hz, 15 /s and 16 mm, thorax 0.06 rad; 600 BPM at 4 Hz',
+                 len(banks) == 4 and abs(L.field(room, 'bpm') - 110.0 / 60.0) < 1e-6
+                 and abs(L.field(room, 'sole-stack-z-mm') - 0.032) < 1e-7 and abs(L.field(room, 'track-width-mm') - 0.103) < 1e-7
+                 and abs(L.field(room, 'min-shin-clearance-mm') - 0.032) < 1e-7
+                 and abs(L.field(stairs, 'bpm') - 1.5) < 1e-6 and L.field(stairs, 'barrier-gamma') == 15.0
+                 and abs(L.field(stairs, 'min-capture-margin-mm') - 0.016) < 1e-7
+                 and abs(L.field(stairs, 'dc-offset-rad', 'c7-t12-thoracic') - 0.06) < 1e-7
+                 and abs(L.field(stairs, 'dc-offset-rad', 'l4-l5-lumbar') + 0.14) < 1e-7
+                 and L.field(fast, 'bpm') == 4.0 and L.field(room, 'weight') == 1.0
+                 and abs(L.field(room, 'r0') - 0.048) < 1e-7, '')
+    node, x0 = 'c7-t12-thoracic', 0.3
+    b = L.coefficients(':lowpass', 8.0, L.Q)
+    k = L.NODES.index(node)
+    bank = L.lowered(got['nominal-biped-gait'], {node: x0})
+    held = [L.biquad(bank, node, x0) for _ in range(1000)]
+    spread = max(abs(y - held[0]) for y in held)
+    report.check("the thorax's 8 Hz low-pass the text's at %g Hz; seeded on %.1f its first output %.6f (its float32 "
+                 "DC gain), its rest within %.1e over a second" % (L.RATE, x0, held[0], spread),
+                 [float(bank[L.AT[c] + k]) for c in L.BIQUAD[:5]] == [float(np.float32(v)) for v in b]
+                 and abs(held[0] - x0) < 1e-4 * x0 and spread < 1e-5 * x0,
+                 '%.9f %.9f' % (min(held), max(held)))
+
+
+def test_a_bank_swaps_with_no_step(report):
+    """A bank published over her link (`machine.rcu`) and taken by her loop's C side: its biquad in C
+    bit for bit Python's; her thorax's filter settled on one bank, the next lowered on her value goes
+    on with no step where an unseeded one drops."""
+    import numpy as np
+    from machine import kernel, lowering as L, rcu
+    got, node = kernel.read(), 'c7-t12-thoracic'
+    rng = np.random.default_rng(7)
+    x = (0.3 + 0.05 * rng.standard_normal(500)).astype(np.float32)
+    a = L.lowered(got['nominal-biped-gait'], {node: float(x[0])})
+    link = rcu.Link.made(((4, 2),), 1, L.SIZE // 8)
+    her = rcu.Link.found(link.name)
+    sent = link.published(L.words(a))
+    taken = her.taken()
+    y = np.zeros(len(x), np.float32)
+    if taken is not None:
+        rcu._core().wbh_soa_biquad(taken[1].ctypes.data, L.NODES.index(node), x.ctypes.data, y.ctypes.data, len(x))
+    her.closed()
+    link.closed()
+    mine = a.copy()
+    ours = np.array([L.biquad(mine, node, v) for v in x], np.float32)
+    report.check("the bank over the link bit for bit, its C biquad Python's over %d passes" % len(x),
+                 sent and taken is not None and L.words(a).tobytes() == taken[1].tobytes() and y.tobytes() == ours.tobytes(),
+                 '%g' % float(np.abs(y - ours).max()))
+    run = L.lowered(got['nominal-biped-gait'], {node: 0.3})
+    last = [L.biquad(run, node, 0.3) for _ in range(2000)][-1]
+    seeded = L.lowered(got['nominal-biped-gait'], {node: 0.3})
+    bare = L.lowered(got['nominal-biped-gait'])
+    steps = (abs(L.biquad(seeded, node, 0.3) - last), abs(L.biquad(bare, node, 0.3) - last))
+    report.check('swapped settled at 0.3: seeded, a step of %.1e; unseeded %.3f' % steps,
+                 steps[0] < 1e-6 and steps[1] > 0.29, '')
+
+
+ROSTER = (test_the_lowering_lays_the_texts_abi, test_a_bank_swaps_with_no_step, test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 

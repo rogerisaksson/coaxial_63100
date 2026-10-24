@@ -287,3 +287,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     22-capsule body schema, the AST-to-SoA lowering - its functions
     evaluated as written -, the somatic schedule folded into the room's; the
     protocol's list rewritten to its seven steps and five tests.
+56. The SoA ABI and the lowering (`machine.lowering`, wbc_soa.h): a gait
+    folded into a bank of the text's fields at its offsets over her nominal's,
+    a biquad a node seeded on her value, the manifolds' weights, the capsules;
+    carried over her link's table, her loop's biquad in C bit for bit; swapped
+    settled, a step of 8.6e-7 where unseeded 0.30 ([kernel](findings/kernel.md)).

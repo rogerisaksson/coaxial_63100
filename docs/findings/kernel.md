@@ -139,6 +139,24 @@ her knee where her thigh meets her shank less the text's 0.28 rad.
 - Crouched at 0.47 m the observer reads 61-99 N on the seat her skin does
   not feel; a rise said there takes the latched ghost 0.15.
 
+## The lowering
+
+`machine.lowering`: a gait folded into a bank of the text's ABI (wbc_soa.h, 2 176
+bytes on 34 lines) over her nominal gait's, its fields' offsets held by
+`static_assert`s; the room's schedule four banks.
+
+- The text writes every field at `offset + 4 joint`: a node's track (0x80)
+  would land on the stride (0x84) and the clearance (0x88). Each node's only
+  where her nominal gait says a field of several (`dc-offset-rad`).
+- The thorax's 8 Hz low-pass at 1 kHz in float32: its DC gain 1.6e-5 over
+  unity, its rest wandering 1.1e-6 at 0.3 over a second. Seeded on the
+  double coefficients it drifted 4e-6 from its seed; on the float32 ones its
+  loop runs, its first output its rest.
+- Swapped settled at 0.3: seeded, a step of 8.6e-7; unseeded, 0.2998 - back
+  within 1 % after 130 ms.
+- A bank rides her link's table as its words, bit for bit; her loop's
+  biquad in C (wbc_soa.c) Python's bit for bit.
+
 ## Her right-invariant EKF
 
 `machine.inekf` beside her estimate: SE_2+2(3), her IMU's mean over each law

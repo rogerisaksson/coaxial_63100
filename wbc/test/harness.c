@@ -8,6 +8,7 @@
 #include "wbc_pass.h"
 #include "wbc_rcu.h"
 #include "wbc_gmo.h"
+#include "wbc_soa.h"
 
 #include <string.h>
 #include <time.h>
@@ -557,4 +558,38 @@ API void wbh_gmo_step(wbc_gmo_t *o, const double *base, const double *q, const d
 
   frame_of(base, &f);
   wbc_gmo_step(o, &f, q, u, dt);
+}
+
+/** wbc_soa_t's sections' offsets, bytes, in machine.lowering.SECTIONS's order, then its size. */
+API void wbh_soa_offsets(long long *out)
+{
+  const size_t at[] = {
+    offsetof(wbc_soa_t, hz),        offsetof(wbc_soa_t, duty),           offsetof(wbc_soa_t, sole_stack),
+    offsetof(wbc_soa_t, track),     offsetof(wbc_soa_t, stride),         offsetof(wbc_soa_t, clearance),
+    offsetof(wbc_soa_t, dc_offset), offsetof(wbc_soa_t, gamma),          offsetof(wbc_soa_t, capture_margin),
+    offsetof(wbc_soa_t, eta),       offsetof(wbc_soa_t, shin_clearance), offsetof(wbc_soa_t, b0),
+    offsetof(wbc_soa_t, b1),        offsetof(wbc_soa_t, b2),             offsetof(wbc_soa_t, a1),
+    offsetof(wbc_soa_t, a2),        offsetof(wbc_soa_t, s1),             offsetof(wbc_soa_t, s2),
+    offsetof(wbc_soa_t, weight),    offsetof(wbc_soa_t, p0[0]),          offsetof(wbc_soa_t, p0[1]),
+    offsetof(wbc_soa_t, p0[2]),     offsetof(wbc_soa_t, p1[0]),          offsetof(wbc_soa_t, p1[1]),
+    offsetof(wbc_soa_t, p1[2]),     offsetof(wbc_soa_t, r0),             offsetof(wbc_soa_t, r1),
+    sizeof(wbc_soa_t)};
+
+  for (size_t k = 0; k < sizeof at / sizeof at[0]; k++)
+  {
+    out[k] = (long long)at[k];
+  }
+}
+
+/** `n` passes of node `k`'s biquad on `x` from a bank's words as taken (`words`, copied to a bank on
+    its lines): each output into `y`. */
+API void wbh_soa_biquad(const double *words, int k, const float *x, float *y, int n)
+{
+  wbc_soa_t b;
+
+  memcpy(&b, words, sizeof b);
+  for (int i = 0; i < n; i++)
+  {
+    y[i] = wbc_soa_biquad(&b, k, x[i]);
+  }
 }
