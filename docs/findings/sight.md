@@ -80,6 +80,11 @@ in her sight whichever way she faces (`scanner._in_cone`).
 Her registry fed by her eyes (`sight.told`, `sprung.LOOKS` under
 `physics.SIGHT`): a look round posed standing, the 65 things her map told made
 96 slots - the chair 13, the lamp 10, walls 41 - where the stand-in's boxes
-made 33 of 53. Her map's lumps grow look by look, and a grown lump's centre
-and size leave the registry's gate (0.24 m at its cell); the chair, table and
-bed are each told within 0.10, 0.05 and 0.05 m of where they stand.
+made 33 of 53. The chair, table and bed are each told within 0.10, 0.05 and
+0.05 m of where they stand; the chair's 13 slots lie 0.10-2.15 m from it -
+her map's own 'chair' lumps by their colour, not one chair told 13 times -
+and the lamp's 9 to 5.4 m. The registry matched each axis over a thing's own
+half size, a grown lump's centre shift its growth's half: 85 slots, the
+chair's 13 still, and the bed's slot 0.38 m off where 0.05 (a growing lump
+filtered in at the cell's precision averages its partial centres) - undone.
+The slots are her map's lumps as told (`sight.classify`), not the gate.
