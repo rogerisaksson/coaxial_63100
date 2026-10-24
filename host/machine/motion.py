@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, stride, supervisor, touch, waits, wbc
+from machine import barrier, bemf, borne, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, stride, supervisor, touch, waits, wayfinder, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -192,6 +192,8 @@ def control(g, dt):
     dq, imp = _step_modal(g, s, y, y_in, out)
     w_back = float(g.get('_w_back', 0.0))
     imp[modal.HEADED][1] += w_back * (float(g.get('_backing_yaw', 0.0)) - imp[modal.HEADED][1])
+    boxes, gauge = wayfinder.gauged(g, told, s, y_in)
+    imp[modal.HEADED][1] += gauge
     sr = surety(g, dt * ev)
     bw = max(0.0, 1.0 - (sr / 0.58) ** 4) ** 2
     sw = 1.0 - bw
@@ -212,7 +214,9 @@ def control(g, dt):
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
                                     (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt)
-    ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'])
+    ask['posture'][g['head_idx']] -= gauge
+    ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'],
+                                                  boxes)
     ask['mu'] = g['held']
     arms = [modal.ARMS, modal.REACH]
     ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))
@@ -315,7 +319,7 @@ def laid(g):
     g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']
     g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
-    g['schema_at'], g['schema_d'] = schema.ids(body.m), body.mj.MjData(body.m)
+    g['schema_at'], g['schema_d'] = capsules.ids(body.m), body.mj.MjData(body.m)
     g['_tips'] = np.array(touch.TIPS)
     g['touched_step'] = c_touch.laid(k, g['sense'], body.d.xmat, body.d.xpos, g['_skin_ids'], g['_tips'], g['y'],
                                      g['fr'], g['a'], g['st'], g['out'], g['rest'], g['touched'])

@@ -174,6 +174,48 @@ braking distance through `machine.bemf`.
 - A pass idle: 170 us in Python (22 Jacobians 67, the nearest points 52, the
   braking reach 35).
 
+## The room on her shield
+
+`machine.schema`'s room: her things (`world.props()`, her eyes' stand-in, read
+at the text's 120 Hz) as boxes; each box's patches by the text's affordance
+kernels (a seat her ischia and thighs', a bed her back and hips', a table's
+edge or a chair's back her forearms' and palms', a step her soles'), open to a
+capsule's by the approach window as far as her rows schedule the patch, her
+observer feels it, or her skin feels the capsule's segment; her arms' capsules
+alone (the text's limb synergies on her own side: an elbow), the rest her
+balance bus's and her footholds'.
+
+- Her legs held off the room through her hips (the self-collision barriers'
+  DOFs): walking into the wall at +0.2 mm her knee was held 466 passes 31 mm
+  into it and she fell at 7.13 s where her base meets it. Her arms alone, she
+  meets it.
+- A synergy's trunk joint moved for an arm (her waist's yaw): the Sit To
+  Stand take's replay (falling on her base at 7.12 s) fell at 9.23; her own
+  side's, 6.19; her arms alone, 5.83 - her forearms held 6 mm off the chair's
+  back behind her 19 passes.
+- Its cost a law pass on the lodge: 2.2 ms with bounding spheres (a 3 m wall's
+  reaches every capsule: 73 pairs) and 40 golden steps on none; 0.54 ms with
+  the box's distance to the capsule's middle (0 pairs walking the lodge), 21
+  steps (a thousandth of the skin), the boxes laid once a refresh, the kernels
+  as a matrix. test_errands ran past its 300 s wall on the first.
+- A capsule's axis against a box by golden section: 24 random pairs within
+  2.1e-5 m of a 20 001-point walk, the bracket's share of the segment.
+
+## The wayfinder
+
+`machine.wayfinder`: her route's flow bent by the room rows her shield holds
+(Sherman-Morrison, eta 18.5), a word's twist untouched; her trunk twisted
+through the gap her way meets 0.6 s on among what her high band meets.
+
+- Her chest 364 mm across her upper arms' skin, 194 deep: a gap at 0.8 of it
+  takes 73 deg of twist; 0.99, 57 (past twice atan(depth / across)); under
+  0.3, the text's most (75).
+- Test 1's door (`tools/sim/doorway.py`): the lodge's door locked ajar at
+  46.2 deg, 291 mm (0.8 of her shoulders) between its edge and the far post,
+  her exit said from 1.3 m inside: through at 3.0 s, no bump, her waist
+  twisted 28 deg 0.15 m past the door's line and 51 deg at 0.29 m, her arms
+  55 mm clear of it at the line.
+
 ## Her drives' back-EMF bounds
 
 `machine.bemf`, the text's quadrant law on her link's volts, her boards' own.

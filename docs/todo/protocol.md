@@ -32,19 +32,18 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    mu_k F_z, F_z under 0.55 of her weight, the text's 65 Hz dither, inside
    her capture point's barrier. DOD: she slides onto and off a seat over her
    knees, and 180 mm deeper onto the bed.
-6. **Step 5, the body schema on the room**: `machine.schema` holds her
-   posture to each of her 13 pairs' ECBF. Left: her capsules against the
-   room's quadrics and the three slabs (14 mm skin), its 4 payload slots,
-   open only to a scheduled patch, her balance bus past her posture's
-   saturation, in C. DOD: an arm swung at a table corner stops short of it,
-   0 N m to her ankles.
-7. **Step 6, the wayfinder's two ways**: her ECBF's multipliers deflect her
-   geodesic flow by rank-1 Sherman-Morrison, held past 140 ms into the
-   metric; the streamline 600 ms ahead pre-shapes her null-space posture
-   where the gap lies between her contorted and nominal widths; her shins'
-   and knees' clearance pulled back through her leg's Jacobian over swing
-   0.05-0.38. DOD: no oscillation before a doorway; a foot placed off a
-   chair's crossbar.
+6. **Step 5, the body schema on the room, its rest**: `machine.schema` holds
+   her pairs and her limbs off the room's boxes by their own joints, open
+   where her patches are scheduled or felt. Left: her trunk's capsules
+   against the room through her balance bus (the text's spill-over), the
+   three slabs, the 4 payload slots spliced, in C. DOD: an arm swung at a
+   table corner in her run stops short of it, 0 N m to her ankles.
+7. **Step 6, the wayfinder's rest**: `machine.wayfinder` bends her route's
+   flow by her shield's room rows and twists her trunk through the gap 0.6
+   s ahead. Left: a box held past 140 ms baked into her route's metric, a
+   gap under her contorted width marked impassable, the crural foothold
+   guard over swing 0.05-0.38. DOD: no oscillation before a doorway; a foot
+   placed off a chair's crossbar.
 8. **Step 6, her map**: her right-invariant EKF (`machine.inekf`) and a
     registry of 256 dual quadrics from her eyes, three SDF bands at her
     knee, navel and crown, the kernel's affordances and funnels. DOD: the
@@ -53,14 +52,17 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a
     bank carried over her link's table. Left: her loop's channels through a
     bank's biquads and its fields, a bank taken at her barrier (`tap.due`)
-    in her run of the room's schedule (`tools/sim/runtime.py`). DOD: the
-    room's schedule swapped in her run with no step in her torques; the
-    tuner converged on it.
-10. **Test 1, door and sill**: the door ajar at 0.80 of her shoulders, a 40
-    mm bar in the doorway, a table's corner inside. DOD: her chest yawed
-    ~60 deg and her elbows tucked 600 ms before it, her swing over the bar
-    by the sub band; past the table her trailing elbow clear of its corner,
-    0 N m to her ankles.
+    in her run of the room's schedule (`tools/sim/runtime.py`); its gaits
+    are refused on her loop by name till item 1 - their insert's slew 850
+    N m/s and jerk 12 000 rad/s^3 where hers says her drives' current loop.
+    DOD: the room's schedule swapped in her run with no step in her
+    torques; the tuner converged on it.
+10. **Test 1, door and sill, its rest**: the door ajar at 0.80 of her
+    shoulders passed (`tools/sim/doorway.py`: her waist 28 deg at it, her
+    arms 55 mm clear). Left: a 40 mm bar in the doorway, a table's corner
+    inside. DOD: her chest yawed ~60 deg and her elbows tucked 600 ms before
+    the door, her swing over the bar by the sub band; past the table her
+    trailing elbow clear of its corner, 0 N m to her ankles.
 11. **Test 2, a chair shoved**: a chair across her way to the stool, two legs
     on a rug, no fingers. DOD: her forearms or carpal heels on it at 18 N
     or more (`ulnar-carpal-shove-bilateral` read against her skin), its

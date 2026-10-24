@@ -99,7 +99,7 @@ def test_the_body_schema_lays_her_capsules(report):
     two capsules' nearest axes as a fine walk finds them, parallel, offset and a sphere among them;
     the log-sum-exp under the least by at most log(n) / alpha."""
     import numpy as np
-    from machine import schema
+    from machine import capsules, schema
     rng = np.random.default_rng(3)
     n = 64
     caps = {'p0': rng.normal(size=(n, 3)), 'p1': rng.normal(size=(n, 3)), 'r0': np.zeros(n), 'r1': np.zeros(n)}
@@ -109,20 +109,20 @@ def test_the_body_schema_lays_her_capsules(report):
     caps['p1'][8:12] = caps['p0'][8:12]
     pairs = np.array([(k, k + 4) for k in range(4)] + [(8 + k, 30 + k) for k in range(4)]
                      + [(2 * k, 2 * k + 1) for k in range(8, 32)])
-    d = schema.nearest(caps, pairs)['d']
+    d = capsules.nearest(caps, pairs)['d']
     off = float(np.abs(d - _brute(caps, pairs)).max())
-    soft = schema.smooth(d)
-    named = dict(zip(schema.NAMES, schema.SEGMENT))
-    floors = {tuple(schema.NAMES[k] for k in pair): f for pair, f in zip(schema.PAIRS, schema.FLOOR)}
+    soft = capsules.smooth(d)
+    named = dict(zip(capsules.NAMES, capsules.SEGMENT))
+    floors = {tuple(capsules.NAMES[k] for k in pair): f for pair, f in zip(capsules.PAIRS, capsules.FLOOR)}
     report.check('%d capsules on her segments, the feet 7.5 mm apart at least, shanks 12, forearm and hips 15, '
                  'thighs touching; %d pairs as a fine walk finds them within %.1e m; the soft least %.3f under %.3f'
-                 % (len(schema.NAMES), len(pairs), off, soft, float(d.min())),
-                 len(schema.NAMES) == 18 and named['foot-shell-l'] == 'left_foot' and named['thoracic-ribcage'] == 'torso'
+                 % (len(capsules.NAMES), len(pairs), off, soft, float(d.min())),
+                 len(capsules.NAMES) == 18 and named['foot-shell-l'] == 'left_foot' and named['thoracic-ribcage'] == 'torso'
                  and floors[('foot-shell-l', 'foot-shell-r')] == 0.0075
                  and floors[('shank-crural-l', 'shank-crural-r')] == 0.012
                  and floors[('forearm-ulnar-l', 'pelvic-girdle')] == 0.015
                  and floors[('thigh-femoral-l', 'thigh-femoral-r')] == 0.0
-                 and off < 1e-6 and d.min() - np.log(len(d)) / schema.ALPHA <= soft <= d.min(), '')
+                 and off < 1e-6 and d.min() - np.log(len(d)) / capsules.ALPHA <= soft <= d.min(), '')
 
 
 def test_the_shield_holds_a_closing_pair(report):
@@ -133,7 +133,7 @@ def test_the_shield_holds_a_closing_pair(report):
     held rows, their multipliers not negative); her left forearm closing on her hips, a pair whose
     barrier evades by her shoulder's abduction she has not, at 1.5 m/s spilled whole; at rest nothing."""
     import numpy as np
-    from machine import bemf, edge, schema, worker
+    from machine import bemf, capsules, edge, schema, worker
     from machine.wbc import POSTURE_KD
     s = worker.session()
     while s['g']['t'] < 1.0:
@@ -141,21 +141,22 @@ def test_the_shield_holds_a_closing_pair(report):
     g = s['g']
     body, st, ask, at, d = g['body'], g['s'], g['ask'], g['schema_at'], g['schema_d']
     volts = float(g['sense'][edge.LINK][0])
-    rest, info = schema.shielded(body, d, st, ask, volts, at)
-    pairs = [tuple(p) for p in schema.PAIRS.tolist()]
+    empty = schema.room((), np.zeros(len(schema.MANIFOLDS)), 0.0, np.zeros(len(capsules.NAMES)))
+    rest, info = schema.shielded(body, d, st, ask, volts, at, empty)
+    pairs = [tuple(p) for p in capsules.PAIRS.tolist()]
 
     def closing(left, right, speed):
-        k = pairs.index((schema.NAMES.index(left), schema.NAMES.index(right)))
-        near = schema.nearest(schema.laid(schema.posed(body, d, st), at), schema.PAIRS)
-        J, _rate = schema.rows(body, d, near, schema.PAIRS, np.array([k]), at, st['v'])
+        k = pairs.index((capsules.NAMES.index(left), capsules.NAMES.index(right)))
+        near = capsules.nearest(capsules.laid(capsules.posed(body, d, st), at), capsules.PAIRS)
+        J, _rate = capsules.rows(body, d, near, capsules.PAIRS, np.array([k]), at, st['v'])
         v = st['v'] - speed * J[0] / float(J[0] @ J[0])
         moved = dict(st, v=v)
-        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at)
+        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at, empty)
     k, gap, v, moved, (posture, held) = closing('foot-shell-l', 'foot-shell-r', 4.0)
     act, rows = body.act, held['which']
-    free = np.flatnonzero(schema.EVADES[rows].any(0))
-    Jh, rate = schema.rows(body, d, schema.nearest(schema.laid(schema.posed(body, d, moved), at), schema.PAIRS),
-                           schema.PAIRS, rows, at, v)
+    free = np.flatnonzero(capsules.EVADES[rows].any(0))
+    Jh, rate = capsules.rows(body, d, capsules.nearest(capsules.laid(capsules.posed(body, d, moved), at), capsules.PAIRS),
+                           capsules.PAIRS, rows, at, v)
     want = POSTURE_KD[0] * (posture - st['q']) - POSTURE_KD[1] * v[act]
     sides = Jh[:, act] @ want + schema.KD * rate + schema.KP * held['h'] + held['spill']
     change = POSTURE_KD[0] * (posture - np.asarray(ask['posture']))

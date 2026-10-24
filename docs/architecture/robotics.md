@@ -63,7 +63,9 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | rcu | her loop and a tuner apart with no lock: rings of her passes, a double bank of tables in 64-byte lines (SoA), a seqlock and a took word between them; her loop's side C (wbc_rcu.h), the block locked in memory |
 | observer | her generalized momentum observer, blind, in C (wbc_gmo.c): her drives' torques, encoders and IMU over her chain's M(q), at the kernel's 35 Hz, split over the kernel's patches by four least squares, each normal pushing |
 | kernel | the dual-domain kernel's ops by the mechanism each feeds; its texts read and their stages' defaults |
-| schema | her body schema: the kernel's 18 capsules by its names and pairs on her skin, their clearances in closed form and their log-sum-exp, each pair's floor raised by its braking distance; her posture's ask held to each near pair's ECBF, least in her mass's metric |
+| capsules | the kernel's 18 capsules by its names and pairs on her skin, their clearances in closed form and their log-sum-exp, each pair's and each capsule's evading joints (the text's barriers', its synergies') |
+| schema | her shield: her posture's ask held to each near pair's ECBF and her arms' against the room's boxes - her things as boxes, each one's patches by the text's affordance kernels, open by the approach window where scheduled or felt -, least in her mass's metric on the evading joints, within their peaks, the rest spilled |
+| wayfinder | the kernel's wayfinder by her shield: her route's flow bent by the room rows it holds (Sherman-Morrison), her trunk twisted through the gap her way meets 0.6 s on |
 | bemf | her drives' torque bounds under their back-EMF: the kernel's quadrant law on her DC link's volts, her boards' current loops' own |
 | shrunk | her step's answer inside her drives' bounds (wbc_shrunk.c): each drive's box, her clamp as derated within its back-EMF bounds, an ask shrunk as one into it |
 | margin | the insert's discrete phase margin: her loop's return ratio at the kernel's four probe frequencies by a first-order quadrature lock-in, each in its turn; the kernel's rollback of K_d and gamma |

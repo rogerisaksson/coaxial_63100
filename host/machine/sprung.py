@@ -202,12 +202,16 @@ def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on:
     read through her edge, her motion pass (`machine.motion`), her drives told through her edge."""
     import numpy as np
-    from machine import motion
+    from machine import motion, schema
     world, y, ev = g['world'], g['sense'], g['every']
     if g['n'] % ev == 0:
         edge.read(world, y)
         observer.felt(g['observer'], y, dt)
         inekf.felt(g['inekf'], y, dt)
+        # her eyes' stand-in, as `furniture`'s: the world's boxes, what her looks would tell her, at the
+        # kernel's SDF refresh
+        if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
+            g['things'], g['things_at'] = world.props(), g['t']
         motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
         bears = tuple(n >= leap.TOUCH_N for n in g['loads'])

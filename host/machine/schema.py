@@ -1,21 +1,24 @@
-"""Her body schema (proprioceptive_body_schema.lisp): the text's capsules on her skin, their clearance.
+"""Her shield (proprioceptive_body_schema.lisp): her capsules' ECBF against each other and the room.
 
-    caps = schema.laid(body.d, at)              # each capsule's ends and radii in the world as `body.d` is posed
-    near = schema.nearest(caps, schema.PAIRS)   # each pair's clearance, its normal and points
-    d = schema.smooth(near['d'])                # the text's log-sum-exp at ALPHA, under the least
-    posture, held = schema.shielded(body, d, s, ask, volts, at)  # her posture's ask holding each pair's ECBF
+    posture, held = schema.shielded(body, d, s, ask, volts, at, boxes)  # her posture holding each row's ECBF
+    boxes = schema.room(props, weights, floor, touched)   # the room's boxes, each one's patches it takes, gated
 
-The text's 18 capsules by its names, frames and 13 self-collision pairs, each on her segment and her
-skin there (`figure.BODY`: the first of its capsules there to the last, tapering; her sole and knee of
-her figure's numbers): its own are another body's - its shank 0.41 m long and 68 mm round where hers
-0.38 and 50, its thighs 95 mm round 145 mm off her middle, through each other at her hips. A capsule
-tapers from r0 at p0 to r1 at p1; two capsules' clearance is their axes' nearest points' distance
-less each's radius there. A pair's floor is its barrier's (`configure-self-collision-barriers`, 0 a
-pair it names in no group) raised by its braking distance v^2 / (2 a): v its closing speed, a the
-most her drives' braking bounds (`machine.bemf`) can open it by through her mass matrix. Her
-posture's ask (her law's lowest row, `wbc.POSTURE_KD`: the null space of her balance and her steps)
-is held to h'' + k_d h' + k_p h >= 0 on each pair within the text's influence
-(`specialize-with-nullspace-limb-retraction`): its least change in her mass's metric.
+Her posture's ask (her law's lowest row, `wbc.POSTURE_KD`: the null space of her balance and her steps)
+is held to h'' + k_d h' + k_p h >= 0 on each pair of her capsules (`machine.capsules`) within the text's
+influence (`specialize-with-nullspace-limb-retraction`), h its clearance less its floor and its braking
+distance v^2 / (2 a) - v its closing speed, a the most her drives' braking bounds (`machine.bemf`) can
+open it by through her mass matrix -, on the pair's evading joints, least in her mass's metric, each
+within its drive's peak; what they cannot is the shield's spill.
+
+The room: each prop a box (`world.props()`, her eyes' stand-in), each of her arms' capsules against
+each box near it by golden section along its axis (the distance to a convex set is convex along a
+line), its floor the text's skin (`extrude-velocity-braking-cocoon`) less the approach window as far
+as the box takes a patch of that capsule's (`gate-affordance-contact-permeability`): a box takes the
+patches the text's affordance kernels give it by its top over her lower sole, its upward face's tilt,
+area and length, a top within the sub band her soles' (`configure-foliated-sdf-bands`) - and her rows
+schedule or her observer feels the patch, or her skin feels the capsule's segment. Its braking distance
+within the cocoon's horizon. Her trunk's capsules evade by her balance bus (the text's spill-over),
+her legs by her footholds: neither held here.
 """
 import os
 
@@ -24,164 +27,166 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import bemf, kernel, qp
-from machine.figure import ANKLE_H, BALL, BODY, HEEL, SOLE_HALF
+from machine.capsules import (CAPSULE_EVADES, EVADES, FLOOR, NAMES, P0, P1, PAIRS, RETRACTION, SEGMENT, laid, nearest,
+                              posed, rows, _sided)
+from machine.observer import MANIFOLDS
 from machine.wbc import POSTURE_KD
 
-_LAID = kernel.read()['anatomical-capsule-schema']
-#: The text's capsules, its order.
-NAMES = tuple(_LAID['capsules'])
-#: A side's suffix in the text's names, its prefix in her segments'.
-SIDES = {'l': 'left_', 'r': 'right_'}
-#: Her frame's axes of the text's: her lateral, up and forward its y, z and x.
-AXES = (1, 2, 0)
-
-
-def _skin(part, ks):
-    """(p0, p1, r0, r1) of her skin's capsules `ks` on `part` (`figure.BODY`'s order there) as one."""
-    caps = [c for c in BODY if c[0] == part]
-    a, b = caps[ks[0]], caps[ks[-1]]
-    return a[2], b[3], a[1], b[1]
-
-
-def _sole():
-    """Her sole as a capsule: as wide as it, from her heel to her ball, its underside her sole."""
-    y = SOLE_HALF - ANKLE_H
-    return (0.0, y, SOLE_HALF - HEEL), (0.0, y, BALL - SOLE_HALF), SOLE_HALF, SOLE_HALF
-
-
-def _knee():
-    """Her knee where the text lays it on its frame, her shank's top's round."""
-    c, r = _LAID['capsules']['knee-patellar-l'], _skin('shank', (0,))[2]
-    return tuple(c['p0'][k] for k in AXES), tuple(c['p1'][k] for k in AXES), r, r
-
-
-#: Each of the text's capsules (its name less its side) on her: her segment, her skin there.
-SKIN = {'foot-shell': ('foot', _sole()), 'shank-crural': ('shank', _skin('shank', (0, 1))),
-        'thigh-femoral': ('thigh', _skin('thigh', (0, 1))), 'pelvic-girdle': ('pelvis', _skin('pelvis', (2,))),
-        'lumbar-column': ('torso', _skin('torso', (0,))), 'thoracic-ribcage': ('torso', _skin('torso', (2,))),
-        'cranial-vault': ('head', _skin('head', (0,))), 'upper-arm-humeral': ('upper_arm', _skin('upper_arm', (0,))),
-        'forearm-ulnar': ('forearm', _skin('forearm', (0,))), 'hand-carpal': ('hand', _skin('hand', (0,))),
-        'knee-patellar': ('shank', _knee())}
-
-
-def _sided(name):
-    """(the text's capsule less its side, her segment's side prefix)."""
-    base, side = name.rsplit('-', 1)
-    return (base, SIDES[side]) if side in SIDES else (name, '')
-
-
-_BOUND = [(prefix + SKIN[base][0], SKIN[base][1]) for base, prefix in map(_sided, NAMES)]
-#: Each capsule's segment; its ends in that segment's frame (n, 3), m; its radii there, m.
-SEGMENT = tuple(seg for seg, _c in _BOUND)
-P0, P1 = (np.array([c[k] for _s, c in _BOUND], float) for k in (0, 1))
-R0, R1 = (np.array([c[k] for _s, c in _BOUND], float) for k in (2, 3))
-#: The text's self-collision pairs, as capsule indices.
-PAIRS = np.array([[NAMES.index(str(n).lstrip(':')) for n in pair] for pair in _LAID['self-collision-pairs']])
-_GROUPS = kernel.node('specialize-with-self-collision-manifold', 'self-collision').values()
-#: Each pair's floor, m: the largest of the barriers' groups holding both its capsules.
-FLOOR = np.array([max([g['min-clearance-m'] for g in _GROUPS
-                       if {':' + NAMES[a], ':' + NAMES[b]} <= set(g['capsules'])], default=0.0) for a, b in PAIRS])
 _SHIELD = kernel.node('xform-universal-spatial-awareness', 'ecbf-shield')
 #: The ECBF's gains: k_p 1/s^2, k_d 1/s.
 KP, KD = _SHIELD['position-gain-kp'], _SHIELD['velocity-gain-kd']
-#: The log-sum-exp's sharpness, 1/m.
-ALPHA = kernel.node('xform-universal-spatial-awareness', 'clearance-field')['aggregation-kernel'].args['alpha']
-_RETRACTION = kernel.node('specialize-with-nullspace-limb-retraction', 'limb-retraction')
 #: A pair's clearance past its floor under which the shield holds it, m.
-INFLUENCE = _RETRACTION['activation-distance-m']
-#: The text's evasion DOFs (its barriers' `evasion-dof`, its synergies' `repulsion-mapping`) as her
-#: joints' kinds: her shoulder only flexes, no glenohumeral abduction or adduction - a row only those
-#: evade by is spilled whole.
-DOFS = {'swing-circumduction-bow': ('hip_roll',), 'coxofemoral-external-rotation': ('hip_yaw',),
-        'glenohumeral-abduction': (), 'glenohumeral-adduction': (), 'cubital-flexion': ('elbow',),
-        'thoracic-axial-yaw': ('waist',), 'l4-l5-lumbar-flexion': ('spine',), 'iliac-coronal-shift': ('spine_roll',),
-        'c7-t12-thoracic-flexion': ('spine',), 'c1-c2-atlas-pitch-comp': ('neck',), 'sacroiliac-z-duck': ('knee',)}
-
-
-def _joints(dofs, sides):
-    """Her driven joints (`bemf.DRIVEN` indices) of the text's DOFs `dofs` on `sides` (prefixes)."""
-    kinds = {k for d in dofs for k in DOFS[str(d).lstrip(':')]}
-    return {bemf.DRIVEN.index(k if k in bemf.DRIVEN else side + k) for k in kinds for side in sides}
-
-
-def _pair_evades(a, b):
-    """Her joints a pair of capsules evades by: its barriers' DOFs (`configure-self-collision-barriers`,
-    each group holding either), on the sides of its sided capsules, on both where neither is."""
-    sides = {_sided(n)[1] for n in (a, b)} - {''} or set(SIDES.values())
-    return _joints([g['evasion-dof'] for g in _GROUPS if {':' + a, ':' + b} & set(g['capsules'])], sides)
-
-
-def _evades(name):
-    """Her joints a capsule evades the room by: its barriers' and its synergies' DOFs
-    (`bind-nullspace-evasion-synergies`), a sided capsule's on its side, a middle one's on both."""
-    prefix = _sided(name)[1]
-    return _joints([g['evasion-dof'] for g in _GROUPS if ':' + name in g['capsules']]
-                   + [d for syn in _RETRACTION['synergy-primitives'] if ':' + name in syn['capsules']
-                      for d in syn['repulsion-mapping']], (prefix,) if prefix else tuple(SIDES.values()))
-
-
-#: Each pair's evading joints, a row a pair over her driven joints.
-EVADES = np.array([[i in _pair_evades(NAMES[a], NAMES[b]) for i in range(len(bemf.DRIVEN))] for a, b in PAIRS])
+INFLUENCE = RETRACTION['activation-distance-m']
 #: A shortfall's weight against her posture's change in her mass's metric, kg: what her evading joints
 #: cannot meet within their peaks is left as the shield's spill.
 SPILL_KG = 1e6
+_COCOON = kernel.node('xform-universal-spatial-awareness', 'braking-cocoon')
+#: The room's floor under a capsule, m; the braking distance's horizon, s.
+MARGIN, HORIZON = _COCOON['base-margin-m'], _COCOON['lookahead-s']
+#: The approach window a scheduled patch's floor is opened over, m.
+WINDOW = kernel.node('xform-universal-spatial-awareness', 'ecbf-permeability')['normal-attenuation-ramp-m']
+#: The text's capsules (less their sides) each of the registry's patches (`observer.MANIFOLDS`) is of her.
+PATCHES = {'plantar-bilateral': ('foot-shell',), 'metatarsal-equinus-bilateral': ('foot-shell',),
+           'posterior-femoral-bilateral': ('thigh-femoral',), 'ischial-bilateral': ('pelvic-girdle',),
+           'trochanter-gluteal-lateral': ('pelvic-girdle', 'thigh-femoral'),
+           'dorsal-supine-continuum': ('pelvic-girdle', 'lumbar-column', 'thoracic-ribcage', 'cranial-vault'),
+           'ulnar-carpal-shove-bilateral': ('forearm-ulnar', 'hand-carpal'), 'palmar-carpal-bilateral': ('hand-carpal',)}
+#: Each capsule's patches, a row a capsule over MANIFOLDS.
+ON = np.array([[_sided(n)[0] in PATCHES[m] for m in MANIFOLDS] for n in NAMES], float)
+_KERNELS = {str(k['affordance']).lstrip(':'): k
+            for k in kernel.node('evaluate-situational-affordances', 'affordances')['morphological-kernels']}
+#: The bands' refresh, s: her things read so often.
+REFRESH_S = 1.0 / kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['refresh-rate-hz']
+#: The sub band's top, m: a box's top within it her soles' step.
+SUB_M = 1e-3 * kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['slabs'][0].args['z-window-mm'][1]
+#: The patches each affordance takes (the text's kernels'; a side's lying, the bed's roll, the supine's).
+TAKES = {'sit-on-fixture': ('ischial-bilateral', 'posterior-femoral-bilateral'),
+         'lie-supine-on-fixture': ('dorsal-supine-continuum', 'trochanter-gluteal-lateral'),
+         'recruit-brace-support': ('ulnar-carpal-shove-bilateral', 'palmar-carpal-bilateral'),
+         'relocate-mobile-object': ('ulnar-carpal-shove-bilateral', 'palmar-carpal-bilateral'),
+         'step-on': ('plantar-bilateral', 'metatarsal-equinus-bilateral')}
+#: The capsules the room holds: her arms', each by joints of its own (CAPSULE_EVADES) - her trunk's
+#: evade by her balance bus (the text's spill-over), which her shield does not drive; her legs' by her
+#: footholds (`snap-foothold-to-plantar-gradient`).
+LIMBS = CAPSULE_EVADES.any(1)
+#: The golden-section steps of a capsule against a box: its bracket 0.618 of its last each, from the
+#: longest capsule to a thousandth of the skin.
+_GOLD = (5.0 ** 0.5 - 1.0) / 2.0
+SECTIONS = int(np.ceil(np.log(1e-3 * MARGIN / np.sqrt(((P1 - P0) ** 2).sum(1)).max()) / np.log(_GOLD)))
+#: The patches each affordance takes, a row an affordance over MANIFOLDS.
+_AFFORDS = tuple(TAKES)
+_TAKEN = np.array([[m in TAKES[a] for m in MANIFOLDS] for a in _AFFORDS], float)
 
 
-def ids(m):
-    """Each capsule's segment's body id in model `m`."""
-    return np.array([m.body(seg).id for seg in SEGMENT])
+def _window(k, key):
+    lo, hi = _KERNELS[k][key]
+    return 1e-3 * lo, 1e-3 * hi
 
 
-def laid(d, at):
-    """{p0, p1 (n, 3), r0, r1 (n,), ids}: each capsule in the world on her model's data `d` as
-    posed, its segments' ids `at` (`ids`)."""
-    R, o = d.xmat[at].reshape(-1, 3, 3), d.xpos[at]
-    return {'p0': o + np.einsum('nij,nj->ni', R, P0), 'p1': o + np.einsum('nij,nj->ni', R, P1),
-            'r0': R0, 'r1': R1, 'ids': at}
+def affords(centre, half, R, floor):
+    """(P, MANIFOLDS) of boxes (centre (P, 3), half sizes, rotations (P, 3, 3)): each patch a box takes
+    by the text's kernels - its top over `floor` (m), its upward face's tilt, area and length; a hand's
+    where its height spans the kernel's window, a sole's where its top is within the sub band."""
+    up = np.abs(R[:, 1, :])
+    top, bottom = centre[:, 1] + (up * half).sum(1) - floor, centre[:, 1] - (up * half).sum(1) - floor
+    face = np.argmax(up, 1)
+    cos = up[np.arange(len(up)), face]
+    rest = np.where(np.arange(3)[None, :] == face[:, None], np.nan, half)
+    area, major, thin = 4.0 * np.nanprod(rest, 1), 2.0 * np.nanmax(rest, 1), 2.0 * half.min(1)
+
+    def within(x, w):
+        return (x >= w[0]) & (x <= w[1])
+
+    def spans(w):
+        return (bottom <= w[1]) & (top >= w[0])
+    sit, lie = _KERNELS['sit-on-fixture'], _KERNELS['lie-supine-on-fixture']
+    took = {'sit-on-fixture': (cos >= sit['normal-alignment-cos-min']) & within(top, _window('sit-on-fixture', 'elevation-window-z-mm'))
+            & (area >= 1e-6 * sit['min-polygon-area-mm2']),
+            'lie-supine-on-fixture': (cos >= lie['normal-alignment-cos-min']) & within(top, _window('lie-supine-on-fixture', 'elevation-window-z-mm'))
+            & (major >= 1e-3 * lie['min-major-axis-length-mm']),
+            'recruit-brace-support': spans(_window('recruit-brace-support', 'elevation-window-z-mm')),
+            'relocate-mobile-object': spans(_window('relocate-mobile-object', 'grasp-height-window-z-mm'))
+            & within(thin, _window('relocate-mobile-object', 'grasp-aperture-window-mm')),
+            'step-on': top <= SUB_M}
+    return np.minimum(1.0, np.stack([took[a] for a in _AFFORDS], 1).astype(float).reshape(-1, len(_AFFORDS)) @ _TAKEN)
 
 
-def nearest(caps, pairs):
-    """{d, n, a, b, s, t} of each pair (k, 2) of capsules `caps`: its clearance (m, negative through),
-    its normal from its second to its first, its nearest points on their axes and their shares
-    along them (Ericson's clamped closest points of two segments)."""
+def room(props, weights, floor, touched):
+    """{centre, half, R, takes (P, MANIFOLDS), touched} of the room's boxes `props` (`world.props()`:
+    kind, centre, half sizes, rotation), each patch it takes as far as `weights` (MANIFOLDS: her rows'
+    schedule or her observer's feel, 0 to 1) are on, over her lower sole's height `floor`; `touched`
+    each capsule's segment her skin feels (`felt`): a live patch, open to every box."""
+    if _LAID.get('of') is not props:
+        boxes = [p for p in props if len(p) >= 4 and len(p[1]) == 3 and np.size(p[2]) == 3 and np.size(p[3]) == 9]
+        _LAID.update(of=props, centre=np.array([p[1] for p in boxes], float).reshape(-1, 3),
+                     half=np.array([p[2] for p in boxes], float).reshape(-1, 3),
+                     R=np.array([p[3] for p in boxes], float).reshape(-1, 3, 3))
+    centre, half, R = _LAID['centre'], _LAID['half'], _LAID['R']
+    return {'centre': centre, 'half': half, 'R': R, 'takes': affords(centre, half, R, floor) * np.asarray(weights)[None, :],
+            'touched': np.asarray(touched, float)}
+
+
+#: The last props laid as boxes: her things change at REFRESH_S, her law passes oftener.
+_LAID: dict = {}
+
+
+def felt(touch):
+    """(capsules,) whether her skin feels each capsule's segment: its touch (`edge.TOUCH`, (SKIN, 3)
+    N) past `edge.TOUCHED_N`."""
+    from machine import edge
+    force = np.sqrt((np.asarray(touch).reshape(-1, 3) ** 2).sum(1))
+    return np.array([force[edge.SKIN.index(seg)] >= edge.TOUCHED_N for seg in SEGMENT])
+
+
+def _to_box(p, centre, half, R):
+    """Each point `p` (k, 3)'s distance to its box and the box's nearest point, world."""
+    local = np.einsum('kji,kj->ki', R, p - centre)
+    near = np.clip(local, -half, half)
+    out = local - near
+    return np.sqrt((out * out).sum(1)), centre + np.einsum('kij,kj->ki', R, near)
+
+
+def boxed(caps, laid, pairs):
+    """{d, n, a, s} of each (capsule, box) of `pairs` (k, 2): its clearance, its normal from the box to
+    its axis's nearest point, that point and its share along the axis."""
     i, j = pairs[:, 0], pairs[:, 1]
-    p0, q0 = caps['p0'][i], caps['p0'][j]
-    d1, d2, r = caps['p1'][i] - p0, caps['p1'][j] - q0, p0 - q0
-    a, e, f = (d1 * d1).sum(1), (d2 * d2).sum(1), (d2 * r).sum(1)
-    c, bb = (d1 * r).sum(1), (d1 * d2).sum(1)
-    tiny = np.finfo(float).eps
-    den = a * e - bb * bb
-    sa = np.maximum(a, tiny)
-    s = np.clip(np.where(den > tiny * a * e, (bb * f - c * e) / np.maximum(den, tiny), -c / sa), 0.0, 1.0)
-    t = (bb * s + f) / np.maximum(e, tiny)
-    s = np.where(t < 0.0, np.clip(-c / sa, 0.0, 1.0), np.where(t > 1.0, np.clip((bb - c) / sa, 0.0, 1.0), s))
-    t = np.clip(t, 0.0, 1.0)
-    pa, pb = p0 + s[:, None] * d1, q0 + t[:, None] * d2
-    gap = pa - pb
-    dist = np.sqrt((gap * gap).sum(1))
-    ra = caps['r0'][i] + s * (caps['r1'][i] - caps['r0'][i])
-    rb = caps['r0'][j] + t * (caps['r1'][j] - caps['r0'][j])
-    return {'d': dist - ra - rb, 'n': gap / np.maximum(dist, tiny)[:, None], 'a': pa, 'b': pb, 's': s, 't': t}
+    p0, d1 = caps['p0'][i], caps['p1'][i] - caps['p0'][i]
+    centre, half, R = laid['centre'][j], laid['half'][j], laid['R'][j]
+    lo, hi = np.zeros(len(i)), np.ones(len(i))
+    for _ in range(SECTIONS * bool(len(i))):
+        c, e = hi - _GOLD * (hi - lo), lo + _GOLD * (hi - lo)
+        left = _to_box(p0 + c[:, None] * d1, centre, half, R)[0] <= _to_box(p0 + e[:, None] * d1, centre, half, R)[0]
+        hi, lo = np.where(left, e, hi), np.where(left, lo, c)
+    s = 0.5 * (lo + hi)
+    a = p0 + s[:, None] * d1
+    dist, on = _to_box(a, centre, half, R)
+    away = np.where(dist[:, None] > 0.0, a - on, a - centre)
+    n = away / np.maximum(np.sqrt((away * away).sum(1)), np.finfo(float).eps)[:, None]
+    r = caps['r0'][i] + s * (caps['r1'][i] - caps['r0'][i])
+    return {'d': dist - r, 'n': n, 'a': a, 's': s}
 
 
-def smooth(d, alpha=ALPHA):
-    """The text's log-sum-exp of clearances `d` at `alpha`: -log(sum exp(-alpha d)) / alpha, under
-    their least by at most log(len d) / alpha."""
-    least = float(np.min(d))
-    return least - float(np.log(np.exp(-alpha * (np.asarray(d) - least)).sum())) / alpha
+def weighed(told, felt, weight):
+    """(MANIFOLDS,) each patch's schedule or feel, 0 to 1: her rows' weights `told` (`ortho.MANIFOLDS`'s,
+    by their names' heads) or her observer's normal forces `felt` (N, MANIFOLDS) over its comparator's
+    engaging share of her `weight` (`observer.ENGAGE`), the more."""
+    from machine import observer, ortho
+    heads = [m.split('-')[0] for m in MANIFOLDS]
+    rows = np.array([told[list(ortho.MANIFOLDS).index(h)] if h in ortho.MANIFOLDS else 0.0 for h in heads])
+    return np.clip(np.maximum(rows, np.asarray(felt) / (observer.ENGAGE * weight)), 0.0, 1.0)
 
 
-def rows(body, d, near, pairs, which, at, v):
-    """(J, d') of pairs `which`: each one's clearance's Jacobian (k, n) along its normal, its points'
-    segments' (`at`), on her law's `body`'s model as `d` is posed; d' its rate at her velocity `v`."""
-    m, mj, n = body.m, body.mj, body.n
-    jp, jq = np.zeros((3, m.nv)), np.zeros((3, m.nv))
-    J = np.zeros((len(which), n))
-    for k, w in enumerate(which):
-        mj.mj_jac(m, d, jp, None, near['a'][w], int(at[pairs[w, 0]]))
-        mj.mj_jac(m, d, jq, None, near['b'][w], int(at[pairs[w, 1]]))
-        J[k] = near['n'][w] @ (jp - jq)[:, :n]
-    return J, J @ v
+def near_room(caps, laid):
+    """(k, 2) of each of LIMBS' capsules and each box within INFLUENCE and the skin of it: the box's
+    distance to the capsule's middle less its reach from there."""
+    arms = np.flatnonzero(LIMBS)
+    mid = 0.5 * (caps['p0'][arms] + caps['p1'][arms])
+    reach = 0.5 * np.sqrt(((caps['p1'][arms] - caps['p0'][arms]) ** 2).sum(1)) + np.maximum(caps['r0'][arms], caps['r1'][arms])
+    n, m = len(arms), len(laid['centre'])
+    gap = _to_box(np.repeat(mid, m, 0), np.tile(laid['centre'], (n, 1)), np.tile(laid['half'], (n, 1)),
+                  np.tile(laid['R'], (n, 1, 1)))[0].reshape(n, m) - reach[:, None]
+    near = np.argwhere(gap < INFLUENCE + MARGIN)
+    return np.stack([arms[near[:, 0]], near[:, 1]], 1).reshape(-1, 2)
 
 
 def braking(J, M, act, dq, volts):
@@ -192,33 +197,48 @@ def braking(J, M, act, dq, volts):
     return np.maximum(C * lo, C * hi).sum(1)
 
 
-def posed(body, d, s):
-    """`d`, data of her law's `body`'s model of the shield's own, posed at the pass's sensed state
-    `s` (its `qpos` and `v`): its frames and its Jacobians' terms - her law's own data the pass's
-    steps pose as they need."""
-    m, mj = body.m, body.mj
-    d.qpos[:len(s['qpos'])], d.qvel[:body.n] = s['qpos'], s['v']
-    mj.mj_kinematics(m, d)
-    mj.mj_comPos(m, d)
-    return d
+def room_rows(body, d, got, pairs, at, v):
+    """(J, d') of capsule-box pairs `pairs` (`boxed`'s `got`): each one's clearance's Jacobian (k, n)
+    along its normal at its capsule's axis point, the box still; d' its rate at her velocity `v`."""
+    m, mj, n = body.m, body.mj, body.n
+    jp = np.zeros((3, m.nv))
+    J = np.zeros((len(pairs), n))
+    for k, (c, _box) in enumerate(pairs):
+        mj.mj_jac(m, d, jp, None, got['a'][k], int(at[c]))
+        J[k] = got['n'][k] @ jp[:, :n]
+    return J, J @ v
 
 
-def shielded(body, d, s, ask, volts, at):
-    """(her posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's
-    evading joints of the pairs within INFLUENCE of their floors (EVADES), least in her mass's
-    metric, each within its drive's peak over its own inertia, so that each keeps h'' + KD h' + KP h
-    >= 0 - h its clearance less its floor and its braking distance -, what it cannot its spill
-    (m/s^2); `d` the shield's data of her law's model posed at `s`, its capsules' segments `at`
-    (`ids`); each pair's clearance, the near ones' h, the rows it held."""
+def shielded(body, d, s, ask, volts, at, boxes):
+    """(her posture's ask, {d, h, which, held, spill, room}): `ask['posture']` changed on the text's
+    evading joints of the rows near their floors - her pairs within INFLUENCE (EVADES), her capsules
+    against the room's `boxes` (`room`) within it (CAPSULE_EVADES) -, least in her mass's metric, each
+    joint within its drive's peak over its own inertia, so that each row keeps h'' + KD h' + KP h >= 0
+    - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2); `d`
+    the shield's data of her law's model posed at `s`, its capsules' segments `at` (`ids`); each pair's
+    clearance, the near ones' h, the pairs it held; the room's rows {pairs (capsule, box), d, n, lam}."""
     act, posture = body.act, np.asarray(ask['posture'], float)
-    near = nearest(laid(posed(body, d, s), at), PAIRS)
+    caps = laid(posed(body, d, s), at)
+    near = nearest(caps, PAIRS)
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
-    J, rate = rows(body, d, near, PAIRS, which, at, s['v'])
+    J1, rate1 = rows(body, d, near, PAIRS, which, at, s['v'])
+    close = near_room(caps, boxes)
+    got = boxed(caps, boxes, close)
+    open_ = np.maximum((ON[close[:, 0]] * boxes['takes'][close[:, 1]]).max(1, initial=0.0), boxes['touched'][close[:, 0]])
+    floor2 = MARGIN - WINDOW * open_
+    keep = np.flatnonzero(got['d'] - floor2 < INFLUENCE)
+    close, floor2 = close[keep], floor2[keep]
+    got = {k: v[keep] for k, v in got.items()}
+    J2, rate2 = room_rows(body, d, got, close, at, s['v'])
+    J, rate = np.vstack([J1, J2]), np.concatenate([rate1, rate2])
+    clear = np.concatenate([near['d'][which] - FLOOR[which], got['d'] - floor2])
     reach = braking(J, s['M'], act, s['v'][act], volts)
-    h = near['d'][which] - FLOOR[which] - np.maximum(0.0, -rate) ** 2 / (2.0 * np.maximum(reach, 1e-9))
+    closing = np.maximum(0.0, -rate)
+    h = clear - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
     want = POSTURE_KD[0] * (posture - s['q']) - POSTURE_KD[1] * s['v'][act]
-    free = np.flatnonzero(EVADES[which].any(0))
-    Jf, k, f = J[:, act[free]], len(which), len(free)
+    evades = np.vstack([EVADES[which], CAPSULE_EVADES[close[:, 0]]]).reshape(-1, len(act))
+    free = np.flatnonzero(evades.any(0))
+    Jf, k, f = J[:, act[free]], len(rate), len(free)
     short = -KD * rate - KP * h - J[:, act] @ want
     Mf = s['M'][np.ix_(act[free], act[free])]
     top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
@@ -226,10 +246,14 @@ def shielded(body, d, s, ask, volts, at):
     H = np.block([[Mf, np.zeros((f, k))], [np.zeros((k, f)), SPILL_KG * np.eye(k)]])
     A = np.block([[-Jf, -np.eye(k)], [np.zeros((k, f)), -np.eye(k)], [np.eye(f), np.zeros((f, k))],
                   [-np.eye(f), np.zeros((f, k))]])
-    x, held, _u = (qp.solve(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
-                   if (short > 0.0).any() else (np.zeros(f + k), (), None))
+    x, held, u = (qp.solve(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
+                  if (short > 0.0).any() else (np.zeros(f + k), (), np.zeros(0)))
     x = np.zeros(f + k) if x is None else x
+    lam = np.zeros(k)
+    lam[[r for r in held if r < k]] = [m for r, m in zip(held, u) if r < k]
     change = np.zeros(len(act))
     change[free] = x[:f]
-    return posture + change / POSTURE_KD[0], {'d': near['d'], 'h': h, 'which': which, 'spill': x[f:],
-                                              'held': [int(which[r]) for r in held if r < k]}
+    n1 = len(which)
+    return posture + change / POSTURE_KD[0], {
+        'd': near['d'], 'h': h[:n1], 'which': which, 'spill': x[f:], 'held': [int(which[r]) for r in held if r < n1],
+        'room': {'pairs': close, 'd': got['d'], 'n': got['n'], 'lam': lam[n1:], 'h': h[n1:]}}

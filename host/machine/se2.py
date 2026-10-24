@@ -1,7 +1,7 @@
 """Her twist on the loop: the gait it walks her by, her heading turned by it, her rhythm by it."""
 import math
 
-from machine import ortho
+from machine import ortho, wayfinder
 
 #: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
@@ -245,7 +245,7 @@ def step_physical_twist(g, dt, out):
     g.setdefault('floor0', float(g['fr'][modal.FLOOR]))
     w = g['words']
     w[W_HEADING], w[W_TARGET], w[W_HAS] = g['heading'], g.get('target_heading', 0.0), g.get('has_heading', 0.0)
-    w[W_TWIST], w[W_ACTUAL] = g.get('twist', (0.0, 0.0, 0.0)), g.get('twist_actual', (0.0, 0.0, 0.0))
+    w[W_TWIST], w[W_ACTUAL] = wayfinder.turned(g.get('twist', (0.0, 0.0, 0.0)), g['heading'], g.get('schema'), float(g.get('_errand') is not None)), g.get('twist_actual', (0.0, 0.0, 0.0))
     w[W_ACTIVE], w[W_STOP], w[W_T] = float(g.get('_twist_active', False)), g.get('_twist_stop_until', 0.0), g['t']
     g['twist_step'](dt, g['est']['vel'], g['held'], g['grip_prior'])
     g['heading'], g['twist_actual'] = float(w[W_HEADING]), tuple(w[W_ACTUAL].tolist())
