@@ -9,11 +9,11 @@ and loft stair (5 steps of 0.15 m along its right wall) unknown to her at
 t = 0; no fingers grip. Each mechanism's numbers are its text's
 (`dsp.read(dsp.KERNEL)`); what is done: [kernel](../findings/kernel.md).
 
-1. **Step 2, the back-EMF envelope**: tau_max, tau_min each pass from her
-   DC link's volts / sqrt(3) and each joint's speed, her law's torque box
-   asymmetric (wrench.py, wbc_wrench.c); her boards already limit their
-   current so. DOD: her law never asks past it; a capture step's torques
-   inside it.
+1. **Step 2, the back-EMF envelope in her law**: `machine.bemf` bounds each
+   joint's torque by its speed on her link's volts (her schema's braking
+   reach reads it); her law's torque box is still symmetric (wrench.py,
+   wbc_step.c, wbc_shrunk.c). DOD: her law never asks past it; a capture
+   step's torques inside it.
 2. **Step 2, the insert's inner stages**: its Butterworth D-channel at 42 Hz
    and its backlash bridge, each alone felled her turning walk (scenarios
    item 14). DOD: both on her loop at their text's numbers, every suite as
@@ -37,15 +37,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    mu_k F_z, F_z under 0.55 of her weight, the text's 65 Hz dither, inside
    her capture point's barrier. DOD: she slides onto and off a seat over her
    knees, and 180 mm deeper onto the bed.
-7. **Step 5, the body schema**: the text's 18 capsules on her segments and 4
-   payload slots, their distances to each other (13 pairs), the room's
-   quadrics and the three slabs by a log-sum-exp at 25, each swollen by its
-   braking distance at her drives' back-EMF-bounded torque; the ECBF
-   d'' + k_d d' + k_p d >= 0 (11 Hz, 1.05) in her dynamically consistent
-   null space first, her balance bus past its saturation; open only to a
-   scheduled patch. DOD: her walk's pairs' clearances measured, none under
-   its floor; an arm swung at a table corner stops short of it, 0 N m to her
-   ankles.
+7. **Step 5, the body schema on the room**: `machine.schema` holds her
+   posture to each of her 13 pairs' ECBF. Left: her capsules against the
+   room's quadrics and the three slabs (14 mm skin), its 4 payload slots,
+   open only to a scheduled patch, her balance bus past her posture's
+   saturation, in C. DOD: an arm swung at a table corner stops short of it,
+   0 N m to her ankles.
 8. **Step 6, the wayfinder's two ways**: her ECBF's multipliers deflect her
    geodesic flow by rank-1 Sherman-Morrison, held past 140 ms into the
    metric; the streamline 600 ms ahead pre-shapes her null-space posture

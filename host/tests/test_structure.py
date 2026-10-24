@@ -250,7 +250,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic qp wbc wrench latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering').split()]),
+                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

@@ -118,6 +118,8 @@ TOUCHES = (
     ('host/machine/ortho_kernel/',             (DSP, KERNEL)),
     ('host/machine/kernel.py',                 (STRUCTURE, DSP, KERNEL)),
     ('host/machine/lowering.py',               (STRUCTURE, KERNEL)),
+    ('host/machine/schema.py',                 (STRUCTURE, KERNEL, ORTHO, SCENES)),
+    ('host/machine/bemf.py',                   (STRUCTURE, KERNEL, ORTHO, SCENES)),
     ('wbc/inc/wbc_soa.h',                      (KERNEL, WBC_CORE)),
     ('wbc/src/wbc_soa.c',                      (KERNEL, WBC_CORE)),
     ('host/machine/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),

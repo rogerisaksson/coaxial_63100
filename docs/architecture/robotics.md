@@ -63,6 +63,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | rcu | her loop and a tuner apart with no lock: rings of her passes, a double bank of tables in 64-byte lines (SoA), a seqlock and a took word between them; her loop's side C (wbc_rcu.h), the block locked in memory |
 | observer | her generalized momentum observer, blind, in C (wbc_gmo.c): her drives' torques, encoders and IMU over her chain's M(q), at the kernel's 35 Hz, split over the kernel's patches by four least squares, each normal pushing |
 | kernel | the dual-domain kernel's ops by the mechanism each feeds; its texts read and their stages' defaults |
+| schema | her body schema: the kernel's 18 capsules by its names and pairs on her skin, their clearances in closed form and their log-sum-exp, each pair's floor raised by its braking distance; her posture's ask held to each near pair's ECBF, least in her mass's metric |
+| bemf | her drives' torque bounds under their back-EMF: the kernel's quadrant law on her DC link's volts, her boards' current loops' own |
 | lowering | the kernel's AST-to-SoA lowering: a gait folded into a bank of its ABI over her nominal's (wbc_soa.h: the text's fields at its offsets, a biquad a node seeded on her value, the manifolds' weights, the capsules), carried as an rcu table's words; her loop's biquad in C |
 | barrier | her capture point's barrier: her centre of mass's ask held to each support edge's h' + gamma h >= 0 over what bears her, as far as her rows lean on what she does not feel |
 | dclink | her DC link: her packs and her boards' capacitance under her drives' power, the boards' d-axis bleed past the text's onset |

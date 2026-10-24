@@ -292,3 +292,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     a biquad a node seeded on her value, the manifolds' weights, the capsules;
     carried over her link's table, her loop's biquad in C bit for bit; swapped
     settled, a step of 8.6e-7 where unseeded 0.30 ([kernel](findings/kernel.md)).
+57. Her body schema (`machine.schema`): the kernel's 18 capsules on her
+    skin, its 13 pairs' clearances, her posture held to each near pair's
+    ECBF in her mass's metric, each floor raised by its braking distance
+    through her drives' back-EMF bounds (`machine.bemf`); walking every pair
+    clear of its floor ([kernel](findings/kernel.md)).

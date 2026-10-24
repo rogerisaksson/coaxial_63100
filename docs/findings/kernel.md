@@ -139,6 +139,48 @@ her knee where her thigh meets her shank less the text's 0.28 rad.
 - Crouched at 0.47 m the observer reads 61-99 N on the seat her skin does
   not feel; a rise said there takes the latched ghost 0.15.
 
+## The body schema
+
+`machine.schema`: the text's 18 capsules by its names, frames and 13 pairs on
+her skin (`figure.BODY`; her sole a capsule as wide as it from heel to ball,
+her knee where the text lays it). Its own are another body's: its shank 0.41 m
+and 68 mm round where hers 0.38 and 50, its thighs 95 mm round, through each
+other at her hips 95 mm off her middle. Her posture's ask held to each near
+pair's ECBF (11 Hz, 1.05), least in her mass's metric on the pair's barrier's
+evading joint, within its drive's peak; each pair's floor raised by its
+braking distance through `machine.bemf`.
+
+- Walking (`play_walk`, 4 334 law passes, her law's pose): her feet 22.8 mm
+  apart at least (floor 7.5), shanks 41.9 (12), knees 40.8 (12), forearm and
+  hips 30.3 (15), hand and thigh 66.3.
+- The text's log-sum-exp at 25 /m lies up to log(13) / 25 = 103 mm under the
+  least: walking it read -43 mm with every pair clear.
+- Her law's model is posed elsewhere within a pass after it is sensed (0.167
+  rad off at 8.008 s walking): read there, her pairs' rates came out at metres
+  a second. The shield poses data of its own.
+- Its change on all 21 of her joints, unbounded: the wall's wobble fell at
+  6.94 s (her forearm closing on her hips at metres a second), her 5 ms jump
+  barely left the floor; on the text's evading DOFs with its limb synergies
+  (waist, spine, both shoulders) within their peaks: the turning replay at
+  +0.2 mm fell at 10.90 s, her left forearm held 228 passes closing on her
+  hips 49 -> 21 mm, her posture moved up to 1.1 rad; on each pair's barrier's
+  own DOF on its side, the forearm's abduction taken as her shoulder's flexion:
+  the replay stood (87 passes held), her charged jump's forearms held at 32-88
+  mm off her hips, her shoulder's target moved 3.15 rad, and she fell at 2.43
+  s. Her shoulder only flexes: that pair's demand spilled whole, all three
+  stand, as her base.
+- Her smoke walk (`ortho.py --walk`) her base's to the digit: 2.50 off a
+  woman's walk, landing load 1.39.
+- A pass idle: 170 us in Python (22 Jacobians 67, the nearest points 52, the
+  braking reach 35).
+
+## Her drives' back-EMF bounds
+
+`machine.bemf`, the text's quadrant law on her link's volts, her boards' own.
+On 48 V motoring falls under her law's clamps past 9.2 rad/s (hip roll), 14.7
+(hip, knee), 16.8 (ankle), 24-26 (shoulder, elbow, neck); braking keeps its
+peak. Her walk never reaches it.
+
 ## The lowering
 
 `machine.lowering`: a gait folded into a bank of the text's ABI (wbc_soa.h, 2 176

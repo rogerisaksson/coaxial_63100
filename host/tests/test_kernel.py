@@ -270,7 +270,106 @@ def test_a_bank_swaps_with_no_step(report):
                  steps[0] < 1e-6 and steps[1] > 0.29, '')
 
 
-ROSTER = (test_the_lowering_lays_the_texts_abi, test_a_bank_swaps_with_no_step, test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def _brute(caps, pairs, steps=20001):
+    """Each pair's axes' least distance by a fine walk along the first, the second's nearest point to
+    each step in closed form."""
+    import numpy as np
+    out = []
+    for i, j in pairs:
+        s = np.linspace(0.0, 1.0, steps)[:, None]
+        p = caps['p0'][i] + s * (caps['p1'][i] - caps['p0'][i])
+        q0, d2 = caps['p0'][j], caps['p1'][j] - caps['p0'][j]
+        t = np.clip(((p - q0) @ d2) / max(float(d2 @ d2), 1e-300), 0.0, 1.0)[:, None]
+        out.append(float(np.sqrt(((p - q0 - t * d2) ** 2).sum(1)).min()))
+    return np.array(out)
+
+
+def test_the_body_schema_lays_her_capsules(report):
+    """The text's 18 capsules on her skin (`machine.schema`): her segments, the barriers' floors;
+    two capsules' nearest axes as a fine walk finds them, parallel, offset and a sphere among them;
+    the log-sum-exp under the least by at most log(n) / alpha."""
+    import numpy as np
+    from machine import schema
+    rng = np.random.default_rng(3)
+    n = 64
+    caps = {'p0': rng.normal(size=(n, 3)), 'p1': rng.normal(size=(n, 3)), 'r0': np.zeros(n), 'r1': np.zeros(n)}
+    caps['p1'][:4] = caps['p0'][:4] + [1.0, 0.0, 0.0]
+    caps['p0'][4:8] = caps['p0'][:4] + [0.0, 0.5, 0.0]
+    caps['p1'][4:8] = caps['p0'][4:8] + [2.0, 0.0, 0.0]
+    caps['p1'][8:12] = caps['p0'][8:12]
+    pairs = np.array([(k, k + 4) for k in range(4)] + [(8 + k, 30 + k) for k in range(4)]
+                     + [(2 * k, 2 * k + 1) for k in range(8, 32)])
+    d = schema.nearest(caps, pairs)['d']
+    off = float(np.abs(d - _brute(caps, pairs)).max())
+    soft = schema.smooth(d)
+    named = dict(zip(schema.NAMES, schema.SEGMENT))
+    floors = {tuple(schema.NAMES[k] for k in pair): f for pair, f in zip(schema.PAIRS, schema.FLOOR)}
+    report.check('%d capsules on her segments, the feet 7.5 mm apart at least, shanks 12, forearm and hips 15, '
+                 'thighs touching; %d pairs as a fine walk finds them within %.1e m; the soft least %.3f under %.3f'
+                 % (len(schema.NAMES), len(pairs), off, soft, float(d.min())),
+                 len(schema.NAMES) == 18 and named['foot-shell-l'] == 'left_foot' and named['thoracic-ribcage'] == 'torso'
+                 and floors[('foot-shell-l', 'foot-shell-r')] == 0.0075
+                 and floors[('shank-crural-l', 'shank-crural-r')] == 0.012
+                 and floors[('forearm-ulnar-l', 'pelvic-girdle')] == 0.015
+                 and floors[('thigh-femoral-l', 'thigh-femoral-r')] == 0.0
+                 and off < 1e-6 and d.min() - np.log(len(d)) / schema.ALPHA <= soft <= d.min(), '')
+
+
+def test_the_shield_holds_a_closing_pair(report):
+    """Her standing, her left foot closing on her right at 4 m/s: the shield changes her posture's
+    ask on the pair's barrier's evading joints alone (her hips' rolls, the swing's circumduction),
+    each within its drive's peak, so that each pair's h'' + k_d h' + k_p h >= 0 holds or what it
+    cannot is spilled - least in her mass's metric there (its change her mass's inverse through the
+    held rows, their multipliers not negative); her left forearm closing on her hips, a pair whose
+    barrier evades by her shoulder's abduction she has not, at 1.5 m/s spilled whole; at rest nothing."""
+    import numpy as np
+    from machine import bemf, edge, schema, worker
+    from machine.wbc import POSTURE_KD
+    s = worker.session()
+    while s['g']['t'] < 1.0:
+        worker.stepped(s)
+    g = s['g']
+    body, st, ask, at, d = g['body'], g['s'], g['ask'], g['schema_at'], g['schema_d']
+    volts = float(g['sense'][edge.LINK][0])
+    rest, info = schema.shielded(body, d, st, ask, volts, at)
+    pairs = [tuple(p) for p in schema.PAIRS.tolist()]
+
+    def closing(left, right, speed):
+        k = pairs.index((schema.NAMES.index(left), schema.NAMES.index(right)))
+        near = schema.nearest(schema.laid(schema.posed(body, d, st), at), schema.PAIRS)
+        J, _rate = schema.rows(body, d, near, schema.PAIRS, np.array([k]), at, st['v'])
+        v = st['v'] - speed * J[0] / float(J[0] @ J[0])
+        moved = dict(st, v=v)
+        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at)
+    k, gap, v, moved, (posture, held) = closing('foot-shell-l', 'foot-shell-r', 4.0)
+    act, rows = body.act, held['which']
+    free = np.flatnonzero(schema.EVADES[rows].any(0))
+    Jh, rate = schema.rows(body, d, schema.nearest(schema.laid(schema.posed(body, d, moved), at), schema.PAIRS),
+                           schema.PAIRS, rows, at, v)
+    want = POSTURE_KD[0] * (posture - st['q']) - POSTURE_KD[1] * v[act]
+    sides = Jh[:, act] @ want + schema.KD * rate + schema.KP * held['h'] + held['spill']
+    change = POSTURE_KD[0] * (posture - np.asarray(ask['posture']))
+    Mf = st['M'][np.ix_(act[free], act[free])]
+    top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
+    on = [list(rows).index(r) for r in held['held']]
+    inner = np.abs(change[free]) < top * (1.0 - 1e-9)
+    lam = np.linalg.lstsq(Jh[on][:, act[free]][:, inner].T, (Mf @ change[free])[inner], rcond=None)[0]
+    fit = float(np.abs(Jh[on][:, act[free]][:, inner].T @ lam - (Mf @ change[free])[inner]).max())
+    arm, _gap, _v, _moved, (arm_posture, arm_held) = closing('forearm-ulnar-l', 'pelvic-girdle', 1.5)
+    report.check("at rest nothing held; her feet %.1f mm apart closing at 4 m/s: %d held on %s, each row met to "
+                 "%.1e, the change her mass's inverse through them (%.1e), multipliers %s; her forearm on her hips "
+                 "spilled %.0f m/s^2, her posture as asked"
+                 % (1e3 * float(gap), len(held['held']), ' '.join(bemf.DRIVEN[i] for i in free), float(sides.min()), fit,
+                    np.round(lam, 4), float(np.max(arm_held['spill'], initial=0.0))),
+                 not info['held'] and np.array_equal(rest, np.asarray(ask['posture'], float))
+                 and k in held['held'] and float(sides.min()) > -1e-6 and not change[np.setdiff1d(np.arange(len(act)), free)].any()
+                 and bool((np.abs(change[free]) <= top * (1.0 + 1e-9)).all())
+                 and fit < 1e-6 * max(1.0, float(np.abs(Mf @ change[free]).max())) and bool((lam >= -1e-9).all())
+                 and arm in arm_held['held'] and float(np.max(arm_held['spill'])) > 0.0
+                 and np.array_equal(arm_posture, np.asarray(ask['posture'], float)), '')
+
+
+ROSTER = (test_the_body_schema_lays_her_capsules, test_the_shield_holds_a_closing_pair, test_the_lowering_lays_the_texts_abi, test_a_bank_swaps_with_no_step, test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 
