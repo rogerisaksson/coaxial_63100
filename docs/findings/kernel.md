@@ -303,6 +303,10 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
 | spine | -15.5, 122 | -21.5, 50 | -25.5, 35 | -29.2, 27 |
 | hip walking, gearboxes in | +9.0, -115 | +2.7, -125 | -0.7, 174 | -9.5, -116 |
 | hip walking, rigid | -21.6, -78 | -20.0, -124 | +0.1, 161 | -2.3, 161 |
+| ankle walking, gearboxes in | -7.4, -178 | +7.1, -131 | +0.2, 159 | -4.1, 170 |
+| knee walking, gearboxes in | -9.1, -25 | -6.1, -160 | +1.2, 167 | -10.1, -127 |
+| shoulder walking, gearboxes in | -0.1, -111 | -5.7, -151 | -11.0, -159 | -20.3, -166 |
+| spine walking, gearboxes in | -6.2, -34 | -4.0, -109 | -3.7, -176 | -0.8, 136 |
 
 - Rigid, every loop past -3 dB keeps its margin; her ankle's phase turns
   through 180 deg between 15 and 22 Hz, its gain margin there 7.9 dB.
@@ -315,6 +319,10 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
   alike at 0.25, 0.5 and 1 N m (her gait's own torques would scale it);
   rigid, +0.1 dB at 161 deg there and -2.3 at 161 at 38 Hz. The text's
   rollback is live as she walks: K_d 0.35, gamma 0.50.
+- Every leg loop walking crosses 0 dB at 30 Hz with its phase past 180
+  (ankle -21 deg, knee -13, hip -6), her spine at 38 Hz (-45); her shoulder
+  keeps 14 deg or more. One feature in all her legs' loops, rigid too: not
+  her gearboxes' resonance.
 
 ## The lowering
 

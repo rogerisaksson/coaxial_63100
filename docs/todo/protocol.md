@@ -16,7 +16,9 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
 2. **Step 2, the discrete phase margin on her loop**: `machine.margin`
    measures her loops' return ratio (`tools/sim/margin.py`); her gearboxes
    in, her hip's crosses 0 dB at 22 Hz with 25 deg standing and at 30 Hz
-   with -3 to -8 deg walking (`--walk`, the same at 0.25-1 N m). Left: the
+   with -3 to -8 deg walking (`--walk`, the same at 0.25-1 N m), as every
+   leg loop does, rigid too, her shoulder's not: one feature of her legs'
+   loops to find before the rollback takes her walk's K_d. Left: the
    probe in her loop as she goes, its rollback on her law's K_d and her
    barrier's gamma (K_d 0.35, gamma 0.50 by the walking read), the probe's
    amplitude through her gearboxes' play. DOD: no loop past -3 dB under 38
