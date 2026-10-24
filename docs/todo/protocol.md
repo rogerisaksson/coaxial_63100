@@ -44,10 +44,13 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    gap under her contorted width marked impassable, the crural foothold
    guard over swing 0.05-0.38. DOD: no oscillation before a doorway; a foot
    placed off a chair's crossbar.
-8. **Step 6, her map**: her right-invariant EKF (`machine.inekf`) and a
-    registry of 256 dual quadrics from her eyes, three SDF bands at her
-    knee, navel and crown, the kernel's affordances and funnels. DOD: the
-    lodge's furniture in the registry; its blind spots remembered 45 s.
+8. **Step 6, her map's rest**: her right-invariant EKF (`machine.inekf`)
+    and her registry (`machine.registry`: 45 of the lodge's 53 boxes after
+    her bed errand, blind spots kept 45 s). Left: her eyes' own things
+    (`physics.SIGHT`) as its looks, the three SDF bands at her knee, navel
+    and crown, the kernel's affordances and funnels on it, the mover's wake
+    to the wayfinder. DOD: her eyes' map as the stand-in's; the funnels'
+    sit and lie chosen from it.
 9. **Step 7, the lowering and the tuner**: `machine.lowering` folds a
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a
     bank carried over her link's table. Left: her loop's channels through a

@@ -67,7 +67,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
     entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
-    from machine import figure, heat, latent, modal, motion, physics, servos, wbc, wrench
+    from machine import figure, heat, latent, modal, motion, physics, registry, servos, wbc, wrench
     from machine.drives import kind, peak
     from machine.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
@@ -124,7 +124,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7])}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid()}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -170,7 +170,8 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     world.reset(figure.stand(), where=(float(where[0]), g['rest_y'], float(where[1])),
                 turn=(math.cos(0.5 * yaw), 0.0, math.sin(0.5 * yaw), 0.0))
     g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
-    g['inekf'] = inekf.laid(d.qpos[0:3], d.qpos[3:7])
+    from machine import registry
+    g['inekf'], g['registry'], g['things'], g['things_at'] = inekf.laid(d.qpos[0:3], d.qpos[3:7]), registry.laid(), (), -math.inf
     g['grip_seen'][:] = 0.0
     s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
     hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
@@ -202,16 +203,19 @@ def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on:
     read through her edge, her motion pass (`machine.motion`), her drives told through her edge."""
     import numpy as np
-    from machine import motion, schema
+    from machine import modal, motion, registry, schema
     world, y, ev = g['world'], g['sense'], g['every']
     if g['n'] % ev == 0:
         edge.read(world, y)
         observer.felt(g['observer'], y, dt)
         inekf.felt(g['inekf'], y, dt)
-        # her eyes' stand-in, as `furniture`'s: the world's boxes, what her looks would tell her, at the
-        # kernel's SDF refresh
+        # her eyes' stand-in, as `furniture`'s: the world's boxes a look, what her looks would tell her,
+        # at the kernel's SDF refresh, into her map; her shield's things its boxes
         if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
-            g['things'], g['things_at'] = world.props(), g['t']
+            head = {'pos': g['s']['head']['pos'], 'quat': g['s']['head']['quat']}
+            registry.passed(g['registry'], head, g['t'] - g.get('things_at', g['t']))
+            registry.seen(g['registry'], world.props(), head, g['t'])
+            g['things'], g['things_at'] = registry.boxes(g['registry']), g['t']
         motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
         bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
@@ -225,6 +229,8 @@ def passed(g, dt=0.001):
         inekf.felt(g['inekf'], y, dt)
     motion.drives(g, dt)
     edge.drive(world, g['joints'], **g['cmd'])
+    # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
+    edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1
     world.advance()
     return g['s'], g['loads'], g['ask'], g['out']
@@ -264,7 +270,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
                                                            float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
                'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
                 'stance': tuple(g['a'][modal.STANCE].tolist()), 'shoulder': tuple(_Q_LIM['shoulder'])}
-    buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes) for b in (getattr(world, 'limb_buses', None) or ())}
+    buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes, b.stale) for b in (getattr(world, 'limb_buses', None) or ())}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),
@@ -313,7 +319,7 @@ def boot_humanoid(state, boot, say, ahead_cls, limb_cls):
     drives = sum(len(s.actuators) for s in TYPES['gynoid'].body)
     with boot('LINKING HUMANOID') as step:
         step(0.15, 'MUJOCO & LISP')
-        body = state['body'] = Running(realtime=not state.get('max', False), shown=0.0)
+        body = state['body'] = Running(realtime=not state.get('max', False), shown=0.0, ber=edge.LINE_BER)
         say('ok', 'body', '%.1f kg, %d drives, MuJoCo at 1 kHz in its own process%s'
             % (figure.mass(), drives, ', flat out' if state.get('max') else ', paced to the wall'))
         say('ok', 'tier', modes.told(os.cpu_count() or 1, drives))

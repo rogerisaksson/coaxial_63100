@@ -250,7 +250,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic qp wbc wrench latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules').split()]),
+                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -355,7 +355,7 @@ def test_the_gym_moves_her_through_the_world_alone(r):
     """The gym and the aircraft flight laws write none of the world's state or drive arrays
     directly: a lay, a scene and a shove are the world's own calls, and drives are told on their
     10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
-    from machine import edge, figure, routines, senses
+    from machine import edge, figure, layouts, routines, senses
     wrote = []
     for name in GYM + AERO_LAWS:
         tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())
@@ -376,14 +376,14 @@ def test_the_gym_moves_her_through_the_world_alone(r):
     svg_path = os.path.join(repo, 'docs', 'architecture', 'bus_layout.svg')
     doc_path = os.path.join(repo, 'docs', 'architecture', 'drivetrain.md')
     svg_ok = (os.path.isfile(svg_path)
-              and open(svg_path, encoding='utf-8').read() == edge.bus_layout_svg()
+              and open(svg_path, encoding='utf-8').read() == layouts.bus_layout_svg()
               and 'bus_layout.svg' in open(doc_path, encoding='utf-8').read())
-    r.check('docs/architecture/bus_layout.svg is generated from live code (edge.bus_layout_svg)',
+    r.check('docs/architecture/bus_layout.svg is generated from live code (layouts.bus_layout_svg)',
             svg_ok, svg_path)
     sw_svg = os.path.join(repo, 'docs', 'architecture', 'software_layout.svg')
     rob_doc = os.path.join(repo, 'docs', 'architecture', 'robotics.md')
-    r.check('docs/architecture/software_layout.svg is generated from live code (edge.software_layout_svg), overlap-free and linked in robotics.md',
-            os.path.isfile(sw_svg) and open(sw_svg, encoding='utf-8').read() == edge.software_layout_svg()
+    r.check('docs/architecture/software_layout.svg is generated from live code (layouts.software_layout_svg), overlap-free and linked in robotics.md',
+            os.path.isfile(sw_svg) and open(sw_svg, encoding='utf-8').read() == layouts.software_layout_svg()
             and 'software_layout.svg' in open(rob_doc, encoding='utf-8').read()
             and svg_connectors_clear(sw_svg) and svg_connectors_clear(svg_path), sw_svg)
     abus_svg = os.path.join(repo, 'docs', 'architecture', 'aircraft_bus_layout.svg')

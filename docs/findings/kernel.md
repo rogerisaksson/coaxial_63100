@@ -201,6 +201,31 @@ balance bus's and her footholds'.
 - A capsule's axis against a box by golden section: 24 random pairs within
   2.1e-5 m of a 20 001-point walk, the bracket's share of the segment.
 
+## Her map
+
+`machine.registry`: the text's 256 slots of what her looks told her - her eyes'
+or their stand-in (the world's boxes), those her eyes' frustum shows at the
+box's point nearest her eye -, matched to a slot of its kind in the
+Wasserstein metric over the slot's and the look's variances (chi2 5.99), the
+text's log-odds (+0.85 a match, -0.22 a miss before her eyes, 0 in a blind
+spot 45 s, pruned under -3.5, her buses' at 1.8); a slot's drift the still
+model's summed innovation, past 16.27 a mover at its velocity.
+
+- Her bed errand through the lodge (29 s): 45 of its 53 boxes in her map,
+  each once, none moving; the lamp, the roof's slabs, the switch, two rail
+  posts and a timber she never looked at; 36 swollen as her eyes left them,
+  32 mm at most.
+- Every prop a look each refresh: all 53 in 25 ms, nothing behind her a
+  blind spot. Her eyes' frustum on the looks.
+- Associated over a thing's own size (the Wasserstein gate on its half
+  sizes): a pane's gate reached its neighbour 1.1 m off, the slot jumped,
+  read as moving and its velocity carried it away - 9 movers, the door 9
+  slots, 50 for 53 props. Over the position's precision and within the
+  kind: none.
+- The chair shoved at 1 m/s under 8 ms looks: one slot, the still model's
+  drift past 16.27 at its 28th look (0.22 s), its velocity 1.00 m/s.
+- The door ajar at 0.8 passed 3 of 3 on her map's boxes.
+
 ## The wayfinder
 
 `machine.wayfinder`: her route's flow bent by the room rows her shield holds

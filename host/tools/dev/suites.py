@@ -135,6 +135,8 @@ FLOOR = 'test_floor.py'
 #: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
 #: within a second.
 SITUATION = 'test_situation.py'
+#: Her buses under faults: a burst inside her horizon ridden, one past it her drives off.
+BUSES = 'test_buses.py'
 #: Her drift from her build and a load in a hand read off her rows on-line (machine.wear).
 WEAR = 'test_wear.py'
 #: Her errands on her loop: a stop that settles, F heard, a scene laid anew and walked at once.
@@ -171,7 +173,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, KERNEL, SHIELD, WAYFINDER, TUNE, FLOOR, SITUATION, ERRANDS, CYCLIC,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, KERNEL, SHIELD, WAYFINDER, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -209,6 +211,7 @@ JOINS = (
     (12, TUNE),
     (12, FLOOR),
     (12, SITUATION),
+    (12, BUSES),
     (12, WEAR),
     (12, ERRANDS),
     (12, WRENCH),
@@ -304,13 +307,14 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: Suites that run their tests through tools.dev.focus.chosen: past a slice of the run they go
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
-           DAQ_API, QUAD_PAGE, REPLAYS, SCENES)
+           DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS)
 
 #: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
 #: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
 #: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
-#: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0}
+#: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI; the
+#: errands' 19 runs 295-310 s here, cut at 300 unsharded here and on CI.
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0, ERRANDS: 310.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
@@ -318,7 +322,7 @@ FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUA
 #: on CI's runner against 133 here; the bus's echoes through a limb of three at 475 MIPS
 #: 129 here at 56 wall s a board s, past 480 on CI's runner with the off-rate open (63)
 #: in the same group.
-EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'rate': 480, 'conformance': 480,
+EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'crc': 480, 'rate': 480, 'conformance': 480,
                    'fallback': 480}
 
 #: What a change to a page the world's heat is judged on reaches.

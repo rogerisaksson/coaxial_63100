@@ -316,3 +316,10 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     flow bent by the rows her shield holds, her trunk twisted through the gap
     0.6 s ahead; the lodge's door ajar at 0.8 of her shoulders passed, her
     waist 28 deg, her arms 55 mm clear ([kernel](findings/kernel.md)).
+62. Her map (`machine.registry`): the kernel's 256 slots of what her looks
+    told her within her eyes' frustum, a thing matched to a slot of its kind
+    within its position's precision, weighed by the text's log-odds, blind
+    spots kept 45 s and swollen, a mover at its velocity; 45 of the lodge's
+    53 boxes after her bed errand ([kernel](findings/kernel.md)).
+63. QUIT on the front page, Q and Enter on it; the RS485 plate tells its CRC
+    from her wear's drift alarms (WEAR), SERVICE's row named wear.
