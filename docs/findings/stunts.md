@@ -240,10 +240,10 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   11 mm clear; a tap hops 0.07 m from its dip and stays on its spot; her
   apex over her stand is 0.015 m, the legs 0.5 axial short of straight as
   she leaves. A sole let go is out of the parry's support under any sway
-  (`lifted`, `1 - still`): the sole a stand's sway hung 2.4 mm up
-  ([feet](feet.md), test_sysid_live's three reds) is parried in place, 15 mm
-  up and down at 172 N, her capture point 2.5 cm past the one sole left
-  while the other lies under it. Measured, not kept: counting it unless her
+  (`lifted`, `1 - still`): the sole a stand's sway hung 2.0 mm up, its
+  phases blended in with its gain ([feet](feet.md)), was parried in place,
+  15 mm up and down at 172 N, her capture point 2.5 cm past the one sole
+  left while the other lies under it. Measured, not kept: counting it unless her
   drive strides left a sole still in the air at a sprint's end in the
   support and she fell (sill, hole, snow, sprint, turns); counting it
   within its sole's give (5 mm) of the floor let a sliding sole on snow
@@ -258,7 +258,7 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   fell at 6.41 s - after its brake a sole let go 1.7-3.2 mm up on 0-13 N at
   rest counted at 3.80-3.81 and 4.27-4.34 s where the parry had stepped (need
   0.51, 0.61) - and the viewport's chair at 16.87 s (not kept,
-  scratch/sway_rests_not_kept.patch). Open: a let-go sole counting by its grip.
+  scratch/sway_rests_not_kept.patch).
   The leap from a stride laid from the drives, kept as a patch
   (scratch/stride_leap_from_drives.patch): off the sole that lands next
   (`stride.beat`'s phase to PHI_W), a half-cosine dip to the depth one knee

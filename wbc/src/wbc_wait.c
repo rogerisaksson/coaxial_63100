@@ -197,18 +197,14 @@ void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, 
   for (int r = 0; r < rows; r++)
   {
     const double *row = tab + r * w->table;
-    double        least = row[w->said], most = row[w->vals_amp];
+    double        most = row[w->vals_amp];
 
-    for (int c = 1; c < w->p; c++)
-    {
-      least = npminimum(least, row[w->said + c]);
-    }
     for (int m = 1; m < modes; m++)
     {
       most = npmaximum(most, row[w->vals_amp + m]);
     }
     hit[r] = (double)((row[w->at] <= t + w->edge_s) && (row[w->at] > (t - dt) + w->edge_s));
-    w_row[r] = (double)((least > 0.5) && (most > 0.05));
+    w_row[r] = (double)(row[w->vals_gain] * most > 0.05);
   }
   wake = npmin(1.0, npmax(0.0, (0.04 - st[w->st_now_gain]) / 0.02)) * npmin(1.0, wbc_dot(&w->blas, hit, 1, w_row, 1, rows));
   st[w->st_theta] *= 1.0 - wake;

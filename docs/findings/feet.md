@@ -21,10 +21,12 @@ Passive toes, the sole's give, and the heel's rise on the loop
   1.9 kN, 3.5 times her weight; over 5 mm at 1.5 of critical: 1.5 kN. Softer
   (settling over 0.035 s) the body pitched on twice as fast, the sole a lag in
   the ankle's hold; damped at 1.75 the standing foot's load flickered to 70 N as
-  the other swung. At a stand's sway's extreme the loaded sole rolls 1.3 deg into
-  its foam and her pelvis lists 0.45 deg with it: the unloaded sole hangs 2.0 mm
-  up on 1 N, the legs identical, and `leap.TOUCH_M` 2 mm lets it go; the parry
-  then steps it in place ([stunts](stunts.md)). A band of the give as the
+  the other swung. At a stand's sway's extreme the loaded sole rolls into its
+  foam and her pelvis lists 0.43 deg with it: the unloaded sole hangs 1.5 mm up
+  on 6.3 N, the legs identical, at its first extremes 1.8 mm on 2.9 N. Its
+  phases blended in with its gain (`waits.woken_rows`), they hung 2.0 mm on
+  0.6 N, `leap.TOUCH_M` 2 mm let the sole go and the parry stepped it in place
+  ([stunts](stunts.md)). A band of the give as the
   stance's, for every sole or for one that stood, keeps the stack laying force
   on a sole that has left: the run's leap
   0.69 to 0.30 m, the seats and the snow wobble gone. A press of a standing

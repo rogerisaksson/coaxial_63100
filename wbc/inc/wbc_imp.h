@@ -219,14 +219,14 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
 #define WBC_WAIT_ROWS 512
 
 /** machine.waits.held_rows's, risen_rows's and woken_rows's reading of her table (machine.latent):
-    a row's doubles, its time's place, its targets told and said, its gain told and said, its said
-    block (p long), its amplitudes told, its phases said and told; her latent state's targets asked,
-    its gain and phases now, her rhythm's angle; a row's latch, her state's targets now and from and
-    its blend's rates; the waits' constants; numpy's BLAS. */
+    a row's doubles, its time's place, its targets told and said, its gain told and said, its
+    amplitudes told, its phases said and told; her latent state's targets asked, its gain and
+    phases now, her rhythm's angle; a row's latch, her state's targets now and from and its
+    blend's rates; the waits' constants; numpy's BLAS. */
 typedef struct
 {
   int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z, contact;
-  int        p, said, vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
+  int        vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
   int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z;
   double     edge_s, tiny, phi_w;
   wbc_blas_t blas;
@@ -255,8 +255,9 @@ void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
 void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
                       const double *fr, const double *a, double *st, double t, double dt);
 
-/** The rows due this pass wake her rhythm where its gain has died down (machine.waits.woken_rows):
-    its angle let go, its phases those the rows say, in her latent `st`. */
+/** The rows due this pass that ask a rhythm - their gain times their amplitude - wake hers where
+    its gain has died down (machine.waits.woken_rows): its angle let go, its phases those the rows
+    say, in her latent `st`. */
 void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t, double dt);
 
 /** machine.motion.scaled's and braced's reading of her body: its dofs and driven, the cervical and

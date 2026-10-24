@@ -21,7 +21,7 @@ class Wait(ctypes.Structure):
     """wbc_wait_t: her table's layout, the waits' constants, numpy's BLAS."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z',
-                                                   'contact', 'p', 'said', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
+                                                   'contact', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
                                                    'st_now_phase', 'st_theta', 'latch', 'st_now_z', 'st_from_z',
                                                    'st_v0_z', 'st_v1_z')]
                 + [(name, ctypes.c_double) for name in ('edge_s', 'tiny', 'phi_w')] + [('blas', c_motion.Blas)])
@@ -65,7 +65,7 @@ class Waits:
                       said_z=latent.SAID.start + latent.Z.start, vals_gain=latent.VALS.start + latent.GAIN,
                       contact=latent.CONTACT,
                       said_gain=latent.SAID.start + latent.GAIN, st_to_z=latent.TO.start + latent.Z.start,
-                      p=latent.P, said=latent.SAID.start, vals_amp=latent.VALS.start + latent.AMP.start,
+                      vals_amp=latent.VALS.start + latent.AMP.start,
                       said_phase=latent.SAID.start + latent.PHASE.start, vals_phase=latent.VALS.start + latent.PHASE.start,
                       st_now_gain=latent.NOW.start + latent.GAIN, st_now_phase=latent.NOW.start + latent.PHASE.start,
                       st_theta=latent.THETA, latch=latent.LATCH, st_now_z=latent.NOW.start + latent.Z.start,

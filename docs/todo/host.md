@@ -16,22 +16,15 @@
   tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
   DOD: flat tables and arithmetic a reader follows, a raise where she
   cannot; test_structure holds the law's modules at 0.
-- **CI red, the host workflow** (8 at acc7fb80): test_sysid_live's sway, 2
-  checks - since 1f1d039d a dead rhythm wakes on a row laid whole alone
-  (`waits.woken_rows`): a sway said from rest blends its 108 deg lead in with
-  its gain, its first extremes leave a sole 2.0 mm up on 0.6 N and
-  `leap.TOUCH_M` lets it go. Woken by a row asking a rhythm (gain times
-  amplitude) the sway is 1c05786f's to the digit; held till the viewport
-  chair stands with it (at 0.600 s her spin drifts her less, the walk-on
-  after it treads in place 2.2 s, she brakes into the chair at 9.82 s).
-  test_leap's stride leap, one walk time of a coin's toss: no flight at some
-  of her stride's phases, a walk back after the landing (4 of 6 walk times
-  stand, before the insert and now), the run's held leap down at 2 of 6
-  since the insert (74a69f6f, scenarios 14); held 250 ms she leaps 0.31 ->
-  0.14 m since her stop's brake took a stride (dc6256a8), the stride hop
-  laying it on a 0.5 s brake's horizons. Snow at +2e-4, the replay
-  walk_turn_right on Linux (scenarios 14), the chair at -2e-4 and the
-  viewport bed (scenarios 1). DOD: both workflows green on main.
+- **CI red, the host workflow** (8 at acc7fb80; the sway's 2 and the viewport
+  bed met): test_leap's stride leap, one walk time of a coin's toss: no
+  flight at some of her stride's phases, a walk back after the landing (4 of
+  6 walk times stand, before the insert and now), the run's held leap down at
+  2 of 6 since the insert (74a69f6f, scenarios 14); held 250 ms she leaps
+  0.31 -> 0.14 m since her stop's brake took a stride (dc6256a8), the stride
+  hop laying it on a 0.5 s brake's horizons. Snow at +2e-4, the replay
+  walk_turn_right on Linux (scenarios 14), the chair at -2e-4 (scenarios 1).
+  DOD: both workflows green on main.
 - **The autotuner's write** (asked): her walk's step held on her suite's
   roots and the bench broke test_errands' viewport bed and was undone. DOD: a
   write held on the errands too (their house runs as the bench's), written
