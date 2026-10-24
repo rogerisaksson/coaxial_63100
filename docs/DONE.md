@@ -267,3 +267,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     lean on what she does not feel; a chair pulled from under her sit
     weighs nothing and she squats (test_kernel.py,
     [kernel](findings/kernel.md)).
+51. Her DC link (`machine.dclink`): her packs, their BMS and her boards'
+    capacitance under her drives' power, bled on her boards' d axes past the
+    text's onset; under its 60 V through every scene, a hop down's landing
+    58.93 V (test_kernel.py, [kernel](findings/kernel.md)).

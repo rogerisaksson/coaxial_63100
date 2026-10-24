@@ -92,3 +92,24 @@ past an edge, no further out.
   bore her). On as far as her rows lean on what her comparator does not
   feel: chair, bed and bed rise as before (the chair's pelvis 283, head 744
   m/s^3 against 266, 783), her walk to the bit.
+
+## Her DC link
+
+`machine.dclink`, each world step: her drives' electrical power (work,
+braking negative, copper, each board's housekeeping) from her two 15S2P packs
+(48 V, 75 mOhm, their BMS's charge 19.6 A, estimated) into her 21 boards' DC
+link (33 x 10 uF X7S each, 6.93 mF nominal), implicit in its volts.
+
+| scene | peak V | least V | bled J |
+| --- | --- | --- | --- |
+| walk | 48.23 | 45.75 | 0 |
+| chair, sit and rise | 48.54 | 45.30 | 0 |
+| bed rise | 48.00 | 46.79 | 0 |
+| sprint | 48.49 | 43.99 | 0 |
+| hop down | 58.93 | 38.63 | 10.5 |
+
+- A hop down's landing pushed the link to 60.78 V with the text's sinks
+  alone (spine, shoulders, elbows: 880 W of d-axis copper); every board
+  bleeding the current its drive's peak leaves its torque: 58.93.
+- The bleed's copper is not yet in her drives' heat.
+

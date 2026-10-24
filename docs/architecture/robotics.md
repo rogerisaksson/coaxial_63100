@@ -64,6 +64,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | observer | her generalized momentum observer, blind, in C (wbc_gmo.c): her drives' torques, encoders and IMU over her chain's M(q), at the kernel's 35 Hz, split over the kernel's patches by four least squares, each normal pushing |
 | kernel | the dual-domain kernel's ops by the mechanism each feeds; its texts read and their stages' defaults |
 | barrier | her capture point's barrier: her centre of mass's ask held to each support edge's h' + gamma h >= 0 over what bears her, as far as her rows lean on what she does not feel |
+| dclink | her DC link: her packs and her boards' capacitance under her drives' power, the boards' d-axis bleed past the text's onset |
 | tap | her loop's side of a tuner: her raw passes copied (her contacts in C, `wbc_pass_tapped`), cooked and measured on the tuner's core, a table laid at her barrier (lateral crossing, both soles locked, her last blend done) blended minimum-jerk |
 | takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |

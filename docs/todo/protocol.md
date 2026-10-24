@@ -15,10 +15,9 @@ text's (`dsp.read(dsp.KERNEL)`).
    centre of mass 0.12-0.15 m/s^2 and her ankles 3.4-4.6 N m where her
    soles' bounds bind ([kernel](../findings/kernel.md)). DOD: under 1e-4 of
    the chest's acceleration walking, as standing; her walk as solved.
-3. **Step 4, the blind field and her bus**: the blind admittance field (a
-   pelvis seeking a seat until one bears her); her DC link's voltage and
-   the shunt below its ceiling. DOD: her walk, sit and rise as green; V_bus
-   under 60 V through every scene.
+3. **Step 4, the blind field**: the blind admittance field - a pelvis
+   seeking a seat until one bears her (`project-blind-admittance-field`).
+   DOD: her sit's descent by the field, her walk, sit and rise as green.
 4. **Step 5, her map**: a right-invariant EKF on SE_2(3) (IMU, contacts by
    their weights), a registry of 256 dual quadrics from her eyes, three SDF
    bands cut at her knee, navel and crown, the kernel's affordances and

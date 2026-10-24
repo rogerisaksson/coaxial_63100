@@ -8,8 +8,7 @@ moved - on its board, on its limb's bus (`machine.buses`), a process a limb in l
 world, the host's setpoints and its readings Modbus RTU frames on a socket a bus; a world with
 no buses runs the drives itself. The world advances when the loop reads it, to the loop's time,
 on the setpoints written the pass before. The floor is y 0, a slab over a plane a hole deep, its
-events parked out of the way until placed (`World.terrain`); only the soles, the toes, the knees
-and the knuckles touch it.
+events parked till placed (`World.terrain`); her soles, toes, knees and knuckles alone touch it.
 """
 import atexit
 import ctypes
@@ -18,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine import drives, gearbox, heat, linkage, room
+from machine import dclink, drives, gearbox, heat, linkage, room
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
@@ -32,12 +31,11 @@ from machine.figure import JOINTS
 STEP_S = 0.001
 
 #: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s.
-#: As the solver had it a pass, standing still it flickered 0-950 N, a foot at 0 N 104 passes
-#: a second. At 20 ms the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N,
+#: The solver's a pass flickered 0-950 N standing still, a foot at 0 N 104 passes a second. At 20 ms the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N,
 #: its power 683 -> 560 W (docs/findings/stacks.md).
 LOAD_S = 0.02
 
-#: A drive's reading, in `World.reading`'s order.
+#: A drive's reading, `World.reading`'s.
 READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 
 #: The drives as built, each 0 or 1 (`machine.mjcf`): how much of their rotors and gearboxes
@@ -54,7 +52,7 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: fell back in 3 starts of 12; at 0.5 and up off her form.
 REFLECTED, ROTOR_FF, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 0.0
 #: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
-#: the gearbox; 0 the joint's own sensor, its link's.
+#: the gearbox; 0 the link's own sensor.
 WOUND = 1.0
 
 #: The gearboxes between the rotors and the links (`machine.gearbox`): 1, each rotor runs free
@@ -62,20 +60,19 @@ WOUND = 1.0
 #: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
 #: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
 #: 2, the loop on its torques walks them at 265-326 J/m (docs/findings/drives.md).
-#: ROOM: the living room round her (`machine.room`); SIGHT her eyes on it (`machine.sight`).
+#: ROOM: her lodge (`machine.room`); SIGHT her eyes (`machine.sight`).
 BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
-#: turning with the leg's yaw and roll, or the segment that stage hangs from - on them, 0.7 kg of
-#: yaw's 8 % more inertia.
+#: turning with the leg's yaw and roll, or the segment that stage hangs from: 0.7 kg, 8 % more yaw.
 STAGED = 1.0
 
-#: The boards' envelopes: 1 as built, derating and tripping them; 0 fantasy boards whose SOA
-#: never binds, the heat counted (`tests/test_gynoid.py`).
+#: The boards' envelopes: 1 as built, derating and tripping them; 0 boards whose SOA never binds,
+#: the heat counted (`tests/test_gynoid.py`).
 ENVELOPE = 1.0
 
-#: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times - a gate drive
-#: sagging, the FETs half on -, or its nodes at WARM_C.
+#: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times (a gate drive
+#: sagging, the FETs half on) or its nodes at WARM_C.
 SOA_RDS, WARM_C = 50.0, 100.0
 
 #: Her harness (`World.hang`): N/m and N s/m on her pelvis's place, N m/rad and N m s/rad on its
@@ -172,6 +169,7 @@ class World:
         #: armature; the motors' torques this step.
         self.boxes = gearbox.Boxes(np)
         self.motor = np.zeros(len(JOINTS))
+        self.link = dclink.laid()
         if BOXED:
             m.dof_armature[self.vadr[self.driven]] = [SERVO[kind(j)][3] for j in JOINTS
                                                       if not drives.passive(j)]
@@ -269,6 +267,7 @@ class World:
         self.geared[:] = 0.0
         self.boxes.reset(d.qpos[self.qadr])
         self.motor[:] = 0.0
+        self.link = dclink.laid()
         self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
         self.push_until, self.pushed, self.laced = -1.0, False, False
@@ -347,6 +346,7 @@ class World:
             if BOXED:
                 self.boxes.moved(d.qpos[self.qadr])
             self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if BOXED else None, STEP_S)
+            dclink.step(self.link, self.motor, d.qvel[self.vadr], STEP_S)
             if self.laced:
                 self._unlace()
             if ROOM:

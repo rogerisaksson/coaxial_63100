@@ -150,7 +150,20 @@ def test_a_pulled_chair_weighs_nothing(report):
     report.check('the seat taken at most %.3f, stood %s' % (seat[0], out['stood']), seat[0] == 0.0 and out['stood'], '')
 
 
-ROSTER = (test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def test_her_link_under_its_ceiling(report):
+    """Her DC link (`machine.dclink`) through a hop down off a chair: its landing's braking bled on her
+    boards' d axes past the text's onset, the link under its clamp; at rest her packs' volts."""
+    from machine import dclink, drives
+    from tools.sim import scenarios
+    seen = {}
+    out = scenarios.ran('hop_down', laid=lambda s: seen.update(link=s['g']['world'].link))
+    link = seen['link']
+    report.check('peak %.2f V of %.1f, %.1f J bled, stood %s' % (link['peak'], dclink.CLAMP_V, link['bled'], out['stood']),
+                 dclink.ONSET_V < link['peak'] < dclink.CLAMP_V and link['bled'] > 0.0 and out['stood']
+                 and dclink.laid()['v'] == drives.PACK_V, '')
+
+
+ROSTER = (test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 

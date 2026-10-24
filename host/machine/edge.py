@@ -35,7 +35,7 @@ FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
 #: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
 #: load (N); where on each segment its touch is, its centre (m, its frame); each joint's drive's
-#: torque as its current says it (N m, kt i through its box).
+#: torque as its current says it (N m, kt i through its box); her boards' DC link (V).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
 LOAD = slice(10 + 3 * J, 12 + 3 * J)
@@ -45,7 +45,8 @@ PRESS = slice(COP.stop, COP.stop + len(INSOLES))
 CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
 AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 TAU = slice(AT.stop, AT.stop + J)
-SENSED = TAU.stop
+LINK = slice(TAU.stop, TAU.stop + 1)
+SENSED = LINK.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -102,7 +103,7 @@ def felt(world, y):
     """`y`'s IMU, encoders and drives' torques as the world stands now (wbc_pass.c, on the world's laid pass)."""
     _read()(ctypes.byref(world.passing), _cores().address(y), QUAT.start, GYRO.start, ACCEL.start, Q.start, QD.start,
             QM.start)
-    y[TAU] = world.motor
+    y[TAU], y[LINK] = world.motor, world.link['v']
     return y
 
 

@@ -24,7 +24,8 @@ from machine.errors import MachineError
 
 #: The suite's nodes as her joints' kinds (`drives.kind`).
 NODE_KINDS = {':coxofemoral': ('hip_yaw', 'hip_roll', 'hip'), ':tibiofemoral': ('knee',), ':talocrural': ('ankle',),
-              ':l4-l5-lumbar': ('spine',), ':glenohumeral': ('shoulder',), ':c1-c2-atlas': ('neck', 'head')}
+              ':l4-l5-lumbar': ('spine',), ':glenohumeral': ('shoulder',), ':cubital': ('elbow',),
+              ':c1-c2-atlas': ('neck', 'head')}
 #: The forms the bus is, as the text must name them: (node, param) -> its value.
 FORMS = {('velocity-gate', 'target-nodes'): ':all-actuated-joints', ('velocity-gate', 'curve'): ':smooth-step',
          ('derivative-channel', 'topology'): ':butterworth-2nd-order', ('derivative-channel', 'zero-phase-compensation'): False,

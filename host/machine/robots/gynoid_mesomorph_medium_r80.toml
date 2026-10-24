@@ -29,6 +29,18 @@ off_mount_k_w = 2.20
 # legs, the trunk -, the MN6007 for the arms and the head: 15 and 6 of her 21; her 30.8 kg where
 # 28.4, a hip's rotor 0.177 kg m^2 at its joint where 0.071. What they replaced and why each
 # stood: docs/findings/stacks.md.
+
+# Her two packs, in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`): each cell's DC
+# resistance, ohm, and the most its BMS charges it with, A - the cell's datasheet class,
+# estimated; each board's DC link, F: the 63100's 33 x 10 uF X7S 1210 (its BOM), nominal.
+[pack]
+packs = 2
+series = 15
+parallel = 2
+cell_ohm = 0.020
+cell_charge_a = 4.9
+board_link_f = 330e-6
+
 [stacks]
 spine = ["R80", "B", "coaxial_63100"]
 spine_roll = ["R80", "B", "coaxial_63100"]
