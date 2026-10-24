@@ -1,7 +1,6 @@
-;; =============================================================================
-;; FILE: blind_admittance_fields.lisp
-;; DOMAIN: Momentum-Observer Wrench Homotopy, Tactile Admittance & DCM-ZCBF
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 1.11: blind_admittance_fields
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.blind-fields
   (:use :ortho-dsp.core
         :ortho-dsp.balance-core)
@@ -17,11 +16,10 @@
         :filter-cutoff-hz observer-bandwidth-hz
         :friction-model :lugre-dynamic-stribeck
         :coriolis-centrifugal-comp true
-        :monitored-manifolds [:plantar-bilateral
-                              :ischial-bilateral
-                              :trochanter-gluteal-lateral
-                              :dorsal-supine-continuum
-                              :palmar-carpal-bilateral])))
+        :monitored-manifolds [:plantar-bilateral :metatarsal-equinus-bilateral
+                              :posterior-femoral-bilateral :ischial-bilateral
+                              :trochanter-gluteal-lateral :dorsal-supine-continuum
+                              :ulnar-carpal-shove-bilateral :palmar-carpal-bilateral])))
 
 (defprimitive bind-wrench-driven-homotopy
   [state &key (active-manifolds [:plantar-bilateral :ischial-bilateral :dorsal-supine-continuum])
@@ -33,14 +31,11 @@
       (map-wrench-to-manifold-weights
         :manifolds active-manifolds
         :gain-scaling force-normalization
-        :asymmetric-slew (:attack-rate slew-rate-up-per-s
-                          :release-rate slew-rate-down-per-s)
+        :asymmetric-slew (:attack-rate slew-rate-up-per-s :release-rate slew-rate-down-per-s)
         :sum-of-weights-invariant 1.0)
       (when-modifier couple-impedance-melt
         (bind-stiffness-to-support-share
-          :law :inverse-wrench-power
-          :full-support-atten-db -28.0
-          :unloaded-rebound-rate-ms 15.0))))
+          :law :inverse-wrench-power :full-support-atten-db -28.0 :unloaded-rebound-rate-ms 15.0))))
 
 (defprimitive project-blind-admittance-field
   [state &key (seek-velocity-xyz-mps [-0.14 0.0 -0.32])
@@ -56,18 +51,12 @@
         :damping-matrix-nsm virtual-damping-nsm
         :zero-velocity-equilibrium-fz 1.00
         :thoracic-conform-admittance
-          (:dorsal-sensor :c7-t12-thoracic
-           :pitch-yield-gain axial-pitch-compliance
-           :restoring-spring-rad 0.08))
+          (:dorsal-sensor :c7-t12-thoracic :pitch-yield-gain axial-pitch-compliance :restoring-spring-rad 0.08))
       (when-modifier horizon-gaze-invariant
-        (modulate-node :c1-c2-atlas
-          :reference-frame (:set :world-horizon)
-          :vestibular-gain (:set 1.00)))))
+        (modulate-node :c1-c2-atlas :reference-frame (:set :world-horizon) :vestibular-gain (:set 1.00)))))
 
 (defprimitive enforce-dcm-barrier-zcbf
-  [state &key (barrier-gamma 14.0)
-              (min-capture-margin-mm 18.0)
-              (kinematic-singularity-floor-rad 0.28)]
+  [state &key (barrier-gamma 14.0) (min-capture-margin-mm 18.0) (kinematic-singularity-floor-rad 0.28)]
   (-> state
       (inject-qp-barrier-constraint
         :state-variable :three-dimensional-dcm

@@ -283,3 +283,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     estimate: IMU and her soles' contacts by the observer's weights; walking
     0.039 m along the floor and 0.004 in height in 7.2 m where her estimate
     0.060 and 0.041 (test_kernel.py, `tools/sim/drifted.py`).
+55. The kernel's two master texts as given, a module a file (26): the
+    22-capsule body schema, the AST-to-SoA lowering - its functions
+    evaluated as written -, the somatic schedule folded into the room's; the
+    protocol's list rewritten to its seven steps and five tests.

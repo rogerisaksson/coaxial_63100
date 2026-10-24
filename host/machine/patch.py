@@ -49,6 +49,8 @@ def _atom(tok):
         return tok[1:-1]
     if tok in ('true', 'false', 'nil'):
         return {'true': True, 'false': False, 'nil': None}[tok]
+    if tok[:2] == '#x':
+        return float(int(tok[2:], 16))
     try:
         return float(tok)
     except ValueError:

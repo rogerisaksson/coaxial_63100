@@ -1,26 +1,40 @@
-;; =============================================================================
-;; FILE: environment_field_specializers.lisp
-;; DOMAIN: Composable Wayfinding Specializers (Room, City, Rural, Forest)
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 2.2: environment_field_specializers
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.nav-envs
   (:use :ortho-dsp.core
         :ortho-dsp.balance-core
         :ortho-dsp.blind-fields
+        :ortho-dsp.body-schema
+        :ortho-dsp.somatic-core
         :ortho-dsp.nav-core)
   (:export #:xform-geodesic-wayfinder-base
            #:specialize-env-cluttered-interior
            #:specialize-env-urban-streetscape
            #:specialize-env-rural-countryside
            #:specialize-env-dense-forest
-           #:specialize-with-tactile-foliage-parting))
+           #:specialize-with-tactile-foliage-parting
+           #:specialize-with-encumbered-payload-clearance
+           #:xform-somatic-furniture-shove))
 (in-package :ortho-dsp.nav-envs)
 
 (defmodifier xform-geodesic-wayfinder-base [gait &key (goal-xyz [10.0 0.0 0.0])]
   (-> gait
+      (xform-universal-spatial-awareness)
+      (specialize-with-self-collision-manifold)
+      (specialize-with-nullspace-limb-retraction :retraction-influence-radius-mm 280.0)
+      (specialize-with-blindspot-memory-persistence :max-memory-horizon-s 45.0)
+      (specialize-with-tactile-surprise-reflex :unexpected-force-thresh-n 9.5)
       (configure-foliated-sdf-bands)
-      (synthesize-riemannian-metric :goal-attractor-xyz goal-xyz)
+      (synthesize-riemannian-metric
+        :goal-attractor-xyz goal-xyz
+        :ecbf-pullback-stiffness-eta 18.5
+        :gauge-lookahead-s 0.60)
       (inject-gyroscopic-obstacle-curl :detection-horizon-m 4.0)
-      (snap-foothold-to-plantar-gradient :search-radius-mm 120.0)
+      (snap-foothold-to-plantar-gradient
+        :search-radius-mm 120.0
+        :crural-capsule-repulsion-weight 3.2
+        :min-shin-clearance-mm 28.0)
       (slice-narrow-aperture-axial)))
 
 (defmodifier specialize-env-cluttered-interior [nav-state]
@@ -31,7 +45,9 @@
       (snap-foothold-to-plantar-gradient
         :search-radius-mm 160.0
         :edge-repulsion-gain 4.2
-        :step-over-margin-z-mm 42.0)
+        :step-over-margin-z-mm 42.0
+        :crural-capsule-repulsion-weight 4.0
+        :min-shin-clearance-mm 32.0)
       (slice-narrow-aperture-axial
         :bi-deltoid-width-mm 480.0
         :headroom-margin-mm 30.0)
@@ -47,7 +63,8 @@
       (synthesize-riemannian-metric
         :roughness-cost-weight 1.2
         :cross-slope-shear-weight 2.5
-        :social-lane-bias 0.75)
+        :social-lane-bias 0.75
+        :ecbf-pullback-stiffness-eta 20.0)
       (inject-gyroscopic-obstacle-curl
         :detection-horizon-m (case crowd-density (:sparse 6.0) (:moderate 4.5) (:dense 2.8))
         :vortex-circulation-gain 2.10
@@ -84,7 +101,8 @@
       (snap-foothold-to-plantar-gradient
         :search-radius-mm 220.0
         :edge-repulsion-gain 4.8
-        :step-over-margin-z-mm 85.0)
+        :step-over-margin-z-mm 85.0
+        :crural-capsule-repulsion-weight 4.5)
       (slice-narrow-aperture-axial :bi-deltoid-width-mm 480.0 :headroom-margin-mm 70.0)
       (configure-momentum-observer :observer-bandwidth-hz 45.0)
       (bind-wrench-driven-homotopy
@@ -97,6 +115,33 @@
   (-> nav-state
       (configure-compliant-obstacle-filter
         :slab-target [:mid-pelvic-slab :high-thoracic-slab]
-        :tactile-probe-nodes [:ulna-l :ulna-r :palmar-carpal-l :palmar-carpal-r]
+        :tactile-probe-nodes [:ulna-distal-l :ulna-distal-r :palmar-carpal-l :palmar-carpal-r]
         :pass-through-force-ceiling-n yield-force-threshold-n
         :rigid-deflection-fallback :inject-gyroscopic-curl)))
+
+(defmodifier specialize-with-encumbered-payload-clearance
+  [nav-state &key (corridor-extra-margin-mm 85.0)]
+  (-> nav-state
+      (when-modifier (:payload-coupled-p)
+        (-> nav-state
+            (splice-carried-payload-envelope
+              :payload-slot :active-occluding-quadric
+              :safety-buffer-mm 30.0)
+            (modulate-wayfinder-aperture-width
+              :coupled-bounding-span :robot-plus-payload-minkowski-hull
+              :extra-wall-clearance-m (* 0.001 corridor-extra-margin-mm))))))
+
+(defmodifier xform-somatic-furniture-shove
+  [state &key (shove-technique :ulnar-backrest-hook)
+              (clearing-offset-xy-mm [0.0 450.0])]
+  (let [active-patch (case shove-technique
+                       (:trochanter-hip-bump :trochanter-gluteal-lateral)
+                       (otherwise            :ulnar-carpal-shove-bilateral))]
+    (-> state
+        (configure-momentum-observer :observer-bandwidth-hz 40.0)
+        (couple-non-prehensile-shove
+          :contact-patch active-patch
+          :coupling-topology shove-technique
+          :max-shove-shear-n 115.0)
+        (specialize-with-encumbered-payload-clearance :corridor-extra-margin-mm 85.0)
+        (xform-geodesic-wayfinder-base :goal-xyz clearing-offset-xy-mm))))

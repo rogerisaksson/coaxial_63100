@@ -18,6 +18,7 @@ import glob
 import math
 import operator
 import os
+import struct
 from typing import Any
 
 from machine import ortho, patch
@@ -32,7 +33,7 @@ def _ordered(paths):
     for path in paths:
         with open(path, encoding='utf-8') as f:
             head = next(form for form in patch.forms(f.read()) if form[0] == 'defpackage')
-        found[head[1]] = (path, [u for clause in head[2:] if clause[0] == ':use' for u in clause[1:]])
+        found[head[1]] = (path, [u for clause in head[2:] if clause[0] == ':use' for u in clause[1:] if u not in LANGUAGE])
 
     def after(name, seen=()):
         if name in seen or name not in found:
@@ -45,6 +46,10 @@ def _ordered(paths):
     for name in sorted(found):
         after(name)
     return out
+
+
+#: The packages of the language itself a module may use.
+LANGUAGE = (':cl',)
 
 
 def _modules(folder):
@@ -67,6 +72,10 @@ Law = collections.namedtuple('Law', 'name args')
 Pipeline = collections.namedtuple('Pipeline', 'forms env')
 #: A stage: its parameters, its keys' default forms, its body; a transition's ops its body.
 Stage = collections.namedtuple('Stage', 'name params keys body')
+#: A function of the text's Common Lisp (`defun`): its lambda list, its body.
+Defun = collections.namedtuple('Defun', 'name params body')
+#: A lambda list's words.
+LAMBDA = ('&optional', '&key')
 #: A transition from a gait (to a gait): its sync trigger, its clock's slew, its bands, its bars,
 #: its other acts as events.
 Morph = collections.namedtuple('Morph', 'source target sync clock bands bars acts')
@@ -240,9 +249,14 @@ def _param(g, key):
     return found[0]
 
 
+#: A value as a Common Lisp type holds it (`coerce`).
+COERCE = {'single-float': lambda x: struct.unpack('<f', struct.pack('<f', x))[0], 'double-float': float}
+#: The language's constants, every text's.
+CONSTANTS = {'pi': math.pi}
 #: The lisp's functions, their arguments evaluated.
 FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
-         '/': operator.truediv, 'abs': abs, 'max': max, 'min': min, 'not': operator.not_,
+         '/': operator.truediv, 'abs': abs, 'max': max, 'min': min, 'not': operator.not_, 'tan': math.tan,
+         'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x),
          '>': operator.gt, '<': operator.lt, '>=': operator.ge, '<=': operator.le, 'eq': operator.eq,
          'get-param': _param, 'bars': lambda b0, b1, item: (b0, b1, item), 'oneshot': lambda g: ('oneshot', g),
          'dwell-ms': lambda ms: ('dwell', 1e-3 * ms),
@@ -255,12 +269,25 @@ FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*'
             for name in ('query-nearest-affordance', 'slot-surface-normal', 'slot-estimated-mu')}}
 
 
+def _bindings(names):
+    """A let's (name, form) pairs, `[a 1 b 2]` or Common Lisp's `((a 1) (b 2))`."""
+    return [tuple(b) for b in names] if isinstance(names, list) else list(zip(names[::2], names[1::2]))
+
+
 def _let(args, env):
     env = dict(env)
-    names = args[0]
-    for name, form in zip(names[::2], names[1::2]):
+    for name, form in _bindings(args[0]):
         env[name] = value(form, env)
     return [value(form, env) for form in args[1:]][-1]
+
+
+def _call(fn, args, env):
+    """Defun `fn` on its evaluated `args`, positional; an optional one missing takes its default."""
+    inner = dict(env)
+    for k, p in enumerate(q for q in fn.params if q not in LAMBDA):
+        name, default = (p[0], p[1]) if isinstance(p, list) else (p, None)
+        inner[name] = args[k] if k < len(args) else value(default, inner)
+    return [value(form, inner) for form in fn.body][-1]
 
 
 def _case(args, env):
@@ -342,7 +369,8 @@ def _quasi(x, env):
 
 
 #: The lisp's special forms, their arguments unevaluated.
-SPECIAL = {'let': _let, 'case': _case, '->': _threaded, 'quote': lambda a, env: _datum(a[0]),
+SPECIAL = {'let': _let, 'let*': _let, 'case': _case, 'ecase': _case, '->': _threaded,
+           'quote': lambda a, env: _datum(a[0]),
            'quasiquote': lambda a, env: _quasi(a[0], env),
            'if': lambda a, env: value(a[1] if value(a[0], env) else (a[2] if len(a) > 2 else None), env),
            'and': lambda a, env: all(value(x, env) for x in a), 'or': lambda a, env: any(value(x, env) for x in a)}
@@ -370,6 +398,8 @@ def value(x, env) -> Any:
         return _plist(x, env) if _pairs_of(x) else Law(head[1:], _law_args(x[1:], env))
     if head in FUNCS:
         return FUNCS[head](*(value(a, env) for a in x[1:]))
+    if isinstance(env.get(head), Defun):
+        return _call(env[head], [value(a, env) for a in x[1:]], env)
     return called(head, *_given(x, env), env)
 
 
@@ -411,12 +441,15 @@ def _morph(ops, env, params=()):
 
 
 def _state(clauses):
+    """A state's nodes of params; a clause of a single form, that form as data (a capsule
+    schema's pairs)."""
     g = {}
     for clause in clauses:
         nodes = ([(clause[k], clause[k + 1]) for k in range(1, len(clause), 2)] if clause[0] == ':kinematics'
                  else [(clause[0], clause[1:])])
         for at, params in nodes:
-            g[node(at)] = {p: value(v, {}) for k, v in _pairs(params) for p in SPLIT.get(k, (k,))}
+            g[node(at)] = (_datum(params[0]) if len(params) == 1
+                           else {p: value(v, {}) for k, v in _pairs(params) for p in SPLIT.get(k, (k,))})
     return dict(g, _trace=[], _events=[])
 
 
@@ -441,14 +474,15 @@ DEFINE = {
     'defcontact-patch': lambda env, f: {f[1]: {str(c[1]).lstrip(':'): _plist(c[2:], env) for c in f[2:]}},
     'define-residual-grammar': lambda env, f: {f[1]: tuple(_plist(c, env) for c in f[2:])},
     'defdaemon': lambda env, f: {f[1]: dict(_pairs(f[3:]), params=f[2])},
+    'defparameter': lambda env, f: {f[1]: value(f[2], env)}, 'defun': lambda env, f: {f[1]: Defun(f[1], f[2], f[3:])},
 }
 
 
 def read(paths, texts=None):
     """{name: what it defines} of lisp files `paths` in order, each `texts`' ({key: text}) where given
     (`ortho.source`): constants as {param: value}, states and patches as gaits, stages, transitions,
-    a schedule as compile-to-soa's keys."""
-    env = {}
+    a schedule as compile-to-soa's keys, functions as Defuns."""
+    env: dict[str, Any] = dict(CONSTANTS)
     for path in paths:
         for form in patch.forms(ortho.source(path, texts)):
             if form[0] not in DEFINE:

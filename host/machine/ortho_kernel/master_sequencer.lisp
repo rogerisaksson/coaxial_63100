@@ -1,10 +1,10 @@
-;; =============================================================================
-;; FILE: master_sequencer.lisp
-;; DOMAIN: Phase-Locked Multiband Crossfade & Full Autonomous Lifecycle SoA
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 2.9: master_sequencer
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.sequencer
   (:use :ortho-dsp.core
         :ortho-dsp.aba-dynamics
+        :ortho-dsp.body-schema
         :ortho-dsp.transducers
         :ortho-dsp.regimes
         :ortho-dsp.autonomics
@@ -14,6 +14,8 @@
         :ortho-dsp.pivots
         :ortho-dsp.blind-fields
         :ortho-dsp.agnostic-xforms
+        :ortho-dsp.somatic-core
+        :ortho-dsp.somatic-xforms
         :ortho-dsp.manipulation
         :ortho-dsp.nav-core
         :ortho-dsp.nav-envs
@@ -23,17 +25,14 @@
         :ortho-dsp.affordance-xforms
         :ortho-dsp.power-thermal
         :ortho-dsp.supervisor
+        :ortho-dsp.lowering
         :ortho-dsp.autotuner)
   (:export #:phase-locked-multiband-morph
            #:compile-complete-humanoid-soa))
 (in-package :ortho-dsp.sequencer)
 
-;; Staged Sub -> Mid -> High Multiband Transition Sequencer
 (deftransition phase-locked-multiband-morph [source-state target-state &key (bars 2)]
-  (sync-trigger
-    :wait-for :double-support-zero-crossing
-    :lock-zmp-margin-mm 18.0
-    :duration-bars bars)
+  (sync-trigger :wait-for :double-support-zero-crossing :lock-zmp-margin-mm 18.0 :duration-bars bars)
   (pll-clock-slew
     :curve :hermite-s-curve
     :bpm-ramp  [(get-bpm source-state)  -> (get-bpm target-state)]
@@ -41,71 +40,53 @@
     :window-bars [0.0 -> 1.0])
   (band-split-crossfade
     (sub-band  :nodes [:tarsal-coronal :tarsal-sagittal :calcaneus :tibiofemoral]
-               :curve :equal-power
-               :window-bars [0.0 -> 1.0]
-               :enforce-guard :min-coronal-clearance-mm)
+               :curve :equal-power :window-bars [0.0 -> 1.0] :enforce-guard :min-coronal-clearance-mm)
     (mid-band  :nodes [:sacroiliac-z :iliac-coronal :glenohumeral :cubital]
-               :curve :logarithmic-swell
-               :window-bars [0.5 -> 1.5]
-               :enforce-guard :min-normal-fz-ratio)
+               :curve :logarithmic-swell :window-bars [0.5 -> 1.5] :enforce-guard :min-normal-fz-ratio)
     (high-band :nodes [:l4-l5-lumbar :c7-t12-thoracic :c1-c2-atlas :craniofacial]
-               :curve :exponential-fast
-               :window-bars [0.75 -> 2.0])))
+               :curve :exponential-fast :window-bars [0.75 -> 2.0])))
 
-;; Full Autonomous Humanoid Schedule:
-;; Wilderness -> Rural -> Urban -> Cluttered Apartment -> Clear Blocking Chair ->
-;; Blind Sit & Lie in Bed (High-Z) -> Assisted Egress -> Reorient Chair & Lounge
 (defpatch compile-complete-humanoid-soa
-  (let [forest-traverse (-> nominal-biped-gait
-                            (transducer-viscoelastic-flat)
-                            (xform-balance-biped-zmp)
-                            (xform-perceptual-slam-base)
-                            (specialize-with-affordance-field-projection)
-                            (xform-geodesic-wayfinder-base :goal-xyz [250.0 80.0 12.0])
-                            (specialize-env-dense-forest)
-                            (specialize-with-tactile-foliage-parting :yield-force-threshold-n 18.0)
-                            (limiter-high-mu-planar)
-                            (master-anti-spasm-insert))
+  (let [door-and-room-nav (-> nominal-biped-gait
+                              (transducer-viscoelastic-flat)
+                              (xform-balance-biped-zmp)
+                              (xform-perceptual-slam-base)
+                              (specialize-with-affordance-field-projection)
+                              (xform-geodesic-wayfinder-base :goal-xyz [4.5 -1.2 0.0])
+                              (specialize-env-cluttered-interior)
+                              (limiter-high-mu-planar)
+                              (master-anti-spasm-insert))
 
-        urban-ice-walk  (-> nominal-biped-gait
-                            (transducer-viscoelastic-flat)
-                            (regime-coronal-catwalk :axial-profile :thoracic-kyphotic)
-                            (xform-balance-biped-zmp)
-                            (xform-perceptual-slam-base)
-                            (specialize-with-dynamic-agent-bifurcation :prediction-horizon-s 2.5)
-                            (xform-geodesic-wayfinder-base :goal-xyz [85.0 15.0 0.0])
-                            (specialize-env-urban-streetscape :crowd-density :moderate)
-                            (limiter-low-mu-shear)
-                            (master-anti-spasm-insert))
+        shove-and-high-sit (-> door-and-room-nav
+                               (xform-situational-affordance-engine :intent :sit-on-fixture)
+                               (specialize-with-autonomous-obstacle-relocation :clearance-margin-mm 320.0)
+                               (specialize-with-bidirectional-postural-chaining)
+                               (release-impedance-wavefront :terminal-mode :seated-active-rest)
+                               (master-anti-spasm-insert))
 
-        room-bed-rest   (-> nominal-biped-gait
-                            (transducer-unshod)
-                            (xform-balance-biped-zmp)
-                            (xform-situational-affordance-engine :intent :lie-supine-on-fixture)
-                            (specialize-env-cluttered-interior)
-                            (specialize-with-autonomous-obstacle-relocation :clearance-margin-mm 320.0)
-                            (specialize-with-bidirectional-postural-chaining)
-                            (limiter-high-mu-planar)
-                            (master-anti-spasm-insert))
+        dismount-to-bed    (-> shove-and-high-sit
+                               (xform-situational-affordance-engine :intent :lie-supine-on-fixture)
+                               (specialize-with-bidirectional-postural-chaining)
+                               (master-anti-spasm-insert))
 
-        egress-to-chair (-> room-bed-rest
-                            (xform-situational-affordance-engine :intent :sit-on-fixture)
-                            (specialize-with-assistive-egress-bracing :max-brace-load-share 0.20)
-                            (specialize-env-cluttered-interior)
-                            (specialize-with-furniture-pose-alignment :preferred-room-gaze-yaw-rad 0.0)
-                            (specialize-with-bidirectional-postural-chaining)
-                            (specialize-with-contralateral-leg-cross :cross-leg :left)
-                            (limiter-high-mu-planar)
-                            (master-anti-spasm-insert))]
+        wake-and-stairs    (-> dismount-to-bed
+                               (xform-situational-affordance-engine :intent :bipedal-upright)
+                               (specialize-with-assistive-egress-bracing :max-brace-load-share 0.22)
+                               (specialize-with-bidirectional-postural-chaining)
+                               (xform-somatic-stair-traversal :nominal-riser-dz-mm +175.0 :nominal-tread-dx-mm 280.0)
+                               (specialize-stair-descent-eccentric :riser-drop-mm -175.0 :tread-depth-mm 280.0)
+                               (specialize-with-wall-or-banister-skim :side :right)
+                               (limiter-high-mu-planar)
+                               (master-anti-spasm-insert))]
 
     (compile-to-soa
       :align-bytes 64
-      :sample-rate-hz 1000
+      :sample-rate-hz 1000.0
+      :target-bank :primary-bank-a
       :schedule
-        [(bars 0  16 forest-traverse)
-         (bars 16 18 (phase-locked-multiband-morph forest-traverse urban-ice-walk :bars 2))
-         (bars 18 32 urban-ice-walk)
-         (bars 32 34 (phase-locked-multiband-morph urban-ice-walk room-bed-rest :bars 2))
-         (oneshot    room-bed-rest)
-         (dwell-ms   10000)
-         (oneshot    egress-to-chair)])))
+        [(bars 0 8  door-and-room-nav)
+         (oneshot   shove-and-high-sit)
+         (dwell-ms  4000)
+         (oneshot   dismount-to-bed)
+         (dwell-ms  8000)
+         (oneshot   wake-and-stairs)])))

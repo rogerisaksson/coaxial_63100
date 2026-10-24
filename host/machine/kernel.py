@@ -33,7 +33,13 @@ MECHANISMS = {
     'modulate-nullspace-oscillator': 'respiration', 'inject-stochastic-com-drift': 'postural-sway',
     'apply-zero-velocity-dither': 'stiction-dither',
     'bind-reachability-foliation': 'reachability', 'configure-sliding-manifold-regime': 'coulomb-slide',
-    'drive-hamiltonian-step-cycle': 'step-energy', 'splice-somatic-object-interaction': 'somatic-shove'}
+    'drive-hamiltonian-step-cycle': 'step-energy', 'splice-somatic-object-interaction': 'somatic-shove',
+    'compute-dynamic-voltage-torque-envelope': 'bemf-envelope', 'compute-smooth-capsule-distances': 'clearance-field',
+    'inflate-capsules-by-stopping-distance': 'braking-cocoon', 'inject-second-order-ecbf-constraints': 'ecbf-shield',
+    'modulate-ecbf-permeability-mask': 'ecbf-permeability', 'attach-dynamic-capsule-to-schema': 'payload-capsule',
+    'configure-self-collision-barriers': 'self-collision', 'bind-nullspace-evasion-synergies': 'limb-retraction',
+    'maintain-out-of-frustum-ecbf-anchors': 'blindspot-memory', 'bind-unexpected-wrench-recoil': 'surprise-reflex',
+    'modulate-wayfinder-aperture-width': 'payload-aperture', 'run-quadrature-goertzel-probe': 'phase-margin'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 

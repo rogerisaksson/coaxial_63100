@@ -1,7 +1,6 @@
-;; =============================================================================
-;; FILE: centroidal_wrench_bus.lisp
-;; DOMAIN: SE(3)* Dual-Adjoint Wrench Homotopy, Poinsot Ray & Null-Space Engine
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 1.8: centroidal_wrench_bus
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.balance-core
   (:use :ortho-dsp.core
         :ortho-dsp.aba-dynamics)

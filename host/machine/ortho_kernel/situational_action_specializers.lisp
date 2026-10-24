@@ -1,7 +1,6 @@
-;; =============================================================================
-;; FILE: situational_action_specializers.lisp
-;; DOMAIN: Composable Situational Behaviors (Clear Obstacles, Sit->Lie, Egress)
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 2.6: situational_action_specializers
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.affordance-xforms
   (:use :ortho-dsp.core
         :ortho-dsp.balance-core
@@ -9,7 +8,10 @@
         :ortho-dsp.pivots
         :ortho-dsp.blind-fields
         :ortho-dsp.agnostic-xforms
+        :ortho-dsp.somatic-core
+        :ortho-dsp.somatic-xforms
         :ortho-dsp.nav-core
+        :ortho-dsp.nav-envs
         :ortho-dsp.perception-core
         :ortho-dsp.perception-xforms
         :ortho-dsp.affordance-core)
@@ -34,21 +36,13 @@
 (defmodifier specialize-with-autonomous-obstacle-relocation
   [situational-state &key (clearance-margin-mm 280.0)]
   (-> situational-state
-      (when-funnel-active :bimanual-object-coupled
+      (when-funnel-active :somatic-object-coupled
         (-> situational-state
             (xform-geodesic-wayfinder-base :goal-xyz (:active-obstacle-grasp-datum))
-            (drive-appendage-admittance
-              :nodes [:glenohumeral :cubital :palmar-carpal-l :palmar-carpal-r]
-              :target-attractor (:active-obstacle-handle-se3)
-              :latch-grip-force-n 28.0)
-            (splice-manipulated-object-adjoint
-              :object-slot :active-occluding-quadric
-              :transport-mode :auto-slide-or-lift)
-            (xform-geodesic-wayfinder-base
-              :goal-xyz (:compute-non-occluding-parking-pocket :margin-mm clearance-margin-mm))
-            (release-bimanual-coupling
-              :verify-object-static-fz true
-              :update-registry-pose true)))))
+            (xform-somatic-furniture-shove
+              :shove-technique :ulnar-backrest-hook
+              :clearing-offset-xy-mm (:compute-non-occluding-parking-pocket :margin-mm clearance-margin-mm))
+            (release-bimanual-coupling :verify-object-static-fz true :update-registry-pose true)))))
 
 (defmodifier specialize-with-furniture-pose-alignment
   [situational-state &key (preferred-room-gaze-yaw-rad 0.0) (min-legroom-x-mm 420.0)]
@@ -69,23 +63,20 @@
           ((:from :bipedal-upright :to :ischial-seated
              :execute (-> (lock-horizon-gaze)
                           (pivot-single-anchor-arc :target-yaw-rad (:target-quadric-anterior-yaw))
-                          (xform-blind-posterior-settle)
-                          (specialize-with-tactile-arm-sweep)
-                          (specialize-with-reactive-capture-step)))
+                          (xform-somatic-sit-ingress)
+                          (specialize-for-overheight-seat :direction :ingress :slide-speed-mps 0.16)
+                          (specialize-with-carpal-seat-boost :max-arm-push-share 0.20)
+                          (specialize-with-tactile-arm-sweep)))
 
            (:from :ischial-seated :to :dorsal-supine
-             :execute (-> (xform-blind-recumbent-flow)
-                          (specialize-with-viscoelastic-sink-compensation)
-                          (release-impedance-wavefront :terminal-mode :supine-high-z)))
+             :execute (-> (xform-somatic-bed-ingress)))
 
            (:from :dorsal-supine :to :ischial-seated
-             :execute (-> (wake-inverter-closed-loop)
-                          (xform-balance-supine-to-biped :ascent-ms 850.0)
-                          (configure-momentum-observer)))
+             :execute (-> (xform-somatic-bed-egress)))
 
            (:from :ischial-seated :to :bipedal-upright
-             :execute (-> (xform-balance-supine-to-biped :ascent-ms 950.0)
-                          (ignite-cyclic-clock nominal-biped-gait :bars 1)))))))
+             :execute (-> (specialize-for-overheight-seat :direction :egress :slide-speed-mps 0.15)
+                          (xform-somatic-sit-egress)))))))
 
 (defmodifier specialize-with-assistive-egress-bracing
   [situational-state &key (max-brace-reach-mm 680.0) (max-brace-load-share 0.25)]
@@ -97,7 +88,7 @@
           (when-modifier brace-candidate
             (splice-auxiliary-manifold
               :patch-id :opportunistic-egress-brace
-              :anatomical-frames [:palmar-carpal-l :palmar-carpal-r]
+              :anatomical-frames [:carpal-heel-l :carpal-heel-r :ulna-distal-l :ulna-distal-r]
               :surface-normal (slot-surface-normal brace-candidate)
               :mu (slot-estimated-mu brace-candidate)
               :weight-law (:wrench-proportional :max-share max-brace-load-share)))))))

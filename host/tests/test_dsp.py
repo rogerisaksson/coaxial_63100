@@ -61,46 +61,64 @@ def test_the_suite_reads_as_written(report):
 
 def test_the_kernel_reads_whole(report):
     """The dual-domain kernel's texts (machine/ortho_kernel/) evaluated, each op its mechanism's
-    node: the room's schedule; the bed's gait with its bus, bands and registry, its relocation
-    gated on its funnel; each funnel's executor run from her nominal, the sit's blind settle at the
-    observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18 mm."""
+    node: the room's schedule; the room's walk with its bus, bands, body schema and shield; the
+    stool's shove gated on its funnel, each funnel's executor run from her nominal, the sit's blind
+    settle at the observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18
+    mm, its slide; the stairs; the lowering's own functions evaluated as written."""
+    import math
     from machine import dsp
     got = dsp.read(dsp.KERNEL)
     plan = dsp.schedule(got['compile-complete-humanoid-soa'])
-    report.check('the room schedule: 16 bars of forest, a morph, ice to 32, a morph, the bed, 10 s, the chair',
-                 [p[0] for p in plan] == [0.0, 16.0, 18.0, 32.0, 'oneshot', 'dwell', 'oneshot']
-                 and isinstance(plan[1][2], dsp.Morph) and plan[5][1] == 10.0, str([p[:2] for p in plan]))
-    bed = plan[4][1]
-    report.check('the bed: its bus 48 / 56.5 / 60 V, bands cut at 260 and 980 mm, 256 quadrics, relocation gated',
-                 (bed['dc-bus']['nominal-voltage-v'], bed['dc-bus']['bleed-threshold-v'], bed['dc-bus']['max-voltage-v'])
+    report.check('the room schedule: 8 bars of the room, the stool, 4 s, the bed, 8 s, the stairs',
+                 [p[0] for p in plan] == [0.0, 'oneshot', 'dwell', 'oneshot', 'dwell', 'oneshot']
+                 and plan[0][1] == 8.0 and (plan[2][1], plan[4][1]) == (4.0, 8.0), str([p[:2] for p in plan]))
+    room = plan[0][2]
+    omega = 2.0 * 3.14159265 * 11.0
+    report.check('the room: its bus 48 / 56.5 / 60 V, bands cut at 260 and 980 mm, the shield at 11 Hz, 1.05, '
+                 'the cocoon 14 mm, shins 32 mm clear, the margin probed at 15-38 Hz',
+                 (room['dc-bus']['nominal-voltage-v'], room['dc-bus']['bleed-threshold-v'], room['dc-bus']['max-voltage-v'])
                  == (48.0, 56.5, 60.0)
-                 and [s.args['z-window-mm'] for s in bed['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
-                 and got['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'] == 256.0
-                 and bed['_gates'][0][0] == 'when-funnel-active' and 'object-coupling' in bed['_gates'][0][2],
-                 str(bed['_gates']))
-    report.check('the manifolds: five patches, the soles 0.80 mu', len(got['anatomical-manifold-registry']) == 5
-                 and got['anatomical-manifold-registry']['plantar-bilateral']['default-mu'] == 0.80, '')
+                 and [s.args['z-window-mm'] for s in room['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
+                 and _near(room['ecbf-shield']['position-gain-kp'], omega * omega)
+                 and _near(room['ecbf-shield']['velocity-gain-kd'], 2.0 * 1.05 * omega)
+                 and room['braking-cocoon']['base-margin-m'] == 0.014
+                 and room['foothold']['crural-capsule-fk-guard']['min-shin-clearance-m'] == 0.032
+                 and room['phase-margin']['probe-frequencies-hz'] == (15.0, 22.0, 30.0, 38.0), str(room['ecbf-shield']))
+    schema = got['anatomical-capsule-schema']
+    report.check('the body schema: 18 capsules and 4 payload slots, LSE at 25, 13 pairs; eight manifolds, the soles 0.80 mu',
+                 len(schema['capsules']) == schema['memory-layout']['num-body-capsules'] == 18.0
+                 and schema['memory-layout']['num-payload-slots'] == 4.0 and len(schema['self-collision-pairs']) == 13
+                 and len(got['anatomical-manifold-registry']) == 8
+                 and got['anatomical-manifold-registry']['plantar-bilateral']['default-mu'] == 0.80
+                 and got['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'] == 256.0, str(schema['memory-layout']))
+    stool = plan[1][1]
+    report.check('the stool: the shove gated on its funnel, 18 N on the chair, its payload spliced',
+                 stool['_gates'][0][:2] == ('when-funnel-active', ':somatic-object-coupled')
+                 and {'somatic-shove', 'payload-capsule'} <= set(stool['_gates'][0][2])
+                 and stool['somatic-shove']['unilateral-contact-maintenance']['min-normal-bias-n'] == 18.0, str(stool['_gates']))
     runs = {(t['from'], t['to']): dsp.run(t['execute'], got['nominal-biped-gait'])
-            for t in bed['funnel-executors']['transitions']}
+            for t in stool['funnel-executors']['transitions']}
     sit = runs[(':bipedal-upright', ':ischial-seated')]
-    report.check("each executor runs; the sit's observer 35 Hz, weights 4.5 / 45 per s, barrier 14 /s 18 mm",
+    report.check("each executor runs; the sit's observer 35 Hz, weights 4.5 / 45 per s, barrier 14 /s 18 mm, "
+                 "slid at 0.16 m/s under 0.55 of her, her leg 890 mm",
                  len(runs) == 4 and sit['momentum-observer']['filter-cutoff-hz'] == 35.0
                  and sit['manifold-weights']['asymmetric-slew'] == {'attack-rate': 4.5, 'release-rate': 45.0}
-                 and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0),
-                 str(sit['manifold-weights']))
-    somatic = dsp.schedule(got['compile-somatic-interaction-soa'])
-    mount = somatic[0][1]
-    report.check('the somatic schedule: the stool, 4 s, the bed, 8 s, the stairs; the stool slid onto at 0.16 m/s '
-                 'under 0.55 of her, the chair shoved at 18 N, her leg 890 mm',
-                 [p[0] for p in somatic] == ['oneshot', 'dwell', 'oneshot', 'dwell', 'oneshot']
-                 and mount['coulomb-slide']['tangent-velocity-attractor'][0] == -0.16
-                 and mount['coulomb-slide']['normal-load-governor']['cap-fz-ratio'] == 0.55
-                 and mount['somatic-shove']['unilateral-contact-maintenance']['min-normal-Bias-n'] == 18.0
-                 and mount['reachability']['nominal-max-length-mm'] == 890.0, str([p[0] for p in somatic]))
-    egress = plan[6][1]
-    brace = egress['adjoint-cones']['opportunistic-egress-brace']
-    report.check("the egress's brace: a hand's cone on what her registry finds within 680 mm",
-                 isinstance(brace['mu-static'], dsp.Law) and brace['mu-static'].name == 'slot-estimated-mu', str(brace))
+                 and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0)
+                 and sit['coulomb-slide']['tangent-velocity-attractor'][0] == -0.16
+                 and sit['coulomb-slide']['normal-load-governor']['cap-fz-ratio'] == 0.55
+                 and sit['reachability']['nominal-max-length-mm'] == 890.0, str(sit['manifold-weights']))
+    stairs = plan[5][1]
+    brace = stairs['adjoint-cones']['opportunistic-egress-brace']
+    report.check("the stairs at 90 BPM, down 175 mm 38 mm clear of the nosing; the egress's brace on what her "
+                 "registry finds within 680 mm",
+                 stairs['oscillator']['bpm'] == 90.0 and stairs['step-energy']['elevation-delta-mm'] == -175.0
+                 and stairs['step-energy']['nosing-radial-guard-mm'] == 38.0
+                 and isinstance(brace['mu-static'], dsp.Law) and brace['mu-static'].name == 'slot-estimated-mu', str(brace))
+    b0, b1, b2, a1, a2 = dsp.value(['precompute-tustin-biquad', ':lowpass', 42.0, 0.70710678], got)
+    s1, s2 = dsp.value(['seed-bumpless-biquad-states', b0, b1, b2, a1, a2, 0.3], got)
+    report.check("the lowering's biquad as written: unity at DC, seeded on 0.3 its first output 0.3",
+                 _near(b0 + b1 + b2, 1.0 + a1 + a2) and math.isclose(b0 * 0.3 + s1, 0.3, rel_tol=1e-6)
+                 and got['*abi-field-descriptors*'][0] == (':bpm', 0.0, 0.016666668, 0.0, 4.0), '%r' % ((b0, b1, b2, a1, a2),))
 
 
 def test_the_maneuvers_read_as_written(report):

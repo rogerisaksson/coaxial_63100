@@ -1,7 +1,6 @@
-;; =============================================================================
-;; FILE: kinematic_regimes.lisp
-;; DOMAIN: Cyclic Locomotion Topologies (Coronal Line, Ballistic SLIP, Stairs)
-;; =============================================================================
+;; -----------------------------------------------------------------------------
+;; MODULE 1.5: kinematic_regimes
+;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.regimes
   (:use :ortho-dsp.core)
   (:export #:regime-coronal-catwalk
@@ -15,34 +14,20 @@
         target-tr-w (* 0.44 foot-w)
         req-bow-mm  (+ (- foot-w target-tr-w) 7.5)]
     (-> gait
-        (quantize-grid
-          :bpm (:scale 1.03636)
-          :stance-duty-pwm (:add -0.04)
-          :swing-gate (if (> pitch-bias 0.3) 0.0 0.04)
-          :strip-jitter true)
+        (quantize-grid :bpm (:scale 1.03636) :stance-duty-pwm (:add -0.04)
+                       :swing-gate (if (> pitch-bias 0.3) 0.0 0.04) :strip-jitter true)
         (modulate-node :tibiofemoral
           :flexion-cushion-rad (if (> pitch-bias 0.3) (:set 0.0) (:set 0.14))
           :compliance          (if (> pitch-bias 0.3) (:set 0.0) (:set 0.45)))
         (mid-side-rebalance
-          :narrow-stereo (:node :tarsal-coronal
-                          :track-width-mm target-tr-w
+          :narrow-stereo (:node :tarsal-coronal :track-width-mm target-tr-w
                           :swing-circumduction-mm req-bow-mm
-                          :circumduction-window-phase [0.10 -> 0.40]
-                          :circumduction-shape :raised-cosine)
-          :stereo-mod    (:node :iliac-coronal
-                          :wave :sine-fundamental
-                          :lfo-amp-rad (:scale 1.92)
-                          :stereo-width 0.60))
+                          :circumduction-window-phase [0.10 -> 0.40] :circumduction-shape :raised-cosine)
+          :stereo-mod    (:node :iliac-coronal :wave :sine-fundamental :lfo-amp-rad (:scale 1.92) :stereo-width 0.60))
         (route-sidechain
-          :key-input :calcaneus
-          :target :sacroiliac-z
-          :topology :second-order-damped
-          :ratio 4.5
-          :attack-ms (:clamp-min 105.0)
-          :release-ms 260.0
-          :release-curve :logarithmic
-          :duck-depth-mm (if (> pitch-bias 0.3) -34.0 -26.0)
-          :min-fz-guard :min-normal-fz-ratio)
+          :key-input :calcaneus :target :sacroiliac-z :topology :second-order-damped
+          :ratio 4.5 :attack-ms (:clamp-min 105.0) :release-ms 260.0 :release-curve :logarithmic
+          :duck-depth-mm (if (> pitch-bias 0.3) -34.0 -26.0) :min-fz-guard :min-normal-fz-ratio)
         (apply-filter-bank
           (dc-bias         :target :l4-l5-lumbar
                            :offset-rad (case axial-profile (:thoracic-kyphotic -0.04) (:lumbar-lordotic -0.32))

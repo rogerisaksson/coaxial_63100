@@ -23,8 +23,8 @@ import numpy as np
 from machine import edge, kernel, ortho, qp
 from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
 
-#: Her manifolds: the registry's, then its somatic extensions'; her forefeet's, of her soles' points.
-MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry']) + tuple(kernel.read()['somatic-contact-patch-extensions'])
+#: Her manifolds, the registry's; her forefeet's, of her soles' points.
+MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry'])
 EQUINUS = MANIFOLDS.index('metatarsal-equinus-bilateral')
 #: Her drives' friction its loss (`drives.backdrive`, as her model has it) times tanh(v / SLIP_RAD_S)
 #: (the text's Stribeck). Measured on MuJoCo's: 0.42 of the loss at 3-10 mrad/s, 0.65 at 10-30, 0.85 at
