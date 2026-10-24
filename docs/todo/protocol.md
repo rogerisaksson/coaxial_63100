@@ -34,7 +34,12 @@ mechanism's numbers are its text's (`dsp.read(dsp.KERNEL)`); what is done:
    the swing ankle 0.36 rad down); her forearms or carpal heels pushing a
    chair at 18 N or more, lifted 25 mm past 45 N of friction. DOD: Test 5;
    Test 2.
-7. **Step 7, her map and the tuner**: a right-invariant EKF on SE_2(3)
+7. **The loop's discrete phase margin** (pitfalls): her observer's 35 Hz
+   lag, her barrier at 14 /s and her field's 43 ms on a 3 ms law pass, against
+   her gearboxes' resonances (`physics.BOXED` 1: 14.8 Hz at the ankle to 41
+   at the shoulder). DOD: each's loop gain and phase there measured, none
+   pumping energy into them.
+8. **Step 7, her map and the tuner**: a right-invariant EKF on SE_2(3)
    (`machine.inekf`: IMU, her soles' contacts by their weights), a registry
    of 256 dual quadrics from her eyes, three SDF bands at her knee, navel
    and crown, the kernel's affordances and funnels compiled into the bank
@@ -42,15 +47,15 @@ mechanism's numbers are its text's (`dsp.read(dsp.KERNEL)`); what is done:
    table swapped at the zero crossing C2. DOD: the EKF's drift against
    `estimate`'s measured; the lodge's furniture in the registry; the tuner
    converged on the room's schedule.
-8. **Test 1, door and sill**: the door ajar at 0.80 of her shoulders, a 40
+9. **Test 1, door and sill**: the door ajar at 0.80 of her shoulders, a 40
    mm bar in the doorway. DOD: her swing over the bar by the sub band, her
    chest yawed ~60 deg through by the high band, her step rate kept, the
    yaw's leak to her ankles measured.
-9. **Test 2, a chair shoved**: a chair across her way to the stool or the
-   bed. DOD: her forearms or carpal heels on it at 18 N or more, it shoved
-   out of her corridor, lifted 25 mm where the rug holds it past 45 N, its
-   slot updated.
-10. **Test 3, the stool and the pulled chair**: a stool 100-180 mm over her
+10. **Test 2, a chair shoved**: a chair across her way to the stool or the
+    bed. DOD: her forearms or carpal heels on it at 18 N or more, it shoved
+    out of her corridor, lifted 25 mm where the rug holds it past 45 N, its
+    slot updated.
+11. **Test 3, the stool and the pulled chair**: a stool 100-180 mm over her
     knees; sat on and risen from; a chair pulled away mid-pivot. Pulled as
     the seat touches her (2.0 s of the chair scene) her sit's rows
     straighten her trunk past her heels and she falls. DOD: on, her
@@ -58,12 +63,12 @@ mechanism's numbers are its text's (`dsp.read(dsp.KERNEL)`); what is done:
     her ischia centre, her feet let go; off, slid forward till her forefoot
     catches her capture point; pulled, the seat's weight 0, a squat or a
     capture step back, her gaze level, V_bus under its ceiling.
-11. **Test 4, the bed**: from the stool to the bed, slid 180 mm deeper,
+12. **Test 4, the bed**: from the stool to the bed, slid 180 mm deeper,
     rolled, high-Z, risen. DOD: the mattress's f0 within 180 ms of contact,
     its notch, no rebound; 0 A in her phases from w_dorsal 0.96; risen with
     her legs over the edge and her carpal heels pushing, her lumbar and hip
     peaks 25 % under her unbraced rise's.
-12. **Test 5, the loft stair up and down**: five steps each way, a forearm
+13. **Test 5, the loft stair up and down**: five steps each way, a forearm
     skimming the wall. DOD: up, flat-foot strikes on concentric hip and knee
     work; down, the forefoot catching each step 34 mm or more clear of its
     nosing; V_bus under its ceiling.

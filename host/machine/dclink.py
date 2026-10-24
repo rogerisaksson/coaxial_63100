@@ -1,7 +1,7 @@
 """Her DC link: her packs and her boards' capacitance under her drives' power, bled by her boards.
 
     link = dclink.laid()                       # at her packs' open-circuit volts (`drives.PACK_V`)
-    dclink.step(link, tau, speed, dt)          # her drives' torques and speeds a step on: link['v']
+    dclink.step(world, dt)                     # her drives' torques and speeds a step on: world.link['v']
 
 Each step her drives' electrical power - the work they do, braking negative, their copper, each
 board's housekeeping and switching - is drawn from her packs through their resistance; what comes
@@ -12,6 +12,8 @@ charge's limit, whichever leaves the link higher. Past the text's bleed onset
 the current its drive's peak leaves its torque's - copper heat, no torque: the text's sinks
 (SINKS), unloaded, have the most. Its sinks alone (880 W) let a hop down's landing to 60.78 V.
 """
+import math
+
 from machine import drives, heat, kernel, mechatronics
 from machine.figure import JOINTS
 from machine.supervisor import NODE_KINDS
@@ -39,9 +41,11 @@ def laid():
             'loss': ohm / (kt * kt), 'house_w': len(DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)}
 
 
-def step(link, tau, speed, dt):
-    """The link `dt` s on under her drives' torques `tau` and speeds `speed` (JOINTS order)."""
+def step(world, dt):
+    """`world`'s link `dt` s on under her drives' torques and speeds; her boards' current loops on
+    their buses driven from it (their back-EMF's headroom, `buses`)."""
     import numpy as np
+    link, tau, speed = world.link, world.motor, world.data.qvel[world.vadr]
     v = link['v']
     spare = np.sqrt(np.maximum(link['amps'] ** 2 - (tau / link['kt']) ** 2, 0.0))
     link['id'] = spare * np.clip((v - ONSET_V) / (CLAMP_V - ONSET_V), 0.0, 1.0)
@@ -52,4 +56,6 @@ def step(link, tau, speed, dt):
     link['v'] = max(linear, limited)
     link['peak'] = max(link['peak'], link['v'])
     link['bled'] += bleed * dt
+    if world.buses is not None:
+        world.block.volts[0] = link['v'] / math.sqrt(3.0)
     return link

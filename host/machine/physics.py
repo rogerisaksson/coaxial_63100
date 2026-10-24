@@ -346,7 +346,7 @@ class World:
             if BOXED:
                 self.boxes.moved(d.qpos[self.qadr])
             self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if BOXED else None, STEP_S)
-            dclink.step(self.link, self.motor, d.qvel[self.vadr], STEP_S)
+            dclink.step(self, STEP_S)
             if self.laced:
                 self._unlace()
             if ROOM:
