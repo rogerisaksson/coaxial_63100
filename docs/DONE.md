@@ -307,15 +307,14 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     broken at a drive's torque; a known loop read within 0.11 dB and 1.7 deg;
     her gearboxes in, her hip's loop at 22 Hz past 0 dB with 25 deg
     ([kernel](findings/kernel.md)).
-60. Her shield on the room (`machine.schema`, `machine.capsules`): her
-    things as boxes, each one's patches by the kernel's affordance kernels,
-    open by the approach window where her rows schedule, her observer or her
-    skin feels them; her arms held off them by their elbows, 0.54 ms a pass
-    on the lodge ([kernel](findings/kernel.md)).
-61. The wayfinder (`machine.wayfinder`, `tools/sim/doorway.py`): her route's
-    flow bent by the rows her shield holds, her trunk twisted through the gap
-    0.6 s ahead; the lodge's door ajar at 0.8 of her shoulders passed, her
-    waist 28 deg, her arms 55 mm clear ([kernel](findings/kernel.md)).
+60. Her things as the room's boxes (`machine.schema`, `machine.capsules`
+    the kernel's capsules apart); her arms' shield against them through their
+    elbows tried and undone: at a doorway's jamb it spared no strike and
+    halved her shoulder's yield ([kernel](findings/kernel.md)).
+61. The wayfinder's gauge (`machine.wayfinder`, `tools/sim/doorway.py`): her
+    trunk twisted through the gap 0.6 s ahead; the lodge's door ajar at 0.8
+    of her shoulders passed, her waist 28 deg, her arms 55 mm clear
+    ([kernel](findings/kernel.md)).
 62. Her map (`machine.registry`): the kernel's 256 slots of what her looks
     told her within her eyes' frustum, a thing matched to a slot of its kind
     within its position's precision, weighed by the text's log-odds, blind

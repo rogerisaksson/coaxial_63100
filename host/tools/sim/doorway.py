@@ -4,8 +4,8 @@
 
 The lodge's door locked open as far as leaves `gap` of her shoulders (`wayfinder.NOMINAL`) between its
 free edge and the far post, her exit said from inside; each 10 ms: how far from the doorway's line,
-her trunk's twist off her heading (her waist), her gauge, her forearms' and upper arms' least clearance
-to the door, the post and the sill, her swing sole over the sill; her fall.
+her trunk's twist off her heading (her waist), her forearms' and upper arms' least clearance to the
+door; her fall.
 """
 import argparse
 import math
@@ -13,6 +13,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+#: The points along a capsule's axis its clearance is read at.
+STEPS = 50
 
 
 def ajar(world, gap, nominal):
@@ -29,8 +32,20 @@ def ajar(world, gap, nominal):
     return angle
 
 
+def clearance(caps, k, box):
+    """m capsule `k` of `caps` (`capsules.laid`) clears `box` (centre, half sizes, rotation): its axis
+    sampled STEPS times, each point's distance to the box less the radius there, the least."""
+    import numpy as np
+    centre, half, R = (np.asarray(v, float) for v in box)
+    s = np.linspace(0.0, 1.0, STEPS)[:, None]
+    p = caps['p0'][k] + s * (caps['p1'][k] - caps['p0'][k])
+    local = (p - centre) @ R
+    out = local - np.clip(local, -half, half)
+    return float((np.sqrt((out * out).sum(1)) - (caps['r0'][k] + s[:, 0] * (caps['r1'][k] - caps['r0'][k]))).min())
+
+
 def run(gap, seconds, x=0.75, z=2.2):
-    from machine import bemf, capsules, room, schema, wayfinder
+    from machine import bemf, capsules, room, wayfinder
     from tools.sim.house import Watch
     w = Watch(x, z, 0.0)
     angle = ajar(w.world, gap, wayfinder.NOMINAL)
@@ -38,11 +53,11 @@ def run(gap, seconds, x=0.75, z=2.2):
     worker.apply(w.s, {'say': 'exit_door'})
     rows, g = [], w.g
     t0 = g['t']
+    door = next(p[1:4] for p in w.world.props() if p[0] == 'door')
 
     def read(_w):
-        held = (g.get('schema') or {}).get('room')
-        pairs, dist = (held['pairs'], held['d']) if held else ([], [])
-        arms = [float(dd) for (c, _b), dd in zip(pairs, dist) if capsules.NAMES[c].startswith(('forearm', 'upper-arm'))]
+        caps = capsules.laid(capsules.posed(g['body'], g['schema_d'], g['s']), g['schema_at'])
+        arms = [clearance(caps, k, door) for k, n in enumerate(capsules.NAMES) if n.startswith(('forearm', 'upper-arm'))]
         q = w.world.data.qpos
         rows.append((round(g['t'] - t0, 2), round(room.TO - float(q[2]), 3),
                      round(math.degrees(float(g['s']['q'][bemf.DRIVEN.index('waist')])), 1),

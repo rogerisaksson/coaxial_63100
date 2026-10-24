@@ -192,7 +192,7 @@ def control(g, dt):
     dq, imp = _step_modal(g, s, y, y_in, out)
     w_back = float(g.get('_w_back', 0.0))
     imp[modal.HEADED][1] += w_back * (float(g.get('_backing_yaw', 0.0)) - imp[modal.HEADED][1])
-    boxes, gauge = wayfinder.gauged(g, told, s, y_in)
+    gauge = wayfinder.gauged(g, s)
     imp[modal.HEADED][1] += gauge
     sr = surety(g, dt * ev)
     bw = max(0.0, 1.0 - (sr / 0.58) ** 4) ** 2
@@ -215,8 +215,7 @@ def control(g, dt):
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
                                     (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt)
     ask['posture'][g['head_idx']] -= gauge
-    ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'],
-                                                  boxes)
+    ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'])
     ask['mu'] = g['held']
     arms = [modal.ARMS, modal.REACH]
     ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))

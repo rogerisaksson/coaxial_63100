@@ -176,14 +176,16 @@ braking distance through `machine.bemf`.
 
 ## The room on her shield
 
-`machine.schema`'s room: her things (`world.props()`, her eyes' stand-in, read
-at the text's 120 Hz) as boxes; each box's patches by the text's affordance
-kernels (a seat her ischia and thighs', a bed her back and hips', a table's
-edge or a chair's back her forearms' and palms', a step her soles'), open to a
-capsule's by the approach window as far as her rows schedule the patch, her
-observer feels it, or her skin feels the capsule's segment; her arms' capsules
-alone (the text's limb synergies on her own side: an elbow), the rest her
-balance bus's and her footholds'.
+Her things (her map's boxes, read at the text's 120 Hz) against her arms'
+capsules through their elbows alone (the text's limb synergy she has), each
+box's patches by the text's affordance kernels, open by the approach window
+where scheduled or felt: tried and undone. At the doorway's jambs
+(test_errands' measure, deterministic) her arm struck at 95.5 N with it and
+94.0 without on the left, 240 and 208 on the right; her shoulder yielded
+-0.31 rad with it where -0.53 without on the left (the test's -0.40), -0.75
+where -0.56 on the right: the elbow spared no strike and halved a yield. The
+room's boxes stay her gauge's (`machine.wayfinder`); the text's shield holds
+her trunk by her balance bus and her legs by her footholds, neither hers yet.
 
 - Her legs held off the room through her hips (the self-collision barriers'
   DOFs): walking into the wall at +0.2 mm her knee was held 466 passes 31 mm
@@ -226,11 +228,26 @@ model's summed innovation, past 16.27 a mover at its velocity.
   drift past 16.27 at its 28th look (0.22 s), its velocity 1.00 m/s.
 - The door ajar at 0.8 passed 3 of 3 on her map's boxes.
 
+## Her sit's dock
+
+Why she sits on the chair's front edge leaning forward (`seats.py --sim
+chair_behind sit_chair`, a human's band from the takes): her hips land 0.218 m
+behind her ankles, 0.23 legs where a human's 0.31-0.47, her trunk seated 13.1
+deg forward where within 7, her soles coming and going 14 times in 8 s.
+`seated.landed` caps her hips a buttock past the seat's edge (0.140 + 0.078 m)
+and has her thighs clear the edge where a human's rest on it. With her thighs
+let rest the press her hips land with and the cap gone: 0.29 legs, 1.5 deg,
+knee 97.7 (94-98), 6 come-and-goes - and her centre of mass at her heels'
+edge the constraint left (0.32 legs at the text's 0.75 rad lean); risen from
+the deeper seat she fell at 31.2 s where she stood in 0.94. Her rise needs
+the seat's slide forward first (the kernel's Step 4): undone till then.
+
 ## The wayfinder
 
-`machine.wayfinder`: her route's flow bent by the room rows her shield holds
-(Sherman-Morrison, eta 18.5), a word's twist untouched; her trunk twisted
-through the gap her way meets 0.6 s on among what her high band meets.
+`machine.wayfinder`: her trunk twisted through the gap her way meets 0.6 s on
+among what her high band meets; its backward coupling (her flow bent by the
+rows a shield holds against the room, Sherman-Morrison at eta 18.5) waits on
+such rows.
 
 - Her chest 364 mm across her upper arms' skin, 194 deep: a gap at 0.8 of it
   takes 73 deg of twist; 0.99, 57 (past twice atan(depth / across)); under

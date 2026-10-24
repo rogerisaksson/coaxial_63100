@@ -12,8 +12,7 @@ her figure's numbers): its own are another body's - its shank 0.41 m long and 68
 tapers from r0 at p0 to r1 at p1; two capsules' clearance is their axes' nearest points' distance
 less each's radius there. Each pair's floor is its barrier's (`configure-self-collision-barriers`, 0 a
 pair it names in no group), its evading joints its barrier's DOF on its sides; each capsule's against
-the room its synergies' (`bind-nullspace-evasion-synergies`) on its own side. Her shield on them:
-`machine.schema`.
+Her shield on them: `machine.schema`.
 """
 import os
 
@@ -80,7 +79,7 @@ FLOOR = np.array([max([g['min-clearance-m'] for g in _GROUPS
                        if {':' + NAMES[a], ':' + NAMES[b]} <= set(g['capsules'])], default=0.0) for a, b in PAIRS])
 #: The log-sum-exp's sharpness, 1/m.
 ALPHA = kernel.node('xform-universal-spatial-awareness', 'clearance-field')['aggregation-kernel'].args['alpha']
-#: The text's limb retraction: its synergies, its influence.
+#: The text's limb retraction: its influence (`machine.schema`).
 RETRACTION = kernel.node('specialize-with-nullspace-limb-retraction', 'limb-retraction')
 #: The text's evasion DOFs (its barriers' `evasion-dof`, its synergies' `repulsion-mapping`) as her
 #: joints' kinds: her shoulder only flexes, no glenohumeral abduction or adduction - a row only those
@@ -104,20 +103,8 @@ def _pair_evades(a, b):
     return _joints([g['evasion-dof'] for g in _GROUPS if {':' + a, ':' + b} & set(g['capsules'])], sides)
 
 
-def _evades(name):
-    """Her joints a capsule evades the room by: its synergies' DOFs (`bind-nullspace-evasion-synergies`)
-    on its own side - a synergy's trunk joint (her waist's yaw for an arm) is her balance's, and moved
-    by an arm rested on a chair's back it felled her rise from it."""
-    prefix = _sided(name)[1]
-    return {j for j in _joints([d for syn in RETRACTION['synergy-primitives'] if ':' + name in syn['capsules']
-                                for d in syn['repulsion-mapping']], (prefix,) if prefix else tuple(SIDES.values()))
-            if bemf.DRIVEN[j].startswith(prefix or '-')}
-
-
 #: Each pair's evading joints, a row a pair over her driven joints.
 EVADES = np.array([[i in _pair_evades(NAMES[a], NAMES[b]) for i in range(len(bemf.DRIVEN))] for a, b in PAIRS])
-#: Each capsule's evading joints against the room, a row a capsule over her driven joints.
-CAPSULE_EVADES = np.array([[i in _evades(n) for i in range(len(bemf.DRIVEN))] for n in NAMES])
 
 
 def ids(m):

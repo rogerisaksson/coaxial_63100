@@ -30,20 +30,25 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    let go; stepping down her forefoot catches.
 5. **Step 4, the Coulomb slide**: a thigh's and the seat's patch sliding at
    mu_k F_z, F_z under 0.55 of her weight, the text's 65 Hz dither, inside
-   her capture point's barrier. DOD: she slides onto and off a seat over her
-   knees, and 180 mm deeper onto the bed.
-6. **Step 5, the body schema on the room, its rest**: `machine.schema` holds
-   her pairs and her limbs off the room's boxes by their own joints, open
-   where her patches are scheduled or felt. Left: her trunk's capsules
-   against the room through her balance bus (the text's spill-over), the
-   three slabs, the 4 payload slots spliced, in C. DOD: an arm swung at a
-   table corner in her run stops short of it, 0 N m to her ankles.
-7. **Step 6, the wayfinder's rest**: `machine.wayfinder` bends her route's
-   flow by her shield's room rows and twists her trunk through the gap 0.6
-   s ahead. Left: a box held past 140 ms baked into her route's metric, a
-   gap under her contorted width marked impassable, the crural foothold
-   guard over swing 0.05-0.38. DOD: no oscillation before a doorway; a foot
-   placed off a chair's crossbar.
+   her capture point's barrier. Her chair's sit lands on its front edge for
+   want of it: `seated.landed`'s buttock cap and thigh clearance let go she
+   sits 0.29 legs back and upright, and falls rising (kernel findings, her
+   sit's dock). DOD: she slides onto and off a seat over her knees, forward
+   to its edge before her rise, and 180 mm deeper onto the bed.
+6. **Step 5, the body schema on the room**: `machine.schema` holds her
+   pairs; her arms held off the room's boxes by their elbows alone spared no
+   strike at a jamb and halved her shoulder's yield (kernel findings) -
+   undone. Left: the text's null space whole (her balance bus for her trunk
+   and shoulders, the limbs' synergies she has), the affordances' windows,
+   the three slabs, the 4 payload slots spliced, in C. DOD: an arm swung at
+   a table corner in her run stops short of it, 0 N m to her ankles, the
+   jamb's yield kept.
+7. **Step 6, the wayfinder's rest**: `machine.wayfinder` twists her trunk
+   through the gap 0.6 s ahead. Left: her flow bent by the rows a shield
+   holds against the room (item 6), a box held past 140 ms baked into her
+   route's metric, a gap under her contorted width marked impassable, the
+   crural foothold guard over swing 0.05-0.38. DOD: no oscillation before a
+   doorway; a foot placed off a chair's crossbar.
 8. **Step 6, her map's rest**: her right-invariant EKF (`machine.inekf`)
     and her registry (`machine.registry`: 45 of the lodge's 53 boxes after
     her bed errand, blind spots kept 45 s). Left: her eyes' own things

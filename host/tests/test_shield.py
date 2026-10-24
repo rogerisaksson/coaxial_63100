@@ -141,8 +141,7 @@ def test_the_shield_holds_a_closing_pair(report):
     g = s['g']
     body, st, ask, at, d = g['body'], g['s'], g['ask'], g['schema_at'], g['schema_d']
     volts = float(g['sense'][edge.LINK][0])
-    empty = schema.room((), np.zeros(len(schema.MANIFOLDS)), 0.0, np.zeros(len(capsules.NAMES)))
-    rest, info = schema.shielded(body, d, st, ask, volts, at, empty)
+    rest, info = schema.shielded(body, d, st, ask, volts, at)
     pairs = [tuple(p) for p in capsules.PAIRS.tolist()]
 
     def closing(left, right, speed):
@@ -151,7 +150,7 @@ def test_the_shield_holds_a_closing_pair(report):
         J, _rate = capsules.rows(body, d, near, capsules.PAIRS, np.array([k]), at, st['v'])
         v = st['v'] - speed * J[0] / float(J[0] @ J[0])
         moved = dict(st, v=v)
-        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at, empty)
+        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at)
     k, gap, v, moved, (posture, held) = closing('foot-shell-l', 'foot-shell-r', 4.0)
     act, rows = body.act, held['which']
     free = np.flatnonzero(capsules.EVADES[rows].any(0))
