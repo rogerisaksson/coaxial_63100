@@ -138,3 +138,25 @@ her knee where her thigh meets her shank less the text's 0.28 rad.
   her rows still descended pressed the seat, her pelvis's jerk 283 -> 490.
 - Crouched at 0.47 m the observer reads 61-99 N on the seat her skin does
   not feel; a rise said there takes the latched ghost 0.15.
+
+## Her right-invariant EKF
+
+`machine.inekf` beside her estimate: SE_2+2(3), her IMU's mean over each law
+pass carrying it, each sole's point under its insoles' centre of pressure -
+foot and toes by their loads - measured last pass and re-laid each, weighted
+by the observer's share of her on it, the text's Mahalanobis gate (11.34) a
+slide (`tools/sim/drifted.py`; m and m/s, estimate / EKF):
+
+| scene | went | floor drift | height drift | speed p90 |
+| --- | --- | --- | --- | --- |
+| walk | 7.16 | 0.060 / 0.039 | +0.041 / +0.004 | 0.026 / 0.006 |
+| turns | 3.81 | 0.038 / 0.021 | +0.049 / +0.022 | 0.025 / 0.006 |
+| moves | 3.88 | 0.037 / 0.019 | +0.080 / +0.043 | 0.028 / 0.007 |
+| strafes | 0.19 | 0.010 / 0.003 | +0.039 / +0.026 | 0.013 / 0.006 |
+
+- Its soles' points walked as the slip gate's 0.08 m/s: it took her IMU over
+  her soles, 1.02 m off in 13.5 m. Gated on 0.24 mm a pass, every contact a
+  slide: 1.41 m. Her IMU read at the pass's end, not its mean: 0.25 m/s off.
+- The foot's insole alone: her pelvis sank 0.39 m in 13.5 m as her soles
+  rolled onto her toes.
+- Her eyes' innovation (`visual-innovation-law`) is not in it.

@@ -187,7 +187,18 @@ def test_the_field_seeks_a_seat_not_found(report):
                  and abs(held[-1] - held[-10]) < 1e-3 * held[0] and gone[-1] < 1e-3 * held[0], '')
 
 
-ROSTER = (test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def test_the_invariant_ekf_drifts_less(report):
+    """Her walk (`tools/sim/drifted.py`): the right-invariant EKF's drift along the floor and in height
+    and its velocity's error each under her estimate's."""
+    from tools.sim import drifted
+    line = drifted.one('play_walk')
+    e, i = line['estimate'], line['inekf']
+    report.check('walked %.2f m: floor %.3f / %.3f, height %+.3f / %+.3f, speed %.3f / %.3f m/s' % (
+        line['went'], i['floor'], e['floor'], i['height'], e['height'], i['speed'], e['speed']),
+        i['floor'] < e['floor'] and abs(i['height']) < abs(e['height']) and i['speed'] < e['speed'], '')
+
+
+ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 

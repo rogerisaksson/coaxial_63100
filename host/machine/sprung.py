@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, field, grip, leap, observer, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -124,7 +124,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid()}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7])}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -170,6 +170,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     world.reset(figure.stand(), where=(float(where[0]), g['rest_y'], float(where[1])),
                 turn=(math.cos(0.5 * yaw), 0.0, math.sin(0.5 * yaw), 0.0))
     g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
+    g['inekf'] = inekf.laid(d.qpos[0:3], d.qpos[3:7])
     g['grip_seen'][:] = 0.0
     s = g['s'] = _sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
     hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
@@ -206,6 +207,7 @@ def passed(g, dt=0.001):
     if g['n'] % ev == 0:
         edge.read(world, y)
         observer.felt(g['observer'], y, dt)
+        inekf.felt(g['inekf'], y, dt)
         motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
         bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
@@ -216,6 +218,7 @@ def passed(g, dt=0.001):
             g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
     else:
         observer.felt(g['observer'], edge.felt(world, y), dt)
+        inekf.felt(g['inekf'], y, dt)
     motion.drives(g, dt)
     edge.drive(world, g['joints'], **g['cmd'])
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1

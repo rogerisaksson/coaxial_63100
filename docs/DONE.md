@@ -279,3 +279,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     forefoot by her soles' centre of pressure, her thighs' backs, her
     forearms' and carpal heels' shove; read against her skin walking,
     seated and lying ([kernel](findings/kernel.md)).
+54. Her right-invariant EKF on SE_2+2(3) (`machine.inekf`) beside her
+    estimate: IMU and her soles' contacts by the observer's weights; walking
+    0.039 m along the floor and 0.004 in height in 7.2 m where her estimate
+    0.060 and 0.041 (test_kernel.py, `tools/sim/drifted.py`).

@@ -172,6 +172,7 @@ class Body:
         #: chair's sit fell at 6.44 s.
         self.buffers = supervisor.buffers(names, dict(stops))
         self.feet = (m.body('left_foot').id, m.body('right_foot').id)
+        self.insoles = [m.body(n).id for n in ('left_foot', 'left_toes', 'right_foot', 'right_toes')]
         self.corners = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL)
                                  for x in (-SOLE_HALF, SOLE_HALF)])
         self.sole = np.array((0.0, -ANKLE_H, (BALL - HEEL) / 2.0))

@@ -189,7 +189,7 @@ def laid(body):
             'manifold': np.array([MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]),
             'feet': [([k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_foot'][0],
                       [k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_toes'][0]) for side in ('left', 'right')], 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
-            'u': np.zeros(body.n), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
+            'u': np.zeros(body.n), 'soles': np.zeros(2), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
             'since': np.zeros(len(ROWS)), 'gate': np.zeros(len(ROWS))}
 
 
@@ -212,19 +212,21 @@ def step(obs, body, s, qpos, dt):
     obs['step'](obs['at'], base.ctypes.data, obs['q'].ctypes.data, u.ctypes.data, dt)
     body.d.qpos[:len(qpos)] = qpos
     body.mj.mj_kinematics(body.m, body.d)
-    obs['normal'][EQUINUS] = forefoot(obs['f'], obs['cols'], obs['feet'], body.d.xmat[list(body.feet)])
+    obs['normal'][EQUINUS], obs['soles'] = forefoot(obs['f'], obs['cols'], obs['feet'], body.d.xmat[list(body.feet)])
     return obs
 
 
 def forefoot(f, cols, feet, xmat):
-    """Her forefeet's push (`metatarsal-equinus-bilateral`), N, of the points' forces `f` and her feet's
-    rotations `xmat` (2, 9): each toes' and of each sole's push the share its centre of pressure has
-    gone from the sole's middle to its ball (`figure.BALL`)."""
-    out = 0.0
-    for (sole, toes), rot in zip(feet, xmat):
+    """(her forefeet's push (`metatarsal-equinus-bilateral`), each sole's and its toes' push (2,)), N, of
+    the points' forces `f` and her feet's rotations `xmat` (2, 9): the forefeet each toes' and of each
+    sole's push the share its centre of pressure has gone from the sole's middle to its ball
+    (`figure.BALL`)."""
+    out, soles = 0.0, np.zeros(2)
+    for k, ((sole, toes), rot) in enumerate(zip(feet, xmat)):
         R = rot.reshape(3, 3)
         moment, force = f[cols[sole]:cols[sole] + 3], f[cols[sole] + 3:cols[sole] + 6]
         push = float(force @ R[:, 1])
         ahead = -float(moment @ R[:, 0]) / max(push, 1e-9)
         out += push * min(1.0, max(0.0, ahead / (0.5 * (BALL + HEEL)))) + f[cols[toes]]
-    return out
+        soles[k] = push + f[cols[toes]]
+    return out, soles

@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, borne, edge, estimate, field, grip, latent, leap, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
+from machine import barrier, borne, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -43,6 +43,7 @@ def seen(g, dt):
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
     observer.step(g['observer'], body, s, qpos, dt)
+    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt)
     s['hips'], s['arms'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']]
     s['prop'], s['contacts'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]))
     return s
