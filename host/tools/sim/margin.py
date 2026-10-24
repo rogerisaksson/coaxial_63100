@@ -4,8 +4,9 @@
 
 Her standing on her loop - walking with --walk, told her walk after her settling -, the probe's sine
 in one drive's torque fed forward at its board (u = c + d), each frequency in its turn after a
-second's settling: L = -C / U at each, its gain, its phase, its margin, and the text's rollback of
-K_d and gamma; --boxed with her gearboxes' wind-up and resonances (`physics.BOXED`).
+second's settling: L = -C / U at each of the probe's own response (the same passes with the probe off
+taken out), its gain, its phase, its margin, and the text's rollback of K_d and gamma; --boxed with
+her gearboxes' wind-up and resonances (`physics.BOXED`).
 """
 import argparse
 import sys
@@ -14,21 +15,22 @@ import sys
 SETTLE_S, AMPS = 1.0, 0.5
 
 
-def probed(joint, amps=AMPS, walk=False):
-    """[{hz, gain_db, phase_deg, margin_deg}] of `joint`'s loop standing - walking with `walk` -, each
-    probe frequency its turn."""
+def _passes(joint, amps, walk):
+    """[(t, dt, u, c)] each law pass of `joint`'s loop from SETTLE_S on, the probe's sine at `amps` N m
+    fed forward at its board - her walk told after the settling with `walk` -: the torque her drive was
+    given and it less the sine."""
     import numpy as np
     from machine import edge, margin, sprung
     from machine.figure import JOINTS
     g = sprung.laid(sprung.STACK_EVERY)
-    j, probe, kept = JOINTS.index(joint), margin.laid(), edge.drive
+    j, kept = JOINTS.index(joint), edge.drive
     hot = np.zeros(len(g['joints']))
     hot[list(g['joints']).index(j)] = 1.0
-    given = [0.0]
+    given, out = [0.0], []
 
     def drive(world, joints, target=None, feed=None, kp=None, limit=None):
         on = feed is not None and joints is g['joints'] and g['t'] >= SETTLE_S
-        given[0] = margin.injected(probe, g['t'] - SETTLE_S, amps) * on
+        given[0] = margin.injected(margin.laid(), g['t'] - SETTLE_S, amps) * on
         return kept(world, joints, target=target, feed=None if feed is None else feed + given[0] * hot, kp=kp, limit=limit)
 
     edge.drive = drive
@@ -39,9 +41,26 @@ def probed(joint, amps=AMPS, walk=False):
             t = g['t']
             sprung.passed(g)
             u = float(g['world'].motor[j])
-            margin.step(probe, u, u - given[0], max(0.0, t - SETTLE_S), g['t'] - t)
+            out.append((max(0.0, t - SETTLE_S), g['t'] - t, u, u - given[0]))
     finally:
         edge.drive = kept
+    return out
+
+
+def probed(joint, amps=AMPS, walk=False):
+    """[{hz, gain_db, phase_deg, margin_deg}] of `joint`'s loop standing - walking with `walk` -, each
+    probe frequency its turn: the lock-in on the probe's own response, each pass's u and c less the
+    same pass's with the probe off (with it off u = c and L reads -1, 0 dB at 180 deg, whatever her
+    torque: walking, her gait's own swamped a 1 N m probe at 30 Hz). Her session is deterministic: a
+    pass count or a time differing between the two is refused."""
+    from machine import margin
+    from machine.errors import MachineError
+    on, off = _passes(joint, amps, walk), _passes(joint, 0.0, walk)
+    if len(on) != len(off) or any(abs(a[0] - b[0]) > 1e-9 for a, b in zip(on, off)):
+        raise MachineError('refused: her session ran %d passes with the probe off, %d with it on' % (len(off), len(on)))
+    probe = margin.laid()
+    for (t, dt, u, c), (_t, _dt, u0, c0) in zip(on, off):
+        margin.step(probe, u - u0, c - c0, t, dt)
     return margin.read(probe)
 
 

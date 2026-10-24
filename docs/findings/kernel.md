@@ -301,12 +301,11 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
 | hip | -21.4, 65 | -26.0, 52 | -26.0, 22 | -26.9, 14 |
 | shoulder | -26.3, 92 | -30.1, 87 | -36.0, 73 | -40.5, 70 |
 | spine | -15.5, 122 | -21.5, 50 | -25.5, 35 | -29.2, 27 |
-| hip walking, gearboxes in | +9.0, -115 | +2.7, -125 | -0.7, 174 | -9.5, -116 |
-| hip walking, rigid | -21.6, -78 | -20.0, -124 | +0.1, 161 | -2.3, 161 |
-| ankle walking, gearboxes in | -7.4, -178 | +7.1, -131 | +0.2, 159 | -4.1, 170 |
-| knee walking, gearboxes in | -9.1, -25 | -6.1, -160 | +1.2, 167 | -10.1, -127 |
-| shoulder walking, gearboxes in | -0.1, -111 | -5.7, -151 | -11.0, -159 | -20.3, -166 |
-| spine walking, gearboxes in | -6.2, -34 | -4.0, -109 | -3.7, -176 | -0.8, 136 |
+| hip walking, gearboxes in | +9.2, -114 | +3.2, -101 | -4.1, -171 | -9.9, -163 |
+| ankle walking, gearboxes in | -21.5, -57 | -17.5, -137 | -25.0, -178 | -14.8, -178 |
+| knee walking, gearboxes in | -17.2, -44 | -9.7, -130 | -11.2, -142 | -14.3, -169 |
+| shoulder walking, gearboxes in | -0.0, -111 | -5.6, -153 | -14.0, -171 | -21.1, -173 |
+| spine walking, gearboxes in | -8.0, -38 | -2.7, -103 | -8.7, -144 | -8.1, -173 |
 
 - Rigid, every loop past -3 dB keeps its margin; her ankle's phase turns
   through 180 deg between 15 and 22 Hz, its gain margin there 7.9 dB.
@@ -314,15 +313,17 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
   24.8 deg - the text's rollback, K_d and gamma to 0.65. At 1 N m the same
   hip +0.2 dB, 88.8 deg: her gearboxes' play, the loop's gain rising as the
   probe sinks into it.
-- Walking (`--walk`, her walk told after the settling): her hip's loop
-  crosses 0 dB at 30 Hz with -3 to -8 deg of margin, gearboxes in, read
-  alike at 0.25, 0.5 and 1 N m (her gait's own torques would scale it);
-  rigid, +0.1 dB at 161 deg there and -2.3 at 161 at 38 Hz. The text's
-  rollback is live as she walks: K_d 0.35, gamma 0.50.
-- Every leg loop walking crosses 0 dB at 30 Hz with its phase past 180
-  (ankle -21 deg, knee -13, hip -6), her spine at 38 Hz (-45); her shoulder
-  keeps 14 deg or more. One feature in all her legs' loops, rigid too: not
-  her gearboxes' resonance.
+- With the probe off u = c and the lock-in reads L = -1, 0 dB at 180 deg at
+  every frequency, whatever her torque. Walking, her gait's own torque at
+  30 Hz swamped a 1 N m probe: every leg loop read 0 dB near 180 deg there,
+  alike at 0.25-1 N m - that attractor, not a crossover. The tool locks in
+  on the probe's own response, each pass less the same pass with the probe
+  off (her session deterministic); standing it reads as before.
+- Walking so (`--walk`), gearboxes in: no loop past -3 dB under 38 deg -
+  her hip +9.2 dB at 15 Hz with 66 deg and +3.2 at 22 with 79, read within
+  0.5 dB and 9 deg at 0.5 and 1 N m; her shoulder at its crossover at 15 Hz
+  with 69 deg; the rest under -8 dB. The text's rollback is not live as she
+  walks, K_d and gamma 1.00; standing with her gearboxes in it is, 0.65.
 
 ## The lowering
 
