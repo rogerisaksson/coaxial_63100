@@ -5,7 +5,7 @@ import math
 import queue
 import time
 from machine import apart, edge, figure, floor, modal, ortho, physics, sprung, wear
-from machine.errors import MachineError
+from machine.errors import BusFault, MachineError
 
 
 _TURN_GAITS = ('turn_left', 'turn_right', 'spin_left', 'spin_right')
@@ -273,7 +273,7 @@ K = DT / sprung.AVERAGE_S
 WINDOW_STEPS = int(round(wear.WINDOW_S / DT))
 
 
-def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None):
+def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0.0):
     """Her run on the loop, paced by nothing, of her texts `texts` ({key: text}: her gym's and the
     suite's) where given, else their files': her world `g`, the gym and what it says, the last
     refusal, when she fell, her drives' torque, power and watts, the epoch - a world laid anew
@@ -283,7 +283,8 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None):
     suite = None if texts is None else dsp.read(dsp.SUITE, texts)
     s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(texts=texts, suite=suite),
          'texts': texts, 'suite': suite, 'each': [], 'links': [],
-         'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None)}
+         'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None),
+         'ber': ber}
     s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
     laid(s)
     return s
@@ -295,8 +296,9 @@ def laid(s):
     g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
     if s['walks']:
         sprung.walked(g)
+    edge.noise(g['world'], s['ber'], seed=s['epoch'] + 2)
     n = len(g['world'].peak)
-    s.update(fallen_at=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
+    s.update(fallen_at=None, shutdown=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
              passes=0, wear=wear.laid(g['body']), ys=[], taus=[], wearing=None)
     s['wear_told'] = wear.told(s['wear'])
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
@@ -329,8 +331,14 @@ def apply(s, command):
 
 
 def stepped(s):
-    """A pass of her world, judged: fallen, she lies RECOVER_S, then a new epoch is laid."""
+    """A pass of her world, judged: fallen, she lies RECOVER_S, then a new epoch is laid; shut down
+    by a bus (`edge.held`), her drives stay off till a restart."""
     g, world = s['g'], s['g']['world']
+    if s['shutdown'] is not None:
+        g['t'] += DT
+        world.advance()
+        s['passes'] += 1
+        return None
     if s['fallen_at'] is not None and g['t'] - s['fallen_at'] >= sprung.RECOVER_S:
         return laid(s)
     try:
@@ -361,6 +369,9 @@ def stepped(s):
                 s['wearing'] = None
                 s['wear_told'] = wear.told(s['wear'])
             s['_wear_s'] = time.perf_counter() - t_wear
+    except BusFault as fault:
+        s['shutdown'], s['fallen_at'] = str(fault), g['t']
+        edge.off(world)
     except MachineError:
         s['fallen_at'] = g['t']
     if s['fallen_at'] is None and _is_fallen(g, world):
@@ -377,7 +388,8 @@ def told(s):
     """Her state as the page hears it (`sprung.state`), her epoch and her wear beside it, as its
     last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
-                             s['says'], s['refused'], s['headroom']), epoch=s['epoch'], wear=s['wear_told'])
+                             s['says'], s['refused'], s['headroom']), epoch=s['epoch'], wear=s['wear_told'],
+                shutdown=s['shutdown'])
 
 
 class Her:
@@ -409,13 +421,13 @@ class Her:
         return told(self.s)
 
 
-def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True):
+def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=False, realtime=True, ber=0.0):
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
     unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
     `shown`."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
-    s = session(every, walks, heard.put if heard is not None else None)
+    s = session(every, walks, heard.put if heard is not None else None, ber=ber)
     apart.paced(Her(s), commands, states, shown=shown, realtime=realtime, say_s=sprung.SAY_S,
                 rest_s=sprung.SAY_S / 4.0, slice_s=sprung.SLICE_S)
 
@@ -426,9 +438,9 @@ class Running(apart.Apart):
     and the commands it has `heard`, tell it what her page has `shown` - from `shown`, none held
     back till told; laid, she stands at rest unless `walks`."""
 
-    def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True, shown=math.inf):
+    def __init__(self, every=sprung.STACK_EVERY, walks=False, realtime=True, shown=math.inf, ber=0.0):
         self._heard = apart.CONTEXT.Queue()
-        super().__init__(run, self._heard, every, walks, realtime, states=8, kept=(self._heard,),
+        super().__init__(run, self._heard, every, walks, realtime, ber, states=8, kept=(self._heard,),
                          shown=shown)
 
     def send(self, **command):

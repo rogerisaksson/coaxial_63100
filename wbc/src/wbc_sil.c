@@ -1,6 +1,8 @@
 /** wbc_sil.c - her 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards
     (machine.edge.LIMBS, machine.edge.drive), executing firmware modbus_rtu + modbus_slave state
-    machines and CRC-16/MODBUS on every frame. Portable C11. */
+    machines and CRC-16/MODBUS on every frame, through a line that flips bits (`wbc_sil_noise`,
+    `wbc_sil_burst`): a frame a board refuses leaves its last setpoint, the next pass sends anew.
+    Portable C11. */
 #include "wbc_pass.h"
 #include "modbus_crc.h"
 #include "modbus_rtu.h"
@@ -39,6 +41,9 @@ typedef struct
   int32_t            last_val[4][8];
   unsigned long long tx_bytes;
   unsigned long long frames;
+  unsigned long long refused;
+  int                stale;
+  int                burst;
   double             wire_s;
   uint32_t           ticks;
   unsigned char      last_frame[64];
@@ -48,6 +53,8 @@ typedef struct
 static struct
 {
   wbc_world_t    *w;
+  double          ber;
+  uint32_t        draw;
   int             nbuses;
   int             nboards;
   wbc_sil_bus_t   buses[WBC_SIL_BUSES];
@@ -123,6 +130,34 @@ static mb_exception_t sil_write_reg(void *ctx, uint16_t addr, uint16_t value)
   return MB_EX_NONE;
 }
 
+/* xorshift32: the line's draw. */
+static uint32_t sil_draw(void)
+{
+  uint32_t x = sil_state.draw;
+
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  sil_state.draw = x;
+  return x;
+}
+
+/* `frame` as the wire carries it into `wire`: a bit flipped in a burst or by the line's noise. */
+static void sil_line(wbc_sil_bus_t *bus, const unsigned char *frame, int len, uint8_t *wire)
+{
+  const double hit = 1.0 - pow(1.0 - sil_state.ber, 10.0 * (double)len);
+  const int    flip = (bus->burst > 0) || ((hit > 0.0) && ((double)sil_draw() < hit * 4294967296.0));
+
+  memcpy(wire, frame, (size_t)len);
+  bus->burst -= (bus->burst > 0);
+  if (flip)
+  {
+    const uint32_t bit = sil_draw() % (uint32_t)(8 * len);
+
+    wire[bit >> 3] ^= (uint8_t)(1U << (bit & 7U));
+  }
+}
+
 void wbc_sil_init(wbc_world_t *w, int nbuses, const int *counts, const int *joints)
 {
   int at = 0;
@@ -168,6 +203,8 @@ int wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, i
 {
   wbc_sil_bus_t *bus;
   uint16_t       addr, qty, bank, first_unit;
+  uint8_t        wire[64];
+  int            refused = 0;
 
   if ((bus_id < 0) || (bus_id >= sil_state.nbuses) || (len < 9) || (len > 64))
   {
@@ -188,6 +225,7 @@ int wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, i
     return -2;
   }
   sil_state.w = w;
+  sil_line(bus, frame, len, wire);
   for (int u = 0; u < bus->count; u++)
   {
     wbc_sil_board_t *bd = &sil_state.boards[bus->board_at[u]];
@@ -197,21 +235,23 @@ int wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, i
 
     for (int k = 0; k < len; k++)
     {
-      mb_rtu_on_byte(&bd->rtu, frame[k], bus->ticks);
+      mb_rtu_on_byte(&bd->rtu, wire[k], bus->ticks);
     }
     bus->ticks += bd->rtu.t35_ticks + 1U;
     (void)mb_rtu_service(&bd->rtu, bus->ticks, &rsp);
-    if ((bd->rtu.counters.bus_comm_error != err_before) || (bd->rtu.counters.server_exception != ex_before))
-    {
-      return -3;
-    }
+    refused |= (bd->rtu.counters.bus_comm_error != err_before) || (bd->rtu.counters.server_exception != ex_before);
   }
   bus->tx_bytes += (unsigned long long)len;
   bus->frames += 1ULL;
+  bus->refused += (unsigned long long)refused;
   bus->wire_s += (double)len * 10.0 / (double)WBC_SIL_BAUD;
-  memcpy(bus->last_frame, frame, (size_t)len);
+  if (bank == SIL_REG_SETPOINT)
+  {
+    bus->stale = refused ? bus->stale + 1 : 0;
+  }
+  memcpy(bus->last_frame, wire, (size_t)len);
   bus->last_len = len;
-  return 0;
+  return refused ? -3 : 0;
 }
 
 void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
@@ -309,7 +349,7 @@ void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                    unsigned char *last_frame, int *last_len)
 {
   const wbc_sil_bus_t *bus;
-  unsigned long long   errs = 0ULL, msgs = 0ULL;
+  unsigned long long   msgs = 0ULL;
 
   if ((bus_id < 0) || (bus_id >= sil_state.nbuses))
   {
@@ -319,13 +359,13 @@ void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
   for (int u = 0; u < bus->count; u++)
   {
     const wbc_sil_board_t *bd = &sil_state.boards[bus->board_at[u]];
-    errs += (unsigned long long)bd->rtu.counters.bus_comm_error;
     msgs += (unsigned long long)bd->rtu.counters.server_message;
   }
   counts[0] = bus->tx_bytes;
   counts[1] = bus->frames;
-  counts[2] = errs;
+  counts[2] = bus->refused;
   counts[3] = msgs;
+  counts[4] = (unsigned long long)bus->stale;
   *wire_s = bus->wire_s;
   if ((last_frame != NULL) && (bus->last_len > 0))
   {
@@ -337,3 +377,43 @@ void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
   }
 }
 
+void wbc_sil_noise(double ber, uint32_t seed)
+{
+  sil_state.ber = ber;
+  sil_state.draw = seed | 1U;
+}
+
+void wbc_sil_burst(int bus_id, int frames)
+{
+  if ((bus_id >= 0) && (bus_id < sil_state.nbuses))
+  {
+    sil_state.buses[bus_id].burst = frames;
+  }
+}
+
+int wbc_sil_stalest(int *bus_id)
+{
+  int most = 0;
+
+  *bus_id = -1;
+  for (int b = 0; b < sil_state.nbuses; b++)
+  {
+    if (sil_state.buses[b].stale > most)
+    {
+      most = sil_state.buses[b].stale;
+      *bus_id = b;
+    }
+  }
+  return most;
+}
+
+void wbc_sil_off(wbc_world_t *w)
+{
+  for (int k = 0; k < sil_state.nboards; k++)
+  {
+    wbc_sil_board_t *bd = &sil_state.boards[k];
+
+    bd->limit = 0.0;
+    ((double *)(uintptr_t)w->limit)[bd->joint_idx] = 0.0;
+  }
+}

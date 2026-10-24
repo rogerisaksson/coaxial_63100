@@ -521,6 +521,26 @@ API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
   wbc_sil_stats(bus_id, counts, wire_s, last_frame, last_len);
 }
 
+API void wbh_sil_noise(double ber, unsigned int seed)
+{
+  wbc_sil_noise(ber, (uint32_t)seed);
+}
+
+API void wbh_sil_burst(int bus_id, int frames)
+{
+  wbc_sil_burst(bus_id, frames);
+}
+
+API int wbh_sil_stalest(int *bus_id)
+{
+  return wbc_sil_stalest(bus_id);
+}
+
+API void wbh_sil_off(wbc_world_t *w)
+{
+  wbc_sil_off(w);
+}
+
 API long long wbh_rcu_at(const void *block, int what, int k)
 {
   const int64_t at[3] = {wbc_rcu_ring_at(k), wbc_rcu_slots_at(block, k), wbc_rcu_bank_at(block, k)};

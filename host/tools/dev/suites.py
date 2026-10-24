@@ -322,7 +322,7 @@ FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUA
 #: on CI's runner against 133 here; the bus's echoes through a limb of three at 475 MIPS
 #: 129 here at 56 wall s a board s, past 480 on CI's runner with the off-rate open (63)
 #: in the same group.
-EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'crc': 480, 'rate': 480, 'conformance': 480,
+EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'rate': 480, 'conformance': 480,
                    'fallback': 480}
 
 #: What a change to a page the world's heat is judged on reaches.

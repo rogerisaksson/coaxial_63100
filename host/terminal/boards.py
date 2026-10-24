@@ -1,7 +1,9 @@
 """Her boards on Renode: one of her buses mirrored onto emulated boards from a thread of its own.
 
 The page never waits on a UART: `EmulatedLimb.sync` hands it her latest state; the thread writes
-each held joint's angle to its board in turn, at the pace the bus answers."""
+each held joint's angle to its board in turn, at the pace the bus answers, through the line's noise
+(`edge.LINE_BER`). A write lost is the next round's; a whole round lost is no longer sporadic: the
+limb's drives off."""
 import math
 import threading
 import urllib.parse
@@ -28,13 +30,13 @@ class EmulatedLimb:
         self.joints = [nodes[unit][2].replace(' ', '_') for unit in units]
         asked = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(str(port)).query))
         url = 'emulator://?' + urllib.parse.urlencode(
-            {'nodes': len(units), 'world': BODIES['humanoid'][bus], **asked})
+            {'nodes': len(units), 'world': BODIES['humanoid'][bus], 'ber': edge.LINE_BER, **asked})
         self.rigs = [Coaxial63100(port=url, unit=unit, execution_mode=EMULATED).open()
                      for unit in units]
         self.origin = self.rigs[0].origin
         self.held = [(rig, joint) for rig, joint in zip(self.rigs, self.joints)
                      if drives.passive(joint) is None]
-        self.faults, self._now = 0, {}
+        self.faults, self.shutdown, self._now = 0, None, {}
         for rig, _joint in self.held:
             try:
                 arm_stage(rig)
@@ -53,29 +55,38 @@ class EmulatedLimb:
 
     def badge(self, crc_err):
         """The BUSES box's modbus row: her buses, her drives on Renode, the CRC errors and apart
-        the emulated link's faults - a write timed out or refused."""
-        return '%dx10M %d emu crc %d lnk %d' % (len(edge.LIMBS), len(self.rigs), crc_err, self.faults)
+        the emulated link's faults - a write timed out or refused -, SHUTDOWN past a round lost."""
+        return ('%dx10M %d emu crc %d lnk %d' % (len(edge.LIMBS), len(self.rigs), crc_err, self.faults)
+                + ' SHUTDOWN' * bool(self.shutdown))
 
     def closed_note(self):
         return '%d Renode boards (%s) closed' % (len(self.rigs), self.limb)
 
     def _run(self):
-        while self._shown.wait() and not self._stop.is_set():
+        lost = 0
+        while self._shown.wait() and not self._stop.is_set() and lost < len(self.held):
             self._shown.clear()
             angles = self._now['angles']
             for rig, joint in self.held:
                 try:
                     rig.board.drive.write(theta=math.radians(angles[joint]))
+                    lost = 0
                 except LINK_FAULTS + (RigError,):
-                    self.faults += 1
+                    self.faults, lost = self.faults + 1, lost + 1
+        if lost:
+            self.shutdown = '%s: %d writes lost in a row, a round of its boards: drives off' % (self.limb, lost)
+            self._off()
+
+    def _off(self):
+        for rig, _joint in self.held:
+            with suppress(*LINK_FAULTS, RigError):
+                rig.board.drive.off()
+                rig.gates.off()
 
     def close(self):
         self._stop.set()
         self._shown.set()
         self._thread.join()
-        for rig, _joint in self.held:
-            with suppress(*LINK_FAULTS, RigError):
-                rig.board.drive.off()
-                rig.gates.off()
+        self._off()
         for rig in self.rigs:
             rig.close()

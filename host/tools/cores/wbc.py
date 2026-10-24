@@ -268,6 +268,8 @@ def typed(lib):
     lib.wbh_sil_transceive.restype = i
     lib.wbh_sil_drive.argtypes = [ctypes.POINTER(World), i, _vp, _vp, _vp, _vp, _vp]
     lib.wbh_sil_stats.argtypes = [i, _vp, _vp, _vp, _vp]
+    lib.wbh_sil_noise.argtypes, lib.wbh_sil_burst.argtypes, lib.wbh_sil_off.argtypes = [d, i], [i, i], [_vp]
+    lib.wbh_sil_stalest.argtypes, lib.wbh_sil_stalest.restype = [_vp], i
     lib.wbh_rcu_at.argtypes, lib.wbh_rcu_at.restype = [_vp, i, i], ctypes.c_longlong
     from tools.cores import gmo
     gmo.typed(lib)

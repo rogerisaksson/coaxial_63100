@@ -241,7 +241,8 @@ def bus_plate(now, top, left, width):
     for idx, (b_name, joints) in enumerate(edge.LIMBS):
         out.update(_limb_bus_row(top + 1 + idx, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code))
     bot = top + len(edge.LIMBS) + 1
-    notes = ((' WEAR %d ' % len(alarms), packed(WEAR_INK)),) * bool(alarms) + (
+    notes = ((' SHUTDOWN ', packed(CRC_INK)),) * bool(now and now.get('shutdown')) + (
+        (' WEAR %d ' % len(alarms), packed(WEAR_INK)),) * bool(alarms) + (
         (' CRC %d ' % crc, packed(CRC_INK)) if crc else (' CRC OK ', packed(PLATE_KEY_INK)),)
     line = [(ord('─'), key_frame)] * inner
     at = inner - 1

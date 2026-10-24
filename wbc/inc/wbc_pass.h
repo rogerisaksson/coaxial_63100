@@ -258,5 +258,14 @@ void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *targ
                    const double *feed, const double *kp, const double *limit);
 void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                    unsigned char *last_frame, int *last_len);
+/** The line's noise: each frame on the wire a bit flipped with the chance `ber` gives its 10
+    bits a character; `seed` the draw's. */
+void wbc_sil_noise(double ber, uint32_t seed);
+/** The next `frames` frames on bus `bus_id` corrupted, a bit each. */
+void wbc_sil_burst(int bus_id, int frames);
+/** The longest run of setpoint frames refused in a row on any bus, its bus in `bus_id`. */
+int  wbc_sil_stalest(int *bus_id);
+/** Every board's clamp at zero: her drives off. */
+void wbc_sil_off(wbc_world_t *w);
 
 #endif

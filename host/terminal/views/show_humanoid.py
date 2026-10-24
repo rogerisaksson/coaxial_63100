@@ -308,7 +308,7 @@ def boxes(state, now, name):
            else os.path.basename(state['recorded'])[:25] if state['recorded'] else 'R starts')
     out = gym.boxes(now, tour=state.get('tour')) + [hud('BODY', [
         ('   control', '%s  [%s]' % ('tour' if gym.touring(state) else 'keys', tag)),
-        ('    status', gym.status(now)[:25]), ('   balance', core_row),
+        ('    status', ((now or {}).get('shutdown') or gym.status(now))[:25]), ('   balance', core_row),
         ('     speed', _ansi('%+5.2f m/s %s %+5.2f' % (spd_act, spd_bar, spd_set))),
         ('     twist', 'vx%+5.2f vy%+5.2f wz%+5.2f' % tw_act),
         ('    rhythm', _ansi('%4.2f Hz  phase   %s' % (float(now['cadence']) if now else 0.0, _gauges.gauge(float(now['phase']) if now else 0.0, 8)))),

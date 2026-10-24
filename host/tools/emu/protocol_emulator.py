@@ -7,6 +7,7 @@
     Coaxial63100(port='emulator://?mpu=1').open()            # the image's MPU on, a 7th the speed
     Coaxial63100(port='emulator://?body=humanoid&bus=LL', unit=2).open()  # the left knee
     Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
+    Coaxial63100(port='emulator://?nodes=4&ber=1e-7').open() # a bit flipped at that rate each way
     .\\coaxial_tty.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
@@ -14,6 +15,7 @@ to it, its `time_scale` Renode's load on the open and the Transport's, its `unit
 probes, `console` False on a limb's bus. COAXIAL_ELF picks the image.
 """
 import atexit
+import random
 import urllib.parse
 
 import serial
@@ -95,7 +97,8 @@ def emulator_for(url):
 
 
 class Serial(SerialBase):
-    """A connection to the emulated board's console, or to a limb's bus."""
+    """A connection to the emulated board's console, or to a limb's bus, through a line flipping a
+    bit at the URL's `ber` each way (`flipped`), the next `burst` writes corrupted (a test's)."""
 
     #: The gap that ends a reply, s: the emulated UART sends one whole, a burst on the socket.
     quiet_time = 0.005
@@ -110,6 +113,7 @@ class Serial(SerialBase):
         except RuntimeError as exc:           # no Renode, no image: said as a port that fails
             raise serial.SerialException(str(exc)) from exc
         self._inner = serial.serial_for_url(emu.url, self.baudrate, timeout=self.timeout)
+        self.ber, self.burst, self._draw = float(_query(self.port).get('ber', ['0'])[0]), 0, random.Random(1)
         self.time_scale = emu.load()
         self.time_scale_source = emu.load
         self.virtual_seconds = emu.virtual_seconds
@@ -154,10 +158,20 @@ class Serial(SerialBase):
         return self._inner.in_waiting
 
     def read(self, size=1):
-        return self._inner.read(size)
+        return self.flipped(self._inner.read(size))
 
     def write(self, data):
-        return self._inner.write(data)
+        self.burst, forced = max(0, self.burst - 1), self.burst > 0
+        return self._inner.write(self.flipped(data, forced))
+
+    def flipped(self, data, forced=False):
+        """`data` as the line carries it: a bit flipped with the chance `ber` gives its 10 bits a
+        character, or `forced`."""
+        data = bytes(data)
+        if data and (forced or self._draw.random() < 1.0 - (1.0 - self.ber) ** (10 * len(data))):
+            bit = self._draw.randrange(8 * len(data))
+            data = data[:bit >> 3] + bytes((data[bit >> 3] ^ 1 << (bit & 7),)) + data[(bit >> 3) + 1:]
+        return data
 
     def flush(self):
         self._inner.flush()
