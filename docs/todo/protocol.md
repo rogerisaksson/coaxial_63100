@@ -11,8 +11,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
 
 1. **Step 2, the insert's inner stages**: its Butterworth D-channel at 42 Hz
    and its backlash bridge, each alone felled her turning walk (scenarios
-   item 14). DOD: both on her loop at their text's numbers, every suite as
-   green.
+   item 14). The D-channel's lag against her measured margins (kernel
+   findings): 45.6 deg at 22 Hz takes her hip's walking 79 to 33, its 66 at
+   15 Hz to 36, under the text's 38; standing with her gearboxes in, 24.7 to
+   under 0. 46 Hz keeps 38 walking; standing needs the rollback (item 2) or
+   the text's zero-phase compensation. DOD: both on her loop at their text's
+   numbers, every suite as green.
 2. **Step 2, the discrete phase margin on her loop**: `machine.margin`
    measures her loops' return ratio (`tools/sim/margin.py`); her gearboxes
    in, her hip's crosses 0 dB at 22 Hz with 25 deg standing (rollback 0.65);

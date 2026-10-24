@@ -324,6 +324,12 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
   0.5 dB and 9 deg at 0.5 and 1 N m; her shoulder at its crossover at 15 Hz
   with 69 deg; the rest under -8 dB. The text's rollback is not live as she
   walks, K_d and gamma 1.00; standing with her gearboxes in it is, 0.65.
+- The insert's D low-pass (`filter-derivative-channel`, a second-order
+  Butterworth at 42 Hz) lags 45.6 deg at 22 Hz and 30.1 at 15: her hip's
+  walking margins, 79 and 66 deg, go to 33 and 36, under the text's 38, and
+  its standing 24.7 with her gearboxes in goes under 0 - the turning walk it
+  felled alone (scenarios item 14). The cutoff that keeps 38 deg at both
+  walking is 46 Hz; standing with the gearboxes in no cutoff does.
 
 ## The lowering
 
