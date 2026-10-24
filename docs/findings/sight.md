@@ -91,4 +91,7 @@ The slots are her map's lumps as told (`sight.classify`), not the gate:
 `Map.lumps` joins cells four ways by their colour alone, so the chair and
 the loft's stair beside it are one 1.6 x 1.2 m lump told 'table' by its 0.99 m,
 and a table leg's single cell is a 'chair' by its 0.76 (65 things of 53
-props, 22 of them 'thing' cells 0.1-0.5 m high along the walls).
+props, 22 of them 'thing' cells 0.1-0.5 m high along the walls). Joined by
+their height within a cell too, the walls split into thin tall fragments
+told 'lamp': 137 things, 211 slots - a cell's highest point is no surface
+height for a standing thing. A lump's kind is a table (`sight.KINDS`).

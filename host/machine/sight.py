@@ -405,21 +405,22 @@ def _chroma(rgb):
     return rgb / _np().maximum(rgb.sum(axis=-1, keepdims=True), 1e-6)
 
 
+#: A lump's kinds by its length (its longer side, m), its height (m) and its look (None any), the
+#: first that holds: walls and doors stand over 1.8 m, a lamp is thin, a bed long and low, a table
+#: waist-high and long, a chair waist-high and short - a chair's lump 0.5 m, the table's top as seen
+#: from the room's middle 0.8 -; what no size tells, its look where it is a bed's or a lamp's.
+KINDS = (('door', (0.0, 1.2), (1.8, math.inf), 'door'), ('wall', (0.0, math.inf), (1.8, math.inf), None),
+         ('lamp', (0.0, 0.3), (1.2, math.inf), None), ('bed', (1.6, math.inf), (0.0, 0.7), None),
+         ('table', (0.65, math.inf), (0.6, 1.1), None), ('chair', (0.0, 0.65), (0.6, 1.1), None),
+         ('bed', (0.0, math.inf), (0.0, math.inf), 'bed'), ('lamp', (0.0, math.inf), (0.0, math.inf), 'lamp'),
+         ('thing', (0.0, math.inf), (0.0, math.inf), None))
+
+
 def classify(look, half, height):
-    """A lump's kind from its footprint and its height first, its look where those do not
-    tell: walls and doors stand over 1.8 m, a lamp is thin, a bed long and low, a table
-    waist-high and long, a chair waist-high and short - a chair's lump 0.5 m, the table's top
-    as seen from the room's middle 0.8."""
+    """A lump's kind (KINDS): the first whose length, height and look hold."""
     long = max(half) * 2.0
-    if height >= 1.8:
-        return 'door' if look == 'door' and long <= 1.2 else 'wall'
-    if long <= 0.3 and height >= 1.2:
-        return 'lamp'
-    if long >= 1.6 and height <= 0.7:
-        return 'bed'
-    if 0.6 <= height <= 1.1:
-        return 'table' if long >= 0.65 else 'chair'
-    return look if look in ('bed', 'lamp') else 'thing'
+    return next(kind for kind, (l0, l1), (h0, h1), seen in KINDS
+                if l0 <= long <= l1 and h0 <= height <= h1 and seen in (None, look))
 
 
 def _nearest_free(blocked, cell):
