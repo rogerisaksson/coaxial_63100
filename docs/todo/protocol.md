@@ -15,10 +15,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    green.
 2. **Step 2, the discrete phase margin on her loop**: `machine.margin`
    measures her loops' return ratio (`tools/sim/margin.py`); her gearboxes
-   in, her hip's crosses 0 dB at 22 Hz with 25 deg at 0.5 N m. Left: the
+   in, her hip's crosses 0 dB at 22 Hz with 25 deg standing and at 30 Hz
+   with -3 to -8 deg walking (`--walk`, the same at 0.25-1 N m). Left: the
    probe in her loop as she goes, its rollback on her law's K_d and her
-   barrier's gamma, the probe's amplitude through her gearboxes' play. DOD:
-   no loop past -3 dB under 38 deg as she walks, gearboxes in.
+   barrier's gamma (K_d 0.35, gamma 0.50 by the walking read), the probe's
+   amplitude through her gearboxes' play. DOD: no loop past -3 dB under 38
+   deg as she walks, gearboxes in.
 3. **Step 3's leak walking**: her chest's yaw asked walking moves her
    centre of mass 0.12-0.15 m/s^2 and her ankles 3.4-4.6 N m where her
    soles' bounds bind. DOD: under 1e-4 of the chest's acceleration walking,

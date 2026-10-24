@@ -301,6 +301,8 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
 | hip | -21.4, 65 | -26.0, 52 | -26.0, 22 | -26.9, 14 |
 | shoulder | -26.3, 92 | -30.1, 87 | -36.0, 73 | -40.5, 70 |
 | spine | -15.5, 122 | -21.5, 50 | -25.5, 35 | -29.2, 27 |
+| hip walking, gearboxes in | +9.0, -115 | +2.7, -125 | -0.7, 174 | -9.5, -116 |
+| hip walking, rigid | -21.6, -78 | -20.0, -124 | +0.1, 161 | -2.3, 161 |
 
 - Rigid, every loop past -3 dB keeps its margin; her ankle's phase turns
   through 180 deg between 15 and 22 Hz, its gain margin there 7.9 dB.
@@ -308,6 +310,11 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
   24.8 deg - the text's rollback, K_d and gamma to 0.65. At 1 N m the same
   hip +0.2 dB, 88.8 deg: her gearboxes' play, the loop's gain rising as the
   probe sinks into it.
+- Walking (`--walk`, her walk told after the settling): her hip's loop
+  crosses 0 dB at 30 Hz with -3 to -8 deg of margin, gearboxes in, read
+  alike at 0.25, 0.5 and 1 N m (her gait's own torques would scale it);
+  rigid, +0.1 dB at 161 deg there and -2.3 at 161 at 38 Hz. The text's
+  rollback is live as she walks: K_d 0.35, gamma 0.50.
 
 ## The lowering
 
