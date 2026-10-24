@@ -47,6 +47,9 @@ PLATE_TITLE_INK = (0, 215, 215)
 PLATE_KEY_INK = (255, 175, 0)
 PLATE_LABEL_INK = (214, 220, 228)
 PLATE_BG = (8, 14, 16)
+#: The bus plate's own faults (CRC), and her wear's service alarms (`wear.told`): a drive's drift
+#: past its band, no bus fault.
+CRC_INK, WEAR_INK = (255, 80, 80), (200, 120, 255)
 
 
 def auto_action(detected):
@@ -188,7 +191,7 @@ def _board_cell(now, joint, alarmed, passive, pk_default):
     if passive:
         return ord('▱'), packed((80, 145, 160), PLATE_BG)
     if joint in alarmed:
-        return ord('▰'), packed((255, 80, 80), PLATE_BG)
+        return ord('▰'), packed(WEAR_INK, PLATE_BG)
     tau = abs(float((now.get('torque') or {}).get(joint, 0.0))) if now else 0.0
     pk = max(1.0, float((now.get('peak') or {}).get(joint, pk_default))) if now else pk_default
     deg_c = float((now.get('temp') or {}).get(joint, 25.0)) if now else 25.0
@@ -229,7 +232,7 @@ def bus_plate(now, top, left, width):
     key_frame, trunk_code = packed(FRAME_INK), packed((48, 88, 102), PLATE_BG)
     alarms = {str(a[0]).split('.')[0] for a in ((now.get('wear') or {}).get('alarms') or ())} if now else set()
     buses_now = (now.get('buses') or {}) if now else {}
-    errs = sum(int(v[1]) for v in buses_now.values() if len(v) > 1) + len(alarms)
+    crc = sum(int(v[1]) for v in buses_now.values() if len(v) > 1)
     out = {(top, left): (ord(FRAME_CORNERS[0]), key_frame), (top, left + width - 1): (ord(FRAME_CORNERS[1]), key_frame)}
     title = ' RS485 10M SIL '
     for c in range(inner):
@@ -238,14 +241,16 @@ def bus_plate(now, top, left, width):
     for idx, (b_name, joints) in enumerate(edge.LIMBS):
         out.update(_limb_bus_row(top + 1 + idx, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code))
     bot = top + len(edge.LIMBS) + 1
-    note = (' %d/27 OK ' % (27 - min(27, errs))) if not errs else (' %d ERR ' % errs)
-    note_ink = packed(PLATE_KEY_INK if not errs else (255, 80, 80))
-    at = max(1, inner - 1 - len(note))
+    notes = ((' WEAR %d ' % len(alarms), packed(WEAR_INK)),) * bool(alarms) + (
+        (' CRC %d ' % crc, packed(CRC_INK)) if crc else (' CRC OK ', packed(PLATE_KEY_INK)),)
+    line = [(ord('─'), key_frame)] * inner
+    at = inner - 1
+    for note, ink in reversed(notes):
+        at = max(1, at - len(note))
+        line[at:at + len(note)] = [(ord(ch), ink) for ch in note][:inner - at]
     out[(bot, left)] = (ord(FRAME_CORNERS[2]), key_frame)
     out[(bot, left + width - 1)] = (ord(FRAME_CORNERS[3]), key_frame)
-    for c in range(inner):
-        in_n = at <= c < at + len(note)
-        out[(bot, left + 1 + c)] = (ord(note[c - at] if in_n else '─'), note_ink if in_n else key_frame)
+    out.update({(bot, left + 1 + c): cell for c, cell in enumerate(line[:inner])})
     return out
 
 

@@ -335,7 +335,7 @@ def boxes(state, now, name):
     out.append(hud('SERVICE', [
         ('     hands', ('%+.2f kg L  %+.2f kg R' % (lh, rh))[:25]),
         ('     torso', ('%+.2f kg  due %.0fh' % (tr, float(w_now.get('left_h', 500.0))))[:25]),
-        ('    alarms', ('%d: %s' % (len(al), al[0][0]) if al else 'none')[:25])]))
+        ('      wear', ('%d drift: %s' % (len(al), al[0][0]) if al else 'none')[:25])]))
     scanner = state.get('scanner')
     if scanner is not None and now is not None:
         det = scanner.scan(now, viewpoint.looks(state))

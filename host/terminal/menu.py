@@ -47,6 +47,8 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 #: ENTRIES from 101; a second question's later options take codes past
 #: the list, and the loader reads every one back.
 ENTRIES, SUB, OPEN, _PICKS = loader.listing()
+#: The list as drawn: the pages, then QUIT on Q (`bindings`' TERMINAL row).
+LISTED = ENTRIES + (('Q', 'QUIT', 'leave the terminal'),)
 
 #: What the masthead knows. `held` is how many sessions have the port,
 #: `board` whether one answers anywhere at all - None until asked, 'emulated' where none does
@@ -161,8 +163,8 @@ def roster(picked):
     """The access list."""
     # Every row is one line, picked or not: a framed highlight changed the
     # list's height and the page jumped on each keypress.
-    lines, wide = [Text('')], max(18, *(len(name) + 1 for _key, name, _what in ENTRIES))
-    for i, (key, name, what) in enumerate(ENTRIES):
+    lines, wide = [Text('')], max(18, *(len(name) + 1 for _key, name, _what in LISTED))
+    for i, (key, name, what) in enumerate(LISTED):
         kana = '%-12s' % KANA[name][0] if name in KANA else ' ' * 12
         if i == picked:
             row = Text.assemble((' > ', 'value'), (key, 'value'),
@@ -266,7 +268,9 @@ _STEPS = {'up': -1, 'down': 1}
 
 
 def _chosen(nav, at):
-    """The page at `at` chosen: its code, or its second question opened (`nav['who']`)."""
+    """The page at `at` chosen: its code, its second question opened (`nav['who']`), or QUIT's 'quit'."""
+    if at == len(ENTRIES):
+        return 'quit'
     nav['picked'], nav['who'] = at, _second_question(loader.FIRST + at)
     return None if nav['who'] else loader.FIRST + at
 
@@ -294,7 +298,7 @@ def _second(nav, key, _now):
 #: none over this page, the start menu it is; F lends the mouse to the turntable.
 ROWS = (
     ('PAGES', 'UP DOWN', 'the cursor up, down', (('UP DOWN', 'NAVIGATE'),),
-     dict.fromkeys(_STEPS, lambda nav, key, _now: nav.update(picked=(nav['picked'] + _STEPS[key]) % len(ENTRIES)))),
+     dict.fromkeys(_STEPS, lambda nav, key, _now: nav.update(picked=(nav['picked'] + _STEPS[key]) % len(LISTED)))),
     ('PAGES', 'ENTER', 'the page under the cursor', (('ENTER', 'SELECT'),),
      dict.fromkeys(ENTER_KEYS, lambda nav, _key, _now: _chosen(nav, nav['picked']))),
     ('PAGES', 'A LETTER / 1-%d' % len(ENTRIES), 'a page by its letter or its place',
