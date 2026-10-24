@@ -119,7 +119,9 @@ def _envelope(p, at, modes, body):
     # her height only where it bends her knee: a preload's asked her seat's modelled 10 mm under where
     # she sat, her legs let go and her soles bore nothing in 20 ms
     targets = {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seen or ':tibiofemoral' in joints else {}
-    targets['mode_sagittal_shift'] = seated.com(at['knee'], at['ankle'], trunk, modes, body)
+    # a preload to her soles' middle, no further: 5 cm past it, the seat let her go at 0.54 m/s
+    com = seated.com(at['knee'], at['ankle'], trunk, modes, body)
+    targets['mode_sagittal_shift'] = min(com, 0.0) if sat else com
     seat = {'mode_arm_swing': math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
             'mode_pelvis_turn': at['turn']}
     targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
