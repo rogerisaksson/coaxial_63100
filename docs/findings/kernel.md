@@ -112,4 +112,3 @@ link (33 x 10 uF X7S each, 6.93 mF nominal), implicit in its volts.
   alone (spine, shoulders, elbows: 880 W of d-axis copper); every board
   bleeding the current its drive's peak leaves its torque: 58.93.
 - The bleed's copper is not yet in her drives' heat.
-
