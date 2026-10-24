@@ -248,3 +248,9 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     (64-byte lines, two banks, acquire/release words), her loop's taps and
     takes through wbc_rcu.c, the block locked in memory; her walk linked bit
     for bit as unlinked (test_tune.py).
+47. Her momentum observer, blind (`machine.observer`): her drives' torques
+    through her edge, her IMU's acceleration, her encoders over her law's
+    M(q) at the kernel's 35 Hz, split over its patches; against her skin
+    walking her soles 22 N rms, seated 14, nothing unfelt past 0.06 of her
+    weight walking (test_kernel.py, `tools/sim/observed.py`,
+    [kernel](findings/kernel.md)).

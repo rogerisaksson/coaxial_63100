@@ -7,12 +7,10 @@ room are bound from `machine.figure`, `machine.drives` and `machine.room`,
 the furniture unknown to her at t = 0. Each mechanism's numbers are its
 text's (`dsp.read(dsp.KERNEL)`).
 
-1. **Step 2, a momentum observer**: the external wrench on each of her
-   patches - plantar, ischial, trochanter, dorsal, palmar - from her
-   encoders, her IMU and her drives' torques over M(q), at the text's
-   35 Hz. The insert's Butterworth D-channel and backlash bridge are
-   scenarios item 14. DOD: each patch's normal force against MuJoCo's
-   through walk, sit, lie and rise, its error measured and in findings.
+1. **Step 2, the insert's inner stages**: its Butterworth D-channel at 42 Hz
+   and its backlash bridge, each alone felled her turning walk (scenarios
+   item 14). DOD: both on her loop at their text's numbers, every suite as
+   green.
 2. **Step 3, her step's budget and its null space**: the pass's cost
    against 350 us; a posture ask's leak into her soles' wrenches and her
    ankles' torques. DOD: both measured; the chest's yaw ask leaking nothing

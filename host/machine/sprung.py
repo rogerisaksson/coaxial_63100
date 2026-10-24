@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, grip, leap, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, edge, estimate, grip, leap, observer, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -124,7 +124,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body)}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -205,6 +205,7 @@ def passed(g, dt=0.001):
     world, y, ev = g['world'], g['sense'], g['every']
     if g['n'] % ev == 0:
         edge.read(world, y)
+        observer.felt(g['observer'], y, dt)
         motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
         bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
@@ -214,7 +215,7 @@ def passed(g, dt=0.001):
         if g['n'] > 0:
             g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
     else:
-        edge.felt(world, y)
+        observer.felt(g['observer'], edge.felt(world, y), dt)
     motion.drives(g, dt)
     edge.drive(world, g['joints'], **g['cmd'])
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1

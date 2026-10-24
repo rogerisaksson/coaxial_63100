@@ -7,7 +7,7 @@
 
 Her law reads this array alone - an IMU on her pelvis (its turn as a rotation vector, its spin and
 its specific force, its own frame), each joint's angle and rate and each motor's angle through its
-gearbox, each sole's load cell, each segment's skin: the force on it of whatever it touches that
+gearbox, each drive's torque, each sole's load cell, each segment's skin: the force on it of whatever it touches that
 is not her, in its own frame -, each insole's centre of pressure, never the world's state; and writes her drives' setpoints, feed,
 stiffness and clamps alone (test_structure).
 """
@@ -34,7 +34,8 @@ FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: (m/s^2), its frame; each joint's angle (rad) and rate (rad/s), each motor's angle seen through
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
 #: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
-#: load (N); where on each segment its touch is, its centre (m, its frame).
+#: load (N); where on each segment its touch is, its centre (m, its frame); each joint's drive's
+#: torque as its current says it (N m, kt i through its box).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
 LOAD = slice(10 + 3 * J, 12 + 3 * J)
@@ -43,7 +44,8 @@ COP = slice(TOUCH.stop, TOUCH.stop + 3 * len(INSOLES))
 PRESS = slice(COP.stop, COP.stop + len(INSOLES))
 CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
 AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
-SENSED = AT.stop
+TAU = slice(AT.stop, AT.stop + J)
+SENSED = TAU.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -97,9 +99,10 @@ def _rooted(m, body, pelvis):
 
 
 def felt(world, y):
-    """`y`'s IMU and encoders as the world stands now (wbc_pass.c, on the world's laid pass)."""
+    """`y`'s IMU, encoders and drives' torques as the world stands now (wbc_pass.c, on the world's laid pass)."""
     _read()(ctypes.byref(world.passing), _cores().address(y), QUAT.start, GYRO.start, ACCEL.start, Q.start, QD.start,
             QM.start)
+    y[TAU] = world.motor
     return y
 
 

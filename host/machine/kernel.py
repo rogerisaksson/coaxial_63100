@@ -2,6 +2,7 @@
 
 Its texts machine/ortho_kernel/, read by `machine.dsp`; its protocol docs/todo/protocol.md.
 """
+import functools
 
 #: Each op's mechanism, the node its params land in.
 MECHANISMS = {
@@ -33,3 +34,16 @@ MECHANISMS = {
     'apply-zero-velocity-dither': 'stiction-dither'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
+
+
+@functools.cache
+def read():
+    """Every name of the kernel's texts, evaluated (`dsp.read`)."""
+    from machine import dsp
+    return dsp.read(dsp.KERNEL)
+
+
+def said(stage, key):
+    """A kernel stage's `key` as its text defaults it."""
+    from machine import dsp
+    return dsp.value(read()[stage].keys[key], read())

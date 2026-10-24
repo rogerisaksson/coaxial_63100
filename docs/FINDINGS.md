@@ -300,6 +300,7 @@ Six firmware defects, no hardware fault:
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
 | Her law compiled from her numpy: numpy's orders, her parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
+| The dual-domain kernel: its momentum observer, its steps, its tests in the lodge | [findings/kernel.md](findings/kernel.md) |
 
 ## Ruled Out
 

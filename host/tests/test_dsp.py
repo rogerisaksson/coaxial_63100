@@ -74,7 +74,7 @@ def test_the_kernel_reads_whole(report):
     report.check('the bed: its bus 48 / 56.5 / 60 V, bands cut at 260 and 980 mm, 256 quadrics, relocation gated',
                  (bed['dc-bus']['nominal-voltage-v'], bed['dc-bus']['bleed-threshold-v'], bed['dc-bus']['max-voltage-v'])
                  == (48.0, 56.5, 60.0)
-                 and [s[2] for s in bed['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
+                 and [s.args['z-window-mm'] for s in bed['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
                  and got['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'] == 256.0
                  and bed['_gates'][0][0] == 'when-funnel-active' and 'object-coupling' in bed['_gates'][0][2],
                  str(bed['_gates']))
@@ -267,7 +267,7 @@ def test_a_take_converts_to_a_modifier_she_reads(report):
                  and ortho.DUCK.start not in row and told['twist'][1] == 0.0, '%s %s' % (row, told))
 
 
-ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written,
+ROSTER = (test_the_suite_reads_as_written, test_the_kernel_reads_whole, test_the_maneuvers_read_as_written,
           test_a_patch_moves_her_walk_by_its_changes, test_what_she_cannot_do_is_refused_by_name,
           test_the_insert_is_every_patch_last, test_the_runway_reads_in_its_own_dialect,
           test_a_take_converts_to_a_modifier_she_reads)
