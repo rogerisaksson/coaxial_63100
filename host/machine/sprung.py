@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, grip, leap, observer, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, edge, estimate, field, grip, leap, observer, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -124,7 +124,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body)}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid()}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g

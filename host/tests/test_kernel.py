@@ -131,8 +131,8 @@ def test_the_barrier_holds_her_capture_point(report):
 
 
 def test_a_pulled_chair_weighs_nothing(report):
-    """The chair pulled 1 m back from under her sit while her pelvis is over it (1.8 s): what bears
-    her takes no seat, and she stands."""
+    """The chair pulled 1 m back over 0.3 s from under her sit while her pelvis descends over it
+    (1.5 s): what bears her takes no seat till her rise is said (8 s), and she stands."""
     import numpy as np
     from machine import latent
     from tools.sim import scenarios
@@ -142,9 +142,9 @@ def test_a_pulled_chair_weighs_nothing(report):
         g, w = s['g'], s['g']['world']
         k = w.model.body_mocapid[w.model.body('chair').id]
         x0[0] = w.data.mocap_pos[k].copy() if x0[0] is None else x0[0]
-        u = min(1.0, max(0.0, (g['t'] - 1.8) / 0.3))
+        u = min(1.0, max(0.0, (g['t'] - 1.5) / 0.3))
         w.data.mocap_pos[k] = x0[0] - np.array([0.0, 0.0, u * u * (3.0 - 2.0 * u)])
-        seat[0] = max(seat[0], float(g['out'][latent.MANIFOLDED][1]))
+        seat[0] = max(seat[0], float(g['out'][latent.MANIFOLDED][1]) * (g['t'] < 8.0))
 
     out = scenarios.ran('chair', laid=laid)
     report.check('the seat taken at most %.3f, stood %s' % (seat[0], out['stood']), seat[0] == 0.0 and out['stood'], '')
@@ -163,7 +163,31 @@ def test_her_link_under_its_ceiling(report):
                  and dclink.laid()['v'] == drives.PACK_V, '')
 
 
-ROSTER = (test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def test_the_field_seeks_a_seat_not_found(report):
+    """`field.step` on a table whose seat's contact row waits: her rows' height landed, it seeks down
+    at the text's 0.30 m/s through 43 ms; still descending, nothing; the seat bearing her, it stops
+    and holds; her rows leaning on none, it lets go."""
+    import numpy as np
+    from machine import field, impedance, latent, modal
+    tab = np.zeros((1, latent.TABLE))
+    tab[0, latent.CONTACT] = 1.0
+    y, out, dt = np.zeros(modal.SENSED), np.zeros(latent.OUT), 0.003
+    f, moving = field.laid(), field.laid()
+    for k in range(200):
+        tab[0, latent.AT] = k * dt
+        field.step(f, tab, y, 0.85, 0.0, k * dt, dt, out.copy())
+        field.step(moving, tab, y, 0.85, 1.0, k * dt, dt, out.copy())
+    sought = f['offset'][0] * field._MODES['mode_axial_compression'][0]
+    y[modal.PROP] = impedance.PROP_ON
+    held = [field.step(f, tab, y, 0.85, 0.0, 0.6 + k * dt, dt, out.copy())['offset'][0] for k in range(100)]
+    gone = [field.step(f, tab, y, 0.0, 0.0, 0.9 + k * dt, dt, out.copy())['offset'][0] for k in range(100)]
+    report.check('sought %.3f m in 0.6 s (0.30 m/s less its lag), none descending, held %.3g, let go %.4f'
+                 % (sought, held[-1] - held[-10], gone[-1]),
+                 abs(sought - 0.30 * (0.6 - 1.0 / field.RATE)) < 0.01 and moving['offset'][0] == 0.0
+                 and abs(held[-1] - held[-10]) < 1e-3 * held[0] and gone[-1] < 1e-3 * held[0], '')
+
+
+ROSTER = (test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 

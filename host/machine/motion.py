@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, borne, edge, estimate, grip, latent, leap, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
+from machine import barrier, borne, edge, estimate, field, grip, latent, leap, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -184,6 +184,7 @@ def control(g, dt):
     out[latent.MANIFOLDED] = observer.weighed(g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
     unfelt = float(out[latent.MANIFOLDED][0] - told[0])
+    field.step(g['field'], g['tab'], y, float(told[1:].sum()), float(g['st'][latent.TO][latent.Z][modal.AXIAL]), g['t'], dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     touch.step(g, out, dt * ev)

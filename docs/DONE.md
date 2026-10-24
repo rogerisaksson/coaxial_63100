@@ -271,3 +271,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     capacitance under her drives' power, bled on her boards' d axes past the
     text's onset; under its 60 V through every scene, a hop down's landing
     58.93 V (test_kernel.py, [kernel](findings/kernel.md)).
+52. Her blind field (`machine.field`): the kernel's admittance seek down
+    where her rows wait on a seat not bearing her; a chair lower than seen
+    found and sat on, a chair pulled before it bears her a squat
+    (test_kernel.py, [kernel](findings/kernel.md)).

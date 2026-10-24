@@ -112,3 +112,22 @@ link (33 x 10 uF X7S each, 6.93 mF nominal), implicit in its volts.
   alone (spine, shoulders, elbows: 880 W of d-axis copper); every board
   bleeding the current its drive's peak leaves its torque: 58.93.
 - The bleed's copper is not yet in her drives' heat.
+
+## The blind field
+
+`machine.field`: while a seat's contact rows wait on a seat that does not bear
+her and her rows' height has landed, her height seeks down at the text's
+0.30 m/s through its 43 ms; held while her rows lean on a manifold, its floor
+her knee where her thigh meets her shank less the text's 0.28 rad.
+
+- The chair dropped 4 cm after she saw it: she seeks, finds it and sits
+  (pelvis 0.52 m, the seat 0.85); without the field she hovers 4 cm over it.
+  Rising from it she falls (11.7 s): the rise's rows are laid for the seen
+  height.
+- The chair pulled before it bears her (1.5 s): she seeks to a squat,
+  pelvis 0.50 m, the seat taken 0. Its seek back (0.12 m/s) dropped: sought,
+  her capture point went 0.18 m behind her soles' middle and she fell; with
+  the barrier on as it sought, the chair's rise fell (9.88 s); seeking while
+  her rows still descended pressed the seat, her pelvis's jerk 283 -> 490.
+- Crouched at 0.47 m the observer reads 61-99 N on the seat her skin does
+  not feel; a rise said there takes the latched ghost 0.15.
