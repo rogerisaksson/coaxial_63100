@@ -48,9 +48,9 @@ SHAPED = slice(2 * P + 5, 2 * P + 10)
 TABLE = 2 * P + 10
 #: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and
 #: damping (N s/m), its rhythm's phase (rad) and amplitude; her rhythm's rate (rad/s), her
-#: ZMP's polygon, her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
+#: ZMP's polygon as told (her soles' weight laid on it after, `observer.weighed`), her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
 #: the acceleration's less the rhythm's: the touch filter rebuilds the acceleration from it;
-#: her sidechain as said (DUCKED, `ortho.DUCK`); what bears her (MANIFOLDED, `ortho.MANIFOLD`).
+#: her sidechain as said (DUCKED, `ortho.DUCK`); what bears her as told (MANIFOLDED, `ortho.MANIFOLD`).
 REF, RATE, ACC, KS, DS, PSI, SWAY = (slice(i * N, (i + 1) * N) for i in range(7))
 TURNS, HELD, YAWED = 7 * N, 7 * N + 1, 7 * N + 2
 BEND = slice(7 * N + 3, 8 * N + 3)
@@ -173,7 +173,7 @@ def step(st, tab, now, dt, out):
     out[RATE] = rate + sway * turns * np.cos(psi)
     out[ACC] = bend - sway * turns * turns * np.sin(psi)
     out[KS], out[DS], out[PSI], out[SWAY] = p[K], p[D], psi, sway
-    out[TURNS], out[HELD], out[YAWED] = turns, p[ZMP] * p[MANIFOLD.start], p[YAW]
+    out[TURNS], out[HELD], out[YAWED] = turns, p[ZMP], p[YAW]
     out[BEND] = bend
     out[DUCKED] = p[DUCK]
     out[MANIFOLDED] = p[MANIFOLD]

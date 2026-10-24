@@ -167,7 +167,7 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
     out[k->sway + m] = sway;
   }
   out[k->turns] = turns;
-  out[k->held] = p[k->zmp] * p[k->manifold];
+  out[k->held] = p[k->zmp];
   out[k->yawed] = p[k->yaw];
   for (int i = 0; i < 3; i++)
   {

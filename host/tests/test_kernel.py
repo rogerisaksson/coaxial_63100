@@ -90,7 +90,30 @@ def test_her_chest_yaw_leaks_nothing_standing(report):
                  chest > 1.0 and moved < 1e-4 * chest, '')
 
 
-ROSTER = (test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing)
+def test_what_bears_her_weighs_as_felt(report):
+    """Her rows' told weights on her comparator (`observer.weighed`): her soles alone as told to the
+    bit; a told seat unfelt weighs nothing, its share her soles'; felt past the engaging share, as
+    told after 1 / UP s; let go, nothing within 1 / DOWN s of its release's dwell."""
+    import numpy as np
+    from machine import observer
+    obs = {k: np.zeros(len(observer.ROWS)) for k in ('latched', 'below', 'since', 'gate')}
+    obs['normal'] = np.zeros(len(observer.MANIFOLDS))
+    weight, dt, seat = 300.0, 0.003, int(observer.ROWS[1])
+    soles = observer.weighed(obs, np.array([1.0, 0.0, 0.0, 0.0]), weight, dt)
+    told = np.array([0.15, 0.85, 0.0, 0.0])
+    unfelt = observer.weighed(obs, told, weight, dt)
+    obs['normal'][seat] = 0.5 * weight
+    felt = [observer.weighed(obs, told, weight, dt) for _k in range(int(1.0 / observer.UP / dt) + 1)][-1]
+    obs['normal'][seat] = 0.0
+    gone = [observer.weighed(obs, told, weight, dt)
+            for _k in range(int((observer.DWELL_S + 1.0 / observer.DOWN) / dt) + 2)][-1]
+    report.check('soles as told %s; unfelt %s; felt %s; let go %s' % (soles, unfelt, felt.round(3), gone.round(3)),
+                 soles.tolist() == [1.0, 0.0, 0.0, 0.0] and unfelt.tolist() == [1.0, 0.0, 0.0, 0.0]
+                 and np.allclose(felt, told) and np.allclose(gone, [1.0, 0.0, 0.0, 0.0]), '')
+
+
+ROSTER = (test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+          test_what_bears_her_weighs_as_felt)
 
 
 def main(argv=None):

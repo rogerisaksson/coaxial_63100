@@ -20,7 +20,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, kernel, qp
+from machine import edge, kernel, ortho, qp
 from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, JOINTS, PADS, pad
 
 #: Her manifolds, the registry's order.
@@ -94,6 +94,36 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
 WIDTH = tuple(6 if n is None else 1 for _m, _s, _p, n in POINTS)
 
 
+#: Her rows' manifolds (`ortho.MANIFOLDS`) among the observer's; the text's comparators on each,
+#: of her weight (`latch-hysteretic-contact`): engaged at, released under, held below that long,
+#: none released before so long engaged; its weights' slews up and down, a second
+#: (`bind-wrench-driven-homotopy`).
+ROWS = np.array([[m.split('-')[0] for m in MANIFOLDS].index(m) for m in ortho.MANIFOLDS])
+_LATCH = kernel.node('latch-hysteretic-contact', 'contact-comparators')
+ENGAGE, RELEASE = _LATCH['schmitt-high-engage-fz'], _LATCH['schmitt-low-release-fz']
+DWELL_S, BLANK_S = 1e-3 * _LATCH['min-state-dwell-ms'], 1e-3 * _LATCH['impact-blanking-window-ms']
+UP, DOWN = (kernel.said('bind-wrench-driven-homotopy', k) for k in ('slew-rate-up-per-s', 'slew-rate-down-per-s'))
+
+
+def weighed(obs, told, weight, dt):
+    """(her rows' manifolds,) what bears her as her law takes it, `dt` s on: each manifold her
+    rows tell weighed as told where her comparator (ENGAGE, RELEASE, DWELL_S, BLANK_S) feels it -
+    its normal force of her `weight` -, gated up at UP and down at DOWN a second; what a manifold
+    not felt was told, her soles'. Her soles alone bear her as told; a seat pulled away weighs
+    nothing at once."""
+    n = obs['normal'][ROWS] / weight
+    latched = obs['latched']
+    on = (1.0 - latched) * (n >= ENGAGE)
+    under = latched * (n < RELEASE)
+    obs['below'] = under * (obs['below'] + dt)
+    obs['since'] = (1.0 - on) * (obs['since'] + dt)
+    obs['latched'] = latched + on - under * (obs['since'] >= BLANK_S) * (obs['below'] >= DWELL_S)
+    gate = obs['gate'] = obs['gate'] + np.clip(obs['latched'] - obs['gate'], -DOWN * dt, UP * dt)
+    w = told * gate
+    w[0] = told[0] + float(told[1:] @ (1.0 - gate[1:]))
+    return w
+
+
 #: The rounds of the split: a least squares, each normal pulling pinned for the next - the
 #: whole-body step's (`wrench.ROUNDS`) - fixed, so a pass's cost is.
 ROUNDS = 4
@@ -133,7 +163,8 @@ def laid(body):
     view = lambda field: np.ctypeslib.as_array(getattr(o, field))
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
             'r': view('r'), 'f': view('f'), 'normal': view('force'), 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
-            'u': np.zeros(body.n)}
+            'u': np.zeros(body.n), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
+            'since': np.zeros(len(ROWS)), 'gate': np.zeros(len(ROWS))}
 
 
 def felt(obs, y, dt):

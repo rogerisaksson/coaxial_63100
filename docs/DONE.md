@@ -258,3 +258,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     pass's cost measured: 58 us of the text's 350 on this host; her chest's
     yaw standing moves her soles and centre of mass under 1e-5 of its
     acceleration (test_kernel.py, [kernel](findings/kernel.md)).
+49. What bears her weighed as felt (`observer.weighed`): her rows' told
+    manifold weights where the text's comparator feels the manifold, gated
+    at 4.5 and 45 a second, the rest her soles'; her ZMP's hold her soles'
+    taken weight (test_kernel.py, [kernel](findings/kernel.md)).

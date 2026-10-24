@@ -47,3 +47,9 @@ def said(stage, key):
     """A kernel stage's `key` as its text defaults it."""
     from machine import dsp
     return dsp.value(read()[stage].keys[key], read())
+
+
+def node(stage, at):
+    """A kernel modifier's node `at` as it lays it on her nominal gait."""
+    from machine import dsp
+    return dsp.value([stage, 'nominal-biped-gait'], read())[at]

@@ -180,6 +180,8 @@ def control(g, dt):
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
+    out[latent.MANIFOLDED] = observer.weighed(g['observer'], out[latent.MANIFOLDED], float(g['fr'][modal.WEIGHT]), dt * ev)
+    out[latent.HELD] *= out[latent.MANIFOLDED][0]
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     touch.step(g, out, dt * ev)

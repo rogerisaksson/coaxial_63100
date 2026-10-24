@@ -56,3 +56,20 @@ passes walking: 0.1-0.4 N rms a manifold, 9 at most.
   mass 0.12-0.15 of its 1.7 m/s^2 asked (the soles' bounds bind and her
   rows trade at W_COM against W_TURN), her ankles 3.4-4.6 N m. Its sole
   forces change 19 N standing: the yaw's couple on the floor.
+
+## Weights by force
+
+- Taken as the observer's alone (each manifold's normal force of her weight,
+  slewed 4.5 up and 45 down a second), the chair's, the bed's and its rise
+  fell (10.2, 8.4 s): rising, her law kept the seat's share till it
+  unloaded, and it unloads only once her law moves her onto her soles. The
+  text pans its rises by told keyframes and binds the force only in its
+  blind settle.
+- Told weights where her comparator (0.18 / 0.06 of her weight, 45 ms dwell,
+  18 ms blanking) feels the manifold, gated at 4.5 up and 45 down, the rest
+  her soles' (`observer.weighed`): chair, bed and bed rise met as before; her
+  walk 0.70 m/s, 408 J/m, 2.50 to the bit. Rising from the chair the seat
+  lets her go at 8.55 s where its told pan runs to 9.0: her pelvis's jerk
+  peak 957 (3 492 before), its 99th percentile 409 (266). Gated by the
+  force's share of the engage share instead: 416, the head 909.
+
