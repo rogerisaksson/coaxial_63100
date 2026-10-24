@@ -31,7 +31,9 @@ MECHANISMS = {
     'compute-affordance-compatibility-tensor': 'affordances', 'register-funnel-preimage-graph': 'funnels',
     'synthesize-funnel-trajectory': 'funnel-chain', 'bind-funnel-transition-executors': 'funnel-executors',
     'modulate-nullspace-oscillator': 'respiration', 'inject-stochastic-com-drift': 'postural-sway',
-    'apply-zero-velocity-dither': 'stiction-dither'}
+    'apply-zero-velocity-dither': 'stiction-dither',
+    'bind-reachability-foliation': 'reachability', 'configure-sliding-manifold-regime': 'coulomb-slide',
+    'drive-hamiltonian-step-cycle': 'step-energy', 'splice-somatic-object-interaction': 'somatic-shove'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 

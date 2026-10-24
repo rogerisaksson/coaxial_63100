@@ -88,6 +88,15 @@ def test_the_kernel_reads_whole(report):
                  and sit['manifold-weights']['asymmetric-slew'] == {'attack-rate': 4.5, 'release-rate': 45.0}
                  and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0),
                  str(sit['manifold-weights']))
+    somatic = dsp.schedule(got['compile-somatic-interaction-soa'])
+    mount = somatic[0][1]
+    report.check('the somatic schedule: the stool, 4 s, the bed, 8 s, the stairs; the stool slid onto at 0.16 m/s '
+                 'under 0.55 of her, the chair shoved at 18 N, her leg 890 mm',
+                 [p[0] for p in somatic] == ['oneshot', 'dwell', 'oneshot', 'dwell', 'oneshot']
+                 and mount['coulomb-slide']['tangent-velocity-attractor'][0] == -0.16
+                 and mount['coulomb-slide']['normal-load-governor']['cap-fz-ratio'] == 0.55
+                 and mount['somatic-shove']['unilateral-contact-maintenance']['min-normal-Bias-n'] == 18.0
+                 and mount['reachability']['nominal-max-length-mm'] == 890.0, str([p[0] for p in somatic]))
     egress = plan[6][1]
     brace = egress['adjoint-cones']['opportunistic-egress-brace']
     report.check("the egress's brace: a hand's cone on what her registry finds within 680 mm",
