@@ -33,7 +33,7 @@ def felt(world, y):
     for shares, seg, _p, normal in observer.POINTS:
         force = world_of(seg)
         for manifold, frame, axis in shares:
-            key = (seg, manifold, frame, tuple(axis))
+            key = (seg, manifold, frame, repr(axis))
             along = float(force @ (xmat[m.body(frame).id].reshape(3, 3) @ np.array(axis)))
             out[observer.MANIFOLDS.index(manifold)] += 0.0 if key in seen else max(0.0, along)
             seen.add(key)
