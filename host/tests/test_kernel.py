@@ -56,7 +56,41 @@ def test_her_patches_observed_seated(report):
                  all(v < share for v in worst.values()) and len(got) > 1000, '')
 
 
-ROSTER = (test_her_patches_observed_walking, test_her_patches_observed_seated)
+def test_her_chest_yaw_leaks_nothing_standing(report):
+    """Standing, her trunk's turn asked 0.3 rad about up through her whole-body step (wbc_wrench.c):
+    her chest turns, her standing soles and her centre of mass move under 1e-4 of its acceleration -
+    the text's projector, `nullspace-leakage-guard` 0."""
+    import copy
+    import math
+    import numpy as np
+    from machine import worker
+    from tools.cores import wbc as cores
+    s = worker.session()
+    g = s['g']
+    while g['t'] < 2.0:
+        worker.stepped(s)
+    b, ask, core = g['body'], copy.deepcopy(g['ask']), cores.shared()
+    qpos, qvel, n = b.d.qpos, b.d.qvel, b.n
+    R = cores.rotation(qpos[3:7])
+    base, u = np.concatenate([R.ravel(), qpos[:3]]), np.concatenate([qvel[3:6], R.T @ qvel[:3], qvel[6:n]])
+    q = qpos[7:7 + n - 6].copy()
+    w, x, y, z = ask['turns'][1]
+    c, sn = math.cos(0.15), math.sin(0.15)
+    asked = copy.deepcopy(ask)
+    asked['turns'] = (ask['turns'][0], np.array([c * w - sn * y, c * x + sn * z, c * y + sn * w, c * z - sn * x]))
+    was, now = core.wrench(base, q, u, ask), core.wrench(base, q, u, asked)
+    core.pose(base, q)
+    core.mass()
+    core.bias(u)
+    du = now['udot'] - was['udot']
+    chest = float(np.abs(du[8]))
+    moved = max([float(np.abs(core.com()[1] @ du).max())] + [float(np.abs(core.jacobian(link, b.sole) @ du).max())
+                                                              for link in (23, 32)])
+    report.check('her chest %.1f rad/s^2; her soles and centre of mass %.2g' % (chest, moved),
+                 chest > 1.0 and moved < 1e-4 * chest, '')
+
+
+ROSTER = (test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing)
 
 
 def main(argv=None):

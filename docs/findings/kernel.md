@@ -5,22 +5,23 @@ host/machine/ortho_kernel/).
 
 ## The momentum observer
 
-`machine.observer`, blind: her drives' torques (`edge.TAU`), encoders, IMU and
-estimate over her law's M(q), low-passed at the text's 35 Hz, split over the
-registry's patches by least squares, each normal pushing. Against her skin
+`machine.observer`, blind, in C (wbc_gmo.c on her chain, wbc.h): her drives'
+torques (`edge.TAU`), encoders, IMU and estimate over M(q), low-passed at the
+text's 35 Hz, split over the registry's patches by 4 least squares, each
+pulling normal pinned for the next. Against her skin
 (`tools/sim/observed.py`, each law pass from 1 s; rms N, her weight 306 N;
 ghost: the most read where her skin feels under 5 N):
 
 | scene | soles | seat | hips | back | palms |
 | --- | --- | --- | --- | --- | --- |
-| walk | 22.3 | 4.5, ghost 47 | 1.4, 6 | 1.4, 10 | 7.8, 36 |
-| chair, sit and rise | 13.9 | 24.7, 87 | 6.4, 16 | 12.0, 95 | 29.4, 205 |
-| bed, lie | 18.6 | 11.2, 94 | 6.6, 44 | 31.6, 8 | 31.4, 85 |
-| bed, rise | 15.8 | 9.7, 94 | 5.8, 44 | 25.8, 20 | 25.7, 85 |
-| floor mattress | 7.0 | 1.4 | 2.0 | 1.2 | 6.9 |
+| walk | 21.4 | 4.8, ghost 41 | 1.3, 6 | 1.2, 11 | 5.9, 33 |
+| chair, sit and rise | 15.1 | 30.5, 97 | 2.9, 23 | 7.8, 93 | 11.6, 174 |
+| bed, lie | 15.8 | 14.7, 112 | 7.5, 36 | 19.2, 14 | 11.8, 24 |
+| bed, rise | 13.7 | 12.7, 112 | 6.4, 36 | 15.9, 21 | 9.6, 24 |
+| floor mattress | 6.5 | 1.4 | 1.8 | 1.2 | 6.6 |
 
-Seated steady (chair, 3.6-8 s): soles 126-130 N against 126, seat 137-170
-against 141-144, the palms a steady 40-45 ghost.
+Its python (an active-set QP over MuJoCo's Jacobians) against the C, the same
+passes walking: 0.1-0.4 N rms a manifold, 9 at most.
 
 - Her law's M, h against MuJoCo's own constraint force at the world's
   qacc: 0.14 N at most. Given the exact contact force the split reads
@@ -43,3 +44,15 @@ against 141-144, the palms a steady 40-45 ghost.
   along its forward - the registry's boxes reach 110 mm ahead of the
   buttocks and 420 mm below the sacrum. Without it the chair's soles erred
   43.6 N rms, the palms 72.
+
+## Her pass's cost and its null space
+
+- On this host, a law pass's C: her pose, M, bias and two Jacobians 6.2 us,
+  her whole-body step 20.0, the observer 31.6 (43.4 with its call) - 58 us
+  of the text's 350. The observer in numpy: 599 us, vectorized 385.
+- Her trunk's turn asked 0.3 rad about up, her chest at 30 rad/s^2: standing
+  her standing soles move 7.6e-5, her centre of mass 3e-5 m/s^2, her ankles'
+  torques 1.5 N m; walking, double support, the soles 1.3e-3, her centre of
+  mass 0.12-0.15 of its 1.7 m/s^2 asked (the soles' bounds bind and her
+  rows trade at W_COM against W_TURN), her ankles 3.4-4.6 N m. Its sole
+  forces change 19 N standing: the yaw's couple on the floor.

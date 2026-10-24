@@ -7,6 +7,7 @@
 #include "wbc_step.h"
 #include "wbc_pass.h"
 #include "wbc_rcu.h"
+#include "wbc_gmo.h"
 
 #include <string.h>
 #include <time.h>
@@ -538,4 +539,22 @@ API long long wbh_rcu_taken(void *block, double *table, long long *rows)
 
   *rows = (long long)n;
   return seq;
+}
+
+API int wbh_gmo_size(void)
+{
+  return (int)sizeof(wbc_gmo_t);
+}
+
+API void wbh_gmo_felt(wbc_gmo_t *o, const double *r, const double *accel, const double *tau, double dt)
+{
+  wbc_gmo_felt(o, r, accel, tau, dt);
+}
+
+API void wbh_gmo_step(wbc_gmo_t *o, const double *base, const double *q, const double *u, double dt)
+{
+  wbc_frame_t f;
+
+  frame_of(base, &f);
+  wbc_gmo_step(o, &f, q, u, dt);
 }

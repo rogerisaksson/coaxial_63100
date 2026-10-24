@@ -11,10 +11,10 @@ text's (`dsp.read(dsp.KERNEL)`).
    and its backlash bridge, each alone felled her turning walk (scenarios
    item 14). DOD: both on her loop at their text's numbers, every suite as
    green.
-2. **Step 3, her step's budget and its null space**: the pass's cost
-   against 350 us; a posture ask's leak into her soles' wrenches and her
-   ankles' torques. DOD: both measured; the chest's yaw ask leaking nothing
-   her balance reads.
+2. **Step 3's leak walking**: her chest's yaw asked walking moves her
+   centre of mass 0.12-0.15 m/s^2 and her ankles 3.4-4.6 N m where her
+   soles' bounds bind ([kernel](../findings/kernel.md)). DOD: under 1e-4 of
+   the chest's acceleration walking, as standing; her walk as solved.
 3. **Step 4, weights by force, a barrier on her capture point**: each
    manifold's weight sat(<f, n> / m g) of the observer, slewed up 4.5 /s,
    down 45 /s; the capture point's barrier h' + gamma h >= 0 in her step;

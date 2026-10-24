@@ -254,3 +254,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     walking her soles 22 N rms, seated 14, nothing unfelt past 0.06 of her
     weight walking (test_kernel.py, `tools/sim/observed.py`,
     [kernel](findings/kernel.md)).
+48. Her momentum observer in C (wbc_gmo.c, 31.6 us a law pass) and her
+    pass's cost measured: 58 us of the text's 350 on this host; her chest's
+    yaw standing moves her soles and centre of mass under 1e-5 of its
+    acceleration (test_kernel.py, [kernel](findings/kernel.md)).

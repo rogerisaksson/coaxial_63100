@@ -9,8 +9,9 @@ The residual of her momentum over a law pass, M (v - v') / dt + h - S'tau - her 
 acceleration her IMU's, tau her drives' mean over it and their friction -, low-passed at the kernel's bandwidth (`configure-momentum-observer`), is J'f, the external
 force on her. Each manifold's frames (`anatomical-manifold-registry`) are points of her skin, each
 pressed along its outward normal alone, a sole a whole wrench: f the least squares of J'f = r, each
-normal pushing, the least of it where pushes cancel - both hips squeezed along one line - by the
-QP's tie-break (`qp.solve`, `qp.EPS`). Blind: no skin, no load cell.
+normal pushing - ROUNDS solves, each pulling normal pinned for the next -, the least of it where
+pushes cancel (both hips squeezed along one line) by the QP's tie-break (`qp.EPS`). Blind: no skin,
+no load cell.
 """
 import math
 import os
@@ -20,8 +21,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import edge, kernel, qp
-from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, PADS, pad
-from machine.figure import JOINTS
+from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, JOINTS, PADS, pad
 
 #: Her manifolds, the registry's order.
 MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry'])
@@ -94,85 +94,63 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
 WIDTH = tuple(6 if n is None else 1 for _m, _s, _p, n in POINTS)
 
 
+#: The rounds of the split: a least squares, each normal pulling pinned for the next - the
+#: whole-body step's (`wrench.ROUNDS`) - fixed, so a pass's cost is.
+ROUNDS = 4
+
+
+def _link(seg):
+    """A segment's link in her chain (wbc_model.h): its last joint's, the pelvis the root."""
+    from machine.figure import SEGMENTS
+    joints = next(j for name, _p, j, *_r in SEGMENTS if name == seg)
+    return joints[-1][0] if joints else 'root'
+
+
 def laid(body):
-    """The observer at rest on her law's `body` (`wbc.Body`): its points' bodies, its sums empty."""
-    m = body.m
-    ids = [m.body(seg).id for _m, seg, _p, _n in POINTS]
-    frames = [[(MANIFOLDS.index(man), m.body(frame).id, np.array(axis)) for man, frame, axis in shares]
-              for shares, _s, _p, _n in POINTS]
-    pts = [np.array(body.sole if p is None else p) for _m, _s, p, _n in POINTS]
-    driven = np.array([j for j in range(len(JOINTS)) if body.driven[j]])
-    nu = sum(WIDTH)
-    return {'ids': ids, 'frames': frames, 'pts': pts, 'driven': driven, 'tau': np.zeros(len(driven)), 'acc': np.zeros(3), 'span': 0.0,
-            'v': None, 'r': np.zeros(body.n), 'f': np.zeros(nu), 'held': (), 'A': np.zeros((body.n, nu)),
-            'alpha': kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi,
-            'normal': np.zeros(len(MANIFOLDS)), 'jp': np.zeros((3, m.nv)), 'jr': np.zeros((3, m.nv)),
-            'loss': m.dof_frictionloss[:body.n].copy()}
+    """The observer at rest on her law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares and
+    her drives' friction laid, its sums empty; its outputs viewed (`r`, `f`, `normal`)."""
+    import ctypes
+    from tools.cores import gmo, wbc as cores
+    lib, names = cores.library(), cores.Core().names
+    o = gmo.Gmo()
+    o.rounds, o.slip, o.eps = ROUNDS, SLIP_RAD_S, qp.EPS
+    o.alpha = kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi
+    o.loss[:] = body.m.dof_frictionloss[:body.n].tolist()
+    driven = [k for k, j in enumerate(JOINTS) if body.driven[k]]
+    o.driven_joint[:] = driven
+    o.driven_at[:] = [5 + names.index(JOINTS[k]) for k in driven]
+    col = 0
+    for p, (shares, seg, point, normal) in enumerate(POINTS):
+        o.link[p], o.sole[p], o.col[p] = names.index(_link(seg)), int(normal is None), col
+        o.local[p][:] = list(body.sole if point is None else point)
+        o.normal[p][:] = [0.0, 0.0, 0.0] if normal is None else list(normal)
+        col += WIDTH[p]
+    rows = [(p, MANIFOLDS.index(m), names.index(_link(frame)), axis)
+            for p, (shares, *_r) in enumerate(POINTS) for m, frame, axis in shares]
+    for k, (p, m, link, axis) in enumerate(rows):
+        o.share_point[k], o.share_manifold[k], o.share_link[k] = p, m, link
+        o.share_axis[k][:] = np.asarray(axis, float).tolist()
+    view = lambda field: np.ctypeslib.as_array(getattr(o, field))
+    return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
+            'r': view('r'), 'f': view('f'), 'normal': view('force'), 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
+            'u': np.zeros(body.n)}
 
 
 def felt(obs, y, dt):
-    """Her drives' torques and her pelvis's acceleration (her IMU's specific force turned to the
-    world, gravity added) over a drive pass `dt`, into the law pass's sums."""
-    w, x, yy, z = y[edge.QUAT]
-    turn = np.array([[1 - 2 * (yy * yy + z * z), 2 * (x * yy - w * z), 2 * (x * z + w * yy)],
-                     [2 * (x * yy + w * z), 1 - 2 * (x * x + z * z), 2 * (yy * z - w * x)],
-                     [2 * (x * z - w * yy), 2 * (yy * z + w * x), 1 - 2 * (x * x + yy * yy)]])
-    obs['tau'] += dt * y[edge.TAU][obs['driven']]
-    obs['acc'] += dt * (turn @ y[edge.ACCEL] + edge.G)
-    obs['span'] += dt
-
-
-def _columns(obs, body, qpos):
-    """Each unknown's column of J' at `qpos`: a sole's twist rows, a point's normal along its translation."""
-    m, d, n, A = body.m, body.d, body.n, obs['A']
-    d.qpos[:len(qpos)] = qpos
-    body.mj.mj_kinematics(m, d)
-    body.mj.mj_comPos(m, d)
-    jp, jr, col = obs['jp'], obs['jr'], 0
-    for (_m, _s, _p, normal), bid, p in zip(POINTS, obs['ids'], obs['pts']):
-        R = d.xmat[bid].reshape(3, 3)
-        body.mj.mj_jac(m, d, jp, jr, d.xpos[bid] + R @ p, bid)
-        if normal is None:
-            A[:, col:col + 3], A[:, col + 3:col + 6] = jr[:, :n].T, jp[:, :n].T
-            col += 6
-        else:
-            A[:, col] = jp[:, :n].T @ (R @ np.array(normal))
-            col += 1
-    return A
+    """A drive pass `dt` of her edge's array `y` into the law pass's sums: her drives' torques, her
+    pelvis's acceleration (her IMU's specific force turned to the world, gravity added)."""
+    at = y.ctypes.data
+    obs['felt'](obs['at'], at + 8 * edge.QUAT.start, at + 8 * edge.ACCEL.start, at + 8 * edge.TAU.start, dt)
 
 
 def step(obs, body, s, qpos, dt):
     """A law pass on her law's sense `s` (`wbc.sense`) at her estimate `qpos`: r, f and each
-    manifold's normal force; her drives' sum emptied."""
-    v, tau, span = s['v'], -obs['loss'] * np.tanh(s['v'] / SLIP_RAD_S), max(obs['span'], dt)
-    tau[body.act] += obs['tau'] / span
-    if obs['v'] is not None:
-        a = (v - obs['v']) / dt
-        a[:3] = obs['acc'] / span
-        e = s['M'] @ a + s['h'] - tau
-        obs['r'] += (1.0 - math.exp(-obs['alpha'] * dt)) * (e - obs['r'])
-    obs['tau'][:], obs['acc'][:], obs['span'] = 0.0, 0.0, 0.0
-    obs['v'] = v.copy()
-    A = _columns(obs, body, qpos)
-    pushing = np.flatnonzero(np.array([w == 1 for w in WIDTH for _k in range(w)]))
-    G = -np.eye(A.shape[1])[pushing]
-    H = A.T @ A
-    H[np.diag_indices_from(H)] += qp.EPS * H.diagonal().max()
-    f, obs['held'], _u = qp.solve(H, -A.T @ obs['r'], G, np.zeros(len(pushing)), obs['held'])
-    assert f is not None  # nothing pushing meets every row
-    obs['f'] = f
-    obs['normal'] = shared(body.d.xmat, obs, [f[c:c + w] for c, w in zip(np.cumsum((0,) + WIDTH), WIDTH)])
+    manifold's normal force; her drives' sums emptied."""
+    from tools.cores.model import rotation
+    v, n, base, u = s['v'], body.n, obs['base'], obs['u']
+    R = rotation(qpos[3:7])
+    base[:9], base[9:] = R.ravel(), qpos[:3]
+    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:n]
+    obs['q'][:] = qpos[7:7 + n - 6]
+    obs['step'](obs['at'], base.ctypes.data, obs['q'].ctypes.data, u.ctypes.data, dt)
     return obs
-
-
-def shared(xmat, obs, forces):
-    """(MANIFOLDS,) each manifold's normal force, N, of each point's force (a sole's wrench, a
-    normal's push) posed by `xmat`: a sole's along its up, a point's along each of its manifolds'
-    normals, pushing."""
-    normal = np.zeros(len(MANIFOLDS))
-    for (_m, _s, _p, nrm), bid, frames, f in zip(POINTS, obs['ids'], obs['frames'], forces):
-        world = f[3:6] if nrm is None else f[0] * (xmat[bid].reshape(3, 3) @ np.array(nrm))
-        for k, frame, axis in frames:
-            along = float(world @ (xmat[frame].reshape(3, 3) @ axis))
-            normal[k] += along if nrm is None else max(0.0, along)
-    return normal
