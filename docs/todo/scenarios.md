@@ -220,15 +220,12 @@ serves its DOD; none an entry a case.
    sight telling its door and its glass; the ground snowed and the valley
    drawn beyond the rail.
 10. **An errand from every spot** (`tools/sim/house.py`, her way round the
-    furniture `route`): said from every spot (112 runs a verb) the chair 73,
-    32 down; the bed 103, 4 down ([errands](../findings/errands.md)). Open:
-    the chair's rise's lean tips her trunk back, sat up on the bed her back
-    stays down - a borne point held still in its three axes, away from the
-    furniture too, and lain flat her trunk pulls on her hips twice what her
-    hanging legs do: her arms on the bed raise her - and lain, her ZMP is held
-    to her support (her centre of mass asked nowhere), her soles aloft are
-    asked by her centre of mass (her legs fold past a hip's stop, whose rows
-    shrink her whole ask), her arms bear nothing; turning and backing in
+    furniture `route`): said from every spot (120 runs a verb, risen and
+    stood 3 s) the chair 89, 24 down; the bed 74, 34 down
+    ([errands](../findings/errands.md)). Open: the chair's rise leaves her
+    going on past her soles; sat up on the bed the hand-written swing_out
+    throws her trunk forward or back, and the chair's rise from its edge
+    waits on soles that never take her; turning and backing in
     the 1 m before the table her hands touch the loft - a half turn in place
     creeps her 0.18 m -; docking
     takes 19 s; a curve through a corner fits her arc from 2-3 of 27
@@ -299,7 +296,9 @@ serves its DOD; none an entry a case.
     0.44, her thighs' underside at the knee 0.383 (8.7 and 5.7 cm under). Flat
     footed a thigh meets the edge before her buttocks are on it (the slide off
     the chair, errands.md). A human goes on her toes before she sits, or takes
-    the seat with her hands and draws herself onto it. DOD: a seat over her
+    the seat with her hands and draws herself onto it. The suite's bed lands
+    her hips on its soft edge and she tips off it, 0 of 23 (errands). DOD: a
+    seat over her
     shins taken from her toes - her heels up by what her ankle reaches of the
     excess, lowered once it bears her -, both buttocks a buttock's length on;
     the chair's sit 0 of 336 down or unborne (5 and 8 now).

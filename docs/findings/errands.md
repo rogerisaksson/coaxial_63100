@@ -295,6 +295,41 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   neck is let go while she sits (`w_sit`) and the lean whips her head. Her
   sit's depth on its seat (pelvis 3.4-13 cm behind her feet) does not follow
   her dock: every sit met it at 0.190 m and began 0.129-0.142.
+- A rise counted up as she stood counted falls a second after it: up held
+  REST_S (`house._goal`), main from 120 spots and headings, the chair 91
+  ok and 21 down - 15 after standing, her centre of mass going on at
+  0.3-0.44 m/s past her soles into a 0.41 m stagger -, the bed 27, 9, and 84
+  stuck in sit_up.
+- Lain on the bed her surety field read her tilt past her asked pelvis
+  pitch, 0.87 rad, as a topple: surety 0.03, and its brace stood in for her
+  step's answer through the rise - her trunk asked 2.3 rad up moved none:
+  the stalls in sit_up. Counted from lying flat while borne
+  (`surety_field`): the bed 74 ok, 34 down, 12 stuck; the chair 89 and 24
+  (91, 21), wobbled 360 runs 262 and 77 (262, 74). Not counted at all
+  while borne, 68 and 39: past flat, the brace's tuck holds her on the
+  bed; unbraced the lie's recline rolled her back over it, her trunk to 3
+  rad.
+- Her arms' reach as the chair's counterweight, both 0.45 rad ahead as the
+  suite's descent has them: 58 errands 41 ok and 13 down; let hang again as
+  the seat settles her, 49 and 5 (53 and 2 by the old count). Not kept.
+- Her arms as supports (`borne`, a bearing arm's hold let go in her step):
+  58 chair errands 42 and 13 down where 46 and 9, the bed 8 and 4 where 7
+  and 4; on the surety's fix the chair 39 and 17, the bed 6 and 16 where 13
+  and 8 - a hand that met the seat or bed as she rose was held there.
+  Bearing only while her reach is asked back, asked back to push her up: 3
+  of 24. Her arms' swing rolling her onto her side first: 2 of 24. Not kept.
+- Her ZMP let go while the bed bears her (texts), on the surety's fix: the
+  rise's plant and sit_up 10 of 24 (13), the lie's recline and rest 52 of
+  120 and 56 down (68, 39), its rest alone 41 and 63; her soles aloft at
+  rest on the floor while anything bears her (`swing.rested`) 45 and 52.
+  Not kept.
+- The suite's bed played (`patch-supine-mattress-sleep` less its gate,
+  `patch-wake-and-stand`): its sit lands her hips on the mattress's edge,
+  0.13 m behind her soles, the soft edge bears 0.22 of her then none and
+  she tips forward off her feet - 0 of 23; docked at the edge the bed's
+  side takes her calves, 17-59 N, and she never comes down - 0 of 24. Sat
+  up, the chair's lean, thrust and stand from the bed's edge: 44 of 120, 69
+  down - her soles never take 0.82 of her, her hips 0.3-0.5 m onto it.
 
 ## The keys that send her
 

@@ -64,7 +64,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   }
   f_soles = npsum(loads, 2) / wt;
   theta = (isnan(ct) ? tilt_deg(q) : ct) * (PI / 180.0);
-  theta_e = npmax(0.0, theta - fabs(a[k->a_want]));
+  theta_e = npmax(0.0, theta - npmax(fabs(a[k->a_want]), borne * (0.5 * PI)));
   v_norm = sqrt(npdot(v, 1, v, 1, 3));
   w_ext = npmin(1.0, npmax(0.0, (ap_y / k->g - f_soles) / 0.45))
           * exp(((-pow(w_gyro / 1.2, 2.0)) - pow(v_norm / 0.18, 2.0)) - pow(theta_e / 0.65, 4.0));

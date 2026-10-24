@@ -120,7 +120,8 @@ def walked():
 
 
 def _goal(w, goal, rise, limit, t0):
-    """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said, None unsaid) from `t0`."""
+    """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said - up held REST_S -, None
+    unsaid) from `t0`. Counted up the moment she stood, 7 chair rises of 58 that fell within 3 s were risen."""
     from machine import modal, sprung, worker
     g = w.g
     def borne(q):
@@ -135,6 +136,7 @@ def _goal(w, goal, rise, limit, t0):
         t2 = g['t']
         if w.go(12.0, lambda q: sprung.doing(g) in ('stand', 'rest') and float(g['y'][modal.PROP]) < 0.05):
             up = round(g['t'] - t2, 2)
+            w.go(REST_S)
     return reached, held, up
 
 

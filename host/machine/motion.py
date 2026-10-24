@@ -109,7 +109,9 @@ def surety_field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     w_jump = min(1.0, max(0.0, (k_ax - 15000.0) / 5000.0))
     w, f_soles = np.maximum(np.clip(loads / (0.25 * wt), 0.0, 1.0), w_jump), float(loads.sum()) / wt
     theta = math.radians(float(np.nan_to_num(ct, nan=edge.tilt(y_in))))
-    theta_e = max(0.0, theta - abs(float(a[modal.WANT][0])))
+    # what bears her bears her up to lying flat on it: counted from upright, lain on the bed her surety
+    # fell to 0.03 and its brace stood in for her law through her rise; past flat, rolled back over it
+    theta_e = max(0.0, theta - max(abs(float(a[modal.WANT][0])), float(a[modal.BORNE]) * (0.5 * math.pi)))
     v_norm = float(np.linalg.norm(v))
     w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
     probe = 0.008 * max(0.0, 4.0 * f_soles * (1.0 - f_soles)) * math.exp(-(w_gyro / 0.6) ** 2) * math.sin(math.tau * 6.0 * t)
