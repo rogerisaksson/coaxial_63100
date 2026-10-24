@@ -48,7 +48,7 @@ typedef struct
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
-  const double *posture, *derate, *clamp, *wep_nm;
+  const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */
   /* answered: the drives' torques clipped, every acceleration, each sole's load, its centre of
      pressure where it stands (cop_n of them, none where it bears nothing), each contact's force,
      the share of the ask carried, each drive's load of its clamp, which drives were asked past it */

@@ -65,6 +65,8 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | kernel | the dual-domain kernel's ops by the mechanism each feeds; its texts read and their stages' defaults |
 | schema | her body schema: the kernel's 18 capsules by its names and pairs on her skin, their clearances in closed form and their log-sum-exp, each pair's floor raised by its braking distance; her posture's ask held to each near pair's ECBF, least in her mass's metric |
 | bemf | her drives' torque bounds under their back-EMF: the kernel's quadrant law on her DC link's volts, her boards' current loops' own |
+| shrunk | her step's answer inside her drives' bounds (wbc_shrunk.c): each drive's box, her clamp as derated within its back-EMF bounds, an ask shrunk as one into it |
+| margin | the insert's discrete phase margin: her loop's return ratio at the kernel's four probe frequencies by a first-order quadrature lock-in, each in its turn; the kernel's rollback of K_d and gamma |
 | lowering | the kernel's AST-to-SoA lowering: a gait folded into a bank of its ABI over her nominal's (wbc_soa.h: the text's fields at its offsets, a biquad a node seeded on her value, the manifolds' weights, the capsules), carried as an rcu table's words; her loop's biquad in C |
 | barrier | her capture point's barrier: her centre of mass's ask held to each support edge's h' + gamma h >= 0 over what bears her, as far as her rows lean on what she does not feel |
 | dclink | her DC link: her packs and her boards' capacitance under her drives' power, the boards' d-axis bleed past the text's onset |

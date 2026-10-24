@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, borne, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, stride, supervisor, touch, waits, wbc
+from machine import barrier, bemf, borne, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, stride, supervisor, touch, waits, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -235,7 +235,9 @@ def control(g, dt):
     w_neck = sw * max(w_hop, max(rest, brake) * (1.0 - w_sit))
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
-    g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate']))
+    lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))
+    g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'],
+                                                    lo=lo, hi=hi))
     got = g['got']
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))

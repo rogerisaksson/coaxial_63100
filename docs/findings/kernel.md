@@ -179,7 +179,39 @@ braking distance through `machine.bemf`.
 `machine.bemf`, the text's quadrant law on her link's volts, her boards' own.
 On 48 V motoring falls under her law's clamps past 9.2 rad/s (hip roll), 14.7
 (hip, knee), 16.8 (ankle), 24-26 (shoulder, elbow, neck); braking keeps its
-peak. Her walk never reaches it.
+peak. Her walk never reaches it. Her law each pass (`machine.shrunk`,
+wbc_step.c, wbc_shrunk.c): her ask shrunk as one to her clamps as before,
+each drive clipped to these bounds.
+
+- Bounded at each drive's nominal peak, her war emergency power was taken
+  (63 N m at 3.02 s walking): her walk 2.50 -> 2.54 off a woman's. The peak
+  is her law's own limit.
+- Her ask shrunk as one into these bounds: a fast joint's motoring bound took
+  her whole ask down and felled her charged run leap's landing (6.64 s), where
+  her base and the clip stand; her step has no box a drive to trade in.
+
+## The discrete phase margin
+
+`machine.margin`, `tools/sim/margin.py`: the text's lock-in at 15, 22, 30 and
+38 Hz on her loop broken at a drive's torque, standing, 0.5 N m. The four at
+once beat 7-8 Hz apart through its 250 ms leak, 9 % of each in the others':
+each frequency in its turn, 1.5 s. A known loop (a PD on an inertia, its
+torque 3 ms late) read within 0.11 dB and 1.7 deg.
+
+| loop | 15 Hz | 22 Hz | 30 Hz | 38 Hz |
+| --- | --- | --- | --- | --- |
+| ankle | -7.9 dB, 1 deg | -0.6, 164 | -5.0, -177 | -7.8, -174 |
+| knee | -17.0, 149 | -22.5, 25 | -23.7, 25 | -25.2, 25 |
+| hip | -21.4, 65 | -26.0, 52 | -26.0, 22 | -26.9, 14 |
+| shoulder | -26.3, 92 | -30.1, 87 | -36.0, 73 | -40.5, 70 |
+| spine | -15.5, 122 | -21.5, 50 | -25.5, 35 | -29.2, 27 |
+
+- Rigid, every loop past -3 dB keeps its margin; her ankle's phase turns
+  through 180 deg between 15 and 22 Hz, its gain margin there 7.9 dB.
+- Her gearboxes in (`physics.BOXED`): her hip's loop at 22 Hz +3.9 dB with
+  24.8 deg - the text's rollback, K_d and gamma to 0.65. At 1 N m the same
+  hip +0.2 dB, 88.8 deg: her gearboxes' play, the loop's gain rising as the
+  probe sinks into it.
 
 ## The lowering
 

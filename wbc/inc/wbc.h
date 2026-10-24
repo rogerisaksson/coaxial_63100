@@ -108,6 +108,8 @@ typedef struct
   double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
   double strides;                 /**< how far she strides, 0 to 1: the floor's shortfall her inertia's */
   double mu[2];                   /**< each standing sole's friction: her grip (machine.grip) */
+  double lo[WBC_DRIVEN];          /**< each drive's back-EMF bounds, N m (machine.bemf): none -inf, inf */
+  double hi[WBC_DRIVEN];
 } wbc_ask_t;
 
 /** What the loop answers: the drives' torques; every acceleration (u's order); each sole's
@@ -279,13 +281,14 @@ int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, c
 /** What the step hands out (wbc_shrunk.c): every acceleration at the unknowns x - the pelvis's
     six by p, then udot = t base + e x + t0 -; the drives' torques at x and the udot they give;
     how far from tau0, the torques with nothing asked, toward tau, the ask's, every drive stays
-    within its limit - the largest s in [0, 1] with every |tau0 + s (tau - tau0)| <= limit, 0
-    where none is; and the step's shrunk answer into `out`. */
+    within its bounds [lo, hi], the largest s in [0, 1] with every tau0 + s (tau - tau0) within them,
+    0 where none is; and the step's answer into `out`, shrunk to the clamps, each drive clipped to its
+    back-EMF's bounds. */
 void wbc_wrench_motion(const wbc_wrench_t *w, const double x[WBC_U], double udot[WBC_N]);
 void wbc_wrench_torques(const wbc_body_t *b, const wbc_wrench_t *w, const double stance[2],
                         const double x[WBC_U], const double udot[WBC_N], double tau[WBC_DRIVEN]);
-double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
-                  const double limit[WBC_DRIVEN]);
+double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN], const double lo[WBC_DRIVEN],
+                  const double hi[WBC_DRIVEN]);
 void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
                     const double stance[2], const double whole[WBC_U], const double stood[WBC_U],
                     wbc_out_t *out);

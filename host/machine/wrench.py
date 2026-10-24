@@ -22,6 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import drives
+from machine.shrunk import box, shrunk
 from machine.figure import BALL, HEEL, JOINTS, SOLE_HALF
 from machine.wbc import (CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD,
                          TURN_KD, G, turn_error)
@@ -185,20 +186,6 @@ def _taken(u0, metric, up, frames, stance, edge, band, grounded, mu):
         share[:12] += out * (to - share[:12])
         met[:12] = np.maximum(met[:12], out)
     return at
-
-
-def shrunk(tau, tau0, limit):
-    """How far from `tau0`, the drives' torques with nothing asked, toward `tau`, the ask's,
-    every drive stays within its `limit`: the largest s in [0, 1] with every |tau0 + s (tau -
-    tau0)| <= limit, each drive's in closed form, the least of them; 0 where none is."""
-    t0 = np.where(np.abs(tau0) <= limit, tau0, 0.0)
-    d = tau - t0
-    with np.errstate(divide='ignore', invalid='ignore'):
-        leaves = np.where(d > 0.0, limit - t0, -limit - t0) / d
-        enters = np.where(d > 0.0, -limit - t0, limit - t0) / d
-    s = np.where(d == 0.0, 1.0 * (np.abs(tau) <= limit), np.minimum(1.0, leaves))
-    s = np.where(s >= np.maximum(0.0, np.where(d == 0.0, 0.0, enters)), s, 0.0)
-    return float(np.clip(s.min(), 0.0, 1.0))
 
 
 def _maps(b, s, ask, want):
@@ -398,15 +385,15 @@ def step(b, s, ask):
     # the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows
     whole = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
                     a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
-    limit = (b.wep if ask.get('wep') else b.clamp) * np.asarray(ask.get('derate', 1.0))
+    limit, lo, hi = box(b, ask)
     tau, qdd = torques(whole)
     if (np.abs(tau) > limit).any():
         stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
                         -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
         tau0 = torques(stood)[0]
-        scale = shrunk(tau, tau0, limit)
+        scale = shrunk(tau, tau0, -limit, limit)
         u = whole + (scale - 1.0) * (whole - stood)
-        s0 = (shrunk(tau + (scale - 1.0) * (tau - tau0), np.zeros(len(limit)), limit)
+        s0 = (shrunk(tau + (scale - 1.0) * (tau - tau0), np.zeros(len(limit)), -limit, limit)
               if (np.abs(tau0) > limit).any() else 1.0)
         scale, u = s0 * scale, (s0 * u if s0 < 1.0 else u)
         carried, qdd = torques(u, s0)
@@ -425,6 +412,6 @@ def step(b, s, ask):
     for p, r in b.pairs:
         over[p] = over[r] = past[p] or past[r]
     b.load = np.abs(tau) / b.clamp
-    return {'tau': np.clip(carried, -limit, limit), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
+    return {'tau': np.clip(carried, lo, hi), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
             'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale}
 

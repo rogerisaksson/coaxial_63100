@@ -39,7 +39,7 @@ def _step_typed():
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
-    fields += [(name, p) for name in 'posture derate clamp wep_nm'.split()]
+    fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
@@ -169,6 +169,7 @@ def _stepped(k, step, v, b, s, ask):
     derate = np.asarray(ask.get('derate', 1.0), float)
     k.derate = at(derate if derate.shape == (k.nd,) else np.broadcast_to(derate, (k.nd,)))
     k.clamp, k.wep_nm, k.mass = at(b.clamp), at(b.wep), b.mass
+    k.lo, k.hi = (at(np.broadcast_to(ask.get(side, bound), (k.nd,))) for side, bound in (('lo', -np.inf), ('hi', np.inf)))
     if step(ctypes.byref(k)):
         raise np.linalg.LinAlgError('Singular matrix')
     nd, cop = k.nd, [None if v['cop_none'][side] else v['cop'][side].copy() for side in range(k.cop_n)]

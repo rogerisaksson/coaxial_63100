@@ -63,26 +63,26 @@ void wbc_wrench_torques(const wbc_body_t *b, const wbc_wrench_t *w, const double
 }
 
 /** How far from tau0, the torques with nothing asked, toward tau, the ask's, every drive stays
-    within its limit: the largest s in [0, 1] with every |tau0 + s (tau - tau0)| <= limit, each
-    drive's in closed form, the least of them; 0 where none is. */
-double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN],
-                  const double limit[WBC_DRIVEN])
+    within its bounds [lo, hi] (0 within them): the largest s in [0, 1] with every tau0 + s (tau -
+    tau0) within them, each drive's in closed form, the least of them; 0 where none is. */
+double wbc_shrunk(const double tau[WBC_DRIVEN], const double tau0[WBC_DRIVEN], const double lo[WBC_DRIVEN],
+                  const double hi[WBC_DRIVEN])
 {
   double s = 1.0;
 
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const double l = limit[j], t0 = (fabs(tau0[j]) <= l) ? tau0[j] : 0.0, d = tau[j] - t0;
+    const double t0 = (tau0[j] >= lo[j] && tau0[j] <= hi[j]) ? tau0[j] : 0.0, d = tau[j] - t0;
     double       sj;
 
     if (d == 0.0)
     {
-      sj = (fabs(tau[j]) <= l) ? 1.0 : 0.0;
+      sj = (tau[j] >= lo[j] && tau[j] <= hi[j]) ? 1.0 : 0.0;
     }
     else
     {
-      const double leaves = ((d > 0.0) ? l - t0 : -l - t0) / d;
-      const double enters = ((d > 0.0) ? -l - t0 : l - t0) / d;
+      const double leaves = ((d > 0.0) ? hi[j] - t0 : lo[j] - t0) / d;
+      const double enters = ((d > 0.0) ? lo[j] - t0 : hi[j] - t0) / d;
 
       sj = (leaves < 1.0) ? leaves : 1.0;
       sj = (sj >= ((enters > 0.0) ? enters : 0.0)) ? sj : 0.0;
@@ -99,7 +99,8 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
                     const double stance[2], const double whole[NU], const double stood[NU],
                     wbc_out_t *out)
 {
-  double at[NU], tau[WBC_DRIVEN], tau0[WBC_DRIVEN], carried[WBC_DRIVEN], limit[WBC_DRIVEN];
+  double at[NU], tau[WBC_DRIVEN], tau0[WBC_DRIVEN], carried[WBC_DRIVEN], limit[WBC_DRIVEN], nlimit[WBC_DRIVEN];
+  double lo[WBC_DRIVEN], hi[WBC_DRIVEN];
   double s, s0 = 1.0;
   int    past = 0, past0 = 0;
 
@@ -110,10 +111,12 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     const double clamp = wbc_clamp[wbc_driven[j]], peak = wbc_peak[wbc_driven[j]];
-
     limit[j] = ((ask->wep && (peak > clamp)) ? peak : clamp) * ask->derate[j];
+    nlimit[j] = -limit[j];
+    lo[j] = (nlimit[j] > ask->lo[j]) ? nlimit[j] : ask->lo[j];
+    hi[j] = (limit[j] < ask->hi[j]) ? limit[j] : ask->hi[j];
   }
-  s = wbc_shrunk(tau, tau0, limit);
+  s = wbc_shrunk(tau, tau0, nlimit, limit);
   for (int c = 0; c < NU; c++)
   {
     at[c] = whole[c] + (s - 1.0) * (whole[c] - stood[c]);
@@ -132,7 +135,7 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
       t1[j] = tau[j] + (s - 1.0) * (tau[j] - tau0[j]);
       z0[j] = 0.0;
     }
-    s0 = wbc_shrunk(t1, z0, limit);
+    s0 = wbc_shrunk(t1, z0, nlimit, limit);
     s *= s0;
     if (s0 < 1.0)
     {
@@ -171,11 +174,11 @@ void wbc_wrench_out(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t 
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
-    const double clamp = wbc_clamp[wbc_driven[j]], l = limit[j], c = carried[j];
+    const double clamp = wbc_clamp[wbc_driven[j]], c = carried[j];
 
     out->over[j] = fabs(tau[j]) > clamp * (1.0 + 1e-6);
     out->load[j] = fabs(tau[j]) / clamp;
-    out->tau[j] = (c < -l) ? -l : ((c > l) ? l : c);
+    out->tau[j] = (c < lo[j]) ? lo[j] : ((c > hi[j]) ? hi[j] : c);
   }
   for (int j = 0; j < WBC_DRIVEN; j++)
   {

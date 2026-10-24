@@ -187,7 +187,7 @@ def rows(body, d, near, pairs, which, at, v):
 def braking(J, M, act, dq, volts):
     """The most each row of `J` can be opened by, m/s^2: her drives' bounds at their speeds `dq` on
     `volts` (`bemf.bounds`) through her mass matrix `M`, each drive at the bound that opens it."""
-    lo, hi = bemf.bounds(dq, volts)
+    lo, hi = bemf.bounds(dq, volts, bemf.PEAK)
     C = np.linalg.solve(M, J.T)[act].T
     return np.maximum(C * lo, C * hi).sum(1)
 

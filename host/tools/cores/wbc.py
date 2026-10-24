@@ -48,7 +48,7 @@ class Ask(ctypes.Structure):
                 ('fold_knee', _d * 2), ('fold_rate', _d * 2), ('fold_acc', _d * 2), ('knee_rate', _d * 2),
                 ('posture', _d * DRIVEN), ('derate', _d * DRIVEN), ('wep', _i),
                 ('kdot_given', _i), ('kdot', _d * 3), ('settle', (_d * 6) * 2), ('edge', _d * 2),
-                ('strides', _d), ('mu', _d * 2)]
+                ('strides', _d), ('mu', _d * 2), ('lo', _d * DRIVEN), ('hi', _d * DRIVEN)]
 
 
 class Out(ctypes.Structure):
@@ -205,6 +205,8 @@ def ask_of(ask, a=None):
         a.mu[0] = a.mu[1] = MU
     else:
         a.mu[0], a.mu[1] = float(mu[0]), float(mu[1])
+    np.ctypeslib.as_array(a.lo)[:] = ask.get('lo', -np.inf)
+    np.ctypeslib.as_array(a.hi)[:] = ask.get('hi', np.inf)
     return a
 
 

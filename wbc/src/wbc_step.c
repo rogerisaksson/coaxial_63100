@@ -267,17 +267,17 @@ static void torques(const wbc_step_t *p, const double *full, const double *full0
 }
 
 /** machine.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
-static double shrunk(int nd, const double *tau, const double *tau0, const double *limit)
+static double shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
 {
   double least = 0.0;
 
   for (int i = 0; i < nd; i++)
   {
-    const double t0 = fabs(tau0[i]) <= limit[i] ? tau0[i] : 0.0;
+    const double t0 = (tau0[i] >= lo[i] && tau0[i] <= hi[i]) ? tau0[i] : 0.0;
     const double d = tau[i] - t0;
-    const double leaves = (d > 0.0 ? limit[i] - t0 : (-limit[i]) - t0) / d;
-    const double enters = (d > 0.0 ? (-limit[i]) - t0 : limit[i] - t0) / d;
-    double       s = d == 0.0 ? 1.0 * (double)(fabs(tau[i]) <= limit[i]) : npmin(1.0, leaves);
+    const double leaves = (d > 0.0 ? hi[i] - t0 : lo[i] - t0) / d;
+    const double enters = (d > 0.0 ? lo[i] - t0 : hi[i] - t0) / d;
+    double       s = d == 0.0 ? 1.0 * (double)(tau[i] >= lo[i] && tau[i] <= hi[i]) : npmin(1.0, leaves);
 
     s = s >= npmax(0.0, d == 0.0 ? 0.0 : enters) ? s : 0.0;
     least = i ? npmin(least, s) : s;
@@ -315,6 +315,7 @@ int wbc_step(wbc_step_t *p)
   double           *stood = whole + nu, *u = stood + nu, *tau = u + nu, *tau0 = tau + nd, *carried = tau0 + nd;
   double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
+  double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D];
   double            grounded, turned, felt[WBC_STEP_C], strides = p->strides;
   wbc_geo_t         geo;
   int               at = 0, past = 0;
@@ -614,6 +615,9 @@ int wbc_step(wbc_step_t *p)
   for (int i = 0; i < nd; i++)
   {
     limit[i] = (p->wep ? p->wep_nm[i] : p->clamp[i]) * p->derate[i];
+    nlimit[i] = -limit[i];
+    lo[i] = npmax(-limit[i], p->lo[i]);
+    hi[i] = npmin(limit[i], p->hi[i]);
   }
   torques(p, full, full0, stance, whole, 1.0, nu, tau, qdd, rest);
   for (int i = 0; i < nd; i++)
@@ -631,7 +635,7 @@ int wbc_step(wbc_step_t *p)
       return 1;
     }
     torques(p, full, full0, stance, stood, 1.0, nu, tau0, qdd, rest);
-    p->scale = shrunk(nd, tau, tau0, limit);
+    p->scale = shrunk(nd, tau, tau0, nlimit, limit);
     for (int j = 0; j < nu; j++)
     {
       u[j] = whole[j] + (p->scale - 1.0) * (whole[j] - stood[j]);
@@ -649,7 +653,7 @@ int wbc_step(wbc_step_t *p)
         t1[i] = tau[i] + (p->scale - 1.0) * (tau[i] - tau0[i]);
         z0[i] = 0.0;
       }
-      s0 = shrunk(nd, t1, z0, limit);
+      s0 = shrunk(nd, t1, z0, nlimit, limit);
       p->scale = s0 * p->scale;
       if (s0 < 1.0)
       {
@@ -691,7 +695,7 @@ int wbc_step(wbc_step_t *p)
   {
     p->over[i] = fabs(tau[i]) > p->clamp[i] * (1.0 + 1e-6);
     p->load[i] = fabs(tau[i]) / p->clamp[i];
-    p->tau[i] = clipped(carried[i], -limit[i], limit[i]);
+    p->tau[i] = clipped(carried[i], lo[i], hi[i]);
   }
   for (int q = 0; q < p->npairs; q++)
   {

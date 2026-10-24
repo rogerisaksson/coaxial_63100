@@ -121,6 +121,9 @@ ORTHO = 'test_ortho.py'
 DSP = 'test_dsp.py'
 #: The dual-domain kernel on her loop: her momentum observer against her skin.
 KERNEL = 'test_kernel.py'
+#: The dual-domain kernel's mechanisms apart from her scenes: its lowering and bank, her body schema
+#: and its shield, her drives' back-EMF box, the phase-margin probe, the wayfinder.
+SHIELD = 'test_shield.py'
 #: The autotuner on her texts: its text read, her texts given, every literal walked and its reach on
 #: her, its step, a run's residuals and the verdicts on a step.
 TUNE = 'test_tune.py'
@@ -165,7 +168,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, KERNEL, TUNE, FLOOR, SITUATION, ERRANDS, CYCLIC,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, KERNEL, SHIELD, TUNE, FLOOR, SITUATION, ERRANDS, CYCLIC,
                    QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -198,6 +201,7 @@ JOINS = (
     (12, ORTHO),
     (12, DSP),
     (12, KERNEL),
+    (12, SHIELD),
     (12, TUNE),
     (12, FLOOR),
     (12, SITUATION),

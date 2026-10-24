@@ -297,3 +297,13 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     ECBF in her mass's metric, each floor raised by its braking distance
     through her drives' back-EMF bounds (`machine.bemf`); walking every pair
     clear of its floor ([kernel](findings/kernel.md)).
+58. Her law's torque box her drives' back-EMF bounds (`machine.bemf`,
+    `machine.shrunk`): each driven joint's bounds by its speed on her link's
+    volts inside its clamp, in her python step, wbc_step.c and the board's
+    wbc_shrunk.c: her ask shrunk to her clamps, each drive clipped to its
+    bounds, her C twins as her python ([kernel](findings/kernel.md)).
+59. The insert's phase-margin probe (`machine.margin`, `tools/sim/margin.py`):
+    the text's lock-in at 15, 22, 30 and 38 Hz, each in its turn, on her loop
+    broken at a drive's torque; a known loop read within 0.11 dB and 1.7 deg;
+    her gearboxes in, her hip's loop at 22 Hz past 0 dB with 25 deg
+    ([kernel](findings/kernel.md)).

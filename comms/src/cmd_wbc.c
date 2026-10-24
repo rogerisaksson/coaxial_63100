@@ -49,6 +49,8 @@ static void stand(wbc_frame_t *base, wbc_ask_t *ask)
   {
     ask->posture[j] = wbc_stand_q[wbc_driven[j] - 1];
     ask->derate[j] = 1.0;
+    ask->lo[j] = -HUGE_VAL;
+    ask->hi[j] = HUGE_VAL;
   }
 }
 
