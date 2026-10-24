@@ -71,6 +71,7 @@ static void columns(wbc_gmo_t *o)
     double    n[3];
 
     wbc_body_jacobian(&o->body, o->link[p], o->local[p], j);
+    wbc_body_point(&o->body, o->link[p], o->local[p], o->at[p]);
     turned(o->body.t[o->link[p]].r, o->normal[p], n);
     for (int i = 0; i < WBC_N; i++)
     {

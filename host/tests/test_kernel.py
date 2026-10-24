@@ -112,7 +112,45 @@ def test_what_bears_her_weighs_as_felt(report):
                  and np.allclose(felt, told) and np.allclose(gone, [1.0, 0.0, 0.0, 0.0]), '')
 
 
-ROSTER = (test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
+def test_the_barrier_holds_her_capture_point(report):
+    """`barrier.barred` over a 0.2 m square: her capture point 0.05 m in of an edge moving out at
+    0.5 m/s, an ask outward cut to the edge's h' + gamma h = 0; past the edge none further out; at
+    rest 0 the ask as given."""
+    import numpy as np
+    from machine import barrier
+    corners = np.array([[x, 0.0, z] for x in (-0.1, 0.1) for z in (-0.1, 0.1)])
+    om, v = 3.3, np.array([0.5, 0.0, 0.0])
+    com = np.array([0.1 - 0.05 - v[0] / om, 0.9, 0.0])
+    got = barrier.barred(np.array([5.0, 0.0, 0.0]), com, v, om, corners, 1.0)
+    h = 0.05 - barrier.MARGIN_M
+    held = -(v[0] + got[0] / om) + barrier.GAMMA * h
+    past = barrier.barred(np.array([5.0, 0.0, 0.0]), com + np.array([0.1, 0.0, 0.0]), v, om, corners, 1.0)
+    free = barrier.barred(np.array([5.0, 0.0, 0.0]), com, v, om, corners, 0.0)
+    report.check("inside h' + gamma h %.2g; past it xi' %.2g; at rest 0 %s" % (held, v[0] + past[0] / om, free),
+                 abs(held) < 1e-9 and abs(v[0] + past[0] / om) < 1e-9 and free[0] == 5.0, '')
+
+
+def test_a_pulled_chair_weighs_nothing(report):
+    """The chair pulled 1 m back from under her sit while her pelvis is over it (1.8 s): what bears
+    her takes no seat, and she stands."""
+    import numpy as np
+    from machine import latent
+    from tools.sim import scenarios
+    seat, x0 = [0.0], [None]
+
+    def laid(s):
+        g, w = s['g'], s['g']['world']
+        k = w.model.body_mocapid[w.model.body('chair').id]
+        x0[0] = w.data.mocap_pos[k].copy() if x0[0] is None else x0[0]
+        u = min(1.0, max(0.0, (g['t'] - 1.8) / 0.3))
+        w.data.mocap_pos[k] = x0[0] - np.array([0.0, 0.0, u * u * (3.0 - 2.0 * u)])
+        seat[0] = max(seat[0], float(g['out'][latent.MANIFOLDED][1]))
+
+    out = scenarios.ran('chair', laid=laid)
+    report.check('the seat taken at most %.3f, stood %s' % (seat[0], out['stood']), seat[0] == 0.0 and out['stood'], '')
+
+
+ROSTER = (test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
           test_what_bears_her_weighs_as_felt)
 
 

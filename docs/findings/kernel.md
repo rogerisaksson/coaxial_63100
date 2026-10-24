@@ -72,3 +72,24 @@ passes walking: 0.1-0.4 N rms a manifold, 9 at most.
   lets her go at 8.55 s where its told pan runs to 9.0: her pelvis's jerk
   peak 957 (3 492 before), its 99th percentile 409 (266). Gated by the
   force's share of the engage share instead: 416, the head 909.
+
+## Her capture point's barrier
+
+`machine.barrier`: her centre of mass's floor ask projected onto each edge's
+h' + 14 h >= 0 (h her capture point's distance in, less 18 mm) over the hull
+of her bearing soles and the observer's pressing points on felt manifolds;
+past an edge, no further out.
+
+- The chair pulled 1 m back over 0.3 s from under her sit (`chair`, sit
+  at 1 s, the seat touched at ~2.05): at 1.5 or 1.8 s she sinks into a
+  squat, her pelvis at 0.56 m, the seat taken 0 throughout. At 2.0 s the
+  seat is taken 0.08 for 0.05 s; her sit's rows straighten her trunk (her
+  pelvis +41 to -8 deg) and she falls back at 3.64 s, with the barrier at
+  3.87 - her capture point held at the heel's edge less the margin for
+  0.5 s while her trunk's turn took the soles' room.
+- On in every stance not striding, it threw the chair's rise forward off
+  the seat (pulled back from outside; her ask's stance one sole as both
+  bore her). On as far as her rows lean on what her comparator does not
+  feel: chair, bed and bed rise as before (the chair's pelvis 283, head 744
+  m/s^3 against 266, 783), her walk to the bit.
+

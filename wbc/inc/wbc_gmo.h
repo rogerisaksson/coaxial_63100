@@ -41,6 +41,7 @@ typedef struct
   double      r[WBC_N];                    /**< out: the external generalized force, low-passed */
   double      f[WBC_GMO_F];                /**< out: each point's force */
   double      force[WBC_GMO_MANIFOLDS];    /**< out: each manifold's normal force, N */
+  double      at[WBC_GMO_POINTS][3];       /**< out: each point in the world */
   wbc_body_t  body;
   double      a[WBC_N][WBC_GMO_F];
   double      h[WBC_GMO_F][WBC_GMO_F];

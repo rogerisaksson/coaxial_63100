@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, edge, estimate, grip, latent, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
+from machine import barrier, borne, edge, estimate, grip, latent, leap, modal, observer, poise, se2, situation, stride, supervisor, touch, waits, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -180,8 +180,10 @@ def control(g, dt):
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
-    out[latent.MANIFOLDED] = observer.weighed(g['observer'], out[latent.MANIFOLDED], float(g['fr'][modal.WEIGHT]), dt * ev)
+    told = out[latent.MANIFOLDED].copy()
+    out[latent.MANIFOLDED] = observer.weighed(g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
+    unfelt = float(out[latent.MANIFOLDED][0] - told[0])
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     touch.step(g, out, dt * ev)
@@ -204,6 +206,10 @@ def control(g, dt):
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
+    bears = np.array(g['loads']) >= leap.TOUCH_N
+    held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
+    ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
+                                    (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt)
     ask['mu'] = g['held']
     arms = [modal.ARMS, modal.REACH]
     ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))

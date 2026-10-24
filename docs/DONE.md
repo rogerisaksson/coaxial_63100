@@ -262,3 +262,8 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     manifold weights where the text's comparator feels the manifold, gated
     at 4.5 and 45 a second, the rest her soles'; her ZMP's hold her soles'
     taken weight (test_kernel.py, [kernel](findings/kernel.md)).
+50. Her capture point's barrier (`machine.barrier`): the kernel's DCM barrier
+    on her centre of mass's ask over what bears her, on as far as her rows
+    lean on what she does not feel; a chair pulled from under her sit
+    weighs nothing and she squats (test_kernel.py,
+    [kernel](findings/kernel.md)).

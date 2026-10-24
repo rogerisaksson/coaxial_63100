@@ -63,6 +63,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | rcu | her loop and a tuner apart with no lock: rings of her passes, a double bank of tables in 64-byte lines (SoA), a seqlock and a took word between them; her loop's side C (wbc_rcu.h), the block locked in memory |
 | observer | her generalized momentum observer, blind, in C (wbc_gmo.c): her drives' torques, encoders and IMU over her chain's M(q), at the kernel's 35 Hz, split over the kernel's patches by four least squares, each normal pushing |
 | kernel | the dual-domain kernel's ops by the mechanism each feeds; its texts read and their stages' defaults |
+| barrier | her capture point's barrier: her centre of mass's ask held to each support edge's h' + gamma h >= 0 over what bears her, as far as her rows lean on what she does not feel |
 | tap | her loop's side of a tuner: her raw passes copied (her contacts in C, `wbc_pass_tapped`), cooked and measured on the tuner's core, a table laid at her barrier (lateral crossing, both soles locked, her last blend done) blended minimum-jerk |
 | takes | the mocap takes as rows for her loop: a posture take's voices at its beats, a gait take's amounts on her standard gait, entered over her leg's half period, told by the bench |
 | worker | her outer loop and session: discrete commands mapped to continuous setpoints, each logged with its epoch and pass, falls recovered; the page's states |
@@ -91,7 +92,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | `test_gynoid.py` | the body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
 | `test_dsp.py` | the ortho-DSP suite read as written, the kernel read whole, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk |
-| `test_kernel.py` | the dual-domain kernel on her loop: her momentum observer against her skin walking and seated; her chest's yaw leaking nothing standing |
+| `test_kernel.py` | the dual-domain kernel on her loop: her momentum observer against her skin walking and seated; her chest's yaw leaking nothing standing; what bears her weighed as felt; the capture point's barrier; a pulled chair |
 | `test_tune.py` | the autotuner's text read; her texts given play as her files; every literal walked where it stands, her gym's by its slot; each one's reach on her - the runway's, the sit's, her walk's -; its step a QP; a run's residuals and the verdicts on a step; a link's rings and banks, her walk linked as unlinked bit for bit, her raw passes cooked as MuJoCo reads them, her walk measured at runtime with her loop apart, a table laid at her barrier blending C2 |
 | `test_floor.py` | humanoid robot floor: the plane under humanoid robot soles, its grip as she feels it, the situations that cap humanoid robot rhythm |
 | `test_situation.py` | humanoid robot situation: the text's bounds and caps, each entered unannounced told within a second |

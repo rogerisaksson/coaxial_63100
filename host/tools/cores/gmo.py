@@ -33,7 +33,7 @@ class Gmo(ctypes.Structure):
                 ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P), ('normal', (_d * 3) * GMO_P), ('sole', _i * GMO_P),
                 ('col', _i * GMO_P), ('share_point', _i * GMO_S), ('share_manifold', _i * GMO_S),
                 ('share_link', _i * GMO_S), ('share_axis', (_d * 3) * GMO_S), ('tau', _d * DRIVEN), ('acc', _d * 3),
-                ('span', _d), ('primed', _d), ('u', _d * N), ('r', _d * N), ('f', _d * GMO_F), ('force', _d * GMO_M),
+                ('span', _d), ('primed', _d), ('u', _d * N), ('r', _d * N), ('f', _d * GMO_F), ('force', _d * GMO_M), ('at', (_d * 3) * GMO_P),
                 ('body', _d * BODY_DOUBLES), ('a', (_d * GMO_F) * N), ('h', (_d * GMO_F) * GMO_F),
                 ('k', (_d * GMO_F) * GMO_F)]
 

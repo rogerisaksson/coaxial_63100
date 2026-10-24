@@ -124,6 +124,15 @@ def weighed(obs, told, weight, dt):
     return w
 
 
+def bearing(obs):
+    """(k, 3) the points that press on a manifold her comparator feels, world: what bears her besides
+    her soles."""
+    rows = np.full(len(MANIFOLDS), -1)
+    rows[ROWS] = np.arange(len(ROWS))
+    felt = np.concatenate([obs['latched'], [0.0]])[rows[obs['manifold']]]
+    return obs['points'][(~obs['sole']) & (felt > 0.5) & (obs['f'][obs['cols']] > 0.0)]
+
+
 #: The rounds of the split: a least squares, each normal pulling pinned for the next - the
 #: whole-body step's (`wrench.ROUNDS`) - fixed, so a pass's cost is.
 ROUNDS = 4
@@ -162,7 +171,9 @@ def laid(body):
         o.share_axis[k][:] = np.asarray(axis, float).tolist()
     view = lambda field: np.ctypeslib.as_array(getattr(o, field))
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
-            'r': view('r'), 'f': view('f'), 'normal': view('force'), 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
+            'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'),
+            'cols': np.array([o.col[p] for p in range(len(POINTS))]), 'sole': np.array([n is None for *_r, n in POINTS]),
+            'manifold': np.array([MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]), 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
             'u': np.zeros(body.n), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
             'since': np.zeros(len(ROWS)), 'gate': np.zeros(len(ROWS))}
 
