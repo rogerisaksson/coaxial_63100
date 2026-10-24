@@ -480,3 +480,11 @@ def _pruned(blocked, path):
         out.append(path[j])
         i = j
     return out
+
+
+def told(keep):
+    """[(kind, centre, half sizes, rotation)] of what her map tells (`Map.things`) as `world.props()`
+    gives the room's boxes - upright, a thing's centre half its height up -: her registry's looks
+    (`machine.registry`) from her eyes."""
+    eye = _np().eye(3)
+    return [(k, (c[0], 0.5 * h, c[1]), (hx, 0.5 * h, hz), eye) for k, c, (hx, hz), h, _look in keep.map.things()]

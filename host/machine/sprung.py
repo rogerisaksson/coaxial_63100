@@ -5,10 +5,15 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, sight, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
+#: Her eyes by `physics.SIGHT` off or on: none, her stand-in the world's boxes (`furniture`'s); her stereo's
+#: keep (`sight.Keep`), a look into its map LOOK_S apart and its things told (`sight.told`) her registry's looks.
+KEEP = (lambda world: None, sight.Keep)
+LOOKS = ((lambda g: None, lambda g: g['world'].props()),
+         (lambda g: g['keep'].look(g['world'], g['t']), lambda g: sight.told(g['keep'])))
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
@@ -124,7 +129,8 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid()}
+         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
+         'eyes': int(physics.SIGHT > 0.0), 'keep': KEEP[int(physics.SIGHT > 0.0)](world)}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -209,12 +215,14 @@ def passed(g, dt=0.001):
         edge.read(world, y)
         observer.felt(g['observer'], y, dt)
         inekf.felt(g['inekf'], y, dt)
-        # her eyes' stand-in, as `furniture`'s: the world's boxes a look, what her looks would tell her,
-        # at the kernel's SDF refresh, into her map; her shield's things its boxes
+        # her looks (LOOKS): her eyes' map's things, or the world's boxes as their stand-in, at the kernel's
+        # SDF refresh into her registry; her shield's things its boxes
         if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
             head = {'pos': g['s']['head']['pos'], 'quat': g['s']['head']['quat']}
+            looked, looks = LOOKS[g['eyes']]
+            looked(g)
             registry.passed(g['registry'], head, g['t'] - g.get('things_at', g['t']))
-            registry.seen(g['registry'], world.props(), head, g['t'])
+            registry.seen(g['registry'], looks(g), head, g['t'])
             g['things'], g['things_at'] = registry.boxes(g['registry']), g['t']
         motion.control(g, dt)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])

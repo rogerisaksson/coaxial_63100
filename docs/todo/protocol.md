@@ -60,10 +60,13 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    doorway; a foot placed off a chair's crossbar.
 8. **Step 6, her map's rest**: her right-invariant EKF (`machine.inekf`)
     and her registry (`machine.registry`: 45 of the lodge's 53 boxes after
-    her bed errand, blind spots kept 45 s). Left: her eyes' own things
-    (`physics.SIGHT`) as its looks, the three SDF bands at her knee, navel
-    and crown, the kernel's affordances and funnels on it, the mover's wake
-    to the wayfinder. DOD: her eyes' map as the stand-in's; the funnels'
+    her bed errand, blind spots kept 45 s); her eyes' things are its looks
+    under `physics.SIGHT` (`sight.told`, `sprung.LOOKS`): 65 things told made
+    96 slots where the stand-in's boxes made 33, her map's lumps growing look
+    by look out of the registry's gate (sight findings). Left: a told lump's
+    own precision as its look's variance, the three SDF bands at her knee,
+    navel and crown, the kernel's affordances and funnels on it, the mover's
+    wake to the wayfinder. DOD: her eyes' map as the stand-in's; the funnels'
     sit and lie chosen from it.
 9. **Step 7, the lowering and the tuner**: `machine.lowering` folds a
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a

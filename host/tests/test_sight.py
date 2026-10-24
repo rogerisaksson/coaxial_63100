@@ -219,7 +219,40 @@ def _meets(w0, w1):
     return any((A @ np.linalg.solve(A[m], b[m]) <= b + 1e-9).all() for m in pairs)
 
 
-ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through]
+def test_her_things_fill_her_registry(report):
+    """Her eyes' things into her registry (`sight.told`, `machine.registry`): looked round, each look's
+    things seen from the head that looked, the chair, the table and the bed hold slots within 0.3 m of
+    where they stand; on her loop under `physics.SIGHT` her things are her map's (`sprung.LOOKS`)."""
+    from machine import physics, registry, room, sight, sprung
+    body, world = _room()
+    try:
+        keep, slots = sight.Keep(world), registry.laid()
+        hb = world.model.body('head').id
+        for k in range(LOOKS):
+            _stood(world, math.tau * k / LOOKS)
+            keep.look(world, k * sight.LOOK_S)
+            head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
+            registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)
+        boxes = registry.boxes(slots, least=-math.inf)
+        kinds = sorted({b[0] for b in boxes})
+        for name, at in (('chair', room.CHAIR_AT), ('table', room.TABLE_AT), ('bed', room.BED_AT)):
+            near = [math.hypot(b[1][0] - at[0], b[1][2] - at[1]) for b in boxes if b[0] == name]
+            report.check('the %s holds a slot within 0.3 m of where it stands' % name, bool(near) and min(near) < 0.3,
+                         '%s of %d slots, %s' % (', '.join('%.2f' % d for d in near) or 'none', len(boxes), kinds))
+        g = sprung.laid(sprung.STACK_EVERY)
+        while g['t'] < 2.0 * sight.LOOK_S + 0.1:
+            sprung.passed(g)
+        report.check('on her loop under SIGHT her things are her map\'s: a keep looked twice, things told',
+                     isinstance(g['keep'], sight.Keep) and g['keep'].map.looks >= 2 and len(g['things']) >= 1,
+                     '%s, %d looks, %d things: %s' % (type(g['keep']).__name__, getattr(g['keep'], 'map', keep.map).looks,
+                                                    len(g['things']), sorted({b[0] for b in g['things']})))
+    finally:
+        physics.SIGHT = 0.0
+        body.close()
+
+
+ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through,
+          test_her_things_fill_her_registry]
 
 
 def main(argv=None):

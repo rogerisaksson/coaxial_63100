@@ -76,3 +76,10 @@ What bears her is what she has identified: a scan dropped every box within
 0.05 m of her across, so the chair centred under her seat was out of her
 sight and its rise could not stand on it. A thing with a verb within 1.2 m is
 in her sight whichever way she faces (`scanner._in_cone`).
+
+Her registry fed by her eyes (`sight.told`, `sprung.LOOKS` under
+`physics.SIGHT`): a look round posed standing, the 65 things her map told made
+96 slots - the chair 13, the lamp 10, walls 41 - where the stand-in's boxes
+made 33 of 53. Her map's lumps grow look by look, and a grown lump's centre
+and size leave the registry's gate (0.24 m at its cell); the chair, table and
+bed are each told within 0.10, 0.05 and 0.05 m of where they stand.

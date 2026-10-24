@@ -333,3 +333,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     trochanteric pendulum along it; its handler (`maneuver._pendulum`) refuses
     the roll past her modes' reach by name, her gym's lie_bed kept.
     stunts_base.lisp renamed motion.lisp.
+67. Her eyes' things as her registry's looks under `physics.SIGHT`
+    (`sight.told`, `sprung.LOOKS`), the world's boxes their stand-in without
+    it; the chair, table and bed told within 0.10 m.
