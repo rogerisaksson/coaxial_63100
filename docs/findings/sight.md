@@ -87,4 +87,8 @@ and the lamp's 9 to 5.4 m. The registry matched each axis over a thing's own
 half size, a grown lump's centre shift its growth's half: 85 slots, the
 chair's 13 still, and the bed's slot 0.38 m off where 0.05 (a growing lump
 filtered in at the cell's precision averages its partial centres) - undone.
-The slots are her map's lumps as told (`sight.classify`), not the gate.
+The slots are her map's lumps as told (`sight.classify`), not the gate:
+`Map.lumps` joins cells four ways by their colour alone, so the chair and
+the loft's stair beside it are one 1.6 x 1.2 m lump told 'table' by its 0.99 m,
+and a table leg's single cell is a 'chair' by its 0.76 (65 things of 53
+props, 22 of them 'thing' cells 0.1-0.5 m high along the walls).
