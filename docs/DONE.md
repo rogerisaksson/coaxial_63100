@@ -275,3 +275,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     where her rows wait on a seat not bearing her; a chair lower than seen
     found and sat on, a chair pulled before it bears her a squat
     (test_kernel.py, [kernel](findings/kernel.md)).
+53. The somatic manifolds on her observer (wbc_gmo.c, 8 manifolds): her
+    forefoot by her soles' centre of pressure, her thighs' backs, her
+    forearms' and carpal heels' shove; read against her skin walking,
+    seated and lying ([kernel](findings/kernel.md)).

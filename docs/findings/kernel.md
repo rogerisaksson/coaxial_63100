@@ -23,6 +23,13 @@ ghost: the most read where her skin feels under 5 N):
 Its python (an active-set QP over MuJoCo's Jacobians) against the C, the same
 passes walking: 0.1-0.4 N rms a manifold, 9 at most.
 
+The somatic manifolds (rms N, against her skin; the most her skin felt):
+her forefoot - her toes and of each sole the share its centre of pressure has
+gone from its middle to its ball - walking 33.9 (439), seated 81.9 (253); her
+thighs' backs seated 72.0 (416), lying a 303 N ghost (her calves and heels
+on the bed, no point of hers). Her toes a patch of their own split the sole's
+sum badly (walking 61.4 N rms where 20.8).
+
 - Her law's M, h against MuJoCo's own constraint force at the world's
   qacc: 0.14 N at most. Given the exact contact force the split reads
   0.2 N mean on the soles, at most 1.3 N elsewhere.

@@ -26,7 +26,7 @@ def felt(world, y):
     """(MANIFOLDS,) her skin's push on each manifold, N: each segment's touch (`edge.TOUCH`) along
     each of its points' manifolds' normals (`observer.POINTS`), once a segment and normal."""
     import numpy as np
-    from machine import edge, observer
+    from machine import edge, figure, observer
     touch, m, xmat = y[edge.TOUCH].reshape(-1, 3), world.model, world.data.xmat
     world_of = lambda seg: xmat[m.body(seg).id].reshape(3, 3) @ touch[edge.SKIN.index(seg)]
     out, seen = np.zeros(len(observer.MANIFOLDS)), set()
@@ -37,6 +37,13 @@ def felt(world, y):
             along = float(force @ (xmat[m.body(frame).id].reshape(3, 3) @ np.array(axis)))
             out[observer.MANIFOLDS.index(manifold)] += 0.0 if key in seen else max(0.0, along)
             seen.add(key)
+    # her forefeet: her toes' push and of each sole's the share its touch's centre has gone to its ball
+    at = y[edge.AT].reshape(-1, 3)
+    for side in ('left', 'right'):
+        foot, toes = edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')
+        push = max(0.0, float(touch[foot][1]))
+        ahead = (float(at[foot][2]) - 0.5 * (figure.BALL - figure.HEEL)) / (0.5 * (figure.BALL + figure.HEEL))
+        out[observer.EQUINUS] += push * min(1.0, max(0.0, ahead)) + max(0.0, float(touch[toes][1]))
     return out
 
 

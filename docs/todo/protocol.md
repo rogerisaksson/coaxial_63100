@@ -9,11 +9,9 @@ her build; the lodge's door, table, chair, bed and loft stair (5 steps of
 mechanism's numbers are its text's (`dsp.read(dsp.KERNEL)`); what is done:
 [kernel](../findings/kernel.md).
 
-1. **Step 1, the somatic manifolds**: her observer's points and her rows'
-   manifolds take the forefoot (`metatarsal-equinus-bilateral`), the
-   thighs' backs (`posterior-femoral-bilateral`) and the forearms' and
-   carpal heels' push (`ulnar-carpal-shove-bilateral`). DOD: each read
-   against her skin in a scene that loads it.
+1. **Step 1, the shove's manifold read**: her observer reads her forearms'
+   and carpal heels' push (`ulnar-carpal-shove-bilateral`); no scene loads it
+   yet. DOD: read against her skin in Test 2's shove.
 2. **Step 2, the insert's inner stages**: its Butterworth D-channel at 42 Hz
    and its backlash bridge, each alone felled her turning walk (scenarios
    item 14). DOD: both on her loop at their text's numbers, every suite as

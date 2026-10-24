@@ -10,10 +10,10 @@
 
 /** Her patches' points; the unknowns, a sole's six and a push's one; each point's shares of the
     manifolds; the manifolds. */
-#define WBC_GMO_POINTS    16
-#define WBC_GMO_F         26
-#define WBC_GMO_SHARES    18
-#define WBC_GMO_MANIFOLDS 5
+#define WBC_GMO_POINTS    18
+#define WBC_GMO_F         28
+#define WBC_GMO_SHARES    24
+#define WBC_GMO_MANIFOLDS 8
 
 typedef struct
 {

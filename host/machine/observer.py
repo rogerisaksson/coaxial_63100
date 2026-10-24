@@ -21,10 +21,11 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import edge, kernel, ortho, qp
-from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, JOINTS, PADS, pad
+from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
 
-#: Her manifolds, the registry's order.
-MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry'])
+#: Her manifolds: the registry's, then its somatic extensions'; her forefeet's, of her soles' points.
+MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry']) + tuple(kernel.read()['somatic-contact-patch-extensions'])
+EQUINUS = MANIFOLDS.index('metatarsal-equinus-bilateral')
 #: Her drives' friction its loss (`drives.backdrive`, as her model has it) times tanh(v / SLIP_RAD_S)
 #: (the text's Stribeck). Measured on MuJoCo's: 0.42 of the loss at 3-10 mrad/s, 0.65 at 10-30, 0.85 at
 #: 30-100, 0.97 past; unmodelled, her soles' 1.8 m s^-2 walking read 19.5 N light and her seat 44 N
@@ -67,13 +68,20 @@ def _hip(x):
 _TOES = next(c for c in CONTACTS if c[0] == 'toes')
 _TOE = tuple(np.subtract(_TOES[3], (0.0, _TOES[2][1], 0.0)))
 _PALM = tuple(np.subtract(FIST_AT, (0.0, FIST_R, 0.0)))
+
+
+def _forearm():
+    """A forearm's front by its wrist (`figure.BODY`'s forearm), pressed back: a chair shoved."""
+    _p, r, _a, b = next(c for c in BODY if c[0] == 'forearm')
+    return (b[0], b[1] + r, b[2] + r)
 #: Each point: (its manifolds, each (manifold, the segment whose frame holds its normal, that normal)),
 #: its segment, the point, its outward normal - None a whole wrench -, in the segment's frame. A
-#: sole's wrench at `wbc.Body.sole`; the toes' underside; each buttock's; each thigh's back where the
-#: seat's patch ends ahead of the buttocks and the back's begins below the sacrum - sat, pressed up
-#: her pelvis (the seat's); lain, pressed along her back (the back's) -; each hip's side, pressed
-#: in; the sacrum, the lumbar and thoracic back and the skull's, pressed forward; each palm's heel,
-#: pressed up its arm.
+#: sole's wrench at `wbc.Body.sole`; the toes' underside; each buttock's; each thigh's
+#: back where the seat's patch ends ahead of the buttocks and the back's begins below the sacrum -
+#: its own, and sat pressed up her pelvis (the seat's), lain pressed along her back (the back's) -;
+#: each hip's side, pressed in; the sacrum, the lumbar and thoracic back and the skull's, pressed
+#: forward; each palm's heel, pressed up its arm, a brace's or a shove's; each forearm's front by its
+#: wrist, pressed back, a shove's.
 _SEAT, _LAIN = ('ischial-bilateral', 'pelvis', _UP), ('dorsal-supine-continuum', 'pelvis', _BACK)
 POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axis),) if isinstance(m, str) else m,
                 seg, p, n) for m, frame, axis, seg, p, n in (
@@ -81,15 +89,20 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
     ('plantar-bilateral', None, None, 'left_toes', _TOE, _UP), ('plantar-bilateral', None, None, 'right_toes', _TOE, _UP),
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 0), _UP),
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 1), _UP),
-    ((_SEAT, _LAIN), None, None, 'left_thigh', _thigh(), _BACK), ((_SEAT, _LAIN), None, None, 'right_thigh', _thigh(), _BACK),
+    ((('posterior-femoral-bilateral', 'left_thigh', _BACK), _SEAT, _LAIN), None, None, 'left_thigh', _thigh(), _BACK),
+    ((('posterior-femoral-bilateral', 'right_thigh', _BACK), _SEAT, _LAIN), None, None, 'right_thigh', _thigh(), _BACK),
     ('trochanter-gluteal-lateral', None, None, 'pelvis', _hip(1.0), (-1.0, 0.0, 0.0)),
     ('trochanter-gluteal-lateral', None, None, 'pelvis', _hip(-1.0), (1.0, 0.0, 0.0)),
     ('dorsal-supine-continuum', None, None, 'pelvis', _behind('pelvis', 2), _BACK),
     ('dorsal-supine-continuum', None, None, 'torso', _behind('torso', 0), _BACK),
     ('dorsal-supine-continuum', None, None, 'torso', _behind('torso', 2), _BACK),
     ('dorsal-supine-continuum', None, None, 'head', _behind('head', 0), _BACK),
-    ('palmar-carpal-bilateral', None, None, 'left_hand', _PALM, _UP),
-    ('palmar-carpal-bilateral', None, None, 'right_hand', _PALM, _UP)))
+    ((('palmar-carpal-bilateral', 'left_hand', _UP), ('ulnar-carpal-shove-bilateral', 'left_hand', _UP)), None, None,
+     'left_hand', _PALM, _UP),
+    ((('palmar-carpal-bilateral', 'right_hand', _UP), ('ulnar-carpal-shove-bilateral', 'right_hand', _UP)), None, None,
+     'right_hand', _PALM, _UP),
+    ('ulnar-carpal-shove-bilateral', None, None, 'left_forearm', _forearm(), (0.0, 0.0, -1.0)),
+    ('ulnar-carpal-shove-bilateral', None, None, 'right_forearm', _forearm(), (0.0, 0.0, -1.0))))
 #: The unknowns of each point: a sole's six, a normal's one.
 WIDTH = tuple(6 if n is None else 1 for _m, _s, _p, n in POINTS)
 
@@ -173,7 +186,9 @@ def laid(body):
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
             'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'),
             'cols': np.array([o.col[p] for p in range(len(POINTS))]), 'sole': np.array([n is None for *_r, n in POINTS]),
-            'manifold': np.array([MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]), 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
+            'manifold': np.array([MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]),
+            'feet': [([k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_foot'][0],
+                      [k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_toes'][0]) for side in ('left', 'right')], 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
             'u': np.zeros(body.n), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
             'since': np.zeros(len(ROWS)), 'gate': np.zeros(len(ROWS))}
 
@@ -195,4 +210,21 @@ def step(obs, body, s, qpos, dt):
     u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:n]
     obs['q'][:] = qpos[7:7 + n - 6]
     obs['step'](obs['at'], base.ctypes.data, obs['q'].ctypes.data, u.ctypes.data, dt)
+    body.d.qpos[:len(qpos)] = qpos
+    body.mj.mj_kinematics(body.m, body.d)
+    obs['normal'][EQUINUS] = forefoot(obs['f'], obs['cols'], obs['feet'], body.d.xmat[list(body.feet)])
     return obs
+
+
+def forefoot(f, cols, feet, xmat):
+    """Her forefeet's push (`metatarsal-equinus-bilateral`), N, of the points' forces `f` and her feet's
+    rotations `xmat` (2, 9): each toes' and of each sole's push the share its centre of pressure has
+    gone from the sole's middle to its ball (`figure.BALL`)."""
+    out = 0.0
+    for (sole, toes), rot in zip(feet, xmat):
+        R = rot.reshape(3, 3)
+        moment, force = f[cols[sole]:cols[sole] + 3], f[cols[sole] + 3:cols[sole] + 6]
+        push = float(force @ R[:, 1])
+        ahead = -float(moment @ R[:, 0]) / max(push, 1e-9)
+        out += push * min(1.0, max(0.0, ahead / (0.5 * (BALL + HEEL)))) + f[cols[toes]]
+    return out
