@@ -294,10 +294,56 @@ def test_a_take_converts_to_a_modifier_she_reads(report):
                  and ortho.DUCK.start not in row and told['twist'][1] == 0.0, '%s %s' % (row, told))
 
 
+def test_the_side_lie_reads_and_is_refused_by_name(report):
+    """The side-lie (side_lie.lisp): docked, the mattress's edge sat on, the pendulum on her right
+    trochanter to 1.57 rad along the bed; played, refused by name - her list mode reaches 0.9 rad -;
+    a lean of 0.6 rad on her left plays: one contact phase on her trochanter, her ZMP let go, her
+    legs' free modes at the mattress's -36 dB, her pelvis listed 4 units and turned 3."""
+    import os
+    from unittest import mock
+    from machine import acts, dsp, maneuver
+    from machine.errors import MachineError
+    got = _got()
+    g = dsp.value(['patch-bed-side-lie', 'nominal-biped-manifold'], got)
+    at = next(e for e in g['_events'] if e[0] == 'on-contact-threshold' and e[2] and e[2][0][0] == 'stage-coupled-pendulum')
+    swing = at[2][0][1]
+    report.check('read: the pendulum on her right trochanter, 1 550 ms, listed to 1.5708 rad, yawed to the bed\'s axis',
+                 swing['fulcrum-node'] == ':greater-trochanter-r' and swing['total-duration-ms'] == 1550.0
+                 and swing['coupled-lever-dynamics']['torso-list-slew-rad'][-1] == 1.5708
+                 and swing['coupled-lever-dynamics']['pelvic-yaw-slew-rad'][-1] == 1.5708
+                 and swing['contact-wavefront'] == (':greater-trochanter-r',), str(swing))
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'build', 'patches')
+    os.makedirs(path, exist_ok=True)
+    path = os.path.join(path, 'side-lean.lisp')
+    with open(os.path.join(os.path.dirname(dsp.__file__), 'ortho_dsp', 'side_lie.lisp'), encoding='utf-8') as fh:
+        lean = fh.read().replace('side-lie', 'side-lean').replace('[0.0 -> 1.5708]', '[0.0 -> 0.6]')
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(lean.replace('(bed-axis-yaw-rad 1.5708)', '(bed-axis-yaw-rad 0.6)').replace('trochanter-r', 'trochanter-l'))
+    suite = dsp.read(dsp.SUITE + [path])
+    played = {'side_lie': ('patch-bed-side-lie', None, {'descent': 'sit_edge', 'contact': 'side_lie', 'rest': 'bed_rest'}),
+              'side_lean': ('patch-bed-side-lean', None, {'descent': 'sit_edge', 'contact': 'side_lie', 'rest': 'bed_rest'})}
+    with mock.patch.dict(maneuver.PLAYED, played):
+        try:
+            maneuver.phases('side_lie', got=suite)
+            refusal = ''
+        except MachineError as error:
+            refusal = str(error)
+        swung = next(p for p in maneuver.phases('side_lean', got=suite) if p.what == 'pendulum')
+    report.check('played: refused by name, 1.5708 rad on her list mode past her reach',
+                 'refused' in refusal and 'mode_pelvis_list' in refusal and '1.5708' in refusal and 'REACH' in refusal, refusal)
+    report.check('a 0.6 rad lean on her left: a contact phase on her trochanter, ZMP 0, the free leg modes -36 dB, '
+                 'the list at rest, listed 4, turned 3',
+                 swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0) and swung.zmp == acts.NONE
+                 and swung.ms == 1550.0 and _near(swung.targets['mode_pelvis_list'], 4.0)
+                 and _near(swung.targets['mode_pelvis_turn'], 3.0) and swung.targets['mode_axial_compression'] > 0.0
+                 and _near(swung.springs['mode_limb_lift'][0], 2378.0 * 10.0 ** (-36.0 / 20.0))
+                 and swung.springs['mode_pelvis_list'][0] == 1458.0, str(swung))
+
+
 ROSTER = (test_the_suite_reads_as_written, test_the_kernel_reads_whole, test_the_maneuvers_read_as_written,
           test_a_patch_moves_her_walk_by_its_changes, test_what_she_cannot_do_is_refused_by_name,
           test_the_insert_is_every_patch_last, test_the_runway_reads_in_its_own_dialect,
-          test_a_take_converts_to_a_modifier_she_reads)
+          test_a_take_converts_to_a_modifier_she_reads, test_the_side_lie_reads_and_is_refused_by_name)
 
 
 def main(argv=None):

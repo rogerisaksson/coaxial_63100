@@ -1,5 +1,5 @@
 ;; ============================================================================
-;; DAILY STUNTS & TERRAIN TRAVERSALS (machine/stunts_base.lisp)
+;; DAILY STUNTS & TERRAIN TRAVERSALS (machine/motion.lisp)
 ;; Furniture transitions, multi-surface gaits, and capture-point shove reflexes.
 ;; ============================================================================
 

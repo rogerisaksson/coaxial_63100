@@ -88,7 +88,11 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     rolled, high-Z, risen with a carpal heel on the table 650 mm off. DOD:
     the mattress's f0 within 180 ms of contact, its notch, no rebound; 0 A in
     her phases from w_dorsal 0.96; her knee and hip peaks 20 % under her
-    unbraced rise's.
+    unbraced rise's. Her side-lie (side_lie.lisp, `maneuver._pendulum`, refused
+    by name): her latent has no roll of her base onto her trochanter with her
+    legs off the floor. DOD: her back to the bed, perched on its edge, her
+    trunk down onto her hip and her legs up along the bed, lying on her side,
+    the bed bearing 0.45 of her or more, her neck under her walk's 110 deg/s.
 14. **Test 5, the loft stair up and down**: five steps each way, a forearm
     skimming the wall. DOD: up, flat-foot strikes on concentric work; down,
     her stance knee eccentric, her pelvis dropped, her forefoot catching

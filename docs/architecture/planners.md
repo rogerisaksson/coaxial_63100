@@ -22,7 +22,7 @@ Run by her law ([robotics](robotics.md)). Findings:
 | se2 | the outer twist-to-setpoint gate and the inner branchless heading, analog insole floor-plane and CPG modulation pass |
 
 - The texts: `gynoid_mesomorph_medium.lisp` (and `_r80`), `gait_base.lisp`,
-  `postures_base.lisp`, `stunts_base.lisp`, `situations.lisp`,
+  `postures_base.lisp`, `motion.lisp`, `situations.lisp`,
   `examples.lisp`.
 - `host/tools/sim/`: ortho (humanoid robot latent loop as the page runs it,
   traced; `--walk --look` humanoid robot walk's look); hop (a hop on it:

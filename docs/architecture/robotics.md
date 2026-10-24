@@ -53,6 +53,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | patch | a transition on her loop: lisp read as forms, a morph as contiguous curve rows on the bar grid, begun locked to her double support |
 | dsp | the ortho-DSP suite (machine/ortho_dsp/), the dual-domain kernel's (machine/ortho_kernel/, its ops' mechanisms `kernel`) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
 | maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; the bed's patches read, not played |
+| acts | the suite's acts as phases of her text (`maneuver`): an envelope's knee her height, a seat's landing (`seated`), a cross-fade the furniture taking her, a cascade or a gate a node a phase, a recline her trunk's ramp, a pendulum refused past her modes' reach |
 | seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |
 | furniture | what her eyes tell her of a thing a verb goes to: its top, its near edge, its centre |
 | route | her way round the furniture to an errand's dock: what stands on her floor grown by her radius on her map's cells, A* through the rest, its corners walked through on a B-spline held in convex corridors by linear rows where it fits her arc; each errand's dock |

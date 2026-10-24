@@ -53,7 +53,7 @@ def test_a_text_compiles_to_rows(report):
     hers, named = ortho.compiled(_text('gynoid_mesomorph_medium'))
     base_t, base_p = ortho.compiled(_text('gait_base'))
     post_t, post_p = ortho.compiled(_text('postures_base'))
-    stunt_t, stunt_p = ortho.compiled(_text('stunts_base'))
+    stunt_t, stunt_p = ortho.compiled(_text('motion'))
     report.check('machine/gynoid_mesomorph_medium.lisp compiles: her walk and her behaviours',
                  len(hers['']) == 5 * ortho.ROW.size and ortho.compiled() == (hers, named)
                  and base_t[''] == hers[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)

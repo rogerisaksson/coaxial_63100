@@ -329,3 +329,7 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
 65. The tube on and off (`terminal.ui.tube`), a retro set's switch: a dot over
     the shell's text, a line, the front page unfolding from it; the last frame
     folded to a line and a dot on leaving, 0.4 and 0.3 s.
+66. The suite's side-lie (side_lie.lisp): perched on the bed's edge, a
+    trochanteric pendulum along it; its handler (`maneuver._pendulum`) refuses
+    the roll past her modes' reach by name, her gym's lie_bed kept.
+    stunts_base.lisp renamed motion.lisp.

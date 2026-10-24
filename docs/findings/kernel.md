@@ -242,6 +242,18 @@ edge the constraint left (0.32 legs at the text's 0.75 rad lean); risen from
 the deeper seat she fell at 31.2 s where she stood in 0.94. Her rise needs
 the seat's slide forward first (the kernel's Step 4): undone till then.
 
+Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
+supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
+of 3 - the bed soft, rigid, raised to the chair's 0.47 m - where the chair's
+85 mm held, and a chair lowered to the bed's 0.44 held (neck 213 deg/s).
+Docked at 85 the side-lie (side_lie.lisp) sat her and laid her nowhere: her
+list and turn modes at their reach, 0.9 and 1.2 rad, tilt her pelvis against
+her standing legs; at rest her soles bore all of her, 305 N, the bed 0, her
+pelvis 0.64 m up, her neck swung 1 363 deg/s. Her gym's text (motion.lisp)
+kept: arms 535 deg/s, trunk 279, neck 834 against her walk's 174, 88, 110. A
+roll of her base onto her trochanter with her legs off the floor is no mode
+of hers (Step 4).
+
 ## The wayfinder
 
 `machine.wayfinder`: her trunk twisted through the gap her way meets 0.6 s on
