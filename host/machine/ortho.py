@@ -51,9 +51,9 @@ _FILE = os.path.join(os.path.dirname(__file__), mechatronics.ROBOT + '.lisp')
 #: sole clear of the floor over the other; the width, 1 twice as wide as she stood. Her trunk's
 #: pitch, 1 ahead. Her pelvis's list, 1 her first hip up, and its turn, 1 her other hip
 #: forward; her arms' swing, 1 her first arm ahead; her soles' rock, 1 her first heel up and
-#: the other's toes.
+#: the other's toes; her arms' reach, 1 both ahead.
 MODES = ('axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude', 'sagittal_shift',
-         'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock')
+         'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach')
 N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the

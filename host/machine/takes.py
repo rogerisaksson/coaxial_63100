@@ -3,7 +3,7 @@
     wire, end_ms = takes.wire('stand_to_sit')  # the take's rows (ortho.ROW), its voices at its beats
     row = takes.pattern('jogging_forward')     # a gait take as its amounts on her standard gait (machine.gait)
 
-FILE holds each take's times (s, at her size) and her eleven modes at them, read off the take as
+FILE holds each take's times (s, at her size) and her first eleven modes at them, read off the take as
 `modal.reading` reads hers (`tools/sim/stunts.py --reference`; the takes lie beside the repo).
 A take is said at its beats (`beats`): the frames where one of its voices turns - its rate, read
 over one natural time (TICK_S), changes sign -, its first and its last; her loop draws its own

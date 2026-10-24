@@ -23,7 +23,7 @@ from machine.modal import (
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
-    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG,
+    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED,
     TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -279,6 +279,7 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     a[WANT], a[ROLLED], a[HEADED] = turn + (turning + TURN_KD[1] * spun) / TURN_KD[0]
     a[TURNED] = np.maximum(a[STANCE].max(), a[BORNE]) * (kp[PITCH] + kd[PITCH] > 0.0)
     a[SWUNG] = ARM_RAD * (ref[ARMS] + (acc[ARMS] + POSTURE_KD[1] * rate[ARMS]) / POSTURE_KD[0])
+    a[REACHED] = ARM_RAD * (ref[REACH] + (acc[REACH] + POSTURE_KD[1] * rate[REACH]) / POSTURE_KD[0])
     # her posture's knees bent as her height is, AHEAD of it toward what is asked: bent as
     # asked, a throw's step threw her knees straight at 100 rad/s^2 and her over forward,
     # 8 kg m^2/s about her; bent as she is, a crouch asked 0.6 stopped at 0.56

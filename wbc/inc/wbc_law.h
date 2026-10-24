@@ -8,7 +8,7 @@
 
 /** The most modes, row parameters, driven joints. */
 #define WBC_LAW_N 16
-#define WBC_LAW_P 64
+#define WBC_LAW_P (5 * WBC_LAW_N + 7)
 #define WBC_LAW_D 32
 
 /** What the step and the coupling are laid on, filled once from machine.latent, machine.ortho

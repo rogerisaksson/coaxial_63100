@@ -14,7 +14,7 @@ of mass over her soles' middle - its place across and along; of the difference, 
 against each other - the drive along, the lift, the width. Her height is her standing legs'
 compression: how much shorter they are, hip to ankle, than she stood on - over one leg held
 at its length she rises and comes down as its arc does. Her trunk's pitch, her pelvis's list
-and turn, her arms' swing and her soles' rock are turns. `machine.impedance` renders their
+and turn, her arms' swing and reach and her soles' rock are turns. `machine.impedance` renders their
 springs into `a`, the loop's ask.
 """
 import os
@@ -32,9 +32,9 @@ from machine.wbc import HEIGHT_KD, POSTURE_KD, TURN_KD
 G = 9.81
 N = ortho.N
 (AXIAL, LATERAL, DRIVE, PITCH, SAGITTAL, LIFT, WIDTH, LIST, TURN, ARMS,
- ROCK) = (ortho.MODES.index(m) for m in (
+ ROCK, REACH) = (ortho.MODES.index(m) for m in (
      'axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude', 'sagittal_shift',
-     'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock'))
+     'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach'))
 #: Of the pelvis and the trunk, the pelvis.
 PELVIS = np.array([1.0, 0.0])
 
@@ -107,7 +107,9 @@ RESTS = slice(64, 66)
 #: And, kept, her support's comparator (`impedance._borne`): latched, the s it has been under its
 #: release, the s since its strike; its box's corners along and across, low then high.
 PROPPED, PROPPED_BELOW, PROPPED_SINCE, PROPPED_BOX = 66, 67, 68, slice(69, 73)
-ASK = 73
+#: And her arms' reach.
+REACHED = 73
+ASK = 74
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -183,10 +185,15 @@ def frame(y, mass, limb, trunk, arm, knee, dt):
     fr[HEADING], fr[ARM0] = yaw, y[ARM]
     fr[REACH0], fr[HIPS_BY] = np.linalg.norm(legs, axis=1).mean(), mass / (mass - limb)
     fr[UNIT] = (AXIAL_M, fr[W0], STRIDE_M, PITCH_RAD, HALF_M, 0.5 * CLEAR_M, fr[W0], LIST_RAD, TURN_RAD,
-                ARM_RAD, ROCK_RAD)
+                ARM_RAD, ROCK_RAD, ARM_RAD)
     fr[Z0] = HOT[AXIAL] * fr[H0] / AXIAL_M - HOT[WIDTH]
-    fr[MASS] = mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb
+    fr[MASS] = masses(mass, limb, trunk, arm)
     return fr
+
+
+def masses(mass, limb, trunk, arm):
+    """The mass each mode moves, kg, of hers, a limb's, her trunk's and an arm's."""
+    return np.array([mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb, arm])
 
 
 def rest(fr):
@@ -197,7 +204,7 @@ def rest(fr):
     for part, kd in ((latent.K, 0), (latent.D, 1)):
         p[part] = fr[MASS] * np.array([HEIGHT_KD[kd], floor[kd], LIMB_KD[kd], TURN_KD[kd], floor[kd],
                                        LIMB_KD[kd], LIMB_KD[kd], TURN_KD[kd], TURN_KD[kd],
-                                       POSTURE_KD[kd], TURN_KD[kd]])
+                                       POSTURE_KD[kd], TURN_KD[kd], POSTURE_KD[kd]])
     p[latent.HZ], p[latent.ZMP], p[latent.YAW] = 1.0, SUPPORT, FREE
     return p
 
@@ -245,7 +252,8 @@ def reading(y, fr, stance):
     z += HOT[AXIAL] * (axial[0] - z[AXIAL])
     zd += HOT[AXIAL] * (axial[1] - zd[AXIAL])
     angle = (HOT[PITCH] * (turn[0, 1] - fr[PITCH0][1]) + HOT[LIST] * turn[1, 0] + HOT[TURN] * turn[2, 0]
-             + HOT[ROCK] * 0.5 * (LIMBS @ y[TILT]) + HOT[ARMS] * 0.5 * (LIMBS @ (y[ARM] - fr[ARM0])))
+             + HOT[ROCK] * 0.5 * (LIMBS @ y[TILT]) + HOT[ARMS] * 0.5 * (LIMBS @ (y[ARM] - fr[ARM0]))
+             + HOT[REACH] * 0.5 * (y[ARM] - fr[ARM0]).sum())
     rate = (HOT[PITCH] * spun[0, 1] + HOT[LIST] * spun[1, 0] + HOT[TURN] * spun[2, 0]
             + HOT[ROCK] * 0.5 * (LIMBS @ y[TILT_RATE]))
     return z + angle / fr[UNIT], zd + rate / fr[UNIT], legs, turn, spun
@@ -279,6 +287,15 @@ def swing(names):
     return out
 
 
+def reach(names):
+    """How each driven joint (`names`) goes a radian of her arms' reach: both shoulders forward by it."""
+    out = np.zeros(len(names))
+    kind, sign, _low, _high = terms.TERMS[('shoulder', 'flexion')]
+    for limb in (0, 1):
+        out[names.index(terms.joint(limb, kind))] = sign
+    return out
+
+
 def sensed(s, loads, y):
     """`y` filled of `wbc.sense`'s `s` - with her hips' joints (`hips`, world) and her
     shoulders' reach forward (`arms`, rad) beside it - and her soles' `loads`, N."""
@@ -297,18 +314,19 @@ def sensed(s, loads, y):
     return y
 
 
-def poses(a, y, fr, posture, bend, arms, knees, clear=0.0):
+def poses(a, y, fr, posture, bend, arms, reaches, knees, clear=0.0):
     """(each sole's place asked as it swings (2, 3), her posture (driven), her turns (pelvis,
     trunk) and a swinging sole's quaternion (2, 4)) of `a`, the stack's ask's arithmetic
     (`given`): `posture` her driven joints standing, rad; `bend` how each goes with her knees'
-    (`crouch`), `arms` with her arms' swing (`swing`); `knees` each knee's index among them."""
+    (`crouch`), `arms` with her arms' swing (`swing`), `reaches` with their reach (`reach`); `knees`
+    each knee's index among them."""
     soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
     q0, q2 = y[QUAT][0], y[QUAT][2]
     lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / np.maximum(q0 * q0 + q2 * q2, 1e-12)
     signs = np.array([1.0, -1.0])
     dl = signs * ((soles + 0.05 * speeds - soles[::-1]) @ lat)
     sw_at = soles + (a[STANCE][::-1] * signs * np.maximum(clear - dl, 0.0))[:, None] * lat
-    pose = posture + bend * a[BEND] + arms * a[SWUNG]
+    pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])

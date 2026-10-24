@@ -11,10 +11,10 @@
 <text x="32" y="240" fill="#f8fafc" font-size="10" font-weight="bold">Shared State Arrays:</text>
 <text x="32" y="258" fill="#38bdf8" font-size="9">cmd / states  IPC (60 Hz)</text>
 <text x="32" y="276" fill="#a78bfa" font-size="9">y_in[233]     edge.SENSED</text>
-<text x="32" y="294" fill="#a78bfa" font-size="9">y[74], fr[97] modal.SENSED</text>
-<text x="32" y="312" fill="#34d399" font-size="9">st[319], tab  latent.STATE</text>
-<text x="32" y="330" fill="#34d399" font-size="9">out[94]       latent.OUT</text>
-<text x="32" y="348" fill="#fbbf24" font-size="9">a[73]         modal.ASK</text>
+<text x="32" y="294" fill="#a78bfa" font-size="9">y[74], fr[100] modal.SENSED</text>
+<text x="32" y="312" fill="#34d399" font-size="9">st[344], tab  latent.STATE</text>
+<text x="32" y="330" fill="#34d399" font-size="9">out[102]       latent.OUT</text>
+<text x="32" y="348" fill="#fbbf24" font-size="9">a[74]         modal.ASK</text>
 <text x="32" y="366" fill="#fbbf24" font-size="9">got[qacc,tau] wrench.solve</text>
 <text x="32" y="384" fill="#f472b6" font-size="9">eso[3,21]     1 kHz observer</text>
 <text x="32" y="402" fill="#f472b6" font-size="9">5x RS485 RTU  10 Mbit/s SIL</text>
@@ -108,7 +108,7 @@
 <text x="473" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#2 latent.py &amp; se2.py</text>
 <text x="473" y="399" fill="#94a3b8" font-size="9">11 modes + CPG phase THETA</text>
 <text x="473" y="413" fill="#cbd5e1" font-size="9">continuous twist &amp; gripped</text>
-<text x="473" y="426" fill="#34d399" font-size="9">out: out[94] (REF..DS)</text>
+<text x="473" y="426" fill="#34d399" font-size="9">out: out[102] (REF..DS)</text>
 <line x1="757" y1="358" x2="757" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="665" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="673" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#3 support.py (couple)</text>
@@ -120,7 +120,7 @@
 <text x="873" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#4 impedance.py &amp; poise</text>
 <text x="873" y="399" fill="#94a3b8" font-size="9">spanned ZMP + h_axial</text>
 <text x="873" y="413" fill="#cbd5e1" font-size="9">capture point xi = c+v/om</text>
-<text x="873" y="426" fill="#34d399" font-size="9">out: a[73] (STANCE, ACC)</text>
+<text x="873" y="426" fill="#34d399" font-size="9">out: a[74] (STANCE, ACC)</text>
 <line x1="1157" y1="358" x2="1157" y2="370" stroke="#34d399" stroke-width="1.8"/>
 <rect x="1065" y="370" width="184" height="62" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1.3"/>
 <text x="1073" y="384" fill="#f8fafc" font-size="10" font-weight="bold">#5 stride.py &amp; modal.py</text>

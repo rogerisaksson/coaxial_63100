@@ -107,6 +107,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
+         'reaches': modal.reach(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
          'head_idx': names.index('head') if 'head' in names else None, '_look_yaw': 0.0,
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),

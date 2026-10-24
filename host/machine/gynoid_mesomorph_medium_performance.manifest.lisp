@@ -14,6 +14,7 @@
   (mode mode_pelvis_turn (unit 0.2) (mass 14.58) (stiffness 1458) (damping 291.6))
   (mode mode_arm_swing (unit 0.35) (mass 1.198) (stiffness 119.8) (damping 23.95))
   (mode mode_foot_rock (unit 0.5) (mass 8.637) (stiffness 863.7) (damping 172.7))
+  (mode mode_arm_reach (unit 0.35) (mass 1.198) (stiffness 119.8) (damping 23.95))
   (drive spine_roll (kind spine_roll) (motor U8) (gearbox B) (inverter coaxial_63100) (ratio 40) (peak 144) (speed 720) (range -29.79 29.79))
   (drive spine (kind spine) (motor U12) (gearbox A) (inverter coaxial_63100) (ratio 30) (peak 186.1) (speed 1152) (range -25.21 75.06))
   (drive waist (kind waist) (motor U8) (gearbox B) (inverter coaxial_63100) (ratio 30) (peak 108) (speed 960) (range -44.69 44.69))

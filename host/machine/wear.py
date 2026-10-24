@@ -309,7 +309,7 @@ def loaded(w, g=None):
         fr = g['fr']
         fr[modal.WEIGHT] = mass * modal.G
         fr[modal.HIPS_BY] = mass / (mass - limb)
-        fr[modal.MASS] = mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb
+        fr[modal.MASS] = modal.masses(mass, limb, trunk, arm)
     return touched
 
 

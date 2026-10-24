@@ -63,7 +63,7 @@ REACH_M, ONTO_M, ON_CHAIR_M = 1.2, 0.7, 1.12
 #: The crouch's phase (`postures_base.lisp`).
 CROUCHED = 'down'
 #: Each mode's name in the box; what each stream payload is called on the page.
-SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock')
+SHORT = ('axial', 'lateral', 'drive', 'pitch', 'sagittal', 'lift', 'width', 'list', 'turn', 'arms', 'rock', 'reach')
 NAMED = {
     'stand': 'stand', 'sway': 'sway', 'step': 'step', 'walk': 'walk', 'walk_back': 'walk back',
     'weight_shift': 'weight shift', 'bow': 'bow', 'ballistic_walk': 'ballistic walk',

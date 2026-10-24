@@ -64,6 +64,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
   a[k->a_turned] = npmax(npmax(a[k->a_stance], a[k->a_stance + 1]), a[k->a_borne])
                    * (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
   a[k->a_swung] = k->arm_rad * (s->ref[k->arms] + (s->acc[k->arms] + k->posture_kd[1] * s->rate[k->arms]) / k->posture_kd[0]);
+  a[k->a_reached] = k->arm_rad * (s->ref[k->reach] + (s->acc[k->reach] + k->posture_kd[1] * s->rate[k->reach]) / k->posture_kd[0]);
   bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
   cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
   a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;

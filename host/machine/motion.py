@@ -192,10 +192,11 @@ def control(g, dt):
     imp[modal.STRIDES] *= sw
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
-    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], body.knees, g.get('_twist_clear', 0.0) * sw)
+    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     ask['mu'] = g['held']
-    ask['hold'] = max(1.0, float(g['out'][latent.KS][modal.ARMS] / g['rest'][latent.K][modal.ARMS]))
+    arms = [modal.ARMS, modal.REACH]
+    ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
@@ -282,7 +283,7 @@ def laid(g):
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
-    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 7))
+    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 8))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     k, ask = c_motion.laid()
     g['impedance'] = functools.partial(c_motion.asked, k, ask)
