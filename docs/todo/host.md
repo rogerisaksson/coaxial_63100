@@ -86,6 +86,13 @@
   with the front end on - a change to the STO chain, HARDWARE.md's, to be
   measured on the probe first. DOD: the page at real time on Renode, Clevel
   on the probe as before.
+- **WASD turns her** (asked): A D sidestep and Q E turn (`humanoid_keys.twist`),
+  against its test's docstring and scenarios.md. DOD: A D turn her, in place
+  alone, on an arc with W S; Q E sidestep; measured on the page's worker.
+- **The buses' errors told apart** (asked): BUSES' modbus row one count, `crc`,
+  the SIL's 0 a pass, the emulated limb's link faults beside it. DOD: the row
+  names what each count is - frames refused by CRC, writes timed out or refused,
+  arm refused - and none reads as a drive's trip, overcurrent or knock.
 - **A corrupt request costs the bystanders more** (found): on Renode one
   request's bit flipped is that request alone unanswered, but each node of a
   limb of three counts 3-7 comm errors against 0 in a clean run

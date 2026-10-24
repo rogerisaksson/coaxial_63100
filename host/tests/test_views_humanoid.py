@@ -94,10 +94,10 @@ def test_the_keys_that_move_her_are_one_twist(report):
         keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
         return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
 
-    report.check('in her frame: W walks her on, S walks her back, A sidesteps left, Q turns her left in place',
-                 (tw('w'), tw('s'), tw('a'), tw('q')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.7)))
-    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, D sidesteps right',
-                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('d', 45.0))
+    report.check('in her frame: W walks her on, S walks her back, A turns her left in place, Q sidesteps left',
+                 (tw('w'), tw('s'), tw('a'), tw('q')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.0, 0.7), (0.0, 0.5, 0.0)))
+    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, E sidesteps right',
+                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('e', 45.0))
                  == ((0.69, 0.0, 0.0), (0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, -0.5, 0.0)))
     every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
              for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}

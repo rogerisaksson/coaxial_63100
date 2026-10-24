@@ -79,11 +79,11 @@ SCENARIOS = {
 }
 #: A player's twists, a hold each, s: the page's keys send none outside them
 #: (`humanoid_keys.twist`); an agent sends the same.
-KEYS = {'w': WALK, 's': (-0.35, 0.0, 0.0), 'a': (0.0, 0.5, 0.0), 'd': (0.0, -0.5, 0.0),
-        'wa': (0.69, 0.0, 0.7), 'wd': (0.69, 0.0, -0.7), 'q': (0.0, 0.0, 0.7), 'W': (1.4, 0.0, 0.0), '-': STOP}
-PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'a2 d2 -3', 'reverse': 'w2 s2 w2 -3',
-         'sprint': 'w2 W3 w2 -3', 'spin': 'q3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'q2 wa1 w2 -3',
-         'walk': 'w10 -2', 'moves': 'w2 wa2 a2 s2 W2 -3', 'stutter': 'w3 -0.25 w2 -0.2 w3 -3'}
+KEYS = {'w': WALK, 's': (-0.35, 0.0, 0.0), 'q': (0.0, 0.5, 0.0), 'e': (0.0, -0.5, 0.0),
+        'wa': (0.69, 0.0, 0.7), 'wd': (0.69, 0.0, -0.7), 'a': (0.0, 0.0, 0.7), 'W': (1.4, 0.0, 0.0), '-': STOP}
+PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'q2 e2 -3', 'reverse': 'w2 s2 w2 -3',
+         'sprint': 'w2 W3 w2 -3', 'spin': 'a3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'a2 wa1 w2 -3',
+         'walk': 'w10 -2', 'moves': 'w2 wa2 q2 s2 W2 -3', 'stutter': 'w3 -0.25 w2 -0.2 w3 -3'}
 
 
 def _played(keys):

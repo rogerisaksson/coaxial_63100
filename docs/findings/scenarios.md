@@ -85,9 +85,9 @@ among them for the first time -, standing 32 and walking 23 of 32, replays 9 of
 ## One command
 
 The page's keys send a twist and verbs, as an agent does (`humanoid_keys.twist`):
-W A S D a way from the view, her heading turned to it at 1.5 rad/s a radian off,
-to 0.7; walked at 0.69 m/s within a quarter turn of it, 1.4 on Shift within 0.2
-rad; Q E a sidestep at 0.5. Every twist they send lies within the bench's plays
+in her own frame, W S on at 0.69 m/s (1.4 on Shift, straight) and back at 0.35,
+A D a turn at 0.7 rad/s, in place or on an arc with W S; Q E a sidestep at 0.5,
+alone. Every twist they send lies within the bench's plays
 (`test_views_humanoid`).
 
 - Its turnabout - in place 2 s, an arc 1 s, a walk 2 s, a stop (`play_about`) -

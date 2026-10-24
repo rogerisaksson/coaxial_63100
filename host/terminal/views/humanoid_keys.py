@@ -167,16 +167,15 @@ def twist(keys, look=0.0, heading=0.0):
     """(vx, vy, wz) the `keys` held (`polled`) ask of her in her own frame, independent of `look`."""
     _ = look, heading
     fwd = int(keys['w']) - int(keys['s'])
-    strafe = int(keys['a']) - int(keys['d'])
-    spin = int(keys['q']) - int(keys['e'])
-    turn = spin or strafe
+    turn = int(keys['a']) - int(keys['d'])
+    strafe = int(keys['q']) - int(keys['e'])
     wz = round(turn * se2.YAW_RATE, 2)
     if fwd < 0:
         return (-se2.BACK_SPEED, 0.0, wz)
     if fwd > 0:
         return (se2.RUN_SPEED if keys['shift'] and not turn else se2.WALK_SPEED, 0.0, wz)
-    if spin:
-        return (0.0, 0.0, round(spin * se2.YAW_RATE, 2))
+    if turn:
+        return (0.0, 0.0, wz)
     return (0.0, strafe * se2.STRAFE_SPEED, 0.0)
 
 
@@ -322,10 +321,10 @@ def _horizon(state, key, _now):
 _did, _cased, _HELD = bindings.did, bindings.cased, bindings.HELD
 #: Her page's keys, a row a line of TAB's help (`bindings.page`), the terminal's after them.
 _ROWS = (
-    ('HER', 'W A S D', 'walk ahead, sidestep left, walk back, sidestep right', (('WASD', 'MOVE'),),
-     dict.fromkeys('wasdWASD', _HELD)),
+    ('HER', 'W A S D', 'walk ahead, turn left, walk back, turn right (in place, or on an arc with W/S)',
+     (('WASD', 'MOVE'),), dict.fromkeys('wasdWASD', _HELD)),
     ('HER', 'SHIFT', 'sprint', (('SHIFT', 'SPRINT'),), {}),
-    ('HER', 'Q E', 'turn left, right in place (or on an arc with W/S)', (('Q E', 'TURN'),), dict.fromkeys('qeQE', _HELD)),
+    ('HER', 'Q E', 'sidestep left, right', (('Q E', 'SIDESTEP'),), dict.fromkeys('qeQE', _HELD)),
     ('HER', 'SPACE', 'hop - onto a chair ahead, down from one', (('SPC', 'HOP'),), {' ': _hop}),
     ('HER', 'F / F 1-0', "a balloon's verb: the one she faces / the one so keyed (or F1-F10)",
      (('F', 'INTERACT'),), {**_cased('f', _interact), **dict.fromkeys(FUNCTION_KEYS, _picked)}),

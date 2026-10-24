@@ -92,8 +92,8 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
 
     swa = arrows.describe(dict(b0, doing='turn_left', heading=0.35, velocity=(0.0, 0.69), twist_actual=(0.69, 0.0, 0.70)),
                           held('wa', (0.69, 0.0, 0.7)))
-    sq_side = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, 0.0)), held('a', (0.0, 0.5, 0.0)))
-    s_spin = arrows.describe(dict(b0, doing='turn_left'), held('q', (0.0, 0.0, 0.7), (0.0, 0.0, 0.6)))
+    sq_side = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, 0.0)), held('q', (0.0, 0.5, 0.0)))
+    s_spin = arrows.describe(dict(b0, doing='turn_left'), held('a', (0.0, 0.0, 0.7), (0.0, 0.0, 0.6)))
     mx = lambda sp, i: max(p[i] for s in sp['frame_segments'] for p in s)
     report.check('an arc left, a sidestep and a turn in place render cleanly',
                  swa['kind'] == 'locomotion' and mx(swa, 0) > 0.15 and swa['setpoint'][1] == 0.0
@@ -166,7 +166,7 @@ def test_balloons_on_what_she_sees(report):
     st['now'] = dict(st['now'], props=[('bed', (0.0, 0.08, 0.6), (0.45, 0.08, 0.95), up)])
     near = gym.offered(st)
     report.check('a chair ahead, seat and back, one thing first; a mattress out of her reach none, in it lie_floor',
-                 [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs(ahead[0][3][0]) < 1e-9
+                 [o[1] for o in ahead] == ['sit_chair', 'exit_door', 'lie_bed', 'sit_chair'] and abs((ahead[0][3] or (1.0,))[0]) < 1e-9
                  and far == [] and [o[1] for o in near] == ['lie_floor'], (ahead, far, near))
 
     def balloons_of(now, sc):

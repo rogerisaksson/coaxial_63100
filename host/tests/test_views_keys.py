@@ -15,7 +15,7 @@ def test_a_page_its_keys_the_terminals_after(report):
     from terminal.views import humanoid_keys, show_chat
     from terminal.views.quad import keys
     her, chat, shared = humanoid_keys.PAD, show_chat.PAD, (('ESC', 'BACK'), ('TAB', 'COLUMN'), ('?', 'KEYS'))
-    report.check("HUMANOID's Q turns her, the terminal's Q off its bar; Esc, Tab and ? the terminal's",
+    report.check("HUMANOID's Q sidesteps her, the terminal's Q off its bar; Esc, Tab and ? the terminal's",
                  'q' in her['held'] and ('Q', 'EXIT') not in her['bar'] and set(shared) <= set(her['bar'])
                  and [label for label, _what in dict(her['groups'])['TERMINAL']] == ['ESC', 'TAB', '?'], her['bar'])
     folded = bindings.UX['column']
