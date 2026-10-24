@@ -72,4 +72,3 @@ passes walking: 0.1-0.4 N rms a manifold, 9 at most.
   lets her go at 8.55 s where its told pan runs to 9.0: her pelvis's jerk
   peak 957 (3 492 before), its 99th percentile 409 (266). Gated by the
   force's share of the engage share instead: 416, the head 909.
-
