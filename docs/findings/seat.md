@@ -121,6 +121,24 @@ and landed deep: +2e-4 sat and rose, square sat 6.4 s and fell in the rise,
 soles in the air under a standing step remain its fault. The two ischia with
 her legs let go: down at 5.1 and 6.8 s in the sit, +2e-4 in the rise.
 
+Built up on seven wobbles, -3e-4 to +3e-4 (branch `deep-sit-build`): the
+two ischia and the deep landing alone sit 2 of 7, five falling in the sit at
+4-5 s; a sole off the floor while the seat bears her let go instead of swung
+(swung, at 2e-4 rad it stepped her up onto one leg), 6 of 7 sit and 0 rise;
+the let-go kept to a rest that asks nothing of her soles (a rise's lean asks
+them 0.82: let go there she had no soles to lean on), 5 sit and 2 rise; a
+bearing point's room its capsule's radius round it (MuJoCo gives a capsule
+one contact point: her support's box was the ischia's line, her centre of
+mass asked back to it at 1.5 m/s^2), 5 sit and 3 rise, those upright and
+rolled 0-1 deg. The rise's lean from the deep sit asks her centre of mass
+over her soles in 350 ms, 20 cm ahead of her hips: she lurches off the seat
+onto one foot (the seat struck at 1.5-3 of her weight). The slide's
+attractor under the governor's cap (the thighs' points drawn along the said
+slide) changed nothing there: the lean's seat bears over the cap. Left: the
+kernel's egress slide as a phase before the lean, her hips to the edge under
+the lean's pan; the sits lost at -1 and -2e-4 (one sole lifting 16 cm as the
+seat strikes, before the rest lets it go).
+
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
 of 3 - the bed soft, rigid, raised to the chair's 0.47 m - where the chair's
