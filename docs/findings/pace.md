@@ -129,3 +129,8 @@ machine ([body](body.md), [emulation](emulation.md),
   (`room.props`, `_laid_props`: a box welded to the world, the door read each
   call): 269 -> 25 us a call, identical at each of 1 556 calls of the page's
   worker walking; her map refreshes about 120 times a second on the page.
+- Her shield's QP built only when a row is short (`schema._evaded`): the
+  same values where it runs, a short row on 2 of 13 334 law passes walking and
+  19 in the page's worker; `shielded` 307 -> 244 us a call, ~21 us of a world
+  pass. Held at every call of her walk, the worker, a chair, the doorway and
+  the closing scene.

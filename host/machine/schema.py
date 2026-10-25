@@ -63,6 +63,20 @@ def braking(J, M, act, dq, volts):
     return np.maximum(C * lo, C * hi).sum(1)
 
 
+def _evaded(M, J, act, free, short):
+    """(x, held): the change on her evading joints `free` of `act` and each row's spill meeting `short`
+    through `J`, least in her mass's metric `M`, each joint within its drive's peak over its own
+    inertia; the rows `qp.solve` held, x zeros where none meets it."""
+    k, f = len(short), len(free)
+    Jf, Mf = J[:, act[free]], M[np.ix_(act[free], act[free])]
+    top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
+    H = np.block([[Mf, np.zeros((f, k))], [np.zeros((k, f)), SPILL_KG * np.eye(k)]])
+    A = np.block([[-Jf, -np.eye(k)], [np.zeros((k, f)), -np.eye(k)], [np.eye(f), np.zeros((f, k))],
+                  [-np.eye(f), np.zeros((f, k))]])
+    x, held, _u = qp.solve(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
+    return (np.zeros(f + k) if x is None else x), held
+
+
 def shielded(body, d, s, ask, volts, at):
     """(her posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
     joints of the pairs within INFLUENCE of their floors (EVADES), least in her mass's metric, each
@@ -79,17 +93,10 @@ def shielded(body, d, s, ask, volts, at):
     h = near['d'][which] - FLOOR[which] - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
     want = POSTURE_KD[0] * (posture - s['q']) - POSTURE_KD[1] * s['v'][act]
     free = np.flatnonzero(EVADES[which].any(0))
-    Jf, k, f = J[:, act[free]], len(which), len(free)
+    k, f = len(which), len(free)
     short = -KD * rate - KP * h - J[:, act] @ want
-    Mf = s['M'][np.ix_(act[free], act[free])]
-    top = np.asarray(bemf.PEAK)[free] / np.diag(Mf)
     # nothing short, nothing changes: the QP's least is its origin
-    H = np.block([[Mf, np.zeros((f, k))], [np.zeros((k, f)), SPILL_KG * np.eye(k)]])
-    A = np.block([[-Jf, -np.eye(k)], [np.zeros((k, f)), -np.eye(k)], [np.eye(f), np.zeros((f, k))],
-                  [-np.eye(f), np.zeros((f, k))]])
-    x, held, _u = (qp.solve(H, np.zeros(f + k), A, np.concatenate([-short, np.zeros(k), top, top]))
-                   if (short > 0.0).any() else (np.zeros(f + k), (), None))
-    x = np.zeros(f + k) if x is None else x
+    x, held = _evaded(s['M'], J, act, free, short) if (short > 0.0).any() else (np.zeros(f + k), ())
     change = np.zeros(len(act))
     change[free] = x[:f]
     return posture + change / POSTURE_KD[0], {'d': near['d'], 'h': h, 'which': which, 'spill': x[f:],
