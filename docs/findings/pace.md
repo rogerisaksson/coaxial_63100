@@ -182,3 +182,10 @@ machine ([body](body.md), [emulation](emulation.md),
   her state or one numpy refuses Untraced. Her errands through the lodge
   (the door's gauge on, the chair, the bed), the five scenes and 14 001 gaps
   beside numpy the same.
+- Her state told to the page at 60 Hz pickled 866 us, 820 of it the room's
+  53 props: tuples of numpy scalars, each pickled through numpy's
+  reconstructor. Their boxes in Python floats (`floor.props`, `room._box_of`,
+  `.tolist()`, the same values): the pickle 54 us, 24 -> 16 kB, told 403 ->
+  294 us; the page's worker with her state told and pickled 722 -> 658 us a
+  pass, 1.39 -> 1.54 of real time. Her run in the five scenes and her errands
+  through the lodge the same.

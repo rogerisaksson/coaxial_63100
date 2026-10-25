@@ -209,7 +209,8 @@ def _box_of(m, d, g):
     """(centre, half sizes, turn 3x3) of geom `g` posed on `d`, None below the page's floor."""
     if d.geom_xpos[g][1] < -0.5:
         return None
-    return tuple(d.geom_xpos[g]), tuple(m.geom_size[g]), tuple(map(tuple, d.geom_xmat[g].reshape(3, 3)))
+    return (tuple(d.geom_xpos[g].tolist()), tuple(m.geom_size[g].tolist()),
+            tuple(map(tuple, d.geom_xmat[g].reshape(3, 3).tolist())))
 
 
 def touched(world, dt):
