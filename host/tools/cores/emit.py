@@ -13,7 +13,8 @@ prototype, a gather or a scatter through separable index tables.
 
 The inputs one block in their order, the outputs one in theirs (`blocks`; over n states each
 array's n together), the workspace, each extern's address, numpy's BLAS, her model and data, the
-MuJoCo functions `prog.calls` names.
+MuJoCo functions `prog.calls` names. A program with a solve an int: 1 where numpy raises
+LinAlgError, nothing after it run; else 0.
 """
 import itertools
 
@@ -23,10 +24,12 @@ from tools.cores.layout import blocks, cstrides, fused, lay, leaves, same_ref
 from tools.cores.orders import letters, ordered
 from tools.cores.trace import Ref, Untraced
 
-#: An elementwise node's C, by numpy's ufunc: a format over its children's C.
+#: An elementwise node's C, by numpy's ufunc: a format over its children's C; 'power' C's pow (numpy's
+#: npy_pow), 'power0' numpy's power at an exponent of stride 0 (`trace_np.power`).
 C_OF = {'add': '(%s + %s)', 'subtract': '(%s - %s)', 'multiply': '(%s * %s)', 'divide': '(%s / %s)',
         'negative': '(-%s)', 'positive': '(%s)', 'sign': 'npsign(%s)', 'maximum': 'npmaximum(%s, %s)',
         'minimum': 'npminimum(%s, %s)', 'sqrt': 'sqrt(%s)', 'absolute': 'fabs(%s)', 'square': '(%s * %s)',
+        'reciprocal': '(1.0 / %s)', 'power': 'pow(%s, %s)', 'power0': 'nppow(%s, %s)',
         'sin': 'sin(%s)', 'cos': 'cos(%s)', 'tan': 'tan(%s)', 'arcsin': 'asin(%s)', 'arccos': 'acos(%s)',
         'arctan': 'atan(%s)', 'arctan2': 'atan2(%s, %s)', 'exp': 'exp(%s)', 'log': 'log(%s)',
         'hypot': 'hypot(%s, %s)', 'floor': 'floor(%s)', 'ceil': 'ceil(%s)',
@@ -243,15 +246,29 @@ def _reduce(w, _prog, st):
     return lines
 
 
+def _viewed(w, x, strides):
+    """A side's wbc_view_t: a Ref's first element, or a constant's table at its first element's place."""
+    at = w.pointer(x) if not isinstance(x, tuple) else w.table(x[1], 'double') + (
+        ' + %d' % x[2] if len(x) > 2 and x[2] else '')
+    return '(wbc_view_t){%s, %d, %d}' % (at, strides[0], strides[1])
+
+
 def _matmul(w, _prog, st):
     """numpy's a @ b: `wbc_matmul` on its operands' views, numpy's dispatch and BLAS."""
     (a, sa), (b, sb), (om, op), (m, n, p) = st.args
+    return ['  wbc_matmul(blas, %s, %s, %s, %d, %d, %d, %d, %d);' % (_viewed(w, a, sa), _viewed(w, b, sb),
+                                                                   w.pointer(st.out), om, op, m, n, p)]
 
-    def view(x, strides):
-        at = w.table(x[1], 'double') if isinstance(x, tuple) else w.pointer(x)
-        return '(wbc_view_t){%s, %d, %d}' % (at, strides[0], strides[1])
-    return ['  wbc_matmul(blas, %s, %s, %s, %d, %d, %d, %d, %d);' % (view(a, sa), view(b, sb), w.pointer(st.out),
-                                                                   om, op, m, n, p)]
+
+def _solved(w, _prog, st):
+    """linalg's solve, or inv where b is None: `wbc_solve` or `wbc_inv`, numpy's dgesv on Fortran-ordered
+    copies, into its C-ordered result - where numpy raises LinAlgError the function's 1, nothing
+    after it run."""
+    (a, sa), b, n, nrhs, scratch = st.args
+    call = ('wbc_inv(blas, %s, %d, %s, %s)' % (_viewed(w, a, sa), n, w.pointer(st.out), w.pointer(scratch))
+            if b is None else 'wbc_solve(blas, %s, %s, %d, %d, %s, %s)' % (
+                _viewed(w, a, sa), _viewed(w, *b), n, nrhs, w.pointer(st.out), w.pointer(scratch)))
+    return ['  if (%s)' % call, '  {', '    return 1;', '  }']
 
 
 def _fill(w, _prog, st):
@@ -334,7 +351,7 @@ def _split(T, where):
 
 #: Each statement's C by its kind: a writer of (the Writer, the program, the statement).
 WRITERS = {'fill': _fill, 'ew': _elementwise, 'einsum': _contracted, 'gather': _gathered, 'scatter': _scattered,
-           'matmul': _matmul, 'reduce': _reduce, 'mj': _called}
+           'matmul': _matmul, 'reduce': _reduce, 'mj': _called, 'solve': _solved}
 
 
 def c(prog, name, orders=None, batch=False):
@@ -345,6 +362,7 @@ def c(prog, name, orders=None, batch=False):
     its workspace reused."""
     statements = fused(prog)
     laid, top = lay(prog, statements)
+    solves = any(st.kind == 'solve' for st in statements)
     w = Writer(laid)
     w.given = list(orders) if orders is not None else None
     for k, st in enumerate(statements):
@@ -368,9 +386,10 @@ def c(prog, name, orders=None, batch=False):
     if prog.calls:
         head += ['typedef double mjtNum;', 'typedef struct mjModel_ mjModel;', 'typedef struct mjData_ mjData;']
         head += ['typedef void (*%s_t)(%s);' % call for call in prog.calls] + ['']
-    head += w.tables + ['', 'API void %s(%sconst double *in, double *out, double *w, double *const *ext, '
+    head += w.tables + ['', 'API %s %s(%sconst double *in, double *out, double *w, double *const *ext, '
                         'const wbc_blas_t *blas, const void *model, void *data, void (*const *call)(void))'
-                        % (name, 'long n, ' if batch else ''), '{']
+                        % ('int' if solves else 'void', name, 'long n, ' if batch else ''), '{']
+    done = ['  return 0;'] if solves else []
     ins, outs = blocks([b.root.shape for b in prog.ins]), blocks([r.shape for r in prog.outs])
     names = ['in%d' % k for k in range(len(prog.ins))] + ['out%d' % k for k in range(len(prog.outs))]
     if batch:
@@ -382,12 +401,13 @@ def c(prog, name, orders=None, batch=False):
         head += ['  const double *in%d = in + n * %d + s * %d;' % (k, a, b - a) for k, (a, b) in enumerate(ins[0])]
         head += ['  double *out%d = out + n * %d + s * %d;' % (k, a, b - a) for k, (a, b) in enumerate(outs[0])]
         head += ['  (void)%s;' % x for x in names]
-        tail = ['  }', '}', '']
+        tail = ['  }'] + done + ['}', '']
     else:
         head += ['  const double *in%d = in + %d;' % (k, a) for k, (a, _b) in enumerate(ins[0])]
         head += ['  double *out%d = out + %d;' % (k, a) for k, (a, _b) in enumerate(outs[0])]
         head += ['  double *e%d = ext[%d];' % (k, k) for k in range(len(prog.externs))]
         head += ['  (void)%s;' % x for x in names + ['e%d' % k for k in range(len(prog.externs))]]
-        tail = ['}', '']
+        tail = done + ['}', '']
     head += ['  (void)%s;' % x for x in ('w', 'ext', 'blas', 'model', 'data', 'call')]
-    return '\n'.join(head + w.body + tail), {'laid': laid, 'doubles': top, 'orders': found, 'ins': ins, 'outs': outs}
+    return '\n'.join(head + w.body + tail), {'laid': laid, 'doubles': top, 'orders': found, 'ins': ins, 'outs': outs,
+                                             'solves': solves}

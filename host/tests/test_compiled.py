@@ -4,7 +4,8 @@
 numpy's reductions, selections, comparisons and its ties of zeros; her state carried on in place;
 her sensing on her body over random configurations - every array it returns, her data and her
 scratch after, bit for bit, its time and numpy's -; her law's compiled parts at every pass of it as
-she walks.
+she walks; each of the tracer's numpy (RULES), power's fast paths and a singular solve as numpy
+runs them, a part a shape, a method not held left numpy's.
 The regressor's: test_sysid; her law's hand ports: test_ported. Where numpy's arithmetic is not
 this C's (`law.exact_host`), what is not held stays numpy's own."""
 import os
@@ -241,8 +242,173 @@ def test_aircraft_substeps_in_c_are_their_numpys(report, c):
                      not bad and comp.c is not None, '%d apart' % bad)
 
 
+#: A constant at matmul, C-ordered: its transpose numpy's TRANS operand, a strided view of it copied
+#: for gemm at matrix @ matrix and numpy's own loop at matrix @ vector; and one solved against.
+PHI = np.random.default_rng(23).normal(size=(5, 5))
+GRAM = PHI @ PHI.T + np.eye(5)
+
+
+def _truths(x, y, m):
+    """any and all, as methods and numpy's, of floats and bools: along an axis, whole, kept."""
+    return ((x > 0.5).any(axis=1), np.all(y < 1.0, axis=0), x.any(), np.any(m > 0.0, axis=(0, 2)),
+            (x > y).all(keepdims=True), np.where((x > 1.0).any(axis=1, keepdims=True), x, y))
+
+
+def _cast(x, y):
+    """astype to float: of bools, of a transposed view laid as numpy lays it, of floats no copy."""
+    return (x > y).astype(float) * 2.0, x.T.astype(np.float64), x.astype(float, copy=False) + 1.0
+
+
+def _solved(a, b, c):
+    """linalg's solve of a vector, of a matrix, through a transposed view, of and against a constant; inv."""
+    return (np.linalg.solve(a, b), np.linalg.solve(a, c), np.linalg.solve(a.T, b), np.linalg.inv(a) @ b,
+            np.linalg.solve(GRAM, b), np.linalg.solve(a, GRAM), np.linalg.inv(a.T))
+
+
+def _gathers(x, v):
+    """np.diag of a vector, of a matrix, off their diagonals; np.repeat whole and along an axis;
+    np.roll along an axis and of every axis, of a transposed view."""
+    return (np.diag(v), np.diag(v, -1), np.diag(x), np.diag(x, 2), np.repeat(v, 2), np.repeat(x, 3, axis=1),
+            np.roll(x, -1, axis=0), np.roll(x, 2), np.roll(x.T, 1, axis=1))
+
+
+def _powers(x, y, e):
+    """numpy's ** at its fast paths - ints 2 and -1, floats 0.5, 2, -1, 0 and 1 - and C's pow at 3 and
+    1.5; to a number of her state, to an exponent each element's, of a number; a reciprocal."""
+    return (x ** 2, x ** -1, x ** 0.5, x ** 2.0, x ** -1.0, x ** 0, x ** 1.0, x ** 3, np.abs(x) ** 1.5,
+            np.power(x, 0.5), x ** e, np.abs(x) ** y, 2.0 ** y, np.reciprocal(y))
+
+
+def _fills(x, s):
+    """np.full and np.full_like of a fill of her state, a number and a row broadcast; of a constant."""
+    return (np.full(3, s), np.full((2, 9), x[0]), np.full_like(x, s), np.full_like(x, x[1]) * x,
+            np.full((2, 2), 1.5) + s)
+
+
+def _laid(x):
+    """matmul's operands as numpy 2.5 lays them: a constant's transpose (gemm's TRANS, gemv's), a strided
+    constant and a strided view of hers copied for gemm, a strided constant numpy's own loop at a vector."""
+    return PHI @ x @ PHI.T, x @ PHI[:, ::2], PHI.T @ x[:, 0], PHI[:, ::2].T @ x[:, 1], x[:, ::2].T @ PHI
+
+
+#: The tracer's numpy, a function each: (what it is, it, its arguments of a generator - every one traced).
+RULES = (('any and all', _truths, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)), r.normal(size=(2, 3, 5)))),
+         ('astype', _cast, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)))),
+         ("linalg's solve and inv", _solved, lambda r: (r.normal(size=(5, 5)), r.normal(size=5), r.normal(size=(5, 3)))),
+         ('diag, repeat and roll', _gathers, lambda r: (r.normal(size=(4, 9)), r.normal(size=5))),
+         ('power and **', _powers, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)), 0.75)),
+         ('full and full_like', _fills, lambda r: (r.normal(size=(4, 9)), 0.25)),
+         ("matmul's operands as numpy laid them", _laid, lambda r: (r.normal(size=(5, 5)),)))
+
+
+def test_the_tracers_numpy_in_c(report, c):
+    """Each of RULES compiled (`held.compiled`): held bit for bit on its arrays and four fresh draws."""
+    from tools.cores import held, trace
+    rng = np.random.default_rng(29)
+    for label, fn, drawn in RULES:
+        args = drawn(rng)
+        try:
+            run = held.compiled(fn, args, range(len(args)), fn.__name__[1:], fresh=4)
+            report.check('%s in C bit for bit' % label, True, '%d statements' % len(run.prog.statements))
+        except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
+            report.check('%s in C bit for bit' % label, False, str(e)[:300])
+
+
+def _raised(x, e, a, b):
+    """x to a power of her state - numpy's fast paths by its value as it runs -, of her base; a solve."""
+    return x ** e, np.power(e, x), np.linalg.solve(a, b)
+
+
+def test_powers_and_a_singular_solve_as_numpy_runs_them(report, c):
+    """`_raised` compiled (`bodied.on_args`), held on fresh draws, then beside numpy at each fast path's
+    exponent and others, at zeros, infinities and nan: bit for bit; at a singular matrix its C raises
+    numpy's LinAlgError, as numpy does, and goes on compiled."""
+    from tools.cores import bodied, trace
+    from tools.cores.orders import same
+    rng = np.random.default_rng(31)
+    x, a, b = np.concatenate([rng.normal(size=12), [0.0, -0.0, np.inf, -np.inf, np.nan]]), rng.normal(size=(4, 4)), rng.normal(size=4)
+    part = bodied.on_args(_raised, 'raised', (0, 1, 2, 3))
+    try:
+        part.wait(x, 0.75, a, b)
+    except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
+        report.check('powers and a singular solve in C as numpy', False, str(e)[:300])
+        return
+    bad = 0
+    with np.errstate(all='ignore'):
+        for e in (-1.0, 0.0, -0.0, 0.5, 1.0, 2.0, 3.0, 1.5, -2.0, np.nan, np.inf):
+            got = part(x, e, a, b)
+            bad += got is None or not all(same(g, w) for g, w in zip(got, _raised(x, e, a, b)))
+    raised = []
+    for singular in (np.zeros((4, 4)), np.ones((4, 4))):
+        for f in (part, _raised):
+            try:
+                f(x, 0.5, singular, b)
+                raised.append(False)
+            except np.linalg.LinAlgError:
+                raised.append(True)
+    report.check('powers in C at their fast paths and C\'s pow, bit for bit', not bad and part.c is not None,
+                 '%d of 11 exponents apart' % bad)
+    report.check('a singular solve in C raises LinAlgError as numpy, and goes on compiled',
+                 raised[0] and raised[::2] == raised[1::2] and part.c is not None and part.why is None,
+                 'C, numpy raised: %s' % raised)
+
+
+def _ringed(acc, ring, rest):
+    """A sweep over a ring of any length: its edges' normals (np.roll), their reach, a product of them."""
+    edge = np.roll(ring, -1, axis=0) - ring
+    n = np.stack([edge[:, 1], -edge[:, 0]], axis=1)
+    h = (n * ring).sum(axis=1)
+    return acc + rest * (n.T @ np.maximum(h, 0.0)), h.max()
+
+
+def test_a_part_a_shape(report, c):
+    """`_ringed` compiled a ring's length a part (`bodied.on_shapes`): each length traced, built and held
+    on its own, the first still its C once the second came; beside numpy bit for bit, both in turn."""
+    from tools.cores import bodied, trace
+    from tools.cores.orders import same
+    rng = np.random.default_rng(41)
+    part = bodied.on_shapes(_ringed, 'ringed', (0, 1, 2))
+    try:
+        for k in (4, 6):
+            part.wait(rng.normal(size=2), rng.normal(size=(k, 2)), 0.5)
+    except (trace.Untraced, AssertionError, RuntimeError, OSError) as e:
+        report.check('a part a shape', False, str(e)[:300])
+        return
+    bad = 0
+    for _ in range(10):
+        for k in (6, 4):
+            args = (rng.normal(size=2), rng.normal(size=(k, 2)), float(rng.normal()))
+            bad += not all(same(g, w) for g, w in zip(part(*args), _ringed(*args)))
+    each = [p.c is not None and p.why is None for p in part.values()]
+    report.check('a part a ring\'s length, each held and its C, bit for bit', len(each) == 2 and all(each) and not bad,
+                 '%d of 20 apart; %s' % (bad, sorted(p.name for p in part.values())))
+
+
+def _unheld(x):
+    """An array's method a Traced does not hold (cumsum)."""
+    return x.cumsum() * 2.0
+
+
+def test_a_method_not_held_leaves_numpy(report, c):
+    """`_unheld` on her memory (`bodied.on_args`): Untraced at its trace, no AttributeError - numpy's own
+    result each call, said once on stderr."""
+    import contextlib
+    import io
+    from tools.cores import bodied, trace
+    from tools.cores.orders import same
+    x, said = np.random.default_rng(37).normal(size=6), io.StringIO()
+    part = bodied.on_args(_unheld, 'unheld', (0,))
+    with contextlib.redirect_stderr(said):
+        got = [part(x, paced=False) for _ in range(3)]
+    report.check("a method not held leaves her part numpy's own, said once",
+                 all(same(g, _unheld(x)) for g in got) and part.c is None and isinstance(part.why, trace.Untraced)
+                 and not isinstance(part.why, AttributeError) and said.getvalue().count('stays numpy') == 1,
+                 '%s; %r' % (type(part.why).__name__, said.getvalue().strip()[:120]))
+
+
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,
-          test_her_law_in_c_as_she_walks, test_aircraft_substeps_in_c_are_their_numpys)
+          test_her_law_in_c_as_she_walks, test_aircraft_substeps_in_c_are_their_numpys, test_the_tracers_numpy_in_c,
+          test_powers_and_a_singular_solve_as_numpy_runs_them, test_a_part_a_shape, test_a_method_not_held_leaves_numpy)
 
 
 def main(argv=None):

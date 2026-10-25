@@ -144,9 +144,11 @@ def _merged(free):
 
 
 def writes(st):
-    """The buffers a statement writes: its own, a MuJoCo call's buffers not const."""
+    """The buffers a statement writes: its own, a MuJoCo call's buffers not const, a solve's scratch."""
     if st.kind == 'mj':
         return [k[1].buffer for k in st.args[1] if k[0] == 'buf' and not k[2]]
+    if st.kind == 'solve':
+        return [st.out.buffer, st.args[4].buffer]
     return [st.out.buffer]
 
 
@@ -156,8 +158,8 @@ def reads(st):
         return [leaf[1].buffer for leaf in leaves(st.args)]
     if st.kind == 'einsum':
         return [r.buffer for r in st.args[1] if not isinstance(r, tuple)]
-    if st.kind == 'matmul':
-        return [side[0].buffer for side in st.args[:2] if isinstance(side[0], Ref)]
+    if st.kind in ('matmul', 'solve'):
+        return [side[0].buffer for side in st.args[:2] if side is not None and isinstance(side[0], Ref)]
     if st.kind == 'reduce':
         return [st.args[1].buffer]
     if st.kind == 'mj':

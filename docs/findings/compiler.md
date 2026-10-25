@@ -72,7 +72,8 @@ time and in memory. The board's findings: [FINDINGS](../FINDINGS.md).
   A ctypes field's view in numpy's own dtype (`wbc.plain`): as_array's equal
   one made numpy copy the step's arrays at each `ascontiguousarray`, her
   drives re-pointed each pass (29 -> 23 us a pass).
-- `check_contacts`' arithmetic its own function, compiled (`touch.soles`, now the python reference's beside `wbc_touch.c`):
+- `check_contacts`' arithmetic its own function, compiled (`touch.soles`, now
+  the python reference's beside `wbc_touch.c`):
   each sole's pushes and their sizes as numpy's 1-d norms, its toes' lowest
   tip, the floor under it; `check_contacts` keeps her state, its branch and
   Python's hypot. Her walk 710 -> 491 us a pass with ten parts, p99 2.17 ->
@@ -92,3 +93,10 @@ time and in memory. The board's findings: [FINDINGS](../FINDINGS.md).
   machine-wide (its marker); gcc one a library machine-wide (`build._claimed`,
   the others waiting) and one at a time a process. The same run after: free
   commit 5.14 GB at its least.
+- The tracer's rules for her kernel's numpy (trace.py, trace_np.py, emit.py,
+  bodied.on_shapes), each held in test_compiled: numpy 2.5's `**` on a float
+  array takes square at 2, reciprocal at -1, sqrt at 0.5 and np.power else, its
+  power loop special-casing a stride-0 exponent; the generated C and numpy
+  reach the same UCRT pow (4 million draws, none apart); np.linalg.solve and
+  inv on wbc_solve and wbc_inv, a singular matrix numpy's LinAlgError; at
+  matrix @ matrix numpy 2.5 copies an operand BLAS cannot take and calls gemm.

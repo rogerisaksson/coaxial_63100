@@ -1,5 +1,13 @@
 # Host
 
+- **wbc_blas's matmul against numpy 2.5**: at matrix @ matrix numpy copies an
+  operand BLAS cannot take and calls gemm; wbc_matmul runs its plain loop
+  there, so a hand core handing it such a view parts from numpy in the last
+  bits (wbc_step.c, wbc_rounds.c). The tracer copies as numpy does. DOD:
+  wbc_matmul copies as numpy, held by a test on such views.
+- **Traced has no `__eq__`**: `traced == 0.0` compares identity in a trace and
+  yields a Python bool; np.equal traces. DOD: == and != on a Traced as
+  np.equal and np.not_equal, held in test_compiled.
 - **Her loop's Python round MuJoCo** (asked): profiled walking and cut,
   each step bit for bit ([pace](../findings/pace.md)). Left, the largest
   first: `bodied`'s glue round her nine compiled parts (sixteen arrays fresh
@@ -27,7 +35,8 @@
   patch's far lip her swing reaches 4 cm down past the rhythm's landing, 0.1
   s late, and the standing sole on the snow, 4-6 mm up on 78-92 N, is let go
   before it lands (`poise.stands`: over `leap.TOUCH_M` is left) - 10 m/s^2
-  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The replay walk_turn_right on Linux (scenarios 14), the
+  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The
+  replay walk_turn_right on Linux (scenarios 14), the
   chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
 - **The autotuner's write** (asked): her walk's step held on her suite's
   roots and the bench broke test_errands' viewport bed and was undone. DOD: a

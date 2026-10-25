@@ -7,6 +7,7 @@ reads of her body a constant of the trace, the same objects or it stays numpy's.
 
     sense = bodied.on_body(wbc.sense, 'sense')               # her body first, the arrays at (1, 2)
     felt = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3))   # the rest of its arguments constants
+    ringed = bodied.on_shapes(fn, 'ringed', (0, 1))          # a Compiled a shape at (0, 1)
     s = sense(b, qpos, qvel)                                 # wbc.sense(b, qpos, qvel), bit for bit
 
 At its first call traced on copies - her body's a twin of it - and written in C; built in a thread,
@@ -15,9 +16,7 @@ arguments and fresh draws, its result and every argument after; then the C. Not 
 numpy's own, said once on stderr.
 """
 import ctypes
-import hashlib
 import sys
-import threading
 import time
 
 import numpy as np
@@ -25,11 +24,6 @@ import numpy as np
 from tools.cores import emit, held, layout, trace, trace_mj
 from tools.cores.wbc import address
 
-#: The builds of this process by their source's digest, one thread building them in turn.
-_BUILDING = {}
-_LOCK = threading.Lock()
-_QUEUE: list = []
-_RUNNING = [False]
 #: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in her law's
 #: first pass held it 47.6 ms.
 SPREAD_S = 0.005
@@ -139,11 +133,12 @@ class Compiled:
         prog, _got = trace.traced(self.fn, given, (), wrap=wrap, after=lambda prog, got: _rebound(prog, got, specs))
         specs.extend(('guard', k, (), args[k]) for k in range(len(args)) if k not in self.inputs and k != self.body)
         source, info = emit.c(prog, self.name)
-        self.made, self.job = (prog, info, twin, specs), building(source, self.name, held.matmuls(prog))
+        self.made, self.job = (prog, info, twin, specs), held.building(source, self.name, held.matmuls(prog), info['solves'])
 
     def _hold(self, c, args, twin):
         """`c` held bit for bit against `fn` on copies, at the call's arguments then `fresh` draws: its
-        result, her body's externs and every argument after."""
+        result, her body's externs and every argument after - a draw numpy finds singular Parted, the
+        call's own numpy's LinAlgError."""
         rng = np.random.default_rng(self.seed)
         if twin is not None:
             c.bind(twin)
@@ -157,7 +152,12 @@ class Compiled:
             for k, x, y in zip(self.inputs, ours, theirs):
                 mine[k], other[k] = x, y
             with np.errstate(all='ignore'):
-                want = self.fn(*mine)
+                try:
+                    want = self.fn(*mine)
+                except np.linalg.LinAlgError as e:
+                    if not d:
+                        raise
+                    raise held.Parted('%s: numpy singular on fresh draws %d' % (self.name, d)) from e
             want_body = {i: a.copy() for i, a in enumerate(c.kept)} if twin is not None else None
             if twin is not None:
                 trace_mj.copy_state(twin, args[self.body])
@@ -288,35 +288,38 @@ def _leaves_in(trees):
     return out
 
 
-def building(source, name, matmul):
-    """The build of `source` under way or done, {'done': its Event, 'lib': (the library, its function)
-    or 'why'}: one thread of this process building its sources in turn, the library loaded there - a
-    new one's first load 40 ms of the walking process."""
-    key = hashlib.sha1(source.encode()).hexdigest()
-    with _LOCK:
-        job = _BUILDING.get(key)
-        if job is None:
-            job = _BUILDING[key] = {'done': threading.Event()}
-            _QUEUE.append((job, source, name, matmul))
-            if not _RUNNING[0]:
-                _RUNNING[0] = True
-                threading.Thread(target=_builds, name='held builds', daemon=True).start()
-    return job
+def on_shapes(fn, name, inputs, fresh=2, seed=1, sources=None, body=None):
+    """`fn(...)` as `on_args` (`on_body` with `body`), a Compiled a shape of the arrays at `inputs`
+    (Shaped): each traced, built and held on its own."""
+    return Shaped((fn, name, list(inputs), body, fresh, seed, sources))
 
 
-def _builds():
-    """This process's builds one after another, while any are queued."""
-    while True:
-        with _LOCK:
-            if not _QUEUE:
-                _RUNNING[0] = False
-                return
-            job, source, name, matmul = _QUEUE.pop(0)
-        try:
-            job['lib'] = held.loaded(held.built(source, name, matmul), name)
-        except (RuntimeError, OSError) as e:
-            job['why'] = e
-        job['done'].set()
+class Shaped(dict):
+
+    """A Compiled by its inputs' shapes, named by them; `part` the one called last, its C and its last."""
+
+    c, last, why = (property(lambda self, k=k: getattr(self.part, k, None)) for k in ('c', 'last', 'why'))
+
+    def __init__(self, at):
+        super().__init__()
+        self.at, self.part = at, None
+
+    def __call__(self, *args, paced=True):
+        part = self.part = self.get(tuple([getattr(args[k], 'shape', ()) for k in self.at[2]])) or self._part(args)
+        return part(*args, paced=paced)
+
+    def wait(self, *args):
+        """Built and held at `args`' shapes now: their C (Bound), or why it stays numpy raised."""
+        return self._part(args).wait(*args)
+
+    def _part(self, args):
+        fn, name, inputs, body, fresh, seed, sources = self.at
+        key = tuple([getattr(args[k], 'shape', ()) for k in inputs])
+        if key not in self:
+            shapes = '_'.join('x'.join(map(str, s)) or 's' for s in key)
+            self[key] = Compiled(fn, '%s_%s' % (name, shapes), inputs, body, fresh, seed, sources)
+        self.part = self[key]
+        return self.part
 
 
 class Bound:
@@ -350,7 +353,7 @@ class Bound:
         self.last: tuple | None = None
         self.seen: list = [None] * len(self.args)
         self._sbuf = np.empty(max(1, len(self.args)))
-        self.scalars = memoryview(self._sbuf)
+        self.scalars = memoryview(self._sbuf).cast('B').cast('d')
         self.own = [None if written else (self._sbuf[j:j + 1].reshape(()) if not shape else np.empty(shape))
                     for j, (_i, _k, _p, written, shape) in enumerate(self.args)]
         self.own_at = [0 if own is None else address(own) for own in self.own]
@@ -401,8 +404,8 @@ class Bound:
                         a = a[p]
                 except (KeyError, IndexError, TypeError):
                     return None
-            if type(a) is float and not shape:
-                if written:
+            if type(a) is float:
+                if written or shape:
                     return None
                 scalars[j] = a
                 if seen[j] is not None:
@@ -468,12 +471,14 @@ class Bound:
 
     def __call__(self, args):
         if not self.total:
-            self.cfn(None, None, *self.fixed)
+            if self.cfn(None, None, *self.fixed):
+                raise np.linalg.LinAlgError('Singular matrix')
             self.last = (None, None)
             return None
         flat = np.empty(self.total)
         at = address(flat)
-        self.cfn(None, at, *self.fixed)
+        if self.cfn(None, at, *self.fixed):
+            raise np.linalg.LinAlgError('Singular matrix')
         got = self.made(flat, args)
         self.last = (got, at)
         return got

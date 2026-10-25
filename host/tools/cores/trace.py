@@ -9,21 +9,22 @@ A statement over dense buffers and their affine views, what `tools.cores.emit` w
 A statement: 'fill' a buffer laid by np.zeros; 'ew' an elementwise tree (IEEE per element, any loop
 order the same); 'reduce' a sum, min or max in numpy's own order; 'einsum' a contraction, its order
 numpy's to be found (`orders.ordered`); 'matmul' numpy's a @ b, its BLAS's in C (`wbc_matmul`);
-'gather' and 'scatter' a copy through index tables; 'mj' a MuJoCo function on her model and data
-(`trace_mj`), an extern's memory theirs. numpy's functions: `trace_np`. A branch, a float or a
-write into a plain array on her state cannot be traced and raises: what is compiled is a function
-of its arrays alone.
+'solve' linalg's solve or inv, numpy's dgesv (`wbc_solve`); 'gather' and 'scatter' a copy through
+index tables; 'mj' a MuJoCo function on her model and data (`trace_mj`), an extern's memory theirs.
+numpy's functions: `trace_np`. A branch, a float, a write into a plain array on her state or an
+array's method not held cannot be traced and raises: what is compiled is a function of its arrays
+alone.
 """
 import sys
 import threading
 
 import numpy as np
 
-#: The ufuncs an elementwise tree takes, by numpy's name.
+#: The ufuncs an elementwise tree takes, by numpy's name; power's own (`trace_np.power`).
 UFUNCS = ('add', 'subtract', 'multiply', 'divide', 'negative', 'positive', 'sign', 'maximum', 'minimum',
-          'sqrt', 'absolute', 'square', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'exp',
-          'log', 'hypot', 'floor', 'ceil', 'greater', 'greater_equal', 'less', 'less_equal', 'equal',
-          'not_equal', 'logical_and', 'logical_or', 'logical_not', 'isnan', 'invert')
+          'sqrt', 'absolute', 'square', 'reciprocal', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan',
+          'arctan2', 'exp', 'log', 'hypot', 'floor', 'ceil', 'greater', 'greater_equal', 'less', 'less_equal',
+          'equal', 'not_equal', 'logical_and', 'logical_or', 'logical_not', 'isnan', 'invert')
 #: Files whose frames are the tracer's, not her code's (`hide`).
 _HERE = {__file__}
 
@@ -147,6 +148,12 @@ def _inplace(uf):
     return done
 
 
+def _np(name):
+    """`trace_np`'s `name`: it imports this module."""
+    from tools.cores import trace_np
+    return getattr(trace_np, name)
+
+
 class Traced:
 
     """An array of her state: numpy's own value (`view`, over its buffer's root) and the program
@@ -185,6 +192,13 @@ class Traced:
 
     def __repr__(self):
         return 'Traced(%s)' % (self.shape,)
+
+    def __getattr__(self, name):
+        """An array's attribute or method not held here: Untraced, her part numpy's own - a
+        protocol's dunder probe AttributeError, as of any object."""
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
+        raise Untraced('.%s of her state at %s' % (name, where()))
 
     def _view(self, view):
         if owner(view) is not owner(self.view):
@@ -267,6 +281,15 @@ class Traced:
         from tools.cores import trace_np
         return trace_np.reduced(self.prog, 'multiply', self, axis, None, keepdims)
 
+    def any(self, *a, **k):
+        return _np('truth')(self, 'maximum', *a, **k)
+
+    def all(self, *a, **k):
+        return _np('truth')(self, 'minimum', *a, **k)
+
+    def astype(self, *a, **k):
+        return _np('astype')(self, *a, **k)
+
     def __abs__(self):
         return np.absolute(self)
 
@@ -279,16 +302,29 @@ class Traced:
         self.prog.add('ew', out.ref(), ('positive', ('ref', self.ref())))
         return out
 
+    def _power(self, other, out):
+        """numpy's `**` (number.c's fast_scalar_power), `out` its in place: of a float array an int's
+        2 its square, -1 its reciprocal, a float's 0.5 its sqrt; else np.power (`trace_np.power`)."""
+        fast = None
+        if self.dtype == np.float64 and type(other) in (int, float):
+            fast = {(int, 2): np.square, (int, -1): np.reciprocal, (float, 0.5): np.sqrt}.get((type(other), other))
+        return np.power(self, other, **out) if fast is None else fast(self, **out)
+
     def __pow__(self, other):
-        """numpy's `**` on an array: a square by 2."""
-        if isinstance(other, (int, float)) and float(other) == 2.0:
-            return np.square(self)
-        raise Untraced('** %r at %s' % (other, where()))
+        return self._power(other, {})
+
+    def __ipow__(self, other):
+        return self._power(other, {'out': self})
+
+    def __rpow__(self, other):
+        return np.power(other, self)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         from tools.cores import trace_np
         if ufunc is np.matmul and method == '__call__' and not kwargs:
             return trace_np.matmul(self.prog, *inputs)
+        if ufunc is np.power and method == '__call__' and not set(kwargs) - {'out'}:
+            return trace_np.power(self.prog, *inputs, out=kwargs.get('out'))
         if method == 'reduce' and ufunc.__name__ in ('add', 'multiply', 'minimum', 'maximum') and not set(kwargs) - {
                 'axis', 'keepdims', 'initial'}:
             return trace_np.reduced(self.prog, ufunc.__name__, inputs[0], kwargs.get('axis', 0),
@@ -369,7 +405,9 @@ def operand(prog, x, shape):
     return ('scalar', float(x))
 
 
-def _ufunc(prog, ufunc, inputs, out):
+def _ufunc(prog, ufunc, inputs, out, node=None):
+    """numpy's `ufunc` of `inputs` (into `out`): an 'ew' statement, its tree `node` of the operands
+    (the ufunc of them)."""
     concrete = [x.view if isinstance(x, Traced) else x for x in inputs]
     if out is not None:
         target = out[0] if isinstance(out, tuple) else out
@@ -383,8 +421,8 @@ def _ufunc(prog, ufunc, inputs, out):
             got = np.array(got)
         buf = prog.buffer(owner(got), 'temp')
         result = Traced(prog, buf, got)
-    tree = (ufunc.__name__,) + tuple(operand(prog, x, got.shape) for x in inputs)
-    prog.add('ew', result.ref(), tree)
+    operands = tuple(operand(prog, x, got.shape) for x in inputs)
+    prog.add('ew', result.ref(), (ufunc.__name__,) + operands if node is None else node(*operands))
     return result
 
 
@@ -431,7 +469,9 @@ def _array(prog, real, copy, obj, dtype=None, **kw):
 
 #: numpy's array makers her code lays a traced buffer with, called from her code.
 MAKERS = {'zeros': _zeros, 'array': lambda prog, real, *a, **k: _array(prog, real, True, *a, **k),
-          'asarray': lambda prog, real, *a, **k: _array(prog, real, False, *a, **k)}
+          'asarray': lambda prog, real, *a, **k: _array(prog, real, False, *a, **k),
+          'full': lambda prog, real, *a, **k: _np('full')(prog, real, *a, **k),
+          'full_like': lambda prog, real, *a, **k: _np('full_like')(prog, real, *a, **k)}
 #: One trace at a time: numpy's makers patched by one alone.
 _ONE = threading.Lock()
 

@@ -44,6 +44,13 @@ static inline double npclip(double x, double lo, double hi)
   return npmin(npmax(x, lo), hi);
 }
 
+/** numpy's power where its loop sees the exponent at stride 0 (DOUBLE_power): 1 / x at -1, 1 at 0,
+    sqrt at 0.5, x at 1, x * x at 2, else pow - numpy's npy_pow, the CRT's both. */
+static inline double nppow(double x, double y)
+{
+  return y == -1.0 ? 1.0 / x : y == 0.0 ? 1.0 : y == 0.5 ? sqrt(x) : y == 1.0 ? x : y == 2.0 ? x * x : pow(x, y);
+}
+
 /** numpy's sign: 1, -1, 0 at either zero, nan at nan. */
 static inline double npsign(double x)
 {

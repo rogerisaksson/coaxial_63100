@@ -17,6 +17,7 @@ import os
 import pickle
 import subprocess
 import sys
+import threading
 
 import numpy as np
 
@@ -35,6 +36,11 @@ APART_GB = 1.5
 #: numpy's matmul in C (`wbc_matmul`), built beside a program that has one.
 BLAS_C = os.path.join(REPO, 'wbc', 'src', 'wbc_blas.c')
 _count = itertools.count()
+#: The builds of this process by their source's digest, one thread building them in turn.
+_BUILDING = {}
+_LOCK = threading.Lock()
+_QUEUE: list = []
+_RUNNING = [False]
 
 
 class Parted(AssertionError):
@@ -86,17 +92,50 @@ def built(source, name, matmul):
     return build.cached([path] + ([BLAS_C] if matmul else []), INCLUDES, '%s_%s' % (name, key), GENERATED)[0]
 
 
-def loaded(path, name, batch=False):
-    """(the library at `path`, its `name` typed: [long n, ]in, out, w, ext, blas, model, data, call)."""
+def loaded(path, name, batch=False, solves=False):
+    """(the library at `path`, its `name` typed: [long n, ]in, out, w, ext, blas, model, data, call -
+    an int where it `solves`, 1 where numpy raises LinAlgError)."""
     lib = ctypes.CDLL(path)
     fn = getattr(lib, name)
-    fn.restype = None
+    fn.restype = ctypes.c_int if solves else None
     fn.argtypes = ([ctypes.c_long] if batch else []) + [ctypes.c_void_p] * 8
     return lib, fn
 
 
+def building(source, name, matmul, solves=False):
+    """The build of `source` under way or done, {'done': its Event, 'lib': (the library, its function)
+    or 'why'}: one thread of this process building its sources in turn, the library loaded there - a
+    new one's first load 40 ms of the walking process."""
+    key = hashlib.sha1(source.encode()).hexdigest()
+    with _LOCK:
+        job = _BUILDING.get(key)
+        if job is None:
+            job = _BUILDING[key] = {'done': threading.Event()}
+            _QUEUE.append((job, source, name, matmul, solves))
+            if not _RUNNING[0]:
+                _RUNNING[0] = True
+                threading.Thread(target=_builds, name='held builds', daemon=True).start()
+    return job
+
+
+def _builds():
+    """This process's builds one after another, while any are queued."""
+    while True:
+        with _LOCK:
+            if not _QUEUE:
+                _RUNNING[0] = False
+                return
+            job, source, name, matmul, solves = _QUEUE.pop(0)
+        try:
+            job['lib'] = loaded(built(source, name, matmul), name, solves=solves)
+        except (RuntimeError, OSError) as e:
+            job['why'] = e
+        job['done'].set()
+
+
 def matmuls(prog):
-    return any(st.kind == 'matmul' for st in prog.statements)
+    """Whether `prog` calls numpy's BLAS or LAPACK: wbc_blas.c built beside it, numpy's table passed."""
+    return any(st.kind in ('matmul', 'solve') for st in prog.statements)
 
 
 @functools.lru_cache(maxsize=None)
