@@ -68,8 +68,25 @@ off): the posture's hips are -50 deg where she sits at -75
 (`mode_axial_compression` bends the hip half the knee); let go she extends
 them, her thighs leave the edge and she sits on her pelvis's point rolled 7
 deg till the rise fells her; flexed 30 deg more, her feet planted, she pushes
-herself off the seat. The dangle wants the legs' seated posture its own and
-the soles' weight gone first.
+herself off the seat. Her soles told standing no more and held where they
+are, or lifted 1-5 cm, she falls within 1.5 s at every wobble: at 3.6 s she
+had her pelvis (128 N) and both thighs (74/64) on the seat and the patch's
+felt split ran away, 229 N on one thigh then 697 on her pelvis within 0.4 s.
+Her seat bears her only with her soles standing. Slid in on the step's rows
+instead - the patch's tangential rows freed where a slide is said and the
+seat bears no more than the slide's cap - a lean of 0.5 rad pitched her
+pelvis about its seat point and her hips went 4-5 cm forward; drawn along the
+said slide at its 0.16 m/s (the kernel's attractor), 1.4 cm back and her
+pelvis lifted off at 2.1 s. The deeper sit's centre of mass (hips 0.12 m
+back, leaned 0.5 rad) lies 0.25 m behind her soles' middle, at her ischia:
+her soles push nothing there against a seat gripping as the floor does
+(1.0), and leaned over her soles the seat bears nothing to slide on. The
+scoot on such a seat is a hitch - her hips lifted off the seat over her
+soles, moved back, sat down deeper - or the far dock's drop: landed where
+her thighs and ischia meet the seat together with her shanks upright (hips
+0.34 m behind her ankles, 0.40 legs, the dock 0.10 m further out), her
+centre of mass is 9 cm behind her heels before the seat bears; asked so she
+stood on one sole from 1.8 s and fell at every wobble.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
