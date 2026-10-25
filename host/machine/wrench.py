@@ -119,7 +119,9 @@ def _patches(contacts, nu, full, full0, v, slide, pin, cap, slid):
     patch, and of `slid`, the slide's governor's, where it slides; its slip, (k, 3)) in the contacts' order
     (`_patch`), a patch the contacts one surface bears (`borne`); a cap none, none. Capped a patch at a time, a
     thigh on the seat's front face let the seat plan 297 N under 214; capped sliding alone, the seat bore all of
-    her through a rise's lean and the dock's never ended; the governor's cap on a stuck seat struck it."""
+    her through a rise's lean and the dock's never ended; the governor's cap on a stuck seat struck it. `pin` is
+    the row's while a sole of hers stands (`step`): alone on what bears her the split is the step's to plan -
+    pinned as felt it ran away, 128/74/64 N on pelvis and thighs to 697 on her pelvis in 0.4 s, and threw her."""
     held = {}
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
         rows, felt, slips = _patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin)
@@ -273,7 +275,7 @@ def step(b, s, ask):
         sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
     still, caps, slips = _patches(contacts, nu, full, full0, v, np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float),
-                                  W_PIN / (mass * G), float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf)))
+                                  W_PIN * float(stance.max()) / (mass * G), float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf)))
     a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], W_COM * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)

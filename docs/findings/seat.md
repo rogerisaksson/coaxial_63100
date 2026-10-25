@@ -100,7 +100,9 @@ sit's rest telling her soles nothing, her soles standing no more while a seat
 bears all of her, each leg's hip sprung where it was let go and its knee and
 ankle undriven, the patch's pin held only while a sole stands (pinned as
 felt, alone on the seat the split ran away, 128/74/64 N to 697 on her pelvis
-in 0.4 s; free, square she sat 6.75 s). So she sits deep at every wobble -
+in 0.4 s; free, square she sat 6.75 s - the pin's rule is on main: the step,
+the kernel, the scenarios and the errands as before, the lie on the lodge's
+bed held). So she sits deep at every wobble -
 0.29 legs, upright - but on her pelvis alone, rolled 4-8 deg, her thighs
 barely bearing (a hip sprung to her crouch's 50 deg where she sat at 78
 lifted them; floating, her trunk drifted 3 -> 26 deg forward in 4 s; sprung

@@ -110,6 +110,10 @@ def test_a_patch_splits_as_felt(report):
                  free.sum() > 1.0 and abs(free[0] / free.sum() - 0.6) < 1e-6 and abs(capped.sum() - cap) < 1e-6 * cap
                  and abs(capped[0] - 0.6 * cap) < 1e-6 * cap,
                  'free %s N, capped %s N of %.0f' % (free.round(1), capped.round(1), cap))
+    alone = wrench.step(body, dict(s, contacts=thighs), dict(ask, stance=(False, False)))['borne'][:, 1]
+    report.check('no sole standing, the split is the step\'s to plan, not pinned as felt',
+                 alone.sum() > 1.0 and abs(alone[0] / alone.sum() - 0.6) > 1e-3,
+                 'alone %s N' % alone.round(1))
 
 
 def test_her_lean_hands_her_to_her_soles(report):

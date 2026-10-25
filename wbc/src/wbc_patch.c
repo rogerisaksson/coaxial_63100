@@ -22,7 +22,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
 {
   const wbc_blas_t *l = &p->blas;
   const int         nu0 = p->nu0;
-  const double      pin = p->w_pin / (p->mass * p->g), up[3] = {0.0, 1.0, 0.0};
+  const double      pin = (p->w_pin * (double)(p->stance[0] || p->stance[1])) / (p->mass * p->g), up[3] = {0.0, 1.0, 0.0};
   double            share[WBC_STEP_C], rows3[3 * WBC_STEP_U];
   int               patched[WBC_STEP_C];
 
