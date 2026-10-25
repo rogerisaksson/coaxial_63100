@@ -2,17 +2,16 @@
 """Her scenarios in MuJoCo: a scene placed, commanded as a player would, judged by the world.
 
     python tools/sim/scenarios.py                    # every scenario on the relay, a table
-    python tools/sim/scenarios.py wall chair         # those named; --shoves the shoves' polar too
-    python tools/sim/scenarios.py --one wall         # one, its line as JSON (the relay's job)
-    python tools/sim/stunts.py                       # the takes' scenarios (STUNTS) against their takes
+    python tools/sim/scenarios.py wall chair         # those named; --shoves the shoves' polar
+    python tools/sim/scenarios.py --one wall         # one, its line as JSON (the relay's)
+    python tools/sim/stunts.py                       # the takes' scenarios (STUNTS) against them
 
-A scenario is a scene (`floor.scenario`, or a chair or a bed set at her) and its commands at their
-seconds, given through her worker's own session (`worker.apply`, `worker.stepped`) as the page
-gives them. The referee reads the world's truth her law never sees: whether she fell
-(`worker._is_fallen`), what bore her off her soles - the floor, a chair, a mattress, a wall -,
-her soles' loads, where her pelvis went, and each segment's jerk (`JERKED`) through a 20 ms
-window, its 99th percentile and its peak; a stunt's rows as the page records her, measured as
-its take is (`stunts.measured`).
+A scenario is a scene (`floor.scenario`: a floor event, a chair, a bed) and its commands at their
+seconds through her worker's session as the page gives them. The referee reads the
+world's truth her law never sees: whether she fell, what bore her off her soles - the floor, a
+chair, a mattress, a wall -, her soles' loads, where her pelvis went, each segment's jerk (`JERKED`)
+through a 20 ms window, its 99th percentile and peak; a stunt's rows as the page records her, measured
+as its take is (`stunts.measured`).
 """
 import argparse
 import json
@@ -29,7 +28,7 @@ from tools.sim import stunts
 #: A player's walk (`se2`'s), m/s; a stop.
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 #: What bears her, by the body it is: the props a scene places.
-BEARS = {'chair': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
+BEARS = {'chair': 'chair', 'chair_low': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
 #: A goal held this long, s; jerk through this window, s; an obstacle met past this, N; standing
 #: on after the last command, s.
 HELD_S, JERK_S, MET_N, STILL_S = 1.0, 0.02, 20.0, 6.0
@@ -71,6 +70,7 @@ SCENARIOS = {
     'slope_down': ('slope_down', *_walk(7.0), 'sank', 0.45),
     'cross_slope': ('cross_slope', *_walk(6.0), 'past', 2.0),
     'chair': ('chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
+    'chair_low': ('chair_low_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
     'bed_rise': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (16.0, {'say': 'rise_bed'})], 24.0, 'sat', 'bed'),
     'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 16.0, 'lay', 'bed'),

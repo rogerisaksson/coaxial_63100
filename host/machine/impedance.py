@@ -21,9 +21,10 @@ from machine import latent, poise, stride, supervisor, swing
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, CLEAR_M, COM, COM_ACC, DRIVE, DT, EDGE, FLOOR, FOLD, FOLD_RATE, FOLDS, G,
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
-    LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
+    LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PALMS, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED, ELBOWS, ELBOWED,
+    LET_GO,
     TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -141,6 +142,7 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
+    stance, a[LET_GO] = _let_go(propped, stance, out)
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
@@ -172,10 +174,12 @@ def ask(out, y, fr, a):
     lifted = stance.max() * (bears @ risen) / fr[HIPS_BY] - (1.0 - stance.max()) * AXIAL_M * pressed
     com = grounded * np.array([along[0], along[1], poise.clip(lifted, -G, THROW_M_S2)]) + (1.0 - grounded) * FALLS
     late = stride.lates(phi, turns, stepping)
-    # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm
+    # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm; something bearing her off her
+    # soles, a sole off the floor is no swing: it hovers CLEAR_M over the floor under it - clearing what it met,
+    # sat with one sole lifted as the seat struck, that sole rose 16 cm and she fell
     a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
-    clear = aloft * (stride.clears(u, flying, swung * hurry, np.maximum(CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE],
-                                                                      top + 2.0 * CLEAR_M), tip, tipping, tilt, late, land)
+    lift2 = np.maximum(CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], top + 2.0 * CLEAR_M) * (1.0 - propped) + CLEAR_M * propped
+    clear = aloft * (stride.clears(u, flying, swung * hurry, lift2, tip, tipping, tilt, late, land)
                      + HOT3[ALONG][:, None] * short_h)
     free, frame = swing.free(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                              grounded, propped)
@@ -194,15 +198,25 @@ def ask(out, y, fr, a):
     return a
 
 
+def _let_go(propped, stance, out):
+    """(the soles that stand, each leg let go): borne off her soles with her text asking nothing of them
+    (`latent.MANIFOLDED`), her legs hang, on the floor or off - no swing, no stance (`wrench._maps`). Let go off
+    the floor alone, her soles stood on under a seat whose edge perched her, and she tipped back off it."""
+    gone = propped * float(out[latent.MANIFOLDED][0] <= 0.0)
+    return stance * (1.0 - gone), np.full(2, gone)
+
+
 def _borne(y, rot, a, dt):
     """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
     way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
     comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
-    release. Its share ramped to PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
+    release; her hands' share with the furniture's (`borne`): the furniture's alone, a hitch on her
+    hands let it go under the release and her soles stood under her again. Its share ramped to
+    PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
     counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
     it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
     lifted in turn and she slid onto the mattress."""
-    share, latched = y[PROP], a[PROPPED]
+    share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
     on = (1.0 - latched) * float(share >= PROP_ENGAGE)
     under = latched * float(share < PROP_RELEASE)
     a[PROPPED_BELOW] = under * (a[PROPPED_BELOW] + dt)

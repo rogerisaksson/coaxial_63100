@@ -141,7 +141,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   /* her support's comparator, the master insert's: latched from its engage, let go under its
      release held its dwell, never within its strike's blanking; its box held under the release */
   {
-    const double share = y[k->y_prop], latched = a[k->a_propped];
+    const double share = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]), latched = a[k->a_propped];
     const double struck = (1.0 - latched) * (double)(share >= k->prop_engage);
     const double under = latched * (double)(share < k->prop_release);
     double       freed;
@@ -317,6 +317,16 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
+  {
+    /* her legs let go while what bears her off her soles holds her and her text asks nothing of them: no stance
+       (machine.impedance._let_go) */
+    const double gone = propped * (double)(out[k->o_manifolded] <= 0.0);
+
+    stance[0] *= 1.0 - gone;
+    stance[1] *= 1.0 - gone;
+    a[k->a_let_go] = gone;
+    a[k->a_let_go + 1] = gone;
+  }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];
   aloft[1] = 1.0 - stance[1];
@@ -397,7 +407,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_raise] -= ((fr[k->f_dt] * turns) / (2.0 * PI)) * a[k->a_raise];
   for (int b = 0; b < 2; b++)
   {
-    lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m);
+    lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m) * (1.0 - propped)
+               + k->clear_m * propped;
   }
   th[0] = swung * hurry[0];
   th[1] = swung * hurry[1];

@@ -82,7 +82,17 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    what it gives (the pass taken apart, the points' rows 13 900), the ingress
    deeper after the crossfade needing her feet along (item 4's equinus or
    their own slide: asked 0.18 m deeper, planted, she moved 2 mm), the 65
-   Hz dither, the ischial centring's stop on that CoP. DOD: she sits a
+   Hz dither, the ischial centring's stop on that CoP. On branch `sit-deep`
+   (seat findings, the hitch on her hands): the two ischia, the rooms and the
+   let-go leg on main's hands, the edge sit kept 3 of 3; the hitch as text
+   moves her hips 0 - her let-go legs bear through feet on the floor, and the
+   seat, told 0.3, is capped not held and unloads under her hands; the pan as
+   a row of the step (weight 30) flung her, not kept. A low chair at her
+   popliteal height (`chair_low`, hitch findings): landed 0.30 legs back, the
+   deep sit 0.10 m further on planted feet; a scoot by the descent's lean and
+   the kernel's slide unloaded the seat and stood her - the lean as far as
+   the seat's cap, her legs' length following her hips, next. DOD:
+   she sits a
    human's 0.31-0.47 legs back and rises on both soles at 2e-4 rad either
    way; she slides onto and off a seat over her knees, forward to its edge
    before her rise, and 180 mm deeper onto the bed; her walk, the bed and

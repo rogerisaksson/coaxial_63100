@@ -302,6 +302,7 @@ Six firmware defects, no hardware fault:
 | Her law compiled from her numpy: numpy's orders, her parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
 | The dual-domain kernel: its momentum observer, its steps, its tests in the lodge | [findings/kernel.md](findings/kernel.md) |
 | Her seat: where a sit lands her, the Coulomb slide as her step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
+| The hitch on her hands: from the chair's edge onto its seat, what moved her hips 0 | [findings/hitch.md](findings/hitch.md) |
 
 ## Ruled Out
 

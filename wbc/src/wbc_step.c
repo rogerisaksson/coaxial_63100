@@ -1,6 +1,5 @@
-/** wbc_step.c - her whole body's step on the host (wbc_step.h): machine.wrench.step - its maps,
-    its rows, its rounds (wbc_rounds.c), its shrink - numpy's arithmetic and numpy's own OpenBLAS
-    (wbc_blas.h) operation for operation. Portable C11, the host's alone. */
+/** wbc_step.c - machine.wrench.step in C (wbc_step.h): maps, rows, rounds (wbc_rounds.c), shrink -
+    numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation. Portable C11. */
 #include "wbc_np.h"
 #include "wbc_step.h"
 
@@ -9,7 +8,7 @@
 
 #define VIEW(at, s0, s1) ((wbc_view_t){(at), (s0), (s1)})
 
-/** Python's max and min of two floats: the first unless the second is past it. */
+/** Python's max and min: the first unless the second is past it. */
 static double pymax(double a, double b)
 {
   return b > a ? b : a;
@@ -20,7 +19,7 @@ static double pymin(double a, double b)
   return b < a ? b : a;
 }
 
-/** numpy's clip (clip.cpp): nan kept, a bound where the value is not inside it. */
+/** numpy's clip: nan kept, a bound where the value is outside. */
 static double clipped(double x, double lo, double hi)
 {
   const double m = isnan(x) ? x : (x > lo ? x : lo);
@@ -51,8 +50,7 @@ static void turn_error(const wbc_blas_t *l, const double want[4], const double h
   }
 }
 
-/** machine.wrench._inv: A's damped inverse, `damp2` its lambda^2, A (6, 6) as numpy's a[:, idx]
-    lays it - F-ordered, its memory A.T's in C order. */
+/** machine.wrench._inv: A's damped inverse, `damp2` its lambda^2, A (6, 6) F-ordered as numpy lays a[:, idx]. */
 static int inv6(const wbc_step_t *p, const double At[36], double damp2, double out[36], double *work)
 {
   double K[36];
@@ -68,16 +66,50 @@ static int inv6(const wbc_step_t *p, const double At[36], double damp2, double o
   return wbc_solve(&p->blas, VIEW(K, 6, 1), VIEW(At, 6, 1), 6, 6, out, work);
 }
 
-/** machine.wrench._maps: qdd = T base + E u + t0 (E n by nu, its contacts' columns 0); each
-    swinging sole's asked acceleration a6 and whether it is asked. */
+/** machine.wrench._maps: qdd = T base + E u + t0 (E n by nu); each swinging sole's asked a6 and whether asked. */
 static int maps(const wbc_step_t *p, const double *want, double *T, double *E, double *t0, double *a6,
                 double asked[2], int nu, double *work)
 {
   const wbc_blas_t *l = &p->blas;
-  const int         n = p->n, nu0 = p->nu0, np_ = p->npass, na = p->nact;
-  double           *mpp = work, *mpa = mpp + np_ * np_, *pull = mpa + np_ * na, *Ta = pull + np_ * na;
-  double           *Ea = Ta + 6 * na, *PT = Ea + na * nu0, *PE = PT + 6 * np_, *ta = PE + np_ * nu0;
-  double           *pt = ta + na, *hp = pt + np_, *y = hp + np_, *rest = y + np_;
+  const int         n = p->n, nu0 = p->nu0;
+  int               hung[WBC_STEP_N] = {0}, pas[WBC_STEP_N], actv[WBC_STEP_N], np_ = 0, na = 0;
+  double           *mpp, *mpa, *pull, *Ta, *Ea, *PT, *PE, *ta, *pt, *hp, *y, *rest;
+
+  /* the joints no drive holds, a let-go knee and ankle with them */
+  for (int i = 0; i < p->npass; i++)
+  {
+    hung[p->passive[i]] = 1;
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    for (int i = 3; i < 6; i++)
+    {
+      hung[p->act[p->legs[k][i]]] |= p->let_go[k] != 0;
+    }
+  }
+  for (int i = 0; i < n; i++)
+  {
+    if (hung[i])
+    {
+      pas[np_++] = i;
+    }
+    else
+    {
+      actv[na++] = i;
+    }
+  }
+  mpp = work;
+  mpa = mpp + np_ * np_;
+  pull = mpa + np_ * na;
+  Ta = pull + np_ * na;
+  Ea = Ta + 6 * na;
+  PT = Ea + na * nu0;
+  PE = PT + 6 * np_;
+  ta = PE + np_ * nu0;
+  pt = ta + na;
+  hp = pt + np_;
+  y = hp + np_;
+  rest = y + np_;
 
   memset(T, 0, (size_t)(6 * n) * sizeof(double));
   memset(E, 0, (size_t)(n * nu) * sizeof(double));
@@ -175,13 +207,13 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   {
     for (int b = 0; b < np_; b++)
     {
-      mpp[a * np_ + b] = p->M[p->passive[a] * n + p->passive[b]];
+      mpp[a * np_ + b] = p->M[pas[a] * n + pas[b]];
     }
     for (int b = 0; b < na; b++)
     {
-      mpa[a * na + b] = p->M[p->passive[a] * n + p->active[b]];
+      mpa[a * na + b] = p->M[pas[a] * n + actv[b]];
     }
-    hp[a] = p->h[p->passive[a]];
+    hp[a] = p->h[pas[a]];
   }
   if (wbc_solve(l, VIEW(mpp, np_, 1), VIEW(mpa, na, 1), np_, na, pull, rest))
   {
@@ -193,9 +225,9 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   }
   for (int b = 0; b < na; b++)
   {
-    memcpy(Ta + 6 * b, T + 6 * p->active[b], 6 * sizeof(double));
-    memcpy(Ea + nu0 * b, E + nu * p->active[b], (size_t)nu0 * sizeof(double));
-    ta[b] = t0[p->active[b]];
+    memcpy(Ta + 6 * b, T + 6 * actv[b], 6 * sizeof(double));
+    memcpy(Ea + nu0 * b, E + nu * actv[b], (size_t)nu0 * sizeof(double));
+    ta[b] = t0[actv[b]];
   }
   wbc_matmul(l, VIEW(pull, na, 1), VIEW(Ta, 6, 1), PT, 6, 1, np_, na, 6);
   wbc_matmul(l, VIEW(pull, na, 1), VIEW(Ea, nu0, 1), PE, nu0, 1, np_, na, nu0);
@@ -206,9 +238,9 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   }
   for (int a = 0; a < np_; a++)
   {
-    memcpy(T + 6 * p->passive[a], PT + 6 * a, 6 * sizeof(double));
-    memcpy(E + nu * p->passive[a], PE + nu0 * a, (size_t)nu0 * sizeof(double));
-    t0[p->passive[a]] = pt[a] - y[a];
+    memcpy(T + 6 * pas[a], PT + 6 * a, 6 * sizeof(double));
+    memcpy(E + nu * pas[a], PE + nu0 * a, (size_t)nu0 * sizeof(double));
+    t0[pas[a]] = pt[a] - y[a];
   }
   return 0;
 }
@@ -425,10 +457,10 @@ int wbc_step(wbc_step_t *p)
     }
     felt[q] = p->cf[q][1];
   }
-  /* each contact's rows: its point held still, along its patch's normal alone where it slides (wbc_patch.c) */
+  /* each contact's rows: its point held still, up alone where it slides (wbc_patch.c) */
   wbc_patch_rows(p, n, nu, nc, full, full0, S, r, r0, along, slips);
   wbc_patch_caps(p, nc, along, slips, caps, borne);
-  /* the rows, as machine.wrench lays them */
+  /* the rows as wrench's */
   for (int j = 0; j < 3 * nu; j++)
   {
     row[j] = sumf[j] / mass;
@@ -455,7 +487,7 @@ int wbc_step(wbc_step_t *p)
   }
   for (int i = 0; i < p->nupper; i++)
   {
-    /* her arms' rows weigh as her text stiffens them over her rest, but an arm whose hand bears */
+    /* her arms' rows as her text stiffens them, but an arm whose hand bears */
     const double held = p->sides[i] < 0 ? 0.0 : borne[p->sides[i]];
     const double w = p->w_posture * (1.0 + (p->hold - 1.0) * (p->arms[i] * (1.0 - held)));
 
@@ -471,8 +503,7 @@ int wbc_step(wbc_step_t *p)
   {
     swung[i] = i < 12 ? asked[i / 6] : 0.0;
   }
-  /* a sole that does not stand while something else bears her rests: its rows weigh as a pressing
-     contact's point */
+  /* a sole not standing while borne rests: its rows a pressing point's */
   for (int i = 0; i < nu; i++)
   {
     const double resting = i < 12 ? p->rests[i / 6] : 0.0;
@@ -602,7 +633,7 @@ int wbc_step(wbc_step_t *p)
   {
     row[j] = sumf[nu + j] / mass;
   }
-  /* the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows */
+  /* the ask's answer, and nothing's: accelerations 0, weight borne */
   wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs, 1, 0), g0, 1, 0, nu, at, 1);
   if (wbc_rounds(p, &geo, H0, g0, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band,
                  whole, rest))

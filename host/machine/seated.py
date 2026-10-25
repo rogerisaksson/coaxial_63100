@@ -39,17 +39,28 @@ def hips(knee, ankle):
             figure.SHANK * math.cos(ankle) + figure.THIGH * math.cos(knee - ankle))
 
 
-def ahead(knee, ankle, trunk):
-    """Her centre of mass ahead of her ankles, m, her knees and ankles bent `knee`, `ankle`, her
-    pelvis and trunk `trunk` rad forward - her pitch turns both (`impedance._poses`) -, her soles
-    flat, the rest of her as she stands: her figure's segments (`figure.com`), within 3 mm of her
-    model's. Her manifest's masses lumped, each leg at its thigh's and shank's middles, put it 4 mm
-    off: her hips stopped 6 mm over a seat they were asked 5.7 mm into."""
+def posed(knee, ankle, trunk):
+    """{joint: deg}: her knees and ankles bent `knee`, `ankle`, her pelvis and trunk `trunk` rad forward
+    - her pitch turns both (`impedance._poses`) -, her soles flat, the rest of her as she stands."""
     deg = figure.stand()
     for side in ('left_', 'right_'):
         deg[side + 'hip'] = math.degrees(ankle - knee - trunk)
         deg[side + 'knee'], deg[side + 'ankle'] = math.degrees(knee), -math.degrees(ankle)
-    return figure.com(deg, (0.0, 0.0, 0.0), figure.rx(trunk))[2] + figure.HIP_DROP * math.sin(trunk) + hips(knee, ankle)[0]
+    return deg
+
+
+def sagittal(p, knee, ankle, trunk):
+    """A point `p` of her `posed` (her pelvis's frame, her pelvis at its origin turned `trunk` forward)
+    as (ahead of her ankles, up off the floor), m."""
+    hx, hy = hips(knee, ankle)
+    return (p[2] + figure.HIP_DROP * math.sin(trunk) + hx, p[1] + figure.HIP_DROP * math.cos(trunk) + hy + figure.ANKLE_H)
+
+
+def ahead(knee, ankle, trunk):
+    """Her centre of mass ahead of her ankles, m, `posed`: her figure's segments (`figure.com`), within
+    3 mm of her model's. Her manifest's masses lumped, each leg at its thigh's and shank's middles, put
+    it 4 mm off: her hips stopped 6 mm over a seat they were asked 5.7 mm into."""
+    return sagittal(figure.com(posed(knee, ankle, trunk), (0.0, 0.0, 0.0), figure.rx(trunk)), knee, ankle, trunk)[0]
 
 
 def com(knee, ankle, trunk, modes, body):
@@ -108,6 +119,7 @@ def sat(seat):
     """Her hip joints' height sat on a surface `seat` m up: her buttocks under her pelvis, her hips
     under its middle (`figure`)."""
     return seat - figure.SEAT_Y + figure.SEAT_R - figure.HIP_DROP
+
 
 
 def braced(trunk):
