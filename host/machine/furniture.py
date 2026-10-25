@@ -45,12 +45,15 @@ def nearest(g, verb, at=None, where=(0.0, 0.0)):
 
 
 def seen(g, stunt, at=None):
-    """(its top, its near edge behind her soles' middle along her way, its middle to her left of
-    theirs, m; its edge's turn off square to her way, rad) of the furniture stunt `stunt` is on
-    nearest `at` (her without one) - a rise's that of the stunt it rises from -; None where she sees
-    none. Her soles about her root as her estimate has them, her root where `_found` reads her: a
-    look is taken from her, her odometry's drift none of it - an errand drifted her estimate 3 cm,
-    the seat seen 2.2 cm deep of where it stood, a thigh met its edge and she fell."""
+    """(its top, the face she backs into behind her soles' middle along her way, its middle to her
+    left of theirs, m; that face's turn off square to her way, rad; its depth across that face, m)
+    of the furniture stunt `stunt` is on nearest `at` (her without one) - a rise's that of the stunt
+    it rises from -; None where she sees none. The face is the side whose outward normal lies most
+    along her way: read as the box's reach along her way, a bed turned 0.6 rad to her was its far
+    corner, -0.45 m where its long side lay 0.15 m behind her. Her soles about her root as her
+    estimate has them, her root where `_found` reads her: a look is taken from her, her odometry's
+    drift none of it - an errand drifted her estimate 3 cm, the seat seen 2.2 cm deep of where it
+    stood, a thigh met its edge and she fell."""
     from machine import edge, maneuver, modal
     hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at)
     if hit is None:
@@ -59,6 +62,9 @@ def seen(g, stunt, at=None):
     root = g['world'].data.qpos[:3] - g['est']['pos']
     mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0) + root, edge.yaw(g['sense'])
     way, off = (math.sin(yaw), math.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
-    reach = sum(abs(way[0] * turn[0][j] + way[1] * turn[2][j]) * half[j] for j in range(3))
-    return (py + half[1], -(off[0] * way[0] + off[1] * way[1]) - reach, off[0] * way[1] - off[1] * way[0],
-            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi))
+    dots = [way[0] * turn[0][j] + way[1] * turn[2][j] for j in (0, 2)]
+    k = int(abs(dots[1]) > abs(dots[0]))
+    j, cos = 2 * k, abs(dots[k])
+    face = (-math.copysign(1.0, dots[k]) * (off[0] * turn[0][j] + off[1] * turn[2][j]) - half[j]) / cos
+    return (py + half[1], face, off[0] * way[1] - off[1] * way[0],
+            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j])
