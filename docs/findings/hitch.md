@@ -4,7 +4,9 @@ Her deep sit by her hands, from the chair's edge onto its seat (branch `sit-deep
 the edge sit and the seat's other measures: [seat](seat.md).
 
 Branch `sit-deep`: the two ischia, a bearing point's room and the let-go leg
-on main's hands, the edge landing kept; a leg is let go whenever a seat bears
+on main's hands, the edge landing kept (the ischia and the rooms taken out
+again on main: the lodge's chair errand, 0.47 m, rose and fell at 11.3 s with
+them, the bench's 0.45 m chair 3 of 3); a leg is let go whenever a seat bears
 her and her text asks nothing of her soles, on the floor or off
 (`impedance._let_go`); her hands' share counts in her support's comparator;
 both hands are capped at their told share together (each alone, they took
@@ -39,11 +41,15 @@ her thigh was pressed 92 N and flung her arm - not kept.
 
 ## The low chair
 
-A second chair in the scene (`floor.CHAIR_LOW_H`, scene `chair_low_behind`,
-scenario `chair_low`): its seat at her popliteal height, 0.397 m, where a
-human's deep sit keeps her soles flat. Landed on it she sits 0.30 legs back
+A second chair in the lodge, its back against the back wall left of the table,
+facing the room (`room.CHAIR_LOW_AT`), and in the bench's scene (`floor.CHAIR_LOW_H`,
+scene `chair_low_behind`, scenario `chair_low`): its seat at her popliteal
+height, 0.397 m, where a human's deep sit keeps her soles flat; the lodge's
+chair's top is 0.47. Landed on the low one she sits 0.30 legs back
 (0.26 on the lodge's 0.45 m chair), the seat 0.52-0.56 of her, soles 0.44,
 upright 11 deg, her thighs along the seat (2.4 cm under its top at the knee).
+Without the two ischia (main) the low chair bears her 0.5-0.6 s at square and
++2e-4 and she stands off it, -2e-4 falls at 9.5 s; the 0.45 m chair 3 of 3.
 The deep sit there is her hips 0.10 m further back on planted feet, her knee
 105 -> 92 deg, her leg 0.49 -> 0.58 m hip to ankle. Scooting back as a human
 (the descent's lean forward, 0.68 rad, the seat told the kernel's 0.55 and her
@@ -59,6 +65,23 @@ seat 0.46 of her) falls 3 of 3 (8.2-11.2 s): the lean strikes the seat at
 1.01-1.06 of her weight, one sole 87/0 N then 275/24, her trunk 15 deg back,
 and she stands on one sole bouncing on the seat (0.46-0.62) till 11.2 s.
 
-Left: a scoot's lean as far as puts the seat at its cap and no further, her
-legs' length following her hips, the seat held felt through it; the rise from
-the lower, deeper seat.
+## The deep landing
+
+Why she lands on the edge: `seated.landed` keeps her centre of mass over her
+heels through the descent, a squat with her knees 16 cm ahead of her ankles
+and her hips 0.19-0.22 m back; the human folds the knee with the shank plumb,
+leans 43 deg and lets the hips swing a thigh's length back, the seat taking a
+centre of mass already behind the feet. Landed as deep as her thighs clear
+the edge, up to the seat's middle, with the ZMP let go through the descent
+(not kept): the low chair's landing 0.46 legs asked, 0.37 measured square
+(0.237 m onto the seat, upright 4 deg, the seat 0.62) - struck at 1.36 of her
+weight, one sole 0 N through the sit, the rise down at 11.7 s; at +2e-4 she
+fell in the sit at 4.2 s. The 0.45 m chair's landing is set by its edge, 0.29
+legs asked, 0.26 measured, and the ZMP let go there felled the rise square
+(9.75 s): 1 of 3 where 3. Aimed at the middle whatever the thighs met, the
+0.45 m seat perched them and she fell at 3.1 s, 0 of 6.
+
+Left: the deep landing's descent as a tip the seat catches - the ZMP let go
+only as her hips pass her heels, both soles kept -, and the rise from the
+deep seat; a scoot's lean as far as puts the seat at its cap, her legs'
+length following her hips, the seat held felt through it.
