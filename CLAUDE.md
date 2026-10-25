@@ -127,6 +127,10 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   second measurement shows it gone. Measure against the body, not the
   plumb line: a torso plumb over bent knees leans back. A running page
   keeps the code it started with.
+- **She is a humanoid, not a programming problem.** The work is anatomical
+  and kinematic: a fault is found in her body - segments, joints, contacts,
+  her dynamics - and fixed there, never hacked round in code until it
+  passes.
 - **One way she moves.** Her latent loop: text to rows (`machine.ortho`),
   `latent.step`, `impedance.ask`, the whole-body step (`wrench.step`), her
   drives. No branch in it, flat static arrays, K, D and phases only; what it
