@@ -36,6 +36,8 @@ INGRESS, EGRESS = (kernel.transition(a, b, 'coulomb-slide')
 CAPS = np.array([INGRESS['normal-load-governor']['cap-fz-ratio'], EGRESS['normal-load-governor']['cap-fz-ratio']])
 #: The egress slide along her way, m/s: forward off the seat through a rise's lean (`acts`).
 EGRESS_M_S = float(EGRESS['tangent-velocity-attractor'][0])
+#: The ingress slide along her way, m/s: back onto the seat through a hitch (`acts`).
+INGRESS_M_S = float(INGRESS['tangent-velocity-attractor'][0])
 
 
 def asked(g, s, out, told, ask):

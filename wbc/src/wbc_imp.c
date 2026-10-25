@@ -141,7 +141,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   /* her support's comparator, the master insert's: latched from its engage, let go under its
      release held its dwell, never within its strike's blanking; its box held under the release */
   {
-    const double share = y[k->y_prop], latched = a[k->a_propped];
+    const double share = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]), latched = a[k->a_propped];
     const double struck = (1.0 - latched) * (double)(share >= k->prop_engage);
     const double under = latched * (double)(share < k->prop_release);
     double       freed;

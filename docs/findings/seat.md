@@ -333,3 +333,7 @@ The field's seek back sought again (`field.SEEK`, the kernel's -0.12 m/s
 under the capture point's barrier) with her hands reaching the seat in the
 descent: she fell back off it, a drop of 0.83 legs, her trunk -124 deg - her
 hands bore too late for the barrier's support to reach back to them.
+
+## The hitch on her hands
+
+In [hitch](hitch.md).

@@ -136,8 +136,8 @@ def _patches(contacts, nu, full, full0, v, ask, pin):
     her through a rise's lean and the dock's never ended; the governor's cap on a stuck seat struck it. `pin` is
     the row's while a sole of hers stands (`step`): alone on what bears her the split is the step's to plan -
     pinned as felt it ran away, 128/74/64 N on pelvis and thighs to 697 on her pelvis in 0.4 s, and threw her.
-    Her hands' patches (`borne.CARPAL`) apart: each's `hand_cap`, their told share's, the split theirs to find -
-    split as felt, the hand bearing less held there and let go. `ask`'s `slide` the slide her contacts may take."""
+    Her hands' patches (`borne.CARPAL`) apart: `hand_cap`, their told share, over both as felt - each hand's alone,
+    a hitch's hands took 0.84 of her and the seat let her go. `ask`'s `slide` the slide her contacts may take."""
     slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
     slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
@@ -148,7 +148,8 @@ def _patches(contacts, nu, full, full0, v, ask, pin):
     shares = np.zeros(len(contacts))
     part = felt * (1.0 - hands)
     shares += part / part.sum() if part.sum() > 0.0 else (1.0 - hands) / max(float((1.0 - hands).sum()), 1.0)
-    shares += hands
+    palm = felt * hands
+    shares += palm / palm.sum() if palm.sum() > 0.0 else hands / max(float(hands.sum()), 1.0)
     slips = np.array([held[j][2] for j in range(len(contacts))]).reshape(len(contacts), 3)
     limit = np.where(hands > 0.0, hand, np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap))
     caps = np.where(np.isfinite(limit), limit * shares, np.inf)

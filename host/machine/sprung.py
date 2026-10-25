@@ -118,7 +118,6 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
          'head_idx': names.index('head') if 'head' in names else None, '_look_yaw': 0.0,
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
-         'hips_held': np.zeros((2, 3)), 'let_go_was': np.zeros(2),
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
          'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),

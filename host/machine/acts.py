@@ -40,6 +40,18 @@ ENVELOPES = {':eccentric-feathered-zero': 'descent', ':eccentric-damping': 'desc
 PLANTAR = (':plantar-bilateral',)
 #: Her ZMP's words (`modal`): let go, in her support.
 NONE, SUPPORT = 0.0, 1.0
+#: What bears her through a hitch (`ortho.MANIFOLDS`: plantar, ischial, trochanter, dorsal, palmar): braced on the
+#: edge, her fists reaching the seat with her soles' 0.15 kept; braced deep, her legs hanging; hitching, the seat
+#: under the kernel's ingress cap (`somatic.CAPS`) with her fists pushing - the seat's grip is her fists' (wood), so
+#: her hips slide only where her hands bear more than the seat does -; sat deep, the seat alone; her soles given
+#: the handover's 0.15 back as they stand again.
+BRACED, BRACED_DEEP = (0.15, 0.55, 0.0, 0.0, 0.30), (0.0, 0.55, 0.0, 0.0, 0.45)
+HITCHED, DEEP, HANDED = (0.0, 0.3, 0.0, 0.0, 0.7), (0.0, 1.0, 0.0, 0.0, 0.0), (0.15, 0.85, 0.0, 0.0, 0.0)
+#: Her fists' way down to a seat, ms, paced by her arms' springs after (`maneuver._paced`).
+BRACE_MS = 800.0
+#: Her legs hanging from a seat over her knees, (knee, ankle) rad: her thighs along the seat, her shanks plumb -
+#: her modes read over her soles where they hang (`seated.com`).
+HUNG = (0.5 * math.pi, 0.0)
 #: A row's grain, ms: the wire's.
 GRAIN_MS = 1
 #: A phase of her text: its stage, what it does, ms, blend ms, {mode: target}, {mode: (stiffness,
@@ -84,6 +96,7 @@ def _envelope(p, at, modes, body):
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
     seen = stage == 'descent' and at['seat'] is not None
     sat = stage == 'preload' and at['seat'] is not None
+    egress = _egress(at, 0.0, modes, body) if sat else []
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
     told = (at['knee'], at['ankle']) if sat else (joints.get(':tibiofemoral', at['knee']), joints.get(':talocrural', at['ankle']))
     at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE, at['seat'], trunk) if seen else told
@@ -101,8 +114,8 @@ def _envelope(p, at, modes, body):
     # held at her rest's springs, as `_paced` paces it: on her stand's sagittal 300 her centre of mass
     # ended 2.1 cm behind a descent's, her hips 2.8 cm back, a thigh on the seat's edge and not her buttocks
     springs = {m: sprung(m, 1.0, 1.0, modes) for m in targets if m != 'mode_arm_swing'}
-    return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p),
-                  weighs=_weighs(p.get('manifold-pan')), slide=somatic.EGRESS_M_S if sat else None)]
+    return egress + [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p),
+                           weighs=_weighs(p.get('manifold-pan')), slide=somatic.EGRESS_M_S if sat else None)]
 
 
 def _contact(p, then, at, modes, body):
@@ -138,7 +151,82 @@ def _crossfade(p, then, at, modes, body):
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
         'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)}, {}, None, None, shape=curve)]
-        if settle is not None and seat else [])
+        + _hitch(at, settle, modes, body) if settle is not None and seat else [])
+
+
+def _arms(knee, ankle, trunk, hands, modes):
+    """Her arms' modes putting her fists at `hands` (ahead of her ankles, up), her legs and trunk posed `knee`,
+    `ankle`, `trunk` (`seated.reached`): both together, her elbows' fold off her stand's."""
+    shoulder, bent = seated.reached(knee, ankle, trunk, hands)
+    return {'mode_arm_swing': 0.0, 'mode_arm_reach': shoulder / modes['mode_arm_reach'][0],
+            'mode_arm_fold': (bent - math.radians(figure.stand()['left_elbow'])) / modes['mode_arm_fold'][0]}
+
+
+def _deep(at, trunk):
+    """(her hips behind her ankles sat where she landed, sat with her ischia over the middle of the seat she
+    sees), m, her pelvis `trunk` rad forward: landed, she sits on its front edge; deep, as a human sits."""
+    landed = -seated.hips(at['knee'], at['ankle'])[0]
+    return landed, (at['behind'] - leap.MIDDLE) + 0.5 * at['deep'] + seated.ischia(trunk)
+
+
+def _hitch(at, trunk, modes, body):
+    """Her hitch from the seat's front edge onto it, her trunk `trunk` rad forward (0x1D, 0x09, 0x03): her fists
+    over the seat beside her hips a fist's radius up - swung back low, a fist met the seat's front face and stayed
+    there -, then down onto it (`_arms`); both bearing (`ortho.PALMED`), the seat told the kernel's ingress
+    cap and her hands the rest, slid under her at the ingress speed (`somatic.INGRESS_M_S`) till her ischia are
+    over its middle (`_deep`), her legs let go of the floor (`impedance._let_go`) to hang - her thighs along the
+    seat, her shanks plumb (HUNG) - and her centre of mass over the deep seat; then her rest there, her hands let
+    go. None where the seat's depth is unseen or she landed as deep."""
+    if at['deep'] is None:
+        return []
+    landed, deep = _deep(at, trunk)
+    if deep <= landed:
+        return []
+    sat = seated.sat(at['seat'])
+    pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    hands = (-landed, at['seat'] - pressed)
+    arms = {m: sprung(m, 1.0, 1.0, modes) for m in ('mode_arm_reach', 'mode_arm_fold')}
+    ms = 1e3 * (deep - landed) / abs(somatic.INGRESS_M_S)
+    legs = seated.legs(sat, landed)
+    at['knee'], at['ankle'] = seated.legs(sat, deep)
+    # her centre of mass over the deep seat as her soles stand there; in the hanging legs' frame it asked 0.19 m
+    # at once, 9 m/s^2, and the ask shrank to 0.11
+    hung = {'mode_axial_compression': seated.axial(HUNG[0], modes, body),
+            'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body)}
+    at['hitched'], at['handed'] = (landed, deep), DEEP
+    return [Phase('contact', 'reach', BRACE_MS, BRACE_MS, _arms(*legs, trunk, (hands[0], at['seat'] + figure.FIST_R), modes), arms,
+                  NONE, None, weighs=BRACED),
+            Phase('contact', 'brace', BRACE_MS, BRACE_MS, _arms(*legs, trunk, hands, modes), arms, NONE, None, weighs=BRACED),
+            Phase('contact', 'hitch', ms, ms, {**hung, **_arms(at['knee'], at['ankle'], trunk, hands, modes)}, arms, NONE,
+                  ('palmar',), weighs=HITCHED, slide=somatic.INGRESS_M_S),
+            Phase('contact', 'deep', ms, ms, {**hung, 'mode_arm_reach': 0.0, 'mode_arm_fold': 0.0}, arms, NONE, None,
+                  weighs=DEEP, slide=0.0)]
+
+
+def _egress(at, trunk, modes, body):
+    """Her hitch forward off the deep seat to its front edge before a rise's lean, her trunk `trunk` rad forward:
+    her fists down beside her hips, the seat slid under her at the egress speed (`somatic.EGRESS_M_S`), her legs
+    let go till they stand on the floor over the edge, then her soles given the handover's share back and her
+    hands let go. None where she sat on the edge."""
+    landed, deep = at.get('hitched', (0.0, 0.0))
+    if deep <= landed:
+        return []
+    sat = seated.sat(at['seat'])
+    pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    hands = (-deep, at['seat'] - pressed)
+    arms = {m: sprung(m, 1.0, 1.0, modes) for m in ('mode_arm_reach', 'mode_arm_fold')}
+    legs = seated.legs(sat, deep)
+    at['knee'], at['ankle'], at['hitched'] = (*seated.legs(sat, landed), (landed, landed))
+    edged = {'mode_axial_compression': seated.axial(at['knee'], modes, body),
+             'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body)}
+    ms = 1e3 * (deep - landed) / abs(somatic.EGRESS_M_S)
+    return [Phase('preload', 'reach', BRACE_MS, BRACE_MS, _arms(*legs, trunk, (hands[0], at['seat'] + figure.FIST_R), modes), arms,
+                  NONE, None, weighs=BRACED_DEEP),
+            Phase('preload', 'brace', BRACE_MS, BRACE_MS, _arms(*legs, trunk, hands, modes), arms, NONE, None, weighs=BRACED_DEEP),
+            Phase('preload', 'egress', ms, ms, {**edged, **_arms(at['knee'], at['ankle'], trunk, hands, modes)}, arms, NONE,
+                  ('palmar',), weighs=HITCHED, slide=somatic.EGRESS_M_S),
+            Phase('preload', 'planted', BRACE_MS, BRACE_MS, {**edged, 'mode_arm_reach': 0.0, 'mode_arm_fold': 0.0}, arms, NONE,
+                  None, weighs=HANDED, slide=0.0)]
 
 
 def sprung(mode, gain, zeta, modes):
