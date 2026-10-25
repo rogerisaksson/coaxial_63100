@@ -151,6 +151,8 @@ something bears her hovering CLEAR_M over the floor under it, no swing's
 clearance of what it met (branch `deep-sit-build`, 2c9904e7): the seven
 wobbles as before, 5 sit and 2 rise - the sits lost at -1 and -2e-4 fall at
 4.4 and 5.3 s to the digit, in the settle's strike before any sole kicks.
+The settle asking her soles nothing too: the seven reshuffled, -2e-4 sat
+and -3e-4 and -1e-4 fell at 4.4-4.7 s, 5 sit and 2 rise again - not kept.
 Left: that strike (the seat at 1.2-1.3 of her weight as her trunk
 straightens on the perch, one thigh then her pelvis alone) and the egress
 from the deep seat measured apart.
