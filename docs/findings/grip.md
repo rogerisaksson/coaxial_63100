@@ -58,7 +58,13 @@ and the patches in [scenarios](scenarios.md) walk it.
   braking from 7.3 s her pelvis sinks at 0.6-1.8 m/s, both soles come off
   twice (7.52 s; 7.96-8.02 s, a hop to 0.88 m), the standing sole strikes at
   380-536 N, the other lifts 0.2 m and she is down at 8.6 s; her soles'
-  lowest points and the floor felt agree within 2 cm throughout.
+  lowest points and the floor felt agree within 2 cm throughout. Her grip
+  reads the snow, 0.32-0.34 from 6.5 s, and her step asks 0.6 to the end:
+  `outside` takes a felt grip only under a situation's bound, and the snow
+  unaware is none (nothing told, the envelope's top 0, nothing outside it).
+  Unsaid, the envelope's top her law's own MU would hand the step the 0.34 -
+  and every slide she reads on a floor of 1.0 (a pivot's, a shove's, a
+  weave's: 0.27-0.55) with it; the whole scenario suite decides.
 - Unaware ice, traced: her left sole read 0.103 one pass after it met the ice
   (2.31 s) and the slick patch 0.065 (0.06); the grip relaxed to her prior
   over 3 s and was back inside her envelope (0.25) within a second, each
