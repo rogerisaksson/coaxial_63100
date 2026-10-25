@@ -139,10 +139,17 @@ kernel's egress slide as a phase before the lean - her hips drawn to where
 her ischia meet the edge over 0.88 s, the seat panned to half her weight
 (under it her soles' grip moves it, both surfaces her cone's), her trunk
 where those shares balance (upright) - fells every rise, 0 of 7, at 8.8-9.7
-s: not kept. Left: the egress from the deep seat measured apart (the slide's
-start under the seat's grip, the hips' way, what the lean then asks); the
-sits lost at -1 and -2e-4 (one sole lifting 16 cm as the seat strikes,
-before the rest lets it go).
+s: not kept. Its trunk leaned for the legs she sits with and its centre of
+mass the balance point itself, the slide moved her hips 3 cm forward and
+she rose at +2e-4, 1 of 7: at square the seat struck 1.1 of her weight at
+the slide's start, the step planning 0 N on it under a cap of 223 while her
+soles bore nothing, and she jumped. A lean asking her hips up off the seat
+(her height the knee of the hips lifted by the sit's press) never began:
+rows that raise her wait while her capture point is off her soles
+(`waits.risen_back`), and seated deep it is. Left: the egress from the deep
+seat measured apart (the slide's start under the seat's grip, the hips'
+way, what the lean then asks); the sits lost at -1 and -2e-4 (one sole
+lifting 16 cm as the seat strikes, before the rest lets it go).
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
