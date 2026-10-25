@@ -41,8 +41,8 @@ her thigh was pressed 92 N and flung her arm - not kept.
 
 ## The low chair
 
-A second chair in the lodge, its back against the back wall left of the table,
-facing the room (`room.CHAIR_LOW_AT`), and in the bench's scene (`floor.CHAIR_LOW_H`,
+A second chair in the lodge, its back against the right wall straight to the
+right of where she starts, facing the room (`room.CHAIR_LOW_AT`), and in the bench's scene (`floor.CHAIR_LOW_H`,
 scene `chair_low_behind`, scenario `chair_low`): its seat at her popliteal
 height, 0.397 m, where a human's deep sit keeps her soles flat; the lodge's
 chair's top is 0.47. Landed on the low one she sits 0.30 legs back
