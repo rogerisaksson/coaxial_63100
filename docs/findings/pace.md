@@ -158,3 +158,10 @@ machine ([body](body.md), [emulation](emulation.md),
   us a pass, 1.44 -> 1.49 of real time, two trees interleaved. Her run the
   same at each law pass of the chair, the bed, the hop down and the walk; her
   walk's smoke the same to the digit.
+- What bears her weighed and her forefeet compiled from their numpy
+  (`observer.weighed`, `forefoot` on her sense's feet: the observer's own
+  `mj_kinematics` a law pass gone), its points' masks and its edge's
+  pointers laid once: her loop 610 -> 589 us a pass, 1.63 -> 1.70 of real
+  time. Her run, the observer's forces and the invariant EKF's whole state
+  the same at each of 20 335 law passes of the played walk and turns, the
+  chair, the bed and the hop down.

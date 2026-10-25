@@ -42,7 +42,7 @@ def seen(g, dt):
     body, limbs = g['body'], g['limbs']
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
-    observer.step(g['observer'], body, s, qpos, dt)
+    observer.step(g['observer'], s, qpos, dt)
     inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt,
                   g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['qpos'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']], qpos.copy()
@@ -183,7 +183,7 @@ def control(g, dt):
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
     told = out[latent.MANIFOLDED].copy()
-    out[latent.MANIFOLDED] = observer.weighed(g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
+    out[latent.MANIFOLDED] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
     unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[1:].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
@@ -299,13 +299,14 @@ def laid(g):
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses, her invariant EKF, her barrier (a ring's length a part) and her
-    field's seek compiled from their numpy (`tools.cores.bodied`)."""
+    situation, her drive's cap, her ask's poses, her invariant EKF, her barrier (a ring's length a part), her
+    field's seek and what bears her weighed compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
+    g['weighed'] = bodied.on_args(observer.weighed, 'weighed', (0, 1, 2, 3))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))

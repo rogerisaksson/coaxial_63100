@@ -2,7 +2,7 @@
 
     obs = observer.laid(body)              # her patches' points laid once, the observer at rest
     observer.felt(obs, y, dt)              # each drive pass: her drives' torques taken (`edge.TAU`)
-    observer.step(obs, body, s, qpos, dt)  # each law pass on her law's sense and estimate: r, her patches
+    observer.step(obs, s, qpos, dt)        # each law pass on her law's sense and estimate: r, her patches
     obs['r'], obs['normal']                # the external force on her dofs; each manifold's, N (MANIFOLDS)
 
 The residual of her momentum over a law pass, M (v - v') / dt + h - S'tau - her pelvis's linear
@@ -23,6 +23,8 @@ import numpy as np
 from machine import edge, kernel, ortho, qp
 from machine.rounds import ROUNDS  # the split's rounds: a least squares, each normal pulling pinned for the next
 from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
+from tools.cores.model import rotation
+from tools.cores.wbc import address
 
 #: Her manifolds, the registry's; her forefeet's, of her soles' points.
 MANIFOLDS = tuple(kernel.read()['anatomical-manifold-registry'])
@@ -146,17 +148,14 @@ def weighed(obs, told, weight, dt):
     obs['latched'] = latched + on - under * (obs['since'] >= BLANK_S) * (obs['below'] >= DWELL_S)
     gate = obs['gate'] = obs['gate'] + np.clip(obs['latched'] - obs['gate'], -DOWN * dt, UP * dt)
     w = told * gate
-    w[0] = told[0] + float(told[1:] @ (1.0 - gate[1:]))
+    w[0] = told[0] + told[1:] @ (1.0 - gate[1:])
     return w
 
 
 def bearing(obs):
     """(k, 3) the points that press on a manifold her comparator feels, world: what bears her besides
     her soles."""
-    rows = np.full(len(MANIFOLDS), -1)
-    rows[ROWS] = np.arange(len(ROWS))
-    felt = np.concatenate([obs['latched'], [0.0]])[rows[obs['manifold']]]
-    return obs['points'][(~obs['sole']) & (felt > 0.5) & (obs['f'][obs['cols']] > 0.0)]
+    return obs['points'][obs['skin'] & (obs['latched'] > 0.5)[obs['row']] & (obs['f'][obs['cols']] > 0.0)]
 
 
 def _link(seg):
@@ -168,9 +167,10 @@ def _link(seg):
 
 def laid(body):
     """The observer at rest on her law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares and
-    her drives' friction laid, its sums empty; its outputs viewed (`r`, `f`, `normal`)."""
+    her drives' friction laid, its sums empty; its outputs viewed (`r`, `f`, `normal`); her forefeet
+    compiled from their numpy (`tools.cores.bodied`)."""
     import ctypes
-    from tools.cores import gmo, wbc as cores
+    from tools.cores import bodied, gmo, wbc as cores
     lib, names = cores.library(), cores.Core().names
     o = gmo.Gmo()
     o.rounds, o.slip, o.eps = ROUNDS, SLIP_RAD_S, qp.EPS
@@ -179,62 +179,66 @@ def laid(body):
     driven = [k for k, j in enumerate(JOINTS) if body.driven[k]]
     o.driven_joint[:] = driven
     o.driven_at[:] = [5 + names.index(JOINTS[k]) for k in driven]
-    col = 0
+    cols = [sum(WIDTH[:p]) for p in range(len(POINTS))]
     for p, (shares, seg, point, normal) in enumerate(POINTS):
-        o.link[p], o.sole[p], o.col[p] = names.index(_link(seg)), int(normal is None), col
+        o.link[p], o.sole[p], o.col[p] = names.index(_link(seg)), int(normal is None), cols[p]
         o.local[p][:] = list(body.sole if point is None else point)
         o.normal[p][:] = [0.0, 0.0, 0.0] if normal is None else list(normal)
-        col += WIDTH[p]
     rows = [(p, MANIFOLDS.index(m), names.index(_link(frame)), axis)
             for p, (shares, *_r) in enumerate(POINTS) for m, frame, axis in shares]
     for k, (p, m, link, axis) in enumerate(rows):
         o.share_point[k], o.share_manifold[k], o.share_link[k] = p, m, link
         o.share_axis[k][:] = np.asarray(axis, float).tolist()
     view = lambda field: np.ctypeslib.as_array(getattr(o, field))
+    row = np.full(len(MANIFOLDS), -1)
+    row[ROWS] = np.arange(len(ROWS))
+    row = row[[MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]]
+    col = lambda seg: cols[next(p for p, (_sh, at, _p, _n) in enumerate(POINTS) if at == seg)]
+    base, q, u = np.zeros(12), np.zeros(body.n - 6), np.zeros(body.n)
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
-            'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'),
-            'cols': np.array([o.col[p] for p in range(len(POINTS))]), 'sole': np.array([n is None for *_r, n in POINTS]),
-            'manifold': np.array([MANIFOLDS.index(sh[0][0]) for sh, *_r in POINTS]),
-            'feet': [([k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_foot'][0],
-                      [k for k, (_sh, seg, _p, n) in enumerate(POINTS) if seg == side + '_toes'][0]) for side in ('left', 'right')], 'base': np.zeros(12), 'q': np.zeros(body.n - 6),
-            'u': np.zeros(body.n), 'soles': np.zeros(2), 'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)),
-            'since': np.zeros(len(ROWS)), 'gate': np.zeros(len(ROWS))}
+            'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'), 'cols': np.array(cols),
+            'skin': np.array([n is not None for *_r, n in POINTS]) & (row >= 0), 'row': row,
+            'feet': [(col(side + '_foot'), col(side + '_toes')) for side in ('left', 'right')],
+            'forefoot': bodied.on_args(forefoot, 'forefoot', (0, 2)), 'base': base, 'q': q, 'u': u,
+            'ins': tuple(cores.pointer(a) for a in (base, q, u)), 'soles': np.zeros(2),
+            'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)), 'since': np.zeros(len(ROWS)),
+            'gate': np.zeros(len(ROWS))}
+
+
+#: Her IMU's quaternion, its specific force and her drives' torques: bytes into her edge's array.
+_QUAT, _ACCEL, _TAU = (8 * part.start for part in (edge.QUAT, edge.ACCEL, edge.TAU))
 
 
 def felt(obs, y, dt):
     """A drive pass `dt` of her edge's array `y` into the law pass's sums: her drives' torques, her
     pelvis's acceleration (her IMU's specific force turned to the world, gravity added)."""
-    at = y.ctypes.data
-    obs['felt'](obs['at'], at + 8 * edge.QUAT.start, at + 8 * edge.ACCEL.start, at + 8 * edge.TAU.start, dt)
+    at = address(y)
+    obs['felt'](obs['at'], at + _QUAT, at + _ACCEL, at + _TAU, dt)
 
 
-def step(obs, body, s, qpos, dt):
+def step(obs, s, qpos, dt):
     """A law pass on her law's sense `s` (`wbc.sense`) at her estimate `qpos`: r, f and each
     manifold's normal force; her drives' sums emptied."""
-    from tools.cores.model import rotation
-    v, n, base, u = s['v'], body.n, obs['base'], obs['u']
+    v, base, u = s['v'], obs['base'], obs['u']
     R = rotation(qpos[3:7])
     base[:9], base[9:] = R.ravel(), qpos[:3]
-    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:n]
-    obs['q'][:] = qpos[7:7 + n - 6]
-    obs['step'](obs['at'], base.ctypes.data, obs['q'].ctypes.data, u.ctypes.data, dt)
-    body.d.qpos[:len(qpos)] = qpos
-    body.mj.mj_kinematics(body.m, body.d)
-    obs['normal'][EQUINUS], obs['soles'] = forefoot(obs['f'], obs['cols'], obs['feet'], body.d.xmat[list(body.feet)])
+    u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:]
+    obs['q'][:] = qpos[7:7 + len(obs['q'])]
+    obs['step'](obs['at'], *obs['ins'], dt)
+    obs['normal'][EQUINUS], obs['soles'] = obs['forefoot'](obs['f'], obs['feet'], [foot['R'] for foot in s['feet']])
     return obs
 
 
-def forefoot(f, cols, feet, xmat):
+def forefoot(f, feet, rots):
     """(her forefeet's push (`metatarsal-equinus-bilateral`), each sole's and its toes' push (2,)), N, of
-    the points' forces `f` and her feet's rotations `xmat` (2, 9): the forefeet each toes' and of each
-    sole's push the share its centre of pressure has gone from the sole's middle to its ball
-    (`figure.BALL`)."""
+    the points' forces `f` - each foot's sole's and toes' columns `feet` - and her feet's rotations
+    `rots`, (3, 3) each: the forefeet each toes' and of each sole's push the share its centre of
+    pressure has gone from the sole's middle to its ball (`figure.BALL`)."""
     out, soles = 0.0, np.zeros(2)
-    for k, ((sole, toes), rot) in enumerate(zip(feet, xmat)):
-        R = rot.reshape(3, 3)
-        moment, force = f[cols[sole]:cols[sole] + 3], f[cols[sole] + 3:cols[sole] + 6]
-        push = float(force @ R[:, 1])
-        ahead = -float(moment @ R[:, 0]) / max(push, 1e-9)
-        out += push * min(1.0, max(0.0, ahead / (0.5 * (BALL + HEEL)))) + f[cols[toes]]
-        soles[k] = push + f[cols[toes]]
+    for k, ((sole, toes), R) in enumerate(zip(feet, rots)):
+        moment, force = f[sole:sole + 3], f[sole + 3:sole + 6]
+        push = force @ R[:, 1]
+        ahead = -(moment @ R[:, 0]) / np.maximum(push, 1e-9)
+        out += push * np.clip(ahead / (0.5 * (BALL + HEEL)), 0.0, 1.0) + f[toes]
+        soles[k] = push + f[toes]
     return out, soles
