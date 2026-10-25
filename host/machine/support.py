@@ -18,7 +18,7 @@ import numpy as np
 from machine import latent
 from machine.modal import LATERAL, N, TURN
 
-#: Driven indices (`wrench._DRIVEN`) of the non-weight-bearing upper body: waist, left arm, right arm.
+#: Driven indices (`rounds.DRIVEN`) of the non-weight-bearing upper body: waist, left arm, right arm.
 UPPER = np.array([2, 5, 6, 13, 14])
 DRIVEN = 21
 

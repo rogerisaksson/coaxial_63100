@@ -249,7 +249,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             'the whole-body loop alone',
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
-                                            'cyclic qp wbc wrench latent modal impedance swing poise stride support '
+                                            'cyclic qp wbc wrench rounds latent modal impedance swing poise stride support '
                                             'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
@@ -431,8 +431,7 @@ def test_documented(r):
             missing.append(path + ' (module)')
         elif brief(ast.get_docstring(tree)).endswith('...'):
             long_.append(path)
-        # Top level only: a ctypes Structure declared inside a function is a
-        # field list, and a docstring on it would say less than its name.
+        # Top level only: a ctypes Structure inside a function is a field list, its name its docstring.
         for node in tree.body:
             if not isinstance(node, ast.ClassDef):
                 continue

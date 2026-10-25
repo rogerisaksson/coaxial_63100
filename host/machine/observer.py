@@ -21,6 +21,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import edge, kernel, ortho, qp
+from machine.rounds import ROUNDS  # the split's rounds: a least squares, each normal pulling pinned for the next
 from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
 
 #: Her manifolds, the registry's; her forefeet's, of her soles' points.
@@ -144,11 +145,6 @@ def bearing(obs):
     rows[ROWS] = np.arange(len(ROWS))
     felt = np.concatenate([obs['latched'], [0.0]])[rows[obs['manifold']]]
     return obs['points'][(~obs['sole']) & (felt > 0.5) & (obs['f'][obs['cols']] > 0.0)]
-
-
-#: The rounds of the split: a least squares, each normal pulling pinned for the next - the
-#: whole-body step's (`wrench.ROUNDS`) - fixed, so a pass's cost is.
-ROUNDS = 4
 
 
 def _link(seg):

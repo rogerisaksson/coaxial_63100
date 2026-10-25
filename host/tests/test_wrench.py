@@ -44,7 +44,7 @@ def test_a_contact_bears(report):
     bearing half her weight now, it takes what her soles give up, no more than GROW_N over what
     it bore, in its friction's pyramid."""
     import numpy as np
-    from machine import wbc, wrench
+    from machine import rounds, wbc, wrench
     body, s, ask = _standing()
     pelvis = body.m.body('pelvis').id
     p, jp = body.d.xpos[pelvis].copy(), np.zeros((3, body.m.nv))
@@ -56,7 +56,7 @@ def test_a_contact_bears(report):
     f = held['borne'][0]
     given = sum(alone['bears']) - sum(held['bears'])
     report.check('a contact under her pelvis takes what her soles give up, in its bounds',
-                 0.0 < f[1] <= half + wrench.GROW_N and abs(given - f[1]) < 5.0
+                 0.0 < f[1] <= half + rounds.GROW_N and abs(given - f[1]) < 5.0
                  and np.hypot(f[0], f[2]) <= wbc.MU * f[1] * (1.0 + 1e-9),
                  '%.0f N on it, her soles %.0f N less, %.0f N across' % (f[1], given, np.hypot(f[0], f[2])))
 

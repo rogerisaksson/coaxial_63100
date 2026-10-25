@@ -56,32 +56,32 @@ def wrench_laid(b, sensed=None):
     set; her body's indices and the step's constants laid once, her mass, clamps and WEP read at
     each - her model's masses move as her wear finds a load. `s` her compiled sensing's last
     (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
-    from machine import wbc as law, wrench
+    from machine import rounds, wbc as law, wrench
     Step, step, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
-    if b.n > most_n or len(b.act) > most_d or wrench.NU > most_d:
+    if b.n > most_n or len(b.act) > most_d or rounds.NU > most_d:
         raise ValueError('wbc_step.c lays %d dofs and %d drives at most' % (most_n, most_d))
-    k = Step(n=b.n, nd=len(b.act), nu0=wrench.NU, nupper=len(wrench.UPPER), nheld=len(b.held), npass=len(passive),
-             nact=len(active), npairs=len(b.pairs), nbuffers=len(b.buffers[0]), rounds=wrench.ROUNDS, past=wrench.PAST,
-             yaw_m=wrench.YAW_M, damp2=wrench.DAMP ** 2, grow_n=wrench.GROW_N, ridge=wrench.RIDGE,
+    k = Step(n=b.n, nd=len(b.act), nu0=rounds.NU, nupper=len(rounds.UPPER), nheld=len(b.held), npass=len(passive),
+             nact=len(active), npairs=len(b.pairs), nbuffers=len(b.buffers[0]), rounds=rounds.ROUNDS, past=wrench.PAST,
+             yaw_m=rounds.YAW_M, damp2=wrench.DAMP ** 2, grow_n=rounds.GROW_N, ridge=wrench.RIDGE,
              contact_k=law.CONTACT_K, height_band=law.HEIGHT_BAND, held_k=law.HELD_K, momentum_k=law.MOMENTUM_K,
              mu=law.MU, g=law.G)
     k.act[:len(b.act)] = [int(x) for x in b.act]
     for side in range(2):
-        k.legs[side][:] = wrench.LEGS[side]
-        k.knees[side] = wrench.KNEES[side]
-    k.upper[:len(wrench.UPPER)] = wrench.UPPER
+        k.legs[side][:] = rounds.LEGS[side]
+        k.knees[side] = rounds.KNEES[side]
+    k.upper[:len(rounds.UPPER)] = rounds.UPPER
     for at, (i, stop, side) in enumerate(b.buffers[0]):
         k.buffer_at[at], k.buffer_stop[at], k.buffer_side[at] = i, stop, side
     k.buffer[:] = b.buffers[1]
-    k.arms[:len(wrench.UPPER)] = wrench.ARMED.tolist()
+    k.arms[:len(rounds.UPPER)] = wrench.ARMED.tolist()
     k.held[:len(b.held)] = [int(x) for x in b.held]
     k.passive[:len(passive)] = passive.tolist()
     k.active[:len(active)] = active.tolist()
     for at, (p, r) in enumerate(b.pairs):
         k.pairs[at][0], k.pairs[at][1] = p, r
-    k.moment[:wrench.NU] = wrench.MOMENT.tolist()
-    k.room[:] = wrench.ROOM.tolist()
+    k.moment[:rounds.NU] = rounds.MOMENT.tolist()
+    k.room[:] = rounds.ROOM.tolist()
     for name in 'COM TURN SWING KNEE POSTURE HEIGHT MOMENT FOLD STOP PART AIR PIN KEEP STILL'.split():
         setattr(k, 'w_' + name.lower(), getattr(wrench, 'W_' + name))
     k.posture_kd[:], k.swing_kd[:], k.turn_kd[:] = law.POSTURE_KD, law.SWING_KD, law.TURN_KD

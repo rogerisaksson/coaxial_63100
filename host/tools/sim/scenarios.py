@@ -258,8 +258,8 @@ def ran(name, wobble=0.0, laid=None, texts=None):
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
     jerked = [m.body(n).id for n in JERKED]
-    from machine import wrench
-    leg_cols = [s['g']['body'].act[leg] for leg in wrench.LEGS]
+    from machine import rounds
+    leg_cols = [s['g']['body'].act[leg] for leg in rounds.LEGS]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
     rows, told_at = [], -math.inf
     sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
