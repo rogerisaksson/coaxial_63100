@@ -100,9 +100,10 @@ def test_what_bears_her_weighs_as_felt(report):
     obs = {k: np.zeros(len(observer.ROWS)) for k in ('latched', 'below', 'since', 'gate')}
     obs['normal'] = np.zeros(len(observer.MANIFOLDS))
     weight, dt, seat = 300.0, 0.003, int(observer.ROWS[1])
-    soles = observer.weighed(obs, np.array([1.0, 0.0, 0.0, 0.0]), weight, dt)
-    unsaid = observer.weighed(obs, np.zeros(4), weight, dt)
-    told = np.array([0.15, 0.85, 0.0, 0.0])
+    sole, n = observer.SOLES, len(observer.SOLES)
+    soles = observer.weighed(obs, sole, weight, dt)
+    unsaid = observer.weighed(obs, np.zeros(n), weight, dt)
+    told = 0.15 * np.eye(n)[0] + 0.85 * np.eye(n)[1]
     unfelt = observer.weighed(obs, told, weight, dt)
     obs['normal'][seat] = 0.5 * weight
     felt = [observer.weighed(obs, told, weight, dt) for _k in range(int(1.0 / observer.UP / dt) + 1)][-1]
@@ -112,10 +113,10 @@ def test_what_bears_her_weighs_as_felt(report):
     said = observer.said(2.0 * told)
     report.check('soles as told %s, unsaid %s; unfelt %s; felt %s; let go %s; said %s of twice told' % (
         soles, unsaid, unfelt, felt.round(3), gone.round(3), said),
-                 soles.tolist() == [1.0, 0.0, 0.0, 0.0] and unsaid.tolist() == [1.0, 0.0, 0.0, 0.0]
-                 and unfelt.tolist() == [1.0, 0.0, 0.0, 0.0] and np.allclose(said, told)
-                 and observer.said(np.zeros(4)).tolist() == [1.0, 0.0, 0.0, 0.0]
-                 and np.allclose(felt, told) and np.allclose(gone, [1.0, 0.0, 0.0, 0.0]), '')
+                 soles.tolist() == sole.tolist() and unsaid.tolist() == sole.tolist()
+                 and unfelt.tolist() == sole.tolist() and np.allclose(said, told)
+                 and observer.said(np.zeros(n)).tolist() == sole.tolist()
+                 and np.allclose(felt, told) and np.allclose(gone, sole), '')
 
 
 def test_the_barrier_holds_her_capture_point(report):

@@ -20,7 +20,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import kernel, latent, modal, stride
+from machine import kernel, latent, modal, ortho, stride
 from machine.observer import TINY
 from machine.rounds import ROOM
 from machine.figure import ANKLE_H, SHANK, THIGH
@@ -42,31 +42,36 @@ def asked(g, s, out, told, ask):
     """`ask` with the step's `edge` rolled onto the ball as each leg reaches, `slide` her text's along her way
     (world: the slide her contacts may take), `fz_cap`, what bears her told share of her weight, no less than her
     balance needs of it (`lever`), and `slid_cap`, a sliding contact's load's cap, that slide's regime's share
-    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck): `s` her sensed state
-    (hips, feet, com, contacts), `out` her latent's, `told` what bears her as told (`latent.MANIFOLDED`)."""
+    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what her hands
+    bear's, their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
+    her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
-    equinus = float(told[1:].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
+    equinus = float(told[ortho.FURNITURE].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
     ask['edge'] = tuple(np.clip(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
     rot = g['fr'][modal.ROT].reshape(3, 3)
     along, weight, said = out[latent.SLID], g['fr'][modal.WEIGHT], told.sum()
     local = np.zeros(3)
     local[stride.ALONG] = along
     ask['slide'] = rot.T @ local
-    told_cap = np.where(said > 0.0, weight * told[1:].sum() / np.maximum(said, TINY), np.inf)
-    ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG]) * weight)
+    told_cap = np.where(said > 0.0, weight * told[ortho.FURNITURE].sum() / np.maximum(said, TINY), np.inf)
+    ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG], weight) * weight)
+    ask['hand_cap'] = np.where(said > 0.0, weight * told[ortho.PALMAR] / np.maximum(said, TINY), 0.0)
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     return ask
 
 
-def lever(s, way):
-    """The share of her weight what bears her off her soles must take for her balance, by the lever's rule: her
-    centre of mass along her `way` between its points' middle and her soles' polygon's rear edge (ROOM[1] behind
-    their middle); 0 with nothing borne, or her centre of mass over her soles. Capped under it the step planned
-    her soles 20/19 N where 250 came and let her drop."""
-    contacts = s.get('contacts', ())
+def lever(s, way, weight):
+    """The share of her weight the furniture bearing her off her soles must take for her balance, by the lever's
+    rule: her centre of mass along her `way` between its points' middle and her soles' polygon's rear edge (ROOM[1]
+    behind their middle), less what her hands bear (`borne.CARPAL`) of her `weight`; 0 with nothing borne, or her
+    centre of mass over her soles. Capped under it the step planned her soles 20/19 N where 250 came and let her
+    drop."""
+    contacts = [c for c in s.get('contacts', ()) if not c.get('carpal')]
+    hands = sum(max(float(c['f'][1]), 0.0) for c in s.get('contacts', ()) if c.get('carpal')) / weight
     if not len(contacts):
         return 0.0
     seat = way @ np.mean([c['p'] for c in contacts], axis=0)
     rear = way @ np.mean([f['sole'] for f in s['feet']], axis=0) - ROOM[1]
     gap = rear - seat
-    return np.where(gap > 0.0, np.clip((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
+    need = np.where(gap > 0.0, np.clip((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
+    return np.maximum(need - hands, 0.0)

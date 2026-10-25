@@ -83,13 +83,15 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     world.gains[:] *= np.array(SERVO_SHARE) * (inner == 'pd')
     world.gains[~body.driven] = 0.0
     m, names = body.m, [j for j, d in zip(JOINTS, body.driven) if d]
-    limbs = {'hips': [m.body(s0 + 'thigh').id for s0 in ('left_', 'right_')], 'shoulders': [names.index(s0 + 'shoulder') for s0 in ('left_', 'right_')]}
+    limbs = {'hips': [m.body(s0 + 'thigh').id for s0 in ('left_', 'right_')], 'shoulders': [names.index(s0 + 'shoulder') for s0 in ('left_', 'right_')],
+             'elbows': [names.index(s0 + 'elbow') for s0 in ('left_', 'right_')]}
     sense, est = edge.laid(world), estimate.laid(body, world.data.qpos[0:3])
     s = _sensed(body, est, sense, limbs)
     y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
     y[modal.CELLS] = sense[edge.CELLS]
     fr = modal.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]), float(m.body_subtreemass[body.torso]),
-                     float(m.body_subtreemass[m.body('left_upper_arm').id]), float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
+                     float(m.body_subtreemass[m.body('left_upper_arm').id]), float(m.body_subtreemass[m.body('left_forearm').id]),
+                     float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
     rest = modal.rest(fr)
     rest[latent.K][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (8000.0, 4500.0, 1500.0)
     rest[latent.D][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (1000.0, 500.0, 350.0)
@@ -112,7 +114,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
-         'reaches': modal.reach(names),
+         'reaches': modal.reach(names), 'folds': modal.fold(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
          'head_idx': names.index('head') if 'head' in names else None, '_look_yaw': 0.0,
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
@@ -129,7 +131,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
+         'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'eyes': int(physics.SIGHT > 0.0), 'keep': KEEP[int(physics.SIGHT > 0.0)](world)}
     motion.laid(g)
     world.clock = lambda: g['t']
@@ -141,7 +143,7 @@ def _sensed(body, est, sense, limbs):
     from machine import wbc
     qpos, qvel = estimate.step(est, body, sense, 0.0)
     s = wbc.sense(body, qpos, qvel)
-    s['hips'], s['arms'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']]
+    s['hips'], s['arms'], s['elbows'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']], s['q'][limbs['elbows']]
     return s
 
 

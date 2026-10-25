@@ -3,7 +3,7 @@
     knee, ankle = seated.landed(hips, edge, top, trunk)   # her hips `hips` m up onto a seat `top` up, `edge` behind
     z = seated.com(knee, ankle, trunk, modes, body)     # her centre of mass in her sagittal unit
 
-Her figure's links and segments (`machine.figure`); her modes' units her manifest's (`ortho.robot`).
+Her figure's links and segments (`machine.figure`); her modes' units her manifest's (`defrobot.read`).
 """
 import math
 

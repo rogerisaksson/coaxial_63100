@@ -136,3 +136,25 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
     }
   }
 }
+
+void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne)
+{
+  double hands[WBC_STEP_C], off_hands[WBC_STEP_C], others[WBC_STEP_C], total, rest;
+
+  for (int q = 0; q < nc; q++)
+  {
+    hands[q] = (double)(p->cpatch[q] >= p->carpal);
+    off_hands[q] = felt[q] * (1.0 - hands[q]);
+    others[q] = 1.0 - hands[q];
+    borne[hands[q] > 0.0 ? p->cpatch[q] / p->carpal - 1 : 2] = 1.0;
+  }
+  total = npsum(off_hands, nc);
+  rest = npsum(others, nc);
+  for (int q = 0; q < nc; q++)
+  {
+    const double lim = hands[q] > 0.0 ? p->hand_cap : slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
+    const double share = (0.0 + (total > 0.0 ? off_hands[q] / total : others[q] / npmax(rest, 1.0))) + hands[q];
+
+    caps[q] = isfinite(lim) ? lim * share : INFINITY;
+  }
+}

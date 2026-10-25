@@ -90,8 +90,8 @@ def table(wire, begin, rest):
     tab[:, AT] = begin + 1e-3 * rows['at']
     tab[:, LERP] = 1e-3 * rows['blend']
     tab[:, CURVE] = (rows['flags'] & ortho.CURVE).astype(bool)
-    tab[:, CONTACT] = ((rows['flags'] & ortho.CONTACT) > 0) - ((rows['flags'] & ortho.SOLES) > 0) * (
-        (rows['flags'] >> ortho.SHARE_BIT) & 1023) / 1e3
+    tab[:, CONTACT] = ((rows['flags'] & ortho.CONTACT) > 0) + 2.0 * ((rows['flags'] & ortho.PALMED) > 0) - (
+        (rows['flags'] & ortho.SOLES) > 0) * ((rows['flags'] >> ortho.SHARE_BIT) & 1023) / 1e3
     tab[:, LATCH] = (rows['flags'] & ortho.LATCH).astype(bool)
     tab[:, SHAPED] = SHAPES[(rows['flags'] >> ortho.SHAPE_BIT) & 15]
     return tab

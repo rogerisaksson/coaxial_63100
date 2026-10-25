@@ -24,6 +24,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.borne import CARPAL
 from machine.rounds import DRIVEN, KNEES, LEGS, MOMENT, NU, ROOM, ROUNDS, UPPER, bounded, pushed, taken
 from machine.shrunk import box, shrunk
 from machine.wbc import CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SLIDE_M_S, SWING_KD, TURN_KD, G, turn_error
@@ -66,6 +67,15 @@ _UPPER_ROWS = _EYE_NU[12:NU]
 #: walking. Not kept: all upper drives at W_TURN (4 800-6 700, 900; pelvis rolled 3 deg, a woman's 5;
 #: walk 2.75 off, 2.55); the arms alone (a crouch's spine folded, fell).
 ARMED = np.array([float(DRIVEN[i].endswith(('shoulder', 'elbow'))) for i in UPPER])
+#: Each upper drive's side, her left 0 and her right 1, -1 neither: an arm whose hand bears is held by its contact,
+#: as a pressing contact's point is, not by its rows - held by both, the first hand down drove her trunk round 8 cm
+#: at the other's and lifted it 5 cm off the seat.
+SIDES = np.array([0 if DRIVEN[i].startswith('left_') else 1 if DRIVEN[i].startswith('right_') else -1 for i in UPPER])
+
+
+def _loose(contacts):
+    """ARMED but where her hand bears (`contacts`' `carpal`, its `side`, SIDES): held by its contact."""
+    return ARMED * (1.0 - np.isin(SIDES, [int(c['side']) for c in contacts if c.get('carpal')]))
 
 
 def _inv(A, damp2):
@@ -114,22 +124,29 @@ def _patch(cs, idx, nu, full, full0, v, slide, pin):
     return rows, felt, slips
 
 
-def _patches(contacts, nu, full, full0, v, slide, pin, cap, slid):
-    """(each contact's rows, its cap, N: its share as felt of `cap`, what bears her off her soles over every
-    patch, and of `slid`, the slide's governor's, where it slides; its slip, (k, 3)) in the contacts' order
+def _patches(contacts, nu, full, full0, v, ask, pin):
+    """(each contact's rows, its cap, N: its share as felt of `fz_cap`, what bears her off her soles over every
+    patch, and of `slid_cap`, the slide's governor's, where it slides; its slip, (k, 3)) in the contacts' order
     (`_patch`), a patch the contacts one surface bears (`borne`); a cap none, none. Capped a patch at a time, a
     thigh on the seat's front face let the seat plan 297 N under 214; capped sliding alone, the seat bore all of
     her through a rise's lean and the dock's never ended; the governor's cap on a stuck seat struck it. `pin` is
     the row's while a sole of hers stands (`step`): alone on what bears her the split is the step's to plan -
-    pinned as felt it ran away, 128/74/64 N on pelvis and thighs to 697 on her pelvis in 0.4 s, and threw her."""
-    held = {}
+    pinned as felt it ran away, 128/74/64 N on pelvis and thighs to 697 on her pelvis in 0.4 s, and threw her.
+    Her hands' patches (`borne.CARPAL`) apart: each's `hand_cap`, their told share's, the split theirs to find -
+    split as felt, the hand bearing less held there and let go. `ask`'s `slide` the slide her contacts may take."""
+    slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
+    slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
         rows, felt, slips = _patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin)
         held.update(zip(idx, zip(rows, felt, slips)))
+    hands = np.array([float(c.get('patch', 0) >= CARPAL) for c in contacts])
     felt = np.array([held[j][1] for j in range(len(contacts))])
-    shares = felt / felt.sum() if felt.sum() > 0.0 else np.full(len(contacts), 1.0 / max(len(contacts), 1))
+    shares = np.zeros(len(contacts))
+    part = felt * (1.0 - hands)
+    shares += part / part.sum() if part.sum() > 0.0 else (1.0 - hands) / max(float((1.0 - hands).sum()), 1.0)
+    shares += hands
     slips = np.array([held[j][2] for j in range(len(contacts))]).reshape(len(contacts), 3)
-    limit = np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap)
+    limit = np.where(hands > 0.0, hand, np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap))
     caps = np.where(np.isfinite(limit), limit * shares, np.inf)
     return [held[j][0] for j in range(len(contacts))], caps, slips
 
@@ -186,7 +203,8 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips = geo
     strides, kinetic = stride
     pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
-    pressed, done, rounds = np.ones(len(bears)), 0, ROUNDS
+    # a contact told to bear nothing is let go, as one the step would have pull
+    pressed, done, rounds = (np.broadcast_to(cap, (len(bears),)) > 0.0).astype(float), 0, ROUNDS
     Hr = gr = None
     while done < rounds:
         if held:
@@ -274,8 +292,7 @@ def step(b, s, ask):
         r, at = c['p'] - s['com'], slice(NU + 3 * i, NU + 3 * i + 3)
         sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
-    still, caps, slips = _patches(contacts, nu, full, full0, v, np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float),
-                                  W_PIN * float(stance.max()) / (mass * G), float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf)))
+    still, caps, slips = _patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G))
     a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], W_COM * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)
@@ -283,7 +300,7 @@ def step(b, s, ask):
         left = -t['dJr'] - t['Jr'] @ full0
         lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned,
             left)
-    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * ARMED))
+    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * _loose(contacts)))
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
     lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(ask.get('rests', (0.0, 0.0)), 6), np.zeros(nu - 12)]))

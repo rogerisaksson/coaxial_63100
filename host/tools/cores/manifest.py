@@ -8,7 +8,7 @@ A text asks a mode's target in its unit, its stiffness and damping in N/m and N 
 the mode moves (`machine.modal`). Her manifest gives each mode's unit, mass and resting spring,
 her body's statics, and each drive's parts, ratio, peak, speed and range - of her build's file
 (machine/robots, `machine.mechatronics`) and her figure laid on her loop (`sprung.laid`).
-`ortho` compiles it (`defrobot`, `ortho.robot`); test_mirrors holds the file to this.
+`ortho` compiles it (`defrobot`, `machine.defrobot.read`); test_mirrors holds the file to this.
 """
 import math
 import os

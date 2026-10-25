@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -45,8 +45,9 @@ def seen(g, dt):
     observer.step(g['observer'], s, qpos, dt)
     inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt,
                   g['inekf_points'], g['inekf_step'])
-    s['hips'], s['arms'], s['qpos'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']], qpos.copy()
-    s['prop'], s['contacts'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]))
+    s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
+                                                    s['q'][limbs['elbows']], qpos.copy())
+    s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), float(g['told'][ortho.PALMAR]))
     return s
 
 
@@ -173,10 +174,10 @@ def control(g, dt):
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
-    told = out[latent.MANIFOLDED].copy()
+    told = g['told'] = out[latent.MANIFOLDED].copy()
     out[latent.MANIFOLDED] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
-    unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[1:].sum())
+    unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -200,7 +201,7 @@ def control(g, dt):
     imp[modal.STRIDES] *= sw
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
-    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], body.knees, g.get('_twist_clear', 0.0) * sw)
+    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
@@ -211,7 +212,7 @@ def control(g, dt):
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]))
     ask['mu'] = g['held']
-    arms = [modal.ARMS, modal.REACH]
+    arms = [modal.ARMS, modal.REACH, modal.ELBOWS]
     ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
@@ -273,7 +274,7 @@ def laid(g):
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
-    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 8))
+    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))

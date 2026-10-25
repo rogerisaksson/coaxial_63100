@@ -55,7 +55,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
     for (int r = 0; r < 3; r++)
     {
       const double turning
-        = (acc[r] + (s->kp[by[r]] * (aim[r] - turn[r][b])) * (1.0 - (a[k->a_borne] * (1.0 - npclip(out[k->o_held], 0.0, 1.0))) * p * (r < 2)))
+        = (acc[r] + (s->kp[by[r]] * (aim[r] - turn[r][b])) * (1.0 - (a[k->a_borne] * (1.0 - npclip(out[k->o_held], 0.0, 1.0))) * p * (r == 1)))
           + s->kd[by[r]] * (rate[r] - spun[r][b]);
 
       a[at[r] + b] = turn[r][b] + (turning + k->turn_kd[1] * spun[r][b]) / k->turn_kd[0];
@@ -65,6 +65,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
                    * (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
   a[k->a_swung] = k->arm_rad * (s->ref[k->arms] + (s->acc[k->arms] + k->posture_kd[1] * s->rate[k->arms]) / k->posture_kd[0]);
   a[k->a_reached] = k->arm_rad * (s->ref[k->reach] + (s->acc[k->reach] + k->posture_kd[1] * s->rate[k->reach]) / k->posture_kd[0]);
+  a[k->a_elbowed] = k->arm_rad * (s->ref[k->elbows] + (s->acc[k->elbows] + k->posture_kd[1] * s->rate[k->elbows]) / k->posture_kd[0]);
   bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
   cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
   a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;

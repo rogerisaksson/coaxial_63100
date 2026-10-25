@@ -23,7 +23,7 @@ from machine.modal import (
     GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LIFT, LIST, LIST_RAD,
     LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
-    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED,
+    SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED, ELBOWS, ELBOWED,
     TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -59,9 +59,10 @@ PROP_ON = 0.15
 _CMP = supervisor.insert()['contact-comparators']
 PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
 PROP_DWELL_S, PROP_BLANK_S = 1e-3 * _CMP['min-state-dwell-ms'], 1e-3 * _CMP['impact-blanking-window-ms']
-#: Her pelvis's axes a seat holds once it bears her - its pitch and list on her two ischia -, its
-#: turn hers: let go with them, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole.
-SEAT_HOLDS = np.array([[1.0], [1.0], [0.0]])
+#: Her pelvis's axes a seat holds once it bears her - its list on her two ischia -, its pitch and turn
+#: hers: let go with the list, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole; its
+#: pitch let go, it stayed 29 deg forward of her settled trunk, her spine at -25 deg.
+SEAT_HOLDS = np.array([[0.0], [1.0], [0.0]])
 
 
 def ask(out, y, fr, a):
@@ -282,6 +283,7 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     a[TURNED] = np.maximum(a[STANCE].max(), a[BORNE]) * (kp[PITCH] + kd[PITCH] > 0.0)
     a[SWUNG] = ARM_RAD * (ref[ARMS] + (acc[ARMS] + POSTURE_KD[1] * rate[ARMS]) / POSTURE_KD[0])
     a[REACHED] = ARM_RAD * (ref[REACH] + (acc[REACH] + POSTURE_KD[1] * rate[REACH]) / POSTURE_KD[0])
+    a[ELBOWED] = ARM_RAD * (ref[ELBOWS] + (acc[ELBOWS] + POSTURE_KD[1] * rate[ELBOWS]) / POSTURE_KD[0])
     # her posture's knees bent as her height is, AHEAD of it toward what is asked: bent as
     # asked, a throw's step threw her knees straight at 100 rad/s^2 and her over forward,
     # 8 kg m^2/s about her; bent as she is, a crouch asked 0.6 stopped at 0.56

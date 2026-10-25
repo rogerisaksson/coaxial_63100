@@ -359,3 +359,25 @@ def mass():
     """Her weight, kg: as built (`machine.build`) or MASS_KG."""
     from machine import build
     return build.mass() if build.SHELLS else MASS_KG
+
+
+def fist(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
+    """Her fist's centre, world, at {joint: degrees}, the pelvis placed: what her hand bears on."""
+    at, here = frames(degrees, pelvis, turn)[side + '_hand']
+    return add(at, apply(here, FIST_AT))
+
+
+#: Her fist's centre aside from her middle, m, her arm hanging as she stands.
+ASIDE = fist(stand())[0]
+
+
+def palm(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
+    """Her hand's lowest point, world, at {joint: degrees}, the pelvis placed: of its fist's and its
+    fingers' segments (`BODY`), what of it meets what she reaches down to - curled, her fingers."""
+    placed, lows = frames(degrees, pelvis, turn), []
+    for seg, r, a, b in BODY:
+        if seg in ('hand', 'fingers'):
+            at, here = placed[side + '_' + seg]
+            low = min((add(at, apply(here, a)), add(at, apply(here, b))), key=lambda p: p[1])
+            lows.append((low[0], low[1] - r, low[2]))
+    return min(lows, key=lambda p: p[1])

@@ -277,3 +277,20 @@ under what holding her hips still asks, the step rolls her pelvis for it
 (the pass taken apart: the points' rows 13 900 where the unclipped answer
 had 76); the handover wants the hips asked up off the seat as the pan goes,
 not the seat's force capped under what it gives.
+
+Her pelvis on the seat: `impedance.SEAT_HOLDS` let its pitch go once borne,
+and after the descent's 0.68 rad lean it stayed 29 deg forward of her settled
+trunk, her spine at -25 deg (its stop -30); sprung to the asked pitch as her
+trunk is, it settles at 9.3 deg, the spine at -6, its pitch rate at most 1.16
+rad/s (the snap the old note records was ~3), the plain sit's hips 0.26 legs
+back (0.24). Her hands bear as the furniture does (`borne`, a patch a hand,
+the told `palmar` share): an arm whose hand bears is held by its contact, not
+its rows - held by both, the first hand down turned her trunk 8 cm at the
+other's and lifted it 5 cm -, and a phase can wait till each bears
+(`ortho.PALMED`). The lodge's chair is 5.3 cm over her popliteal height (her
+knee 0.455 m up, the thigh's underside there 0.397): her landing stops where
+her thighs meet its edge (`seated.landed`'s clearance; her centre of mass 3.9
+cm inside her heels), 0.192 m behind her ankles for any hands' share 0-0.28.
+Deeper, her thighs must rise over the edge (1.6 cm of lift 0.15 m onto the
+seat, 3.4 at 0.20) and her heels come up for her ischia to come down (4.7 deg
+0.10 m onto it, 9.2 at 0.14 with her knee at 95, 12 at 0.18).

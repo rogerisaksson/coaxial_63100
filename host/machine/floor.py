@@ -27,7 +27,9 @@ TAKE_RISE_M, TAKE_RUN_M = 0.21, 0.225
 UPPER_M = 6.0
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
-CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (0.22, 0.02, 0.22), 0.45, (0.22, 0.20, 0.02)
+#: The chair, as wide as her hands hang and a fist: 0.44 m wide they hung 4-5 cm past it.
+CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (figure.ASIDE + figure.FIST_R, 0.02, 0.22), 0.45, (figure.ASIDE + figure.FIST_R, 0.20, 0.02)
+CHAIR_LEG, CHAIR_LEG_IN = 0.02, 0.03
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
 #: What lies on the floor and bears none of her but her soles - with the floor itself, her ground.
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
@@ -135,15 +137,12 @@ def ground(contacts, give, torsion):
         'quat="0.7071068 -0.7071068 0 0"%s/></body>' % (contacts,),
         '<body name="chair" mocap="true" pos="0 -5 0">'
         '<geom name="chair_seat" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
-        '<geom name="chair_back" type="box" size="%g %g %g" pos="0 %g %g"%s/>'
-        '<geom name="chair_leg_fl" type="box" size="0.02 %g 0.02" pos="-0.19 %g -0.19"%s/>'
-        '<geom name="chair_leg_fr" type="box" size="0.02 %g 0.02" pos="0.19 %g -0.19"%s/>'
-        '<geom name="chair_leg_bl" type="box" size="0.02 %g 0.02" pos="-0.19 %g 0.19"%s/>'
-        '<geom name="chair_leg_br" type="box" size="0.02 %g 0.02" pos="0.19 %g 0.19"%s/>'
-        '</body>' % (
+        '<geom name="chair_back" type="box" size="%g %g %g" pos="0 %g %g"%s/>' % (
             CHAIR_SEAT + (CHAIR_SEAT_H - CHAIR_SEAT[1], contacts)
-            + CHAIR_BACK + (CHAIR_SEAT_H + CHAIR_BACK[1], CHAIR_SEAT[2], contacts)
-            + (leg_h, leg_h, contacts) * 4),
+            + CHAIR_BACK + (CHAIR_SEAT_H + CHAIR_BACK[1], CHAIR_SEAT[2], contacts))
+        + ''.join('<geom name="chair_leg_%s" type="box" size="%g %g %g" pos="%g %g %g"%s/>' % (
+            leg, CHAIR_LEG, leg_h, CHAIR_LEG, sx * (CHAIR_SEAT[0] - CHAIR_LEG_IN), leg_h, sz * (CHAIR_SEAT[2] - CHAIR_LEG_IN),
+            contacts) for leg, sz, sx in (('fl', -1, -1), ('fr', -1, 1), ('bl', 1, -1), ('br', 1, 1))) + '</body>',
         '<body name="prop_bed" mocap="true" pos="0 -5 0">'
         # a foam's give: she lies 7.5 cm in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there
         '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'

@@ -23,15 +23,15 @@ from tools.cores import wbc
 
 #: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
-MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach'.split()
+MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach elbows'.split()
 OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
-     'hspin').split()
+     'hspin elbow palms').split()
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
-      ' map_at map_way map_along map_rise map_n').split()
+      ' map_at map_way map_along map_rise map_n elbow0').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
      'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests propped '
-     'propped_below propped_since propped_box reached').split()
+     'propped_below propped_since propped_box reached elbowed').split()
 
 
 def _at(x):
@@ -214,8 +214,8 @@ def latent_laid():
     """wbc_law_t filled of machine.latent, machine.ortho and machine.support as they are now, and
     its steps: (struct, latent, couple)."""
     from machine import latent, ortho, support
-    if ortho.N > 16 or ortho.P > 91 or len(ortho.MANIFOLDS) != 4 or support.DRIVEN > 32:
-        raise ValueError('wbc_law.c lays 16 modes, 91 parameters, 4 manifolds and 32 drives at most')
+    if ortho.N > 16 or ortho.P > 93 or len(ortho.MANIFOLDS) != 5 or support.DRIVEN > 32:
+        raise ValueError('wbc_law.c lays 16 modes, 93 parameters, 5 manifolds and 32 drives at most')
     names = {'n': ortho.N, 'p': ortho.P, 'driven': support.DRIVEN, 'gain': latent.GAIN, 'hz': latent.HZ,
              'zmp': latent.ZMP, 'yaw': latent.YAW, 't0': latent.T0, 'blend': latent.BLEND, 'theta': latent.THETA,
              'contig': latent.CONTIG,

@@ -8,13 +8,13 @@ A stunt plays a suite patch (PLAYED), the height of the furniture her eyes see i
 in order (`dsp`'s '_events') are phases of her text (`machine.acts`), named by their stage of the
 stunt, each paced no quicker than her springs follow it, her arms held, what bears her carried
 till her soles are given back. Her errand docks her heels the patch's standoff off the furniture's
-edge (`standoff`, `tour`). Her units and rest stiffness are her manifest's (`ortho.robot`). What has
+edge (`standoff`, `tour`). Her units and rest stiffness are her manifest's (`defrobot.read`). What has
 no phase of hers is named (PASSED), any other act refused.
 """
 import functools
 import math
 
-from machine import curves, dsp, figure, ortho, supervisor, wrench
+from machine import curves, defrobot, dsp, figure, ortho, supervisor, wrench
 from machine.acts import ACTS, GRAIN_MS, LEGS, NODES, SUPPORT, sprung
 from machine.errors import MachineError
 
@@ -45,8 +45,8 @@ PASSED = {'dock-terminal-stance': 'her errand docks her heels its standoff off t
 
 
 def _manifest():
-    """({mode: (unit, stiffness, damping, mass)}, her body's numbers) of her manifest (`ortho.robot`)."""
-    r = ortho.robot()
+    """({mode: (unit, stiffness, damping, mass)}, her body's numbers) of her manifest (`defrobot.read`)."""
+    r = defrobot.read()
     if r is None:
         raise MachineError('no (defrobot ..) in her manifest')
     return {m: (v['unit'], v['stiffness'], v['damping'], v['mass']) for m, v in r['modes'].items()}, r['body']
@@ -102,7 +102,7 @@ def _armed(p, modes):
 def _paced(p, modes):
     """`p` no quicker than her springs follow its curve: its time stretched as far as brings the
     curve's bandwidth, the root of its greatest |S''| over its time (`curves.BENT`), under each of
-    its targets' natural frequency, the root of its mode's stiffness over its mass (`ortho.robot`).
+    its targets' natural frequency, the root of its mode's stiffness over its mass (`defrobot.read`).
     The suite's 350 ms preload asked her centre of mass 11.7 m/s^2 and her drives carried 0.20 of
     the ask: the seat let her go 0.16 s in and a sole rose; at 575 ms she stood 6 times of 6."""
     wn = min((math.sqrt(modes[m][1] / modes[m][3]) for m in p.targets), default=math.inf)

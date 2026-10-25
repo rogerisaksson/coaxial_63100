@@ -240,9 +240,10 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
   double    pressed[WBC_STEP_C], band = 0.0, edge = 0.0;
   int       done = 0, rounds = p->rounds, any = 0;
 
+  /* a contact told to bear nothing is let go, as one the step would have pull */
   for (int i = 0; i < nc; i++)
   {
-    pressed[i] = 1.0;
+    pressed[i] = (double)(g->caps[i] > 0.0);
   }
   memset(pinned, 0, (size_t)nu * sizeof(double));
   memset(at, 0, (size_t)nu * sizeof(double));

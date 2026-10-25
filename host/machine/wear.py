@@ -306,10 +306,11 @@ def loaded(w, g=None):
         limb = float(m.body_subtreemass[m.body('left_hip_yaw').id])
         trunk = float(m.body_subtreemass[body.torso])
         arm = 0.5 * sum(float(m.body_subtreemass[m.body(s + 'upper_arm').id]) for s in ('left_', 'right_'))
+        forearm = 0.5 * sum(float(m.body_subtreemass[m.body(s + 'forearm').id]) for s in ('left_', 'right_'))
         fr = g['fr']
         fr[modal.WEIGHT] = mass * modal.G
         fr[modal.HIPS_BY] = mass / (mass - limb)
-        fr[modal.MASS] = modal.masses(mass, limb, trunk, arm)
+        fr[modal.MASS] = modal.masses(mass, limb, trunk, arm, forearm)
     return touched
 
 

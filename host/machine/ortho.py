@@ -24,9 +24,8 @@ or off, its frequency, each mode's amplitude and its phase from another's; `cpg_
 her soles' polygon, her yaw momentum's limit, what bears her and her slide over it). It names no
 joint, no limb's side and no motor.
 
-A row is numbers alone (`ROW`, little-endian, `ortho_row_t`): its id, when it is injected, how
-long her state takes to blend to it, and one vector of parameters laid as her latent state is
-(`machine.latent`). What a row leaves unsaid is NaN and stays as it was. A behaviour is rows in
+A row is numbers alone (`ROW`, little-endian, `ortho_row_t`), its parameters laid as her latent
+state is (`machine.latent`). What a row leaves unsaid is NaN and stays as it was. A behaviour is rows in
 a table, each a phase at its time; its last row, flagged REST, is her rest again. What a mode is
 on her body and what her drives give are downstream's (`machine.modal`, `machine.wbc`).
 """
@@ -46,9 +45,9 @@ _FILE = os.path.join(os.path.dirname(__file__), mechatronics.ROBOT + '.lisp')
 #: sole clear of the floor over the other; the width, 1 twice as wide as she stood. Her trunk's
 #: pitch, 1 ahead. Her pelvis's list, 1 her first hip up, and its turn, 1 her other hip
 #: forward; her arms' swing, 1 her first arm ahead; her soles' rock, 1 her first heel up and
-#: the other's toes; her arms' reach, 1 both ahead.
+#: the other's toes; her arms' reach, 1 both ahead; their fold, 1 both elbows bent.
 MODES = ('axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude', 'sagittal_shift',
-         'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach')
+         'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach', 'arm_fold')
 N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the
@@ -58,8 +57,10 @@ N = len(MODES)
 Z, K, D, AMP, PHASE = (i * N for i in range(5))
 GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
 DUCK = slice(5 * N + 4, 5 * N + 7)
-MANIFOLDS = ('plantar', 'ischial', 'trochanter', 'dorsal')
+MANIFOLDS = ('plantar', 'ischial', 'trochanter', 'dorsal', 'palmar')
 MANIFOLD = slice(5 * N + 7, 5 * N + 7 + len(MANIFOLDS))
+PALMAR = MANIFOLDS.index('palmar')
+FURNITURE = slice(1, PALMAR)
 #: Her slide over what bears her along her way, m/s, forward + (the kernel's Coulomb slide).
 SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
@@ -67,10 +68,10 @@ ROW = struct.Struct('<4I%df' % P)
 #: A row's flags: REST every parameter back to her rest (a behaviour's last row, blended REST_MS);
 #: CURVE a curve's sample - a take's frame - blended as one with the rows about it (`latent.CONTIG`),
 #: a text's rows each their own way; it and the rows after it wait (`waits.borne_back`) till a seat
-#: or bed bears her (CONTACT), her soles SHARE of her (SOLES, thousandths from SHARE_BIT); LATCH her
-#: vector set where she is read, her gains back on no error (`waits.latched_back`).
-REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT = 1, 200, 2, 4, 8, 256, 9
-WAITS = {'contact': CONTACT, 'soles': SOLES}
+#: or bed bears her (CONTACT), her soles SHARE of her (SOLES, thousandths from SHARE_BIT), each hand (PALMED);
+#: LATCH her vector set where she is read, her gains back on no error (`waits.latched_back`).
+REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT, PALMED = 1, 200, 2, 4, 8, 256, 9, 1 << 19
+WAITS = {'contact': CONTACT, 'soles': SOLES, 'palmar': PALMED}
 #: A row's blend's shape (shape NAME): its index in the flags from SHAPE_BIT (`latent.SHAPES`);
 #: unsaid, linear.
 SHAPES = tuple(QUINTICS)
@@ -190,7 +191,7 @@ def _shape(r, v):
 
 def _waits(r, v, *share):
     if v not in WAITS or len(share) != (v == 'soles'):
-        raise ValueError('a phase waits for contact or soles SHARE, not %s' % said([v, *share]))
+        raise ValueError('a phase waits for contact, palmar or soles SHARE, not %s' % said([v, *share]))
     r[_FLAGS] |= WAITS[v] | sum(round(1e3 * _number(s, 0.0, 1.0)) << SHARE_BIT for s in share)
 
 
@@ -419,7 +420,7 @@ def sources(path=None):
     return out
 
 
-def _robot(form):
+def robot_form(form):
     """{name, body, modes, drives} of a (defrobot NAME (body (KEY N) ..) (mode MODE (KEY N) ..) ..
     (drive JOINT (KEY V ..) ..) ..): her manifest's numbers (tools/cores/manifest.py)."""
     if len(form) < 2 or not isinstance(form[1], str):
@@ -439,16 +440,6 @@ def _robot(form):
     return out
 
 
-def robot(text=None, here=None):
-    """Her manifest's (defrobot ..) in `text` (or `_FILE` and its includes), read: {name, body
-    {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; the one named ROBOT where a
-    text extends another robot's, else the first; None with none."""
-    here = here or os.path.dirname(_FILE)
-    text = source(_FILE) if text is None else text
-    found = [_robot(f) for f in _forms(text, here) if isinstance(f, list) and f and f[0] == 'defrobot']
-    return next((r for r in found if r['name'] == mechatronics.ROBOT), found[0] if found else None)
-
-
 def rows(wire):
     """The rows of `wire`: [(id, at ms, blend ms, flags, the P parameters ..)]."""
     return list(ROW.iter_unpack(wire))
@@ -464,7 +455,7 @@ def compiled(text=None, here=None, texts=None):
     for form in _forms(text, here, seen, texts=texts):
         head = form[0] if isinstance(form, list) and form else None
         if head == 'defrobot':
-            _robot(form)
+            robot_form(form)
             continue
         if head == 'defsituation':
             continue

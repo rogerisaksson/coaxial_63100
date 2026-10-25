@@ -315,7 +315,7 @@ int wbc_step(wbc_step_t *p)
   double           *stood = whole + nu, *u = stood + nu, *tau = u + nu, *tau0 = tau + nd, *carried = tau0 + nd;
   double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
-  double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], total;
+  double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], borne[3] = {0.0};
   double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D];
   double            grounded, turned, felt[WBC_STEP_C], strides = p->strides;
   wbc_geo_t         geo;
@@ -427,15 +427,7 @@ int wbc_step(wbc_step_t *p)
   }
   /* each contact's rows: its point held still, along its patch's normal alone where it slides (wbc_patch.c) */
   wbc_patch_rows(p, n, nu, nc, full, full0, S, r, r0, along, slips);
-  /* what bears her off her soles capped as asked (fz_cap), a sliding contact by the slide's governor too
-     (slid_cap): each contact's at its share of it as felt over every patch (machine.wrench._patches) */
-  total = npsum(along, nc);
-  for (int q = 0; q < nc; q++)
-  {
-    const double lim = slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
-
-    caps[q] = isfinite(lim) ? lim * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
-  }
+  wbc_patch_caps(p, nc, along, slips, caps, borne);
   /* the rows, as machine.wrench lays them */
   for (int j = 0; j < 3 * nu; j++)
   {
@@ -463,8 +455,9 @@ int wbc_step(wbc_step_t *p)
   }
   for (int i = 0; i < p->nupper; i++)
   {
-    /* her arms' rows weigh as her text stiffens them over her rest */
-    const double w = p->w_posture * (1.0 + (p->hold - 1.0) * p->arms[i]);
+    /* her arms' rows weigh as her text stiffens them over her rest, but an arm whose hand bears */
+    const double held = p->sides[i] < 0 ? 0.0 : borne[p->sides[i]];
+    const double w = p->w_posture * (1.0 + (p->hold - 1.0) * (p->arms[i] * (1.0 - held)));
 
     for (int j = 0; j < nu; j++)
     {

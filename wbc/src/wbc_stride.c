@@ -59,7 +59,7 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
 {
   const double *rot = fr + k->f_rot, *unit = fr + k->f_unit;
   double        dd[2][3], ddv[2][3], dp[2][3], dsp[2][3], d[2][3], dv[2][3], place[2][3], speed[2][3];
-  double        axial[2], tl, al, rl, arm[2];
+  double        axial[2], tl, al, rl, arm[2], ar, el;
 
   for (int b = 0; b < 2; b++)
   {
@@ -122,11 +122,13 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   tl = npdot(k->limbs, 1, y + k->y_tilt, 1, 2);
   al = npdot(k->limbs, 1, arm, 1, 2);
   rl = npdot(k->limbs, 1, y + k->y_tilt_rate, 1, 2);
+  ar = arm[0] + arm[1];
+  el = (y[k->y_elbow] - fr[k->f_elbow0]) + (y[k->y_elbow + 1] - fr[k->f_elbow0 + 1]);
   for (int m = 0; m < k->n; m++)
   {
     const double angle = (((npeye(m, k->pitch) * (turn[0][1] - fr[k->f_pitch0 + 1]) + npeye(m, k->list) * turn[1][0])
                            + npeye(m, k->turn) * turn[2][0]) + (npeye(m, k->rock) * 0.5) * tl)
-                         + (npeye(m, k->arms) * 0.5) * al;
+                         + (npeye(m, k->arms) * 0.5) * al + (npeye(m, k->reach) * 0.5) * ar + (npeye(m, k->elbows) * 0.5) * el;
     const double rate = ((npeye(m, k->pitch) * spun[0][1] + npeye(m, k->list) * spun[1][0]) + npeye(m, k->turn) * spun[2][0])
                         + (npeye(m, k->rock) * 0.5) * rl;
 

@@ -9,6 +9,7 @@ import operator
 
 import numpy as np
 
+from machine import borne
 from tools.cores import wbc
 from tools.cores.motion import Blas, numpy_blas
 
@@ -24,7 +25,7 @@ def _step_typed():
     fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs nbuffers'.split()]
     fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
                ('passive', i * n), ('active', i * n), ('pairs', (i * 2) * d), ('rounds', i), ('past', i),
-               ('buffer_at', i * (2 * d)), ('buffer_stop', f * (2 * d)), ('buffer_side', f * (2 * d)), ('buffer', f * 4),
+               ('buffer_at', i * (2 * d)), ('sides', i * d), ('carpal', i), ('buffer_stop', f * (2 * d)), ('buffer_side', f * (2 * d)), ('buffer', f * 4),
                ('mass', f), ('moment', f * u), ('room', f * 2), ('arms', f * d)]
     fields += [(name, f) for name in ('yaw_m damp2 w_com w_turn w_swing w_knee w_posture w_height w_moment '
                                       'w_fold w_stop w_part w_air w_pin w_keep w_still grow_n ridge contact_k '
@@ -36,7 +37,7 @@ def _step_typed():
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
-               ('slid_cap', f), ('swing_at', (f * 3) * 2),
+               ('slid_cap', f), ('hand_cap', f), ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
@@ -75,6 +76,8 @@ def wrench_laid(b, sensed=None):
         k.buffer_at[at], k.buffer_stop[at], k.buffer_side[at] = i, stop, side
     k.buffer[:] = b.buffers[1]
     k.arms[:len(rounds.UPPER)] = wrench.ARMED.tolist()
+    k.sides[:len(rounds.UPPER)] = wrench.SIDES.tolist()
+    k.carpal = borne.CARPAL
     k.held[:len(b.held)] = [int(x) for x in b.held]
     k.passive[:len(passive)] = passive.tolist()
     k.active[:len(active)] = active.tolist()
@@ -165,6 +168,7 @@ def _stepped(k, step, v, b, s, ask):
     v['rests'][:] = ask.get('rests', (0.0, 0.0))
     v['slide'][:] = ask.get('slide', (0.0, 0.0, 0.0))
     k.fz_cap, k.slid_cap = float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf))
+    k.hand_cap = float(ask.get('hand_cap', 0.0))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):

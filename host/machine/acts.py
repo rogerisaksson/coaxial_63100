@@ -49,7 +49,7 @@ Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp
                                defaults=(False, 'linear', None, None))
 #: A support bus's contact manifold (`ortho.MANIFOLDS`).
 BUSES = {':plantar-bilateral': 0, ':ischial-bilateral': 1, ':trochanter-lateral': 2, ':scapular-dorsal': 3,
-         ':occipital': 3}
+         ':occipital': 3, ':palmar-carpal-bilateral': 4}
 #: A contact wavefront's frames as her support buses.
 WAVEFRONT = {':greater-trochanter-r': ':trochanter-lateral', ':greater-trochanter-l': ':trochanter-lateral',
              ':ischial-sacral': ':ischial-bilateral', ':scapular-dorsal': ':scapular-dorsal', ':occipital': ':occipital'}
@@ -59,7 +59,7 @@ LAIN = next(0.5 * abs(b[0] - a[0]) + r for seg, r, a, b in figure.BODY if seg ==
 
 def _weighs(pan):
     """Each manifold's weight of a pan ((bus weight) ..), None unsaid."""
-    return None if pan is None else tuple(sum(w for bus, w in pan if BUSES[bus] == k) for k in range(4))
+    return None if pan is None else tuple(sum(w for bus, w in pan if BUSES[bus] == k) for k in range(len(ortho.MANIFOLDS)))
 
 
 def _curve(p):

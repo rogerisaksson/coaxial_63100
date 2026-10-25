@@ -10,7 +10,7 @@
 /** The most dofs, driven joints, contacts bearing her; unknowns and rows. */
 #define WBC_STEP_N 48
 #define WBC_STEP_D 32
-#define WBC_STEP_C 8
+#define WBC_STEP_C 12
 #define WBC_STEP_U (WBC_STEP_D + 3 * WBC_STEP_C)
 #define WBC_STEP_R (2 * WBC_STEP_U + 2 * WBC_STEP_D + 40)
 /** The workspace's doubles. */
@@ -31,6 +31,8 @@ typedef struct
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
   int           rounds, past, buffer_at[2 * WBC_STEP_D];
+  int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.wrench.SIDES); her hands' first patch
+                                                (machine.borne.CARPAL), a side's CARPAL on */
   double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[4];
   double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2;
   double        w_com, w_turn, w_swing, w_knee, w_posture, w_height, w_moment, w_fold, w_stop, w_part, w_air;
@@ -48,8 +50,9 @@ typedef struct
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
-  double        slide[3], fz_cap, slid_cap; /**< the slide her contacts may take, world m/s; what bears her off her soles'
-                                                cap, N; a sliding contact's, the slide's governor's */
+  double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
+                                                          off her soles' cap, N; a sliding contact's, the slide's
+                                                          governor's; each of her hands' contacts' */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */
@@ -82,6 +85,11 @@ typedef struct
     contact: sliding, along the world's x and z; wbc_patch.c). */
 void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *full, const double *full0, double *S,
                     double *r, double *r0, double *felt, double *slips);
+
+/** machine.wrench._patches' caps: what bears her off her soles capped as asked (fz_cap), a sliding contact by
+    the slide's governor too (slid_cap), each contact at its share of it as felt (`felt`) over every patch; her
+    hands' each at hand_cap, and each side whose hand bears told (`borne`, 3: left, right, none). */
+void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne);
 
 int wbc_rounds(wbc_step_t *p, const wbc_geo_t *geo, const double *H0, const double *g0, const double *S,
                const double *r, const double *bears, double lo, double hi, double *at, double *work);

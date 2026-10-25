@@ -259,13 +259,13 @@ def test_dimensions_page_is_the_drives(r):
 def test_her_manifest_is_her_build(r):
     """Her orthokinematic manifest is what `tools/cores/manifest.py` writes of her build's file
     and her figure, and her text compiles it; her build names only the library's parts."""
-    from machine import mechatronics, ortho
+    from machine import defrobot, mechatronics, ortho
     from machine.errors import MachineError
     from tools.cores import manifest
     with open(manifest.path(), encoding='utf-8') as f:
         page = f.read()
     r.check("her manifest is its tool's output", page == manifest.text(), 'python tools/cores/manifest.py --write')
-    read = ortho.robot()
+    read = defrobot.read()
     r.check('her text includes it: her mass, her modes, her drives', read is not None
             and read['name'] == mechatronics.ROBOT and len(read['modes']) == ortho.N and 'left_knee' in read['drives'],
             read and (read['body'].get('mass'), len(read['drives'])))

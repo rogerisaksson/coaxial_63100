@@ -14,16 +14,16 @@
 typedef struct
 {
   int           n;            /**< her modes, and each's index */
-  int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock, reach;
+  int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock, reach, elbows;
   int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
-  int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin;
+  int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin, y_elbow, y_palms;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
-  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_n;
+  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_n, f_elbow0;
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
-  int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box, a_reached;
+  int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box, a_reached, a_elbowed;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */

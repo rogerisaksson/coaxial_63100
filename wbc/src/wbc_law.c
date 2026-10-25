@@ -173,7 +173,7 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
   {
     out[k->ducked + i] = p[k->duck + i];
   }
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < WBC_LAW_M; i++)
   {
     out[k->manifolded + i] = p[k->manifold + i];
   }

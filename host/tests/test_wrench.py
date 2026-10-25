@@ -129,7 +129,7 @@ def test_her_lean_hands_her_to_her_soles(report):
                  % somatic.EGRESS_M_S,
                  p.zmp == acts.SUPPORT and abs(p.weighs[0] - 0.82) < 1e-9 and abs(p.weighs[1] - 0.18) < 1e-9
                  and p.slide == somatic.EGRESS_M_S and then.waits == ('soles', 0.82) and then.slide == 0.0
-                 and '(contact_manifolds (plantar 0.82) (ischial 0.18) (trochanter 0) (dorsal 0)) (slide 0.15)' in text,
+                 and '(contact_manifolds (plantar 0.82) (ischial 0.18) (trochanter 0) (dorsal 0) (palmar 0)) (slide 0.15)' in text,
                  '%s %s %s %s' % (p.zmp, p.weighs, p.slide, then.slide))
     sat = next(q for q in maneuver.phases('sit_chair') if q.stage == 'contact' and 'mode_lateral_shift' in q.springs)
     k_seat, k_rest, k_lean = (q.springs['mode_lateral_shift'][0] for q in (sat, then, p))
@@ -165,8 +165,8 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     seated, from 0.86 of it her sole's centre of pressure goes onto its ball by the furniture's told share,
     whole at 0.98; standing, nothing borne, her soles stay as her stride has them."""
     import numpy as np
-    from machine import latent, modal, rounds, somatic, stride
-    g = {'fr': np.zeros(modal.FRAME)}
+    from machine import latent, modal, ortho, rounds, somatic, stride
+    g, told_by = {'fr': np.zeros(modal.FRAME)}, np.eye(len(ortho.MANIFOLDS))
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0
     out = np.zeros(latent.OUT)
@@ -176,9 +176,9 @@ def test_her_reach_rolls_her_onto_the_ball(report):
              'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}]}
         ask: dict = {'edge': edge}
         told = np.asarray(told, float)
-        return somatic.asked(g, s, out, told if told.ndim else np.array([1.0 - told, told, 0.0, 0.0]), ask)
+        return somatic.asked(g, s, out, told if told.ndim else (1.0 - told) * told_by[0] + told * told_by[1], ask)
     seated, deep, stood = asked((0.75, 0.70), 0.85), asked((0.92, 0.98), 0.85), asked((0.998, 0.998), 0.0)
-    unsaid = asked((0.75, 0.70), np.zeros(4))
+    unsaid = asked((0.75, 0.70), np.zeros(len(told_by)))
     report.check('seated at 0.70-0.75 of her leg her soles are flat, the seat capped at its told 0.85 of her weight;'
                  ' at 0.92 and 0.98 onto the ball by that 0.85; standing at 0.998, nothing borne, flat; nothing told, no cap',
                  seated['edge'] == (0.0, 0.0) and abs(float(deep['edge'][0]) - 0.85 * 0.5) < 1e-9
@@ -199,8 +199,8 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     seat = {'hips': [np.array([0.0, 0.7 * somatic.LEG_M, 0.0]), np.array([0.2, 0.7 * somatic.LEG_M, 0.0])],
             'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}],
             'contacts': [{'p': np.array([0.1, 0.45, 0.0]) - 0.3 * way}], 'com': np.array([0.1, 0.8, 0.0]) - (0.1 + rounds.ROOM[1]) * way}
-    lever, ask = float(somatic.lever(seat, way)), {'edge': (0.0, 0.0)}
-    behind: dict = somatic.asked(g, seat, out, np.array([0.82, 0.18, 0.0, 0.0]), ask)
+    lever, ask = float(somatic.lever(seat, way, 300.0)), {'edge': (0.0, 0.0)}
+    behind: dict = somatic.asked(g, seat, out, 0.82 * told_by[0] + 0.18 * told_by[1], ask)
     report.check('her centre of mass 0.1 m behind her heels, the seat 0.3 m behind her soles\' middle: the seat must bear'
                  ' %.2f of her by the lever\'s rule, and is capped no lower though told 0.18' % lever,
                  abs(lever - 0.1 / (0.3 - rounds.ROOM[1])) < 1e-9 and abs(float(behind['fz_cap']) - lever * 300.0) < 1e-9,
