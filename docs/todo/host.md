@@ -9,6 +9,10 @@
   parts). Each sits in her law's own files or changes how a compiled part's
   result lives. DOD: her loop at the solve's and MuJoCo's cost alone, the
   glue under 10 % of a pass.
+- **Her worker under real time** (found): walking, one core at 1.00, headroom
+  0.79 flat out and 0.68 paced at b75c6e97 on the idle Threadripper, against
+  2.62 in [pace](../findings/pace.md); the page shows her slowed. DOD: the
+  commit that cost it found, the worker over 2 again.
 - **Branches out of her code** (asked): `if`/`else`/ternaries left, by module -
   the law's: wrench 14/4/15 (`wbc_wrench.c`'s Python: a sole's stance, the
   rounds, held contacts, the torque limit), wbc 11/0/4, leap 10/0/6, se2
@@ -27,8 +31,9 @@
   patch's far lip her swing reaches 4 cm down past the rhythm's landing, 0.1
   s late, and the standing sole on the snow, 4-6 mm up on 78-92 N, is let go
   before it lands (`poise.stands`: over `leap.TOUCH_M` is left) - 10 m/s^2
-  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The replay walk_turn_right on Linux (scenarios 14), the
-  chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
+  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The
+  replay walk_turn_right on Linux (scenarios 14), the chair at -2e-4
+  (scenarios 1). DOD: both workflows green on main.
 - **The autotuner's write** (asked): her walk's step held on her suite's
   roots and the bench broke test_errands' viewport bed and was undone. DOD: a
   write held on the errands too (their house runs as the bench's), written
