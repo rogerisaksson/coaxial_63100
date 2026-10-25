@@ -111,6 +111,13 @@ VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests',
           'load', 'cop_none', 'over')
 
 
+def _spread(a, n):
+    """`a` as `n` doubles: itself where it is so, else broadcast (np.broadcast_to's setup alone
+    took a third of a call's own time)."""
+    a = np.asarray(a, float)
+    return a if a.shape == (n,) else np.broadcast_to(a, (n,))
+
+
 def _stepped(k, step, v, b, s, ask):
     """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - her compiled sensing's
     last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views."""
@@ -170,10 +177,9 @@ def _stepped(k, step, v, b, s, ask):
     v['knee_rate'][:] = ask.get('knee_rate', (0.0, 0.0))
     k.wep = int(bool(ask.get('wep')))
     k.posture = at(ask['posture'])
-    derate = np.asarray(ask.get('derate', 1.0), float)
-    k.derate = at(derate if derate.shape == (k.nd,) else np.broadcast_to(derate, (k.nd,)))
+    k.derate = at(_spread(ask.get('derate', 1.0), k.nd))
     k.clamp, k.wep_nm, k.mass = at(b.clamp), at(b.wep), b.mass
-    k.lo, k.hi = (at(np.broadcast_to(ask.get(side, bound), (k.nd,))) for side, bound in (('lo', -np.inf), ('hi', np.inf)))
+    k.lo, k.hi = at(_spread(ask.get('lo', -np.inf), k.nd)), at(_spread(ask.get('hi', np.inf), k.nd))
     if step(ctypes.byref(k)):
         raise np.linalg.LinAlgError('Singular matrix')
     nd, cop = k.nd, [None if v['cop_none'][side] else v['cop'][side].copy() for side in range(k.cop_n)]
