@@ -111,7 +111,12 @@ soles planned 127/0 then 34/225 N a pass apart). Her support's box spanning
 the bearing skin's capsules (the thigh's reaching 0.36 m ahead, into the
 air) flung her onto the chair's back at 3.6 s. The deep sit wants her
 thighs' bearing kept through the let-go and the soles' return eased, both
-to measure before anything lands.
+to measure before anything lands. Her pelvis as two ischia in the step
+(branch `deep-sit-ischia`: its one touch split between its buttocks' lines
+by where it lies, laid on them as far as it pushes her pelvis up), planted
+and landed deep: +2e-4 sat and rose, square sat 6.4 s and fell in the rise,
+-2e-4 fell at 4.2 s in the sit - as the deep landing alone; the perch's
+soles in the air under a standing step remain its fault.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
