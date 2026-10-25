@@ -308,7 +308,7 @@ def test_docs_name_only_the_tree(r):
     gone = []
     for path in sorted(glob.glob(os.path.join(REPO, 'docs', '**', '*.md'), recursive=True)):
         rel = os.path.relpath(path, REPO).replace(os.sep, '/')
-        if rel == 'docs/DONE.md':
+        if os.path.basename(rel).startswith('DONE'):
             continue
         text = io.open(path, encoding='utf-8', errors='replace').read()
         for m in DOC_REF.finditer(text):

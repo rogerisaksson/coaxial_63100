@@ -105,3 +105,15 @@ She stood every row as thrown now.
   split stance 27 cm long after the parry's step, the stand centring her
   between it, she drifts back on the leading sole. Her gait resumed from the
   landing, no stand between: 16 of 24, other phases down.
+- The gather laid as her swinging sole lands (`stride.beat`'s share of its
+  swing left at its rhythm's rate) instead of on the clock: 21 of 24, the
+  suite's four at its 2.0 s all flying (0.17-0.42 s), her walk to the digit.
+  Left: no flight at the run's 2.3 s (both soles never off), the held run at
+  2.1 s down after its landing. Measured, not kept: the leap derived from the
+  human's running jump (`takes.jump('running_jump')`: his gather over one
+  stride to his crouch, axial 1.98 leant 1.16, the drives' push from it, her
+  rhythm his limbs' lift through the gather) - 3, 0 and 1 of 24. His is a
+  sprinter's at 4.7 m/s, hips 1.7 half-soles behind his plant; told them she
+  went backward and sank on 40-90 N, her hips hers the throws flung her off
+  her feet (air 1.3-3.4 s). Similarity scales his lengths and times to hers,
+  not his speed.

@@ -351,18 +351,22 @@ def _resume_gait(g, by, prev, in_fwd, t_go, walk_on_wire, said_fn):
 
 
 def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on_wire):
-    """Queue `hop` at `t0` (two-footed gather when striding, ballistic leap, then resume the gait)."""
+    """Queue `hop` at `t0`: striding, the gather as her swinging sole lands (`stride.beat`: the
+    share of its swing left at its rhythm's rate), the leap, the gait resumed."""
     import numpy as np
-    from machine import latent, se2
+    from machine import latent, modal, se2, stride
     prev = (g.get('active_entry') if g.get('active_entry') in (fwd_gaits + back_gaits)
             else ('stand' if not g.get('_twist_active') else ('walk_back' if back_now else ('jog' if g.get('asked', (0.0,))[0] > 0.9 else 'walk'))))
     in_fwd = prev in fwd_gaits and not back_now
     moving = in_fwd or prev != 'stand' or spd > 0.15
+    out, a = g['out'], g['a']
+    _st, _way, _sw, _phi, on, _off, u, _fl, swung = stride.beat(
+        out[latent.SWAY][modal.DRIVE], out[latent.PSI][modal.DRIVE], out[latent.SWAY][modal.LATERAL],
+        out[latent.PSI][modal.LATERAL], float(out[latent.TURNS]), a[modal.SWINGS], a[modal.NEED], a[modal.LEAD])
+    t0 = t0 + float(moving) * float((on * (1.0 - u)).max()) / max(float(swung), stride.TINY)
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
     dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving)
     if dt_b > 0.0 and '_brake_wire' in g:
-        # the gather onto both soles brakes her over her stand's blend: over her stop's stride
-        # (`se2.braked`) the stand cut it at 0.4 and her held leap went 0.31 -> 0.14 m, the tap's not
         brake = np.frombuffer(g.get('_brake_back_wire', g['_brake_wire']) if back_now else g['_brake_wire'], latent.WIRE).copy()
         brake['blend'] = round(1e3 * se2.STAND_S)
         said_fn(g, 'brake', brake.tobytes(), ('brake',), at=t0, reset=True)

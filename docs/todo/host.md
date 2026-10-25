@@ -17,13 +17,12 @@
   DOD: flat tables and arithmetic a reader follows, a raise where she
   cannot; test_structure holds the law's modules at 0.
 - **CI red, the host workflow** (8 at acc7fb80; the sway's 2, the viewport
-  bed and the held leap met): test_leap's stride leap, one walk time of a
-  coin's toss, 17 of 24 standing over 1.8-2.3 s of walking
-  ([leap](../findings/leap.md)): no flight at 1.8-1.9 s, the run's held leap
-  down at 2.3 s, and at 2.0 s untold a walk back - the parry's step leaves a
-  split stance 27 cm long, the stand centres her between it and she drifts
-  back on the leading sole at -0.2 m/s. On Linux the run's held leap flies
-  0.421 s where here 0.213: one walk time there is another phase. Snow at
+  bed and the held leap met): test_leap's stride leap, 21 of 24 phases over
+  1.8-2.3 s of walking with its gather laid at her sole's landing
+  ([leap](../findings/leap.md)): no flight at the run's 2.3 s, the held run
+  at 2.1 s down after its landing - the parry's step leaves a split stance,
+  the stand centres her between it. On Linux one walk time is another phase:
+  CI's own sample decides. Snow at
   one wobble since 1f1d039d (-2e-4, then +2e-4 since the insert): a swing
   raised 19 cm over its lip, she topples over the standing sole, 1.64 m/s
   ahead as its load falls 314 -> 78 N, lands on 565 N and walks back
