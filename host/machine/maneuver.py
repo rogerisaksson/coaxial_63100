@@ -208,13 +208,14 @@ def entry(name, seen=None, got=None, texts=None):
     return name, tables[name], named[name] + ('rest',)
 
 
-def said(g, item, at=None):
+def said(g, item, at=None, thing=None):
     """A gym entry `item` as her session says it: a stunt she plays (PLAYED) compiled for the furniture
-    she sees nearest `at` (`furniture.seen`), of her session's suite and texts; else itself."""
+    she sees nearest `at`, the thing of slot `thing` where given (`furniture.seen`), of her session's
+    suite and texts; else itself."""
     from machine import furniture
     if item[0] not in PLAYED:
         return item
-    return entry(item[0], furniture.seen(g, item[0], at), g['suite'], g['texts'])
+    return entry(item[0], furniture.seen(g, item[0], at, thing), g['suite'], g['texts'])
 
 
 def _joined(got):

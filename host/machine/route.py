@@ -9,12 +9,12 @@
 """
 import math
 
-from machine import figure, room, se2, sight, stride
+from machine import figure, room, se2, sight, stride, voxels
 
 #: Her map's things grown by her radius and a cell: setting off she walks while her heading is CONE
 #: off her leg at most, her walk's arc (WALK_SPEED / YAW_RATE round) a cell off it at most.
-GROWN_M = sight.RADIUS_M + sight.CELL_M
-CONE = math.acos(1.0 - sight.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
+GROWN_M = voxels.RADIUS_M + voxels.CELL_M
+CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
 #: Her way walked through its corners: a convex corridor round each segment, her walk's arc ARC_M
 #: about it at most; a cubic B-spline held in them, a knot a stride at her walk; her aim AIM_M on
@@ -24,7 +24,7 @@ CONE = math.acos(1.0 - sight.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 #: heading, 0.82 m into the chair's margin.
 ARC_M = se2.WALK_SPEED / se2.YAW_RATE
 AIM_M = ARC_M * math.sin(CONE)
-STRAIGHT_M = AIM_M + se2.STOP_M + sight.CELL_M
+STRAIGHT_M = AIM_M + se2.STOP_M + voxels.CELL_M
 #: Where her heading is ARCED or more off her curve's at her aim she walks on her arc, its twist -
 #: the nearer of a walk and her arc, half her arc's turn over her aim -, else by her heading: held
 #: by her heading a 0.5 rad turn left her path on its line 2 s; arced on the curve's bend alone
@@ -51,11 +51,11 @@ def docks():
 
 
 def _cell(x, z):
-    return (int(math.floor((x - sight.X_M[0]) / sight.CELL_M)), int(math.floor((z - sight.Z_M[0]) / sight.CELL_M)))
+    return (int(math.floor((x - voxels.X_M[0]) / voxels.CELL_M)), int(math.floor((z - voxels.Z_M[0]) / voxels.CELL_M)))
 
 
 def _centre(i, j):
-    return (sight.X_M[0] + (i + 0.5) * sight.CELL_M, sight.Z_M[0] + (j + 0.5) * sight.CELL_M)
+    return (voxels.X_M[0] + (i + 0.5) * voxels.CELL_M, voxels.Z_M[0] + (j + 0.5) * voxels.CELL_M)
 
 
 def _free(cells, cell):
@@ -63,24 +63,26 @@ def _free(cells, cell):
 
 
 def blocked(g):
-    """Her map's cells (`sight.Map`'s) she may not stand in: each thing over her ankle and under the
-    doorway's top - she steps over lower, walks under higher, pushes the door aside -, GROWN_M round."""
+    """Her map's cells she may not stand in: each of her things (`g['things']`, her registry's boxes)
+    within `voxels.STAND_M` over the floor - she steps over lower, walks under higher, pushes the
+    door aside -, GROWN_M and its blind spot's swell round."""
     np = sight._np()
-    nx = int(round((sight.X_M[1] - sight.X_M[0]) / sight.CELL_M))
-    nz = int(round((sight.Z_M[1] - sight.Z_M[0]) / sight.CELL_M))
-    x, z = np.meshgrid(sight.X_M[0] + (np.arange(nx) + 0.5) * sight.CELL_M,
-                       sight.Z_M[0] + (np.arange(nz) + 0.5) * sight.CELL_M, indexing='ij')
+    nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
+    nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
+    x, z = np.meshgrid(voxels.X_M[0] + (np.arange(nx) + 0.5) * voxels.CELL_M,
+                       voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
     out = np.zeros((nx, nz), dtype=bool)
-    for p in g['world'].props():
+    for p in g['things']:
         if len(p) < 4 or p[0] == 'door' or len(p[1]) < 3 or not hasattr(p[2], '__len__') or len(p[2]) < 3:
             continue
         _kind, c, half, turn = p[:4]
-        if c[1] + half[1] < figure.ANKLE_H or c[1] - half[1] >= 2.0 * room.DOOR[1]:
+        if c[1] + half[1] < voxels.STAND_M[0] or c[1] - half[1] >= voxels.STAND_M[1]:
             continue
         dx, dz = x - c[0], z - c[2]
         along_x = np.abs(dx * turn[0][0] + dz * turn[2][0])
         along_z = np.abs(dx * turn[0][2] + dz * turn[2][2])
-        out |= (along_x <= half[0] + GROWN_M) & (along_z <= half[2] + GROWN_M)
+        grown = GROWN_M + (float(p[6]) if len(p) > 6 else 0.0)
+        out |= (along_x <= half[0] + grown) & (along_z <= half[2] + grown)
     return out
 
 

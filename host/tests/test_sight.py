@@ -1,8 +1,9 @@
 """Her eyes (`machine.sight`): the stereo's depth held to the renderer's own on one look into the
-room; a look round, posed standing, into her map, its occupied cells against the room's walls and
-things, the chair and the table told where they stand; a way to the chair planned round what
-she knows, clear of it all; the page's picture of her view (`coaxial.graphics.inset`); her way
-round the lodge's furniture walked through its corners (`machine.route`)."""
+room; a look round, posed standing, into her map (`machine.voxels`), its occupied cells against the
+room's walls and things, the chair, the table and the bed told where they stand by what they afford
+her (`machine.affordance`), the bed's turn with it; a way to the chair planned round what she knows,
+clear of it all; the page's picture of her view (`coaxial.graphics.inset`); her way round the lodge's
+furniture walked through its corners (`machine.route`)."""
 import itertools
 import math
 import sys
@@ -13,6 +14,7 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
+from machine import voxels
 
 #: A look round is LOOKS looks, her heading posed a turn about; the stereo is held to the
 #: renderer out to STEREO_M, the room's depth: her map takes less (`sight.FAR_M`).
@@ -37,17 +39,27 @@ def _stood(world, heading=0.0):
                 turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
 
+def _head(world):
+    """Her head's pose as the world has it: she is posed, her estimate not running."""
+    hb = world.model.body('head').id
+    return {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
+
+
 def _looked_round(world, keep):
-    """Her heading posed once about, a look each of LOOKS."""
+    """Her heading posed once about, a look each of LOOKS from her head's pose."""
     from machine import sight
     for k in range(LOOKS):
         _stood(world, math.tau * k / LOOKS)
-        keep.look(world, k * sight.LOOK_S)
+        keep.look(world, k * sight.LOOK_S, _head(world))
 
 
-def _nearest(things, kinds, at):
-    near = [(math.dist(c, at), k, c, h, hi) for k, c, h, hi, _l in things if k in kinds]
-    return min(near, default=None)
+def _nearest(things, affords, at):
+    """(its distance from `at`, the thing) of the thing affording `affords` (seat, bed, chair) nearest `at`."""
+    from machine import affordance
+    by = {'seat': affordance.sits, 'bed': affordance.lies,
+          'chair': lambda t, ts: affordance.sits(t, ts) and affordance.backed(t, ts)}[affords]
+    near = [(math.hypot(t[1][0] - at[0], t[1][2] - at[1]), t) for t in things if by(t, things)]
+    return min(near, default=None, key=lambda n: n[0])
 
 
 def test_the_stereo_holds_to_the_depth(report):
@@ -80,14 +92,15 @@ def test_the_stereo_holds_to_the_depth(report):
 
 def test_her_map_is_the_room(report):
     """A look round, posed standing: nine in ten occupied cells within 0.15 m of a wall or a thing
-    of the room, the chair and the table told within 0.3 m of where they stand, a way to the
-    chair found clear of what she knows; her view for the page hulls what she told."""
+    of the room, the chair (a seat with a back), the table (a seat) and the bed (a bed) told within
+    0.3 m of where they stand, a way to the chair found clear of what she knows; her view for the page
+    hulls what she told."""
     from machine import room, sight
     body, world = _room()
     try:
         keep = sight.Keep(world)
         _looked_round(world, keep)
-        occ = keep.map.occupied()
+        occ = keep.map.occupied().any(axis=1)
         boxes = [((-room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((0.0, room.FROM), (room.WIDE, room.THICK)), ((0.0, room.TO), (room.WIDE, room.THICK)),
@@ -105,18 +118,16 @@ def test_her_map_is_the_room(report):
                      '%d cells from %d looks' % (len(far), keep.map.looks))
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
-        things = keep.map.things()
-        for name, kinds, at in (('chair', ('chair',), room.CHAIR_AT),
-                                ('table', ('table',), room.TABLE_AT),
-                                ('bed', ('bed',), room.BED_AT)):
-            found = _nearest(things, kinds, at)
-            report.check('the %s is told within 0.3 m of where it stands' % name,
+        things = sight.told(keep)
+        for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
+            found = _nearest(things, affords, at)
+            report.check('the %s is told within 0.3 m of where it stands, a %s' % (name, affords),
                          found is not None and found[0] < 0.3,
-                         '%.2f m off, high %.2f' % (found[0], found[4]) if found else 'not told')
+                         '%.2f m off, top %.2f' % (found[0], found[1][1][1] + found[1][2][1]) if found else 'not told')
         at = (0.0, 0.0)
         to = (room.CHAIR_AT[0], room.CHAIR_AT[1] - 0.6)
-        way = keep.map.plan(at, to)
-        clear = all(away(*p) >= sight.RADIUS_M - sight.CELL_M for p in way)
+        way = sight.plan(keep.map.blocked(), at, to)
+        clear = all(away(*p) >= voxels.RADIUS_M - voxels.CELL_M for p in way)
         report.check('a way to the chair\'s target is found, its corners clear of what she knows by her radius',
                      bool(way) and clear and math.dist(way[-1], to) < 0.5,
                      ' -> '.join('(%+.1f %+.1f)' % w for w in way) or 'none')
@@ -129,18 +140,31 @@ def test_her_map_is_the_room(report):
         cells = inset.eyes(seen, 120, 40)
         report.check('the picture\'s cells fill its frame', len(cells) >= sight.VIEW[0] * sight.VIEW[1] // 2,
                      '%d cells' % len(cells))
-        moved = (-0.9, 1.2)
-        world.model.body('bed').pos[:] = (moved[0], room.BED[1], moved[1])
-        keep.map, keep.looked_at = sight.Map(), None
+        moved, yaw = (-0.9, 1.2), 0.5
+        bed = world.model.body('bed')
+        bed.pos[:], bed.quat[:] = (moved[0], room.BED[1], moved[1]), (math.cos(yaw / 2.0), 0.0, math.sin(yaw / 2.0), 0.0)
+        keep.forget()
         _looked_round(world, keep)
-        found = _nearest(keep.map.things(), ('bed',), moved)
-        report.check('the bed moved is told within 0.3 m of its new place and size',
-                     found is not None and found[0] < 0.3
-                     and math.hypot(found[3][0] - room.BED[0], found[3][1] - room.BED[2]) < 0.2,
-                     '%.2f m off, half (%.2f %.2f)' % (found[0], found[3][0], found[3][1])
+        found = _nearest(sight.told(keep), 'bed', moved)
+        turn = None if found is None else abs(math.remainder(axis(found[1][2], found[1][3]) - axis((room.BED[0], 0.0, room.BED[2]), _turned(yaw)), math.pi))
+        report.check('the bed moved and turned 0.5 rad is told within 0.3 m of its new place, its size and its turn',
+                     found is not None and found[0] < 0.3 and turn is not None and turn < 0.15
+                     and abs(max(found[1][2][0], found[1][2][2]) - room.BED[2]) < 0.2,
+                     '%.2f m off, half (%.2f %.2f), turn off %.2f rad' % (found[0], found[1][2][0], found[1][2][2], turn)
                      if found else 'not told')
     finally:
         body.close()
+
+
+def axis(half, R):
+    """The turn of a box's longer floor axis, rad in [0, pi)."""
+    k = 0 if half[0] >= half[2] else 2
+    return math.atan2(R[0][k], R[2][k]) % math.pi
+
+
+def _turned(yaw):
+    """A box turned `yaw` about the vertical."""
+    return ((math.cos(yaw), 0.0, math.sin(yaw)), (0.0, 1.0, 0.0), (-math.sin(yaw), 0.0, math.cos(yaw)))
 
 
 def _laid(x, z, yaw=0.0):
@@ -168,13 +192,16 @@ def test_her_way_walked_through(report):
     from machine import furniture, physics, route, sight, worker
     from tools.sim import house
     physics.ROOM, physics.SIGHT = 1.0, 0.0
-    g = worker.session()['g']
+    s = worker.session()
+    g = s['g']
+    while g['t'] < 0.1:
+        worker.stepped(s)
     cells = route.blocked(g)
     at = route.centres(cells)
     held, inside, overlap, off, bent, last, walked, kept, took = [], 0, True, 0, 0.0, True, 0, 0, []
     for verb in ('sit_chair', 'lie_bed'):
         dx, dz, hdd, _lat, most, where = route.docks()[verb]
-        _d, px, pz, _top = furniture.nearest(g, verb, None, where)
+        _d, px, pz, _top, _thing = furniture.nearest(g, verb, None, where)
         out = (math.sin(hdd), math.cos(hdd))
         d = route.staged((px + dx, pz + dz), out, most, cells)
         to = (px + dx + d * out[0], pz + dz + d * out[1])
@@ -221,24 +248,25 @@ def _meets(w0, w1):
 
 def test_her_things_fill_her_registry(report):
     """Her eyes' things into her registry (`sight.told`, `machine.registry`): looked round, each look's
-    things seen from the head that looked, the chair, the table and the bed hold slots within 0.3 m of
-    where they stand; on her loop under `physics.SIGHT` her things are her map's (`sprung.LOOKS`)."""
+    things seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed
+    (a bed) hold slots her buses take within 0.3 m of where they stand; on her loop under
+    `physics.SIGHT` her things are her map's (`sprung.LOOKS`)."""
     from machine import physics, registry, room, sight, sprung
     body, world = _room()
     try:
         keep, slots = sight.Keep(world), registry.laid()
-        hb = world.model.body('head').id
         for k in range(LOOKS):
             _stood(world, math.tau * k / LOOKS)
-            keep.look(world, k * sight.LOOK_S)
-            head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
+            head = _head(world)
+            keep.look(world, k * sight.LOOK_S, head)
             registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)
-        boxes = registry.boxes(slots, least=-math.inf)
+        boxes = registry.boxes(slots)
         kinds = sorted({b[0] for b in boxes})
-        for name, at in (('chair', room.CHAIR_AT), ('table', room.TABLE_AT), ('bed', room.BED_AT)):
-            near = [math.hypot(b[1][0] - at[0], b[1][2] - at[1]) for b in boxes if b[0] == name]
-            report.check('the %s holds a slot within 0.3 m of where it stands' % name, bool(near) and min(near) < 0.3,
-                         '%s of %d slots, %s' % (', '.join('%.2f' % d for d in near) or 'none', len(boxes), kinds))
+        for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
+            found = _nearest(boxes, affords, at)
+            report.check('the %s holds a slot her buses take within 0.3 m of where it stands, a %s' % (name, affords),
+                         found is not None and found[0] < 0.3,
+                         '%s of %d slots, %s' % ('%.2f' % found[0] if found else 'none', len(boxes), kinds))
         g = sprung.laid(sprung.STACK_EVERY)
         while g['t'] < 2.0 * sight.LOOK_S + 0.1:
             sprung.passed(g)

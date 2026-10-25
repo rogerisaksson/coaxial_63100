@@ -6,8 +6,10 @@
     props = registry.boxes(slots)               # the things her buses take, as boxes (kind, centre, half, R)
 
 A look's things are her eyes' or their stand-in (`world.props()`), each a box: a kind, a centre, half
-sizes, a rotation (`sight.Keep.map.things` gives a floor box and a height); of them those her eyes'
-frustum shows (`sight`'s: NEAR_M to FAR_M, FOVY_DEG high and W / H as wide, DOWN_DEG under her head's
+sizes, a rotation, and her eyes' an id and whether the space over it is seen clear (`sight.told`: a thing's
+id the look before's where they share voxels; a surface's top clear, a structure's unknown, a prop's
+clear) - a look's thing with a live slot's id is its, the slot's box the look's; of them those her eyes'
+frustum shows any of (`sight`'s: NEAR_M to FAR_M, FOVY_DEG high and W / H as wide, DOWN_DEG under her head's
 z) at the box's point nearest her eye. A slot (SLOT): its
 kind, centre, half sizes and rotation, its position's variance (a look's cell squared, `sight.CELL_M`),
 its salience (log-odds), its velocity, when it was last seen and whether in her frustum, its blind
@@ -33,7 +35,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import kernel
-from machine.sight import CELL_M, DOWN_DEG, EYES, FAR_M, FOVY_DEG, NEAR_M
+from machine.sight import DOWN_DEG, EYES, FOVY_DEG
+from machine.voxels import CELL_M, FAR_M, NEAR_M
 from machine.stereo import H, W
 
 _LAW = kernel.node('assimilate-semantic-quadrics', 'quadric-registry')
@@ -57,7 +60,7 @@ MOVING = kernel.node('specialize-with-dynamic-agent-bifurcation', 'moving-object
 #: A slot's fields.
 SLOT = np.dtype([('on', 'f8'), ('kind', 'i4'), ('centre', 'f8', 3), ('half', 'f8', 3), ('R', 'f8', (3, 3)),
                  ('var', 'f8'), ('salience', 'f8'), ('vel', 'f8', 3), ('last', 'f8', 3), ('seen_at', 'f8'),
-                 ('swell', 'f8'), ('drift', 'f8'), ('moving', 'f8'), ('shown', 'f8')])
+                 ('swell', 'f8'), ('drift', 'f8'), ('moving', 'f8'), ('shown', 'f8'), ('id', 'i8'), ('clear', 'f8')])
 #: Her eyes' half angles' tangents, up and across; their look down her head's z, rad; their axis and
 #: their up in her head's frame.
 TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
@@ -100,16 +103,32 @@ def shown(points, eye, R):
     return (depth >= NEAR_M) & (depth <= FAR_M) & (np.abs(up) <= depth * TAN_UP) & (np.abs(v[:, 0]) <= depth * TAN_ACROSS)
 
 
+#: A box's corners, in its half sizes.
+_CORNERS = np.array([[sx, sy, sz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)])
+
+
+def seen_of(centre, half, R, eye, turn):
+    """(n,) whether each box shows in her eyes' frustum: any of its corners, its centre or its point nearest
+    her eye in it - a table top's near edge under her view, its far edge in it."""
+    if not len(centre):
+        return np.zeros(0, bool)
+    corners = centre[:, None, :] + np.einsum('nij,ncj->nci', R, _CORNERS * half[:, None, :])
+    points = np.concatenate([corners, centre[:, None, :], nearest(centre, half, R, eye)[:, None, :]], axis=1)
+    return shown(points.reshape(-1, 3), eye, turn).reshape(len(centre), -1).any(axis=1)
+
+
 def _boxes(looks):
-    """(kinds, centres (n, 3), halves (n, 3), rotations (n, 3, 3)) of a look's things, those that are boxes:
-    its things of four fields stacked at once, sized one by one where they do not stack as boxes."""
+    """(kinds, centres (n, 3), halves (n, 3), rotations (n, 3, 3), ids (n,) 0 none, clear (n,) 1.0 where the space
+    over a thing is seen clear, a box's without a word) of a look's things, those that are boxes: its things
+    of four fields stacked at once, sized one by one where they do not stack as boxes."""
     rows = [p for p in looks if len(p) >= 4]
     try:
         stacked = [np.array([p[j] for p in rows], float).reshape((len(rows),) + s) for j, s in enumerate(BOX, 1)]
     except (TypeError, ValueError):
         rows = [p for p in rows if all(np.size(p[j]) == math.prod(s) for j, s in enumerate(BOX, 1))]
         stacked = [np.array([p[j] for p in rows], float).reshape((-1,) + s) for j, s in enumerate(BOX, 1)]
-    return [str(p[0]) for p in rows], *stacked
+    return ([str(p[0]) for p in rows], *stacked, np.array([int(p[4]) if len(p) > 4 else 0 for p in rows], np.int64),
+            np.array([float(p[5]) if len(p) > 5 else 1.0 for p in rows]))
 
 
 def _w2(centre, half, at, halves, scale):
@@ -118,18 +137,20 @@ def _w2(centre, half, at, halves, scale):
     return (((at - centre[:, None]) ** 2).sum(2) + ((halves - half[:, None]) ** 2).sum(2)) / scale
 
 
-def seen(slots, looks, head, t):
+def seen(slots, looks, head, t, everywhere=False):
     """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing into the slot it
-    matches or a new one, every live slot's salience moved, the pruned let go."""
+    matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`, the look
+    shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows."""
     r, kinds = slots['rows'], slots['kinds']
-    names, centre, half, R = _boxes(looks)
+    names, centre, half, R, ids, clear = _boxes(looks)
     on = r['on']
     live = np.flatnonzero(on)
     if not len(names) and not len(live):
         return slots
     eye, turn = _eye(head)
-    looked = shown(nearest(centre, half, R, eye), eye, turn)
-    names, centre, half, R = list(compress(names, looked)), centre[looked], half[looked], R[looked]
+    looked = np.ones(len(names), bool) if everywhere else seen_of(centre, half, R, eye, turn)
+    names, centre, half, R, ids, clear = (list(compress(names, looked)), centre[looked], half[looked], R[looked], ids[looked],
+                                         clear[looked])
     var, salience, vel, last = r['var'], r['salience'], r['vel'], r['last']
     seen_at, swell, drift = r['seen_at'], r['swell'], r['drift']
     matched = np.zeros(len(live), bool)
@@ -138,6 +159,8 @@ def seen(slots, looks, head, t):
     code = {}
     alike = np.array([code.setdefault(n, len(code)) for n in names])[:, None] == [code.get(kinds[i], -1) for i in live]
     d2 = np.where(alike, _w2(centre, half, ahead, r['half'][live], scale), np.inf)
+    known = (ids[:, None] > 0) & (ids[:, None] == r['id'][live])
+    d2 = np.where(known.any(axis=1)[:, None], np.where(known, 0.0, np.inf), d2)
     free = iter(np.flatnonzero(on == 0.0))
     for k, name in enumerate(names):
         best = int(d2[k].argmin()) if len(live) else -1
@@ -146,11 +169,11 @@ def seen(slots, looks, head, t):
             dt, move = max(t - seen_at[i], 1e-9), centre[k] - r['centre'][i]
             drift[i] += float(move @ move) / (var[i] + CELL2)
             moving = float(drift[i] > MOVING)
-            gain = moving + (1.0 - moving) * var[i] / (var[i] + CELL2)
+            gain = max(moving + (1.0 - moving) * var[i] / (var[i] + CELL2), float(known[k, best]))
             r['moving'][i], vel[i] = moving, moving * (centre[k] - last[i]) / dt
             r['centre'][i] += gain * move
             r['half'][i] += gain * (half[k] - r['half'][i])
-            r['R'][i], var[i] = R[k], (1.0 - gain) * var[i] + moving * CELL2
+            r['R'][i], var[i], r['clear'][i] = R[k], (1.0 - gain) * var[i] + moving * CELL2, clear[k]
             salience[i] += HIT
             last[i], seen_at[i], swell[i], r['shown'][i] = centre[k], t, 0.0, 1.0
             continue
@@ -161,10 +184,11 @@ def seen(slots, looks, head, t):
             j = np.flatnonzero((live == i) & ~matched)
             d2[k + 1:, j] = np.where(alike[k + 1:, j], _w2(centre[k + 1:], half[k + 1:], ahead[j], half[k:k + 1], scale[j]),
                                      np.inf)
-        r[i], kinds[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0), name
+        r[i], kinds[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0, ids[k],
+                          clear[k]), name
     rest = live[~matched]
     if len(rest):
-        inside = shown(nearest(r['centre'][rest], r['half'][rest], r['R'][rest], eye), eye, turn)
+        inside = seen_of(r['centre'][rest], r['half'][rest], r['R'][rest], eye, turn)
         kept = t - seen_at[rest] <= KEPT_S
         r['shown'][rest] = inside
         salience[rest] += MISS * (inside | ~kept)
@@ -182,18 +206,19 @@ def passed(slots, head, dt):
     movable = np.array([kinds[i] not in STRUCTURAL for i in live], float)
     r['var'][live] += DIFFUSE * dt * movable
     eye, turn = _eye(head)
-    out = 1.0 - shown(nearest(r['centre'][live], r['half'][live], r['R'][live], eye), eye, turn)
+    out = 1.0 - seen_of(r['centre'][live], r['half'][live], r['R'][live], eye, turn)
     r['swell'][live] = np.minimum(SWELL_M, r['swell'][live] + SWELL_MPS * dt * out)
     return slots
 
 
 def boxes(slots, least=TAKEN):
-    """[(kind, centre, half sizes swollen by its blind spot, rotation)] of the slots at `least` salience:
-    her buses' things, as `world.props()` gives them."""
+    """[(kind, centre, half sizes, rotation, its slot, clear over it, its blind spot's swell)] of the slots at
+    `least` salience: her buses' things, as `world.props()` gives them, each named by its slot, her route
+    grown by the swell (`route.blocked`)."""
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
-    return list(zip([kinds[i] for i in taken], _tuples(r['centre'][taken]),
-                    _tuples(r['half'][taken] + r['swell'][taken, None]), _tuples(r['R'][taken])))
+    return list(zip([kinds[i] for i in taken], _tuples(r['centre'][taken]), _tuples(r['half'][taken]),
+                    _tuples(r['R'][taken]), taken.tolist(), r['clear'][taken].tolist(), r['swell'][taken].tolist()))
 
 
 def _tuples(a):

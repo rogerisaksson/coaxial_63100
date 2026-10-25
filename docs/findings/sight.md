@@ -95,3 +95,68 @@ props, 22 of them 'thing' cells 0.1-0.5 m high along the walls). Joined by
 their height within a cell too, the walls split into thin tall fragments
 told 'lamp': 137 things, 211 slots - a cell's highest point is no surface
 height for a standing thing. A lump's kind is a table (`sight.KINDS`).
+
+## Her map in voxels
+
+Her looks into voxels (`machine/voxels.py`, 0.1 m, the floor's 0.08 to
+2.3 m) in her estimate's frame - her eyes' pose from her head as her
+invariant EKF places it, not the renderer's -; a voxel a thing from 2
+looks with 3 points in it, hit more often than seen through, the rays
+stopping at the first voxel she holds occupied (grazing a wall she has seen
+freed its voxels and the wall came in holes). Its kind the palette colour
+whose body colour its chromaticity lies nearest with the light's white added
+(the dichromatic line to grey): a lit timber wall read stone or switch
+otherwise, 99 structures where 37; walls whole at 0.001-0.020 off their
+colour. A top is an occupied voxel seen through above with nothing in the
+layer above round it (a hole in a wall's face is none); a surface the
+4-connected tops of one level, a structure the 26-connected rest joined
+apart over and under a surface within its footprint (a back on its seat,
+the legs under it: joined whole they were one 137-voxel thing with the
+loft's edge), each with its own kind by its pooled colour, a part of
+another colour its own thing past the three-sigma test on the structure's
+pixels (the door in the glass gable, a chair's back against a wall; a
+highlight none); a structure resting on nothing - above the floor's layer
+under no surface - a stray. A thing's box: its footprint's principal axes
+its turn, its extents along them a cell wide, its height its levels'; its
+id the thing's it shares most voxels with at the look before; whether the
+space over it is seen clear with it (`clear`: a seat or a bed is such a
+surface, a structure's top unknown). Her registry (`machine.registry`)
+matches a look's thing by that id before the Wasserstein gate and takes its
+box as the look has it (a growing bed top filtered in by halves had split
+into slots short of her buses' 1.8); its frustum test on a box's corners
+(the nearest point alone left a table top's near edge under her view
+and the table unseen); its boxes carry their slot and `clear`. What a thing
+affords her is the text's (`machine/affordance.py`,
+`evaluate-situational-affordances`): a seat a surface topping 0.28-0.92 m
+with 0.075 m^2 clear above it in the pelvic and thoracic slabs, a bed a
+surface under 0.75 m and 1.35 m long clear in the thoracic slab, a chair a
+seat with a back - one of its kind standing on it, no longer than its side
+a cell over, reaching her lumbar's 0.248 m over the seat (`figure`); a
+stair beside a landing stands on the floor, a wall behind a bench is
+longer. Her things are her registry's boxes in both modes (`g['things']`:
+without SIGHT the props, a look showing the whole room; with it what her
+frustum has shown), her route planned round them (`route.blocked`, grown by
+their blind spots' swell) and the furniture a verb goes to found among them
+by what it affords (`furniture.GOES`), the errand's thing held by its slot
+through its stunt (`machine.errand`, `maneuver.said`), its stage laid anew
+where what she has seen since blocks it (`errand._cornered`), a look round
+first where nothing of the kind is in sight (phase `look`).
+
+A look round posed standing (`tools/sim/eyes.py`, 25 looks, 70 ms each
+here): every one of the 29 props her eyes could take in told, its centre
+0.09 m off at the median, its sizes 0.11, the lodge's axis-aligned turns 0
+deg (the bed moved and turned 0.5 rad told within 0.15 rad, test_sight); 87
+things, 75 slots her buses take - the chair's seat a seat with a back, the
+table a seat, the bed a bed, the loft's edge a seat, the lamp a lamp, the
+door a door -, 46 things no prop's (one-voxel pieces at the walls,
+3 looks of 25 each). Kinds right for every prop kind but the switch (white:
+no hue, its wall's). On her loop a turn in place (24 looks, 12 s): 185
+things - her head's estimate rises 8 mm/s (her law's) and 5 mm/s (the
+EKF's) stepping in place, the map smearing a voxel in 12-20 s, surfaces
+doubled -; told to sit she finds the chair's seat (the seat with a back
+nearest her) and walks toward it, but her stage is never free: her chair's
+things grown 0.4 m meet the table's, `route.staged` finds no free run along
+the dock's normal and returns its most, inside them, `_cornered` lays the
+same, and she walks between the nearest free corners 22 s (`stall_probe`).
+Told with nothing of the kind among her things she looks first
+(`sprung.looked`): without SIGHT the stand-in sits as before.

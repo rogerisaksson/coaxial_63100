@@ -66,6 +66,20 @@ def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
             'P': np.eye(N) * 1e-6, 'on': np.zeros(2), 'gyro': np.zeros(3), 'accel': np.zeros(3), 'span': np.zeros(())}
 
 
+def head(f, body):
+    """Her head's pose {pos, quat} in the filter's frame: the filter's pelvis (R, p) and her head on her law's
+    `body` as her estimate poses it - her eyes' pose (`sight.Keep.look`)."""
+    d = body.d
+    R, p = np.asarray(f['R']), np.asarray(f['p'])
+    Rp, pp = d.xmat[body.pelvis].reshape(3, 3), d.xpos[body.pelvis]
+    Rh, ph = d.xmat[body.head].reshape(3, 3), d.xpos[body.head]
+    M = R @ Rp.T @ Rh
+    w = 0.5 * math.sqrt(max(0.0, 1.0 + M[0, 0] + M[1, 1] + M[2, 2]))
+    q = np.array([w, (M[2, 1] - M[1, 2]), (M[0, 2] - M[2, 0]), (M[1, 0] - M[0, 1])])
+    q[1:] /= max(4.0 * w, 1e-12)
+    return {'pos': p + R @ Rp.T @ (ph - pp), 'quat': q / np.linalg.norm(q)}
+
+
 def felt(f, y, dt):
     """Her IMU over a drive pass `dt` into the law pass's means (`edge.GYRO`, `edge.ACCEL`)."""
     f['gyro'] += dt * y[edge.GYRO]

@@ -21,7 +21,7 @@ from rich.text import Text
 
 from coaxial.draw import gauges
 from coaxial.graphics import balloons, gynoid
-from machine import sight, sprung, tour
+from machine import errand, sight, sprung, tour
 from terminal.ui.stage import hud
 from terminal.ui.taskbar import HELP_S, slid
 from terminal.views import scanner, viewpoint
@@ -156,7 +156,7 @@ def offers(now, seen):
     """[(verb, word, at (x, y, z) or None, thing)] F offers now, each a thing she has identified
     (`seen`, `scanner.identified`'s), never one she has not: on a thing, its rise alone, at that
     thing (`_BEARS`) within REACH_M; on the floor alone, its rise at none - no thing, no balloon -;
-    on her feet, each thing with a verb - one she walks to (`tour.errands`) wherever it stands, one
+    on her feet, each thing with a verb - one she walks to (`errand.errands`) wherever it stands, one
     she does where she stands within REACH_M -, at its middle, the one she faces most nearly first,
     the nearer of two in line."""
     if not now:
@@ -170,7 +170,7 @@ def offers(now, seen):
                 for dist, kind, lo, hi in bearing[:1]]
     if floored:
         return [(floored, NAMED.get(floored, floored), None, 'her')]
-    walked = tour.errands()
+    walked = errand.errands()
     got = [(verb, word, _middle(lo, hi), '%s %.1fm' % (kind, dist), dist) for kind, dist, lo, hi in things
            for verb, word in (scanner.AFFORDANCES[kind],) if verb in walked or dist < REACH_M]
     return [offer[:4] for offer in sorted(got, key=lambda o: (_turn(now, o[2]), o[4]))][:len(DIGITS)]

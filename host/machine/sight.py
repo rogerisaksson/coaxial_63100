@@ -1,19 +1,21 @@
 """Her eyes and what she makes of them. A stereo pair on her head rendered from the world, the
-disparity by block matching, depth from it, the points into a map of the room she keeps, its
-things told apart by shape and colour, and her way planned round them (docs/findings/sight.md).
+disparity by block matching, depth from it, the points into the map she keeps of the room
+(`machine.voxels`) in her estimate's frame, its things boxes with their turn (docs/findings/sight.md).
 
     keep = Keep(world)                      # her eyes on a world and the map she keeps
-    keep.look(world, now)                   # one look into the map, LOOK_S apart at most
-    things = keep.map.things()              # [(kind, centre, half sizes, height, look)]
-    way = keep.map.plan(at, to)             # [(x, z)] round what she knows
+    keep.look(world, now, head)             # one look into the map from her head's pose, LOOK_S apart at most
+    things = told(keep)                     # [(kind, centre, half sizes, turn)] her registry's looks
+    way = plan(keep.map.blocked(), at, to)  # [(x, z)] round what she knows
     keep.hulls()                            # what the last look showed, hulled by thing
 
-Nothing here reads the world's geometry: the cameras' images and poses alone (`physics.SIGHT`).
+Nothing here reads the world's geometry: the cameras' images and her own pose alone (`physics.SIGHT`).
 """
 import heapq
 import math
 
 from machine.stereo import H, W, _np, disparity
+from machine.voxels import CELL_M, X_M, Z_M
+from machine import voxels
 
 #: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's,
 #: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
@@ -21,15 +23,10 @@ from machine.stereo import H, W, _np, disparity
 #: FOVY_DEG high, W x H pixels (`machine.stereo`).
 BASELINE_M, EYES, FOVY_DEG, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 15.0
 
-#: Her map: CELL_M squares over the room's floor (X_M, Z_M); a cell is a thing from TOLD looks
-#: with HITS points in it - one look's mismatches are not a thing -
-#: between FLOOR_M and CEIL_M high, NEAR_M to FAR_M from the eye - further the depth is a
-#: tenth out, nearer is her own raised hand -, hit more often than seen through under its
-#: top; her own radius, inflating what she plans round. What she has not seen is open: her way is planned
-#: through it and again as she sees (`barred`) - held shut, a target unseen had no way and
-#: every first word a look round first, 14 s on 23 steps. A look LOOK_S apart.
-CELL_M, X_M, Z_M = 0.1, (-3.5, 3.5), (-2.0, 5.0)
-HITS, TOLD, FLOOR_M, CEIL_M, NEAR_M, FAR_M, RADIUS_M, LOOK_S = 3, 2, 0.08, 2.3, 0.7, 3.5, 0.3, 0.5
+#: A look LOOK_S apart. What she has not seen is open: her way is planned through it and again as she
+#: sees - held shut, a target unseen had no way and every first word a look round first, 14 s on 23
+#: steps.
+LOOK_S = 0.5
 
 #: What the room's things are made to look like, for her eyes (`mjcf`): a kind's colour,
 #: speckled with a darker shade, the speckles a cube's on every face and one scale in space,
@@ -91,9 +88,25 @@ def focal():
     return (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
 
 
+#: The left eye's frame in the head's (`cameras`' xyaxes): x her left, y up and DOWN_DEG forward, z back.
+_EYE_R = ((-1.0, 0.0, 0.0), (0.0, math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG))),
+          (0.0, math.sin(math.radians(DOWN_DEG)), -math.cos(math.radians(DOWN_DEG))))
+
+
+def eye_pose(head):
+    """(the left eye's place, its rotation) in the frame her `head` {pos, quat} is given in."""
+    np = _np()
+    w, x, y, z = head['quat']
+    R = np.array([[1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - w * z), 2.0 * (x * z + w * y)],
+                  [2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z - w * x)],
+                  [2.0 * (x * z - w * y), 2.0 * (y * z + w * x), 1.0 - 2.0 * (x * x + y * y)]])
+    return np.asarray(head['pos'], float) + R @ np.array(EYES), R @ np.array(_EYE_R).T
+
+
 class Seen:
 
-    """One look: both eyes' images (H, W, 3) uint8 and the left eye's pose, world."""
+    """One look: both eyes' images (H, W, 3) uint8 and the left eye's pose - the renderer's, till
+    `Keep.look` lays hers."""
 
     def __init__(self, left, right, at, turn):
         self.left, self.right, self.at, self.turn = left, right, at, turn
@@ -150,199 +163,35 @@ def points(seen, disp, kept, every=2):
 
 class Look:
 
-    """What one look put into the map: the images and, of the points kept, their pixels and
-    cells."""
+    """What one look put into the map: the images and, of the points kept, their pixels and voxels."""
 
-    def __init__(self, seen, rows, cols, cells):
-        self.seen, self.rows, self.cols, self.cells = seen, rows, cols, cells
-
-
-class Map:
-
-    """What she knows of the room's floor: a cell's hits, looks through it, its highest point
-    and its colour."""
-
-    def __init__(self):
-        np = _np()
-        self.nx = int(round((X_M[1] - X_M[0]) / CELL_M))
-        self.nz = int(round((Z_M[1] - Z_M[0]) / CELL_M))
-        self.hits = np.zeros((self.nx, self.nz), dtype=np.int32)
-        self.told = np.zeros((self.nx, self.nz), dtype=np.int32)
-        self.free = np.zeros((self.nx, self.nz), dtype=np.int32)
-        self.high = np.zeros((self.nx, self.nz), dtype=np.float32)
-        self.colour = np.zeros((self.nx, self.nz, 3), dtype=np.float32)
-        self.looks, self._at, self._grown = 0, -1, None
-
-    def cell(self, x, z):
-        return (int(math.floor((x - X_M[0]) / CELL_M)), int(math.floor((z - Z_M[0]) / CELL_M)))
-
-    def centre(self, i, j):
-        return (X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M)
-
-    def add(self, seen):
-        """One look into the map: the points standing between FLOOR_M and CEIL_M, NEAR_M to
-        FAR_M from the eye; the cells seen through, free. The Look."""
-        np = _np()
-        disp, kept = disparity(seen.left, seen.right)
-        xyz, rgb, rows, cols = points(seen, disp, kept)
-        away = np.linalg.norm(xyz - seen.at, axis=1)
-        ok = (xyz[:, 1] > FLOOR_M) & (xyz[:, 1] < CEIL_M) & (away > NEAR_M) & (away < FAR_M)
-        xyz, rgb, rows, cols = xyz[ok], rgb[ok], rows[ok], cols[ok]
-        self._seen_through(seen.at, xyz)
-        i = np.floor((xyz[:, 0] - X_M[0]) / CELL_M).astype(int)
-        j = np.floor((xyz[:, 2] - Z_M[0]) / CELL_M).astype(int)
-        inside = (i >= 0) & (i < self.nx) & (j >= 0) & (j < self.nz)
-        i, j, y, rgb = i[inside], j[inside], xyz[inside, 1], rgb[inside]
-        np.add.at(self.hits, (i, j), 1)
-        self.told += np.bincount(i * self.nz + j, minlength=self.nx * self.nz).reshape(
-            self.nx, self.nz) >= HITS
-        # a cell as high as HITS of a look's points in it say, as many as tell it: by its
-        # highest point alone a wrong disparity stood a cell 1.9 m over the bed's 0.46
-        key = i * self.nz + j
-        order = np.lexsort((-y, key))
-        ks, ys = key[order], y[order]
-        first = np.flatnonzero(np.r_[True, ks[1:] != ks[:-1]])
-        at = first[np.diff(np.r_[first, len(ks)]) >= HITS] + HITS - 1
-        np.maximum.at(self.high.reshape(-1), ks[at], ys[at].astype(np.float32))
-        np.add.at(self.colour, (i, j), rgb)
-        self.looks += 1
-        return Look(seen, rows[inside], cols[inside], np.stack([i, j], axis=1))
-
-    def _seen_through(self, eye, xyz, step=0.08):
-        """The cells each ray crossed short of its point, a cell under what stood highest in
-        it, counted free: a ray over a table to the wall behind says nothing of the table."""
-        np = _np()
-        d = xyz[:, [0, 2]] - eye[[0, 2]]
-        far = np.linalg.norm(d, axis=1)
-        n = int(np.ceil(far.max() / step)) if len(far) else 0
-        if n == 0:
-            return
-        t = (np.arange(n) * step)[None, :]
-        on = t < (far[:, None] - CELL_M)
-        k = t / np.maximum(far[:, None], 1e-6)
-        i = np.floor((eye[0] + d[:, 0:1] * k - X_M[0])[on] / CELL_M).astype(int)
-        j = np.floor((eye[2] + d[:, 1:2] * k - Z_M[0])[on] / CELL_M).astype(int)
-        y = (eye[1] + (xyz[:, 1:2] - eye[1]) * k)[on]
-        inside = (i >= 0) & (i < self.nx) & (j >= 0) & (j < self.nz)
-        i, j, y = i[inside], j[inside], y[inside]
-        under = y < self.high[i, j] - CELL_M
-        self.free.flat[np.unique(i[under] * self.nz + j[under])] += 1
-
-    def occupied(self):
-        """The cells TOLD looks have shown a thing in, more than have seen through them."""
-        return (self.told >= TOLD) & (self.told > self.free)
-
-    def lumps(self):
-        """[cells] the occupied cells of one look joined four ways: a door's leaf is a lump
-        apart from the wall it stands in."""
-        np = _np()
-        occ = self.occupied()
-        means = np.array([_chroma(np.array(a)) for a, _b in LOOKS.values()])
-        mean = _chroma(self.colour / np.maximum(self.hits, 1)[:, :, None])
-        look = np.argmin(((mean[:, :, None, :] - means[None, None, :, :]) ** 2).sum(axis=3), axis=2)
-        seen = np.zeros_like(occ)
-        out = []
-        for i, j in zip(*np.nonzero(occ)):
-            if seen[i, j]:
-                continue
-            cells, todo = [], [(int(i), int(j))]
-            seen[i, j] = True
-            while todo:
-                a, b = todo.pop()
-                cells.append((a, b))
-                for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                    p, q = a + da, b + db
-                    if (0 <= p < self.nx and 0 <= q < self.nz and occ[p, q] and not seen[p, q]
-                            and look[p, q] == look[i, j]):
-                        seen[p, q] = True
-                        todo.append((p, q))
-            out.append(cells)
-        return out
-
-    def things(self, lumps=None):
-        """[(kind, (x, z), (half x, half z), height, look)]: each lump told by its size, its
-        height and its look."""
-        np = _np()
-        names = list(LOOKS)
-        means = np.array([_chroma(np.array(a)) for a, _b in LOOKS.values()])
-        out = []
-        for cells in self.lumps() if lumps is None else lumps:
-            ii = np.array([c[0] for c in cells])
-            jj = np.array([c[1] for c in cells])
-            lo, hi = self.centre(ii.min(), jj.min()), self.centre(ii.max(), jj.max())
-            half = ((hi[0] - lo[0] + CELL_M) / 2.0, (hi[1] - lo[1] + CELL_M) / 2.0)
-            colour = _chroma(self.colour[ii, jj].sum(axis=0) / max(1, int(self.hits[ii, jj].sum())))
-            look = names[int(np.argmin(((means - colour) ** 2).sum(axis=1)))]
-            height = float(np.percentile(self.high[ii, jj], 95))
-            out.append((classify(look, half, height), ((lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0),
-                        half, height, look))
-        return out
-
-    def blocked(self):
-        """The cells she may not stand in: the occupied ones but a door's, grown by her
-        radius; made once a look."""
-        if self._grown is not None and self._at == self.looks:
-            return self._grown
-        r = int(math.ceil(RADIUS_M / CELL_M))
-        occ = self.occupied().copy()
-        lumps = self.lumps()
-        for cells, thing in zip(lumps, self.things(lumps)):
-            if thing[0] == 'door':
-                for i, j in cells:
-                    occ[i, j] = False
-        grown = occ.copy()
-        for di in range(-r, r + 1):
-            for dj in range(-r, r + 1):
-                if di * di + dj * dj > r * r or (di == 0 and dj == 0):
-                    continue
-                src = occ[max(0, -di):self.nx - max(0, di), max(0, -dj):self.nz - max(0, dj)]
-                grown[max(0, di):self.nx - max(0, -di), max(0, dj):self.nz - max(0, -dj)] |= src
-        self._at, self._grown = self.looks, grown
-        return grown
-
-    def barred(self, points):
-        """Whether the line through `points` [(x, z), ..] crosses what she knows, her radius
-        round it."""
-        blocked = self.blocked()
-        for a, b in zip(points, points[1:]):
-            n = max(1, int(math.dist(a, b) / (CELL_M / 2.0)))
-            for k in range(n + 1):
-                i, j = self.cell(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
-                if 0 <= i < self.nx and 0 <= j < self.nz and blocked[i, j]:
-                    return True
-        return False
-
-    def plan(self, at, to):
-        """[(x, z)] from `at` to `to` round what she knows, the corners alone; `to` in a
-        thing's reach, the nearest cell out of it; [] with no way or `to` off the map."""
-        blocked = self.blocked()
-        start, goal = self.cell(*at), self.cell(*to)
-        if not all(0 <= c[0] < self.nx and 0 <= c[1] < self.nz for c in (start, goal)):
-            return []
-        if blocked[goal]:
-            goal = _nearest_free(blocked, goal)
-        if blocked[start]:
-            start = _nearest_free(blocked, start)
-        path = _astar(blocked, start, goal)
-        if not path:
-            return []
-        return [self.centre(*c) for c in _pruned(blocked, path)[1:]]
+    def __init__(self, seen, rows, cols, at):
+        self.seen, self.rows, self.cols, self.at = seen, rows, cols, at
 
 
 class Keep:
 
-    """Her eyes on a world and the map she keeps with them: `look` at most LOOK_S apart; the
-    last look kept for the page."""
+    """Her eyes on a world and the map she keeps with them (`voxels.Map` of LOOKS' colours): `look`
+    at most LOOK_S apart, from her head's pose; the last look kept for the page."""
 
     def __init__(self, world):
-        self.eyes, self.map, self.looked_at, self.last = Eyes(world), Map(), None, None
+        self.eyes, self.map, self.looked_at, self.last = Eyes(world), voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None, None
 
-    def look(self, world, now):
-        """One look into the map, if LOOK_S have passed since the last; the Look, or None."""
+    def forget(self):
+        """Her map laid anew, the last look let go: the room changed under her."""
+        self.map, self.looked_at, self.last = voxels.Map(self.map.means_of), None, None
+
+    def look(self, world, now, head):
+        """One look into the map from her `head` {pos, quat} as her estimate has it, if LOOK_S have
+        passed since the last; the Look, or None."""
         if self.looked_at is not None and now - self.looked_at < LOOK_S:
             return None
         self.looked_at = now
-        self.last = self.map.add(self.eyes.see(world))
+        seen = self.eyes.see(world)
+        seen.at, seen.turn = eye_pose(head)
+        disp, kept = disparity(seen.left, seen.right)
+        xyz, rgb, rows, cols = points(seen, disp, kept)
+        self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at))
         return self.last
 
     def view(self):
@@ -356,19 +205,18 @@ class Keep:
         left eye's image)], the things she has told from her map."""
         if self.last is None:
             return []
-        lumps = self.map.lumps()
-        of = {cell: k for k, cells in enumerate(lumps) for cell in cells}
-        kinds = [t[0] for t in self.map.things(lumps)]
+        things, labels = self.map.things()
+        on = self.last.at >= 0
+        which = labels.reshape(-1)[self.last.at[on]]
         by = {}
-        for row, col, (i, j) in zip(self.last.rows, self.last.cols, self.last.cells):
-            k = of.get((int(i), int(j)))
-            if k is not None:
-                by.setdefault(k, []).append((int(col), int(row)))
+        for row, col, k in zip(self.last.rows[on], self.last.cols[on], which):
+            if k >= 0:
+                by.setdefault(int(k), []).append((int(col), int(row)))
         out = []
         for k, pts in by.items():
             hull = convex(pts)
             if len(hull) >= 3:
-                out.append((kinds[k], INK.get(kinds[k], INK['thing']), hull))
+                out.append((things[k][0], INK.get(things[k][0], INK['thing']), hull))
         return out
 
 
@@ -398,29 +246,6 @@ def convex(pts):
             upper.pop()
         upper.append(p)
     return lower[:-1] + upper[:-1]
-
-
-def _chroma(rgb):
-    """A colour's chromaticity, its share of each of r, g, b."""
-    return rgb / _np().maximum(rgb.sum(axis=-1, keepdims=True), 1e-6)
-
-
-#: A lump's kinds by its length (its longer side, m), its height (m) and its look (None any), the
-#: first that holds: walls and doors stand over 1.8 m, a lamp is thin, a bed long and low, a table
-#: waist-high and long, a chair waist-high and short - a chair's lump 0.5 m, the table's top as seen
-#: from the room's middle 0.8 -; what no size tells, its look where it is a bed's or a lamp's.
-KINDS = (('door', (0.0, 1.2), (1.8, math.inf), 'door'), ('wall', (0.0, math.inf), (1.8, math.inf), None),
-         ('lamp', (0.0, 0.3), (1.2, math.inf), None), ('bed', (1.6, math.inf), (0.0, 0.7), None),
-         ('table', (0.65, math.inf), (0.6, 1.1), None), ('chair', (0.0, 0.65), (0.6, 1.1), None),
-         ('bed', (0.0, math.inf), (0.0, math.inf), 'bed'), ('lamp', (0.0, math.inf), (0.0, math.inf), 'lamp'),
-         ('thing', (0.0, math.inf), (0.0, math.inf), None))
-
-
-def classify(look, half, height):
-    """A lump's kind (KINDS): the first whose length, height and look hold."""
-    long = max(half) * 2.0
-    return next(kind for kind, (l0, l1), (h0, h1), seen in KINDS
-                if l0 <= long <= l1 and h0 <= height <= h1 and seen in (None, look))
 
 
 def _nearest_free(blocked, cell):
@@ -484,8 +309,19 @@ def _pruned(blocked, path):
 
 
 def told(keep):
-    """[(kind, centre, half sizes, rotation)] of what her map tells (`Map.things`) as `world.props()`
-    gives the room's boxes - upright, a thing's centre half its height up -: her registry's looks
-    (`machine.registry`) from her eyes."""
-    eye = _np().eye(3)
-    return [(k, (c[0], 0.5 * h, c[1]), (hx, 0.5 * h, hz), eye) for k, c, (hx, hz), h, _look in keep.map.things()]
+    """[(kind, centre, half sizes, turn, id, clear)] of what her map tells (`voxels.Map.things`) as
+    `world.props()` gives the room's boxes, each thing's id and whether the space over it is seen clear with
+    it: her registry's looks (`machine.registry`) from her eyes."""
+    return keep.map.things()[0]
+
+
+def plan(blocked, at, to):
+    """[(x, z)] from `at` to `to` round the cells `blocked` (`voxels.Map.blocked`), the corners alone;
+    either end in a thing's reach, the nearest cell out of it; [] with no way or an end off the map."""
+    np = _np()
+    cells = [(int(math.floor((p[0] - X_M[0]) / CELL_M)), int(math.floor((p[1] - Z_M[0]) / CELL_M))) for p in (at, to)]
+    if not all(0 <= c[0] < blocked.shape[0] and 0 <= c[1] < blocked.shape[1] for c in cells):
+        return []
+    start, goal = (c if not blocked[c] else _nearest_free(blocked, c) for c in cells)
+    path = _astar(blocked, start, goal)
+    return [(X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M) for i, j in _pruned(blocked, path)[1:]] if path else []

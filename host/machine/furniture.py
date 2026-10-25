@@ -1,61 +1,62 @@
 """The furniture her eyes tell her of: the thing a verb goes to nearest a place, its top and middle.
 
-Her stereo is taken as calibrated as made: a thing's class, centre and size as her looks tell them
-(`things.told`); till her looks feed this, the world's props stand for that answer, read as a
-look's would be (`_match`: a kind and its dimensions).
+Her things are her registry's boxes (`g['things']`, `machine.registry`: her eyes' under `physics.SIGHT`,
+the world's props standing in for them without), what each affords her the text's (`machine.affordance`):
+a chair a seat with a back, the nearest seat without one; a bed what she can lie on; the door its kind.
 """
 import math
 
+from machine import affordance
 
-def _match():
-    from machine import room
-    return {
-        'sit_chair': lambda k, py, sx, sz: (
-            k in ('chair', 'armchair', 'wood')
-            and abs(py - room.SEAT_H) < room.SEAT[0] and 0.5 * room.SEAT[0] <= sx <= sz <= 2.0 * room.SEAT[0]),
-        'lie_bed': lambda k, py, sx, _sz: k == 'bed' and py >= 0.5 * room.BED[1] and sx >= 0.5 * room.BED[0],
-        'exit_door': lambda k, _py, _sx, _sz: k == 'door',
-    }
+#: What `verb` goes to among her things: whether a box affords it, and whether it is the thing itself.
+GOES = {'sit_chair': (affordance.sits, affordance.backed),
+        'lie_bed': (affordance.lies, lambda _b, _t: True),
+        'exit_door': (lambda b, _t: b[0] == 'door', lambda _b, _t: True)}
 
 
-def _found(g, verb, at=None):
-    """(its distance from `at`, its edge's from her, the thing - kind, centre, half sizes, turn) of
-    what `verb` goes to nearest `at` (x, z) - her without one -; None with none seen."""
-    match = _match().get(verb, lambda *_a: False)
+def _found(g, verb, at=None, thing=None, things=None):
+    """(its distance from `at`, its edge's from her, the thing - kind, centre, half sizes, turn, slot) of
+    what `verb` goes to nearest `at` (x, z) - her without one - among `things` (hers, `g['things']`,
+    without), the thing itself before what else affords it; the thing of slot `thing` where she holds
+    one still (an errand's, chosen when it was seen whole); None with none seen."""
+    affords, itself = GOES.get(verb, (lambda _b, _t: False, lambda _b, _t: False))
     gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
     ax, az = at if at is not None else (gx, gz)
+    things = [p for p in (g['things'] if things is None else things)
+              if len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3]
+    held = [p for p in things if thing is not None and len(p) > 4 and p[4] == thing]
     hits = [
         (math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
-         max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))), p)
-        for p in g['world'].props()
-        if len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3
-        and match(p[0], float(p[1][1]), min(float(p[2][0]), float(p[2][2])), max(float(p[2][0]), float(p[2][2])))
+         max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))), p,
+         itself(p, things))
+        for p in (held or [p for p in things if affords(p, things)])
     ]
-    return min(hits, default=None, key=lambda h: h[:2])
+    return min(hits, default=None, key=lambda h: (not h[3], h[0], h[1]))
 
 
-def nearest(g, verb, at=None, where=(0.0, 0.0)):
-    """`(dist_edge, px, pz, top)` of the thing `verb` goes to nearest `at` (x, z) - her without one -:
-    its edge's distance from her, its centre, its top's height; `where` and no top with none seen."""
-    hit = _found(g, verb, at)
+def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
+    """`(dist_edge, px, pz, top, thing)` of the thing `verb` goes to nearest `at` (x, z) - her without one -
+    among `things` (hers without): its edge's distance from her, its centre, its top's height, its slot;
+    `where`, no top and no slot with none seen."""
+    hit = _found(g, verb, at, things=things)
     if hit is None:
-        return math.inf, where[0], where[1], None
+        return math.inf, where[0], where[1], None, None
     edge, p = hit[1], hit[2]
-    return edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1])
+    return edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None)
 
 
-def seen(g, stunt, at=None):
+def seen(g, stunt, at=None, thing=None):
     """(its top, the face she backs into behind her soles' middle along her way, its middle to her
     left of theirs, m; that face's turn off square to her way, rad; its depth across that face, m)
-    of the furniture stunt `stunt` is on nearest `at` (her without one) - a rise's that of the stunt
-    it rises from -; None where she sees none. The face is the side whose outward normal lies most
+    of the furniture stunt `stunt` is on nearest `at` (her without one), the thing of slot `thing`
+    where given - a rise's that of the stunt it rises from -; None where she sees none. The face is the side whose outward normal lies most
     along her way: read as the box's reach along her way, a bed turned 0.6 rad to her was its far
     corner, -0.45 m where its long side lay 0.15 m behind her. Her soles about her root as her
     estimate has them, her root where `_found` reads her: a look is taken from her, her odometry's
     drift none of it - an errand drifted her estimate 3 cm, the seat seen 2.2 cm deep of where it
     stood, a thigh met its edge and she fell."""
     from machine import edge, maneuver, modal
-    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at)
+    hit = _found(g, maneuver.PLAYED.get(stunt, (None, None))[1] or stunt, at, thing)
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]

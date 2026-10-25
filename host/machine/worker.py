@@ -168,10 +168,10 @@ def heard_say(g, gym, entry):
 
 
 def _apply_say(g, gym, by, command, errand_step):
-    from machine import maneuver, se2, tour
+    from machine import errand, maneuver, se2
     sc = command['say']
     sc_str = sprung.ALIASES.get(str(sc), str(sc))
-    if not errand_step and tour.start_errand(g, gym, sc_str, heard, heard_say, command.get('at')):
+    if not errand_step and errand.start_errand(g, gym, sc_str, heard, heard_say, command.get('at')):
         return
     is_idx = (isinstance(sc, int) or (isinstance(sc, str) and sc.isdigit())) and 0 <= int(sc) < len(gym)
     entry = gym[int(sc)] if is_idx else by.get(sc_str)
@@ -343,8 +343,8 @@ def stepped(s):
         return laid(s)
     try:
         if s['fallen_at'] is None:
-            from machine import tour
-            tour.step_errand(g, s['gym'], heard, heard_say)
+            from machine import errand
+            errand.step_errand(g, s['gym'], heard, heard_say)
             sprung.passed(g, DT)
             ys, taus = s['ys'], s['taus']
             ys.append(g['sense'].copy())

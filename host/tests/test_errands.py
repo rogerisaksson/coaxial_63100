@@ -241,8 +241,8 @@ def test_viewport_f_errands_chair_bed_and_door(report):
 
 
 def test_the_errand_goes_to_the_thing_told(report):
-    """Two chairs, the scene's ahead and the lodge's aside: told to sit she walks to the nearer one,
-    told to sit at the lodge's (`at`, its balloon's) to that one."""
+    """Two chairs, the scene's ahead and the lodge's aside: told to sit she looks (her registry's three
+    sightings) and walks to the nearer one, told to sit at the lodge's (`at`, its balloon's) to that one."""
     from machine import physics, room, worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     docks = []
@@ -250,6 +250,8 @@ def test_the_errand_goes_to_the_thing_told(report):
         s = worker.session()
         worker.apply(s, {'scenario': 'chair'})
         worker.apply(s, told)
+        while (s['g'].get('_errand') or {}).get('phase') == 'look' and s['g']['t'] < 1.0:
+            worker.stepped(s)
         er = s['g'].get('_errand') or {}
         docks.append(tuple(round(er.get(k, math.nan), 6) for k in ('x_dock', 'z_dock')))
     report.check("told to sit, the chair ahead's edge; told the lodge's, the lodge's",
@@ -276,6 +278,7 @@ def test_multi_pose_bed_settle_and_randomized_scenarios(report):
         er = dict(g['_errand'])
         while g['t'] < 40.0 and s['fallen_at'] is None and g.get('_errand'):
             worker.stepped(s)
+            er = dict(g['_errand']) if g.get('_errand') else er
         docked_t, dx, dz = g['t'], float(d.qpos[0]) - er['x_dock'], float(d.qpos[2]) - er['z_dock']
         s_par, s_perp = dx * er['nx'] + dz * er['nz'], dx * er['tx'] + dz * er['tz']
         yaw_off = se2.wrap_angle(er['hdd'] - se2.wrap_angle(edge.yaw(g['sense'])))

@@ -111,19 +111,23 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    route's metric, a gap under her contorted width marked impassable, the
    crural foothold guard over swing 0.05-0.38. DOD: no oscillation before a
    doorway; a foot placed off a chair's crossbar.
-8. **Step 6, her map's rest**: her right-invariant EKF (`machine.inekf`)
-    and her registry (`machine.registry`: 45 of the lodge's 53 boxes after
-    her bed errand, blind spots kept 45 s); her eyes' things are its looks
-    under `physics.SIGHT` (`sight.told`, `sprung.LOOKS`): 65 things told made
-    96 slots where the stand-in's boxes made 33 - her map's own lumps told
-    by colour, 13 'chair' up to 2.15 m from it, not the gate (sight
-    findings). Left: her map's lumps told as the room's things
-    (`sight.classify`, `Map.things`: one lump a thing), the three SDF bands
-    at her knee, navel and crown, the kernel's affordances and funnels on it,
-    the mover's wake to the wayfinder; the EKF's adjoint's rotation block
-    (`inekf`, ad[0:3, 0:3]) left 0 where R goes, found compiling it, fixed
-    with that compile. DOD: her eyes' map as the stand-in's; the funnels'
-    sit and lie chosen from it.
+8. **Step 6, her map's rest**: her map in voxels in her estimate's frame
+    (`machine.voxels`), its surfaces and structures boxes with their turn and
+    an id look to look, her registry on them (`machine.registry`), what each
+    affords her the text's (`machine.affordance`), her route and her errands
+    on her things in both modes (sight findings, `tools/sim/eyes.py`): posed,
+    every prop in reach told, 0.09 m off, the chair a seat with a back, the
+    table a seat, the bed a bed. Left: her estimate rises 5-8 mm/s stepping
+    in place (`inekf`, `estimate`) and the map smears a voxel in 12-20 s - a
+    turn in place 185 things where 87 posed, her sit on her eyes' seat never
+    staged: her chair's things grown meet the table's, `route.staged` returns
+    its most inside them and she walks between free corners;
+    the dock from the thing's own faces (`route.docks` docks a chair facing
+    -z, a bed +x: the room's), a backless seat approached from a free face;
+    the switch (white, no hue) its wall's; the three SDF bands at her knee,
+    navel and crown, the kernel's funnels on her things, the mover's wake to
+    the wayfinder. DOD: her sit and lie on her eyes' things, as on the
+    stand-in's.
 9. **Step 7, the lowering and the tuner**: `machine.lowering` folds a
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a
     bank carried over her link's table. Left: her loop's channels through a
