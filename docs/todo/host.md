@@ -5,9 +5,6 @@
   there, so a hand core handing it such a view parts from numpy in the last
   bits (wbc_step.c, wbc_rounds.c). The tracer copies as numpy does. DOD:
   wbc_matmul copies as numpy, held by a test on such views.
-- **Traced has no `__eq__`**: `traced == 0.0` compares identity in a trace and
-  yields a Python bool; np.equal traces. DOD: == and != on a Traced as
-  np.equal and np.not_equal, held in test_compiled.
 - **Her loop's Python round MuJoCo** (asked): profiled walking and cut,
   each step bit for bit ([pace](../findings/pace.md)). Left, the largest
   first: `bodied`'s glue round her nine compiled parts (sixteen arrays fresh

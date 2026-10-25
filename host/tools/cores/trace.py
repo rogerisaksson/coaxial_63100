@@ -251,6 +251,8 @@ class Traced:
     __truediv__, __rtruediv__ = _binary(np.divide)
     __gt__, __lt__ = _binary(np.greater)[0], _binary(np.less)[0]
     __ge__, __le__ = _binary(np.greater_equal)[0], _binary(np.less_equal)[0]
+    __eq__, __ne__ = _binary(np.equal)[0], _binary(np.not_equal)[0]
+    __hash__ = object.__hash__
     __and__, __or__ = _binary(np.logical_and)[0], _binary(np.logical_or)[0]
     __iadd__, __isub__ = _inplace(np.add), _inplace(np.subtract)
     __imul__, __itruediv__ = _inplace(np.multiply), _inplace(np.divide)

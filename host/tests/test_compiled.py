@@ -248,6 +248,11 @@ PHI = np.random.default_rng(23).normal(size=(5, 5))
 GRAM = PHI @ PHI.T + np.eye(5)
 
 
+def _equals(x, y):
+    """== and != of her arrays and of a float: where they tie, the zeros' signs and nan apart."""
+    return np.where(x == y, x, y), (x != 0.0) * 1.0, (y == y) * 1.0
+
+
 def _truths(x, y, m):
     """any and all, as methods and numpy's, of floats and bools: along an axis, whole, kept."""
     return ((x > 0.5).any(axis=1), np.all(y < 1.0, axis=0), x.any(), np.any(m > 0.0, axis=(0, 2)),
@@ -293,6 +298,7 @@ def _laid(x):
 
 #: The tracer's numpy, a function each: (what it is, it, its arguments of a generator - every one traced).
 RULES = (('any and all', _truths, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)), r.normal(size=(2, 3, 5)))),
+         ('== and !=', _equals, lambda r: (np.array([0.0, -0.0, 1.0, np.nan, 2.0]), np.array([-0.0, 0.0, 1.0, np.nan, 3.0]))),
          ('astype', _cast, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)))),
          ("linalg's solve and inv", _solved, lambda r: (r.normal(size=(5, 5)), r.normal(size=5), r.normal(size=(5, 3)))),
          ('diag, repeat and roll', _gathers, lambda r: (r.normal(size=(4, 9)), r.normal(size=5))),
