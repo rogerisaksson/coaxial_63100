@@ -51,13 +51,18 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    springs back with it, her neck braced seated, the slide's governor
    capping a sliding contact alone: the chair laid 2e-4 rad either way sat
    and risen (roll 12-18 deg, one sole through the lean), the dock and the
-   chair errand stood. Left: her chair's sit lands on its front edge
-   (`seated.landed`'s buttock cap and thigh clearance let go she sits 0.29
-   legs back and upright as a human, and at -2e-4 her soles leave the floor
-   and she rolls off the seat: the kernel seats her with her hands, and on
-   the lodge's chair her fists hang 0.27 m from her centre line, 5 cm
-   outside the 0.22 m half-wide seat - a wider seat, or her hands on her
-   thighs; seat findings), the handover wanting her hips asked up off the
+   chair errand stood. Left: her chair's sit lands on its front edge; deep
+   (`seated.landed`'s buttock cap and thigh clearance let go, 0.29 legs,
+   upright as a human) it is a perch (seat findings): the seat 5 cm over her
+   knees, her ischia hover 2 mm and her thighs bear on the edge 0.10 m from
+   her hips, and at -2e-4 one thigh bears, her soles unload and she rolls
+   off her pelvis's one point, the step standing on soles in the air. Her
+   fists reach no seat under 0.56 m wide; asked deeper from rest she moves
+   17 mm (a sole held whole, the regime needing slip, the seat's grip the
+   floor's). The kernel's over-knee seat: the thighs' perch, her knees
+   raised - the heels up or the legs let go, their seated posture their own,
+   the soles' weight gone first (item 4) - till the ischia bear, the slide's
+   stop on their CoP; the handover wanting her hips asked up off the
    seat as the pan goes rather than the seat's force capped under what it
    gives (the pass taken apart, the points' rows 13 900), the ingress
    deeper after the crossfade needing her feet along (item 4's equinus or

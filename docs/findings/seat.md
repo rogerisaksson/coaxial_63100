@@ -34,6 +34,42 @@ centre line - the shoulders' 0.148 and the forearms' carry - where the
 lodge's seat is 0.22 m half-wide, 5 cm outside it and 1.5 cm under its top,
 touching nothing; her shoulder is one hinge, no adduction draws them in. A
 seat 0.5 m wide (a chair's), or her hands on her thighs for the rise alone.
+Her shoulders and elbows swept through the sit (100 deg back to 100 forward,
+the elbow 0-130): no pose puts a fist on the 0.44 m seat. Nearest, the
+shoulder 20 deg back and the elbow 50, a fist is 0.242 m out and 6 mm over
+the top, 5 cm past where a fist lands (0.19); straight-armed 0.27. Bent 90
+the carrying angle is gone and the fist 0.18 out, but 0.41 m under the
+shoulder where the seat's top is 0.46-0.55 under it. A seat 0.56 m wide takes
+her fists straight-armed.
+
+The deep landing measured (the scene's chair top 0.45 m, the lodge's 0.47):
+her hips land 0.075 m over the top and 0.10 m past the front edge, her ischia
+(SEAT_R under SEAT_Y, 0.073 under her hip joints) 2 mm over the seat, and her
+thighs - their underside 0.050 under the hip at the root, her knees 0.10
+under her hips, the seat 5 cm over her popliteal 0.397 m - bear on the front
+edge: a perch on a line. Square and at +2e-4 both thighs bear and she sits,
+the seat 0.55-0.63 of her and her soles 0.4; at -2e-4 one thigh bears from
+2.5 s (roll 0.2 deg), her soles unload as her trunk straightens (0/0 N at 3.3
+s), her pelvis pitches back 8 deg and lifts the thighs off the edge, she sits
+on her pelvis's one point with her soles in the air and the step standing on
+them, and rolls off at 4.1-4.3 s. Her ischia and her thighs bear together
+only where the thigh's slope times its reach to the edge is their 0.023 m:
+her feet planted, one depth (0.09 m past the edge); deeper her knees must
+rise, the heels up or the feet off the floor - the kernel's over-knee seat
+(`specialize-for-overheight-seat`: the thighs' bevel perch to 0.65 of her,
+the slide back till the ischia centre, the excess onto the forefeet; item 4's
+feet let go). Asked 0.15 m deeper over 1.2 s she moves 17 mm, her soles'
+centre of pressure put on the ball (the ask's `edge` 1) or not: a standing
+sole is held whole and its edge moves no heel; the regime frees a contact
+past 0.15 m/s of slip, which a seated thigh never reaches; the seat's
+friction being the floor's, her feet push the thigh's contact along only
+under half her weight on the seat. Her legs let go seated (the stance flags
+off): the posture's hips are -50 deg where she sits at -75
+(`mode_axial_compression` bends the hip half the knee); let go she extends
+them, her thighs leave the edge and she sits on her pelvis's point rolled 7
+deg till the rise fells her; flexed 30 deg more, her feet planted, she pushes
+herself off the seat. The dangle wants the legs' seated posture its own and
+the soles' weight gone first.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
