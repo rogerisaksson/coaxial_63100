@@ -94,11 +94,12 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   (`xi = c + v / omega`), and named physical dimensions (`figure`, `stride`,
   `poise`, `modal`, `se2`, `room`), dispatched via flat declarative tables.
   English throughout: docs, code, comments.
-- **Local first.** Scripts, lint, suites on this host before agents or
-  workflows, ultracode or not; agents only for what cannot run here. Two
-  swarms burned tokens and ran slower than local work. An agent writes in
-  a worktree and branch of its own (`isolation: worktree`), never in the
-  shared tree: a suite run there met another's half-done refactor.
+- **Local first, no subagents.** Scripts, lint, suites on this host; no
+  agent or workflow unless the user asks for one in that message, ultracode
+  no ask. Swarms burned tokens, ran slower than local work and starved the
+  other sessions' suites. An agent asked for writes in a worktree and branch
+  of its own (`isolation: worktree`), never in the shared tree: a suite run
+  there met another's half-done refactor.
 - **The relay maxes the host.** Suites only through the baton relay
   (`tools/dev/focus.py`: a baton a physical core, the longest first, the
   long ones as shards): `python tools/dev/run_tests.py --file test_a.py
