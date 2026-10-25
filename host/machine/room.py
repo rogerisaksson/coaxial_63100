@@ -178,22 +178,38 @@ KINDS = {'timber': 'timber', 'mullion': 'timber', 'pane': 'glass', 'lintel': 'gl
 
 def props(world):
     """The lodge's boxes for the page: [(kind, centre, half sizes, turn 3x3)], the door where it
-    swings, the lamp 'lit' while it is on."""
-    m, d = world.model, world.data
-    geoms = getattr(world, '_room_geoms', None)
-    if geoms is None:
-        geoms = world._room_geoms = [(g, KINDS.get(m.geom(g).name.split('_')[0])) for g in range(m.ngeom)]
-        geoms = world._room_geoms = [(g, kind) for g, kind in geoms
-                                     if kind is not None and m.body_mocapid[m.geom_bodyid[g]] < 0]
-    out, lit = [], getattr(world, 'lamp', False)
-    for g, kind in geoms:
-        if d.geom_xpos[g][1] < -0.5:
-            continue
-        if kind == 'lamp' and lit:
-            kind = 'lit'
-        out.append((kind, tuple(d.geom_xpos[g]), tuple(m.geom_size[g]),
-                    tuple(map(tuple, d.geom_xmat[g].reshape(3, 3)))))
+    swings, the lamp 'lit' while it is on; a still box laid once (`_laid_props`)."""
+    d, lit = world.data, getattr(world, 'lamp', False)
+    out = []
+    for g, kind, box in _laid_props(world):
+        box = box or _box_of(world.model, d, g)
+        if box:
+            out.append(('lit' if kind == 'lamp' and lit else kind,) + box)
     return out
+
+
+def _laid_props(world):
+    """(geom, kind, its box if it is still) of each lodge geom the page draws, in the model's order:
+    a box welded to the world laid once off the model's own kinematics, the door's read each call."""
+    laid = getattr(world, '_room_props', None)
+    if laid is None:
+        m, mj = world.model, world._mj
+        still = mj.MjData(m)
+        mj.mj_kinematics(m, still)
+        laid = world._room_props = []
+        for g in range(m.ngeom):
+            kind, body = KINDS.get(m.geom(g).name.split('_')[0]), m.geom_bodyid[g]
+            box = _box_of(m, still, g) if m.body_weldid[body] == 0 else None
+            if kind is not None and m.body_mocapid[body] < 0 and (box or m.body_weldid[body] != 0):
+                laid.append((g, kind, box))
+    return laid
+
+
+def _box_of(m, d, g):
+    """(centre, half sizes, turn 3x3) of geom `g` posed on `d`, None below the page's floor."""
+    if d.geom_xpos[g][1] < -0.5:
+        return None
+    return tuple(d.geom_xpos[g]), tuple(m.geom_size[g]), tuple(map(tuple, d.geom_xmat[g].reshape(3, 3)))
 
 
 def touched(world, dt):

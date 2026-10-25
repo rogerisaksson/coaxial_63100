@@ -125,3 +125,7 @@ machine ([body](body.md), [emulation](emulation.md),
 - CPython 3.14's experimental JIT (`PYTHON_JIT=1`, in this host's 3.14.7): her
   loop 307 -> 319 us a pass, 4 % slower over three runs each interleaved; it
   stays off.
+- The lodge's still boxes laid once off the model's own kinematics
+  (`room.props`, `_laid_props`: a box welded to the world, the door read each
+  call): 269 -> 25 us a call, identical at each of 1 556 calls of the page's
+  worker walking; her map refreshes about 120 times a second on the page.
