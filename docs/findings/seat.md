@@ -95,6 +95,24 @@ squatted 0.28 m up with her hips 0.12 m behind her ankles on both soles, 0 of
 deep sit is a tip onto a seat she knows is there, which her law has yet to
 have.
 
+Her legs let go instead (branch `deep-sit-letgo`): the deep landing, the
+sit's rest telling her soles nothing, her soles standing no more while a seat
+bears all of her, each leg's hip sprung where it was let go and its knee and
+ankle undriven, the patch's pin held only while a sole stands (pinned as
+felt, alone on the seat the split ran away, 128/74/64 N to 697 on her pelvis
+in 0.4 s; free, square she sat 6.75 s). So she sits deep at every wobble -
+0.29 legs, upright - but on her pelvis alone, rolled 4-8 deg, her thighs
+barely bearing (a hip sprung to her crouch's 50 deg where she sat at 78
+lifted them; floating, her trunk drifted 3 -> 26 deg forward in 4 s; sprung
+a degree off, they left the edge), her support's box a point under her
+pelvis drawing her centre of mass to it; and the rise from it falls 2-3 of 3
+as her soles stand again (the seat struck at 1.3-1.4 of her weight, the
+soles planned 127/0 then 34/225 N a pass apart). Her support's box spanning
+the bearing skin's capsules (the thigh's reaching 0.36 m ahead, into the
+air) flung her onto the chair's back at 3.6 s. The deep sit wants her
+thighs' bearing kept through the let-go and the soles' return eased, both
+to measure before anything lands.
+
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
 of 3 - the bed soft, rigid, raised to the chair's 0.47 m - where the chair's

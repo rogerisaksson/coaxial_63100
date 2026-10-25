@@ -70,7 +70,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    its heel's edge a contact of her patch set, its line held and its pitch
    free, its stance let go, the leg on its posture (item 4's equinus the
    same on its ball), with the kernel's capture step for the seat pulled
-   away (item 12); the handover wanting her hips asked up
+   away (item 12). Her legs let go seated instead (branch `deep-sit-letgo`,
+   seat findings): she sits deep at every wobble, 0.29 legs and upright, on
+   her pelvis alone rolled 4-8 deg, and the rise from it falls as her soles
+   stand again - her thighs' bearing to keep through the let-go, the soles'
+   return to ease, before anything of it lands; the handover wanting her
+   hips asked up
    off the seat as the pan goes rather than the seat's force capped under
    what it gives (the pass taken apart, the points' rows 13 900), the ingress
    deeper after the crossfade needing her feet along (item 4's equinus or
