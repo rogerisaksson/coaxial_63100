@@ -17,12 +17,11 @@ import math
 import os
 from typing import Any
 
-from machine import dclink, drives, gearbox, heat, linkage, room
+from machine import dclink, drives, floor, gearbox, heat, linkage, room
 from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
 from machine.errors import MachineError
-from machine import floor
 from machine.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf
 from machine.servos import CLAMPED, SERVO
 from machine.figure import JOINTS
@@ -204,6 +203,7 @@ class World:
         self._drawn = lib.wbh_pass_drawn
         self._drawn_of = (p.loss, cores.pointer(self.driven, np.bool_), cores.pointer(self.testing),
                           cores.pointer(self.ohm))
+        self.linked = dclink.compiled()
         return p
 
     def wire(self, limbs):
@@ -346,7 +346,7 @@ class World:
             if BOXED:
                 self.boxes.moved(d.qpos[self.qadr])
             self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if BOXED else None, STEP_S)
-            dclink.step(self, STEP_S)
+            dclink.stepped(self, STEP_S)
             if self.laced:
                 self._unlace()
             if ROOM:

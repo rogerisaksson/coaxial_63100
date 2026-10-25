@@ -1,7 +1,8 @@
 """Her DC link: her packs and her boards' capacitance under her drives' power, bled by her boards.
 
     link = dclink.laid()                       # at her packs' open-circuit volts (`drives.PACK_V`)
-    dclink.step(world, dt)                     # her drives' torques and speeds a step on: world.link['v']
+    dclink.step(link, tau, qvel, vadr, dt)     # her drives' torques at their speeds a step on: link['v']
+    dclink.stepped(world, dt)                  # the world's, its step `compiled`; her boards' buses driven
 
 Each step her drives' electrical power - the work they do, braking negative, their copper, each
 board's housekeeping and switching - is drawn from her packs through their resistance; what comes
@@ -31,31 +32,42 @@ SINKS = [j for j in DRIVEN if drives.kind(j) in {k for node in _SHUNT['priority-
 
 
 def laid():
-    """The link at rest at her packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)}."""
+    """The link at rest at her packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)}, each
+    written in place - v, peak and bled 0-d."""
     import numpy as np
     driven = np.array([not drives.passive(j) for j in JOINTS])
     kt = np.array([drives.kt(j) if d else 1.0 for j, d in zip(JOINTS, driven)])
     ohm = np.array([drives.motors(j) * drives.r_ohm(j) if d else 0.0 for j, d in zip(JOINTS, driven)])
-    return {'v': drives.PACK_V, 'peak': drives.PACK_V, 'bled': 0.0, 'id': np.zeros(len(JOINTS)), 'kt': kt, 'ohm': ohm,
+    return {'v': np.array(drives.PACK_V, float), 'peak': np.array(drives.PACK_V, float), 'bled': np.zeros(()),
+            'id': np.zeros(len(JOINTS)), 'kt': kt, 'ohm': ohm,
             'amps': np.array([drives.peak(j) / drives.kt(j) if d else 0.0 for j, d in zip(JOINTS, driven)]),
             'loss': ohm / (kt * kt), 'house_w': len(DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)}
 
 
-def step(world, dt):
-    """`world`'s link `dt` s on under her drives' torques and speeds; her boards' current loops on
-    their buses driven from it (their back-EMF's headroom, `buses`)."""
+def compiled():
+    """`step` compiled on her arrays (`tools.cores.bodied`), its `vadr` and `dt` constants: a world's own."""
+    from tools.cores import bodied
+    return bodied.on_args(step, 'dclink', (0, 1, 2))
+
+
+def step(link, tau, qvel, vadr, dt):
+    """`link` `dt` s on under her drives' torques `tau` at their speeds `qvel[vadr]`."""
     import numpy as np
-    link, tau, speed = world.link, world.motor, world.data.qvel[world.vadr]
-    v = link['v']
+    speed, v = qvel[vadr], link['v'][()]
     spare = np.sqrt(np.maximum(link['amps'] ** 2 - (tau / link['kt']) ** 2, 0.0))
-    link['id'] = spare * np.clip((v - ONSET_V) / (CLAMP_V - ONSET_V), 0.0, 1.0)
-    bleed = float(link['ohm'] @ (link['id'] * link['id']))
-    load = (float(tau @ speed) + float(link['loss'] @ (tau * tau)) + bleed + link['house_w']) / v
+    np.multiply(spare, np.clip((v - ONSET_V) / (CLAMP_V - ONSET_V), 0.0, 1.0), out=link['id'])
+    bleed = link['ohm'] @ (link['id'] * link['id'])
+    load = (tau @ speed + link['loss'] @ (tau * tau) + bleed + link['house_w']) / v
     linear = (LINK_F * v / dt + drives.PACK_V / PACK_OHM - load) / (LINK_F / dt + 1.0 / PACK_OHM)
     limited = v + dt / LINK_F * (-CHARGE_A - load)
-    link['v'] = max(linear, limited)
-    link['peak'] = max(link['peak'], link['v'])
+    np.maximum(linear, limited, out=link['v'])
+    np.maximum(link['peak'], link['v'], out=link['peak'])
     link['bled'] += bleed * dt
+
+
+def stepped(world, dt):
+    """`world`'s link `dt` s on under her drives' torques and speeds (`world.linked`, `compiled`); her
+    boards' current loops on their buses driven from it (their back-EMF's headroom, `buses`)."""
+    world.linked(world.link, world.motor, world.data.qvel, world.vadr, dt)
     if world.buses is not None:
-        world.block.volts[0] = link['v'] / math.sqrt(3.0)
-    return link
+        world.block.volts[0] = world.link['v'] / math.sqrt(3.0)

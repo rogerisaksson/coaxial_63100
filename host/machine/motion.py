@@ -185,8 +185,8 @@ def control(g, dt):
     told = out[latent.MANIFOLDED].copy()
     out[latent.MANIFOLDED] = observer.weighed(g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
-    unfelt = float(out[latent.MANIFOLDED][0] - observer.said(told)[0])
-    field.step(g['field'], g['tab'], y, float(told[1:].sum()), float(g['st'][latent.TO][latent.Z][modal.AXIAL]), g['t'], dt * ev, out)
+    unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[1:].sum())
+    g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
     touch.step(g, out, dt * ev)
@@ -299,7 +299,8 @@ def laid(g):
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses, her invariant EKF and her barrier (a ring's length a part) compiled from their numpy (`tools.cores.bodied`)."""
+    situation, her drive's cap, her ask's poses, her invariant EKF, her barrier (a ring's length a part) and her
+    field's seek compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -314,6 +315,7 @@ def laid(g):
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
+    g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))
     k, ask = c_motion.laid()
     g['impedance'] = functools.partial(c_motion.asked, k, ask)
     g['surety_field'] = c_surety.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'])

@@ -9,7 +9,12 @@ loops' own law (`buses`): motoring the back-EMF takes from the supply, braking i
 whoever asks: her law's its clamp or its war emergency power's (`shrunk.box`), none past the
 volts' own. A pair of drives on one joint is taken as one, its torque and back-EMF the joint's.
 """
+import os
 from typing import Any
+
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+
+import numpy as np
 
 from machine import drives, kernel
 from machine.figure import JOINTS
@@ -17,9 +22,9 @@ from machine.figure import JOINTS
 #: Her driven joints, her law's order.
 DRIVEN = tuple(j for j in JOINTS if drives.passive(j) is None)
 #: Each one's torque a volt (N m/V), back-EMF a rad/s (V s), peak (N m).
-K = tuple(drives.kt(j) / drives.of(j)[1].r for j in DRIVEN)
-E = tuple(drives.emf(j) for j in DRIVEN)
-PEAK = tuple(drives.peak(j) for j in DRIVEN)
+K = np.array([drives.kt(j) / drives.of(j)[1].r for j in DRIVEN], float)
+E = np.array([drives.emf(j) for j in DRIVEN], float)
+PEAK = np.array([drives.peak(j) for j in DRIVEN], float)
 #: The share of her link's volts a phase reaches.
 REACH = kernel.node('update-asymmetric-bemf-bounds', 'bemf-envelope')['svpwm-modulation-limit']
 
@@ -27,9 +32,8 @@ REACH = kernel.node('update-asymmetric-bemf-bounds', 'bemf-envelope')['svpwm-mod
 def bounds(dq, volts, peak: Any = float('inf')):
     """(lo, hi) each driven joint's torque bounds, N m, at its speed `dq` (rad/s) on `volts`, within
     `peak` (N m, each or all)."""
-    import numpy as np
-    k, e, peak = np.asarray(K, float), np.asarray(E, float), np.asarray(peak, float)
-    v, back = REACH * volts, e * np.asarray(dq, float)
-    return (np.maximum(-peak, np.minimum(0.0, k * (-v - back))),
-            np.minimum(peak, np.maximum(0.0, k * (v - back))))
+    peak = np.asarray(peak, float)
+    v, back = REACH * volts, E * np.asarray(dq, float)
+    return (np.maximum(-peak, np.minimum(0.0, K * (-v - back))),
+            np.minimum(peak, np.maximum(0.0, K * (v - back))))
 

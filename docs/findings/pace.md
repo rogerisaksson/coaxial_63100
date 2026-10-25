@@ -152,3 +152,9 @@ machine ([body](body.md), [emulation](emulation.md),
   her loop 681 -> 648 us a pass, 1.48 -> 1.54 of real time. Her run the same
   at each law pass of the chair's sit and rise, the bed, the hop down and the
   played walk.
+- Her DC link's step compiled from its numpy at every world step
+  (`dclink.compiled`, `stepped`), her field's seek (`field.seek`, its table's
+  scan `due` apart) and bemf's constants laid as arrays: her loop 701 -> 671
+  us a pass, 1.44 -> 1.49 of real time, two trees interleaved. Her run the
+  same at each law pass of the chair, the bed, the hop down and the walk; her
+  walk's smoke the same to the digit.

@@ -1,7 +1,8 @@
 """Her pelvis's blind seek: where her rows wait on a seat not bearing her, her height seeks it.
 
     f = field.laid()
-    field.step(f, tab, y, lean, t, dt, out)   # out's axial and sagittal references offset, their rates
+    field.step(f, tab, y, lean, goal, t, dt, out)                  # out's axial and sagittal references offset, their rates
+    field.seek(f, field.due(tab, t, dt), y, lean, goal, dt, out)   # the same, her table scanned apart
 
 The kernel's `project-blind-admittance-field` (its blind settle's): while a seat's contact rows
 (`ortho.CONTACT`) are due and the seat bears less of her than her support counts it from
@@ -50,20 +51,28 @@ def laid():
     return {'offset': np.zeros(2), 'rate': np.zeros(2)}
 
 
-def step(f, tab, y, lean, goal, t, dt, out):
-    """The field `dt` s on at `t` on her table `tab` and modal's `y`, her rows leaning `lean` (their
-    told share off her soles), their axial's `goal`: `out`'s axial and sagittal references and
-    rates offset."""
+def due(tab, t, dt):
+    """1.0 where a seat's contact rows on her table `tab` are due within a pass `dt` of `t`, else 0.0."""
     at = tab[:, latent.AT]
-    due = (tab[:, latent.CONTACT] > 0.5) & (at <= t + dt + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
-    landed = float(abs(goal - out[latent.REF][modal.AXIAL]) <= SEEK[0] * dt)
-    waiting = landed * float(np.any(due) and y[modal.PROP] < impedance.PROP_ON)
+    return float(((tab[:, latent.CONTACT] > 0.5) & (at <= t + dt + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)).any())
+
+
+def seek(f, due, y, lean, goal, dt, out):
+    """The field `dt` s on, `due` a seat's rows' (`field.due`), modal's `y`, her rows leaning `lean` (their
+    told share off her soles), their axial's `goal`: `out`'s axial and sagittal references and rates offset."""
+    landed = abs(goal - out[latent.REF][modal.AXIAL]) <= SEEK[0] * dt
+    waiting = landed * (due * (y[modal.PROP] < impedance.PROP_ON))
     asked = out[latent.RATE][MODES]
     want = waiting * np.sign(SEEK) * np.maximum(np.abs(SEEK) - np.sign(SEEK) * asked, 0.0)
     f['rate'] += min(1.0, RATE * dt) * (want - f['rate'])
-    held = min(1.0, lean / observer.ENGAGE)
+    held = np.minimum(1.0, lean / observer.ENGAGE)
     f['offset'] += dt * (f['rate'] - (1.0 - held) * RATE * f['offset'])
-    f['offset'][0] = min(f['offset'][0], max(0.0, FLOOR - out[latent.REF][modal.AXIAL]))
+    f['offset'][0] = np.minimum(f['offset'][0], np.maximum(0.0, FLOOR - out[latent.REF][modal.AXIAL]))
     out[latent.REF][MODES] += f['offset']
     out[latent.RATE][MODES] += f['rate']
+
+
+def step(f, tab, y, lean, goal, t, dt, out):
+    """`seek` at `t` on her table `tab` (`due`): `f`."""
+    seek(f, due(tab, t, dt), y, lean, goal, dt, out)
     return f
