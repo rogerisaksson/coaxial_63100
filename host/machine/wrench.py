@@ -98,10 +98,9 @@ def _patch(cs, idx, nu, full, full0, v, slide, pin, slid=np.inf):
     across), past SLIDE_M_S and along the slide its text says it may (`slide`, world; none said, none slides: a
     hand walked into a wall slid by this measure and the wall threw her back 1.2 m; a strike's skid as she stood
     up flipped the answer for 6 ms): the regime the step feels, never assumes (given a drag the stuck seat never
-    gave, a rise's lean planned -128 N along her thighs and felt +148) - and, a slide said and the patch bearing
-    no more than the slide's governor lets it (`slid`, N), drawn along the slide at its speed till it slides, its
-    friction the cone's: the kernel's attractor; held still there, a lean from a deep sit struck the seat at
-    1.5-3 of her weight for the hips it could not bring forward -; and the patch's normal force split
+    gave, a rise's lean planned -128 N along her thighs and felt +148) - and, a slide said and the patch under the
+    governor's cap (`slid`, N), drawn along it at its speed till it slides (held still there, a lean from a deep
+    sit struck the seat at 1.5-3 of her weight) -; and the patch's normal force split
     as it is felt - each contact's, along the patch's normal, its share of the forces felt along it (returned,
     N) -, `pin` (W_PIN in shares of her weight) the row's, as a clipped force is held. Free, two thighs' split on
     one seat was the rounds' clips' to chatter over (63/65 -> 146/0 -> 4/4 N a pass): the step planned a roll
@@ -172,8 +171,7 @@ def _maps(b, s, ask, want):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
         if not ask['stance'][k] and k not in swing:
-            # let go (`ask['let_go']`): its hip on its posture, sprung where it was let go (`motion`), its
-            # knee and ankle hanging undriven (below). Its hips let go too, her trunk fell back on the chair
+            # let go: its hip on its posture, sprung where let go (`motion`), its knee and ankle hanging (below)
             t0[cols] = want[leg]
             continue
         inv = _inv(f['J6'][:, cols], DAMP ** 2)
@@ -188,8 +186,7 @@ def _maps(b, s, ask, want):
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
-    # the joints no drive holds, by their own rows of her dynamics under all the rest - and a let-go leg's
-    # knee and ankle with them: it hangs from its hip
+    # the joints no drive holds, and a let-go leg's knee and ankle, by their own rows of her dynamics
     passive = getattr(b, 'passive', None)
     if passive is None:
         passive = np.array([i >= 6 and i in b.free for i in range(n)])

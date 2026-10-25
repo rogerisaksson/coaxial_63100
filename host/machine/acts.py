@@ -135,13 +135,9 @@ def _crossfade(p, then, at, modes, body):
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
                  springs, SUPPORT if plantar else NONE, None, shape=shape, weighs=at['handed'], slide=0.0 if plantar else None)
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
-    # settled, nothing is asked of her soles: a sole that leaves the floor hangs (`impedance.ask`), the
-    # seat bearing her on pelvis and thighs - swung back, at 2e-4 rad it stepped her up onto one leg
-    rest = Phase('rest', 'settled', GRAIN_MS, GRAIN_MS, {}, {}, None, None,
-                 weighs=_weighs(((p['from-bus'], 0.0), (p['to-bus'], 1.0))))
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
-        'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)}, {}, None, None, shape=curve), rest]
+        'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)}, {}, None, None, shape=curve)]
         if settle is not None and seat else [])
 
 

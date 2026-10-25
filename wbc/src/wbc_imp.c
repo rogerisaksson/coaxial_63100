@@ -317,9 +317,16 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
-  /* a sole off the floor while what bears her off her soles holds her, nothing asked of her soles, is let go */
-  a[k->a_let_go] = (propped * (1.0 - stance[0])) * (double)(out[k->o_manifolded] <= 0.0);
-  a[k->a_let_go + 1] = (propped * (1.0 - stance[1])) * (double)(out[k->o_manifolded] <= 0.0);
+  {
+    /* her legs let go while what bears her off her soles holds her and her text asks nothing of them: no stance
+       (machine.impedance._let_go) */
+    const double gone = propped * (double)(out[k->o_manifolded] <= 0.0);
+
+    stance[0] *= 1.0 - gone;
+    stance[1] *= 1.0 - gone;
+    a[k->a_let_go] = gone;
+    a[k->a_let_go + 1] = gone;
+  }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];
   aloft[1] = 1.0 - stance[1];

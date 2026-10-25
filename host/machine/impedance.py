@@ -142,10 +142,7 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
-    # a sole off the floor while what bears her off her soles holds her and nothing is asked of her soles
-    # (`latent.MANIFOLDED`, a seat's rest) is let go, no swing: it hangs from its hip (`modal.given`,
-    # `wrench._maps`); asked of them, a rise's lean, a sole in the air is held there as before
-    a[LET_GO] = propped * (1.0 - stance) * float(out[latent.MANIFOLDED][0] <= 0.0)
+    stance, a[LET_GO] = _let_go(propped, stance, out)
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
@@ -199,6 +196,16 @@ def ask(out, y, fr, a):
     a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE] = stance, com @ rot, stepping, propped
     _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
+
+
+def _let_go(propped, stance, out):
+    """(the soles that stand, each leg let go): while what bears her off her soles holds her and her text asks
+    nothing of them (`latent.MANIFOLDED`, a seat's rest, a hitch along it), her legs hang from their hips, on the
+    floor or off - no swing, no stance (`modal.given`, `wrench._maps`); asked of them, a rise's lean, a sole is
+    held as before. Let go off the floor alone, her soles stood on under a seat that pushed her thighs up by its
+    edge, her ischia 2 cm over it, and she tipped back off it as her hands let go."""
+    gone = propped * float(out[latent.MANIFOLDED][0] <= 0.0)
+    return stance * (1.0 - gone), np.full(2, gone)
 
 
 def _borne(y, rot, a, dt):
