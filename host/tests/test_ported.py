@@ -225,10 +225,10 @@ def test_her_waits_in_c_as_she_walks(report, c):
 
 def test_her_brace_in_c_as_she_walks(report, c):
     """Her surety's brace on the solve in C (`c_brace.laid`, wbc_brace.c) beside its python
-    (`motion.scaled`, `braced`) on copies at every pass of her law over PASSES of her walk - the
+    (`brace.scaled`, `braced`) on copies at every pass of her law over PASSES of her walk - the
     solve's M, its answer blended, her drives' inertia and her legs' stiffness bit for bit -, and
     a blend's time beside its python's."""
-    from machine import motion, worker
+    from machine import brace, worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -238,7 +238,7 @@ def test_her_brace_in_c_as_she_walks(report, c):
     class Beside:
 
         def scaled(self, M, w_up):
-            want = motion.scaled(M, g['_acv_sh'], w_up)
+            want = brace.scaled(M, g['_acv_sh'], w_up)
             got = real.scaled(M, w_up)
             tally[1] += not same(got, want)
             tally[2] = max(tally[2], float(np.abs(got - want).max()))
@@ -247,8 +247,8 @@ def test_her_brace_in_c_as_she_walks(report, c):
         def blend(self, M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance):
             mine = (qacc.copy(), tau.copy(), over.copy())
             t0 = time.perf_counter()
-            want = motion.braced(M, Ms, q, v, h, posture, *mine, sw, bw, d_ax, d_lat, w_hop, w_up, stance, g['brace'],
-                                 body.act, g['_acv_sh'], g['_cv_sh'], body.clamp, g['free_kp'], g['legs'])
+            want = brace.braced(M, Ms, q, v, h, posture, *mine, sw, bw, d_ax, d_lat, w_hop, w_up, stance, g['brace'],
+                                body.act, g['_acv_sh'], g['_cv_sh'], body.clamp, g['free_kp'], g['legs'])
             t1 = time.perf_counter()
             got = real.blend(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance)
             spent[0].append(time.perf_counter() - t1)

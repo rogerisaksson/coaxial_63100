@@ -165,3 +165,11 @@ machine ([body](body.md), [emulation](emulation.md),
   time. Her run, the observer's forces and the invariant EKF's whole state
   the same at each of 20 335 law passes of the played walk and turns, the
   chair, the bed and the hop down.
+- Her shield's clearances compiled from their numpy (`capsules.felt` on the
+  shield's own data, `capsules.Own`: posed, every pair's nearest points and
+  clearance Jacobian, shapes fixed; `shielded` takes its near rows of them),
+  the tracer an einsum on a constant operand and its order read on draws
+  where its own result fits more than one: her loop 594 -> 539 us a pass,
+  1.70 -> 1.88 of real time. Her run and every pair's clearance the same at
+  each law pass of the five scenes. The brace's python beside its C
+  (`machine.brace`), motion at its cap.

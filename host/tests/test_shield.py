@@ -139,23 +139,23 @@ def test_the_shield_holds_a_closing_pair(report):
     while s['g']['t'] < 1.0:
         worker.stepped(s)
     g = s['g']
-    body, st, ask, at, d = g['body'], g['s'], g['ask'], g['schema_at'], g['schema_d']
+    body, st, ask, at, own = g['body'], g['s'], g['ask'], g['schema_at'], g['schema_body']
     volts = float(g['sense'][edge.LINK][0])
-    rest, info = schema.shielded(body, d, st, ask, volts, at)
+    rest, info = schema.shielded(body, capsules.felt(own, st, at), st, ask, volts)
     pairs = [tuple(p) for p in capsules.PAIRS.tolist()]
 
     def closing(left, right, speed):
         k = pairs.index((capsules.NAMES.index(left), capsules.NAMES.index(right)))
-        near = capsules.nearest(capsules.laid(capsules.posed(body, d, st), at), capsules.PAIRS)
-        J, _rate = capsules.rows(body, d, near, capsules.PAIRS, np.array([k]), at, st['v'])
-        v = st['v'] - speed * J[0] / float(J[0] @ J[0])
+        near = capsules.felt(own, st, at)
+        J = near['J'][k]
+        v = st['v'] - speed * J / float(J @ J)
         moved = dict(st, v=v)
-        return k, near['d'][k], v, moved, schema.shielded(body, d, moved, ask, volts, at)
+        return k, near['d'][k], v, moved, schema.shielded(body, capsules.felt(own, moved, at), moved, ask, volts)
     k, gap, v, moved, (posture, held) = closing('foot-shell-l', 'foot-shell-r', 4.0)
     act, rows = body.act, held['which']
     free = np.flatnonzero(capsules.EVADES[rows].any(0))
-    Jh, rate = capsules.rows(body, d, capsules.nearest(capsules.laid(capsules.posed(body, d, moved), at), capsules.PAIRS),
-                           capsules.PAIRS, rows, at, v)
+    Jh = capsules.felt(own, moved, at)['J'][rows]
+    rate = Jh @ v
     want = POSTURE_KD[0] * (posture - st['q']) - POSTURE_KD[1] * v[act]
     sides = Jh[:, act] @ want + schema.KD * rate + schema.KP * held['h'] + held['spill']
     change = POSTURE_KD[0] * (posture - np.asarray(ask['posture']))

@@ -9,11 +9,15 @@ import itertools
 
 import numpy as np
 
-from tools.cores.trace import Untraced
+from tools.cores.trace import Ref, Untraced
 
 #: The orders an einsum's terms may be summed in, as numpy 2's sum_of_products adds them: a plain
 #: sum into its zeroed output, or SIMD lanes of 2 (SSE) or 4 (AVX2) summed across at the end.
 ORDERS = ('seq', 'lanes2', 'lanes4')
+#: The draws, and their seed, an einsum's order is read on where its own result fits more than one:
+#: an order is numpy's algorithm, terms alike or zero leave it untold (her capsules' ends, most 0
+#: across, summed 'seq' where numpy's AVX2 sums in lanes).
+DRAWS, SEED = 3, 5
 
 
 def same(a, b):
@@ -56,12 +60,13 @@ def letters(st):
     return ops, out, contracted
 
 
-def products(st, perm):
-    """The einsum's terms (out..., the summed letters of `perm` in its order), numpy's products left to right."""
+def products(st, perm, values=None):
+    """The einsum's terms (out..., the summed letters of `perm` in its order) of its operands' `values`
+    (its own where None), numpy's products left to right."""
     ops, out, _c = letters(st)
     full = out + ''.join(perm)
     factors = []
-    for lets, value in zip(ops, st.args[2]):
+    for lets, value in zip(ops, st.args[2] if values is None else values):
         axes = [lets.index(x) for x in full if x in lets]
         moved = np.transpose(value, axes)
         factors.append(moved.reshape([value.shape[lets.index(x)] if x in lets else 1 for x in full]))
@@ -82,14 +87,33 @@ def grouped(P, n, inner):
     return acc
 
 
+def _drawn(r, v, rng):
+    """Normal draws laid as operand `v` (its Ref `r`, a constant's own array) was: numpy's loop over
+    them its loop over it."""
+    strides = r.strides if isinstance(r, Ref) else [s // v.itemsize for s in v.strides]
+    at = Ref(None, 0, strides, v.shape).addresses()
+    lo = int(at.min(initial=0))
+    span = rng.normal(size=int(at.max(initial=0)) - lo + 1)
+    return np.lib.stride_tricks.as_strided(span[-lo:], v.shape, [s * span.itemsize for s in strides])
+
+
+def _fits(st, values, value, found):
+    """The (permutation, order)s of `found` whose sum of the terms of `values` is `value` bit for bit."""
+    return [(perm, o) for perm, o in found if same(grouped(products(st, perm, values), len(perm), o), value)]
+
+
 def ordered(st):
     """(the summed letters outer to inner, the inner run's order) numpy summed an einsum's terms in,
-    as its result shows: the first permutation with an order of ORDERS bit for bit, a plain sum where
-    the terms cannot tell."""
+    as its result shows - where it fits more than one, as its result on DRAWS laid as its operands
+    are shows: the first permutation with an order of ORDERS bit for bit, a plain sum where the
+    terms cannot tell."""
     _ops, _out, contracted = letters(st)
-    for perm in itertools.permutations(contracted):
-        P = products(st, perm)
-        found = [o for o in ORDERS if same(grouped(P, len(perm), o), st.value)]
-        if found:
-            return perm, 'seq' if 'seq' in found else found[0]
-    raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))
+    found = _fits(st, None, st.value, [(p, o) for p in itertools.permutations(contracted) for o in ORDERS])
+    rng = np.random.default_rng(SEED)
+    for _ in range(DRAWS if len(found) > 1 else 0):
+        draws = [_drawn(r, v, rng) for r, v in zip(st.args[1], st.args[2])]
+        found = _fits(st, draws, np.einsum(st.args[0], *draws), found) or found
+    if not found:
+        raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))
+    perm = found[0][0]
+    return perm, 'seq' if (perm, 'seq') in found else found[0][1]

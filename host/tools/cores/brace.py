@@ -1,6 +1,6 @@
 """Her surety's brace on the solve in C through ctypes (wbc_brace.c), her python's bit for bit.
 
-    brace = brace.laid(body, brace_rows, cv, acv, legs, free_kp)      # machine.motion.scaled, braced
+    brace = brace.laid(body, brace_rows, cv, acv, legs, free_kp)      # machine.brace.scaled, braced
     Ms = brace.scaled(M, w_up)                                       # the solve's M, the four dofs' inertia scaled off
     jeff, leg_kp = brace.blend(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance)
 """
@@ -63,12 +63,12 @@ class Braced:
         self.mp, self.jp, self.lp = wbc.pointer(self.Ms), wbc.pointer(self.jeff), wbc.pointer(self.leg_kp)
 
     def scaled(self, M, w_up):
-        """The solve's M: `M` with the four dofs' inertia scaled off by `w_up` (`machine.motion.scaled`)."""
+        """The solve's M: `M` with the four dofs' inertia scaled off by `w_up` (`machine.brace.scaled`)."""
         self.scaled_c(self.sp, wbc.pointer(M), wbc.pointer(w_up), self.mp)
         return self.Ms
 
     def blend(self, M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance):
-        """(jeff, leg_kp) of `machine.motion.braced`; `qacc`, `tau` and `over` blended in place."""
+        """(jeff, leg_kp) of `machine.brace.braced`; `qacc`, `tau` and `over` blended in place."""
         p = [wbc.pointer(a) for a in (M, Ms, q, v, h, posture, qacc, tau)]
         self.blend_c(self.sp, *p, wbc.pointer(over, np.bool_), sw, bw, d_ax, d_lat, w_hop, wbc.pointer(w_up),
                      wbc.pointer(stance), self.jp, self.lp)

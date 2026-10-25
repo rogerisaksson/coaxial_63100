@@ -1,6 +1,6 @@
 """Her shield (proprioceptive_body_schema.lisp): capsules' ECBF on each other; the room's boxes.
 
-    posture, held = schema.shielded(body, d, s, ask, volts, at)   # her posture holding each near pair's ECBF
+    posture, held = schema.shielded(body, near, s, ask, volts)    # her posture holding each near pair's ECBF
     boxes = schema.room(props)                                    # the room's boxes, laid once a refresh
 
 Her posture's ask (her law's lowest row, `wbc.POSTURE_KD`: the null space of her balance and her steps)
@@ -22,7 +22,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import bemf, kernel, qp
-from machine.capsules import EVADES, FLOOR, PAIRS, RETRACTION, laid, nearest, posed, rows
+from machine.capsules import EVADES, FLOOR, RETRACTION
 from machine.wbc import POSTURE_KD
 
 _SHIELD = kernel.node('xform-universal-spatial-awareness', 'ecbf-shield')
@@ -77,17 +77,17 @@ def _evaded(M, J, act, free, short):
     return (np.zeros(f + k) if x is None else x), held
 
 
-def shielded(body, d, s, ask, volts, at):
+def shielded(body, near, s, ask, volts):
     """(her posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
     joints of the pairs within INFLUENCE of their floors (EVADES), least in her mass's metric, each
     joint within its drive's peak over its own inertia, so that each pair keeps h'' + KD h' + KP h >= 0
-    - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2); `d`
-    the shield's data of her law's model posed at `s`, its capsules' segments `at` (`capsules.ids`);
-    each pair's clearance, the near ones' h, the pairs it held."""
+    - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2);
+    `near` every pair's clearance and its Jacobian at `s` (`capsules.felt`); each pair's clearance,
+    the near ones' h, the pairs it held."""
     act, posture = body.act, np.asarray(ask['posture'], float)
-    near = nearest(laid(posed(body, d, s), at), PAIRS)
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
-    J, rate = rows(body, d, near, PAIRS, which, at, s['v'])
+    J = near['J'][which]
+    rate = J @ s['v']
     reach = braking(J, s['M'], act, s['v'][act], volts)
     closing = np.maximum(0.0, -rate)
     h = near['d'][which] - FLOOR[which] - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)

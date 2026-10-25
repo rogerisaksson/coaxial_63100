@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder, wbc
+from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -83,15 +83,6 @@ def _step_modal(g, s, y, y_in, out):
     qd = np.ascontiguousarray(y_in[edge.QD][g['joints']], dtype=np.float64)
     dq = g['couple'](np.ascontiguousarray(s['q'], dtype=np.float64), qd, g['ref_q'], g['ref_v'], g['eso'][2], out)
     return dq, g['impedance'](out, y, g['fr'], g['a'])
-
-
-_BRACE_TUCK = {'spine': 0.45, 'neck': 0.35, 'left_hip_roll': 0.12, 'right_hip_roll': -0.12,
-               'left_hip': -1.05, 'right_hip': -1.05, 'left_knee': 1.45, 'right_knee': 1.45,
-               'left_ankle': -0.45, 'right_ankle': -0.45, 'left_shoulder': 0.80, 'right_shoulder': 0.80,
-               'left_elbow': 0.65, 'right_elbow': 0.65}
-_BRACE_AX = {'spine': -0.25, 'neck': -0.20, 'left_shoulder': 0.65, 'right_shoulder': 0.65,
-             'left_elbow': -0.40, 'right_elbow': -0.40}
-_BRACE_LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
 
 
 def surety_field(y_in, y, fr, a, st, out, prev, dt, ct, t):
@@ -217,7 +208,8 @@ def control(g, dt):
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
                                     (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt, g['ringed'])
     ask['posture'][g['head_idx']] -= gauge
-    ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'])
+    ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
+                                                  float(y_in[edge.LINK][0]))
     ask['mu'] = g['held']
     arms = [modal.ARMS, modal.REACH]
     ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))
@@ -259,39 +251,6 @@ def _told(g):
     kept['over'][:] = got['over']
 
 
-def scaled(M, acv, w_up):
-    """The solve's M: `M` copied, the four dofs' (`acv`) rows and columns against the base scaled by
-    1 - `w_up`. In C bit for bit (`g['braced']`, `laid`)."""
-    Ms = M.copy()
-    Ms[:6, acv] *= 1.0 - w_up[None, :]
-    Ms[acv, :6] *= 1.0 - w_up[:, None]
-    return Ms
-
-
-def braced(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance, brace, act, acv, cv,
-           clamp, free_kp, legs):
-    """(jeff, leg_kp): the solve's `qacc`, `tau` and `over` blended in place with the tuck's torques
-    by her surety's `sw` and `bw` - the tuck's posture `brace` (3, driven) by its direction `d_ax`,
-    `d_lat`, through her inertia `M` (`act` the driven dofs) -, the cervical and shoulder joints
-    `cv` (dofs `acv`) held to their `posture` as far as `w_up` through the solve's `Ms`; her
-    drives' inertia and her `legs`' stiffness off `free_kp` by their `stance`. In C bit for bit
-    (`g['braced']`, `laid`)."""
-    q_brace = np.array([1.0, d_ax, d_lat]) @ brace
-    qdd_br = np.clip(3.5 * wbc.POSTURE_KD[0] * (q_brace - q) - 1.8 * wbc.POSTURE_KD[1] * v[act], -180.0, 180.0)
-    tau_br = np.clip(M[act, :][:, act] @ qdd_br + M[act, :6] @ qacc[:6] + h[act], -clamp, clamp)
-    qacc[act] = sw * qacc[act] + bw * qdd_br
-    tau[:] = sw * tau + bw * tau_br
-    kp_cv = np.array([3.2, 3.2, 1.0 + 2.2 * w_hop, 1.0 + 2.2 * w_hop]) * wbc.POSTURE_KD[0]
-    kd_cv = np.array([1.8, 1.8, 1.0 + 0.8 * w_hop, 1.0 + 0.8 * w_hop]) * wbc.POSTURE_KD[1]
-    qdd_cv = np.clip(kp_cv * (posture[cv] - q[cv]) - kd_cv * v[acv], -130.0, 130.0)
-    tau_cv = Ms[acv, :][:, acv] @ qdd_cv + Ms[acv, :6] @ qacc[:6] + h[acv]
-    qacc[acv] += w_up * (qdd_cv - qacc[acv])
-    tau[cv] += w_up * (tau_cv - tau[cv])
-    over[cv] = over[cv] & (w_up < 0.5)
-    return np.diag(M)[act], np.concatenate([free_kp[leg] * (1.0 + (se2.STANDING_KP - 1.0) * float(stance[k]))
-                                            for k, leg in enumerate(legs)])
-
-
 def laid(g):
     """Her drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
     pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
@@ -300,13 +259,15 @@ def laid(g):
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
     situation, her drive's cap, her ask's poses, her invariant EKF, her barrier (a ring's length a part), her
-    field's seek and what bears her weighed compiled from their numpy (`tools.cores.bodied`)."""
+    field's seek, what bears her weighed and her shield's clearances compiled from their numpy
+    (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['weighed'] = bodied.on_args(observer.weighed, 'weighed', (0, 1, 2, 3))
+    g['clear'] = bodied.on_body(capsules.felt, 'clear', (1,))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
@@ -324,7 +285,7 @@ def laid(g):
     g['latent'], g['couple'] = functools.partial(c_motion.stepped, laid_), functools.partial(c_motion.coupled, laid_)
     body, joints = g['body'], g['joints']
     g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
-    g['schema_at'], g['schema_d'] = capsules.ids(body.m), body.mj.MjData(body.m)
+    g['schema_at'], g['schema_body'] = capsules.ids(body.m), capsules.Own(body)
     g['_tips'] = np.array(touch.TIPS)
     g['touched_step'] = c_touch.laid(k, g['sense'], body.d.xmat, body.d.xpos, g['_skin_ids'], g['_tips'], g['y'],
                                      g['fr'], g['a'], g['st'], g['out'], g['rest'], g['touched'])
@@ -335,7 +296,7 @@ def laid(g):
     g['_acv_sh'] = body.act[g['_cv_sh']]
     g['_derate'] = g['wep_lim'] / np.maximum(1.0, body.wep)
     names = [JOINTS[j] for j in joints]
-    g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (_BRACE_TUCK, _BRACE_AX, _BRACE_LAT)])
+    g['brace'] = np.array([[d.get(n, 0.0) for n in names] for d in (brace.TUCK, brace.AX, brace.LAT)])
     g['braced'] = c_brace.laid(body, g['brace'], g['_cv_sh'], g['_acv_sh'], g['legs'], g['free_kp'])
     n = len(joints)
     kept = {'joints': np.ascontiguousarray(joints, dtype=np.int32),

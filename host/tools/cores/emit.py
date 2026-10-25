@@ -149,17 +149,21 @@ def _tree(w, node, idx):
 
 def _einsum(w, st, order):
     """An einsum in `order` (`orders.ordered`): each run along its inner summed letter in its lanes,
-    added to the output in turn over the outer ones, unrolled."""
+    added to the output in turn over the outer ones, unrolled; a constant operand a table."""
     (perm, inner), (ops, out, _c), refs = order, letters(st), st.args[1]
     sizes = dict(zip(''.join(ops), sum((list(np.shape(v)) for v in st.args[2]), [])))
-    if any(isinstance(r, tuple) for r in refs):
-        raise Untraced('einsum on a constant operand (%s)' % st.where)
+
+    def factor(r, idx):
+        if not isinstance(r, tuple):
+            return w.ref(r, idx)
+        return '%s[%s]' % (w.table(r[1], 'double'), ' + '.join(['0'] + ['%d * %s' % (s, i) for s, i in
+                                                                        zip(cstrides(np.shape(r[1])), idx)]))
 
     def run(place):
         terms = []
         for j in range(sizes[perm[-1]]):
             at = dict(place, **{perm[-1]: str(j)})
-            factors = [w.ref(r, [at[x] for x in lets]) for lets, r in zip(ops, refs)]
+            factors = [factor(r, [at[x] for x in lets]) for lets, r in zip(ops, refs)]
             terms.append(' * '.join(factors) if len(factors) < 3 else '(' + ' * '.join(factors[:2]) + ') * ' + factors[2])
         return _summed(terms, inner)
 

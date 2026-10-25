@@ -56,7 +56,8 @@ def run(gap, seconds, x=0.75, z=2.2):
     door = next(p[1:4] for p in w.world.props() if p[0] == 'door')
 
     def read(_w):
-        caps = capsules.laid(capsules.posed(g['body'], g['schema_d'], g['s']), g['schema_at'])
+        own = g['schema_body']
+        caps = capsules.laid(capsules.posed(own, own.d, g['s']), g['schema_at'])
         arms = [clearance(caps, k, door) for k, n in enumerate(capsules.NAMES) if n.startswith(('forearm', 'upper-arm'))]
         q = w.world.data.qpos
         rows.append((round(g['t'] - t0, 2), round(room.TO - float(q[2]), 3),

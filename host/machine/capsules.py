@@ -4,6 +4,8 @@
     near = capsules.nearest(caps, PAIRS)     # each pair's clearance, its normal and points
     d = capsules.smooth(near['d'])           # the text's log-sum-exp at ALPHA, under the least
     J, rate = capsules.rows(body, d, near, PAIRS, which, at, v)   # each pair's clearance Jacobian, its rate
+    own = capsules.Own(body)                 # her law's body on the shield's own data, laid once
+    near = capsules.felt(own, s, at)         # every pair's clearance and its Jacobian, `own` posed at `s`
 
 The text's 18 capsules by its names, frames and 13 self-collision pairs, each on her segment and her
 skin there (`figure.BODY`: the first of its capsules there to the last, tapering; her sole and knee of
@@ -73,6 +75,8 @@ P0, P1 = (np.array([c[k] for _s, c in _BOUND], float) for k in (0, 1))
 R0, R1 = (np.array([c[k] for _s, c in _BOUND], float) for k in (2, 3))
 #: The text's self-collision pairs, as capsule indices.
 PAIRS = np.array([[NAMES.index(str(n).lstrip(':')) for n in pair] for pair in _LAID['self-collision-pairs']])
+#: Every pair, by its index (`felt`).
+EVERY = np.arange(len(PAIRS))
 _GROUPS = kernel.node('specialize-with-self-collision-manifold', 'self-collision').values()
 #: Each pair's floor, m: the largest of the barriers' groups holding both its capsules.
 FLOOR = np.array([max([g['min-clearance-m'] for g in _GROUPS
@@ -173,3 +177,27 @@ def posed(body, d, s):
     mj.mj_kinematics(m, d)
     mj.mj_comPos(m, d)
     return d
+
+
+class Own:
+
+    """Her law's `body` on data of its own, `d` (the shield's): every other attribute read off hers as
+    it is - traced as her body (`tools.cores.bodied.on_body`), what it reads of hers held the same."""
+
+    def __init__(self, body):
+        self.body, self.d = body, body.mj.MjData(body.m)
+
+    def __getattr__(self, name):
+        """Her body's `name`; a protocol's dunder probe (copy's, before its state) AttributeError."""
+        if name.startswith('__'):
+            raise AttributeError(name)
+        return getattr(self.body, name)
+
+
+def felt(body, s, at):
+    """{d, J}: every pair's clearance and its clearance's Jacobian (`nearest`, `rows`), `body` (`Own`)
+    posed at `s` on its own data (`posed`), its capsules' segments `at` (`ids`) - shapes fixed, her
+    loop's compiled (`machine.motion.laid`)."""
+    d = posed(body, body.d, s)
+    near = nearest(laid(d, at), PAIRS)
+    return {'d': near['d'], 'J': rows(body, d, near, PAIRS, EVERY, at, s['v'])[0]}
