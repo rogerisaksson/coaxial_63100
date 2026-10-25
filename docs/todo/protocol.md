@@ -46,11 +46,14 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    contact's tangential rows freed, its friction kinetic and given, its load
    capped; kernel findings, the Coulomb slide): without a driver it slides
    her off the edge, her centre of mass driven back alone 0.043 m deeper in
-   2 s. Left: the slide's driver - a phase's deeper posture (`seated.landed`)
-   and sagittal target with the regime, said by the text -, the 65 Hz
-   dither, the ischial centring's stop. DOD: she slides onto and off a seat
-   over her knees, forward to its edge before her rise, and 180 mm deeper
-   onto the bed.
+   2 s. Her text says it (`(slide v)`, `ortho.SLIDE` -> `latent.SLID` -> the
+   step's ask); said with her hips asked 0.18 m deeper her feet planted and
+   her knee held moved her 2 mm. Left: the slide's driver - the deeper
+   posture with her soles let onto the forefoot (item 4's equinus) or slid
+   along -, in the sit's and the rise's phases (`acts`), the 65 Hz dither,
+   the ischial centring's stop. DOD: she slides onto and off a seat over her
+   knees, forward to its edge before her rise, and 180 mm deeper onto the
+   bed.
 6. **Step 5, the body schema on the room**: `machine.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -

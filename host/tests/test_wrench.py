@@ -81,6 +81,28 @@ def test_a_contact_slides(report):
                  '%.0f N on it (cap %.0f), %.1f N along the slide, %.1f across' % (f[1], cap, f[2], f[0]))
 
 
+def test_a_slide_said_rides_her_row(report):
+    """A phase's slide (`ortho.SLIDE`, m/s along her way) is laid in its row and carried by her latent's
+    output (`latent.SLID`) while the phase holds, her rest's none."""
+    import numpy as np
+    from machine import latent, ortho
+    rest = np.zeros(ortho.P)
+    rest[latent.K], rest[latent.HZ] = 100.0, 1.0
+    tables, _ = ortho.compiled('(defbehavior b (phase p (duration 1s) (blend_duration 100ms)'
+                               ' (task_constraints (slide -0.16))))')
+    row = ortho.ROW.unpack_from(tables['b'], 0)
+    st, out, dt = latent.state(rest), np.zeros(latent.OUT), 0.001
+    tab = latent.table(tables['b'], 0.5, rest)
+    seen = {}
+    for tick in range(2000):
+        latent.step(st, tab, tick * dt, dt, out)
+        seen[tick] = float(out[latent.SLID])
+    report.check('the row says -0.16 m/s; her latent carries it blended in, 0 again at rest',
+                 abs(row[4 + ortho.SLIDE] + 0.16) < 1e-6 and abs(seen[700] + 0.16) < 1e-6
+                 and abs(seen[549] + 0.08) < 0.01 and seen[1999] == 0.0,
+                 'row %.3f, out %.3f at 700, %.3f at 549, %.3f at rest' % (row[4 + ortho.SLIDE], seen[700], seen[549], seen[1999]))
+
+
 def test_she_stands_still(report):
     """Three seconds standing: up, every drive inside its clamp."""
     from tools.sim import wbc
@@ -202,7 +224,8 @@ def test_her_master_bus_and_buffers(report):
                  str(ends))
 
 
-ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_she_stands_still, test_nudged_she_holds,
+ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_a_slide_said_rides_her_row,
+          test_she_stands_still, test_nudged_she_holds,
           test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
           test_her_master_bus_and_buffers)
 

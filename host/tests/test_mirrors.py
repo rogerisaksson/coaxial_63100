@@ -67,6 +67,7 @@ MIRRORS = (
     ('machine.ortho', 'HZ', 'wbc/inc/wbc_ortho.h', 'ORTHO_HZ', 1.0),
     ('machine.ortho', 'ZMP', 'wbc/inc/wbc_ortho.h', 'ORTHO_ZMP', 1.0),
     ('machine.ortho', 'YAW', 'wbc/inc/wbc_ortho.h', 'ORTHO_YAW', 1.0),
+    ('machine.ortho', 'SLIDE', 'wbc/inc/wbc_ortho.h', 'ORTHO_SLIDE', 1.0),
     ('machine.ortho', 'REST', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST', 1.0),
     ('machine.ortho', 'REST_MS', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST_MS', 1.0),
     ('coaxial.devices.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),

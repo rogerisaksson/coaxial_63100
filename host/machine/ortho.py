@@ -10,13 +10,7 @@
                   (phase_offset mode_lateral_shift mode_sagittal_drive 90deg))
       (task_constraints (maintain_zmp (polygon dynamic_footprint)) (limit_yaw_momentum 15.0)))
 
-    (defbehavior hop
-      (phase pre_load (duration 400ms) (latent_targets (mode_axial_compression 0.8))
-                      (cpg_override (halt_oscillators)))
-      (phase propulsion (duration 150ms) (latent_targets (mode_axial_compression -1.0))
-                        (impedance (stiffness mode_axial_compression MAX_SYS_K))))
-
-    tables, phases = ortho.compiled(TEXT)
+    tables, phases = ortho.compiled(TEXT)   # TEXT with (defbehavior hop (phase pre_load ..) (phase propulsion ..))
     tables['']        # bytes: the payloads' rows in the order said, ROW.size each
     tables['hop']     # its phases' rows, each at its ms from the behaviour's start, then her rest
     phases['hop']     # ('pre_load', 'propulsion')
@@ -27,7 +21,8 @@ A text speaks of balance, rhythm and elasticity alone. Where her latent coordina
 N/m and N s/m, `global` every mode, MAX_SYS_K the stiffest said); her rhythm (`cpg_config`: on
 or off, its frequency, each mode's amplitude and its phase from another's; `cpg_override
 (halt_oscillators)` is off); what must hold whatever is asked (`task_constraints`: her ZMP in
-her soles' polygon, her yaw momentum's limit). It names no joint, no limb's side and no motor.
+her soles' polygon, her yaw momentum's limit, what bears her and her slide over it). It names no
+joint, no limb's side and no motor.
 
 A row is numbers alone (`ROW`, little-endian, `ortho_row_t`): its id, when it is injected, how
 long her state takes to blend to it, and one vector of parameters laid as her latent state is
@@ -65,7 +60,8 @@ GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
 DUCK = slice(5 * N + 4, 5 * N + 7)
 MANIFOLDS = ('plantar', 'ischial', 'trochanter', 'dorsal')
 MANIFOLD = slice(5 * N + 7, 5 * N + 7 + len(MANIFOLDS))
-P = MANIFOLD.stop
+#: Her slide over what bears her along her way, m/s, forward + (the kernel's Coulomb slide).
+SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flags: REST every parameter back to her rest (a behaviour's last row, blended REST_MS);
@@ -204,9 +200,8 @@ def _offset(r, mode, of, v):
     r[_HEAD + PHASE + _MODE[mode][0]] = _CLEAR if rad is _CLEAR else (0.0 if math.isnan(lead) else lead) + rad
 
 
-#: How far a mode's target goes, units either way: past 1 is past her soles' own reach - a
-#: seat 3.5 axial units down and 3 sagittal back, the floor under her 6 - where a support, a
-#: step or a fall bears it.
+#: How far a mode's target goes, units either way: past 1 is past her soles' own reach (a seat
+#: 3.5 axial down and 3 sagittal back, the floor 6), where a support, a step or a fall bears it.
 REACH = 6.0
 #: What a clause says, by the names down to it: how it is laid in the row. A latent target's
 #: last name is its mode.
@@ -223,6 +218,7 @@ _PAYLOAD = {
     ('task_constraints', 'maintain_zmp', 'polygon'): _one(ZMP, 0.0, 2.0),
     ('task_constraints', 'limit_yaw_momentum'): _one(YAW, 0.0),
     ('task_constraints', 'contact_manifolds', 'MODE'): _mode(MANIFOLD.start, 0.0, 1.0, {m: (i,) for i, m in enumerate(MANIFOLDS)}),
+    ('task_constraints', 'slide'): _one(SLIDE),
     ('sidechain', 'duck'): _one(DUCK.start),
     ('sidechain', 'attack'): _one(DUCK.start + 1, 0.0, unit='s'),
     ('sidechain', 'release'): _one(DUCK.start + 2, 0.0, unit='s'),

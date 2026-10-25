@@ -281,6 +281,19 @@ seat's front edge (the edge sit), 2 s of asks (`slide_probe`):
 - A lower hold on a contact's normal force (within GROW_N of the force felt)
   felled her sit as the seat's first touch spiked: the felt force is a pass
   late (`machine.borne`).
+- Her text says it: `(slide -0.15)` in a phase's task constraints, m/s along
+  her way, forward + (`ortho.SLIDE`, the row 304 bytes; `latent.SLID`,
+  wbc_law.c alike; the step's ask from it). Nothing said, the sit and rise
+  are as before to the digit. Derived instead from her sagittal reference's
+  rate while borne, the slide was live in the sit's own settle: she sat 2-3 cm
+  deeper (hips 0.067-0.075 m past the edge where 0.044, the seat bearing 0.63
+  where 0.54) with one sole off the floor, and the errand's rise fell at 23.6
+  s - undone for the text's say.
+- Said with her hips asked 0.18 m deeper over 1.2 s, the knee as the edge
+  sit's or as a seat at that depth has it: her hips moved 0.002 m. Her feet
+  planted and her knee held set her hips' depth; a slide deeper needs her feet
+  to come along - the reachability's equinus onto the forefoot (item 4), or
+  the feet's own slide.
 
 ## The wayfinder
 

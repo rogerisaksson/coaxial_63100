@@ -20,6 +20,7 @@ typedef struct
   int           now, from, to, t0, blend, theta, v0, v1, contig, shape;
   int           vals, said, at, lerp, curve, shaped, table;
   int           ref, rate, acc, ks, ds, psi, sway, turns, held, yawed, bend, duck, ducked, manifold, manifolded;
+  int           slide, slid;
   double        edge_s, tau, tau_v, eso_0, eso_s, sigma, bleed;
   const double *pi;    /**< the coupling (n, driven) */
   const double *gamma; /**< each driven joint's admittance */

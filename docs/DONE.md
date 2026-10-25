@@ -343,3 +343,6 @@ the hundred and fifty before these: [DONE_1-50](DONE_1-50.md),
     step and its mirror): a pressing contact's tangential rows freed, its
     friction the kinetic one given, its normal force capped; unasked, the
     step to the bit as before. Measured on the chair's edge sit.
+70. A slide said by her text: `(slide v)` in a phase's task constraints
+    (`ortho.SLIDE`, the row 304 bytes), carried by her latent (`latent.SLID`,
+    wbc_law.c alike) to her step's ask; nothing said, nothing moved.

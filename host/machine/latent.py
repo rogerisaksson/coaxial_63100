@@ -25,7 +25,7 @@ from machine import curves, ortho
 N, P = ortho.N, ortho.P
 #: A row's parameters as slices (`ortho`'s layout): a mode each, then four numbers.
 Z, K, D, AMP, PHASE = (slice(at, at + N) for at in (ortho.Z, ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
-GAIN, HZ, ZMP, YAW, DUCK, MANIFOLD = ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW, ortho.DUCK, ortho.MANIFOLD
+GAIN, HZ, ZMP, YAW, DUCK, MANIFOLD, SLIDE = ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW, ortho.DUCK, ortho.MANIFOLD, ortho.SLIDE
 #: Her state: her vector as it is, where it came from and where it goes; when it set out, how
 #: long it takes, her rhythm's angle.
 NOW, FROM, TO = (slice(i * P, (i + 1) * P) for i in range(3))
@@ -50,13 +50,15 @@ TABLE = 2 * P + 10
 #: damping (N s/m), its rhythm's phase (rad) and amplitude; her rhythm's rate (rad/s), her
 #: ZMP's polygon as told (her soles' weight laid on it after, `observer.weighed`), her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
 #: the acceleration's less the rhythm's: the touch filter rebuilds the acceleration from it;
-#: her sidechain as said (DUCKED, `ortho.DUCK`); what bears her as told (MANIFOLDED, `ortho.MANIFOLD`).
+#: her sidechain as said (DUCKED, `ortho.DUCK`); what bears her as told (MANIFOLDED, `ortho.MANIFOLD`) and
+#: her slide over it (SLID, `ortho.SLIDE`).
 REF, RATE, ACC, KS, DS, PSI, SWAY = (slice(i * N, (i + 1) * N) for i in range(7))
 TURNS, HELD, YAWED = 7 * N, 7 * N + 1, 7 * N + 2
 BEND = slice(7 * N + 3, 8 * N + 3)
 DUCKED = slice(8 * N + 3, 8 * N + 6)
 MANIFOLDED = slice(8 * N + 6, 8 * N + 6 + len(ortho.MANIFOLDS))
-OUT = MANIFOLDED.stop
+SLID = MANIFOLDED.stop
+OUT = SLID + 1
 #: A row as the wire carries it.
 WIRE = np.dtype([('id', '<u4'), ('at', '<u4'), ('blend', '<u4'), ('flags', '<u4'), ('p', '<f4', (P,))])
 #: A row's time is met within this, s.
@@ -177,5 +179,6 @@ def step(st, tab, now, dt, out):
     out[BEND] = bend
     out[DUCKED] = p[DUCK]
     out[MANIFOLDED] = p[MANIFOLD]
+    out[SLID] = p[SLIDE]
     return out
 
