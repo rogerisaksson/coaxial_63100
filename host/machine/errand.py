@@ -32,7 +32,7 @@ def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None, thing=None):
 def _seen(g, sc, at):
     """What `sc` goes to nearest `at` among her things, None with nothing of the kind among them."""
     from machine import furniture, route
-    hit = furniture.nearest(g, sc, at, route.docks()[sc][5])
+    hit = furniture.nearest(g, sc, at, route.docks()[sc][3])
     return None if hit[4] is None else hit
 
 
@@ -52,17 +52,20 @@ def _glimpsed(g, sc, at):
     """Whether `sc` goes to a thing among her registry's live slots at any salience: a sighting not yet
     hers (`registry.TAKEN`), her look held still while it firms up."""
     from machine import furniture, registry, route
-    return furniture.nearest(g, sc, at, route.docks()[sc][5], registry.boxes(g['registry'], -math.inf))[4] is not None
+    return furniture.nearest(g, sc, at, route.docks()[sc][3], registry.boxes(g['registry'], -math.inf))[4] is not None
 
 
 def _laid(g, sc, found, at):
-    """The errand `sc` laid on the thing `found` (`_looked`'s): its dock on the thing's edge, her stage
+    """The errand `sc` laid on the thing `found` (`_seen`'s): its dock on the thing's edge along the
+    heading it faces (`affordance.support`; the room's, `route.docks`, where it faces none), her stage
     before it where her cells are free (`route.staged`), her way to it (`route.planned`)."""
-    from machine import maneuver, route
-    _d, px, pz, _top, thing = found
-    dx_rel, dz_rel, hdd, lat_tol, d_most, _fb = route.docks()[sc]
-    x_dock, z_dock = px + dx_rel, pz + dz_rel
+    from machine import affordance, maneuver, route, se2
+    _d, px, pz, _top, thing, faced, box = found
+    hdd, lat_tol, d_most, _fb = route.docks()[sc]
+    hdd = se2.wrap_angle(hdd if faced is None else faced)
     nx, nz = math.sin(hdd), math.cos(hdd)
+    edge = affordance.support(box, hdd)
+    x_dock, z_dock = px + edge * nx, pz + edge * nz
     cells = route.blocked(g)
     d_stage = d_most if sc == 'exit_door' else route.staged((x_dock, z_dock), (nx, nz), d_most, cells)
     stage = (x_dock + d_stage * nx, z_dock + d_stage * nz)

@@ -184,13 +184,13 @@ def main(argv=None):
         at = (0.0, 0.0)
         specs = route.docks()['sit_chair']
         from machine import room
-        dock = (room.CHAIR_AT[0] + specs[0], room.CHAIR_AT[1] + specs[1])
-        out = (math.sin(specs[2]), math.cos(specs[2]))
+        out = (math.sin(specs[0]), math.cos(specs[0]))
+        dock = (room.CHAIR_AT[0] + room.SEAT[2] * out[0], room.CHAIR_AT[1] + room.SEAT[2] * out[1])
         ways = {}
         for name, things in (('props', world.props()), ('her things', boxes)):
             g = {'things': list(things), 'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([at[0], 0.0, at[1]])))}
             cells = route.blocked(g)
-            d = route.staged(dock, out, specs[4], cells)
+            d = route.staged(dock, out, specs[2], cells)
             stage = (dock[0] + d * out[0], dock[1] + d * out[1])
             ways[name] = (route.way(g, stage, cells), cells)
         truth = ways['props'][1]

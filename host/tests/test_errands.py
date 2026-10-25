@@ -259,6 +259,27 @@ def test_the_errand_goes_to_the_thing_told(report):
                  docks)
 
 
+def test_the_low_chair_is_docked_as_it_faces(report):
+    """The lodge's low chair against the west wall facing +x, F's offer from the start: told to sit
+    at it she docks before it facing the room, not at its flank against the wall where she shuttled
+    30 s (findings/errands.md), and is seated within 30 s."""
+    from machine import physics, room, worker
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    s = worker.session()
+    g = s['g']
+    worker.apply(s, {'say': 'sit_chair', 'at': room.CHAIR_LOW_AT})
+    while (g.get('_errand') or {}).get('phase') == 'look' and g['t'] < 1.0:
+        worker.stepped(s)
+    er = dict(g.get('_errand') or {})
+    _flips, seated = _run(s, 30.0, until='seated')
+    before = (er.get('x_dock', -math.inf) > room.CHAIR_LOW_AT[0] + room.SEAT[2] / 2.0
+              and abs(er.get('z_dock', math.inf) - room.CHAIR_LOW_AT[1]) < room.SEAT[2] / 2.0)
+    report.check('told the low chair she docks before it facing the room and is seated within 30 s',
+                 before and seated is not None,
+                 'dock (%.2f, %.2f) facing %.2f rad, seated at %s s' % (er.get('x_dock', math.nan), er.get('z_dock', math.nan),
+                                                                      er.get('hdd', math.nan), seated))
+
+
 def test_multi_pose_bed_settle_and_randomized_scenarios(report):
     """From arbitrary starting poses and headings (including the recorded `(-0.62, 1.86, -1.50)` pose),
     `lie_bed` walks to the bed's edge, turns to face away, backs onto it with her heels within a
@@ -338,7 +359,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
           test_chair_and_bed_seated_and_rising, test_viewport_f_errands_chair_bed_and_door,
-          test_the_errand_goes_to_the_thing_told,
+          test_the_errand_goes_to_the_thing_told, test_the_low_chair_is_docked_as_it_faces,
           test_multi_pose_bed_settle_and_randomized_scenarios,
           test_continuous_outer_loop_told_and_walk_again)
 

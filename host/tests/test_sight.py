@@ -189,7 +189,7 @@ def test_her_way_walked_through(report):
     free cells and bend within her arc, her last stop her stage; to a walled-off goal and from
     inside a grown prop her stops are `route.way`'s corners, no curve; a plan within a look of her
     eyes (`sight.LOOK_S`), timed."""
-    from machine import furniture, physics, route, sight, worker
+    from machine import affordance, furniture, physics, route, sight, worker
     from tools.sim import house
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
@@ -200,11 +200,13 @@ def test_her_way_walked_through(report):
     at = route.centres(cells)
     held, inside, overlap, off, bent, last, walked, kept, took = [], 0, True, 0, 0.0, True, 0, 0, []
     for verb in ('sit_chair', 'lie_bed'):
-        dx, dz, hdd, _lat, most, where = route.docks()[verb]
-        _d, px, pz, _top, _thing = furniture.nearest(g, verb, None, where)
+        hdd, _lat, most, where = route.docks()[verb]
+        _d, px, pz, _top, _thing, faced, box = furniture.nearest(g, verb, None, where)
+        hdd = hdd if faced is None else faced
         out = (math.sin(hdd), math.cos(hdd))
-        d = route.staged((px + dx, pz + dz), out, most, cells)
-        to = (px + dx + d * out[0], pz + dz + d * out[1])
+        edge = affordance.support(box, hdd)
+        d = route.staged((px + edge * out[0], pz + edge * out[1]), out, most, cells)
+        to = (px + (edge + d) * out[0], pz + (edge + d) * out[1])
         for x, z in house.spots():
             g_at = _laid(x, z)
             corners = route.way(g_at, to, cells)

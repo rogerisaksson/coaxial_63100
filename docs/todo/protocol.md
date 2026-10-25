@@ -122,8 +122,8 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     turn in place 185 things where 87 posed, her sit on her eyes' seat never
     staged: her chair's things grown meet the table's, `route.staged` returns
     its most inside them and she walks between free corners;
-    the dock from the thing's own faces (`route.docks` docks a chair facing
-    -z, a bed +x: the room's), a backless seat approached from a free face;
+    a bed's dock the room's +x side (`route.docks`), a backless seat
+    approached from a free face;
     the switch (white, no hue) its wall's; the three SDF bands at her knee,
     navel and crown, the kernel's funnels on her things, the mover's wake to
     the wayfinder. DOD: her sit and lie on her eyes' things, as on the

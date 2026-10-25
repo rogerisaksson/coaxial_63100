@@ -55,6 +55,13 @@ def footprint(box):
     return np.array([c[0], c[2]], float), np.array([[R[0][0], R[2][0]], [R[0][2], R[2][2]]]), np.array([h[0], h[2]], float)
 
 
+def support(box, heading):
+    """The half extent of a box's footprint along `heading` (rad, (sin, cos) along x, z): its edge's
+    distance from its centre that way."""
+    _c, axes, h = footprint(box)
+    return float(np.abs(axes @ np.array([math.sin(heading), math.cos(heading)])) @ h)
+
+
 def _within(box, other):
     """`other`'s footprint in `box`'s floor frame: (its reach either way along each of box's axes (2, 2))."""
     c, axes, _h = footprint(box)
@@ -93,11 +100,11 @@ def lies(box, things):
             and clear(box, things, BED_CLEAR) >= 4.0 * float(h[0] * h[1]) - 1e-9)
 
 
-def backed(box, things):
-    """Whether a seat `box` has a back among `things`: one of its kind standing on the seat - its bottom
-    within a cell (`voxels.CELL_M`) of the seat's top, at its edge within a cell of its footprint, no
-    longer than the seat's side it stands along, a cell over - reaching LUMBAR_M over the top; a wall
-    behind a bench or a stair beside a landing stands on the floor, none."""
+def back_of(box, things):
+    """The back of a seat `box` among `things`: one of its kind standing on the seat - its bottom within
+    a cell (`voxels.CELL_M`) of the seat's top, at its edge within a cell of its footprint, no longer
+    than the seat's side it stands along, a cell over - reaching LUMBAR_M over the top; a wall behind
+    a bench or a stair beside a landing stands on the floor, none: None."""
     from machine.voxels import CELL_M
     _c, _axes, h = footprint(box)
     lumbar = top(box) + LUMBAR_M
@@ -108,5 +115,19 @@ def backed(box, things):
         gap = np.maximum(reach[:, 0] - h, 0.0) + np.maximum(-h - reach[:, 1], 0.0)
         along = int(np.argmax(reach[:, 1] - reach[:, 0]))
         if math.hypot(*gap) <= CELL_M + 1e-9 and 2.0 * max(float(t[2][0]), float(t[2][2])) <= 2.0 * h[along] + 2.0 * CELL_M + 1e-9:
-            return True
-    return False
+            return t
+    return None
+
+
+def backed(box, things):
+    """Whether a seat `box` has a back among `things` (`back_of`)."""
+    return back_of(box, things) is not None
+
+
+def faced(box, things):
+    """The heading a seat `box` faces among `things`, rad (`se2`'s, (sin, cos) along x, z): from its
+    back's centre through its own; None without a back."""
+    back = back_of(box, things)
+    if back is None:
+        return None
+    return math.atan2(float(box[1][0]) - float(back[1][0]), float(box[1][2]) - float(back[1][2]))

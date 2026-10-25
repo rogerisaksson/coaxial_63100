@@ -38,14 +38,16 @@ SIDES = math.ceil(math.pi / CONE)
 
 def docks():
     """How each errand docks, from her figure's, her stride's and the room's dimensions: kind ->
-    (the dock on the prop's edge from its centre, m; her heading docked, rad; how far along the
-    edge her hips may land off it, m; where she stops before it - her walk's stopping distance
-    and the stride a turn in place drifts her -, m; the prop's place failing one found)."""
+    (her heading docked, rad - the thing facing as the room lays it, a chair -z, a bed +x, the door
+    +z; a chair's own where it has a back, `furniture.nearest` -; how far along the edge her hips
+    may land off it, m; where she stops before it - her walk's stopping distance and the stride a
+    turn in place drifts her -, m; the prop's place failing one found). The dock itself is the
+    thing's edge along that heading (`errand._laid`)."""
     d_stage = se2.STOP_M + stride.STRIDE_M
     return {
-        'sit_chair': (0.0, -room.SEAT[2], math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
-        'lie_bed': (room.BED[0], 0.0, math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
-        'exit_door': (0.0, 0.0, 0.0, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]), 4.0 * stride.STRIDE_M,
+        'sit_chair': (math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
+        'lie_bed': (math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
+        'exit_door': (0.0, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]), 4.0 * stride.STRIDE_M,
                       (0.5 * (room.DOOR_X[0] + room.DOOR_X[1]), room.TO)),
     }
 

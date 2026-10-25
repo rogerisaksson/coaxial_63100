@@ -8,10 +8,18 @@ import math
 
 from machine import affordance
 
-#: What `verb` goes to among her things: whether a box affords it, and whether it is the thing itself.
-GOES = {'sit_chair': (affordance.sits, affordance.backed),
-        'lie_bed': (affordance.lies, lambda _b, _t: True),
-        'exit_door': (lambda b, _t: b[0] == 'door', lambda _b, _t: True)}
+#: What `verb` goes to among her things: whether a box affords it, whether it is the thing itself, and
+#: the heading it faces (None, as the room lays it).
+GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.faced),
+        'lie_bed': (affordance.lies, lambda _b, _t: True, lambda _b, _t: None),
+        'exit_door': (lambda b, _t: b[0] == 'door', lambda _b, _t: True, lambda _b, _t: None)}
+_NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: None)
+
+
+def _things(g, things):
+    """`things` (hers, `g['things']`, without) as boxes: kind, centre, half sizes, turn at the least."""
+    return [p for p in (g['things'] if things is None else things)
+            if len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3]
 
 
 def _found(g, verb, at=None, thing=None, things=None):
@@ -19,11 +27,10 @@ def _found(g, verb, at=None, thing=None, things=None):
     what `verb` goes to nearest `at` (x, z) - her without one - among `things` (hers, `g['things']`,
     without), the thing itself before what else affords it; the thing of slot `thing` where she holds
     one still (an errand's, chosen when it was seen whole); None with none seen."""
-    affords, itself = GOES.get(verb, (lambda _b, _t: False, lambda _b, _t: False))
+    affords, itself, _faces = GOES.get(verb, _NONE)
     gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
     ax, az = at if at is not None else (gx, gz)
-    things = [p for p in (g['things'] if things is None else things)
-              if len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3]
+    things = _things(g, things)
     held = [p for p in things if thing is not None and len(p) > 4 and p[4] == thing]
     hits = [
         (math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
@@ -35,14 +42,16 @@ def _found(g, verb, at=None, thing=None, things=None):
 
 
 def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
-    """`(dist_edge, px, pz, top, thing)` of the thing `verb` goes to nearest `at` (x, z) - her without one -
-    among `things` (hers without): its edge's distance from her, its centre, its top's height, its slot;
-    `where`, no top and no slot with none seen."""
+    """`(dist_edge, px, pz, top, thing, faced, box)` of the thing `verb` goes to nearest `at` (x, z) - her
+    without one - among `things` (hers without): its edge's distance from her, its centre, its top's
+    height, its slot, the heading it faces (None as the room lays it), its box; `where`, no top, no slot,
+    no facing and no box with none seen."""
     hit = _found(g, verb, at, things=things)
     if hit is None:
-        return math.inf, where[0], where[1], None, None
+        return math.inf, where[0], where[1], None, None, None, None
     edge, p = hit[1], hit[2]
-    return edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None)
+    return (edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None),
+            GOES.get(verb, _NONE)[2](p, _things(g, things)), p)
 
 
 def seen(g, stunt, at=None, thing=None):
