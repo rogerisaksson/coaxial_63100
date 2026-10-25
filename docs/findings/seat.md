@@ -146,10 +146,14 @@ the slide's start, the step planning 0 N on it under a cap of 223 while her
 soles bore nothing, and she jumped. A lean asking her hips up off the seat
 (her height the knee of the hips lifted by the sit's press) never began:
 rows that raise her wait while her capture point is off her soles
-(`waits.risen_back`), and seated deep it is. Left: the egress from the deep
-seat measured apart (the slide's start under the seat's grip, the hips'
-way, what the lean then asks); the sits lost at -1 and -2e-4 (one sole
-lifting 16 cm as the seat strikes, before the rest lets it go).
+(`waits.risen_back`), and seated deep it is. A sole off the floor while
+something bears her hovering CLEAR_M over the floor under it, no swing's
+clearance of what it met (branch `deep-sit-build`, 2c9904e7): the seven
+wobbles as before, 5 sit and 2 rise - the sits lost at -1 and -2e-4 fall at
+4.4 and 5.3 s to the digit, in the settle's strike before any sole kicks.
+Left: that strike (the seat at 1.2-1.3 of her weight as her trunk
+straightens on the perch, one thigh then her pelvis alone) and the egress
+from the deep seat measured apart.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
