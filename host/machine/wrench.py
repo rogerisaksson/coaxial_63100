@@ -91,14 +91,17 @@ def _solved(K, rhs, free):
         return np.linalg.solve(K + np.diag(free * RIDGE * float(np.diag(K).max())), rhs)
 
 
-def _patch(cs, idx, nu, full, full0, v, slide, pin):
+def _patch(cs, idx, nu, full, full0, v, slide, pin, slid=np.inf):
     """A bearing patch's rows, one (S, r, r0) a contact `cs` of it (its unknowns `idx` among the contacts): its
     point held still, up alone where it slides - its slip its velocity along the floor's plane (a seat's and a
     bed's tangent; the force a patch feels leans into its push, 30 deg in a lean, and is no normal to measure
     across), past SLIDE_M_S and along the slide its text says it may (`slide`, world; none said, none slides: a
     hand walked into a wall slid by this measure and the wall threw her back 1.2 m; a strike's skid as she stood
     up flipped the answer for 6 ms): the regime the step feels, never assumes (given a drag the stuck seat never
-    gave, a rise's lean planned -128 N along her thighs and felt +148) -; and the patch's normal force split
+    gave, a rise's lean planned -128 N along her thighs and felt +148) - and, a slide said and the patch bearing
+    no more than the slide's governor lets it (`slid`, N), drawn along the slide at its speed till it slides, its
+    friction the cone's: the kernel's attractor; held still there, a lean from a deep sit struck the seat at
+    1.5-3 of her weight for the hips it could not bring forward -; and the patch's normal force split
     as it is felt - each contact's, along the patch's normal, its share of the forces felt along it (returned,
     N) -, `pin` (W_PIN in shares of her weight) the row's, as a clipped force is held. Free, two thighs' split on
     one seat was the rounds' clips' to chatter over (63/65 -> 146/0 -> 4/4 N a pass): the step planned a roll
@@ -108,6 +111,7 @@ def _patch(cs, idx, nu, full, full0, v, slide, pin):
     n = n / max(float(np.sqrt(n @ n)), 1e-9)
     felt = np.array([max(float(c['f'] @ n), 0.0) for c in cs])
     share = felt / felt.sum() if felt.sum() > 0.0 else np.full(len(cs), 1.0 / len(cs))
+    freed = float((slide[[0, 2]] @ slide[[0, 2]] > 0.0) & (felt.sum() <= slid))
     rows, slips = [], []
     for m, (w, c) in enumerate(zip(share, cs)):
         split = np.zeros(nu)
@@ -117,9 +121,10 @@ def _patch(cs, idx, nu, full, full0, v, slide, pin):
         way = jv[[0, 2]]
         sliding = float((np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ slide[[0, 2]] > 0.0))
         mix = (1.0 - sliding) * _EYE3 + sliding * np.outer(_UP, _UP)
+        drift = freed * (1.0 - sliding) * slide
         left = -c['dJv'] - c['J'] @ full0
         rows.append((np.vstack([W_STILL * (mix @ (c['J'] @ full)), pin * split[None, :]]),
-                     np.append(W_STILL * (mix @ (left - CONTACT_K * jv)), 0.0), np.append(W_STILL * (mix @ left), 0.0)))
+                     np.append(W_STILL * (mix @ (left - CONTACT_K * (jv - drift))), 0.0), np.append(W_STILL * (mix @ left), 0.0)))
         slips.append((sliding, way[0], way[1]))
     return rows, felt, slips
 
@@ -137,7 +142,7 @@ def _patches(contacts, nu, full, full0, v, ask, pin):
     slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
     slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
-        rows, felt, slips = _patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin)
+        rows, felt, slips = _patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, min(cap, slid))
         held.update(zip(idx, zip(rows, felt, slips)))
     hands = np.array([float(c.get('patch', 0) >= CARPAL) for c in contacts])
     felt = np.array([held[j][1] for j in range(len(contacts))])
@@ -161,12 +166,14 @@ def _maps(b, s, ask, want):
     T[:6] = _EYE6
     t0[b.held] = -HELD_K * v[b.held]
     E[act[UPPER], _UPPER_IDX] = 1.0
-    a6, asked, swing = np.zeros(NU), np.zeros(2), ask.get('swing', {})
+    a6, asked, swing, let_go = np.zeros(NU), np.zeros(2), ask.get('swing', {}), ask.get('let_go', (False, False))
     settle = ask.get('settle', np.zeros((2, 6)))
     for k, leg in enumerate(LEGS):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
         if not ask['stance'][k] and k not in swing:
+            # let go (`ask['let_go']`): its hip on its posture, sprung where it was let go (`motion`), its
+            # knee and ankle hanging undriven (below). Its hips let go too, her trunk fell back on the chair
             t0[cols] = want[leg]
             continue
         inv = _inv(f['J6'][:, cols], DAMP ** 2)
@@ -181,13 +188,16 @@ def _maps(b, s, ask, want):
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
-    # the joints no drive holds, by their own rows of her dynamics under all the rest
+    # the joints no drive holds, by their own rows of her dynamics under all the rest - and a let-go leg's
+    # knee and ankle with them: it hangs from its hip
     passive = getattr(b, 'passive', None)
     if passive is None:
         passive = np.array([i >= 6 and i in b.free for i in range(n)])
-        active = ~passive
-    else:
-        active = b.active_dof
+    hung = np.zeros(n, bool)
+    for k, leg in enumerate(LEGS):
+        hung[act[leg][3:]] = bool(let_go[k])
+    passive = passive | hung
+    active = ~passive
     m_pp = M[np.ix_(passive, passive)]
     pull = -np.linalg.solve(m_pp, M[np.ix_(passive, active)])
     T[passive], E[passive] = pull @ T[active], pull @ E[active]

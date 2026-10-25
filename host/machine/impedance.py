@@ -24,6 +24,7 @@ from machine.modal import (
     LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED, ELBOWS, ELBOWED,
+    LET_GO,
     TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -141,6 +142,10 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
+    # a sole off the floor while what bears her off her soles holds her and nothing is asked of her soles
+    # (`latent.MANIFOLDED`, a seat's rest) is let go, no swing: it hangs from its hip (`modal.given`,
+    # `wrench._maps`); asked of them, a rise's lean, a sole in the air is held there as before
+    a[LET_GO] = propped * (1.0 - stance) * float(out[latent.MANIFOLDED][0] <= 0.0)
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
@@ -172,10 +177,12 @@ def ask(out, y, fr, a):
     lifted = stance.max() * (bears @ risen) / fr[HIPS_BY] - (1.0 - stance.max()) * AXIAL_M * pressed
     com = grounded * np.array([along[0], along[1], poise.clip(lifted, -G, THROW_M_S2)]) + (1.0 - grounded) * FALLS
     late = stride.lates(phi, turns, stepping)
-    # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm
+    # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm; something bearing her off her
+    # soles, a sole off the floor is no swing: it hovers CLEAR_M over the floor under it - clearing what it met,
+    # sat with one sole lifted as the seat struck, that sole rose 16 cm and she fell
     a[RAISE] -= fr[DT] * turns / (2.0 * np.pi) * a[RAISE]
-    clear = aloft * (stride.clears(u, flying, swung * hurry, np.maximum(CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE],
-                                                                      top + 2.0 * CLEAR_M), tip, tipping, tilt, late, land)
+    lift2 = np.maximum(CLEAR_M * (1.0 + np.abs(out[latent.SWAY][LIFT])) + a[RAISE], top + 2.0 * CLEAR_M) * (1.0 - propped) + CLEAR_M * propped
+    clear = aloft * (stride.clears(u, flying, swung * hurry, lift2, tip, tipping, tilt, late, land)
                      + HOT3[ALONG][:, None] * short_h)
     free, frame = swing.free(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                              grounded, propped)

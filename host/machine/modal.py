@@ -112,7 +112,11 @@ RESTS = slice(64, 66)
 PROPPED, PROPPED_BELOW, PROPPED_SINCE, PROPPED_BOX = 66, 67, 68, slice(69, 73)
 #: And her arms' reach and fold.
 REACHED, ELBOWED = 73, 74
-ASK = 75
+#: And whether each leg is let go: off the floor while a seat or a bed bears her, its sole is no swing - it
+#: hangs from its hip (`wrench._maps`). Swung, a seated sole that left the floor at 2e-4 rad stepped her up
+#: onto one leg off the chair.
+LET_GO = slice(75, 77)
+ASK = 77
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
@@ -353,9 +357,9 @@ def given(a, y, posed, knees, bend):
     that does not stand is asked its acceleration where it is; no turn is asked with none standing;
     each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
-    free = np.flatnonzero(a[STANCE] < 0.5)
-    folded = np.flatnonzero((a[STANCE] < 0.5) & (a[FOLDS] > 0.5))
-    return {'stance': tuple(a[STANCE] > 0.5), 'com_acc': a[COM_ACC].copy(),
+    free = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5))
+    folded = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5) & (a[FOLDS] > 0.5))
+    return {'stance': tuple(a[STANCE] > 0.5), 'let_go': tuple(a[LET_GO] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
