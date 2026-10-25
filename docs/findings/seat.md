@@ -118,7 +118,8 @@ to measure before anything lands. Her pelvis as two ischia in the step
 by where it lies, laid on them as far as it pushes her pelvis up), planted
 and landed deep: +2e-4 sat and rose, square sat 6.4 s and fell in the rise,
 -2e-4 fell at 4.2 s in the sit - as the deep landing alone; the perch's
-soles in the air under a standing step remain its fault.
+soles in the air under a standing step remain its fault. The two ischia with
+her legs let go: down at 5.1 and 6.8 s in the sit, +2e-4 in the rise.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
