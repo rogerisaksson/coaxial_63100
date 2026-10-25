@@ -53,7 +53,12 @@ and the patches in [scenarios](scenarios.md) walk it.
   slow. Not kept.
 - Snow holds 11 of 13 wobbles - 13 before its patch was made real, 12 after.
   At 3e-4 rad her standing sole's load fell 379 -> 40 N and her pelvis went
-  0.23 -> 2.78 m/s ahead in 0.1 s, her grip read 0.6 throughout.
+  0.23 -> 2.78 m/s ahead in 0.1 s, her grip read 0.6 throughout. At +2e-4
+  (red on main) it is the stop on the snow after the walk, not its far lip:
+  braking from 7.3 s her pelvis sinks at 0.6-1.8 m/s, both soles come off
+  twice (7.52 s; 7.96-8.02 s, a hop to 0.88 m), the standing sole strikes at
+  380-536 N, the other lifts 0.2 m and she is down at 8.6 s; her soles'
+  lowest points and the floor felt agree within 2 cm throughout.
 - Unaware ice, traced: her left sole read 0.103 one pass after it met the ice
   (2.31 s) and the slick patch 0.065 (0.06); the grip relaxed to her prior
   over 3 s and was back inside her envelope (0.25) within a second, each
