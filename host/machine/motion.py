@@ -215,7 +215,7 @@ def control(g, dt):
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
-                                    (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt)
+                                    (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt, g['ringed'])
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['schema_d'], s, ask, float(y_in[edge.LINK][0]), g['schema_at'])
     ask['mu'] = g['held']
@@ -299,7 +299,7 @@ def laid(g):
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
-    situation, her drive's cap, her ask's poses and her invariant EKF compiled from their numpy (`tools.cores.bodied`)."""
+    situation, her drive's cap, her ask's poses, her invariant EKF and her barrier (a ring's length a part) compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -310,6 +310,7 @@ def laid(g):
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 8))
+    g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))

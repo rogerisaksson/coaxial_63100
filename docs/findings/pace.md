@@ -147,3 +147,8 @@ machine ([body](body.md), [emulation](emulation.md),
   -> 1.45 of real time, two trees interleaved. The filter's whole state the
   same at each of 26 336 law passes of the played walk, turns, moves and
   strafes, the chair and the bed, both parts held.
+- Her capture point's barrier compiled, a ring's length a part
+  (`barrier.ringed` through `bodied.on_shapes`, the hull on Python's floats):
+  her loop 681 -> 648 us a pass, 1.48 -> 1.54 of real time. Her run the same
+  at each law pass of the chair's sit and rise, the bed, the hop down and the
+  played walk.

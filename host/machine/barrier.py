@@ -27,8 +27,9 @@ SWEEPS = 3
 
 
 def hull(points):
-    """The convex hull of floor `points` (n, 2), counterclockwise, Andrew's monotone chain."""
-    pts = sorted(map(tuple, points))
+    """The convex hull of floor `points` (n, 2), counterclockwise, Andrew's monotone chain on Python's
+    floats."""
+    pts = sorted(map(tuple, np.asarray(points).tolist()))
     turn = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
     lower, upper = [], []
     for p in pts:
@@ -42,20 +43,25 @@ def hull(points):
     return np.array(lower[:-1] + upper[:-1])
 
 
-def barred(acc, com, vcom, om, corners, rest):
-    """`acc` (world, y up) with its floor part (x, z) held by her capture point's barrier over the
-    hull of `corners` (n, 3), as far as `rest`."""
-    ring = hull(np.asarray(corners)[:, [0, 2]])
+def ringed(acc, com, vcom, om, ring, rest):
+    """`acc` (world, y up) with its floor part (x, z) held by her capture point's barrier over a
+    hull's `ring` (k, 2), as far as `rest`; in C a ring's length a part (`motion.laid`), its
+    np.maximum(0.0, d) Python's max(0.0, d) but at nan."""
     edge = np.roll(ring, -1, axis=0) - ring
     n = np.stack([edge[:, 1], -edge[:, 0]], axis=1) / np.linalg.norm(edge, axis=1)[:, None]
     n *= np.sign(np.einsum('ij,ij->i', n, ring - ring.mean(axis=0)))[:, None]
     v, xi = vcom[[0, 2]], com[[0, 2]] + vcom[[0, 2]] / om
     h = np.einsum('ij,ij->i', n, ring) - n @ xi - MARGIN_M
     bound = om * (GAMMA * np.maximum(h, 0.0) - n @ v)
-    a = acc[[0, 2]].copy()
+    a = acc[[0, 2]]
     for _k in range(SWEEPS):
         for ni, bi in zip(n, bound):
-            a -= ni * max(0.0, float(ni @ a) - bi)
+            a -= ni * np.maximum(0.0, ni @ a - bi)
     out = acc.copy()
     out[[0, 2]] += rest * (a - acc[[0, 2]])
     return out
+
+
+def barred(acc, com, vcom, om, corners, rest, law=ringed):
+    """`ringed` by `law` (its C, or itself) over the hull of floor `corners` (n, 3)."""
+    return law(acc, com, vcom, om, hull(np.asarray(corners)[:, [0, 2]]), rest)
