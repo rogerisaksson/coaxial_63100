@@ -134,3 +134,11 @@ machine ([body](body.md), [emulation](emulation.md),
   19 in the page's worker; `shielded` 307 -> 244 us a call, ~21 us of a world
   pass. Held at every call of her walk, the worker, a chair, the doorway and
   the closing scene.
+- Her map's refresh cut (`registry.seen`, `_boxes`, `boxes`): the match
+  metric laid once a look, the box stacks at once; the page's worker 968 ->
+  904 us a pass, 1.04 -> 1.12 of real time, two trees interleaved. Every call
+  of the worker and her bare walk and 4 x 48 000 fuzzed calls the same.
+- `bodied`'s glue taken in one generated call a part (its leaves, its pins,
+  her body's constants; the leaves seen last call skipped in C) measured
+  nothing on her loop, +0.7 % wall: the 65 us a pass a loaded profile gave
+  `fits` is not there unloaded; not kept.

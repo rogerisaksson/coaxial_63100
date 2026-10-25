@@ -102,3 +102,9 @@
   limb of three counts 3-7 comm errors against 0 in a clean run
   ([emulation](../findings/emulation.md)). DOD: the reason in `modbus_rtu.c`'s
   framing after a bad frame, one count a node a corrupt frame.
+- **A slot taken on her full map** (found): with every slot live, a thing
+  matching none takes the least salient one (`registry.seen`), and the look's
+  later things meet it by its old kind, place ahead and variance, its new half
+  sizes alone - a new thing matched as the one it replaced. Reached at 256
+  live slots only (the lodge's 24 never). DOD: a slot taken anew met as its
+  new thing, held by a test on a full map.

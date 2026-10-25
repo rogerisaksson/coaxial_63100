@@ -26,6 +26,7 @@ look over the time, its slot at each look, its variance the look's. Her buses ta
 """
 import math
 import os
+from itertools import compress
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
@@ -57,10 +58,14 @@ MOVING = kernel.node('specialize-with-dynamic-agent-bifurcation', 'moving-object
 SLOT = np.dtype([('on', 'f8'), ('kind', 'i4'), ('centre', 'f8', 3), ('half', 'f8', 3), ('R', 'f8', (3, 3)),
                  ('var', 'f8'), ('salience', 'f8'), ('vel', 'f8', 3), ('last', 'f8', 3), ('seen_at', 'f8'),
                  ('swell', 'f8'), ('drift', 'f8'), ('moving', 'f8'), ('shown', 'f8')])
-#: Her eyes' half angles' tangents, up and across; their look down her head's z, rad.
+#: Her eyes' half angles' tangents, up and across; their look down her head's z, rad; their axis and
+#: their up in her head's frame.
 TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
 TAN_ACROSS = TAN_UP * W / H
 DOWN = math.radians(DOWN_DEG)
+AXIS, UP = np.array([0.0, -math.sin(DOWN), math.cos(DOWN)]), np.array([0.0, math.cos(DOWN), math.sin(DOWN)])
+#: A box's centre, half sizes and rotation: their shapes.
+BOX = ((3,), (3,), (3, 3))
 
 
 def laid():
@@ -88,20 +93,29 @@ def nearest(centre, half, R, eye):
     return centre + np.einsum('nij,nj->ni', R, local)
 
 
-def shown(points, head):
-    """(n,) whether each of `points` lies in her eyes' frustum: `head` {pos, quat} her head's."""
-    eye, R = _eye(head)
+def shown(points, eye, R):
+    """(n,) whether each of `points` lies in her eyes' frustum, her eye at `eye`, her head's rotation `R`."""
     v = (np.asarray(points).reshape(-1, 3) - eye) @ R
-    depth = v @ np.array([0.0, -math.sin(DOWN), math.cos(DOWN)])
-    up = v @ np.array([0.0, math.cos(DOWN), math.sin(DOWN)])
+    depth, up = v @ AXIS, v @ UP
     return (depth >= NEAR_M) & (depth <= FAR_M) & (np.abs(up) <= depth * TAN_UP) & (np.abs(v[:, 0]) <= depth * TAN_ACROSS)
 
 
 def _boxes(looks):
-    """(kinds, centres (n, 3), halves (n, 3), rotations (n, 3, 3)) of a look's things, those that are boxes."""
-    rows = [p for p in looks if len(p) >= 4 and np.size(p[1]) == 3 and np.size(p[2]) == 3 and np.size(p[3]) == 9]
-    return ([str(p[0]) for p in rows], np.array([p[1] for p in rows], float).reshape(-1, 3),
-            np.array([p[2] for p in rows], float).reshape(-1, 3), np.array([p[3] for p in rows], float).reshape(-1, 3, 3))
+    """(kinds, centres (n, 3), halves (n, 3), rotations (n, 3, 3)) of a look's things, those that are boxes:
+    its things of four fields stacked at once, sized one by one where they do not stack as boxes."""
+    rows = [p for p in looks if len(p) >= 4]
+    try:
+        stacked = [np.array([p[j] for p in rows], float).reshape((len(rows),) + s) for j, s in enumerate(BOX, 1)]
+    except (TypeError, ValueError):
+        rows = [p for p in rows if all(np.size(p[j]) == math.prod(s) for j, s in enumerate(BOX, 1))]
+        stacked = [np.array([p[j] for p in rows], float).reshape((-1,) + s) for j, s in enumerate(BOX, 1)]
+    return [str(p[0]) for p in rows], *stacked
+
+
+def _w2(centre, half, at, halves, scale):
+    """(n, m) the Wasserstein metric squared of each thing (`centre`, `half` (n, 3)) to each slot (`at`, `halves`
+    (m, 3)), over the variances `scale` (m,)."""
+    return (((at - centre[:, None]) ** 2).sum(2) + ((halves - half[:, None]) ** 2).sum(2)) / scale
 
 
 def seen(slots, looks, head, t):
@@ -109,44 +123,52 @@ def seen(slots, looks, head, t):
     matches or a new one, every live slot's salience moved, the pruned let go."""
     r, kinds = slots['rows'], slots['kinds']
     names, centre, half, R = _boxes(looks)
-    eye = _eye(head)[0]
-    looked = shown(nearest(centre, half, R, eye), head)
-    names = [n for n, on in zip(names, looked) if on]
-    centre, half, R = centre[looked], half[looked], R[looked]
-    live = np.flatnonzero(r['on'])
+    on = r['on']
+    live = np.flatnonzero(on)
+    if not len(names) and not len(live):
+        return slots
+    eye, turn = _eye(head)
+    looked = shown(nearest(centre, half, R, eye), eye, turn)
+    names, centre, half, R = list(compress(names, looked)), centre[looked], half[looked], R[looked]
+    var, salience, vel, last = r['var'], r['salience'], r['vel'], r['last']
+    seen_at, swell, drift = r['seen_at'], r['swell'], r['drift']
     matched = np.zeros(len(live), bool)
-    ahead = r['centre'][live] + r['vel'][live] * (t - r['seen_at'][live])[:, None]
-    scale = r['var'][live] + CELL2
-    alike = np.array([[kinds[i] == n for i in live] for n in names], bool).reshape(len(names), len(live))
-    for k in range(len(names)):
-        w2 = ((ahead - centre[k]) ** 2).sum(1) + ((r['half'][live] - half[k]) ** 2).sum(1)
-        d2 = np.where(matched | ~alike[k], np.inf, w2 / scale)
-        best = int(np.argmin(d2)) if len(d2) else -1
-        if best >= 0 and d2[best] <= GATE:
-            i, matched[best] = int(live[best]), True
-            dt, move = max(t - r['seen_at'][i], 1e-9), centre[k] - r['centre'][i]
-            r['drift'][i] += float(move @ move) / (r['var'][i] + CELL2)
-            moving = float(r['drift'][i] > MOVING)
-            gain = moving + (1.0 - moving) * r['var'][i] / (r['var'][i] + CELL2)
-            r['moving'][i], r['vel'][i] = moving, moving * (centre[k] - r['last'][i]) / dt
+    ahead = r['centre'][live] + vel[live] * (t - seen_at[live])[:, None]
+    scale = var[live] + CELL2
+    code = {}
+    alike = np.array([code.setdefault(n, len(code)) for n in names])[:, None] == [code.get(kinds[i], -1) for i in live]
+    d2 = np.where(alike, _w2(centre, half, ahead, r['half'][live], scale), np.inf)
+    free = iter(np.flatnonzero(on == 0.0))
+    for k, name in enumerate(names):
+        best = int(d2[k].argmin()) if len(live) else -1
+        if best >= 0 and d2[k, best] <= GATE:
+            i, matched[best], d2[:, best] = int(live[best]), True, np.inf
+            dt, move = max(t - seen_at[i], 1e-9), centre[k] - r['centre'][i]
+            drift[i] += float(move @ move) / (var[i] + CELL2)
+            moving = float(drift[i] > MOVING)
+            gain = moving + (1.0 - moving) * var[i] / (var[i] + CELL2)
+            r['moving'][i], vel[i] = moving, moving * (centre[k] - last[i]) / dt
             r['centre'][i] += gain * move
             r['half'][i] += gain * (half[k] - r['half'][i])
-            r['R'][i], r['var'][i] = R[k], (1.0 - gain) * r['var'][i] + moving * CELL2
-            r['salience'][i] += HIT
-            r['last'][i], r['seen_at'][i], r['swell'][i], r['shown'][i] = centre[k], t, 0.0, 1.0
+            r['R'][i], var[i] = R[k], (1.0 - gain) * var[i] + moving * CELL2
+            salience[i] += HIT
+            last[i], seen_at[i], swell[i], r['shown'][i] = centre[k], t, 0.0, 1.0
             continue
-        free = np.flatnonzero(r['on'] == 0.0)
-        i = int(free[0]) if len(free) else int(np.argmin(np.where(r['on'] > 0.0, r['salience'], np.inf)))
-        r[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0)
-        kinds[i] = names[k]
+        i = next(free, None)
+        if i is None:
+            # none free: the least salient's; a live slot so taken meets the things after it by its new half sizes
+            i = int(np.argmin(np.where(on > 0.0, salience, np.inf)))
+            j = np.flatnonzero((live == i) & ~matched)
+            d2[k + 1:, j] = np.where(alike[k + 1:, j], _w2(centre[k + 1:], half[k + 1:], ahead[j], half[k:k + 1], scale[j]),
+                                     np.inf)
+        r[i], kinds[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0), name
     rest = live[~matched]
     if len(rest):
-        inside = shown(nearest(r['centre'][rest], r['half'][rest], r['R'][rest], eye), head)
-        kept = t - r['seen_at'][rest] <= KEPT_S
+        inside = shown(nearest(r['centre'][rest], r['half'][rest], r['R'][rest], eye), eye, turn)
+        kept = t - seen_at[rest] <= KEPT_S
         r['shown'][rest] = inside
-        r['salience'][rest] += MISS * (inside | ~kept)
-    gone = np.flatnonzero((r['on'] > 0.0) & (r['salience'] < PRUNE))
-    r['on'][gone] = 0.0
+        salience[rest] += MISS * (inside | ~kept)
+    on[(on > 0.0) & (salience < PRUNE)] = 0.0
     return slots
 
 
@@ -159,7 +181,8 @@ def passed(slots, head, dt):
         return slots
     movable = np.array([kinds[i] not in STRUCTURAL for i in live], float)
     r['var'][live] += DIFFUSE * dt * movable
-    out = 1.0 - shown(nearest(r['centre'][live], r['half'][live], r['R'][live], _eye(head)[0]), head)
+    eye, turn = _eye(head)
+    out = 1.0 - shown(nearest(r['centre'][live], r['half'][live], r['R'][live], eye), eye, turn)
     r['swell'][live] = np.minimum(SWELL_M, r['swell'][live] + SWELL_MPS * dt * out)
     return slots
 
@@ -168,5 +191,11 @@ def boxes(slots, least=TAKEN):
     """[(kind, centre, half sizes swollen by its blind spot, rotation)] of the slots at `least` salience:
     her buses' things, as `world.props()` gives them."""
     r, kinds = slots['rows'], slots['kinds']
-    return [(kinds[i], tuple(r['centre'][i]), tuple(r['half'][i] + r['swell'][i]), tuple(map(tuple, r['R'][i])))
-            for i in np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))]
+    taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
+    return list(zip([kinds[i] for i in taken], _tuples(r['centre'][taken]),
+                    _tuples(r['half'][taken] + r['swell'][taken, None]), _tuples(r['R'][taken])))
+
+
+def _tuples(a):
+    """`a`'s rows as nested tuples of its numpy floats, as tuple() of a row gives them."""
+    return zip(*a.T) if a.ndim == 2 else zip(*map(_tuples, a.swapaxes(0, 1)))
