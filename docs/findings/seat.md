@@ -321,3 +321,11 @@ goes 0.077 to 0.140 m onto the seat - and falls as they let go, every variant
 cm over the seat. Her heels raised as far as her thighs need (`stride.heels`
 sat, python), her soles unloaded (12/0 N) before her ischia came down. Left:
 the seat's ischia and thighs as two patches, and a hand-over to the ischia.
+Her hands in the deep sit's descent (worktree wt_deep: deep-sit-build merged
+with main, not kept): the merge alone sits 0.30 legs back, trunk -0.3 deg,
+knee 98. The landing's limit moved by her hands' lever (the kernel's carpal
+0.20, `seated.landed` with a share) and her arms reaching the seat beside
+where her hips land: her centre of mass went behind her heels before her
+hands met the seat, 0.26 legs, tipped back to -59 deg, soles up 0.18 legs.
+The descent split, her centre of mass over her heels till both hands bear:
+they never both bore, she stayed bent 41 deg forward at 0.25 legs.
