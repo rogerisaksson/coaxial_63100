@@ -294,3 +294,12 @@ cm inside her heels), 0.192 m behind her ankles for any hands' share 0-0.28.
 Deeper, her thighs must rise over the edge (1.6 cm of lift 0.15 m onto the
 seat, 3.4 at 0.20) and her heels come up for her ischia to come down (4.7 deg
 0.10 m onto it, 9.2 at 0.14 with her knee at 95, 12 at 0.18).
+Hitched from the edge on her hands (branch seat-hitch, not kept): her arms'
+reach and fold from her arm's kinematics (`figure.palm`), her hands seeking
+the seat at the kernel's 0.25 m/s beside where her hips go, the press waiting
+till both bear, she lands them together (21/20 N), bears 42-53 N a hand and
+goes 0.077 to 0.140 m onto the seat - and falls as they let go, every variant
+(5.5-7.6 s): her thighs perch on the edge (55-60 N) and her ischia hang 1.4-2
+cm over the seat. Her heels raised as far as her thighs need (`stride.heels`
+sat, python), her soles unloaded (12/0 N) before her ischia came down. Left:
+the seat's ischia and thighs as two patches, and a hand-over to the ischia.
