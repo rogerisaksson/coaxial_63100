@@ -65,9 +65,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    together with her shanks upright (0.40 legs at a dock 0.10 m further
    out, her centre of mass 9 cm behind her heels before it bears) - her
    step keeps her centre of mass over her soles whatever the ask (asked the
-   posture she squats in front of the chair), so a tip is a regime of her
-   law to have, with the kernel's capture step for the seat pulled away
-   (item 12); the handover wanting her hips asked up
+   posture she squats in front of the chair): a standing sole is held flat
+   and whole, so a tip is a regime of her law to have - a sole rolled onto
+   its heel's edge a contact of her patch set, its line held and its pitch
+   free, its stance let go, the leg on its posture (item 4's equinus the
+   same on its ball), with the kernel's capture step for the seat pulled
+   away (item 12); the handover wanting her hips asked up
    off the seat as the pan goes rather than the seat's force capped under
    what it gives (the pass taken apart, the points' rows 13 900), the ingress
    deeper after the crossfade needing her feet along (item 4's equinus or
