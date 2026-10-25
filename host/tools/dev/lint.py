@@ -188,7 +188,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.hook:
         return hook(args.hook)
-    found = lint(args.files + (changed() if args.changed else []))
+    missing = ['%s: no such file' % f for f in args.files if not os.path.isfile(f)]
+    found = missing + lint(args.files + (changed() if args.changed else []))
     print('\n'.join(found) or 'lint: clean')
     return 1 if found else 0
 
