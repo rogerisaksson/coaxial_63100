@@ -36,7 +36,7 @@ def _step_typed():
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
-               ('swing_at', (f * 3) * 2),
+               ('slid_cap', f), ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
@@ -157,7 +157,7 @@ def _stepped(k, step, v, b, s, ask):
     v['mus'][:] = ask.get('mu', (law.MU, law.MU))
     v['rests'][:] = ask.get('rests', (0.0, 0.0))
     v['slide'][:] = ask.get('slide', (0.0, 0.0, 0.0))
-    k.fz_cap = float(ask.get('fz_cap', np.inf))
+    k.fz_cap, k.slid_cap = float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):

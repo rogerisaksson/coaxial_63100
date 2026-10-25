@@ -1,6 +1,6 @@
 """The kernel's Step 4 on her loop: her legs' reach, her slide over what bears her, its load as told.
 
-    somatic.asked(g, s, out, told, ask)    # a pass: the step's edge, slide and fz_cap asks laid
+    somatic.asked(g, s, out, told, ask)    # a pass: the step's edge, slide, fz_cap and slid_cap asks laid
 
 somatic_interaction_core.lisp. Reachability (`modulate-kinematic-reachability`): each leg's reach, its hip to its sole over her leg's length
 (LEG_M), rho; from RHO[0] to RHO[1] her sole's centre of pressure goes onto its ball (the step's `edge`), by
@@ -40,9 +40,10 @@ EGRESS_M_S = float(EGRESS['tangent-velocity-attractor'][0])
 
 def asked(g, s, out, told, ask):
     """`ask` with the step's `edge` rolled onto the ball as each leg reaches, `slide` her text's along her way
-    (world: the slide her contacts may take) and `fz_cap`, the least of what bears her told share of her weight
-    and its slide's regime's, no less than her balance needs of it (`lever`): `s` her sensed state (hips, feet,
-    com, contacts), `out` her latent's, `told` what bears her as told (`latent.MANIFOLDED`)."""
+    (world: the slide her contacts may take), `fz_cap`, what bears her told share of her weight, no less than her
+    balance needs of it (`lever`), and `slid_cap`, a sliding contact's load's cap, that slide's regime's share
+    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck): `s` her sensed state
+    (hips, feet, com, contacts), `out` her latent's, `told` what bears her as told (`latent.MANIFOLDED`)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
     equinus = float(told[1:].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
     ask['edge'] = tuple(np.clip(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
@@ -52,8 +53,8 @@ def asked(g, s, out, told, ask):
     local[stride.ALONG] = along
     ask['slide'] = rot.T @ local
     told_cap = np.where(said > 0.0, weight * told[1:].sum() / np.maximum(said, TINY), np.inf)
-    slid_cap = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
-    ask['fz_cap'] = np.maximum(np.minimum(told_cap, slid_cap), lever(s, rot[stride.ALONG]) * weight)
+    ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG]) * weight)
+    ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     return ask
 
 

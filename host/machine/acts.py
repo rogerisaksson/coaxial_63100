@@ -15,7 +15,7 @@ past her modes' reach.
 import collections
 import math
 
-from machine import figure, impedance, leap, ortho, seated, somatic, wrench
+from machine import figure, impedance, ortho, seated, somatic, wrench
 from machine.errors import MachineError
 
 #: Her modes by the suite's nodes: what a node's stiffness or gate moves. Her head has none.
@@ -86,7 +86,7 @@ def _envelope(p, at, modes, body):
     sat = stage == 'preload' and at['seat'] is not None
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
     told = (at['knee'], at['ankle']) if sat else (joints.get(':tibiofemoral', at['knee']), joints.get(':talocrural', at['ankle']))
-    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE, at['seat'], trunk) if seen else told
+    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, trunk) if seen else told
     at['leaned'] = (p['duration-ms'], _curve(p))
     # her height only where it bends her knee: a preload's asked her seat's modelled 10 mm under where
     # she sat, her legs let go and her soles bore nothing in 20 ms

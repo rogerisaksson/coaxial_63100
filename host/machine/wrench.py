@@ -6,7 +6,8 @@ Twenty-one unknowns: six a sole - the wrench it takes of the floor where it stan
 acceleration where it does not - and her upper body's nine accelerations; and three a contact
 (`s['contacts']`, `machine.borne`): the force on a segment that bears her, its point still where it sticks, its
 friction kinetic where it is felt sliding as its text says it may (`ask['slide']`, `rounds.pushed`), their load
-under `ask['fz_cap']`; the segments one surface bears are a patch, its load split as felt. Every joint follows
+under `ask['fz_cap']` and a sliding one's under `ask['slid_cap']` too; the segments one surface bears are a patch,
+its load split as felt. Every joint follows
 from them: a leg through its sole (still where it stands), the pelvis by the six base rows of her
 dynamics. One weighted least squares finds them - her centre of mass's ask, the turns, a swinging
 sole's ask, the posture, her standing knees, her height, her angular momentum - ROUNDS times,
@@ -113,11 +114,12 @@ def _patch(cs, idx, nu, full, full0, v, slide, pin):
     return rows, felt, slips
 
 
-def _patches(contacts, nu, full, full0, v, slide, pin, cap):
+def _patches(contacts, nu, full, full0, v, slide, pin, cap, slid):
     """(each contact's rows, its cap, N: its share as felt of `cap`, what bears her off her soles over every
-    patch; its slip, (k, 3)) in the contacts' order (`_patch`), a patch the contacts one surface bears (`borne`);
-    `cap` none, each's none. Capped a patch at a time, a thigh on the seat's front face let the seat plan 297 N
-    under 214; capped sliding alone, the seat bore all of her through a rise's lean and the dock's never ended."""
+    patch, and of `slid`, the slide's governor's, where it slides; its slip, (k, 3)) in the contacts' order
+    (`_patch`), a patch the contacts one surface bears (`borne`); a cap none, none. Capped a patch at a time, a
+    thigh on the seat's front face let the seat plan 297 N under 214; capped sliding alone, the seat bore all of
+    her through a rise's lean and the dock's never ended; the governor's cap on a stuck seat struck it."""
     held = {}
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
         rows, felt, slips = _patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin)
@@ -125,7 +127,8 @@ def _patches(contacts, nu, full, full0, v, slide, pin, cap):
     felt = np.array([held[j][1] for j in range(len(contacts))])
     shares = felt / felt.sum() if felt.sum() > 0.0 else np.full(len(contacts), 1.0 / max(len(contacts), 1))
     slips = np.array([held[j][2] for j in range(len(contacts))]).reshape(len(contacts), 3)
-    caps = cap * shares if np.isfinite(cap) else np.full(len(contacts), np.inf)
+    limit = np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap)
+    caps = np.where(np.isfinite(limit), limit * shares, np.inf)
     return [held[j][0] for j in range(len(contacts))], caps, slips
 
 
@@ -270,7 +273,7 @@ def step(b, s, ask):
         sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
     still, caps, slips = _patches(contacts, nu, full, full0, v, np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float),
-                                  W_PIN / (mass * G), float(ask.get('fz_cap', np.inf)))
+                                  W_PIN / (mass * G), float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf)))
     a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], W_COM * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)

@@ -427,12 +427,14 @@ int wbc_step(wbc_step_t *p)
   }
   /* each contact's rows: its point held still, along its patch's normal alone where it slides (wbc_patch.c) */
   wbc_patch_rows(p, n, nu, nc, full, full0, S, r, r0, along, slips);
-  /* what bears her off her soles capped as asked (fz_cap): each contact's at its share of it as felt over every
-     patch (machine.wrench._patches) */
+  /* what bears her off her soles capped as asked (fz_cap), a sliding contact by the slide's governor too
+     (slid_cap): each contact's at its share of it as felt over every patch (machine.wrench._patches) */
   total = npsum(along, nc);
   for (int q = 0; q < nc; q++)
   {
-    caps[q] = isfinite(p->fz_cap) ? p->fz_cap * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
+    const double limit = slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
+
+    caps[q] = isfinite(limit) ? limit * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
   }
   /* the rows, as machine.wrench lays them */
   for (int j = 0; j < 3 * nu; j++)

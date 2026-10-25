@@ -185,10 +185,11 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     slid = asked((0.75, 0.70), 0.85)
     out[latent.SLID] = 0.15
     egress = asked((0.75, 0.70), 0.85)
-    report.check('a slide said of -0.15 m/s caps her contacts\' load at the ingress\'s 0.55 of her weight; forward,'
-                 ' at the egress\'s 0.70',
-                 abs(float(slid['fz_cap']) - 0.55 * 300.0) < 1e-9 and abs(float(egress['fz_cap']) - 0.70 * 300.0) < 1e-9,
-                 'cap %.1f; %.1f' % (slid['fz_cap'], egress['fz_cap']))
+    report.check('a slide said of -0.15 m/s caps a sliding contact\'s load at the ingress\'s 0.55 of her weight; forward,'
+                 ' at the egress\'s 0.70; the told cap as it was',
+                 abs(float(slid['slid_cap']) - 0.55 * 300.0) < 1e-9 and abs(float(egress['slid_cap']) - 0.70 * 300.0) < 1e-9
+                 and abs(float(slid['fz_cap']) - 0.85 * 300.0) < 1e-9 and float(seated['slid_cap']) == np.inf,
+                 'cap %.1f; %.1f' % (slid['slid_cap'], egress['slid_cap']))
     out[latent.SLID] = 0.0
     way = np.eye(3)[stride.ALONG]
     seat = {'hips': [np.array([0.0, 0.7 * somatic.LEG_M, 0.0]), np.array([0.2, 0.7 * somatic.LEG_M, 0.0])],
