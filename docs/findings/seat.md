@@ -26,6 +26,14 @@ rolled off it at 47 deg by 4.1 s. The kernel's ingress seats her with her
 hands (`specialize-with-carpal-seat-boost`: the carpal heels on the seat up
 to 0.20 of her, `appendage-admittance` seeking them down at 0.25 m/s): the
 deep sit waits for her arms as supports (`borne` leaves them out). Undone.
+Her fists onto the seat beside her hips (an arms worktree: her hands among
+`borne`'s supports, the seat's cross-fade and the lean reaching both arms
+back by `seated.hands`, 27 deg upright, her soles' fade letting them hang):
+her shoulders follow to the degree, and her fists hang 0.27 m from her
+centre line - the shoulders' 0.148 and the forearms' carry - where the
+lodge's seat is 0.22 m half-wide, 5 cm outside it and 1.5 cm under its top,
+touching nothing; her shoulder is one hinge, no adduction draws them in. A
+seat 0.5 m wide (a chair's), or her hands on her thighs for the rise alone.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3

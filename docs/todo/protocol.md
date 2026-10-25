@@ -48,23 +48,25 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    (0.55 deeper, 0.70 forward, `somatic.CAPS`), what bears her capped as
    told and no lower than the lever's rule; the rise's lean panned to her
    soles at the handover's 0.82 with the egress slide said, her legs'
-   springs back with it, her neck braced seated: the chair laid 2e-4 rad
-   either way sat, square and +2e-4 risen (roll 2.4 deg), the dock stood.
-   Left: at -2e-4 the rise is one-legged (the lean's strike at 1.2 of her
-   weight lifts a sole; 0/299 N through the stand) and she is down at 11.3
-   s, as main was in the sit at 8.4 - the handover wants her hips asked up
-   off the seat as the pan goes, not the seat's force capped under what it
-   gives (seat findings: the pass taken apart, the points' rows 13 900) -;
-   through the lean one sole bears her (0/257 N square) and the seat is met
-   at 1.2 of her weight twice; her chair's sit lands on its front edge
+   springs back with it, her neck braced seated, the slide's governor
+   capping a sliding contact alone: the chair laid 2e-4 rad either way sat
+   and risen (roll 12-18 deg, one sole through the lean), the dock and the
+   chair errand stood. Left: her chair's sit lands on its front edge
    (`seated.landed`'s buttock cap and thigh clearance let go she sits 0.29
-   legs back, upright, and falls rising), the ingress deeper after the
-   crossfade needs her feet along (item 4's equinus or their own slide:
-   asked 0.18 m deeper, planted, she moved 2 mm), the 65 Hz dither, the
-   ischial centring's stop on that CoP. DOD: the chair laid 2e-4 rad either
-   way risen on both soles; she slides onto and off a seat over her knees,
-   forward to its edge before her rise, and 180 mm deeper onto the bed; her
-   walk, the bed and the errands as solved.
+   legs back and upright as a human, and at -2e-4 her soles leave the floor
+   and she rolls off the seat: the kernel seats her with her hands, and on
+   the lodge's chair her fists hang 0.27 m from her centre line, 5 cm
+   outside the 0.22 m half-wide seat - a wider seat, or her hands on her
+   thighs; seat findings), the handover wanting her hips asked up off the
+   seat as the pan goes rather than the seat's force capped under what it
+   gives (the pass taken apart, the points' rows 13 900), the ingress
+   deeper after the crossfade needing her feet along (item 4's equinus or
+   their own slide: asked 0.18 m deeper, planted, she moved 2 mm), the 65
+   Hz dither, the ischial centring's stop on that CoP. DOD: she sits a
+   human's 0.31-0.47 legs back and rises on both soles at 2e-4 rad either
+   way; she slides onto and off a seat over her knees, forward to its edge
+   before her rise, and 180 mm deeper onto the bed; her walk, the bed and
+   the errands as solved.
 6. **Step 5, the body schema on the room**: `machine.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -
