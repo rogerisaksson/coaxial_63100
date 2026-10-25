@@ -51,18 +51,21 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    her off the edge, her centre of mass driven back alone 0.043 m deeper in
    2 s. Her text says it (`(slide v)`, `ortho.SLIDE` -> `latent.SLID` -> the
    step's ask); said with her hips asked 0.18 m deeper her feet planted and
-   her knee held moved her 2 mm. Left, first: a bearing patch as one
-   wrench of her step - its contacts (`machine.borne`, a point a segment)
-   grouped by the text's manifold registry (`observer.POINTS`), one force,
-   its centre of pressure within the points' spread as a sole's within its
-   room - where two thigh points held still apart chatter and fell the chair
-   laid 2e-4 rad off (seat findings, her seat as two points); then the
-   slide's driver - the deeper posture with her soles let onto the forefoot
-   (item 4's equinus) or slid along -, in the sit's and the rise's phases
-   (`acts`), the 65 Hz dither, the ischial centring's stop on that CoP. DOD:
-   the chair laid 2e-4 rad either way sat and risen; she slides onto and
-   off a seat over her knees, forward to its edge before her rise, and 180
-   mm deeper onto the bed.
+   her knee held moved her 2 mm. Left, as one change under the whole gate
+   (seat findings, her seat as two points): a bearing patch as one wrench of
+   her step - its contacts (`machine.borne`, a point a segment) grouped by
+   the text's manifold registry (`observer.POINTS`), its centre held still,
+   its CoP within the points' spread as a sole's within its room (the sit
+   holds at every wobble so, the Python step says) -, the texts' slide
+   phases (ingress deeper after the crossfade, egress forward through the
+   lean, the kernel's 0.16 and 0.15 m/s, `acts`) and the lean's plantar
+   share panned back as the handover has it (one sole took the surplus with
+   the ZMP let go), in Python and the C twin together; then her soles let
+   onto the forefoot (item 4's equinus) or slid along for the deeper slide,
+   the 65 Hz dither, the ischial centring's stop on that CoP. DOD: the chair
+   laid 2e-4 rad either way sat and risen; she slides onto and off a seat
+   over her knees, forward to its edge before her rise, and 180 mm deeper
+   onto the bed; her walk, the bed and the errands as solved.
 6. **Step 5, the body schema on the room**: `machine.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -

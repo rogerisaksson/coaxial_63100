@@ -93,3 +93,20 @@ Python step and its C twin fall to the digit alike. The text bears her on
 one manifold with a centre of pressure (`ischial-bilateral`, the slide's
 stop on its CoP): her step is to take a patch's contacts as one wrench, its
 force one, its CoP within the points' spread as a sole's within its room.
+
+Tried on the Python step (`chair_py.py`, the step swapped in, falls to the
+digit as the C's): the seat's contacts one patch, its centre (the felt
+forces' weighted point, J = sum w_i J_i) held still, each contact's rows the
+patch's at the root of its share, their forces free as before. The sit holds
+at every wobble (the chair borne 5.9 s where 3.0 at -2e-4; square 5.7, +2e-4
+5.8), and the rise then twists: at the lean the centre is held while her
+pelvis must slide forward off it - yaw +-0.25, one sole 350 N, knees -93 N
+m; down at 11.3 s at -2e-4, square 13 cm off where 3. With the kernel's
+egress slide said through the lean and thrust (0.15 m/s forward, the seat
+capped at 0.55 of her weight) the lean frees: -2e-4 rises and stands clean
+(rest at 11 s, soles 153/153 N, roll 0) and square falls at 9.9 s, the
+mirror image - at the lean one sole takes the seat's surplus (123/0 N) with
+the ZMP let go, which way a coin's toss. The change is one: the patch rows
+in her step, the texts' slide phases (ingress deeper, egress forward) and
+the lean's plantar share panned back as the handover has it, measured on
+the whole gate before any of it lands.
