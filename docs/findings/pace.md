@@ -204,3 +204,10 @@ machine ([body](body.md), [emulation](emulation.md),
   cpu), 2.06 of real time; the five scenes and the errands the same, every
   part held. What is left of it fresh arguments each call (`modal_sensed`'s
   loads a list, her hips, arms and prop new arrays) and `sense`'s 40 views.
+- The lodge's lamp switch 15 us a world step in python: the switch's geom
+  against a hand's now paired in C on MuJoCo's contacts (`wbc_pass_paired`,
+  the referee's), the same pair at each of the lodge's 17 424 geom pairs; the
+  page's worker 657 -> 644 us a pass, her errands through the lodge the same.
+  numpy's float64 tanh (SVML's, X86_V3 here) transcribed with fma, its 16
+  intervals' table, matches np.tanh at 2.1 million values - the C runtime's
+  parts at 20 %: a C twin of her gearboxes may use it.

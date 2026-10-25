@@ -214,24 +214,24 @@ def _box_of(m, d, g):
 
 
 def touched(world, dt):
-    """The lamp toggled where a hand of hers touches its switch, not twice within SWITCH_S;
-    whether it is on."""
+    """The lamp toggled where a hand of hers touches its switch, not twice within SWITCH_S - the
+    switch's geom against a hand's, MuJoCo's contacts paired in C (`wbc_pass_paired`); whether it
+    is on."""
     m, d = world.model, world.data
-    ids = getattr(world, '_room_ids', None)
-    if ids is None:
-        ids = world._room_ids = (
-            m.geom('switch').id,
-            frozenset(m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')))
-    switch, hands = ids
+    laid = getattr(world, '_room_switch', None)
+    if laid is None:
+        import numpy as np
+        from tools.cores import wbc as cores
+        hands = [m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')]
+        masks = (np.arange(m.ngeom) == m.geom('switch').id, np.isin(m.geom_bodyid, hands))
+        laid = world._room_switch = (masks, [cores.address(k) for k in masks], cores.library().wbh_pass_paired,
+                                     cores.address)
+    _masks, at, paired, address = laid
     since = getattr(world, 'switched', SWITCH_S) + dt
     if since >= SWITCH_S and d.ncon:
-        if (d.contact.geom[:d.ncon] == switch).any():
-            for i in range(d.ncon):
-                c = d.contact[i]
-                pair = (c.geom1, c.geom2)
-                if switch in pair and any(m.geom_bodyid[g] in hands for g in pair):
-                    world.lamp, since = not getattr(world, 'lamp', False), 0.0
-                    break
+        geom, pos = d.contact.geom, d.contact.pos
+        if paired(address(geom), address(pos), geom.strides[0], d.ncon, *at, math.inf):
+            world.lamp, since = not getattr(world, 'lamp', False), 0.0
     world.switched = since
     return getattr(world, 'lamp', False)
 
