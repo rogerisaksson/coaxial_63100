@@ -15,8 +15,12 @@ import functools
 import math
 
 from machine import curves, dsp, figure, ortho, supervisor, wrench
-from machine.acts import ACTS, GRAIN_MS, sprung
+from machine.acts import ACTS, GRAIN_MS, LEGS, NODES, SUPPORT, sprung
 from machine.errors import MachineError
+
+#: Her legs' modes: at the furniture's gain through a cross-fade onto it, back toward their rest through a pan
+#: to her soles (`_legs`).
+LEGS_MODES = tuple(m for node in LEGS for m in NODES[node])
 
 #: Each stunt of hers the suite plays: its patch, the stunt it rises from (its patch played on that
 #: one's gait, as the suite's lifecycle plays it), her phases' names by the stunt's stages. Her chair
@@ -83,7 +87,7 @@ def phases(name, seen=None, got=None):
         made = [_paced(_armed(phase, modes), modes) for phase in ACTS[op](p, then, at, modes, body)]
         out, own = out + made, own + [k >= first] * len(made)
     out = _supported([p._replace(ms=GRAIN_MS) if k + 1 < len(out) and out[k + 1].waits and p.stage == 'descent' else p
-                      for k, p in enumerate(out)])
+                      for k, p in enumerate(out)], modes)
     return [p for p, mine in zip(out, own) if mine]
 
 
@@ -106,15 +110,39 @@ def _paced(p, modes):
     return p._replace(ms=max(p.ms, least), blend=max(p.blend, least))
 
 
-def _supported(ps):
+def _supported(ps, modes):
     """`ps`, each after a cross-fade on the support it gave her - the furniture's, her ZMP let go,
-    till one gives her soles back - where her stunts' own (`stance_hold`) would hold her polygon."""
-    out, zmp, weighs = [], None, None
-    for p in ps:
+    till one gives her soles back - where her stunts' own (`stance_hold`) would hold her polygon; a
+    preload before a cross-fade onto her soles pans what bears her to the share that fade waits for
+    (the handover's liftoff), her ZMP in her support as they take her and her legs' springs back from
+    the furniture's gain toward their rest by that share (`_panned`, `_legs`). Left to the fade, the
+    seat bore 0.9-1.1 of her through the lean and one sole took her at the thrust, 33/156 N; panned
+    with her legs at the seat's -24 dB, one sole took her through the lean and rolled her 13 deg."""
+    out, zmp, weighs, legs = [], None, None, None
+    for p, then in zip(ps, ps[1:] + [None]):
         zmp = p.zmp if p.zmp is not None else zmp
         weighs = p.weighs if p.weighs is not None else weighs
-        out.append(p._replace(zmp=zmp, weighs=weighs))
+        legs = p.springs if all(m in p.springs for m in LEGS_MODES) else legs
+        panned = _panned(p, then, weighs)
+        springs = {**_legs(legs, panned[0], modes), **p.springs} if panned and legs else p.springs
+        out.append(p._replace(zmp=SUPPORT if panned else zmp, weighs=panned or weighs, springs=springs))
     return out
+
+
+def _legs(seat, plantar, modes):
+    """Her legs' modes' springs `plantar` of the way from the furniture's gain on them (`seat`, its
+    cross-fade's springs) to their rest (`modes`)."""
+    return {m: sprung(m, seat[m][0] / modes[m][1] + plantar * (1.0 - seat[m][0] / modes[m][1]), 1.0, modes)
+            for m in LEGS_MODES}
+
+
+def _panned(p, then, weighs):
+    """A preload's pan: her soles at the share the cross-fade `then` waits for, what bore her the rest
+    as it was split; None where `p` is no such preload."""
+    soles = then.waits[1] if then is not None and then.waits and then.waits[0] == 'soles' and weighs else None
+    if p.stage != 'preload' or soles is None or weighs[0] >= 1.0:
+        return None
+    return (soles,) + tuple(w * (1.0 - soles) / (1.0 - weighs[0]) for w in weighs[1:])
 
 
 def _form(name, p, last):
@@ -126,8 +154,10 @@ def _form(name, p, last):
     lines += ['(latent_targets %s)' % ' '.join('(%s %.4f)' % kv for kv in p.targets.items())] if p.targets else []
     lines += ['(impedance %s)' % ' '.join('(stiffness %s %.2f) (damping %s %.2f)' % (m, k, m, d)
                                           for m, (k, d) in p.springs.items())] if p.springs else []
-    pan = ' (contact_manifolds %s)' % ' '.join('(%s %g)' % kv for kv in zip(ortho.MANIFOLDS, p.weighs)) if p.weighs else ''
-    lines += ['(task_constraints (maintain_zmp (polygon %g))%s)' % (p.zmp, pan)] if p.zmp is not None else []
+    held = (['(maintain_zmp (polygon %g))' % p.zmp] if p.zmp is not None else []) + (
+        ['(contact_manifolds %s)' % ' '.join('(%s %g)' % kv for kv in zip(ortho.MANIFOLDS, p.weighs))] if p.weighs else []) + (
+        ['(slide %g)' % p.slide] if p.slide is not None else [])
+    lines += ['(task_constraints %s)' % ' '.join(held)] if held else []
     return '  (phase %s\n    %s)' % (name, '\n    '.join(lines))
 
 

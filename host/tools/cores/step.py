@@ -28,11 +28,11 @@ def _step_typed():
                ('mass', f), ('moment', f * u), ('room', f * 2), ('arms', f * d)]
     fields += [(name, f) for name in ('yaw_m damp2 w_com w_turn w_swing w_knee w_posture w_height w_moment '
                                       'w_fold w_stop w_part w_air w_pin w_keep w_still grow_n ridge contact_k '
-                                      'height_band held_k momentum_k mu g').split()]
+                                      'height_band held_k momentum_k mu g slide_m_s').split()]
     fields += [('posture_kd', f * 2), ('swing_kd', f * 2), ('turn_kd', f * 2), ('blas', Blas)]
     fields += [(name, p) for name in 'M h v q com k'.split()]
     fields += [(name, p * 2) for name in 'R quat J6 dJv sole tquat Jr dJr tw'.split()]
-    fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()]
+    fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()] + [('cpatch', i * c)]
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
@@ -65,7 +65,7 @@ def wrench_laid(b, sensed=None):
              nact=len(active), npairs=len(b.pairs), nbuffers=len(b.buffers[0]), rounds=rounds.ROUNDS, past=wrench.PAST,
              yaw_m=rounds.YAW_M, damp2=wrench.DAMP ** 2, grow_n=rounds.GROW_N, ridge=wrench.RIDGE,
              contact_k=law.CONTACT_K, height_band=law.HEIGHT_BAND, held_k=law.HELD_K, momentum_k=law.MOMENTUM_K,
-             mu=law.MU, g=law.G)
+             mu=law.MU, g=law.G, slide_m_s=law.SLIDE_M_S)
     k.act[:len(b.act)] = [int(x) for x in b.act]
     for side in range(2):
         k.legs[side][:] = rounds.LEGS[side]
@@ -141,6 +141,7 @@ def _stepped(k, step, v, b, s, ask):
     k.nc = len(contacts)
     for at_, c in enumerate(contacts):
         k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
+        k.cpatch[at_] = int(c.get('patch', 0))
     v['stance'][:] = [bool(x) for x in ask['stance']]
     v['com_acc'][:] = ask['com_acc']
     turns = ask.get('turns', ())

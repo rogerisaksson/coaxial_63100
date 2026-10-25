@@ -89,3 +89,11 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     reach over her leg's length rolls her sole's centre of pressure onto its
     ball from 0.86 to 0.98 of it by the furniture's told share; the slide's
     ask laid there too. Standing and sat on the chair, nothing moves.
+22. Her seat one patch of her step (`wrench._patch`, wbc_patch.c): its
+    contacts' split pinned as felt; the Coulomb regime as the step feels it
+    (`rounds.pushed`, past SLIDE_M_S), the text's slide its cap; what bears
+    her capped as told over every patch, no lower than the lever's rule; the
+    rise's lean panned to her soles at the handover's 0.82, her legs' springs
+    back with it, her neck braced seated. The chair laid 2e-4 rad either way
+    sat (main fell at -2e-4), square and +2e-4 risen at roll 2.4 deg, the
+    dock stood, her walk as it was; the -2e-4 rise stays open (protocol 5).

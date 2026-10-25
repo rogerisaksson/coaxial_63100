@@ -61,3 +61,20 @@ def node(stage, at):
     """A kernel modifier's node `at` as it lays it on her nominal gait."""
     from machine import dsp
     return dsp.value([stage, 'nominal-biped-gait'], read())[at]
+
+
+@functools.cache
+def transitions():
+    """Every funnel transition the kernel's modifiers bind (`bind-funnel-transition-executors`): (from, to) ->
+    its executor, a pipeline of the kernel's stages."""
+    from machine import dsp
+    got = read()
+    bound = (name for name, stage in got.items()
+             if isinstance(stage, dsp.Stage) and 'bind-funnel-transition-executors' in str(stage.body))
+    return {(t['from'], t['to']): t['execute'] for name in bound for t in node(name, 'funnel-executors')['transitions']}
+
+
+def transition(frm, to, at):
+    """A funnel transition's node `at`: its executor (`transitions`) run on her nominal gait."""
+    from machine import dsp
+    return dsp.run(transitions()[(frm, to)], read()['nominal-biped-gait'])[at]

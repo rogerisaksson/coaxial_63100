@@ -180,11 +180,11 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
 - Laid at its dock, the sit and rise hold 8 of 50 within 6 cm, 5 cm further
   and 0.1 rad (4 before), 12 of 21 within 3 cm and 0.03 rad; 5 cm further she
   never sits. The rise's lean tips her pelvis 22-25
-  deg ahead and her trunk 9-27 back, her head 71-98 back (her neck let go
-  while she sits, `motion.control`'s `w_sit`), her centre of mass 10 cm
-  further behind her soles; held, her head follows her trunk and her trunk
-  still goes back. The suite's lift-off at 0.82 of her on her soles is
-  waited for (`ortho.SOLES`).
+  deg ahead and her trunk 9-27 back, her head 71-98 back (her neck then let
+  go while she sat; braced seated as walking since, seat findings), her
+  centre of mass 10 cm further behind her soles; held, her head follows her
+  trunk and her trunk still goes back. The suite's lift-off at 0.82 of her on
+  her soles is waited for (`ortho.SOLES`).
 - Her pelvis's turn kept sprung while a seat bears her
   (`impedance.SEAT_HOLDS`): let go, sat 3 deg askew she turned 0.05 rad in
   0.1 s and lifted a sole.
@@ -292,7 +292,8 @@ its furniture, four headings, the chair said as F says it (`gym.offered`,
   ZMP go too, and its seat left her in the lean. Not kept.
 - The chair's rise with her momentum's row off: her neck 896-1273 deg/s
   (955-1632), her head 1146-1421 (1146-1524) - not what throws them; her
-  neck is let go while she sits (`w_sit`) and the lean whips her head. Her
+  neck was let go while she sat and the lean whipped her head (braced seated
+  since, seat findings). Her
   sit's depth on its seat (pelvis 3.4-13 cm behind her feet) does not follow
   her dock: every sit met it at 0.190 m and began 0.129-0.142.
 - A rise counted up as she stood counted falls a second after it: up held

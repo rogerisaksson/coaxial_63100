@@ -198,7 +198,8 @@ def masses(mass, limb, trunk, arm):
 
 def rest(fr):
     """Her rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
-    her rhythm off at 1 Hz, her ZMP in her support polygon, her yaw momentum free."""
+    her rhythm off at 1 Hz, her ZMP in her support polygon, her yaw momentum free, what bears her
+    unsaid - her soles alone then (`observer.weighed`), nothing capped (`somatic.asked`)."""
     floor = REST_K * fr[OMEGA], fr[OMEGA] + REST_K
     p = np.zeros(ortho.P)
     for part, kd in ((latent.K, 0), (latent.D, 1)):
@@ -206,7 +207,7 @@ def rest(fr):
                                        LIMB_KD[kd], LIMB_KD[kd], TURN_KD[kd], TURN_KD[kd],
                                        POSTURE_KD[kd], TURN_KD[kd], POSTURE_KD[kd]])
     p[latent.HZ], p[latent.ZMP], p[latent.YAW] = 1.0, SUPPORT, FREE
-    p[latent.MANIFOLD] = 1.0, 0.0, 0.0, 0.0
+    p[latent.MANIFOLD] = 0.0
     return p
 
 

@@ -35,6 +35,9 @@ G = 9.81
 #: The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a
 #: standing corner presses at least F_MIN_N.
 MU, F_MIN_N = 0.6, 0.0
+#: A contact slides past this slip, m/s: a sole's grip reads it so (`grip`), a pressing contact's point its
+#: regime (`rounds.pushed`) - on the ice a sole pushing off slid back 0.3 m in 0.05 s before her law asked less.
+SLIDE_M_S = 0.15
 
 #: A sole's centre of pressure MARGIN_M inside its edge, softly (weight SLACK_W against the
 #: centre of mass's m/s^2).
@@ -362,7 +365,8 @@ def _levels(b, s, ask, stance, held):
     ay = float(ask['com_acc'][1]) + G
     levels = [(A1, np.asarray(ask['com_acc'])[[0, 2]][:len(A1)], np.vstack([up, -up]),
                np.array([ay + HEIGHT_BAND, HEIGHT_BAND - ay])[:2 * len(up)], SLACK_W)]
-    A2, b2 = [np.zeros((0, nx))], [np.zeros(0)]
+    A2: list[np.ndarray] = [np.zeros((0, nx))]
+    b2: list[np.ndarray] = [np.zeros(0)]
     for t, want in zip(s['turns'], ask['turns']):
         wdot = TURN_KD[0] * turn_error(want, t['quat']) - TURN_KD[1] * t['w']
         A2.append(TURN_W * np.hstack([t['Jr'], np.zeros((3, 3 * nc))]))

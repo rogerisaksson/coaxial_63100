@@ -59,8 +59,9 @@ static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, do
   }
 }
 
-/** machine.wrench.pushed: each contact's force pressing, no more than GROW_N over what it bears,
-    in its pyramid; which parts moved. */
+/** machine.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
+    its cap, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
+    z) has its friction the kinetic one against its slip, given -; which parts moved. */
 static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, const double *bears, double *out,
                    double *kept)
 {
@@ -69,11 +70,13 @@ static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, con
   memcpy(out, u, (size_t)g->nu * sizeof(double));
   for (int i = 0; i < nc; i++)
   {
-    double *f = out + p->nu0 + 3 * i;
+    double      *f = out + p->nu0 + 3 * i;
+    const double sliding = g->slips[3 * i], speed = hypot(g->slips[3 * i + 1], g->slips[3 * i + 2]);
+    const double den = pymax(speed, 1e-12), still = 1.0 - sliding;
 
-    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, p->fz_cap));
-    f[0] = clipped(f[0], (-p->mu) * f[1], p->mu * f[1]);
-    f[2] = clipped(f[2], (-p->mu) * f[1], p->mu * f[1]);
+    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, g->caps[i]));
+    f[0] = still * clipped(f[0], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 1]) / den;
+    f[2] = still * clipped(f[2], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 2]) / den;
   }
   for (int j = 0; j < g->nu; j++)
   {
@@ -231,7 +234,7 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
 {
   const int nu = g->nu, nc = g->k3 / 3;
   double   *Hr = work, *gr = Hr + nu * nu, *K = gr + nu, *H = K + nu * nu, *B = H + nu * nu, *X = B + 2 * nu;
-  double   *pS = X + 2 * nu, *T = pS + 3 * nu, *ht = T + nu * nu, *sumH = ht + nu, *sumg = sumH + nu * nu;
+  double   *pS = X + 2 * nu, *T = pS + 4 * nu, *ht = T + nu * nu, *sumH = ht + nu, *sumg = sumH + nu * nu;
   double   *pinned = sumg + nu, *hard = pinned + nu, *soft = hard + nu, *free = soft + nu, *un = free + nu;
   double   *moved = un + nu, *kept = moved + nu, *held = kept + nu, *rest = held + nu;
   double    pressed[WBC_STEP_C], band = 0.0, edge = 0.0;
@@ -249,14 +252,14 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
     {
       for (int c = 0; c < nc; c++)
       {
-        const double *Sc = S + 3 * nu * c;
+        const double *Sc = S + 4 * nu * c;
 
-        for (int j = 0; j < 3 * nu; j++)
+        for (int j = 0; j < 4 * nu; j++)
         {
           pS[j] = pressed[c] * Sc[j];
         }
-        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(Sc, nu, 1), T, nu, 1, nu, 3, nu);
-        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(r + 3 * c, 1, 0), ht, 1, 0, nu, 3, 1);
+        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(Sc, nu, 1), T, nu, 1, nu, 4, nu);
+        wbc_matmul(&p->blas, VIEW(pS, 1, nu), VIEW(r + 4 * c, 1, 0), ht, 1, 0, nu, 4, 1);
         for (int j = 0; j < nu * nu; j++)
         {
           sumH[j] = (c ? sumH[j] : 0.0) + T[j];

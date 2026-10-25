@@ -42,30 +42,29 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    stepping down her forefoot catches.
 5. **Step 4, the Coulomb slide**: a thigh's and the seat's patch sliding at
    mu_k F_z, F_z under 0.55 of her weight, the text's 65 Hz dither, inside
-   her capture point's barrier. Her chair's sit lands on its front edge for
-   want of it: `seated.landed`'s buttock cap and thigh clearance let go she
-   sits 0.29 legs back and upright, and falls rising (seat findings, her
-   sit's dock). The regime is an ask of her step (`slide`, `fz_cap`: the
-   contact's tangential rows freed, its friction kinetic and given, its load
-   capped; seat findings, the Coulomb slide): without a driver it slides
-   her off the edge, her centre of mass driven back alone 0.043 m deeper in
-   2 s. Her text says it (`(slide v)`, `ortho.SLIDE` -> `latent.SLID` -> the
-   step's ask); said with her hips asked 0.18 m deeper her feet planted and
-   her knee held moved her 2 mm. Left, as one change under the whole gate
-   (seat findings, her seat as two points): a bearing patch as one wrench of
-   her step - its contacts (`machine.borne`, a point a segment) grouped by
-   the text's manifold registry (`observer.POINTS`), its centre held still,
-   its CoP within the points' spread as a sole's within its room (the sit
-   holds at every wobble so, the Python step says) -, the texts' slide
-   phases (ingress deeper after the crossfade, egress forward through the
-   lean, the kernel's 0.16 and 0.15 m/s, `acts`) and the lean's plantar
-   share panned back as the handover has it (one sole took the surplus with
-   the ZMP let go), in Python and the C twin together; then her soles let
-   onto the forefoot (item 4's equinus) or slid along for the deeper slide,
-   the 65 Hz dither, the ischial centring's stop on that CoP. DOD: the chair
-   laid 2e-4 rad either way sat and risen; she slides onto and off a seat
-   over her knees, forward to its edge before her rise, and 180 mm deeper
-   onto the bed; her walk, the bed and the errands as solved.
+   her capture point's barrier. Done (seat findings): her seat one patch of
+   her step, its contacts' split pinned as felt; the regime as the step
+   feels it (`rounds.pushed`, past SLIDE_M_S), the text's `(slide v)` its cap
+   (0.55 deeper, 0.70 forward, `somatic.CAPS`), what bears her capped as
+   told and no lower than the lever's rule; the rise's lean panned to her
+   soles at the handover's 0.82 with the egress slide said, her legs'
+   springs back with it, her neck braced seated: the chair laid 2e-4 rad
+   either way sat, square and +2e-4 risen (roll 2.4 deg), the dock stood.
+   Left: at -2e-4 the rise is one-legged (the lean's strike at 1.2 of her
+   weight lifts a sole; 0/299 N through the stand) and she is down at 11.3
+   s, as main was in the sit at 8.4 - the handover wants her hips asked up
+   off the seat as the pan goes, not the seat's force capped under what it
+   gives (seat findings: the pass taken apart, the points' rows 13 900) -;
+   through the lean one sole bears her (0/257 N square) and the seat is met
+   at 1.2 of her weight twice; her chair's sit lands on its front edge
+   (`seated.landed`'s buttock cap and thigh clearance let go she sits 0.29
+   legs back, upright, and falls rising), the ingress deeper after the
+   crossfade needs her feet along (item 4's equinus or their own slide:
+   asked 0.18 m deeper, planted, she moved 2 mm), the 65 Hz dither, the
+   ischial centring's stop on that CoP. DOD: the chair laid 2e-4 rad either
+   way risen on both soles; she slides onto and off a seat over her knees,
+   forward to its edge before her rise, and 180 mm deeper onto the bed; her
+   walk, the bed and the errands as solved.
 6. **Step 5, the body schema on the room**: `machine.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -
@@ -89,8 +88,10 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     findings). Left: her map's lumps told as the room's things
     (`sight.classify`, `Map.things`: one lump a thing), the three SDF bands
     at her knee, navel and crown, the kernel's affordances and funnels on it,
-    the mover's wake to the wayfinder. DOD: her eyes' map as the stand-in's;
-    the funnels' sit and lie chosen from it.
+    the mover's wake to the wayfinder; the EKF's adjoint's rotation block
+    (`inekf`, ad[0:3, 0:3]) left 0 where R goes, found compiling it, fixed
+    with that compile. DOD: her eyes' map as the stand-in's; the funnels'
+    sit and lie chosen from it.
 9. **Step 7, the lowering and the tuner**: `machine.lowering` folds a
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a
     bank carried over her link's table. Left: her loop's channels through a

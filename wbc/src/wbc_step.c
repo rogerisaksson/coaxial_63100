@@ -310,16 +310,21 @@ int wbc_step(wbc_step_t *p)
   double           *full = P + 6 * nu, *full0 = full + n * nu, *ME = full0 + n, *sumf = ME + 6 * nu;
   double           *about = sumf + 3 * nu, *R0 = about + 3 * nu, *rhs = R0 + WBC_STEP_R * nu, *rhs0 = rhs + WBC_STEP_R;
   double           *H0 = rhs0 + WBC_STEP_R, *g0 = H0 + nu * nu, *kin = g0 + nu, *FM = kin + nu * nu;
-  double           *S = FM + n * nu, *r = S + 3 * nu * WBC_STEP_C, *r0 = r + 3 * WBC_STEP_C, *part = r0 + 3 * WBC_STEP_C;
+  double           *S = FM + n * nu, *r = S + 4 * nu * WBC_STEP_C, *r0 = r + 4 * WBC_STEP_C, *part = r0 + 4 * WBC_STEP_C;
   double           *spare = part + nu, *swung = spare + nu, *moment = swung + nu, *whole = moment + nu;
   double           *stood = whole + nu, *u = stood + nu, *tau = u + nu, *tau0 = tau + nd, *carried = tau0 + nd;
   double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
+  double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], total;
   double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D];
   double            grounded, turned, felt[WBC_STEP_C], strides = p->strides;
   wbc_geo_t         geo;
   int               at = 0, past = 0;
 
+  if (nc > WBC_STEP_C)
+  {
+    return 1; /* machine.wrench lays no more: its mirror refuses them before the call */
+  }
   stance[0] = (double)(p->stance[0] != 0);
   stance[1] = (double)(p->stance[1] != 0);
   grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0));
@@ -409,7 +414,6 @@ int wbc_step(wbc_step_t *p)
   {
     const double rr[3] = {p->cp[q][0] - p->com[0], p->cp[q][1] - p->com[1], p->cp[q][2] - p->com[2]};
     const double skew[9] = {0.0, -rr[2], rr[1], rr[2], 0.0, -rr[0], -rr[1], rr[0], 0.0};
-    double       left[3], jv[3], sliding, w_still[3];
 
     for (int i = 0; i < 3; i++)
     {
@@ -419,23 +423,16 @@ int wbc_step(wbc_step_t *p)
         about[i * nu + nu0 + 3 * q + j] = skew[3 * i + j];
       }
     }
-    wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(full0, 1, 0), left, 1, 0, 3, n, 1);
-    wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(full, nu, 1), S + 3 * nu * q, nu, 1, 3, n, nu);
-    wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(p->v, 1, 0), jv, 1, 0, 3, n, 1);
-    /* a sliding contact's point is held along its normal alone (machine.wrench's w_still) */
-    sliding = hypot(p->slide[0], p->slide[2]) > 0.0 ? 1.0 : 0.0;
-    for (int i = 0; i < 3; i++)
-    {
-      w_still[i] = p->w_still * (1.0 - sliding * (i == 1 ? 0.0 : 1.0));
-      for (int j = 0; j < nu; j++)
-      {
-        S[3 * nu * q + nu * i + j] = w_still[i] * S[3 * nu * q + nu * i + j];
-      }
-      left[i] = (-p->cdJv[q][i]) - left[i];
-      r[3 * q + i] = w_still[i] * (left[i] - p->contact_k * (jv[i] - p->slide[i]));
-      r0[3 * q + i] = w_still[i] * left[i];
-    }
     felt[q] = p->cf[q][1];
+  }
+  /* each contact's rows: its point held still, along its patch's normal alone where it slides (wbc_patch.c) */
+  wbc_patch_rows(p, n, nu, nc, full, full0, S, r, r0, along, slips);
+  /* what bears her off her soles capped as asked (fz_cap): each contact's at its share of it as felt over every
+     patch (machine.wrench._patches) */
+  total = npsum(along, nc);
+  for (int q = 0; q < nc; q++)
+  {
+    caps[q] = isfinite(p->fz_cap) ? p->fz_cap * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
   }
   /* the rows, as machine.wrench lays them */
   for (int j = 0; j < 3 * nu; j++)
@@ -595,6 +592,8 @@ int wbc_step(wbc_step_t *p)
   geo.lift = sumf + nu;
   geo.stance = stance;
   geo.kinetic = kin;
+  geo.caps = caps;
+  geo.slips = slips;
   geo.frames[0] = p->R[0];
   geo.frames[1] = p->R[1];
   geo.mass = mass;

@@ -32,13 +32,24 @@ of hers (Step 4).
 
 ## The Coulomb slide
 
-The kernel's slide (`drive-tangential-coulomb-slide`) as an ask of her step
-(`wrench.step`, wbc_step.c, wbc_rounds.c): `slide`, a pressing contact's
-point's velocity, frees its tangential rows and pins its friction to the
-kinetic one against the slide, MU of its normal force - given, not the
-step's to spend -; `fz_cap` caps that force. Unasked the step is as it was
-to the bit. Sat on the chair at its 85 mm dock, her pelvis 44 mm behind the
-seat's front edge (the edge sit), 2 s of asks (`slide_probe`):
+The kernel's slide (`drive-tangential-coulomb-slide`) on her loop: her text's
+`(slide v)` (m/s along her way, forward +; `ortho.SLIDE` -> `latent.SLID`)
+names the regime, her pressing contacts' load capped at its share of her
+weight (`somatic.CAPS`: deeper 0.55, forward 0.70); the slide itself her
+step feels (`wrench._patch`, `rounds.pushed`, wbc_patch.c): a point slipping
+along the floor's plane past SLIDE_M_S, along the said slide, has its
+friction the kinetic one against its slip, given, its rows up alone; stuck,
+or slipping against the say, it is held still, its friction the step's
+within the cone. Counted whatever the text said, a hand walked into the
+wall slid by that measure, was let go of along the wall's normal and the
+wall threw her back 1.18 m (the wall scene at +2e-4, main's met at 0.22),
+and a strike's skid as she stood up from the chair (1 000 N, 0.4 m/s)
+flipped the step's answer for 6 ms. Measured across the force a patch
+feels, the slip's plane leaned 30 deg into the lean's push (the force is
+no surface normal) and the regime let her hips drop along it. Unsaid the
+step is as it was to the bit. Sat on the
+chair at its 85 mm dock, her pelvis 44 mm behind the seat's front edge (the
+edge sit), 2 s of asks of the step, the regime then an ask (`slide_probe`):
 
 | ask | moved along the seat | seat's share after |
 | --- | --- | --- |
@@ -95,18 +106,53 @@ stop on its CoP): her step is to take a patch's contacts as one wrench, its
 force one, its CoP within the points' spread as a sole's within its room.
 
 Tried on the Python step (`chair_py.py`, the step swapped in, falls to the
-digit as the C's): the seat's contacts one patch, its centre (the felt
-forces' weighted point, J = sum w_i J_i) held still, each contact's rows the
-patch's at the root of its share, their forces free as before. The sit holds
-at every wobble (the chair borne 5.9 s where 3.0 at -2e-4; square 5.7, +2e-4
-5.8), and the rise then twists: at the lean the centre is held while her
-pelvis must slide forward off it - yaw +-0.25, one sole 350 N, knees -93 N
-m; down at 11.3 s at -2e-4, square 13 cm off where 3. With the kernel's
-egress slide said through the lean and thrust (0.15 m/s forward, the seat
-capped at 0.55 of her weight) the lean frees: -2e-4 rises and stands clean
-(rest at 11 s, soles 153/153 N, roll 0) and square falls at 9.9 s, the
-mirror image - at the lean one sole takes the seat's surplus (123/0 N) with
-the ZMP let go, which way a coin's toss. The change is one: the patch rows
-in her step, the texts' slide phases (ingress deeper, egress forward) and
-the lean's plantar share panned back as the handover has it, measured on
-the whole gate before any of it lands.
+digit as the C's) with the patch's centre (the felt forces' weighted point)
+held still: the sit held at every wobble and the rise twisted - the centre
+held while her pelvis must leave it, yaw +-0.25, one sole 350 N, knees -93
+N m. Landed instead, in both (`wrench._patch`, wbc_patch.c): each contact's
+point held still and its force along the patch's normal pinned at its share
+of what is felt (W_PIN, as a clipped force is held). The step's expectation
+of the two thighs stays within 5 N of the felt at every wobble; the chair
+bears her 5.7 s square, 6.05 at -2e-4 (where she fell at 8.44), 5.67 at
++2e-4. What bears her off her soles is capped as told (`somatic.asked`: the
+pan's share of her weight, the slide regime's 0.55 deeper or 0.70 forward,
+never under the lever's rule - her centre of mass between the seat's points
+and her heels; under it the step planned her soles 20/19 N where 250 came),
+over every patch as felt: capped a patch at a time, a thigh on the seat's
+front face let the seat plan 297 N under 214.
+
+## The rise's lean
+
+The handover's preload pans what bears her to her soles at the share its
+crossfade waits for (0.82, `maneuver._panned`), her ZMP in her support, the
+kernel's egress slide said (`(slide 0.15)`): left to the fade, the seat bore
+0.9-1.1 of her through the lean and one sole took her at the thrust, 33/156
+N. The slide as a regime assumed - the thighs' rows freed, their friction
+pinned kinetic against the asked slide - fought the seat she sticks to: the
+lean's first pass planned -128 N along her thighs and felt +148; its rows
+taken apart (`step_rows.py`, the pass's least squares unclipped against the
+rounds') put the centre of mass's residual at 4 589 and the points' at 16
+201 where the unclipped answer had 8 and 9, her soles planned 4/3 N where
+67/65 bore; at -2e-4 she bounced on the seat at 1.64 of her weight and fell
+at 11 s. The regime felt, she rose square and at +2e-4 (roll 7.5 and 1.6
+deg; main's 3.8 and 8.0) and collapsed onto the seat at -2e-4: her neck let
+go while she sat (`motion.control`'s w_sit, errands findings), the lean
+whipped her head and asked her neck and head 10 and 8 times their clamps,
+the whole ask shrunk as one to 0.03-0.16 (`wrench.shrunk`) and the seat met
+at 3.7 of her weight; braced seated as walking, the shrink never bites
+(scale 1.00 through the lean). Her legs were at the seat's gain through the
+lean, the sit's cross-fade's -24 dB (`substrate-rigid-chair`): panned to her
+soles so, one sole took her, 274-401 N to the other's 0, and rolled her 13
+deg square; her legs' springs back toward their rest by the pan's share
+(`maneuver._legs`), she rises square and at +2e-4 with roll 2.4 deg and the
+dock's rise stands, its lean on the staggered sole. At -2e-4 she sits where
+main fell and rises on one sole (0/299 N through the stand, the lean's
+strike at 1.2 of her weight having lifted the other), stumbles at 9.8 s and
+is down at 11.3; the same lean rose at 3.3 deg with the regime left to count
+a backward skid (chaos, not a cause: the gate decides the outcome at that
+wobble). Left (docs/todo/protocol.md): one sole bears her through the lean
+(0/257 N square) and the seat is met at 1.2 of her weight twice: capped
+under what holding her hips still asks, the step rolls her pelvis for it
+(the pass taken apart: the points' rows 13 900 where the unclipped answer
+had 76); the handover wants the hips asked up off the seat as the pan goes,
+not the seat's force capped under what it gives.

@@ -14,7 +14,8 @@
 #define WBC_STEP_U (WBC_STEP_D + 3 * WBC_STEP_C)
 #define WBC_STEP_R (2 * WBC_STEP_U + 2 * WBC_STEP_D + 40)
 /** The workspace's doubles. */
-#define WBC_STEP_WORK (8 * WBC_STEP_N * WBC_STEP_U + 12 * WBC_STEP_U * WBC_STEP_U + 2 * WBC_STEP_R * WBC_STEP_U)
+#define WBC_STEP_WORK (8 * WBC_STEP_N * WBC_STEP_U + 12 * WBC_STEP_U * WBC_STEP_U + 2 * WBC_STEP_R * WBC_STEP_U \
+                       + WBC_STEP_U * WBC_STEP_C + 2 * WBC_STEP_C)
 
 /** The step: her body and machine.wrench's constants laid once; what is sensed of her
     (machine.wbc.sense) and what is asked (machine.wbc.step's ask) pointed at or copied each
@@ -33,7 +34,7 @@ typedef struct
   double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[4];
   double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2;
   double        w_com, w_turn, w_swing, w_knee, w_posture, w_height, w_moment, w_fold, w_stop, w_part, w_air;
-  double        w_pin, w_keep, w_still, grow_n, ridge, contact_k, height_band, held_k, momentum_k, mu, g;
+  double        w_pin, w_keep, w_still, grow_n, ridge, contact_k, height_band, held_k, momentum_k, mu, g, slide_m_s;
   double        posture_kd[2], swing_kd[2], turn_kd[2];
   wbc_blas_t    blas;
   /* sensed: M, h, v, q (driven), com, k; each foot's R, quat, J6 (6, n), dJv, sole; the pelvis's
@@ -43,10 +44,11 @@ typedef struct
   const double *tquat[2], *Jr[2], *dJr[2], *tw[2];
   int           nc;
   const double *cJ[WBC_STEP_C], *cp[WBC_STEP_C], *cdJv[WBC_STEP_C], *cf[WBC_STEP_C];
+  int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.borne) */
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
-  double        slide[3], fz_cap;  /* a pressing contact's point's velocity, world; its normal load's cap, N */
+  double        slide[3], fz_cap; /**< the slide her contacts may take, world m/s; what bears her off her soles' cap, N */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */
@@ -68,9 +70,17 @@ int wbc_step(wbc_step_t *p);
 typedef struct
 {
   int           nu, k3;
-  const double *moment, *part, *up, *lift, *stance, *kinetic, *frames[2];
+  const double *moment, *part, *up, *lift, *stance, *kinetic, *caps, *slips, *frames[2];
   double        mass, grounded, strides, edges[2], mu[2];
 } wbc_geo_t;
+
+/** machine.wrench._patch: each contact's four rows (S, 4 a contact, r and r0): its point held still, along its
+    up alone where it slides along the floor's plane past slide_m_s along the said slide, and its patch's normal
+    force split as felt,
+    its share pinned; what it feels along the patch's normal told (`felt`, N, nc) and its slip (`slips`, 3 a
+    contact: sliding, along the world's x and z; wbc_patch.c). */
+void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *full, const double *full0, double *S,
+                    double *r, double *r0, double *felt, double *slips);
 
 int wbc_rounds(wbc_step_t *p, const wbc_geo_t *geo, const double *H0, const double *g0, const double *S,
                const double *r, const double *bears, double lo, double hi, double *at, double *work);

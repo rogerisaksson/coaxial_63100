@@ -22,6 +22,9 @@ from machine import edge, touch
 BEARS_N = edge.TOUCHED_N
 #: The segments above her soles (`touch.ABOVE`), indices into her skin.
 ABOVE = np.array(touch.ABOVE)
+#: The segments one surface bears are one patch of her step: a push's way, the world's axis it is most along and
+#: its sign - friction leans a push by atan MU, under 45 deg, so a seat's, a bed's or a floor's pushes are all
+#: up, a backrest's or a wall's all one way across (the lodge's surfaces stand square; a yawed wall's split).
 
 
 def read(b, s, y, weight):
@@ -34,7 +37,7 @@ def read(b, s, y, weight):
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts = 0.0, np.full(3, np.inf), np.full(3, -np.inf), []
     pushed = ABOVE[pushes[ABOVE].any(axis=1)]
-    jp, jr = (np.zeros((3, m.nv)), np.zeros((3, m.nv))) if len(pushed) else (None, None)
+    jp, jr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
         f, p = R @ pushes[k], d.xpos[ids[k]] + R @ at[k]
@@ -46,5 +49,8 @@ def read(b, s, y, weight):
         J = jp[:, :n].copy()
         b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
         contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :n] @ s['v']})
+    for c in contacts:
+        axis = int(np.argmax(np.abs(c['f'])))
+        c['patch'] = 2 * axis + int(c['f'][axis] < 0.0)
     held = up > 0.0
     return (up / weight, np.where(held, low, 0.0), np.where(held, high, 0.0)), contacts

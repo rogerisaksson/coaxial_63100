@@ -54,7 +54,7 @@ N = len(MODES)
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the
 #: support polygon, 2 the dynamic footprint), her yaw momentum's limit, N m s; her sidechain
 #: (DUCK): her height ducked on each touchdown, m (down negative), its attack and its release, s;
-#: the weight of what bears her (MANIFOLDS), her soles' 1 at rest.
+#: the weight of what bears her (MANIFOLDS), unsaid at rest: her soles' alone (`observer.weighed`).
 Z, K, D, AMP, PHASE = (i * N for i in range(5))
 GAIN, HZ, ZMP, YAW = (5 * N + i for i in range(4))
 DUCK = slice(5 * N + 4, 5 * N + 7)

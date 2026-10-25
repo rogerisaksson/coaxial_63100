@@ -184,7 +184,7 @@ def control(g, dt):
     told = out[latent.MANIFOLDED].copy()
     out[latent.MANIFOLDED] = observer.weighed(g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
-    unfelt = float(out[latent.MANIFOLDED][0] - told[0])
+    unfelt = float(out[latent.MANIFOLDED][0] - observer.said(told)[0])
     field.step(g['field'], g['tab'], y, float(told[1:].sum()), float(g['st'][latent.TO][latent.Z][modal.AXIAL]), g['t'], dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -224,19 +224,17 @@ def control(g, dt):
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
     foot = min(1.0, max(0.0, float(g['out'][latent.HELD]) - 1.0))
-    z_to = g['st'][latent.TO][latent.Z]
-    ax = float(z_to[modal.AXIAL])
-    rec = min(float(z_to[modal.PITCH]), float(np.min(g['tab'][:, latent.VALS][:, latent.Z][:, modal.PITCH], initial=0.0)))
-    w_sit = min(1.0, max(0.0, (ax - 1.5) / 0.01)) * min(1.0, max(0.0, (rec + 0.2) / 0.01))
     # a sole up while what bears her bears her is no stride: counted one, lying back her neck let
     # go 0.36 s and flexed 64 deg at 1034 deg/s
     rest = (1.0 - float(g['a'][modal.STRIDES]) * (1.0 - float(g['a'][modal.BORNE]))) * w_gait
-    w_base = sw * max(w_hop, rest * (1.0 - w_sit))
+    w_base = sw * max(w_hop, rest)
     # her neck holds her head's pitch itself also while her rhythm is told to run, held to her
     # landings' footprint, but told no drive - a brake: coupled, her step's rounds threw her head
-    # 101-105 deg as her last landing let her strides go; her head's yaw turns with her
+    # 101-105 deg as her last landing let her strides go; her head's yaw turns with her. Seated
+    # too: let go there, a rise's lean whipped her head 71-98 deg back and asked her neck 10 times
+    # its clamp, the whole ask shrunk to 0.04 and she collapsed onto the seat
     brake = foot * (1.0 - w_drive) * float(g['st'][latent.TO][latent.GAIN])
-    w_neck = sw * max(w_hop, max(rest, brake) * (1.0 - w_sit))
+    w_neck = sw * max(w_hop, max(rest, brake))
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))

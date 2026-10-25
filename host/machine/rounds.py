@@ -2,7 +2,7 @@
 is past, what the floor cannot give taken.
 
     at, moved = rounds.bounded(u, frames, stance, edge, mu)   # each standing sole's wrench in its cone
-    at, kept = rounds.pushed(u, bears, cap, slide)            # each contact's force pressing, in its pyramid
+    at, kept = rounds.pushed(u, bears, cap, slips)            # each contact's force pressing, in its pyramid
     at, out, to = rounds.faced(u, frames, stance, edge, mu)   # the faces a sole's wrench is past
     at = rounds.taken(u0, metric, up, frames, stance, edge, band, grounded, mu)  # striding, her inertia's share
 
@@ -67,11 +67,12 @@ def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
-def pushed(u, bears, cap=np.inf, slide=(0.0, 0.0, 0.0)):
+def pushed(u, bears, cap=np.inf, slips=None):
     """`u` with each contact's force (world, after the soles' and her upper body's unknowns)
-    pressing, no more than GROW_N over what it `bears` now (N up, one a contact) nor `cap`, and in
-    its friction's pyramid - sliding as `slide` has it, its friction kinetic against it -, and
-    which parts moved."""
+    pressing, no more than GROW_N over what it `bears` now (N up, one a contact) nor `cap` (N, one a
+    contact or one for all), and in its friction's pyramid - a point sliding (`slips`: each one's
+    (sliding, its slip along the world's x and z, m/s), `wrench._patch`) has its friction the
+    kinetic one against its slip, given -, and which parts moved."""
     k = len(bears)
     if not k:
         return u.copy(), np.zeros(len(u))
@@ -79,10 +80,11 @@ def pushed(u, bears, cap=np.inf, slide=(0.0, 0.0, 0.0)):
     f = out[NU:NU + 3 * k].reshape(k, 3)
     held = np.asarray(bears, float)
     f[:, 1] = np.clip(f[:, 1], 0.0, np.minimum(held + GROW_N, cap))
-    way = np.asarray(slide, float)[[0, 2]]
-    sliding = float(np.hypot(*way) > 0.0)
+    slid = np.zeros((k, 3)) if slips is None else np.asarray(slips, float).reshape(k, 3)
+    sliding, way = slid[:, :1], slid[:, 1:]
+    speed = np.hypot(way[:, 0], way[:, 1])
     f[:, [0, 2]] = ((1.0 - sliding) * np.clip(f[:, [0, 2]], -MU * f[:, 1:2], MU * f[:, 1:2])
-                    - sliding * MU * f[:, 1:2] * way / max(float(np.hypot(*way)), 1e-12))
+                    - sliding * MU * f[:, 1:2] * way / np.maximum(speed, 1e-12)[:, None])
     out[NU:NU + 3 * k] = f.ravel()
     return out, (np.abs(out - u) > 1e-9).astype(float)
 

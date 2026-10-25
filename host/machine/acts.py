@@ -15,7 +15,7 @@ past her modes' reach.
 import collections
 import math
 
-from machine import figure, impedance, leap, ortho, seated, wrench
+from machine import figure, impedance, leap, ortho, seated, somatic, wrench
 from machine.errors import MachineError
 
 #: Her modes by the suite's nodes: what a node's stiffness or gate moves. Her head has none.
@@ -44,9 +44,9 @@ NONE, SUPPORT = 0.0, 1.0
 GRAIN_MS = 1
 #: A phase of her text: its stage, what it does, ms, blend ms, {mode: target}, {mode: (stiffness,
 #: damping)}, ZMP or None, the event it waits for or None, whether it latches her where she is, its
-#: blend's shape (`ortho.SHAPES`).
-Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape weighs',
-                               defaults=(False, 'linear', None))
+#: blend's shape (`ortho.SHAPES`), what bears her panned (`ortho.MANIFOLDS`), her slide over it m/s.
+Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape weighs slide',
+                               defaults=(False, 'linear', None, None))
 #: A support bus's contact manifold (`ortho.MANIFOLDS`).
 BUSES = {':plantar-bilateral': 0, ':ischial-bilateral': 1, ':trochanter-lateral': 2, ':scapular-dorsal': 3,
          ':occipital': 3}
@@ -77,7 +77,8 @@ def _envelope(p, at, modes, body):
     of her and threw her off), her pelvis square to its edge (0.05-0.1 rad off, 11 docks of 20
     fell), her arms one ahead and one behind, the seat's side's ahead (hanging, a hand met it in 34
     docks of 50). Sat, a preload's knee and ankle are where the seat and her soles hold them, her
-    arms hanging: swung 25 deg either way, a sole rose 58 mm and she fell."""
+    arms hanging: swung 25 deg either way, a sole rose 58 mm and she fell; it slides her forward off
+    the seat as the kernel's egress has it (`somatic.EGRESS_M_S`)."""
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
@@ -101,7 +102,7 @@ def _envelope(p, at, modes, body):
     # ended 2.1 cm behind a descent's, her hips 2.8 cm back, a thigh on the seat's edge and not her buttocks
     springs = {m: sprung(m, 1.0, 1.0, modes) for m in targets if m != 'mode_arm_swing'}
     return [Phase(stage, p['mode'], p['duration-ms'], p['duration-ms'], targets, springs, None, None, shape=_curve(p),
-                  weighs=_weighs(p.get('manifold-pan')))]
+                  weighs=_weighs(p.get('manifold-pan')), slide=somatic.EGRESS_M_S if sat else None)]
 
 
 def _contact(p, then, at, modes, body):
@@ -121,8 +122,9 @@ def _crossfade(p, then, at, modes, body):
     the seat (bent on, her feet came off the floor), her legs at its post-contact gain -, then her
     trunk settled on it, her centre of mass where she sits so (`seated.com`; left at her heels her law
     folded her over it and stood her up), back as it leaned over her descent, its time and curve;
-    or her soles, her ZMP engaged. Settled as the seat took her, or after it in its 0.32 s, her centre
-    of mass asked 11 cm back at 5.4 m/s^2, her soles pushed her hips 2 cm up off it."""
+    or her soles, her ZMP engaged and her slide over the seat ended. Settled as the seat took her, or
+    after it in its 0.32 s, her centre of mass asked 11 cm back at 5.4 m/s^2, her soles pushed her hips
+    2 cm up off it."""
     plantar, ms, shape = p['to-bus'] in PLANTAR, p['transfer-time-ms'], _curve(p)
     seat = not plantar and at['seat'] is not None
     at['knee'] = seated.knee(seated.sat(at['seat']), at['ankle']) if seat else at['knee']
@@ -131,7 +133,7 @@ def _crossfade(p, then, at, modes, body):
     left = p.get('source-residual-weight', 0.0)
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
                  springs, SUPPORT if plantar else NONE, None, shape=shape,
-                 weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))))
+                 weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))), slide=0.0 if plantar else None)
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
@@ -165,8 +167,8 @@ def _resting(mode, gain, zeta, modes):
 
 def _gates(p, then, at, modes, body):
     """Gates a node at a time: high-Z her modes' springs none, closed-loop her rest's, what bears her
-    panned as they say - her soles' drives back before she leans: back as she leaned, her knees took
-    the seat's let-go at 0.27 of their clamp, she dropped onto it at 1.58 of her weight and bounced."""
+    panned where they say so (a wake's pan to her soles, 0.85, capped the seat at 0.15 of her as she sat
+    upright: the handover's lean pans her, `maneuver._panned`)."""
     on = p['bridge-state'] == ':pwm-active-closed-loop'
     ms = p.get('torque-ramp-ms', p.get('torque-decay-ms'))
     return [Phase('wake' if on else 'rest', node, p['stagger-ms'], ms, {},

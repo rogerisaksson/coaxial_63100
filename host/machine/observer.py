@@ -33,6 +33,10 @@ EQUINUS = MANIFOLDS.index('metatarsal-equinus-bilateral')
 #: borne, modelled 3.3 and 27.
 SLIP_RAD_S = 0.03
 _UP, _BACK = (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
+#: Her soles alone bearing her, as her rows' manifolds weigh (`ortho.MANIFOLDS`).
+SOLES = np.eye(len(ortho.MANIFOLDS))[0]
+#: The least positive double: a divisor where a share may be none.
+TINY = np.finfo(float).tiny
 
 
 def _capsule(part, k):
@@ -119,12 +123,20 @@ DWELL_S, BLANK_S = 1e-3 * _LATCH['min-state-dwell-ms'], 1e-3 * _LATCH['impact-bl
 UP, DOWN = (kernel.said('bind-wrench-driven-homotopy', k) for k in ('slew-rate-up-per-s', 'slew-rate-down-per-s'))
 
 
+def said(told):
+    """`told` (`latent.MANIFOLDED`) as her law takes it: each manifold's share of what is told; nothing told
+    (her rest), her soles alone."""
+    total = told.sum()
+    return np.where(total > 0.0, told / np.maximum(total, TINY), SOLES)
+
+
 def weighed(obs, told, weight, dt):
     """(her rows' manifolds,) what bears her as her law takes it, `dt` s on: each manifold her
     rows tell weighed as told where her comparator (ENGAGE, RELEASE, DWELL_S, BLANK_S) feels it -
     its normal force of her `weight` -, gated up at UP and down at DOWN a second; what a manifold
-    not felt was told, her soles'. Her soles alone bear her as told; a seat pulled away weighs
-    nothing at once."""
+    not felt was told, her soles'. Nothing told (her rest), her soles alone; told, they bear her as
+    told; a seat pulled away weighs nothing at once."""
+    told = said(told)
     n = obs['normal'][ROWS] / weight
     latched = obs['latched']
     on = (1.0 - latched) * (n >= ENGAGE)

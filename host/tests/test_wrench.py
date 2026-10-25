@@ -62,9 +62,11 @@ def test_a_contact_bears(report):
 
 
 def test_a_contact_slides(report):
-    """The kernel's Coulomb slide (`drive-tangential-coulomb-slide`) on a pressing contact: asked to slide,
-    its normal force stays under the cap and its friction is the kinetic one against the slide, given
-    - not the step's to spend -, its point held along its normal alone."""
+    """The kernel's Coulomb slide (`drive-tangential-coulomb-slide`) as her step feels it: a pressing contact
+    whose point slips past SLIDE_M_S along the slide its text says (`ask['slide']`) has its friction the kinetic
+    one against the slip, given - not the step's to spend -, its point held along its normal alone and its normal
+    force under the cap; slipping less, or against the said slide, it sticks, its friction the step's within the
+    cone."""
     import numpy as np
     from machine import wbc, wrench
     body, s, ask = _standing()
@@ -73,12 +75,63 @@ def test_a_contact_slides(report):
     body.mj.mj_jac(body.m, body.d, jp, None, p, pelvis)
     half, cap = 0.5 * body.mass * wbc.G, 0.3 * body.mass * wbc.G
     contact = [{'p': p, 'f': np.array([0.0, half, 0.0]), 'J': jp[:, :body.n].copy(), 'dJv': np.zeros(3)}]
-    slid = wrench.step(body, dict(s, contacts=contact), dict(ask, slide=(0.0, 0.0, 0.16), fz_cap=cap))
-    f = slid['borne'][0]
-    report.check('sliding, the contact bears under the cap and its friction is MU of that against the slide',
-                 0.0 < f[1] <= cap * (1.0 + 1e-9) and abs(f[2] + wbc.MU * f[1]) < 1e-6 * max(1.0, f[1])
-                 and abs(f[0]) < 1e-6 * max(1.0, f[1]) and np.all(np.isfinite(slid['tau'])),
-                 '%.0f N on it (cap %.0f), %.1f N along the slide, %.1f across' % (f[1], cap, f[2], f[0]))
+    forces = []
+    for slip, said in ((0.5 * wbc.SLIDE_M_S, 1.0), (2.0 * wbc.SLIDE_M_S, 1.0), (2.0 * wbc.SLIDE_M_S, -1.0)):
+        v = np.array(s['v'], float)
+        v[2] += slip
+        forces.append(wrench.step(body, dict(s, v=v, contacts=contact), dict(ask, fz_cap=cap, slide=(0.0, 0.0, said)))['borne'][0])
+    stuck, slid, against = forces
+
+    def sticks(f):
+        return 0.0 < f[1] <= cap * (1.0 + 1e-9) and np.hypot(f[0], f[2]) <= wbc.MU * f[1] * (1.0 + 1e-9) and abs(f[2] + wbc.MU * f[1]) > 1e-3
+    report.check('slipping %.2f m/s along the said slide its friction is MU of its load against the slip, the load under'
+                 ' the cap; at %.3f, or against the said slide, it sticks, its friction in the cone' % (2.0 * wbc.SLIDE_M_S, 0.5 * wbc.SLIDE_M_S),
+                 0.0 < slid[1] <= cap * (1.0 + 1e-9) and abs(slid[2] + wbc.MU * slid[1]) < 1e-6 * max(1.0, slid[1])
+                 and abs(slid[0]) < 1e-6 * max(1.0, slid[1]) and sticks(stuck) and sticks(against),
+                 'slid %s N (cap %.0f); stuck %s N; against the say %s N' % (slid.round(1), cap, stuck.round(1), against.round(1)))
+
+
+def test_a_patch_splits_as_felt(report):
+    """Two contacts one surface bears (`borne`'s patch) split its normal load as it is felt (`wrench._patch`'s
+    pin): asked a cap (`fz_cap`), the patch bears no more, each contact its share of it."""
+    import numpy as np
+    from machine import wbc, wrench
+    body, s, ask = _standing()
+    pelvis, jp = body.m.body('pelvis').id, np.zeros((3, body.m.nv))
+    half, cap, apart = 0.5 * body.mass * wbc.G, 0.3 * body.mass * wbc.G, np.array([0.08, 0.0, 0.0])
+    thighs = []
+    for side, felt in ((-1.0, 0.6), (1.0, 0.4)):
+        p = body.d.xpos[pelvis] + side * apart
+        body.mj.mj_jac(body.m, body.d, jp, None, p, pelvis)
+        thighs.append({'p': p, 'f': np.array([0.0, felt * half, 0.0]), 'J': jp[:, :body.n].copy(), 'dJv': np.zeros(3), 'patch': 2})
+    free = wrench.step(body, dict(s, contacts=thighs), ask)['borne'][:, 1]
+    capped = wrench.step(body, dict(s, contacts=thighs), dict(ask, fz_cap=cap))['borne'][:, 1]
+    report.check('free, the two bear 0.6 and 0.4 of their load; capped, their sum no more than the cap, each its share',
+                 free.sum() > 1.0 and abs(free[0] / free.sum() - 0.6) < 1e-6 and abs(capped.sum() - cap) < 1e-6 * cap
+                 and abs(capped[0] - 0.6 * cap) < 1e-6 * cap,
+                 'free %s N, capped %s N of %.0f' % (free.round(1), capped.round(1), cap))
+
+
+def test_her_lean_hands_her_to_her_soles(report):
+    """A rise's preload (`maneuver._panned`): what bears her panned to the plantar share its cross-fade waits
+    for (the handover's liftoff, 0.82), her ZMP in her support, the kernel's egress slide forward, her legs'
+    springs back from the seat's gain by that share (`maneuver._legs`); the fade onto her soles ends the slide."""
+    from machine import acts, maneuver, somatic
+    ps = maneuver.phases('rise_chair')
+    lean = next(k for k, p in enumerate(ps) if p.stage == 'preload')
+    p, then = ps[lean], ps[lean + 1]
+    text = maneuver.text('rise_chair')
+    report.check('the lean pans to (plantar 0.82, ischial 0.18), ZMP in her support, slide %.2f m/s; the thrust slide 0'
+                 % somatic.EGRESS_M_S,
+                 p.zmp == acts.SUPPORT and abs(p.weighs[0] - 0.82) < 1e-9 and abs(p.weighs[1] - 0.18) < 1e-9
+                 and p.slide == somatic.EGRESS_M_S and then.waits == ('soles', 0.82) and then.slide == 0.0
+                 and '(contact_manifolds (plantar 0.82) (ischial 0.18) (trochanter 0) (dorsal 0)) (slide 0.15)' in text,
+                 '%s %s %s %s' % (p.zmp, p.weighs, p.slide, then.slide))
+    sat = next(q for q in maneuver.phases('sit_chair') if q.stage == 'contact' and 'mode_lateral_shift' in q.springs)
+    k_seat, k_rest, k_lean = (q.springs['mode_lateral_shift'][0] for q in (sat, then, p))
+    report.check('her legs\' springs come back with the pan: the lean\'s lateral shift %.0f N/m, 0.82 of the way from the'
+                 ' seat\'s %.0f to her rest\'s %.0f' % (k_lean, k_seat, k_rest),
+                 k_seat < k_lean < k_rest and abs(k_lean - (k_seat + 0.82 * (k_rest - k_seat))) < 1e-6 * k_rest, '')
 
 
 def test_a_slide_said_rides_her_row(report):
@@ -108,7 +161,7 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     seated, from 0.86 of it her sole's centre of pressure goes onto its ball by the furniture's told share,
     whole at 0.98; standing, nothing borne, her soles stay as her stride has them."""
     import numpy as np
-    from machine import latent, modal, somatic
+    from machine import latent, modal, rounds, somatic, stride
     g = {'fr': np.zeros(modal.FRAME)}
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0
@@ -117,18 +170,36 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     def asked(rho, told, edge=(0.0, 0.0)):
         s = {'hips': [np.array([0.0, rho[0] * somatic.LEG_M, 0.0]), np.array([0.2, rho[1] * somatic.LEG_M, 0.0])],
              'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}]}
-        return somatic.asked(g, s, out, np.array([1.0 - told, told, 0.0, 0.0]), {'edge': edge})
+        ask: dict = {'edge': edge}
+        told = np.asarray(told, float)
+        return somatic.asked(g, s, out, told if told.ndim else np.array([1.0 - told, told, 0.0, 0.0]), ask)
     seated, deep, stood = asked((0.75, 0.70), 0.85), asked((0.92, 0.98), 0.85), asked((0.998, 0.998), 0.0)
-    report.check('seated at 0.70-0.75 of her leg her soles are flat; at 0.92 and 0.98 onto the ball by the seat\'s 0.85;'
-                 ' standing at 0.998, nothing borne, flat',
-                 seated['edge'] == (0.0, 0.0) and abs(deep['edge'][0] - 0.85 * 0.5) < 1e-9 and abs(deep['edge'][1] - 0.85) < 1e-9
-                 and stood['edge'] == (0.0, 0.0) and seated['fz_cap'] == np.inf and tuple(seated['slide']) == (0.0, 0.0, 0.0),
-                 '%s %s %s' % (seated['edge'], deep['edge'], stood['edge']))
+    unsaid = asked((0.75, 0.70), np.zeros(4))
+    report.check('seated at 0.70-0.75 of her leg her soles are flat, the seat capped at its told 0.85 of her weight;'
+                 ' at 0.92 and 0.98 onto the ball by that 0.85; standing at 0.998, nothing borne, flat; nothing told, no cap',
+                 seated['edge'] == (0.0, 0.0) and abs(float(deep['edge'][0]) - 0.85 * 0.5) < 1e-9
+                 and abs(float(deep['edge'][1]) - 0.85) < 1e-9 and stood['edge'] == (0.0, 0.0)
+                 and abs(float(seated['fz_cap']) - 0.85 * 300.0) < 1e-9 and float(unsaid['fz_cap']) == np.inf,
+                 '%s %s %s cap %.1f, %.1f' % (seated['edge'], deep['edge'], stood['edge'], seated['fz_cap'], unsaid['fz_cap']))
     out[latent.SLID] = -0.15
     slid = asked((0.75, 0.70), 0.85)
-    report.check('a slide said of -0.15 m/s rides along her way, her contacts\' load capped at 0.55 of her weight',
-                 abs(slid['slide'][0] + 0.15) < 1e-9 and abs(slid['fz_cap'] - 0.55 * 300.0) < 1e-9,
-                 '%s cap %.1f' % (slid['slide'], slid['fz_cap']))
+    out[latent.SLID] = 0.15
+    egress = asked((0.75, 0.70), 0.85)
+    report.check('a slide said of -0.15 m/s caps her contacts\' load at the ingress\'s 0.55 of her weight; forward,'
+                 ' at the egress\'s 0.70',
+                 abs(float(slid['fz_cap']) - 0.55 * 300.0) < 1e-9 and abs(float(egress['fz_cap']) - 0.70 * 300.0) < 1e-9,
+                 'cap %.1f; %.1f' % (slid['fz_cap'], egress['fz_cap']))
+    out[latent.SLID] = 0.0
+    way = np.eye(3)[stride.ALONG]
+    seat = {'hips': [np.array([0.0, 0.7 * somatic.LEG_M, 0.0]), np.array([0.2, 0.7 * somatic.LEG_M, 0.0])],
+            'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}],
+            'contacts': [{'p': np.array([0.1, 0.45, 0.0]) - 0.3 * way}], 'com': np.array([0.1, 0.8, 0.0]) - (0.1 + rounds.ROOM[1]) * way}
+    lever, ask = float(somatic.lever(seat, way)), {'edge': (0.0, 0.0)}
+    behind: dict = somatic.asked(g, seat, out, np.array([0.82, 0.18, 0.0, 0.0]), ask)
+    report.check('her centre of mass 0.1 m behind her heels, the seat 0.3 m behind her soles\' middle: the seat must bear'
+                 ' %.2f of her by the lever\'s rule, and is capped no lower though told 0.18' % lever,
+                 abs(lever - 0.1 / (0.3 - rounds.ROOM[1])) < 1e-9 and abs(float(behind['fz_cap']) - lever * 300.0) < 1e-9,
+                 'lever %.3f cap %.1f' % (lever, float(behind['fz_cap'])))
 
 
 def test_she_stands_still(report):
@@ -252,8 +323,8 @@ def test_her_master_bus_and_buffers(report):
                  str(ends))
 
 
-ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_a_slide_said_rides_her_row,
-          test_her_reach_rolls_her_onto_the_ball, test_she_stands_still, test_nudged_she_holds,
+ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_a_patch_splits_as_felt,
+          test_her_lean_hands_her_to_her_soles, test_a_slide_said_rides_her_row, test_her_reach_rolls_her_onto_the_ball, test_she_stands_still, test_nudged_she_holds,
           test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
           test_her_master_bus_and_buffers)
 
