@@ -259,8 +259,11 @@ def _placed(prog, func, arrays, *rest, **kw):
 
 def reduced(prog, op, x, axis=None, initial=None, keepdims=False):
     """numpy's `op` ('add', 'multiply', 'minimum', 'maximum') reduced over `axis` (None every one): a
-    'reduce' statement, numpy's own result."""
+    'reduce' statement, numpy's own result; one from an `initial` of her state, or one numpy refuses,
+    Untraced."""
     ufunc = getattr(np, op)
+    if isinstance(initial, Traced):
+        raise Untraced('a reduction from an initial of her state at %s' % where())
     kw = {} if initial is None else {'initial': initial}
     if not isinstance(x, Traced):
         return ufunc.reduce(np.asarray(x, dtype=float), axis=axis, keepdims=keepdims, **kw)
@@ -269,7 +272,10 @@ def reduced(prog, op, x, axis=None, initial=None, keepdims=False):
                                                                                  else (axis,))}))
     if any(s < 0 for s in x.ref().strides):
         raise Untraced('a reduction over a reversed view at %s' % where())
-    got = np.array(ufunc.reduce(x.view, axis=axes, keepdims=keepdims, **kw))
+    try:
+        got = np.array(ufunc.reduce(x.view, axis=axes, keepdims=keepdims, **kw))
+    except ValueError as e:
+        raise Untraced('%s at %s' % (e, where())) from e
     result = Traced(prog, prog.buffer(got, 'temp'), got)
     prog.add('reduce', result.ref(), (op, x.ref(), axes, initial), got)
     return result

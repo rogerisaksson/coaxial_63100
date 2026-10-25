@@ -259,8 +259,8 @@ def laid(g):
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
     situation, her drive's cap, her ask's poses, her invariant EKF, her barrier (a ring's length a part), her
-    field's seek, what bears her weighed and her shield's clearances compiled from their numpy
-    (`tools.cores.bodied`)."""
+    field's seek, what bears her weighed, her shield's clearances and her wayfinder's gap compiled from
+    their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -268,6 +268,7 @@ def laid(g):
     g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
     g['weighed'] = bodied.on_args(observer.weighed, 'weighed', (0, 1, 2, 3))
     g['clear'] = bodied.on_body(capsules.felt, 'clear', (1,))
+    g['gap'] = bodied.on_shapes(wayfinder.gap, 'gap', (0, 1, 2, 3, 4, 5))
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))

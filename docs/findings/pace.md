@@ -173,3 +173,12 @@ machine ([body](body.md), [emulation](emulation.md),
   1.70 -> 1.88 of real time. Her run and every pair's clearance the same at
   each law pass of the five scenes. The brace's python beside its C
   (`machine.brace`), motion at its cap.
+- Her wayfinder's gap compiled from its numpy a room's size a part
+  (`wayfinder.gap` on every box, those out of the band masked, the same as
+  compacting them in 100 000 fuzzed rooms): her loop 527 -> 502 us a pass,
+  1.90 -> 2.02 of real time - her walk's room empty, its gap 100 us of
+  numpy on nothing. The tracer's reduction of none its start alone (a min
+  from its initial had read past the empty source), one from an initial of
+  her state or one numpy refuses Untraced. Her errands through the lodge
+  (the door's gauge on, the chair, the bed), the five scenes and 14 001 gaps
+  beside numpy the same.

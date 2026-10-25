@@ -296,8 +296,16 @@ def _laid(x):
     return PHI @ x @ PHI.T, x @ PHI[:, ::2], PHI.T @ x[:, 0], PHI[:, ::2].T @ x[:, 1], x[:, ::2].T @ PHI
 
 
+def _nothing(x, e, m):
+    """Reductions over none: a sum from zero, a min and a max from their initial, any and all, along an
+    axis of none and across it; beside her array."""
+    return (e.sum(), e.min(initial=1.5), m.max(axis=0, initial=-2.0), m.any(axis=1), e.any(), e.all(),
+            x.sum() + e.sum())
+
+
 #: The tracer's numpy, a function each: (what it is, it, its arguments of a generator - every one traced).
 RULES = (('any and all', _truths, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)), r.normal(size=(2, 3, 5)))),
+         ('reductions over none', _nothing, lambda r: (r.normal(size=5), np.zeros(0), np.zeros((0, 3)))),
          ('== and !=', _equals, lambda r: (np.array([0.0, -0.0, 1.0, np.nan, 2.0]), np.array([-0.0, 0.0, 1.0, np.nan, 3.0]))),
          ('astype', _cast, lambda r: (r.normal(size=(4, 9)), r.normal(size=(4, 9)))),
          ("linalg's solve and inv", _solved, lambda r: (r.normal(size=(5, 5)), r.normal(size=5), r.normal(size=(5, 3)))),
@@ -390,26 +398,33 @@ def test_a_part_a_shape(report, c):
                  '%d of 20 apart; %s' % (bad, sorted(p.name for p in part.values())))
 
 
-def _unheld(x):
+def _unheld(x, s):
     """An array's method a Traced does not hold (cumsum)."""
-    return x.cumsum() * 2.0
+    return x.cumsum() * s
+
+
+def _from_state(x, s):
+    """A reduction from an initial of her state."""
+    return x.min(initial=s)
 
 
 def test_a_method_not_held_leaves_numpy(report, c):
-    """`_unheld` on her memory (`bodied.on_args`): Untraced at its trace, no AttributeError - numpy's own
-    result each call, said once on stderr."""
+    """`_unheld` and `_from_state` on her memory (`bodied.on_args`): Untraced at their trace, no
+    AttributeError or ValueError - numpy's own result each call, said once on stderr."""
     import contextlib
     import io
     from tools.cores import bodied, trace
     from tools.cores.orders import same
-    x, said = np.random.default_rng(37).normal(size=6), io.StringIO()
-    part = bodied.on_args(_unheld, 'unheld', (0,))
-    with contextlib.redirect_stderr(said):
-        got = [part(x, paced=False) for _ in range(3)]
-    report.check("a method not held leaves her part numpy's own, said once",
-                 all(same(g, _unheld(x)) for g in got) and part.c is None and isinstance(part.why, trace.Untraced)
-                 and not isinstance(part.why, AttributeError) and said.getvalue().count('stays numpy') == 1,
-                 '%s; %r' % (type(part.why).__name__, said.getvalue().strip()[:120]))
+    x = np.random.default_rng(37).normal(size=6)
+    for label, fn in (('a method not held', _unheld), ('a reduction from her state', _from_state)):
+        said = io.StringIO()
+        part = bodied.on_args(fn, fn.__name__[1:], (0, 1))
+        with contextlib.redirect_stderr(said):
+            got = [part(x, 0.5, paced=False) for _ in range(3)]
+        report.check("%s leaves her part numpy's own, said once" % label,
+                     all(same(g, fn(x, 0.5)) for g in got) and part.c is None and isinstance(part.why, trace.Untraced)
+                     and not isinstance(part.why, AttributeError) and said.getvalue().count('stays numpy') == 1,
+                     '%s; %r' % (type(part.why).__name__, said.getvalue().strip()[:120]))
 
 
 ROSTER = (test_numpys_reductions_and_selections_in_c, test_her_state_in_place_in_c, test_her_sensing_in_c_is_her_numpys,

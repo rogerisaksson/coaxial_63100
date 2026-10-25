@@ -202,7 +202,8 @@ def _summed(terms, order):
 def _reduce(w, _prog, st):
     """numpy's reduction in its own order: the source's axes outer to inner by stride, neighbours its
     iterator coalesces one; along an innermost reduced run a sum pairwise (npsum_s), else each in
-    turn; a sum from zero, a product from one (or `initial`), min and max from the first."""
+    turn; a sum from zero, a product from one (or `initial`), min and max from the first; a source of
+    none its start alone."""
     op, src, axes, initial = st.args
     out, nd = st.out, len(src.shape)
     oaxes = [d for d in range(nd) if d not in axes] if len(out.shape) < nd else list(range(nd))
@@ -226,6 +227,8 @@ def _reduce(w, _prog, st):
             at[d] = '0' if d in axes else i
         return ['%s = %s;' % (w.ref(out, idx), w.ref(src, at))]
     lines = w.loops(out.shape, first)
+    if 0 in src.shape:
+        return lines
     groups = groups or [[1, 0, 0, True]]
     idx = ['g%d' % k for k in range(len(groups))]
 
