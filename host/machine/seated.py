@@ -15,6 +15,8 @@ HALVINGS = 40
 HEELS = leap.MIDDLE - float(poise.EXTENT[0])
 #: Her thigh's capsules (`figure.BODY`): radius, from, to, its frame - down it -y, ahead z.
 THIGHS = tuple((r, a, b) for seg, r, a, b in figure.BODY if seg == 'thigh')
+#: Her hand's capsule (`figure.BODY`): radius, its middle in the hand's frame.
+HAND = next((r, a) for seg, r, a, _b in figure.BODY if seg == 'hand')
 
 
 def axial(knee, modes, body):
@@ -106,3 +108,18 @@ def sat(seat):
     """Her hip joints' height sat on a surface `seat` m up: her buttocks under her pelvis, her hips
     under its middle (`figure`)."""
     return seat - figure.SEAT_Y + figure.SEAT_R - figure.HIP_DROP
+
+
+def braced(trunk):
+    """Her shoulders' flexion, rad (back negative), that sets her fists on the seat she sits on behind her,
+    her pelvis and trunk `trunk` rad forward (back negative), her elbows as she stands - halved for till
+    HALVINGS: sat, her pelvis's middle SEAT_R - SEAT_Y over the seat's top (`sat`)."""
+    lo, hi, deg = -0.5 * math.pi, 0.0, figure.stand()
+    r, (hx, hy, hz) = HAND
+    for _ in range(HALVINGS):
+        mid = 0.5 * (lo + hi)
+        deg['left_shoulder'] = math.degrees(mid)
+        at, here = figure.frames(deg, (0.0, figure.SEAT_R - figure.SEAT_Y, 0.0), figure.rx(trunk))['left_hand']
+        low = at[1] + sum(here[1][k] * c for k, c in enumerate((hx, hy, hz))) - r
+        lo, hi = (lo, mid) if low < 0.0 else (mid, hi)
+    return 0.5 * (lo + hi)

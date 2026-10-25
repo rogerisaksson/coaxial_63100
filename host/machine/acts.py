@@ -188,15 +188,23 @@ def _equilibrium(p, then, at, modes, body):
 
 def _recline(p, then, at, modes, body):
     """A recline: her trunk's ramp to its end, her centre of mass where she lies then (`seated.com`; left
-    where she sat her law slid her hips to the edge), her pelvis's turn's, her legs' sweep's knee."""
+    where she sat her law slid her hips to the edge), her pelvis's turn's, her legs' sweep's knee; what bears
+    her panned as it says (`manifold-pan`), her fists on the seat behind her where it pans her hands
+    (`seated.braced`), held there as a pressing contact's point is (`wrench.W_STILL`), hanging where it pans them
+    none; her centre of mass on her
+    rest's spring: on the seat's -24 dB her trunk came back upright from -13 deg as her pelvis rolled under it."""
     sweep = p.get('counterweight-limb-sweep', {})
     at['knee'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1]
-    trunk = p['torso-pitch-ramp'][-1]
+    trunk, weighs = p['torso-pitch-ramp'][-1], _weighs(p.get('manifold-pan'))
     targets = {'mode_axial_compression': seated.axial(at['knee'], modes, body),
                'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0],
                'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body),
                'mode_pelvis_turn': p.get('axial-yaw-ramp', (0.0,))[-1] / modes['mode_pelvis_turn'][0]}
-    return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, {}, None, None)]
+    palmed = weighs is not None and weighs[ortho.PALMAR] > 0.0
+    targets.update({'mode_arm_reach': seated.braced(trunk) * palmed / modes['mode_arm_reach'][0]} if weighs is not None else {})
+    springs = {'mode_sagittal_shift': sprung('mode_sagittal_shift', 1.0, 1.0, modes),
+               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE, 1.0, modes)} if palmed else {})}
+    return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
 def _pendulum(p, then, at, modes, body):

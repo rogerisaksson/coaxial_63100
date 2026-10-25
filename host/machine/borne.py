@@ -21,9 +21,10 @@ from machine import edge, touch
 
 #: A segment bears that is pushed up past this, N: her skin's touch.
 BEARS_N = edge.TOUCHED_N
-#: Her hands, the fist and its fingers, indices into her skin.
-HANDS = np.array([edge.SKIN.index(side + part) for side in ('left_', 'right_') for part in ('hand', 'fingers')])
-#: The segments above her soles (`touch.ABOVE`) and her hands, indices into her skin.
+#: Her arms' segments, upper arm to fingers, indices into her skin - her left's first: a hand braced, or a
+#: forearm down on the bed as she lies back onto her elbows.
+HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
+#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin.
 ABOVE = np.array(sorted(set(touch.ABOVE) | set(HANDS.tolist())))
 #: The segments one surface bears are one patch of her step: a push's way, the world's axis it is most along and
 #: its sign - friction leans a push by atan MU, under 45 deg, so a seat's, a bed's or a floor's pushes are all
@@ -51,13 +52,13 @@ def read(b, s, y, weight, hands=0.0):
         if f[1] <= BEARS_N:
             continue
         up += f[1] * float(k not in HANDS)
-        palms[int(k in HANDS[2:])] += f[1] * float(k in HANDS)
+        palms[int(k in HANDS[len(touch.ARMS[0]):])] += f[1] * float(k in HANDS)
         low, high = np.minimum(low, p), np.maximum(high, p)
         b.mj.mj_jac(m, d, jp, jr, p, ids[k])
         J = jp[:, :n].copy()
         b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
         contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :n] @ s['v'], 'carpal': float(k in HANDS),
-                         'side': int(k in HANDS[2:])})
+                         'side': int(k in HANDS[len(touch.ARMS[0]):])})
     for c in contacts:
         axis = int(np.argmax(np.abs(c['f'])))
         c['patch'] = 2 * axis + int(c['f'][axis] < 0.0) + CARPAL * (1 + c['side']) * int(c['carpal'])

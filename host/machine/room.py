@@ -48,7 +48,7 @@ GROUND = ('deck', 'stone_step', 'stone_terrace', 'loft') + tuple('stair%d' % k f
 #: The chair: its middle (x, z), facing -z; the seat's half sizes and height, the back's.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), CHAIR_SEAT, 0.45, (CHAIR_SEAT[0], 0.25, 0.02)
 #: The bed: its middle, its half sizes (the mattress's top at twice the second).
-BED_AT, BED = (-1.8, 1.8), (0.45, 0.22, 1.0)
+BED_AT, BED = (-1.8, 1.8), (0.45, 0.22, 1.1)
 #: The table: its middle, the top's half sizes and height.
 TABLE_AT, TOP, TOP_H = (1.5, -0.8), (0.6, 0.015, 0.35), 0.74
 #: The lamp: its foot (x, z), the post's half height, the shade's half sizes; its switch on the
