@@ -301,6 +301,7 @@ Six firmware defects, no hardware fault:
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
 | Her law compiled from her numpy: numpy's orders, her parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
 | The dual-domain kernel: its momentum observer, its steps, its tests in the lodge | [findings/kernel.md](findings/kernel.md) |
+| Her seat: where a sit lands her, the Coulomb slide as her step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
 
 ## Ruled Out
 
