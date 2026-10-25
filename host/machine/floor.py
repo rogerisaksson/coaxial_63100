@@ -1,8 +1,6 @@
 """The floor and what befalls her on it: a slab, a sill, a patch, a rug, a stair, bricks, a board.
 
-The model's bodies (`ground` before her figure, `rug` after it), each event placed on the
-walk's line (`place`) or parked out of her way (`park`), and drawn as boxes (`props`) -
-functions of the `physics.World`.
+Bodies (`ground`, `rug`) placed on her way (`place`) or parked (`park`), drawn as boxes (`props`).
 """
 import math
 
@@ -13,38 +11,39 @@ HOLE_M, HOLE_LONG_M, SILL_M, SILL_LONG_M = 0.10, 0.40, 0.035, 0.04
 SLIP_LONG_M, SLIP_FRICTION = 0.5, 0.06
 RUG_LONG_M, RUG_M, RUG_KG, RUG_FRICTION = 0.9, 0.01, 1.5, 0.55
 SLAB_FROM_M, SEAM_M, SLAB_TO_M, PARKED_M = -20.0, 30.0, 10000.0, -50.0
-#: A prop is drawn higher than this, m: parked, they lie at -2 (the steps) and -5; a stair down
-#: puts its lowest step's body at -1.1.
+#: A prop is drawn higher than this, m: parked at -2 (steps) and -5; a stair down's lowest step at -1.1.
 SHOWN_Y = -1.5
 DEEP_M = 0.2
-#: A flight of stairs: its steps, each's rise and run, m, and the landing at its top. A house's.
+#: A flight of stairs: steps, rise and run, m, its landing; a house's.
 STEPS, RISE_M, RUN_M, TOP_M = 5, 0.15, 0.30, 1.5
-#: The stairs takes' flight at her size: Ascending Stairs rises 0.421 m and runs 0.451 a stride.
+#: The stairs takes' flight at her size: Ascending Stairs rises 0.421 m, runs 0.451 a stride.
 TAKE_RISE_M, TAKE_RUN_M = 0.21, 0.225
-#: A scene's floor a flight or a ramp climbs to or comes down to goes on this far, m: the base
-#: plane, the hole's bottom 10 cm down, lay over a descent's lower half and a 1.2 m top ended in
-#: a drop.
+#: The floor a flight or ramp reaches goes on this far, m: the base plane (the hole's bottom, 10 cm down)
+#: lay over a descent's lower half; a 1.2 m top ended in a drop.
 UPPER_M = 6.0
 BRICK, BOARD, BOARD_HINGE_M, BOARD_KG = (0.06, 0.031, 0.125), (0.25, 0.005, 0.20), 0.02, 1.2
 BOARD_K, BOARD_C = 3000.0, 20.0
 #: The chair, as wide as her hands hang and a fist: 0.44 m wide they hung 4-5 cm past it.
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (figure.ASIDE + figure.FIST_R, 0.02, 0.22), 0.45, (figure.ASIDE + figure.FIST_R, 0.20, 0.02)
 CHAIR_LEG, CHAIR_LEG_IN = 0.02, 0.03
+#: The low chair's seat at her popliteal height, her knee less her thigh's radius there: a human's deep sit,
+#: soles flat; the lodge's is 5.3 cm over it.
+CHAIR_LOW_H = figure.ANKLE_H + figure.SHANK - [c for c in figure.BODY if c[0] == 'thigh'][-1][1]
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
-#: What lies on the floor and bears none of her but her soles - with the floor itself, her ground.
+#: What lies on the floor and bears her soles alone.
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
-#: A ramp's grade, deg, and its half sizes: 10 deg, a steep street's.
+#: A ramp's grade, deg, and half sizes: 10, a steep street's.
 SLOPE_ANGLE_DEG, SLOPE_HALF = 10.0, (0.60, 0.05, 1.44)
 SLOPE_TOP_HALF, SLOPE_TOP_H = (0.60, 0.05, 0.60), 0.10
 #: Ice under a rubber sole: 0.1; 0.02 is a skate blade's.
 ICE_HALF, ICE_FRICTION = (0.60, 0.02, 1.25), 0.1
 SNOW_HALF, SNOW_FRICTION = (0.60, 0.03, 1.25), 0.35
-#: A patch's top over the floor, m: a loaded sole sinks 1 to 3 mm, into snow its give more. At 1
-#: mm a sole stood through the ice onto the floor and walked on its friction, 1.0 where 0.02.
+#: A patch's top over the floor, m: a loaded sole sinks 1-3 mm, more in snow; at 1 mm a sole stood through
+#: the ice onto the floor and walked on its friction, 1.0 where 0.02.
 SLIP_TOP_M, ICE_TOP_M, SNOW_TOP_M = 0.005, 0.005, 0.04
 
 SCENARIOS = (
-    'flat', 'lodge', 'chair', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
+    'flat', 'lodge', 'chair', 'chair_low', 'bed', 'mattress', 'slope', 'slope_down', 'cross_slope',
     'stairs', 'stairs_down', 'stairs_take', 'ice', 'snow', 'asphalt', 'slip', 'obstacle', 'wall', 'tree',
     'sill', 'hole', 'rug', 'edge_behind',
 )
@@ -63,8 +62,8 @@ def _steps(top=TOP_M, rise=RISE_M, run=RUN_M):
 
 
 def told_stairs(rise=RISE_M, run=RUN_M):
-    """The stairs as told her (`worker.told_floor`) where she starts: level to the first riser
-    0.30 m on (`events`), STEPS treads of `run` at `rise`, the top landing TOP_M long."""
+    """The stairs told her (`worker.told_floor`): level to the first riser 0.30 m on (`events`), STEPS
+    treads of `run` at `rise`, the landing TOP_M long."""
     pts = [(-2.0, 0.0), (0.30, 0.0)]
     for k in range(STEPS):
         pts += [(0.30 + k * run, (k + 1) * rise), (0.30 + (k + 1) * run + TOP_M * (k == STEPS - 1), (k + 1) * rise)]
@@ -72,9 +71,7 @@ def told_stairs(rise=RISE_M, run=RUN_M):
 
 
 def grounds(m):
-    """Her ground's bodies in model `m`: the world's - the floor, its slabs -, what lies on it
-    (`TERRAIN`), the steps and the lodge's deck, terrace and stair (`room.GROUND`); a chair, a
-    bed, a wall, what may bear her above her soles, none."""
+    """Her ground's bodies in `m`: the floor and its slabs, TERRAIN, the steps, `room.GROUND`."""
     from machine import room
     ids = {m.body(b).name: b for b in range(m.nbody)}
     laid = {ids[n] for n in TERRAIN + tuple(n for n, _h, _a in _steps()) + room.GROUND if n in ids}
@@ -88,9 +85,8 @@ def lay(name):
 
 
 def _sized(world, body, half):
-    """`body`'s one box `half` its sizes, and the bounds MuJoCo culls its contacts by with them:
-    grown 6 m long past its compiled 1.2, a slope's top bore nothing 0.85 m from its middle and
-    she fell through it at its edge."""
+    """`body`'s box `half` its sizes, its contact bounds with them: grown 6 m past its compiled 1.2, a
+    slope's top bore nothing 0.85 m from its middle and she fell through its edge."""
     m = world.model
     b = m.body(body).id
     g = m.body_geomadr[b]
@@ -104,13 +100,26 @@ def _beyond(world, along, ahead, pad):
 
 
 def _base(world, y):
-    """The base plane `y` m up: the hole's bottom, a descent's lower floor."""
+    """The base plane `y` m up: the hole's bottom."""
     world.model.geom_pos[world.model.geom('floor').id][1] = y
 
 
+def _chair(name, seat_h, contacts):
+    """A chair's body, parked: its seat `seat_h` m up, its back, four legs."""
+    leg_h = (seat_h - 2 * CHAIR_SEAT[1]) / 2.0
+    return ('<body name="%s" mocap="true" pos="0 -5 0">'
+            '<geom name="%s_seat" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
+            '<geom name="%s_back" type="box" size="%g %g %g" pos="0 %g %g"%s/>' % (
+                (name, name) + CHAIR_SEAT + (seat_h - CHAIR_SEAT[1], contacts, name)
+                + CHAIR_BACK + (seat_h + CHAIR_BACK[1], CHAIR_SEAT[2], contacts))
+            + ''.join('<geom name="%s_leg_%s" type="box" size="%g %g %g" pos="%g %g %g"%s/>' % (
+                name, leg, CHAIR_LEG, leg_h, CHAIR_LEG, sx * (CHAIR_SEAT[0] - CHAIR_LEG_IN), leg_h,
+                sz * (CHAIR_SEAT[2] - CHAIR_LEG_IN), contacts)
+                for leg, sz, sx in (('fl', -1, -1), ('fr', -1, 1), ('bl', 1, -1), ('br', 1, 1))) + '</body>')
+
+
 def ground(contacts, give, torsion):
-    """The worldbody's floor before her figure: the plane, the slab's halves, and mocap props."""
-    leg_h = (CHAIR_SEAT_H - 2 * CHAIR_SEAT[1]) / 2.0
+    """The worldbody's floor before her figure: the plane, the slabs, the mocap props."""
     return [
         '<geom name="floor" type="plane" size="100 100 0.1" pos="0 %g 0" '
         'quat="0.7071068 -0.7071068 0 0"%s/>' % (-HOLE_M, contacts),
@@ -135,14 +144,7 @@ def ground(contacts, give, torsion):
         % (contacts,),
         '<body name="tree" mocap="true" pos="0 -5 0"><geom type="cylinder" size="0.15 1.5" '
         'quat="0.7071068 -0.7071068 0 0"%s/></body>' % (contacts,),
-        '<body name="chair" mocap="true" pos="0 -5 0">'
-        '<geom name="chair_seat" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
-        '<geom name="chair_back" type="box" size="%g %g %g" pos="0 %g %g"%s/>' % (
-            CHAIR_SEAT + (CHAIR_SEAT_H - CHAIR_SEAT[1], contacts)
-            + CHAIR_BACK + (CHAIR_SEAT_H + CHAIR_BACK[1], CHAIR_SEAT[2], contacts))
-        + ''.join('<geom name="chair_leg_%s" type="box" size="%g %g %g" pos="%g %g %g"%s/>' % (
-            leg, CHAIR_LEG, leg_h, CHAIR_LEG, sx * (CHAIR_SEAT[0] - CHAIR_LEG_IN), leg_h, sz * (CHAIR_SEAT[2] - CHAIR_LEG_IN),
-            contacts) for leg, sz, sx in (('fl', -1, -1), ('fr', -1, 1), ('bl', 1, -1), ('br', 1, 1))) + '</body>',
+        _chair('chair', CHAIR_SEAT_H, contacts), _chair('chair_low', CHAIR_LOW_H, contacts),
         '<body name="prop_bed" mocap="true" pos="0 -5 0">'
         # a foam's give: she lies 7.5 cm in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there
         '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'
@@ -198,7 +200,7 @@ def park(world):
         _sized(world, name, half)
     world.hole_x = 0.0
     for name in ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'wall', 'tree',
-                 'chair', 'prop_bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
+                 'chair', 'chair_low', 'prop_bed', 'slope_ramp', 'slope_top', 'ice', 'snow'):
         mocap(world, name, (0.0, -5.0, 0.0))
     for name, _half, _at in _steps():
         mocap(world, name, (0.0, -2.0, 0.0))
@@ -310,8 +312,8 @@ def place(world, kind, z, x=0.0, heading=0.0, top=None, rise=RISE_M, run=RUN_M):
 
 
 def behind(stunt, half):
-    """m along her way from her ankles, a prop's middle `half` m in from its edge behind her: her
-    heels the stunt's standoff off that edge (`maneuver.standoff`)."""
+    """m along her way from her ankles to a prop's middle, `half` m in from its edge behind her, her
+    heels the stunt's standoff off it (`maneuver.standoff`)."""
     from machine import maneuver
     return -(figure.HEEL + maneuver.standoff(stunt) + half)
 
@@ -322,8 +324,7 @@ def _on_chair(world):
 
 
 def _edge_behind(world):
-    """She stands on a floor a step's rise up that ends half a tread behind her heels: a step
-    back lands off its edge."""
+    """A floor a step's rise up ends half a tread behind her heels: a step back lands off its edge."""
     _sized(world, 'slope_top', (SLOPE_TOP_HALF[0], RISE_M / 2.0, UPPER_M / 2.0))
     mocap(world, 'slope_top', (0.0, RISE_M / 2.0, UPPER_M / 2.0 - figure.HEEL - RUN_M / 2.0))
     world.data.qpos[1] += RISE_M
@@ -336,8 +337,7 @@ def scenario(world, name, z=1.2, x=0.0):
     from machine import room
     low = -STEPS * RISE_M
     cases = {
-        # the lodge's slope: the wooden stair down from the deck on the door's line, snow at its
-        # foot, a spruce beyond; the rug inside, the sill at the door
+        # the deck's stair down on the door's line, snow, a spruce; the rug, the sill
         'lodge': lambda: (
             place(world, 'stairs_down', z=room.DECK_TO, x=room.STAIR_X, top=UPPER_M),
             mocap(world, 'snow', (room.STAIR_X, low + SNOW_TOP_M - SNOW_HALF[1],
@@ -346,6 +346,8 @@ def scenario(world, name, z=1.2, x=0.0):
             place(world, 'rug', z=1.5, x=0.0), place(world, 'sill', z=room.TO, x=room.STAIR_X)),
         'chair': lambda: place(world, 'chair', z=0.88, x=x),
         'chair_behind': lambda: mocap(world, 'chair', (0.0, 0.0, behind('sit_chair', CHAIR_SEAT[2])), math.pi),
+        'chair_low': lambda: place(world, 'chair_low', z=0.88, x=x),
+        'chair_low_behind': lambda: mocap(world, 'chair_low', (0.0, 0.0, behind('sit_chair', CHAIR_SEAT[2])), math.pi),
         'chair_ahead': lambda: mocap(world, 'chair', (0.0, 0.0, 0.40), math.pi),
         'on_chair': lambda: _on_chair(world),
         'edge_behind': lambda: _edge_behind(world),
@@ -393,9 +395,7 @@ def board(world, k, c):
 
 
 def _ids(world):
-    """The props' ids in the world's model, looked up once: the slabs; each event's body, geom
-    and kind; the rug; the chair and its seat and back; the bed, its mattress and headboard; the
-    slopes' bodies and geoms."""
+    """The props' ids, looked up once."""
     ids = getattr(world, '_prop_ids', None)
     if ids is None:
         m = world.model
@@ -408,13 +408,14 @@ def _ids(world):
                        for kind, name, b in events],
             'rug': m.body('rug').id,
             'chair': (m.body('chair').id, m.geom('chair_seat').id, m.geom('chair_back').id),
+            'chair_low': (m.body('chair_low').id, m.geom('chair_low_seat').id, m.geom('chair_low_back').id),
             'bed': (m.body('prop_bed').id, m.geom('bed_mattress').id, m.geom('bed_headboard').id),
             'slopes': [(m.body(n).id, m.geom(n).id) for n in ('slope_ramp', 'slope_top')]}
     return ids
 
 
 def dents(world, np):
-    """[(x, y, z, m)] where her mattress gives under her: each contact in it, world, and how deep."""
+    """[(x, y, z, m)]: each contact in her mattress, world, and how deep."""
     d, mat, ncon = world.data, _ids(world)['bed'][1], world.data.ncon
     if not ncon:
         return []
@@ -443,11 +444,11 @@ def props(world):
     if d.xpos[rug_id][2] > PARKED_M + 1.0:
         out.append(('rug', tuple(d.xpos[rug_id].tolist()), (0.3, RUG_M / 2.0, RUG_LONG_M / 2.0),
                     tuple(map(tuple, d.xmat[rug_id].reshape(3, 3).tolist()))))
-    chair_id, seat, back = ids['chair']
-    if d.xpos[chair_id][1] > SHOWN_Y:
-        c_mat = tuple(map(tuple, d.xmat[chair_id].reshape(3, 3).tolist()))
-        for g in (seat, back):
-            out.append(('chair', tuple(d.geom_xpos[g].tolist()), tuple(m.geom_size[g].tolist()), c_mat))
+    for chair_id, seat, back in (ids['chair'], ids['chair_low']):
+        if d.xpos[chair_id][1] > SHOWN_Y:
+            c_mat = tuple(map(tuple, d.xmat[chair_id].reshape(3, 3).tolist()))
+            for g in (seat, back):
+                out.append(('chair', tuple(d.geom_xpos[g].tolist()), tuple(m.geom_size[g].tolist()), c_mat))
     bed_id, g_mat, g_hb = ids['bed']
     if d.xpos[bed_id][1] > SHOWN_Y:
         b_mat = tuple(map(tuple, d.xmat[bed_id].reshape(3, 3).tolist()))

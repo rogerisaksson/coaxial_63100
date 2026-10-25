@@ -86,8 +86,12 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    (seat findings, the hitch on her hands): the two ischia, the rooms and the
    let-go leg on main's hands, the edge sit kept 3 of 3; the hitch as text
    moves her hips 0 - her let-go legs bear through feet on the floor, and the
-   seat, told 0.3, is capped not held and unloads under her hands; next the
-   pan as a row of the step, each patch's load toward its told share. DOD:
+   seat, told 0.3, is capped not held and unloads under her hands; the pan as
+   a row of the step (weight 30) flung her, not kept. A low chair at her
+   popliteal height (`chair_low`, hitch findings): landed 0.30 legs back, the
+   deep sit 0.10 m further on planted feet; a scoot by the descent's lean and
+   the kernel's slide unloaded the seat and stood her - the lean as far as
+   the seat's cap, her legs' length following her hips, next. DOD:
    she sits a
    human's 0.31-0.47 legs back and rises on both soles at 2e-4 rad either
    way; she slides onto and off a seat over her knees, forward to its edge

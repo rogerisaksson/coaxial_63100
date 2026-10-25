@@ -2,21 +2,15 @@
 
     knee, ankle = seated.landed(hips, edge, top, trunk)   # her hips `hips` m up onto a seat `top` up, `edge` behind
     z = seated.com(knee, ankle, trunk, modes, body)     # her centre of mass in her sagittal unit
-    shoulder, elbow = seated.reached(knee, ankle, trunk, (ahead, up))   # her arm putting her fist there
 
 Her figure's links and segments (`machine.figure`); her modes' units her manifest's (`defrobot.read`).
 """
 import math
 
-from machine import drives, figure, leap, poise, terms
-from machine.errors import MachineError
+from machine import figure, leap, poise
 
 #: Halvings of her thigh's length that find a landing's hips (`landed`): 1e-13 m.
 HALVINGS = 40
-#: Her hands' joints where her build holds them (`drives.passive`), deg: her wrists, her fingers curled.
-HELD = {j: held[2] for j in ('left_wrist', 'left_gripper', 'right_wrist', 'right_gripper') for held in (drives.passive(j),) if held}
-#: Newton's steps that put her hand on a point (`reached`), their difference, deg, and how near, m.
-REACHES, DEG, NEAR = 20, 1e-5, 1e-9
 #: Her soles' back edge ahead of her ankles, m: her ZMP's margin inside her heels (`poise.EXTENT`).
 HEELS = leap.MIDDLE - float(poise.EXTENT[0])
 #: Her thigh's capsules (`figure.BODY`): radius, from, to, its frame - down it -y, ahead z.
@@ -126,42 +120,6 @@ def sat(seat):
     under its middle (`figure`)."""
     return seat - figure.SEAT_Y + figure.SEAT_R - figure.HIP_DROP
 
-
-def ischia(trunk):
-    """Her ischia - her buttocks' middle (`figure.SEAT_Z`) - ahead of her hip joints, m, her pelvis
-    `trunk` rad forward."""
-    return figure.apply(figure.rx(trunk), (0.0, figure.SEAT_Y, 0.5 * sum(figure.SEAT_Z)))[2] + figure.HIP_DROP * math.sin(trunk)
-
-
-def reached(knee, ankle, trunk, at, side='left'):
-    """(shoulder, elbow), rad, of her `side` arm putting her hand's lowest point (`figure.palm`) `at`
-    (ahead of her ankles, up off the floor, m), `posed` `knee`, `ankle`, `trunk`, her hands as her build
-    holds them (HELD): Newton's steps from her arm as she stands, her elbow half bent - from her stand's 10 deg
-    a fist ahead of her shoulder was reached with the elbow 33 deg past straight. Past her arm or her elbow's
-    range (`terms`), refused."""
-    deg, turn, joints = {**posed(knee, ankle, trunk), **HELD}, figure.rx(trunk), (side + '_shoulder', side + '_elbow')
-    _kind, _sign, low, high = terms.TERMS[('elbow', 'flexion')]
-
-    def where(q):
-        deg.update(zip(joints, q))
-        return sagittal(figure.palm(deg, (0.0, 0.0, 0.0), turn, side), knee, ankle, trunk)
-
-    q = [deg[joints[0]], 0.5 * (low + high)]
-    for _ in range(REACHES):
-        p = where(q)
-        miss = (at[0] - p[0], at[1] - p[1])
-        if math.hypot(*miss) < NEAR:
-            break
-        (a, b), (c, d) = ([(where([q[0] + DEG * (k == 0), q[1] + DEG * (k == 1)])[i] - p[i]) / DEG for k in (0, 1)]
-                          for i in (0, 1))
-        det = a * d - b * c
-        q = [q[0] + (d * miss[0] - b * miss[1]) / det, q[1] + (a * miss[1] - c * miss[0]) / det]
-    p = where(q)
-    off = math.hypot(at[0] - p[0], at[1] - p[1])
-    if off >= NEAR or not low <= q[1] <= high:
-        raise MachineError('refused: her hand %.3f m ahead of her ankles and %.3f up, her arm %.3f m off it, her elbow %.0f deg'
-                           % (at[0], at[1], off, q[1]))
-    return math.radians(q[0]), math.radians(q[1])
 
 
 def braced(trunk):

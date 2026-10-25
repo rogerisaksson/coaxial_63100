@@ -31,6 +31,34 @@ legs), moved her hips 0 (0.263 -> 0.253 legs) square; the chair scene 1 of 3:
   (one sole 268-427 N through the lean); at 2e-4 rad either way she fell in
   the rise (9.9, 11.1 s).
 
-Left: the let-go legs bear while their feet touch the floor; a seat told its
-share is capped, not held, and unloads under the hands - the pan as a row of
-the step; then the slide measured.
+The pan as a row of the step (each patch's load toward its told share, weight
+30 as the turns') held nothing: the seated rest's told 0.85 pushed the seat
+harder than the sit has it (0.55-0.66), her soles went 186/0 N and she fell
+off the low chair at 6.7-7.0 s; told a share before they bore, a fist brushing
+her thigh was pressed 92 N and flung her arm - not kept.
+
+## The low chair
+
+A second chair in the scene (`floor.CHAIR_LOW_H`, scene `chair_low_behind`,
+scenario `chair_low`): its seat at her popliteal height, 0.397 m, where a
+human's deep sit keeps her soles flat. Landed on it she sits 0.30 legs back
+(0.26 on the lodge's 0.45 m chair), the seat 0.52-0.56 of her, soles 0.44,
+upright 11 deg, her thighs along the seat (2.4 cm under its top at the knee).
+The deep sit there is her hips 0.10 m further back on planted feet, her knee
+105 -> 92 deg, her leg 0.49 -> 0.58 m hip to ankle. Scooting back as a human
+(the descent's lean forward, 0.68 rad, the seat told the kernel's 0.55 and her
+soles the rest, the slide said -0.16 m/s, no hands): the lean unloaded the
+seat to 0 in 0.4 s (soles 136/137 N), the legs lengthened toward the deep
+sit's and stood her up off the seat (hips 0.94 legs high at 4.8 s), down at
+5.9 s - not kept. The seat's friction is her soles' (0.6): the feet push her
+back only with the seat under 0.5 of her, a lean of the human's 43 deg, and
+her law stands her where the seat is unfelt.
+
+The rise from the low chair as the suite plays it (hips 0.33 legs back, the
+seat 0.46 of her) falls 3 of 3 (8.2-11.2 s): the lean strikes the seat at
+1.01-1.06 of her weight, one sole 87/0 N then 275/24, her trunk 15 deg back,
+and she stands on one sole bouncing on the seat (0.46-0.62) till 11.2 s.
+
+Left: a scoot's lean as far as puts the seat at its cap and no further, her
+legs' length following her hips, the seat held felt through it; the rise from
+the lower, deeper seat.
