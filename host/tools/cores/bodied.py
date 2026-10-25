@@ -21,15 +21,14 @@ import time
 
 import numpy as np
 
-from tools.cores import emit, held, layout, trace, trace_mj
+from tools.cores import emit, glue, held, layout, trace, trace_mj
+from tools.cores.glue import F64
 from tools.cores.wbc import address
 
 #: A trace or a hold no sooner than SPREAD_S after the last, any part's, s: nine traced in her law's
 #: first pass held it 47.6 ms.
 SPREAD_S = 0.005
 _LAST = [0.0]
-#: numpy's float64, the dtype an extern is.
-F64 = np.dtype(np.float64)
 
 
 def on_body(fn, name, inputs=(1, 2), fresh=2, seed=1, body=0):
@@ -344,8 +343,8 @@ class Bound:
         spans, self.total = info['outs']
         self.spans = [a for a, _b in spans]
         whole = {s[4].buffer.id: s[1:3] for s in specs if s[0] == 'array'}
-        self.made = maker(prog.shape, [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if _whole(r) else None)
-                                       for (a, b), r in zip(spans, prog.outs)])
+        self.made = glue.maker(prog.shape, [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if glue.whole(r) else None)
+                                            for (a, b), r in zip(spans, prog.outs)])
         self.work = np.empty(max(1, info['doubles']))
         self.lapack = ctypes.addressof(held.blas()) if held.matmuls(prog) else None
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
@@ -363,6 +362,8 @@ class Bound:
         self.all_args = [(j,) + e for j, e in enumerate(self.args)]
         self.fixed = (self.work.ctypes.data, ctypes.addressof(self.table), self.lapack, None, None,
                       ctypes.addressof(self.funcs))
+        self.head, self.walks = glue.head(self), {}
+        self.walk = glue.walk(self, self.all_args)
 
     def bind(self, b):
         """Her body `b` addressed - its externs, her model, her data."""
@@ -374,59 +375,49 @@ class Bound:
 
     def fits(self, args):
         """The arrays converted for this call, its arguments' externs addressed; None where `args` are
-        not as traced - her body not the one bound, a constant not the same, an array not its shape."""
-        if self.at is not None:
-            b = args[self.at]
-            if b is not self.body or any(getattr(b, k) is not v for k, v in self.consts):
-                return None
-        try:
-            for k, path, v in self.pins:
-                a = args[k]
-                for p in path:
-                    a = a[p]
-                if a is not v and (not np.array_equal(a, v) if isinstance(v, np.ndarray) else (type(a) is not type(v) or a != v)):
-                    return None
-            for kind, k, path, *rest in self.checks:
-                a = args[k]
-                for p in path:
-                    a = a[p]
-                if (kind == 'has' and (rest[0] in a) != rest[1]) or (kind == 'keys' and tuple(a) != rest[0]) or (
-                        kind == 'length' and len(a) != rest[0]):
-                    return None
-        except (KeyError, IndexError, TypeError):
+        not as traced - her body not the one bound, a constant not the same, an array not its shape:
+        its checks and its leaves' walk written out for this build (`glue.head`, `glue.walk`)."""
+        if not self.head(args):
             return None
-        seen, words, scalars = self.seen, self.words, self.scalars
-        for j, i, k, path, written, shape in (self._sourced(args) if self.sources else self.all_args):
-            a = args[k]
-            if path:
-                try:
-                    for p in path:
-                        a = a[p]
-                except (KeyError, IndexError, TypeError):
-                    return None
-            if type(a) is float:
-                if written or shape:
-                    return None
-                scalars[j] = a
-                if seen[j] is not None:
-                    seen[j] = None
-                    words[i] = self.own_at[j]
-                continue
-            if a is seen[j] and a.shape == shape:
-                continue
-            if type(a) is not np.ndarray or (a.dtype is not F64 and a.dtype != F64) or not a.flags.c_contiguous:
-                own = self.own[j]
-                if own is None or np.shape(a) != shape:
-                    return None
-                own[...] = a
+        walk = self._walked(args) if self.sources else self.walk
+        return self.seen if walk(args) else None
+
+    def _walked(self, args):
+        """The walk over the leaves `_sourced` leaves for `args`, written out once a set of sources."""
+        todo = self._sourced(args)
+        walk = self.walks.get(self.matched)
+        if walk is None:
+            walk = self.walks[self.matched] = glue.walk(self, todo)
+        return walk
+
+    def leaf(self, j, a):
+        """Leaf `j`'s `a` laid off the walk's quick path: a float a scalar of its own, an array of
+        another layout copied into its own; False where it does not fit."""
+        _j, i, _k, _path, written, shape = self.all_args[j]
+        seen, words = self.seen, self.words
+        if type(a) is float:
+            if written or shape:
+                return False
+            self.scalars[j] = a
+            if seen[j] is not None:
                 seen[j] = None
                 words[i] = self.own_at[j]
-                continue
-            if a.shape != shape:
-                return None
-            seen[j] = a
-            words[i] = address(a)
-        return seen
+            return True
+        if a is seen[j] and a.shape == shape:
+            return True
+        if type(a) is not np.ndarray or (a.dtype is not F64 and a.dtype != F64) or not a.flags.c_contiguous:
+            own = self.own[j]
+            if own is None or np.shape(a) != shape:
+                return False
+            own[...] = a
+            seen[j] = None
+            words[i] = self.own_at[j]
+            return True
+        if a.shape != shape:
+            return False
+        seen[j] = a
+        words[i] = address(a)
+        return True
 
     def _sourced(self, args):
         """The arguments' externs another part's last result holds, addressed off its block in one
@@ -440,6 +431,7 @@ class Bound:
             if laid is None or laid[0] is not source.c:
                 laid = self.sourced[k] = (source.c,) + self._laid(k, source.c)
                 self.todo.clear()
+                self.walks.clear()
             self.words[laid[2]] = last[1] + laid[3]
             matched += (k,)
         if matched != self.matched:
@@ -492,40 +484,3 @@ class Bound:
         if node[0] != 'leaf':
             raise KeyError(path)
         return self.spans[node[1]]
-
-
-def _whole(r):
-    """Whether a Ref is the whole of its buffer in C order."""
-    return r.offset == 0 and r.shape == r.buffer.shape and r.strides == tuple(layout.cstrides(r.shape))
-
-
-def maker(shape, outs):
-    """fn's result laid back of an output block and its arguments, a function of them: each leaf a
-    view of the block at its span (a 0-d one numpy's scalar, a bool one numpy's bools) - a whole
-    argument array the caller's own, as Python returns it -, its dicts, lists and tuples as traced
-    (`trace.unflatten`)."""
-    consts, lines = [], []
-    for k, (a, b, s, dtype, given) in enumerate(outs):
-        view = 'f[%d]' % a if not s else 'f[%d:%d]' % (a, b) if len(s) == 1 else 'f[%d:%d].reshape(%r)' % (a, b, tuple(s))
-        if given is not None:
-            view = 'a[%d]%s' % (given[0], ''.join('[%r]' % p for p in given[1]))
-        lines.append('    l%d = %s' % (k, view + ' != 0.0' if dtype == bool and given is None else view))
-
-    def put(x):
-        consts.append(x)
-        return 'c[%d]' % (len(consts) - 1)
-
-    def code(node):
-        kind, body = node
-        if kind == 'leaf':
-            return 'l%d' % body
-        if kind == 'dict':
-            return '{%s}' % ', '.join('%s: %s' % (put(k), code(v)) for k, v in body)
-        if kind in ('list', 'tuple'):
-            items = [code(v) for v in body]
-            return '[%s]' % ', '.join(items) if kind == 'list' else '(%s)' % ''.join(x + ', ' for x in items)
-        return put(body)
-    text = 'def made(f, a):\n%s\n    return %s\n' % ('\n'.join(lines), code(shape))
-    space: dict = {'c': consts}
-    exec(text, space)
-    return space['made']

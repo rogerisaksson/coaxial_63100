@@ -197,3 +197,10 @@ machine ([body](body.md), [emulation](emulation.md),
   without her law 176 us: MuJoCo 79, its C 30, its Python round them 66. Her
   ask's surety weights compiled (two parts, the same bits) measured nothing:
   not kept. The step's ctypes edge 66 -> 53 us a solve (np.broadcast_to).
+- The glue round her compiled parts 77 us a pass walking, their C itself 1.5-3
+  us a call, `fits` 45 of it - a loop walking each leaf's path 1 us a leaf.
+  Each build's checks and walk written out once (`tools.cores.glue`, beside
+  its result's `maker`): the glue 66 us, her loop 500 -> 492 us a pass (-3.1 %
+  cpu), 2.06 of real time; the five scenes and the errands the same, every
+  part held. What is left of it fresh arguments each call (`modal_sensed`'s
+  loads a list, her hips, arms and prop new arrays) and `sense`'s 40 views.
