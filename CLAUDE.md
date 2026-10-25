@@ -110,6 +110,9 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   max out the machine with up to 32 batons in parallel and 32 shards.
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
+- **An hour without progress ends the session.** No measure nearer the
+  item's DOD after an hour: stop, report what was measured, tried and why
+  it failed, and end the session.
 - **Work goes into docs/TODO.md** the moment it is asked or found, and its
   line is deleted when done, a line added at the end of docs/DONE.md: the
   list, not the conversation, carries it.
