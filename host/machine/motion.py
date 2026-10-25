@@ -43,7 +43,8 @@ def seen(g, dt):
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
     observer.step(g['observer'], body, s, qpos, dt)
-    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt)
+    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt,
+                  g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['qpos'] = body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']], qpos.copy()
     s['prop'], s['contacts'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]))
     return s
@@ -298,7 +299,7 @@ def laid(g):
     by, kept beside it. Her latent step, her upper body's coupling, her ask, her surety field, her
     touch's filter, her twist's step, her table's waits and her surety's brace on the solve in C, her
     python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`); her estimate, her grip's feel and floor, her
-    situation, her drive's cap and her ask's poses compiled from their numpy (`tools.cores.bodied`)."""
+    situation, her drive's cap, her ask's poses and her invariant EKF compiled from their numpy (`tools.cores.bodied`)."""
     from machine.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
@@ -310,6 +311,8 @@ def laid(g):
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 8))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
+    g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
+    g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
     k, ask = c_motion.laid()
     g['impedance'] = functools.partial(c_motion.asked, k, ask)
     g['surety_field'] = c_surety.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'])
