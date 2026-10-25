@@ -93,3 +93,15 @@ She stood every row as thrown now.
   standing height, under the spring's zero: the loop 15-17 deg over there.
 - tests/test_wbc_core.py stood in no suite list: the loop's suite ran in no
   gate. It is in the default set now, 21 of 21.
+- The stride leap said after 1.8-2.3 s of walking, four leaps (walk and run,
+  tapped and held): 17 of 24 stand, its outcome her stride's phase at the
+  word. Its gather braked over her stand's blend (`se2.STAND_S`) - over her
+  stop's stride the hop's stand cut it at 0.4 - her held leap goes further
+  than her tap again: walk -0.05 -> 0.35 m, run 0.42 -> 0.97. Landed, her
+  capture point runs on at 1.6 m/s while her rhythm is still, and a swing
+  at that rhythm's pace took 0.40 s as she went over a sole's ball: hurried
+  along her way too while her rhythm is still, the run's held leap falls at
+  1 of 6 walk times for 2. Left: no flight at 1.8-1.9 s in every tree; a
+  split stance 27 cm long after the parry's step, the stand centring her
+  between it, she drifts back on the leading sole. Her gait resumed from the
+  landing, no stand between: 16 of 24, other phases down.

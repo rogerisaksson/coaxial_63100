@@ -16,20 +16,19 @@
   tour 20/0/21 (the errand a table, `_on_rows`), sprung 11/2/4, room 9.
   DOD: flat tables and arithmetic a reader follows, a raise where she
   cannot; test_structure holds the law's modules at 0.
-- **CI red, the host workflow** (8 at acc7fb80; the sway's 2 and the viewport
-  bed met): test_leap's stride leap, one walk time of a coin's toss: no
-  flight at some of her stride's phases, a walk back after the landing (4 of
-  6 walk times stand, before the insert and now: landed on one sole, 201/16
-  N, she drifts back on it at -0.2 m/s whether her gait resumes or not), the
-  run's held leap down at 2 of 6 since the insert (74a69f6f, scenarios 14:
-  stands with its 36.2 deg heel cap and its knees' buffers both out, either
-  alone not); held 250 ms she leaps 0.31 -> 0.14 m since her stop's brake
-  took a stride (dc6256a8), the stride hop laying it on a 0.5 s brake's
-  horizons. Snow at one wobble since 1f1d039d (-2e-4, then +2e-4 since the
-  insert): a swing raised 19 cm over its lip, she topples over the standing
-  sole, 1.64 m/s ahead as its load falls 314 -> 78 N, lands on 565 N and
-  walks back (scenarios 3). The replay walk_turn_right on Linux (scenarios
-  14), the chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
+- **CI red, the host workflow** (8 at acc7fb80; the sway's 2, the viewport
+  bed and the held leap met): test_leap's stride leap, one walk time of a
+  coin's toss, 17 of 24 standing over 1.8-2.3 s of walking
+  ([leap](../findings/leap.md)): no flight at 1.8-1.9 s, the run's held leap
+  down at 2.3 s, and at 2.0 s untold a walk back - the parry's step leaves a
+  split stance 27 cm long, the stand centres her between it and she drifts
+  back on the leading sole at -0.2 m/s. On Linux the run's held leap flies
+  0.421 s where here 0.213: one walk time there is another phase. Snow at
+  one wobble since 1f1d039d (-2e-4, then +2e-4 since the insert): a swing
+  raised 19 cm over its lip, she topples over the standing sole, 1.64 m/s
+  ahead as its load falls 314 -> 78 N, lands on 565 N and walks back
+  (scenarios 3). The replay walk_turn_right on Linux (scenarios 14), the
+  chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
 - **The autotuner's write** (asked): her walk's step held on her suite's
   roots and the bench broke test_errands' viewport bed and was undone. DOD: a
   write held on the errands too (their house runs as the bench's), written

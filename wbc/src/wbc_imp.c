@@ -230,7 +230,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     for (int b = 0; b < 2; b++)
     {
       past[b] = npmax(k->limbs[b] * beyond[1], 0.0);
-      aside[b] = smax * past[b];
+      aside[b] = smax * npmax(past[b], still * fabs(beyond[0]));
     }
     a[k->a_outside] = npdot(sw, 1, past, 1, 2);
   }

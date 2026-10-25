@@ -98,8 +98,10 @@ def ask(out, y, fr, a):
     a[SWINGS] = off
     kp, kd = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS]
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
-    # across past the soles that stood, its own side of them
-    aside = stood.max() * np.maximum(LIMBS * beyond[LEFT], 0.0)
+    # across past the soles that stood, its own side of them - along her way too while her rhythm
+    # is still, no stride pacing her steps: landed from the run's held leap her capture point ran
+    # on at 1.6 m/s, a swing at the still rhythm's pace took 0.40 s and she went over a sole's ball
+    aside = stood.max() * np.maximum(np.maximum(LIMBS * beyond[LEFT], 0.0), still * np.abs(beyond[ALONG]))
     # past a lone standing sole's own side no swing reaches: never in her plain walk
     a[OUTSIDE] = (stood * (stood.sum() < 1.5)) @ np.maximum(LIMBS * beyond[LEFT], 0.0)
     hurry = 1.0 + flying * (stride.hurried(aside, om, u, swung, kp[FREE_BY][:2]) - 1.0)
