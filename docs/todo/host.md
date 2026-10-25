@@ -23,10 +23,11 @@
   at 2.1 s down after its landing - the parry's step leaves a split stance,
   the stand centres her between it. On Linux one walk time is another phase:
   CI's own sample decides. Snow at
-  one wobble since 1f1d039d (-2e-4, then +2e-4 since the insert): a swing
-  raised 19 cm over its lip, she topples over the standing sole, 1.64 m/s
-  ahead as its load falls 314 -> 78 N, lands on 565 N and walks back
-  (scenarios 3). The replay walk_turn_right on Linux (scenarios 14), the
+  one wobble since 1f1d039d (-2e-4, then +2e-4 since the insert): at the
+  patch's far lip her swing reaches 4 cm down past the rhythm's landing, 0.1
+  s late, and the standing sole on the snow, 4-6 mm up on 78-92 N, is let go
+  before it lands (`poise.stands`: over `leap.TOUCH_M` is left) - 10 m/s^2
+  ahead, 0.57 -> 2.0 m/s, down on 769 N and back (scenarios 2 and 3). The replay walk_turn_right on Linux (scenarios 14), the
   chair at -2e-4 (scenarios 1). DOD: both workflows green on main.
 - **The autotuner's write** (asked): her walk's step held on her suite's
   roots and the bench broke test_errands' viewport bed and was undone. DOD: a
