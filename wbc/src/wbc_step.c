@@ -432,9 +432,9 @@ int wbc_step(wbc_step_t *p)
   total = npsum(along, nc);
   for (int q = 0; q < nc; q++)
   {
-    const double limit = slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
+    const double lim = slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
 
-    caps[q] = isfinite(limit) ? limit * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
+    caps[q] = isfinite(lim) ? lim * (total > 0.0 ? along[q] / total : 1.0 / (double)nc) : INFINITY;
   }
   /* the rows, as machine.wrench lays them */
   for (int j = 0; j < 3 * nu; j++)

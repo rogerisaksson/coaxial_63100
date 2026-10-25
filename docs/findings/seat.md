@@ -17,6 +17,15 @@ knee 97.7 (94-98), 6 come-and-goes - and her centre of mass at her heels'
 edge the constraint left (0.32 legs at the text's 0.75 rad lean); risen from
 the deeper seat she fell at 31.2 s where she stood in 0.94. Her rise needs
 the seat's slide forward first (the kernel's Step 4): undone till then.
+Landed so again with her seat one patch of her step and her lean panned:
+hips 0.29 legs back, trunk 1.1 deg, knee 97.8, her soles coming and going 8
+times (`seats.py --sim chair_behind sit_chair`; the human band 0.31-0.47,
+within 7, 94-98); square and +2e-4 she sat and rose rolling 21 and 27 deg,
+at -2e-4 her soles left the floor 3.2 s in, the seat bore 1.47 of her and she
+rolled off it at 47 deg by 4.1 s. The kernel's ingress seats her with her
+hands (`specialize-with-carpal-seat-boost`: the carpal heels on the seat up
+to 0.20 of her, `appendage-admittance` seeking them down at 0.25 m/s): the
+deep sit waits for her arms as supports (`borne` leaves them out). Undone.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
