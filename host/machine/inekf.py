@@ -113,8 +113,8 @@ def step(f, y, soles, anchors, shares, dt):
     phi[3:6, 0:3], phi[6:9, 0:3], phi[6:9, 3:6] = _skew(g) * dt, 0.5 * _skew(g) * dt * dt, np.eye(3) * dt
     ad = np.zeros((N, N))
     for k, block in enumerate((None, f['v'], f['p'], d[0], d[1])):
-        ad[3 * k:3 * k + 3, 3 * k:3 * k + 3] = f['R']
         ad[3 * k:3 * k + 3, 0:3] = 0.0 if block is None else _skew(block) @ f['R']
+        ad[3 * k:3 * k + 3, 3 * k:3 * k + 3] = f['R']
     q = np.diag([GYRO ** 2] * 3 + [ACCEL ** 2] * 3 + [0.0] * 3 + [(GRAIN * REACH) ** 2 / dt] * 6)
     P = phi @ P @ phi.T + ad @ q @ ad.T * dt
     r = np.concatenate([f['R'] @ soles[k] - (d[k] - f['p']) for k in range(2)])
