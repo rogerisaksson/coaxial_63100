@@ -46,11 +46,11 @@ LOFT_X, LOFT_FROM, LOFT = 2.5, 3.0, (0.5, STEPS * RISE_M / 2.0, 0.75)
 GROUND = ('deck', 'stone_step', 'stone_terrace', 'loft') + tuple('stair%d' % k for k in range(STEPS))
 
 #: The chair: its middle (x, z), facing -z; the seat's half sizes and height, the back's. The low chair
-#: against the right wall straight to the right of where she starts, facing the room (-x), its seat at her
+#: against the wall straight to her right as she starts facing the door (-x; +x is her left), facing the room, its seat at her
 #: popliteal height (`floor.CHAIR_LOW_H`): in the room's middle (0.0, 0.8) it stood in the door's way and
 #: 10 errands failed; against the back wall she walked into it at 0.9 m/s.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), CHAIR_SEAT, 0.45, (CHAIR_SEAT[0], 0.25, 0.02)
-CHAIR_LOW_AT = (WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2], 0.0)
+CHAIR_LOW_AT = (-(WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2]), 0.0)
 #: The bed: its middle, its half sizes (the mattress's top at twice the second).
 BED_AT, BED = (-1.8, 1.8), (0.45, 0.22, 1.1)
 #: The table: its middle, the top's half sizes and height.
@@ -151,7 +151,7 @@ def furnish(contacts, textured=False):
         _box('seat', (CHAIR_AT[0], SEAT_H, CHAIR_AT[1]), SEAT, contacts),
         _box('back', (CHAIR_AT[0], SEAT_H + BACK[1] + 0.02, CHAIR_AT[1] + SEAT[2]), BACK, contacts),
         _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts),
-        _box('back_low', (CHAIR_LOW_AT[0] + SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
+        _box('back_low', (CHAIR_LOW_AT[0] - SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
         _box('bed', (BED_AT[0], BED[1], BED_AT[1]), (BED[0], BED[1] - 0.05, BED[2]), contacts,
              ' pos="0 0.05 0" priority="2" condim="4" solref="0.08 1" solimp="0.8 0.95 0.10"'),
         _box('table', (TABLE_AT[0], TOP_H, TABLE_AT[1]), TOP, contacts),
