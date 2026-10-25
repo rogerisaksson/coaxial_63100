@@ -134,10 +134,15 @@ rolled 0-1 deg. The rise's lean from the deep sit asks her centre of mass
 over her soles in 350 ms, 20 cm ahead of her hips: she lurches off the seat
 onto one foot (the seat struck at 1.5-3 of her weight). The slide's
 attractor under the governor's cap (the thighs' points drawn along the said
-slide) changed nothing there: the lean's seat bears over the cap. Left: the
-kernel's egress slide as a phase before the lean, her hips to the edge under
-the lean's pan; the sits lost at -1 and -2e-4 (one sole lifting 16 cm as the
-seat strikes, before the rest lets it go).
+slide) changed nothing there: the lean's seat bears over the cap. The
+kernel's egress slide as a phase before the lean - her hips drawn to where
+her ischia meet the edge over 0.88 s, the seat panned to half her weight
+(under it her soles' grip moves it, both surfaces her cone's), her trunk
+where those shares balance (upright) - fells every rise, 0 of 7, at 8.8-9.7
+s: not kept. Left: the egress from the deep seat measured apart (the slide's
+start under the seat's grip, the hips' way, what the lean then asks); the
+sits lost at -1 and -2e-4 (one sole lifting 16 cm as the seat strikes,
+before the rest lets it go).
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
