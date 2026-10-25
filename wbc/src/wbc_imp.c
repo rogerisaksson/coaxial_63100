@@ -399,7 +399,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_raise] -= ((fr[k->f_dt] * turns) / (2.0 * PI)) * a[k->a_raise];
   for (int b = 0; b < 2; b++)
   {
-    lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m);
+    lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m) * (1.0 - propped)
+               + k->clear_m * propped;
   }
   th[0] = swung * hurry[0];
   th[1] = swung * hurry[1];
