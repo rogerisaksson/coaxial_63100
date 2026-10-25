@@ -61,6 +61,26 @@ def test_a_contact_bears(report):
                  '%.0f N on it, her soles %.0f N less, %.0f N across' % (f[1], given, np.hypot(f[0], f[2])))
 
 
+def test_a_contact_slides(report):
+    """The kernel's Coulomb slide (`drive-tangential-coulomb-slide`) on a pressing contact: asked to slide,
+    its normal force stays under the cap and its friction is the kinetic one against the slide, given
+    - not the step's to spend -, its point held along its normal alone."""
+    import numpy as np
+    from machine import wbc, wrench
+    body, s, ask = _standing()
+    pelvis = body.m.body('pelvis').id
+    p, jp = body.d.xpos[pelvis].copy(), np.zeros((3, body.m.nv))
+    body.mj.mj_jac(body.m, body.d, jp, None, p, pelvis)
+    half, cap = 0.5 * body.mass * wbc.G, 0.3 * body.mass * wbc.G
+    contact = [{'p': p, 'f': np.array([0.0, half, 0.0]), 'J': jp[:, :body.n].copy(), 'dJv': np.zeros(3)}]
+    slid = wrench.step(body, dict(s, contacts=contact), dict(ask, slide=(0.0, 0.0, 0.16), fz_cap=cap))
+    f = slid['borne'][0]
+    report.check('sliding, the contact bears under the cap and its friction is MU of that against the slide',
+                 0.0 < f[1] <= cap * (1.0 + 1e-9) and abs(f[2] + wbc.MU * f[1]) < 1e-6 * max(1.0, f[1])
+                 and abs(f[0]) < 1e-6 * max(1.0, f[1]) and np.all(np.isfinite(slid['tau'])),
+                 '%.0f N on it (cap %.0f), %.1f N along the slide, %.1f across' % (f[1], cap, f[2], f[0]))
+
+
 def test_she_stands_still(report):
     """Three seconds standing: up, every drive inside its clamp."""
     from tools.sim import wbc
@@ -182,7 +202,7 @@ def test_her_master_bus_and_buffers(report):
                  str(ends))
 
 
-ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_she_stands_still, test_nudged_she_holds,
+ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_she_stands_still, test_nudged_she_holds,
           test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
           test_her_master_bus_and_buffers)
 

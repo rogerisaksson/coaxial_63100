@@ -254,6 +254,34 @@ kept: arms 535 deg/s, trunk 279, neck 834 against her walk's 174, 88, 110. A
 roll of her base onto her trochanter with her legs off the floor is no mode
 of hers (Step 4).
 
+## The Coulomb slide
+
+The kernel's slide (`drive-tangential-coulomb-slide`) as an ask of her step
+(`wrench.step`, wbc_step.c, wbc_rounds.c): `slide`, a pressing contact's
+point's velocity, frees its tangential rows and pins its friction to the
+kinetic one against the slide, MU of its normal force - given, not the
+step's to spend -; `fz_cap` caps that force. Unasked the step is as it was
+to the bit. Sat on the chair at its 85 mm dock, her pelvis 44 mm behind the
+seat's front edge (the edge sit), 2 s of asks (`slide_probe`):
+
+| ask | moved along the seat | seat's share after |
+| --- | --- | --- |
+| none | +0.001 m | 0.52 |
+| the point's velocity row at W_STILL, +0.16 m/s | -0.095, off the seat | 0.00 |
+| the same with her centre of mass driven back | -0.029, soles 0 N | 0.50 |
+| her centre of mass driven back alone, rows still | +0.043 | 0.63 |
+| the regime (rows freed, friction given), com driven | -0.19 to -0.22 | 0.59 |
+
+- A velocity row on the thigh's point at the still rows' weight lifts her off
+  the seat: cheaper than moving her. The point slides by her centre of mass.
+- Freed of the stiction the step assumed of the seat, her seated posture
+  pushes her hips forward off the edge: the edge sit stood on that assumption.
+  The slide's driver is the phase's deeper posture (`seated.landed` behind)
+  with the regime, not a velocity on the point.
+- A lower hold on a contact's normal force (within GROW_N of the force felt)
+  felled her sit as the seat's first touch spiked: the felt force is a pass
+  late (`machine.borne`).
+
 ## The wayfinder
 
 `machine.wayfinder`: her trunk twisted through the gap her way meets 0.6 s on

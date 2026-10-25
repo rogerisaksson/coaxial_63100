@@ -35,7 +35,8 @@ def _step_typed():
     fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()]
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
-               ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('swing_at', (f * 3) * 2),
+               ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
+               ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
@@ -104,7 +105,7 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
-VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'swing', 'fold', 'swing_at', 'swing_speed',
+VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc', 'bears', 'cop',
           'forces',
           'load', 'cop_none', 'over')
@@ -154,6 +155,8 @@ def _stepped(k, step, v, b, s, ask):
     v['edge'][:] = ask.get('edge', (0.0, 0.0))
     v['mus'][:] = ask.get('mu', (law.MU, law.MU))
     v['rests'][:] = ask.get('rests', (0.0, 0.0))
+    v['slide'][:] = ask.get('slide', (0.0, 0.0, 0.0))
+    k.fz_cap = float(ask.get('fz_cap', np.inf))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):

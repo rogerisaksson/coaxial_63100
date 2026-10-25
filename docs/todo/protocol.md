@@ -42,8 +42,15 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    her capture point's barrier. Her chair's sit lands on its front edge for
    want of it: `seated.landed`'s buttock cap and thigh clearance let go she
    sits 0.29 legs back and upright, and falls rising (kernel findings, her
-   sit's dock). DOD: she slides onto and off a seat over her knees, forward
-   to its edge before her rise, and 180 mm deeper onto the bed.
+   sit's dock). The regime is an ask of her step (`slide`, `fz_cap`: the
+   contact's tangential rows freed, its friction kinetic and given, its load
+   capped; kernel findings, the Coulomb slide): without a driver it slides
+   her off the edge, her centre of mass driven back alone 0.043 m deeper in
+   2 s. Left: the slide's driver - a phase's deeper posture (`seated.landed`)
+   and sagittal target with the regime, said by the text -, the 65 Hz
+   dither, the ischial centring's stop. DOD: she slides onto and off a seat
+   over her knees, forward to its edge before her rise, and 180 mm deeper
+   onto the bed.
 6. **Step 5, the body schema on the room**: `machine.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -

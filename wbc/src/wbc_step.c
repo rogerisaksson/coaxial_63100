@@ -409,7 +409,7 @@ int wbc_step(wbc_step_t *p)
   {
     const double rr[3] = {p->cp[q][0] - p->com[0], p->cp[q][1] - p->com[1], p->cp[q][2] - p->com[2]};
     const double skew[9] = {0.0, -rr[2], rr[1], rr[2], 0.0, -rr[0], -rr[1], rr[0], 0.0};
-    double       left[3], jv[3];
+    double       left[3], jv[3], sliding, w_still[3];
 
     for (int i = 0; i < 3; i++)
     {
@@ -422,15 +422,18 @@ int wbc_step(wbc_step_t *p)
     wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(full0, 1, 0), left, 1, 0, 3, n, 1);
     wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(full, nu, 1), S + 3 * nu * q, nu, 1, 3, n, nu);
     wbc_matmul(l, VIEW(p->cJ[q], n, 1), VIEW(p->v, 1, 0), jv, 1, 0, 3, n, 1);
-    for (int j = 0; j < 3 * nu; j++)
-    {
-      S[3 * nu * q + j] = p->w_still * S[3 * nu * q + j];
-    }
+    /* a sliding contact's point is held along its normal alone (machine.wrench's w_still) */
+    sliding = hypot(p->slide[0], p->slide[2]) > 0.0 ? 1.0 : 0.0;
     for (int i = 0; i < 3; i++)
     {
+      w_still[i] = p->w_still * (1.0 - sliding * (i == 1 ? 0.0 : 1.0));
+      for (int j = 0; j < nu; j++)
+      {
+        S[3 * nu * q + nu * i + j] = w_still[i] * S[3 * nu * q + nu * i + j];
+      }
       left[i] = (-p->cdJv[q][i]) - left[i];
-      r[3 * q + i] = p->w_still * (left[i] - p->contact_k * jv[i]);
-      r0[3 * q + i] = p->w_still * left[i];
+      r[3 * q + i] = w_still[i] * (left[i] - p->contact_k * (jv[i] - p->slide[i]));
+      r0[3 * q + i] = w_still[i] * left[i];
     }
     felt[q] = p->cf[q][1];
   }

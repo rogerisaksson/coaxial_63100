@@ -46,6 +46,7 @@ typedef struct
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
+  double        slide[3], fz_cap;  /* a pressing contact's point's velocity, world; its normal load's cap, N */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */

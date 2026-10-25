@@ -71,7 +71,7 @@ static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, con
   {
     double *f = out + p->nu0 + 3 * i;
 
-    f[1] = clipped(f[1], 0.0, bears[i] + p->grow_n);
+    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, p->fz_cap));
     f[0] = clipped(f[0], (-p->mu) * f[1], p->mu * f[1]);
     f[2] = clipped(f[2], (-p->mu) * f[1], p->mu * f[1]);
   }
