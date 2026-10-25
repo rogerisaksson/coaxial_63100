@@ -189,3 +189,11 @@ machine ([body](body.md), [emulation](emulation.md),
   294 us; the page's worker with her state told and pickled 722 -> 658 us a
   pass, 1.39 -> 1.54 of real time. Her run in the five scenes and her errands
   through the lodge the same.
+- MuJoCo's step 84 us walking, 11.9 of real time alone, 102 in the lodge;
+  nothing in its options unused (no sensors, no energy; the Newton solve at
+  1e-8 on elliptic cones her physics). From fc3996cb, two trees interleaved:
+  her loop 634 -> 497 us a pass, 1.59 -> 2.02 of real time; the page's
+  worker, her state told and pickled, 859 -> 646, 1.18 -> 1.56. A pass
+  without her law 176 us: MuJoCo 79, its C 30, its Python round them 66. Her
+  ask's surety weights compiled (two parts, the same bits) measured nothing:
+  not kept. The step's ctypes edge 66 -> 53 us a solve (np.broadcast_to).
