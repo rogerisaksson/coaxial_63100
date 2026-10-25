@@ -16,15 +16,13 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, capsules, edge, estimate, field, grip, inekf, kernel, latent, leap, modal, observer, poise, schema, se2, situation, stride, supervisor, touch, waits, wayfinder, wbc
+from machine import barrier, bemf, borne, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder, wbc
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
 #: (N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
 HOP_K = 15000.0
-#: A pressing contact's load while she slides over it, of her weight (the kernel's Coulomb slide).
-SLIDE_CAP = kernel.node('drive-tangential-coulomb-slide', 'coulomb-slide')['normal-load-governor']['cap-fz-ratio']
 #: A joint none of what bears her needs, of its clamp: the suite's passive cone (-32 dB). Her ankles
 #: and knees are her soles' (`ortho.MANIFOLDS`), the rest of her let go as she lies (dorsal) or on
 #: her side (trochanter): lying back on the bed, her law held to her soles, her legs swung 483 deg/s.
@@ -212,11 +210,7 @@ def control(g, dt):
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
-    # her text's slide over what bears her (`ortho.SLIDE`, along her way): her step's contacts slide, capped
-    local = np.zeros(3)
-    local[stride.ALONG] = float(out[latent.SLID])
-    ask['slide'] = g['fr'][modal.ROT].reshape(3, 3).T @ local
-    ask['fz_cap'] = float(np.where(np.hypot(ask['slide'][0], ask['slide'][2]) > 0.0, SLIDE_CAP * g['fr'][modal.WEIGHT], np.inf))
+    somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,

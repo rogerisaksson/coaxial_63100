@@ -32,11 +32,14 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    centre of mass 0.12-0.15 m/s^2 and her ankles 3.4-4.6 N m where her
    soles' bounds bind. DOD: under 1e-4 of the chest's acceleration walking,
    as standing; her walk as solved.
-4. **Step 4, reachability**: rho = |hip - contact| / her leg's 890 mm each
-   pass; from 0.86 to 0.98 her sole's cone onto her forefoot under her
-   ankle's plantarflexion, past 0.99 her soles' weight to 0 and her legs let
-   go into damped pendulums. DOD: on a seat over her knees her feet hang
-   let go; stepping down her forefoot catches.
+4. **Step 4, reachability**: rho = |hip - sole| / her leg's 845 mm each
+   pass (`machine.somatic`); from 0.86 to 0.98 her sole's centre of pressure
+   onto its ball by the furniture's told share (standing 0.998, nothing
+   borne; sat on the chair 0.70-0.75). Left: her ankle's 0.58 rad
+   plantarflex slew and the achilles' series elastic, past 0.99 her soles'
+   weight to 0 and her legs let go into damped pendulums (a stool in the
+   lodge, Test 3). DOD: on a seat over her knees her feet hang let go;
+   stepping down her forefoot catches.
 5. **Step 4, the Coulomb slide**: a thigh's and the seat's patch sliding at
    mu_k F_z, F_z under 0.55 of her weight, the text's 65 Hz dither, inside
    her capture point's barrier. Her chair's sit lands on its front edge for

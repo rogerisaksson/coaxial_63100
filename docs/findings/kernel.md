@@ -294,6 +294,12 @@ seat's front edge (the edge sit), 2 s of asks (`slide_probe`):
   planted and her knee held set her hips' depth; a slide deeper needs her feet
   to come along - the reachability's equinus onto the forefoot (item 4), or
   the feet's own slide.
+- The reachability on her loop (`machine.somatic`): each leg's reach, hip to
+  sole over her leg's 845 mm. Standing 0.998 (her knee 6 deg), nothing borne:
+  her soles her stride's; sat on the chair 0.70 and 0.75, under the text's
+  0.86; 0.18 m deeper would be 0.92, her sole's centre of pressure half onto
+  its ball by the seat's 0.85. Asked deeper from the edge she never got
+  there (2 mm): the feet must step or slide along before the reach grows.
 
 ## The wayfinder
 

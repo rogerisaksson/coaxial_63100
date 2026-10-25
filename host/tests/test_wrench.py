@@ -103,6 +103,34 @@ def test_a_slide_said_rides_her_row(report):
                  'row %.3f, out %.3f at 700, %.3f at 549, %.3f at rest' % (row[4 + ortho.SLIDE], seen[700], seen[549], seen[1999]))
 
 
+def test_her_reach_rolls_her_onto_the_ball(report):
+    """The kernel's reachability on her loop (`machine.somatic`): a leg's hip to its sole over her leg's length;
+    seated, from 0.86 of it her sole's centre of pressure goes onto its ball by the furniture's told share,
+    whole at 0.98; standing, nothing borne, her soles stay as her stride has them."""
+    import numpy as np
+    from machine import latent, modal, somatic
+    g = {'fr': np.zeros(modal.FRAME)}
+    g['fr'][modal.ROT] = np.eye(3).ravel()
+    g['fr'][modal.WEIGHT] = 300.0
+    out = np.zeros(latent.OUT)
+
+    def asked(rho, told, edge=(0.0, 0.0)):
+        s = {'hips': [np.array([0.0, rho[0] * somatic.LEG_M, 0.0]), np.array([0.2, rho[1] * somatic.LEG_M, 0.0])],
+             'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}]}
+        return somatic.asked(g, s, out, np.array([1.0 - told, told, 0.0, 0.0]), {'edge': edge})
+    seated, deep, stood = asked((0.75, 0.70), 0.85), asked((0.92, 0.98), 0.85), asked((0.998, 0.998), 0.0)
+    report.check('seated at 0.70-0.75 of her leg her soles are flat; at 0.92 and 0.98 onto the ball by the seat\'s 0.85;'
+                 ' standing at 0.998, nothing borne, flat',
+                 seated['edge'] == (0.0, 0.0) and abs(deep['edge'][0] - 0.85 * 0.5) < 1e-9 and abs(deep['edge'][1] - 0.85) < 1e-9
+                 and stood['edge'] == (0.0, 0.0) and seated['fz_cap'] == np.inf and tuple(seated['slide']) == (0.0, 0.0, 0.0),
+                 '%s %s %s' % (seated['edge'], deep['edge'], stood['edge']))
+    out[latent.SLID] = -0.15
+    slid = asked((0.75, 0.70), 0.85)
+    report.check('a slide said of -0.15 m/s rides along her way, her contacts\' load capped at 0.55 of her weight',
+                 abs(slid['slide'][0] + 0.15) < 1e-9 and abs(slid['fz_cap'] - 0.55 * 300.0) < 1e-9,
+                 '%s cap %.1f' % (slid['slide'], slid['fz_cap']))
+
+
 def test_she_stands_still(report):
     """Three seconds standing: up, every drive inside its clamp."""
     from tools.sim import wbc
@@ -225,7 +253,7 @@ def test_her_master_bus_and_buffers(report):
 
 
 ROSTER = (test_a_step_standing_is_the_stacks, test_a_contact_bears, test_a_contact_slides, test_a_slide_said_rides_her_row,
-          test_she_stands_still, test_nudged_she_holds,
+          test_her_reach_rolls_her_onto_the_ball, test_she_stands_still, test_nudged_she_holds,
           test_she_hops, test_singular_fall_is_bounded, test_surety_contracts_authority_and_damps_fall,
           test_her_master_bus_and_buffers)
 
