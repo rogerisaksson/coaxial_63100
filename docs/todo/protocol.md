@@ -61,10 +61,13 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    17 mm (a sole held whole, the regime needing slip, the seat's grip the
    floor's; her soles let go she falls at every wobble, the patch's split
    running away; drawn along the said slide 1.4 cm). The deep sit is a
-   hitch: her hips lifted off the seat over her soles, moved back and sat
-   down deeper, her thighs and ischia meeting the seat together with her
-   shanks upright (0.40 legs at a dock 0.10 m further out) - a drop of 2-9
-   cm onto a seat she is yet to feel; the handover wanting her hips asked up
+   tip onto a seat she knows is there: her thighs and ischia meeting it
+   together with her shanks upright (0.40 legs at a dock 0.10 m further
+   out, her centre of mass 9 cm behind her heels before it bears) - her
+   step keeps her centre of mass over her soles whatever the ask (asked the
+   posture she squats in front of the chair), so a tip is a regime of her
+   law to have, with the kernel's capture step for the seat pulled away
+   (item 12); the handover wanting her hips asked up
    off the seat as the pan goes rather than the seat's force capped under
    what it gives (the pass taken apart, the points' rows 13 900), the ingress
    deeper after the crossfade needing her feet along (item 4's equinus or

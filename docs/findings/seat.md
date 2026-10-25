@@ -86,7 +86,14 @@ soles, moved back, sat down deeper - or the far dock's drop: landed where
 her thighs and ischia meet the seat together with her shanks upright (hips
 0.34 m behind her ankles, 0.40 legs, the dock 0.10 m further out), her
 centre of mass is 9 cm behind her heels before the seat bears; asked so she
-stood on one sole from 1.8 s and fell at every wobble.
+stood on one sole from 1.8 s and fell at every wobble. The far dock with the
+sit as the tree lands it (the centre of mass at her heels): her hips 3.6 cm
+in front of the edge, she fell backward at 4.7 s; her descent timed and a
+250 ms reach back to the deep posture after it: the seat never bore her, she
+squatted 0.28 m up with her hips 0.12 m behind her ankles on both soles, 0 of
+2. Her step keeps her centre of mass over her soles whatever the ask: the
+deep sit is a tip onto a seat she knows is there, which her law has yet to
+have.
 
 Her bed the suite's way (`house.py --one 0.32 1.01 1.37 lie_bed --said`): the
 supine sleep's dock, 70 mm, fell her off the mattress's edge in the settle 3
