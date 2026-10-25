@@ -142,3 +142,8 @@ machine ([body](body.md), [emulation](emulation.md),
   her body's constants; the leaves seen last call skipped in C) measured
   nothing on her loop, +0.7 % wall: the 65 us a pass a loaded profile gave
   `fits` is not there unloaded; not kept.
+- Her invariant EKF compiled from its numpy (`inekf.points` on her body,
+  `inekf.step` on its state, laid in g): her loop 773 -> 693 us a pass, 1.32
+  -> 1.45 of real time, two trees interleaved. The filter's whole state the
+  same at each of 26 336 law passes of the played walk, turns, moves and
+  strafes, the chair and the bed, both parts held.

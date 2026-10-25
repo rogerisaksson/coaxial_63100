@@ -2,7 +2,7 @@
 
     f = inekf.laid(where, turn)                 # still at `where` (m, world), turned `turn`
     inekf.felt(f, y, dt)                        # each drive pass: her IMU into the pass's means
-    inekf.stepped(f, body, y, shares, dt)       # a law pass: her soles' points off her posed body
+    inekf.stepped(f, body, y, shares, dt, inekf.points, inekf.step)   # a law pass: her soles' points off her posed body
     inekf.step(f, y, soles, anchors, shares, dt)   # the filter on given points
     f['R'], f['v'], f['p']                      # her pelvis's turn, velocity and place, world
 
@@ -43,11 +43,12 @@ def _skew(w):
 
 def _exp(phi):
     """(Exp(phi), its left Jacobian) on SO(3)."""
-    a = float(np.linalg.norm(phi))
+    a = np.linalg.norm(phi)
     k = _skew(phi)
-    small = a < 1e-9
-    s, c = (1.0, 0.5) if small else (math.sin(a) / a, (1.0 - math.cos(a)) / (a * a))
-    j = (1.0 / 6.0) if small else (a - math.sin(a)) / (a ** 3)
+    small, b = a < 1e-9, np.maximum(a, 1e-9)
+    s = np.where(small, 1.0, np.sin(b) / b)
+    c = np.where(small, 0.5, (1.0 - np.cos(b)) / (b * b))
+    j = np.where(small, 1.0 / 6.0, (b - np.sin(b)) / b ** 3)
     return np.eye(3) + s * k + c * k @ k, np.eye(3) + c * k + j * k @ k
 
 
@@ -62,7 +63,7 @@ def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
                   [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
                   [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
     return {'R': R, 'v': np.zeros(3), 'p': np.array(where, float), 'd': np.zeros((2, 3)),
-            'P': np.eye(N) * 1e-6, 'on': np.zeros(2), 'gyro': np.zeros(3), 'accel': np.zeros(3), 'span': 0.0}
+            'P': np.eye(N) * 1e-6, 'on': np.zeros(2), 'gyro': np.zeros(3), 'accel': np.zeros(3), 'span': np.zeros(())}
 
 
 def felt(f, y, dt):
@@ -82,13 +83,14 @@ def points(body, y, local, weights):
     for k in range(2):
         pts = [d.xpos[ids[2 * k + j]] + d.xmat[ids[2 * k + j]].reshape(3, 3) @ local[2 * k + j] for j in range(2)]
         w = weights[2 * k:2 * k + 2]
-        out[k] = Rp.T @ ((w[0] * pts[0] + w[1] * pts[1]) / max(float(w.sum()), 1e-9) - pp)
+        out[k] = Rp.T @ ((w[0] * pts[0] + w[1] * pts[1]) / np.maximum(w.sum(), 1e-9) - pp)
     return out
 
 
-def stepped(f, body, y, shares, dt):
+def stepped(f, body, y, shares, dt, points, step):
     """A law pass of her edge's `y` on her law's `body` posed at her estimate: last pass's soles'
-    points now, this pass's laid; the filter `dt` on, each sole bearing `shares` of her weight."""
+    points now, this pass's laid; the filter `dt` on, each sole bearing `shares` of her weight -
+    by `points` and `step`, this module's or their C (`motion.laid`)."""
     local, weights = y[edge.COP].reshape(-1, 3).copy(), np.maximum(y[edge.PRESS], 0.0) + 1e-9
     anchors = points(body, y, local, weights)
     soles = points(body, y, *f['last']) if 'last' in f else anchors
@@ -101,9 +103,9 @@ def step(f, y, soles, anchors, shares, dt):
     point that bore her last pass, in her pelvis now (`soles` (2, 3)), the point under its centre of
     pressure now (`anchors`), its share of her weight (`shares` (2,))."""
     R, v, p, d, P = f['R'], f['v'], f['p'], f['d'], f['P']
-    span = max(f['span'], dt)
+    span = np.maximum(f['span'], dt)
     w, a, g = f['gyro'] / span, f['accel'] / span, edge.G
-    f['gyro'][:], f['accel'][:], f['span'] = 0.0, 0.0, 0.0
+    f['gyro'][:], f['accel'][:], f['span'][...] = 0.0, 0.0, 0.0
     turn, _j = _exp(w * dt)
     acc = R @ a + g
     f['R'], f['v'], f['p'] = R @ turn, v + acc * dt, p + v * dt + 0.5 * acc * dt * dt
@@ -124,7 +126,7 @@ def step(f, y, soles, anchors, shares, dt):
     slid = np.array([r[3 * k:3 * k + 3] @ np.linalg.solve(S0[3 * k:3 * k + 3, 3 * k:3 * k + 3], r[3 * k:3 * k + 3]) > GATE
                      for k in range(2)])
     bear = (np.asarray(shares) >= observer.RELEASE) & (f['on'] > 0.5) & ~slid
-    noise = np.repeat([float(n) / max(float(b), 1e-12) for n, b in zip(fk, bear)], 3)
+    noise = np.repeat(fk / np.maximum(bear, 1e-12), 3)
     S = H @ P @ H.T + np.diag(noise)
     K = P @ H.T @ np.linalg.inv(S)
     dx = K @ r
@@ -134,7 +136,7 @@ def step(f, y, soles, anchors, shares, dt):
     P = IKH @ P @ IKH.T + K @ np.diag(noise) @ K.T
     for k in range(2):
         idx = slice(9 + 3 * k, 12 + 3 * k)
-        anew = float(not bear[k])
+        anew = 1.0 - bear[k]
         d[k] = f['p'] + f['R'] @ anchors[k]
         P[idx, :] *= 1.0 - anew
         P[:, idx] *= 1.0 - anew
