@@ -74,10 +74,45 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
                 double asked[2], int nu, double *work)
 {
   const wbc_blas_t *l = &p->blas;
-  const int         n = p->n, nu0 = p->nu0, np_ = p->npass, na = p->nact;
-  double           *mpp = work, *mpa = mpp + np_ * np_, *pull = mpa + np_ * na, *Ta = pull + np_ * na;
-  double           *Ea = Ta + 6 * na, *PT = Ea + na * nu0, *PE = PT + 6 * np_, *ta = PE + np_ * nu0;
-  double           *pt = ta + na, *hp = pt + np_, *y = hp + np_, *rest = y + np_;
+  const int         n = p->n, nu0 = p->nu0;
+  int               hung[WBC_STEP_N] = {0}, pas[WBC_STEP_N], actv[WBC_STEP_N], np_ = 0, na = 0;
+  double           *mpp, *mpa, *pull, *Ta, *Ea, *PT, *PE, *ta, *pt, *hp, *y, *rest;
+
+  /* the joints no drive holds, and a let-go leg's knee and ankle with them, in their order */
+  for (int i = 0; i < p->npass; i++)
+  {
+    hung[p->passive[i]] = 1;
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    for (int i = 3; i < 6; i++)
+    {
+      hung[p->act[p->legs[k][i]]] |= p->let_go[k] != 0;
+    }
+  }
+  for (int i = 0; i < n; i++)
+  {
+    if (hung[i])
+    {
+      pas[np_++] = i;
+    }
+    else
+    {
+      actv[na++] = i;
+    }
+  }
+  mpp = work;
+  mpa = mpp + np_ * np_;
+  pull = mpa + np_ * na;
+  Ta = pull + np_ * na;
+  Ea = Ta + 6 * na;
+  PT = Ea + na * nu0;
+  PE = PT + 6 * np_;
+  ta = PE + np_ * nu0;
+  pt = ta + na;
+  hp = pt + np_;
+  y = hp + np_;
+  rest = y + np_;
 
   memset(T, 0, (size_t)(6 * n) * sizeof(double));
   memset(E, 0, (size_t)(n * nu) * sizeof(double));
@@ -175,13 +210,13 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   {
     for (int b = 0; b < np_; b++)
     {
-      mpp[a * np_ + b] = p->M[p->passive[a] * n + p->passive[b]];
+      mpp[a * np_ + b] = p->M[pas[a] * n + pas[b]];
     }
     for (int b = 0; b < na; b++)
     {
-      mpa[a * na + b] = p->M[p->passive[a] * n + p->active[b]];
+      mpa[a * na + b] = p->M[pas[a] * n + actv[b]];
     }
-    hp[a] = p->h[p->passive[a]];
+    hp[a] = p->h[pas[a]];
   }
   if (wbc_solve(l, VIEW(mpp, np_, 1), VIEW(mpa, na, 1), np_, na, pull, rest))
   {
@@ -193,9 +228,9 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   }
   for (int b = 0; b < na; b++)
   {
-    memcpy(Ta + 6 * b, T + 6 * p->active[b], 6 * sizeof(double));
-    memcpy(Ea + nu0 * b, E + nu * p->active[b], (size_t)nu0 * sizeof(double));
-    ta[b] = t0[p->active[b]];
+    memcpy(Ta + 6 * b, T + 6 * actv[b], 6 * sizeof(double));
+    memcpy(Ea + nu0 * b, E + nu * actv[b], (size_t)nu0 * sizeof(double));
+    ta[b] = t0[actv[b]];
   }
   wbc_matmul(l, VIEW(pull, na, 1), VIEW(Ta, 6, 1), PT, 6, 1, np_, na, 6);
   wbc_matmul(l, VIEW(pull, na, 1), VIEW(Ea, nu0, 1), PE, nu0, 1, np_, na, nu0);
@@ -206,9 +241,9 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
   }
   for (int a = 0; a < np_; a++)
   {
-    memcpy(T + 6 * p->passive[a], PT + 6 * a, 6 * sizeof(double));
-    memcpy(E + nu * p->passive[a], PE + nu0 * a, (size_t)nu0 * sizeof(double));
-    t0[p->passive[a]] = pt[a] - y[a];
+    memcpy(T + 6 * pas[a], PT + 6 * a, 6 * sizeof(double));
+    memcpy(E + nu * pas[a], PE + nu0 * a, (size_t)nu0 * sizeof(double));
+    t0[pas[a]] = pt[a] - y[a];
   }
   return 0;
 }

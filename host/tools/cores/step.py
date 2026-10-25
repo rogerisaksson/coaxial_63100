@@ -33,7 +33,7 @@ def _step_typed():
     fields += [(name, p) for name in 'M h v q com k'.split()]
     fields += [(name, p * 2) for name in 'R quat J6 dJv sole tquat Jr dJr tw'.split()]
     fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()] + [('cpatch', i * c)]
-    fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i),
+    fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i), ('let_go', i * 2),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
                ('slid_cap', f), ('swing_at', (f * 3) * 2),
@@ -105,7 +105,7 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
-VIEWED = ('stance', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'swing', 'fold', 'swing_at', 'swing_speed',
+VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc', 'bears', 'cop',
           'forces',
           'load', 'cop_none', 'over')
@@ -150,6 +150,7 @@ def _stepped(k, step, v, b, s, ask):
         k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
         k.cpatch[at_] = int(c.get('patch', 0))
     v['stance'][:] = [bool(x) for x in ask['stance']]
+    v['let_go'][:] = [bool(x) for x in ask.get('let_go', (False, False))]
     v['com_acc'][:] = ask['com_acc']
     turns = ask.get('turns', ())
     k.nturns = len(turns)

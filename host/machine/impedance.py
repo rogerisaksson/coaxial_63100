@@ -24,6 +24,7 @@ from machine.modal import (
     LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PROP, PROP_HI, PROP_LO, BORNE, WEIGHT,
     PITCH, PITCH0, PITCH_RAD, PREFOLD, RAISE, REACH0, RESTS, ROCK, ROLLED, ROT, CELL, DUCKING,
     SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, SWINGS, SWUNG, REACH, REACHED,
+    LET_GO,
     TILT, TILT_RATE, TIPPED, TURN, TURN_RAD,
     TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -140,6 +141,10 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
+    # a sole off the floor while what bears her off her soles holds her and nothing is asked of her soles
+    # (`latent.MANIFOLDED`, a seat's rest) is let go, no swing: it hangs from its hip (`modal.given`,
+    # `wrench._maps`); asked of them, a rise's lean, a sole in the air is held there as before
+    a[LET_GO] = propped * (1.0 - stance) * float(out[latent.MANIFOLDED][0] <= 0.0)
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)

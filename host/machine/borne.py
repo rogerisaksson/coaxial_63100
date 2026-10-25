@@ -16,15 +16,53 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, touch
+from machine import edge, figure, touch
 
 #: A segment bears that is pushed up past this, N: her skin's touch.
 BEARS_N = edge.TOUCHED_N
 #: The segments above her soles (`touch.ABOVE`), indices into her skin.
 ABOVE = np.array(touch.ABOVE)
+#: Her pelvis among them: its skin's one touch is her two ischia's (`figure.SEAT_X` either side), split by
+#: where it lies between them - the force-weighted point of two lines gives their shares exactly - and laid
+#: on them as far as it pushes up her pelvis (sat; lying on her back or side the two meet at the touch).
+#: One point, a seat held her roll by nothing: sat on her pelvis alone she rolled off at 2e-4 rad.
+PELVIS = edge.SKIN.index('pelvis')
+#: What bears her is a surface under her skin: a bearing point's room is its segment's capsule's radius round
+#: it along the floor (CAPSULES, `figure.BODY` by its name without its side; MuJoCo gives a capsule one
+#: contact point). Points alone, sat on her pelvis its box was the ischia's line and her centre of mass was
+#: asked back to it at 1.5 m/s^2.
+CAPSULES = [[(r, np.asarray(a, float), np.asarray(b, float)) for seg, r, a, b in figure.BODY
+             if seg == (name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name)] for name in edge.SKIN]
+ALONG = np.array([1.0, 0.0, 1.0])
+
+
+def _room(k, local):
+    """(3,) m, skin segment `k`'s room round a point `local` of it (its frame): along the floor the radius of its
+    capsule nearest the point, none a point."""
+    caps = CAPSULES[k]
+    if not caps:
+        return np.zeros(3)
+    gaps = []
+    for r, a, b in caps:
+        ab = b - a
+        t = float(np.clip((local - a) @ ab / max(float(ab @ ab), 1e-12), 0.0, 1.0))
+        gaps.append((float(np.linalg.norm(local - (a + t * ab))) - r, r))
+    return min(gaps)[1] * ALONG
 #: The segments one surface bears are one patch of her step: a push's way, the world's axis it is most along and
 #: its sign - friction leans a push by atan MU, under 45 deg, so a seat's, a bed's or a floor's pushes are all
 #: up, a backrest's or a wall's all one way across (the lodge's surfaces stand square; a yawed wall's split).
+
+
+def _points(k, push, at):
+    """((share, point in the segment's frame), ..) of skin segment `k`'s touch `push` at `at`: one, her pelvis's
+    two ischia's (PELVIS)."""
+    if k != PELVIS:
+        return ((1.0, at),)
+    sat = float(np.clip(push[1] / max(float(np.linalg.norm(push)), 1e-9), 0.0, 1.0))
+    left = float(np.clip((at[0] + figure.SEAT_X) / (2.0 * figure.SEAT_X), 0.0, 1.0))
+    to_left = np.array([sat * (figure.SEAT_X - at[0]), 0.0, 0.0])
+    to_right = np.array([sat * (-figure.SEAT_X - at[0]), 0.0, 0.0])
+    return ((left, at + to_left), (1.0 - left, at + to_right))
 
 
 def read(b, s, y, weight):
@@ -40,15 +78,17 @@ def read(b, s, y, weight):
     jp, jr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
-        f, p = R @ pushes[k], d.xpos[ids[k]] + R @ at[k]
+        f = R @ pushes[k]
         if f[1] <= BEARS_N:
             continue
         up += f[1]
-        low, high = np.minimum(low, p), np.maximum(high, p)
-        b.mj.mj_jac(m, d, jp, jr, p, ids[k])
-        J = jp[:, :n].copy()
-        b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
-        contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :n] @ s['v']})
+        for share, local in _points(k, pushes[k], at[k]):
+            p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
+            low, high = np.minimum(low, p - room), np.maximum(high, p + room)
+            b.mj.mj_jac(m, d, jp, jr, p, ids[k])
+            J = jp[:, :n].copy()
+            b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
+            contacts.append({'p': p, 'f': share * f, 'J': J, 'dJv': jp[:, :n] @ s['v']})
     for c in contacts:
         axis = int(np.argmax(np.abs(c['f'])))
         c['patch'] = 2 * axis + int(c['f'][axis] < 0.0)

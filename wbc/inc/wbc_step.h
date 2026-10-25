@@ -46,7 +46,7 @@ typedef struct
   const double *cJ[WBC_STEP_C], *cp[WBC_STEP_C], *cdJv[WBC_STEP_C], *cf[WBC_STEP_C];
   int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.borne) */
   /* asked */
-  int           stance[2], nturns, kdot_given, swing[2], fold[2], wep;
+  int           stance[2], nturns, kdot_given, swing[2], fold[2], wep, let_go[2];
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
   double        slide[3], fz_cap, slid_cap; /**< the slide her contacts may take, world m/s; what bears her off her soles'
                                                 cap, N; a sliding contact's, the slide's governor's */

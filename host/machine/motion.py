@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, poise, rounds, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -202,6 +202,14 @@ def control(g, dt):
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], body.knees, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
+    # a leg let go (`impedance.ask`) hangs from a hip sprung where it was let go: its thigh rests on the seat
+    # as it lay (sprung to its posture's hip a degree off, the thigh left the seat's edge; floating, her trunk
+    # drifted 3 -> 26 deg forward in 4 s)
+    hips = np.array([leg[:3] for leg in rounds.LEGS])
+    let_go = np.array(ask['let_go'], float)[:, None]
+    g['hips_held'] = let_go * (1.0 - g['let_go_was'][:, None]) * (s['q'][hips] - g['hips_held']) + g['hips_held']
+    g['let_go_was'] = let_go[:, 0]
+    ask['posture'][hips] = let_go * (g['hips_held'] - ask['posture'][hips]) + ask['posture'][hips]
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])

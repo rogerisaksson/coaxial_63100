@@ -1,6 +1,6 @@
 """Her legs and centre of mass sat or sitting down: the knee and ankle a seat asks, where they put her.
 
-    knee, ankle = seated.landed(hips, edge, top, trunk)   # her hips `hips` m up onto a seat `top` up, `edge` behind
+    knee, ankle = seated.landed(hips, trunk)            # her hips `hips` m up, her trunk `trunk` forward
     z = seated.com(knee, ankle, trunk, modes, body)     # her centre of mass in her sagittal unit
 
 Her figure's links and segments (`machine.figure`); her modes' units her manifest's (`ortho.robot`).
@@ -13,8 +13,6 @@ from machine import figure, leap, poise
 HALVINGS = 40
 #: Her soles' back edge ahead of her ankles, m: her ZMP's margin inside her heels (`poise.EXTENT`).
 HEELS = leap.MIDDLE - float(poise.EXTENT[0])
-#: Her thigh's capsules (`figure.BODY`): radius, from, to, its frame - down it -y, ahead z.
-THIGHS = tuple((r, a, b) for seg, r, a, b in figure.BODY if seg == 'thigh')
 
 
 def axial(knee, modes, body):
@@ -58,40 +56,23 @@ def com(knee, ankle, trunk, modes, body):
     return (ahead(knee, ankle, trunk) - leap.MIDDLE) / modes['mode_sagittal_shift'][0]
 
 
-def clear(knee, ankle, edge, top):
-    """m her thighs clear a seat's front edge `edge` m behind her ankles, its top `top` m up, her
-    knee and ankle bent `knee`, `ankle` - negative, in it: her thigh's capsules (THIGHS) in her
-    sagittal plane, the edge a line across her."""
-    hx, hy = hips(knee, ankle)
-    ux, uy = (figure.SHANK * math.sin(ankle) - hx) / figure.THIGH, (figure.SHANK * math.cos(ankle) - hy) / figure.THIGH
-    ex, ey = -edge - hx, top - figure.ANKLE_H - hy
-    gaps = []
-    for r, a, b in THIGHS:
-        ax, ay, bx, by = -a[1] * ux - a[2] * uy, -a[1] * uy + a[2] * ux, -b[1] * ux - b[2] * uy, -b[1] * uy + b[2] * ux
-        t = max(0.0, min(1.0, ((ex - ax) * (bx - ax) + (ey - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)))
-        gaps.append(math.hypot(ex - ax - t * (bx - ax), ey - ay - t * (by - ay)) - r)
-    return min(gaps)
-
-
-def landed(hips, edge, top, trunk):
+def landed(hips, trunk):
     """(knee, ankle), rad, that land her hip joints `hips` m over the floor as far behind her ankles
     as sets her centre of mass at her soles' back edge (HEELS), her trunk `trunk` rad forward -
-    halved for till HALVINGS -, as her thighs clear the edge of a seat `top` m up and `edge` m
-    behind her ankles (`clear`), and no further than a buttock past it (`figure.SEAT_Z`). Over her
-    ankles her hips met a seat 0.19 m behind her soles' middle 2.6 cm onto it, her pelvis alone on
-    its edge, and it bore 0.39 of her: 20 docks of 25 never borne. A buttock past an edge 0.12 m
-    behind her soles' middle her thighs were 14 mm into it: they met it 2-5 cm over the seat, one
-    first, her pelvis hung off it and fell back. At the suite's ankle, 0.32, her centre of mass
-    stood 7 mm inside her heels' edge, her balance held it 28 mm behind her ankles and her hips
-    stopped 21 mm over the seat; landed a buttock's length behind the seen edge whatever her centre
-    of mass, she rose 9 times of 14."""
+    halved for till HALVINGS. So she sits 0.29 legs back and upright (a human's 0.31-0.47, within 7
+    deg), on a seat over her knees her thighs on its front edge and her ischia on it (`borne`, two).
+    Landed where her thighs cleared the edge and no further than a buttock past it she sat on the
+    edge, 0.23 legs and 13 deg forward; over her ankles her hips met a seat 0.19 m behind her soles'
+    middle 2.6 cm onto it, her pelvis alone on its edge, and it bore 0.39 of her: 20 docks of 25
+    never borne. At the suite's ankle, 0.32, her centre of mass stood 7 mm inside her heels' edge,
+    her balance held it 28 mm behind her ankles and her hips stopped 21 mm over the seat; landed a
+    buttock's length behind the seen edge whatever her centre of mass, she rose 9 times of 14."""
     lo, hi = 0.0, figure.THIGH
     for _ in range(HALVINGS):
         mid = 0.5 * (lo + hi)
         knee, ankle = legs(hips, mid)
-        back = ahead(knee, ankle, trunk) < HEELS or clear(knee, ankle, edge, top) < 0.0
-        lo, hi = (lo, mid) if back else (mid, hi)
-    return legs(hips, min(0.5 * (lo + hi), edge - figure.SEAT_Z[0]))
+        lo, hi = (lo, mid) if ahead(knee, ankle, trunk) < HEELS else (mid, hi)
+    return legs(hips, 0.5 * (lo + hi))
 
 
 def legs(hips, behind):

@@ -32,7 +32,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
   }
   for (int q = 0; q < nc; q++)
   {
-    double nrm[3] = {0.0, 0.0, 0.0}, total = 0.0, count = 0.0, scale;
+    double nrm[3] = {0.0, 0.0, 0.0}, total = 0.0, count = 0.0, scale, freed;
 
     if (patched[q])
     {
@@ -72,6 +72,8 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
         share[m] = total > 0.0 ? share[m] / total : 1.0 / count;
       }
     }
+    /* a slide said and the patch under the slide's cap: its points drawn along the slide (machine.wrench._patch) */
+    freed = (p->slide[0] * p->slide[0] + p->slide[2] * p->slide[2] > 0.0 && total <= fmin(p->fz_cap, p->slid_cap)) ? 1.0 : 0.0;
     for (int m = 0; m < nc; m++)
     {
       double left[3], jv[3], way[2], said[2], r3[3], mix[9], sliding;
@@ -96,7 +98,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
           mix[3 * i + j] = (1.0 - sliding) * (double)(i == j) + sliding * (up[i] * up[j]);
         }
         left[i] = (-p->cdJv[m][i]) - left[i];
-        r3[i] = left[i] - p->contact_k * jv[i];
+        r3[i] = left[i] - p->contact_k * (jv[i] - (freed * (1.0 - sliding)) * p->slide[i]);
       }
       wbc_matmul(l, VIEW(mix, 3, 1), VIEW(rows3, nu, 1), S + 4 * nu * m, nu, 1, 3, 3, nu);
       wbc_matmul(l, VIEW(mix, 3, 1), VIEW(r3, 1, 0), r + 4 * m, 1, 0, 3, 3, 1);
