@@ -412,5 +412,14 @@ model's mu is 1.0), unilaterality unviolated here. So: no substitute for
 the support polygon - the polygon (the capture point in the hull,
 `errand._settled`; the cones) is the feasibility gate and stays; the
 transport is an allocator between feasible allocations while patches
-slide, under the gate, in place of a re-solved QP's jumping - its in-loop
-A/B on the thigh scoot is item 16's DOD.
+slide, under the gate, in place of a re-solved QP's jumping. In the loop
+(the python twin, `wrench._patch`'s split pinned as the transport carries
+it instead of as felt, exec-patched): the low chair's sit never holds two
+contacts on the seat (1 108 passes, max 1) - nothing to transport, outcome
+identical -; the bed's lie does (mattress max 3, 642 multi passes) and the
+transport chatters more than the felt pin on every patch - split change a
+pass p95 6.0 vs 4.6 N on the mattress, its worst spike 93 vs 47, hands 4.1
+vs 2.4 - the settle's redistribution is willed too, and the transport
+holds stale shares the re-seed then snaps. The felt pin stays; item 16's
+in-loop case needs the scoot's real sliding (item 13) and the text's whole
+composite (the twistor's J beside Re d log), not op 3 alone.
