@@ -199,3 +199,8 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     finite pieces above. DOD: the three in her loop and the C law, held
     bit for bit, the stool's scoot and the loft stair's brace measured on
     them.
+17. **The page's chair errand falls a run in two** (introspect findings):
+    said 'sit in the chair' at the page's start, she turned mid-walk at
+    5.9 s, braked and fell at 6.1 in one run and sat at 16.97 in the next -
+    her right hip 905 deg/s walking, 0.94 of its drive's rating. DOD: the
+    page's chair prompt seated 3 of 3, the walk's hip within its rating.

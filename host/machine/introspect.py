@@ -1,9 +1,11 @@
 """Her loop's latent, impedance and wrench layers live, for a debugger or the local model to attach to.
 
-    snap = introspect.snapshot(g)                 # a law pass's three layers, named, JSON-able
+    snap = introspect.snapshot(s)                 # a law pass's layers and her body, named, JSON-able
     server = introspect.attach(s, port)            # serve them on 127.0.0.1:port, a JSON line a pass
     rows = introspect.read(port, n=10)             # a client: the next n snapshots
+    told = introspect.events(port, seconds=8)       # her analyzers' events over 8 s (`watch`)
     python -m machine.introspect --attach 8765     # the same from a shell, a JSON line each
+    python -m machine.introspect --attach 8765 --events   # her analyzers' events alone, a line each
 
 The layers as her loop leaves them each law pass (`motion.control`): latent - her state's rows and
 her latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it
@@ -89,18 +91,39 @@ def _plain(v):
     return v if isinstance(v, (int, float, str, bool)) or v is None else str(v)
 
 
-def snapshot(g):
-    """A law pass's three layers of her loop `g`, named: {'t', 'doing', 'latent': {'state': {row:
+def body(s, peaks=None):
+    """Her body as her page shows it, a pass of her session `s`: her joints' angles (deg) and speeds
+    (deg/s) by name (`figure.JOINTS`, the world's addresses), their fastest since the last snapshot
+    where `peaks` (deg/s) says, else their speeds; her soles' loads (N), her pelvis's place (m), what
+    she does, fallen, a say refused, her epoch, her errand's phase."""
+    import numpy as np
+    from machine import sprung
+    from machine.figure import JOINTS
+    g = s['g']
+    world, d = g['world'], g['world'].data
+    er = g.get('_errand') or {}
+    speeds = np.degrees(d.qvel[world.vadr])
+    return {'angles': dict(zip(JOINTS, np.degrees(d.qpos[world.qadr]).tolist())),
+            'speeds': dict(zip(JOINTS, speeds.tolist())),
+            'peaks': dict(zip(JOINTS, (np.abs(speeds) if peaks is None else peaks).tolist())),
+            'loads': [float(v) for v in g['loads']], 'where': d.qpos[0:3].tolist(), 'doing': sprung.doing(g),
+            'fallen': s.get('fallen_at') is not None, 'refused': s.get('refused'), 'epoch': int(s.get('epoch', 0)),
+            'errand': {'kind': er.get('kind'), 'phase': er.get('phase')} if er else None}
+
+
+def snapshot(s, peaks=None):
+    """A law pass of her session `s`, named: {'t', 'doing', 'body': `body`, 'latent': {'state': {row:
     {field: ..}}, 'out': {..}}, 'impedance': {'ask': {..}, 'step_ask': {..}}, 'wrench': {..}}."""
     import numpy as np
     from machine import ortho, sprung
+    g = s['g']
     row, state, out, ask = (layout('machine.latent', 'P', 'NOW'), layout('machine.latent', 'STATE'),
                             layout('machine.latent', 'OUT'), layout('machine.modal', 'ASK'))
     labels = {len(ortho.MODES): ortho.MODES, len(ortho.MANIFOLDS): ortho.MANIFOLDS}
     st = np.asarray(g['st'], float).ravel()
     rows = {name: _named(st[sp], row, labels) for name, sp in state.items() if sp.stop - sp.start == row_len(row)}
     rest = {name: v for name, v in _named(st, state).items() if name not in rows}
-    return {'t': float(g['t']), 'doing': sprung.doing(g),
+    return {'t': float(g['t']), 'doing': sprung.doing(g), 'body': body(s, peaks),
             'latent': {'state': {**rows, **rest}, 'out': _named(g['out'], out, labels)},
             'impedance': {'ask': _named(g['a'], ask), 'step_ask': _plain(g.get('ask', {}))},
             'wrench': _plain(g.get('got', {}))}
@@ -134,22 +157,47 @@ class _Client(socketserver.StreamRequestHandler):
                 srv.queues.remove(q)
 
 
+class Tap:
+
+    """Her passes into snapshots, a peak detector between: every pass her joints' fastest held, a
+    snapshot each law period of her world's time carrying them since the last - fallen, her law
+    stands still and a snapshot a law pass told no fall; one a law pass alone read the tip's fastest
+    joint 249.7 deg/s where every pass's 270.7."""
+
+    def __init__(self):
+        self.t, self.peaks = -float('inf'), None
+
+    def passed(self, s):
+        """A pass of her session `s`: its snapshot (`snapshot`, the peaks since the last) where a law
+        period of her world's time has gone since the last - a new epoch's time from its start -,
+        else None."""
+        import numpy as np
+        from machine import worker
+        g = s['g']
+        world = g['world']
+        v = np.abs(world.data.qvel[world.vadr])
+        self.peaks = v if self.peaks is None else np.maximum(self.peaks, v)
+        t = float(g['t'])
+        if self.t <= t < self.t + worker.DT * g['every']:
+            return None
+        snap, self.peaks, self.t = snapshot(s, np.degrees(self.peaks)), None, t
+        return snap
+
+
 def attach(s, port, host='127.0.0.1'):
     """Serve her session `s`'s snapshots on `host:port` (0 a free one; the server's `server_address`
-    says which), a JSON line each law pass to every client - a hook on her passes (`s['each']`)
-    that returns at once with none connected. The server."""
-    server = _Clients((host, port))
+    says which), a JSON line each law pass to every client (`Tap`) - a hook on her passes
+    (`s['each']`) that returns at once with none connected. The server."""
+    server, tap = _Clients((host, port)), Tap()
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    seen = {'t': None}
 
     def hook(s):
         if not server.queues:
             return
-        g = s['g']
-        if g.get('t_law') == seen['t']:
+        snap = tap.passed(s)
+        if snap is None:
             return
-        seen['t'] = g.get('t_law')
-        line = json.dumps(snapshot(g)).encode('utf-8')
+        line = json.dumps(snap).encode('utf-8')
         with server.lock:
             for q in server.queues:
                 if q.full():
@@ -172,21 +220,43 @@ def read(port, n=1, host='127.0.0.1', timeout=10.0):
     return out
 
 
+def events(port, seconds, folder=None, host='127.0.0.1'):
+    """The events her analyzers fire (`watch.Watch`) over `seconds` of the snapshots served on
+    `host:port` - what a reader with little room takes in place of the stream."""
+    from machine import watch
+    w, out = watch.Watch(folder or watch.FOLDER), []
+    with socket.create_connection((host, port), timeout=seconds + 10.0) as sock:
+        f, t0 = sock.makefile('rb'), None
+        for line in iter(f.readline, b''):
+            snap = json.loads(line)
+            t0 = snap['t'] if t0 is None else t0
+            out.extend(w.step(snap))
+            if snap['t'] - t0 >= seconds:
+                break
+    return out
+
+
 def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--attach', type=int, required=True, help='the port her page serves on (--telemetry)')
-    parser.add_argument('-n', type=int, default=0, help='snapshots to read, 0 till interrupted')
+    parser.add_argument('-n', type=int, default=0, help='lines to write, 0 till interrupted')
+    parser.add_argument('--events', action='store_true',
+                        help='her analyzers\' events alone (machine/analyzers, reloaded as they change)')
+    parser.add_argument('--analyzers', help='the analyzers\' folder, else machine/analyzers')
     args = parser.parse_args(argv)
+    from machine import watch
+    w = watch.Watch(args.analyzers or watch.FOLDER) if args.events else None
     with socket.create_connection(('127.0.0.1', args.attach)) as sock:
         f, k = sock.makefile('rb'), 0
-        while args.n == 0 or k < args.n:
-            line = f.readline()
-            if not line:
-                break
-            sys.stdout.write(line.decode('utf-8'))
+        for line in iter(f.readline, b''):
+            said = [line.decode('utf-8')] if w is None else [json.dumps(e) + '\n' for e in w.step(json.loads(line))]
+            for out in said:
+                sys.stdout.write(out)
+                k += 1
             sys.stdout.flush()
-            k += 1
+            if args.n and k >= args.n:
+                break
     return 0
 
 
