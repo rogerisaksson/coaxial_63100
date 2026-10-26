@@ -80,6 +80,7 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         ts, tg = se2.stand_lead(spd)
         sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
         return _start_mode(g, by, entry, at=t0 + tg) if name != 'stand' else None
+    g['st'][latent.NOW][latent.GAIN] = max(float(g['st'][latent.NOW][latent.GAIN]), 0.04)
     dt_b = se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
     nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
     return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)

@@ -268,7 +268,7 @@ def _on_rows():
     tolerance off its line till that stop is on it, then runs out through a door, else backs till
     her heels are the stunt's standoff off the edge (`maneuver.standoff`), then the stunt
     (findings/errands.md)."""
-    from machine import figure, modal, se2, stride
+    from machine import modal, poise, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
         'look': (((lambda c, er: c['seen'] is not None and _within(er['kind'], c['seen']), 'walk', _begun),
@@ -286,10 +286,10 @@ def _on_rows():
                    (lambda c, er: c['idle'] and abs(c['err_yaw']) > modal.LIST_RAD, 'turn', _nothing),
                    (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and er['through'], 'door', _out),
-                   (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
+                   (lambda c, er: c['idle'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
         'side': (((lambda c, er: c['s_perp_side'] * c['s_perp'] <= 0.0, 'settle', _told(STOP)),), _to_line),
-        'back': (((lambda c, er: c['s_par'] <= figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
+        'back': (((lambda c, er: c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp_side']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
     }
 
