@@ -47,6 +47,13 @@ touches is held where it touched; her arms share one reach and one fold, a
 back-swung elbow presses its fist 1.1 cm at most, and her arm IK from the WIP
 diverged from her elbow's mid-range (1 458 deg). Left: each fist's place
 asked per side, or a phase that waits for her arm to arrive.
+As one move - her fists carried over the seat through her descent, down on
+it as it slides under her: carried hanging, her forearms held them 14 cm
+ahead of its edge and they came down in front of it; carried back over it,
+her arms moved her centre of mass behind her descent's and she missed the
+seat, her hips 0.39 m up. Her fists asked by joint angles land within
+several cm of her model's: placed by touch instead, as her hips find a seat
+(`machine.field`).
 
 The pan as a row of the step (each patch's load toward its told share, weight
 30 as the turns') held nothing: the seated rest's told 0.85 pushed the seat
