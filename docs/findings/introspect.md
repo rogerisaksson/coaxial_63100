@@ -76,6 +76,11 @@ her telemetry is now told to its clients, its gates dropped. A small tour
 of the cabin with a gate armed from a shell: 93 lines streamed in 90 s, a
 second behind her; her fall at 47.784 s standing up from the floor gated,
 5 671 records, 11.6 MB - her law's and drives' streams end at the fall,
-her edge's reads and the world run on. Her grippers laid at 0 against
-their 79.5-80.5 deg range snap in at 893.5 deg/s on each lay, every
-scene's first phase's fastest joint (TODO).
+her edge's reads and the world run on. Her fingers, held a fist at 80 deg
+(her build), were laid at the stand's 18 and snapped in at 893.5 deg/s on
+every lay, her wrists held at 0 laid at 5 at 69.1 - every scene's first
+phase's fastest joint in the tour's stream; the world lays a pose within
+each joint's stops now (`physics.World.reset`): 0.4 and 3.8 deg/s, her
+walk as it was (0.70 m/s, 408 J/m, 2.50 off a woman's); her held standing
+jump steps 0.59 m from its landing where 0.24 - its crouch taps her soles
+off (scenarios 6).

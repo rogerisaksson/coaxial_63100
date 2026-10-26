@@ -125,6 +125,15 @@ def mjcf():
 _APART = {}
 
 
+def stops(model):
+    """(lo, hi) of her joints' stops in `model`, rad, `JOINTS`' order: its ranges, unbounded where
+    it has none - a pose laid within them (`physics.World.reset`): her fingers, held a fist at 80
+    deg, laid at the stand's 18 snapped in at 893.5 deg/s each lay, her wrists at 69.1."""
+    import numpy as np
+    ids = [model.joint(j).id for j in JOINTS]
+    return tuple(np.where(model.jnt_limited[ids, None] > 0, model.jnt_range[ids], [-np.inf, np.inf]).T)
+
+
 def _apart(xml, pairs):
     return xml.replace('<contact/>', '<contact>%s</contact>' % ''.join(
         '<exclude body1="%s" body2="%s"/>' % pair for pair in pairs))

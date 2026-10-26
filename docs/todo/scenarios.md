@@ -113,7 +113,13 @@ serves its DOD; none an entry a case.
    `test_leap.py`; the standing jump's push from the drives (stunts.md:
    take-off 1.5-1.65 m/s, rise 0.49 legs of the human's 0.55 from the
    crouch, 0.015 m over her stand, two-footed off and down, standing at
-   3.9 widths). Left: her soles clear 11 mm, her legs long in flight; she
+   3.9 widths). Left: her crouch taps her soles off - her law asks her
+   standing soles to move (`SOLE_ACC` 0.4-1.3 m/s^2 a law pass), her ankles
+   answer a sole at a time (left -6.6 to +10.3 N m, right -6.1), each sole
+   off 2-4 ms in turn, a flight read crouching; the held jump lands a sole
+   first and steps 0.59 m away since her pose is laid within its stops,
+   0.24 of the stride's 0.30 before, a 1e-9 rad nudge flipping its stances
+   (test_leap). Her soles clear 11 mm, her legs long in flight; she
    lands 0.32 m ahead in the bench's scene, in place in the page's; the
    legs 0.5 axial short of straight as she leaves (the apex over her
    stand); the surety's phase read kept for the seats (stunts.md); the

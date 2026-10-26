@@ -106,3 +106,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     before and after written gate after gate, 11 streams on their own
     clocks interleaved in time with their metadata; every gated section her
     passes' own to the bit (test_gate), the page's snapshots matched.
+25. Her pose laid within her joints' stops (`physics.World.reset`): her
+    fingers, held a fist at 80 deg, laid at the stand's 18 snapped in at
+    893.5 deg/s each lay, her wrists at 69.1; now 0.4 and 3.8, her walk as
+    it was (findings/introspect.md).

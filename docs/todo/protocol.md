@@ -214,7 +214,3 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     rise_floor is refused by her legs (scenarios 18), an errand's walk is
     not. DOD: said lying, an errand refused by name, or walked after a rise
     that stands.
-20. **Her grippers laid out of their range**: laid at 0 against 79.5-80.5
-    deg, each lay snaps them in at 893.5 deg/s, the fastest joint of every
-    scene's first phase. DOD: laid within their range; a scene's first
-    phase's fastest a driven joint.

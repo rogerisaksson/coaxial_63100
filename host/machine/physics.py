@@ -22,7 +22,7 @@ from machine.drives import kind
 from machine.buses import QUIET, Block, Buses
 from machine.controller import Batch
 from machine.errors import MachineError
-from machine.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf
+from machine.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf, stops
 from machine.servos import CLAMPED, SERVO
 from machine.figure import JOINTS
 
@@ -249,11 +249,10 @@ class World:
               speed=(0.0, 0.0, 0.0)):
         """Every joint at {joint: degrees}, moving at `rates` (deg/s), its drive holding it
         there; the pelvis at `where` turned by the quaternion `turn`, moving at `speed` (m/s)."""
-        d = self.data
-        d.qpos[:], d.qvel[:] = 0.0, 0.0
-        for i, joint in enumerate(JOINTS):
-            d.qpos[self.qadr[i]] = math.radians(degrees.get(joint, 0.0))
-            d.qvel[self.vadr[i]] = math.radians((rates or {}).get(joint, 0.0))
+        np, d = self._np, self.data
+        d.qpos[:] = d.qvel[:] = 0.0
+        d.qpos[self.qadr] = np.clip(np.radians([degrees.get(j, 0) for j in JOINTS]), *stops(self.model))
+        d.qvel[self.vadr] = np.radians([(rates or {}).get(j, 0) for j in JOINTS])
         d.qpos[0:3], d.qpos[3:7], d.qvel[0:3] = where, turn, speed
         self._park()
         self._mj.mj_forward(self.model, d)
