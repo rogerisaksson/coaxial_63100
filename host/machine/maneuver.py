@@ -249,6 +249,12 @@ def said(g, item, at=None, thing=None):
         seen = furniture.seen(g, item[0], at, thing)
     if seen is None:
         raise MachineError('%s: nothing among her things affords it' % item[0])
+    from machine import stride
+    reach = stride.STRIDE_M + standoff(item[0], g['suite'])
+    edge = furniture.nearest(g, PLAYED[item[0]][1] or item[0], at)[0]
+    if edge > reach:
+        raise MachineError('%s plays where she stands: its furniture is %.1f m off, past her %.2f '
+                           '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))
     return entry(item[0], seen, g['suite'], g['texts'])
 
 
