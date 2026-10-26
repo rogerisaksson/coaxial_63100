@@ -302,3 +302,13 @@ serves its DOD; none an entry a case.
     shins taken from her toes - her heels up by what her ankle reaches of the
     excess, lowered once it bears her -, both buttocks a buttock's length on;
     the chair's sit 0 of 336 down or unborne (5 and 8 now).
+18. **The lie as a floor primitive**: the recline isolated from furniture -
+    lie down in place on the floor (no dock, no edge), and the reverse, laid
+    supine on the floor and rising. Today's bed paths measure clean on the
+    twin (say bed_rest 20.8 s, click 18.5 s, the recline without a peak;
+    the worst windows are the walk's own and the grippers' 894 deg/s snap
+    at the say's first pass) while the page shows a spasm lying down - a
+    running page keeps the code it started with, so first an R recording
+    of the spasm names its joint, deg/s and phase. DOD: a floor lie and a
+    supine rise as scenario and test, 3 of 3; the spasm's recording placed
+    and its number gone on the same path.
