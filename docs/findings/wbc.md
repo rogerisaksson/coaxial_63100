@@ -390,3 +390,27 @@ cycle against the 1 ms of a 1 kHz loop; the Release image 24.9 M, 52 ms. Its
 torques are the host loop's within 1e-3 N m. The gap is the formulation's cost,
 not its memory: five dense levels over 71 variables, each relaying the levels
 below.
+
+## The Schlesinger transport against the support polygon
+
+The Hitchin bus's sliding-contact transport (TODO 16) run offline on 8 s of
+her walk: each insole patch a pole z_i = lever arm times exp(j bearing)
+about her CoM on the ground plane, its residue the patch's MuJoCo wrench in
+units of her weight (306 N; raw newtons diverge - the brackets are
+bilinear), d mu_i = 0.98 sum_j [mu_i, mu_j] Re d log(z_i - z_j) with
+se(3)* read as twists by the Plucker pairing ((m, f) <-> (f, m)), poles
+within 0.025 clamped, |d log| capped 0.2 a pass, Jacobi (updating in
+sequence broke the sum 24.5 N), re-seeded from the truth when the bearing
+set changes (72 windows, 7 928 passes). Measured: the sum of residues is
+conserved to 5e-13 N - the one hard guarantee, exact by antisymmetry; the
+transported allocation tracks the walk's true transfer no better than a
+frozen one (RMS 94.4 vs 91.5 N a patch, worst 305 vs 303) - walking's
+redistribution is willed, heel to toe and leg to leg, not isomonodromic -;
+and it knows no inequality: 35.7 % of transported patch wrenches sit
+outside the text's 0.65 cone (the truth 30.2 against that cone; the
+model's mu is 1.0), unilaterality unviolated here. So: no substitute for
+the support polygon - the polygon (the capture point in the hull,
+`errand._settled`; the cones) is the feasibility gate and stays; the
+transport is an allocator between feasible allocations while patches
+slide, under the gate, in place of a re-solved QP's jumping - its in-loop
+A/B on the thigh scoot is item 16's DOD.
