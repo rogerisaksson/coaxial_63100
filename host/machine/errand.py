@@ -314,7 +314,8 @@ def _looked_along(g, e):
     e['checked_at'] = g['t']
     d = g['world'].data
     cells = route.blocked(g)
-    pts = [(float(d.qpos[0]), float(d.qpos[2]))] + [tuple(p) for p in e['way']]
+    curve = [tuple(p) for p in e['curve'][e['k']:, :2]] if len(e['curve']) else []
+    pts = [(float(d.qpos[0]), float(d.qpos[2]))] + curve + [tuple(p) for p in e['way'][bool(curve):]]
     free_yet = False
     samples = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
                for a, b in zip(pts, pts[1:])

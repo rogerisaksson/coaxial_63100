@@ -176,6 +176,16 @@ void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab
   }
   latch = (double)due_rows(w, tab, rows, latches, t, dt, &first);
   wbc_imp_reading(k, y, fr, stance, z, zd, leg, len, lrate, turn, spun);
+  {
+    const double free = 1.0 - a[k->a_borne];
+
+    z[k->lateral] *= free;
+    z[k->drive] *= free;
+    z[k->lift] *= free;
+    z[k->width] *= free;
+    z[k->reach] *= free;
+    z[k->elbows] *= free;
+  }
   for (int m = 0; m < k->n; m++)
   {
     double *now = st + w->st_now_z + m, *from = st + w->st_from_z + m, *to = st + w->st_to_z + m;

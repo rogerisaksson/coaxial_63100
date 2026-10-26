@@ -284,8 +284,9 @@ def describe(now, se2_st=None):
     ) if cond)
     set_mag = math.hypot(vx_set, vy_set)
     if set_mag > 0.02 or abs(wz_set) > 0.03:
+        wz_way = wz_set * (-1.0 if vx_set < -0.02 else 1.0)
         lin_s = max(0.0, (vx_act * vx_set + vy_act * vy_set) / (set_mag * set_mag)) if set_mag > 0.02 else 0.0
-        yaw_s = max(0.0, (wz_act * wz_set) / (wz_set * wz_set)) if abs(wz_set) > 0.03 else 0.0
+        yaw_s = max(0.0, (wz_act * wz_way) / (wz_way * wz_way)) if abs(wz_way) > 0.03 else 0.0
         fill = min(1.0, 0.5 * (lin_s + yaw_s) if (set_mag > 0.02 and abs(wz_set) > 0.03) else (lin_s if set_mag > 0.02 else yaw_s))
         return _spec('locomotion', origin, normal, (vx_set, vy_set, wz_set), tw_act, fill, None,
                      *_surface_path_arrow(origin, set_hd, vx_set, vy_set, wz_set, fill, props),

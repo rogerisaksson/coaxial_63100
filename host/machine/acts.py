@@ -131,9 +131,9 @@ def _crossfade(p, then, at, modes, body):
     gain = 1.0 if plantar else 10.0 ** (at.get('legs-db', 0.0) / 20.0)
     springs = {m: sprung(m, gain, 1.0, modes) for node in LEGS for m in NODES[node]}
     left = p.get('source-residual-weight', 0.0)
-    at['handed'] = _weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left)))
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
-                 springs, SUPPORT if plantar else NONE, None, shape=shape, weighs=at['handed'], slide=0.0 if plantar else None)
+                 springs, SUPPORT if plantar else NONE, None, shape=shape,
+                 weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))), slide=0.0 if plantar else None)
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
@@ -201,9 +201,11 @@ def _recline(p, then, at, modes, body):
                'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body),
                'mode_pelvis_turn': p.get('axial-yaw-ramp', (0.0,))[-1] / modes['mode_pelvis_turn'][0]}
     palmed = weighs is not None and weighs[ortho.PALMAR] > 0.0
-    targets.update({'mode_arm_reach': seated.braced(trunk) * palmed / modes['mode_arm_reach'][0]} if weighs is not None else {})
+    targets.update({'mode_arm_reach': seated.braced(trunk) * palmed / modes['mode_arm_reach'][0],
+                    'mode_arm_swing': 0.0} if weighs is not None else {})
     springs = {'mode_sagittal_shift': sprung('mode_sagittal_shift', 1.0, 1.0, modes),
-               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE, 1.0, modes)} if palmed else {})}
+               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE if palmed else 1.0, 1.0, modes)}
+                  if weighs is not None else {})}
     return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
@@ -239,7 +241,7 @@ def _pendulum(p, then, at, modes, body):
 def _latch(p, then, at, modes, body):
     """A latch: her vector where she is read at its time, the reference her gains come back on with
     no error (`ortho.LATCH`, `waits.latched_back`)."""
-    return [Phase('wake', 'latch', GRAIN_MS, GRAIN_MS, {}, {}, None, None, True, weighs=at.get('handed'))]
+    return [Phase('wake', 'latch', GRAIN_MS, GRAIN_MS, {}, {}, None, None, True)]
 
 
 def _compliance(p, then, at, modes, body):

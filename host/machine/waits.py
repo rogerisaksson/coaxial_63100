@@ -138,6 +138,7 @@ def latched_rows(tab, y, fr, a, st, t, dt):
     at = tab[:, latent.AT]
     due = (tab[:, latent.LATCH] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     latch, z = float(np.any(due)), modal.read(y, fr, a[modal.STANCE])[0]
+    z[[modal.LATERAL, modal.DRIVE, modal.LIFT, modal.WIDTH, modal.REACH, modal.ELBOWS]] *= 1.0 - a[modal.BORNE]
     for part in (latent.NOW, latent.FROM, latent.TO):
         st[part][latent.Z] += latch * (z - st[part][latent.Z])
     for part in (latent.V0, latent.V1):

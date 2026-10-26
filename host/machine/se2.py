@@ -191,7 +191,8 @@ def _modulate_cpg(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     w_wz = min(1.0, max(0.0, (abs(wz) - 0.025) / 0.005))
     w_wz5 = min(1.0, max(0.0, (abs(wz) - 0.04) / 0.01))
     w_spin = w_on * w_wz5 * min(1.0, max(0.0, (0.05 - abs(vx)) / 0.01)) * (1.0 - w_vy)
-    ts_raw = w_on * w_wz * (0.40 - 0.12 * w_vy) * max(-1.0, min(1.0, wz / YAW_RATE))
+    wz_way = (1.0 - 2.0 * float(vx < -0.05)) * wz
+    ts_raw = w_on * w_wz * (0.40 - 0.12 * w_vy) * max(-1.0, min(1.0, wz_way / YAW_RATE))
     ts = state[TURN_DC] = float(state[TURN_DC]) + 0.18 * (ts_raw - float(state[TURN_DC]))
     w_turn = w_on * max(w_wz, min(1.0, max(0.0, (abs(ts) - 0.008) / 0.004)))
     bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
@@ -288,12 +289,13 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     unborne = 1.0 - float(a[modal.BORNE])
     w_yaw = min(1.0, abs(wz) / 1e-4) * (1.0 - has_thd) * unborne
     l0, l1 = float(y[modal.LOAD][0]), float(y[modal.LOAD][1])
-    tz_sgn = math.copysign(1.0, wz)
+    wz_way = (1.0 - 2.0 * float(vx < -0.05)) * wz
+    tz_sgn = math.copysign(1.0, wz_way)
     out_st = 0.75 - 0.30 * math.tanh(3.0 * (l0 - l1) * tz_sgn / max(l0 + l1, leap.TOUCH_N))
     d_yaw = wrap_angle(pelvis_yaw - heading)
     w_step_yaw = float(d_yaw * tz_sgn >= -0.10)
-    w_lead_yaw = float(d_yaw * wz > 0.0)
-    heading = wrap_angle(heading + w_yaw * (w_step_yaw * out_st * wz + w_lead_yaw * 10.0 * d_yaw) * dt)
+    w_lead_yaw = float(d_yaw * wz_way > 0.0)
+    heading = wrap_angle(heading + w_yaw * (w_step_yaw * out_st * wz_way + w_lead_yaw * 10.0 * d_yaw) * dt)
     v_horz = math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2]))
     w_align = (w_yaw * float(vx >= 0.05) * float(abs(vy) < 0.05) * float(v_horz > 0.32) * float(vxp > 0.15))
     err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - heading)

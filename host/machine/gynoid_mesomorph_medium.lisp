@@ -121,7 +121,7 @@
 (defbehavior turn_back_left
   (phase turn (use reverse_gait)
     (duration 60s) (blend_duration 380ms)
-    (latent_targets (mode_pelvis_turn 0.38) (mode_lateral_shift 0.0))
+    (latent_targets (mode_pelvis_turn -0.38) (mode_lateral_shift 0.0))
     (cpg_config
       (frequency 0.92Hz)
       (amplitude mode_sagittal_drive 0.25) (amplitude mode_pelvis_turn 0.22))))
@@ -129,7 +129,7 @@
 ;; turn back right: reverse cruise with right yaw turn
 (derive turn_back_right turn_back_left
   (phase turn
-    (latent_targets (mode_pelvis_turn -0.38))))
+    (latent_targets (mode_pelvis_turn 0.38))))
 
 ;; dance: rhythmic sway, pelvic roll/turn, axial bounce and arm swing in place
 (defbehavior dance (extends stance_hold)

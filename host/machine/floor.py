@@ -352,7 +352,7 @@ def scenario(world, name, z=1.2, x=0.0):
         'on_chair': lambda: _on_chair(world),
         'edge_behind': lambda: _edge_behind(world),
         'bed': lambda: place(world, 'bed', z=1.8, x=x),
-        'bed_behind': lambda: mocap(world, 'prop_bed', (0.0, 0.0, -0.10 - BED_MATTRESS[0]), math.pi / 2.0),
+        'bed_behind': lambda: mocap(world, 'prop_bed', (0.0, 0.0, behind('lie_bed', BED_MATTRESS[0])), math.pi / 2.0),
         'mattress': lambda: place(world, 'mattress', z=0.6, x=x),
         'mattress_under': lambda: mocap(world, 'prop_bed', (0.0, 0.004 - BED_MATTRESS_H, -0.20), 0.0),
         'slope': lambda: place(world, 'slope', z=0.25, x=x, top=UPPER_M),

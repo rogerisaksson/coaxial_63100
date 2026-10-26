@@ -333,7 +333,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
                  'refused' in refusal and 'mode_pelvis_list' in refusal and '1.5708' in refusal and 'REACH' in refusal, refusal)
     report.check('a 0.6 rad lean on her left: a contact phase on her trochanter, ZMP 0, the free leg modes -36 dB, '
                  'the list at rest, listed 4, turned 3',
-                 swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0) and swung.zmp == acts.NONE
+                 swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0, 0.0) and swung.zmp == acts.NONE
                  and swung.ms == 1550.0 and _near(swung.targets['mode_pelvis_list'], 4.0)
                  and _near(swung.targets['mode_pelvis_turn'], 3.0) and swung.targets['mode_axial_compression'] > 0.0
                  and _near(swung.springs['mode_limb_lift'][0], 2378.0 * 10.0 ** (-36.0 / 20.0))

@@ -115,6 +115,18 @@ def test_the_keys_that_move_her_are_one_twist(report):
     report.check('a W typed walks her, sent once while held, the stop once when let go',
                  sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}]
                  and not humanoid_keys.polled(['s'], st['pad'], t, held=set())['s'], sent)
+    from machine import latent, modal, worker
+    s = worker.session()
+    g, gym = s['g'], s['gym']
+    g['active_entry'], g['out'][latent.SWAY][modal.DRIVE], g['est']['vel'][2] = 'turn_right', 0.28, 0.55
+    worker.heard(g, gym, {'twist': tw('sd')})
+    lbl_sd = [n for w, n in g['labels'] if w < g['t'] + 5.0]
+    g['t'] += 0.05
+    worker.heard(g, gym, {'twist': tw('sa')})
+    lbl_sa = [n for w, n in g['labels'] if w < g['t'] + 5.0]
+    report.check('WD -> SD brakes then turns back (never dropping into rest); splicing SA mid-brake keeps the turn queued',
+                 lbl_sd == ['brake', 'turn'] and lbl_sa == ['brake', 'turn'] and g['active_entry'] == 'turn_back_left',
+                 (lbl_sd, lbl_sa, g.get('active_entry')))
 
 
 def test_a_held_p_charges_a_push(report):

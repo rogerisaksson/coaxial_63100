@@ -325,7 +325,7 @@ def judged(out):
     """Whether a run met its goal, by the world's truth."""
     goal, aim = out['goal'], out['aim']
     if goal == 'stunt':
-        return ('refused' not in out and stunts.met(out['moved'], stunts.reference()[aim], STUNTS[aim][4])
+        return (not out.get('refused') and stunts.met(out['moved'], stunts.reference()[aim], STUNTS[aim][4])
                 and (out['head_hit'] is None or out['head_hit'] < FALL_M_S))
     if goal == 'held':
         return out['stood'] or (aim > 150 and out['head_hit'] is not None and out['head_hit'] < FALL_M_S)
@@ -380,7 +380,7 @@ def main(argv=None):
         if 'error' in r:
             print('%-22s ERROR %s' % (n, r['error'][-120:]))
             continue
-        if 'refused' in r:
+        if 'rolled' not in r:
             print('%-22s refused %r: no text' % (n, r['refused']))
             continue
         print('%-22s %-5s %-7s %-6s %-6s %6.2f %6.2f %6.2f %-22s %5.2f %8.0f %8.0f' % (

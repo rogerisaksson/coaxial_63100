@@ -299,13 +299,34 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
       for (int j = 0; j < nu; j++)
       {
         H[i * nu + j] = Hr[i * nu + j] + (i == j ? soft[i] : 0.0);
+      }
+    }
+    for (int c = 0; c < nc; c++)
+    {
+      const int    ix = p->nu0 + 3 * c, ni = ix + 1, iz = ix + 2;
+      const double on = (double)(pinned[ni] == 0.0 && at[ni] > 1e-9), den = npmax(at[ni], 1e-9);
+      const double rx = on * (at[ix] / den), rz = on * (at[iz] / den);
+
+      H[ix * nu + ni] += (-soft[ix]) * rx;
+      H[ni * nu + ix] += (-soft[ix]) * rx;
+      H[iz * nu + ni] += (-soft[iz]) * rz;
+      H[ni * nu + iz] += (-soft[iz]) * rz;
+      H[ni * nu + ni] += soft[ix] * (rx * rx) + soft[iz] * (rz * rz);
+    }
+    for (int i = 0; i < nu; i++)
+    {
+      for (int j = 0; j < nu; j++)
+      {
         K[i * nu + j] = H[i * nu + j] * (free[i] * free[j]) + (i == j ? hard[i] : 0.0);
       }
     }
     wbc_matmul(&p->blas, VIEW(H, nu, 1), VIEW(held, 1, 0), ht, 1, 0, nu, nu, 1);
     for (int j = 0; j < nu; j++)
     {
-      B[j] = free[j] * ((gr[j] + soft[j] * at[j]) - ht[j]) + hard[j] * at[j];
+      const int    nj = p->nu0 + 3 * ((j - p->nu0) / 3) + 1;
+      const double cone = (double)(j >= p->nu0 && j != nj && pinned[nj] == 0.0 && at[nj] > 1e-9);
+
+      B[j] = free[j] * ((gr[j] + (soft[j] * at[j]) * (1.0 - cone)) - ht[j]) + hard[j] * at[j];
       B[nu + j] = g->up[j];
     }
     if (solved(p, K, nu, VIEW(B, 1, nu), 2, free, X, rest))

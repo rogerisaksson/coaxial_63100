@@ -80,16 +80,9 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         ts, tg = se2.stand_lead(spd)
         sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
         return _start_mode(g, by, entry, at=t0 + tg) if name != 'stand' else None
-    if name not in sprung._BACK_GAITS:
-        dt_b = se2.brake_lead(spd, 0.0)
-        nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
-        return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
-    dt_b = se2.brake_lead(spd, 1.0)
-    rb = np.frombuffer(entry[1], latent.WIRE)
-    tail = rb[1:].copy() if len(rb) > 1 else rb.copy()
-    tail['at'] -= tail['at'][0]
-    names = entry[2][1:] if len(rb) > 1 else entry[2]
-    return sprung.said(g, name, tail.tobytes(), names, at=t0 + dt_b, reset=True)
+    dt_b = se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
+    nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+    return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
 
 
 def _splice_fwd(g, entry, future, cur_d):
@@ -122,8 +115,9 @@ def heard_say(g, gym, entry):
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
         or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     future = g['tab'][g['tab'][:, latent.AT] > g['t']]
-    if (cur_d in ('brake', 'stand', 'init_walk') and g.get('active_entry') in sprung._FWD_GAITS
-            and name in sprung._FWD_GAITS and len(future)
+    same_dir = ((g.get('active_entry') in sprung._FWD_GAITS and name in sprung._FWD_GAITS)
+                or (g.get('active_entry') in sprung._BACK_GAITS and name in sprung._BACK_GAITS))
+    if (cur_d in ('brake', 'stand', 'init_walk') and same_dir and len(future)
             and (cur_d != 'init_walk' or abs(float(g.get('twist', (0.0,))[0])) >= 0.05)):
         return _splice_fwd(g, entry, future, cur_d)
     hold = cur_d in se2.HOLD_PHASES and len(g['tab']) > 0
@@ -196,6 +190,8 @@ def heard(g, gym, command):
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
     if not errand_step and any(k in command for k in ('scenario', 'twist', 'say', 'walk', 'entries')):
         g['_errand'] = None
+        if 'heading' not in command:
+            g['target_heading'], g['has_heading'] = 0.0, 0.0
     if 'scenario' in command:
         sprung.reset_for_scenario(g, command['scenario'])
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6 and g.get('_jump_until', -9.0) + 0.03 <= g['t']:

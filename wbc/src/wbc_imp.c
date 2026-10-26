@@ -211,7 +211,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       past[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
     }
     smax = npmax(stood[0], stood[1]);
-    a[k->a_need] = (smax * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
+    a[k->a_need] = ((1.0 - propped) * smax * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
@@ -387,13 +387,14 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
             + s.kd[ax] * ((s.rate[ax] + duck[1] / k->axial_m) - zd[ax]);
   for (int b = 0; b < 2; b++)
   {
-    double sq[3];
+    const double la = npmv2(leg[b], along);
+    double       sq[3];
 
     for (int j = 0; j < 3; j++)
     {
       sq[j] = (v[j] - shod[b][j]) * (v[j] - shod[b][j]);
     }
-    risen[b] = (((lrate[b] * lrate[b] - (0.0 + npsum(sq, 3))) - npmv2(leg[b], along))
+    risen[b] = (((lrate[b] * lrate[b] - (0.0 + npsum(sq, 3))) - npmax(la, (1.0 - propped) * la))
                 - ((len[b] * k->axial_m) * fr[k->f_hips_by]) * pressed)
                / npmax(leg[b][2], k->low_leg * fr[k->f_reach0]);
   }

@@ -365,8 +365,9 @@ def test_multi_pose_bed_settle_and_randomized_scenarios(report):
         s_par, s_perp = dx * er['nx'] + dz * er['nz'], dx * er['tx'] + dz * er['tz']
         yaw_off = se2.wrap_angle(er['hdd'] - se2.wrap_angle(edge.yaw(g['sense'])))
         _flips, sat_t = _run(s, 3.0, until='sit_edge')
-        ok = (g.get('_errand') is None and abs(s_par) <= figure.HEEL + figure.SOLE_HALF and abs(s_perp) <= er['lat_tol']
-              and abs(yaw_off) <= modal.LIST_RAD and sat_t is not None and s['fallen_at'] is None)
+        ok = (g.get('_errand') is None and abs(s_par - er['standoff']) <= figure.HEEL + figure.SOLE_HALF
+              and abs(s_perp) <= er['lat_tol'] and abs(yaw_off) <= modal.LIST_RAD and sat_t is not None
+              and s['fallen_at'] is None)
         report.check('bed errand from %s (%.2f, %.2f, %.2f rad): docks at the edge facing away and begins to sit'
                      % (name, x0, z0, yaw0), ok,
                      'docked at %.1f s: heels %.2f m from the edge, %.2f m along it, yaw %.2f rad off; sits=%s fallen=%s'
@@ -400,7 +401,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
     by = {e[0]: e for e in sprung.entries()}
     r_horizons = (se2.rise_lead(by['rise_chair'][1]), se2.rise_lead(by['rise_bed'][1]), se2.rise_lead(by['rise_floor'][1]))
     report.check('zero discrete delay tables in se2/worker; a rise leads her walk by its own length',
-                 no_tables and r_horizons == (1.881, 5.5, 3.6), r_horizons)
+                 no_tables and r_horizons == (1.881, 2.781, 2.781), r_horizons)
     times = []
     fell = False
     for after in (0.0, 0.5, 1.0, 2.0, 3.0, 4.0):

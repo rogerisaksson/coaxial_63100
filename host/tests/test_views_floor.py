@@ -92,6 +92,8 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
 
     swa = arrows.describe(dict(b0, doing='turn_left', heading=0.35, velocity=(0.0, 0.69), twist_actual=(0.69, 0.0, 0.70)),
                           held('wa', (0.69, 0.0, 0.7)))
+    ssa = arrows.describe(dict(b0, doing='turn_back_left', heading=-0.35, velocity=(0.0, -0.35), twist_actual=(-0.35, 0.0, -0.70)),
+                          held('sa', (-0.35, 0.0, 0.7)))
     sq_side = arrows.describe(dict(b0, doing='strafe_left', twist_actual=(0.0, 0.45, 0.0)), held('q', (0.0, 0.5, 0.0)))
     s_spin = arrows.describe(dict(b0, doing='turn_left'), held('a', (0.0, 0.0, 0.7), (0.0, 0.0, 0.6)))
     mx = lambda sp, i: max(p[i] for s in sp['frame_segments'] for p in s)
@@ -99,6 +101,7 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
                  swa['kind'] == 'locomotion' and mx(swa, 0) > 0.15 and swa['setpoint'][1] == 0.0
                  and abs(swa['pelvis_yaw']) < 1e-6 and 0.10 < swa['heading'] < 0.15
                  and swa['fill_segments'][-1][0] == swa['frame_segments'][-1][1]
+                 and ssa['kind'] == 'locomotion' and mx(ssa, 0) > 0.15 and ssa['fill'] == 1.0
                  and arrows.pelvis_yaw({'turn': (1, 0, 0, 0), 'heading': 0.8}) == 0.0
                  and sq_side['kind'] == 'locomotion' and mx(sq_side, 0) > 0.25
                  and s_spin['kind'] == 'locomotion' and len(s_spin['frame_segments']) > 10 and s_spin['fill'] > 0.5)

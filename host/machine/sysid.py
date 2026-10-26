@@ -91,6 +91,10 @@ def laid(body):
             if side and any(w in name for w in kinds):
                 limb[i] = [n.startswith(side) and any(w in n for w in kinds) for n in JOINTS]
                 skin[i] = [n.startswith(side) and any(w in n for w in skins) for n in edge.SKIN]
+        if not side:
+            kinds = ('spine', 'waist') if any(w in name for w in ('spine', 'waist')) else ('neck', 'head')
+            limb[i] = [any(w in n for w in kinds) for n in JOINTS]
+            skin[i] = [not s.endswith(('_foot', '_toes')) for s in edge.SKIN]
     return {'bodies': bodies, 'parent': parent, 'span': span, 'hinge': hinge, 'jnt': jnt, 'above': above,
             'col': col, 'drive': 10 * len(bodies), 'driven': driven, 'dof': dof, 'joint': joint,
             'drives': drives, 'names': ['%s.%s' % (m.body(b).name, p) for b in bodies for p in INERTIAL]

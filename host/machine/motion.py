@@ -49,7 +49,8 @@ def seen(g, dt):
                   g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
-    s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), float(g['told'][ortho.PALMAR]))
+    palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
+    s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar)
     return s
 
 

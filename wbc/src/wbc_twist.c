@@ -87,7 +87,7 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
   const double  w_rest = (tw_on * (1.0 - npmin(1.0, npmax(0.0, (gain - 0.02) / 0.03)))) * (double)(0.05 < amp_d && amp_d < 0.30);
   const double  w_fast_fwd = (npmin(1.0, npmax(0.0, (vx - t->walk_m_s) / 0.01)) * npmin(1.0, npmax(0.0, (0.05 - fabs(wz)) / 0.01)))
                              * npmin(1.0, npmax(0.0, (0.01 - fabs(vy)) / 0.01));
-  double        w_vy, w_wz, w_wz5, w_spin, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
+  double        w_vy, w_wz, w_wz5, w_spin, wz_way, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
   double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back;
 
   st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, 0.60 - st[t->st_to_amp + k->drive]);
@@ -95,7 +95,8 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
   w_wz = npmin(1.0, npmax(0.0, (fabs(wz) - 0.025) / 0.005));
   w_wz5 = npmin(1.0, npmax(0.0, (fabs(wz) - 0.04) / 0.01));
   w_spin = ((w_on * w_wz5) * npmin(1.0, npmax(0.0, (0.05 - fabs(vx)) / 0.01))) * (1.0 - w_vy);
-  ts_raw = ((w_on * w_wz) * (0.40 - 0.12 * w_vy)) * npmax(-1.0, npmin(1.0, wz / t->yaw_rate));
+  wz_way = (1.0 - 2.0 * (double)(vx < -0.05)) * wz;
+  ts_raw = ((w_on * w_wz) * (0.40 - 0.12 * w_vy)) * npmax(-1.0, npmin(1.0, wz_way / t->yaw_rate));
   ts = state[t->s_turn_dc] + 0.18 * (ts_raw - state[t->s_turn_dc]);
   state[t->s_turn_dc] = ts;
   w_turn = w_on * npmax(w_wz, npmin(1.0, npmax(0.0, (fabs(ts) - 0.008) / 0.004)));
@@ -142,7 +143,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   double       *fr = t->fr, *st = t->st, *out = t->out, *state = t->state, *w = t->words;
   const double  has_thd = w[t->w_has], *tw = w + t->w_twist, *act = w + t->w_actual;
   const double  vx = tw[0], vy = tw[1], wz = tw[2];
-  double        heading, sh, ch, vxp, vyp, wzp, w_ty, w_tz, kv, ky, kz, pelvis_yaw, unborne, w_yaw, l0, l1, tz_sgn;
+  double        heading, sh, ch, vxp, vyp, wzp, w_ty, w_tz, kv, ky, kz, pelvis_yaw, unborne, w_yaw, l0, l1, wz_way, tz_sgn;
   double        out_st, d_yaw, w_step_yaw, w_lead_yaw, v_horz, w_align, err_v, err_v_ex, err_yaw, err_yaw_ex, sh_n, ch_n;
   double        l_psi, d_psi, l_sgn, cw, last_way, w_flip, old_psi[WBC_IMP_N], turns, drive_sway, active, w_back;
   double        tl_back, tl_fwd, tl, look, tw_on;
@@ -167,12 +168,13 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   w_yaw = (npmin(1.0, fabs(wz) / 1e-4) * (1.0 - has_thd)) * unborne;
   l0 = y[k->y_load];
   l1 = y[k->y_load + 1];
-  tz_sgn = copysign(1.0, wz);
+  wz_way = (1.0 - 2.0 * (double)(vx < -0.05)) * wz;
+  tz_sgn = copysign(1.0, wz_way);
   out_st = 0.75 - 0.30 * tanh(((3.0 * (l0 - l1)) * tz_sgn) / npmax(l0 + l1, t->touch_n));
   d_yaw = wrap(pelvis_yaw - heading);
   w_step_yaw = (double)(d_yaw * tz_sgn >= -0.10);
-  w_lead_yaw = (double)(d_yaw * wz > 0.0);
-  heading = wrap(heading + (w_yaw * (((w_step_yaw * out_st) * wz) + ((w_lead_yaw * 10.0) * d_yaw))) * dt);
+  w_lead_yaw = (double)(d_yaw * wz_way > 0.0);
+  heading = wrap(heading + (w_yaw * (((w_step_yaw * out_st) * wz_way) + ((w_lead_yaw * 10.0) * d_yaw))) * dt);
   v_horz = hypot2(y[k->y_vcom], y[k->y_vcom + 2]);
   w_align = (((w_yaw * (double)(vx >= 0.05)) * (double)(fabs(vy) < 0.05)) * (double)(v_horz > 0.32)) * (double)(vxp > 0.15);
   err_v = wrap(atan2(y[k->y_vcom], y[k->y_vcom + 2]) - heading);

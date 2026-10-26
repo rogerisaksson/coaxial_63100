@@ -226,50 +226,45 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
   {
     zmp[j] = zmp[j] + kept * (got[j] - zmp[j]);
   }
+  for (int b = 0; b < 2; b++)
   {
-    const double p_box[2][2] = {{prop[0][0] - k->extent[0], prop[0][1] - k->extent[1]},
-                                {prop[1][0] + k->extent[0], prop[1][1] + k->extent[1]}};
+    const double out_up = k->big * (double)(up[b] > k->lift_eps);
+    const double lb[2] = {low[b][0] + out_up, low[b][1] + out_up};
+    const double hb[2] = {high[b][0] - out_up, high[b][1] - out_up};
+    double       sb_lo[2], sb_hi[2];
 
-    for (int b = 0; b < 2; b++)
-    {
-      const double out_up = k->big * (double)(up[b] > k->lift_eps);
-      const double lb[2] = {low[b][0] + out_up, low[b][1] + out_up};
-      const double hb[2] = {high[b][0] - out_up, high[b][1] - out_up};
-      double       sb_lo[2], sb_hi[2];
-
-      wbc_imp_spanned(lb, hb, p_box[0], p_box[1], by, sb_lo, sb_hi);
-      within[b] = (zmp[0] >= sb_lo[0] - k->gate_m) && (zmp[0] <= sb_hi[0] + k->gate_m)
-                  && (zmp[1] >= sb_lo[1] - k->gate_m) && (zmp[1] <= sb_hi[1] + k->gate_m);
-      meant[b] = off[b] < 0.5;
-    }
-    standing(k, meant, loads, level, rising, borne, landed);
-    for (int b = 0; b < 2; b++)
-    {
-      const int early = (sweep[b] > k->early) && ((loads[b] >= k->touch_n) || (stood[b] > 0.5));
-      const int gone = (flying[b] > 0.5) && (landed[1 - b] || (over[b] > k->touch_m)) && !early;
-
-      lifting[b] = ((up[b] > k->lift_eps) && ((within[1 - b] && swaying) || (over[b] > k->touch_m))
-                    && (loads[b] <= loads[1 - b]))
-                   || gone;
-      meant[b] = !lifting[b];
-    }
-    standing(k, meant, loads, level, rising, borne, st);
-    for (int b = 0; b < 2; b++)
-    {
-      stance[b] = (double)st[b];
-      left[b] = stance[b] * (1.0 - off[b] * (double)landed[1 - b]);
-    }
-    {
-      const double most = npmax(left[0], left[1]);
-
-      for (int b = 0; b < 2; b++)
-      {
-        left[b] = left[b] + (1.0 - most) * stance[b];
-        out_of[b] = k->big * (1.0 - left[b]);
-      }
-    }
-    spanned_of(low, high, out_of, p_box, by, slo, shi);
+    wbc_imp_spanned(lb, hb, prop[0], prop[1], by, sb_lo, sb_hi);
+    within[b] = (zmp[0] >= sb_lo[0] - k->gate_m) && (zmp[0] <= sb_hi[0] + k->gate_m)
+                && (zmp[1] >= sb_lo[1] - k->gate_m) && (zmp[1] <= sb_hi[1] + k->gate_m);
+    meant[b] = off[b] < 0.5;
   }
+  standing(k, meant, loads, level, rising, borne, landed);
+  for (int b = 0; b < 2; b++)
+  {
+    const int early = (sweep[b] > k->early) && ((loads[b] >= k->touch_n) || (stood[b] > 0.5));
+    const int gone = (flying[b] > 0.5) && (landed[1 - b] || (over[b] > k->touch_m)) && !early;
+
+    lifting[b] = ((up[b] > k->lift_eps) && ((within[1 - b] && swaying) || (over[b] > k->touch_m))
+                  && (loads[b] <= loads[1 - b]))
+                 || gone;
+    meant[b] = !lifting[b];
+  }
+  standing(k, meant, loads, level, rising, borne, st);
+  for (int b = 0; b < 2; b++)
+  {
+    stance[b] = (double)st[b];
+    left[b] = stance[b] * (1.0 - off[b] * (double)landed[1 - b]);
+  }
+  {
+    const double most = npmax(left[0], left[1]);
+
+    for (int b = 0; b < 2; b++)
+    {
+      left[b] = left[b] + (1.0 - most) * stance[b];
+      out_of[b] = k->big * (1.0 - left[b]);
+    }
+  }
+  spanned_of(low, high, out_of, prop, by, slo, shi);
   into(k, zmp, xi, slo, shi, om, foot * npmin(left[0], left[1]), got);
   for (int j = 0; j < 2; j++)
   {
