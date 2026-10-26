@@ -29,10 +29,9 @@ from tools.sim import stunts
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 #: What bears her, by the body it is: the props a scene places.
 BEARS = {'chair': 'chair', 'chair_low': 'chair', 'prop_bed': 'bed', 'wall': 'wall', 'tree': 'tree'}
-#: A goal held this long, s; jerk through this window, s; an obstacle met past this, N; standing
-#: on after the last command, s.
+#: A goal held, s; jerk window, s; an obstacle met past, N; standing on after the last command, s.
 HELD_S, JERK_S, MET_N, STILL_S = 1.0, 0.02, 20.0, 6.0
-#: The segments whose jerk is judged: her core, her head, her hands and her feet.
+#: The segments whose jerk is judged.
 JERKED = ('pelvis', 'torso', 'head', 'left_hand', 'right_hand', 'left_foot', 'right_foot')
 
 
@@ -45,9 +44,8 @@ def _walk(seconds, then=STILL_S):
 #: her stopped at it), 'past' m (her pelvis that far on), 'rose'/'sank' m (her pelvis that much
 #: higher or lower at the end), 'lay' (a bed bearing more of her than her soles do for HELD_S,
 #: by the world's contacts), 'sat' (so, and her soles bearing her at the end: risen), 'stands'
-#: (on her soles, a chair's seat or not). The bed and the chair by their texts; by the takes'
-#: rows she perched on the chair's edge and fell at one wobble of three, and sat at the bed's
-#: edge as the human did and collapsed back from there (stunts.md).
+#: (on her soles, a chair's seat or not), 'refused' (the say refused, naming its aim, her standing).
+#: The bed and the chair by their texts (stunts.md).
 #: A stairs take's window opens as her first sole lands on the first tread, its first frame's.
 STAIRS_TAKE_S = 1.5
 
@@ -73,7 +71,7 @@ SCENARIOS = {
     'chair_low': ('chair_low_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
     'bed_rise': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (16.0, {'say': 'rise_bed'})], 24.0, 'sat', 'bed'),
-    'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 16.0, 'lay', 'bed'),
+    'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'}), (9.0, {'say': 'rise_floor'})], 8.0, 'refused', 'item 13'),
     'hop_down': ('on_chair', [(1.0, {'say': 'hop_down_chair'})], 6.0, 'sank', 0.40),
     'hop_up': ('chair_ahead', [(1.0, {'say': 'hop_up_chair'})], 6.0, 'rose', 0.40),
 }
@@ -315,7 +313,8 @@ def ran(name, wobble=0.0, laid=None, texts=None):
            'on_soles': round(sum(s['g']['loads']) / weight, 2), 'head_hit': hit,
            'sigma_min': round(sigma_min, 4), 'scale_min': round(scale_min, 3),
            'shrunk': shrunk_n, 'qacc_max': round(qacc_max, 1),
-           'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max)}
+           'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max),
+           'refused': s.get('refused')}
     if goal == 'stunt':
         out['moved'] = stunts.moved(rows, *stunt_window(aim))
     out['met'] = judged(out)
@@ -343,6 +342,8 @@ def judged(out):
     if goal == 'lay':
         from machine import modal
         return out['bore'].get(aim, 0.0) >= HELD_S and out['rolled'] <= math.degrees(modal.LIST_RAD)
+    if goal == 'refused':
+        return out['stood'] and aim in (out['refused'] or '')
     if goal == 'sat':
         return out['bore'].get(aim, 0.0) >= HELD_S and out['on_soles'] >= 0.8
     return True

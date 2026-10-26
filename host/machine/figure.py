@@ -353,11 +353,15 @@ def stand():
     return out
 
 
+def pelvis_at(knee):
+    """Her pelvis's height on flat soles with her knees bent `knee` rad, m: her legs' geometry."""
+    return ANKLE_H + math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee)) + HIP_DROP
+
+
 def standing():
     """Her pelvis's height at a stand, m: both feet flat under her hips, the knees as `stand`
     bends them."""
-    knee = math.radians(STAND_KNEE)
-    return ANKLE_H + math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee)) + HIP_DROP
+    return pelvis_at(math.radians(STAND_KNEE))
 
 
 def mass():

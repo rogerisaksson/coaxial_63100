@@ -36,9 +36,26 @@ PLAYED = {
     'lie_bed': ('patch-bed-lean', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
     'rise_bed': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
                                               'drive': 'stand'}),
+    'lie_floor': ('patch-bed-lean', None, {'descent': 'lower', 'contact': 'lower', 'recline': 'floor_rest'}),
+    'rise_floor': ('patch-rise-bed', 'lie_floor', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
+                                                   'contact': 'thrust', 'drive': 'stand'}),
 }
 #: The key a stunt's patch takes the seen furniture's height by, mm.
 SEEN = 'seat-z-mm'
+#: Her ischia's height over a seat bearing them, m (`figure`'s seat capsules).
+ISCHIA = -figure.SEAT_Y + figure.SEAT_R
+
+
+@functools.lru_cache(maxsize=1)
+def _reach():
+    """m, her pelvis's floor on her legs: flat soles, the knees at their drives' range (her
+    manifest's). A seat asking her pelvis under it has no leg path - the deep landing is a tip
+    onto a known seat, protocol item 13 - and its stunt is refused by name (`text`)."""
+    r = defrobot.read()
+    if r is None:
+        raise MachineError('no (defrobot ..) in her manifest')
+    knee = math.radians(next(v['range'][1] for k, v in r['drives'].items() if 'knee' in k))
+    return figure.pelvis_at(knee)
 #: A sit's or a lie's rest, s: her text holds it till a rise is said.
 REST_S = 60.0
 #: Trace entries that are no act of a text, and what does them instead.
@@ -166,7 +183,13 @@ def _form(name, p, last):
 
 
 def text(name, seen=None, got=None):
-    """(defbehavior NAME ..) of stunt `name` as the suite plays it (PLAYED), its furniture `seen`."""
+    """(defbehavior NAME ..) of stunt `name` as the suite plays it (PLAYED), its furniture `seen`;
+    a seat asking her pelvis under her legs' floor (`_reach`) refused by name - the suite's bed
+    patch at a 0.14 m floor mattress asked mode_axial_compression 4.10 where her legs reach 3.4
+    and she froze mid-descent at 0.505 m, every joint still."""
+    if seen is not None and seen[0] + ISCHIA < _reach():
+        raise MachineError('%s: a seat %.2f m up asks her pelvis %.3f m, under her legs %.3f '
+                           '(the deep landing, protocol item 13)' % (name, seen[0], seen[0] + ISCHIA, _reach()))
     named, ps = PLAYED[name][2], phases(name, seen, got)
     unnamed = sorted({p.stage for p in ps} - set(named))
     if unnamed:
@@ -210,12 +233,23 @@ def entry(name, seen=None, got=None, texts=None):
 
 def said(g, item, at=None, thing=None):
     """A gym entry `item` as her session says it: a stunt she plays (PLAYED) compiled for the furniture
-    she sees nearest `at`, the thing of slot `thing` where given (`furniture.seen`), of her session's
-    suite and texts; else itself."""
-    from machine import furniture
+    she sees nearest `at`, the thing of slot `thing` where given (`furniture.seen`); nothing among her
+    things yet, she looks till a sighting is hers (`registry.TAKEN` of HIT a look); still none, refused
+    by name - unseen, the patch's own seat played a 0.45 m descent onto a floor mattress that was not
+    there and she froze mid-air at 0.504 m."""
+    import math as _math
+    from machine import furniture, registry, sprung
     if item[0] not in PLAYED:
         return item
-    return entry(item[0], furniture.seen(g, item[0], at, thing), g['suite'], g['texts'])
+    seen = furniture.seen(g, item[0], at, thing)
+    for _ in range(int(_math.ceil(registry.TAKEN / registry.HIT))):
+        if seen is not None:
+            break
+        sprung.looked(g)
+        seen = furniture.seen(g, item[0], at, thing)
+    if seen is None:
+        raise MachineError('%s: nothing among her things affords it' % item[0])
+    return entry(item[0], seen, g['suite'], g['texts'])
 
 
 def _joined(got):

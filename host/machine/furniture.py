@@ -12,6 +12,7 @@ from machine import affordance
 #: the heading it faces (None, as the room lays it).
 GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.faced),
         'lie_bed': (affordance.lies, lambda _b, _t: True, lambda _b, _t: None),
+        'lie_floor': (affordance.lies, lambda _b, _t: True, lambda _b, _t: None),
         'exit_door': (lambda b, _t: b[0] == 'door', lambda _b, _t: True, lambda _b, _t: None)}
 _NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: None)
 

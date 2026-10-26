@@ -16,34 +16,7 @@
 
 ;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/maneuver.py)
 
-;; lie down on the floor
-(defbehavior lie_floor (extends stance_hold)
-  (phase kneel
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.70) (mode_pitch_attitude 0.18)))
-  (phase lower
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.90) (mode_pitch_attitude 0.22) (mode_arm_swing 0.0))
-    (impedance (stiffness mode_axial_compression 2800) (damping mode_axial_compression 600)))
-  (phase floor_rest (use lower)
-    (duration 60s) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 0.95) (mode_pitch_attitude 0.05))
-    (impedance (stiffness mode_axial_compression 2400) (damping mode_axial_compression 500))))
 
-;; rise up from the floor
-(defbehavior rise_floor (extends stance_hold)
-  (phase push_arms
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.72) (mode_pitch_attitude 0.22) (mode_arm_swing 0.0))
-    (impedance (stiffness mode_axial_compression 4500) (damping mode_axial_compression 800)))
-  (phase half_kneel
-    (duration 1200ms) (blend_duration 600ms)
-    (latent_targets (mode_axial_compression 0.45) (mode_pitch_attitude 0.14) (mode_lateral_shift 0.10)))
-  (phase stand (use half_kneel)
-    (latent_targets (mode_axial_compression 0.0) (mode_pitch_attitude 0.0) (mode_lateral_shift 0.0))
-    (impedance (stiffness mode_axial_compression 5000) (damping mode_axial_compression 700))))
-
-;; hop down from a chair
 (defbehavior hop_down_chair (extends hop stance_hold)
   (phase step_off)
   (phase drop)

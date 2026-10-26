@@ -19,7 +19,7 @@ from gynoid_kit import Report
 #: stood through onto the floor.
 HELD = ('wall', 'tree', 'sill', 'rug', 'hole', 'snow', 'asphalt', 'ice', 'slip', 'ice_told', 'play_start_stop', 'play_turns',
         'play_strafes', 'play_reverse', 'play_sprint', 'play_spin', 'play_weave', 'play_about', 'play_moves',
-        'play_walk', 'play_stutter', 'chair')
+        'play_walk', 'play_stutter', 'chair', 'mattress')
 WOBBLES = (0.0, 2e-4, -2e-4)
 
 
