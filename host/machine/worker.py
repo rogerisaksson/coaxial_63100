@@ -4,7 +4,7 @@ import functools
 import math
 import queue
 import time
-from machine import apart, edge, figure, floor, modal, ortho, physics, sprung, wear
+from machine import apart, edge, figure, floor, modal, ortho, physics, se2, sprung, wear
 from machine.errors import BusFault, MachineError
 
 
@@ -253,6 +253,8 @@ def _is_fallen(g, world):
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
         masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
         g['_falls_by'] = (m, masks, [address(mask) for mask in masks])
+    if sprung.doing(g) in se2.GROUNDED:
+        return False
     geom, pos = d.contact.geom, d.contact.pos
     below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
     return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))

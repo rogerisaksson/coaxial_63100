@@ -353,4 +353,7 @@ def drives(g, dt):
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
     # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled her at 3.0 s.
     np.clip(g['ref_q'], g['rng'][:, 0], g['rng'][:, 1], out=g['ref_q'])
+    from machine import se2, sprung
+    limp = float(sprung.doing(g) in se2.LIMP)
+    g['cmd']['limit'] = g['cmd']['limit'] * (1.0 - limp)
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

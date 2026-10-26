@@ -37,8 +37,14 @@ LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_S, WEP_FILL, KNEE_SOFT, KNEE_NM = 0.2, 0.1,
 STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
                'hop_up_chair', 'stairs_down', 'parry_shove', 'controlled_fall'}
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
-                'swing_out', 'kneel', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
+                'swing_out', 'kneel', 'tip', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
                 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
+#: The doings that lie on the ground on purpose: the fall judge leaves them be (`worker._is_fallen`).
+GROUNDED = frozenset({'kneel', 'tip', 'floor_rest'})
+#: The doings that rest limp: her drives' clamps at zero over the bus, the boards' damping all that
+#: holds (`motion.drives`) - sprung at the rest's own stiffness she churned on the floor, 200-1400
+#: deg/s, pitch rolling full circle.
+LIMP = frozenset({'floor_rest'})
 _FWD_GAITS = ('walk', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
               'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'spin_left', 'spin_right', 'circle_walk')
 _BACK_GAITS = ('walk_back', 'turn_back_left', 'turn_back_right')

@@ -17,6 +17,31 @@
 ;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/maneuver.py)
 
 
+;; lie down where she stands: crouch to her modes' floor, then the drives soft and the pitch
+;; let go - gravity lays her, the fall window's own quiet (45 N passive); she rests till a rise
+(defbehavior lie_floor (extends stance_hold)
+  (phase kneel
+    (duration 2500ms) (blend_duration 1200ms)
+    (latent_targets (mode_axial_compression 3.2) (mode_pitch_attitude 0.20) (mode_arm_swing 0.0)))
+  (phase tip
+    (duration 1500ms) (blend_duration 700ms)
+    (latent_targets (mode_axial_compression 3.2) (mode_pitch_attitude -2.0))
+    (impedance (stiffness mode_axial_compression 400) (damping mode_axial_compression 150)
+               (stiffness mode_pitch_attitude 150) (damping mode_pitch_attitude 60))
+    (task_constraints (maintain_zmp (polygon 0))
+                      (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0))))
+  (phase floor_rest (use tip)
+    (duration 60s) (blend_duration 1000ms)
+    (latent_targets (mode_axial_compression 3.2) (mode_pitch_attitude -2.4))
+    (impedance (stiffness mode_axial_compression 5) (damping mode_axial_compression 120)
+               (stiffness mode_pitch_attitude 5) (damping mode_pitch_attitude 60)
+               (stiffness mode_sagittal_shift 5) (damping mode_sagittal_shift 60)
+               (stiffness mode_lateral_shift 5) (damping mode_lateral_shift 60)
+               (stiffness mode_arm_swing 5) (damping mode_arm_swing 30))
+    (task_constraints (maintain_zmp (polygon 0))
+                      (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)))))
+
+
 (defbehavior hop_down_chair (extends hop stance_hold)
   (phase step_off)
   (phase drop)

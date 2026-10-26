@@ -308,12 +308,14 @@ serves its DOD; none an entry a case.
     landing; the crouch stub is deleted; the lying-down spasm found and
     fixed - fallen, the loop drove on and the rest law fought the ground
     (1 658 deg/s, 3 793 N supine), her drives let go now (`edge.off`, the
-    STO's). Left, the chain measured (lie findings): below
-    pelvis 0.51 the compression pattern binds at the ankle's -45 deg (asked
-    4.0 it drove the ankle to 215.8 deg and felled her at 3.0 s) - the rise
-    and item 13's landing both wait on the heels-up redistribution (the
-    kernel's :metatarsal-equinus-bilateral manifold, not yet a support bus)
-    or a tibial kneeling bus; then the suite patch (roll on the trochanter,
-    kneel or squat, stand); the grippers' 894 deg/s snap at a say's first
-    pass. DOD: laid supine she rises to a stand, 3 of 3; a floor lie down,
-    item 13 landed.
+    STO's). She lies down where she stands now (lie
+    findings: kneel, tip past statics with the ZMP let go, floor_rest limp
+    - pelvis 0.198, 0-1 deg/s, no reset; the mattress scenario 'sank' 3 of
+    3, the lie test in errands). Left: the tidy supine (she lands a heap,
+    pitch -122, folded over her heels - the recline to flat and the bed's
+    'lay' bar, rolled within LIST); the rise (below pelvis 0.51 the
+    compression pattern binds at the ankle's -45 deg; the heels-up
+    redistribution - the kernel's :metatarsal-equinus-bilateral manifold -
+    or a tibial kneeling bus, with item 13's landing); the grippers' 894
+    deg/s snap at a say's first pass. DOD: laid supine she rises to a
+    stand, 3 of 3; the lie flat, rolled within LIST.

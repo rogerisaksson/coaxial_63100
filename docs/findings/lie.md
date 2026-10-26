@@ -50,3 +50,21 @@ occipital, palmar). The floor rise's chain, each measured: supine (quiet,
 drives let go) -> roll on the trochanter (the pendulum act, in range) ->
 no path below pelvis 0.51 without the equinus redistribution or a tibial
 (kneeling) bus - item 13's deep landing is the same dependency from above.
+
+## She lies down where she stands
+
+`lie_floor` is her gym's own text again (motion.lisp): kneel (compression
+3.2), tip (pitch -2.0 past what statics can hold, the ZMP's polygon let go
+and the support panned off her soles - at -0.9 she balanced a reclined
+crouch at 0.422 and stood there), floor_rest limp. Three mechanisms carried
+it: `se2.GROUNDED` (kneel, tip, floor_rest) holds the fall judge off an
+intended lie - unexcused she was epoch-reset mid-tip -; the grammar's
+per-phase `(maintain_zmp (polygon 0))` and `(contact_manifolds ..)` let the
+text itself release her balance law; and `se2.LIMP` (floor_rest) zeroes her
+drives' clamps over the bus (`motion.drives`) - resting on the text's own
+springs she churned on the floor, 200-1 400 deg/s, pitch rolling full
+circle; limp she lies at 0-1 deg/s, 88-107 N, pelvis 0.198, no reset, 60 s.
+Measured on the page itself ('lay on floor' in the prompt): down at T+12,
+quiet. The pose is a heap - folded back over her heels, pitch -122 - not a
+tidy supine: the recline to flat (the bed's 'lay' bar, rolled within LIST)
+and the rise are the rest; her walk unmoved to the digit.
