@@ -33,6 +33,7 @@ SEAT = (
     ('trunk peak', 'deg', -14.0, 45.0),
     ('trunk seated', 'deg', -7.0, 7.0),
     ('knee seated', 'deg', 94.0, 98.0),
+    ('shank seated', 'deg', -10.5, 1.0),
     ('feet rise', 'legs', 0.0, 0.02),
     ('arm range', 'deg', 0.0, 40.0),
     ('arm seated', 'deg', 0.0, 10.0),
@@ -46,7 +47,7 @@ SEATED_S = 0.5
 def measured(times, joints):
     """{measure: value} of a sit from its joints' places (`fbx.take`'s, `fbx.joints`'s): the
     hips' drop and the seconds it takes, how far behind the ankles they end, the trunk's pitch
-    at its peak and seated, the knees seated, the feet's rise, the upper arms' swing."""
+    at its peak and seated, the knees seated, the shanks off plumb seated (the knee ahead +), the feet's rise, the upper arms' swing."""
     hips, neck = joints['Hips'], joints['Neck']
     feet = np.stack([joints['LeftFoot'], joints['RightFoot']])
     toes = 0.5 * (joints['LeftToeBase'] + joints['RightToeBase'])
@@ -66,6 +67,8 @@ def measured(times, joints):
     pitch = np.degrees(np.arctan2(trunk @ fwd, trunk[:, 1]))
     knees = np.mean([180.0 - angle(joints[s + 'UpLeg'] - joints[s + 'Leg'], joints[s + 'Foot'] - joints[s + 'Leg'])
                      for s in ('Left', 'Right')], axis=0)
+    shins = [joints[s + 'Leg'] - joints[s + 'Foot'] for s in ('Left', 'Right')]
+    shanks = np.mean([np.degrees(np.arctan2(sh @ fwd, sh[:, 1])) for sh in shins], axis=0)
     arms = np.stack([angle(joints[s + 'ForeArm'] - joints[s + 'Arm'], hips - neck) for s in ('Left', 'Right')])
     return {
         'drop': drop / leg,
@@ -74,6 +77,7 @@ def measured(times, joints):
         'trunk peak': float(pitch[np.argmax(np.abs(pitch))]),
         'trunk seated': float(pitch[seated].mean()),
         'knee seated': float(knees[seated].mean()),
+        'shank seated': float(shanks[seated].mean()),
         'feet rise': float((feet[:, :, 1] - feet[:, :1, 1]).max()) / leg,
         'arm range': float((arms.max(axis=1) - arms.min(axis=1)).max()),
         'arm seated': float((arms[:, seated].max(axis=1) - arms[:, seated].min(axis=1)).max()),

@@ -338,6 +338,18 @@ hands bore too late for the barrier's support to reach back to them.
 
 In [hitch](hitch.md).
 
+## Her seated legs' posture
+
+Sat on the chair, her ask's posture (`modal.poses`: her stand and the crouch
+by her knees' bend) holds each hip and ankle at -51 deg where she sits at -84
+and -25. The solve never reads them: a standing leg's joints follow its sole
+(`wrench._maps`); a leg's posture is read at a let-go hip, the standing knees'
+row and a swing's knee fold only. Asked her landing's own angles by the
+ischial share (0.85; hip -78, ankle -32), the chair's sit and the bed's to 8.5
+s ran bit for bit the same, sha1 every second. Her shank sits 25.4 deg ahead
+of plumb, the takes' -9.5 and -0.3 (`seats.py`, shank seated): where
+`seated.landed` sets her hips (the deep landing, [hitch](hitch.md)).
+
 ## The floor lie
 
 The floor lie, the fall window's spasm and the rise from the floor:
