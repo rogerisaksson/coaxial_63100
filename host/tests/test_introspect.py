@@ -29,7 +29,7 @@ def test_a_client_reads_her_layers_live(report):
     from machine import introspect, ortho, worker
     s = worker.session()
     made, was = [], introspect.snapshot
-    introspect.snapshot = lambda s, peaks=None: (made.append(1), was(s, peaks))[1]
+    introspect.snapshot = lambda s, peaks=None, lazy=False: (made.append(1), was(s, peaks, lazy))[1]
     try:
         server = introspect.attach(s, 0)
         for _ in range(200):
@@ -37,7 +37,7 @@ def test_a_client_reads_her_layers_live(report):
         idle = len(made)
         sock = socket.create_connection(('127.0.0.1', int(server.server_address[1])), timeout=10.0)
         t0 = time.monotonic()
-        while not server.queues and time.monotonic() - t0 < 5.0:
+        while not server.clients and time.monotonic() - t0 < 5.0:
             time.sleep(0.01)
         for _ in range(200):
             worker.stepped(s)
@@ -87,21 +87,18 @@ def test_her_analyzers_reduce_as_the_probes_do(report):
                      motion, {p: every[p] for p in motion}, len(told), snaps))
 
 
-def test_the_scope_captures_once_a_trigger(report):
-    """A trigger marked capture writes its half swing before and after to a file once, its repeats
-    within the window held off; an analyzer saved, changed and removed while the snapshots run is
-    loaded, reloaded and dropped; one that raises is told and the rest fire on."""
-    import json
+def test_the_analyzers_reload_as_she_runs(report):
+    """An analyzer saved, changed and removed while the snapshots run is loaded, reloaded and dropped;
+    one that raises is told and the rest fire on."""
     import os
     import tempfile
     from machine import watch
-    half = 0.1
-    with tempfile.TemporaryDirectory() as folder, tempfile.TemporaryDirectory() as caps:
+    with tempfile.TemporaryDirectory() as folder:
         fire = os.path.join(folder, 'fire.py')
         with open(fire, 'w') as f:
             f.write("def laid(meta):\n    return {}\n\ndef step(st, snap):\n"
-                    "    return [{'event': 'hit', 'capture': True}] if 0.3 <= snap['t'] < 0.34 else []\n")
-        w = watch.Watch(folder, {'natural_s': half, 'capture_s': half}, caps)
+                    "    return [{'event': 'hit'}] if 0.3 <= snap['t'] < 0.34 else []\n")
+        w = watch.Watch(folder, {'natural_s': 0.1})
         was, watch.RESCAN_S = watch.RESCAN_S, 0.0
         try:
             told = [e for k in range(100) for e in w.step({'t': 0.01 * k, 'body': {'epoch': 0}})]
@@ -115,23 +112,16 @@ def test_the_scope_captures_once_a_trigger(report):
             gone = w.step({'t': 1.03, 'body': {'epoch': 0}})
         finally:
             watch.RESCAN_S = was
-        caught = [e for e in told if e['event'] == 'captured']
-        rows = []
-        if caught:
-            with open(caught[0]['file']) as f:
-                rows = [json.loads(line) for line in f][1:]
     events = lambda es, name: [e['event'] for e in es if e['analyzer'] == name]
-    report.check('one capture of the half before and after its trigger, repeats held off; loaded, reloaded, '
-                 'failing told, the rest firing on, dropped',
-                 len(caught) == 1 and abs(rows[0]['t'] - (0.3 - half)) < 0.011 and abs(rows[-1]['t'] - (0.3 + half)) < 0.011
-                 and 'loaded' in events(told, 'fire') and events(later, 'fire')[:2] == ['reloaded', 'error']
-                 and 'tick' in events(later, 'calm') and 'dropped' in events(gone, 'fire'),
-                 (len(caught), [round(rows[0]['t'], 2), round(rows[-1]['t'], 2)] if rows else None,
-                  events(later, 'fire'), events(gone, 'fire')))
+    report.check('loaded and firing, reloaded, failing told, the rest firing on, dropped',
+                 events(told, 'fire')[:1] == ['loaded'] and events(told, 'fire').count('hit') == 4
+                 and events(later, 'fire')[:2] == ['reloaded', 'error'] and 'tick' in events(later, 'calm')
+                 and 'dropped' in events(gone, 'fire'),
+                 (events(told, 'fire'), events(later, 'fire'), events(gone, 'fire')))
 
 
 ROSTER = (test_the_layouts_are_her_codes_own, test_a_client_reads_her_layers_live, test_her_analyzers_reduce_as_the_probes_do,
-          test_the_scope_captures_once_a_trigger)
+          test_the_analyzers_reload_as_she_runs)
 
 
 def main(argv=None):

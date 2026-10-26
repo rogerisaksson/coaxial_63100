@@ -101,3 +101,8 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     latent, impedance and wrench a JSON line each law pass to any client
     attached, every field named from her code's constants; idle 604 us a
     pass where 615 without, 875 read.
+24. Her telemetry gated (`machine.gate`, `machine.streams`, findings/
+    introspect.md): her analyzers beside her loop, a trigger's half swing
+    before and after written gate after gate, 11 streams on their own
+    clocks interleaved in time with their metadata; every gated section her
+    passes' own to the bit (test_gate), the page's snapshots matched.

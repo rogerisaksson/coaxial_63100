@@ -204,3 +204,17 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     5.9 s, braked and fell at 6.1 in one run and sat at 16.97 in the next -
     her right hip 905 deg/s walking, 0.94 of its drive's rating. DOD: the
     page's chair prompt seated 3 of 3, the walk's hip within its rating.
+18. **The tour's errands on fixed seconds** (introspect findings): the
+    page's tour says rise_chair 8 s after sit_chair and rise_bed 9 s after
+    lie_bed while their errands still walk - refused 0.5 m and 1.0 m off.
+    DOD: the tour's chair and bed steps rise her from the seat she reached,
+    3 of 3.
+19. **An errand said lying on the floor**: the tour's door after its
+    mattress step - she sat up, stood and fell at 47.78 s (gated); a
+    rise_floor is refused by her legs (scenarios 18), an errand's walk is
+    not. DOD: said lying, an errand refused by name, or walked after a rise
+    that stands.
+20. **Her grippers laid out of their range**: laid at 0 against 79.5-80.5
+    deg, each lay snaps them in at 893.5 deg/s, the fastest joint of every
+    scene's first phase. DOD: laid within their range; a scene's first
+    phase's fastest a driven joint.
