@@ -70,7 +70,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    its heel's edge a contact of her patch set, its line held and its pitch
    free, its stance let go, the leg on its posture (item 4's equinus the
    same on its ball), with the kernel's capture step for the seat pulled
-   away (item 12). Built up instead (branch `deep-sit-build`, seat
+   away (item 13). Built up instead (branch `deep-sit-build`, seat
    findings): the deep landing, her pelvis as two ischia, a bearing point's
    room its capsule's radius, her soles let go where a rest asks nothing of
    them: on seven wobbles she sits deep 5 of 7, upright and rolled 0-1 deg,
@@ -137,18 +137,28 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     N m/s and jerk 12 000 rad/s^3 where hers says her drives' current loop.
     DOD: the room's schedule swapped in her run with no step in her
     torques; the tuner converged on it.
-10. **Test 1, door and sill, its rest**: the door ajar at 0.80 of her
+10. **The door charged walking**: the page's click mid-walk runs her at the
+    closed door at 0.69 m/s; the panel sweeps 0 to 1.92 rad in 0.8 s and its
+    edge wipes her - hinge left, the edge crosses her lane at omega r - out
+    at 1.12 m/s askew, felled braking at the deck's rail (errands findings).
+    From a stand the same errand walks out clean, 12.5 s. The push is the
+    somatic shove's (`splice-somatic-object-interaction`, item 16's
+    Schlesinger transport on the sliding patch), or her lane the hinge's
+    side where omega r is small - the hinge the fixed point of the panel's
+    move between looks. DOD: the click mid-walk out past the line, no fall,
+    3 of 3.
+11. **Test 1, door and sill, its rest**: the door ajar at 0.80 of her
     shoulders passed (`tools/sim/doorway.py`: her waist 28 deg at it, her
     arms 55 mm clear). Left: a 40 mm bar in the doorway, a table's corner
     inside. DOD: her chest yawed ~60 deg and her elbows tucked 600 ms before
     the door, her swing over the bar by the sub band; past the table her
     trailing elbow clear of its corner, 0 N m to her ankles.
-11. **Test 2, a chair shoved**: a chair across her way to the stool, two legs
+12. **Test 2, a chair shoved**: a chair across her way to the stool, two legs
     on a rug, no fingers. DOD: her forearms or carpal heels on it at 18 N
     or more (`ulnar-carpal-shove-bilateral` read against her skin), its
     quadric in her cone and her capsules, lifted 25 mm where the rug holds it
     past 45 N, her shins clear of its legs, parked out of her corridor.
-12. **Test 3, the stool and the pulled seat**: a stool 0.75-0.82 m; sat on
+13. **Test 3, the stool and the pulled seat**: a stool 0.75-0.82 m; sat on
     and risen from; pulled back mid-descent. Pulled as the seat touches her
     (2.0 s of the chair scene) her sit's rows straighten her trunk past her
     heels and she falls. DOD: on, her forefoot, her thighs perched, her
@@ -156,7 +166,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     off, slid forward till her forefoot catches before her ischia unload;
     pulled, the seat's weight 0, a capture step to xi = c + c'/omega_0, her
     gaze level, her torques inside their back-EMF bounds.
-13. **Test 4, the bed**: from the stool to the bed, slid 180 mm deeper,
+14. **Test 4, the bed**: from the stool to the bed, slid 180 mm deeper,
     rolled, high-Z, risen with a carpal heel on the table 650 mm off. DOD:
     the mattress's f0 within 180 ms of contact, its notch, no rebound; 0 A in
     her phases from w_dorsal 0.96; her knee and hip peaks 20 % under her
@@ -165,8 +175,27 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     legs off the floor. DOD: her back to the bed, perched on its edge, her
     trunk down onto her hip and her legs up along the bed, lying on her side,
     the bed bearing 0.45 of her or more, her neck under her walk's 110 deg/s.
-14. **Test 5, the loft stair up and down**: five steps each way, a forearm
+15. **Test 5, the loft stair up and down**: five steps each way, a forearm
     skimming the wall. DOD: up, flat-foot strikes on concentric work; down,
     her stance knee eccentric, her pelvis dropped, her forefoot catching
     each step, shin and heel 32 mm or more clear of each nosing; V_bus
     under 60 V.
+16. **The Hitchin bus** (`ortho_kernel/hitchin_isomonodromic_bus.lisp`,
+    ops in `kernel.MECHANISMS`): the genus-0 parabolic Higgs field on her
+    contact manifolds, poles her lever arms and PLL phases, residues her
+    wrenches, the sum her centroidal wrench by the residue theorem. In the
+    1 kHz SoA loop, in order of yield: the Schlesinger transport
+    (`schlesinger`: d mu_i/dt = sum [mu_i, mu_j] d log(z_i - z_j), gain
+    0.98, eps 0.025) moving sliding contacts' wrenches without inner
+    fighting - the thigh scoot on the 0.75-0.82 m stool (item 13), the
+    somatic shove -; the Gaudin Hamiltonians on the Hitchin base
+    (`hitchin-base`, 8 nodes) as the autotuner's few orthogonal spectral
+    invariants in place of its coupled parameter swamp; the twistor
+    rotation (`twistor`: onset sigma 0.055, at most 1.0472 rad from I
+    toward J) in place of SVD damping where a closed chain (feet and hands
+    braced) nears rank loss, symplectic, no energy lost. Never built:
+    infinite-dimensional gauge transforms, bundles of genus 2 or more,
+    PDE solvers for the self-dual equations - the text's laws are the
+    finite pieces above. DOD: the three in her loop and the C law, held
+    bit for bit, the stool's scoot and the loft stair's brace measured on
+    them.

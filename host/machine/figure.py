@@ -148,6 +148,11 @@ BODY = (('pelvis', SEAT_R, (SEAT_X, SEAT_Y, SEAT_Z[0]), (SEAT_X, SEAT_Y, SEAT_Z[
         ('shank', 0.05, (0.0, -0.04, 0.0), (0.0, -0.25, 0.0)),
         ('shank', 0.036, (0.0, -0.25, 0.0), (0.0, -0.33, 0.0)))
 
+#: Her widest half across, m: her trunk's capsules' reach along x (BODY's hips row), what an
+#: aperture must clear each side of her - her arms hang within it.
+WIDE_HALF = max(max(abs(fro[0]), abs(to[0])) + r for seg, r, fro, to in BODY
+                if seg in ('pelvis', 'torso', 'neck', 'head'))
+
 #: Pads where her falls land, 5 mm of gel in TPU under her skin and clothes (`mjcf.PAD_*`):
 #: (segment, the point of its capsule's axis under it, the capsule's radius, toward where the
 #: landings cluster, the pad's radius and half-width across), the left side's. Over 26 bare falls,

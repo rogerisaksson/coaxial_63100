@@ -280,6 +280,37 @@ def test_the_low_chair_is_docked_as_it_faces(report):
                                                                       er.get('hdd', math.nan), seated))
 
 
+def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
+    """Sat on the lodge's low chair and risen, told the door: her way round the bed - a straight run at
+    the doorway from there crossed its foot and she tripped (findings/errands.md) -, out past the
+    door's line, clear of the bed's box by her hips, no fall."""
+    from machine import figure, physics, room, sprung, worker
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    s = worker.session()
+    g, d = s['g'], s['g']['world'].data
+    worker.apply(s, {'say': 'sit_chair', 'at': room.CHAIR_LOW_AT})
+    _flips, seated = _run(s, 40.0, until='seated')
+    _run(s, 2.0)
+    worker.apply(s, {'say': 'rise_chair'})
+    _flips, stood = _run(s, 10.0, until='stand')
+    _run(s, 1.0)
+    worker.apply(s, {'say': 'exit_door'})
+    bed = next((t for t in g['things'] if t[0] == 'bed'), None)
+    t0, nearest = g['t'], math.inf
+    while g['t'] < t0 + 40.0 and s['fallen_at'] is None and g.get('_errand'):
+        worker.stepped(s)
+        if bed is not None:
+            dx = max(abs(float(d.qpos[0]) - bed[1][0]) - bed[2][0], 0.0)
+            dz = max(abs(float(d.qpos[2]) - bed[1][2]) - bed[2][2], 0.0)
+            nearest = min(nearest, math.hypot(dx, dz))
+    _run(s, 3.0)
+    report.check('from the low chair, risen, she rounds the bed to the door and is out past its line, no fall',
+                 seated is not None and stood is not None and s['fallen_at'] is None and not g.get('_errand')
+                 and float(d.qpos[2]) > room.TO and bed is not None and nearest > figure.HIP_HALF,
+                 'seated %s, stood %s, out at (%.2f, %.2f) after %.1f s, nearest the bed %.2f m, fallen %s'
+                 % (seated, stood, float(d.qpos[0]), float(d.qpos[2]), g['t'] - t0, nearest, s['fallen_at']))
+
+
 def test_multi_pose_bed_settle_and_randomized_scenarios(report):
     """From arbitrary starting poses and headings (including the recorded `(-0.62, 1.86, -1.50)` pose),
     `lie_bed` walks to the bed's edge, turns to face away, backs onto it with her heels within a
@@ -360,6 +391,7 @@ ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swi
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
           test_chair_and_bed_seated_and_rising, test_viewport_f_errands_chair_bed_and_door,
           test_the_errand_goes_to_the_thing_told, test_the_low_chair_is_docked_as_it_faces,
+          test_from_the_low_chair_she_rounds_the_bed_to_the_door,
           test_multi_pose_bed_settle_and_randomized_scenarios,
           test_continuous_outer_loop_told_and_walk_again)
 

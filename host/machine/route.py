@@ -11,9 +11,10 @@ import math
 
 from machine import figure, room, se2, sight, stride, voxels
 
-#: Her map's things grown by her radius and a cell: setting off she walks while her heading is CONE
-#: off her leg at most, her walk's arc (WALK_SPEED / YAW_RATE round) a cell off it at most.
-GROWN_M = voxels.RADIUS_M + voxels.CELL_M
+#: Her map's things grown by her radius (`voxels.RADIUS_M`, her figure's): setting off she walks while
+#: her heading is CONE off her leg at most, her walk's arc (WALK_SPEED / YAW_RATE round) a cell off it
+#: at most.
+GROWN_M = voxels.RADIUS_M
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
 #: Her way walked through its corners: a convex corridor round each segment, her walk's arc ARC_M
@@ -38,16 +39,16 @@ SIDES = math.ceil(math.pi / CONE)
 
 def docks():
     """How each errand docks, from her figure's, her stride's and the room's dimensions: kind ->
-    (her heading docked, rad - the thing facing as the room lays it, a chair -z, a bed +x, the door
-    +z; a chair's own where it has a back, `furniture.nearest` -; how far along the edge her hips
-    may land off it, m; where she stops before it - her walk's stopping distance and the stride a
-    turn in place drifts her -, m; the prop's place failing one found). The dock itself is the
-    thing's edge along that heading (`errand._laid`)."""
+    (the dock's normal toward her stage, rad - the thing facing as the room lays it, a chair -z, a
+    bed +x, the door's into the room; a chair's own where it has a back, `furniture.nearest` -; how
+    far along the edge her hips may land off it, m; where she stages before it - her walk's stopping
+    distance and the stride a turn in place drifts her; the door's run in -, m; the prop's place
+    failing one found). The dock itself is the thing's edge along that normal (`errand._laid`)."""
     d_stage = se2.STOP_M + stride.STRIDE_M
     return {
         'sit_chair': (math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
         'lie_bed': (math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
-        'exit_door': (0.0, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]), 4.0 * stride.STRIDE_M,
+        'exit_door': (math.pi, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]) - figure.HIP_HALF, 4.0 * stride.STRIDE_M,
                       (0.5 * (room.DOOR_X[0] + room.DOOR_X[1]), room.TO)),
     }
 
@@ -66,8 +67,10 @@ def _free(cells, cell):
 
 def blocked(g):
     """Her map's cells she may not stand in: each of her things (`g['things']`, her registry's boxes)
-    within `voxels.STAND_M` over the floor - she steps over lower, walks under higher, pushes the
-    door aside -, GROWN_M and its blind spot's swell round."""
+    within `voxels.STAND_M` over the floor - she steps over lower, walks under higher -, GROWN_M and
+    its blind spot's swell round. The door among them at its live pose: closed, no way out exists and
+    `way`'s fallback straight line is the push; ajar, the look along her way rounds its panel - held
+    out of her map she ground it onto its 1.92 rad stop and its spring flung her at 1.66 m/s."""
     np = sight._np()
     nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
     nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
@@ -75,7 +78,7 @@ def blocked(g):
                        voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
     out = np.zeros((nx, nz), dtype=bool)
     for p in g['things']:
-        if len(p) < 4 or p[0] == 'door' or len(p[1]) < 3 or not hasattr(p[2], '__len__') or len(p[2]) < 3:
+        if len(p) < 4 or len(p[1]) < 3 or not hasattr(p[2], '__len__') or len(p[2]) < 3:
             continue
         _kind, c, half, turn = p[:4]
         if c[1] + half[1] < voxels.STAND_M[0] or c[1] - half[1] >= voxels.STAND_M[1]:
@@ -102,16 +105,18 @@ def way(g, to, cells):
 
 
 def staged(dock, out, most, cells):
-    """m along `out` (a dock's normal, unit (x, z)) from `dock` she stands free at: the middle of the
-    first run of free cells along it, `most` at most - searched to twice `most`, so in the open it is
-    `most`."""
+    """m along `out` (a dock's normal, unit (x, z)) from `dock` she stands free at: the point of the
+    first run of free cells along it nearest `most` - in the open `most` itself; `most` is the
+    budget, her walk's stopping distance and the stride a turn in place drifts her, and the run's
+    middle gave the chair before the table a 0.45 m stage whose 0.05 m of backing left her 18.6 deg
+    askew and perched on the seat's corner (errands findings)."""
     steps = [k * sight.CELL_M for k in range(int(round(2.0 * most / sight.CELL_M)) + 1)]
     free = [_free(cells, _cell(dock[0] + s * out[0], dock[1] + s * out[1])) for s in steps]
     k0 = next((k for k, f in enumerate(free) if f), None)
     if k0 is None:
         return most
     k1 = next((k for k in range(k0, len(free)) if not free[k]), len(free)) - 1
-    return min(most, 0.5 * (steps[k0] + steps[k1]))
+    return min(most, max(steps[k0], min(steps[k1], most)))
 
 
 def centres(cells):

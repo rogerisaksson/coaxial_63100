@@ -35,9 +35,11 @@ from machine import figure, room
 
 #: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
 #: from TOLD looks with HITS points in it; a point NEAR_M to FAR_M from the eye - further the depth is
-#: a tenth out, nearer is her own raised hand -; her own radius, inflating what she plans round.
+#: a tenth out, nearer is her own raised hand -; her own radius, inflating what she plans round: her
+#: widest half (`figure.WIDE_HALF`) and the map's half cell - 0.3 shut the 0.9 m doorway.
 CELL_M, X_M, Z_M, FLOOR_M, CEIL_M = 0.1, (-3.5, 3.5), (-2.0, 5.0), 0.08, 2.3
-HITS, TOLD, NEAR_M, FAR_M, RADIUS_M = 3, 2, 0.7, 3.5, 0.3
+HITS, TOLD, NEAR_M, FAR_M = 3, 2, 0.7, 3.5
+RADIUS_M = figure.WIDE_HALF + 0.5 * CELL_M
 #: What she may not stand in: a thing over her ankle and under the doorway's top - she steps over
 #: lower, walks under higher, pushes the door aside (`route.blocked`).
 STAND_M = (figure.ANKLE_H, 2.0 * room.DOOR[1])

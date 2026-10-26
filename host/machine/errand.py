@@ -4,13 +4,14 @@
     errand.step_errand(g, gym, heard, heard_say)                      # a pass: the phase's first true row taken
 
 The phases a table (`_on_rows`): look (still while a glimpse of the kind firms up to hers, turning in
-place till a thing affords the verb, a full turn at most), walk, corner, settle, turn, side, back, done;
-the thing hers by what it affords
+place till a thing affords the verb, a full turn at most), walk (her way round her things to the
+stage), corner, settle, turn, side, then back and done at a seat or a bed, door out of the door
+(`_FACES`); the thing hers by what it affords
 (`machine.furniture`), her way round her things (`machine.route`), the stunt on it (`machine.maneuver`).
 """
 import math
 
-from machine.tour import STOP, WALK
+from machine.tour import STOP
 
 
 def errands():
@@ -55,23 +56,31 @@ def _glimpsed(g, sc, at):
     return furniture.nearest(g, sc, at, route.docks()[sc][3], registry.boxes(g['registry'], -math.inf))[4] is not None
 
 
+#: Her heading docked off the dock's normal, by errand: through the door; her back to a seat, the rest.
+_FACES = {'exit_door': math.pi}
+
+
 def _laid(g, sc, found, at):
     """The errand `sc` laid on the thing `found` (`_seen`'s): its dock on the thing's edge along the
     heading it faces (`affordance.support`; the room's, `route.docks`, where it faces none), her stage
-    before it where her cells are free (`route.staged`), her way to it (`route.planned`)."""
+    before it where her cells are free (`route.staged`), her way to it round her things
+    (`route.planned`), her heading docked (`_FACES`). Run at the door in one motion without the
+    stage she slammed the panel to its 1.92 rad stop in 0.5 s and its rebound felled her outside;
+    settled at the stage first she grinds it open over 3 s and walks out."""
     from machine import affordance, maneuver, route, se2
     _d, px, pz, _top, thing, faced, box = found
-    hdd, lat_tol, d_most, _fb = route.docks()[sc]
-    hdd = se2.wrap_angle(hdd if faced is None else faced)
-    nx, nz = math.sin(hdd), math.cos(hdd)
-    edge = affordance.support(box, hdd)
+    hn, lat_tol, d_most, _fb = route.docks()[sc]
+    hn = se2.wrap_angle(hn if faced is None else faced)
+    nx, nz = math.sin(hn), math.cos(hn)
+    hdd = se2.wrap_angle(hn + _FACES.get(sc, 0.0))
+    edge = affordance.support(box, hn)
     x_dock, z_dock = px + edge * nx, pz + edge * nz
     cells = route.blocked(g)
-    d_stage = d_most if sc == 'exit_door' else route.staged((x_dock, z_dock), (nx, nz), d_most, cells)
+    d_stage = route.staged((x_dock, z_dock), (nx, nz), d_most, cells)
     stage = (x_dock + d_stage * nx, z_dock + d_stage * nz)
-    way, curve, held = ([], (), ()) if sc == 'exit_door' else route.planned(g, stage, cells)
+    way, curve, held = route.planned(g, stage, cells)
     return {
-        'kind': sc, 'phase': 'door' if sc == 'exit_door' else 'walk', 'thing': thing, 'at': at,
+        'kind': sc, 'phase': 'walk', 'through': sc in _FACES, 'thing': thing, 'at': at,
         'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx,
         'xd': stage[0], 'zd': stage[1],
         'hdd': hdd, 'lat_tol': lat_tol, 'd_stage': d_stage, 'd_most': d_most, 'turn_dir': 0.0,
@@ -187,14 +196,22 @@ def _nothing(g, gym, er, c, heard_fn, heard_say_fn):
     return None
 
 
-def _to_door(g, gym, er, c, heard_fn, _say_fn):
-    """Walking out: her heading at the doorway's middle on the door's line, her stage ahead at
-    the least; the errand over that stage past the line. Aimed at that end a room's height
-    ahead she met the post at x 0.5 for the middle's 0.75 and pushed it 30 s on Linux; her
-    stopping distance ahead she swung to x 1.18 at the other post."""
-    g['has_heading'] = 1.0
-    g['target_heading'] = math.atan2(er['xd'] - c['gx'], max(er['z_dock'], c['gz'] + er['d_stage']) - c['gz'])
-    _tell(g, gym, heard_fn, {'twist': WALK})
+def _out(g, gym, er, c, heard_fn, _say_fn):
+    """Settled at the stage facing out: the run out laid on her way's corners round her things
+    through the doorway to the dock's far side (`route.planned`; hand-aimed from a stage reached
+    aslant she jammed on the wall at x 1.33 for the opening's 0.3-1.2, 24 s). No curve: the push
+    through the yielding door is contact, aimed at the next corner far ahead - the curve's near
+    tracking fought the opening panel's shove and wedged her on the hinge-side post at 0.92 rad."""
+    from machine import route
+    goal = (er['x_dock'] - er['d_most'] * er['nx'], er['z_dock'] - er['d_most'] * er['nz'])
+    er['xd'], er['zd'] = goal
+    er['way'], _curve, er['held'] = route.planned(g, goal, route.blocked(g), er['held'])
+    er['curve'], er['k'], er['turn_dir'] = (), 0, 0.0
+
+
+def _passed(g, gym, er, c, heard_fn, _say_fn):
+    """A corner of the run out reached: the next is the aim."""
+    er['way'].pop(0)
 
 
 def _steer(g, gym, heard_fn, err, wz_dir, speed, off, lag):
@@ -247,9 +264,10 @@ def _on_rows():
     at hand, its stunt where she stands -, a full turn at most; walking, she stands where her
     stopping point
     enters the box; stood still (`idle`), she walks again past her stopping distance from it,
-    turns to face away from the prop, sidesteps while her stop would end past the dock's
-    tolerance off its line till that stop is on it, backs till her heels are the stunt's standoff
-    off the edge (`maneuver.standoff`), then the stunt (findings/errands.md)."""
+    turns to face her heading docked, sidesteps while her stop would end past the dock's
+    tolerance off its line till that stop is on it, then runs out through a door, else backs till
+    her heels are the stunt's standoff off the edge (`maneuver.standoff`), then the stunt
+    (findings/errands.md)."""
     from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
@@ -257,13 +275,17 @@ def _on_rows():
                   (lambda c, er: c['seen'] is not None and _near(c['seen']), 'done', _at_hand),
                   (lambda c, er: c['seen'] is not None or er['swept'] >= math.tau, 'done', _ended),
                   (lambda c, er: c['glimpse'], 'look', _held)), _to_look),
-        'door': (((lambda c, er: c['s_par'] > er['d_stage'] - 1.5 * stride.STRIDE_M, 'door', _ended),), _to_door),
-        'walk': (((lambda c, er: c['corner'], 'corner', _stood), (lambda c, er: c['stops_in'], 'settle', _stood)), _to_aim),
+        'door': (((lambda c, er: -c['s_par'] > er['d_stage'] - 1.5 * stride.STRIDE_M, 'door', _ended),
+                  (lambda c, er: c['corner'] and len(er['way']) > 1, 'door', _passed),
+                  (lambda c, er: c['way_blocked'], 'door', _out)), _to_aim),
+        'walk': (((lambda c, er: c['corner'], 'corner', _stood), (lambda c, er: c['stops_in'], 'settle', _stood),
+                  (lambda c, er: c['way_blocked'], 'walk', _cornered)), _to_aim),
         'corner': (((lambda c, er: c['idle'] and c['still'], 'walk', _cornered),), _nothing),
         'turn': (((lambda c, er: abs(c['err_yaw']) <= modal.LIST_RAD, 'settle', _faced),), _to_face),
         'settle': (((lambda c, er: c['idle'] and c['s_par'] > er['d_stage'] + se2.STOP_M, 'walk', _nothing),
                    (lambda c, er: c['idle'] and abs(c['err_yaw']) > modal.LIST_RAD, 'turn', _nothing),
                    (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
+                   (lambda c, er: c['idle'] and er['through'], 'door', _out),
                    (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
         'side': (((lambda c, er: c['s_perp_side'] * c['s_perp'] <= 0.0, 'settle', _told(STOP)),), _to_line),
@@ -276,6 +298,34 @@ def _on_rows():
 #: her registry's live slots; the rest nothing.
 _SEEN = {'look': lambda g, e: _seen(g, e['kind'], e.get('at'))}
 _GLIMPSE = {'look': lambda g, e: _glimpsed(g, e['kind'], e.get('at'))}
+
+
+def _looked_along(g, e):
+    """Whether a look shows her way blocked: its legs' cells, hers to each corner, against her things
+    as she holds them now (`route.blocked`), once a look (`sight.LOOK_S`) while she walks; a row
+    replans the rest (the walk's `_cornered`, the run out's `_out`) - piecewise round what she sees,
+    a new way only where the old stops existing. The leading blocked run (her own cell inside a
+    thing's grown disc as she docks) and the last point (a stage laid inside one, `route.staged`'s)
+    are hers to stand in: checked every look they replanned her mid-stride at the chair and she
+    perched unsure, and felled her at the door."""
+    from machine import route, sight, voxels
+    if g['t'] - e.get('checked_at', -math.inf) < sight.LOOK_S:
+        return False
+    e['checked_at'] = g['t']
+    d = g['world'].data
+    cells = route.blocked(g)
+    pts = [(float(d.qpos[0]), float(d.qpos[2]))] + [tuple(p) for p in e['way']]
+    free_yet = False
+    samples = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
+               for a, b in zip(pts, pts[1:])
+               for n in (max(1, int(math.ceil(math.dist(a, b) / voxels.CELL_M))),)
+               for k in range(n + 1)]
+    for x, z in samples[:-1]:
+        free = route._free(cells, route._cell(x, z))
+        free_yet = free_yet or free
+        if free_yet and not free:
+            return True
+    return False
 
 
 def _settled(g):
@@ -330,6 +380,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),
         'idle': _settled(g) > 0.0,
         'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6,
+        'way_blocked': e['phase'] in ('walk', 'door') and _looked_along(g, e),
         'seen': _SEEN.get(e['phase'], lambda _g, _e: None)(g, e),
         'glimpse': _GLIMPSE.get(e['phase'], lambda _g, _e: False)(g, e),
     }

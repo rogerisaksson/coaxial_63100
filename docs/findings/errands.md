@@ -138,6 +138,16 @@ her sway's phase (sin of its lateral phase under -0.2), which read a spin as
 a backward walk; it is the gait she was told (`active_entry` among the
 backward gaits).
 
+## The stage at the budget
+
+`route.staged` took the middle of the first free run along the dock's
+normal: the chair before the table got a 0.45 m stage, the turn's drift ate
+it to 0.05 m of backing and she docked 18.6 deg askew, 0.16 m aside, and
+perched on the seat's corner (pelvis 0.742, sure 0.48); the stage is the
+free point nearest the budget - her stop and the turn's stride,
+`route.docks`' d_most - 0.70 m there, 0.32 m of backing, seated 0.586,
+sure 0.95. In the open the two are the same point.
+
 ## The dock as the thing faces
 
 Told to sit at the lodge's low chair (the west wall, facing +x) she walked
@@ -147,3 +157,39 @@ is I. A chair faces away from its back (`affordance.faced`), its dock its
 own edge that way (`affordance.support`, `errand._laid`): dock (-2.47,
 0.00), stage (-1.30, 0.00), seated at 23.6 s; the 0.45 m chair's docks
 unmoved.
+
+## Her way to the door
+
+Told the door after rising from the low chair she walked a straight line
+at the doorway's middle - the door's errand planned no way - across the
+bed's foot, tripped and fell (the page). Every errand walks `route.planned`'s
+way to its stage, the door's 1.2 m inside the doorway's middle, settles
+there facing out and runs out on planned corners - no curve: the push
+through the yielding door is contact, and the curve's near tracking fought
+the opening panel's shove and wedged her on the post at 0.92 rad for 24 s.
+The grow round her things is her figure's (`figure.WIDE_HALF`, the hips
+row of BODY, 0.165 + the map's half cell): RADIUS_M 0.3 grew the 0.05-half
+posts 0.4 m and shut the 0.9 m doorway - no way through it existed, which
+is why the door ran hand-aimed. She looks along her way each look
+(`errand._looked_along`, `sight.LOOK_S`): the rest is replanned where a
+thing she holds blocks it (the walk's `_cornered`, the run out's `_out`),
+a new way only where the old stops existing - a stale way from the low
+chair fell her at 37 s; with the look she stood, replanned and left; the
+leading blocked run (her own cell inside a grown disc docking) and the
+stage's cell are hers to stand in, checked they replanned her mid-stride
+and she perched on the chair unsure (0.48) and fell at the door. The door
+is a thing of her map at its live pose (`route.blocked`, no door
+exception): closed, no way out exists and the fallback straight line is
+the push; held out of her map she ground the panel onto its 1.92 rad stop
+and its spring flung her at 1.66 m/s onto her thigh. A mover wakes: a
+box's swell grows by its floor speed over a look (`registry.boxes`,
+LOOK_S) - the hairline corridor beside the swinging panel opened and
+closed with it. From the low chair: seated 22.4 s, risen, round the bed
+0.41 m clear, out past the line at 19.6 s; from the start 12.5 s; no
+falls. Open: charging the closed door walking (the page's click mid-walk),
+the panel sweeps 0 to 1.92 rad in 0.8 s and its edge wipes her - hinge
+left, the edge crosses her lane at omega r - out at 1.12 m/s askew and the
+brake fells her at the deck's rail; the push belongs to the somatic shove
+(`splice-somatic-object-interaction`, the Schlesinger transport, TODO 16),
+or her lane the hinge's side where omega r is small, the hinge the fixed
+point of the panel's move between looks.

@@ -212,13 +212,18 @@ def passed(slots, head, dt):
 
 
 def boxes(slots, least=TAKEN):
-    """[(kind, centre, half sizes, rotation, its slot, clear over it, its blind spot's swell)] of the slots at
-    `least` salience: her buses' things, as `world.props()` gives them, each named by its slot, her route
-    grown by the swell (`route.blocked`)."""
+    """[(kind, centre, half sizes, rotation, its slot, clear over it, its swell)] of the slots at `least`
+    salience: her buses' things, as `world.props()` gives them, each named by its slot, her route grown
+    by the swell (`route.blocked`): its blind spot's, and a mover's wake - its floor speed over a look
+    (`sight.LOOK_S`), where it can be before she looks again. Beside the door's swinging panel a
+    hairline corridor opened and closed with it: threading it she brushed the panel, stumbled out at
+    1.12 m/s and fell at the deck's rail; waked, she pushes square till the panel stands still."""
+    from machine import sight
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
+    swell = r['swell'][taken] + sight.LOOK_S * np.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
     return list(zip([kinds[i] for i in taken], _tuples(r['centre'][taken]), _tuples(r['half'][taken]),
-                    _tuples(r['R'][taken]), taken.tolist(), r['clear'][taken].tolist(), r['swell'][taken].tolist()))
+                    _tuples(r['R'][taken]), taken.tolist(), r['clear'][taken].tolist(), swell.tolist()))
 
 
 def _tuples(a):

@@ -39,7 +39,9 @@ MECHANISMS = {
     'modulate-ecbf-permeability-mask': 'ecbf-permeability', 'attach-dynamic-capsule-to-schema': 'payload-capsule',
     'configure-self-collision-barriers': 'self-collision', 'bind-nullspace-evasion-synergies': 'limb-retraction',
     'maintain-out-of-frustum-ecbf-anchors': 'blindspot-memory', 'bind-unexpected-wrench-recoil': 'surprise-reflex',
-    'modulate-wayfinder-aperture-width': 'payload-aperture', 'run-quadrature-goertzel-probe': 'phase-margin'}
+    'modulate-wayfinder-aperture-width': 'payload-aperture', 'run-quadrature-goertzel-probe': 'phase-margin',
+    'bind-meromorphic-lax-matrix': 'higgs-field', 'solve-hitchin-fibration-map': 'hitchin-base',
+    'integrate-schlesinger-wrench-transport': 'schlesinger', 'apply-twistor-sphere-rotation': 'twistor'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 
