@@ -103,6 +103,10 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     a[modal.STANCE] = 1.0
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
+    from machine import defrobot
+    drv = (defrobot.read() or {}).get('drives', {})
+    rng = np.array([[math.radians(drv[j]['range'][0]), math.radians(drv[j]['range'][1])] if j in drv
+                    else [-np.inf, np.inf] for j in names])
     sit, gym = situation.text(), entries(texts=texts, suite=suite)
     from tools.cores import bodied
     sensed = bodied.on_body(wbc.sense, 'sense')
@@ -120,7 +124,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'head_idx': names.index('head') if 'head' in names else None, '_look_yaw': 0.0,
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
-         'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
+         'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'rng': rng, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
          'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),
          'grip_seen': np.zeros((2, grip.SEEN)),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),

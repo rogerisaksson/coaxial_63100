@@ -33,10 +33,16 @@ half-knee), item 13's landing its other half.
 ## The rise's true dependency
 
 Asked a deep crouch straight (a text at mode_axial_compression 4.0 on the
-flat floor), her ankle is driven to 215.8 deg of its -45..42 range by t 2 s
-and she falls at 3.0: the compression mode's one pattern (hip -K/2, knee K,
-ankle -K/2) binds at the ankle's -45 near knee 90 deg, and past it her feet
-fold. The loop's realized floor is pelvis ~0.51; her legs' geometry allows
+flat floor), her ankle was driven to 215.8 deg of its -45..42 range by t
+2 s and she fell at 3.0: the compression mode's one pattern (hip -K/2,
+knee K, ankle -K/2) binds at the ankle's -45 near knee 90 deg, and past it
+her feet fold. A setpoint stays within its drive's range now
+(`motion.drives` clips `ref_q` into the manifest's, laid once in
+`sprung.laid`): the same ask keeps every joint in range (ankle 40.2 of 42)
+and physics itself refuses the depth - she overbalances at 4.7 s instead
+of breaking at the ankle - and nothing out of range can reach the bench's
+boards; her walk is unmoved to the digit (0.70 m/s, 408 J/m, 2.52).
+The loop's realized floor is pelvis ~0.51; her legs' geometry allows
 0.299 (knee 154.7) only with the heels up - the kernel's
 :metatarsal-equinus-bilateral manifold, named in its texts, not yet among
 the support buses (plantar, ischial, trochanter-lateral, scapular-dorsal,

@@ -350,4 +350,7 @@ def drives(g, dt):
     wo_s = wo * drv
     in_hop = int(axial_k(g['st']) > HOP_K)
     step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, in_hop, 1)
+    # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
+    # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled her at 3.0 s.
+    np.clip(g['ref_q'], g['rng'][:, 0], g['rng'][:, 1], out=g['ref_q'])
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))
