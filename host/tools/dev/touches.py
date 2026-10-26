@@ -2,7 +2,7 @@
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER,
                               COMPILED, CONFORMANCE, PORTED,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
-                              DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
+                              DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
                               GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
@@ -123,6 +123,7 @@ TOUCHES = (
     ('host/tools/sim/doorway.py',              (STRUCTURE, WAYFINDER)),
     ('host/machine/wayfinder.py',              (STRUCTURE, WAYFINDER, ORTHO, SCENES, ERRANDS)),
     ('host/machine/registry.py',               (STRUCTURE, WAYFINDER, SCENES, ERRANDS)),
+    ('host/machine/says.py',                   (STRUCTURE, SAYS)),
     ('host/machine/bemf.py',                   (STRUCTURE, SHIELD, ORTHO, SCENES)),
     ('host/machine/margin.py',                 (STRUCTURE, SHIELD)),
     ('host/machine/shrunk.py',                 (STRUCTURE, SHIELD, WRENCH, WBC_CORE)),

@@ -124,6 +124,11 @@ def backed(box, things):
     return back_of(box, things) is not None
 
 
+def door(box, _things):
+    """Whether `box` is a door: its kind's."""
+    return box[0] == 'door'
+
+
 def faced(box, things):
     """The heading a seat `box` faces among `things`, rad (`se2`'s, (sin, cos) along x, z): from its
     back's centre through its own; None without a back."""
