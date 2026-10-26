@@ -353,11 +353,12 @@ def stepped(s):
                 s['wearing'] = wear.wearing(s['wear'], ys, taus[:-1], DT, g)
                 s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
         else:
-            from machine import motion
+            # fallen she lies with her drives let go, as the bench's STO drops them: driven on
+            # through the fall the rest law fought the ground - 1 658 deg/s, 3 793 N into it
+            # supine, 40 deg/s and 45 N let go - the spasm of every fall and tipped lie.
             s['ys'], s['taus'], g['surety'] = [], [], 0.0
             edge.felt(world, g['sense'])
-            motion.drives(g, DT)
-            edge.drive(world, g['joints'], **g['cmd'])
+            edge.off(world)
             g['t'] += DT
             world.advance()
         if s['wearing'] is not None:

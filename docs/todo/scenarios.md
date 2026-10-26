@@ -303,12 +303,14 @@ serves its DOD; none an entry a case.
     excess, lowered once it bears her -, both buttocks a buttock's length on;
     the chair's sit 0 of 336 down or unborne (5 and 8 now).
 18. **The lie as a floor primitive**: lie_floor and rise_floor route
-    through the suite's patches and refuse the floor mattress by name (seat
+    through the suite's patches and refuse the floor mattress by name (lie
     findings: her pelvis 0.132 under her legs' 0.299) till item 13's deep
-    landing; the crouch stub that stood 14 s mislabelled floor_rest is
-    deleted. Left: the landing itself (item 13), then the supine recline on
-    the floor and the rise; the page's lying-down spasm still wants an R
-    recording (the bed paths measure clean on the twin: say 20.8 s, click
-    18.5 s, the recline peakless; the grippers snap 894 deg/s at a say's
-    first pass). DOD: a floor lie and a supine rise played, 3 of 3; the
-    spasm's recording placed and its number gone on the same path.
+    landing; the crouch stub is deleted; the lying-down spasm found and
+    fixed - fallen, the loop drove on and the rest law fought the ground
+    (1 658 deg/s, 3 793 N supine), her drives let go now (`edge.off`, the
+    STO's). Left: the rise from supine as a suite patch over the tibial
+    keel and carpal manifolds (roll, kneel, half-knee, stand - the wake
+    patch at seat 0 compiles compression 6.62 past the modes and the loop
+    refuses it); the grippers' 894 deg/s snap at a say's first pass. DOD:
+    laid supine she rises to a stand, 3 of 3; a floor lie down, item 13
+    landed.

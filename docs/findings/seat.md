@@ -338,19 +338,7 @@ hands bore too late for the barrier's support to reach back to them.
 
 In [hitch](hitch.md).
 
-## The floor lie refused by her legs
+## The floor lie
 
-`motion.lisp`'s lie_floor and rise_floor were axial-compression phases
-mislabelled floor_rest: said on the floor mattress she stood on it at
-pelvis 0.763 and the scenario's 'lay' read it met. Deleted; both route
-through the suite's patches (`maneuver.PLAYED`). At the floor mattress's
-0.00 m top the patch asks compression 4.10 where her legs realize 3.4 -
-she froze mid-descent at 0.505 m - so a seat asking her pelvis under her
-legs' floor is refused by name (`maneuver.text`): top + her ischia's 0.128
-(`figure`'s seat capsules) against `figure.pelvis_at` at the knee drive's
-154.7 deg, 0.299 m; the bed's 0.44 plays (0.568), the floor mattress
-refuses (0.132) till the deep landing (item 13). A stunt said with nothing
-among her things looks till a sighting is hers and refuses with none:
-unseen, the patch's default 0.45 m seat played a descent onto nothing. The
-mattress scenario holds the refusal; the bed scenario's miss (rolled 10.8
-deg of LIST's 8.6) is the baseline's own, bit for bit at a31b9186.
+The floor lie, the fall window's spasm and the rise from the floor:
+[lie.md](lie.md).
