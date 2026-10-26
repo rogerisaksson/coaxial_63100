@@ -310,8 +310,11 @@ def open_prompt(state):
 
 
 def submit_prompt(state, text=None):
-    """Compile and dispatch a natural-language LLM prompt for the gynoid."""
-    from machine import tour
+    """A prompt said: the local model asked on a thread of its own when one is here
+    (`coaxial_ollama.gynoid`, any language, 3.5 s), its plan dispatched on the page's thread as it
+    lands (`drain_plan`); none here, the keyword rules (`tour.compile_prompt`)."""
+    import threading
+    from coaxial_ollama import gynoid
     q = (text if text is not None else (state.get('llm_prompt') or {}).get('text', '')).strip()
     state['llm_prompt'] = {'open': False, 'text': ''}
     if not q:
@@ -319,7 +322,37 @@ def submit_prompt(state, text=None):
     state['llm_prompt_last'] = q
     rows: list = list(state.get('chat_rows') or ())
     rows.append(('value', '> ' + q))
-    plan = tour.compile_prompt(q, state.get('now'))
+    name = gynoid.model()
+    if name:
+        state['chat_rows'] = (rows + [('label', '  thinking (%s) ...' % name)])[-24:]
+        state['asking'] = threading.Thread(target=_asked, args=(state, q, name), daemon=True)
+        state['asking'].start()
+        return None
+    state['chat_rows'] = rows[-24:]
+    return _dispatch(state, tour.compile_prompt(q, state.get('now')))
+
+
+def _asked(state, q, name):
+    """The model's plan of `q` into `state['plan_ready']`; the model failing, the keyword rules'."""
+    from coaxial_ollama import gynoid
+    from coaxial_ollama.client import OllamaError
+    now = state.get('now') or {}
+    try:
+        plan = gynoid.plan(q, now.get('doing', 'rest'), name)
+    except (OllamaError, OSError, ValueError, RuntimeError):
+        plan = tour.compile_prompt(q, now)
+    state['plan_ready'] = plan
+
+
+def drain_plan(state):
+    """A plan the model has landed, dispatched on the page's own thread; None with none."""
+    plan = state.pop('plan_ready', None)
+    return None if plan is None else _dispatch(state, plan)
+
+
+def _dispatch(state, plan):
+    """A plan into her body and the chat: the tour begun, else each command sent."""
+    rows: list = list(state.get('chat_rows') or ())
     if plan.get('tour'):
         tr = state['tour'] = tour.HouseTour(loop=True)
         entry = (plan['thought'], tr.last_cmd)

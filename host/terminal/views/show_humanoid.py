@@ -126,11 +126,6 @@ def badge(width, height, state):
         out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(line0[:width - 2])})
     # a said prompt's thought and command live in the chat pane alone: echoed here too the page
     # wore two prompt lines
-    lp = state.get('llm_prompt')
-    if lp and lp.get('open'):
-        l_ink = packed((120, 255, 180), (10, 22, 35))
-        p_txt = (' LLM > %s_ ' % lp.get('text', ''))[:width - 2]
-        out.update({(height - 3, 1 + i): (ord(ch), l_ink) for i, ch in enumerate(p_txt)})
     offer = gym.prompt(state)
     if offer:
         p_ink = packed(PROMPT_INK, (10, 22, 35))
@@ -446,6 +441,7 @@ def main(argv=None):
         if now is not None:
             viewpoint.orbited(state, now['t'])
             gym.refused_told(state, now)
+        gym.drain_plan(state)
         up, below = helped(t_mono), gym.drawer(state, t_mono)
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now

@@ -14,7 +14,7 @@ import time
 
 from tools.dev import counts
 from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
-from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, OLLAMA, PORT, REAL_TIME,
+from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME,
                               FRESH_S, ROOT, SHARDED)
 
 
@@ -142,7 +142,8 @@ def _extra_for(name, args, tags, live_sections):
 
 
 def _timeout(name):
-    return 1200 if name == LIVE else 300
+    """s a suite runs at most: the live models' 1200 - a model's turns, her loop's errands -, the rest 300."""
+    return 1200 if name in (LIVE, LIVE_GYNOID) else 300
 
 
 def _emulated_here():

@@ -59,6 +59,7 @@ _CMD_FMT = {
     'twist': lambda v: 'twist=(%+.2f,%+.2f,%+.2f)' % (float(v[0]), float(v[1]), float(v[2])),
     'push': lambda v: 'push=%.0fN' % float(v),
     'look': lambda v: 'look=(%.0f,%.0f)' % (float(v[0]), float(v[1])),
+    'entries': lambda v: 'play=%s' % ','.join(str(e[0]) for e in v),
 }
 
 _TWIST_THOUGHTS = {
@@ -151,11 +152,21 @@ PROMPT_RULES = (
 )
 
 
+def _knows(q, words):
+    """Whether a rule's `words` name the prompt `q`: a phrase within it, a word among its words -
+    'run' within 'runt' sprinted her at a prompt that said nothing she knows."""
+    toks = q.split()
+    return any((w in q) if ' ' in w else (w in toks) for w in words)
+
+
 def compile_prompt(text, now=None):
-    """Compile a natural-language operator prompt into LLM thought and structured gynoid commands."""
+    """Compile an operator prompt into LLM thought and structured gynoid commands - English words;
+    the operator's own language is englished before this (`coaxial_ollama.gynoid_words`). Words no
+    rule knows move nothing: the unmatched default walked her 0.69 m/s into the wall."""
     q = (text or '').strip().lower()
-    fn = next((fn for words, fn in PROMPT_RULES if any(w in q for w in words)),
-              lambda _q, _n: {'thought': 'Walking forward into the room.', 'cmds': [{'twist': WALK}], 'tour': False})
+    fn = next((fn for words, fn in PROMPT_RULES if _knows(q, words)),
+              lambda _q, _n: {'thought': 'No words I know in that - the chat hint lists what I take.',
+                              'cmds': [], 'tour': False})
     return fn(q, now)
 
 

@@ -121,6 +121,11 @@ def pattern(key, blend_s=ENTER_S):
     return gait.modified(blend_s, **amounts(key))
 
 
+def told(key):
+    """The take `key` as her loop hears it: its rows as one entry (`wire`), as the bench says it."""
+    return {'entries': [(key, wire(key)[0], (key,))]}
+
+
 def wire(key, at_ms=0, since_s=0.0, enter_s=ENTER_S):
     """A take's rows for her loop (`ortho.ROW`) from `at_ms` on, its beats from `since_s` of it:
     its first row blended over `enter_s`, each after laid as the beat before arrives and blended

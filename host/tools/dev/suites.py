@@ -98,7 +98,8 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
          'test_views_demo.py', 'test_views_segments.py',
          'test_views_quad.py', 'test_views_quad_flight.py', 'test_views_flying.py', 'test_helicopter.py',
          'test_aerobat.py',
-         'test_views_humanoid.py', 'test_views_floor.py', 'test_views_inset.py', 'test_views_keys.py',
+         'test_views_humanoid.py', 'test_views_prompt.py', 'test_views_floor.py', 'test_views_inset.py',
+         'test_views_keys.py',
          'test_views_tube.py')
 
 #: The composed controller and its parts, against a toy rotor and the stand-in.
@@ -187,8 +188,10 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
 CONFORMANCE = 'test_conformance.py'
 
 LIVE = 'test_live_model.py'
+#: Her prompt through the local model on her loop, judged under the surface.
+LIVE_GYNOID = 'test_live_gynoid.py'
 
-ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
+ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE, LIVE_GYNOID)
 
 #: Where each suite joins a tier, cheapest a check first (s a check: simulated 0.003,
 #: ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance 0.29, bench 5.0, live

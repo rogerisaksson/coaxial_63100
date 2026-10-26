@@ -30,6 +30,7 @@ MULTILINGUAL_ALLOW = (
     'host/coaxial_ollama/',
     'host/tests/test_ollama_',
     'host/tests/test_live_model.py',
+    'host/tests/test_live_gynoid.py',
     'host/tools/dev/measure_first.py',
     'host/tools/dev/token_budget.py',
 )

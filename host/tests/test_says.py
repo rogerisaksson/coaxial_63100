@@ -33,7 +33,42 @@ def test_the_catalog_scans_her_sources(report):
                  '%d rows: %s' % (len(rows), {k: len(v) for k, v in sorted(by.items())}))
 
 
-ROSTER = (test_the_catalog_scans_her_sources,)
+def test_a_chosen_row_is_what_hears_it(report):
+    """`gynoid.plan` on a stub of the model: every catalog row but the loop's words a choice; the
+    chosen row's own command sent - a say, a gait's twist, a take's rows as the bench says them, the
+    tour the page's -, null nothing."""
+    from coaxial_ollama import client, gynoid
+    from machine import says, se2
+    rows = says.catalog()
+    answers = []
+
+    class Stub:
+        def __init__(self, *a, **k):
+            pass
+
+        def chat(self, messages, **k):
+            return {'content': answers.pop(0)}
+
+    was = client.Ollama
+    client.Ollama = Stub
+    try:
+        got = {}
+        for op in ('lie_floor', 'walk', 'backflip', 'tour', None):
+            answers.append('{"op": %s}' % ('null' if op is None else '"%s"' % op))
+            got[op] = gynoid.plan('x', 'rest', 'stub', rows)
+    finally:
+        client.Ollama = was
+    take = got['backflip']['cmds'][0] if got['backflip']['cmds'] else {}
+    report.check("each chosen row's own command: a say, a gait's twist, a take's rows, the tour; null nothing",
+                 set(gynoid.choices(rows)) == {r['op'] for r in rows if r['kind'] != 'word'}
+                 and got['lie_floor']['cmds'] == [{'say': 'lie_floor'}]
+                 and got['walk']['cmds'] == [{'twist': se2.NOMINAL_TWIST['walk']}]
+                 and take.get('entries', [('',)])[0][0] == 'backflip'
+                 and got['tour']['tour'] and got['tour']['cmds'] == [] and got[None]['cmds'] == [],
+                 {k: (v['cmds'][0] if v['cmds'] else v['tour']) for k, v in got.items() if k != 'backflip'})
+
+
+ROSTER = (test_the_catalog_scans_her_sources, test_a_chosen_row_is_what_hears_it)
 
 
 def main(argv=None):

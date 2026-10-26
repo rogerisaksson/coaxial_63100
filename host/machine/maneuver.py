@@ -240,7 +240,12 @@ def said(g, item, at=None, thing=None):
     from machine import furniture, registry, sprung
     if item[0] not in PLAYED:
         return item
-    seen = furniture.seen(g, item[0], at, thing)
+    from machine import se2, stride
+    # lying on the floor (`se2.GROUNDED`) the floor is her seat, its top 0, her edge on it: a rise
+    # asked of her there is refused by her legs' reach, not 'nothing affords it' as the bed patch's
+    # search for a bed said
+    floor = float(sprung.doing(g) in se2.GROUNDED)
+    seen = (0.0, 0.0, 0.0, 0.0, 0.0) if floor else furniture.seen(g, item[0], at, thing)
     for _ in range(int(_math.ceil(registry.TAKEN / registry.HIT))):
         if seen is not None:
             break
@@ -248,9 +253,8 @@ def said(g, item, at=None, thing=None):
         seen = furniture.seen(g, item[0], at, thing)
     if seen is None:
         raise MachineError('%s: nothing among her things affords it' % item[0])
-    from machine import stride
     reach = stride.STRIDE_M + standoff(item[0], g['suite'])
-    edge = furniture.nearest(g, PLAYED[item[0]][1] or item[0], at)[0]
+    edge = (1.0 - floor) * furniture.nearest(g, PLAYED[item[0]][1] or item[0], at)[0]
     if edge > reach:
         raise MachineError('%s plays where she stands: its furniture is %.1f m off, past her %.2f '
                            '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))

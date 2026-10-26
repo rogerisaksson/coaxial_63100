@@ -42,6 +42,21 @@ pulled answers.
 | clef:27b-q4_k_m | 17 | at its 16384 the runner wants a 5.4 GB compute buffer beside 11.7 GB of weights: OOM; `options.num_ctx` and OLLAMA_CONTEXT_LENGTH ignored |
 | clef-flash | 10 | every request "non-finite logit" on 0.35.1 (ollama issue 18769) |
 
+### Her prompt (`coaxial_ollama/gynoid.py`)
+
+The HUMANOID page's prompt in the operator's own words: the resident chat
+model (else the chat's DEFAULT_MODEL) picks one row of her catalog
+(`machine.says`, every row generated from the code that plays it - errands,
+stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
+Schema enum, null when nothing fits; asked off the page's thread, the plan
+sent as it lands (`gym.drain_plan`). On gemma4:12b warm, 3.5 s a prompt,
+13 prompts in Swedish and English: 11 right - 'stand up from the chair'
+seated chose the human's mocap take sit_to_stand over her rise_chair, 'bake
+a cake' a body operation rather than null. A fits flag before the op 10, after
+it 9, the kinds beside the lines no better. Judged on her loop under the
+surface by `tests/test_live_gynoid.py`; its first run found the catalog's
+errand command carrying a documentation placeholder for `at` into her loop.
+
 ## Daemon and client
 
 ### Tuning (`board_chat/Tuning.ps1`)
