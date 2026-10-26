@@ -239,7 +239,9 @@ def _to_aim(g, gym, er, c, heard_fn, _say_fn):
 
 def _to_face(g, gym, er, c, heard_fn, _say_fn):
     """Turning in place to face away from the prop, the shorter way, held once begun."""
-    er['turn_dir'] = er['turn_dir'] or math.copysign(1.0, c['err_yaw'])
+    from machine import modal
+    behind = abs(c['err_yaw']) > math.pi - modal.LIST_RAD
+    er['turn_dir'] = er['turn_dir'] or (1.0 if behind else math.copysign(1.0, c['err_yaw']))
     _steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'], 0.0)
 
 
@@ -268,7 +270,7 @@ def _on_rows():
     tolerance off its line till that stop is on it, then runs out through a door, else backs till
     her heels are the stunt's standoff off the edge (`maneuver.standoff`), then the stunt
     (findings/errands.md)."""
-    from machine import modal, poise, se2, stride
+    from machine import figure, modal, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
         'look': (((lambda c, er: c['seen'] is not None and _within(er['kind'], c['seen']), 'walk', _begun),
@@ -286,10 +288,10 @@ def _on_rows():
                    (lambda c, er: c['idle'] and abs(c['err_yaw']) > modal.LIST_RAD, 'turn', _nothing),
                    (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and er['through'], 'door', _out),
-                   (lambda c, er: c['idle'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
+                   (lambda c, er: c['idle'] and c['s_par'] > figure.HEEL + figure.SOLE_HALF + er['standoff'], 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
         'side': (((lambda c, er: c['s_perp_side'] * c['s_perp'] <= 0.0, 'settle', _told(STOP)),), _to_line),
-        'back': (((lambda c, er: c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
+        'back': (((lambda c, er: c['s_par_back'] <= figure.HEEL + figure.SOLE_HALF + er['standoff'], 'done', _told(STOP)),), _to_edge),
         'done': (((lambda c, er: c['idle'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp_side']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
     }
 
@@ -362,8 +364,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     dx_d, dz_d = gx - e['x_dock'], gz - e['z_dock']
     s_par, s_perp = dx_d * e['nx'] + dz_d * e['nz'], dx_d * e['tx'] + dz_d * e['tz']
     t_stop = se2.STOP_M / se2.WALK_SPEED
-    s_par_stop = s_par + (vx_w * e['nx'] + vz_w * e['nz']) * t_stop
-    s_perp_stop = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * t_stop
+    s_par_stop, s_perp_stop = s_par + (vx_w * e['nx'] + vz_w * e['nz']) * t_stop, s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * t_stop
+    s_par_back = s_par + (vx_w * e['nx'] + vz_w * e['nz']) * se2.BACK_STOP_M / se2.BACK_SPEED
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
@@ -371,7 +373,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
                                       else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw))
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     ctx = {
-        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
+        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_par_back': s_par_back, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -s_perp * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
                                       or math.hypot(s_par_stop - e['d_stage'], s_perp_stop) <= stride.STRIDE_M),
