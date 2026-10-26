@@ -33,6 +33,21 @@ legs), moved her hips 0 (0.263 -> 0.253 legs) square; the chair scene 1 of 3:
   (one sole 268-427 N through the lean); at 2e-4 rad either way she fell in
   the rise (9.9, 11.1 s).
 
+From main (branch hands-hitch, WIP): her soles keep their sat 0.15 through the
+hitch, the seat at the kernel's ingress cap 0.55, her hands the rest; her
+elbows lifted, her shoulders back, her fists down, her hands told only as
+they come down - told as they lifted, the fist her descent swung back touched
+the seat and was held there 0.23 m behind her hips. On the 0.45 m chair one
+fist bears 0.15-0.27 of her in every placement; the other ends on the seat's
+front corner (0.02-0.05) or 1.2-1.9 cm over it, so the shuffle, waiting for
+both, never runs. Her shoulders sit 4.7 cm behind the seat's edge, her
+descent swings one arm ahead of it, a phase ends with her arm 80 % of its
+move (a critically damped 10 rad/s following its blend) and a fist that
+touches is held where it touched; her arms share one reach and one fold, a
+back-swung elbow presses its fist 1.1 cm at most, and her arm IK from the WIP
+diverged from her elbow's mid-range (1 458 deg). Left: each fist's place
+asked per side, or a phase that waits for her arm to arrive.
+
 The pan as a row of the step (each patch's load toward its told share, weight
 30 as the turns') held nothing: the seated rest's told 0.85 pushed the seat
 harder than the sit has it (0.55-0.66), her soles went 186/0 N and she fell
