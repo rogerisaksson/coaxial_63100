@@ -112,3 +112,10 @@
   chair' seated picks the human's mocap take over her own rise_chair, 'bake a
   cake' a body operation rather than null (gemma4:12b, 11 of 13). DOD:
   `tests/test_live_gynoid.py` green 3 of 3 runs, the misses among its cases.
+- **Her law's python since the kernel's steps** (found, [pace](../findings/pace.md)):
+  her walk's pass 312 us before them, 510 now - her law 367 us of a pass, her
+  sensing 83 (the contacts above her soles, her EKF's and observer's glue),
+  her shield 41, her ask's own statements about 120 between the compiled
+  parts, whose wrappers take 60 us a law pass of 113. DOD: her walk's pass
+  under 400 us with every step in, her trajectory's sha1 the same over her
+  walk, her lie and a chair.

@@ -19,8 +19,12 @@ import numpy as np
 from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, ortho, poise, rounds, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
-#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis.
+#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
+#: each leg's hip in her posture (`rounds.LEGS`).
 HUNG = np.array([0.0, 0.0, -0.5 * np.pi])
+HIPS = np.array([leg[:3] for leg in rounds.LEGS])
+#: Her arms' modes, her hold's (`ask['hold']`).
+ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
 #: (N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
@@ -211,10 +215,9 @@ def control(g, dt):
     # where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh pointed 15 deg down
     # off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a hitch; sprung to its
     # posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
-    hips = np.array([leg[:3] for leg in rounds.LEGS])
     let_go = np.array(ask['let_go'], float)[:, None]
-    hung = HUNG + np.array([0.0, 0.0, float(modal._turns(y, g['fr'][modal.ROT].reshape(3, 3))[0][0, 0])])
-    ask['posture'][hips] = let_go * (hung - ask['posture'][hips]) + ask['posture'][hips]
+    hung = HUNG + np.array([0.0, 0.0, float(modal.pitched(y, g['fr'][modal.ROT].reshape(3, 3))[0])])
+    ask['posture'][HIPS] = let_go * (hung - ask['posture'][HIPS]) + ask['posture'][HIPS]
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
@@ -224,8 +227,7 @@ def control(g, dt):
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]))
     ask['mu'] = g['held']
-    arms = [modal.ARMS, modal.REACH, modal.ELBOWS]
-    ask['hold'] = max(1.0, float((g['out'][latent.KS][arms] / g['rest'][latent.K][arms]).max()))
+    ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
@@ -353,7 +355,7 @@ def drives(g, dt):
     step(ctypes.byref(p), dt, wo_s, wo_s ** 3, drv, in_hop, 1)
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
     # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled her at 3.0 s.
-    np.clip(g['ref_q'], g['rng'][:, 0], g['rng'][:, 1], out=g['ref_q'])
+    np.minimum(np.maximum(g['ref_q'], g['rng'][:, 0], out=g['ref_q']), g['rng'][:, 1], out=g['ref_q'])
     # her clamps told as the step left them, zero where she rests limp (`se2.LIMP`), into a buffer laid
     # once: rebound to its own product a pass, the clamps froze at the first pass's and a rise from
     # the low chair fell at 31.9 s that stood

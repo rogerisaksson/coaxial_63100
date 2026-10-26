@@ -152,15 +152,21 @@ NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
 ELBOW_BY = 0.4
 
 
+def pitched(y, rot):
+    """The pelvis's and the trunk's pitch along her way, rad (2,): `_turns`' first row alone."""
+    w, x, j, k = y[QUAT].reshape(2, 4).T
+    up = np.stack([2.0 * (x * j - w * k), 1.0 - 2.0 * (x * x + k * k), 2.0 * (j * k + w * x)], axis=1)
+    return np.arctan2(up @ rot[ALONG], up[:, 1])
+
+
 def _turns(y, rot):
-    """The pelvis's and the trunk's pitch along her way, roll - the left up - and turn to her
-    left, rad, and their rates: (3, 2) each."""
+    """The pelvis's and the trunk's pitch along her way (`pitched`), roll - the left up - and turn
+    to her left, rad, and their rates: (3, 2) each."""
     w, x, j, k = y[QUAT].reshape(2, 4).T
     left = np.stack([1.0 - 2.0 * (j * j + k * k), 2.0 * (x * j + w * k), 2.0 * (x * k - w * j)], axis=1)
-    up = np.stack([2.0 * (x * j - w * k), 1.0 - 2.0 * (x * x + k * k), 2.0 * (j * k + w * x)], axis=1)
     on = np.stack([2.0 * (x * k + w * j), 2.0 * (j * k - w * x), 1.0 - 2.0 * (x * x + j * j)], axis=1)
     spin = y[SPIN].reshape(2, 3)
-    return (np.stack([np.arctan2(up @ rot[ALONG], up[:, 1]), np.arctan2(left[:, 1], left @ rot[LEFT]),
+    return (np.stack([pitched(y, rot), np.arctan2(left[:, 1], left @ rot[LEFT]),
                       np.arctan2(on @ rot[LEFT], on @ rot[ALONG])]),
             np.stack([spin @ rot[LEFT], spin @ rot[ALONG], spin @ rot[UP]]))
 

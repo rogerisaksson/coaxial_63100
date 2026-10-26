@@ -24,8 +24,12 @@ BEARS_N = edge.TOUCHED_N
 #: Her arms' segments, upper arm to fingers, indices into her skin - her left's first: a hand braced, or a
 #: forearm down on the bed as she lies back onto her elbows.
 HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
-#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin.
+#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin; of them, those not
+#: her hands'.
 ABOVE = np.array(sorted(set(touch.ABOVE) | set(HANDS.tolist())))
+UNHANDED = ~np.isin(ABOVE, HANDS)
+#: What bears her bounded where nothing does: its low and high corners, m, the bounds a touch widens.
+NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
 #: Her pelvis among them: its skin's one touch is her two ischia's (`figure.SEAT_X` either side), split by
 #: where it lies between them - the force-weighted point of two lines gives their shares exactly - and laid
 #: on them as far as it pushes up her pelvis (sat; lying on her back or side the two meet at the touch).
@@ -80,10 +84,11 @@ def read(b, s, y, weight, hands=0.0):
     ids = getattr(b, 'skin', None)
     if ids is None:
         ids = b.skin = np.array([m.body(name).id for name in edge.SKIN])
+        b.jacs = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
-    up, low, high, contacts, palms = 0.0, np.full(3, np.inf), np.full(3, -np.inf), [], np.zeros(2)
-    pushed = ABOVE[pushes[ABOVE].any(axis=1) & ((hands > 0.0) | ~np.isin(ABOVE, HANDS))]
-    jp, jr = np.zeros((3, m.nv)), np.zeros((3, m.nv))
+    up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
+    pushed = ABOVE[pushes[ABOVE].any(axis=1) & ((hands > 0.0) | UNHANDED)]
+    jp, jr = b.jacs
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
         f = R @ pushes[k]

@@ -211,3 +211,20 @@ machine ([body](body.md), [emulation](emulation.md),
   numpy's float64 tanh (SVML's, X86_V3 here) transcribed with fma, its 16
   intervals' table, matches np.tanh at 2.1 million values - the C runtime's
   parts at 20 %: a C twin of her gearboxes may use it.
+- Her walk's pass across her history (the fastest 1 500 passes by process
+  time, a worktree a commit): 312 us before the kernel's steps; her momentum
+  observer in python +240 (in C +42), her capture point's barrier +62, her DC
+  link +21, the right-invariant EKF +125, the body schema's 18 capsules +136,
+  her shield on the room and the wayfinder +104, the noisy buses +21 - 896 at
+  the steps' end, 531 with the DC link and the ischia compiled, 573-646 since:
+  one commit's runs 10 % apart under the other sessions' load. In a pass (her
+  parts wrapped after laying): her law 367 us of 670, her sensing 83, her
+  shield 41 - a solve on her mass matrix, 12 of 13 pairs near walking -, the
+  C step 37; the compiled parts' wrappers 60 us a law pass of their 113, timed
+  bare - a timer at each stage had read 295. Cut, her trajectory's sha1 the
+  same over her walk, her lie and a chair: her pelvis's pitch alone where her
+  law took the whole of `modal._turns` for it (43.5 -> 12.1 us), `np.isin` of
+  two constants (13.8 us) and her hips' indices laid once, her arms' modes an
+  array, her drives' clip in place, her touch's Jacobians laid on her body,
+  her IMU's sums one array (`inekf.IMU`): her pass 573 -> 510 us, -10.9 %,
+  her walk's smoke the same.

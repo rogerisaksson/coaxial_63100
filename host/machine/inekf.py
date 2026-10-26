@@ -54,6 +54,10 @@ def _exp(phi):
 
 #: A contact's innovation past this Mahalanobis square is a slide, let go (the text's gate).
 GATE = _EKF['visual-innovation-law']['mahalanobis-gate-chi2']
+#: Her IMU's spin and specific force in her edge's array, side by side (`edge.GYRO`, `edge.ACCEL`): summed
+#: over a law pass as one array laid once, each at its own place in it.
+IMU = slice(edge.GYRO.start, edge.ACCEL.stop)
+IMU_GYRO, IMU_ACCEL = (slice(sl.start - IMU.start, sl.stop - IMU.start) for sl in (edge.GYRO, edge.ACCEL))
 
 
 def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
@@ -62,8 +66,10 @@ def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
     R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
                   [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
                   [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
+    imu = np.zeros(IMU.stop - IMU.start)
     return {'R': R, 'v': np.zeros(3), 'p': np.array(where, float), 'd': np.zeros((2, 3)),
-            'P': np.eye(N) * 1e-6, 'on': np.zeros(2), 'gyro': np.zeros(3), 'accel': np.zeros(3), 'span': np.zeros(())}
+            'P': np.eye(N) * 1e-6, 'on': np.zeros(2), 'imu': imu, 'gyro': imu[IMU_GYRO], 'accel': imu[IMU_ACCEL],
+            'span': np.zeros(())}
 
 
 def head(f, body):
@@ -81,9 +87,8 @@ def head(f, body):
 
 
 def felt(f, y, dt):
-    """Her IMU over a drive pass `dt` into the law pass's means (`edge.GYRO`, `edge.ACCEL`)."""
-    f['gyro'] += dt * y[edge.GYRO]
-    f['accel'] += dt * y[edge.ACCEL]
+    """Her IMU over a drive pass `dt` into the law pass's means: her spin and specific force at once (IMU)."""
+    f['imu'] += dt * y[IMU]
     f['span'] += dt
 
 
