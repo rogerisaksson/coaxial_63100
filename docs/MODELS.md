@@ -59,6 +59,7 @@ Measured on 20 prompts in Swedish and English, and the eight of
 | Tag | GB on the card | Warm s | Cold s | Right of 20 | Loop |
 | --- | --- | --- | --- | --- | --- |
 | gemma4:e4b | 4.6 | 0.11 | 7.5 | 17 | 7 of 8: 'res dig' lying chose lie_floor |
+| gemma4:e4b-it-q8_0 | 6.3 | 0.15 | 8.1 | 17 | 'res dig' lying lie_floor as Q4 |
 | gemma4:12b | 8.1 | 0.39 | 6.3 | 17 | 8 of 8 |
 | gemma4:e2b | 3.1 | 0.15 | 6.5 | 12 | |
 | qwen3.5:4b | 3.8 | 0.19 | 4.2 | 11 | |
