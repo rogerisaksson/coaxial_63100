@@ -291,7 +291,6 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     sent.clear()
     act = lambda s: typed(pad, s, st)
     act('/sit in the chair\r')
-    r0_llm = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 0)
     act('/go to bed')
     r_bar = ''.join(chr(c) for (r, _), (c, _) in sorted(show_humanoid.badge(100, 24, st).items()) if r == 21)
     cb_open = str(show_humanoid.chat_box(st, 80).renderable)
@@ -300,7 +299,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     cb_done = str(show_humanoid.chat_box(st, 80).renderable)
     report.check('/ opens interactive LLM prompt bar, compiles chair/bed/door/tour prompts and renders GYNOID CHAT dock',
                  sent == [{'say': 'sit_chair'}, {'say': 'lie_bed'}, {'say': 'exit_door'}]
-                 and 'LLM > go to bed_' in r_bar and 'sit_chair' in r0_llm and gym.touring(st)
+                 and 'LLM > go to bed_' in r_bar and 'say=sit_chair' in cb_open and gym.touring(st)
                  and '> sit in the chair' in cb_open and 'go to bed' in cb_open
                  and 'cmd: tour=start' in cb_done and ('/', 'CHAT') in pad['bar'], (sent, r_bar))
 

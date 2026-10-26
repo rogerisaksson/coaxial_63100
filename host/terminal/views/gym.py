@@ -346,6 +346,15 @@ def submit_prompt(state, text=None):
     return plan
 
 
+def refused_told(state, now):
+    """A refusal into the chat pane, once per reason: the say's answer lives where the prompt was
+    typed - on the status row alone, 25 characters, 'lay on floor' looked like nothing happening."""
+    why = (now or {}).get('refused')
+    if why and why != state.get('refused_shown'):
+        state['refused_shown'] = why
+        state['chat_rows'] = (list(state.get('chat_rows') or ()) + [('label', 'REFUSED: %s' % why)])[-24:]
+
+
 def status(now):
     """Her status: what she is doing; down, counting to her landing again; a text or a command
     refused, why."""

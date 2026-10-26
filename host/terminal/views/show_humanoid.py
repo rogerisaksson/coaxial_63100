@@ -124,9 +124,8 @@ def badge(width, height, state):
         th, cm = getattr(tr, 'last_thought', ''), getattr(tr, 'last_cmd', '')
         line0 = (' [TOUR] %s  LLM ▸ %s (%s) ' % (tr.current_label(), th, cm)) if th else (' [TOUR] %s ' % tr.current_label())
         out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate(line0[:width - 2])})
-    elif state.get('llm_last'):
-        th, cm = state['llm_last']
-        out.update({(0, 1 + i): (ord(ch), ink) for i, ch in enumerate((' [LLM] %s ▸ %s ' % (th, cm))[:width - 2])})
+    # a said prompt's thought and command live in the chat pane alone: echoed here too the page
+    # wore two prompt lines
     lp = state.get('llm_prompt')
     if lp and lp.get('open'):
         l_ink = packed((120, 255, 180), (10, 22, 35))
@@ -446,6 +445,7 @@ def main(argv=None):
         _sync_actual(now, state['pad'])
         if now is not None:
             viewpoint.orbited(state, now['t'])
+            gym.refused_told(state, now)
         up, below = helped(t_mono), gym.drawer(state, t_mono)
         # Drawn a frame ahead: this frame shows the state asked the frame before, its boxes too.
         shown, state['drawn'] = state.get('drawn') or now, now
