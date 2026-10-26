@@ -72,6 +72,7 @@ beside the legs, four points: the kneel and tip place and hold them
 (mode_arm_reach -1.4 then -3.9, `seated.braced`'s shoulder flexion at the
 trunk's pitch over the unit's 0.35; arm stiffness 1200, the palmar
 manifold panned 0.6): the shoulder stays -75..-27 deg at 207 deg/s and her
-palms take the landing, 1 065 N, resting at 10. The pose is a heap - folded back over her heels, pitch -122 - not a
+palms take the landing, 1 065 N, resting at 10.
+The pose is a heap - folded back over her heels, pitch -122 - not a
 tidy supine: the recline to flat (the bed's 'lay' bar, rolled within LIST)
 and the rise are the rest; her walk unmoved to the digit.
