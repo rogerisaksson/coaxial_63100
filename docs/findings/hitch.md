@@ -95,6 +95,11 @@ pressure free along her (pinned across as felt; the Python step, its C's to
 the digit unchanged) she fell at 4.17 s where 4.32. From 3.3 to 3.6 s her
 pelvis stays 6-11 deg forward on the seat while her trunk goes from -2 to -45
 deg back over it, her soles at 0 N, where the step leaves the split free.
+Her hips land 0.29-0.32 m back (0.39 planned); the settle asks her centre of
+mass to the plan's upright place, 0.266 m behind her heels where it is 0.026,
+and her trunk bends back to get there, her hips sliding 8 cm forward. With
+her CoM row's weight off while sat (borne, her ZMP let go; prototype) she
+fell at 5.11 s, the seat struck at 2.93 of her weight.
 
 Left: the rise from the deep seat; a scoot's lean as far as puts the seat at
 its cap, her legs' length following her hips, the seat held felt through it.
