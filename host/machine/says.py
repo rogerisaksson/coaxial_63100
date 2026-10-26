@@ -23,20 +23,21 @@ import re
 @functools.lru_cache(maxsize=1)
 def _comments():
     """{name: the ;; comment over its (defbehavior name ..) or (defpatch name ..)} of her texts and
-    the suite's (machine/*.lisp, machine/ortho_dsp/*.lisp)."""
+    the suite's (machine/*.lisp, machine/ortho_dsp/*.lisp), its gym slot ('9: hop: ') cut; a (defbehavior
+    hop (extends hop)) passed over, its comment the specialization's ('propulsion spring specialization')."""
     out, here = {}, os.path.dirname(__file__)
     for path in sorted(glob.glob(os.path.join(here, '*.lisp')) + glob.glob(os.path.join(here, 'ortho_dsp', '*.lisp'))):
         lines = open(path, encoding='utf8').read().splitlines()
         for k, line in enumerate(lines):
-            m = re.match(r'\((?:defbehavior|defpatch)\s+([\w-]+)', line)
-            if m is None:
+            m = re.match(r'\((?:defbehavior|defpatch)\s+([\w-]+)(\s+\(extends\s+([\w-]+))?', line)
+            if m is None or m.group(3) == m.group(1):
                 continue
             j, said = k - 1, []
             while j >= 0 and lines[j].startswith(';;'):
                 said.insert(0, lines[j][2:].strip())
                 j -= 1
             if said:
-                out.setdefault(m.group(1), ' '.join(said))
+                out.setdefault(m.group(1), re.sub(r'^\d+:\s*(%s:\s*)?' % re.escape(m.group(1)), '', ' '.join(said)))
     return out
 
 

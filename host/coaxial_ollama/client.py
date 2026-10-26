@@ -110,8 +110,9 @@ class Model:
 
 
 class Ollama(Model):
-    """`/api/chat` over urllib."""
-    def __init__(self, model, host='http://localhost:11434', temperature=0.0,
+    """`/api/chat` over urllib. 127.0.0.1, not localhost: localhost tries ::1 first, 2.04 s a
+    connect before the daemon's IPv4 answers."""
+    def __init__(self, model, host='http://127.0.0.1:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
                  think=None, remote_ok=False,
                  keep_alive: 'str | int | None' = '30m',

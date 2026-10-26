@@ -33,7 +33,7 @@ from pathlib import Path
 
 from coaxial.memory import physical
 
-API = 'http://localhost:11434'
+API = 'http://127.0.0.1:11434'
 MODEL_LAYERS = ('application/vnd.ollama.image.model',
                 'application/vnd.ollama.image.projector')
 

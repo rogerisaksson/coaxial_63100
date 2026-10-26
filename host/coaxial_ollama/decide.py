@@ -12,7 +12,7 @@ import json
 import urllib.error
 import urllib.request
 
-HOST, TIMEOUT_S = 'http://localhost:11434', 120.0
+HOST, TIMEOUT_S = 'http://127.0.0.1:11434', 120.0
 #: The first tag pulled answers. clef:4k is `ollama create clef:4k -f` a Modelfile of
 #: `FROM clef:27b-q4_k_m` and `PARAMETER num_ctx 4096` (docs/MODELS.md): at the model's 16384
 #: the runner's 5.4 GB compute buffer does not fit beside 11.7 GB of weights on a 16 GB card

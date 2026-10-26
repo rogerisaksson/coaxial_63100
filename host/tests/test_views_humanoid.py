@@ -239,7 +239,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     sent.clear()
     st['scenario'] = 'bed'
     typed(pad, '[', st)
-    report.check('[ from bed back to chair', st['scenario'] == 'chair' and {'scenario': 'chair'} in sent)
+    report.check('[ from bed back to the low chair', st['scenario'] == 'chair_low' and {'scenario': 'chair_low'} in sent)
     sent.clear()
     typed(pad, ']', st)
     sc = scanner.VisionScanner()

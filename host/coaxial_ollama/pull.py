@@ -25,7 +25,7 @@ STEP_PERCENT = 5
 #: read, not the whole download - a layer that stalls for ten minutes is a
 #: dead link, and one that takes an hour at a steady rate is a big model.
 TIMEOUT_S = 600.0
-DEFAULT_HOST = 'http://localhost:11434'
+DEFAULT_HOST = 'http://127.0.0.1:11434'
 
 _COLOUR = {'ok': '\x1b[32m', 'wait': '\x1b[36m', 'warn': '\x1b[33m',
            'fail': '\x1b[31m'}

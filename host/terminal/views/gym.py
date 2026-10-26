@@ -36,6 +36,7 @@ SCENARIO_DESC = {
     'flat': 'level ground // stand and go',
     'lodge': 'the lodge // its deck, stair and steps',
     'chair': 'chair // F sit, Space hop',
+    'chair_low': 'low chair // F sit, knee high',
     'bed': 'soft bed // F lies and rises',
     'mattress': 'floor mattress // F lies and rises',
     'slope': 'ramp // walk up 10 deg',
@@ -297,8 +298,40 @@ def toggle_tour(state):
     state['chat_rows'] = rows[-24:]
 
 
+def warm(state):
+    """The page's model looked up and loaded off the page's thread (`gynoid.warm`), its name in
+    `state['model']`; none here, nothing."""
+    import threading
+    threading.Thread(target=_warmed, args=(state,), daemon=True).start()
+
+
+def _warmed(state):
+    from coaxial_ollama import gynoid
+    from coaxial_ollama.client import OllamaError
+    name = state['model'] = state.get('model') or gynoid.model()
+    if name:
+        try:
+            gynoid.warm(name)
+        except (OllamaError, OSError):
+            pass
+
+
+def release(state):
+    """The page's model's memory handed back as the page closes (`gynoid.release`); none asked, nothing."""
+    from coaxial_ollama import gynoid
+    from coaxial_ollama.client import OllamaError
+    if state.get('model'):
+        try:
+            gynoid.release(state['model'])
+        except (OllamaError, OSError):
+            pass
+
+
 def open_prompt(state):
-    """The interactive LLM prompt bar for the gynoid opened, held motion keys released."""
+    """The interactive LLM prompt bar for the gynoid opened, held motion keys released, the page's
+    model warmed while the prompt is typed."""
+    if state.get('model'):
+        warm(state)
     state['llm_prompt'] = {'open': True, 'text': ''}
     pad = state.get('pad')
     if isinstance(pad, dict):
@@ -311,7 +344,7 @@ def open_prompt(state):
 
 def submit_prompt(state, text=None):
     """A prompt said: the local model asked on a thread of its own when one is here
-    (`coaxial_ollama.gynoid`, any language, 3.5 s), its plan dispatched on the page's thread as it
+    (`coaxial_ollama.gynoid`, any language), its plan dispatched on the page's thread as it
     lands (`drain_plan`); none here, the keyword rules (`tour.compile_prompt`)."""
     import threading
     from coaxial_ollama import gynoid
@@ -322,7 +355,7 @@ def submit_prompt(state, text=None):
     state['llm_prompt_last'] = q
     rows: list = list(state.get('chat_rows') or ())
     rows.append(('value', '> ' + q))
-    name = gynoid.model()
+    name = state['model'] = gynoid.model()
     if name:
         state['chat_rows'] = (rows + [('label', '  thinking (%s) ...' % name)])[-24:]
         state['asking'] = threading.Thread(target=_asked, args=(state, q, name), daemon=True)

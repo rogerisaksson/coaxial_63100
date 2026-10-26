@@ -26,7 +26,7 @@ def parse(argv):
     source.add_argument('--ask', help='one ad-hoc question, recorded not judged')
 
     parser.add_argument('--model', help='ollama tag; the plan may name one')
-    parser.add_argument('--ollama-host', default='http://localhost:11434')
+    parser.add_argument('--ollama-host', default='http://127.0.0.1:11434')
     parser.add_argument('--allow-remote', action='store_true',
                         help='permit a cloud tag or a daemon on another host;'
                              ' the prompts leave this bench if you do')

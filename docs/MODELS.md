@@ -44,17 +44,35 @@ pulled answers.
 
 ### Her prompt (`coaxial_ollama/gynoid.py`)
 
-The HUMANOID page's prompt in the operator's own words: the resident chat
-model (else the chat's DEFAULT_MODEL) picks one row of her catalog
+The HUMANOID page's prompt in the operator's own words: the page's model
+(`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of her catalog
 (`machine.says`, every row generated from the code that plays it - errands,
 stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
-Schema enum, null when nothing fits; asked off the page's thread, the plan
-sent as it lands (`gym.drain_plan`). On gemma4:12b warm, 3.5 s a prompt,
-13 prompts in Swedish and English: 11 right - 'stand up from the chair'
-seated chose the human's mocap take sit_to_stand over her rise_chair, 'bake
-a cake' a body operation rather than null. A fits flag before the op 10, after
-it 9, the kinds beside the lines no better. Judged on her loop under the
-surface by `tests/test_live_gynoid.py`; its first run found the catalog's
+Schema enum, null when nothing fits, the mocap takes named after her own
+rows and chosen only when asked for. Asked off the page's thread, the plan
+sent as it lands (`gym.drain_plan`); loaded off it as the page opens and at
+`/`, held 5 min, released as the page closes; a smoke run loads nothing.
+
+Measured on 20 prompts in Swedish and English, and the eight of
+`tests/test_live_gynoid.py` judged on her loop:
+
+| Tag | GB on the card | Warm s | Cold s | Right of 20 | Loop |
+| --- | --- | --- | --- | --- | --- |
+| gemma4:e4b | 4.6 | 0.11 | 7.5 | 17 | 7 of 8: 'res dig' lying chose lie_floor |
+| gemma4:12b | 8.1 | 0.39 | 6.3 | 17 | 8 of 8 |
+| gemma4:e2b | 3.1 | 0.15 | 6.5 | 12 | |
+| qwen3.5:4b | 3.8 | 0.19 | 4.2 | 11 | |
+| qwen3:4b | 3.2 | 0.16 | 11.7 | 11 | |
+| d3:2b | 3.8 | 0.07 | 3.6 | 13 | decision model, 72 options in one pass |
+| tev1:4b | 5.6 | 0.24 | 3.8 | 13 | decision model |
+
+No better: a fits flag before the op, the kinds beside the lines, the request
+put in English first, repeat_penalty 1.0 or 1.05 (the same 20 answers).
+With the takes in one list her walk came out running_forward and 'stand up
+from the chair' sit_to_stand. 'buga' and Swedish 'spring' missed on every
+model; hop's line was its specialization's header ('propulsion spring
+specialization') till `says` passed over a self-extending behaviour.
+strands-decider needs MLX. The live suite's first run found the catalog's
 errand command carrying a documentation placeholder for `at` into her loop.
 
 ## Daemon and client
@@ -73,10 +91,11 @@ not found` = broken install: rerun `setup.ps1`).
 
 ### Client (`client.py`)
 
-Temperature 0, seed 7, `num_ctx` 8192, keep_alive 30m (REPL) / 2m (one
-question). OOM ladder: free other models, flush, halve context to 2048,
-raise. `release()` sends keep_alive 0. Never a second client at another
-`num_ctx` (reloads 7.6 GB).
+Host 127.0.0.1: `localhost` tries ::1 first and paid 2.04 s a request, the
+daemon on IPv4 alone (1-14 ms). Temperature 0, seed 7, `num_ctx` 8192,
+keep_alive 30m (REPL) / 2m (one question). OOM ladder: free other models,
+flush, halve context to 2048, raise. `release()` sends keep_alive 0. Never a
+second client at another `num_ctx` (reloads 7.6 GB).
 
 ## Prompt loop (`dbg.py`)
 

@@ -457,6 +457,8 @@ def main(argv=None):
                         gauges=gauges(state))
 
     try:
+        if not args.frames:
+            gym.warm(state)
         body, name = _boot_humanoid(board_view, state)
         if args.tour:
             gym.toggle_tour(state)
@@ -467,6 +469,7 @@ def main(argv=None):
                            pad=PAD, state=state, **viewpoint.mouse(state, lambda: size_of(
                                board_view, args, below=state['drawer']['rows']), clicked))
     finally:
+        gym.release(state)
         if state.get('emu') is not None:
             state['emu'].close()
         if body is not None:

@@ -88,7 +88,7 @@ def _model_arguments(parser):
                         help="ollama tag, or 'auto' to pick one from this"
                              " host's cores, RAM and VRAM - see"
                              " coaxial_ollama/capability.py")
-    parser.add_argument('--ollama-host', default='http://localhost:11434')
+    parser.add_argument('--ollama-host', default='http://127.0.0.1:11434')
     parser.add_argument('--allow-remote', action='store_true',
                         help='permit a cloud tag or a remote daemon; off by'
                              ' default, because the question carries the board'

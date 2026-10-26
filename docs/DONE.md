@@ -110,3 +110,8 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     fingers, held a fist at 80 deg, laid at the stand's 18 snapped in at
     893.5 deg/s each lay, her wrists at 69.1; now 0.4 and 3.8, her walk as
     it was (findings/introspect.md).
+26. HUMANOID's prompt on its own model (`gynoid.MODELS`, gemma4:e4b: 4.6
+    GB on the card where 12b held 8.1), warmed as the page opens and at
+    `/`, released as it closes; the Ollama host 127.0.0.1, where localhost
+    paid 2.04 s a request: a prompt 2.42 -> 0.11 s, a board-chat question
+    8.0 -> 1.4 s (MODELS.md).

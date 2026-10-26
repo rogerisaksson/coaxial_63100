@@ -74,7 +74,7 @@ param(
 
 $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
-$Api = 'http://localhost:11434'
+$Api = 'http://127.0.0.1:11434'
 
 # board_chat/*.ps1 - Say first by convention, though load order does not
 # actually matter: nothing in any of these files runs until well after all five

@@ -60,7 +60,7 @@ def _model(report, case):
     from coaxial_ollama import gynoid
     name = gynoid.model()
     if name is None:
-        report.skip(case, 'no local model here (ollama: gemma4:12b)')
+        report.skip(case, 'no local model here (ollama pull %s)' % gynoid.MODELS[0])
     return name
 
 

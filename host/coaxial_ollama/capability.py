@@ -183,7 +183,7 @@ def _cpu_busy():
         return None
 
 
-def _ollama_vram_gb(host='http://localhost:11434'):
+def _ollama_vram_gb(host='http://127.0.0.1:11434'):
     """What ollama is holding on the card right now."""
     try:
         with urllib.request.urlopen(host.rstrip('/') + '/api/ps',
@@ -274,7 +274,7 @@ def _gpu_at(parent, name):
     return {'name': label, 'vram_gb': size, 'via': 'registry qwMemorySize'}
 
 
-def probe(host='http://localhost:11434'):
+def probe(host='http://127.0.0.1:11434'):
     """Measure this host: what it has, and what is left of it."""
     cores, threads, cpu_note = _cpu()
     ram, ram_free, ram_note = _ram_gb()
@@ -433,7 +433,7 @@ def report(host=None, prefer='speed', reserve_gb=None):
     return '\n'.join(lines)
 
 
-def pulled(host='http://localhost:11434'):
+def pulled(host='http://127.0.0.1:11434'):
     """Tags already on this host, so a recommendation can prefer one."""
     try:
         with urllib.request.urlopen(host.rstrip('/') + '/api/tags',
