@@ -90,8 +90,11 @@ On the low chair (plumb: knee 87.8 deg, hips 0.51 legs back) the seat took
 0.14-0.39 of her through the tip, a sole at 0 N; settling upright put her
 centre of mass 0.04-0.10 m behind her heels, both soles went 0 N, the seat
 struck 2.33 of her weight, her trunk rolled 45 deg back and over at 4.32 s
-(baseline 6 of 7). The seat's two points give no pitch (seat.md): a sit
-behind her heels needs a seat that holds her pitch.
+(baseline 6 of 7). Not the seat's points: with each patch's centre of
+pressure free along her (pinned across as felt; the Python step, its C's to
+the digit unchanged) she fell at 4.17 s where 4.32. From 3.3 to 3.6 s her
+pelvis stays 6-11 deg forward on the seat while her trunk goes from -2 to -45
+deg back over it, her soles at 0 N, where the step leaves the split free.
 
 Left: the rise from the deep seat; a scoot's lean as far as puts the seat at
 its cap, her legs' length following her hips, the seat held felt through it.
