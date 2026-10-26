@@ -29,3 +29,18 @@ suite's wake patch at seat 0 compiles targets past the modes' own range
 and the loop refuses them (compression 6.62, sagittal -2.06) - a floor
 rise is a new patch over the tibial keel and carpal manifolds (kneel,
 half-knee), item 13's landing its other half.
+
+## The rise's true dependency
+
+Asked a deep crouch straight (a text at mode_axial_compression 4.0 on the
+flat floor), her ankle is driven to 215.8 deg of its -45..42 range by t 2 s
+and she falls at 3.0: the compression mode's one pattern (hip -K/2, knee K,
+ankle -K/2) binds at the ankle's -45 near knee 90 deg, and past it her feet
+fold. The loop's realized floor is pelvis ~0.51; her legs' geometry allows
+0.299 (knee 154.7) only with the heels up - the kernel's
+:metatarsal-equinus-bilateral manifold, named in its texts, not yet among
+the support buses (plantar, ischial, trochanter-lateral, scapular-dorsal,
+occipital, palmar). The floor rise's chain, each measured: supine (quiet,
+drives let go) -> roll on the trochanter (the pendulum act, in range) ->
+no path below pelvis 0.51 without the equinus redistribution or a tibial
+(kneeling) bus - item 13's deep landing is the same dependency from above.

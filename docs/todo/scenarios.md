@@ -308,9 +308,12 @@ serves its DOD; none an entry a case.
     landing; the crouch stub is deleted; the lying-down spasm found and
     fixed - fallen, the loop drove on and the rest law fought the ground
     (1 658 deg/s, 3 793 N supine), her drives let go now (`edge.off`, the
-    STO's). Left: the rise from supine as a suite patch over the tibial
-    keel and carpal manifolds (roll, kneel, half-knee, stand - the wake
-    patch at seat 0 compiles compression 6.62 past the modes and the loop
-    refuses it); the grippers' 894 deg/s snap at a say's first pass. DOD:
-    laid supine she rises to a stand, 3 of 3; a floor lie down, item 13
-    landed.
+    STO's). Left, the chain measured (lie findings): below
+    pelvis 0.51 the compression pattern binds at the ankle's -45 deg (asked
+    4.0 it drove the ankle to 215.8 deg and felled her at 3.0 s) - the rise
+    and item 13's landing both wait on the heels-up redistribution (the
+    kernel's :metatarsal-equinus-bilateral manifold, not yet a support bus)
+    or a tibial kneeling bus; then the suite patch (roll on the trochanter,
+    kneel or squat, stand); the grippers' 894 deg/s snap at a say's first
+    pass. DOD: laid supine she rises to a stand, 3 of 3; a floor lie down,
+    item 13 landed.
