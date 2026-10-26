@@ -65,6 +65,13 @@ drives' clamps over the bus (`motion.drives`) - resting on the text's own
 springs she churned on the floor, 200-1 400 deg/s, pitch rolling full
 circle; limp she lies at 0-1 deg/s, 88-107 N, pelvis 0.198, no reset, 60 s.
 Measured on the page itself ('lay on floor' in the prompt): down at T+12,
-quiet. The pose is a heap - folded back over her heels, pitch -122 - not a
+quiet. Her arms went as a propeller in the tip - the balance rows windmilled
+against the backward fall, the shoulder sweeping 1 to 234.7 deg at 1 385
+deg/s, the hand slamming 1 359 N - where a human sets the hands behind
+beside the legs, four points: the kneel and tip place and hold them
+(mode_arm_reach -1.4 then -3.9, `seated.braced`'s shoulder flexion at the
+trunk's pitch over the unit's 0.35; arm stiffness 1200, the palmar
+manifold panned 0.6): the shoulder stays -75..-27 deg at 207 deg/s and her
+palms take the landing, 1 065 N, resting at 10. The pose is a heap - folded back over her heels, pitch -122 - not a
 tidy supine: the recline to flat (the bed's 'lay' bar, rolled within LIST)
 and the rise are the rest; her walk unmoved to the digit.
