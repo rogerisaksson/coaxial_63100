@@ -82,7 +82,16 @@ legs asked, 0.26 measured, and the ZMP let go there felled the rise square
 (9.75 s): 1 of 3 where 3. Aimed at the middle whatever the thighs met, the
 0.45 m seat perched them and she fell at 3.1 s, 0 of 6.
 
-Left: the deep landing's descent as a tip the seat catches - the ZMP let go
-only as her hips pass her heels, both soles kept -, and the rise from the
-deep seat; a scoot's lean as far as puts the seat at its cap, her legs'
-length following her hips, the seat held felt through it.
+The tip the seat catches (not kept, branch plumb-sit): her hips landed as far
+back as her shank stands plumb and her thighs clear the edge, the ZMP let go
+once her centre of mass passes her heels. On the 0.45 m chair her thighs meet
+its edge before her shank is plumb: the landing is the edge sit's to the bit.
+On the low chair (plumb: knee 87.8 deg, hips 0.51 legs back) the seat took
+0.14-0.39 of her through the tip, a sole at 0 N; settling upright put her
+centre of mass 0.04-0.10 m behind her heels, both soles went 0 N, the seat
+struck 2.33 of her weight, her trunk rolled 45 deg back and over at 4.32 s
+(baseline 6 of 7). The seat's two points give no pitch (seat.md): a sit
+behind her heels needs a seat that holds her pitch.
+
+Left: the rise from the deep seat; a scoot's lean as far as puts the seat at
+its cap, her legs' length following her hips, the seat held felt through it.
