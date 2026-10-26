@@ -2,6 +2,7 @@
 import ctypes
 import functools
 import math
+import os
 import queue
 import time
 from machine import apart, edge, figure, floor, modal, ortho, physics, se2, sprung, wear
@@ -271,6 +272,8 @@ def _passing():
 #: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
 #: window's passes.
 DT = 1.0 / sprung.RATE_HZ
+#: The environment's port her loop's layers are served on (`introspect.attach`), unset none.
+TELEMETRY = 'COAXIAL_TELEMETRY'
 K = DT / sprung.AVERAGE_S
 WINDOW_STEPS = int(round(wear.WINDOW_S / DT))
 
@@ -431,6 +434,9 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     `shown`."""
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
+    if os.environ.get(TELEMETRY):
+        from machine import introspect
+        introspect.attach(s, int(os.environ[TELEMETRY]))
     apart.paced(Her(s), commands, states, shown=shown, realtime=realtime, say_s=sprung.SAY_S,
                 rest_s=sprung.SAY_S / 4.0, slice_s=sprung.SLICE_S)
 

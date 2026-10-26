@@ -97,3 +97,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     back with it, her neck braced seated. The chair laid 2e-4 rad either way
     sat (main fell at -2e-4), square and +2e-4 risen at roll 2.4 deg, the
     dock stood, her walk as it was; the -2e-4 rise stays open (protocol 5).
+23. Her loop's layers live (`machine.introspect`, findings/introspect.md):
+    latent, impedance and wrench a JSON line each law pass to any client
+    attached, every field named from her code's constants; idle 604 us a
+    pass where 615 without, 875 read.

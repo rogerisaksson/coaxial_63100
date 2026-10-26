@@ -276,6 +276,7 @@ Six firmware defects, no hardware fault:
 | Her errands: her way to a chair, a bed, the door, her dock, its stunt | [findings/errands.md](findings/errands.md) |
 | Her errands from every spot of the lodge's floor, four headings | [findings/spots.md](findings/spots.md) |
 | Her lie on the floor: the legs' refusal, the fall window let go, the rise | [findings/lie.md](findings/lie.md) |
+| Her loop's latent, impedance and wrench served live to a debugger or the local model | [findings/introspect.md](findings/introspect.md) |
 | The stairs told her: footholds, her height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
 | Her place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
 | The mocap takes as her scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |

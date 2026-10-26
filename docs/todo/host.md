@@ -112,11 +112,3 @@
   chair' seated picks the human's mocap take over her own rise_chair, 'bake a
   cake' a body operation rather than null (gemma4:12b, 11 of 13). DOD:
   `tests/test_live_gynoid.py` green 3 of 3 runs, the misses among its cases.
-- **Introspection hooks for her loop** (asked): latent, impedance and
-  wrench published live for a debugger or the local model to attach to -
-  her latent state and phase rows (`latent.step`'s out), the impedance ask
-  (`impedance.ask`: K, D, targets, the support it reads), the whole-body
-  step's answer (`wrench.step`: tau, contact forces, the rounds' clips) -
-  a pass's snapshot on a subscribable stream, read-only, the loop's timing
-  unmoved. DOD: a client attaches to a running page and reads the three at
-  the loop's rate; her walk's pace unmoved to the digit.

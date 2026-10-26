@@ -413,7 +413,12 @@ def main(argv=None):
     parser.add_argument('--keys', default='', help="a key a frame from the first, '.' none")
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
+    parser.add_argument('--telemetry', type=int, default=0,
+                        help='serve her latent, impedance and wrench live on 127.0.0.1:PORT (machine.introspect)')
     args, board_view = parser.parse_args(argv), stage()
+    if args.telemetry:
+        from machine import worker as _worker
+        os.environ[_worker.TELEMETRY] = str(args.telemetry)
     terminal, body, leaving, name = board_view.is_terminal, None, None, 'a process of its own, dots'
     emu_port = args.port if (not args.simulated and str(args.port).startswith('emulator://')) else None
     state = {'body': None, 'orbit': False, **viewpoint.HOME, 'side': 1.0, 'last_t': None,
