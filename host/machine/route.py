@@ -106,10 +106,10 @@ def way(g, to, cells):
 
 def staged(dock, out, most, cells):
     """m along `out` (a dock's normal, unit (x, z)) from `dock` she stands free at: the point of the
-    first run of free cells along it nearest `most` - in the open `most` itself; `most` is the
-    budget, her walk's stopping distance and the stride a turn in place drifts her, and the run's
-    middle gave the chair before the table a 0.45 m stage whose 0.05 m of backing left her 18.6 deg
-    askew and perched on the seat's corner (errands findings)."""
+    first run of free cells along it nearest `most` - in the open `most` itself; `most` her walk's
+    stopping distance and the stride a turn in place drifts her. The run's middle staged the chair
+    before the table 0.45 m out and the click's errand perched her on its corner (pelvis 0.742, sure
+    0.48); at 0.70 she sits (0.586, 0.95), the lodge's start sitting either way (16.6, 17.6 s)."""
     steps = [k * sight.CELL_M for k in range(int(round(2.0 * most / sight.CELL_M)) + 1)]
     free = [_free(cells, _cell(dock[0] + s * out[0], dock[1] + s * out[1])) for s in steps]
     k0 = next((k for k, f in enumerate(free) if f), None)

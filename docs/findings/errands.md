@@ -141,12 +141,11 @@ backward gaits).
 ## The stage at the budget
 
 `route.staged` took the middle of the first free run along the dock's
-normal: the chair before the table got a 0.45 m stage, the turn's drift ate
-it to 0.05 m of backing and she docked 18.6 deg askew, 0.16 m aside, and
-perched on the seat's corner (pelvis 0.742, sure 0.48); the stage is the
-free point nearest the budget - her stop and the turn's stride,
-`route.docks`' d_most - 0.70 m there, 0.32 m of backing, seated 0.586,
-sure 0.95. In the open the two are the same point.
+normal: the chair before the table staged 0.45 m out and the viewport's
+click perched her on the seat's corner (pelvis 0.742, sure 0.48); the stage
+is the run's point nearest the budget - her stop and the turn's stride,
+`route.docks`' d_most - 0.70 m there: seated 0.586, sure 0.95; the lodge's
+start sits either way (16.6, 17.6 s). In the open the two are one point.
 
 ## The dock as the thing faces
 

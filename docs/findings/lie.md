@@ -76,3 +76,13 @@ palms take the landing, 1 065 N, resting at 10.
 The pose is a heap - folded back over her heels, pitch -122 - not a
 tidy supine: the recline to flat (the bed's 'lay' bar, rolled within LIST)
 and the rise are the rest; her walk unmoved to the digit.
+
+## The clamps frozen by the limp
+
+The limp's branch-free form rebound her clamps to their own product each
+pass (`g['cmd']['limit'] = limit * (1 - limp)`): from the first pass on
+they never took the step's live ones (`motion.drives`'s kept limit), and a
+rise from the low chair - sat 22.4 s, stood - sat at 25.5 and fell at 31.9;
+found by the live gynoid suite, bisected to the commit. The cmd's limit a
+buffer laid once, the live clamps multiplied into it: sat 22.4, stood, the
+floor lie as before (pelvis 0.200), her walk to the digit.

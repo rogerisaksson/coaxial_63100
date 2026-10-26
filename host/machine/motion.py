@@ -335,7 +335,7 @@ def laid(g):
                       ('tau', kept['tau']), ('jeff', kept['jeff']), ('release', kept['release'])):
         setattr(p, name, cores.pointer(arr))
     p.over = cores.address(kept['over'])
-    g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit']}
+    g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit'].copy()}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
 
 
@@ -353,7 +353,9 @@ def drives(g, dt):
     # a setpoint within its drive's range (the manifest's): asked compression 4.0 the pattern's
     # ankle ask of -77 deg wound the joint to 215.8 of its -45..42 and felled her at 3.0 s.
     np.clip(g['ref_q'], g['rng'][:, 0], g['rng'][:, 1], out=g['ref_q'])
+    # her clamps told as the step left them, zero where she rests limp (`se2.LIMP`), into a buffer laid
+    # once: rebound to its own product a pass, the clamps froze at the first pass's and a rise from
+    # the low chair fell at 31.9 s that stood
     from machine import se2, sprung
-    limp = float(sprung.doing(g) in se2.LIMP)
-    g['cmd']['limit'] = g['cmd']['limit'] * (1.0 - limp)
+    np.multiply(_kept['limit'], 1.0 - float(sprung.doing(g) in se2.LIMP), out=g['cmd']['limit'])
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))
