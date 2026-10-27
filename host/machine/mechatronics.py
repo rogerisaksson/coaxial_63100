@@ -64,13 +64,28 @@ def robots():
     return sorted(f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml'))
 
 
+def _merged(base, over):
+    """`base` with `over` laid on it: a table merged key by key, anything else `over`'s."""
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merged(base[k], v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v
+    return out
+
+
 def robot(name=ROBOT):
-    """A robot's build (machine/robots/`name`.toml), each stack's parts found in the library."""
+    """A robot's build (machine/robots/`name`.toml), each stack's parts found in the library. A build that
+    `extends` another is that one with its own tables laid on it - only what is its own -, its `swap` the
+    motors it takes for that one's in every stack it does not name."""
     path = os.path.join(ROBOTS, name + '.toml')
     if not os.path.isfile(path):
         raise MachineError('no robot %s: %s' % (name, ', '.join(sorted(
             f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml')))))
     build, lib = _toml(path), library()
+    if 'extends' in build:
+        base, swap = robot(build['extends']), build.get('swap', {})
+        base = dict(base, stacks={kind: [swap.get(stack[0], stack[0])] + list(stack[1:])
+                                  for kind, stack in base['stacks'].items()})
+        build = _merged(base, {k: v for k, v in build.items() if k not in ('extends', 'swap')})
     for kind, stack in build['stacks'].items():
         for part, named in zip(PARTS, stack):
             if named not in lib[part]:

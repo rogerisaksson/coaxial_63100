@@ -360,8 +360,9 @@ def r_ohm(joint):
 
 
 def peak(joint):
-    """The joint torque at the board's amps, N m."""
-    return kt(joint) * of(joint)[1].amps
+    """The joint torque at the board's amps, N m, no more than its gearbox takes momentarily (`shock`): its
+    stack's weakest part."""
+    return min(kt(joint) * of(joint)[1].amps, shock(joint))
 
 
 def slew(joint):

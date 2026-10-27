@@ -62,7 +62,7 @@ foot = ["MN6007", "B", "coaxial_63100"]
 # stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
 # 0.18 m up (0.13 kg m^2), damped at half critical: at 60 N m/rad it nodded 6.1 degrees a step
 # to her surge; 150, 300, 600: 3.0, 2.2, 1.7. The peaks her controller's own, at the drives'
-# clamps before the stacks: her stacks grew to 1.5x them.
+# clamps before the stacks: her stacks grew to 1.5x them; nan, its stack's (`servos`).
 [servo]
 spine = [142.5, 800.0, 30.0, 0.05]
 spine_roll = [77.4, 800.0, 30.0, 0.05]

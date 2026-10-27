@@ -292,6 +292,14 @@ def test_her_manifest_is_her_build(r):
                              capture_output=True, text=True, timeout=300)
         r.check('%s\'s manifest is its tool\'s output under COAXIAL_ROBOT' % other, run.returncode == 0,
                 run.stderr[-300:] or 'COAXIAL_ROBOT=%s python tools/cores/manifest.py --write' % other)
+    import re
+
+    def peaks(robot):
+        with open(os.path.join(mechatronics.HERE, robot + '.manifest.lisp'), encoding='utf-8') as f:
+            return {d: float(p) for d, p in re.findall(r'\(drive (\S+) .*?\(peak ([-\d.]+)\)', f.read())}
+    hers, faster = peaks(mechatronics.ROBOT), peaks(mechatronics.ROBOT + '_performance')
+    weaker = {d: (p, faster.get(d)) for d, p in hers.items() if faster.get(d, -1.0) < p}
+    r.check('her performance build is no weaker than hers at any drive', bool(hers) and not weaker, weaker)
 
 
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
