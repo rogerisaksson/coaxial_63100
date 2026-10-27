@@ -3,7 +3,7 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOO
                               COMPILED, CONFORMANCE, PORTED,
                               CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
-                              GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
+                              GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
                               THERMAL_APP, VIEWS, WBC, WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
 
@@ -15,8 +15,7 @@ TOUCHES = (
     ('host/coaxial_ollama/',                   OLLAMA),
     ('host/coaxial_mcp/tools.py',              ('test_mcp.py', 'test_parity.py',
                                                 'live:tools') + OLLAMA),
-    ('host/coaxial_mcp/render.py',             ('test_mcp.py', 'test_parity.py')
-                                               + OLLAMA),
+    ('host/coaxial_mcp/render.py',             ('test_mcp.py', 'test_parity.py') + OLLAMA),
     ('host/coaxial_mcp/',                      ('test_mcp.py', 'test_parity.py')),
     # The broker is the port itself: every session goes through it when one is up.
     ('host/coaxial/comm/broker.py',            (BROKER, DAQ_API,
@@ -113,7 +112,7 @@ TOUCHES = (
     ('host/machine/tune.py',                   (STRUCTURE, TUNE)),
     ('host/machine/meta_ast_autotuner.lisp',   (TUNE,)),
     ('host/machine/ortho_dsp/',                (DSP, TUNE)),
-    ('host/machine/ortho_kernel/',             (DSP, KERNEL, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE)),
+    ('host/machine/ortho_kernel/',             (DSP, KERNEL, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT)),
     ('host/machine/kernel.py',                 (STRUCTURE, DSP, KERNEL)),
     ('host/machine/lowering.py',               (STRUCTURE, SHIELD)),
     ('host/machine/capsules.py',               (STRUCTURE, SHIELD, WAYFINDER, ORTHO, SCENES, ERRANDS)),
@@ -140,7 +139,7 @@ TOUCHES = (
     ('host/tools/sim/observed.py',             (KERNEL,)),
     ('host/machine/runway.lisp',               (DSP,)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
-                                                LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
+                                                LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
     ('host/coaxial/graphics/gynoid.py',        (RENDER, *VIEWS, GYNOID)),

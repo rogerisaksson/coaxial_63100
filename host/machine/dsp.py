@@ -452,8 +452,8 @@ def _morph(ops, env, params=()):
 
 
 def _records(params):
-    """Whether a clause's params are records, `(:kind :name params..)` each, more than one."""
-    return len(params) > 1 and all(isinstance(p, list) and len(p) > 1 and str(p[1]).startswith(':') for p in params)
+    """Whether a clause's params are records, `(:kind :name params..)` each, one or more."""
+    return len(params) > 0 and all(isinstance(p, list) and len(p) > 1 and str(p[1]).startswith(':') for p in params)
 
 
 def _state(clauses):

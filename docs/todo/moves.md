@@ -121,3 +121,14 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    lodge - the stool sat and left, the bed lain along from its side, rolled
    onto her side, front and back within its margins, risen to standing -
    with no fall, each dwell held.
+10. **Onto and off a stool over her hips** (asked; the kernel's
+    `overheight_*.lisp`, fitted to her body): read whole; her thighs' share
+    crossing the edge, its capstan drag and a stool's centre of pressure in
+    `machine.bedside` ([support](../findings/support.md); test_vault); her
+    loop runs none of it. Left: item 9's stool; her hands bear on fists, so
+    hung from them she leans back 40-76 deg - the texts' flat palms would
+    hold her upright; her arms past what they hold for ever (shoulder 34.5,
+    elbow 42.7 of 22.3 N m) within their peak. DOD:
+    `compile-overheight-vault-and-dip-soa` played on her loop on a stool at
+    her hips - vaulted on, 4 s seated, dipped off onto her forefeet - with
+    no fall and the stool upright.
