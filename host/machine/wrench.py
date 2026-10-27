@@ -264,7 +264,7 @@ def step(b, s, ask):
     stance = np.array([float(bool(k)) for k in ask['stance']])
     each, grounded = np.repeat(stance, 6), max(float(stance.max()), float(k3 > 0))
     turns = ask.get('turns', ())
-    turned = max(grounded, float(ask.get('borne', 0.0))) * float(len(turns) > 0)
+    turned = float(len(turns) > 0)
     want = POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q']) - POSTURE_KD[1] * v[act]
     T, E, t0, a6, asked = _maps(b, s, ask, want)
     if k3:

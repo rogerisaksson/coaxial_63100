@@ -360,7 +360,7 @@ int wbc_step(wbc_step_t *p)
   stance[0] = (double)(p->stance[0] != 0);
   stance[1] = (double)(p->stance[1] != 0);
   grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0));
-  turned = pymax(grounded, p->borne) * (double)(p->nturns > 0);
+  turned = (double)(p->nturns > 0);
   for (int i = 0; i < nd; i++)
   {
     want[i] = p->posture_kd[0] * (p->posture[i] - p->q[i]) - p->posture_kd[1] * p->v[p->act[i]];

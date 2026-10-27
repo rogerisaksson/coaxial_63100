@@ -61,8 +61,7 @@ static void poses(const wbc_imp_t *k, const double *out, const double *y, const 
       a[at[r] + b] = turn[r][b] + (turning + k->turn_kd[1] * spun[r][b]) / k->turn_kd[0];
     }
   }
-  a[k->a_turned] = npmax(npmax(a[k->a_stance], a[k->a_stance + 1]), a[k->a_borne])
-                   * (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
+  a[k->a_turned] = (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
   a[k->a_swung] = k->arm_rad * (s->ref[k->arms] + (s->acc[k->arms] + k->posture_kd[1] * s->rate[k->arms]) / k->posture_kd[0]);
   a[k->a_reached] = k->arm_rad * (s->ref[k->reach] + (s->acc[k->reach] + k->posture_kd[1] * s->rate[k->reach]) / k->posture_kd[0]);
   a[k->a_elbowed] = k->arm_rad * (s->ref[k->elbows] + (s->acc[k->elbows] + k->posture_kd[1] * s->rate[k->elbows]) / k->posture_kd[0]);

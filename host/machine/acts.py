@@ -128,8 +128,7 @@ def _crossfade(p, then, at, modes, body):
     plantar, ms, shape = p['to-bus'] in PLANTAR, p['transfer-time-ms'], _curve(p)
     seat = not plantar and at['seat'] is not None
     at['knee'] = seated.knee(seated.sat(at['seat']), at['ankle']) if seat else at['knee']
-    gain = 1.0 if plantar else 10.0 ** (at.get('legs-db', 0.0) / 20.0)
-    springs = {m: sprung(m, gain, 1.0, modes) for node in LEGS for m in NODES[node]}
+    springs = {m: sprung(m, 1.0, 1.0, modes) for node in LEGS for m in NODES[node]}
     left = p.get('source-residual-weight', 0.0)
     fade = Phase('contact', 'crossfade', ms, ms, {'mode_axial_compression': seated.axial(at['knee'], modes, body)} if seat else {},
                  springs, SUPPORT if plantar else NONE, None, shape=shape,
@@ -230,9 +229,7 @@ def _pendulum(p, then, at, modes, body):
     targets.update({
         'mode_axial_compression': seated.axial(at['knee'], modes, body), 'mode_pitch_attitude': 0.0,
         'mode_sagittal_shift': 0.0})
-    gain = 10.0 ** (at.get('legs-db', 0.0) / 20.0)
-    springs = {m: sprung(m, gain, 1.0, modes) for node in LEGS for m in NODES[node]}
-    springs.update({m: sprung(m, 1.0, 1.0, modes) for m in targets})
+    springs = {m: sprung(m, 1.0, 1.0, modes) for node in LEGS for m in NODES[node]}
     first = str(p['contact-wavefront'][0])
     return [Phase('contact', 'pendulum', p['total-duration-ms'], p['total-duration-ms'], targets, springs, NONE, None,
                   shape=_curve(p), weighs=_weighs(((WAVEFRONT[first], 1.0),)))]

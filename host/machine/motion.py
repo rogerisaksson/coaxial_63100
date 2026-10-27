@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, modal, observer, ortho, poise, rounds, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, rounds, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
 #: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
@@ -34,8 +34,6 @@ HOP_K = 15000.0
 #: her side (trochanter): lying back on the bed, her law held to her soles, her legs swung 483 deg/s.
 RELEASED = 10.0 ** (-32.0 / 20.0)
 DISTAL = ('knee', 'ankle', 'ankle_roll')
-
-
 def axial_k(st):
     """Her axial stiffness asked in her latent `st`, the stiffer of where it goes and where it comes
     from, N/m."""
@@ -184,6 +182,11 @@ def control(g, dt):
     told = g['told'] = out[latent.MANIFOLDED].copy()
     out[latent.MANIFOLDED] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= out[latent.MANIFOLDED][0]
+    share = 1.0 - float(observer.said(told)[0])
+    gain, g['melt'] = melt.melted(g.get('melt', 0.0), share, g.get('melt_was', 0.0), dt * ev)
+    g['melt_was'] = share
+    out[latent.KS][melt.LEGGED] *= gain
+    out[latent.DS][melt.LEGGED] *= math.sqrt(gain)
     unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
