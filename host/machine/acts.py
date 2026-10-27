@@ -82,11 +82,12 @@ def _envelope(p, at, modes, body):
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
+    flex = p.get('appendage-counterweight', {}).get('flexion-rad', 0.0)
     seen = stage == 'descent' and at['seat'] is not None
     sat = stage == 'preload' and at['seat'] is not None
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
     told = (at['knee'], at['ankle']) if sat else (joints.get(':tibiofemoral', at['knee']), joints.get(':talocrural', at['ankle']))
-    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE, at['seat'], trunk) if seen else told
+    at['knee'], at['ankle'] = seated.landed(seated.sat(at['seat']) - pressed, at['behind'] - leap.MIDDLE, at['seat'], trunk, flex == 0.0) if seen else told
     at['leaned'] = (p['duration-ms'], _curve(p))
     # her height only where it bends her knee: a preload's asked her seat's modelled 10 mm under where
     # she sat, her legs let go and her soles bore nothing in 20 ms
@@ -94,7 +95,7 @@ def _envelope(p, at, modes, body):
     # a preload to her soles' middle, no further: 5 cm past it, the seat let her go at 0.54 m/s
     com = seated.com(at['knee'], at['ankle'], trunk, modes, body)
     targets['mode_sagittal_shift'] = min(com, 0.0) if sat else com
-    seat = {'mode_arm_swing': math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
+    seat = {'mode_arm_swing': math.copysign(flex, at['aside']) if flex else 0.0,
             'mode_pelvis_turn': at['turn']}
     targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
     targets.update({'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0]} if 'axial-counterweight' in p else {})
@@ -135,9 +136,11 @@ def _crossfade(p, then, at, modes, body):
                  springs, SUPPORT if plantar else NONE, None, shape=shape,
                  weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))), slide=0.0 if plantar else None)
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
-    return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
-        'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
-        'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)}, {}, None, None, shape=curve)]
+    settle_targets = {'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
+                      'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)} if settle is not None else {}
+    if settle is not None and settle < 0.0:
+        settle_targets.update({'mode_arm_swing': 0.0, 'mode_arm_reach': -2.0})
+    return [fade] + ([Phase('contact', 'settle', leaned, leaned, settle_targets, {}, None, None, shape=curve)]
         if settle is not None and seat else [])
 
 
@@ -201,12 +204,18 @@ def _recline(p, then, at, modes, body):
                'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body),
                'mode_pelvis_turn': p.get('axial-yaw-ramp', (0.0,))[-1] / modes['mode_pelvis_turn'][0]}
     palmed = weighs is not None and weighs[ortho.PALMAR] > 0.0
-    targets.update({'mode_arm_reach': seated.braced(trunk) * palmed / modes['mode_arm_reach'][0],
-                    'mode_arm_swing': 0.0} if weighs is not None else {})
-    springs = {'mode_sagittal_shift': sprung('mode_sagittal_shift', 1.0, 1.0, modes),
-               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE if palmed else 1.0, 1.0, modes)}
-                  if weighs is not None else {})}
-    return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
+    reach_rad = -0.95 if trunk < 0.0 else 0.0
+    targets.update({'mode_arm_reach': reach_rad * palmed / modes['mode_arm_reach'][0],
+                    'mode_arm_swing': 0.0,
+                    'mode_arm_fold': (1.6 if 'limb-lift' in sweep else 0.8) * palmed} if weighs is not None else {})
+    targets.update({'mode_limb_lift': sweep['limb-lift']} if 'limb-lift' in sweep else {})
+    springs = {'mode_sagittal_shift': sprung('mode_sagittal_shift', 0.0 if 'limb-lift' in sweep else 1.0, 1.0, modes),
+               **({'mode_arm_reach': sprung('mode_arm_reach', 10.0 if palmed else 1.0, 1.0, modes),
+                   'mode_arm_fold': sprung('mode_arm_fold', 10.0 if palmed else 1.0, 1.0, modes)}
+                  if weighs is not None else {}),
+               **({'mode_limb_lift': sprung('mode_limb_lift', 1.0, 1.0, modes)} if 'limb-lift' in sweep else {})}
+    what = 'one' if sweep.get('limb-lift', 0.0) and weighs[0] > 0.0 else 'recline'
+    return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
 def _pendulum(p, then, at, modes, body):

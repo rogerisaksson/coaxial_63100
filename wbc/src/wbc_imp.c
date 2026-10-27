@@ -322,10 +322,13 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
        (machine.impedance._let_go) */
     const double gone = propped * (double)(out[k->o_manifolded] <= 0.0);
 
-    stance[0] *= 1.0 - gone;
-    stance[1] *= 1.0 - gone;
-    a[k->a_let_go] = gone;
-    a[k->a_let_go + 1] = gone;
+    for (int b = 0; b < 2; b++)
+    {
+      const double gb = npmax(gone, propped * (double)(up[b] > k->lift_eps));
+
+      stance[b] *= 1.0 - gb;
+      a[k->a_let_go + b] = gb;
+    }
   }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];

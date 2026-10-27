@@ -147,8 +147,10 @@ def weighed(obs, told, weight, dt):
     obs['since'] = (1.0 - on) * (obs['since'] + dt)
     obs['latched'] = latched + on - under * (obs['since'] >= BLANK_S) * (obs['below'] >= DWELL_S)
     gate = obs['gate'] = obs['gate'] + np.clip(obs['latched'] - obs['gate'], -DOWN * dt, UP * dt)
+    aux = told[2:] @ (1.0 - gate[2:])
     w = told * gate
-    w[0] = told[0] + told[1:] @ (1.0 - gate[1:])
+    w[1] += aux * gate[1]
+    w[0] = told[0] + told[1] * (1.0 - gate[1]) + aux * (1.0 - gate[1])
     return w
 
 

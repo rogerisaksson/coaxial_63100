@@ -139,7 +139,7 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
-    stance, a[LET_GO] = _let_go(propped, stance, out)
+    stance, a[LET_GO] = _let_go(propped, stance, out, LIMBS * ref[LIFT])
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
@@ -196,12 +196,13 @@ def ask(out, y, fr, a):
     return a
 
 
-def _let_go(propped, stance, out):
+def _let_go(propped, stance, out, up):
     """(the soles that stand, each leg let go): borne off her soles with her text asking nothing of them
-    (`latent.MANIFOLDED`), her legs hang, on the floor or off - no swing, no stance (`wrench._maps`). Let go off
-    the floor alone, her soles stood on under a seat whose edge perched her, and she tipped back off it."""
-    gone = propped * float(out[latent.MANIFOLDED][0] <= 0.0)
-    return stance * (1.0 - gone), np.full(2, gone)
+    (`latent.MANIFOLDED`) or lifting a leg (`LIFT`), her legs hang, on the floor or off - no swing, no
+    stance (`wrench._maps`). Let go off the floor alone, her soles stood on under a seat whose edge
+    perched her, and she tipped back off it."""
+    gone = propped * np.maximum(float(out[latent.MANIFOLDED][0] <= 0.0), (up > poise.LIFT_EPS).astype(float))
+    return stance * (1.0 - gone), gone
 
 
 def _borne(y, rot, a, dt):
