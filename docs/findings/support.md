@@ -132,20 +132,25 @@ scenarios: [scenarios](scenarios.md).
   periods if as heavy as her, 4e-4 if a fifth. The kip's 340 mm takes 263 ms
   and 102.9 J; her hips and knees at its 12.5 and 14 rad/s keep their 108
   N m (48 V, 16.8 rad/s at most).
-- Off her feet (`machine.crawl`, test_crawl): the crab's twist asks 0.785
-  rad of hip turnout, hers stops at 0.436, past it beyond a coronal index of
-  0.556. In the crab's origin her knee drives her ankle sideways 0.242 of its
-  stroke at no hip turn (its abduction alone), 0.604 at her 25 deg, 0.811 at
-  the text's 45; her elbow 0.126 whatever the hip: her shoulder only flexes.
+- Off her feet (`machine.crawl`, test_crawl), the crab at her capacity: its
+  hips turned out to their 25 deg stop, her shoulders not at all. So turned,
+  her abduction moves her ankle sideways 0.74 of its stroke (0.30 m for
+  +-20 deg), her knee 0.60, her hip's turn 0.07, her elbow 0.08; her trunk's
+  lateral bend carries her shoulders 0.37 m. Its straight arms plumb at 1.04
+  rad of shoulder extension, she rests on soles and fists pitched 59 deg, her
+  pelvis 226 mm up, her legs 0.378 of her; static N m (held): hip 31.8 (43.0),
+  its turn 18.5 (43.0), knee 9.8 (41.8), shoulder 1.0 (22.3), elbow 1.2
+  (22.3). Belly down, the dog's origin turned out so rests on toes and fists
+  pitched -73 deg, pelvis 512 mm up, legs 0.274; hip 16.8, knee 17.6,
+  shoulder 8.8 N m, each within its held. There her abduction moves her
+  ankle sideways 0.91 of its stroke, her hip's turn 0.91, her knee 0.42.
 - A sled's anchors hold its drag only carrying over mu_sled / (mu_anchor +
   mu_sled) of her, 0.44-0.48 on the patches' frictions: the scoot's (0.75)
   hold 0.601 of the vault's half turn, the stairs' (0.65) 0.469, the hip
   drag's (0.28) and the army crawl's (0.35) none.
-- The four terrestrial origins laid rigid: the dog on its hands and toes;
-  her back's bridge lies on her arms, its feet 313 mm up; the scooter's heels
-  and fists hold her pelvis 25 mm up; the crab lies on its feet and upper
-  arms, its hands 86 mm up. The crab's 45 deg hip turnout is past her 25, the
-  dog's neck -53 deg past her -45.
+- Laid rigid, the dog's origin rests on its hands and toes; her back's bridge
+  lies on her arms, its feet 313 mm up; the scooter's heels and fists hold her
+  pelvis 25 mm up.
 - The supine ratchet: a 175 mm riser takes 52.9 J; the text caps her
   shoulder's extension at 28 N m, her shoulder holds 22.3 for ever; its 18 mm
   skim is a 0.59 m/s, 5.4 J drop.

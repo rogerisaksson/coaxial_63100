@@ -102,9 +102,9 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    `machine.crawl` ([support](../findings/support.md); test_crawl); her loop
    runs none of it. Left: items 5 and 6 first; a sled as a sliding contact in
    her step (each of its contacts now stands or is free); a drag with over
-   0.44-0.48 of her on its anchors; the crab within her 25 deg hip turn, her
-   arms as columns (no shoulder turnout); the supine bridge's origin on her
-   hands and feet. DOD: the four segments of
+   0.44-0.48 of her on its anchors; the supine bridge's origin on her hands
+   and feet. DOD: the four segments of
    `compile-terrestrial-multimodal-suite-soa` played on her loop, 1 m each -
-   the crab sideways, the scoot, her back up and down a 175 mm step - with no
-   fall and her shoulders under their held torque on the step.
+   the crab on her back and belly down, sideways; the scoot; her back up and
+   down a 175 mm step - with no fall and her shoulders under their held
+   torque on the step.

@@ -22,7 +22,7 @@
 ;; -----------------------------------------------------------------------------
 ;; 1. TERRESTRIAL 1-JET POSTURE ATLAS (DOG, SUPINE-CRAWL, BUTT-SCOOT, CRABWALK)
 ;; Defines canonical 0-jet origins and 1-jet modal columns for all non-upright
-;; locomotion topologies, including coronal hip/shoulder turnout for crabwalks.
+;; locomotion topologies, including coronal hip turnout for crabwalks.
 ;; -----------------------------------------------------------------------------
 (defstate terrestrial-1jet-posture-atlas
   (:postures
@@ -32,7 +32,7 @@
       :origin-q0
         (:calcaneus 0.00 :talocrural -0.42 :tibiofemoral 1.46 :coxofemoral 1.30
          :iliac-coronal 0.00 :l4-l5-lumbar +0.16 :c7-t12-thoracic +0.22
-         :glenohumeral +1.36 :cubital 0.24 :c1-c2-atlas -0.92)
+         :glenohumeral +1.36 :cubital 0.24 :c1-c2-atlas -0.785)            ; her neck's 45 deg stop
       :modal-basis-columns
         (:mode-axial-compression (:tibiofemoral +0.48 :coxofemoral +0.40 :glenohumeral +0.25 :cubital +0.88)
          :mode-sagittal-shift    (:coxofemoral -0.45 :tibiofemoral -0.30 :glenohumeral +0.42)
@@ -70,10 +70,9 @@
       :coupled-manifold [:plantar-bilateral :ulnar-carpal-shove-bilateral]
       :origin-q0
         (:calcaneus 0.00 :talocrural +0.18 :tibiofemoral 1.28
-         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.78 ; 45 deg hip turnout!
+         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; her hip's 25 deg turn
          :iliac-coronal 0.00 :l4-l5-lumbar -0.05 :c7-t12-thoracic 0.06
-         :glenohumeral -0.42 :glenohumeral-abduct 0.58 :glenohumeral-ext-rot 0.95
-         :cubital 0.52 :c1-c2-atlas 0.00)
+         :glenohumeral -1.04 :cubital 0.00 :c1-c2-atlas 0.00)              ; straight arms plumb, her shoulder no turn
       :modal-basis-columns
         (:mode-axial-compression (:tibiofemoral +0.65 :coxofemoral +0.45 :cubital +0.65)
          :mode-sagittal-shift    (:iliac-coronal +0.45 :coxofemoral-abduct +0.35)
@@ -105,13 +104,13 @@
 
 ;; -----------------------------------------------------------------------------
 ;; 3. HINGE-JOINT TO SE(2) VECTOR ALIGNER (CRABWALK COXA-TURNOUT FOLIO)
-;; Solves the revolute knee/elbow lateral singularity: continuously rotates hip
-;; and shoulder abduction + external rotation as a function of lateral slip angle
-;; kappa_lat = |vy| / sqrt(vx^2 + vy^2) so knees/elbows bend ALONG the travel vector!
+;; Turns her hips out kappa_lat = |vy| / sqrt(vx^2 + vy^2) of their 25 deg stop: her
+;; hip abduction carries the sideways stroke, her knees help; her shoulder only flexes,
+;; her arms bear as plumb columns.
 ;; -----------------------------------------------------------------------------
 (defprimitive align-hinge-joints-to-se2-vector
   [state &key (orientation-topology :pronograde-belly-down) ; :pronograde-belly-down | :supine-belly-up | :ischial-seated | :deep-biped-squat
-              (max-coxa-turnout-rad 0.785)                  ; Up to 45 deg external hip/shoulder turnout
+              (max-coxa-turnout-rad 0.436)                  ; Her hip's 25 deg turn
               (hindlimb-load-share 0.66)]
   (-> state
       (modulate-proximal-balljoint-turnout
@@ -119,7 +118,7 @@
         :turnout-scaling-law :coronal-velocity-ratio-kappa
         :max-hip-external-rot-rad max-coxa-turnout-rad
         :max-hip-abduction-widen-rad 0.52
-        :max-shoulder-external-rot-rad (+ max-coxa-turnout-rad 0.35)
+        :max-shoulder-external-rot-rad 0.0
         ;; Ensure virtual limb lengths match across all 360 deg travel directions:
         :equalize-hind-fore-lever-arms true
         :hind-to-fore-thermal-load-bias hindlimb-load-share

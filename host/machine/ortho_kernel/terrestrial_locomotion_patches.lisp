@@ -44,7 +44,7 @@
                               (limiter-high-mu-planar)
                               (master-anti-spasm-insert))
 
-        ;; 4. Pure Lateral Crabwalk Sideways (Right then Left in Supine & Pronograde)
+        ;; 4. Pure Lateral Crabwalk Sideways, back to the floor, to her right
         sideways-crabwalk (-> nominal-biped-gait
                               (transducer-viscoelastic-flat)
                               (xform-gait-lateral-crabwalk :side-direction :right
@@ -52,7 +52,17 @@
                                                            :crab-speed-mps 0.38)
                               (apply-universal-deformable-overlay)
                               (limiter-high-mu-planar)
-                              (master-anti-spasm-insert))]
+                              (master-anti-spasm-insert))
+
+        ;; 5. The crabwalk belly down, to her left
+        belly-down-crabwalk (-> nominal-biped-gait
+                                (transducer-viscoelastic-flat)
+                                (xform-gait-lateral-crabwalk :side-direction :left
+                                                             :posture-mode :pronograde-belly-down
+                                                             :crab-speed-mps 0.38)
+                                (apply-universal-deformable-overlay)
+                                (limiter-high-mu-planar)
+                                (master-anti-spasm-insert))]
 
     (compile-to-soa
       :align-bytes 64
@@ -62,4 +72,5 @@
         [(bars 0  8  dog-crawl)
          (bars 8  16 supine-up-down)
          (bars 16 24 butt-scoot-drag)
-         (bars 24 32 sideways-crabwalk)])))
+         (bars 24 32 sideways-crabwalk)
+         (bars 32 40 belly-down-crabwalk)])))
