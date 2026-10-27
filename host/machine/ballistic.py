@@ -4,6 +4,7 @@
     beta = ballistic.duty(fr, knots, values)       # 1: a stance's share of a stride, the text's Hermite map
     dv = ballistic.braked(mu, cap, period)         # m/s: the most one step's stance brakes on a floor's friction
     n = ballistic.steps(v, v_walk, dv)             # steps from a run's speed to a walk's
+    z = ballistic.crouch(fr)                       # axial: her deepest crouch to jump from, the text's
     v, t, w = ballistic.launch(depth, legs)        # m/s, s, rad/s: her hips leaving the floor, her knees then
     h, x = ballistic.parabola(vz, vx)              # m: a flight's apex and span, landing as high as it left
 
@@ -82,3 +83,12 @@ def parabola(vz, vx):
     import numpy as np
     vz, vx = np.asarray(vz, float), np.asarray(vx, float)
     return vz * vz / (2.0 * G), 2.0 * vx * vz / G
+
+
+def crouch(fr):
+    """Axial: her deepest crouch to jump from (`leap.standing_leap`), the text's countermovement at her size
+    (`xform-standing-bilateral-jump`) over her axial metre in her frame `fr` - from the human's crouch (`leap.CROUCH`)
+    leant 55 deg she fell 36 ms free into it, 343 mm deep, onto one sole, and left 74 mm under her standing height."""
+    from machine import kernel, modal
+    return 1e-3 * kernel.said('xform-standing-bilateral-jump', 'countermovement-crouch-mm') / (
+        modal.AXIAL_M * fr[modal.HIPS_BY])

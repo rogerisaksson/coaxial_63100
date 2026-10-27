@@ -213,9 +213,9 @@ def standing_leap(base_wire, fr, ch=0.0):
     fell back -, the landing row's springs on the first; her rest. And their names, the seconds
     to her rest, the ms the push begins at."""
     import numpy as np
-    from machine import latent, modal, ortho, takes
+    from machine import ballistic, latent, modal, ortho, takes
     ch = max(0.0, min(1.0, float(ch)))
-    z0 = 0.58 + ch * (CROUCH - 0.58)
+    z0 = 0.58 + ch * (ballistic.crouch(fr) - 0.58)
     a_z, seconds = pushed(fr, z0)
     n = max(2, int(math.ceil(1e3 * seconds / PUSH_MS)))
     push_ms = int(round(1e3 * seconds / n))
@@ -232,9 +232,9 @@ def standing_leap(base_wire, fr, ch=0.0):
         load['at'][k], load['blend'][k] = int(round(1e3 * t_d[k])), int(round(1e3 * step))
         load['flags'][k] = ortho.CURVE
         load['p'][k, axial], load['p'][k, sagittal] = z_d[k, modal.AXIAL] * depth, z_d[k, modal.SAGITTAL] * depth
-        load['p'][k, pitch] = z_d[k, modal.PITCH] * ch
+        load['p'][k, pitch] = z_d[k, modal.PITCH] * depth
     load['at'][-1], load['blend'][-1], load['flags'][-1] = load['at'][-2] + load['blend'][-2], 0, 0
-    load['p'][-1, axial], load['p'][-1, sagittal], load['p'][-1, pitch] = z0, z_d[-1, modal.SAGITTAL] * depth, LEAN * ch
+    load['p'][-1, axial], load['p'][-1, sagittal], load['p'][-1, pitch] = z0, z_d[-1, modal.SAGITTAL] * depth, LEAN * depth
     period_ms = int(round(1e3 * math.tau * math.sqrt(fr[modal.WEIGHT] / G / rows['p'][0, latent.K.start + modal.AXIAL])))
     t0 = int(load['at'][-1]) + period_ms
     throw = np.repeat(rows[1:2], n + 1)
@@ -242,7 +242,7 @@ def standing_leap(base_wire, fr, ch=0.0):
         t = k * push_ms * 1e-3
         throw['at'][k], throw['blend'][k], throw['flags'][k] = t0 + k * push_ms, push_ms, ortho.CURVE
         throw['p'][k, axial] = max(STRAIGHT, z0 - 0.5 * a_z * t * t)
-        throw['p'][k, pitch] = LEAN * ch * (1.0 - t / seconds)
+        throw['p'][k, pitch] = LEAN * depth * (1.0 - t / seconds)
         throw['p'][k, sagittal] = z_d[-1, modal.SAGITTAL] * depth
     # her flight at the push's end speed, her legs long and soft (no height spring) and her
     # centre of mass where the crouch had it over her soles, 0.21 m forward over the jump
