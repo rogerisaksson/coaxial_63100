@@ -16,16 +16,28 @@
            #:patch-rise-bed))
 (in-package :ortho-dsp.bed-lean)
 
-;; Sat on the mattress's edge: her hands back onto it and her trunk back over them, the mattress and her
-;; hands bearing her, her soles their residual.
+;; Sat on the mattress's edge: her hands back onto it and her trunk back over them, then one leg at a time
+;; swung up onto the mattress, the mattress and her hands bearing her.
 (defmaneuver transfer-carpal-recline
-  [seated-state &key (recline-rad -0.5) (duration-ms 1500.0)]
+  [seated-state &key (recline-rad -0.55) (duration-ms 1500.0)]
   (-> seated-state
       (stage-sequential-manifold
         :duration-ms duration-ms
         :contact-chain [:ischial-bilateral -> :palmar-carpal-bilateral]
         :torso-pitch-ramp [0.0 -> recline-rad]
-        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.60) (:palmar-carpal-bilateral 0.25)))))
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.60) (:palmar-carpal-bilateral 0.25)))
+      (stage-sequential-manifold
+        :duration-ms 700.0
+        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
+        :torso-pitch-ramp [recline-rad -> recline-rad]
+        :counterweight-limb-sweep (:limb-lift 1.0)
+        :manifold-pan '((:plantar-bilateral 0.08) (:ischial-bilateral 0.67) (:palmar-carpal-bilateral 0.25)))
+      (stage-sequential-manifold
+        :duration-ms 700.0
+        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
+        :torso-pitch-ramp [recline-rad -> recline-rad]
+        :counterweight-limb-sweep (:limb-lift 0.0)
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.75) (:palmar-carpal-bilateral 0.25)))))
 
 ;; Dock at the bed's edge, her back to it; sit on the mattress's edge; lean back onto her hands
 (defpatch patch-bed-lean [approach-gait &key (seat-z-mm 450.0)] ; the bed her eyes see
@@ -36,6 +48,8 @@
         :source-manifold :plantar-bilateral
         :target-manifold :ischial-bilateral
         :descent-duration-ms 1050.0
+        :arm-flexion-rad 0.0
+        :settle-pitch-rad -0.20
         :seat-z-mm seat-z-mm)
       (transfer-carpal-recline)
       (master-anti-spasm-insert)))

@@ -320,11 +320,16 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   {
     /* a leg whose sole does not stand let go while what bears her off her soles holds her and her text asks
-       nothing of them (machine.impedance._let_go) */
+       nothing of them, a lifting leg standing or not (machine.impedance._let_go) */
     const double gone = propped * (double)(out[k->o_manifolded] <= 0.0);
 
-    a[k->a_let_go] = gone * (1.0 - stance[0]);
-    a[k->a_let_go + 1] = gone * (1.0 - stance[1]);
+    for (int b = 0; b < 2; b++)
+    {
+      const double gb = npmax(gone * (1.0 - stance[b]), propped * (double)(up[b] > k->lift_eps));
+
+      stance[b] *= 1.0 - gb;
+      a[k->a_let_go + b] = gb;
+    }
   }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];

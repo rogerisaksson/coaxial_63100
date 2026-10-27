@@ -141,7 +141,7 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
-    stance, a[LET_GO] = _let_go(propped, stance, out)
+    stance, a[LET_GO] = _let_go(propped, stance, out, LIMBS * ref[LIFT])
     grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
@@ -198,19 +198,20 @@ def ask(out, y, fr, a):
     return a
 
 
-def _let_go(propped, stance, out):
+def _let_go(propped, stance, out, up):
     """(the soles that stand, each leg let go): borne off her soles with her text asking nothing of them
-    (`latent.MANIFOLDED`), a leg whose sole does not stand hangs, its foot a contact (`borne.read`). Let go
-    standing too, a squat's hips stood her up off her hands on the floor; off the floor alone, its foot no
-    contact, her soles stood on under a seat whose edge perched her, and she tipped back off it."""
-    return stance, propped * float(out[latent.MANIFOLDED][0] <= 0.0) * (1.0 - stance)
+    (`latent.MANIFOLDED`), a leg whose sole does not stand hangs, its foot a contact (`borne.read`); one lifting
+    (`LIFT`) hangs standing. Let go standing, a squat's hips stood her up off her hands on the floor; off the
+    floor alone, its foot no contact, she tipped back off a seat's edge on her soles."""
+    gone = propped * np.maximum(float(out[latent.MANIFOLDED][0] <= 0.0) * (1.0 - stance), (up > poise.LIFT_EPS).astype(float))
+    return stance * (1.0 - gone), gone
 
 
 def _borne(y, rot, a, dt):
     """(her support off her soles, 0 to 1; (its box's low and high corners along and across in her
-    way's frame, that support)): what bears her - a seat, a bed, a knee's floor, her hands (`borne`) -,
-    its share of PROP_ON slewed at PROP_UP and PROP_DOWN, kept in `a`, `dt` s on; its box where it bears.
-    Latched at 0.18 of her weight (`waits.borne_back`), her legs held her squat on her hands and soles and
+    way's frame, that support)): what bears her (`borne`), its share of PROP_ON slewed at PROP_UP and
+    PROP_DOWN, kept in `a`, `dt` s on; its box where it bears.
+    Latched at 0.18 of her weight, her legs held her squat on her hands and soles and
     she dropped 21 cm as they gave; unslewed, a brush of the bed's frame at the dock, 0.07 of her,
     stepped her back into it and over the edge."""
     share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
