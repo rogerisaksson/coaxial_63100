@@ -129,6 +129,8 @@ GROUNDWORK = 'test_groundwork.py'
 SUBSTRATE = 'test_substrate.py'
 #: Her gaits off her feet: the kernel's terrestrial texts read, her hinges sideways, a sled's anchors, the origins, the ratchet.
 CRAWL = 'test_crawl.py'
+#: At a seat's or a bed's edge: the kernel's bedside texts read, what meets a fixture behind her, a stool, the bed's pendulum, her roll on it.
+BEDSIDE = 'test_bedside.py'
 #: The ortho-DSP suite read, voiced on her walk and refused by name; a take converted to a modifier.
 DSP = 'test_dsp.py'
 #: The dual-domain kernel on her loop: her momentum observer against her skin.
@@ -191,7 +193,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -229,6 +231,7 @@ JOINS = (
     (12, GROUNDWORK),
     (12, SUBSTRATE),
     (12, CRAWL),
+    (12, BEDSIDE),
     (12, DSP),
     (12, KERNEL),
     (12, SHIELD),

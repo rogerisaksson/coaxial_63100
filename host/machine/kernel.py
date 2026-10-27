@@ -55,7 +55,10 @@ MECHANISMS = {
     'compensate-membrane-catenary-tension': 'catenary-tension', 'place-foot-in-compacted-knee-imprint': 'imprint-step',
     'execute-harmonic-seat-drop-to-feet': 'seat-drop-kip',
     'bind-5torus-locomotion-oscillator': 'axial-torus-clock', 'modulate-proximal-balljoint-turnout': 'coxa-turnout',
-    'configure-peristaltic-stick-slip-cycle': 'stick-slip', 'drive-terrestrial-elevation-ratchet': 'grade-ratchet'}
+    'configure-peristaltic-stick-slip-cycle': 'stick-slip', 'drive-terrestrial-elevation-ratchet': 'grade-ratchet',
+    'bind-posterior-crural-datum-probe': 'calf-datum', 'inject-elliptical-seat-rim-barrier': 'seat-rim',
+    'execute-coupled-so3-cantilever-sweep': 'bed-pendulum', 'execute-zero-translation-bed-roll': 'bed-roll',
+    'modulate-longitudinal-bed-datum': 'bed-datum', 'inject-nullspace-posture-delta': 'posture-delta'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 
