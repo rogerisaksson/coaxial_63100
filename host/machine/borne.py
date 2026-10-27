@@ -78,7 +78,8 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands among them where her text tells them to bear (`hands`, their
     share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it -, a let-go leg's
-    foot and toes too (`let_go`, `impedance._let_go`): no contact, the step took that leg for hanging on the floor."""
+    foot too, not its toes (`let_go`, `impedance._let_go`): no contact, the step took that leg for hanging on the
+    floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing."""
     m, d, n = b.m, b.d, b.n
     ids = getattr(b, 'skin', None)
     if ids is None:
@@ -86,7 +87,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         b.jacs = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
-    skin = np.concatenate([ABOVE, [j for k in (0, 1) if let_go[k] > 0.5 for j in touch.SOLES[k]]]).astype(int)
+    skin = np.concatenate([ABOVE, [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]]).astype(int)
     pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
     jp, jr = b.jacs
     for k in pushed:

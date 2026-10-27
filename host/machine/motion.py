@@ -215,9 +215,10 @@ def control(g, dt):
     # a quarter turn down from her pelvis less its pitch (HUNG, `modal._turns`) -, its knee and ankle hanging: sprung
     # where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh pointed 15 deg down
     # off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a hitch; sprung to its
-    # posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
+    # posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s. Its pitch added,
+    # her pelvis tipped back 59 deg on the floor flexed her hips to 146 and she rolled over backwards
     let_go = np.array(ask['let_go'], float)[:, None]
-    hung = HUNG + np.array([0.0, 0.0, float(modal.pitched(y, g['fr'][modal.ROT].reshape(3, 3))[0])])
+    hung = HUNG - np.array([0.0, 0.0, float(modal.pitched(y, g['fr'][modal.ROT].reshape(3, 3))[0])])
     ask['posture'][HIPS] = let_go * (hung - ask['posture'][HIPS]) + ask['posture'][HIPS]
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N

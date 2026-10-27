@@ -317,8 +317,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
   {
-    /* a leg whose sole does not stand let go while what bears her off her soles holds her and her text tells what
-       bears her and nothing of them, a lifting leg standing or not (machine.impedance._let_go) */
+    /* her legs let go while what bears her off her soles holds her and her text tells what bears her and nothing
+       of them, or a leg lifts (machine.impedance._let_go) */
     double said = 0.0, gone;
 
     for (int i = 1; i < 5; i++)
@@ -329,7 +329,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
     for (int b = 0; b < 2; b++)
     {
-      const double gb = npmax(gone * (1.0 - stance[b]), propped * (double)(up[b] > k->lift_eps));
+      const double gb = npmax(gone, propped * (double)(up[b] > k->lift_eps));
 
       stance[b] *= 1.0 - gb;
       a[k->a_let_go + b] = gb;

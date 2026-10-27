@@ -198,11 +198,11 @@ def ask(out, y, fr, a):
 
 def _let_go(propped, stance, out, up):
     """(the soles that stand, each leg let go): borne off her soles, her text telling what bears her and nothing
-    of them (`latent.MANIFOLDED`), a leg whose sole does not stand hangs, its foot a contact (`borne.read`); one
-    lifting (`LIFT`) hangs standing. Let go standing, a squat's hips stood her up off the floor."""
+    of them (`latent.MANIFOLDED`), or lifting a leg (`LIFT`), her legs hang, their feet contacts (`borne.read`).
+    Let go only where its sole lifted, a landed foot stood and kicked her over at 261 N."""
     told = out[latent.MANIFOLDED]
     nothing = float((told[1:] > 0.0).any()) * float(told[0] <= 0.0)
-    gone = propped * np.maximum(nothing * (1.0 - stance), (up > poise.LIFT_EPS).astype(float))
+    gone = propped * np.maximum(nothing, (up > poise.LIFT_EPS).astype(float))
     return stance * (1.0 - gone), gone
 
 
