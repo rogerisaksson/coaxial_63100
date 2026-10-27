@@ -214,7 +214,7 @@ def _recline(p, then, at, modes, body):
                    'mode_arm_fold': sprung('mode_arm_fold', 10.0 if palmed else 1.0, 1.0, modes)}
                   if weighs is not None else {}),
                **({'mode_limb_lift': sprung('mode_limb_lift', 1.0, 1.0, modes)} if 'limb-lift' in sweep else {})}
-    what = 'one' if sweep.get('limb-lift', 0.0) and weighs[0] > 0.0 else 'recline'
+    what = 'one' if sweep.get('limb-lift', 0.0) and weighs is not None and weighs[0] > 0.0 else 'recline'
     return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
