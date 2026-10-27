@@ -131,7 +131,7 @@
           (:enabled true
            :effective-torso-radius-m 0.197      ; her drift onto her side over its quarter turn
            :centerline-restoring-gain 4.5
-           ;; Plant contralateral heel + upper back briefly to scoot pelvis BACK toward
-           ;; bed centerline before completing the roll over the ipsilateral shoulder:
-           :hip-escape-anchor-frames [:calcaneus-l :calcaneus-r :c7-t12-thoracic]
-           :pelvic-scoot-stroke-mm 149.0))))    ; her spine's lateral stop against her upper back
+           ;; Plant contralateral heel + shoulder briefly to scoot pelvis BACK toward
+           ;; bed centerline before completing the roll over the ipsilateral shoulder!
+           :hip-escape-anchor-frames [:calcaneus-bilateral :glenohumeral-bilateral]
+           :pelvic-scoot-stroke-mm 185.0))))

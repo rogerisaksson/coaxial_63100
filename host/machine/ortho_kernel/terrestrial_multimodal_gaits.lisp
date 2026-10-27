@@ -22,7 +22,7 @@
 ;; -----------------------------------------------------------------------------
 ;; 1. TERRESTRIAL 1-JET POSTURE ATLAS (DOG, SUPINE-CRAWL, BUTT-SCOOT, CRABWALK)
 ;; Defines canonical 0-jet origins and 1-jet modal columns for all non-upright
-;; locomotion topologies, including coronal hip turnout for crabwalks.
+;; locomotion topologies, including coronal hip/shoulder turnout for crabwalks.
 ;; -----------------------------------------------------------------------------
 (defstate terrestrial-1jet-posture-atlas
   (:postures
@@ -72,7 +72,8 @@
         (:calcaneus 0.00 :talocrural +0.18 :tibiofemoral 1.28
          :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; her hip's 25 deg turn
          :iliac-coronal 0.00 :l4-l5-lumbar -0.05 :c7-t12-thoracic 0.06
-         :glenohumeral -1.04 :cubital 0.00 :c1-c2-atlas 0.00)              ; straight arms plumb, her shoulder no turn
+         :glenohumeral -1.04 :glenohumeral-abduct 0.58 :glenohumeral-ext-rot 0.95 ; her straight arms plumb
+         :cubital 0.00 :c1-c2-atlas 0.00)
       :modal-basis-columns
         (:mode-axial-compression (:tibiofemoral +0.65 :coxofemoral +0.45 :cubital +0.65)
          :mode-sagittal-shift    (:iliac-coronal +0.45 :coxofemoral-abduct +0.35)
@@ -104,9 +105,10 @@
 
 ;; -----------------------------------------------------------------------------
 ;; 3. HINGE-JOINT TO SE(2) VECTOR ALIGNER (CRABWALK COXA-TURNOUT FOLIO)
-;; Turns her hips out kappa_lat = |vy| / sqrt(vx^2 + vy^2) of their 25 deg stop: her
-;; hip abduction carries the sideways stroke, her knees help; her shoulder only flexes,
-;; her arms bear as plumb columns.
+;; Solves the revolute knee/elbow lateral singularity: continuously rotates hip
+;; and shoulder abduction + external rotation as a function of lateral slip angle
+;; kappa_lat = |vy| / sqrt(vx^2 + vy^2) so knees/elbows bend ALONG the travel vector!
+;; Her hips turn to their 25 deg stop.
 ;; -----------------------------------------------------------------------------
 (defprimitive align-hinge-joints-to-se2-vector
   [state &key (orientation-topology :pronograde-belly-down) ; :pronograde-belly-down | :supine-belly-up | :ischial-seated | :deep-biped-squat
@@ -118,7 +120,7 @@
         :turnout-scaling-law :coronal-velocity-ratio-kappa
         :max-hip-external-rot-rad max-coxa-turnout-rad
         :max-hip-abduction-widen-rad 0.52
-        :max-shoulder-external-rot-rad 0.0
+        :max-shoulder-external-rot-rad (+ max-coxa-turnout-rad 0.35)
         ;; Ensure virtual limb lengths match across all 360 deg travel directions:
         :equalize-hind-fore-lever-arms true
         :hind-to-fore-thermal-load-bias hindlimb-load-share

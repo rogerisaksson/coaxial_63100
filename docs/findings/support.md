@@ -176,7 +176,7 @@ scenarios: [scenarios](scenarios.md).
   with 18.1 N m of its 43.0.
 - Rolled from her back onto her side in the roll wave's posture she drifts
   0.310 m, a radius of 0.197 (the text 0.165). Her spine's 35 deg lateral
-  stop moves her pelvis 149 mm across her registry's upper-back point (the
-  text 185, its cot 210); from the pendulum's 134 mm the escape scoots her
-  0.443 m that quarter, three strokes. A cot at its 110 mm margins: 829 mm
-  (the text 720).
+  stop moves her pelvis 186 mm across her shoulders (the text 185, its cot
+  210); from the pendulum's 134 mm the escape scoots her 0.443 m that
+  quarter, three strokes. On the 720 mm cot's 500 mm between margins her
+  elbows fold 0.95 rad more: 499 mm wide.

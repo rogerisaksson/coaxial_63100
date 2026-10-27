@@ -205,23 +205,27 @@
 
 ;; 2. Bed Headboard & Pillow Longitudinal Alignment Specializer
 ;; During the 90-deg sit-to-supine pendulum sweep, adjusts the longitudinal scoot
-;; component along the bed's major axis so the back of her skull (`:occipital`) lands
+;; component along the bed's major axis so the cranium (`:cranial-vault`) lands
 ;; centered on the pillow quadric with >= 80 mm clearance to the headboard wall!
 (defmodifier specialize-with-bed-headboard-pillow-align
   [bed-state &key (headboard-clearance-mm 85.0) (pillow-elevation-mm 65.0)]
   (-> bed-state
       (modulate-longitudinal-bed-datum
-        :cranial-capsule :occipital
+        :cranial-capsule :cranial-vault
         :headboard-wall-margin-m (* 0.001 headboard-clearance-mm)
         :pillow-neck-flexion-bias-rad (* 0.0032 pillow-elevation-mm))))
 
 ;; 3. Explicit Shrimp / Hip-Escape Amplitude Specializer (For Ultra-Narrow Cots/Bunks)
 ;; Tunes the stroke length of the contralateral hip-escape so the robot can roll
-;; 180 deg inside a narrow camping cot or bunk bed without touching the rails: her 609 mm
-;; on her back and its margins, her spine's lateral stop's stroke.
+;; 180 deg inside a narrow 700 mm camping cot or bunk bed without touching the rails.
+;; Her stroke to her spine's lateral stop against her shoulders; her arms at her sides
+;; make her 609 mm wide, her elbows folded 0.95 rad more she lies within the rails' margins.
 (defmodifier specialize-with-shrimp-centerline-recentering
-  [bed-roll-state &key (cot-width-mm 829.0) (shrimp-stroke-mm 149.0)]
+  [bed-roll-state &key (cot-width-mm 720.0) (shrimp-stroke-mm 186.0)]
   (-> bed-roll-state
+      (inject-nullspace-posture-delta
+        :gate-by-manifold-weight (:dorsal-supine-continuum :min-w 0.40)
+        :delta-angles '((:cubital 0.95)))
       (drive-centerline-pinned-mattress-roll
         :bed-width-mm cot-width-mm
         :edge-safety-margin-mm 110.0)

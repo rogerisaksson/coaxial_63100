@@ -112,10 +112,11 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    fitted to her body): read whole; her skin's reach behind her, a rim's
    halt, a hung limb's swing, a roll's drift and the shrimp's escape in
    `machine.bedside` ([support](../findings/support.md); test_bedside); her
-   loop runs none of it. Left: a calf patch in her registry - the chairs'
-   and the lodge bed's edges meet her calves, her observer feels them on
-   none; three strokes of her escape a quarter turn where the text plants
-   once; a stool in the lodge. DOD:
+   loop runs none of it. Left: patches in her registry for her calves,
+   shoulders and skull - the chairs' and the lodge bed's edges meet her
+   calves, the escape plants her shoulders, the pillow takes her skull; her
+   observer feels none of them; three strokes of her escape a quarter turn
+   where the text plants once; a stool in the lodge. DOD:
    `compile-complete-stool-and-bed-lifecycle-soa` played on her loop in the
    lodge - the stool sat and left, the bed lain along from its side, rolled
    onto her side, front and back within its margins, risen to standing -

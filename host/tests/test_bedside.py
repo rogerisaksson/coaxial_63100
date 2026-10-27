@@ -10,14 +10,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from test_groundwork import TOUCH, _laid, _part, _skin
+from test_groundwork import LANDMARKS, TOUCH, _laid, _part, _skin
 
 #: The bedside texts, machine/ortho_kernel/.
 TEXTS = ('bedside_and_stool_core.lisp', 'bedside_maneuver_specializers.lisp', 'bedside_choreography_patches.lisp')
+#: The texts' landmarks by the segment of hers that carries each.
+CARRIED = {**LANDMARKS, 'shank-crural': 'shank', 'glenohumeral': 'upper_arm', 'cranial-vault': 'head'}
 #: Her capsules sampled this often along their axes, m; heights stepped, m; samples round a turn; a law pass, s.
 STEP_M, RISE_M, TURN, PASS_S = 0.005, 0.01, 7200, 1e-3
-#: A sole's or toes' box as a lattice of this many a side; the stool's lean stepped, rad.
-LATTICE, LEAN_STEP = 7, 1e-3
+#: A sole's or toes' box as a lattice of this many a side; the stool's lean and the cot's elbow fold stepped, rad.
+LATTICE, LEAN_STEP, FOLD_STEP = 7, 1e-3, 0.01
 
 
 def _plan():
@@ -42,8 +44,9 @@ def _keys(shot, stage):
 
 
 def test_the_texts_read_whole(report):
-    """The texts read with the kernel: their stages; every manifold they name a patch; every frame they probe, prop or
-    anchor a patch's, her calves' none; the stool, 3 s, the bed, 2 s, the roll; the pendulum a quarter turn each way."""
+    """The texts read with the kernel: their stages; every manifold they name a patch; every landmark they probe, prop
+    or anchor on a segment of hers, those on no patch of her registry named; the stool, 3 s, the bed, 2 s, the roll;
+    the pendulum a quarter turn each way."""
     from machine import dsp, kernel
     got, patches, plan, shots = kernel.read(), _patches(), _plan(), _shots()
     folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
@@ -53,8 +56,9 @@ def test_the_texts_read_whole(report):
             texts.append(f.read())
     named = {m for t in texts
              for m in re.findall(r':([a-z0-9-]+-(?:bilateral|continuum|lateral|sphinx))(?![a-z0-9-])', t)}
-    report.check('%d manifolds named, each a patch' % len(named), named <= set(patches),
-                 str(sorted(named - set(patches))))
+    report.check('%d manifolds named, each a patch or a landmark of hers: %s' % (
+        len(named), ', '.join(sorted(named - set(patches)))),
+        all(m[:-len('-bilateral')] in CARRIED for m in named - set(patches)))
     stages = [n for t in texts for n in re.findall(r'\(def(?:primitive|modifier|patch) ([a-z0-9-]+)', t)]
     report.check('%d stages' % (len(stages) - 1), all(isinstance(got[n], dsp.Stage) for n in stages
                                                       if n != 'compile-complete-stool-and-bed-lifecycle-soa'))
@@ -70,9 +74,12 @@ def test_the_texts_read_whole(report):
             *g['bed-roll']['shrimp-counter-translation']['hip-escape-anchor-frames'],
             g['bed-pendulum']['cantilever-seesaw-coupling']['upper-body-prop-frame'],
             g['bed-datum']['cranial-capsule'])}
-    report.check('frames probed, propped on, anchored: %s; on no patch %s' % (
-        ', '.join(sorted(used & frames)), ', '.join(sorted(used - frames))),
-        used - frames == {'shank-crural-l', 'shank-crural-r'})
+    landmark = {f: re.sub(r'-(l|r|bilateral)$', '', f) for f in used | frames}
+    patched = {landmark[f] for f in frames}
+    report.check('probed, propped on, anchored: %s; on no patch of her registry her %s' % (
+        ', '.join('%s (her %s)' % (f, CARRIED[landmark[f]]) for f in sorted(used)),
+        ', '.join(sorted({CARRIED[landmark[f]] for f in used if landmark[f] not in patched}))),
+        all(landmark[f] in CARRIED for f in used))
     turns = [(g['bed-pendulum']['direction'], g['bed-pendulum']['target-yaw-rotation-rad']) for g in shots[1:]]
     report.check('the pendulum: %s' % '; '.join('%s %+.4f rad' % t for t in turns),
                  turns == [(':ingress-to-longitudinal-supine', 1.570796), (':egress-to-transverse-seated', -1.570796)])
@@ -257,21 +264,23 @@ def _rolled(deg, side):
     return groundwork.rest(points, radii, centre, up), spans, theta
 
 
-def _half(origin):
-    """m: her half width lying on her back posed as the groundwork atlas's `origin`, and on her side."""
+def _half(origin, fold=0.0):
+    """m: her half width lying on her back posed as the groundwork atlas's `origin`, her elbows `fold` rad more, and
+    on her side."""
     import numpy as np
     from machine import kernel
-    spans = _rolled(_laid(kernel.read()['groundwork-1jet-posture-atlas']['postures'][origin]['origin-q0']), -1.0)[1]
+    posed = kernel.read()['groundwork-1jet-posture-atlas']['postures'][origin]['origin-q0']
+    spans = _rolled(_laid(dict(posed, cubital=posed['cubital'] + fold)), -1.0)[1]
     return np.abs(spans[0]).max(), np.abs(spans[1]).max()
 
 
 def _stroke():
-    """m: her pelvis across her planted upper back - her registry's thoracic point - at her spine's lateral stop."""
-    from machine import figure, drives, observer
-    point = max((p for _s, seg, p, _n in observer.POINTS if seg == 'torso' and p is not None), key=lambda p: p[1])
-    at = [figure.frames(dict(figure.stand(), spine_roll=r), (0.0, 0.0, 0.0), figure.IDENT)['torso'] for r in (
+    """m: her pelvis across her planted shoulders (the text's glenohumeral anchors, their joints' middle) at her
+    spine's lateral stop."""
+    from machine import figure, drives
+    at = [figure.frames(dict(figure.stand(), spine_roll=r), (0.0, 0.0, 0.0), figure.IDENT) for r in (
         0.0, drives.TRAVEL['spine_roll'][1])]
-    bent, straight = (figure.add(place, figure.apply(turn, point))[0] for place, turn in at[::-1])
+    straight, bent = (0.5 * (a['left_upper_arm'][0][0] + a['right_upper_arm'][0][0]) for a in at)
     return abs(bent - straight)
 
 
@@ -286,7 +295,8 @@ def test_the_bed_pendulum_on_her_body(report):
     length, width = 2.0 * room.BED[2], 2.0 * room.BED[0]
     clear = kernel.node('specialize-with-bed-headboard-pillow-align', 'bed-datum')['headboard-wall-margin-m']
     report.check('her crown %.3f m over her pelvis, her soles %.3f under: on the %.1f m bed her pelvis %.3f-%.3f m '
-                 'from its head' % (crown, soles, length, crown + clear, length - soles), crown + clear < length - soles)
+                 'from its head' % (crown, soles, length, crown + clear, length - soles),
+                 crown + clear < length - soles)
     deep, half = _deep(), _half('floor-supine-flat')[0]
     margin = _shots()[1]['bed-roll']['mattress-drop-off-barrier']['min-capsule-to-edge-margin-m']
     report.check('sat her deepest her hips %.3f m in, %.3f off its line; on her back %.3f m wide, %.0f mm inside the '
@@ -308,7 +318,8 @@ def test_the_bed_pendulum_on_her_body(report):
 def test_her_roll_held_on_the_bed(report):
     """`bedside.drift` is R theta for a cylinder. Her roll wave's posture rolled from her back onto her right drifts
     her the text's radius times the quarter turn. Her room on the bed at rest; the escape (`bedside.escape`) brings
-    her onto its line through that quarter in strokes of hers; the texts' strokes hers, the cot's width hers."""
+    her onto its line through that quarter in strokes of hers; the texts' strokes within hers at her shoulders; on the
+    cot her elbows folded as little as fits her between its margins."""
     import numpy as np
     from machine import bedside, kernel, room
     from test_groundwork import _roll_postures
@@ -344,11 +355,16 @@ def test_her_roll_held_on_the_bed(report):
     narrow = kernel.node('specialize-with-shrimp-centerline-recentering', 'bed-roll')['mattress-drop-off-barrier']
     strokes = (told['pelvic-scoot-stroke-mm'], cot['shrimp-stroke-mm'],
                round(1e3 * shots[2]['stick-slip']['stroke-amplitude-m'], 6))
-    report.check('the strokes %s mm, hers %.0f; the cot %.0f mm, her back %.0f and its %.0f mm margins' % (
-        ', '.join('%.0f' % x for x in strokes), 1e3 * stroke, cot['cot-width-mm'], 2e3 * half[0],
-        1e3 * narrow['min-capsule-to-edge-margin-m']),
-        set(strokes) == {round(1e3 * stroke)}
-        and cot['cot-width-mm'] == round(2e3 * (half[0] + narrow['min-capsule-to-edge-margin-m'])))
+    fold = dict(kernel.node('specialize-with-shrimp-centerline-recentering', 'posture-delta')[
+        'delta-angles'])[':cubital']
+    room = 1e-3 * cot['cot-width-mm'] - 2.0 * narrow['min-capsule-to-edge-margin-m']
+    folded, short = (2.0 * _half('floor-supine-flat', f)[0] for f in (fold, fold - FOLD_STEP))
+    report.check('the strokes %s mm, hers %.0f; on the %.0f mm cot her elbows %.2f rad more: %.0f mm wide, its %.0f '
+                 'between margins, %.0f a step less' % (', '.join('%.0f' % x for x in strokes), 1e3 * stroke,
+                                                         cot['cot-width-mm'], fold, 1e3 * folded, 1e3 * room,
+                                                         1e3 * short),
+                 max(strokes) <= round(1e3 * stroke) and cot['shrimp-stroke-mm'] == round(1e3 * stroke)
+                 and folded <= room < short)
 
 
 ROSTER = [test_the_texts_read_whole, test_what_meets_a_fixture_behind_her, test_a_stool_without_a_back,

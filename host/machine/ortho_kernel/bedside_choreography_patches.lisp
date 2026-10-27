@@ -53,7 +53,7 @@
   (-> supine-bed-state
       ;; Roll Supine -> Side -> Prone (Stomach) -> Supine (Back) pinned to bed centerline:
       (xform-bed-in-place-roll-sequence :roll-direction :clockwise-right :bed-width-mm 900.0)
-      (specialize-with-shrimp-centerline-recentering :cot-width-mm 900.0 :shrimp-stroke-mm 149.0)
+      (specialize-with-shrimp-centerline-recentering :cot-width-mm 900.0 :shrimp-stroke-mm 185.0)
       ;; Reverse 90-deg pendulum: drop lower legs over long side, pivot up to seated, and stand!
       (xform-bed-supine-to-longside-stand :headboard-direction :left)
       (limiter-high-mu-planar)
