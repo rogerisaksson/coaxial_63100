@@ -28,7 +28,7 @@ import numpy as np
 from machine import drives, linkage, qp
 from machine.drives import kind
 from machine.errors import MachineError
-from machine.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF
+from machine.figure import ANKLE_H, BALL, FIST_AT, HEEL, JOINTS, SOLE_HALF
 
 G = 9.81
 
@@ -171,6 +171,9 @@ class Body:
         self.corners = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL)
                                  for x in (-SOLE_HALF, SOLE_HALF)])
         self.sole = np.array((0.0, -ANKLE_H, (BALL - HEEL) / 2.0))
+        #: Her hands and the point each bears on, its fist's centre (`figure.FIST_AT`); her shoulders.
+        self.hands, self.fist = (m.body('left_hand').id, m.body('right_hand').id), np.array(FIST_AT)
+        self.shoulders = (m.body('left_upper_arm').id, m.body('right_upper_arm').id)
         self.mass = float(m.body_subtreemass[self.pelvis])
         self._M = np.zeros((m.nv, m.nv))
         self._jp, self._jr, self._am = (np.zeros((3, m.nv)) for _ in range(3))
@@ -181,7 +184,8 @@ class Body:
 def sense(b, qpos, qvel):
     """What the law reads of her at (qpos, qvel): {M, h (bias less passive), v, q, com, vcom,
     k (angular momentum about the centre of mass), feet [{R, quat, pts, Jc, J6, dJv, sole}],
-    turns [{quat, Jr, dJr, w}] (pelvis, trunk), head {pos, v, quat, w}}, world frame."""
+    turns [{quat, Jr, dJr, w}] (pelvis, trunk), head {pos, v, quat, w}, hands [{p, v, J, dJv, shoulder}]
+    (each fist's centre, its shoulder)}, world frame."""
     m, d, mj, n = b.m, b.d, b.mj, b.n
     d.qpos[:len(qpos)], d.qvel[:len(qvel)] = qpos, qvel
     mj.mj_fwdPosition(m, d)
@@ -215,9 +219,16 @@ def sense(b, qpos, qvel):
     at_h = d.xpos[b.head].copy()
     mj.mj_jac(m, d, jp, jr, at_h, b.head)
     head = {'pos': at_h, 'v': jp[:, :n] @ v, 'quat': d.xquat[b.head].copy(), 'w': jr[:, :n] @ v}
+    hands = []
+    for hand, shoulder in zip(b.hands, b.shoulders):
+        at_f = d.xpos[hand] + d.xmat[hand].reshape(3, 3) @ b.fist
+        mj.mj_jac(m, d, jp, jr, at_f, hand)
+        J = jp[:, :n].copy()
+        mj.mj_jacDot(m, d, jp, jr, at_f, hand)
+        hands.append({'p': at_f, 'v': J @ v, 'J': J, 'dJv': jp[:, :n] @ v, 'shoulder': d.xpos[shoulder].copy()})
     return {'M': b._M[:n, :n].copy(), 'h': d.qfrc_bias[:n] - d.qfrc_passive[:n], 'v': v,
             'q': d.qpos[b.qact].copy(), 'com': d.subtree_com[b.pelvis].copy(), 'vcom': vcom,
-            'k': b._am[:, :n] @ v, 'feet': feet, 'turns': turns, 'head': head}
+            'k': b._am[:, :n] @ v, 'feet': feet, 'turns': turns, 'head': head, 'hands': hands}
 
 
 def step(b, s, ask):

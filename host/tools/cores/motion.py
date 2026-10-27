@@ -44,10 +44,10 @@ def _at(x):
 
 def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
-    from machine import edge, figure, impedance as imp, leap, modal, poise, stride, wbc as law
+    from machine import borne, edge, figure, impedance as imp, leap, modal, poise, stride, wbc as law
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
-            ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', imp.PROP_ENGAGE),
-            ('prop_release', imp.PROP_RELEASE), ('prop_dwell_s', imp.PROP_DWELL_S), ('prop_blank_s', imp.PROP_BLANK_S),
+            ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', borne.PROP_ENGAGE),
+            ('prop_release', borne.PROP_RELEASE), ('prop_dwell_s', borne.PROP_DWELL_S), ('prop_blank_s', borne.PROP_BLANK_S),
             ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
             ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
             ('g', modal.G), ('axial_m', modal.AXIAL_M), ('pitch_rad', modal.PITCH_RAD), ('clear_m', modal.CLEAR_M),

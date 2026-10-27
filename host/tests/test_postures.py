@@ -55,10 +55,10 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     rest of her the crouch's; half on each, half way; her knees as asked whatever bears her; a let-go
     leg's hip level less her pelvis's pitch (HUNG), the other's as it was."""
     import numpy as np
-    from machine import modal, ortho, rounds
+    from machine import bends, modal, ortho, rounds
     names = rounds.DRIVEN
     y, fr, knee, _ankle = _seated(0.47, 0.2, 0.1)
-    bend, arms, reaches, folds = columns = (modal.crouch(names), modal.swing(names), modal.reach(names), modal.fold(names))
+    bend, arms, reaches, folds = columns = (bends.crouch(names), bends.swing(names), bends.reach(names), bends.fold(names))
     posture, knees = np.linspace(-0.3, 0.3, len(names)), tuple(modal.CHAIN[:, 1])
     posture[list(knees)] = 0.0
     a = np.zeros(modal.ASK)
@@ -121,7 +121,7 @@ def test_the_posture_atlas_reads_whole(report):
 def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
     """Down onto the chair and up (`chair`), sat - the seat 0.8 of what bears her or more, felt -: her ask's hips
     and ankles (`modal.poses`) nearer her legs than half what the crouch's column asks of her knee
-    (`modal.crouch`, hip and ankle half the knee: 25-29 deg off them, findings/seat.md)."""
+    (`bends.crouch`, hip and ankle half the knee: 25-29 deg off them, findings/seat.md)."""
     import numpy as np
     from machine import modal, ortho
     from tools.sim import scenarios

@@ -70,7 +70,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
     entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
-    from machine import figure, heat, latent, modal, motion, physics, registry, servos, wbc, wrench
+    from machine import bends, figure, heat, latent, modal, motion, physics, registry, servos, wbc, wrench
     from machine.drives import kind, peak
     from machine.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
@@ -115,8 +115,8 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     else:
         solve_step = {'stack': wbc.step}[solver or SOLVER]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
-         'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': modal.crouch(names), 'arms': modal.swing(names),
-         'reaches': modal.reach(names), 'folds': modal.fold(names),
+         'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': bends.crouch(names), 'arms': bends.swing(names),
+         'reaches': bends.reach(names), 'folds': bends.fold(names),
          'cervical': [names.index(j) for j in ('neck', 'head') if j in names], 'waist_idx': names.index('waist') if 'waist' in names else None,
          'head_idx': names.index('head') if 'head' in names else None, '_look_yaw': 0.0,
          'legs': legs, 'leg_joints': np.concatenate(legs), 'leg_kp': world.gains[np.concatenate(legs), 0].copy(),

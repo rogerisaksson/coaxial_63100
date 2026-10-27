@@ -245,12 +245,11 @@ def test_numpy_enters_behind_the_thread_cap(r):
                 if not any(_caps_openblas(n) for n in tree.body[:i]):
                     uncapped.append(path)
                 break
-    r.check('numpy enters the packages at module level in blocks.py, cyclic.py and '
-            'the whole-body loop alone',
+    r.check('numpy enters the packages at module level in blocks.py, cyclic.py and the whole-body loop alone',
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic qp wbc wrench rounds latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours').split()]),
+                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours bends pressed').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

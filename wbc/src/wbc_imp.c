@@ -97,7 +97,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        z[WBC_IMP_N], zd[WBC_IMP_N], zdd[WBC_IMP_N], leg[2][3], len[2], lrate[2], turn[3][2], spun[3][2];
   double        c[3], v[3], vh[3], om, om2, shod[2][3], sr[2][3], flat[2][2], xi[2], low[2][2], high[2][2];
   double        floors[2], rise, still, dvh[3];
-  double        way4[4][3], plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
+  double        way4[4][3], plo[2], phig[2], seat2[2], propped, pby, told_off, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
   double        smax, stepping, way, swung, sweep[2], phi[2], on[2], off[2], u[2], flying[2], kpf[2], kdf[2];
   double        aside[2], hurry[2], limbs[2], tone[3], cruise, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
@@ -161,6 +161,21 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
     propped = a[k->a_propped];
   }
+  /* what her text tells her to bear on off her soles is in her polygon as far as told, under her hips till felt,
+     and her going down onto it no fall to step for */
+  {
+    double seat3[2][3];
+
+    npmmt(y + k->y_hip, 2, rot, &seat3[0][0]);
+    for (int j = 0; j < 2; j++)
+    {
+      seat2[j] = (seat3[0][j] + seat3[1][j]) / 2.0;
+      plo[j] = propped * npmin(plo[j], seat2[j]) + (1.0 - propped) * seat2[j];
+      phig[j] = propped * npmax(phig[j], seat2[j]) + (1.0 - propped) * seat2[j];
+    }
+    told_off = npsum(out + k->o_manifolded + 1, 4);
+    pby = npmax(propped, npmin(npsum(out + k->o_manifolded + 1, 3), 1.0));
+  }
   /* the lift's own rhythm is her stride's clearance */
   {
     const double beat = psi[k->lift];
@@ -175,6 +190,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     s.rate[m] = out[k->o_rate + m] - npeye(m, k->lift) * tone[1];
     s.acc[m] = out[k->o_acc + m] - npeye(m, k->lift) * tone[2];
   }
+  /* her centre of mass back over the floor under her hips as far as told to bear off her soles, never forward */
+  s.ref[k->sagittal] = s.ref[k->sagittal]
+                       + npmin(npsum(out + k->o_manifolded + 1, 3), 1.0)
+                           * ((z[k->sagittal] - (c[0] - npmin(c[0], seat2[0])) / fr[k->f_unit + k->sagittal])
+                              - s.ref[k->sagittal]);
   for (int b = 0; b < 2; b++)
   {
     up[b] = k->limbs[b] * s.ref[k->lift];
@@ -197,20 +217,21 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       l2[j] = npmin(lo[0][j] + out_of[0], lo[1][j] + out_of[1]);
       h2[j] = npmax(hi[0][j] - out_of[0], hi[1][j] - out_of[1]);
     }
-    wbc_imp_spanned(l2, h2, plo, phig, propped, slo, shi);
+    wbc_imp_spanned(l2, h2, plo, phig, pby, slo, shi);
     for (int j = 0; j < 2; j++)
     {
       beyond[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
       l2[j] = npmin(lo[0][j] + lifting[0], lo[1][j] + lifting[1]);
       h2[j] = npmax(hi[0][j] - lifting[0], hi[1][j] - lifting[1]);
     }
-    wbc_imp_spanned(l2, h2, plo, phig, propped, slo, shi);
+    wbc_imp_spanned(l2, h2, plo, phig, pby, slo, shi);
     for (int j = 0; j < 2; j++)
     {
       past[j] = xi[j] - npclip(xi[j], slo[j], shi[j]);
     }
     smax = npmax(stood[0], stood[1]);
-    a[k->a_need] = ((1.0 - propped) * smax * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
+    a[k->a_need] = ((1.0 - npmax(propped, (double)(told_off > 0.0))) * smax
+                    * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
@@ -314,7 +335,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     zmp[0] = c[0] + both[0] / om2;
     zmp[1] = c[1] + both[1] / om2;
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
-                   y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
+                   y[k->y_prop] * fr[k->f_weight], stood, prop, pby, stance);
   }
   {
     /* her legs let go while what bears her off her soles holds her and her text tells what bears her and nothing

@@ -209,11 +209,15 @@ def control(g, dt):
     # let go (`impedance.ask`) hangs from a hip sprung to its thigh along what bears her (`modal.HUNG`), its knee and
     # ankle hanging: sprung where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh
     # pointed 15 deg down off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a
-    # hitch; sprung to its posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
+    # hitch; sprung to its posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s.
+    # Her palms reach for what they are told to bear: felt alone, they never came down
+    held = weighed * sw
+    held[ortho.PALMAR] = float(told[ortho.PALMAR] > 0.0) * sw
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
-                       weighed * sw, g.get('_twist_clear', 0.0) * sw)
+                       held, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     somatic.asked(g, s, out, told, ask)
+    ask['reach'] = somatic.reached([h['shoulder'] for h in s['hands']], g['fr'], np.full(2, float(told[ortho.PALMAR] > 0.0)))
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
