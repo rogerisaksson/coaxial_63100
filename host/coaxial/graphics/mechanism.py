@@ -26,7 +26,8 @@ CARBON, ROD, STEEL, POLYMER = (92, 94, 106), (214, 214, 224), (246, 246, 246), (
 SPUR_T = 0.008
 #: A board's laminate, green; a motor by its frame.
 PCB = (40, 120, 70)
-SIZED = {'U8': (72, 140, 224), 'MN6007': (60, 190, 170)}
+SIZED = {'U8': (72, 140, 224), 'U10': (48, 96, 196), 'U12': (36, 64, 160), 'MN6007': (60, 190, 170),
+         'R80': (200, 110, 70), 'R60': (220, 150, 90)}
 
 #: Bare, a drive's stack drawn as its parts (`drives.along`): its inverter in the laminate's green,
 #: its motor in its frame's colour, its gearbox in the gearbox's steel grey.

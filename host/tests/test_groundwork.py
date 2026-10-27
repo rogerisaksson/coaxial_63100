@@ -21,10 +21,12 @@ MOVES = {'talocrural': ('ankle', 'dorsiflexion'), 'tibiofemoral': ('knee', 'flex
          'c7-t12-thoracic': ('trunk', 'flexion'), 'glenohumeral': ('shoulder', 'flexion'),
          'cubital': ('elbow', 'flexion'), 'c1-c2-atlas': ('neck', 'flexion'), 'c1-c2-atlas-yaw': ('head', 'rotation'),
          'iliac-coronal': ('trunk', 'lateral-flexion'), 'calcaneus': ('foot', 'eversion'),
-         'glenohumeral-ext-rot': ('shoulder', 'lateral-rotation'), 'glenohumeral-abduction': ('shoulder', 'abduction')}
+         'glenohumeral-ext-rot': ('shoulder', 'lateral-rotation'), 'glenohumeral-abduction': ('shoulder', 'abduction'),
+         'glenohumeral-abduct': ('shoulder', 'abduction'), 'coxofemoral-abduct': ('hip', 'abduction'),
+         'coxofemoral-ext-rot': ('hip', 'lateral-rotation')}
 #: The texts' landmarks by the segment of hers that carries each; her wrist's patch her fist (her hands bear on their
 #: fists, `borne`).
-LANDMARKS = {'calcaneus': 'foot', 'metatarsal-head': 'foot', 'femoral-diaphysis-dorsal': 'thigh',
+LANDMARKS = {'calcaneus': 'foot', 'metatarsal-head': 'toes', 'femoral-diaphysis-dorsal': 'thigh',
              'femoral-diaphysis-ventral': 'thigh', 'ischial-tuberosity': 'pelvis', 'greater-trochanter': 'pelvis',
              'sacral': 'pelvis', 'iliac-anterior-spine': 'pelvis', 'l4-l5-lumbar': 'torso', 'c7-t12-thoracic': 'torso',
              'sternal-pectoral': 'torso', 'occipital': 'head', 'olecranon': 'forearm', 'ulna-distal': 'hand',

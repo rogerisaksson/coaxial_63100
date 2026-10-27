@@ -105,7 +105,7 @@ def test_imports(r):
         try:
             importlib.import_module(name)
             r.check('%s imports' % name, True)
-        except Exception as exc:    # a module body can raise anything: each is a FAIL here
+        except Exception as exc:  # a module body can raise anything: each is a FAIL here
             r.check('%s imports' % name, False,
                     '%s: %s' % (type(exc).__name__, exc))
 
@@ -159,7 +159,7 @@ def test_reexports(r):
             module = importlib.import_module('coaxial_ollama.' + where)
             r.check('debug.%s comes from %s' % (name, where),
                     getattr(module, name, None) is got)
-        except Exception as exc:    # a module body can raise anything: each is a FAIL here
+        except Exception as exc:  # a module body can raise anything: each is a FAIL here
             r.check('debug.%s comes from %s' % (name, where), False, str(exc))
     try:
         debug.no_such_name_at_all
@@ -211,7 +211,7 @@ def test_no_unused_imports(r):
     """An import nothing references. Left behind by every move."""
     for path, _, tree in sources():
         if path.endswith('__init__.py'):
-            continue        # re-exporting is what a package __init__ is for
+            continue  # re-exporting is what a package __init__ is for
         used = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
@@ -249,7 +249,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic qp wbc wrench rounds latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours bends pressed groundwork substrate').split()]),
+                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours bends pressed groundwork substrate crawl').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))

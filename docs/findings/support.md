@@ -132,3 +132,20 @@ scenarios: [scenarios](scenarios.md).
   periods if as heavy as her, 4e-4 if a fifth. The kip's 340 mm takes 263 ms
   and 102.9 J; her hips and knees at its 12.5 and 14 rad/s keep their 108
   N m (48 V, 16.8 rad/s at most).
+- Off her feet (`machine.crawl`, test_crawl): the crab's twist asks 0.785
+  rad of hip turnout, hers stops at 0.436, past it beyond a coronal index of
+  0.556. In the crab's origin her knee drives her ankle sideways 0.242 of its
+  stroke at no hip turn (its abduction alone), 0.604 at her 25 deg, 0.811 at
+  the text's 45; her elbow 0.126 whatever the hip: her shoulder only flexes.
+- A sled's anchors hold its drag only carrying over mu_sled / (mu_anchor +
+  mu_sled) of her, 0.44-0.48 on the patches' frictions: the scoot's (0.75)
+  hold 0.601 of the vault's half turn, the stairs' (0.65) 0.469, the hip
+  drag's (0.28) and the army crawl's (0.35) none.
+- The four terrestrial origins laid rigid: the dog on its hands and toes;
+  her back's bridge lies on her arms, its feet 313 mm up; the scooter's heels
+  and fists hold her pelvis 25 mm up; the crab lies on its feet and upper
+  arms, its hands 86 mm up. The crab's 45 deg hip turnout is past her 25, the
+  dog's neck -53 deg past her -45.
+- The supine ratchet: a 175 mm riser takes 52.9 J; the text caps her
+  shoulder's extension at 28 N m, her shoulder holds 22.3 for ever; its 18 mm
+  skim is a 0.59 m/s, 5.4 J drop.

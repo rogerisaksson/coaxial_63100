@@ -95,3 +95,16 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    `compile-deformable-groundwork-suite-soa` played on her loop on the three
    floors, no fall, her estimator's height within 1 cm of her centre's
    through every sinking.
+8. **Off her feet** (asked; the kernel's `terrestrial_*.lisp`, and
+   `substrate_overlay.lisp`, the overlay their patches use that no text
+   defined, bridged to the deformable baseline): read whole; a twist's
+   coronal index and turnout, a sled's share and its anchors' hold in
+   `machine.crawl` ([support](../findings/support.md); test_crawl); her loop
+   runs none of it. Left: items 5 and 6 first; a sled as a sliding contact in
+   her step (each of its contacts now stands or is free); a drag with over
+   0.44-0.48 of her on its anchors; the crab within her 25 deg hip turn, her
+   arms as columns (no shoulder turnout); the supine bridge's origin on her
+   hands and feet. DOD: the four segments of
+   `compile-terrestrial-multimodal-suite-soa` played on her loop, 1 m each -
+   the crab sideways, the scoot, her back up and down a 175 mm step - with no
+   fall and her shoulders under their held torque on the step.
