@@ -322,7 +322,9 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     kept_labels = [(w, n) for w, n in g['labels'] if w < t0 - 1e-4 or (w <= t0 + 1e-4 and started)]
     hop_labels = [(float(w), names[i + idx0] if i + idx0 < len(names) else 'rest') for i, w in enumerate(hop_rows[:, latent.AT])]
     after_labels = [(w + dt_shift, n) for w, n in g['labels'] if w > old_until + 0.002]
-    g['labels'] = (kept_labels + hop_labels + after_labels)[-16:]
+    # the old ones kept to 16, as `se2.said` keeps them: all to 16 dropped the hop's load and throw, she did 'rest'
+    # through them, and the page's Space said a new hop on her
+    g['labels'] = kept_labels[-16:] + hop_labels + after_labels
     g['_jump_until'], g['_jump_throw'] = new_until, t0 + dt_load_ms * 0.001
 
 

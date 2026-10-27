@@ -24,8 +24,10 @@ from terminal.views import gym, viewpoint
 #: landing once the key's repeats stop - RELEASE_S after the last, FIRST_S after a lone press (a
 #: terminal's first repeat comes 250-500 ms on) - along the view's line of sight.
 CHARGE_N_S, CHARGE_MAX_N, RELEASE_S, FIRST_S = 120.0, 250.0, 0.25, 0.8
-#: Space's repeats feed her hop's charge HOP_HOLD_S after it.
+#: Space's repeats feed her hop's charge HOP_HOLD_S after it; her table's rows of a hop under way, where Space
+#: says no other (`leap.standing_leap`'s names, a stride hop's push).
 HOP_HOLD_S = 0.55
+HOPPING = ('hop', 'load', 'push', 'throw', 'flight', 'land')
 
 #: Where R's recordings go, a CSV from a press to the next: every state the page hears from her,
 #: 10-20 a second of her time (HEADER); beside each, the keys typed and held since the row before
@@ -276,11 +278,14 @@ _HOPPED = bindings.once(_hopped)
 
 
 def _hop(state, key, now):
-    """Space: a hop once a press, its repeats while she loads it charging it (`_hop_held`)."""
-    hh = state.get('hop_hold')
-    if hh and now - hh['began'] <= HOP_HOLD_S and (state.get('now') or {}).get('doing') in ('load', 'push', 'hop'):
+    """Space: a hop once a press, its repeats while she loads it charging it (`_hop_held`), none said while one is under
+    way (HOPPING): held on, it said one in her flight and her landing and felled her."""
+    hh, doing = state.get('hop_hold'), (state.get('now') or {}).get('doing')
+    if hh and now - hh['began'] <= HOP_HOLD_S and doing in ('load', 'push', 'hop'):
         hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
         return _hop_held(state, now, (' ',))
+    if doing in HOPPING:
+        return None
     return _HOPPED(state, key, now)
 
 
@@ -405,8 +410,10 @@ PAD = bindings.page(ROWS, take=_take, held=_held)
 
 
 def clicked(state):
-    """A left click on the viewport: F's first offer said, its choice closed."""
-    _chosen(state, 0)
+    """A left click on the viewport while F's choice is open: its first offer said, the choice closed. With none open
+    a click says nothing - said F's first offer, a click to turn the view walked her off to it."""
+    if state.get('choosing') is not None:
+        _chosen(state, 0)
 
 
 def lapsed(state, now):
