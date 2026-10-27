@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Her gaits off her feet (`machine.crawl`; the kernel's terrestrial_multimodal_gaits.lisp,
 terrestrial_gait_specializers.lisp, terrestrial_locomotion_patches.lisp): the texts read whole, her hinges sideways,
-a sled and its anchors, the four origins on her figure, the supine ratchet on her drives."""
+both crabs holding her, a sled and its anchors, the four origins on her figure, the supine ratchet on her
+drives."""
 import math
 import os
 import re
@@ -36,9 +37,9 @@ def _patch(name):
 
 def test_the_texts_read_whole(report):
     """The texts read with the kernel (`kernel.read`): four postures, each its origin and three columns; every
-    manifold they name a patch; the stages; the schedule four segments of 8 bars - the dog's trot, her back's crawl
-    with its stair ratchet, the scoot and its hip drag, the crab to her right - each on the overlay, the crab's outer
-    pair half a turn ahead of the inner."""
+    manifold they name a patch; the stages; the schedule five segments of 8 bars - the dog's trot, her back's crawl
+    with its stair ratchet, the scoot and its hip drag, the crab on her back to her right and belly down to her left -
+    each on the overlay, each crab's outer pair half a turn ahead of the inner."""
     from machine import dsp, kernel
     got = kernel.read()
     atlas = got['terrestrial-1jet-posture-atlas']['postures']
@@ -58,9 +59,10 @@ def test_the_texts_read_whole(report):
     clocks = [(b0, b1, g['axial-torus-clock']['nominal-phases'], g['axial-torus-clock']['limb-duty'],
                g['axial-torus-clock']['desired-se2-twist']) for b0, b1, g in plan]
     report.check('the schedule: %s' % '; '.join('%g-%g %s %.2f %s' % c for c in clocks),
-                 [c[:2] for c in clocks] == [(0.0, 8.0), (8.0, 16.0), (16.0, 24.0), (24.0, 32.0)]
+                 [c[:2] for c in clocks] == [(8.0 * n, 8.0 * n + 8.0) for n in range(5)]
                  and clocks[0][2] == (0.0, 0.5, 0.5, 0.0, 0.0) and clocks[2][2] == (0.0, 0.0, 0.0, 0.0, 0.5)
                  and clocks[3][2] == (0.5, 0.5, 0.0, 0.0, 0.0) and clocks[3][4][1] < 0.0
+                 and clocks[4][2] == (0.0, 0.0, 0.5, 0.5, 0.0) and clocks[4][4][1] > 0.0
                  and all(any(n == 'apply-universal-deformable-overlay' for n, _x in g['_trace']) for _a, _b, g in plan))
 
 
@@ -75,36 +77,87 @@ def _stroke(deg, joint, at):
 
 
 def test_her_hinges_sideways(report):
-    """`crawl.coronal` of the schedule's twists - the dog and her back's crawl 0, the scoot's 0.275, the crab's 1 -
-    and the turnout it asks, saturating on her hip's turn. In the crab's origin her knee drives her ankle sideways
-    more as her hip turns out (its abduction alone, her 25 deg, the text's 45); her elbow the same whatever it asks:
-    her shoulder only flexes."""
+    """`crawl.coronal` of the schedule's twists - the dog and her back's crawl 0, the scoot's 0.275, the crab's 1 - and
+    the turnout they ask, every heading: her hips' at most their stop, her shoulders' none - they only flex. In the
+    crab's origin her abduction moves her ankle sideways more than her knee, her hip's turn least; her trunk's lateral
+    bend carries her shoulders sideways for her hands."""
+    import numpy as np
     from machine import crawl, drives, figure, kernel
+    from machine.term_rows import ABSENT
     plan = _plan()
     kappa = [float(crawl.coronal(g['axial-torus-clock']['desired-se2-twist'])) for _a, _b, g in plan]
-    most = kernel.said('align-hinge-joints-to-se2-vector', 'max-coxa-turnout-rad')
     stop = math.radians(drives.TRAVEL['hip_yaw'][1])
-    report.check('kappa %s; at most %.3f rad of hip turnout, her %.3f: past it beyond kappa %.3f' % (
-        [round(k, 3) for k in kappa], most, stop, stop / most),
-        kappa[:2] == [0.0, 0.0] and abs(kappa[3] - 1.0) < 1e-12
-        and abs(float(crawl.turnout(plan[3][2]['axial-torus-clock']['desired-se2-twist'], most)) - most) < 1e-12)
-    crab = kernel.read()['terrestrial-1jet-posture-atlas']['postures']['terrestrial-coronal-crab']['origin-q0']
-    deg = _laid(crab)
+    asked = [g['coxa-turnout'] for _a, _b, g in plan]
+    heading = np.linspace(0.0, 2.0 * np.pi, 361)
+    twists = np.stack([np.cos(heading), np.sin(heading), np.zeros_like(heading)], axis=1)
+    most = max(float(crawl.turnout(twists, a['max-hip-external-rot-rad']).max()) for a in asked)
+    report.check('kappa %s; her hips turned %.3f rad at most, her stop %.3f; her shoulders %s' % (
+        [round(k, 3) for k in kappa], most, stop, sorted({a['max-shoulder-external-rot-rad'] for a in asked})),
+        kappa[:2] == [0.0, 0.0] and abs(kappa[3] - 1.0) < 1e-12 and most <= stop + 5e-4
+        and all(a['max-shoulder-external-rot-rad'] == 0.0 for a in asked) and ('shoulder', 'lateral-rotation') in ABSENT)
+    atlas = kernel.read()['terrestrial-1jet-posture-atlas']['postures']
+    deg = _laid(atlas['terrestrial-coronal-crab']['origin-q0'])
+    belly = _laid(dict(atlas['terrestrial-pronograde-dog']['origin-q0'], **{'coxofemoral-ext-rot': stop}))
 
     def ankle(d):
         return figure.frames(d, (0.0, 0.0, 0.0), figure.IDENT)['left_foot'][0]
 
-    def fist(d):
-        return figure.fist(d)
-    knees, elbows = [], []
-    for yaw in (0.0, drives.TRAVEL['hip_yaw'][1], math.degrees(crab['coxofemoral-ext-rot'])):
-        turned = dict(deg, left_hip_yaw=yaw, right_hip_yaw=yaw)
-        knees.append(_stroke(turned, 'left_knee', ankle))
-        elbows.append(_stroke(turned, 'left_elbow', fist))
-    report.check('sideways: her knee %s of its stroke at hip turnout 0, %g, %.0f deg; her elbow %.3f' % (
-        ', '.join('%.3f' % k for k in knees), drives.TRAVEL['hip_yaw'][1], math.degrees(crab['coxofemoral-ext-rot']),
-        elbows[0]),
-        knees[0] < knees[1] < knees[2] and max(elbows) - min(elbows) < 1e-9)
+    def shoulder(d):
+        return figure.frames(d, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0]
+    shares = {j: _stroke(deg, 'left_' + j, ankle) for j in ('hip_roll', 'knee', 'hip_yaw')}
+    down = {j: _stroke(belly, 'left_' + j, ankle) for j in ('hip_roll', 'knee', 'hip_yaw')}
+    low, high = drives.TRAVEL['spine_roll']
+    bend = abs(shoulder(dict(deg, spine_roll=high))[0] - shoulder(dict(deg, spine_roll=low))[0])
+    report.check("sideways of their strokes on her back: abduction %.2f, knee %.2f, hip turn %.2f, elbow %.2f; her "
+                 "trunk's bend carries her shoulders %.2f m. Belly down: abduction %.2f, knee %.2f, hip turn %.2f" % (
+                     shares['hip_roll'], shares['knee'], shares['hip_yaw'], _stroke(deg, 'left_elbow', figure.fist),
+                     bend, down['hip_roll'], down['knee'], down['hip_yaw']),
+                 shares['hip_roll'] > shares['knee'] > shares['hip_yaw'] and down['hip_roll'] > down['knee'])
+
+
+def test_her_crabs_hold_her(report):
+    """Each crab laid rigid on a hard floor - on her back the crab's origin on her soles and fists, its straight arms
+    within 1 deg of plumb; belly down the dog's, turned out to her hip's stop, on her toes and fists - her legs
+    bearing the share the crab tells to 0.01; there every drive's static torque - her contacts' push along the floor's
+    up through each joint, by virtual work - within what it holds for ever (`heat.held`)."""
+    import numpy as np
+    from machine import figure, groundwork, heat, kernel
+    from test_groundwork import TURN, _part, _skin
+    atlas, plan = kernel.read()['terrestrial-1jet-posture-atlas']['postures'], _plan()
+    belly = dict(atlas['terrestrial-pronograde-dog']['origin-q0'],
+                 **{'coxofemoral-ext-rot': plan[4][2]['coxa-turnout']['max-hip-external-rot-rad']})
+    phi = np.linspace(-np.pi, np.pi, TURN, endpoint=False)
+    up, weight = groundwork.pitched(phi), figure.mass() * 9.81
+    for name, origin, sole, at in (('on her back', atlas['terrestrial-coronal-crab']['origin-q0'], 'foot', plan[3][2]),
+                                   ('belly down', belly, 'toes', plan[4][2])):
+        deg = _laid(origin)
+        points, radii, of, centre = _skin(deg)
+        names = np.array([_part(s) for s in of])
+        gap = groundwork.clear(points, radii, up)
+        rests = groundwork.settled(groundwork.rest(points, radii, centre, up))
+        worst = np.array([gap[rests][:, names == p].min(axis=1) for p in (sole, 'hand')]).max(axis=0)
+        k = rests[int(np.argmin(worst))]
+        u, ahead, touch = up[k], np.array([0.0, -np.sin(phi[k]), np.cos(phi[k])]), gap[k] < TOUCH
+        feet, hands = ((points[(names == p) & touch] @ ahead).mean() for p in (sole, 'hand'))
+        legs, told = (hands - centre @ ahead) / (hands - feet), at['coxa-turnout']['hind-to-fore-thermal-load-bias']
+        arm = np.subtract(figure.fist(deg), figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0])
+        tilt = math.degrees(math.atan2(arm @ ahead, -(arm @ u)))
+        torques = {}
+        for joint, part, share in (('hip', sole, legs), ('hip_roll', sole, legs), ('hip_yaw', sole, legs),
+                                   ('knee', sole, legs), ('ankle', sole, legs), ('shoulder', 'hand', 1.0 - legs),
+                                   ('elbow', 'hand', 1.0 - legs)):
+            on = np.array([s == 'left_' + part for s in of]) & touch
+            moved = [_skin(dict(deg, **{'left_' + joint: deg['left_' + joint] + sign * math.degrees(NUDGE)}))[0][on]
+                     .mean(axis=0) for sign in (-1.0, 1.0)]
+            torques[joint] = 0.5 * share * weight * float(u @ np.subtract(moved[1], moved[0])) / (2.0 * NUDGE)
+        held = {j: heat.held('left_' + j)[0] for j in torques}
+        report.check('%s: on her %s at %+.0f deg, pelvis %.0f mm up, arms %.1f deg off plumb, legs %.3f (told %.2f); '
+                     'static N m (held) %s' % (
+                         name, ', '.join(sorted({_part(of[i]) for i in np.flatnonzero(touch)})), math.degrees(phi[k]),
+                         1e3 * gap[k][names == 'pelvis'].min(), tilt, legs, told,
+                         ', '.join('%s %.1f (%.1f)' % (j, abs(t), held[j]) for j, t in torques.items())),
+                     worst.min() < TOUCH and abs(legs - told) < 0.01 and (abs(tilt) < 1.0 or sole == 'toes')
+                     and all(abs(t) <= held[j] for j, t in torques.items()))
 
 
 def test_a_sled_and_its_anchors(report):
@@ -135,7 +188,7 @@ def test_a_sled_and_its_anchors(report):
 def test_the_origins_on_her_figure(report):
     """The four origins as her movements: each joint hers or one she lacks, each angle against her stops; laid rigid
     on a hard floor (`groundwork.rest`, pitched), every rest her centre over what touches, the rest where its coupled
-    patches bear best and the float of their worst part: the dog alone on its own."""
+    patches bear best and the float of their worst part: the dog and the crab on their own."""
     from machine import kernel
     from machine.term_rows import ABSENT, TERMS
     atlas = kernel.read()['terrestrial-1jet-posture-atlas']['postures']
@@ -154,7 +207,8 @@ def test_the_origins_on_her_figure(report):
         report.check('%s: best at %+.0f deg on %s, its %s %.0f mm up' % (
             name[12:], math.degrees(phi), ', '.join(touching), part, 1e3 * worst), True)
     report.check('every rest her centre over what touches; on its own patches: %s' % [n[12:] for n, b in bears.items() if b],
-                 min(rests) >= -TOUCH and [n for n, b in bears.items() if b] == ['terrestrial-pronograde-dog'])
+                 min(rests) >= -TOUCH
+                 and [n for n, b in bears.items() if b] == ['terrestrial-pronograde-dog', 'terrestrial-coronal-crab'])
 
 
 def test_the_supine_ratchet_on_her_drives(report):
@@ -172,7 +226,7 @@ def test_the_supine_ratchet_on_her_drives(report):
                                                       math.sqrt(2.0 * 9.81 * skim), weight * skim), held < cap)
 
 
-ROSTER = [test_the_texts_read_whole, test_her_hinges_sideways, test_a_sled_and_its_anchors,
+ROSTER = [test_the_texts_read_whole, test_her_hinges_sideways, test_her_crabs_hold_her, test_a_sled_and_its_anchors,
           test_the_origins_on_her_figure, test_the_supine_ratchet_on_her_drives]
 
 

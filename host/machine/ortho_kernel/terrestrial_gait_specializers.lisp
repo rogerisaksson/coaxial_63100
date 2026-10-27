@@ -119,12 +119,15 @@
                           [0.50 0.50 0.00 0.00 0.00]  ; Right (outer) limbs step out first at phi=0!
                           [0.00 0.00 0.50 0.50 0.00]) ; Left (outer) limbs step out first at phi=0!
           :velocity-twist-vx-vy-wz [0.0 vy-signed 0.0])
-        ;; Rotate hips & shoulders into 45 deg external frog/crab turnout so knee & elbow
-        ;; hinge axes align with the lateral Y travel vector:
+        ;; Her hips out to their 25 deg stop, her abduction stepping her sideways; her legs
+        ;; bear what her plumb arms leave them on her back, what the dog's stance leaves belly down:
         (align-hinge-joints-to-se2-vector
           :orientation-topology posture-mode
-          :max-coxa-turnout-rad 0.785
-          :hindlimb-load-share (if (eq posture-mode :deep-biped-squat) 1.00 0.64))
+          :max-coxa-turnout-rad 0.436
+          :hindlimb-load-share (case posture-mode
+                                 (:deep-biped-squat      1.00)
+                                 (:pronograde-belly-down 0.27)
+                                 (otherwise              0.38)))
         (xform-universal-spatial-awareness)
         (specialize-with-self-collision-manifold :min-malleolus-gap-mm 18.0 :min-arm-torso-gap-mm 24.0)
         (enforce-dcm-barrier-zcbf :barrier-gamma 16.0 :min-capture-margin-mm 20.0))))
@@ -141,7 +144,7 @@
   [terrestrial-state &key (vx-mps 0.0) (vy-mps 0.0) (wz-radps 0.0)]
   (-> terrestrial-state
       (drive-5torus-ehresmann-clock :velocity-twist-vx-vy-wz [vx-mps vy-mps wz-radps])
-      (align-hinge-joints-to-se2-vector :max-coxa-turnout-rad 0.785)))
+      (align-hinge-joints-to-se2-vector :max-coxa-turnout-rad 0.436)))
 
 ;; 2. Asymmetric One-Sided Hip/Forearm Drag Specializer ("Injured / Low-Profile Drag")
 ;; Specializes `xform-gait-ischial-butt-scoot` for scenarios where one arm is carrying
