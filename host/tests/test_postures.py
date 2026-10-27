@@ -120,8 +120,8 @@ def test_the_posture_atlas_reads_whole(report):
 
 def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
     """Down onto the chair and up (`chair`), sat - the seat 0.8 of what bears her or more, felt -: her ask's hips
-    and ankles (`modal.poses`) nearer her legs than half what the crouch's column asks of her knee
-    (`modal.crouch`, hip and ankle half the knee: 25-29 deg off them, findings/seat.md)."""
+    and ankles (`modal.poses`) within 1 deg of her legs where the crouch's column asks 25-29 deg off them
+    (`modal.crouch`, hip and ankle half the knee, findings/seat.md)."""
     import numpy as np
     from machine import modal, ortho
     from tools.sim import scenarios
@@ -136,8 +136,8 @@ def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
             offs.append((np.abs(np.asarray(g['ask']['posture'])[legs] - q[legs]), np.abs(crouch - q[legs])))
     got = scenarios.ran('chair', laid=laid)
     asked, crouched = (np.degrees(np.mean([o[k] for o in offs], axis=0)) if offs else np.full((2, 2), np.nan) for k in (0, 1))
-    report.check("sat, her hips and ankles asked nearer her legs than half the crouch's, and she rose",
-                 got['met'] and bool(np.all(asked < 0.5 * crouched)),
+    report.check("sat, her hips and ankles asked within 1 deg of her legs, and she rose",
+                 got['met'] and bool(np.all(asked < 1.0)),
                  '%d passes sat; asked off (hip, ankle) %s deg, the crouch %s' % (
                      len(offs), np.round(asked, 1).tolist(), np.round(crouched, 1).tolist()))
 

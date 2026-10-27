@@ -19,8 +19,6 @@
               (descent-duration-ms 1100.0)
               (target-flexion-profile '((:tibiofemoral 1.52) (:coxofemoral 1.48) (:talocrural 0.32)))
               (com-counter-pitch-rad +0.68)
-              (arm-flexion-rad +0.45)
-              (settle-pitch-rad 0.0)
               (contact-threshold-fz 0.15)
               (seat-z-mm 450.0)] ; the seat her eyes see
   (-> state
@@ -31,7 +29,7 @@
         :curve :hermite-soft-landing
         :joint-targets target-flexion-profile
         :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad com-counter-pitch-rad)
-        :appendage-counterweight (:node :glenohumeral :flexion-rad arm-flexion-rad))
+        :appendage-counterweight (:node :glenohumeral :flexion-rad +0.45))
 
       ;; Stage B: Load-cell comparator triggers normal-force bus crossfade
       (on-contact-threshold
@@ -46,7 +44,7 @@
           :curve :equal-power
           :release-source-zmp true
           :source-residual-weight 0.15 ; her soles' share sat
-          :thoracic-settle-rad settle-pitch-rad)))) ; the spine straightened as the seat takes her
+          :thoracic-settle-rad 0.0)))) ; the spine straightened as the seat takes her
 
 ;; -----------------------------------------------------------------------------
 ;; 2. CONCENTRIC MANIFOLD HANDOVER (LOW-Z FIXTURE -> HIGH-Z BIPEDAL SUPPORT)

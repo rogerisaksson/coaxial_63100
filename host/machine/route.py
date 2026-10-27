@@ -45,9 +45,10 @@ def docks():
     she stages before it - her walk's stopping distance and the stride a turn in place drifts her;
     the door's run in -, m; the prop's place failing one found). The dock itself is the thing's edge
     along that normal (`errand._laid`)."""
+    d_stage = se2.STOP_M + stride.STRIDE_M
     return {
-        'sit_chair': (math.pi, room.SEAT[0] - figure.HIP_HALF, se2.STOP_M + stride.STRIDE_M, room.CHAIR_AT),
-        'lie_bed': (math.pi / 2.0, room.BED[2] - figure.HIP_HALF, stride.STRIDE_M + voxels.CELL_M, room.BED_AT),
+        'sit_chair': (math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
+        'lie_bed': (math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
         'exit_door': (math.pi, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]) - figure.ASIDE, 4.0 * stride.STRIDE_M,
                       (0.5 * (room.DOOR_X[0] + room.DOOR_X[1]), room.TO)),
     }

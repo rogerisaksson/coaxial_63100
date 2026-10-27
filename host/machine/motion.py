@@ -210,8 +210,10 @@ def control(g, dt):
     # ankle hanging: sprung where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh
     # pointed 15 deg down off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a
     # hitch; sprung to its posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
+    w_pose = weighed * sw
+    w_pose[modal.ISCHIAL] += min(w_pose[0], w_pose[modal.ISCHIAL] * 0.15 / 0.85)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
-                       weighed * sw, g.get('_twist_clear', 0.0) * sw)
+                       w_pose, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
@@ -236,7 +238,7 @@ def control(g, dt):
     # 101-105 deg as her last landing let her strides go; her head's yaw turns with her. Seated
     # too: let go there, a rise's lean whipped her head 71-98 deg back and asked her neck 10 times
     # its clamp, the whole ask shrunk to 0.04 and she collapsed onto the seat
-    brake = foot * (1.0 - w_drive) * float(g['st'][latent.TO][latent.GAIN])
+    brake = foot * (1.0 - w_drive) * max(float(g['st'][latent.NOW][latent.GAIN]), float(g['st'][latent.TO][latent.GAIN]))
     w_neck = sw * max(w_hop, max(rest, brake))
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)

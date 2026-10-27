@@ -18,7 +18,7 @@ stand alike; the rock voice stiffened for the heel's transient felled her alone.
 import math
 import re
 
-from machine import modal, ortho, stride
+from machine import ortho, stride
 from machine.curves import CURVES
 
 #: The morph's grid, sixteenths of a bar.
@@ -113,7 +113,7 @@ def morph(dry, wet, bands, clock, bars=2.0):
 def crossing(st, now):
     """The time of her lateral voice's next zero crossing, s: her clock's angle and the voice's
     phase carried at her rhythm's rate (`latent` THETA, PHASE, HZ)."""
-    from machine import latent
+    from machine import latent, modal
     hz = float(st[latent.NOW][latent.HZ])
     psi = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.LATERAL])
     return now + ((-psi) % math.pi) / (math.tau * hz)
@@ -130,7 +130,7 @@ def locked(y, fr, a):
     """Whether a transition may begin now: both soles stand and the ZMP her law asks (her centre of
     mass less its asked acceleration over omega squared) lies in their boxes (`poise.boxes`: a sole
     less poise.MARGIN_M round it). Her capture point runs ahead of them walking, never in them."""
-    from machine import poise
+    from machine import modal, poise
     rot = fr[modal.ROT].reshape(3, 3)
     c = rot @ y[modal.COM]
     zmp = c[:2] - (rot @ a[modal.COM_ACC])[:2] / float(fr[modal.OMEGA]) ** 2
