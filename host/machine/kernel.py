@@ -43,9 +43,11 @@ MECHANISMS = {
     'bind-meromorphic-lax-matrix': 'higgs-field', 'solve-hitchin-fibration-map': 'hitchin-base',
     'integrate-schlesinger-wrench-transport': 'schlesinger', 'apply-twistor-sphere-rotation': 'twistor',
     'synthesize-1jet-posture-bundle': 'posture-jet', 'evaluate-1jet-modal-expansion': 'modal-pose',
-    'modulate-unloaded-limb-jet': 'limb-hang',
+    'modulate-unloaded-limb-jet': 'limb-hang', 'warp-modal-basis-submatrix': 'appendage-brace',
     'bind-coupled-torus-oscillators': 'torus-clock', 'solve-virtual-limb-length-matching': 'limb-lengths',
-    'configure-multi-limb-wrench-allocation': 'virtual-truss', 'splice-fifth-peristaltic-oscillator': 'axial-peristalsis'}
+    'configure-multi-limb-wrench-allocation': 'virtual-truss', 'splice-fifth-peristaltic-oscillator': 'axial-peristalsis',
+    'execute-nonholonomic-body-roll': 'body-roll', 'bind-substrate-dependent-roll-law': 'substrate-roll',
+    'execute-topological-leg-inversion': 'leg-inversion'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 

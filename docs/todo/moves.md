@@ -70,3 +70,16 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    the text's 0.68. DOD: laid on her toes and fists she holds 10 s, her arms
    0.32 of her or less; then crawls 1 m in the lateral sequence, never fewer
    than three bearing.
+6. **On the floor** (asked; the kernel's `floor_*.lisp`,
+   `ground_rolling_and_transitions.lisp`): read whole; her rest on a floor,
+   the roll's ring and girdles and the trough's law in `machine.groundwork`
+   ([support](../findings/support.md); test_groundwork); her loop runs none
+   of it. Left: her shins, front and forearms as what bears her
+   (`ortho.MANIFOLDS` has plantar, ischial, trochanter, dorsal, palmar); the
+   origins on her body - the tall kneel at 0.60 of its axial column, the
+   prone's arms in her sagittal plane, the tripod's fists level with her
+   buttocks, not 63 mm under them; the roll's push-off heel planted; a way
+   from her knees to her buttocks within her 25 deg hip turn. DOD: `compile-complete-groundwork-soa`
+   played on her loop - knees, hands and knees, buttocks, back, rolled 180 deg
+   onto her front and 360 deg on, up to standing - with no fall, each 1.5 s
+   dwell held; the roll on the lodge bed too.
