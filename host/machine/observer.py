@@ -13,6 +13,7 @@ normal pushing - ROUNDS solves, each pulling normal pinned for the next -, the l
 pushes cancel (both hips squeezed along one line) by the QP's tie-break (`qp.EPS`). Blind: no skin,
 no load cell.
 """
+import functools
 import math
 import os
 
@@ -20,7 +21,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, kernel, ortho, qp
+from machine import edge, kernel, ortho, qp, touch
 from machine.rounds import ROUNDS  # the split's rounds: a least squares, each normal pulling pinned for the next
 from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
 from tools.cores.model import rotation
@@ -130,6 +131,17 @@ def said(told):
     (her rest), her soles alone."""
     total = told.sum()
     return np.where(total > 0.0, told / np.maximum(total, TINY), SOLES)
+
+
+@functools.cache
+def parts(m):
+    """Each manifold's bodies of `m` (ROWS' order): its points' segments (POINTS), a whole arm where one of its
+    segments is among them (`touch.ARMS`), and their children: lain back onto her forearm, her hands told, she was
+    called fallen."""
+    found = [{m.body(seg).id for shares, seg, _p, _n in POINTS if MANIFOLDS[r] in {s[0] for s in shares}} for r in ROWS]
+    arms = [{m.body(edge.SKIN[i]).id for i in arm} for arm in touch.ARMS]
+    found = [ids.union(*(arm for arm in arms if arm & ids)) for ids in found]
+    return [ids | {b for b in range(m.nbody) if m.body_parentid[b] in ids} for ids in found]
 
 
 def weighed(obs, told, weight, dt):

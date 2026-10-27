@@ -48,15 +48,18 @@
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)))))
 
-;; sat on the floor, she drags her butt forward on her hands: down as she lies down, her trunk up on her hands
-;; behind her, her hands beside her hips; then a stroke - her elbows straightened, her shoulders turned back
-;; as her butt slides - and her hands lifted forward again
+;; sat on the floor, she drags her butt forward on her hands: tipped back as she lies down till the floor bears her
+;; butt (`wait contact`), her trunk up on her hands, her hands beside her hips; then a stroke - her elbows
+;; straightened, her shoulders turned back as her butt slides - and her hands lifted forward again. Sat as a hop lands
+;; (`soft_land`): at once, on her rest's pitch spring - blended 1.2 s from the tip's lean, or on the tip's spring, she
+;; lay back on her hands to -92 deg in a second
 (defbehavior scoot_floor (extends lie_floor)
   (phase kneel)
-  (phase tip)
-  (phase sit (use tip)
-    (duration 1500ms) (blend_duration 1200ms)
+  (phase tip (duration 500ms))
+  (phase sit (use tip) (wait contact)
+    (duration 1500ms) (blend_duration 0ms)
     (latent_targets (mode_pitch_attitude -0.4))
+    (impedance (stiffness mode_pitch_attitude 1458) (damping mode_pitch_attitude 292))
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.3))))
   (phase hands (use sit)

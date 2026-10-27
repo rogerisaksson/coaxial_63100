@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm."""
+"""Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm,
+what she does on it."""
 import math
 import os
 import sys
@@ -85,8 +86,65 @@ def test_her_grip_bounds_her_rhythm(report):
                  np.allclose(slid, 8.0 / 300.0) and (held_on >= 8.0 / 300.0).all(), '%s, %s' % (slid, held_on))
 
 
+def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
+    """Said lie_floor on the flat floor: she crouches, tips back soft and lies - pelvis under 0.25 m,
+    doing floor_rest, her drives limp (se2.LIMP, clamps zero over the bus) - quiet (joints under 30
+    deg/s, no contact past 300 N after the settle), no fall reset for 14 s (se2.GROUNDED)."""
+    import numpy as np
+    from machine import physics, sprung, worker
+    physics.ROOM, physics.SIGHT = 0.0, 0.0
+    s = worker.session()
+    g, d = s['g'], s['g']['world'].data
+    worker.apply(s, {'scenario': 'flat'})
+    for _ in range(int(round(0.5 / worker.DT))):
+        worker.stepped(s)
+    worker.apply(s, {'say': 'lie_floor'})
+    t0, worst_v, worst_f = g['t'], 0.0, 0.0
+    import mujoco
+    contact_force = getattr(mujoco, 'mj_contactForce')
+    m, f6 = g['world'].model, np.zeros(6)
+    while g['t'] < t0 + 14.0 and s.get('epoch', 0) == 0:
+        worker.stepped(s)
+        if g['t'] - t0 > 8.0:
+            worst_v = max(worst_v, float(np.abs(d.qvel[6:]).max()))
+            for i in range(d.ncon):
+                contact_force(m, d, i, f6)
+                worst_f = max(worst_f, abs(float(f6[0])))
+    report.check('she lies where she stood: pelvis under 0.25, floor_rest, quiet, no reset',
+                 s.get('epoch', 0) == 0 and float(d.qpos[1]) < 0.25 and sprung.doing(g) == 'floor_rest'
+                 and math.degrees(worst_v) < 30.0 and worst_f < 300.0,
+                 'pelvis %.3f doing %s worst %d deg/s %d N epoch %s' % (
+                     d.qpos[1], sprung.doing(g), math.degrees(worst_v), worst_f, s.get('epoch', 0)))
+
+
+def test_told_to_scoot_on_the_floor_she_drags_her_butt_forward(report):
+    """Said scoot_floor on the flat floor: she sits on her butt and hands (pelvis under 0.25 m) and her strokes drag
+    her 0.1 m along her way without a fall."""
+    import numpy as np
+    from machine import physics, sprung, worker
+    physics.ROOM, physics.SIGHT = 0.0, 0.0
+    s = worker.session()
+    g, d = s['g'], s['g']['world'].data
+    worker.apply(s, {'scenario': 'flat'})
+    for _ in range(int(round(0.5 / worker.DT))):
+        worker.stepped(s)
+    worker.apply(s, {'say': 'scoot_floor'})
+    yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
+    way = np.array([math.sin(yaw), 0.0, math.cos(yaw)])
+    t0, sat, start = g['t'], False, None
+    while g['t'] < t0 + 12.0 and s['fallen_at'] is None:
+        worker.stepped(s)
+        sat = sat or float(d.qpos[1]) < 0.25
+        start = float(d.qpos[0:3] @ way) if start is None and str(sprung.doing(g)).startswith('push') else start
+    went = math.nan if start is None else float(d.qpos[0:3] @ way) - start
+    report.check('she sits on the floor and her strokes drag her 0.1 m forward, no fall',
+                 sat and s['fallen_at'] is None and went >= 0.1,
+                 'sat %s fallen %s went %.3f m' % (sat, s['fallen_at'], went))
+
+
 ROSTER = [test_the_floor_runs_on_under_her_soles, test_a_grown_prop_bears_where_it_has_grown,
-          test_her_grip_bounds_her_rhythm]
+          test_her_grip_bounds_her_rhythm, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
+          test_told_to_scoot_on_the_floor_she_drags_her_butt_forward]
 
 
 def main(argv=None):

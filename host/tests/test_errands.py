@@ -259,34 +259,7 @@ def test_the_errand_goes_to_the_thing_told(report):
                  docks)
 
 
-def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
-    """Said lie_floor on the flat floor: she crouches, tips back soft and lies - pelvis under 0.25 m,
-    doing floor_rest, her drives limp (se2.LIMP, clamps zero over the bus) - quiet (joints under 30
-    deg/s, no contact past 300 N after the settle), no fall reset for 14 s (se2.GROUNDED)."""
-    import numpy as np
-    from machine import physics, sprung, worker
-    physics.ROOM, physics.SIGHT = 0.0, 0.0
-    s = worker.session()
-    g, d = s['g'], s['g']['world'].data
-    worker.apply(s, {'scenario': 'flat'})
-    _run(s, 0.5)
-    worker.apply(s, {'say': 'lie_floor'})
-    t0, worst_v, worst_f = g['t'], 0.0, 0.0
-    import mujoco
-    contact_force = getattr(mujoco, 'mj_contactForce')
-    m, f6 = g['world'].model, np.zeros(6)
-    while g['t'] < t0 + 14.0 and s.get('epoch', 0) == 0:
-        worker.stepped(s)
-        if g['t'] - t0 > 8.0:
-            worst_v = max(worst_v, float(np.abs(d.qvel[6:]).max()))
-            for i in range(d.ncon):
-                contact_force(m, d, i, f6)
-                worst_f = max(worst_f, abs(float(f6[0])))
-    report.check('she lies where she stood: pelvis under 0.25, floor_rest, quiet, no reset',
-                 s.get('epoch', 0) == 0 and float(d.qpos[1]) < 0.25 and sprung.doing(g) == 'floor_rest'
-                 and math.degrees(worst_v) < 30.0 and worst_f < 300.0,
-                 'pelvis %.3f doing %s worst %d deg/s %d N epoch %s' % (
-                     d.qpos[1], sprung.doing(g), math.degrees(worst_v), worst_f, s.get('epoch', 0)))
+
 
 
 def test_the_low_chair_is_docked_as_it_faces(report):
@@ -421,7 +394,7 @@ def test_continuous_outer_loop_told_and_walk_again(report):
 ROSTER = (test_a_stop_settles_and_f_is_heard, test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns,
           test_a_chair_a_hair_off_is_sat_on_and_risen_from, test_doorway_arm_yields_and_she_walks_on,
           test_chair_and_bed_seated_and_rising, test_viewport_f_errands_chair_bed_and_door,
-          test_the_errand_goes_to_the_thing_told, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
+          test_the_errand_goes_to_the_thing_told,
           test_the_low_chair_is_docked_as_it_faces,
           test_from_the_low_chair_she_rounds_the_bed_to_the_door,
           test_multi_pose_bed_settle_and_randomized_scenarios,
