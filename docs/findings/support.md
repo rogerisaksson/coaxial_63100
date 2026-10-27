@@ -73,3 +73,10 @@ scenarios: [scenarios](scenarios.md).
   held at the floor while something bears her: 16 of 16 seated and risen, the
   others' trajectories and her walk the same to the bit. Not kept: a prop kept
   on its last felt force within 2 mm of where it bore, 6 of 16 risen.
+- Her legs as what bears her holds them (`modal.poses`): sat on the chair
+  the crouch's column asked her ankle 25.4 deg past hers, her hip 28.6 short
+  (chair_low 33.8, 37.0); the seat's chain (`modal.seat`, her legs to 0.1
+  deg) blended by her support asks 7.8 and 6.2, the soles' 0.15 the rest.
+  Her legs, the contacts', moved not at all; the chair and the walk the same
+  to the digit; bed_rise, unmet both, fell at 19.7 s and now never rises.
+  `HUNG` adds her pelvis's pitch to a let-go hip where the chain subtracts it.

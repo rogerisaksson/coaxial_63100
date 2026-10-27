@@ -325,3 +325,14 @@ serves its DOD; none an entry a case.
     or a tibial kneeling bus, with item 13's landing); the grippers' 894
     deg/s snap at a say's first pass. DOD: laid supine she rises to a
     stand, 3 of 3; the lie flat, rolled within LIST.
+19. **Her posture a 1-jet a manifold** (asked; the kernel's
+    `canonical_posture_bundle.lisp`): `modal.poses` lays her legs as what
+    bears her holds them (`latent.MANIFOLDED`) - her soles, side and back the
+    crouch's column, a seat its thigh (`modal.seat`) -, a let-go leg's hang
+    (`HUNG`) in it; sat, the ask's hip and ankle 6-8 deg off her legs where
+    25-29 ([support](../findings/support.md); test_postures). Left: the
+    soles' share (0.15 sat) asks the crouch of legs the seat and the floor
+    hold together; `HUNG` adds her pelvis's pitch where the seat's chain
+    subtracts it; the atlas's origins and columns are its text's, her law
+    reads none. DOD: sat, the ask's legs within 1 deg of hers; a let-go
+    thigh level; no scene lost.

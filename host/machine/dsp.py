@@ -440,15 +440,21 @@ def _morph(ops, env, params=()):
                  sync, clock, bands, sync.get('duration-bars', env.get('bars', 2.0)), acts)
 
 
+def _records(params):
+    """Whether a clause's params are records, `(:kind :name params..)` each, more than one."""
+    return len(params) > 1 and all(isinstance(p, list) and len(p) > 1 and str(p[1]).startswith(':') for p in params)
+
+
 def _state(clauses):
     """A state's nodes of params; a clause of a single form, that form as data (a capsule
-    schema's pairs)."""
+    schema's pairs); a clause of records, {name: params} (a posture atlas's, `defcontact-patch`'s)."""
     g = {}
     for clause in clauses:
         nodes = ([(clause[k], clause[k + 1]) for k in range(1, len(clause), 2)] if clause[0] == ':kinematics'
                  else [(clause[0], clause[1:])])
         for at, params in nodes:
-            g[node(at)] = (_datum(params[0]) if len(params) == 1
+            g[node(at)] = ({str(c[1]).lstrip(':'): _plist(c[2:], {}) for c in params} if _records(params)
+                           else _datum(params[0]) if len(params) == 1
                            else {p: value(v, {}) for k, v in _pairs(params) for p in SPLIT.get(k, (k,))})
     return dict(g, _trace=[], _events=[])
 

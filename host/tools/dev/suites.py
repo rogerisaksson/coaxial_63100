@@ -119,6 +119,8 @@ COMPILED = 'test_compiled.py'
 PORTED = 'test_ported.py'
 #: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
+#: Her posture as what bears her holds her: the seat's chain, the blend, the kernel's atlas, her ask sat.
+POSTURES = 'test_postures.py'
 #: The ortho-DSP suite read, voiced on her walk and refused by name; a take converted to a modifier.
 DSP = 'test_dsp.py'
 #: The dual-domain kernel on her loop: her momentum observer against her skin.
@@ -181,7 +183,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
+                   WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, POSTURES, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -214,6 +216,7 @@ JOINS = (
     (12, WBC),
     (12, LEAP),
     (12, ORTHO),
+    (12, POSTURES),
     (12, DSP),
     (12, KERNEL),
     (12, SHIELD),
