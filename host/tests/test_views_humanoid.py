@@ -31,6 +31,10 @@ def test_the_humanoid_pages_mouse(report):
                  viewpoint.YAW == 180.0 and all(state[k] == v for k, v in viewpoint.HOME.items()))
     viewpoint.mouse(state, lambda: (120, 50), humanoid_keys.clicked)['on_drag'](5, 0)
     report.check('a left drag to the right turns her the way the left arrow does', state['yaw'] < viewpoint.YAW)
+    told = []
+    clicks = dict(state, body=SN(send=lambda **cmd: told.append(cmd)), choosing=None, tour=None)
+    viewpoint.mouse(clicks, lambda: (120, 50), humanoid_keys.clicked)['on_click'](10, 10)
+    report.check('a click on the view with no choice open says her nothing', told == [], told)
     sgr = [('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),
            ('5', 53, 2), (';', 188, 1), ('2', 50, 2), ('M', 77, 1),
            ('\x1b', 27, 1), ('[', 219, 1), ('<', 226, 1), ('0', 48, 1), (';', 188, 1),

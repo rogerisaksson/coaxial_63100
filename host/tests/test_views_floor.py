@@ -152,8 +152,8 @@ def test_balloons_on_what_she_sees(report):
     said = [(c['say'], tuple(round(v, 9) for v in c.get('at', ()))) for c in sent]
     door = ('exit_door', (0.75, 3.5))
     report.check('F then 3 the chair, F F the door at once, F2 the bed, F lapsed the door, 2 with no F the '
-                 "gym's second, a click the door",
-                 opened and said == [('sit_chair', (1.5, 0.8)), door, ('lie_bed', (-1.8, 1.8)), door, (1, ()), door],
+                 "gym's second, a click with none open nothing",
+                 opened and said == [('sit_chair', (1.5, 0.8)), door, ('lie_bed', (-1.8, 1.8)), door, (1, ())],
                  said)
     st['now'] = dict(st['now'], heading=math.pi)
     behind = [o[1] for o in gym.offered(st)]

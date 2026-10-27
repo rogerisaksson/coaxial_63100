@@ -262,10 +262,54 @@ def test_she_leaps_in_stride_and_walks_on(report):
                  % (leap_dz[('walk', 0.0)], leap_dz[('walk', 1.0)], leap_dz[('run', 0.0)], leap_dz[('run', 1.0)]))
 
 
+#: Space held on the HUMANOID page, s, and the terminal's repeats of it: the first this long after the press, then
+#: one each REPEAT_GAP_S; the page's frames FRAME_S apart.
+HELD_S, FIRST_REPEAT_S, REPEAT_GAP_S, FRAME_S = 1.2, 0.3, 0.033, 0.05
+
+
+def test_the_pages_held_space_lands_her(report):
+    """Space held on the HUMANOID page as a terminal types it, through the page's own keys (`humanoid_keys.PAD`), its
+    frames charging her (`_hop_held`) and hearing what she does: one hop said, its charge rising, none while it is under
+    way; on her loop as the page lays it she lands on both soles and stands. A held Space said a new hop every 0.12 s
+    in her flight and felled her (a recording on the page)."""
+    from types import SimpleNamespace as SN
+    from machine import sprung, worker
+    from terminal.ui import bindings
+    from terminal.views import humanoid_keys
+    sent = []
+    s = worker.session()
+    worker.apply(s, {'scenario': 'flat'})
+    for _ in range(1500):
+        worker.stepped(s)
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
+          'pad': humanoid_keys.pad(), 'now': {'doing': sprung.doing(s['g'])}}
+    t0, said, airs, air, frame, typed = float(s['g']['t']), [], 0, False, 0.0, -math.inf
+    bindings.act_on(humanoid_keys.PAD, [' '], st, t0)
+    while s['g']['t'] - t0 < HELD_S + 2.0 and s['fallen_at'] is None:
+        for cmd in sent:
+            worker.apply(s, cmd)
+            said += [cmd['say']] if 'say' in cmd else []
+        sent.clear()
+        worker.stepped(s)
+        t = float(s['g']['t'])
+        held = t - t0 <= HELD_S
+        if held and t - t0 >= FIRST_REPEAT_S and t - typed >= REPEAT_GAP_S:
+            typed = t
+            bindings.act_on(humanoid_keys.PAD, [' '], st, t)
+        if t - frame >= FRAME_S:
+            frame = t
+            st['now'] = {'doing': sprung.doing(s['g'])}
+            humanoid_keys._hop_held(st, t, (' ',) if held else ())
+        up = max(s['g']['loads']) < 5.0
+        airs, air = airs + int(up and not air), up
+    report.check('Space held %.1f s on the page: said %s, flew %d times, stood %s' % (HELD_S, said, airs, s['fallen_at'] is None),
+                 said == ['hop'] and airs >= 1 and s['fallen_at'] is None and min(s['g']['loads']) > 5.0)
+
+
 ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,
           test_the_loop_meets_an_airborne_soles_ask, test_forward_leap_scales_with_charge,
           test_she_jumps_high_on_both_feet_from_standing, test_she_hops_and_stands,
-          test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on]
+          test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on, test_the_pages_held_space_lands_her]
 
 
 def main(argv=None):
