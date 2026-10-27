@@ -5,9 +5,13 @@
     f = bedside.pendulum(moment, inertia)          # Hz: a limb hung from its joint, swinging free
     y = bedside.drift(h, theta)                    # m: her travel rolling on a floor, h her centre over it
     v = bedside.escape(h, rate, off, gain)         # m/s: the shrimp's scoot across, her centre held on its line
+    w = bedside.unweighted(s, alpha, sigma)        # 1: her weight her thighs may bear crossing a seat's edge
+    r = bedside.capstan(mu, wrap)                  # 1: a drag over an edge it wraps, over its plain friction
+    x, up = bedside.cop(points, forces, weight)    # m, N: a stool's centre of pressure on the floor, its push
 
-The kernel's bedside texts (machine/ortho_kernel/bedside_*.lisp). Her frame `machine.figure`'s: x her left, y up,
-z ahead; her skin as points with radii (`groundwork`). Flat arrays and arithmetic: no branch, no loop, no dict.
+The kernel's bedside and overheight texts (machine/ortho_kernel/bedside_*.lisp, overheight_*.lisp). Her frame
+`machine.figure`'s: x her left, y up, z ahead; her skin as points with radii (`groundwork`). Flat arrays and
+arithmetic: no branch, no loop, no dict.
 """
 import os
 
@@ -48,3 +52,22 @@ def escape(h, rate, off, gain):
     """m/s: the shrimp's scoot across the bed (`execute-zero-translation-bed-roll`), -h theta' - gain off: `h` her
     centre's height over the bed (the text's R_eff), `rate` her roll's rad/s, `off` her centre from its line, m."""
     return -h * rate - gain * off
+
+
+def unweighted(s, alpha, sigma):
+    """1: the share of her weight her thighs and buttocks may bear `s` m past a seat's edge (on the seat +), 1 - alpha
+    exp(-s^2 / 2 sigma^2) (`execute-bevel-arch-vault-homotopy`'s capstan unweighting); her arms bear the rest."""
+    return 1.0 - alpha * np.exp(-0.5 * (np.asarray(s, float) / sigma) ** 2)
+
+
+def capstan(mu, wrap):
+    """1: the drag of a band wrapping an edge `wrap` rad, over its plain friction mu N: exp(mu wrap)."""
+    return np.exp(mu * np.asarray(wrap, float))
+
+
+def cop(points, forces, weight):
+    """(m, N): a fixture's centre of pressure on the floor along its x and the floor's push up, `forces` (n, 2) [x, up]
+    N pressing on it at `points` (n, 2) [x, up] m, its own `weight` N over x 0 (`inject-two-body-stability-barrier`):
+    it tips once the centre leaves its base."""
+    up = weight - forces[:, 1].sum()
+    return (points[:, 1] @ forces[:, 0] - points[:, 0] @ forces[:, 1]) / up, up

@@ -180,3 +180,17 @@ scenarios: [scenarios](scenarios.md).
   210); from the pendulum's 134 mm the escape scoots her 0.443 m that
   quarter, three strokes. On the 720 mm cot's 500 mm between margins her
   elbows fold 0.95 rad more: 499 mm wide.
+- Onto a stool at her hips (`overheight_*.lisp`, test_vault): her hands
+  bear on fists, a point each, so hung from them she leans back 40 deg at
+  her lockout (her elbow's -5 deg stop, the text -13) to 76 at the dip's
+  end. Her lockout lifts her pelvis 31 mm from the dip's origin (the text
+  42); the dip lowers it 167 mm (235), her hip then 11 mm under the seat.
+  At the anchors' 0.92 of her: shoulder 34.5, elbow 42.7 N m (peak 51.3,
+  held 22.3); her heel hooked bearing 0.45, 20.6 and 25.5.
+- At the edge her thighs bear 0.18 of her; wrapping it 26 deg from the dip
+  they drag 30 N. A 5 kg stool of 200 mm base, its seat at her hips 0.844
+  m, keeps its centre 46 mm off its middle, 110 mm inside its margin; it
+  tips at 0.185 of its load in shear, the text caps 0.38. Seated her fists
+  reach 252 mm along the seat either side of her shoulders. Her forefeet
+  take her from a seat of 0.738 m, dipped 0.822; from there undipped she
+  drops 84 mm, 1.28 m/s, 25 J.
