@@ -23,7 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, leap, ortho, stride, terms
+from machine import latent, leap, ortho, rounds, stride, terms
 from machine.figure import ANKLE_H, SHANK, THIGH
 from machine.poise import HALF_M, TINY, clip
 from machine.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
@@ -150,6 +150,16 @@ LIMB_KD = (400.0, 40.0)
 NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
 #: Her elbow's bend, of its shoulder's reach.
 ELBOW_BY = 0.4
+#: Each leg's hip's yaw, roll and pitch among her driven joints (`rounds.LEGS`); its sagittal chain, the
+#: hip's pitch, the knee and the ankle, and a radian of each's flexion on its joint - the ankle's
+#: dorsiflexion (`terms`).
+HIPS = np.array([leg[:3] for leg in rounds.LEGS])
+CHAIN = np.array([leg[2:5] for leg in rounds.LEGS])
+FLEX = np.array([terms.TERMS[pt][1] for pt in (('hip', 'flexion'), ('knee', 'flexion'), ('ankle', 'dorsiflexion'))], float)
+#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
+#: the hip's axis her pelvis's pitch turns it on.
+HUNG, HUNG_BY = np.array([0.0, 0.0, -0.5 * np.pi]), np.array([0.0, 0.0, 1.0])
+ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
 def pitched(y, rot):
@@ -339,12 +349,28 @@ def sensed(s, loads, y):
     return y
 
 
-def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, clear=0.0):
+def seat(y, fr, pose):
+    """Each leg's hip pitch, knee and ankle (2, 3), rad, as a seat holds them: the knee as `pose` bends
+    it, the hip as high over the ankle and as far aside as she is (`_legs`), the sole flat - the ankle
+    where that chain puts it (`seated.legs`), the hip off her pelvis's pitch (`pitched`)."""
+    rot = fr[ROT].reshape(3, 3)
+    leg = _legs(y, rot)[0]
+    knee = FLEX[1] * pose[CHAIN[:, 1]]
+    high = np.sqrt(leg[:, UP] * leg[:, UP] + leg[:, LEFT] * leg[:, LEFT])
+    behind = np.sqrt(np.maximum(SHANK * SHANK + THIGH * THIGH + 2.0 * SHANK * THIGH * np.cos(knee) - high * high, 0.0))
+    lean = np.arctan2(-behind, high) + np.arctan2(THIGH * np.sin(knee), SHANK + THIGH * np.cos(knee))
+    return np.stack([FLEX[0] * (knee - lean + pitched(y, rot)[0]), FLEX[1] * knee, FLEX[2] * lean], axis=1)
+
+
+def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     """(each sole's place asked as it swings (2, 3), her posture (driven), her turns (pelvis,
     trunk) and a swinging sole's quaternion (2, 4)) of `a`, the stack's ask's arithmetic
     (`given`): `posture` her driven joints standing, rad; `bend` how each goes with her knees'
     (`crouch`), `arms` with her arms' swing (`swing`), `reaches` with their reach (`reach`), `folds`
-    with their fold (`fold`); `knees` each knee's index among them."""
+    with their fold (`fold`); `knees` each knee's index among them; `w` what bears her
+    (`latent.MANIFOLDED`). Her legs as it holds them: her soles, her side and her back each hip on a
+    line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go hangs, its
+    thigh level (HUNG) less her pelvis's pitch."""
     soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
     q0, q2 = y[QUAT][0], y[QUAT][2]
     lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / np.maximum(q0 * q0 + q2 * q2, 1e-12)
@@ -353,6 +379,8 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, clear=0.0):
     sw_at = soles + (a[STANCE][::-1] * signs * np.maximum(clear - dl, 0.0))[:, None] * lat
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
+    pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
+    pose[HIPS] += a[LET_GO][:, None] * (HUNG + HUNG_BY * pitched(y, fr[ROT].reshape(3, 3))[0] - pose[HIPS])
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips

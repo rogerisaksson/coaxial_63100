@@ -16,13 +16,9 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, rounds, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
-#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
-#: each leg's hip in her posture (`rounds.LEGS`).
-HUNG = np.array([0.0, 0.0, -0.5 * np.pi])
-HIPS = np.array([leg[:3] for leg in rounds.LEGS])
 #: Her arms' modes, her hold's (`ask['hold']`).
 ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
@@ -209,17 +205,14 @@ def control(g, dt):
     imp[modal.STRIDES] *= sw
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
-    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees, g.get('_twist_clear', 0.0) * sw)
+    # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`). A leg
+    # let go (`impedance.ask`) hangs from a hip sprung to its thigh along what bears her (`modal.HUNG`), its knee and
+    # ankle hanging: sprung where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh
+    # pointed 15 deg down off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a
+    # hitch; sprung to its posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
+    posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
+                       weighed * sw, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
-    # a leg let go (`impedance.ask`) hangs from a hip sprung to its thigh along what bears her - level in the world,
-    # a quarter turn down from her pelvis less its pitch (HUNG, `modal._turns`) -, its knee and ankle hanging: sprung
-    # where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh pointed 15 deg down
-    # off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a hitch; sprung to its
-    # posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s. Its pitch added,
-    # her pelvis tipped back 59 deg on the floor flexed her hips to 146 and she rolled over backwards
-    let_go = np.array(ask['let_go'], float)[:, None]
-    hung = HUNG - np.array([0.0, 0.0, float(modal.pitched(y, g['fr'][modal.ROT].reshape(3, 3))[0])])
-    ask['posture'][HIPS] = let_go * (hung - ask['posture'][HIPS]) + ask['posture'][HIPS]
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
@@ -290,7 +283,7 @@ def laid(g):
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
-    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9))
+    g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
