@@ -374,7 +374,7 @@ def total(got):
 def line(name, got, ref, signature):
     """One scenario's line: how far, met, stood or refused, her hands' jerk, each signature
     measure take -> hers, * out."""
-    if 'refused' in got:
+    if got.get('refused'):
         return '%-24s %5.1f refused %r: no text' % (name, got['far'], got['refused'])
     pairs = ' '.join('%s %.2f>%.2f%s' % (n, b, a, '' if ok else '*') for n, a, b, ok in apart(got.get('moved', {}), ref, signature))
     fell = 'stood' if got['stood'] else 'fell' + ('' if got['head_hit'] is None else ' %.1f m/s' % got['head_hit'])
@@ -406,7 +406,7 @@ def main(argv=None):
     got = evaluate(args.names, args.wobble)
     for n, r in got.items():
         print('%-24s ERROR %s' % (n, r['error'][-150:]) if 'error' in r else line(n, r, ref[n], scenarios.STUNTS[n][4]))
-    print('%d of %d met, %d refused, %.1f widths off' % (*total(got)[:2], sum('refused' in r for r in got.values()), total(got)[2]))
+    print('%d of %d met, %d refused, %.1f widths off' % (*total(got)[:2], sum(bool(r.get('refused')) for r in got.values()), total(got)[2]))
     if args.save:
         with open(args.save, 'w', encoding='utf-8') as f:
             json.dump(got, f, indent=0, sort_keys=True)

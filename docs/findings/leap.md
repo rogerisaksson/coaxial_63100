@@ -117,3 +117,11 @@ She stood every row as thrown now.
   went backward and sank on 40-90 N, her hips hers the throws flung her off
   her feet (air 1.3-3.4 s). Similarity scales his lengths and times to hers,
   not his speed.
+- Her launch from her drives (`ballistic.launch`, test_ballistic): both
+  knees at their back-EMF bounds, their rotors (0.177 kg m^2) spun with her,
+  leave the floor at 15.8-15.9 of their 16.8 rad/s: 2.03-2.07 m/s from a
+  crouch of 176-185 mm, an apex of 210-219 mm (the ballistic texts' 320-360
+  at their 0.89 m leg, 304-342 at hers). One knee from 109 mm: 1.21 m/s,
+  75 mm. Her ankles' heel rise reaches 2.15 m/s at most (18.4 rad/s on 117
+  mm). Her run at the texts' Froude 1.93, 4.00 m/s: a sole's half-sine
+  peaks at 743 N, her knee 59.6 of 108 N m at 0.42 rad.
