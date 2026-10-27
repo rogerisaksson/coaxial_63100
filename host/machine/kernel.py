@@ -53,7 +53,9 @@ MECHANISMS = {
     'modulate-swing-extraction-contour': 'posthole-extraction', 'couple-port-hamiltonian-to-membrane': 'membrane-lock',
     'modulate-rolling-berm-clearance': 'berm-clearance', 'compensate-winkler-depression-basin': 'winkler-basin',
     'compensate-membrane-catenary-tension': 'catenary-tension', 'place-foot-in-compacted-knee-imprint': 'imprint-step',
-    'execute-harmonic-seat-drop-to-feet': 'seat-drop-kip'}
+    'execute-harmonic-seat-drop-to-feet': 'seat-drop-kip',
+    'bind-5torus-locomotion-oscillator': 'axial-torus-clock', 'modulate-proximal-balljoint-turnout': 'coxa-turnout',
+    'configure-peristaltic-stick-slip-cycle': 'stick-slip', 'drive-terrestrial-elevation-ratchet': 'grade-ratchet'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 
