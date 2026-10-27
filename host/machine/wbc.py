@@ -59,11 +59,6 @@ CONTACT_K, HELD_K = 20.0, 50.0
 #: rows laid for the drives that bore more than NEAR of their clamps the step before.
 CLAMP_SHARE, NEAR = 0.95, 0.6
 
-#: Her neck's and head's ranges, deg, the stack's own - the model has none: granted WEP, the
-#: head and the neck ran at their stacks' 51 N m, 6.4 and 3.4 times their clamps, spun as
-#: weights (120 N).
-RANGES = {'neck': (-45.0, 60.0), 'head': (-80.0, 80.0)}
-
 #: (kp 1/s^2, kd 1/s): the turns', the posture's and a swinging sole's (at 400 and 40 a 0.2 s
 #: step lagged its path 11 cm, 100 N); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
 #: centres of pressure to their edges, flipping each 50 ms (a 60 N shove).
@@ -163,16 +158,13 @@ class Body:
         self.single = np.ones(len(names), bool)
         for p, r in self.pairs:
             self.single[p] = self.single[r] = False
-        stops = [(k, m.jnt_range[m.joint(j).id] if m.jnt_limited[m.joint(j).id]
-                  else np.radians(RANGES[kind(j)])) for k, j in enumerate(names)
-                 if m.jnt_limited[m.joint(j).id] or kind(j) in RANGES]
+        stops = [(k, m.jnt_range[m.joint(j).id]) for k, j in enumerate(names) if m.jnt_limited[m.joint(j).id]]
         self.stops = np.array([k for k, _r in stops], int)
         self.stop_lo = np.array([r[0] for _k, r in stops])
         self.stop_hi = np.array([r[1] for _k, r in stops])
         from machine import supervisor
-        #: The master insert's buffers before her stops (`supervisor.buffers`), rows of her step - the
-        #: neck's and head's their stacks' travel (RANGES), MuJoCo's stopping neither: without them her
-        #: chair's sit fell at 6.44 s.
+        #: The master insert's buffers before her model's stops (`supervisor.buffers`, `drives.TRAVEL`), rows of her
+        #: step: without the neck's and head's her chair's sit fell at 6.44 s.
         self.buffers = supervisor.buffers(names, dict(stops))
         self.feet = (m.body('left_foot').id, m.body('right_foot').id)
         self.insoles = [m.body(n).id for n in ('left_foot', 'left_toes', 'right_foot', 'right_toes')]

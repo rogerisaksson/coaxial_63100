@@ -9,8 +9,7 @@ each part - a point or an axis of its segment and the way it goes. Which of her 
 and with which sign, is found: each joint of the segment is turned in her figure
 (`figure.frames`) and the one whose motion is the term's is kept. A movement no driven joint of
 hers makes is absent. A limb's terms are found on both limbs and must agree - a limb is an
-index, its joints' names data. Ranges, deg: the compiled figure's stops, the ankle's rods'
-strokes (`linkage`), the whole-body stack's own for her neck and head (`wbc.RANGES`); nothing
+index, its joints' names data. Ranges, deg: the compiled figure's stops (`drives.TRAVEL`); nothing
 stopping it, None. `machine.terms` reads them, tests/test_terms.py holds them to MuJoCo.
 """
 import importlib
@@ -20,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import drives, figure, linkage
+from machine import drives, figure
 from tools import REPO
 from tools.cores import written
 
@@ -107,19 +106,12 @@ def made(segment, kind, vector, way):
 
 
 def stops():
-    """{joint: (low, high) deg} of every joint something stops: the compiled figure's stops, the
-    ankle's rods' strokes, the whole-body stack's own ranges."""
+    """{joint: (low, high) deg} of every joint something stops: the compiled figure's stops."""
     mujoco = importlib.import_module('mujoco')
-    from machine import mjcf, wbc
+    from machine import mjcf
     m = mujoco.MjModel.from_xml_string(mjcf.mjcf())
-    out = {j: tuple(round(math.degrees(float(v)), 6) for v in m.joint(j).range)
-           for j in figure.JOINTS if m.jnt_limited[m.joint(j).id]}
-    roll = linkage.ROLLED['ankle']
-    soft = dict(wbc.RANGES, ankle=linkage.RODS['ankle'][1], ankle_roll=(-roll, roll))
-    for joint in figure.JOINTS:
-        if joint not in out and drives.kind(joint) in soft:
-            out[joint] = tuple(float(v) for v in soft[drives.kind(joint)])
-    return out
+    return {j: tuple(round(math.degrees(float(v)), 6) for v in m.joint(j).range)
+            for j in figure.JOINTS if m.jnt_limited[m.joint(j).id]}
 
 
 def makers(pair, stem, kind, vector, way):

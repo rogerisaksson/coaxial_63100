@@ -46,9 +46,6 @@ _BRAKE_WIRE, _BRAKE_BACK_WIRE, _TOUCH_WIRE = ortho.compiled(BRAKE)[0][''], ortho
 SERVO_SHARE = (0.5, 1.0)
 INNER, ESO_WO, SOLVER = 'eso', 100.0, 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
-_Q_LIM = {'hip_yaw': (-0.44, 0.44), 'hip_roll': (-0.61, 0.61), 'hip': (-2.0, 0.78), 'knee': (0.05, 2.70),
-          'ankle': (-0.78, 0.73), 'ankle_roll': (-0.26, 0.26), 'waist': (-0.78, 0.78), 'spine': (-0.44, 1.31),
-          'spine_roll': (-0.52, 0.52), 'shoulder': (-1.13, 2.62), 'elbow': (0.0, 2.62), 'neck': (-0.35, 0.45), 'head': (-0.85, 0.85)}
 STACK_EVERY, DOWN_DEG, DOWN_M = 3, 50.0, 0.45
 GYMS = (mechatronics.ROBOT, 'examples')
 
@@ -105,7 +102,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
     from machine import defrobot
     drv = (defrobot.read() or {}).get('drives', {})
-    rng = np.array([[math.radians(drv[j]['range'][0]), math.radians(drv[j]['range'][1])] if j in drv
+    rng = np.array([[math.radians(drv[j]['range'][0]), math.radians(drv[j]['range'][1])] if 'range' in drv.get(j, {})
                     else [-np.inf, np.inf] for j in names])
     sit, gym = situation.text(), entries(texts=texts, suite=suite)
     from tools.cores import bodied
@@ -128,7 +125,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),
          'grip_seen': np.zeros((2, grip.SEEN)),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
-         'q_lo': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[0] for j in names]), 'q_hi': np.array([_Q_LIM.get(kind(j), (-2.0, 2.0))[1] for j in names]),
+         'q_lo': rng[:, 0].copy(), 'q_hi': rng[:, 1].copy(),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
          'eso': np.array([q0, np.zeros(len(q0)), np.zeros(len(q0))]), 'jeff': np.diag(s['M'])[body.act].copy(), 'surety': 1.0,
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in gym if e[0] == 'stand'), None),
@@ -290,7 +287,9 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
     horizon = {'com': tuple(y[modal.COM].tolist()), 'xi': (float(y[modal.COM][0] + y[modal.VCOM][0] / om),
                                                            float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
                'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
-                'stance': tuple(g['a'][modal.STANCE].tolist()), 'shoulder': tuple(_Q_LIM['shoulder'])}
+                'stance': tuple(g['a'][modal.STANCE].tolist()),
+                'shoulder': tuple(min(max(float(v), -math.pi), math.pi)
+                                  for v in g['rng'][[j for j, d in zip(JOINTS, g['body'].driven) if d].index('left_shoulder')])}
     buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes, b.stale) for b in (getattr(world, 'limb_buses', None) or ())}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),

@@ -13,7 +13,7 @@ import math
 from coaxial.graphics.arrows import _ring_segments, surface_at
 from machine import reach
 from machine.figure import ANKLE_H, FOREARM, UPPER_ARM, frames, quat
-from machine.mjcf import STOPS
+from machine.drives import TRAVEL
 from machine.stride import APART_M, REACH_M
 
 #: What is drawn: nothing, the soles' rooms and her capture point, the arms' bands, all.
@@ -80,7 +80,7 @@ def band(shoulder, heading, low, high):
     shoulder's range `low` to `high` (rad of flexion, hanging 0), the arc at the elbow's stop
     inside it, the two closed at the range's ends."""
     sh, ch = math.sin(heading), math.cos(heading)
-    stop = math.radians(STOPS['elbow'][1])
+    stop = math.radians(TRAVEL['elbow'][1])
 
     def hand(flex, elbow):
         fwd = UPPER_ARM * math.sin(flex) + FOREARM * math.sin(flex + elbow)
@@ -110,7 +110,7 @@ def segments(now, props=(), show='all'):
                         ROOM_INK if seen['stance'][k] > 0.5 else SWING_INK))
         out.append((_ring_segments(seen['xi'][0], seen['xi'][1], CAPTURE_M, props, 8), CAPTURE_INK))
     if show in ('arms', 'all'):
-        low, high = seen.get('shoulder', (-1.13, 2.62))
+        low, high = seen.get('shoulder', (-math.pi, math.pi))
         for side in ('left', 'right'):
             out.append((band(tuple(float(v) for v in placed[side + '_upper_arm'][0]), heading, low, high), ARM_INK))
     return [(segs, ink) for segs, ink in out if segs]

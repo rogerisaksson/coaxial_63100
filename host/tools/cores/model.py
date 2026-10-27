@@ -13,7 +13,6 @@ product of exponentials, T = T_parent X exp([S] q); the firmware runs it (`wbc/`
 the reference (tests/test_wbc_core.py).
 """
 import importlib
-import math
 import os
 import sys
 
@@ -101,14 +100,8 @@ def links(b=None):
 
 
 def _stop(m, j):
-    """A joint's stops, rad: the model's, else the stack's own ranges (`wbc.RANGES`), else
-    none."""
-    from machine import wbc
-    from machine.drives import kind
-    if m.jnt_limited[j]:
-        return tuple(float(x) for x in m.jnt_range[j])
-    own = wbc.RANGES.get(kind(m.joint(j).name))
-    return tuple(math.radians(d) for d in own) if own else None
+    """A joint's stops, rad: the model's (`drives.TRAVEL`), else none."""
+    return tuple(float(x) for x in m.jnt_range[j]) if m.jnt_limited[j] else None
 
 
 def _nums(xs, per=6, indent='   '):

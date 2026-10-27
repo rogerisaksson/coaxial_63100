@@ -8,7 +8,7 @@
 #define WBC_N 39
 #define WBC_DRIVEN 21
 #define WBC_HELD 4
-#define WBC_BUFFERS 8
+#define WBC_BUFFERS 12
 
 /** A link's kind (wbc_kind). */
 #define WBC_FREE 0

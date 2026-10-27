@@ -4,30 +4,14 @@ The world steps it (`machine.physics`).
 """
 import math
 
-from machine import build, drives, figure, floor, linkage, room, skeleton
+from machine import build, drives, figure, floor, room, skeleton
 from machine.drives import kind
 from machine.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
-
-#: The joints with a mechanical stop, (low, high) deg: the elbow straight at -5, as an arm's is -
-#: without it the forearm folded back under her weight, -82 to -161 pushing up; the
-#: back as a woman's bends, the get-up asking -8 to 60 of the spine and the falls 45 of the waist -
-#: without, tripped on a sill and down, her spine folded back 98-101 degrees. The
-#: knee stopped at -5: its drive on its axis, swinging, it snapped to -24 in the air, the walk
-#: hopped and she fell (the page's recording). The shoulder has none: seated on a bed's edge
-#: as its share flickered, the whole-body step wound her right arm 421 deg for the trunk's
-#: moment; a human's 60 behind to 180 overhead met her back-walk's swing (65 deg back) and
-#: the standing turn at the dock, and she fell onto the bed (scenarios.md).
-STOPS = {'elbow': (-5.0, 160.0), 'spine': (-30.0, 85.0), 'spine_roll': (-35.0, 35.0),
-         'waist': (-50.0, 50.0), 'knee': (-5.0, 165.0)}
 
 #: A joint with no drive (`drives.passive`): its armature, kg m^2 - nearly none, a spring's; held,
 #: its stops HELD_DEG either side of its rest.
 PASSIVE_J, HELD_DEG = 0.0005, 0.5
 
-#: The hips' yaw stopped HIP_YAW_DEG either side, 0 free: the gimbal's roll drum behind the hip
-#: swings with it toward the other's (`drives.JOINTS`). At 25 the scoreboard held 81.0 % as free and
-#: 3 get-ups of 3.
-HIP_YAW_DEG = 25.0
 #: Her pelvis welded to a stand STAND_M high, soles clear, for identification (`machine.sysid`).
 STAND, STAND_M = 0.0, 1.3
 
@@ -143,11 +127,7 @@ def _joint(joint, axis, sign):
     """A joint's element: its drive's armature, its stops, its spring or its gearbox's drag."""
     from machine.physics import BACKDRIVE, REFLECTED
     from machine.servos import SERVO
-    # A four-bar's dead centres stop its joint: past them the rod would have to stretch.
-    stop, spring = (STOPS.get(kind(joint)) or (linkage.PLANAR[kind(joint)][7] if kind(joint)
-                                                in linkage.PLANAR else None)), drives.passive(joint)
-    if kind(joint) == 'hip_yaw' and HIP_YAW_DEG:
-        stop = (-HIP_YAW_DEG, HIP_YAW_DEG)
+    stop, spring = drives.TRAVEL.get(kind(joint)), drives.passive(joint)
     if spring:
         stiffness, _damp, rest = spring
         stop = (rest - HELD_DEG, rest + HELD_DEG) if stiffness is None else stop

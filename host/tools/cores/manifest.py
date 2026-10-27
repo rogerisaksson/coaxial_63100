@@ -46,9 +46,8 @@ def laid():
             continue
         kind = drives.kind(joint)
         motor, box, inverter = build['stacks'][kind]
-        low, high = (math.degrees(v) for v in sprung._Q_LIM.get(kind, (-2.0, 2.0)))
         rows.append((joint, kind, motor, box, inverter, drives.ratio(joint), drives.peak(joint),
-                     drives.speed(joint), low, high))
+                     drives.speed(joint), drives.travel(joint)))
     return {'robot': mechatronics.ROBOT, 'body': body, 'modes': modes, 'drives': rows}
 
 
@@ -57,12 +56,12 @@ def text(done=None):
     done = done or laid()
     lines = [';; ' + NOTICE,
              ';; Units: m, kg, s, N; a mode\'s unit m or rad, its mass kg, its stiffness N/m and damping',
-             ';; N s/m of that mass; a drive\'s peak N m at its joint, speed deg/s, the range her law asks deg.',
+             ';; N s/m of that mass; a drive\'s peak N m at its joint, speed deg/s, its travel deg where it stops.',
              '(defrobot %s' % done['robot'],
              '  (body %s)' % ' '.join('(%s %.4g)' % kv for kv in done['body'])]
     lines += ['  (mode %s (unit %.4g) (mass %.4g) (stiffness %.4g) (damping %.4g))' % row for row in done['modes']]
-    lines += ['  (drive %s (kind %s) (motor %s) (gearbox %s) (inverter %s) (ratio %.4g) (peak %.4g) '
-              '(speed %.4g) (range %.4g %.4g))' % row for row in done['drives']]
+    lines += ['  (drive %s (kind %s) (motor %s) (gearbox %s) (inverter %s) (ratio %.4g) (peak %.4g) (speed %.4g)%s)'
+              % (row[:8] + (' (range %.4g %.4g)' % row[8] if row[8] else '',)) for row in done['drives']]
     return '\n'.join(lines) + ')\n'
 
 

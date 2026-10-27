@@ -67,19 +67,17 @@ def test_a_term_moves_her_as_its_name_says(report):
 
 
 def test_its_stops_are_the_figures(report):
-    """A term's stops are her figure's as declared - `mjcf.STOPS`, the hip's yaw, the ankle's
-    rods' strokes -, through the term's sign; with none declared, none."""
-    from machine import linkage, mjcf, terms
-    roll = linkage.ROLLED['ankle']
-    declared = dict(mjcf.STOPS, hip_yaw=(-mjcf.HIP_YAW_DEG, mjcf.HIP_YAW_DEG),
-                    ankle=linkage.RODS['ankle'][1], ankle_roll=(-roll, roll))
+    """A term's stops are her figure's as declared - `drives.TRAVEL` -, through the term's sign; with none
+    declared, none."""
+    from machine import drives, terms
+    declared = drives.TRAVEL
     wrong, held, free = [], 0, []
     for (part, name), (joint, sign, low, high) in terms.TERMS.items():
         if joint in declared:
             held += 1
             if (low, high) != tuple(sorted(sign * v for v in declared[joint])):
                 wrong.append((part, name, low, high))
-        elif joint not in ('neck', 'head'):
+        else:
             free.append((part, name, low, high))
     report.check("a term's stops are her figure's through its sign", held > 10 and not wrong,
                  '%d held; wrong: %s' % (held, wrong or 'none'))

@@ -199,6 +199,18 @@ JOINTS = {
     'foot': ('foot', (0.0, -0.04, 0.045)),
 }
 
+#: Each stopped kind's travel, (low, high) deg: her model's stops, her law's range, her manifest's. The elbow
+#: straight at -5 as an arm's (free, her forearm folded back under her weight, -82 to -161), the knee at -5 (a
+#: swinging knee snapped to -24 and the walk hopped), the spine's bracket to 85 (`JOINTS`; the get-up asks it -8 to
+#: 60, a fall the waist 45; free, it folded back 98-101 deg on a sill), the hip's yaw drum 25 either side (81.0 % of
+#: the scoreboard as free, 3 get-ups of 3), the neck's and head's stacks (free, granted WEP they spun as weights at
+#: 51 N m), the roll's four-bar's and the ankle's rods' dead centres (`linkage`). The shoulder and the hip's pitch
+#: and roll turn on: stopped 60 behind, her back-walk's 65 felled her onto the bed; free, a bed edge wound it 421 deg.
+TRAVEL = {'elbow': (-5.0, 160.0), 'knee': (-5.0, 165.0), 'spine': (-30.0, 85.0), 'waist': (-50.0, 50.0),
+          'hip_yaw': (-25.0, 25.0), 'neck': (-45.0, 60.0), 'head': (-80.0, 80.0),
+          'spine_roll': linkage.PLANAR['spine_roll'][7], 'ankle': linkage.RODS['ankle'][1],
+          'ankle_roll': (-linkage.ROLLED['ankle'], linkage.ROLLED['ankle'])}
+
 
 def kind(joint):
     """A joint's kind: its name after the side."""
@@ -206,6 +218,11 @@ def kind(joint):
         if joint.endswith(k):
             return k
     return joint.rsplit('_', 1)[-1]
+
+
+def travel(joint):
+    """Its travel, (low, high) deg (`TRAVEL`); None where it turns on."""
+    return TRAVEL.get(kind(joint))
 
 
 def of(joint):

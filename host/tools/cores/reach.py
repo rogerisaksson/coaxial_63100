@@ -7,23 +7,22 @@ A hip's place in its foot's frame - across to the limb's own side, up, along the
 ankle's roll, the ankle's pitch and the knee, whatever the pelvis's turn: the hip's own three
 joints take that, its yaw alone stopped. The roll tilts the leg's plane about the foot's length;
 in that plane the hip stands `u` m up and `z` m along. Laid: for each `u` the run of `z` the
-ankle's pitch's stroke (`linkage.RODS`) and the knee's stop (the compiled figure's) leave, BACK
-to FORE - free, the leg's length alone bounding it, at -+(THIGH + SHANK); the roll's stroke
-(`linkage.ROLLED`) as tangents; the hip's yaw's stops; the sole. `machine.reach` reads them,
+ankle's pitch's travel and the knee's (`drives.TRAVEL`) leave, BACK to FORE - free, the leg's
+length alone bounding it, at -+(THIGH + SHANK); the roll's travel as tangents; the hip's yaw's
+stops; the sole. `machine.reach` reads them,
 tests/test_reach.py holds them to MuJoCo.
 
 A run is the longest along its `u`: ahead of an island the ankle's stroke forbids (the hip
 0.50-0.63 m up) the strip left under the leg's length is not in it. A row is the least of itself
 and its neighbours: what is read between rows is reached.
 """
-import importlib
 import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import figure, linkage
+from machine import drives, figure
 from machine.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
 from tools import REPO
 from tools.cores import written
@@ -38,27 +37,9 @@ LENGTH = THIGH + SHANK
 
 
 def stops():
-    """{kind: (low, high) rad} of a leg's stopped joints: the hip's yaw and the knee as the figure
-    compiles them, her two legs alike; the ankle's pitch and roll, their rods' strokes. A hip
-    stopped in roll or pitch is not the foot's frame's to hold: it raises."""
-    mujoco = importlib.import_module('mujoco')
-    from machine import mjcf
-    m = mujoco.MjModel.from_xml_string(mjcf.mjcf())
-    out = {}
-    for name in figure.LEG:
-        each = [tuple(float(v) for v in m.joint(side + name).range)
-                if m.jnt_limited[m.joint(side + name).id] else None for side in ('left', 'right')]
-        if each[0] != each[1]:
-            raise ValueError("%s: her legs' stops differ, %r" % (name[1:], each))
-        if each[0]:
-            out[name[1:]] = each[0]
-    if 'hip_roll' in out or 'hip' in out:
-        raise ValueError("a hip stopped in roll or pitch: its foot's frame does not hold it")
-    roll = linkage.ROLLED['ankle']
-    for kind, stroke in (('ankle', linkage.RODS['ankle'][1]), ('ankle_roll', (-roll, roll))):
-        low, high = (math.radians(v) for v in stroke)
-        out[kind] = (max(low, out[kind][0]), min(high, out[kind][1])) if kind in out else (low, high)
-    return out
+    """{kind: (low, high) rad} of a leg's travel from its hip's yaw down (`drives.TRAVEL`): the hip's pitch
+    and roll turn her pelvis over the leg, not the foot's frame."""
+    return {k: tuple(math.radians(v) for v in drives.TRAVEL[k]) for k in ('hip_yaw', 'knee', 'ankle', 'ankle_roll')}
 
 
 def bend(r):
