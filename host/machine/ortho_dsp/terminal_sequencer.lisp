@@ -30,26 +30,24 @@
         :seat-z-mm seat-z-mm)
       (master-anti-spasm-insert)))
 
-;; Composite 2: Dock at bed, sit on mattress edge, roll to supine, and gate off inverters
+;; Composite 2: Dock at the bed's edge, her back to it; sit on the mattress's edge; lean back onto her hands
 (defpatch patch-supine-mattress-sleep [approach-gait &key (seat-z-mm 450.0)] ; the bed her eyes see
   (-> approach-gait
-      (dock-terminal-stance :standoff-x-mm 70.0 :target-yaw-rad 3.14159)
-      (substrate-viscoelastic-mattress :eigenfreq-hz 1.80)
+      (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159)
+      (substrate-rigid-fixture)
       (transfer-eccentric-handover
         :source-manifold :plantar-bilateral
         :target-manifold :ischial-bilateral
-        :descent-duration-ms 1150.0
+        :descent-duration-ms 1050.0
         :seat-z-mm seat-z-mm)
-      (sequence-recumbent-cascade :direction :to-supine :duration-ms 1750.0)
-      (gate-inverter-high-z :verify-dwell-ms 400.0)
+      (sequence-recumbent-cascade :direction :to-supine :duration-ms 1500.0)
       (master-anti-spasm-insert)))
 
-;; Composite 3: Precharge bridges from High-Z sleep, roll to seated, stand up, ignite clock
+;; Composite 3: From her hands back on the mattress: sat up off them, her arms hanging, then up as from a chair
 (defpatch patch-wake-and-stand [sleeping-state target-walk-gait]
   (-> sleeping-state
+      (sequence-recumbent-cascade :direction :to-seated :duration-ms 900.0)
       (wake-inverter-closed-loop)
-      (substrate-viscoelastic-mattress :eigenfreq-hz 1.80)
-      (sequence-recumbent-cascade :direction :to-seated :duration-ms 1650.0)
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral

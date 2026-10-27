@@ -86,20 +86,25 @@
           :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad 0.04)))))
 
 ;; -----------------------------------------------------------------------------
-;; 3. RECUMBENT AXIAL CASCADE (ISCHIAL SEATED <-> DORSAL SUPINE / LATERAL)
+;; 3. RECUMBENT AXIAL CASCADE (ISCHIAL SEATED <-> DORSAL SUPINE / CARPAL RECLINE)
 ;; -----------------------------------------------------------------------------
 (defmaneuver sequence-recumbent-cascade
   [state &key (direction :to-supine) ; :to-supine | :to-seated
-              (duration-ms 1750.0)
-              (bed-yaw-align-rad 0.0)] ; across her 0.9 m bed: her pelvis turns 1.2 rad at most on her soles
-  (let [forward-p (eq direction :to-supine)]
-    (-> state
-        (stage-sequential-manifold
-          :duration-ms duration-ms
-          :contact-chain (if forward-p
-                             [:ischial-bilateral -> :trochanter-lateral -> :scapular-dorsal -> :occipital]
-                             [:occipital -> :scapular-dorsal -> :trochanter-lateral -> :ischial-bilateral])
-          :torso-pitch-ramp (if forward-p [0.0 -> -1.5708] [-1.5708 -> 0.0])
-          :axial-yaw-ramp   (if forward-p [0.0 -> bed-yaw-align-rad] [bed-yaw-align-rad -> 0.0])
-          :counterweight-limb-sweep
-            (:plantar-fz-target 0.25))))) ; her knees as she sits, her feet on the floor
+              (recline-rad -0.5)
+              (duration-ms 1500.0)
+              (bed-yaw-align-rad 0.0)]
+  (if (eq direction :to-supine)
+      (-> state
+          (stage-sequential-manifold
+            :duration-ms duration-ms
+            :contact-chain [:ischial-bilateral -> :palmar-carpal-bilateral]
+            :torso-pitch-ramp [0.0 -> recline-rad]
+            :axial-yaw-ramp [0.0 -> bed-yaw-align-rad]
+            :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.60) (:palmar-carpal-bilateral 0.25))))
+      (-> state
+          (stage-sequential-manifold
+            :duration-ms duration-ms
+            :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
+            :torso-pitch-ramp [-0.5 -> 0.0]
+            :axial-yaw-ramp [bed-yaw-align-rad -> 0.0]
+            :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.85) (:palmar-carpal-bilateral 0.0))))))
