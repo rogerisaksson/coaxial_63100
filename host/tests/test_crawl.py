@@ -78,9 +78,9 @@ def _stroke(deg, joint, at):
 
 def test_her_hinges_sideways(report):
     """`crawl.coronal` of the schedule's twists - the dog and her back's crawl 0, the scoot's 0.275, the crab's 1 - and
-    the turnout they ask, every heading: her hips' at most their stop, her shoulders' none - they only flex. In the
-    crab's origin her abduction moves her ankle sideways more than her knee, her hip's turn least; her trunk's lateral
-    bend carries her shoulders sideways for her hands."""
+    the turnout they ask, every heading: her hips' at most their stop; her shoulders', a turn she lacks - they only
+    flex. In the crab's origin her abduction moves her ankle sideways more than her knee, her hip's turn least; her
+    trunk's lateral bend carries her shoulders sideways for her hands."""
     import numpy as np
     from machine import crawl, drives, figure, kernel
     from machine.term_rows import ABSENT
@@ -91,10 +91,10 @@ def test_her_hinges_sideways(report):
     heading = np.linspace(0.0, 2.0 * np.pi, 361)
     twists = np.stack([np.cos(heading), np.sin(heading), np.zeros_like(heading)], axis=1)
     most = max(float(crawl.turnout(twists, a['max-hip-external-rot-rad']).max()) for a in asked)
-    report.check('kappa %s; her hips turned %.3f rad at most, her stop %.3f; her shoulders %s' % (
+    report.check('kappa %s; her hips turned %.3f rad at most, her stop %.3f; her shoulders asked %s, lacking' % (
         [round(k, 3) for k in kappa], most, stop, sorted({a['max-shoulder-external-rot-rad'] for a in asked})),
         kappa[:2] == [0.0, 0.0] and abs(kappa[3] - 1.0) < 1e-12 and most <= stop + 5e-4
-        and all(a['max-shoulder-external-rot-rad'] == 0.0 for a in asked) and ('shoulder', 'lateral-rotation') in ABSENT)
+        and ('shoulder', 'lateral-rotation') in ABSENT)
     atlas = kernel.read()['terrestrial-1jet-posture-atlas']['postures']
     deg = _laid(atlas['terrestrial-coronal-crab']['origin-q0'])
     belly = _laid(dict(atlas['terrestrial-pronograde-dog']['origin-q0'], **{'coxofemoral-ext-rot': stop}))

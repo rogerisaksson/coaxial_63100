@@ -44,7 +44,7 @@
                               (limiter-high-mu-planar)
                               (master-anti-spasm-insert))
 
-        ;; 4. Pure Lateral Crabwalk Sideways, back to the floor, to her right
+        ;; 4. Pure Lateral Crabwalk Sideways (Right then Left in Supine & Pronograde): back to the floor, to her right
         sideways-crabwalk (-> nominal-biped-gait
                               (transducer-viscoelastic-flat)
                               (xform-gait-lateral-crabwalk :side-direction :right

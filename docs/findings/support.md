@@ -154,3 +154,29 @@ scenarios: [scenarios](scenarios.md).
 - The supine ratchet: a 175 mm riser takes 52.9 J; the text caps her
   shoulder's extension at 28 N m, her shoulder holds 22.3 for ever; its 18 mm
   skim is a 0.59 m/s, 5.4 J drop.
+- At a seat's or a bed's edge (`machine.bedside`, test_bedside), standing:
+  her heels reach 54 mm behind her hips (0-0.06 m up), her calves 43 (to
+  0.43 m), her thighs' backs 46 (to 0.76), her buttocks 148. The chairs'
+  seat edges and the lodge bed's side (0.10-0.44 m) meet her calves, on no
+  patch of her registry; an edge over her knee meets her thighs' backs, her
+  posterior femoral patch. From the turn's standoff the stool meets her in
+  62 mm, the bed in 42; the text seeks 110.
+- Seated, legs hung (the canonical seat): her centre 86 mm ahead of her
+  buttocks, at her spine's 30 deg extension stop still 35 - she cannot lean
+  off a stool backward. Her centre over a 340 mm stool's middle, her ischia
+  are 45.4 mm inside its rim upright; its 40.8 mm margin holds to a 0.045
+  rad lean (the text 0.09). Her hung shank swings at 0.912 Hz (the text
+  1.15). On her toes at her 45 deg stop her buttocks rise from 0.771 m to
+  0.841. Her leg is 845 mm hip to sole (the text 890).
+- On the lodge bed: lying straight she reaches 0.750 m over her pelvis,
+  0.900 under; her pelvis lies 0.835-1.300 m from its head. Sat her deepest,
+  her calves at its edge, her hips are 0.316 m in, 0.134 off its line; on
+  her back, arms at her sides, 0.609 m wide - inside the roll's 140 mm
+  margins only within 5.4 mm of the line. Her hip holds a leg out straight
+  with 18.1 N m of its 43.0.
+- Rolled from her back onto her side in the roll wave's posture she drifts
+  0.310 m, a radius of 0.197 (the text 0.165). Her spine's 35 deg lateral
+  stop moves her pelvis 186 mm across her shoulders (the text 185, its cot
+  210); from the pendulum's 134 mm the escape scoots her 0.443 m that
+  quarter, three strokes. On the 720 mm cot's 500 mm between margins her
+  elbows fold 0.95 rad more: 499 mm wide.

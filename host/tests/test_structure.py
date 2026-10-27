@@ -249,7 +249,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
             sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
                                         + [os.path.join('machine', m + '.py') for m in (
                                             'cyclic qp wbc wrench rounds latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours bends pressed groundwork substrate crawl').split()]),
+                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels fours bends pressed groundwork substrate crawl bedside').split()]),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -447,7 +447,7 @@ def test_no_escaping_scars(r):
     """chr(10) and chr(92) where a literal belongs."""
     for path, text, tree in sources():
         if path.endswith(('replies.py', 'sandbox.py')):
-            continue        # both are about escaping
+            continue  # both are about escaping
         scars = [w for w in ('chr(10)', 'chr(92)') if w in text]
         r.check('%s has no heredoc scars' % path, not scars, ', '.join(scars))
 

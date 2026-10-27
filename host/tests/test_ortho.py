@@ -127,10 +127,10 @@ def test_what_is_no_text_is_refused(report):
 
 
 def test_the_core_and_the_renderer_branch_nowhere(report):
-    """latent.py, impedance.py, swing.py, stride.py, poise.py, fours.py, groundwork.py, substrate.py, crawl.py, modal.py, touch.py, motion.py and grip.py: branchless AST verification."""
+    """latent.py, impedance.py, swing.py, stride.py, poise.py, fours.py, groundwork.py, substrate.py, crawl.py, bedside.py, modal.py, touch.py, motion.py and grip.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
-    pure = ('latent', 'impedance', 'swing', 'stride', 'poise', 'support', 'fours', 'groundwork', 'substrate', 'crawl')
+    pure = ('latent', 'impedance', 'swing', 'stride', 'poise', 'support', 'fours', 'groundwork', 'substrate', 'crawl', 'bedside')
     inner = ('touch', 'motion', 'grip')
     for name in pure + ('modal',) + inner:
         with open(os.path.join(HERE, 'machine', name + '.py'), encoding='utf-8') as f:

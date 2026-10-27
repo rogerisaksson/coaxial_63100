@@ -26,7 +26,6 @@ from machine.kernel import KEYED, MECHANISMS
 from machine.errors import MachineError
 
 
-
 def _ordered(paths):
     """`paths`, each module after the modules its package uses (`defpackage`'s :use)."""
     found, out = {}, []
@@ -295,12 +294,17 @@ def _call(fn, args, env):
     return [value(form, inner) for form in fn.body][-1]
 
 
-def _case(args, env):
+def _clause(args, env):
+    """A case's form its key picks."""
     key = value(args[0], env)
     for clause in args[1:]:
         if clause[0] in ('otherwise', key) or (isinstance(clause[0], list) and key in clause[0]):
-            return value(clause[1], env)
+            return clause[1]
     raise MachineError('(case %s ..): no clause for %r' % (args[0], key))
+
+
+def _case(args, env):
+    return value(_clause(args, env), env)
 
 
 def _given(form, env):
@@ -310,10 +314,12 @@ def _given(form, env):
 
 
 def _into(g, form, env):
-    """Gait `g` through `form`: a stage or op called on it, a let's forms in its bindings, a
-    thread of its own seed."""
+    """Gait `g` through `form`: a stage or op called on it, a let's forms in its bindings, a case's
+    clause, a thread of its own seed."""
     if form[0] == '->':
         return value(form, env)
+    if form[0] in ('case', 'ecase'):
+        return _into(g, _clause(form[1:], env), env)
     if form[0] == 'let':
         inner = dict(env)
         for name, bound in zip(form[1][::2], form[1][1::2]):

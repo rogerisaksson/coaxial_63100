@@ -119,8 +119,9 @@
                           [0.50 0.50 0.00 0.00 0.00]  ; Right (outer) limbs step out first at phi=0!
                           [0.00 0.00 0.50 0.50 0.00]) ; Left (outer) limbs step out first at phi=0!
           :velocity-twist-vx-vy-wz [0.0 vy-signed 0.0])
-        ;; Her hips out to their 25 deg stop, her abduction stepping her sideways; her legs
-        ;; bear what her plumb arms leave them on her back, what the dog's stance leaves belly down:
+        ;; Rotate hips & shoulders into 45 deg external frog/crab turnout so knee & elbow
+        ;; hinge axes align with the lateral Y travel vector - her hips to their 25 deg stop;
+        ;; her legs bear what her plumb arms leave them on her back, the dog's stance belly down:
         (align-hinge-joints-to-se2-vector
           :orientation-topology posture-mode
           :max-coxa-turnout-rad 0.436
