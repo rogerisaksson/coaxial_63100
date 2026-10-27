@@ -111,3 +111,24 @@ scenarios: [scenarios](scenarios.md).
   2.55 N/mm; its cantilever (hip 0.95 rad, knee straight) holds that heel
   0.73 m up. Its m g / (2 k L) is a length only with k L the floor's
   d Fz / dz.
+- On soft ground (`machine.substrate`, test_substrate): the work loop's
+  energy return of a linear contact is exp(-2 pi zeta / sqrt(1 - zeta^2)),
+  so its regimes are damping ratios: harmonic under 0.076, plastic over
+  0.28 - an elastic foam damped at 0.5 returns 2.7 % and reads as snow. Her
+  30.8 kg's stroke fits the identifier's 35 ms only past 62.1 N/mm.
+- Her patches: sole 213 cm^2, fist 28 (the text 25), shin 334, forearm and
+  fist 153, thigh 565, buttocks 522; shin to sole 1.57 (the text 4.8),
+  forearm to fist 5.42 (5.5), thighs to buttocks 2.16 (3.2). Her pressure,
+  kPa: standing 7.1, a landing at 1.25 of her 17.7, kneeling 4.5, fists on
+  all fours at the text's 0.34 18.2, forearms 9.9, sat 5.8; snow's ceiling
+  14.
+- A power law's stiffness at load F and sinkage z is n F / z, whatever its
+  moduli: the tamp's 42 N/mm opens under its 0.28 of her weight only within
+  2.0-4.0 mm of sinkage (n 1-2), 7.2-14.4 under all of it; at its 260 mm it
+  stands at 0.008-0.016 of the gate.
+- Her centre held still, her push on a bed is her weight, constant: the bed's
+  energy about its loaded rest falls by its own damper alone, to 9e-7. A bed
+  damped 0.076 with her on it keeps 0.13 of its energy after the text's 1.5
+  periods if as heavy as her, 4e-4 if a fifth. The kip's 340 mm takes 263 ms
+  and 102.9 J; her hips and knees at its 12.5 and 14 rad/s keep their 108
+  N m (48 V, 16.8 rad/s at most).

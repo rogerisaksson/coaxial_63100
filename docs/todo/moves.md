@@ -83,3 +83,15 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    played on her loop - knees, hands and knees, buttocks, back, rolled 180 deg
    onto her front and 360 deg on, up to standing - with no fall, each 1.5 s
    dwell held; the roll on the lodge bed too.
+7. **On soft ground** (asked; the kernel's `deformable_*.lisp`): read whole;
+   the work loop, its regimes, a patch's area, a power law's stiffness and a
+   bed's phase and ring-down in `machine.substrate`
+   ([support](../findings/support.md); test_substrate); her loop runs none
+   of it. Left: item 6 first; a mattress, deep snow and a trampoline as
+   simulated floors (her world has one rigid floor); a contact's surface
+   speed for the work loop, its anchor sinking in her estimator; the
+   identifier told plastic from damped by what stays sunk, not by energy;
+   her fists past 14 kPa on all fours in snow. DOD:
+   `compile-deformable-groundwork-suite-soa` played on her loop on the three
+   floors, no fall, her estimator's height within 1 cm of her centre's
+   through every sinking.
