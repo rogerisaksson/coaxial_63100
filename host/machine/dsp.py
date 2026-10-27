@@ -256,7 +256,7 @@ CONSTANTS = {'pi': math.pi}
 #: The lisp's functions, their arguments evaluated.
 FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
          '/': operator.truediv, 'abs': abs, 'max': max, 'min': min, 'not': operator.not_, 'tan': math.tan,
-         'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x),
+         'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x), 'elt': lambda seq, k: seq[int(k)],
          '>': operator.gt, '<': operator.lt, '>=': operator.ge, '<=': operator.le, 'eq': operator.eq,
          'get-param': _param, 'bars': lambda b0, b1, item: (b0, b1, item), 'oneshot': lambda g: ('oneshot', g),
          'dwell-ms': lambda ms: ('dwell', 1e-3 * ms),
@@ -274,10 +274,15 @@ def _bindings(names):
     return [tuple(b) for b in names] if isinstance(names, list) else list(zip(names[::2], names[1::2]))
 
 
+def _bind(env, name, got):
+    """`env` with `name` bound to `got`; a vector of names, `[a b c]`, each to its item of it."""
+    env.update(zip(name, got) if isinstance(name, tuple) else ((name, got),))
+
+
 def _let(args, env):
     env = dict(env)
     for name, form in _bindings(args[0]):
-        env[name] = value(form, env)
+        _bind(env, name, value(form, env))
     return [value(form, env) for form in args[1:]][-1]
 
 
@@ -312,7 +317,7 @@ def _into(g, form, env):
     if form[0] == 'let':
         inner = dict(env)
         for name, bound in zip(form[1][::2], form[1][1::2]):
-            inner[name] = value(bound, inner)
+            _bind(inner, name, value(bound, inner))
         for each in form[2:]:
             g = _into(g, each, inner)
         return g

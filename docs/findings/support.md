@@ -80,3 +80,14 @@ scenarios: [scenarios](scenarios.md).
   Her legs, the contacts', moved not at all; the chair and the walk the same
   to the digit; bed_rise, unmet both, fell at 19.7 s and now never rises.
   `HUNG` adds her pelvis's pitch to a let-go hip where the chain subtracts it.
+- On all fours (`machine.fours`, test_fours), her toes and fists, limbs
+  plumb at the dog trot's -0.06 rad: knee 1.68 rad, hips 0.648 m up, her
+  legs 0.48 of her. The text's 0.68 is her centre 0.099 m back; no contact
+  metric moves it - a static stance's vertical loads are its statics' (her
+  drives' held torques, arms 22.3 N m, legs 43.0: 6e-16 of her).
+- The torus clock at the text's 8.5/s locks each symmetry from any start in
+  0.64 s or less. Trot to crawl keeps two limbs bearing along the torus's
+  shortest arc; the offsets taken as numbers turn the right fore three
+  quarters and leave one bearing at 0.26 of the morph.
+- Four contacts on one plane cannot all be squeezed alike: 6.1 N short of
+  32 (a braced quadrilateral's self-stress); three can, to 3e-14.

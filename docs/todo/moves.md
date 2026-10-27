@@ -61,3 +61,12 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 4. **Tools and slip**: 0x0F-0x15 and 0x17 want a tool frame at the hand and
    a force or tactile sense at the wrist the board has not (its AFE: phases,
    the DC link, an NTC; IMU and A1335 on the buses). Hardware first.
+5. **On all fours** (asked; the kernel's `multimodal_*.lisp`): read whole;
+   its clock, a morph's lags, the fifth limb, the truss and the equalizer in
+   `machine.fours` ([support](../findings/support.md); test_fours); her loop
+   runs none of it. Left: item 1 for a fore limb to swing; a limb's share
+   from its clock (`MANIFOLDED` is a manifold's, `LET_GO` a leg's); the
+   descent onto her hands (the floor scoot's); her centre 0.099 m back for
+   the text's 0.68. DOD: laid on her toes and fists she holds 10 s, her arms
+   0.32 of her or less; then crawls 1 m in the lateral sequence, never fewer
+   than three bearing.
