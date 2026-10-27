@@ -285,3 +285,7 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
 - A take said at its beats, the squats and the dance on the legs and the
   trunk alone, the jogs, the runs and the moonwalk by their patterns over
   her walk: 5 of 31 met, 185.3 widths off ([sequencer](sequencer.md)).
+- The takes' knees at her size (hip, knee and ankle from the fbx, 30 ms
+  means, times by similarity): the jog 10.9 rad/s, the run 17.5, the running
+  jump 20.5, the standing jump 13.1; her knees' no-load 16.8 at 48 V, their
+  peak torque to 14.7.

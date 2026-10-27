@@ -132,3 +132,13 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
     `compile-overheight-vault-and-dip-soa` played on her loop on a stool at
     her hips - vaulted on, 4 s seated, dipped off onto her forefeet - with
     no fall and the stool upright.
+11. **Walk to run, a brake, a jump and a leap** (asked; the kernel's
+    `ballistic_*.lisp`, fitted to her body): read whole; the regimes at the
+    text's Froude numbers on her leg, a step's brake on a floor's friction and
+    her hips' launch from her drives in `machine.ballistic`
+    ([leap](../findings/leap.md); test_ballistic); her loop runs none of it.
+    Left: the atlas's split-leap posture its header names; a launch with her
+    hips and ankles beside her knees. DOD:
+    `compile-ballistic-velocity-lifecycle-soa` played on her loop on a flat
+    floor - walk, brisk walk, double-time, the leap, the run, the brake to a
+    walk, the standing jump - with no fall.

@@ -5,10 +5,9 @@
     plan = dsp.schedule(got['compile-omnidirectional-suite'])  # [(from bar, to bar, gait or Morph)]
 
 A gait is the suite's manifold as nodes of params, a sidechain on the node it ducks; the runway's
-dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES. The modules are read
-each after those its package uses. Stages - transducers, modifiers, limiters, maneuvers, a patch
-with parameters - are functions of a gait threaded by `->`; ops (GAIT_OPS), functions (FUNCS) and
-special forms (SPECIAL) are tables. A gait keeps the stages and transitions it went through in
+dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES. Stages - transducers,
+modifiers, limiters, maneuvers, a patch with parameters - are functions of a gait threaded by `->`.
+A gait keeps the stages and transitions it went through in
 order ('_trace') and a maneuver's acts ('_events': an envelope, a contact's threshold and the acts
 it releases). `machine.voicing` plays a gait on her walk, `machine.maneuver` a maneuver on her.
 """
@@ -22,7 +21,7 @@ import struct
 from typing import Any
 
 from machine import ortho, patch
-from machine.kernel import KEYED, MECHANISMS
+from machine.kernel import KEYED, MECHANISMS, QUERIES
 from machine.errors import MachineError
 
 
@@ -252,9 +251,10 @@ def _param(g, key):
 COERCE = {'single-float': lambda x: struct.unpack('<f', struct.pack('<f', x))[0], 'double-float': float}
 #: The language's constants, every text's.
 CONSTANTS = {'pi': math.pi}
-#: The lisp's functions, their arguments evaluated.
-FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
-         '/': operator.truediv, 'abs': abs, 'max': max, 'min': min, 'not': operator.not_, 'tan': math.tan,
+#: The lisp's functions, their arguments evaluated; arithmetic on a Law of her world a Law.
+FUNCS = {**{k: (lambda k, f: lambda *a: Law(k, a) if Law in map(type, a) else f(*a))(k, f) for k, f in {
+             '+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
+             '/': operator.truediv, 'abs': abs, 'max': max, 'min': min}.items()}, 'not': operator.not_, 'tan': math.tan,
          'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x), 'elt': lambda seq, k: seq[int(k)],
          '>': operator.gt, '<': operator.lt, '>=': operator.ge, '<=': operator.le, 'eq': operator.eq,
          'get-param': _param, 'bars': lambda b0, b1, item: (b0, b1, item), 'oneshot': lambda g: ('oneshot', g),
@@ -265,7 +265,7 @@ FUNCS = {'+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*'
          **{name: lambda *a: {k.lstrip(':'): v for k, v in zip(a[::2], a[1::2])}
             for name in ('compile-to-soa', 'engage-virtual-dissipative-load')},
          **{name: (lambda name: lambda *a: Law(name, a))(name)
-            for name in ('query-nearest-affordance', 'slot-surface-normal', 'slot-estimated-mu')}}
+            for name in QUERIES}}
 
 
 def _bindings(names):
@@ -322,7 +322,7 @@ def _into(g, form, env):
         return _into(g, _clause(form[1:], env), env)
     if form[0] == 'let':
         inner = dict(env)
-        for name, bound in zip(form[1][::2], form[1][1::2]):
+        for name, bound in _bindings(form[1]):
             _bind(inner, name, value(bound, inner))
         for each in form[2:]:
             g = _into(g, each, inner)
@@ -384,7 +384,8 @@ SPECIAL = {'let': _let, 'let*': _let, 'case': _case, 'ecase': _case, '->': _thre
            'quote': lambda a, env: _datum(a[0]),
            'quasiquote': lambda a, env: _quasi(a[0], env),
            'if': lambda a, env: value(a[1] if value(a[0], env) else (a[2] if len(a) > 2 else None), env),
-           'and': lambda a, env: all(value(x, env) for x in a), 'or': lambda a, env: any(value(x, env) for x in a)}
+           'and': lambda a, env: all(value(x, env) for x in a),
+           'or': lambda a, env: next(filter(None, (value(x, env) for x in a)), None)}
 
 
 def value(x, env) -> Any:

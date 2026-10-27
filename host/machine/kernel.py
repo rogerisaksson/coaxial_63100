@@ -61,9 +61,15 @@ MECHANISMS = {
     'modulate-longitudinal-bed-datum': 'bed-datum', 'inject-nullspace-posture-delta': 'posture-delta',
     'inject-two-body-stability-barrier': 'fixture-cone', 'execute-bevel-arch-vault-homotopy': 'bevel-vault',
     'execute-appendage-replant-ratchet': 'hand-replant', 'execute-overhang-triceps-dip-egress': 'overhang-dip',
-    'bind-vault-contingency-reflex': 'vault-abort'}
+    'bind-vault-contingency-reflex': 'vault-abort', 'drive-froude-continuum-morph': 'froude-homotopy',
+    'bind-zero-wrench-flight-connection': 'flight-connection', 'solve-adaptive-deceleration-cascade': 'brake-horizon',
+    'execute-ssc-ballistic-launch': 'ssc-launch', 'bind-braking-pitch-counterweight': 'brake-pitch-arrest',
+    'modulate-touchdown-elevation-datum': 'touchdown-datum'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
+#: The kernel's queries of her world, each a Law she resolves as she goes.
+QUERIES = ('query-nearest-affordance', 'slot-surface-normal', 'slot-estimated-mu', 'query-upcoming-obstacle-span-x',
+           'query-upcoming-obstacle-height-z')
 
 
 @functools.cache
