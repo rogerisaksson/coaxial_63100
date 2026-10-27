@@ -70,7 +70,7 @@
       :coupled-manifold [:plantar-bilateral :ulnar-carpal-shove-bilateral]
       :origin-q0
         (:calcaneus 0.00 :talocrural +0.18 :tibiofemoral 1.28
-         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; her hip's 25 deg turn
+         :coxofemoral 0.85 :coxofemoral-abduct 0.62 :coxofemoral-ext-rot 0.436 ; 45 deg hip turnout! Hers 25 deg
          :iliac-coronal 0.00 :l4-l5-lumbar -0.05 :c7-t12-thoracic 0.06
          :glenohumeral -1.04 :glenohumeral-abduct 0.58 :glenohumeral-ext-rot 0.95 ; her straight arms plumb
          :cubital 0.00 :c1-c2-atlas 0.00)
@@ -112,7 +112,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive align-hinge-joints-to-se2-vector
   [state &key (orientation-topology :pronograde-belly-down) ; :pronograde-belly-down | :supine-belly-up | :ischial-seated | :deep-biped-squat
-              (max-coxa-turnout-rad 0.436)                  ; Her hip's 25 deg turn
+              (max-coxa-turnout-rad 0.436)                  ; Up to 45 deg external hip/shoulder turnout; her hip's 25
               (hindlimb-load-share 0.66)]
   (-> state
       (modulate-proximal-balljoint-turnout
@@ -152,7 +152,7 @@
 ;; -----------------------------------------------------------------------------
 ;; 5. SUPINE & PRONOGRADE GRADE RATCHET (CRAWLING UP & DOWN SLOPES / STAIRS)
 ;; Protects shoulder motors when crawling uphill or upstairs with back to floor
-;; by using the buttocks (`:ischial`) as a directional mechanical pawl.
+;; by using the buttocks (`:ischial`) as a directional mechanical pawl (a ratchet's catch).
 ;; -----------------------------------------------------------------------------
 (defprimitive arpeggiate-supine-pronograde-grade
   [state &key (grade-dz-mm :from-sub-tarsal-sdf)
