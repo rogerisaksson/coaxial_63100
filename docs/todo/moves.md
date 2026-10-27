@@ -61,3 +61,37 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 4. **Tools and slip**: 0x0F-0x15 and 0x17 want a tool frame at the hand and
    a force or tactile sense at the wrist the board has not (its AFE: phases,
    the DC link, an NTC; IMU and A1335 on the buses). Hardware first.
+5. **On all fours** (asked; the kernel's `multimodal_*.lisp`): read whole;
+   its clock, a morph's lags, the fifth limb, the truss and the equalizer in
+   `machine.fours` ([support](../findings/support.md); test_fours); her loop
+   runs none of it. Left: item 1 for a fore limb to swing; a limb's share
+   from its clock (`MANIFOLDED` is a manifold's, `LET_GO` a leg's); the
+   descent onto her hands (the floor scoot's); her centre 0.099 m back for
+   the text's 0.68. DOD: laid on her toes and fists she holds 10 s, her arms
+   0.32 of her or less; then crawls 1 m in the lateral sequence, never fewer
+   than three bearing.
+6. **On the floor** (asked; the kernel's `floor_*.lisp`,
+   `ground_rolling_and_transitions.lisp`): read whole; her rest on a floor,
+   the roll's ring and girdles and the trough's law in `machine.groundwork`
+   ([support](../findings/support.md); test_groundwork); her loop runs none
+   of it. Left: her shins, front and forearms as what bears her
+   (`ortho.MANIFOLDS` has plantar, ischial, trochanter, dorsal, palmar); the
+   origins on her body - the tall kneel at 0.60 of its axial column, the
+   prone's arms in her sagittal plane, the tripod's fists level with her
+   buttocks, not 63 mm under them; the roll's push-off heel planted; a way
+   from her knees to her buttocks within her 25 deg hip turn. DOD: `compile-complete-groundwork-soa`
+   played on her loop - knees, hands and knees, buttocks, back, rolled 180 deg
+   onto her front and 360 deg on, up to standing - with no fall, each 1.5 s
+   dwell held; the roll on the lodge bed too.
+7. **On soft ground** (asked; the kernel's `deformable_*.lisp`): read whole;
+   the work loop, its regimes, a patch's area, a power law's stiffness and a
+   bed's phase and ring-down in `machine.substrate`
+   ([support](../findings/support.md); test_substrate); her loop runs none
+   of it. Left: item 6 first; a mattress, deep snow and a trampoline as
+   simulated floors (her world has one rigid floor); a contact's surface
+   speed for the work loop, its anchor sinking in her estimator; the
+   identifier told plastic from damped by what stays sunk, not by energy;
+   her fists past 14 kPa on all fours in snow. DOD:
+   `compile-deformable-groundwork-suite-soa` played on her loop on the three
+   floors, no fall, her estimator's height within 1 cm of her centre's
+   through every sinking.

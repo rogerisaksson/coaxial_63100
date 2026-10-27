@@ -48,37 +48,41 @@
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)))))
 
-;; sat on the floor, she drags her butt forward on her hands: tipped back as she lies down till the floor bears her
-;; butt (`wait contact`), her trunk up on her hands, her hands beside her hips; then a stroke - her elbows
-;; straightened, her shoulders turned back as her butt slides - and her hands lifted forward again. Sat as a hop lands
-;; (`soft_land`): at once, on her rest's pitch spring - blended 1.2 s from the tip's lean, or on the tip's spring, she
-;; lay back on her hands to -92 deg in a second
+;; sat on the floor, she drags her butt forward on her hands: off her knees her palms down beside her hips as columns
+;; (`modal.poses`) till each bears, her butt lowered on them and her soles till the floor bears it, her support's
+;; polygon held throughout - let go, she threw herself back off her knees, her head down in 1.3 s; then a stroke - her
+;; elbows straightened, her shoulders turned back as her butt slides - and her hands lifted forward again
 (defbehavior scoot_floor (extends lie_floor)
   (phase kneel)
-  (phase tip (duration 500ms))
-  (phase sit (use tip) (wait contact)
-    (duration 1500ms) (blend_duration 0ms)
+  (phase squat
+    (duration 1500ms) (blend_duration 1500ms)
+    (latent_targets (mode_axial_compression 4.0) (mode_pitch_attitude unsaid))
+    (impedance (stiffness mode_pitch_attitude 0) (damping mode_pitch_attitude 0))
+    (task_constraints (maintain_zmp (polygon support_polygon)) (contact_manifolds (plantar 1.0))))
+  (phase tip
+    (duration 500ms)
     (latent_targets (mode_pitch_attitude -0.4) (mode_arm_reach 0.0) (mode_arm_fold 0.0))
-    (impedance (stiffness mode_pitch_attitude 1458) (damping mode_pitch_attitude 292)
-               (stiffness mode_arm_swing 120) (damping mode_arm_swing 24)
-               (stiffness mode_arm_reach 120) (damping mode_arm_reach 24))
-    (task_constraints (maintain_zmp (polygon 0))
-                      (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.3))))
+    (impedance (stiffness mode_pitch_attitude 1458) (damping mode_pitch_attitude 292))
+    (task_constraints (contact_manifolds (plantar 0.7))))
+  (phase sit (use tip) (wait contact)
+    (duration 1500ms)
+    (task_constraints (maintain_zmp (polygon support_polygon))
+                      (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.6))))
   (phase hands (use sit)
     (duration 800ms) (blend_duration 500ms)
     (latent_targets (mode_arm_reach -0.5) (mode_arm_fold 1.0))
     (impedance (stiffness mode_arm_fold 1200) (damping mode_arm_fold 120))
-    (task_constraints (maintain_zmp (polygon 0))
+    (task_constraints (maintain_zmp (polygon support_polygon))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.0))))
   (phase push (use hands)
     (duration 1000ms) (blend_duration 400ms)
     (latent_targets (mode_arm_reach -1.5) (mode_arm_fold 0.0))
     (impedance (stiffness mode_sagittal_shift 5) (damping mode_sagittal_shift 60))
-    (task_constraints (maintain_zmp (polygon 0)) (slide 0.15)
+    (task_constraints (maintain_zmp (polygon support_polygon)) (slide 0.15)
                       (contact_manifolds (plantar 0.0) (ischial 0.4) (palmar 0.6))))
   (phase place (use hands)
     (duration 800ms) (blend_duration 400ms)
-    (task_constraints (maintain_zmp (polygon 0)) (slide 0.0)
+    (task_constraints (maintain_zmp (polygon support_polygon)) (slide 0.0)
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.0))))
   (phase push_2 (use push))
   (phase place_2 (use place))

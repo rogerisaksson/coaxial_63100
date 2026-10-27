@@ -17,7 +17,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, figure, touch
+from machine import edge, figure, latent, ortho, stride, supervisor, touch
+from machine.modal import HIP, PALMS, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE
 
 #: A segment bears that is pushed up past this, N: her skin's touch.
 BEARS_N = edge.TOUCHED_N
@@ -40,6 +41,13 @@ PELVIS = edge.SKIN.index('pelvis')
 CAPSULES = [[(r, np.asarray(a, float), np.asarray(b, float)) for seg, r, a, b in figure.BODY
              if seg == (name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name)] for name in edge.SKIN]
 ALONG = np.array([1.0, 0.0, 1.0])
+
+
+#: Her support's comparator, the master insert's (`supervisor`): latched from PROP_ENGAGE of her
+#: weight, let go under PROP_RELEASE held PROP_DWELL_S, never within PROP_BLANK_S of its strike.
+_CMP = supervisor.insert()['contact-comparators']
+PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
+PROP_DWELL_S, PROP_BLANK_S = 1e-3 * _CMP['min-state-dwell-ms'], 1e-3 * _CMP['impact-blanking-window-ms']
 
 
 def _room(k, local):
@@ -87,7 +95,8 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         b.jacs = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
-    skin = np.concatenate([ABOVE, [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]]).astype(int)
+    soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]
+    skin = np.concatenate([ABOVE, soled]).astype(int)
     pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
     jp, jr = b.jacs
     for k in pushed:
@@ -95,7 +104,10 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         f = R @ pushes[k]
         if f[1] <= BEARS_N:
             continue
-        up += f[1] * float(k not in HANDS)
+        # a let-go foot is a contact, not what bears her off her soles: in her props' box her centre was asked out over
+        # her feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
+        prop = float(k not in soled)
+        up += f[1] * float(k not in HANDS) * prop
         side = int(k in HANDS[len(touch.ARMS[0]):])
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
@@ -103,7 +115,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal)
         for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
-            low, high = np.minimum(low, p - room), np.maximum(high, p + room)
+            low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
             b.mj.mj_jac(m, d, jp, jr, p, ids[k])
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
@@ -111,3 +123,44 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
                              'side': side, 'patch': patch})
     held = np.isfinite(low[0])
     return (up / weight, np.where(held, low, 0.0), np.where(held, high, 0.0)), contacts, palms / weight
+
+
+def latched(y, rot, a, dt):
+    """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
+    way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
+    comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
+    release; her hands' share with the furniture's (`borne`): the furniture's alone, a hitch on her
+    hands let it go under the release and her soles stood under her again. Its share ramped to
+    PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
+    counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
+    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
+    lifted in turn and she slid onto the mattress."""
+    share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
+    on = (1.0 - latched) * float(share >= PROP_ENGAGE)
+    under = latched * float(share < PROP_RELEASE)
+    a[PROPPED_BELOW] = under * (a[PROPPED_BELOW] + dt)
+    a[PROPPED_SINCE] = (1.0 - on) * (a[PROPPED_SINCE] + dt)
+    off = under * float(a[PROPPED_SINCE] >= PROP_BLANK_S) * float(a[PROPPED_BELOW] >= PROP_DWELL_S)
+    a[PROPPED] = latched + on - off
+    xs, zs = np.array([y[PROP_LO][0], y[PROP_HI][0]]), np.array([y[PROP_LO][2], y[PROP_HI][2]])
+    way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
+    box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
+    a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
+    return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
+
+
+def held(y, rot, a, dt, out, aim, along, unit):
+    """(her support off her soles (`latched`); that, or her text telling her to bear on something off them - going down
+    onto it no fall to parry; the share she is told to sit (its furniture's, at most 1); her sagittal mode with her
+    centre back over the floor under her hips, never forward to it - `aim` her reading of it, `along` her centre along
+    her way, `unit` its; her props' box grown over that floor as far as she is told to sit). Held, her capture point
+    went behind her heels as she reached for the floor, a sole stepped to parry and she fell aside; held over her soles
+    she sat on her heels in a deep squat; drawn forward as she leant back on her hands, 5.8 m/s^2 lifted a hand 0.7 m;
+    to the middle of what bore her, her head on the floor behind put it 0.65 m back and threw her onto her back."""
+    propped, (low, high, by) = latched(y, rot, a, dt)
+    seat, told = (y[HIP].reshape(2, 3) @ rot.T)[:, :2].mean(axis=0), out[latent.MANIFOLDED]
+    sat = np.minimum(told[ortho.FURNITURE].sum(), 1.0)
+    return (propped, np.maximum(propped, float(told[ortho.FURNITURE.start:].sum() > 0.0)), sat,
+            aim - (along - np.minimum(along, seat[stride.ALONG])) / unit,
+            (propped * np.minimum(low, seat) + (1.0 - propped) * seat, propped * np.maximum(high, seat) + (1.0 - propped) * seat,
+             np.maximum(by, sat)))

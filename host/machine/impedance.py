@@ -17,12 +17,12 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, poise, stride, supervisor, swing
+from machine import borne, latent, poise, stride, swing
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS,
     FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M,
-    LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PALMS, PELVIS, PITCH,
-    PITCH0, PITCH_RAD, PREFOLD, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE, RAISE, REACH, REACH0, REACHED,
+    LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH,
+    PITCH0, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED,
     RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED,
     UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
@@ -53,11 +53,6 @@ FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 #: Borne off her soles this share of her weight, she is supported there wholly: her support
 #: region spans where, her centre of mass asked of her springs, not let fall.
 PROP_ON = 0.15
-#: Her support's comparator, the master insert's (`supervisor`): latched from PROP_ENGAGE of her
-#: weight, let go under PROP_RELEASE held PROP_DWELL_S, never within PROP_BLANK_S of its strike.
-_CMP = supervisor.insert()['contact-comparators']
-PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
-PROP_DWELL_S, PROP_BLANK_S = 1e-3 * _CMP['min-state-dwell-ms'], 1e-3 * _CMP['impact-blanking-window-ms']
 #: Her pelvis's axes a seat holds once it bears her - its list on her two ischia -, its pitch and turn
 #: hers: let go with the list, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole; its
 #: pitch let go, it stayed 29 deg forward of her settled trunk, her spine at -25 deg.
@@ -77,11 +72,11 @@ def ask(out, y, fr, a):
     flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
     low, high = poise.boxes(flat, a[EDGE], tilt)
     floors, rise = under(y, fr, stood)
-    propped, prop = _borne(y, rot, a, fr[DT])
+    propped, unparried, sat, aim, prop = borne.held(y, rot, a, fr[DT], out, z[SAGITTAL], c[ALONG], fr[UNIT][SAGITTAL])
     # the lift's own rhythm is her stride's clearance, not a sole's place
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
-    up = LIMBS * ref[LIFT]
+    ref[SAGITTAL], up = ref[SAGITTAL] + sat * (aim - ref[SAGITTAL]), LIMBS * ref[LIFT]
     # her capture point past the soles that stood - past her ZMP's margin in them - steps her
     # while the rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
     still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / TINY, 0.0, 1.0)
@@ -90,7 +85,7 @@ def ask(out, y, fr, a):
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
-    a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
+    a[NEED] = (1.0 - unparried) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD])
@@ -204,30 +199,6 @@ def _let_go(propped, stance, out, up):
     nothing = float((told[1:] > 0.0).any()) * float(told[0] <= 0.0)
     gone = propped * np.maximum(nothing, (up > poise.LIFT_EPS).astype(float))
     return stance * (1.0 - gone), gone
-
-
-def _borne(y, rot, a, dt):
-    """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
-    way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
-    comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
-    release; her hands' share with the furniture's (`borne`): the furniture's alone, a hitch on her
-    hands let it go under the release and her soles stood under her again. Its share ramped to
-    PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
-    counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
-    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
-    lifted in turn and she slid onto the mattress."""
-    share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
-    on = (1.0 - latched) * float(share >= PROP_ENGAGE)
-    under = latched * float(share < PROP_RELEASE)
-    a[PROPPED_BELOW] = under * (a[PROPPED_BELOW] + dt)
-    a[PROPPED_SINCE] = (1.0 - on) * (a[PROPPED_SINCE] + dt)
-    off = under * float(a[PROPPED_SINCE] >= PROP_BLANK_S) * float(a[PROPPED_BELOW] >= PROP_DWELL_S)
-    a[PROPPED] = latched + on - off
-    xs, zs = np.array([y[PROP_LO][0], y[PROP_HI][0]]), np.array([y[PROP_LO][2], y[PROP_HI][2]])
-    way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
-    box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
-    a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
-    return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
 
 
 def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying):

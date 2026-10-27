@@ -80,3 +80,55 @@ scenarios: [scenarios](scenarios.md).
   Her legs, the contacts', moved not at all; the chair and the walk the same
   to the digit; bed_rise, unmet both, fell at 19.7 s and now never rises.
   `HUNG` adds her pelvis's pitch to a let-go hip where the chain subtracts it.
+- On all fours (`machine.fours`, test_fours), her toes and fists, limbs
+  plumb at the dog trot's -0.06 rad: knee 1.68 rad, hips 0.648 m up, her
+  legs 0.48 of her. The text's 0.68 is her centre 0.099 m back; no contact
+  metric moves it - a static stance's vertical loads are its statics' (her
+  drives' held torques, arms 22.3 N m, legs 43.0: 6e-16 of her).
+- The torus clock at the text's 8.5/s locks each symmetry from any start in
+  0.64 s or less. Trot to crawl keeps two limbs bearing along the torus's
+  shortest arc; the offsets taken as numbers turn the right fore three
+  quarters and leave one bearing at 0.26 of the morph.
+- Four contacts on one plane cannot all be squeezed alike: 6.1 N short of
+  32 (a braced quadrilateral's self-stress); three can, to 3e-14.
+- The kernel's six ground origins laid rigid on a hard floor
+  (`machine.groundwork`, test_groundwork; her 30.8 kg as built): the supine
+  rests on its dorsal patch, pelvis and head bearing, her torso 9.8 mm up.
+  On her shins and toes the tall kneel's centre is 79 mm past her knees, no
+  rest, until 0.60 of its axial column (knee 115 deg, pitched -17 deg). The
+  quadruped bears on fists and toes, her knees 111 mm up; the tripod's fists
+  hold her pelvis 63 mm up; the prone's +0.45 rad shoulders, unabducted, put
+  her arms under her chest, her front 211 mm up. Her ankle's 45 deg never
+  lays a foot's dorsum flat: she kneels on her toes. The 90/90 bridge turns
+  a hip 39 deg, hers 25; the quadruped's neck -49 deg, hers -45.
+- Rolled onto her side on a hard floor, her arms at her sides she climbs
+  47.3 J (74.0 N m) and lies on her downside fist; the overhead slot 10.3 J
+  (26.0 N m), its fist still lowest side down; the cantilever 3.0 J, her
+  centre 15 mm toward the roll. Her head clears the floor by 45 mm round the
+  turn; the helical wave turns her waist 21.8 deg of its 50.
+- The roll law's trough at its soft threshold, 65 N/mm: 4.65 mm, 0.70 N m.
+  Its 110 N heel push 0.163 m from her right buttock gives 17.9 N m, equal at
+  2.55 N/mm; its cantilever (hip 0.95 rad, knee straight) holds that heel
+  0.73 m up. Its m g / (2 k L) is a length only with k L the floor's
+  d Fz / dz.
+- On soft ground (`machine.substrate`, test_substrate): the work loop's
+  energy return of a linear contact is exp(-2 pi zeta / sqrt(1 - zeta^2)),
+  so its regimes are damping ratios: harmonic under 0.076, plastic over
+  0.28 - an elastic foam damped at 0.5 returns 2.7 % and reads as snow. Her
+  30.8 kg's stroke fits the identifier's 35 ms only past 62.1 N/mm.
+- Her patches: sole 213 cm^2, fist 28 (the text 25), shin 334, forearm and
+  fist 153, thigh 565, buttocks 522; shin to sole 1.57 (the text 4.8),
+  forearm to fist 5.42 (5.5), thighs to buttocks 2.16 (3.2). Her pressure,
+  kPa: standing 7.1, a landing at 1.25 of her 17.7, kneeling 4.5, fists on
+  all fours at the text's 0.34 18.2, forearms 9.9, sat 5.8; snow's ceiling
+  14.
+- A power law's stiffness at load F and sinkage z is n F / z, whatever its
+  moduli: the tamp's 42 N/mm opens under its 0.28 of her weight only within
+  2.0-4.0 mm of sinkage (n 1-2), 7.2-14.4 under all of it; at its 260 mm it
+  stands at 0.008-0.016 of the gate.
+- Her centre held still, her push on a bed is her weight, constant: the bed's
+  energy about its loaded rest falls by its own damper alone, to 9e-7. A bed
+  damped 0.076 with her on it keeps 0.13 of its energy after the text's 1.5
+  periods if as heavy as her, 4e-4 if a fifth. The kip's 340 mm takes 263 ms
+  and 102.9 J; her hips and knees at its 12.5 and 14 rad/s keep their 108
+  N m (48 V, 16.8 rad/s at most).
