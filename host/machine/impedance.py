@@ -17,7 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import latent, poise, stride, supervisor, swing
+from machine import kernel, latent, poise, stride, supervisor, swing
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS,
     FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M,
@@ -58,6 +58,8 @@ PROP_ON = 0.15
 _CMP = supervisor.insert()['contact-comparators']
 PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
 PROP_DWELL_S, PROP_BLANK_S = 1e-3 * _CMP['min-state-dwell-ms'], 1e-3 * _CMP['impact-blanking-window-ms']
+#: Her support's slew up and down, 1/s (`bind-wrench-driven-homotopy`).
+PROP_UP, PROP_DOWN = (kernel.said('bind-wrench-driven-homotopy', k) for k in ('slew-rate-up-per-s', 'slew-rate-down-per-s'))
 #: Her pelvis's axes a seat holds once it bears her - its list on her two ischia -, its pitch and turn
 #: hers: let go with the list, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole; its
 #: pitch let go, it stayed 29 deg forward of her settled trunk, her spine at -25 deg.
@@ -198,22 +200,19 @@ def ask(out, y, fr, a):
 
 def _let_go(propped, stance, out):
     """(the soles that stand, each leg let go): borne off her soles with her text asking nothing of them
-    (`latent.MANIFOLDED`), her legs hang, on the floor or off - no swing, no stance (`wrench._maps`). Let go off
-    the floor alone, her soles stood on under a seat whose edge perched her, and she tipped back off it."""
-    gone = propped * float(out[latent.MANIFOLDED][0] <= 0.0)
-    return stance * (1.0 - gone), np.full(2, gone)
+    (`latent.MANIFOLDED`), a leg whose sole does not stand hangs, its foot a contact (`borne.read`). Let go
+    standing too, a squat's hips stood her up off her hands on the floor; off the floor alone, its foot no
+    contact, her soles stood on under a seat whose edge perched her, and she tipped back off it."""
+    return stance, propped * float(out[latent.MANIFOLDED][0] <= 0.0) * (1.0 - stance)
 
 
 def _borne(y, rot, a, dt):
-    """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
-    way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
-    comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
-    release; her hands' share with the furniture's (`borne`): the furniture's alone, a hitch on her
-    hands let it go under the release and her soles stood under her again. Its share ramped to
-    PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
-    counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
-    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
-    lifted in turn and she slid onto the mattress."""
+    """(her support off her soles, 0 to 1; (its box's low and high corners along and across in her
+    way's frame, that support)): what bears her - a seat, a bed, a knee's floor, her hands (`borne`) -,
+    its share of PROP_ON slewed at PROP_UP and PROP_DOWN, kept in `a`, `dt` s on; its box where it bears.
+    Latched at 0.18 of her weight (`waits.borne_back`), her legs held her squat on her hands and soles and
+    she dropped 21 cm as they gave; unslewed, a brush of the bed's frame at the dock, 0.07 of her,
+    stepped her back into it and over the edge."""
     share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
     on = (1.0 - latched) * float(share >= PROP_ENGAGE)
     under = latched * float(share < PROP_RELEASE)
@@ -224,8 +223,9 @@ def _borne(y, rot, a, dt):
     xs, zs = np.array([y[PROP_LO][0], y[PROP_HI][0]]), np.array([y[PROP_LO][2], y[PROP_HI][2]])
     way = np.stack([np.repeat(xs, 2), np.zeros(4), np.tile(zs, 2)], axis=1) @ rot.T
     box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
-    a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
-    return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
+    a[PROPPED_BOX] = np.where(share > 0.0, box, a[PROPPED_BOX])
+    borne = a[BORNE] + poise.clip(poise.clip(share / PROP_ON, 0.0, 1.0) - a[BORNE], -PROP_DOWN * dt, PROP_UP * dt)
+    return borne, (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), borne)
 
 
 def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying):

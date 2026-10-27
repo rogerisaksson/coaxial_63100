@@ -151,7 +151,7 @@ def test_a_pulled_chair_weighs_nothing(report):
         x0[0] = w.data.mocap_pos[k].copy() if x0[0] is None else x0[0]
         u = min(1.0, max(0.0, (g['t'] - 1.5) / 0.3))
         w.data.mocap_pos[k] = x0[0] - np.array([0.0, 0.0, u * u * (3.0 - 2.0 * u)])
-        seat[0] = max(seat[0], float(g['out'][latent.MANIFOLDED][1]) * (g['t'] < 8.0))
+        seat[0] = max(seat[0], float(g['weighed_w'][1]) * (g['t'] < 8.0))
 
     out = scenarios.ran('chair', laid=laid)
     report.check('the seat taken at most %.3f, stood %s' % (seat[0], out['stood']), seat[0] == 0.0 and out['stood'], '')

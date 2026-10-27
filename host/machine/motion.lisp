@@ -48,66 +48,37 @@
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)))))
 
-;; sit on the floor from a squat: her hips back and down behind her heels, her soles flat, her hands behind her
-;; catching her, her trunk over her thighs - her legs stood on, not let go: let go, her thighs held level propped
-;; her hips at her knees' height on her hands and feet, and she dropped 25 cm as they gave. The sat pose her
-;; figure's (`seated.legs` at `seated.sat` of the floor, her hips 0.20 m behind her ankles): knee 150 deg,
-;; ankle -12.8, axial 4.0, her centre of mass -1.67 her trunk 0.3 rad forward
-(defbehavior sit_floor (extends stance_hold)
-  (phase kneel
-    (duration 2500ms) (blend_duration 1200ms)
-    (latent_targets (mode_axial_compression 3.2) (mode_pitch_attitude 0.20) (mode_arm_swing 0.0)
-                    (mode_arm_reach -1.4))
-    (impedance (stiffness mode_arm_swing 1200) (damping mode_arm_swing 120)
-               (stiffness mode_arm_reach 1200) (damping mode_arm_reach 120)))
-  (phase sit_down
-    (duration 1500ms) (blend_duration 700ms)
-    (latent_targets (mode_axial_compression 4.0) (mode_pitch_attitude -2.0)
-                    (mode_arm_swing 0.0) (mode_arm_reach -3.9))
-    (impedance (stiffness mode_axial_compression 400) (damping mode_axial_compression 150)
-               (stiffness mode_pitch_attitude 150) (damping mode_pitch_attitude 60)
-               (stiffness mode_arm_swing 1200) (damping mode_arm_swing 120)
-               (stiffness mode_arm_reach 1200) (damping mode_arm_reach 120))
+;; sat on the floor, she drags her butt forward on her hands: down as she lies down, her trunk up on her hands
+;; behind her, her hands beside her hips; then a stroke - her elbows straightened, her shoulders turned back
+;; as her butt slides - and her hands lifted forward again
+(defbehavior scoot_floor (extends lie_floor)
+  (phase kneel)
+  (phase tip)
+  (phase sit (use tip)
+    (duration 1500ms) (blend_duration 1200ms)
+    (latent_targets (mode_pitch_attitude -0.4))
     (task_constraints (maintain_zmp (polygon 0))
-                      (contact_manifolds (plantar 0.15) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)
-                                         (palmar 0.6))))
-  (phase sat
-    (duration 1500ms) (blend_duration 1000ms)
-    (latent_targets (mode_axial_compression 4.0) (mode_sagittal_shift -1.67) (mode_pitch_attitude 0.6)
-                    (mode_arm_swing 0.0) (mode_arm_reach -1.4))
-    (impedance (stiffness mode_arm_swing 1200) (damping mode_arm_swing 120)
-               (stiffness mode_arm_reach 1200) (damping mode_arm_reach 120))
-    (task_constraints (maintain_zmp (polygon 0))
-                      (contact_manifolds (plantar 0.15) (ischial 0.6) (palmar 0.25))))
-  (phase floor_sit (use sat) (duration 60s)))
-
-;; sat on the floor, she drags her butt forward on her hands: her hands beside her hips, her elbows
-;; straightened and her shoulders turned back as her butt slides, her hands lifted forward again
-(defbehavior scoot_floor (extends stance_hold)
-  (phase sit
-    (duration 1500ms) (blend_duration 800ms)
-    (latent_targets (mode_axial_compression 3.2) (mode_pitch_attitude -0.4) (mode_arm_swing 0.0)
-                    (mode_arm_reach 0.0) (mode_arm_fold 1.0))
-    (impedance (stiffness mode_arm_swing 1200) (damping mode_arm_swing 120)
-               (stiffness mode_arm_reach 1200) (damping mode_arm_reach 120)
-               (stiffness mode_arm_fold 1200) (damping mode_arm_fold 120))
+                      (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.3))))
+  (phase hands (use sit)
+    (duration 800ms) (blend_duration 500ms)
+    (latent_targets (mode_arm_reach -0.5) (mode_arm_fold 1.0))
+    (impedance (stiffness mode_arm_fold 1200) (damping mode_arm_fold 120))
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.0))))
-  (phase push (use sit)
-    (duration 1000ms) (blend_duration 300ms)
-    (latent_targets (mode_arm_reach -1.0) (mode_arm_fold 0.0))
+  (phase push (use hands)
+    (duration 1000ms) (blend_duration 400ms)
+    (latent_targets (mode_arm_reach -1.5) (mode_arm_fold 0.0))
     (impedance (stiffness mode_sagittal_shift 5) (damping mode_sagittal_shift 60))
     (task_constraints (maintain_zmp (polygon 0)) (slide 0.15)
                       (contact_manifolds (plantar 0.0) (ischial 0.4) (palmar 0.6))))
-  (phase place (use sit)
+  (phase place (use hands)
     (duration 800ms) (blend_duration 400ms)
-    (latent_targets (mode_arm_reach 0.0) (mode_arm_fold 1.0))
     (task_constraints (maintain_zmp (polygon 0)) (slide 0.0)
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (palmar 0.0))))
   (phase push_2 (use push))
   (phase place_2 (use place))
   (phase push_3 (use push))
-  (phase rest (use place) (duration 60s)))
+  (phase floor_rest))
 
 
 (defbehavior hop_down_chair (extends hop stance_hold)

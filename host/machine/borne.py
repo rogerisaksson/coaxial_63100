@@ -24,10 +24,8 @@ BEARS_N = edge.TOUCHED_N
 #: Her arms' segments, upper arm to fingers, indices into her skin - her left's first: a hand braced, or a
 #: forearm down on the bed as she lies back onto her elbows.
 HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
-#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin; of them, those not
-#: her hands'.
+#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin.
 ABOVE = np.array(sorted(set(touch.ABOVE) | set(HANDS.tolist())))
-UNHANDED = ~np.isin(ABOVE, HANDS)
 #: What bears her bounded where nothing does: its low and high corners, m, the bounds a touch widens.
 NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
 #: Her pelvis among them: its skin's one touch is her two ischia's (`figure.SEAT_X` either side), split by
@@ -76,10 +74,11 @@ def _points(k, push, at):
     return ((left, at + to_left), (1.0 - left, at + to_right))
 
 
-def read(b, s, y, weight, hands=0.0):
+def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands among them where her text tells them to bear (`hands`, their
-    share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it."""
+    share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it -, a let-go leg's
+    foot and toes too (`let_go`, `impedance._let_go`): no contact, the step took that leg for hanging on the floor."""
     m, d, n = b.m, b.d, b.n
     ids = getattr(b, 'skin', None)
     if ids is None:
@@ -87,7 +86,8 @@ def read(b, s, y, weight, hands=0.0):
         b.jacs = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
-    pushed = ABOVE[pushes[ABOVE].any(axis=1) & ((hands > 0.0) | UNHANDED)]
+    skin = np.concatenate([ABOVE, [j for k in (0, 1) if let_go[k] > 0.5 for j in touch.SOLES[k]]]).astype(int)
+    pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
     jp, jr = b.jacs
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)

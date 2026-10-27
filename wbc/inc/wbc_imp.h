@@ -28,7 +28,7 @@ typedef struct
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
   double        on[2], going_s, ahead, yaw_k, throw_m_s2, prop_on, prop_engage, prop_release, prop_dwell_s;
-  double        prop_blank_s, low_m, low_leg, falls[3], upward[3];
+  double        prop_blank_s, prop_up, prop_down, low_m, low_leg, falls[3], upward[3];
   double        between[3];
   /* machine.modal, machine.wbc */
   double        g, axial_m, pitch_rad, clear_m, list_rad, turn_rad, arm_rad, leg_m, pelvis[2];

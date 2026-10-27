@@ -162,8 +162,15 @@ def _maps(b, s, ask, want):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
         if not ask['stance'][k] and k not in swing:
-            # let go: its hip on its posture, sprung where let go (`motion`), its knee and ankle hanging (below)
+            # let go: its hip on its posture as the swing's row asks it, what its foot rests on holding it
+            # (`borne.read`), its knee and ankle hanging (below); its hip's acceleration given, a squat's let-go
+            # hips pressed her soles and stood her up off her hands on the floor. Not let go, on its posture
+            hung = float(bool(let_go[k]))
             t0[cols] = want[leg]
+            t0[cols[:3]] *= 1.0 - hung
+            E[cols[:3], 6 * k:6 * k + 3] = hung * _EYE3
+            a6[6 * k:6 * k + 3] = hung * want[leg[:3]]
+            asked[k] = hung
             continue
         inv = _inv(f['J6'][:, cols], DAMP ** 2)
         T[cols] = -inv @ f['J6'][:, :6]
@@ -309,7 +316,8 @@ def step(b, s, ask):
     lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * _loose(contacts)))
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
-    lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(ask.get('rests', (0.0, 0.0)), 6), np.zeros(nu - 12)]))
+    resting = np.asarray(ask.get('rests', (0.0, 0.0)), float) * (1.0 - np.asarray(ask.get('let_go', (False, False)), float))
+    lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(resting, 6), np.zeros(nu - 12)]))
     knees, left = act[KNEES], -float(stance @ full0[act[KNEES]])
     # the knees' rows damped against the posture's rate: against still, a push's knees were held
     # at 0.2 of their clamp and her height at its band's floor

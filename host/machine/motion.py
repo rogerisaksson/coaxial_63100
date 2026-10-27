@@ -52,7 +52,8 @@ def seen(g, dt):
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
-    s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar)
+    s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
+                                                      g['a'][modal.LET_GO])
     return s
 
 
@@ -179,15 +180,12 @@ def control(g, dt):
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
+    # as told her legs let go on it (`impedance._let_go`): weighed, her hands told, unfelt, kept them standing
     told = g['told'] = out[latent.MANIFOLDED].copy()
-    out[latent.MANIFOLDED] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
-    out[latent.HELD] *= out[latent.MANIFOLDED][0]
-    share = 1.0 - float(observer.said(told)[0])
-    gain, g['melt'] = melt.melted(g.get('melt', 0.0), share, g.get('melt_was', 0.0), dt * ev)
-    g['melt_was'] = share
-    out[latent.KS][melt.LEGGED] *= gain
-    out[latent.DS][melt.LEGGED] *= math.sqrt(gain)
-    unfelt, lean = float(out[latent.MANIFOLDED][0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
+    weighed = g['weighed_w'] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
+    out[latent.HELD] *= weighed[0]
+    melt.step(g, out, told, dt * ev)
+    unfelt, lean = float(weighed[0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
     g['gripped'](out, g['held'], g['a'][modal.STANCE], g['situations']['caps'], g['into'])
@@ -255,7 +253,7 @@ def control(g, dt):
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
     _told(g)
-    w = g['out'][latent.MANIFOLDED]
+    w = g['weighed_w']
     g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * w[0] + (1.0 - g['distal']) * (1.0 - w[2] - w[3])))
 
 

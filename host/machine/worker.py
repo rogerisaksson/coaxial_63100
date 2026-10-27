@@ -5,7 +5,7 @@ import math
 import os
 import queue
 import time
-from machine import apart, edge, figure, floor, modal, ortho, physics, se2, sprung, wear
+from machine import apart, edge, figure, floor, modal, observer, ortho, physics, se2, sprung, wear
 from machine.errors import BusFault, MachineError
 
 
@@ -241,21 +241,32 @@ def told_floor(g, profile):
 def _is_fallen(g, world):
     """Fallen, the referee's: a part of her above her shins - thighs, pelvis, trunk, head, arms,
     hands - touches her ground (`floor.grounds`) under her knees' height over her floor
-    (`modal.FLOOR`). By what she was doing, a tilt past 45 deg on a bed was a fall, and thrown back
-    onto it she was down at 3.7 s; touched at any height, her hand on the loft beside the chair,
-    0.75 m up, felled 25 of 33 errands that fell on their way, her law let go as she stood."""
+    (`modal.FLOOR`), unless her text tells it bears her (`_told_parts`): by her doing's name she was fallen
+    sat on her hands; a tilt past 45 deg on a bed was a fall, thrown back onto it she was down at 3.7 s;
+    touched at any height, her hand on the loft by the chair, 0.75 m up, felled 25 of 33 errands."""
     m, d = world.model, world.data
     paired, _averaged, address = _passing()
     if g.get('_falls_by', (None,))[0] is not m:
         np = world._np
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
         masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
-        g['_falls_by'] = (m, masks, [address(mask) for mask in masks])
-    if sprung.doing(g) in se2.GROUNDED:
-        return False
+        g['_falls_by'], g['_falls_down'] = (m, masks, [address(mask) for mask in masks]), down
+    told = observer.said(g['told'])
+    entry, was = g.get('active_entry'), g.get('_told_by', (object(), told))
+    g['_told_by'] = (entry, world._np.maximum(told, was[1]) if was[0] is entry else told)
+    allowed = set().union(*(parts for share, parts in zip(g['_told_by'][1], _told_parts(m)) if share > 0.0))
+    g['_falls_by'][1][0][:] = world._np.isin(m.geom_bodyid, list(g['_falls_down'] - allowed))
     geom, pos = d.contact.geom, d.contact.pos
     below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
     return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))
+
+
+@functools.cache
+def _told_parts(m):
+    """Each told manifold's bodies of `m`: its points' segments (`observer.POINTS`) and their children."""
+    parts = [{m.body(seg).id for shares, seg, _p, _n in observer.POINTS if observer.MANIFOLDS[r] in {s[0] for s in shares}}
+             for r in observer.ROWS]
+    return [ids | {b for b in range(m.nbody) if m.body_parentid[b] in ids} for ids in parts]
 
 
 @functools.cache

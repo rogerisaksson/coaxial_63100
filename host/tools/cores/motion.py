@@ -48,6 +48,7 @@ def _doubles():
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
             ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', imp.PROP_ENGAGE),
             ('prop_release', imp.PROP_RELEASE), ('prop_dwell_s', imp.PROP_DWELL_S), ('prop_blank_s', imp.PROP_BLANK_S),
+            ('prop_up', imp.PROP_UP), ('prop_down', imp.PROP_DOWN),
             ('low_m', imp.LOW_M), ('low_leg', imp.LOW_LEG),
             ('falls', imp.FALLS), ('upward', imp.UPWARD), ('between', imp.BETWEEN),
             ('g', modal.G), ('axial_m', modal.AXIAL_M), ('pitch_rad', modal.PITCH_RAD), ('clear_m', modal.CLEAR_M),

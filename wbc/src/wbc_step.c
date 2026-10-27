@@ -141,10 +141,19 @@ static int maps(const wbc_step_t *p, const double *want, double *T, double *E, d
     wbc_matmul(l, VIEW(J6, n, 1), VIEW(p->v, 1, 0), twist, 1, 0, 6, n, 1);
     if (!p->stance[k] && !p->swing[k])
     {
+      /* let go: its hip an unknown on the swing's row, its foot a contact (machine.wrench._maps) */
+      const double loose = (double)(p->let_go[k] != 0);
+
       for (int i = 0; i < 6; i++)
       {
-        t0[cols[i]] = want[p->legs[k][i]];
+        t0[cols[i]] = i < 3 ? want[p->legs[k][i]] * (1.0 - loose) : want[p->legs[k][i]];
       }
+      for (int i = 0; i < 3; i++)
+      {
+        E[cols[i] * nu + 6 * k + i] = loose;
+        a6[6 * k + i] = loose * want[p->legs[k][i]];
+      }
+      asked[k] = loose;
       continue;
     }
     for (int i = 0; i < 6; i++)
@@ -506,7 +515,7 @@ int wbc_step(wbc_step_t *p)
   /* a sole not standing while borne rests: its rows a pressing point's */
   for (int i = 0; i < nu; i++)
   {
-    const double resting = i < 12 ? p->rests[i / 6] : 0.0;
+    const double resting = i < 12 ? p->rests[i / 6] * (1.0 - (double)(p->let_go[i / 6] != 0)) : 0.0;
     const double w = p->w_swing + (p->w_still - p->w_swing) * resting;
 
     for (int j = 0; j < nu; j++)

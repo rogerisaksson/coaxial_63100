@@ -154,12 +154,14 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       const double lo_j = npmin(npmin(npmin(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
       const double hi_j = npmax(npmax(npmax(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
 
-      a[k->a_propped_box + j] = share >= k->prop_release ? lo_j : a[k->a_propped_box + j];
-      a[k->a_propped_box + 2 + j] = share >= k->prop_release ? hi_j : a[k->a_propped_box + 2 + j];
+      a[k->a_propped_box + j] = share > 0.0 ? lo_j : a[k->a_propped_box + j];
+      a[k->a_propped_box + 2 + j] = share > 0.0 ? hi_j : a[k->a_propped_box + 2 + j];
       plo[j] = a[k->a_propped_box + j];
       phig[j] = a[k->a_propped_box + 2 + j];
     }
-    propped = a[k->a_propped];
+    /* her support as she bears on it, slewed at the kernel's attack and release: the latch an event's */
+    propped = a[k->a_borne] + npclip(npclip(share / k->prop_on, 0.0, 1.0) - a[k->a_borne], -k->prop_down * fr[k->f_dt],
+                                     k->prop_up * fr[k->f_dt]);
   }
   /* the lift's own rhythm is her stride's clearance */
   {
@@ -317,14 +319,12 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
   {
-    /* her legs let go while what bears her off her soles holds her and her text asks nothing of them: no stance
-       (machine.impedance._let_go) */
+    /* a leg whose sole does not stand let go while what bears her off her soles holds her and her text asks
+       nothing of them (machine.impedance._let_go) */
     const double gone = propped * (double)(out[k->o_manifolded] <= 0.0);
 
-    stance[0] *= 1.0 - gone;
-    stance[1] *= 1.0 - gone;
-    a[k->a_let_go] = gone;
-    a[k->a_let_go + 1] = gone;
+    a[k->a_let_go] = gone * (1.0 - stance[0]);
+    a[k->a_let_go + 1] = gone * (1.0 - stance[1]);
   }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];
