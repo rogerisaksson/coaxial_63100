@@ -4,7 +4,7 @@
     fr = modal.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # her statics, once
     rest = modal.rest(fr)                               # her rest vector (`latent.state`)
     z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
-    posed = modal.poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, q)  # the stack's ask's arithmetic
+    posed = modal.poses(a, y, fr, posture, bend, arms, reaches, folds, knees)  # the stack's ask's arithmetic
     ask = modal.given(a, y, posed, knees, bend)         # the stack's ask (`wbc.step`) of `a`
 
 Flat arrays and arithmetic on them; a choice is a mask, a limit a minimum or a maximum, a
@@ -17,7 +17,6 @@ at its length she rises and comes down as its arc does. Her trunk's pitch, her p
 and turn, her arms' swing, reach and fold and her soles' rock are turns. `machine.impedance` renders their
 springs into `a`, the loop's ask.
 """
-import functools
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -157,8 +156,9 @@ NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
 HIPS = np.array([leg[:3] for leg in rounds.LEGS])
 CHAIN = np.array([leg[2:5] for leg in rounds.LEGS])
 FLEX = np.array([terms.TERMS[pt][1] for pt in (('hip', 'flexion'), ('knee', 'flexion'), ('ankle', 'dorsiflexion'))], float)
-#: Each leg's hip's yaw, roll and pitch, its knee and its ankle among her driven joints.
-LEGS5 = np.array([leg[:5] for leg in rounds.LEGS])
+#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
+#: the hip's axis her pelvis's pitch turns it on.
+HUNG, HUNG_BY = np.array([0.0, 0.0, -0.5 * np.pi]), np.array([0.0, 0.0, 1.0])
 ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
@@ -309,18 +309,6 @@ def sensed(s, loads, y):
     return y
 
 
-@functools.cache
-def hang():
-    """(a let-go leg's joints (yaw, roll, pitch, knee, ankle), rad; the share of her posture's stiffness they are held
-    at): the seated posture's hang law (`canonical-posture-soa-atlas`, `:ischial-seated`'s `gravity-hang-law`) - its
-    `dangling-q0`, its `stiffness-atten-db` -, asked q + share (joints - q). Hung stiff to a level thigh, a let-go leg on
-    the floor pressed its sole 526 N into it as her knees opened and threw her off her seat."""
-    from machine import dsp
-    law = dsp.read(dsp.KERNEL)['canonical-posture-soa-atlas']['postures']['ischial-seated']['gravity-hang-law']
-    q0 = FLEX * np.array([law['dangling-q0'][j] for j in ('coxofemoral', 'tibiofemoral', 'talocrural')])
-    return np.concatenate([[0.0, 0.0], q0]), 10.0 ** (law['stiffness-atten-db'] / 20.0) * float(law['enabled'])
-
-
 def seat(y, fr, pose):
     """Each leg's hip pitch, knee and ankle (2, 3), rad, as a seat holds them: the knee as `pose` bends
     it, the hip as high over the ankle and as far aside as she is (`_legs`), the sole flat - the ankle
@@ -334,15 +322,15 @@ def seat(y, fr, pose):
     return np.stack([FLEX[0] * (knee - lean + pitched(y, rot)[0]), FLEX[1] * knee, FLEX[2] * lean], axis=1)
 
 
-def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, q, clear=0.0):
+def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     """(each sole's place asked as it swings (2, 3), her posture (driven), her turns (pelvis,
     trunk) and a swinging sole's quaternion (2, 4)) of `a`, the stack's ask's arithmetic
     (`given`): `posture` her driven joints standing, rad; `bend` how each goes with her knees'
     (`bends.crouch`), `arms` with her arms' swing (`bends.swing`), `reaches` with their reach (`bends.reach`),
     `folds` with their fold (`bends.fold`); `knees` each knee's index among them; `w` what bears her
-    (`latent.MANIFOLDED`), `q` her driven joints as they are. Her legs as it holds them: her soles, her side and
-    her back each hip on a line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go on
-    the seat's hang (`hang`). A palm told to bear its arm a column."""
+    (`latent.MANIFOLDED`). Her legs as it holds them: her soles, her side and her back each hip on a
+    line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go hangs, its
+    thigh level (HUNG) less her pelvis's pitch. A palm told to bear its arm a column."""
     soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
     q0, q2 = y[QUAT][0], y[QUAT][2]
     lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / np.maximum(q0 * q0 + q2 * q2, 1e-12)
@@ -352,8 +340,7 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, q, clear=0.0)
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
-    hung, share = hang()
-    pose[LEGS5] += a[LET_GO][:, None] * (q[LEGS5] + share * (hung - q[LEGS5]) - pose[LEGS5])
+    pose[HIPS] += a[LET_GO][:, None] * (HUNG + HUNG_BY * pitched(y, fr[ROT].reshape(3, 3))[0] - pose[HIPS])
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips
