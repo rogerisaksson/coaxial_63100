@@ -151,3 +151,13 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
     stops' and friction's torques banded, her self-contacts as pairs; in the
     squat and the scoot each manifold within 10 % of her weight of MuJoCo's
     contacts, their sum her momentum's; airborne in a hop, none.
+13. **A dead limb's scoot and low crawl** (asked; the kernel's
+    `degraded_scoot_and_crawl_*.lisp`, fitted to her body): read whole; the
+    partition of a High-Z joint, the escort's roll and the yaw's arm in
+    `machine.crawl` ([support](../findings/support.md); test_crawl); her
+    loop runs none of it. Left: a drive's authority on her loop (the 63100's
+    gates off, its backdrive kept); her frog's turnout at her hip yaw's 25
+    deg, her shoulders unabducted. DOD:
+    `compile-scoot-and-lowcrawl-suite-soa` played on her loop, 1 m each
+    segment with no fall, her left leg's drives off in the second and
+    fourth.

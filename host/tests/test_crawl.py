@@ -2,7 +2,8 @@
 """Her gaits off her feet (`machine.crawl`; the kernel's terrestrial_multimodal_gaits.lisp,
 terrestrial_gait_specializers.lisp, terrestrial_locomotion_patches.lisp): the texts read whole, her hinges sideways,
 both crabs holding her, a sled and its anchors, the four origins on her figure, the supine ratchet on her
-drives."""
+drives; the degraded scoot and crawl (degraded_scoot_and_crawl_*.lisp) read whole, on her figure, a dead leg of hers
+and her sleds."""
 import math
 import os
 import re
@@ -226,8 +227,123 @@ def test_the_supine_ratchet_on_her_drives(report):
                                                       math.sqrt(2.0 * 9.81 * skim), weight * skim), held < cap)
 
 
+#: The degraded scoot and crawl texts; the limb each of their suite's four segments breaks.
+DEGRADED = ('degraded_scoot_and_crawl_core.lisp', 'degraded_scoot_and_crawl_specializers.lisp',
+            'degraded_scoot_and_crawl_patches.lisp')
+BROKEN = (None, ':hind-left', None, ':hind-left')
+
+
+def _degraded():
+    from machine import dsp, kernel
+    return dsp.schedule(kernel.read()['compile-scoot-and-lowcrawl-suite-soa'])
+
+
+def test_the_degraded_texts_read_whole(report):
+    """The degraded scoot and crawl read with the kernel: two postures, each its origin and three columns; its frog
+    piston on her shank; every manifold they name a patch; the stages; the schedule four segments of 8 bars, the
+    second and fourth her left leg in High-Z."""
+    from machine import dsp, figure, kernel
+    got = kernel.read()
+    atlas = got['scoot-and-lowcrawl-1jet-atlas']['postures']
+    report.check('two postures, each its origin and three columns',
+                 len(atlas) == 2 and all(len(p['modal-basis-columns']) == 3 and 'origin-q0' in p for p in atlas.values()))
+    frog = got['low-crawl-manifold-extensions']['medial-crural-frog-piston']['cop-bounds-mm']
+    r = max(c[1] for c in figure.BODY if c[0] == 'shank')
+    report.check('its frog piston %g by %g mm on her shank %.0f by %.0f' % (
+        2 * frog['x'][1], 2 * frog['y'][1], 1e3 * figure.SHANK, 2e3 * r),
+        2e-3 * frog['x'][1] <= figure.SHANK and 1e-3 * frog['y'][1] <= r)
+    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    texts = []
+    for name in DEGRADED:
+        with open(os.path.join(folder, name), encoding='utf-8') as f:
+            texts.append(f.read())
+    patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions'],
+               **got['low-crawl-manifold-extensions']}
+    named = {m for x in texts for m in re.findall(r':([a-z0-9-]+-(?:bilateral|continuum|lateral|sphinx|frog-piston))(?![a-z0-9-])', x)}
+    report.check('%d manifolds named, each a patch' % len(named), named <= set(patches))
+    stages = [n for x in texts for n in re.findall(r'\(def(?:primitive|modifier|patch) ([a-z0-9-]+)', x)]
+    report.check('%d stages' % (len(stages) - 1),
+                 all(isinstance(got[n], dsp.Stage) for n in stages if n != 'compile-scoot-and-lowcrawl-suite-soa'))
+    plan = _degraded()
+    broke = tuple((g.get('limb-health') or {}).get('limb') for _a, _b, g in plan)
+    report.check('the schedule %s, broken %s' % ([(b0, b1) for b0, b1, _g in plan], broke),
+                 [(b0, b1) for b0, b1, _g in plan] == [(8.0 * n, 8.0 * n + 8.0) for n in range(4)] and broke == BROKEN)
+
+
+def test_the_degraded_origins_on_her_figure(report):
+    """The scoot's and the low crawl's origins as her movements: her shoulders' abduction she lacks, nothing past her
+    stops - the frog's 75 deg turnout hers at her hip yaw's 25."""
+    from machine import kernel
+    from machine.term_rows import ABSENT, TERMS
+    atlas = kernel.read()['scoot-and-lowcrawl-1jet-atlas']['postures']
+    told = [(name, n, rad) for name, p in atlas.items() for n, rad in p['origin-q0'].items()]
+    lacks = sorted({'%s %s' % (p, n) for p, n, _r in told if MOVES[n] in ABSENT})
+    stops = {m: (-math.inf if x[2] is None else x[2], math.inf if x[3] is None else x[3]) for m, x in TERMS.items()}
+    out = sorted({'%s %s %.0f deg' % (p, n, math.degrees(r)) for p, n, r in told if MOVES[n] in TERMS
+                  and not stops[MOVES[n]][0] - 1e-6 <= math.degrees(r) <= stops[MOVES[n]][1] + 1e-6})
+    report.check('she lacks: %s; past her stops: %s' % ('; '.join(lacks), '; '.join(out) or 'none'),
+                 bool(lacks) and not out)
+
+
+def test_a_dead_leg_and_her_sleds(report):
+    """Her left hip and knee in High-Z (`crawl.partitioned`, her law's model): her active mass matrix less what they
+    take positive definite, their accelerations her model's own; her dead knee's backdrive against her shank's weight
+    held level; the escort's roll lifting her far hip; the arm her yaw asks; where her anchors hold each sled of the
+    suite, on her patches' friction."""
+    import numpy as np
+    from machine import crawl, drives, dsp, kernel, observer, wbc
+    b = wbc.Body()
+    b.mj.mj_forward(b.m, b.d)
+    M = np.zeros((b.m.nv, b.m.nv))
+    b.mj.mj_fullM(b.m, b.d, M)
+    h = b.d.qfrc_bias.copy()
+    free = np.zeros(b.m.nv, bool)
+    for j in ('left_hip_yaw', 'left_hip_roll', 'left_hip', 'left_knee'):
+        free[b.m.jnt_dofadr[b.m.joint(j).id]] = True
+    Mbar, A, off = crawl.partitioned(M, h, free)
+    qdd = np.linalg.solve(M, -h)
+    least = float(np.linalg.eigvalsh(Mbar).min())
+    report.check('her active block %d by %d, its least eigenvalue %.3g; her dead leg %.1g off her model' % (
+        Mbar.shape[0], Mbar.shape[1], least, float(np.abs(A @ qdd[~free] + off - qdd[free]).max())),
+        least > 0.0 and np.allclose(A @ qdd[~free] + off, qdd[free]))
+    parts = [b.m.body(n).id for n in ('left_shank', 'left_foot', 'left_toes')]
+    mass = sum(b.m.body_mass[p] for p in parts)
+    centre = sum(b.m.body_mass[p] * b.d.xipos[p] for p in parts) / mass
+    held, hangs = drives.backdrive('left_knee'), mass * wbc.G * np.linalg.norm(centre - b.d.xanchor[b.m.joint('left_knee').id])
+    report.check('her dead knee holds %.2f N m, her shank and foot %.2f kg level turn it %.1f: it folds' % (held, mass, hangs),
+                 held < hangs)
+    pelvis = b.m.body('pelvis').id
+    R = b.d.xmat[pelvis].reshape(3, 3)
+    ischia = [b.d.xpos[pelvis] + R @ np.array(p) for sh, seg, p, _n in observer.POINTS
+              if seg == 'pelvis' and sh[0][0] == 'ischial-bilateral']
+    hips = [b.d.xanchor[b.m.joint(j).id] for j in ('left_hip', 'right_hip')]
+    across = max(abs(i[0] - hips[1][0]) for i in ischia)
+    tow = kernel.said('escort-passive-towed-limb', 'coronal-unweight-tilt-rad')
+    report.check('a %.2f rad roll onto one buttock lifts her far hip %.1f mm, %.0f mm across (the text 35)' % (
+        tow, 1e3 * crawl.lifted(across, tow), 1e3 * across), abs(crawl.lifted(across, tow) - 0.035) < 0.002)
+    shoulders = [b.d.xanchor[b.m.joint(j).id] for j in ('left_shoulder', 'right_shoulder')]
+    hands, heel = 0.5 * abs(shoulders[0][0] - shoulders[1][0]), 0.5 * abs(hips[0][0] - hips[1][0]) - 0.065
+    report.check('her arm on the dead side pushes %.2f of the other for no yaw, her heel %.0f mm off her midline' % (
+        crawl.boost(hands, heel), 1e3 * heel), abs(crawl.boost(hands, heel) - 1.20) < 0.01)
+    got = kernel.read()
+    mu = {k: v['default-mu'] for name in ('anatomical-manifold-registry', 'groundwork-manifold-extensions',
+                                          'low-crawl-manifold-extensions') for k, v in got[name].items()}
+    seal = dsp.value(['specialize-low-crawl-frog-piston-topology', 'nominal-biped-gait', ':drive-topology',
+                      ':arms-only-seal-drag'], got)['stick-slip']
+    said = []
+    for name, node in (('scoot', _degraded()[0][2]['stick-slip']), ('low crawl', _degraded()[2][2]['stick-slip']),
+                       ('seal drag', seal)):
+        a = float(np.mean([mu[p.lstrip(':')] for p in node['anchors']]))
+        s = float(np.mean([mu[p.lstrip(':')] for p in node['sleds']]))
+        gamma = node['pelvic-unweighting-gain']
+        said.append((name, gamma, float(crawl.held(gamma, a, s)), s / (a + s)))
+    report.check('of the half turn her anchors hold: %s' % '; '.join(
+        '%s at %.2f %.3f (it needs %.3f)' % x for x in said), all(x[2] > 0.0 for x in said))
+
+
 ROSTER = [test_the_texts_read_whole, test_her_hinges_sideways, test_her_crabs_hold_her, test_a_sled_and_its_anchors,
-          test_the_origins_on_her_figure, test_the_supine_ratchet_on_her_drives]
+          test_the_origins_on_her_figure, test_the_supine_ratchet_on_her_drives, test_the_degraded_texts_read_whole,
+          test_the_degraded_origins_on_her_figure, test_a_dead_leg_and_her_sleds]
 
 
 def main(argv=None):

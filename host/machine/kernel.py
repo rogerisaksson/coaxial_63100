@@ -64,7 +64,12 @@ MECHANISMS = {
     'bind-vault-contingency-reflex': 'vault-abort', 'drive-froude-continuum-morph': 'froude-homotopy',
     'bind-zero-wrench-flight-connection': 'flight-connection', 'solve-adaptive-deceleration-cascade': 'brake-horizon',
     'execute-ssc-ballistic-launch': 'ssc-launch', 'bind-braking-pitch-counterweight': 'brake-pitch-arrest',
-    'modulate-touchdown-elevation-datum': 'touchdown-datum'}
+    'modulate-touchdown-elevation-datum': 'touchdown-datum',
+    'apply-laplace-innovation-shrinkage': 'static-collapse', 'solve-tri-imu-kinematic-chain': 'tri-imu',
+    'compute-map-simplex-manifold-weights': 'simplex-prior', 'gate-manifold-simplex-by-patch-speed': 'support-stillness',
+    'run-active-proprioceptive-weight-probe': 'weight-probe', 'set-limb-health-mask': 'limb-health',
+    'reconfigure-underactuated-operational-space': 'fault-partition',
+    'enforce-zero-net-yaw-wrench-allocation': 'yaw-nullifier', 'guard-underactuated-appendage-envelope': 'towed-limb'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
 #: The kernel's queries of her world, each a Law she resolves as she goes.
