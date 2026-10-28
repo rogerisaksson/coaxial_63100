@@ -17,8 +17,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, figure, latent, ortho, stride, supervisor, touch
-from machine.modal import HIP, PALMS, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE
+from machine import edge, figure, supervisor, touch
+from machine.modal import PALMS, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE
 
 #: A segment bears that is pushed up past this, N: her skin's touch.
 BEARS_N = edge.TOUCHED_N
@@ -147,20 +147,3 @@ def latched(y, rot, a, dt):
     box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
     a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
     return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
-
-
-def held(y, rot, a, dt, out, aim, along, unit):
-    """(her support off her soles (`latched`); that, or her text telling her to bear on something off them - going down
-    onto it no fall to parry; the share she is told to sit (its furniture's, at most 1); her sagittal mode with her
-    centre back over the floor under her hips, never forward to it - `aim` her reading of it, `along` her centre along
-    her way, `unit` its; her props' box grown over that floor as far as she is told to sit). Held, her capture point
-    went behind her heels as she reached for the floor, a sole stepped to parry and she fell aside; held over her soles
-    she sat on her heels in a deep squat; drawn forward as she leant back on her hands, 5.8 m/s^2 lifted a hand 0.7 m;
-    to the middle of what bore her, her head on the floor behind put it 0.65 m back and threw her onto her back."""
-    propped, (low, high, by) = latched(y, rot, a, dt)
-    seat, told = (y[HIP].reshape(2, 3) @ rot.T)[:, :2].mean(axis=0), out[latent.MANIFOLDED]
-    sat = np.minimum(told[ortho.FURNITURE].sum(), 1.0)
-    return (propped, np.maximum(propped, float(told[ortho.FURNITURE.start:].sum() > 0.0)), sat,
-            aim - (along - np.minimum(along, seat[stride.ALONG])) / unit,
-            (propped * np.minimum(low, seat) + (1.0 - propped) * seat, propped * np.maximum(high, seat) + (1.0 - propped) * seat,
-             np.maximum(by, sat)))

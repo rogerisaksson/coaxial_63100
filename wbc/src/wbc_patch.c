@@ -24,11 +24,12 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
   const int         nu0 = p->nu0;
   const double      pin = (p->w_pin * (double)(p->stance[0] || p->stance[1])) / (p->mass * p->g), up[3] = {0.0, 1.0, 0.0};
   double            share[WBC_STEP_C], rows3[3 * WBC_STEP_U];
-  int               patched[WBC_STEP_C];
+  int               patched[WBC_STEP_C], palmed = 0;
 
   for (int q = 0; q < nc; q++)
   {
     patched[q] = 0;
+    palmed = palmed || p->cpatch[q] >= p->carpal;
   }
   for (int q = 0; q < nc; q++)
   {
@@ -74,7 +75,8 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
     }
     for (int m = 0; m < nc; m++)
     {
-      double left[3], jv[3], way[2], said[2], r3[3], mix[9], sliding;
+      double left[3], jv[3], way[2], said[2], r3[3], mix[9], sliding, freed;
+      int    body = p->cpatch[m] < p->carpal;
 
       if (p->cpatch[m] != p->cpatch[q])
       {
@@ -88,12 +90,13 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       way[1] = jv[2];
       said[0] = p->slide[0];
       said[1] = p->slide[2];
-      sliding = (hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
+      sliding = (body && hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
+      freed = pymax(sliding, (body && palmed && pin == 0.0 && wbc_dot(l, said, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0);
       for (int i = 0; i < 3; i++)
       {
         for (int j = 0; j < 3; j++)
         {
-          mix[3 * i + j] = (1.0 - sliding) * (double)(i == j) + sliding * (up[i] * up[j]);
+          mix[3 * i + j] = (1.0 - freed) * (double)(i == j) + freed * (up[i] * up[j]);
         }
         left[i] = (-p->cdJv[m][i]) - left[i];
         r3[i] = left[i] - p->contact_k * jv[i];
@@ -110,9 +113,9 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
         r[4 * m + i] = p->w_still * r[4 * m + i];
         r0[4 * m + i] = p->w_still * r0[4 * m + i];
       }
-      slips[3 * m] = sliding;
-      slips[3 * m + 1] = way[0];
-      slips[3 * m + 2] = way[1];
+      slips[3 * m] = freed;
+      slips[3 * m + 1] = freed * (sliding * way[0] + (1.0 - sliding) * said[0]);
+      slips[3 * m + 2] = freed * (sliding * way[1] + (1.0 - sliding) * said[1]);
       /* the patch's normal force split as felt: this contact's less its share of every member's */
       for (int j = 0; j < nu; j++)
       {

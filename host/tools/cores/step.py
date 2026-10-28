@@ -32,7 +32,7 @@ def _step_typed():
                                       'height_band held_k momentum_k mu g slide_m_s').split()]
     fields += [('posture_kd', f * 2), ('swing_kd', f * 2), ('turn_kd', f * 2), ('blas', Blas)]
     fields += [(name, p) for name in 'M h v q com k'.split()]
-    fields += [(name, p * 2) for name in 'R quat J6 dJv sole tquat Jr dJr tw hJ hp hv hdJv'.split()]
+    fields += [(name, p * 2) for name in 'R quat J6 dJv sole tquat Jr dJr tw'.split()]
     fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()] + [('cpatch', i * c)]
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i), ('let_go', i * 2),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
@@ -40,7 +40,7 @@ def _step_typed():
                ('slid_cap', f), ('hand_cap', f), ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
-               ('fold_acc', f * 2), ('knee_rate', f * 2), ('reach', i * 2), ('reach_at', (f * 3) * 2)]
+               ('fold_acc', f * 2), ('knee_rate', f * 2)]
     fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work)]
@@ -102,16 +102,14 @@ def wrench_laid(b, sensed=None):
 POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
            + [(name, side, ('feet', side, name)) for name in ('R', 'quat', 'J6', 'dJv', 'sole') for side in (0, 1)]
            + [(field, t, ('turns', t, name)) for field, name in (('tquat', 'quat'), ('Jr', 'Jr'), ('dJr', 'dJr'),
-                                                                ('tw', 'w')) for t in (0, 1)]
-           + [(field, side, ('hands', side, name)) for field, name in (('hJ', 'J'), ('hp', 'p'), ('hv', 'v'),
-                                                                     ('hdJv', 'dJv')) for side in (0, 1)])
+                                                                ('tw', 'w')) for t in (0, 1)])
 
 
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
-SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns', 'hands')
+SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'swing', 'fold', 'swing_at', 'swing_speed',
-          'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'reach', 'reach_at', 'tau', 'qacc',
+          'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
           'bears', 'cop',
           'forces',
           'load', 'cop_none', 'over')
@@ -148,8 +146,6 @@ def _stepped(k, step, v, b, s, ask):
                                                                                ('R', 'quat', 'J6', 'dJv', 'sole'))
         for t, turn in enumerate(s['turns']):
             k.tquat[t], k.Jr[t], k.dJr[t], k.tw[t] = (at(turn[name]) for name in ('quat', 'Jr', 'dJr', 'w'))
-        for side, hand in enumerate(s['hands']):
-            k.hJ[side], k.hp[side], k.hv[side], k.hdJv[side] = (at(hand[name]) for name in ('J', 'p', 'v', 'dJv'))
     contacts = s.get('contacts', ())
     if len(contacts) > len(k.cJ):
         raise ValueError('wbc_step.c lays %d contacts at most, %d bear her' % (len(k.cJ), len(contacts)))
@@ -185,11 +181,6 @@ def _stepped(k, step, v, b, s, ask):
         if side in fold:
             v['fold_knee'][side], v['fold_rate'][side], v['fold_acc'][side] = fold[side]
     v['knee_rate'][:] = ask.get('knee_rate', (0.0, 0.0))
-    reach = ask.get('reach', {})
-    for side in range(2):
-        v['reach'][side] = side in reach
-        if side in reach:
-            v['reach_at'][side] = reach[side]
     k.wep = int(bool(ask.get('wep')))
     k.posture = at(ask['posture'])
     k.derate = at(_spread(ask.get('derate', 1.0), k.nd))

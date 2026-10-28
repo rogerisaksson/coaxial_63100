@@ -21,7 +21,7 @@ import numpy as np
 
 from machine.pressed import W_STILL, patches
 from machine.rounds import DRIVEN, KNEES, LEGS, MOMENT, NU, ROOM, ROUNDS, UPPER, bounded, pushed, taken
-from machine.shrunk import box
+from machine.shrunk import box, shrunk
 from machine.wbc import CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_KD, SWING_KD, TURN_KD, G, turn_error
 
 
@@ -196,28 +196,6 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     return at
 
 
-def _pinned(solve, torques, A, c0, limit):
-    """(the unknowns, the drives' torques the ask takes and those carried, every acceleration, the share of drives
-    free): a drive the ask takes past its clamp held at it and the rest solved round it, ROUNDS times at most, as a
-    clipped contact force is (`_rounds`) - `solve(dH, dg)` the rounds on the rows' normal matrix and right-hand side,
-    those added, `A` u + `c0` the drives' torques, `torques(u)` them and every acceleration. Shrunk as one toward
-    nothing asked, a palm's arm at its clamp under her took the whole ask to 0.08 of it and she fell limp onto her
-    hands, an arm flung 0.99 m up."""
-    u = solve()
-    tau, qdd = torques(u)
-    carried, pinned, at = tau, np.zeros(len(limit), bool), np.zeros(len(limit))
-    for _ in range(ROUNDS):
-        over = (np.abs(carried) > limit) & ~pinned
-        if not over.any():
-            break
-        at, pinned = np.where(over, np.clip(carried, -limit, limit), at), pinned | over
-        w = W_PIN / limit[pinned]
-        Ap = w[:, None] * A[pinned]
-        u = solve(Ap.T @ Ap, Ap.T @ (w * (at[pinned] - c0[pinned])))
-        carried, qdd = torques(u)
-    return u, tau, carried, qdd, 1.0 - float(pinned.sum()) / len(limit)
-
-
 def step(b, s, ask):
     """{tau, qacc, bears, cop, over, slack, held, scale}: `ask` as `wbc.step` takes it; `strides` how far
     she strides (0 none), her balance then her landings', not her rows'; `scale` what her drives carry of it."""
@@ -269,13 +247,6 @@ def step(b, s, ask):
         left = -t['dJr'] - t['Jr'] @ full0
         lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned,
             left)
-    # a palm told to bear reaches its place on her posture's spring, its row a swinging sole's as a parry's landing is
-    # (`modal.reached`): posed alone, her fists hung 0.20 m over the floor and met it as her trunk lay back past 100 deg;
-    # on a sole's swing's spring, 0.3 m off it asked 480 m/s^2 and her soles let go
-    for k, to in ask.get('reach', {}).items():
-        hand = s['hands'][k]
-        left = -hand['dJv'] - hand['J'] @ full0
-        lay(hand['J'] @ full, POSTURE_KD[0] * (to - hand['p']) - POSTURE_KD[1] * hand['v'] + left, W_SWING, left)
     lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * _loose(contacts)))
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
@@ -321,17 +292,23 @@ def step(b, s, ask):
             tau = tau - f['J6'][:, act].T @ (stance[k] * u[6 * k:6 * k + 6])
         return tau, qdd
 
+    # the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows
+    whole = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
+                    a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
     limit, lo, hi = box(b, ask)
-    A = (M @ full)[act]
-    for i, c in enumerate(contacts):
-        A[:, NU + 3 * i:NU + 3 * i + 3] -= c['J'][:, act].T
-    for k, f in enumerate(feet):
-        A[:, 6 * k:6 * k + 6] -= stance[k] * f['J6'][:, act].T
-    g0, held = R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still]
-    u, tau, carried, qdd, scale = _pinned(
-        lambda dH=None, dg=None: _rounds(H0 if dH is None else H0 + dH, g0 if dg is None else g0 + dg, held, felt,
-                                         a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride),
-        torques, A, (M @ full0 + h)[act], limit)
+    tau, qdd = torques(whole)
+    if (np.abs(tau) > limit).any():
+        stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
+                        -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
+        tau0 = torques(stood)[0]
+        scale = shrunk(tau, tau0, -limit, limit)
+        u = whole + (scale - 1.0) * (whole - stood)
+        s0 = (shrunk(tau + (scale - 1.0) * (tau - tau0), np.zeros(len(limit)), -limit, limit)
+              if (np.abs(tau0) > limit).any() else 1.0)
+        scale, u = s0 * scale, (s0 * u if s0 < 1.0 else u)
+        carried, qdd = torques(u, s0)
+    else:
+        scale, u, carried = 1.0, whole, tau
     bears, cop = [0.0, 0.0], []
     for k, f in enumerate(feet):
         wk = stance[k] * u[6 * k:6 * k + 6]
@@ -339,7 +316,7 @@ def step(b, s, ask):
         if ask['stance'][k]:
             ml = f['R'].T @ wk[:3]
             cop.append(np.array([ml[2], -ml[0]]) / wk[4] if wk[4] > 1e-6 else None)
-    # the drives asked past their clamps and their loads: the ask's, before any was pinned
+    # the drives asked past their clamps and their loads: the ask's, before it was shrunk
     past = np.abs(tau) > b.clamp * (1.0 + 1e-6)
     over = past.copy()
     for p, r in b.pairs:

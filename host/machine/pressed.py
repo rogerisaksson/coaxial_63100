@@ -21,7 +21,7 @@ W_STILL = 1e4
 _EYE3, _UP = np.eye(3), np.array([0.0, 1.0, 0.0])
 
 
-def patch(cs, idx, nu, full, full0, v, slide, pin):
+def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False):
     """A bearing patch's rows, one (S, r, r0) a contact `cs` of it (its unknowns `idx` among the contacts): its
     point held still, up alone where it slides - its slip its velocity along the floor's plane (the force a patch
     feels leans into its push, 30 deg in a lean: no normal to measure across), past SLIDE_M_S and along the slide
@@ -43,14 +43,16 @@ def patch(cs, idx, nu, full, full0, v, slide, pin):
         split = np.zeros(nu)
         for k, j in enumerate(idx):
             split[NU + 3 * j:NU + 3 * j + 3] = n * (float(k == m) - w)
-        jv = c['J'] @ v
+        jv, said, body = c['J'] @ v, slide[[0, 2]], c.get('patch', 0) < CARPAL
         way = jv[[0, 2]]
-        sliding = float((np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ slide[[0, 2]] > 0.0))
-        mix = (1.0 - sliding) * _EYE3 + sliding * np.outer(_UP, _UP)
+        sliding = float(body & (np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ said > 0.0))
+        freed = max(sliding, float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
+        mix = (1.0 - freed) * _EYE3 + freed * np.outer(_UP, _UP)
         left = -c['dJv'] - c['J'] @ full0
         rows.append((np.vstack([W_STILL * (mix @ (c['J'] @ full)), pin * split[None, :]]),
                      np.append(W_STILL * (mix @ (left - CONTACT_K * jv)), 0.0), np.append(W_STILL * (mix @ left), 0.0)))
-        slips.append((sliding, way[0], way[1]))
+        to = sliding * way + (1.0 - sliding) * said
+        slips.append((freed, freed * to[0], freed * to[1]))
     return rows, felt, slips
 
 
@@ -66,8 +68,9 @@ def patches(contacts, nu, full, full0, v, ask, pin):
     a hitch's hands took 0.84 of her and the seat let her go. `ask`'s `slide` the slide her contacts may take."""
     slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
     slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
+    palmed = any(c.get('patch', 0) >= CARPAL for c in contacts)
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
-        rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin)
+        rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, palmed)
         held.update(zip(idx, zip(rows, felt, slips)))
     hands = np.array([float(c.get('patch', 0) >= CARPAL) for c in contacts])
     felt = np.array([held[j][1] for j in range(len(contacts))])

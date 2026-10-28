@@ -80,6 +80,25 @@ static void torques(const wbc_step_t *p, const double *full, const double *full0
   }
 }
 
+/** machine.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
+static double shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
+{
+  double least = 0.0;
+
+  for (int i = 0; i < nd; i++)
+  {
+    const double t0 = (tau0[i] >= lo[i] && tau0[i] <= hi[i]) ? tau0[i] : 0.0;
+    const double d = tau[i] - t0;
+    const double leaves = (d > 0.0 ? hi[i] - t0 : lo[i] - t0) / d;
+    const double enters = (d > 0.0 ? lo[i] - t0 : hi[i] - t0) / d;
+    double       s = d == 0.0 ? 1.0 * (double)(tau[i] >= lo[i] && tau[i] <= hi[i]) : npmin(1.0, leaves);
+
+    s = s >= npmax(0.0, d == 0.0 ? 0.0 : enters) ? s : 0.0;
+    least = i ? npmin(least, s) : s;
+  }
+  return clipped(least, 0.0, 1.0);
+}
+
 /** One row block laid: `rows` of R (at its strides) weighed, its c, its c0 or none. */
 static int lay(double *R0, double *rhs, double *rhs0, int at, int nu, wbc_view_t R, int rows, const double *c,
                double weight, const double *c0)
@@ -108,15 +127,13 @@ int wbc_step(wbc_step_t *p)
   double           *S = FM + n * nu, *r = S + 4 * nu * WBC_STEP_C, *r0 = r + 4 * WBC_STEP_C, *part = r0 + 4 * WBC_STEP_C;
   double           *spare = part + nu, *swung = spare + nu, *moment = swung + nu, *whole = moment + nu;
   double           *stood = whole + nu, *u = stood + nu, *tau = u + nu, *tau0 = tau + nd, *carried = tau0 + nd;
-  double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *A = row + 3 * nu, *Ap = A + nd * nu;
-  double           *HA = Ap + nd * nu, *Hp = HA + nu * nu, *gp = Hp + nu * nu, *gA = gp + nu, *dp = gA + nu;
-  double           *c0p = dp + nd, *Mf0 = c0p + nd, *atp = Mf0 + n, *rest = atp + nd;
+  double           *qdd = carried + nd, *limit = qdd + n, *row = limit + nd, *rest = row + 3 * nu;
   double            stance[2], asked[2], want[WBC_STEP_D], MT[36], Ai[36], nAi[36], mt[6], p0[6], c[16], c0[16];
   double            along[WBC_STEP_C], slips[3 * WBC_STEP_C], caps[WBC_STEP_C], borne[3] = {0.0};
-  double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D];
-  double            grounded, turned, felt[WBC_STEP_C], strides = p->strides;
+  double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D], zeros[WBC_STEP_D] = {0.0};
+  double            grounded, turned, felt[WBC_STEP_C], strides = p->strides, scale = 1.0;
   wbc_geo_t         geo;
-  int               at = 0, pinned[WBC_STEP_D] = {0}, npin = 0;
+  int               at = 0, any_over = 0;
 
   if (nc > WBC_STEP_C)
   {
@@ -249,24 +266,6 @@ int wbc_step(wbc_step_t *p)
       c[i] = (p->turn_kd[0] * te[i] - p->turn_kd[1] * p->tw[t][i]) + left[i];
     }
     at = lay(R0, rhs, rhs0, at, nu, VIEW(row, nu, 1), 3, c, p->w_turn * turned, left);
-  }
-  /* a palm told to bear reaches its place on her posture's spring, its row a swinging sole's */
-  for (int h = 0; h < 2; h++)
-  {
-    double left[3];
-
-    if (!p->reach[h])
-    {
-      continue;
-    }
-    wbc_matmul(l, VIEW(p->hJ[h], n, 1), VIEW(full0, 1, 0), left, 1, 0, 3, n, 1);
-    wbc_matmul(l, VIEW(p->hJ[h], n, 1), VIEW(full, nu, 1), row, nu, 1, 3, n, nu);
-    for (int i = 0; i < 3; i++)
-    {
-      left[i] = (-p->hdJv[h][i]) - left[i];
-      c[i] = (p->posture_kd[0] * (p->reach_at[h][i] - p->hp[h][i]) - p->posture_kd[1] * p->hv[h][i]) + left[i];
-    }
-    at = lay(R0, rhs, rhs0, at, nu, VIEW(row, nu, 1), 3, c, p->w_swing, left);
   }
   for (int i = 0; i < p->nupper; i++)
   {
@@ -431,92 +430,51 @@ int wbc_step(wbc_step_t *p)
     hi[i] = npmin(limit[i], p->hi[i]);
   }
   torques(p, full, full0, stance, whole, 1.0, nu, tau, qdd, rest);
-  /* a drive the ask takes past its clamp held at it and the rest solved round it (machine.wrench.step): its
-     torque's row A u = tau - c0 of every unknown */
-  wbc_matmul(l, VIEW(p->M, n, 1), VIEW(full, nu, 1), FM, nu, 1, n, n, nu);
   for (int i = 0; i < nd; i++)
   {
-    memcpy(A + i * nu, FM + p->act[i] * nu, (size_t)nu * sizeof(double));
+    any_over = any_over || (fabs(tau[i]) > limit[i]);
   }
-  for (int q = 0; q < nc; q++)
+  if (any_over)
   {
-    for (int i = 0; i < nd; i++)
-    {
-      for (int j = 0; j < 3; j++)
-      {
-        A[i * nu + nu0 + 3 * q + j] = A[i * nu + nu0 + 3 * q + j] - p->cJ[q][j * n + p->act[i]];
-      }
-    }
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    for (int i = 0; i < nd; i++)
-    {
-      for (int j = 0; j < 6; j++)
-      {
-        A[i * nu + 6 * k + j] = A[i * nu + 6 * k + j] - stance[k] * p->J6[k][j * n + p->act[i]];
-      }
-    }
-  }
-  wbc_matmul(l, VIEW(p->M, n, 1), VIEW(full0, 1, 0), Mf0, 1, 0, n, n, 1);
-  for (int i = 0; i < nd; i++)
-  {
-    c0p[i] = Mf0[p->act[i]] + p->h[p->act[i]];
-    atp[i] = 0.0;
-  }
-  memcpy(u, whole, (size_t)nu * sizeof(double));
-  memcpy(carried, tau, (size_t)nd * sizeof(double));
-  for (int round = 0; round < p->rounds; round++)
-  {
-    int over[WBC_STEP_D], any = 0, m = 0;
+    double s0 = 1.0;
+    int    over0 = 0;
 
-    for (int i = 0; i < nd; i++)
-    {
-      over[i] = (fabs(carried[i]) > limit[i]) && !pinned[i];
-      any |= over[i];
-    }
-    if (!any)
-    {
-      break;
-    }
-    for (int i = 0; i < nd; i++)
-    {
-      atp[i] = over[i] ? clipped(carried[i], nlimit[i], limit[i]) : atp[i];
-      pinned[i] = pinned[i] || over[i];
-    }
-    for (int i = 0; i < nd; i++)
-    {
-      if (pinned[i])
-      {
-        const double w = p->w_pin / limit[i];
-
-        for (int j = 0; j < nu; j++)
-        {
-          Ap[m * nu + j] = w * A[i * nu + j];
-        }
-        dp[m] = w * (atp[i] - c0p[i]);
-        m++;
-      }
-    }
-    wbc_matmul(l, VIEW(Ap, 1, nu), VIEW(Ap, nu, 1), HA, nu, 1, nu, m, nu);
-    wbc_matmul(l, VIEW(Ap, 1, nu), VIEW(dp, 1, 0), gA, 1, 0, nu, m, 1);
-    for (int j = 0; j < nu * nu; j++)
-    {
-      Hp[j] = H0[j] + HA[j];
-    }
-    for (int j = 0; j < nu; j++)
-    {
-      gp[j] = g0[j] + gA[j];
-    }
-    if (wbc_rounds(p, &geo, Hp, gp, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band, u,
-                   rest))
+    wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs0, 1, 0), g0, 1, 0, nu, at, 1);
+    if (wbc_rounds(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, rest))
     {
       return 1;
     }
-    torques(p, full, full0, stance, u, 1.0, nu, carried, qdd, rest);
-    npin = m;
+    torques(p, full, full0, stance, stood, 1.0, nu, tau0, qdd, rest);
+    scale = shrunk(nd, tau, tau0, nlimit, limit);
+    for (int j = 0; j < nu; j++)
+    {
+      u[j] = whole[j] + (scale - 1.0) * (whole[j] - stood[j]);
+    }
+    for (int i = 0; i < nd; i++)
+    {
+      over0 = over0 || (fabs(tau0[i]) > limit[i]);
+      carried[i] = tau[i] + (scale - 1.0) * (tau[i] - tau0[i]);
+    }
+    if (over0)
+    {
+      s0 = shrunk(nd, carried, zeros, nlimit, limit);
+    }
+    if (s0 < 1.0)
+    {
+      for (int j = 0; j < nu; j++)
+      {
+        u[j] = s0 * u[j];
+      }
+    }
+    scale = s0 * scale;
+    torques(p, full, full0, stance, u, s0, nu, carried, qdd, rest);
   }
-  p->scale = 1.0 - (double)npin / (double)nd;
+  else
+  {
+    memcpy(u, whole, (size_t)nu * sizeof(double));
+    memcpy(carried, tau, (size_t)nd * sizeof(double));
+  }
+  p->scale = scale;
   p->cop_n = 0;
   for (int k = 0; k < 2; k++)
   {

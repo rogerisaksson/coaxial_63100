@@ -41,12 +41,10 @@ typedef struct
   double        posture_kd[2], swing_kd[2], turn_kd[2];
   wbc_blas_t    blas;
   /* sensed: M, h, v, q (driven), com, k; each foot's R, quat, J6 (6, n), dJv, sole; the pelvis's
-     and the trunk's quat, Jr (3, n), dJr, w; each fist's J (3, n), p, v, dJv; each contact's J (3, n),
-     p, dJv, f */
+     and the trunk's quat, Jr (3, n), dJr, w; each contact's J (3, n), p, dJv, f */
   const double *M, *h, *v, *q, *com, *k;
   const double *R[2], *quat[2], *J6[2], *dJv[2], *sole[2];
   const double *tquat[2], *Jr[2], *dJr[2], *tw[2];
-  const double *hJ[2], *hp[2], *hv[2], *hdJv[2];
   int           nc;
   const double *cJ[WBC_STEP_C], *cp[WBC_STEP_C], *cdJv[WBC_STEP_C], *cf[WBC_STEP_C];
   int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.borne) */
@@ -58,8 +56,6 @@ typedef struct
                                                           governor's; each of her hands' contacts' */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
-  int           reach[2];       /**< each palm told to bear, reaching its place (machine.modal.reached) */
-  double        reach_at[2][3]; /**< its fist's place, world */
   const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */
   /* answered: the drives' torques clipped, every acceleration, each sole's load, its centre of
      pressure where it stands (cop_n of them, none where it bears nothing), each contact's force,
