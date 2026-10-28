@@ -11,6 +11,6 @@
   (:export #:apply-universal-deformable-overlay))
 (in-package :ortho-dsp.substrate-overlay)
 
-(defmodifier apply-universal-deformable-overlay [state]
+(defmodifier apply-universal-deformable-overlay [state &key (allow-elastic-kip-egress false)]
   (-> state
       (xform-deformable-groundwork-base)))
