@@ -8,7 +8,7 @@ LANDED_S = 200.0
 
 def flown_as(flown, card, pack_ah):
     """The flight's process set up (`flying.Flying`): `card`, a pack of `pack_ah` A h."""
-    from machine import flightpack
+    from machine.aircraft import flightpack
     flown.CARD = card
     if pack_ah:
         flightpack.PACK_AH = pack_ah

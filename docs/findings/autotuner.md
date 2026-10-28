@@ -1,6 +1,6 @@
 # Findings: autotuner
 
-The text as given (machine/meta_ast_autotuner.lisp), read by `machine.tune`:
+The text as given (lisp/humanoid/meta_ast_autotuner.lisp), read by `machine.tune`:
 six classes, 33 keys (32 in the suite's names); its step's numbers its own (lambda
 0.08, a literal's move 0.15 of its scale, tol 1e-3, four places).
 

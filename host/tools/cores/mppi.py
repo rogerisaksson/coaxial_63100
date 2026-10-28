@@ -3,7 +3,7 @@
     mppi.library().mppi_plane_costs(...)      # the CPU's, a library a process
     mppi.kernel(cupy)(grid, block, args)      # the card's, a thread a rollout
 
-The firmware builds none of it (CMakeLists.txt); `machine.se3mpc` drives it.
+The firmware builds none of it (CMakeLists.txt); `machine.aircraft.se3mpc` drives it.
 """
 import ctypes
 import functools

@@ -10,7 +10,7 @@ A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F of
 has identified, a balloon on it: rising from the thing that bears her, else each thing and its
 verb; from the floor alone her rise, no thing and no balloon. A gym entry is said
 by its place in the gym's text (`sprung.entries`) in place of what was to come, the gym's other
-text (`sprung.GYMS`) read anew each time - an edit to machine/gynoid_mesomorph_medium.lisp is two
+text (`sprung.GYMS`) read anew each time - an edit to lisp/humanoid/gynoid_mesomorph_medium.lisp is two
 presses away -; the scenes stepped through and laid again, shoves along the view, the tour of the
 scenes. LATENT shows each mode as it is asked and as she is, and its spring.
 """

@@ -1,6 +1,6 @@
 # Findings: flown from compiled streams
 
-A flight's intent as text (`machine.aerolisp`, `machine.intents`), compiled
+A flight's intent as text (`machine.aircraft.aerolisp`, `machine.aircraft.intents`), compiled
 to flat payloads; a core in C under them with no branch (`aero/`), flown by
 `tools/sim/streams.py` on ideal rotors: a pass 2 ms, a rotor's speed 2 900
 rad/s^2 at the most. The quad's own: [quad](quad.md).
@@ -194,7 +194,7 @@ rate under 3 rad/s, for 50 ms -, the hover asked again:
 
 ## A card's rows
 
-A card flown a pass a row (`machine.aerokin`, `streams.asked`, `flew`): the
+A card flown a pass a row (`machine.aircraft.aerokin`, `streams.asked`, `flew`): the
 row's pull in a vacuum as a collective and its rotors' axis's tilt in the
 heading the core holds, the turn the law's heading gives that axis as the
 rates about the wing and the nose, the tilt's damping on what the frame

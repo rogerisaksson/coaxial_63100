@@ -5,11 +5,11 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):
         ...
 
-`CARD` is what the page flies: the unlimited 3D aerobatic monoplane routine (`machine.aerobat`),
+`CARD` is what the page flies: the unlimited 3D aerobatic monoplane routine (`machine.aircraft.aerobat`),
 its two 63100 drives (`PROP` driving the single tractor propeller and `VECT` the tail/vector drive)
-and their thermal observers warmed on it, then its airfield's gate course (`machine.airfield`).
+and their thermal observers warmed on it, then its airfield's gate course (`machine.aircraft.airfield`).
 """
-from machine import aerobat, airfield
+from machine.aircraft import aerobat, airfield
 from terminal.views.helicopter import flight as hflight
 from terminal.views.quad import flight as qflight
 from terminal.views.quad.flight import asked, observers, reset, spun, struck, warmth

@@ -1,6 +1,6 @@
 """Her situation read from her sensors each pass, and the text that fits it laid over her law.
 
-    table = situation.text()                   # her text's (defsituation ..) forms, machine/situations.lisp
+    table = situation.text()                   # her text's (defsituation ..) forms, lisp/humanoid/situations.lisp
     r = situation.readings(y, fr, a, grip, touched, weight)   # (R,), READINGS' order
     into = situation.read(table, r)            # (S,) how far she is in each, 0 to 1
     situation.told(table, into)                # the name of the one she is deepest in, '' in none

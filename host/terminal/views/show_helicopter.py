@@ -1,6 +1,6 @@
 """HELICOPTER: two coaxial boards flying a 3D helicopter in MuJoCo, its stunts and gates.
 
-A 2 kg single-main-rotor 3D helicopter (`machine.helicopter`) on two stand-in 63100 boards (`MAIN`
+A 2 kg single-main-rotor 3D helicopter (`machine.aircraft.helicopter`) on two stand-in 63100 boards (`MAIN`
 on the mast and `TAIL` on the boom), each armed on the master's pilot and running sensorless on the
 63100 outrunner's model; the two on one 63 V pack; the airframe in MuJoCo under signed collective
 pitch, cyclic swashplate hub moments, main-rotor reaction torque and tail-rotor anti-torque
@@ -9,7 +9,7 @@ pitch, cyclic swashplate hub moments, main-rotor reaction torque and tail-rotor 
 inverted hover and inverted pirouette, elevator tic-tocs, 3D piro-flip, axial roll, full-tilt
 skyrocket punch-out, and collective burn stop 10 cm over the floor -, viewed from a side RC-pilot
 perspective that zooms slightly to follow while keeping contact with the horizon, and then two laps
-of the shared 16-gate course (`machine.course`) chased from behind.
+of the shared 16-gate course (`machine.aircraft.course`) chased from behind.
 
     python terminal/views/show_helicopter.py
     python terminal/views/show_helicopter.py --frames 60
@@ -20,7 +20,7 @@ import sys
 from rich.text import Text
 
 from coaxial.graphics import helicopter as heli_gfx
-from machine import helicopter
+from machine.aircraft import helicopter
 from terminal.views.helicopter import flight as flown
 from terminal.views.show_quad import (SIDE_PITCH, ZOOM, carried, compose_craft, flown_row,
                                       look as quad_look, recorded, run_craft_view, size_of, wheeled)

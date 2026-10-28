@@ -1,6 +1,6 @@
 # Findings: QUAD
 
-The quad on four boards: frame and air (`machine.quad`), routine and
+The quad on four boards: frame and air (`machine.aircraft.quad`), routine and
 course, the page's flight, the tuner. Flown since from its cards' rows on a
 core in C ([streams](streams.md)): "the law" here is the one before it. The
 board's findings: [FINDINGS](../FINDINGS.md).
@@ -22,7 +22,7 @@ floor.
 
 ## Routine
 
-`machine.aerobatics`' card: a
+`machine.aircraft.aerobatics`' card: a
 pirouette, an orbit and a corkscrew to 1.5 m, a roll and a flip over a toss,
 the way back down, full tilt, the burn. 0.5 g at most outside its turns, the
 pole 2.7 m off; on four stand-ins no board throttling, SOA 0.50 at most in
@@ -33,7 +33,7 @@ its figures.
   (1 s: 36). The unwind at the hover's 1.5 m/s: at 2.5 from 4 m it braked
   into the hover at 0.94 g, its own stage reaching it where from 8 the hover's
   did. Full tilt's four boards 56 A each, 1.8 A apart from 0.08 s in.
-- On the page its routine opens with the sweep (`machine.sweep`): out down
+- On the page its routine opens with the sweep (`machine.aircraft.sweep`): out down
   the runway and back past the spectator at 11.9 m/s, 1.5 m up and 9 m in
   front of them, 13.9 s, home within 0.3 m.
 - The routines flown on the airfield, as the aerobat's: its runway, hangar,
@@ -73,7 +73,7 @@ its figures.
 
 ## Course
 
-`machine.course`, flown after the routine has warmed the boards:
+`machine.aircraft.course`, flown after the routine has warmed the boards:
 14 gates of 3.4 m on a line of 141 m (an alley of trees, a
 house's ridge, round a mast, between two cars, a slalom).
 
@@ -289,7 +289,7 @@ On the laps they give 37 % of their thrust, none ever at its top.
 
 ## Larger course
 
-`machine.grounds`: 176 m, 16 gates of 2.6-3.4 m, two slaloms, a
+`machine.aircraft.grounds`: 176 m, 16 gates of 2.6-3.4 m, two slaloms, a
 9.4 m climb, a 10 m dive, a hall's windows, a 3 m alley. Searched, crossings
 off their middles:
 
@@ -387,7 +387,7 @@ race, 12 flights (`quad_race.py --suite all`):
 
 ## The carried camera
 
-A camera under the frame on a stabilised gimbal (`machine.gimbal`), its
+A camera under the frame on a stabilised gimbal (`machine.aircraft.gimbal`), its
 picture in the page's corner (`coaxial.graphics.onboard`, C): the page's own
 world from the lens, dots over its sky and ground.
 

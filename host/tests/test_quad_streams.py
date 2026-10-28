@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Flight intent as text, compiled and flown: `machine.aerolisp`, `machine.intents`, aero/.
+"""Flight intent as text, compiled and flown: `aircraft.aerolisp`, `aircraft.intents`, aero/.
 
 The power loop's four streams as payloads; a stream laid over the one before it; what is no
 stream refused; the four flown on ideal rotors in MuJoCo (`tools/sim/streams.py`) and on four
 stand-in boards; a hover's stream in the tour's air; a hover asked from upsets; the page's
-routine and the course flown from their cards' rows (`machine.aerokin`), no clause in a pass
+routine and the course flown from their cards' rows (`aircraft.aerokin`), no clause in a pass
 of them."""
 import math
 import struct
 import sys
 
 from tools.dev.focus import chosen
+from machine.aircraft import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, senses, weather
 from gynoid_kit import Report
 
 #: The streams' payloads as they compile on a frame of 100 m/s^2 at the most: (sequence,
@@ -44,7 +45,6 @@ def test_the_power_loop_compiles(report):
     stiffness, a damping and the oscillator stand where a stream names none, `ignore` is a
     NaN, degrees are rad, MAX_SYS_THRUST the frame's number, a stream's constraints its own
     with their heights; a payload packs to aero_payload_t's 124 bytes."""
-    from machine import aerolisp, intents
     from tools.cores import aero
     payloads = aerolisp.compiled(intents.POWER_LOOP, {'MAX_SYS_THRUST': 100.0})
     report.check('four streams, four payloads', len(payloads) == len(COMPILED),
@@ -66,7 +66,6 @@ def test_the_power_loop_compiles(report):
 def test_a_stream_alone_is_its_authors_bytes(report):
     """Stream 203 compiled on its own, as its author's compiler was shown it: the same 116
     bytes, the two constraint heights - NaN, none asked - after them."""
-    from machine import aerolisp
     stream = {'sequence_id': 203, 'blend_duration': '100ms', 'cpg_config': {'enable': False},
               'latent_targets': [('mode_collective_thrust', 2.0),
                                  ('mode_attitude_pitch', 'ignore'),
@@ -81,7 +80,6 @@ def test_a_stream_alone_is_its_authors_bytes(report):
 def test_what_is_no_stream_is_refused(report):
     """A mode, a block, a unit, a constraint or a symbol there is not, and a text whose
     brackets do not close: each refused in words, none compiled to something else."""
-    from machine import aerolisp
     cases = (
         ('a mode', '(stream_inject (latent_targets (mode_attitude_bank 3deg)))', 'no mode'),
         ('a block', '(stream_inject (waypoints (go 3m)))', 'no block'),
@@ -132,7 +130,6 @@ def test_the_power_loop_is_flown(report):
     rotors' axis swung either side; turns over past its back; is caught, that axis the 80
     degrees off up that were asked; stands at its height again - nothing struck, whatever the
     turn's length of those tried."""
-    from machine import aerolisp, intents, quad
     from tools.cores import aero
     from tools.sim import streams
     compiled = aerolisp.compiled(intents.POWER_LOOP, streams.symbols())
@@ -185,7 +182,6 @@ def test_the_power_loop_on_four_boards(report):
     the ideal rotors; no drive tripped, no node of a board past its throttle's point - asked
     all the rotors give, each board holds its own clamp, past the flight's on WEP's."""
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import aerolisp, intents, pull
     from tools.cores import aero
     from tools.sim import streams
     compiled = aerolisp.compiled(intents.POWER_LOOP, streams.symbols())
@@ -232,7 +228,6 @@ def test_a_hover_keeps_still_in_the_air(report):
     """A hover's stream through the tour's five kinds of air, 100 s, no place asked: the frame
     leans into the wind and keeps its speed along the floor under 1 m/s, its height to the
     centimetre; with no lean left it (`aero.LEAN` 0) it stands level and goes with the wind."""
-    from machine import aerolisp, weather
     from tools.cores import aero
     from tools.sim import streams
     payload = aero.payload(aerolisp.compiled(streams.HOVER % 5.0)[0])
@@ -290,7 +285,6 @@ def test_the_routine_is_flown_from_its_rows(report):
     figure to its landing, nothing struck - held over its spot, turned on it, slid round its
     orbit and climbed it; over its back about its nose and about its wing, each caught level
     where it was tossed from; full tilt, and the burn stopped over the floor."""
-    from machine import aerobatics, quad
     from tools.sim import streams
     flight = streams.Flight()
     rows = streams.routine(flight, aerobatics.CARD)
@@ -332,7 +326,6 @@ def test_the_course_is_flown_from_its_rows(report):
     """`course.CARD` among what stands, solid, a pass a row's payload: from the floor onto
     its grid, its laps and down - nothing struck, no propeller's tip nearer a gate's frame
     than a quarter of a metre; and in the tour's air on its instruments."""
-    from machine import course, grounds, senses, weather
     from tools.sim import quad_race, streams
     for seed in (None, 3):
         flight = streams.Flight(None if seed is None else weather.air(seed),
@@ -359,13 +352,12 @@ def test_the_course_is_flown_from_its_rows(report):
 
 def test_a_pass_above_the_core_has_no_clause(report):
     """What makes a pass's payload above the core - a card's step and its figures' easing
-    (machine.aerobatics), the lap's plan (machine.course), a row's kinematics (machine.aerokin),
-    the action space (machine.pull) - holds no `if`, no conditional expression, no `while`,
+    (aircraft.aerobatics), the lap's plan (aircraft.course), a row's kinematics (aircraft.aerokin),
+    the action space (aircraft.pull) - holds no `if`, no conditional expression, no `while`,
     `match` or `try`, no `and` or `or`, no filter in a comprehension: a choice is a number of
     0 or 1. What lays a table once - a card's, the line's, a frame's size - is no pass."""
     import ast
     import inspect
-    from machine import aerobatics, aerokin, course, pull
     once, clauses = ('sized', 'laid', '_way_down', 'track'), (
         ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp)
     found, counted = [], 0

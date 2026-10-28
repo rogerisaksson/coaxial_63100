@@ -12,7 +12,7 @@ import math
 
 from coaxial.draw import braille
 from coaxial.graphics import shapes
-from machine import weather
+from machine.aircraft import weather
 
 #: The dial's rows - twice as many cells, a square of dots - the dots round its rim, and the
 #: wind its needle is whole at, m/s: REACH of the way to the rim, STUB of it at the least,

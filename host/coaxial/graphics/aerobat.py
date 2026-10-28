@@ -1,9 +1,9 @@
-"""The 3D RC aerobatic monoplane drawn, an Extra 300 (`machine.aerobat.form`) on its hinges.
+"""The 3D RC aerobatic monoplane drawn, an Extra 300 (`machine.aircraft.aerobat.form`) on its hinges.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
-`pose` is `machine.aerobat.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the two
+`pose` is `machine.aircraft.aerobat.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the two
 63100 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and heatsink
 painted their heat (`ansi.thermal_rgb`). A propeller slower than `BLADES_RAD_S` shows its blades;
 faster, the swept prop disc ring, while the ailerons, elevator and rudder deflect live with
@@ -17,8 +17,8 @@ from coaxial.graphics.lit import CORE, PLATE, paint
 from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          MASK, MOTOR_R, SHAFT_R, SINK_H, SINK_R, Mesh, _at,
                                          pose_meshes, prop_blade, render_craft, swept_rings)
-from machine import aerobat as aero_phys, airfield
-from machine.aerobat import form
+from machine.aircraft import aerobat as aero_phys, airfield
+from machine.aircraft.aerobat import form
 
 #: The camera: the eye's distance in reaches framed, and the reach the monoplane fills, m -
 #: the wing tips 0.70 m out, the spinner's tip at +0.43 m, the rudder's foot at -0.88.

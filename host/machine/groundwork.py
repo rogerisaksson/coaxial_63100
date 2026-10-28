@@ -11,7 +11,7 @@
     tau = groundwork.escape(weight, r, sink, theta)     # N m: the text's torque out of its trough
     hard, soft = groundwork.substrate(k, above, below)  # 1 where a branch of the roll law is on
 
-The kernel's groundwork texts (machine/ortho_kernel/floor_*.lisp, ground_rolling_and_transitions.lisp). Her frame
+The kernel's groundwork texts (lisp/humanoid/kernel/floor_*.lisp, ground_rolling_and_transitions.lisp). Her frame
 `machine.figure`'s: x her left, y up, z ahead; her skin as points with radii - a capsule its two ends, a box its
 corners at 0. Flat arrays and arithmetic: no branch, no loop, no dict.
 """

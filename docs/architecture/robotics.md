@@ -52,7 +52,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | sprung | the latent loop run: her world read and told through her edge, her law's pass between; her process, paced to the clock: the one thing that moves her |
 | gait | her standard gait and its modifiers: the walk's parameters as the lisp's streams fold them, moved by named amounts (pace, stride, swing, sway, roll, turn, rock, crouch, lean, width): a gait take's, a catwalk's roll |
 | patch | a transition on her loop: lisp read as forms, a morph as contiguous curve rows on the bar grid, begun locked to her double support |
-| dsp | the ortho-DSP suite (machine/ortho_dsp/), the dual-domain kernel's (machine/ortho_kernel/, its ops' mechanisms `kernel`) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
+| dsp | the ortho-DSP suite (lisp/humanoid/suite/), the dual-domain kernel's (lisp/humanoid/kernel/, its ops' mechanisms `kernel`) and the runway's dialect evaluated to gaits: their stages, transitions and maneuvers' acts in order |
 | maneuver | the suite's maneuvers as her texts: a stunt's patch played on the one it rises from, its acts her phases, each paced to her springs, her arms held; a preload before a cross-fade onto her soles pans what bears her and her legs' springs to them; the bed's patches read, not played |
 | acts | the suite's acts as phases of her text (`maneuver`): an envelope's knee her height, a seat's landing (`seated`), a cross-fade the furniture taking her, a cascade or a gate a node a phase, a recline her trunk's ramp, a pendulum refused past her modes' reach |
 | seated | her legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put her centre of mass |

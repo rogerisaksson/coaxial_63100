@@ -1,7 +1,7 @@
 # Findings: situation
 
 Where she is, read from her sensors each pass (`machine/situation.py`), and
-the text that fits it laid over her law (`machine/situations.lisp`);
+the text that fits it laid over her law (`lisp/humanoid/situations.lisp`);
 tests/test_situation.py holds it.
 
 - Six readings her law has anyway: the floor's grip, the least either sole has

@@ -10,7 +10,7 @@ rotors took for a pass before the boards' envelopes had it back.
 import math
 
 from coaxial.draw import braille
-from machine import flightpack, quad
+from machine.aircraft import flightpack, quad
 
 #: The traces' span, s; the height's top, m, the band drawn linear from the floor, m, and the
 #: share of the plot it takes; the heights labelled up its left edge, m.

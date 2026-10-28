@@ -1,6 +1,6 @@
 """ORNITHOPTER: two coaxial boards flying a 4-wing Dune ornithopter in MuJoCo, stunts and gates.
 
-A 2 kg Dune-style 4-wing flapping ornithopter (`machine.ornithopter`) on two stand-in 63100 boards
+A 2 kg Dune-style 4-wing flapping ornithopter (`machine.aircraft.ornithopter`) on two stand-in 63100 boards
 (`FORE` and `AFT` driving the fore and aft articulated dragonfly wing pairs on finned aluminium
 heatsinks with temperature-controlled cooling fans), each armed on the master's pilot and running
 sensorless on the 63100 outrunner's model; the two on one 63 V pack; the airframe in MuJoCo under
@@ -8,7 +8,7 @@ signed wing-stroke amplitude, stroke-plane pitch tilt, differential roll stroke,
 twist skew (`terminal.views.ornithopter.flight`). It flies its Dune stunt routine - desert hover,
 pirouette, ridge soar, thermal spiral, backward wing-fold dive entry, inverted sandstorm dive,
 wing-rock and bank-rock oscillations, Coriolis storm, and stroke burn arrest 10 cm over the desert
-floor -, and then two laps of the shared 16-gate course (`machine.course`).
+floor -, and then two laps of the shared 16-gate course (`machine.aircraft.course`).
 
     python terminal/views/show_ornithopter.py
     python terminal/views/show_ornithopter.py --frames 60
@@ -19,7 +19,7 @@ import sys
 from rich.text import Text
 
 from coaxial.graphics import ornithopter as orni_gfx
-from machine import ornithopter
+from machine.aircraft import ornithopter
 from terminal.views import show_helicopter as base_view
 from terminal.views.ornithopter import flight as orni_flown
 from terminal.views.show_quad import look as quad_look

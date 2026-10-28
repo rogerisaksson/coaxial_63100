@@ -3,7 +3,7 @@
     floor = scenery.ground(m, cam, centre)          # a brightness a dot, for `lit.braille`
     props = scenery.props(m, cam, centre, gate)     # [(dots, a cell's ink)], for its props
 
-What `machine.course` stands about its line, each a few edges: a tree its trunk and a cone, a
+What `machine.aircraft.course` stands about its line, each a few edges: a tree its trunk and a cone, a
 house its walls and its ridge, a car its body and its cabin, a mast its legs and rings; a gate
 its frame on two posts, stood where `gate` is given - the one of that number, flown to next, lit
 and doubled. And the pole beside the spot, a mark each metre up. Every edge is cut NEAR_M before
@@ -14,7 +14,7 @@ import functools
 import math
 
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
-from machine import grounds
+from machine.aircraft import grounds
 
 #: The ground's grids, (pitch, half extent) m: a metre's about the spot, ten metres' to the
 #: horizon's edge; a line is drawn from NEAR_M before the eye.
@@ -117,7 +117,7 @@ def _box(x, z, wide, deep, low, high, heading=0.0):
 
 def _rwy(along, across):
     """A point `(along, across)` m on the aerobat's runway (`aerobat.RUNWAY_RAD`), in world `(x, y, z)`."""
-    from machine import aerobat
+    from machine.aircraft import aerobat
     rc, rs = math.cos(aerobat.RUNWAY_RAD), math.sin(aerobat.RUNWAY_RAD)
     return (along * rs + across * rc, 0.01, along * rc - across * rs)
 
@@ -171,7 +171,7 @@ def standing(field=grounds):
 def runway():
     """(ends, inks) of the runway strip beyond the standing threshold (`airfield.RUNWAY_ALONG`):
     side boundaries, far threshold, piano keys, and dashed centerline."""
-    from machine import airfield
+    from machine.aircraft import airfield
     lo, hi = airfield.RUNWAY_ALONG
     return _laid({'runway': (
         [(_rwy(lo, -1.35), _rwy(hi, -1.35)), (_rwy(hi, -1.35), _rwy(hi, 1.35)),
@@ -206,7 +206,7 @@ def _laid(edges):
 def asked(field=grounds, line_: object = True):
     """(ends, inks) of the line the course asks (`course.track`, or the `field`'s), dashed."""
     from coaxial.model.blocks import numpy as np
-    from machine import course
+    from machine.aircraft import course
     ways = line_ if isinstance(line_, tuple) else getattr(line_, 'ways', None)
     at = (course.track(ways) if field is grounds else field.track())['at']
     ends = [end for k in range(0, len(at), 2 * LINE_DASH)

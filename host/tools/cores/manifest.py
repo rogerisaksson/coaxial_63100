@@ -7,7 +7,7 @@
 A text asks a mode's target in its unit, its stiffness and damping in N/m and N s/m of the mass
 the mode moves (`machine.modal`). Her manifest gives each mode's unit, mass and resting spring,
 her body's statics, and each drive's parts, ratio, peak, speed and range - of her build's file
-(machine/robots, `machine.mechatronics`) and her figure laid on her loop (`sprung.laid`).
+(machine/humanoids, `machine.mechatronics`) and her figure laid on her loop (`sprung.laid`).
 `ortho` compiles it (`defrobot`, `machine.defrobot.read`); test_mirrors holds the file to this.
 """
 import math
@@ -25,7 +25,7 @@ NOTICE = 'Her orthokinematic manifest: written by host/tools/cores/manifest.py, 
 def path(robot=None):
     """Where her manifest is written."""
     from machine import mechatronics
-    return os.path.join(REPO, 'host', 'machine', '%s.manifest.lisp' % (robot or mechatronics.ROBOT))
+    return os.path.join(REPO, 'host', 'lisp', 'humanoid', 'builds', '%s.manifest.lisp' % (robot or mechatronics.ROBOT))
 
 
 def laid():

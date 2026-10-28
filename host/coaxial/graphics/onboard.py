@@ -14,7 +14,7 @@ from coaxial.graphics import inset, scenery, shapes
 from coaxial.graphics.engine import fine
 from coaxial.graphics.lit import FLOOR_INK, project
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
-from machine import grounds
+from machine.aircraft import grounds
 
 #: The picture, cells; the lens' field across it, degrees; how far off an edge is drawn in its
 #: full ink, m - `scenery.FAR_SIZE` of it four times as far, and no further.

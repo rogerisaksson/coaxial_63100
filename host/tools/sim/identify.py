@@ -37,7 +37,7 @@ from tools.sim.fbx import take
 #: Her walk as approved, the dry every take is told against.
 REFERENCE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                          'tests', 'takes', 'walk.fbx')
-#: The suite's nominal (machine/ortho_dsp/00_core_manifold.lisp) the emitted values move from.
+#: The suite's nominal (lisp/humanoid/suite/00_core_manifold.lisp) the emitted values move from.
 NOMINAL = {'duty': 0.62, 'lumbar': -0.14, 'thorax': 0.04, 'atlas': 0.0, 'cutoff': 8.0, 'lag': 0.0,
            'gain-db': -3.0, 'track': 103.0, 'foot-w': 96.5}
 #: The spec's numbers: a sidechain's window after a strike, s; its attack's floor, ms (a duck

@@ -7,8 +7,8 @@ compiles, `machine/latent.py` steps, `machine/impedance.py` renders - her
 modes read by `machine/modal.py`, her soles' polygon by `machine/poise.py`,
 her stride by `machine/stride.py` -, `machine/sprung.py` runs it: the
 HUMANOID page, where nothing else moves her, and `tools/sim/ortho.py`.
-tests/test_ortho.py holds it, 43 of 43. Her moves are `machine/gynoid_mesomorph_medium.lisp`;
-the language's first texts, as given, `machine/examples.lisp` (`>` on the
+tests/test_ortho.py holds it, 43 of 43. Her moves are `lisp/humanoid/gynoid_mesomorph_medium.lisp`;
+the language's first texts, as given, `lisp/humanoid/examples.lisp` (`>` on the
 page).
 
 ## The text

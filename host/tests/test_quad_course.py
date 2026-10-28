@@ -6,6 +6,7 @@ import statistics
 import sys
 
 from tools.dev.focus import chosen
+from machine.aircraft import aerobatics, aerokin, course, grounds, quad, weather
 from views_kit import Report
 
 #: What the frame keeps clear between a propeller's tip and a gate's frame or a thing standing, m.
@@ -14,7 +15,6 @@ CLEAR_M = 0.25
 
 def reach():
     """Its middle to a propeller's tip, m."""
-    from machine import quad
     return quad.reach()
 
 
@@ -23,7 +23,6 @@ def lapped(share=1.0, spent_at=None, air=False):
     """The course's card once through, a row a pass (`streams.asked`, `streams.flew`): the
     frame in MuJoCo on the core and ideal rotors, `share` of their pull, passes a page's - 10
     to 30 ms, one in twenty 50; `spent` from `spent_at` s; `air` the air's tour; what stands."""
-    from machine import aerobatics, aerokin, course, grounds, weather
     from tools.sim import streams
     dice = random.Random(1)
     flight = streams.Flight(weather.air() if air else None, things=grounds.solids())
@@ -50,7 +49,6 @@ def lapped(share=1.0, spent_at=None, air=False):
 def passes(rows):
     """{gate: [(across, up, m/s)]}: each gate's plane flown through on the laps, m off its
     middle - from outside its frame to beyond it, no stand left or come to."""
-    from machine import grounds
     laps = [r for r in rows if r['name'] == 'lap']
     out = {}
     for g, (gx, gy, gz, heading, size) in enumerate(grounds.GATES):
@@ -68,13 +66,11 @@ def passes(rows):
 
 def clear(rows):
     """[(what, m)], the nearest first: the frame's middle to each thing standing."""
-    from machine import grounds
     return grounds.clearances([(r['x'], r['y'], r['z']) for r in rows])
 
 
 def worst(gates):
     """The most a pass came nearer a gate's frame than CLEAR_M from a tip, m; under none, kept."""
-    from machine import grounds
     return max((max(abs(across), abs(up)) - (grounds.GATES[g][4] / 2.0 - reach() - CLEAR_M)
                 for g, hits in gates.items() for across, up, _v in hits), default=math.nan)
 
@@ -87,7 +83,6 @@ def lap_seconds(rows, lap):
 def test_its_gates_are_flown(report):
     """Floor to floor: both laps through every gate inside its opening, a tip clear of its
     frame and of every tree, house, car and mast; raw; landed where it rose."""
-    from machine import course, grounds, quad
     rows = lapped()
     gates = passes(rows)
     # The first gate is the grid: left from a stand and come to a stand in, passed between.
@@ -124,7 +119,6 @@ def test_it_flies_on_its_envelopes(report):
     """On a quarter of the rotors' pull - under its plan's sphere - the same line slower and
     leant less, every gate still inside its opening; spent in its first lap, that lap is its
     last and it lands where it rose."""
-    from machine import course
     whole, half = lapped(), lapped(share=0.25)
     gates = passes(half)
     lean = [statistics.fmean(r['tilt'] for r in rows if r['name'] == 'lap') for rows in (whole, half)]
@@ -154,7 +148,6 @@ def test_its_plan_is_computed_beforehand(report):
     """course.braked, what the bends ahead allow, a table a sphere: a sample's the least of
     its bend's and the next's braked for; a bend past AHEAD_M asks nothing; a lap's passes
     read one table."""
-    from machine import course, quad
     from tools.sim import quad_race as race
     line_, sphere = course.track(), course.PULL * 10.0 * quad.GRAVITY
     local, allowed, gains = course.braked(line_['laid'], sphere, course.BRAKE, course.swing())
@@ -185,7 +178,6 @@ def test_its_gates_in_wind(report):
     """The course in the air's tour - a constant wind, gusts, a changing one and eddies in its
     two laps, none of it told to the law: every gate passed inside its opening, the frame
     clear of its frame; its laps a tenth slower at the most."""
-    from machine import course, grounds
     still, rows = lapped(), lapped(air=True)
     gates = passes(rows)
     counted = [len(gates[g]) for g in range(1, len(grounds.GATES))]
@@ -203,12 +195,11 @@ def test_its_gates_in_wind(report):
 
 
 def test_what_stands_is_solid(report):
-    """machine.quad's world with the grounds' things in it (grounds.solids): every tree, house,
+    """aircraft.quad's world with the grounds' things in it (grounds.solids): every tree, house,
     hall, car, mast and gate, the first gate with no bar along the floor, a hall's windows none;
     the frame put in a tree's crown, in a house, on a car, against the mast and across a gate's
     bar has struck each - the gate only while the gates stand -, in a hall nothing and in its
     wall the wall; on its skids on the floor nothing, a disc on the floor the floor."""
-    from machine import grounds, quad
     things = grounds.solids()
     kinds = [name.rstrip('0123456789') for _shape, name, *_size in things]
     window = min(grounds.windows())
@@ -255,7 +246,6 @@ def test_its_tuner_scores(report):
     """tools.sim.quad_race: a candidate's constants set where they live and its line laid
     again; a flight's cost its laps' seconds, a gate passed past its margin and a thing near
     counted, one struck the dearest."""
-    from machine import course
     from tools.sim import quad_race as race
     was = (course.PULL, course.WAYS, course.track()['length'])
     try:
@@ -289,7 +279,6 @@ def test_a_frame_of_another_size(report):
     """quad.sized, the law, the routine and the course after it: frames smaller and larger,
     each on a course as much larger and rotors as fast at their tips, fly their laps as
     long by their own clocks, a gate as near in their own reaches. And built again."""
-    from machine import course, grounds, quad
     from tools.sim import quad_race as race
     was = (quad.MASS_KG, grounds.GATES, course.SOFT_S)
     try:
@@ -318,7 +307,6 @@ def test_its_tilt_is_its_discs_own(report):
     """The tilt asked of the core, the frame's nose a quarter turn off the law's heading and a
     lean asked: the rotors' thrusts turn its discs the way of the lean, none across it; its
     nose is turned back where the row holds it on its heading, left where it is free."""
-    from machine import aerobatics, aerokin, quad
     from machine.figure import ry
     from tools.cores import aero
 

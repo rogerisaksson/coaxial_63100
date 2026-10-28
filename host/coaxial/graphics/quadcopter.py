@@ -3,7 +3,7 @@
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
-`pose` is `machine.quad.Sky.state()`'s, its 'turn' and 'at'; `rotors` each rotor's (angle rad,
+`pose` is `machine.aircraft.quad.Sky.state()`'s, its 'turn' and 'at'; `rotors` each rotor's (angle rad,
 speed rad/s, can C, board C[, sink C]), the can, its board and its heatsink painted their heat
 (`ansi.thermal_rgb`). A propeller slower than BLADES_RAD_S shows its blades; faster, the disc they
 sweep, its rim dotted where the frame does not cover it. The ground's grid to the horizon's edge,
@@ -15,7 +15,8 @@ import math
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line, lines
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from machine import ansi, quad
+from machine import ansi
+from machine.aircraft import quad
 
 #: The camera: the eye's distance in reaches framed, and the reach the quad fills, m - the
 #: propellers' tips 0.68 m out.

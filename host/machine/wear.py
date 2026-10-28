@@ -51,7 +51,7 @@ def service(build=None):
     from)."""
     table = (build or mechatronics.robot()).get('service')
     if table is None:
-        raise MachineError('%s names no service: a [service] table in machine/robots/%s.toml'
+        raise MachineError('%s names no service: a [service] table in machine/humanoids/%s.toml'
                            % (mechatronics.ROBOT, mechatronics.ROBOT))
     return table
 

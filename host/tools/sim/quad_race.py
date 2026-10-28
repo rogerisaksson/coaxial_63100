@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Monte Carlo over the quad's laps: each candidate through the same flights, a process a core.
 
-A candidate is a few constants of its lap - `machine.course`'s, `machine.aerokin`'s, the
+A candidate is a few constants of its lap - `machine.aircraft.course`'s, `machine.aircraft.aerokin`'s, the
 core's (`aero`: `tools.cores.aero`'s), the page's `flight`'s, each by `module.NAME` - and of
 its line through the gates: `turnN`, `tenseN`,
 `acrossN` and `upN`, gate N's row of `course.WAYS`. Its trials, the same for every candidate, each the course's
@@ -38,7 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, course, flightpack, grounds, pull, quad, weather
+from machine.aircraft import aerobatics, aerokin, course, flightpack, grounds, pull, quad, weather
 from tools import REPO
 from tools.cores import aero
 from tools.dev import background

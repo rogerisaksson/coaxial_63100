@@ -70,7 +70,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     throw a spring that lets go under Humanoid robot standing height; 48 mm and
     three in a row stood ([flight](findings/flight.md)).
 28. The quad's flight intent as text compiled to payloads
-    (`machine.aerolisp`), a core in C under them with no branch, in its
+    (`machine.aircraft.aerolisp`), a core in C under them with no branch, in its
     sources or in the M7's code (`aero/`): the power loop's four streams
     flown on ideal rotors, caught 79 degrees off of 80 and stood again; a
     hover stood from upsets ([streams](findings/streams.md)).
@@ -87,7 +87,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     stood from 12 rad/s about its axis a quarter turn off
     ([streams](findings/streams.md)).
 31. The page's routine and the course flown from their cards' rows
-    (`machine.aerokin`), a pass a payload and the air the core's: 59.1 s;
+    (`machine.aircraft.aerokin`), a pass a payload and the air the core's: 59.1 s;
     laps 14.9 and 14.8 s, whole in the tour's air
     ([streams](findings/streams.md)).
 32. Humanoid robot stride on the loop: eleven modes - Humanoid robot standing
@@ -114,7 +114,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     Humanoid robot loop alone, walking from rest; they stay at tag
     `laws-before-the-loop`.
 36. The rotors' tops, their reach and their stage's watts from the action
-    space (`machine.pull`), the law's on a stand-in within 0.1 %; the pack
+    space (`machine.aircraft.pull`), the law's on a stand-in within 0.1 %; the pack
     drawn what its stages take, 2.4 times the law's own v . i: 34 flights
     of 34 whole in fourteen winds, laps 14.3 and 14.5-14.6 s
     ([envelope](findings/envelope.md)).

@@ -153,7 +153,7 @@ def _quad(view, width, height):
     """The quad on the stand, alone: in a hover, leant round as an orbit leans it, and once over
     its nose; seen turning as the board turns."""
     from coaxial.graphics import quadcopter
-    from machine import aerobatics, quad
+    from machine.aircraft import aerobatics, quad
     from machine.figure import mul, rx, rz
     t = time.monotonic() - view['opened']
     into = t % (BOARD_S + HER_S + QUAD_S) - BOARD_S - HER_S

@@ -1,6 +1,6 @@
 """aero/ through ctypes: the frame's core, a compiled payload in, each rotor's thrust out.
 
-    core = aero.Core(aero.frame())                       # machine.quad's frame, laid once
+    core = aero.Core(aero.frame())                       # machine.aircraft.quad's frame, laid once
     out = core.step(payload, aero.reading(state, given, lo, hi, dt))
 
 The core the firmware builds, on this host; one library a process.
@@ -13,7 +13,7 @@ import struct
 
 import numpy as np
 
-from machine import quad
+from machine.aircraft import quad
 from tools import REPO
 from tools.cores.build import cached
 
@@ -29,7 +29,7 @@ BUILT = ('-O2', '-fno-math-errno', '-ffp-contract=off', '-fno-builtin-sin',
 MODES, ROWS, TASKS, ROTORS, AXES, WRENCH = 6, 5, 2, 4, 3, 4
 TARGET, WEIGHT, STIFF, DAMP, SWING, ASK = range(ROWS + 1)
 
-#: aero_payload_t as bytes, native: `machine.aerolisp`'s pack.
+#: aero_payload_t as bytes, native: `machine.aircraft.aerolisp`'s pack.
 PACK = 'I I %df %df %df I f %df I %df' % (MODES, MODES, MODES, MODES, TASKS)
 
 #: The share's weights by row, of a unit thrust: the tilt's torques over the collective over the
@@ -122,7 +122,7 @@ def library():
 
 
 def frame():
-    """`machine.quad`'s frame as the core's, as it is sized: its mass and inertia, its rotors'
+    """`machine.aircraft.quad`'s frame as the core's, as it is sized: its mass and inertia, its rotors'
     places and turns, its propellers' drag a thrust; the share's weights at unit rows; the
     observers' bandwidths and the height's rate by its clock; its drag a kg and its rotors'
     loss to the air along their axis (`quad.inflow`)."""
@@ -141,7 +141,7 @@ def frame():
 
 
 def payload(compiled):
-    """A `machine.aerolisp.CompiledAeroPayload`, or its bytes, as the core's."""
+    """A `machine.aircraft.aerolisp.CompiledAeroPayload`, or its bytes, as the core's."""
     return Payload.from_buffer_copy(compiled if isinstance(compiled, (bytes, bytearray))
                                     else compiled.pack())
 

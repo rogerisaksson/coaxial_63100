@@ -5,12 +5,12 @@ import sys
 
 from rich.console import Console
 from tools.dev.focus import chosen
+from machine.aircraft import aerobat, aerobatics, aerokin, aerolisp, course, grounds, helicopter, ornithopter, pull, quad, weather
 from views_kit import Report, ansi_plain
 
 
 def test_helicopter_stunt_routine(report):
     """`helicopter` and `ornithopter` fly their cards in MuJoCo (the aerobat: `test_aerobat`)."""
-    from machine import aerobatics, aerokin, helicopter, ornithopter
     dt, runs = 1.0 / 120.0, {}
     for craft in (helicopter, ornithopter):
         sky, core, law = craft.Sky(), craft.Core(), aerokin.fresh()
@@ -72,7 +72,7 @@ def test_helicopter_stunt_routine(report):
     c_sky, c_by, c_st = runs[ornithopter]
     hov, orb, inv, cpg, tum = (c_by[k] for k in ('hover', 'spiral', 'dive', 'wing-rock', 'slash'))
     ft, burn, hold, land = (c_by[k] for k in ('full tilt', 'burn', 'hold', 'land'))
-    report.check('machine.ornithopter flies its routine and arrests over the floor',
+    report.check('aircraft.ornithopter flies its routine and arrests over the floor',
                  abs(hov[-1]['h'] - ornithopter.STUNTS['hover']['height']) < 0.06 and hov[-1]['held']
                  and abs(orb[-1]['h'] - ornithopter.STUNTS['thermal_spiral']['height']) < 0.1
                  and inv[-1]['r11'] < -0.97 and inv[-1]['lift'] < -17.0
@@ -87,7 +87,6 @@ def test_helicopter_wind_observer_and_inverted_hold(report):
     """The three flip from `high` to their inverted rows once their air has come to its kind
     (`weather.EASE_S`) and track its gusts: flipped at 5 s, the ornithopter had read none of a
     wind come over 8 s."""
-    from machine import aerobat, aerokin, helicopter, ornithopter, weather
     dt, flip = 1.0 / 120.0, weather.EASE_S + 2.0
     for c, inv_row in ((helicopter, helicopter.INVERTED),
                        (ornithopter, ornithopter.SANDSTORM_DIVE),
@@ -112,7 +111,6 @@ def test_helicopter_boards_and_view(report):
     from coaxial import Coaxial63100
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx, shapes,
                                   ornithopter as orni_gfx, quadcopter as quad_gfx)
-    from machine import aerobat, aerobatics, aerokin, helicopter, ornithopter
     from machine.modes import SIMULATED
     from terminal.ui import bindings, stage
     from terminal.views import (show_aerobat as aview, show_helicopter as view,
@@ -202,7 +200,6 @@ def test_helicopter_boards_and_view(report):
 def test_helicopter_course_laps(report):
     """The helicopter and the ornithopter fly the 16-gate course in wind and land on gate 0's
     heading (the aerobat its airfield's: `test_aerobat`)."""
-    from machine import aerobatics, aerokin, course, grounds, helicopter, ornithopter, pull, weather
     solids, dt, tick = grounds.solids(), 0.02, 0.002
     for c in (helicopter, ornithopter):
         sky, core, law = c.Sky(solids), c.Core(), aerokin.fresh()
@@ -240,7 +237,7 @@ def test_helicopter_course_laps(report):
 
 def test_lisp_manifests_and_validation(report):
     """Shared Lisp blocks compile alone and into the four crafts' files; cooling and errors check."""
-    from machine import aerobat, aerobatics, aerokin, aerolisp, heat, helicopter, ornithopter, quad
+    from machine import heat
     hm, qm, om, am = helicopter.MANIFEST, quad.MANIFEST, ornithopter.MANIFEST, aerobat.MANIFEST
     mdir = os.path.dirname(os.path.abspath(helicopter.LISP_PATH))
     shared_files = ('aerodynamics.lisp', 'dynamics.lisp', 'kinematics.lisp')
@@ -314,7 +311,6 @@ def test_lisp_manifests_and_validation(report):
 def test_helicopter_behaviors_and_streams(report):
     """3D stunt behaviors, each from `high`, fly in MuJoCo; compiled `stream_inject` payloads
     translate to stunt rows."""
-    from machine import aerobat, aerokin, aerolisp, helicopter, ornithopter
     dt = 1.0 / 120.0
     for craft, s_cpg, s_tum in ((helicopter, 'aileron_tictoc', 'chaos'),
                                 (ornithopter, 'wing_rock', 'coriolis_storm'),

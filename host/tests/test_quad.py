@@ -1,4 +1,4 @@
-"""The quad's flight: its routine (machine.aerobatics' rows, machine.aerokin's payloads on aero/)
+"""The quad's flight: its routine (machine.aircraft.aerobatics' rows, machine.aircraft.aerokin's payloads on aero/)
 on ideal rotors, its pack, its air."""
 import functools
 import math
@@ -18,10 +18,10 @@ FLOOR_S = 2.0
 @functools.lru_cache(maxsize=None)
 def flown(share=1.0, base=False, spent_at=None):
     """The routine once round, a row a pass of 10 ms (`streams.asked`, `streams.flew`):
-    machine.quad's frame in MuJoCo on the core and its ideal rotors, on `share` of their pull
+    machine.aircraft.quad's frame in MuJoCo on the core and its ideal rotors, on `share` of their pull
     - only its BASE rows, `base`; its pack spent from `spent_at` s until it has stood FLOOR_S
     on the floor, and the flight ended as it lifts again."""
-    from machine import aerobatics, aerokin, quad
+    from machine.aircraft import aerobatics, aerokin, quad
     from tools.sim import streams
     card = tuple(row for row in aerobatics.CARD if row[0] in BASE) if base else aerobatics.CARD
     flight, route, law = streams.Flight(), aerobatics.routine(card), aerokin.fresh()
@@ -64,7 +64,7 @@ def test_the_flight_stops_at_its_mark(report):
     """The lift from rest onto its hover, full tilt past 30 m, the burn and the hold never under
     their mark, the hold on it a second in, level, the landing still on the floor - and the
     same fall stopped on a third of the rotors' pull, the boards' envelopes all but spent."""
-    from machine import quad
+    from machine.aircraft import quad
     seen = {}
     for name, rows in spans(flown()):
         seen.setdefault(name, rows)
@@ -109,7 +109,7 @@ def test_its_figures_are_flown(report):
     flip each once over and caught where they were tossed from, the way back down - gently, and
     clear of the pole."""
     from coaxial.graphics import scenery
-    from machine import aerobatics, quad
+    from machine.aircraft import aerobatics, quad
     flight = spans(flown())
     seen = {}
     for name, rows in flight:
@@ -180,7 +180,7 @@ def test_spent_it_comes_down(report):
     """Its pack spent in the corkscrew, metres up and going round: the routine leaves for its
     way down, at its pace and never under the stop's mark, lands still and waits on the floor
     until it is fit; fit, it lifts again."""
-    from machine import aerobatics, quad
+    from machine.aircraft import aerobatics, quad
     flight = flown(spent_at=22.5)
     names = [name for name, _rows in spans(flight)]
     at = next((i for i, r in enumerate(flight) if r['flat']), len(flight))
@@ -209,9 +209,9 @@ def test_spent_it_comes_down(report):
 
 
 def test_its_pack(report):
-    """machine.quad's pack: 63 V full, its bus drooping its resistance a link amp, its charge
+    """machine.aircraft.quad's pack: 63 V full, its bus drooping its resistance a link amp, its charge
     counted down by those amps and up by what is braked into it, spent at its reserve."""
-    from machine import flightpack
+    from machine.aircraft import flightpack
     cells = flightpack.pack()
     full = cells['volts']
     loaded = flightpack.drawn(cells, 1500.0, 1.0)
@@ -236,11 +236,11 @@ def test_its_pack(report):
 
 
 def test_its_air(report):
-    """machine.quad's air, a kind kept a minute: the wind its kind's, gusts over it where the
+    """machine.aircraft.quad's air, a kind kept a minute: the wind its kind's, gusts over it where the
     kind has them, its way swung in a changing one and kept in a constant, its eddies their
     size; the same from the same seed; sheared along the floor and rising nowhere at it; its
     kinds toured in turn, and stepped by hand."""
-    from machine import weather
+    from machine.aircraft import weather
 
     def minute(kind, seed=3):
         air, rows = weather.air(seed, kind), []
@@ -300,7 +300,7 @@ def test_it_holds_in_wind(report):
     """A hover's row at 5 m in the air, the wind told to nothing: in a constant wind it is held
     on its spot, the wind the core's observer holds the wind on it - with no observer of its
     speed, ten times as far off and never held; in gusts within half a metre."""
-    from machine import aerobatics, aerokin, weather
+    from machine.aircraft import aerobatics, aerokin, weather
     from tools.cores import aero
     from tools.sim import streams
 
@@ -345,7 +345,7 @@ def test_a_line_ends_itself(report):
     """A routine's card with a row that gives its own (aerobatics.fly): spent, a figure's row
     leaves for its flight's way down - not the card's first, nor on it the next flight's -; the
     line's row stays its own until it holds what it waits for."""
-    from machine import aerobatics
+    from machine.aircraft import aerobatics
 
     def line(route, _now):
         if route.get('done'):

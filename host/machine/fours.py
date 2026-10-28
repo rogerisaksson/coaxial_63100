@@ -8,7 +8,7 @@
     f = fours.truss(points, wrench, metric, told)      # (n, 3) N: the wrench met, each edge squeezed as told
     kappa = fours.bend(upper, lower, length)           # rad: a two-link limb's middle joint at that length
 
-The kernel's multimodal texts (machine/ortho_kernel/multimodal_*.lisp): `configure-4torus-symplectic-clock`,
+The kernel's multimodal texts (lisp/humanoid/kernel/multimodal_*.lisp): `configure-4torus-symplectic-clock`,
 `couple-fifth-limb-axial-peristalsis`, `project-virtual-truss-internal-wrenches`,
 `equalize-heterogeneous-limb-kinematics`. A limb's phase is 0 as it lands and it stands for the first `duty` of a
 turn; its lag, rad, how long after the first limb it lands - a text's offset [LH LF RH RF], of a turn. Flat arrays

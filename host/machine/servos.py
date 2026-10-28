@@ -2,7 +2,7 @@
 
     from machine.servos import CLAMPED, SERVO      # SERVO[kind] = (N m, N m/rad, N m s/rad, kg m^2)
 
-Her build's file holds them (machine/robots, `machine.mechatronics`).
+Her build's file holds them (machine/humanoids, `machine.mechatronics`).
 """
 import math
 

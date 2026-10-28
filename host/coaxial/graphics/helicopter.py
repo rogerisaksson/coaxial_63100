@@ -1,11 +1,11 @@
-"""The 3D helicopter drawn in braille, a T-REX 700's form (`machine.helicopter.form`).
+"""The 3D helicopter drawn in braille, a T-REX 700's form (`machine.aircraft.helicopter.form`).
 
 Its canopy, frames, boom, skids, 63100 drives and rotors.
 
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
-`pose` is `machine.helicopter.Sky.state()`'s, its 'turn' and 'at'; `rotors` the main and tail
+`pose` is `machine.aircraft.helicopter.Sky.state()`'s, its 'turn' and 'at'; `rotors` the main and tail
 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and heatsink painted
 their heat (`ansi.thermal_rgb`). A rotor slower than BLADES_RAD_S shows its blades; faster,
 the disc they sweep, its rim dotted where the frame does not cover it. The collective's arrow
@@ -20,8 +20,8 @@ from coaxial.graphics.quadcopter import (ARROW_HEAD, ARROW_INK, ARROW_M_PER_N, B
                                          BOARD_H, BOARD_R, CARBON, CELLS, MASK, PROP, SHAFT_R,
                                          SINK_H, SINK_R, SKIN, Mesh, _at, drive, pose_meshes,
                                          render_craft, swept_rings)
-from machine import helicopter as heli_phys
-from machine.helicopter import form
+from machine.aircraft import helicopter as heli_phys
+from machine.aircraft.helicopter import form
 
 #: The camera: the eye's distance in reaches framed, and the reach the helicopter fills, m -
 #: the main rotor's tips 0.625 m out, the tail rotor at -0.85 m.

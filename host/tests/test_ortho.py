@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _text(name):
-    with open(os.path.join(HERE, 'machine', name + '.lisp'), encoding='utf-8') as f:
+    with open(os.path.join(HERE, 'lisp', 'humanoid', name + '.lisp'), encoding='utf-8') as f:
         return f.read()
 
 
@@ -54,7 +54,7 @@ def test_a_text_compiles_to_rows(report):
     base_t, base_p = ortho.compiled(_text('gait_base'))
     post_t, post_p = ortho.compiled(_text('postures_base'))
     stunt_t, stunt_p = ortho.compiled(_text('motion'))
-    report.check('machine/gynoid_mesomorph_medium.lisp compiles: her walk and her behaviours',
+    report.check('lisp/humanoid/gynoid_mesomorph_medium.lisp compiles: her walk and her behaviours',
                  len(hers['']) == 5 * ortho.ROW.size and ortho.compiled() == (hers, named)
                  and base_t[''] == hers[''] and set(base_p) < set(post_p) < set(stunt_p) < set(named)
                  and ortho.rows(post_t['hop'])[1][4 + ortho.K] == 20000.0
@@ -286,7 +286,7 @@ def test_her_walk_is_none_of_the_gaits_it_is_not_to_be(report):
 
 
 def test_the_first_texts_as_given(report):
-    """machine/examples.lisp: 101, 102 and 103 walk her; hop_asymmetric leaves the floor."""
+    """lisp/humanoid/examples.lisp: 101, 102 and 103 walk her; hop_asymmetric leaves the floor."""
     text = _text('examples')
     got = _went(['#101@1', '#102@3', '#103@6'], text, to=5.8)
     report.check('101, 102 and 103 as given: she walks 1.5 m and more in 9 s, within 6 deg of upright',

@@ -12,7 +12,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 from test_groundwork import LANDMARKS, TOUCH, _laid, _part, _skin
 
-#: The bedside texts, machine/ortho_kernel/.
+#: The bedside texts, lisp/humanoid/kernel/.
 TEXTS = ('bedside_and_stool_core.lisp', 'bedside_maneuver_specializers.lisp', 'bedside_choreography_patches.lisp')
 #: The texts' landmarks by the segment of hers that carries each.
 CARRIED = {**LANDMARKS, 'shank-crural': 'shank', 'glenohumeral': 'upper_arm', 'cranial-vault': 'head'}
@@ -47,9 +47,9 @@ def test_the_texts_read_whole(report):
     """The texts read with the kernel: their stages; every manifold they name a patch; every landmark they probe, prop
     or anchor on a segment of hers, those on no patch of her registry named; the stool, 3 s, the bed, 2 s, the roll;
     the pendulum a quarter turn each way."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got, patches, plan, shots = kernel.read(), _patches(), _plan(), _shots()
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:

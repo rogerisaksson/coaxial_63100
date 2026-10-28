@@ -60,7 +60,7 @@ def test_the_suite_reads_as_written(report):
 
 
 def test_the_kernel_reads_whole(report):
-    """The dual-domain kernel's texts (machine/ortho_kernel/) evaluated, each op its mechanism's
+    """The dual-domain kernel's texts (lisp/humanoid/kernel/) evaluated, each op its mechanism's
     node: the room's schedule; the room's walk with its bus, bands, body schema and shield; the
     stool's shove gated on its funnel, each funnel's executor run from her nominal, the sit's blind
     settle at the observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18
@@ -245,11 +245,11 @@ def test_the_insert_is_every_patch_last(report):
 
 
 def test_the_runway_reads_in_its_own_dialect(report):
-    """machine/runway.lisp through the same reader: its dry plays her walk, its wet narrows her
+    """lisp/humanoid/runway.lisp through the same reader: its dry plays her walk, its wet narrows her
     track by its own ratio, its morph lays a curve row every sixteenth of two bars."""
     import os
-    from machine import dsp, modal, ortho, patch, voicing
-    got = dsp.read([os.path.join(os.path.dirname(dsp.__file__), 'runway.lisp')])
+    from machine import dsp, mechatronics, modal, ortho, patch, voicing
+    got = dsp.read([os.path.join(mechatronics.LISP, 'humanoid', 'runway.lisp')])
     m, fr = got['morph-dry-to-catwalk'], _her()
     dry_row, _told = voicing.voiced(m.source, m.source, fr)
     wet_row, _told = voicing.voiced(m.target, m.source, fr)
@@ -301,7 +301,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
     legs' free modes at the mattress's -36 dB, her pelvis listed 4 units and turned 3."""
     import os
     from unittest import mock
-    from machine import acts, dsp, maneuver
+    from machine import acts, dsp, maneuver, mechatronics
     from machine.errors import MachineError
     got = _got()
     g = dsp.value(['patch-bed-side-lie', 'nominal-biped-manifold'], got)
@@ -315,7 +315,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'build', 'patches')
     os.makedirs(path, exist_ok=True)
     path = os.path.join(path, 'side-lean.lisp')
-    with open(os.path.join(os.path.dirname(dsp.__file__), 'ortho_dsp', 'side_lie.lisp'), encoding='utf-8') as fh:
+    with open(os.path.join(mechatronics.LISP, 'humanoid', 'suite', 'side_lie.lisp'), encoding='utf-8') as fh:
         lean = fh.read().replace('side-lie', 'side-lean').replace('[0.0 -> 1.5708]', '[0.0 -> 0.6]')
     with open(path, 'w', encoding='utf-8') as fh:
         fh.write(lean.replace('(bed-axis-yaw-rad 1.5708)', '(bed-axis-yaw-rad 0.6)').replace('trochanter-r', 'trochanter-l'))

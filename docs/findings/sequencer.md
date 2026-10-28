@@ -172,7 +172,7 @@ Her walk so modified, 12 s after the row (scratchpad modifier_play.py):
 
 ## The runway patch
 
-The patch as written (machine/runway.lisp: a dry state, the sneaker
+The patch as written (lisp/humanoid/runway.lisp: a dry state, the sneaker
 modifier, the phase-locked morph, the 32-bar schedule) compiled onto her
 voices and played on
 her walk said: the dry laid at 10 s, the wet four bars on, at once, by a naive
@@ -216,7 +216,7 @@ clearance, the ZMP's margin in the hull of the standing soles, jerk).
 
 ## The ortho-DSP suite
 
-The six modules as given (machine/ortho_dsp/) read by `machine.dsp`, each
+The six modules as given (lisp/humanoid/suite/) read by `machine.dsp`, each
 patch voiced on her walk by its changes off the nominal manifold - the
 nominal plays her walk to the last slot -, told its twist and grip, laid
 3 s into her walk on its stages' scene, measured by the converter that

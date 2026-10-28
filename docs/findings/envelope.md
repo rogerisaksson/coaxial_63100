@@ -2,7 +2,7 @@
 
 The quad's boards' thermal envelopes under its flights: a climb, a hover, what
 a board may carry (`thermal_run.c`, `terminal.views.quad.flight`); what its
-rotors pull (`machine.pull`). The quad's own: [quad](quad.md); the board's:
+rotors pull (`machine.aircraft.pull`). The quad's own: [quad](quad.md); the board's:
 [FINDINGS](../FINDINGS.md).
 
 ## A climb
@@ -39,7 +39,7 @@ ten times the flight's:
   answer with and stood 19 deg off late in the climb.
 - A board's loop winds no further than its drive carries of the current it
   asks: the clamp with its derate, and what the link's volts leave
-  (`drive_room`, `machine.pull.room`'s); `SpeedPI`'s sum and its drag's
+  (`drive_room`, `machine.aircraft.pull.room`'s); `SpeedPI`'s sum and its drag's
   current, and `PI`'s sum, stay inside that (`ctrl_loop_step`). Wound, full tilt's loops
   asked 58-62 A of boards holding 45-49: a rotor's ask fell 39 rad/s in
   0.18 s before its current did, the four 5.2-10.5 A apart and the frame
@@ -73,7 +73,7 @@ ten times the flight's:
 
 ## What the rotors pull
 
-`machine.pull`: a rotor's top from its motor, its propeller and its link,
+`machine.aircraft.pull`: a rotor's top from its motor, its propeller and its link,
 against the law on a stand-in (`test_quad_pull.py`):
 
 | Link, clamp | The law, rad/s on A | The space, rad/s |

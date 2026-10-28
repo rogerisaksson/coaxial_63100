@@ -9,7 +9,7 @@
     r = bedside.capstan(mu, wrap)                  # 1: a drag over an edge it wraps, over its plain friction
     x, up = bedside.cop(points, forces, weight)    # m, N: a stool's centre of pressure on the floor, its push
 
-The kernel's bedside and overheight texts (machine/ortho_kernel/bedside_*.lisp, overheight_*.lisp). Her frame
+The kernel's bedside and overheight texts (lisp/humanoid/kernel/bedside_*.lisp, overheight_*.lisp). Her frame
 `machine.figure`'s: x her left, y up, z ahead; her skin as points with radii (`groundwork`). Flat arrays and
 arithmetic: no branch, no loop, no dict.
 """

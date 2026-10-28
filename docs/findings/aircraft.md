@@ -1,12 +1,12 @@
 # Findings: aircraft
 
 The helicopter, the ornithopter and the aerobat on two boards each, one core
-under three names (`machine.helicopter`, `machine.ornithopter`,
-`machine.aerobat`, `machine.wingborne`); the quad's own: [quad](quad.md).
+under three names (`machine.aircraft.helicopter`, `machine.aircraft.ornithopter`,
+`machine.aircraft.aerobat`, `machine.aircraft.wingborne`); the quad's own: [quad](quad.md).
 
 ## Helicopter and ornithopter
 
-`machine.helicopter`, `machine.ornithopter`: one core, a swashplate's or four
+`machine.aircraft.helicopter`, `machine.aircraft.ornithopter`: one core, a swashplate's or four
 wings' names on it; their routines on ideal rotors at 120 Hz, a line a stage
 (hover, pirouette, orbit, spiral, flip, inverted, tic-toc, roll, full tilt,
 burn, land).
@@ -56,7 +56,7 @@ burn, land).
   at most); the ornithopter on 2.0 and 1.7 struck gate 7, on 1.5 lapped in
   24 s whole. The head idles up (the stunt boost) where the plan leans past
   half of gravity, as in the figures.
-- On their instruments (`machine.senses`) both lap the course and land. The
+- On their instruments (`machine.aircraft.senses`) both lap the course and land. The
   ornithopter's dive turns its lean over the top - 1 m/s^2 asked up, its
   lean 80 deg each way -, its cyclic end to end in 30 ms: 1.37 a pass on the
   truth, 1.50 on the instruments; 1.32-1.64 in ten gusty seeds, 0.80-1.90
@@ -77,7 +77,7 @@ burn, land).
 Four meshes of lofts, surfaces, drums, tubes and boxes, each judged by PNG
 at 150 x 62 cells alone and at 80 x 30 on its page: the aerobat an Extra
 300's and the helicopter a T-REX 700's, measured off models
-(`machine.aerobat.form`, `machine.helicopter.form`); the quad a Hunter
+(`machine.aircraft.aerobat.form`, `machine.aircraft.helicopter.form`); the quad a Hunter
 long-range quad's, measured off a model - two plates on flat arms, the pack
 under them, the camera ahead, a GPS mast, an aerial; the ornithopter
 designed, no model - a ribbed glass head, a segmented abdomen, veined

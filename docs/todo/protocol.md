@@ -2,7 +2,7 @@
 
 Seven steps on her loop and five tests in the lodge (`tools/sim/house.py`):
 her loop the real-time domain, a tuner apart the background one. Its texts
-as given: host/machine/ortho_kernel/, a module a file (the two master
+as given: host/lisp/humanoid/kernel/, a module a file (the two master
 texts' 26). Her figure, drives and pack are bound from `machine.figure`,
 `machine.drives` and her build; the lodge's door, table, chair, stool, bed
 and loft stair (5 steps of 0.15 m along its right wall) unknown to her at
@@ -180,7 +180,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     her stance knee eccentric, her pelvis dropped, her forefoot catching
     each step, shin and heel 32 mm or more clear of each nosing; V_bus
     under 60 V.
-16. **The Hitchin bus** (`ortho_kernel/hitchin_isomonodromic_bus.lisp`,
+16. **The Hitchin bus** (`lisp/humanoid/kernel/hitchin_isomonodromic_bus.lisp`,
     ops in `kernel.MECHANISMS`): the genus-0 parabolic Higgs field on her
     contact manifolds, poles her lever arms and PLL phases, residues her
     wrenches, the sum her centroidal wrench by the residue theorem. In the

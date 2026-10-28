@@ -28,7 +28,7 @@ from machine import linkage, mechatronics
 from machine.figure import HIP_DROP, HIP_HALF
 from motor.pmsm import TORQUE_FACTOR
 
-#: The parts library and her build of it (machine/library, machine/robots): the tables below are
+#: The parts library and her build of it (machine/library, machine/humanoids): the tables below are
 #: theirs, read once.
 _LIB, _BUILD = mechatronics.library(), mechatronics.robot()
 PACK_V = _BUILD['pack_v']

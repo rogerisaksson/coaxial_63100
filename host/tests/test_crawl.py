@@ -15,7 +15,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 from test_groundwork import MOVES, TOUCH, _bearing, _laid, _parts
 
-#: The terrestrial texts, machine/ortho_kernel/, and the overlay their patches use that no text defined.
+#: The terrestrial texts, lisp/humanoid/kernel/, and the overlay their patches use that no text defined.
 TEXTS = ('terrestrial_multimodal_gaits.lisp', 'terrestrial_gait_specializers.lisp',
          'terrestrial_locomotion_patches.lisp', 'substrate_overlay.lisp')
 #: Samples of the vault's half turn; a hinge's angle stepped, rad.
@@ -41,12 +41,12 @@ def test_the_texts_read_whole(report):
     manifold they name a patch; the stages; the schedule five segments of 8 bars - the dog's trot, her back's crawl
     with its stair ratchet, the scoot and its hip drag, the crab on her back to her right and belly down to her left -
     each on the overlay, each crab's outer pair half a turn ahead of the inner."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got = kernel.read()
     atlas = got['terrestrial-1jet-posture-atlas']['postures']
     report.check('four postures, each its origin and three columns',
                  len(atlas) == 4 and all(len(p['modal-basis-columns']) == 3 and 'origin-q0' in p for p in atlas.values()))
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:
@@ -242,7 +242,7 @@ def test_the_degraded_texts_read_whole(report):
     """The degraded scoot and crawl read with the kernel: two postures, each its origin and three columns; its frog
     piston on her shank; every manifold they name a patch; the stages; the schedule four segments of 8 bars, the
     second and fourth her left leg in High-Z."""
-    from machine import dsp, figure, kernel
+    from machine import dsp, figure, kernel, mechatronics
     got = kernel.read()
     atlas = got['scoot-and-lowcrawl-1jet-atlas']['postures']
     report.check('two postures, each its origin and three columns',
@@ -252,7 +252,7 @@ def test_the_degraded_texts_read_whole(report):
     report.check('its frog piston %g by %g mm on her shank %.0f by %.0f' % (
         2 * frog['x'][1], 2 * frog['y'][1], 1e3 * figure.SHANK, 2e3 * r),
         2e-3 * frog['x'][1] <= figure.SHANK and 1e-3 * frog['y'][1] <= r)
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in DEGRADED:
         with open(os.path.join(folder, name), encoding='utf-8') as f:

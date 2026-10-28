@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The ballistic texts, machine/ortho_kernel/.
+#: The ballistic texts, lisp/humanoid/kernel/.
 TEXTS = ('ballistic_and_velocity_core.lisp', 'ballistic_locomotion_specializers.lisp',
          'ballistic_lifecycle_patches.lisp')
 #: The regimes the velocity spectrum names, slowest first.
@@ -44,10 +44,10 @@ def test_the_texts_read_whole(report):
     """The texts read with the kernel: four postures, each an origin and three columns; every manifold they name a
     patch; their stages; the schedule's walk, morphs, double-time, leap, run, brake, walk and jump; the brisk walk's
     leap held on her world's obstacle ahead."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got, plan = kernel.read(), _plan()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:

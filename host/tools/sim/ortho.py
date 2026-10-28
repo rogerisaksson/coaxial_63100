@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Orthokinematics (`machine.ortho`) run on her latent loop as the page's gym runs it, traced.
 
-    python tools/sim/ortho.py hop_asymmetric              # an entry of machine/gynoid_mesomorph_medium.lisp
+    python tools/sim/ortho.py hop_asymmetric              # an entry of lisp/humanoid/gynoid_mesomorph_medium.lisp
     python tools/sim/ortho.py crouch -v                   # a row every 25 ms; -v 5, every 5
     python tools/sim/ortho.py "#101" "#102@3" "#103@6" --to 8    # each at its second
     python tools/sim/ortho.py --walk --to 40 --look              # her walk from rest (`sprung.WALK`): its look
@@ -148,7 +148,7 @@ def looked(plan, to=TO_S, take=None, every=None):
 
 def planned(asked, text=None):
     """[(s, label, wire, names)] of `asked` ['label' or 'label@seconds', ..] among `text`'s
-    entries (machine/gynoid_mesomorph_medium.lisp's): AT_S, then 2 s apart, where no second is given."""
+    entries (lisp/humanoid/gynoid_mesomorph_medium.lisp's): AT_S, then 2 s apart, where no second is given."""
     from machine import sprung
     gym = {entry[0]: entry for entry in sprung.entries(text)}
     plan, at = [], AT_S
@@ -168,7 +168,7 @@ def main(argv=None):
     parser.add_argument('what', nargs='*', help="entries: a behaviour's name or '#' and a payload's id, "
                         'each alone or @ its second')
     parser.add_argument('--walk', action='store_true', help='her walk from rest (`sprung.WALK`)')
-    parser.add_argument('--file', help="a text's entries, not machine/gynoid_mesomorph_medium.lisp's")
+    parser.add_argument('--file', help="a text's entries, not lisp/humanoid/gynoid_mesomorph_medium.lisp's")
     parser.add_argument('--to', type=float, default=TO_S, help='s followed past the last asked')
     parser.add_argument('--every', type=int, help='the loop solved every that many passes; the page has its own')
     parser.add_argument('-v', nargs='?', type=int, const=25, default=0, metavar='MS',

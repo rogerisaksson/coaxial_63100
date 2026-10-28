@@ -92,7 +92,7 @@ The parts bought but not built in are in the library beside hers
 (`machine/library`): the U8 Lite, the R80, the RO80, the LA8308 and the R60
 as their pages have them, their rotors and windings' heat estimated from the
 U8 II's; the roller wave at 84 and 50 mm; a 50 A board on a 70 mm disc. A
-build names them (`machine/robots`); `COAXIAL_ROBOT` runs one, its text and
+build names them (`machine/humanoids`); `COAXIAL_ROBOT` runs one, its text and
 manifest with it. `gynoid_mesomorph_medium_r80`: her figure on the R80 and
 the R60, the knee 1056 deg/s where 960; she walks 51 s at 0.69 m/s, 2.50
 off a woman's band, 484 J/m where 408 on the U8 (KV 110 for 100: more amps

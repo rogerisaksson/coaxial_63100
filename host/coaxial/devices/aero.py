@@ -45,7 +45,7 @@ class Aero(Device, device=protocol.DEVICE_AERO):
 
     def step(self, payload, reading):
         """One pass on the board: `payload` the compiled intent's bytes
-        (`machine.aerolisp`'s pack), `reading` by aero_in_t's names, SI, its `dt` s. {cycles,
+        (`machine.aircraft.aerolisp`'s pack), `reading` by aero_in_t's names, SI, its `dt` s. {cycles,
         sysclk_hz, us: what the pass took; thrust, N a rotor; bound: the rotors at an end;
         asked, gave: the wrench; axis, miss; turned, pushed: what the observers hold; head;
         wind; read: the reading as the board had it}."""

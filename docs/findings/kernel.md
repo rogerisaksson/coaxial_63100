@@ -1,7 +1,7 @@
 # Findings: the dual-domain kernel
 
 Its steps on her loop and its tests in the lodge ([protocol](../todo/protocol.md),
-host/machine/ortho_kernel/).
+host/lisp/humanoid/kernel/).
 
 ## The momentum observer
 

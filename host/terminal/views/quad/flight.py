@@ -5,9 +5,9 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):   # a pass, its steps
         ...
 
-`CARD` is what the page flies, flight after flight: the routine (machine.aerobatics), its boards
-and their observers warmed on it, then the course (machine.course). A step is its card's row
-made a payload (machine.aerokin) and the core's passes on it (aero/), each rotor's loop after
+`CARD` is what the page flies, flight after flight: the routine (machine.aircraft.aerobatics), its boards
+and their observers warmed on it, then the course (machine.aircraft.course). A step is its card's row
+made a payload (machine.aircraft.aerokin) and the core's passes on it (aero/), each rotor's loop after
 the thrust it is given.
 """
 import ctypes
@@ -18,7 +18,8 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import aerobatics, aerokin, course, flightpack, heat as mheat, pull, quad, senses, sweep, weather
+from machine import heat as mheat
+from machine.aircraft import aerobatics, aerokin, course, flightpack, pull, quad, senses, sweep, weather
 from machine.controller import Feedback
 from machine.parts import Gain, Slew, SpeedPI
 from tools.cores import aero, stand
@@ -30,7 +31,7 @@ FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
 #: their observers out of UNCERTAIN before the course asks its lean of them.
 CARD = sweep.opened(aerobatics.CARD) + course.CARD
 
-#: Each rotor's machine and its trip for a flight, A, the board's rating (`machine.pull`).
+#: Each rotor's machine and its trip for a flight, A, the board's rating (`machine.aircraft.pull`).
 PROFILE, I_TRIP = 'outrunner_63100_14p', 100.0
 
 #: The rotors' speed loop, Hz: each board's own (device 12), ticked LOOP_HZ a second in its

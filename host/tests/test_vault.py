@@ -15,7 +15,7 @@ from test_groundwork import LANDMARKS, MOVES, _laid, _part, _skin
 #: The texts' landmarks by the segment of hers that carries each.
 CARRIED = {**LANDMARKS, 'posterior-femoral': 'thigh'}
 
-#: The overheight texts, machine/ortho_kernel/.
+#: The overheight texts, lisp/humanoid/kernel/.
 TEXTS = ('overheight_vault_and_dip_core.lisp', 'overheight_vault_specializers.lisp', 'overheight_stool_patches.lisp')
 #: The dip's axial range its comment gives (`drive-anterior-overhang-dip-descent`); its column sampled; pitches round
 #: a turn; a joint nudged, rad.
@@ -45,10 +45,10 @@ def _dip():
 def test_the_texts_read_whole(report):
     """The texts read with the kernel: one posture, its origin, three columns and its hang; every manifold they name a
     patch, every landmark a segment of hers; their stages; the mount, 4 s seated, the dismount."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got, plan = kernel.read(), _plan()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:

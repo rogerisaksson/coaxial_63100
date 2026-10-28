@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The deformable texts, machine/ortho_kernel/.
+#: The deformable texts, lisp/humanoid/kernel/.
 TEXTS = ('deformable_substrate_core.lisp', 'deformable_groundwork_specializers.lisp',
          'deformable_groundwork_patches.lisp')
 #: A tick of an impact or a bed, s; her patches' raster, m; the identifier's window, s (its text's comment).
@@ -44,13 +44,13 @@ def test_the_texts_read_whole(report):
     """The three texts read with the kernel (`kernel.read`): the substrate's state, 9 slots of 8 patches; every
     manifold they name a patch; the core, the specializers and the patches stages; the schedule the mattress, the snow
     and the trampoline, each up again on her walk's clock; the regimes, ceilings, tamp and kip as the runs lay them."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got = kernel.read()
     state = got['rheological-substrate-soa-state']
     report.check('the state: %d slots of %d patches' % (len(state['slot-schema']),
                                                         state['memory-layout']['num-monitored-patches']),
                  len(state['slot-schema']) == 9 and state['memory-layout']['num-monitored-patches'] == 8.0)
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:

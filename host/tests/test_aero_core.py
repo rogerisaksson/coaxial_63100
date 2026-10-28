@@ -103,7 +103,7 @@ def test_the_share_is_the_best_of_every_set(report):
     weighed as it weighs; a wrench inside the reach is given whole; the rotors it says stand
     at an end do."""
     import numpy as np
-    from machine import quad
+    from machine.aircraft import quad
     from tools.cores import aero
     core, dice = aero.Core(), random.Random(7)
     weigh = np.array(list(core.params.weigh))
@@ -174,7 +174,7 @@ def test_a_dropped_mode_is_masked(report):
     """A target of NaN drops its mode: no NaN reaches a thrust, and the torque about that
     mode's axis is none whatever the frame's attitude about it - the mode beside it answered
     the way that closes its miss from every such attitude, on its back too."""
-    from machine import aerolisp
+    from machine.aircraft import aerolisp
     from tools.cores import aero
     payload = aero.payload(aerolisp.compiled(
         '(stream_inject (sequence_id 1) (latent_targets (mode_collective_thrust 9.81) '
@@ -207,7 +207,7 @@ def test_a_payload_is_blended_in_and_swung(report):
     sphere, the axis asked half way between the two half its blend in; a mode tracked from a
     dropped one takes its target whole; the oscillator swings a target its amplitude either
     way at its frequency, a sine from nothing where it began."""
-    from machine import aerolisp
+    from machine.aircraft import aerolisp
     from tools.cores import aero
     frame = Vacuum(dt=0.002)
     first = hover(1000.0, 60.0)
@@ -335,7 +335,7 @@ def test_a_miss_past_the_reach_is_closed_as_fast_as_it_stops(report):
     at a stiffness the reach renders half a degree of: the frame is there in under twice the
     time a bounded jerk takes for it, and passes it by under a degree; at a stiffness the
     reach renders whole it is the payload's own return."""
-    from machine import quad
+    from machine.aircraft import quad
     step = math.radians(45.0)
     frame = Vacuum(dt=0.002, slew=2900.0)
     level = hover(5000.0, 80.0)

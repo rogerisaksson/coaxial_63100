@@ -36,7 +36,7 @@ import struct
 from machine import mechatronics
 from machine.curves import QUINTICS
 
-_FILE = os.path.join(os.path.dirname(__file__), mechatronics.ROBOT + '.lisp')
+_FILE = os.path.join(mechatronics.HUMANOID, mechatronics.ROBOT + '.lisp')
 
 #: Her latent coordinates, a row's vectors in this order. Of her centre of mass over her soles'
 #: middle: its height, 1 fully compressed; its place across, 1 over her first limb's sole;

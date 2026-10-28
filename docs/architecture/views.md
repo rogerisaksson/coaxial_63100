@@ -18,7 +18,7 @@ coaxial/graphics/   board renderer (wireframe pipeline + one module per concern)
                     where none), gynoid (the figure's body, posed and lit),
                     shapes and lit (a lit mesh's parts, its light and its
                     braille), callouts (framed rows, leaders), quadcopter and
-                    scenery (the quad of machine.quad and its course, drawn),
+                    scenery (the quad of machine.aircraft.quad and its course, drawn),
                     inset (a picture in the viewport's corner, the
                     instruments' frame: humanoid robot eyes' view; the quad's carried
                     camera's, onboard)

@@ -38,7 +38,7 @@ its no-load speed at 48 V, a node's span to its ceiling. Worst of the sides.
   0.93 of a knee's 960 deg/s.
 - The peaks are the loop's own torques: past 2/3, its feed alone is past it
   in every pass, the PD under it never half the torque.
-- The performance build (`machine/robots/gynoid_mesomorph_medium_performance.toml`:
+- The performance build (`machine/humanoids/gynoid_mesomorph_medium_performance.toml`:
   the U12 II KV120 - 7.9 N m at 48 V, 4.5 kW, 778 g - on box A for the
   spine, hips, knees and ankles, 3.7 kg more; her text extended): her hop
   asks its hips 144 A, 1.44 of their amps, the knees 114 A, 1.15, where hers

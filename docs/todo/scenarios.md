@@ -157,7 +157,7 @@ serves its DOD; none an entry a case.
    slope_walk) are specials of the kind the modifiers replace - their
    amounts into the steering table's rows, one walk under them; the width
    amount moves nothing, the stride laying each landing its own side
-   (`stride.meets`). The runway patch (machine/runway.lisp) plays on her
+   (`stride.meets`). The runway patch (lisp/humanoid/runway.lisp) plays on her
    but its 42 mm track: her landings hold 81-95 mm with the centre's sway
    cut, and the sway kept she falls (sequencer.md) - the catwalk's line
    wants the stance's lateral reach (the trunk's roll taking the swing's
@@ -209,7 +209,7 @@ serves its DOD; none an entry a case.
    short of a flip or a jump, a "performance" drivetrain config beside the
    one stack, the demand measured first (demand.md): laid - the U12 II KV120
    on box A for her spine, hips, knees and ankles
-   (`machine/robots/gynoid_mesomorph_medium_performance.toml`) -, her
+   (`machine/humanoids/gynoid_mesomorph_medium_performance.toml`) -, her
    standing jump rose 0.03 legs on it where 0.01: the hop's ask was the
    law's, 1.44 of the U12's amps at the hips; from the drives she rises
    0.43-0.51 legs of the human's 0.55 on her own stack (stunts.md). DOD: 31

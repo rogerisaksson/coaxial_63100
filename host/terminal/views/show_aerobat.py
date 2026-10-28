@@ -1,6 +1,6 @@
 """AEROBAT: two coaxial boards flying a 3D RC aerobatic monoplane in MuJoCo, stunts and gates.
 
-A 2 kg Extra 330SC / Edge 540 style 3D RC aerobatic monoplane (`machine.aerobat`) on two stand-in
+A 2 kg Extra 330SC / Edge 540 style 3D RC aerobatic monoplane (`machine.aircraft.aerobat`) on two stand-in
 63100 boards (`PROP` driving the single tractor propeller and `VECT` the tail/vector drive on
 finned aluminium heatsinks with temperature-controlled cooling fans), each armed on the master's
 pilot and running sensorless on the 63100 outrunner's model; the two on one 63 V pack; the airframe
@@ -8,7 +8,7 @@ in MuJoCo under 3D prop-hang thrust and propwash-deflected elevator, full-span a
 (`terminal.views.aerobat.flight`). It takes off, turns back down the runway in a knife-edge, flies
 its 3D routine - prop-hang, torque roll, climbing harrier, waterfall, snap roll, unwind, prop-hang
 burn arrest 10 cm over the floor -, lands, and then flies two laps of its airfield's gate course
-(`machine.airfield`).
+(`machine.aircraft.airfield`).
 
     python terminal/views/show_aerobat.py
     python terminal/views/show_aerobat.py --frames 60
@@ -19,7 +19,7 @@ import sys
 from rich.text import Text
 
 from coaxial.graphics import aerobat as aero_gfx
-from machine import aerobat
+from machine.aircraft import aerobat
 from terminal.views import show_helicopter as base_view
 from terminal.views.aerobat import flight as aero_flown
 from terminal.views.show_quad import look as quad_look

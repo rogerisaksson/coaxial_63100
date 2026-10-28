@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 
 from tools.dev.focus import chosen
+from machine.aircraft import aerobat, helicopter, ornithopter, quad, wingborne
 from gynoid_kit import Report
 
 #: Configurations her sensing is held at; the passes of her walk it is held over, her law every third.
@@ -210,18 +211,14 @@ def test_her_law_in_c_as_she_walks(report, c):
 def test_aircraft_substeps_in_c_are_their_numpys(report, c):
     """`quad.substep` and `wingborne.wing_substep` compiled on each aircraft's `Sky` beside numpy's
     on a twin `Sky`, over 40 substeps: `qpos`, `qvel`, `qacc` and `xfrc_applied` bit for bit."""
-    from machine import quad, wingborne
-    from machine.aerobat import sky as asky
-    from machine.helicopter import sky as hsky
-    from machine.ornithopter import sky as osky
     from tools.cores import motion as c_motion, trace, trace_mj
     from tools.cores.orders import same
     rng = np.random.default_rng(19)
     for label, cls, fn, attr, n_in in (
             ('quad', quad.Sky, quad.substep, '_step', 15),
-            ('helicopter', hsky.Sky, quad.substep, '_step', 15),
-            ('ornithopter', osky.Sky, quad.substep, '_step', 15),
-            ('aerobat', asky.Sky, wingborne.wing_substep, '_wing_step', 8)):
+            ('helicopter', helicopter.Sky, quad.substep, '_step', 15),
+            ('ornithopter', ornithopter.Sky, quad.substep, '_step', 15),
+            ('aerobat', aerobat.Sky, wingborne.wing_substep, '_wing_step', 8)):
         sky = cls()
         twin = trace_mj.twin(sky)
         comp = getattr(sky, attr)

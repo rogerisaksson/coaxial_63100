@@ -1,9 +1,9 @@
 # Findings: aerobat
 
-The 3D monoplane on two boards (`machine.aerobat`, `machine.wingborne`); the
+The 3D monoplane on two boards (`machine.aircraft.aerobat`, `machine.aircraft.wingborne`); the
 helicopter's and the ornithopter's, and their motors': [aircraft](aircraft.md).
 
-`machine.aerobat`, `machine.wingborne`: a 1.40 m, 2 kg 3D monoplane (wing
+`machine.aircraft.aerobat`, `machine.aircraft.wingborne`: a 1.40 m, 2 kg 3D monoplane (wing
 0.392 m^2, 51 g/dm^2; 0.016 m^2 of parasite drag; a 17x8 propeller; a 0.48 m
 tail arm with a 0.046 m^2 stabiliser and a 0.035 fin; a fuselage 0.14 m deep,
 its form's 0.157 m^2 of side; inertias 0.070/0.046/0.093 kg m^2) on a
@@ -171,7 +171,7 @@ up at rest).
   over 12 m its wings swung 23 deg off upright; its teardrop flown as
   timed turns ran 54 m out and 19 m beside the runway, the prop-hang then
   walking 50 m home in 15.4 s - laid, it hands over 1.5 m from home.
-- The airfield (`machine.airfield`): its trees 85 and 100 m off the runway's
+- The airfield (`machine.aircraft.airfield`): its trees 85 and 100 m off the runway's
   line and 165 m along it, a teardrop's 64 m across at 14 m/s; its gates
   stand only on its course. The course, a lap of 543 m at 14 m/s airspeed on
   27 m turns: an air gate, a limbo bar at 2.8 m, a hoop at 10 m at the far

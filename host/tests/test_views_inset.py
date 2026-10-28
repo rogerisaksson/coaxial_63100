@@ -48,7 +48,7 @@ def test_her_eyes_picture_is_framed(report):
 
 
 def test_its_camera_rides_a_gimbal(report):
-    """The carried camera (`machine.gimbal`, `coaxial.graphics.onboard`): its sight comes
+    """The carried camera (`machine.aircraft.gimbal`, `coaxial.graphics.onboard`): its sight comes
     round to the way the frame goes; leant under way it looks into the lean and rolls a share
     of it, MOST at the most - at rest neither, on its back its own -, its tilt within its
     axis' ends; in the picture the horizon one row from edge to edge at rest and leant as the
@@ -57,7 +57,7 @@ def test_its_camera_rides_a_gimbal(report):
     from coaxial.graphics import onboard, scenery, shapes
     from coaxial.graphics.lit import project
     from coaxial.graphics.raster import DOTS_Y
-    from machine import gimbal, grounds
+    from machine.aircraft import gimbal, grounds
     from terminal.views import show_quad
     from terminal.views.quad import keys
     level = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -154,7 +154,7 @@ def test_figures_are_watched_from_beside_the_field(report):
     import numpy as np
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx,
                                   ornithopter as orni_gfx, quadcopter, scenery, shapes)
-    from machine import aerobat, aerobatics, aerokin, airfield, course, helicopter, ornithopter, sweep
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, course, helicopter, ornithopter, sweep
     from terminal.views import show_aerobat, show_helicopter, show_ornithopter, show_quad
     from terminal.views.aerobat import flight as aero_flown
     from terminal.views.helicopter import flight as heli_flown
@@ -173,7 +173,7 @@ def test_figures_are_watched_from_beside_the_field(report):
         ('ornithopter', orni_flown.CARD, len(ornithopter.CARD) + 1), ('aerobat', aero_flown.CARD, len(aerobat.CARD)))}
     report.check('each page chases its course alone, the aerobat its laps and not its opening',
                  all(chased.values()), '%s' % chased)
-    from machine import grounds
+    from machine.aircraft import grounds
     report.check('each page draws the line its lap\'s giver flies',
                  quad_flown.ways(quad_flown.CARD) is True
                  and quad_flown.ways(heli_flown.CARD) == course.TWIN_WAYS

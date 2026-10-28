@@ -1,7 +1,7 @@
 """Mechatronics as data: the parts library (motors, gearboxes, inverters) and a robot's build of it.
 
     lib = mechatronics.library()            # {'motors': .., 'gearboxes': .., 'inverters': ..}
-    build = mechatronics.robot(ROBOT)       # machine/robots/<name>.toml, its parts the library's
+    build = mechatronics.robot(ROBOT)       # machine/humanoids/<name>.toml, its parts the library's
     mechatronics.robots()                   # every build file's name
 
 A robot's file names, for each joint kind, its stack's motor, gearbox and inverter from the
@@ -17,7 +17,10 @@ import tomllib
 from machine.errors import MachineError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LIBRARY, ROBOTS = os.path.join(HERE, 'library'), os.path.join(HERE, 'robots')
+LIBRARY, ROBOTS = os.path.join(HERE, 'library'), os.path.join(HERE, 'humanoids')
+#: Every lisp text, out of the package: hers (texts, suite/, kernel/, builds/) and the crafts'.
+LISP = os.path.join(os.path.dirname(HERE), 'lisp')
+HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraft')
 #: Classification schema following the gynoid_<morphology>_<scale> convention:
 #: - gynoid_ectomorph_petite: Small-framed and fine-boned (waif/gamine, < 165 cm); yields an
 #:   extremely low limb moment of inertia, but minimal joint volume forces tendon-driven
@@ -60,7 +63,7 @@ def library():
 
 
 def robots():
-    """Every robot a build file names (machine/robots)."""
+    """Every robot a build file names (machine/humanoids)."""
     return sorted(f[:-5] for f in os.listdir(ROBOTS) if f.endswith('.toml'))
 
 
@@ -73,7 +76,7 @@ def _merged(base, over):
 
 
 def robot(name=ROBOT) -> dict:
-    """A robot's build (machine/robots/`name`.toml), each stack's parts found in the library. A build that
+    """A robot's build (machine/humanoids/`name`.toml), each stack's parts found in the library. A build that
     `extends` another is that one with its own tables laid on it - only what is its own -, its `swap` the
     motors it takes for that one's in every stack it does not name."""
     path = os.path.join(ROBOTS, name + '.toml')

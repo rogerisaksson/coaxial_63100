@@ -5,11 +5,11 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):
         ...
 
-`CARD` is what the page flies: the Dune 4-wing ornithopter routine (`machine.ornithopter`), its
+`CARD` is what the page flies: the Dune 4-wing ornithopter routine (`machine.aircraft.ornithopter`), its
 two 63100 drives (`FORE` and `AFT` flapping the fore and aft wing pairs) and their thermal
-observers warmed on it, then the 16-gate course (`machine.course`).
+observers warmed on it, then the 16-gate course (`machine.aircraft.course`).
 """
-from machine import course, ornithopter, sweep
+from machine.aircraft import course, ornithopter, sweep
 from terminal.views.helicopter import flight as hflight
 from terminal.views.quad.flight import arm, asked, observers, reset, spun, struck, warmth
 

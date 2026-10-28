@@ -5,11 +5,11 @@
     for clock, frame in passed(rotors, sky, route, law, flight, clock, dt):
         ...
 
-`CARD` is what the page flies: the 3D aerobatics routine (`machine.helicopter`), its two 63100
+`CARD` is what the page flies: the 3D aerobatics routine (`machine.aircraft.helicopter`), its two 63100
 drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
-the 16-gate course (`machine.course`).
+the 16-gate course (`machine.aircraft.course`).
 """
-from machine import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
+from machine.aircraft import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
 from terminal.views.quad import flight as qflight
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TICK_S, _LIB,
                                         _step_bus_and_heat, _step_drives, arm, asked, fallen, kept,

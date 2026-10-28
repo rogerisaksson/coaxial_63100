@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The groundwork texts, machine/ortho_kernel/.
+#: The groundwork texts, lisp/humanoid/kernel/.
 TEXTS = ('floor_groundwork_core.lisp', 'ground_rolling_and_transitions.lisp', 'floor_lifecycle_patches.lisp')
 #: The texts' joints as her movements (`term_rows.TERMS`, or `ABSENT`): her trunk one joint, lumbar and thoracic
 #: summed.
@@ -138,14 +138,14 @@ def test_the_texts_read_whole(report):
     patches more, every manifold the texts name one of the registry's or theirs; the core, the transforms, the
     specializers and the patches stages; the schedule four oneshots 1.5 s apart, the last igniting her walk's clock;
     the roll's node as the default roll lays it, rolling her right."""
-    from machine import dsp, kernel
+    from machine import dsp, kernel, mechatronics
     got = kernel.read()
     atlas = got['groundwork-1jet-posture-atlas']['postures']
     report.check('six postures, each its origin and three columns',
                  sorted(atlas) == ['floor-ischial-carpal-tripod', 'floor-ischial-unbraced', 'floor-prone-flat',
                                    'floor-supine-flat', 'kneeling-quadruped-braced', 'kneeling-tall-biped']
                  and all(len(p['modal-basis-columns']) == 3 and 'origin-q0' in p for p in atlas.values()))
-    folder = os.path.join(os.path.dirname(dsp.__file__), 'ortho_kernel')
+    folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
     for name in TEXTS:
         with open(os.path.join(folder, name), encoding='utf-8') as f:
@@ -185,7 +185,7 @@ def test_the_ring_and_the_girdles(report):
     her waist by the text's lag at most, within its stops, the leader ahead throughout, both done at
     (angle + lag) / omega."""
     import numpy as np
-    from machine import dsp, drives, groundwork, kernel
+    from machine import drives, dsp, groundwork, kernel
     theta = np.linspace(0.0, 4.0 * np.pi, 2 * TURN)
     w = groundwork.ring(theta)
     report.check('the ring: one patch whole a quarter, shares summing to 1 within %.0e' % np.abs(w.sum(axis=1) - 1).max(),

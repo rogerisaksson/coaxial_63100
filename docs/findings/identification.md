@@ -79,7 +79,7 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   a link's inertia about its centre as built, its inertia about its origin
   following its mass and centre, so every link stays a body; no mass under a
   quarter of itself, no drive parameter under none. `identified.save` writes it
-  (`machine/robots/<robot>.identified.toml`, `identified.IDENTIFIED`); `wbc.Body`
+  (`machine/humanoids/<robot>.identified.toml`, `identified.IDENTIFIED`); `wbc.Body`
   lays it over her law's model whole, so the C arrays
   (`tools/cores/model.py`) follow.
 - A base parameter is a sum over neighbouring links: laid on one column

@@ -12,7 +12,7 @@ def flown(seconds, until, things=(), dt=0.05):
     the clock, the share of the clamp's pull its rows have, the rotors' most amps, the frame's
     height)] a step, the flight's own)."""
     from coaxial import Coaxial63100
-    from machine import aerobatics, aerokin, quad
+    from machine.aircraft import aerobatics, aerokin, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
@@ -37,7 +37,7 @@ def test_the_boards_air_is_the_rotors(report):
     speed: the rpm its thermal network's air sees is the rotor's own, by the record's pole
     pairs."""
     from coaxial import Coaxial63100
-    from machine import flightpack, quad
+    from machine.aircraft import flightpack, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
@@ -101,7 +101,7 @@ def test_an_ask_is_rows_a_tick_of_its_loop(report):
     loop asks, a tick to the next - as the flight asks it (`flight.asked`), and written whole,
     where each ask is a spool to the loop's feed-forward and the tick after its end."""
     from coaxial import Coaxial63100
-    from machine import pull, quad
+    from machine.aircraft import pull, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     apart = {}
@@ -155,7 +155,7 @@ def test_struck_it_is_begun_again(report):
     """A slab over the spot under its hover, in the lift's way: struck, the flight is CRASHED and says
     what it struck, its rotors stopped and the wreck on the floor; CRASH_S on the frame is on
     its spot again and the flight at its card's first row - and struck again."""
-    from machine import quad
+    from machine.aircraft import quad
     from terminal.views.quad import flight as view
     slab = [('box', 'house', (0.0, 0.4, 0.0), (0.6, 0.05, 0.6), 0.0)]
     words = []
@@ -196,7 +196,7 @@ def test_a_board_holds_its_clamp(report):
     held, and trips nothing."""
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import pull, quad
+    from machine.aircraft import pull, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
@@ -249,7 +249,7 @@ def test_full_tilt_cuts_no_rotor_alone(report):
     what leans the frame into the wind up there -, the frame on its axis."""
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
-    from machine import aerobatics, aerokin, pull, quad
+    from machine.aircraft import aerobatics, aerokin, pull, quad
     from machine.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
@@ -291,7 +291,7 @@ def test_its_rows_are_inside_the_shell(report):
     clamp the board with the least in it holds, the flight's at the most, and on the pack's
     charge; spent where that is under what the frame is sped up on or the pack at its
     reserve; fit with a charged pack and every board holding the flight's clamp."""
-    from machine import aerokin, flightpack, pull, quad
+    from machine.aircraft import aerokin, flightpack, pull, quad
     from terminal.views.quad import flight as view
 
     def shell(left, *amps):

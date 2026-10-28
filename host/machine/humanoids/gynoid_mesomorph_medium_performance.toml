@@ -1,0 +1,19 @@
+# The gynoid mesomorph medium's performance build: her build (`extends`) but the U12 II KV120 (7.9 N m,
+# 4.5 kW, 778 g) on box A (84 mm, 289 N m momentary) for the spine, hips, knees and ankles - the
+# jump's chain, where her hop has her hips, knees and spine at the U8's clamps (demand.md) - and
+# their servo peaks let through to the stacks'; the rest hers. 3.7 kg more. COAXIAL_ROBOT names
+# it (machine.mechatronics); host/tools/cores/manifest.py writes its manifest; her text extended
+# (lisp/humanoid/gynoid_mesomorph_medium_performance.lisp).
+extends = "gynoid_mesomorph_medium"
+
+[stacks]
+spine = ["U12", "A", "coaxial_63100"]
+hip = ["U12", "A", "coaxial_63100"]
+knee = ["U12", "A", "coaxial_63100"]
+ankle = ["U12", "A", "coaxial_63100"]
+
+[servo]
+spine = [250.0, 800.0, 30.0, 0.05]
+hip = [250.0, 900.0, 40.0, 0.05]
+knee = [250.0, 900.0, 35.0, 0.05]
+ankle = [250.0, 1500.0, 40.0, 0.05]

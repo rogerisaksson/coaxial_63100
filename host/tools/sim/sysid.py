@@ -2,7 +2,7 @@
 
 Each drive's friction and armature, the base parameters trusted, the corrections on her build.
 
-    python tools/sim/sysid.py [--seconds 24] [--payload 0.5] [--boxed] [--write machine/robots/X.identified.toml]
+    python tools/sim/sysid.py [--seconds 24] [--payload 0.5] [--boxed] [--write machine/humanoids/X.identified.toml]
 """
 import argparse
 import os

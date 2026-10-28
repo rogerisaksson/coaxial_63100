@@ -9,7 +9,7 @@
     up = crawl.lifted(across, roll)               # m: the far hip a roll onto one buttock lifts
     gain = crawl.boost(hands, heel)               # 1: the dead leg's side's arm over the other's, no yaw
 
-The kernel's terrestrial texts (machine/ortho_kernel/terrestrial_*.lisp) and its degraded scoot and crawl
+The kernel's terrestrial texts (lisp/humanoid/kernel/terrestrial_*.lisp) and its degraded scoot and crawl
 (degraded_scoot_and_crawl_*.lisp); their 5-torus clock is `fours.clock`, n five. Flat arrays and arithmetic: no branch, no loop, no dict.
 """
 import os

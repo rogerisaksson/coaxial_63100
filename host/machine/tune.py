@@ -27,7 +27,7 @@ from machine import dsp, maneuver, ortho, patch, voicing
 from machine.errors import MachineError
 
 #: The autotuner's text.
-TEXT = os.path.join(os.path.dirname(__file__), 'meta_ast_autotuner.lisp')
+TEXT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'lisp', 'humanoid', 'meta_ast_autotuner.lisp')
 #: A residual class: its telemetry, the keys it matches (the suite's names), the text's sign, the
 #: invariant bounding it or None.
 Residual = collections.namedtuple('Residual', 'name telemetry keys sign invariant')

@@ -341,20 +341,21 @@ def test_her_law_reads_her_sensors_alone(r):
             ', '.join(posed[:6]))
 
 
-#: The gym over her law lays her, places a scene and shoves her through the world's own calls
-#: (`physics.World.reset`, `.scenario`, `.push`), commands her drives through `edge.drive`'s
-#: 10 Mbit/s RS485 Modbus RTU extremity buses alone, and writes none of the world's state itself.
+#: Her gym over her law, and the crafts' flight laws.
 GYM = ('sprung', 'worker', 'tour')
-AERO_LAWS = ('aerokin', 'wingborne', 'helicopter/law', 'helicopter/kit', 'ornithopter/law', 'aerobat/law')
+AERO_LAWS = tuple('aircraft/' + n for n in ('aerokin', 'wingborne', 'helicopter/law', 'helicopter/kit',
+                                              'ornithopter/law', 'aerobat/law'))
 MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat',
          'target', 'feed', 'rate', 'limit')
 
 
 def test_the_gym_moves_her_through_the_world_alone(r):
     """The gym and the aircraft flight laws write none of the world's state or drive arrays
-    directly: a lay, a scene and a shove are the world's own calls, and drives are told on their
+    directly: a lay, a scene and a shove are the world's own calls (`physics.World.reset`, `.scenario`,
+    `.push`), and drives are told on their
     10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
-    from machine import edge, figure, layouts, routines, senses
+    from machine import edge, figure, layouts, routines
+    from machine.aircraft import senses
     wrote = []
     for name in GYM + AERO_LAWS:
         tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())

@@ -1,6 +1,6 @@
 """The dual-domain kernel's ops by the mechanism each feeds on her loop.
 
-Its texts machine/ortho_kernel/, read by `machine.dsp`; its protocol docs/todo/protocol.md.
+Its texts lisp/humanoid/kernel/, read by `machine.dsp`; its protocol docs/todo/protocol.md.
 """
 import functools
 

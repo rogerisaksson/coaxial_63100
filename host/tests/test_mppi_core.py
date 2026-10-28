@@ -20,7 +20,7 @@ from test_aero_core import BANNED, FLAGGED, JUMPS
 
 def _state(np, rng, h=0.6):
     """A plane in the air at `h`, its nose up and leant, a little speed and spin."""
-    from machine import se3mpc
+    from machine.aircraft import se3mpc
     a, b = rng.normal(0.0, 0.4, 3), rng.normal(0.0, 0.4, 3)
     k = np.array([[0.0, -a[2], a[1]], [a[2], 0.0, -a[0]], [-a[1], a[0], 0.0]])
     t = float(np.linalg.norm(a))
@@ -75,7 +75,7 @@ def test_the_c_is_its_twin(report):
     """A pass's rollouts from states in the air, under controls about a hover's: each one's cost
     on the CPU's C and on a card where one answers, against the numpy twin's, to 1e-12."""
     import numpy as np
-    from machine import aerobat
+    from machine.aircraft import aerobat
     rng = np.random.default_rng(7)
     x, se3mpc = _state(np, rng)
     cpu = se3mpc.Mppi(aerobat, k=256, xp=np)
@@ -101,7 +101,7 @@ def test_the_twin_is_the_plant(report):
     """At states in the air, under controls across their range: the twin's force and torque the
     plant's own - `aerobat`'s inflow, drag and propeller, `wingborne.Wing`'s wing and side."""
     import numpy as np
-    from machine import aerobat
+    from machine.aircraft import aerobat
     rng = np.random.default_rng(11)
     worst = [0.0, 0.0]
     for _ in range(40):

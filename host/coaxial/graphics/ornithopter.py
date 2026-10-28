@@ -3,7 +3,7 @@
     lines = render(pose, rotors, 96, 40, lit=gpu.LitRaster())   # the GPU's lit raster
     lines = render(pose, rotors, 96, 40)                        # its dots splatted here
 
-`pose` is `machine.ornithopter.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the fore
+`pose` is `machine.aircraft.ornithopter.Sky.state()`'s, its 'turn', 'at' and 'controls'; `rotors` the fore
 and aft 63100 drives' (angle rad, speed rad/s, can C, board C[, sink C]), each can, board and
 heatsink painted their heat (`ansi.thermal_rgb`). All four dragonfly wings articulate in diurnal
 stroke, feathering pitch, and backward dive-fold sweep; above `BLADES_RAD_S`, their wingtip
@@ -18,7 +18,7 @@ from coaxial.graphics.lit import CORE, PLATE, paint, project
 from coaxial.graphics.quadcopter import (BLADES_RAD_S, BOARD_H, BOARD_R, CARBON, CELLS,
                                          MASK, MOTOR_R, RIM_EVERY, RIM_INK, SHAFT_R, SINK_H,
                                          SINK_R, Mesh, _at, pose_meshes, render_craft)
-from machine import ornithopter as orni_phys
+from machine.aircraft import ornithopter as orni_phys
 
 #: The camera: the eye's distance in reaches framed, and the reach the ornithopter fills, m -
 #: the 4 articulated wings spanning 0.56 m out, the split V-tail at -0.64 m.

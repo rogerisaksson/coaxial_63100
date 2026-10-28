@@ -23,10 +23,10 @@ import re
 @functools.lru_cache(maxsize=1)
 def _comments():
     """{name: the ;; comment over its (defbehavior name ..) or (defpatch name ..)} of her texts and
-    the suite's (machine/*.lisp, machine/ortho_dsp/*.lisp), its gym slot ('9: hop: ') cut; a (defbehavior
+    the suite's (lisp/humanoid/*.lisp, lisp/humanoid/suite/*.lisp), its gym slot ('9: hop: ') cut; a (defbehavior
     hop (extends hop)) passed over, its comment the specialization's ('propulsion spring specialization')."""
     out, here = {}, os.path.dirname(__file__)
-    for path in sorted(glob.glob(os.path.join(here, '*.lisp')) + glob.glob(os.path.join(here, 'ortho_dsp', '*.lisp'))):
+    for path in sorted(glob.glob(os.path.join(os.path.dirname(here), 'lisp', 'humanoid', '*.lisp')) + glob.glob(os.path.join(os.path.dirname(here), 'lisp', 'humanoid', 'suite', '*.lisp'))):
         lines = open(path, encoding='utf8').read().splitlines()
         for k, line in enumerate(lines):
             m = re.match(r'\((?:defbehavior|defpatch)\s+([\w-]+)(\s+\(extends\s+([\w-]+))?', line)

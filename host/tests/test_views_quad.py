@@ -61,7 +61,7 @@ def test_its_wind_is_pointed(report):
     """terminal.views.quad.wind: the dial's up is into the screen - a wind along the heading of
     a frame seen from behind points up, against it down; its needle the longer the stronger;
     its rows the dial and the air's kind, kept, in words."""
-    from machine import weather
+    from machine.aircraft import weather
     from terminal.views.quad import wind
     ways = [math.degrees(wind.seen((0.0, 0.0, z), 180.0)[0]) for z in (3.0, -3.0)]
     dots = [sum(bin(cell).count('1') for row in wind.dial(0.7, share)[1] for cell in row)
@@ -99,7 +99,7 @@ def test_the_page_flies_four_boards(report):
     fall burned to a stop over the floor and held at 10 cm; the bus drooping under it; the pack
     spent in the second flight, the way down, a charged one on the floor and its routine again
     - the observers kept through it all."""
-    from machine import aerobatics, flightpack, quad
+    from machine.aircraft import aerobatics, flightpack, quad
     from terminal.views.quad import flight as flown
     first = aerobatics.CARD[[name for name, *_row in aerobatics.CARD].index('hover') + 1][0]
     # The routine alone, flight after flight, into the one after the pack's change.
@@ -177,7 +177,7 @@ def test_the_page_flies_its_course(report):
     behind, its gates stood in the view, the one flown to next lit; every gate passed inside
     its opening on each lap it flew; the boards to their ceiling at the most, none tripped;
     landed where it rose."""
-    from machine import course, grounds
+    from machine.aircraft import course, grounds
     rows, frames, rate = paged(course.CARD, lambda flew, now: now in ('idle', 'cool', 'swap')
                                and 'land' in flew)
     laps = [r for r in rows if r['name'] == 'lap']
@@ -258,7 +258,7 @@ def test_r_records_its_flight(report):
     it, A resets the flight, and while it records the drawing says REC."""
     import csv
     import tempfile
-    from machine import grounds, quad
+    from machine.aircraft import grounds, quad
     from terminal.ui import recorder
     from terminal.views import show_quad
     from terminal.views.quad import keys

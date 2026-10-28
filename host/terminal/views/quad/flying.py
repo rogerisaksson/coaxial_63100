@@ -5,7 +5,7 @@ wall and no further than its lead past what the page has shown; each step said a
 it: the frame, its rotors, the flight's instruments. The page plays them back steady
 (`terminal.views.playback`, `blend`): in real time or slower, never run ahead.
 
-    flying = Flying(machine.helicopter, terminal.views.helicopter.flight, 2)
+    flying = Flying(machine.aircraft.helicopter, terminal.views.helicopter.flight, 2)
     said = flying.first()                  # the states said before the first frame
     said = flying.said()                   # since the last; the page shows them and says so:
     flying.shown(t)
@@ -23,7 +23,8 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
-from machine import aerobatics, aerokin, apart, flightpack, gimbal, grounds, weather
+from machine import apart
+from machine.aircraft import aerobatics, aerokin, flightpack, gimbal, grounds, weather
 from machine.modes import EMULATED, SIMULATED
 from terminal.views.quad import flight as qflight
 
@@ -48,7 +49,7 @@ def arm_emulated(rig, clock=1, warm_s=100.0, room='bench', rotor_m=None):
     from coaxial.control.commission import Commissioning
     from coaxial.control.motion import started
     from coaxial.simulated.sto import PILOT_VOLTS
-    from machine import pull, quad
+    from machine.aircraft import pull, quad
     from machine.controller import Feedback
     from machine.parts import Gain, Slew, SpeedPI
     rotor_m = rotor_m or pull.ROTOR

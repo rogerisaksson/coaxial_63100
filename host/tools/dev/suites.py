@@ -174,13 +174,13 @@ SCENES = 'test_scenarios.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
-#: The plane's rollouts for its predictive control (mppi/, machine.se3mpc).
+#: The plane's rollouts for its predictive control (mppi/, machine.aircraft.se3mpc).
 MPPI_CORE = 'test_mppi_core.py'
 
 #: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
-#: The quad's suites; what a change reaches. Its action space (machine.pull) against the
+#: The quad's suites; what a change reaches. Its action space (machine.aircraft.pull) against the
 #: board's law on the stand-in.
 QUAD, QUAD_COURSE, QUAD_PAGE = 'test_quad.py', 'test_quad_course.py', 'test_views_quad.py'
 QUAD_PULL, SWEEP = 'test_quad_pull.py', 'test_sweep.py'

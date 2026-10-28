@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A text's streams flown: `machine.quad`'s frame in MuJoCo on the core (aero/), ideal rotors.
+"""A text's streams flown: `machine.aircraft.quad`'s frame in MuJoCo on the core (aero/), ideal rotors.
 
     python tools/sim/streams.py                                  # the power loop, a row a stream
     python tools/sim/streams.py my.aero --seconds 3,2 --air 3    # a file's, in the tour's air
@@ -13,7 +13,7 @@ off up, the rates -, and over it the axis's tilt, the most any rate was, the hei
 of its passes a rotor stood at an end of its reach, what was struck. The ideal rotors come to a
 thrust asked inside their reach a pass on (`aero.reach`), a rotor's own lag taken out of the
 ask; the boards' are their own loops', a pass of the core each of the world's steps. A card
-(`machine.aerobatics`', `machine.course`'s) is a row a pass, each a payload (`machine.aerokin`):
+(`machine.aircraft.aerobatics`', `machine.aircraft.course`'s) is a row a pass, each a payload (`machine.aircraft.aerokin`):
 a row a figure.
 """
 import argparse
@@ -24,11 +24,11 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, senses, weather
+from machine.aircraft import aerobatics, aerokin, aerolisp, course, grounds, intents, pull, quad, senses, weather
 from tools.cores import aero
 
 #: The ideal rotors: their top, rad/s, and what their speed changes by at the most, rad/s^2 -
-#: the flight's clamp's and its loops' slew (`machine.pull`), no link theirs to run short -,
+#: the flight's clamp's and its loops' slew (`machine.aircraft.pull`), no link theirs to run short -,
 #: and their lag to a speed inside that, s - the race's (`tools/sim/quad_race.py`).
 TOP_RAD_S, SPOOL_RAD_S2, LAG_S = pull.held(pull.I_MAX), pull.slew(pull.I_MAX), 0.02
 

@@ -9,7 +9,7 @@ from views_kit import Report
 def _routine():
     """The card flown as the page flies it on the airfield, its gates down: {stage: [rows]},
     the stages in order, the sky."""
-    from machine import aerobat, aerobatics, aerokin, airfield, pull, se3mpc
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, pull, se3mpc
     dt, by_stage, stages = 1.0 / 120.0, {}, []
     top = aerobat.PULL_MAX
     rest, foot = se3mpc.points(aerobat)[2], aerobat.SKID_M + aerobat.FOOT_M
@@ -47,7 +47,7 @@ def _routine():
 def _opening_in_wind():
     """The routine's opening (`idle` .. `prop-hang`) flown with `core.plan` at 50 Hz and 10x
     `core.step` at 500 Hz in `weather.air(3)`, as the live page flies it."""
-    from machine import aerobat, aerobatics, aerokin, airfield, weather
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, weather
     dt, tick = 0.02, 0.002
     rc, rs = math.cos(airfield.RUNWAY_RAD), math.sin(airfield.RUNWAY_RAD)
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
@@ -77,7 +77,7 @@ def test_aerobat_routine(report):
     knife-edge back down it at 20 m/s - its wings within 20 deg of upright, its lower tip a few
     centimetres over the runway -, a low rolling harrier pass back up the runway, its 3D figures,
     its circuit and down on the runway."""
-    from machine import aerobat
+    from machine.aircraft import aerobat
     c, stages, sky = _routine()
     hit_w, stage_w, held_w, roll_w, across_w = _opening_in_wind()
     hov, ft, burn, hold, land = (c[k] for k in ('prop-hang', 'full tilt', 'burn', 'hold', 'land'))
@@ -115,7 +115,7 @@ def test_aerobat_airfield_laps(report):
     """The aerobat laps its airfield's course in gusty wind - through the air gate, under the
     limbo bar, up through the hoop, round each pylon on its line's side, through the knife gate
     on its side - and lands on its runway along it."""
-    from machine import aerobat, aerobatics, aerokin, airfield, pull, weather
+    from machine.aircraft import aerobat, aerobatics, aerokin, airfield, pull, weather
     dt, tick, foot = 0.02, 0.002, aerobat.SKID_M + aerobat.FOOT_M
     sky, core, law = aerobat.Sky(airfield.solids()), aerobat.Core(), aerokin.fresh()
     route, air = aerobatics.routine(airfield.CARD), weather.air(7, 'gusty')

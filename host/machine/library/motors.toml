@@ -32,7 +32,7 @@ stator_j_k = 180.0
 # (mm, g, KV, line-to-line mohm, peak N m where a page gives one). Their rotors are estimated as
 # the U8 II's share of its mass at its can's radius (0.39 m r^2), their windings' heat 1.1 J/K a
 # gram; the U8 Lite's and the LA8308's peaks as their stators' class, 4.0 and 3.5 N m. A build
-# names them in `machine/robots`; her own keeps the two above (motors cost, variants of boards
+# names them in `machine/humanoids`; her own keeps the two above (motors cost, variants of boards
 # and gearboxes cost more).
 
 [U8_LITE]
@@ -90,7 +90,7 @@ rotor_kgm2 = 1.15e-4
 kv = 115.0
 stator_j_k = 273.0
 
-# For the performance build (machine/robots/gynoid_mesomorph_medium_performance.toml): the U12
+# For the performance build (machine/humanoids/gynoid_mesomorph_medium_performance.toml): the U12
 # II's 7.9 N m is its page's test point at 48 V (94.3 A, 4742 rpm, 4.5 kW, 95 A for 180 s), the
 # U10 II's peak its stator's class (1.6 kW, 32 A for 180 s); rotors and windings' heat estimated
 # as the others above.

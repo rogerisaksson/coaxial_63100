@@ -9,7 +9,7 @@
     theta = substrate.phase(z, zdot, omega)                  # rad: an oscillating bed's phase, its bottom pi
     z, zdot = substrate.bed(z, zdot, force, mass, k, d, dt)  # a bed's deflection a tick on
 
-The kernel's deformable texts (machine/ortho_kernel/deformable_*.lisp). z up, a bed's or a substrate's surface from
+The kernel's deformable texts (lisp/humanoid/kernel/deformable_*.lisp). z up, a bed's or a substrate's surface from
 where it was touched; a force on it positive down. Flat arrays and arithmetic: no branch, no loop, no dict.
 """
 import os

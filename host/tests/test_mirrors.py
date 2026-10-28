@@ -295,7 +295,7 @@ def test_her_manifest_is_her_build(r):
     import re
 
     def peaks(robot):
-        with open(os.path.join(mechatronics.HERE, robot + '.manifest.lisp'), encoding='utf-8') as f:
+        with open(os.path.join(mechatronics.LISP, 'humanoid', 'builds', robot + '.manifest.lisp'), encoding='utf-8') as f:
             return {d: float(p) for d, p in re.findall(r'\(drive (\S+) .*?\(peak ([-\d.]+)\)', f.read())}
     hers, faster = peaks(mechatronics.ROBOT), peaks(mechatronics.ROBOT + '_performance')
     weaker = {d: (p, faster.get(d)) for d, p in hers.items() if faster.get(d, -1.0) < p}

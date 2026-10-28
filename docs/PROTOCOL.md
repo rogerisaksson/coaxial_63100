@@ -532,7 +532,7 @@ said.
 | op | Request | Reply |
 | --- | --- | --- |
 | 0 lay | `i32 mass, i32 gravity, i32 x3 inertia, i32 x4 at_x, i32 x4 at_z, i8 x4 spin, i32 kappa, i32 x4 weigh, i32 wo_turn, i32 wo_pull, i32 rise, i32 lean, i32 drag, i32 inflow, i32 wo_wind` | `u8 took`; aero_params_t - kg, m/s^2, kg m^2 in billionths, m; the weights and the three rates in thousandths; the core's memory as before a first pass |
-| 1 step | `i32 x9 r, i32 x3 spin, i32 x3 vel, i32 height, i32 x4 given, i32 x4 lo, i32 x4 hi, u32 dt, bytes` | `u8 took, u32 cycles, u32 sysclk_hz, i32 x4 thrust, u32 bound, i32 x4 asked, i32 x4 gave, i32 x3 axis, i32 x3 miss, i32 x3 turned, i32 x3 pushed, i32 x2 head, i32 x3 wind`: a pass on the reading (aero_in_t, `dt` microseconds) and the payload, its author's 124 bytes (`machine.aerolisp`); the cycles it took; aero_out_t. Refused before a frame is laid |
+| 1 step | `i32 x9 r, i32 x3 spin, i32 x3 vel, i32 height, i32 x4 given, i32 x4 lo, i32 x4 hi, u32 dt, bytes` | `u8 took, u32 cycles, u32 sysclk_hz, i32 x4 thrust, u32 bound, i32 x4 asked, i32 x4 gave, i32 x3 axis, i32 x3 miss, i32 x3 turned, i32 x3 pushed, i32 x2 head, i32 x3 wind`: a pass on the reading (aero_in_t, `dt` microseconds) and the payload, its author's 124 bytes (`machine.aircraft.aerolisp`); the cycles it took; aero_out_t. Refused before a frame is laid |
 
 ### Drive op 14
 

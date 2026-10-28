@@ -9,7 +9,7 @@ def hover(k=5000.0, d=80.0, extra='', blend=0, sequence=1, pitch='0deg', roll='0
           thrust='9.81'):
     """A payload: level - or `pitch`, `roll` - on the collective `thrust`, `k` and `d` on the
     tilt's modes, `extra` blocks after."""
-    from machine import aerolisp
+    from machine.aircraft import aerolisp
     from tools.cores import aero
     return aero.payload(aerolisp.compiled(
         '(stream_inject (sequence_id %d) (blend_duration %dms) (latent_targets '
@@ -24,7 +24,7 @@ def asks():
     the same whatever it is asked: the power loop's four streams and its first again; the
     frame level at rest, tilted and turning, on its back, its rotors' reach shut, and nothing
     given over a pass of 20 ms."""
-    from machine import aerolisp, intents, pull, quad
+    from machine.aircraft import aerolisp, intents, pull, quad
     flown = aerolisp.compiled(intents.POWER_LOOP, {
         'MAX_SYS_THRUST': pull.thrust(pull.top(1.0, pull.I_MAX)) / quad.MASS_KG})
     hover_n, c, s = quad.MASS_KG * quad.GRAVITY / 4.0, math.cos(0.7), math.sin(0.7)
@@ -42,7 +42,7 @@ def asks():
 
 
 def params():
-    """`machine.quad`'s frame as a board is laid it (`coaxial.devices.aero.Aero.lay`): its
+    """`machine.aircraft.quad`'s frame as a board is laid it (`coaxial.devices.aero.Aero.lay`): its
     params by name."""
     from tools.cores import aero
     frame = aero.frame()
@@ -80,7 +80,7 @@ class Vacuum:
 
     def __init__(self, dt=FINE, slew=None, height=5.0, wind=None):
         import numpy as np
-        from machine import quad
+        from machine.aircraft import quad
         from tools.cores import aero
         self.np, self.quad, self.aero = np, quad, aero
         params = aero.frame()

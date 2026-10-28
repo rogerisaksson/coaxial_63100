@@ -10,7 +10,8 @@ def test_the_flight_apart_keeps_to_what_is_shown(report):
     past LEAD_S of what the page has shown while it shows nothing, a state a STEP_S as the page
     shows it in real time and none ahead of the wall; A begins it again, a new epoch."""
     import time
-    from machine import apart as world_apart, quad
+    from machine import apart as world_apart
+    from machine.aircraft import quad
     from terminal.views.quad import flight as view
     from terminal.views.quad import flying
     lead = world_apart.LEAD_S

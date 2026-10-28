@@ -1,4 +1,4 @@
-"""The quad's action space (machine.pull) against the board's law: a rotor's top, its reach, its
+"""The quad's action space (machine.aircraft.pull) against the board's law: a rotor's top, its reach, its
 stage's watts on a stand-in; the four's on their pack."""
 import sys
 
@@ -28,7 +28,7 @@ def off(rig):
 
 def turned(rig, rotor, dt):
     """A rotor `dt` s on under its propeller: its speed, rad/s."""
-    from machine import quad
+    from machine.aircraft import quad
     drive = rig.board.drive
     drive.paced(dt)
     w = drive.model.read()['omega'] / rotor['pairs']
@@ -41,7 +41,7 @@ def test_the_space_closes(report):
     leaves, the reach none at either; the tables read between two rows are the top sought
     there; the four on their pack are under one on its open volts, and under less charge
     lower."""
-    from machine import flightpack, pull
+    from machine.aircraft import flightpack, pull
     rotor = pull.ROTOR
     clamp = [abs(pull.torque(pull.held(a)) / rotor.kt - a) for a in (10.0, pull.I_MAX, pull.I_WEP)]
     link = [abs(pull.room(pull.linked(v), v) - pull.torque(pull.linked(v)) / rotor.kt)
@@ -75,7 +75,7 @@ def test_a_rotors_top_is_the_laws(report):
     """A stand-in board armed as the page arms it: the space's motor is its record's; its
     rotor's steady top, the q current asked up to its clamp on a held link, is the space's -
     where the clamp ends it and where the link does."""
-    from machine import pull
+    from machine.aircraft import pull
     rig, rotor = armed()
     try:
         drive = rig.board.drive
@@ -109,7 +109,7 @@ def test_a_rotors_reach_and_watts(report):
     """A stand-in rotor stepped from a hover's current to its clamp: its speed gains what the
     space says, on a full link and where a spent one leaves less than the clamp; steady under
     its loop its stage and the law's own v . i take its shaft's and its copper's watts."""
-    from machine import pull
+    from machine.aircraft import pull
     from terminal.views.quad import flight as view
     rig, rotor = armed()
     gains, taken = [], []
@@ -160,7 +160,7 @@ def test_four_on_their_pack(report):
     """Four stand-in boards asked past their top on one pack, their thermal derate held off:
     they come to the top the space has for the charge left in it, the bus where their draw
     leaves it."""
-    from machine import flightpack, pull
+    from machine.aircraft import flightpack, pull
     from terminal.views.quad import flight as view
     rigs = [armed() for _ in range(4)]
     cells, rows = flightpack.pack(), []

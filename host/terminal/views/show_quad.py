@@ -1,25 +1,25 @@
 """QUAD: four coaxial boards flying a frame in MuJoCo, its routine, then gates among trees.
 
-A 2 kg frame (machine.quad) on four stand-in boards, each armed on the master's pilot, its
+A 2 kg frame (machine.aircraft.quad) on four stand-in boards, each armed on the master's pilot, its
 drive sensorless on the 63100 outrunner's model under a 16x14 propeller, its speed loop
 on the drive's own estimate; the four on one pack, 63 V full, its bus drooping under what they
 take; the frame in MuJoCo on the rotors' thrust and drag, gravity and the air
 (terminal.views.quad.flight). It flies flight after flight: first its routine
-(machine.aerobatics' rows, machine.aerokin's payloads on aero/) - a pirouette, an orbit and a corkscrew up, a roll
+(machine.aircraft.aerobatics' rows, machine.aircraft.aerokin's payloads on aero/) - a pirouette, an orbit and a corkscrew up, a roll
 and a flip over a toss, full tilt into the sky, the fall burned to a stop 10 cm over the floor -
-its boards and their thermal observers warmed on it; then the course (machine.course): two laps
+its boards and their thermal observers warmed on it; then the course (machine.aircraft.course): two laps
 through sixteen gates - two slaloms, a climb, a dive, a hall's windows, an alley - raw, as fast
 as its plan's sphere takes it, a dive pushed down inverted. What stands is solid: struck, the
 flight is over, the wreck lies where it falls and the flight is begun again. Its rows have the
-pull the action space has for them (machine.pull): the rotors' on what each board holds of
+pull the action space has for them (machine.aircraft.pull): the rotors' on what each board holds of
 its clamp - WEP's at the most - and on the pack's charge; spent, it comes down for a charged
-pack, or to cool. It is flown in the air's weather (machine.quad): a wind, gusts over it and eddies in it,
+pack, or to cool. It is flown in the air's weather (machine.aircraft.quad): a wind, gusts over it and eddies in it,
 a kind at a time or one kept (W), none of it told to the law - its way and size a pointer at
 the side (terminal.views.quad.wind). Its routine is flown on the airfield, watched from beside its
-runway, the course among its grounds, chased (machine.grounds.world, coaxial.graphics.quadcopter,
+runway, the course among its grounds, chased (machine.aircraft.grounds.world, coaxial.graphics.quadcopter,
 scenery); the height and the power, the bus and the hottest
 board over the last half minute are boxes at the side (terminal.views.quad.traces). In the
-viewport's corner the picture of the camera it carries on a stabilised gimbal (machine.gimbal,
+viewport's corner the picture of the camera it carries on a stabilised gimbal (machine.aircraft.gimbal,
 coaxial.graphics.onboard), there or not (C).
 
     python terminal/views/show_quad.py
@@ -34,7 +34,7 @@ from rich.text import Text
 
 from coaxial.draw.gauges import policy_word
 from coaxial.graphics import engine, inset, onboard, quadcopter
-from machine import airfield, flightpack, gimbal, grounds, pull, quad
+from machine.aircraft import airfield, flightpack, gimbal, grounds, pull, quad
 from terminal.loader import answer
 from terminal.ui import recorder
 from terminal.ui.console import WHEEL_STEP

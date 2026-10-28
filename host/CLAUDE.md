@@ -4,7 +4,7 @@
   line per module; `--api` adds public signatures; `--layers` the import
   graph by package, `--deps` per module). A module opens on a one-line
   brief of at most 100 characters; `test_structure` holds it.
-- `COAXIAL_ROBOT=<robot>` runs another build (`machine/robots`), its text,
+- `COAXIAL_ROBOT=<robot>` runs another build (`machine/humanoids`), its text,
   manifest and corrections with it (`machine.mechatronics`); hers without.
 - Domains, imports one way: `motor/` (the PMSM; imports nothing here),
   `machine/` (the executive over IO nodes; imports no board), `coaxial/`

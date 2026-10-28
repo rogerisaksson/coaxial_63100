@@ -1,4 +1,4 @@
-"""The rotorcraft's sweep past the spectator (`machine.sweep`): the quad on its core and ideal
+"""The rotorcraft's sweep past the spectator (`machine.aircraft.sweep`): the quad on its core and ideal
 rotors, the helicopter and the ornithopter in MuJoCo, each through its sweep and home; their
 routines on the airfield (`grounds.world`)."""
 import math
@@ -12,7 +12,7 @@ from views_kit import Report
 def _swept(name, rows, report):
     """`rows` (stage, along, across, m up, m/s, struck) checked: past the runway's middle - the
     spectator beside it - fast and low on the sweep's line, home for its figures."""
-    from machine import sweep
+    from machine.aircraft import sweep
     low = sweep.ACROSS_M - 2.0 * sweep.TURN_M
     past = [r for r in rows if r[0] == 'sweep' and abs(r[1] + 2.0) < 1.0 and abs(r[2] - low) < 1.0]
     home = [r for r in rows if r[0] == 'hover']
@@ -26,7 +26,7 @@ def _swept(name, rows, report):
 
 
 def _row(stage, state, hit):
-    from machine import airfield
+    from machine.aircraft import airfield
     s, c = math.sin(airfield.RUNWAY_RAD), math.cos(airfield.RUNWAY_RAD)
     x, z = float(state['at'][0]), float(state['at'][2])
     return (stage, x * s + z * c, x * c - z * s, state['h'],
@@ -35,7 +35,7 @@ def _row(stage, state, hit):
 
 def test_the_quad_sweeps(report):
     """The quad's routine opened by the sweep, on its core and ideal rotors among what stands."""
-    from machine import aerobatics, aerokin, grounds, sweep
+    from machine.aircraft import aerobatics, aerokin, grounds, sweep
     from tools.sim import streams
     dice, flight = random.Random(1), streams.Flight(None, things=grounds.solids())
     sky, route, law = flight.sky, aerobatics.routine(sweep.opened(aerobatics.CARD)), aerokin.fresh()
@@ -52,7 +52,7 @@ def test_the_quad_sweeps(report):
 
 def test_the_helicopter_and_the_ornithopter_sweep(report):
     """Their routines opened by the quad's sweep, on their course's sphere, in MuJoCo."""
-    from machine import aerobatics, aerokin, grounds, helicopter, ornithopter, pull, sweep
+    from machine.aircraft import aerobatics, aerokin, grounds, helicopter, ornithopter, pull, sweep
     dt, tick = 0.02, 0.002
     for craft in (helicopter, ornithopter):
         sky, core, law = craft.Sky(grounds.solids()), craft.Core(), aerokin.fresh()
@@ -77,7 +77,7 @@ def test_the_helicopter_and_the_ornithopter_sweep(report):
 def test_the_routines_fly_the_airfield(report):
     """The rotorcraft's world (`grounds.world`): the course's grounds standing for its flights
     alone, the airfield's runway and what stands by it for the routines, as the aerobat's."""
-    from machine import airfield, grounds, quad
+    from machine.aircraft import airfield, grounds, quad
     sky = quad.Sky(grounds.world())
 
     def struck(x, y, z):

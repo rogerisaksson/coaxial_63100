@@ -1,9 +1,9 @@
 # Findings: air
 
-The air every craft flies through (`machine.weather`); the quad's frame in it:
+The air every craft flies through (`machine.aircraft.weather`); the quad's frame in it:
 [quad](quad.md).
 
-`machine.weather`: `AIR`, `blown`.
+`machine.aircraft.weather`: `AIR`, `blown`.
 
 - One kind of weather at a time: calm, constant, gusty, changing, turbulent,
   20 s each or one kept (W), eased in on an S over 8 s. A wind of 0.5-4 m/s
@@ -19,7 +19,7 @@ The air every craft flies through (`machine.weather`); the quad's frame in it:
 - The law is told none of it and learns the wind from its drag in 0.12 s:
   a hover at 5 m in 3.9 m/s stood 0.68 m off its spot unlearnt, never
   `held`; 0.03 m learnt; in gusts to 6.8 m/s 0.23 m at most.
-- On its instruments (`machine.senses`: the attitude 0.2 deg off, RTK fixes
+- On its instruments (`machine.aircraft.senses`: the attitude 0.2 deg off, RTK fixes
   at 20 Hz 60 ms behind, 2 cm and 3 cm/s) a hover at 1.5 m holds its spot
   within 5-6 cm rms, 8-10 cm at most, in every air, calm too - the tilt on
   gravity through the filter, not the wind; on the truth 0-2 cm, 7 cm in

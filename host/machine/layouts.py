@@ -72,7 +72,8 @@ def bus_layout_svg():
 def software_layout_svg():
     """Render the live 5-layer gynoid software systems engineering & real-time control architecture
     as a deterministic SVG diagram for `docs/architecture/software_layout.svg`."""
-    from machine import latent, modal, senses, sprung
+    from machine import latent, modal, sprung
+    from machine.aircraft import senses
     law_hz = round(sprung.RATE_HZ / sprung.STACK_EVERY)
     rate_khz = round(sprung.RATE_HZ / 1000.0)
     mbps = round(BAUD / 1e6)

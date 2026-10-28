@@ -163,7 +163,7 @@ back (`tests/test_gynoid.py`).
 
 ## As data
 
-- Her build's parts as files (`machine/library`, `machine/robots`): every
+- Her build's parts as files (`machine/library`, `machine/humanoids`): every
   drive's kt, peak, armature, speed, drag, shock, ohm, mass, length and heat
   the same to the bit for all 27 joints; `docs/DIMENSIONS.md` unchanged;
   `drives.py` 5.8 k -> 4.7 k tokens.

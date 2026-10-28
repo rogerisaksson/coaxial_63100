@@ -34,7 +34,7 @@ and the patches in [scenarios](scenarios.md) walk it.
   under the highest surface's grip, 0.25 -; a sole landing starts from what she
   knows of the floor: kept from the slick patch, her reach was 5 cm on a floor
   of 1.0 for a second and she fell there.
-- A slippery floor is a situation of her text (`machine/situations.lisp`,
+- A slippery floor is a situation of her text (`lisp/humanoid/situations.lisp`,
   `(defsituation slippery (grip below 0.25) ..)`, [situation](situation.md)):
   under its grip her rhythm's amplitudes no more than its, whatever she does,
   blended in over the fifth under 0.25, `ice_walk`'s shape. What she is told of

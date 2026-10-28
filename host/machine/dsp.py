@@ -1,4 +1,4 @@
-"""The ortho-DSP suite's lisp (machine/ortho_dsp/) evaluated: its states, stages and patches.
+"""The ortho-DSP suite's lisp (lisp/humanoid/suite/) evaluated: its states, stages and patches.
 
     got = dsp.read(dsp.SUITE)                    # every name the texts define, evaluated
     g = got['patch-sneaker-runway']              # a gait: {node: {param: value}}
@@ -20,7 +20,7 @@ import os
 import struct
 from typing import Any
 
-from machine import ortho, patch
+from machine import mechatronics, ortho, patch
 from machine.kernel import KEYED, MECHANISMS, QUERIES
 from machine.errors import MachineError
 
@@ -51,12 +51,12 @@ LANGUAGE = (':cl',)
 
 
 def _modules(folder):
-    return _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(os.path.dirname(__file__), folder, '*.lisp'))))
+    return _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(mechatronics.HUMANOID, folder, '*.lisp'))))
 
 
 #: The suite's modules, read each after those it uses; the dual-domain kernel's (docs/todo/protocol.md).
-SUITE = _modules('ortho_dsp')
-KERNEL = _modules('ortho_kernel')
+SUITE = _modules('suite')
+KERNEL = _modules('kernel')
 #: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound;
 #: scaled or added, it keeps the op for her own value.
 Op = collections.namedtuple('Op', 'name value')
