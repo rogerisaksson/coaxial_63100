@@ -155,7 +155,12 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
     `degraded_scoot_and_crawl_*.lisp`, fitted to her body): read whole; the
     partition of a High-Z joint, the escort's roll and the yaw's arm in
     `machine.crawl` ([support](../findings/support.md); test_crawl); her
-    loop runs none of it. Left: a drive's authority on her loop (the 63100's
+    loop runs none of it. `machine.clocked` writes the first segment as her
+    text's phases, 32 turns of a stroke and her sled's: played after her
+    descent, MuJoCo's floor bears her seat 0 N (it touches; her hands 200 N
+    0.18 m behind it), the strokes lift her pelvis 0.16 -> 0.25 m, she slides
+    back 0.29 m and falls at 7.5 s. Left: her seat loaded in the sit; a
+    drive's authority on her loop (the 63100's
     gates off, its backdrive kept); her frog's turnout at her hip yaw's 25
     deg, her shoulders unabducted. DOD:
     `compile-scoot-and-lowcrawl-suite-soa` played on her loop, 1 m each
