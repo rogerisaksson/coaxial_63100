@@ -50,12 +50,12 @@ GYMS = (mechatronics.ROBOT, 'examples')
 
 def entries(text=None, name=GYMS[0], texts=None, suite=None):
     """[(label, wire, names)]: the gym's entries of `text` - machine/`name`.lisp's, hers with the
-    ortho-DSP suite's stunts played on it (`maneuver.texts`) -, of her texts `texts` ({key: text})
-    and the suite `suite` where given, else their files'."""
+    ortho-DSP suite's stunts played on it (`maneuver.texts`) and the kernel's clocked gaits (`clocked.texts`) -, of
+    her texts `texts` ({key: text}) and the suite `suite` where given, else their files'."""
     if text is None:
-        from machine import maneuver
+        from machine import clocked, maneuver
         text = ortho.source(os.path.join(os.path.dirname(__file__), name + '.lisp'), texts) + (
-            '\n' + maneuver.texts(suite) if name == GYMS[0] else '')
+            '\n' + maneuver.texts(suite) + '\n' + clocked.texts() if name == GYMS[0] else '')
     tables, phases = ortho.compiled(text, texts=texts)
     sz = ortho.ROW.size
     stream = [tables[''][i:i + sz] for i in range(0, len(tables['']), sz)]

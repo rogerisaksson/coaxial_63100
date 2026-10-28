@@ -148,6 +148,13 @@ scenarios: [scenarios](scenarios.md).
   mu_sled) of her, 0.44-0.48 on the patches' frictions: the scoot's (0.75)
   hold 0.601 of the vault's half turn, the stairs' (0.65) 0.469, the hip
   drag's (0.28) and the army crawl's (0.35) none.
+- A dead leg (`degraded_scoot_and_crawl_*.lisp`, `crawl.partitioned`): her
+  freewheeling knee holds 1.23 N m of backdrive, her shank and foot (2.31
+  kg) level turn it 4.6 - it folds; a 0.22 rad roll onto one buttock lifts
+  her far hip 35.6 mm (163 mm across); her heel 30 mm off her midline, her
+  hands 148, the dead side's arm pushes 1.20 of the other for no yaw; her
+  anchors hold the low crawl's belly from 0.441 of her, the seal drag's from
+  0.509.
 - Laid rigid, the dog's origin rests on its hands and toes; her back's bridge
   lies on her arms, its feet 313 mm up; the scooter's heels and fists hold her
   pelvis 25 mm up.

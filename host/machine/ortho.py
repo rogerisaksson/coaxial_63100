@@ -312,6 +312,7 @@ def _parents(name, spec, raw, traits):
                 for tr in post_traits:
                     _merge(r, tr, _PHASE)
                 _merge(r, b_row, _PHASE)
+                r[_FLAGS] = b_row[_FLAGS] or r[_FLAGS]
                 b_list.append((b_name, r))
             base, pre_traits, post_traits = b_list, pre_traits + post_traits, []
         elif p in traits:

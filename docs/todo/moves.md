@@ -145,10 +145,22 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 12. **Her observer's split in balance** (items 8 and 11 lean on it): in the
     floor scoot's squat her knees on their stops (17-25 N m) and her thighs
     on her belly (330-760 N) read 72-143 N on her butt with none there, her
-    soles pulling (-138 N; -1 365 N tumbling). On branch `observer-balance`
-    (`prior_regularized_observer.lisp`): standing 306/0/0 N, walk soles p95
-    35 N, hop 5; test_floor's scoot falls at 8.2 s, her thighs' load read
-    on her seat (her registry's thigh point by her hip) and her butt never
-    landing. DOD: in the squat and the scoot each manifold within 10 % of
-    her weight of MuJoCo's contacts, their sum her momentum's; airborne in
-    a hop, none; every suite as green.
+    soles pulling (-138 N; -1 365 N tumbling). `prior_regularized_observer.lisp`
+    on her loop: standing 306/0/0 N, walk soles p95 35 N, hop 5. DOD: in the
+    squat and the scoot each manifold within 10 % of her weight of MuJoCo's
+    contacts, their sum her momentum's; airborne in a hop, none; every suite
+    as green.
+13. **A dead limb's scoot and low crawl** (asked; the kernel's
+    `degraded_scoot_and_crawl_*.lisp`, fitted to her body): read whole; the
+    partition of a High-Z joint, the escort's roll and the yaw's arm in
+    `machine.crawl` ([support](../findings/support.md); test_crawl); on her
+    loop the first segment alone, `machine.clocked`'s 32 turns of a stroke
+    and her sled's after her descent: MuJoCo's floor bears her seat 0 N (it touches; her hands 200 N
+    0.18 m behind it), the strokes lift her pelvis 0.16 -> 0.25 m, she slides
+    back 0.29 m and falls at 7.5 s. Left: her seat loaded in the sit; a
+    drive's authority on her loop (the 63100's
+    gates off, its backdrive kept); her frog's turnout at her hip yaw's 25
+    deg, her shoulders unabducted. DOD:
+    `compile-scoot-and-lowcrawl-suite-soa` played on her loop, 1 m each
+    segment with no fall, her left leg's drives off in the second and
+    fourth.
