@@ -30,8 +30,9 @@ PAYLOAD_KG = 0.5
 #: moment, of the shift.
 FRICTION, VISCOUS, RESIDUAL, SHIFT = 0.15, 0.20, 1.5, 0.25
 #: The drives whose armature a leg's swing tells apart from its link: a knee's and an ankle's; a
-#: hip's yaw swings 8.75 deg within its stops, its roll with the whole leg about its axis.
-ARMATURES = ('knee', 'ankle', 'ankle_roll', 'elbow')
+#: hip's yaw swings 8.75 deg within its stops, its roll with the whole leg about its axis, the ankle's
+#: roll 10.5 within its rods' 15 (-14 to +42 % over three draws; its rotor read inside its play, 2 %).
+ARMATURES = ('knee', 'ankle', 'elbow')
 #: The first moments the payload moves most: its arm's and the trunk's.
 MOVED = ('left_forearm.hy', 'left_upper_arm.hy', 'torso.hy')
 #: How far a world is built off the figure, of each number.
