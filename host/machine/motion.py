@@ -216,7 +216,7 @@ def control(g, dt):
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     somatic.asked(g, s, out, told, ask)
     bears = np.array(g['loads']) >= leap.TOUCH_N
-    held = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
+    held = g['support'] = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
                                     (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt, g['ringed'])
     ask['posture'][g['head_idx']] -= gauge

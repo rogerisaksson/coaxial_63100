@@ -84,3 +84,14 @@ each joint's stops now (`physics.World.reset`): 0.4 and 3.8 deg/s, her
 walk as it was (0.70 m/s, 408 J/m, 2.50 off a woman's); her held standing
 jump steps 0.59 m from its landing where 0.24 - its crouch taps her soles
 off (scenarios 6).
+
+## Her observer and her calls
+
+A snapshot names her observer (`observer.named`): each manifold's estimate
+against her skin (`observer.skin`), her rows' told, weighed, latch and
+gate, each point's push, prior and speed, her barrier's corners. Traced
+(`calls.Calls`, `sys.monitoring`), it carries the functions and C cores her
+law called since the last: 201 code objects on her walk, 1 678 us a pass
+where 1 146. On the floor scoot, the first calls of her shield's QP
+(`schema._evaded`) came at 6.53 s; MuJoCo had her thighs on her torso from
+3.20 s, 1 724 N at 6.42.

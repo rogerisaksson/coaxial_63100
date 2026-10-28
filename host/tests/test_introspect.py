@@ -56,6 +56,29 @@ def test_a_client_reads_her_layers_live(report):
                  'idle %d, made %d, t %s' % (idle, len(made), [round(x['t'], 3) for x in snaps]))
 
 
+def test_a_traced_pass_names_her_calls_and_her_observer(report):
+    """Traced (`calls.Calls`), a snapshot carries what her law called since the last - her law pass and her C
+    cores by name, none of her telemetry's -; her observer named by manifold against her skin; stopped, gone."""
+    from machine import calls, introspect, observer, worker
+    s = worker.session()
+    for _ in range(200):
+        worker.stepped(s)
+    tap, tracer, snaps = introspect.Tap(), calls.Calls().start(s), []
+    try:
+        while len(snaps) < 3:
+            worker.stepped(s)
+            snaps += [snap for snap in (tap.passed(s),) if snap is not None]
+        named = snaps[-1]['observer']
+    finally:
+        tracer.stop(s)
+    called, soles = snaps[-1]['calls'], named['manifolds']['plantar-bilateral']
+    report.check("her law pass and her cores named, her telemetry's not; her observer by manifold, her soles felt and on her skin",
+                 'motion.control' in called and any(k.startswith('c.') for k in called)
+                 and not any(k.startswith(calls.QUIET) for k in called) and 'calls' not in s
+                 and set(named['manifolds']) == set(observer.MANIFOLDS) and soles['felt'] > 0.0 and soles['skin'] > 0.0,
+                 '%d called, soles felt %.0f N, skin %.0f N' % (len(called), soles['felt'], soles['skin']))
+
+
 def test_her_analyzers_reduce_as_the_probes_do(report):
     """Her lie on the floor reduced two ways from one session: her analyzers on the peak-held snapshots
     (`Tap`, `watch.Watch`) and every pass of her world (the probes' way): each closed phase's fastest
@@ -120,7 +143,8 @@ def test_the_analyzers_reload_as_she_runs(report):
                  (events(told, 'fire'), events(later, 'fire'), events(gone, 'fire')))
 
 
-ROSTER = (test_the_layouts_are_her_codes_own, test_a_client_reads_her_layers_live, test_her_analyzers_reduce_as_the_probes_do,
+ROSTER = (test_the_layouts_are_her_codes_own, test_a_client_reads_her_layers_live,
+          test_a_traced_pass_names_her_calls_and_her_observer, test_her_analyzers_reduce_as_the_probes_do,
           test_the_analyzers_reload_as_she_runs)
 
 

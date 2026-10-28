@@ -11,7 +11,9 @@
 
 The layers as her loop leaves them each law pass (`motion.control`): latent - her state's rows and
 her latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it
-makes; wrench - the whole-body step's answer (`wrench.step`: tau, qacc, contact forces, ..). Each
+makes; wrench - the whole-body step's answer (`wrench.step`: tau, qacc, contact forces, ..); observer -
+what bears her as her observer splits it, against her skin (`observer.named`). Traced (`calls.Calls`), a
+snapshot carries what her law called since the last, a count each. Each
 array's fields are named from her code's own layout, generated (`layout`): the run of module-level
 slice and int constants ending at a vector's size, laid in rising offsets - none listed by hand.
 Attached, a hook on her passes (`worker`'s `s['each']`) publishes a snapshot each law pass to every
@@ -201,8 +203,9 @@ def snapshot(s, peaks=None, lazy=False) -> typing.Any:
 
 
 def _layers(s):
-    """Her law's layers this pass, named: latent, impedance, wrench."""
+    """Her law's layers this pass, named: latent, impedance, wrench, observer."""
     import numpy as np
+    from machine import observer
     g = s['g']
     row, state, out, ask = (layout('machine.latent', 'P', 'NOW'), layout('machine.latent', 'STATE'),
                             layout('machine.latent', 'OUT'), layout('machine.modal', 'ASK'))
@@ -212,7 +215,7 @@ def _layers(s):
     rest = {name: v for name, v in _named(st, state, counted('machine.latent', 'STATE')).items() if name not in rows}
     return {'latent': {'state': {**rows, **rest}, 'out': _named(g['out'], out, counted('machine.latent', 'OUT'))},
             'impedance': {'ask': _named(g['a'], ask, counted('machine.modal', 'ASK')), 'step_ask': _plain(g.get('ask', {}))},
-            'wrench': _plain(g.get('got', {}))}
+            'wrench': _plain(g.get('got', {})), 'observer': observer.named(g)}
 
 
 class Snap(dict):
@@ -232,7 +235,7 @@ class Snap(dict):
 
 
 #: Her law's layers a snapshot names.
-LAYERS = ('latent', 'impedance', 'wrench')
+LAYERS = ('latent', 'impedance', 'wrench', 'observer')
 
 
 def row_len(fields):
@@ -331,6 +334,8 @@ class Tap:
         if self.t <= t < self.t + worker.DT * g['every']:
             return None
         snap, self.peaks, self.t = snapshot(s, np.degrees(self.peaks), lazy=True), None, t
+        if 'calls' in s:
+            snap['calls'] = s['calls'].take()
         return snap
 
 

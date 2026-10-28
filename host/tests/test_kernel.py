@@ -15,7 +15,8 @@ def _engage():
 def _observed(scene, since, until):
     """(observed, felt) each law pass of `scene` from `since` to `until` s, (n, MANIFOLDS); her weight, N."""
     import numpy as np
-    from tools.sim import observed, scenarios
+    from machine import observer
+    from tools.sim import scenarios
     rows, last, weight = [], [None], [0.0]
 
     def laid(s):
@@ -23,7 +24,7 @@ def _observed(scene, since, until):
         weight[0] = g['body'].mass * 9.81
         if s['fallen_at'] is None and g.get('t_law') != last[0] and since <= g['t'] <= until:
             last[0] = g['t_law']
-            rows.append((g['observer']['normal'].copy(), observed.felt(g['world'], g['sense'])))
+            rows.append((g['observer']['normal'].copy(), observer.skin(g['world'], g['sense'])))
 
     scenarios.ran(scene, laid=laid)
     return np.array([r[0] for r in rows]), np.array([r[1] for r in rows]), weight[0]

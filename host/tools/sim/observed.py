@@ -22,31 +22,6 @@ SCENES = ('play_walk', 'chair', 'bed', 'bed_rise', 'mattress')
 FELT_N = 5.0
 
 
-def felt(world, y):
-    """(MANIFOLDS,) her skin's push on each manifold, N: each segment's touch (`edge.TOUCH`) along
-    each of its points' manifolds' normals (`observer.POINTS`), once a segment and normal."""
-    import numpy as np
-    from machine import edge, figure, observer
-    touch, m, xmat = y[edge.TOUCH].reshape(-1, 3), world.model, world.data.xmat
-    world_of = lambda seg: xmat[m.body(seg).id].reshape(3, 3) @ touch[edge.SKIN.index(seg)]
-    out, seen = np.zeros(len(observer.MANIFOLDS)), set()
-    for shares, seg, _p, normal in observer.POINTS:
-        force = world_of(seg)
-        for manifold, frame, axis in shares:
-            key = (seg, manifold, frame, repr(axis))
-            along = float(force @ (xmat[m.body(frame).id].reshape(3, 3) @ np.array(axis)))
-            out[observer.MANIFOLDS.index(manifold)] += 0.0 if key in seen else max(0.0, along)
-            seen.add(key)
-    # her forefeet: her toes' push and of each sole's the share its touch's centre has gone to its ball
-    at = y[edge.AT].reshape(-1, 3)
-    for side in ('left', 'right'):
-        foot, toes = edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')
-        push = max(0.0, float(touch[foot][1]))
-        ahead = (float(at[foot][2]) - 0.5 * (figure.BALL - figure.HEEL)) / (0.5 * (figure.BALL + figure.HEEL))
-        out[observer.EQUINUS] += push * min(1.0, max(0.0, ahead)) + max(0.0, float(touch[toes][1]))
-    return out
-
-
 def one(name):
     """{scene, fell_at, passes, per manifold: rms, p95, ghost N}."""
     import numpy as np
@@ -58,7 +33,7 @@ def one(name):
         g = s['g']
         if s['fallen_at'] is None and g.get('t_law') != last[0] and g['t'] > 1.0:
             last[0] = g['t_law']
-            rows.append((g['observer']['normal'].copy(), felt(g['world'], g['sense'])))
+            rows.append((g['observer']['normal'].copy(), observer.skin(g['world'], g['sense'])))
 
     out = scenarios.ran(name, laid=laid)
     got, truth = (np.array([r[k] for r in rows]) for k in (0, 1))

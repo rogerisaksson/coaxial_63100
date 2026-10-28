@@ -119,6 +119,7 @@ TOUCHES = (
     ('host/machine/registry.py',               (STRUCTURE, WAYFINDER, SCENES, ERRANDS)),
     ('host/machine/says.py',                   (STRUCTURE, SAYS)),
     ('host/machine/introspect.py',             (STRUCTURE, INTROSPECT, GATE)),
+    ('host/machine/calls.py',                  (STRUCTURE, INTROSPECT)),
     ('host/machine/watch.py',                  (STRUCTURE, INTROSPECT, GATE)),
     ('host/machine/analyzers/',                (STRUCTURE, INTROSPECT)),
     ('host/machine/gate.py',                   (STRUCTURE, GATE)),

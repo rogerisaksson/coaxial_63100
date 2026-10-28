@@ -30,7 +30,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine import edge, kernel, ortho, touch
-from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, JOINTS, PADS, pad
+from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
 from machine.wbc import CORNERS, MU, G
 from tools.cores.model import rotation
 from tools.cores.wbc import address
@@ -205,6 +205,49 @@ def weighed(obs, told, weight, dt):
     w[1] += aux * gate[1]
     w[0] = told[0] + told[1] * (1.0 - gate[1]) + aux * (1.0 - gate[1])
     return w
+
+
+def skin(world, y):
+    """(MANIFOLDS,) her skin's push on each manifold, N, the truth her observer is blind to: each
+    segment's touch (`edge.TOUCH`) along each of its points' manifolds' normals (POINTS), once a
+    segment and normal."""
+    pushed, m, xmat = y[edge.TOUCH].reshape(-1, 3), world.model, world.data.xmat
+    world_of = lambda seg: xmat[m.body(seg).id].reshape(3, 3) @ pushed[edge.SKIN.index(seg)]
+    out, seen = np.zeros(len(MANIFOLDS)), set()
+    for shares, seg, _p, normal in POINTS:
+        force = world_of(seg)
+        for manifold, frame, axis in shares:
+            key = (seg, manifold, frame, repr(axis))
+            along = float(force @ (xmat[m.body(frame).id].reshape(3, 3) @ np.array(axis)))
+            out[MANIFOLDS.index(manifold)] += 0.0 if key in seen else max(0.0, along)
+            seen.add(key)
+    # her forefeet: her toes' push and of each sole's the share its touch's centre has gone to its ball
+    at = y[edge.AT].reshape(-1, 3)
+    for side in ('left', 'right'):
+        foot, toes = edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')
+        push = max(0.0, float(pushed[foot][1]))
+        ahead = (float(at[foot][2]) - 0.5 * (BALL - HEEL)) / (0.5 * (BALL + HEEL))
+        out[EQUINUS] += push * min(1.0, max(0.0, ahead)) + max(0.0, float(pushed[toes][1]))
+    return out
+
+
+def named(g):
+    """Her observer this pass, named: by manifold (MANIFOLDS) its normal force and her skin's (`skin`), N;
+    by her rows' (`ortho.MANIFOLDS`) what is told, what she weighs, latched and its gate (`weighed`); each
+    point pushing or with gravity's prior on it - its manifold, segment, place, push and prior, N, speed,
+    m/s, gated -; the corners her barrier holds her over (`barrier.barred`)."""
+    obs, rows = g['observer'], len(ortho.MANIFOLDS)
+    normal, truth = obs['normal'], skin(g['world'], g['sense'])
+    pushes = np.add.reduceat(obs['f'][:obs['pushes']], obs['cols'])
+    prior, speed = (np.ctypeslib.as_array(getattr(obs['c'], k))[:len(POINTS)] for k in ('prior', 'speed'))
+    told, weighed = (np.asarray(g.get(k, np.zeros(rows))) for k in ('told', 'weighed_w'))
+    return {'manifolds': {m: {'felt': float(normal[k]), 'skin': float(truth[k])} for k, m in enumerate(MANIFOLDS)},
+            'rows': {m: {'told': float(told[k]), 'weighed': float(weighed[k]), 'latched': float(obs['latched'][k]),
+                         'gate': float(obs['gate'][k])} for k, m in enumerate(ortho.MANIFOLDS)},
+            'points': [{'manifold': sh[0][0], 'segment': seg, 'at': obs['points'][p].tolist(), 'push': float(pushes[p]),
+                        'prior': float(prior[p]), 'speed': float(speed[p]), 'gated': bool(obs['gated'][p])}
+                       for p, (sh, seg, *_r) in enumerate(POINTS) if pushes[p] > 0.0 or prior[p] > 1.0],
+            'support': np.asarray(g.get('support', np.zeros((0, 3)))).tolist()}
 
 
 def bearing(obs):
