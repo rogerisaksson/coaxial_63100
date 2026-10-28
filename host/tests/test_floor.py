@@ -135,7 +135,7 @@ def test_told_to_scoot_on_the_floor_she_drags_her_butt_forward(report):
     while g['t'] < t0 + 12.0 and s['fallen_at'] is None:
         worker.stepped(s)
         sat = sat or float(d.qpos[1]) < 0.25
-        start = float(d.qpos[0:3] @ way) if start is None and str(sprung.doing(g)).startswith('push') else start
+        start = float(d.qpos[0:3] @ way) if start is None and str(sprung.doing(g)).startswith('stroke') else start
     went = math.nan if start is None else float(d.qpos[0:3] @ way) - start
     report.check('she sits on the floor and her strokes drag her 0.1 m forward, no fall',
                  sat and s['fallen_at'] is None and went >= 0.1,
