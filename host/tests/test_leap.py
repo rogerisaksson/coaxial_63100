@@ -110,9 +110,10 @@ def test_the_loop_meets_an_airborne_soles_ask(report):
 def test_forward_leap_scales_with_charge(report):
     """`leap.hop_charge`, `leap.standing_leap`, `leap.stride_leap` and `leap.update_leap_charge`:
     Space hold duration in [5 ms, 250 ms] maps to [0, 1]; standing jump scales vertical preload
-    and throw; in-stride leap scales forward drive, lift, and sagittal throw with charge and speed."""
+    and throw; in-stride leap (`ballistic.bound`) dips by the text's countermovement, its push waiting
+    on her dip, its sagittal throw scaled with charge and speed."""
     import numpy as np
-    from machine import latent, leap, modal, ortho, sprung, takes
+    from machine import kernel, latent, leap, modal, ortho, se2, sprung, takes
     c_min, c_mid, c_max = leap.hop_charge(0.005), leap.hop_charge(0.1275), leap.hop_charge(0.250)
     report.check('Space hold duration 5 ms to 250 ms maps linearly to [0, 1]',
                  c_min == 0.0 and abs(c_mid - 0.5) < 1e-6 and c_max == 1.0,
@@ -140,18 +141,19 @@ def test_forward_leap_scales_with_charge(report):
                  and abs(at_off[modal.AXIAL] - leap.STRAIGHT) < 0.01 and abs(leaves - leap.LEAVES) < 0.1,
                  'descent %.3f s to axial %.2f pitch %.2f, take-off %.3f s at axial %.2f leaving %.1f/s' % (
                      crouch_s, at_crouch[modal.AXIAL], at_crouch[modal.PITCH], off_s, at_off[modal.AXIAL], leaves))
-    st_tap, _n, st_tap_dur, _l = leap.stride_leap(base_wire, walk_wire, 0.0, 0.69)
-    st_full, _n, st_full_dur, _l = leap.stride_leap(base_wire, walk_wire, 1.0, 0.69)
-    st_run, _n, _d, _l = leap.stride_leap(base_wire, walk_wire, 1.0, 1.40)
-    rst_tap = np.frombuffer(st_tap, latent.WIRE)
-    rst_full = np.frombuffer(st_full, latent.WIRE)
-    rst_run = np.frombuffer(st_run, latent.WIRE)
-    d_tap = float(rst_tap['p'][1, latent.AMP.start + modal.DRIVE])
-    d_full = float(rst_full['p'][1, latent.AMP.start + modal.DRIVE])
-    d_run = float(rst_run['p'][1, latent.AMP.start + modal.DRIVE])
-    report.check('in-stride leap scales forward drive and lift with hold charge and running speed',
-                 0.60 < d_tap < d_full < d_run and st_tap_dur < st_full_dur,
-                 'drive amp %.3f -> %.3f -> %.3f, dur %.3f -> %.3f s' % (d_tap, d_full, d_run, st_tap_dur, st_full_dur))
+    told = kernel.node('xform-in-stride-unilateral-leap', 'ssc-launch')['phase-1-countermovement']['crouch-depth-m']
+    turns = 2.0 * math.pi * float(np.frombuffer(by['jog'][1], latent.WIRE)['p'][0, latent.HZ])
+    now = np.frombuffer(se2._WALK_ON_WIRE, latent.WIRE)['p'][0].astype(float)
+    z, per = latent.Z.start, modal.AXIAL_M * fr[modal.HIPS_BY]
+    leaps = [np.frombuffer(leap.stride_leap(fr, ch, turns, now, 'walk', spd)[0], latent.WIRE)
+             for ch, spd in ((0.0, 0.69), (1.0, 0.69), (1.0, 1.40))]
+    thrown = [float(r['p'][1, z + modal.SAGITTAL]) for r in leaps]
+    report.check('in-stride leap dipped by the text\'s countermovement, %.0f mm, its push waiting on her dip and ending '
+                 'straight, thrown ahead with hold charge and running speed' % (1e3 * told),
+                 all(abs((r['p'][0, z + modal.AXIAL] - now[z + modal.AXIAL]) * per - told) < 1e-6
+                     and r['flags'][1] & ortho.RISE and abs(r['p'][-3, z + modal.AXIAL] - leap.STRAIGHT) < 1e-6
+                     for r in leaps) and thrown[0] < thrown[1] < thrown[2],
+                 'throw %.3f -> %.3f -> %.3f' % tuple(thrown))
 
 
 def test_she_jumps_high_on_both_feet_from_standing(report):

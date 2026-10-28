@@ -41,11 +41,13 @@ STATE = 5 * P + 9
 ROWS = 512
 #: A table's row: what it says, which of it is said (1) or left (0), when it comes, its blend,
 #: whether a curve's sample, whether it waits for a seat or a bed to bear her (`ortho.CONTACT`),
-#: whether it latches her vector where she is (`ortho.LATCH`), its blend's shape (SHAPES).
+#: whether it latches her vector where she is (`ortho.LATCH`), its blend's shape (SHAPES), whether it waits
+#: while her centre of mass sinks (`ortho.RISE`).
 VALS, SAID = slice(0, P), slice(P, 2 * P)
 AT, LERP, CURVE, CONTACT, LATCH = 2 * P, 2 * P + 1, 2 * P + 2, 2 * P + 3, 2 * P + 4
 SHAPED = slice(2 * P + 5, 2 * P + 10)
-TABLE = 2 * P + 10
+RISES = 2 * P + 10
+TABLE = 2 * P + 11
 #: What a pass gives: each mode's reference, its rate and acceleration, its stiffness (N/m) and
 #: damping (N s/m), its rhythm's phase (rad) and amplitude; her rhythm's rate (rad/s), her
 #: ZMP's polygon as told (her soles' weight laid on it after, `observer.weighed`), her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
@@ -94,6 +96,7 @@ def table(wire, begin, rest):
         (rows['flags'] & ortho.SOLES) > 0) * ((rows['flags'] >> ortho.SHARE_BIT) & 1023) / 1e3
     tab[:, LATCH] = (rows['flags'] & ortho.LATCH).astype(bool)
     tab[:, SHAPED] = SHAPES[(rows['flags'] >> ortho.SHAPE_BIT) & 15]
+    tab[:, RISES] = (rows['flags'] & ortho.RISE).astype(bool)
     return tab
 
 

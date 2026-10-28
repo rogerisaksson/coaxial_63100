@@ -176,6 +176,15 @@ def test_her_waits_in_c_as_she_walks(report, c):
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
             return got
 
+        def sunk(self, tab, t, dt):
+            mine = tab.copy()
+            t0 = time.perf_counter()
+            want = py_waits.sunk_rows(mine, g['y'], g['fr'], t, dt)
+            t1 = time.perf_counter()
+            got = waits.sunk(tab, t, dt)
+            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            return got
+
         def borne(self, tab, t, dt):
             mine = tab.copy()
             t0 = time.perf_counter()

@@ -71,6 +71,8 @@ ROW = struct.Struct('<4I%df' % P)
 #: or bed bears her (CONTACT), her soles SHARE of her (SOLES, thousandths from SHARE_BIT), each hand (PALMED);
 #: LATCH her vector set where she is read, her gains back on no error (`waits.latched_back`).
 REST, REST_MS, CURVE, CONTACT, LATCH, SOLES, SHARE_BIT, PALMED = 1, 200, 2, 4, 8, 256, 9, 1 << 19
+#: A row that raises her out of a dip waits while her centre of mass still sinks (RISE: a leap's push).
+RISE = 1 << 20
 WAITS = {'contact': CONTACT, 'soles': SOLES, 'palmar': PALMED}
 #: A row's blend's shape (shape NAME): its index in the flags from SHAPE_BIT (`latent.SHAPES`);
 #: unsaid, linear.

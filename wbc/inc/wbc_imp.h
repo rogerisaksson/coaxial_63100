@@ -24,6 +24,7 @@ typedef struct
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
   int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box, a_reached, a_elbowed, a_let_go;
+  int           a_split;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.impedance */
@@ -92,7 +93,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
 
 /** machine.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
-                  const double was[2], double need, const double lead[2], double *stepping, double *way,
+                  const double was[2], double need, const double lead[2], const double split[2], double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2]);
 
@@ -227,7 +228,7 @@ typedef struct
 {
   int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z, contact;
   int        vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
-  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z;
+  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z, rise;
   double     edge_s, tiny, phi_w;
   wbc_blas_t blas;
 } wbc_wait_t;
@@ -244,6 +245,10 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
 void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
                      double t, double dt, double got[3]);
+/** Rows that raise her out of a dip wait while her centre of mass still sinks (machine.waits.sunk_rows): `got` the
+    shift, the first. */
+void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                   double t, double dt, double got[3]);
 
 /** Rows a contact releases (machine.waits.borne_rows) wait while a seat or a bed bears less of her
     than her support counts it from: `got` the shift, the first. */

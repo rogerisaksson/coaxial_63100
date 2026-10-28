@@ -17,13 +17,14 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import borne, latent, poise, stride, swing
+from machine import borne, latent, leap, poise, stride, swing
 from machine.modal import (
     ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS,
     FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M,
     LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH,
     PITCH0, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED,
-    RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED,
+    RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN,
+    TURN_RAD, TURNED,
     UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under)
 from machine.poise import HALF_M, TINY
 from machine.stride import ALONG, LEFT, LIMBS, UP
@@ -88,8 +89,8 @@ def ask(out, y, fr, a):
     a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
-        a[SWINGS], a[NEED], a[LEAD])
-    a[SWINGS] = off
+        a[SWINGS], a[NEED], a[LEAD], a[SPLIT])
+    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT])
     kp, kd = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS]
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
     # across past the soles that stood, its own side of them - along her way too while her rhythm

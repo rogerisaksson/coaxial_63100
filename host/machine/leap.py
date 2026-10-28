@@ -162,27 +162,7 @@ def _leap_specs():
         (2, k + modal.LIFT, 2400.0, 3000.0, 0.0, 0.0), (2, d + modal.LIFT, 320.0, 0.0, 0.0, 0.0),
         (2, zmp, modal.SUPPORT, 0.0, 0.0, 0.0),
     )
-    stride = (
-        (0, z + modal.AXIAL, 0.66, 0.0, 0.24, 0.0), (0, z + modal.SAGITTAL, 0.14, 0.0, 0.54, 0.0),
-        (0, z + modal.PITCH, -0.05, 0.14, 0.0, 0.0), (0, z + modal.ARMS, -0.35, 0.0, -0.45, 0.0),
-        (0, k + modal.AXIAL, 6000.0, 0.0, 0.0, 0.0), (0, d + modal.AXIAL, 900.0, 0.0, 0.0, 0.0),
-        (0, k + modal.SAGITTAL, 1200.0, 0.0, 0.0, 0.0), (0, d + modal.SAGITTAL, 400.0, 0.0, 0.0, 0.0),
-        (0, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (0, gain, 0.0, 0.0, 0.0, 0.0),
-        (1, z + modal.AXIAL, 0.15, 0.0, 0.0, 0.0), (1, k + modal.AXIAL, 21600.0, 0.0, 3400.0, 0.0),
-        (1, d + modal.AXIAL, 0.0, 0.0, 0.0, 0.0), (1, z + modal.SAGITTAL, 0.28, 0.0, 0.60, 0.0),
-        (1, k + modal.SAGITTAL, 1800.0, 0.0, 1000.0, 0.0), (1, d + modal.SAGITTAL, 200.0, 0.0, 0.0, 0.0),
-        (1, z + modal.PITCH, -0.05, 0.14, 0.0, 0.0), (1, k + modal.PITCH, 1458.0, 0.0, 0.0, 0.0),
-        (1, d + modal.PITCH, 292.0, 0.0, 0.0, 0.0), (1, z + modal.ARMS, 0.45, 0.0, 0.45, 0.0),
-        (1, zmp, modal.NONE, 0.0, 0.0, 0.0), (1, amp + modal.DRIVE, 0.64, 0.0, 0.0, 0.24),
-        (1, amp + modal.LIFT, 1.20, 0.0, 0.0, 0.40), (1, gain, 0.0, 0.0, 0.0, 0.0),
-        (2, z + modal.AXIAL, 0.25, 0.0, 0.0, 0.0), (2, z + modal.SAGITTAL, -0.24, -0.10, 0.0, 0.0),
-        (2, z + modal.PITCH, 0.0, 0.0, 0.0, 0.0), (2, z + modal.ARMS, 0.0, 0.0, 0.0, 0.0),
-        (2, k + modal.AXIAL, 3000.0, 0.0, 0.0, 0.0), (2, d + modal.AXIAL, 600.0, 0.0, 0.0, 0.0),
-        (2, k + modal.SAGITTAL, 600.0, 0.0, 0.0, 0.0), (2, d + modal.SAGITTAL, 300.0, 0.0, 0.0, 0.0),
-        (2, k + modal.PITCH, 1458.0, 0.0, 0.0, 0.0), (2, d + modal.PITCH, 292.0, 0.0, 0.0, 0.0),
-        (2, zmp, modal.SUPPORT, 0.0, 0.0, 0.0), (2, gain, 0.0, 0.0, 0.0, 0.0),
-    )
-    return standing, stride
+    return standing
 
 
 def _build_leap(base_wire, times_ms, blends_ms, spec, weights):
@@ -220,7 +200,7 @@ def standing_leap(base_wire, fr, ch=0.0):
     n = max(2, int(math.ceil(1e3 * seconds / PUSH_MS)))
     push_ms = int(round(1e3 * seconds / n))
     wire, _names, _dur, _t0 = _build_leap(base_wire, (0, (n + 1) * push_ms, 0), (0, push_ms, 0),
-                                          _leap_specs()[0], (1.0, ch, 0.0, 0.0))
+                                          _leap_specs(), (1.0, ch, 0.0, 0.0))
     rows = np.frombuffer(wire, latent.WIRE).copy()
     z = latent.Z.start
     axial, pitch, sagittal = z + modal.AXIAL, z + modal.PITCH, z + modal.SAGITTAL
@@ -284,13 +264,10 @@ def standing_leap(base_wire, fr, ch=0.0):
     return np.concatenate([load, throw, flight, brake, rows[3:]]).tobytes(), names, end_ms * 1e-3, t0
 
 
-def stride_leap(base_wire, _walk_wire, ch=0.0, spd=0.69):
-    """Construct the 11D modal trajectory table (`latent.WIRE`) for an in-stride forward bound parameterized by `ch` in [0, 1] and approach speed `spd`."""
-    ch = max(0.0, min(1.0, float(ch)))
-    w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
-    dt_load_ms, dt_throw_ms = int(round(440 + 140 * ch)), int(round(146 + 21 * ch))
-    return _build_leap(base_wire, (dt_load_ms, dt_throw_ms, 400), (int(round(0.75 * dt_load_ms)), 0, 0),
-                       _leap_specs()[1], (1.0, ch, 0.06 + 0.28 * ch + 0.08 * w_fast, 0.55 * ch + 0.15 * w_fast))
+def stride_leap(fr, ch, turns, now, label, speed):
+    """Her leap in stride from the sole landing now (`ballistic.bound`)."""
+    from machine import ballistic
+    return ballistic.bound(fr, ch, turns, now, label, speed)
 
 
 def update_leap_charge(g, by, walk_on_wire, ch):
@@ -300,14 +277,15 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     t_throw, t0 = g.get('_jump_throw', 0.0), g.get('_jump_t0', 0.0)
     if g['t'] >= t_throw - 0.015 or 'hop' not in by or t0 <= 0.0:
         return
-    in_stride, spd = bool(g.get('_leap')), float(g.get('_leap_spd', 0.69))
-    wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_stride
+    in_stride = bool(g.get('_leap'))
+    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], ch, *g['_leap_at']) if in_stride
                                     else standing_leap(by['hop'][1], g['fr'], ch))
     new = latent.table(wire, t0, g['rest'])
-    new[0, latent.VALS] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['rest'])
-    new[0, latent.SAID] = 1.0
+    # in stride her first row's unsaid stay so, her rhythm runs on
+    new[0, latent.VALS] = np.where((new[0, latent.SAID] > 0.5) | in_stride, new[0, latent.VALS], g['rest'])
+    new[0, latent.SAID] = np.maximum(new[0, latent.SAID], float(not in_stride))
     started = g['t'] >= t0 - 1e-4
-    if started:
+    if started and not in_stride:
         g['st'][latent.TO] = np.where(new[0, latent.SAID] > 0.5, new[0, latent.VALS], g['st'][latent.TO])
         g['st'][latent.BLEND] = new[0, latent.LERP]
         g['st'][latent.THETA] = ((0.10 - (t0 + dt_load_ms * 0.001 - g['t'])) % 1.0) * math.tau
@@ -364,10 +342,11 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     out, a = g['out'], g['a']
     _st, _way, _sw, _phi, on, _off, u, _fl, swung = stride.beat(
         out[latent.SWAY][modal.DRIVE], out[latent.PSI][modal.DRIVE], out[latent.SWAY][modal.LATERAL],
-        out[latent.PSI][modal.LATERAL], float(out[latent.TURNS]), a[modal.SWINGS], a[modal.NEED], a[modal.LEAD])
+        out[latent.PSI][modal.LATERAL], float(out[latent.TURNS]), a[modal.SWINGS], a[modal.NEED], a[modal.LEAD],
+        a[modal.SPLIT])
     t0 = t0 + float(moving) * float((on * (1.0 - u)).max()) / max(float(swung), stride.TINY)
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
-    dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving)
+    dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving and not in_fwd)
     if dt_b > 0.0 and '_brake_wire' in g:
         brake = np.frombuffer(g.get('_brake_back_wire', g['_brake_wire']) if back_now else g['_brake_wire'], latent.WIRE).copy()
         brake['blend'] = round(1e3 * se2.STAND_S)
@@ -375,18 +354,20 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     if dt_b > 0.0 and '_brake_wire' in g and 'stand' in by:
         said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)
     t_hop, ch = t0 + dt_b, float(g.get('_hop_charge', 0.0))
-    g['_leap_spd'] = float(spd)
-    wire, names, dur, dt_load_ms = (stride_leap(by['hop'][1], walk_on_wire, ch, spd) if in_fwd
+    # going on her way she leaps in her stride, her rhythm on (`ballistic.bound`); else stands and hops
+    g['_leap_at'] = (float(out[latent.TURNS]), g['st'][latent.TO].copy(), 'run' if prev == 'jog' else prev, float(spd))
+    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], ch, *g['_leap_at']) if in_fwd
                                     else standing_leap(by['hop'][1], g['fr'], ch))
-    if dt_b == 0.0:
+    if dt_b == 0.0 and not in_fwd:
         g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau
-    said_fn(g, 'hop', wire, names, at=t_hop, reset=True)
+    said_fn(g, 'hop', wire, names, at=t_hop, reset=not in_fwd)
     t_res = t_hop + dur
     g['_jump_t0'], g['_jump_throw'], g['_jump_until'] = t_hop, t_hop + dt_load_ms * 0.001, t_res
     g['_leap'], g['active_entry'] = in_fwd, prev
-    if 'stand' in by:
+    if 'stand' in by and not in_fwd:
         said_fn(g, *by['stand'], at=t_res + 0.01, reset=True)
-    _resume_gait(g, by, prev, in_fwd, t_res + 0.70, walk_on_wire, said_fn)
+    if not in_fwd:
+        _resume_gait(g, by, prev, in_fwd, t_res + 0.70, walk_on_wire, said_fn)
 
 
 

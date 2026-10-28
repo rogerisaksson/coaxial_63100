@@ -4,6 +4,7 @@
     waits.risen_back(g, dt)    # rows that raise her wait while something bears her off her soles
     waits.landed_back(g, dt)   # rows that lower her wait while nothing bears her
     waits.borne_back(g, dt)    # rows a contact releases wait till a seat or a bed bears her
+    waits.sunk_back(g, dt)     # rows that raise her out of a dip wait while she still sinks
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
@@ -107,6 +108,28 @@ def landed_rows(tab, y, st, t, dt):
     lowers = (said[:, modal.AXIAL] > 0.5) & (vals[:, modal.AXIAL] > to[modal.AXIAL] + 1e-6)
     due = lowers & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     shift = dt * airborne * float(np.any(due))
+    first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
+    at += shift * (at >= first)
+    return shift, first
+
+
+def sunk_back(g, dt):
+    """Rows that raise her out of a dip (`ortho.RISE`: a leap's push) wait a pass while her centre of mass still
+    sinks, every row after them and a hop's throw and end with them: begun on the clock as her dip still sank at
+    0.87 m/s, her push came late, her other sole landed under it, both legs pushed and she flew too high and fell."""
+    shift, first = g['waits'].sunk(g['tab'], g['t'], dt)
+    g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+    for key in ('_jump_throw', '_jump_until'):
+        g[key] = g.get(key, 0.0) + shift * (g.get(key, 0.0) > g['t'])
+
+
+def sunk_rows(tab, y, fr, t, dt):
+    """(shift, first) of `sunk_back` on her table `tab` (its times shifted in place), modal's `y` and `fr`, at `t`,
+    `dt` on. In C bit for bit (`g['waits']`, `laid`)."""
+    sinking = float(fr[modal.ROT].reshape(3, 3)[2] @ y[modal.VCOM] < 0.0)
+    at = tab[:, latent.AT]
+    due = (tab[:, latent.RISES] > 0.5) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
+    shift = dt * sinking * float(np.any(due))
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
     return shift, first

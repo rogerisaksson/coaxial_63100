@@ -116,7 +116,9 @@ REACHED, ELBOWED = 73, 74
 #: hangs from its hip (`wrench._maps`). Swung, a seated sole that left the floor at 2e-4 rad stepped her up
 #: onto one leg off the chair.
 LET_GO = slice(75, 77)
-ASK = 77
+#: And each limb's own shift of its place in her rhythm, rad: 0 but in a leap (`impedance`, the split).
+SPLIT = slice(77, 79)
+ASK = 79
 
 #: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
 #: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's

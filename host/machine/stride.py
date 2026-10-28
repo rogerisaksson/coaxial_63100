@@ -1,6 +1,7 @@
 """Her stride on her latent loop: when a limb swings, where its sole lands, how a sole rolls.
 
-    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead)
+    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead, split)
+    split = stride.split(split, support, stepping, free, ahead, phi, u, turns, dt)   # rad: each limb's own shift in a leap
     hurry = stride.hurried(aside, om, u, swung, kp)                  # (2,), 1 unhurried
     cruise = stride.cruises(way, drive, turns, going)       # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
@@ -83,7 +84,7 @@ FOLD_RAD = 0.26
 HEEL_UP = 0.5
 
 
-def beat(drive, psi, sway, lateral, turns, was, need, lead):
+def beat(drive, psi, sway, lateral, turns, was, need, lead, split):
     """Her stride of her drive (its amplitude and angle) and her sway's: (whether she strides,
     0 to 1, as far as her drive or her `need` has it; her way, 1 or -1; each limb's place in its
     sweep, 1 its furthest on her way; its turn of it, 0 as it passes under her going on;
@@ -96,11 +97,26 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead):
     stepping = np.maximum(clip(np.abs(drive) / STIRS, 0.0, 1.0), need)
     way = 1.0 - 2.0 * (np.sin(lateral - psi) * np.copysign(1.0, sway) < -BACK)
     side = -LIMBS * np.copysign(1.0, drive) * way
-    sweep, phi = side * np.sin(psi), np.arctan2(side * np.sin(psi), side * np.cos(psi))
+    s = np.sin(psi) * np.cos(split) + np.cos(psi) * np.sin(split)
+    c = np.cos(psi) * np.cos(split) - np.sin(psi) * np.sin(split)
+    sweep, phi = side * s, np.arctan2(side * s, side * c)
     on = (phi > PHI_W - np.pi) * (phi < PHI_W)
     u = clip(0.5 * (phi / PHI_W + 1.0) + lead, 0.0, 1.0)
     off = np.maximum(stepping, was) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
     return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / PHI_W
+
+
+def split(split, support, stepping, free, ahead, phi, u, turns, dt):
+    """Each limb's own shift of its place in her rhythm a pass on, rad (the ballistic text's split leap): held - a
+    throw, a flight, her `support` asked none -, a sole `free` of the floor behind her centre (`ahead`, m along her
+    way) and out of its swing goes to its swing's start, one ahead done swinging waits for the floor; else they relax
+    to the nearest turn apart. Kept to her rhythm her trailing sole stood in the air 0.5 s and landed behind her; told
+    by its rhythm alone, a sole pushed off early in its stance waited behind her 0.6 s."""
+    held, gap = 1.0 - clip(support, 0.0, 1.0), split[0] - split[1]
+    return split + (stepping * held * free * ((ahead <= 0.0) * ((u <= 0.0) + (u >= 1.0)) * np.mod(-PHI_W - phi, 2.0 * np.pi)
+                                              - (ahead > 0.0) * (u >= 1.0) * turns * dt)
+                    - (1.0 - held) * (0.5 * (gap - 2.0 * np.pi * np.round(gap / (2.0 * np.pi))) * LIMBS)
+                    * min(1.0, turns * dt / (2.0 * np.pi)))
 
 
 def hurried(aside, om, u, rate, kp):
