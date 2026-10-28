@@ -6,12 +6,18 @@
     obs['r'], obs['normal']                # the external force on her dofs; each manifold's, N (MANIFOLDS)
 
 The residual of her momentum over a law pass, M (v - v') / dt + h - S'tau - her pelvis's linear
-acceleration her IMU's, tau her drives' mean over it and their friction -, low-passed at the kernel's bandwidth (`configure-momentum-observer`), is J'f, the external
-force on her. Each manifold's frames (`anatomical-manifold-registry`) are points of her skin, each
-pressed along its outward normal alone, a sole a whole wrench: f the least squares of J'f = r, each
-normal pushing - ROUNDS solves, each pulling normal pinned for the next -, the least of it where
-pushes cancel (both hips squeezed along one line) by the QP's tie-break (`qp.EPS`). Blind: no skin,
-no load cell.
+acceleration her IMU's, tau her drives' mean over it and their friction -, low-passed at the kernel's bandwidth
+(`configure-momentum-observer`), is J'f: the external force on her and what her body does to itself. Split by least
+squares over pushes alone (wbc_gmo.c, Lawson-Hanson), so it always sums to her whole body's balance and nothing pulls:
+- her registry's points (`anatomical-manifold-registry`): a sole's four corners in her law's pyramid (`wbc.MU`), her
+  seat, thighs and palms pressed up her IMU's vertical, the rest along their own normals;
+- a joint on its stop pushed off it; two of her capsules touching pushed apart;
+- a joint's row within its friction's band read as friction (`collapse-static-equilibrium-innovation`);
+- a point off her soles her comparator has not felt joining only where her soles cannot bear her;
+- what none of it can tell, her soles their last pass's and the rest gravity's prior over her points
+  (`regularize-manifold-simplex-with-priors`): upright and low bears, her weight's share each.
+The floor scoot's squat, her knees on their stops (17-25 N m) and her thighs on her belly (330-760 N): a sole a free
+wrench read 72-143 N on her butt with none there and her soles pulling to -1 365 N. Blind: no skin, no load cell.
 """
 import functools
 import math
@@ -21,9 +27,9 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import edge, kernel, ortho, qp, touch
-from machine.rounds import ROUNDS  # the split's rounds: a least squares, each normal pulling pinned for the next
-from machine.figure import BALL, BODY, CONTACTS, FIST_AT, FIST_R, HEEL, JOINTS, PADS, pad
+from machine import edge, kernel, ortho, touch
+from machine.figure import BODY, CONTACTS, FIST_AT, FIST_R, JOINTS, PADS, pad
+from machine.wbc import CORNERS, MU, G
 from tools.cores.model import rotation
 from tools.cores.wbc import address
 
@@ -83,8 +89,8 @@ def _forearm():
     _p, r, _a, b = next(c for c in BODY if c[0] == 'forearm')
     return (b[0], b[1] + r, b[2] + r)
 #: Each point: (its manifolds, each (manifold, the segment whose frame holds its normal, that normal)),
-#: its segment, the point, its outward normal - None a whole wrench -, in the segment's frame. A
-#: sole's wrench at `wbc.Body.sole`; the toes' underside; each buttock's; each thigh's
+#: its segment, the point, its outward normal, in the segment's frame. Each sole's corners
+#: (`wbc.CORNERS`); the toes' underside; each buttock's; each thigh's
 #: back where the seat's patch ends ahead of the buttocks and the back's begins below the sacrum -
 #: its own, and sat pressed up her pelvis (the seat's), lain pressed along her back (the back's) -;
 #: each hip's side, pressed in; the sacrum, the lumbar and thoracic back and the skull's, pressed
@@ -93,7 +99,8 @@ def _forearm():
 _SEAT, _LAIN = ('ischial-bilateral', 'pelvis', _UP), ('dorsal-supine-continuum', 'pelvis', _BACK)
 POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axis),) if isinstance(m, str) else m,
                 seg, p, n) for m, frame, axis, seg, p, n in (
-    ('plantar-bilateral', None, _UP, 'left_foot', None, None), ('plantar-bilateral', None, _UP, 'right_foot', None, None),
+    *(('plantar-bilateral', None, None, side + '_foot', tuple(float(v) for v in c), _UP)
+      for side in ('left', 'right') for c in CORNERS),
     ('plantar-bilateral', None, None, 'left_toes', _TOE, _UP), ('plantar-bilateral', None, None, 'right_toes', _TOE, _UP),
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 0), _UP),
     ('ischial-bilateral', None, None, 'pelvis', _under('pelvis', 1), _UP),
@@ -111,8 +118,33 @@ POINTS = tuple((((m, seg if frame is None else frame, n if axis is None else axi
      'right_hand', _PALM, _UP),
     ('ulnar-carpal-shove-bilateral', None, None, 'left_forearm', _forearm(), (0.0, 0.0, -1.0)),
     ('ulnar-carpal-shove-bilateral', None, None, 'right_forearm', _forearm(), (0.0, 0.0, -1.0))))
-#: The unknowns of each point: a sole's six, a normal's one.
-WIDTH = tuple(6 if n is None else 1 for _m, _s, _p, n in POINTS)
+#: Her soles' segments, their corners pressing in her law's pyramid. Her other points press along one direction: in
+#: a pyramid her butt's and thighs' friction read her chair's sit 0 N on her soles bearing 110-130, her toes' her
+#: forefeet 142 N off walking.
+SOLED = ('left_foot', 'right_foot')
+
+
+def _pyramid(n):
+    """Her law's pyramid's four edges about the normal `n`: n and MU along its two tangents either way."""
+    n = np.asarray(n, float)
+    t1 = np.cross(n, (1.0, 0.0, 0.0) if abs(n[0]) < 0.5 else (0.0, 1.0, 0.0))
+    t1 /= np.linalg.norm(t1)
+    t2 = np.cross(n, t1)
+    return tuple(tuple(float(v) for v in n + MU * (a * t1 + b * t2)) for a in (-1.0, 1.0) for b in (-1.0, 1.0))
+
+
+PYRAMID = _pyramid(_UP)
+#: Gravity's prior where her rows cannot tell (the kernel's text): its tie-break, of her split's largest curvature;
+#: a point's pushes' cosine with the vertical in it; its height over her lowest point in it, m. Tied to none, her
+#: straight legs read 17 N on her butt standing and her hips' sides squeezed 231-899 N.
+_PRIOR = 'regularize-manifold-simplex-with-priors'
+FLOOR, UPRIGHT_COS, REACH_M = (kernel.said(_PRIOR, k) for k in ('min-prior-floor-mg-ratio', 'gravity-alignment-beta',
+                                                                'height-reach-m'))
+#: The manifolds whose points bear on a support under her, pressed up the world's vertical (her IMU's), not their
+#: segment's: her palms' along her arm read 0 N of their 120-158 sat on the floor leaning back.
+UPRIGHT = ('ischial-bilateral', 'posterior-femoral-bilateral', 'palmar-carpal-bilateral')
+#: Each point's pushes: its pyramid's edges, else its normal.
+EDGES = tuple(PYRAMID if seg in SOLED else (_UP,) if sh[0][0] in UPRIGHT else (n,) for sh, seg, _p, n in POINTS)
 
 
 #: Her rows' manifolds (`ortho.MANIFOLDS`) among the observer's; the text's comparators on each,
@@ -169,7 +201,8 @@ def weighed(obs, told, weight, dt):
 def bearing(obs):
     """(k, 3) the points that press on a manifold her comparator feels, world: what bears her besides
     her soles."""
-    return obs['points'][obs['skin'] & (obs['latched'] > 0.5)[obs['row']] & (obs['f'][obs['cols']] > 0.0)]
+    pushed = np.add.reduceat(obs['f'][:obs['pushes']], obs['cols']) > 0.0
+    return obs['points'][obs['skin'] & (obs['latched'] > 0.5)[obs['row']] & pushed]
 
 
 def _link(seg):
@@ -179,25 +212,71 @@ def _link(seg):
     return joints[-1][0] if joints else 'root'
 
 
+def _capsules(m):
+    """(her capsules, each (segment, radius, its axis's ends in its frame), the pairs of them MuJoCo collides) of
+    her model `m`'s colliding geoms: a sphere a capsule of no length, a box one along its longest side as thick as
+    its thinnest; a pair on two bodies not welded, not parent and child, not excluded, their bits meeting."""
+    from machine.figure import SEGMENTS
+    segs, kinds = {s[0] for s in SEGMENTS}, m.geom_type
+    geoms = [g for g in range(m.ngeom) if m.body(m.geom_bodyid[g]).name in segs and kinds[g] in _AXES]
+    out = []
+    for g in geoms:
+        R, size = rotation(m.geom_quat[g]), m.geom_size[g]
+        r, k, half = _AXES[kinds[g]](size)
+        out.append((m.body(m.geom_bodyid[g]).name, float(r), *(tuple(m.geom_pos[g] + s * half * R[:, k]) for s in (-1, 1))))
+    weld = m.body_weldid
+    up = lambda b: weld[m.body_parentid[weld[b]]]
+    excluded = {int(s) for s in m.exclude_signature}
+    meet = lambda a, b: (m.geom_contype[a] & m.geom_conaffinity[b]) | (m.geom_contype[b] & m.geom_conaffinity[a])
+    pairs = [(i, j) for i, a in enumerate(geoms) for j, b in enumerate(geoms) if i < j
+             and weld[m.geom_bodyid[a]] != weld[m.geom_bodyid[b]]
+             and weld[m.geom_bodyid[a]] != up(m.geom_bodyid[b]) and weld[m.geom_bodyid[b]] != up(m.geom_bodyid[a])
+             and (min(m.geom_bodyid[a], m.geom_bodyid[b]) << 16) + max(m.geom_bodyid[a], m.geom_bodyid[b]) not in excluded
+             and meet(a, b)]
+    return out, pairs
+
+
+#: Each colliding geom's kind (mjtGeom): its capsule's (radius, axis, half its axis's length) of its sizes.
+_AXES = {2: lambda s: (s[0], 2, 0.0), 3: lambda s: (s[0], 2, s[1]), 5: lambda s: (s[0], 2, s[1]),
+         6: lambda s: (min(s), int(np.argmax(s)), max(s) - min(s))}
+
+
 def laid(body):
-    """The observer at rest on her law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares and
-    her drives' friction laid, its sums empty; its outputs viewed (`r`, `f`, `normal`); her forefeet
-    compiled from their numpy (`tools.cores.bodied`)."""
+    """The observer at rest on her law's `body` (`wbc.Body`), in C (wbc_gmo.c): its points, shares, her
+    joints' stops, her capsules and her drives' friction laid, its sums empty; its outputs viewed (`r`,
+    `f`, `normal`); her forefeet compiled from their numpy (`tools.cores.bodied`)."""
     import ctypes
     from tools.cores import bodied, gmo, wbc as cores
     lib, names = cores.library(), cores.Core().names
     o = gmo.Gmo()
-    o.rounds, o.slip, o.eps = ROUNDS, SLIP_RAD_S, qp.EPS
+    o.slip, o.eps = SLIP_RAD_S, FLOOR
+    o.weight, o.upright, o.reach = body.mass * G, UPRIGHT_COS, REACH_M
     o.alpha = kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi
     o.loss[:] = body.m.dof_frictionloss[:body.n].tolist()
     driven = [k for k, j in enumerate(JOINTS) if body.driven[k]]
     o.driven_joint[:] = driven
     o.driven_at[:] = [5 + names.index(JOINTS[k]) for k in driven]
-    cols = [sum(WIDTH[:p]) for p in range(len(POINTS))]
+    cols = [sum(len(e) for e in EDGES[:p]) for p in range(len(POINTS))]
+    o.pushes = cols[-1] + len(EDGES[-1])
+    if o.pushes > gmo.GMO_PUSH:
+        raise ValueError('her points push %d ways, wbc_gmo.h at most %d' % (o.pushes, gmo.GMO_PUSH))
     for p, (shares, seg, point, normal) in enumerate(POINTS):
-        o.link[p], o.sole[p], o.col[p] = names.index(_link(seg)), int(normal is None), cols[p]
-        o.local[p][:] = list(body.sole if point is None else point)
-        o.normal[p][:] = [0.0, 0.0, 0.0] if normal is None else list(normal)
+        o.link[p], o.edges[p], o.col[p] = names.index(_link(seg)), len(EDGES[p]), cols[p]
+        o.world[p], o.soled[p] = int(shares[0][0] in UPRIGHT), int(shares[0][0] == 'plantar-bilateral')
+        o.local[p][:] = list(point)
+        for e, along in enumerate(EDGES[p]):
+            o.edge[p][e][:] = list(along)
+    for h, name in enumerate(names[1:]):
+        j = body.m.joint(name).id
+        o.stopped[h] = int(body.m.jnt_limited[j])
+        o.stop_lo[h], o.stop_hi[h] = (float(v) for v in body.m.jnt_range[j])
+    capsules, pairs = _capsules(body.m)
+    o.capsules, o.pairs = len(capsules), len(pairs)
+    for c, (seg, r, a, b) in enumerate(capsules):
+        o.capsule_link[c], o.capsule_r[c] = names.index(_link(seg)), r
+        o.capsule_a[c][:], o.capsule_b[c][:] = list(a), list(b)
+    for k, pair in enumerate(pairs):
+        o.pair[k][:] = list(pair)
     rows = [(p, MANIFOLDS.index(m), names.index(_link(frame)), axis)
             for p, (shares, *_r) in enumerate(POINTS) for m, frame, axis in shares]
     for k, (p, m, link, axis) in enumerate(rows):
@@ -211,9 +290,12 @@ def laid(body):
     base, q, u = np.zeros(12), np.zeros(body.n - 6), np.zeros(body.n)
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
             'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'), 'cols': np.array(cols),
-            'skin': np.array([n is not None for *_r, n in POINTS]) & (row >= 0), 'row': row,
+            'pushes': o.pushes, 'gated': view('gated'),
+            'latch_of': np.array([[any(m == MANIFOLDS[k] for m, *_r in sh) for k in ROWS] for sh, *_r in POINTS], float),
+            'soled': np.array([sh[0][0] == 'plantar-bilateral' for sh, *_r in POINTS]),
+            'skin': np.array([seg not in SOLED for _sh, seg, *_r in POINTS]) & (row >= 0), 'row': row,
             'feet': [(col(side + '_foot'), col(side + '_toes')) for side in ('left', 'right')],
-            'forefoot': bodied.on_args(forefoot, 'forefoot', (0, 2)), 'base': base, 'q': q, 'u': u,
+            'forefoot': bodied.on_args(forefoot, 'forefoot', (0,)), 'base': base, 'q': q, 'u': u,
             'ins': tuple(cores.pointer(a) for a in (base, q, u)), 'soles': np.zeros(2),
             'latched': np.zeros(len(ROWS)), 'below': np.zeros(len(ROWS)), 'since': np.zeros(len(ROWS)),
             'gate': np.zeros(len(ROWS))}
@@ -232,27 +314,32 @@ def felt(obs, y, dt):
 
 def step(obs, s, qpos, dt):
     """A law pass on her law's sense `s` (`wbc.sense`) at her estimate `qpos`: r, f and each
-    manifold's normal force; her drives' sums emptied."""
+    manifold's normal force, a point off her soles not felt - none of its manifolds latched by her
+    comparator (`weighed`) - joining the split only where her soles and what she feels cannot bear her;
+    her drives' sums emptied."""
+    obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
     v, base, u = s['v'], obs['base'], obs['u']
     R = rotation(qpos[3:7])
     base[:9], base[9:] = R.ravel(), qpos[:3]
     u[:3], u[3:6], u[6:] = v[3:6], R.T @ v[:3], v[6:]
     obs['q'][:] = qpos[7:7 + len(obs['q'])]
     obs['step'](obs['at'], *obs['ins'], dt)
-    obs['normal'][EQUINUS], obs['soles'] = obs['forefoot'](obs['f'], obs['feet'], [foot['R'] for foot in s['feet']])
+    obs['normal'][EQUINUS], obs['soles'] = obs['forefoot'](obs['f'], obs['feet'])
     return obs
 
 
-def forefoot(f, feet, rots):
+#: A sole's pushes: its heel's corners' edges, then its ball's.
+_HEEL = 2 * len(EDGES[0])
+
+
+def forefoot(f, feet):
     """(her forefeet's push (`metatarsal-equinus-bilateral`), each sole's and its toes' push (2,)), N, of
-    the points' forces `f` - each foot's sole's and toes' columns `feet` - and her feet's rotations
-    `rots`, (3, 3) each: the forefeet each toes' and of each sole's push the share its centre of
-    pressure has gone from the sole's middle to its ball (`figure.BALL`)."""
+    the points' forces `f` - each foot's first corner's and toes' columns `feet`: the forefeet each toes'
+    and of each sole's push the share its centre of pressure has gone from the sole's middle to its ball,
+    its ball's corners' push less its heel's."""
     out, soles = 0.0, np.zeros(2)
-    for k, ((sole, toes), R) in enumerate(zip(feet, rots)):
-        moment, force = f[sole:sole + 3], f[sole + 3:sole + 6]
-        push = force @ R[:, 1]
-        ahead = -(moment @ R[:, 0]) / np.maximum(push, 1e-9)
-        out += push * np.clip(ahead / (0.5 * (BALL + HEEL)), 0.0, 1.0) + f[toes]
-        soles[k] = push + f[toes]
+    for k, (sole, toes) in enumerate(feet):
+        heel, ball = f[sole:sole + _HEEL].sum(), f[sole + _HEEL:sole + 2 * _HEEL].sum()
+        out += np.clip(ball - heel, 0.0, ball + heel) + f[toes]
+        soles[k] = heel + ball + f[toes]
     return out, soles

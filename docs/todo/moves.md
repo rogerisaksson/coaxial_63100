@@ -142,3 +142,12 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
     `compile-ballistic-velocity-lifecycle-soa` played on her loop on a flat
     floor - walk, brisk walk, double-time, the leap, the run, the brake to a
     walk, the standing jump - with no fall.
+12. **Her observer's split in balance** (items 8 and 11 lean on it): in the
+    floor scoot's squat her knees on their 165 deg stops (17-25 N m) and her
+    thighs on her belly (330-760 N) read 72-143 N on her butt with none
+    there, her soles pulling (-138 N; -1 365 N tumbling): each sole a free
+    wrench, her stops, friction and self-contacts unseen. DOD: each sole its
+    four corners in her law's pyramid, every point pushing in its own, her
+    stops' and friction's torques banded, her self-contacts as pairs; in the
+    squat and the scoot each manifold within 10 % of her weight of MuJoCo's
+    contacts, their sum her momentum's; airborne in a hop, none.

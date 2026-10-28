@@ -35,6 +35,8 @@ G = 9.81
 #: The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a
 #: standing corner presses at least F_MIN_N.
 MU, F_MIN_N = 0.6, 0.0
+#: A sole's corners in its foot's frame: its heel's two, then its ball's.
+CORNERS = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL) for x in (-SOLE_HALF, SOLE_HALF)])
 #: A contact slides past this slip, m/s: a sole's grip reads it so (`grip`), a pressing contact's point its
 #: regime (`rounds.pushed`) - on the ice a sole pushing off slid back 0.3 m in 0.05 s before her law asked less.
 SLIDE_M_S = 0.15
@@ -168,8 +170,7 @@ class Body:
         self.buffers = supervisor.buffers(names, dict(stops))
         self.feet = (m.body('left_foot').id, m.body('right_foot').id)
         self.insoles = [m.body(n).id for n in ('left_foot', 'left_toes', 'right_foot', 'right_toes')]
-        self.corners = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL)
-                                 for x in (-SOLE_HALF, SOLE_HALF)])
+        self.corners = CORNERS
         self.sole = np.array((0.0, -ANKLE_H, (BALL - HEEL) / 2.0))
         self.mass = float(m.body_subtreemass[self.pelvis])
         self._M = np.zeros((m.nv, m.nv))
