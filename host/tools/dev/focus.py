@@ -25,6 +25,7 @@ import threading
 import time
 from contextlib import suppress
 
+from tools.dev import background
 from tools.dev.suites import ROOT
 
 if os.name == 'nt':
@@ -328,7 +329,7 @@ def relay(jobs, batons=None):
                     held['locks'].discard(job.lock)
                     turn.notify_all()
 
-    for _ in range(max(1, min(count, batons or physical_cores()))):
+    for _ in range(max(1, min(count, batons or background.cores()))):
         threading.Thread(target=baton, name='baton', daemon=True).start()
     for _ in range(count):
         yield ended.get()

@@ -300,8 +300,8 @@ def sweep(pool, jobs, progress=True):
     """Every job in SHARDS_A_BATON shards a baton on `pool`'s relay, each a process loading the
     library once; a DataFrame back, a row a job in their order."""
     import pandas as pd
-    from tools.dev import focus
-    count = max(1, min(len(jobs), SHARDS_A_BATON * (pool.batons or focus.physical_cores())))
+    from tools.dev import background, focus
+    count = max(1, min(len(jobs), SHARDS_A_BATON * (pool.batons or background.cores())))
     rows, t0, seen = [None] * len(jobs), time.perf_counter(), 0
     with tempfile.TemporaryDirectory() as tmp:
         shards = []

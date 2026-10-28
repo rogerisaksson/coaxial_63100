@@ -26,18 +26,17 @@ os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.dev import background, counts
-from tools.dev.focus import physical_cores
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
 from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
                               FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURES, TIERS)
 from tools.target import find_board
 
-#: Suites on the relay (tools.dev.focus), a baton a physical core, the longest first, as the
-#: free commit holds: their wall time is mostly the stand-ins' sleep (sensorless 24 s
-#: of CPU in 151 s, the DAQ front door 0.9 in 72, the broker 2.2 in 31); one after another was a
-#: 400 s gate.
-BATONS = physical_cores()
+#: Suites on the relay (tools.dev.focus), a baton a physical core the pages leave (`background.cores`),
+#: the longest first, as the free commit holds: their wall time is mostly the stand-ins' sleep
+#: (sensorless 24 s of CPU in 151 s, the DAQ front door 0.9 in 72, the broker 2.2 in 31); one after
+#: another was a 400 s gate.
+BATONS = background.cores()
 
 
 def board_note():
