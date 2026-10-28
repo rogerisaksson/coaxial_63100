@@ -175,8 +175,13 @@ Her camera runs as `python -m machine.camera`: her page's worker is daemonic
 and multiprocessing gives such no children. On her loop turning in place her
 head's estimate (`inekf.head`) rose 5 mm/s - 0.058 m at 12 s, 0.153 at 38 -
 and her map smeared: the chair told with no back, the bed in three; laid from
-the world's head she found both. The page's vision panel holds her eyes' view
-alone (`scanner.seen`, 37.6 deg either side, FAR_M); F's offers keep 75 deg.
+the world's head she found both. Her page shows her eyes alone: its panel her
+camera's picture (`physics.CAMERA`, her registry the stand-in's still) and what
+her eyes' view holds (`scanner.seen`, 37.6 deg either side, FAR_M), F's offers
+what it has shown - held to 75 deg and 1.2 m wherever they named things no look
+had shown. Her worker names her things (`sprung.named`): a scan 0.12 ms on her
+59, 12 ms named on the page each frame. A bed is one of its kind she lies on: by
+lying alone the deck, the terrace's steps and the bench were beds.
 
 A look round posed standing (`tools/sim/eyes.py`, 25 looks, 70 ms each
 here): every one of the 29 props her eyes could take in told, its centre

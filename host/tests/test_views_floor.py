@@ -2,7 +2,7 @@
 import sys
 
 from tools.dev.focus import chosen
-from views_kit import Report, typed
+from views_kit import Report, looked_round, typed
 
 
 def test_her_horizon(report):
@@ -139,9 +139,14 @@ def test_balloons_on_what_she_sees(report):
             ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
     sent = []
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': scanner.VisionScanner(), 'tour': None,
-          **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}}
+          **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room}}
+    unseen = gym.offered(st)
+    looked_round(st['scanner'], st['now'])
     shown = [(key, verb) for key, verb, *_rest in gym.offered(st)]
-    report.check('the door ahead, the bed and the chair aside she sees, the one she faces first, F1 F2 F3',
+    report.check('before a look round the door ahead alone: the bed and the chair aside her eyes have not shown',
+                 [o[1] for o in unseen] == ['exit_door'], unseen)
+    report.check('looked round, the door ahead, the bed and the chair aside she has seen, the one she faces first, '
+                 'F1 F2 F3',
                  shown == [('F1', 'exit_door'), ('F2', 'lie_bed'), ('F3', 'sit_chair')]
                  and gym.prompt(st) == '[F1] exit door  [F2] lie bed  [F3] sit chair', (shown, gym.prompt(st)))
     typed(humanoid_keys.PAD, ('f', '3', 'f', 'f', 'f2', 'f'), st)
@@ -160,8 +165,9 @@ def test_balloons_on_what_she_sees(report):
     st['now'] = dict(st['now'], epoch=1)
     report.check('turned away, what she has seen still offered; laid anew, none of it',
                  sorted(behind) == ['exit_door', 'lie_bed', 'sit_chair'] and gym.offered(st) == [], behind)
-    st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room + [
+    st['now'] = {'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room + [
         ('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up), ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)]}
+    looked_round(st['scanner'], st['now'])
     ahead = gym.offered(st)
     st['now'] = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'scenario': 'mattress',
                  'props': [('bed', (0.0, 0.08, 2.5), (0.45, 0.08, 0.95), up)]}
@@ -177,14 +183,16 @@ def test_balloons_on_what_she_sees(report):
         drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
         return ([(o[1], o[3] and tuple(round(c, 9) for c in o[3])) for o in gym.offered(st)],
                 ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items())))
-    sitting = {'where': (1.5, 0.6, 0.8), 'heading': math.pi, 'doing': 'seated', 'props': room}
-    seated, unseen = (balloons_of(now, scanner.VisionScanner()) for now in (sitting, dict(sitting, props=[])))
+    sitting, sc = {'where': (1.5, 0.6, 0.8), 'heading': math.pi, 'doing': 'seated', 'props': room}, scanner.VisionScanner()
+    sc.identified(dict(sitting, where=(1.5, 0.9, 0.2), heading=0.0, doing=None))
+    seated, unseen = balloons_of(sitting, sc), balloons_of(dict(sitting, props=[]), scanner.VisionScanner())
     crouched = balloons_of({'where': (0.0, 0.7, 0.0), 'heading': 0.0, 'doing': gym.CROUCHED, 'props': []}, None)
-    report.check("seated, the chair under her identified facing away, its rise there, its balloon on it; on a "
-                 "seat her eyes know no thing of, none; crouched on the floor, its rise, no balloon",
+    report.check("seated, the chair under her seen before she sat, facing away, its rise there, its balloon on it; "
+                 "on a seat her eyes know no thing of, none; crouched on the floor, its rise, no balloon",
                  seated[0] == [('rise_chair', (1.5, 0.45, 0.8))] and 'F1 rise chair' in seated[1]
                  and unseen == ([], '') and crouched == ([('stand', None)], ''), (seated, unseen, crouched))
-    st.update(now={'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}, scanner=scanner.VisionScanner())
+    st.update(now={'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room}, scanner=scanner.VisionScanner())
+    looked_round(st['scanner'], st['now'])
     drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
     text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))
     report.check('a balloon on the viewport over each', all(w in text for w in ('F1 go out', 'F2 lie down', 'F3 sit')),

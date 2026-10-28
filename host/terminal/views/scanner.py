@@ -15,7 +15,7 @@ import threading
 
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
-from machine import affordance, room, sight, stereo, voxels
+from machine import room, sight, stereo, voxels
 
 
 #: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
@@ -29,11 +29,6 @@ PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
 #: within 1.2 m wherever, it named what no look of hers had shown.
 UPRIGHT, SIGHT_M = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), 8.0
 ACROSS = math.atan(math.tan(math.radians(sight.FOVY_DEG / 2.0)) * stereo.W / stereo.H)
-
-#: Her things (her registry's, `now['things']`) by what they afford her (`machine.affordance`), the first that
-#: holds: a bed she lies on, a chair a seat with a back, a seat, a door; a scenario's own kinds by its rules.
-AFFORDED = (('bed', affordance.lies), ('chair', lambda t, ts: affordance.sits(t, ts) and affordance.backed(t, ts)),
-            ('seat', affordance.sits), ('door', lambda t, _ts: t[0] == 'door'))
 
 _PROP_RULES = {
     'wood': lambda py, sx, sz, _sc: (
@@ -97,13 +92,13 @@ class VisionScanner:
         threading.Thread(target=_probe, daemon=True).start()
 
     def identified(self, now):
-        """What she has told in her sight (`scan`) since her scene was laid - its scenario, her
-        epoch -, wherever it stands now within SIGHT_M, nearest first: a thing once seen is known,
-        her sway at its edge none of its."""
+        """What her eyes' view has shown (`seen`) since her scene was laid - its scenario, her epoch -,
+        wherever it stands now within SIGHT_M, nearest first: a thing once seen is known, her sway at
+        its edge none of its; held to the wider `scan`, F offered things no look of hers had shown."""
         laid = (now.get('scenario'), now.get('epoch')) if now else None
         if laid != self._laid:
             self._laid, self._known = laid, set()
-        self._known |= {d['index'] for d in self.scan(now)}
+        self._known |= {d['index'] for d in self.seen(now)}
         return [d for d in self.scan(now, reach=SIGHT_M) if d['index'] in self._known]
 
     def seen(self, now):
@@ -114,14 +109,15 @@ class VisionScanner:
                                       math.tau)) <= ACROSS]
 
     def scan(self, now, look=None, reach=None):
-        """Her things in her sight - her registry's, by what they afford her (AFFORDED), else the props
-        by their kinds' rules -: within 75 deg of her heading or the heading the view looks along
+        """Her things in her sight - her registry's, by what they afford her as her worker named them
+        (`now['afforded']`, `affordance.named`), else the props by their kinds' rules; a scenario's kinds
+        by theirs -: within 75 deg of her heading or the heading the view looks along
         (`look`, rad), SIGHT_M, or with `reach` every one that near, nearest first; each box's half
         sizes along the world's axes its `extent`, its slot - a prop's place in her state's - its
         `index`."""
         if not now:
             return []
-        things = list(now.get('things') or ())
+        things, afforded = list(now.get('things') or ()), now.get('afforded') or ()
         props = things or (now.get('props') or ())
         where = now.get('where', (0.0, 0.0, 0.0))
         scen = str(now.get('scenario', ''))
@@ -138,8 +134,8 @@ class VisionScanner:
             sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
             turn = prop[3] if len(prop) > 3 else UPRIGHT
             if things:
-                raw_kind = next((k for k, holds in AFFORDED if holds(prop, things)),
-                                raw_kind if raw_kind in _PROP_RULES and raw_kind != 'wood' else None)
+                raw_kind = (afforded[index] if index < len(afforded) and afforded[index] else
+                            raw_kind if raw_kind in _PROP_RULES and raw_kind != 'wood' else None)
                 index = prop[4] if len(prop) > 4 else index
             kind = (None if raw_kind is None else
                     _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind)

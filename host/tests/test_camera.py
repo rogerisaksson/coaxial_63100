@@ -72,7 +72,49 @@ def test_her_vision_panel_holds_her_view(report):
                  seen == [('chair', 0.2)] and len(offered) == 3, (seen, offered))
 
 
-ROSTER = [test_her_fake_camera_tells_the_room, test_her_loop_sees_through_it, test_her_vision_panel_holds_her_view]
+def test_her_page_keeps_its_pace(report):
+    """Her page on her worker's state (the lodge, the stand-in's things): the page's process names none of her
+    things - her worker does (`now['afforded']`, `sprung.named`) - and a frame's scanner work, F's offers, the
+    prompt and her vision's panel, takes under a quarter of a frame at FPS_CAP: named there, 59 things took 12 ms
+    a scan and the page drew 7 frames a second."""
+    import time
+    from machine import affordance, physics, worker
+    from terminal.ui.screen import FPS_CAP
+    from terminal.views import gym, scanner
+    was = (physics.ROOM, physics.SIGHT)
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    try:
+        s = worker.session()
+        for _ in range(400):
+            worker.stepped(s)
+        now = worker.told(s)
+    finally:
+        physics.ROOM, physics.SIGHT = was
+    sc = scanner.VisionScanner()
+    st, calls, kept = {'now': now, 'scanner': sc, 'tour': None}, [0], {}
+    for name in ('sits', 'lies', 'backed'):
+        kept[name] = getattr(affordance, name)
+        setattr(affordance, name, lambda *a, _f=kept[name]: calls.__setitem__(0, calls[0] + 1) or _f(*a))
+    took = []
+    try:
+        for _ in range(20):
+            t0 = time.perf_counter()
+            scanner.docked_vision(sc, now, 200, 60, gym.offered(st))
+            gym.prompt(st)
+            sc.seen(now)
+            took.append(time.perf_counter() - t0)
+    finally:
+        for name, f in kept.items():
+            setattr(affordance, name, f)
+    frame_ms = 1e3 * sorted(took)[len(took) // 2]
+    report.check('the page names none of her %d things, her worker has: %d named' % (len(now['things']), sum(map(bool, now['afforded']))),
+                 calls[0] == 0 and len(now['afforded']) == len(now['things']), '%d calls' % calls[0])
+    report.check("a frame's scanner work under a quarter of a frame at %.0f a second" % FPS_CAP,
+                 frame_ms < 250.0 / FPS_CAP, '%.2f ms, a quarter %.1f' % (frame_ms, 250.0 / FPS_CAP))
+
+
+ROSTER = [test_her_fake_camera_tells_the_room, test_her_loop_sees_through_it, test_her_vision_panel_holds_her_view,
+          test_her_page_keeps_its_pace]
 
 
 def main(argv=None):

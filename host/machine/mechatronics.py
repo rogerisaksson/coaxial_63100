@@ -72,7 +72,7 @@ def _merged(base, over):
     return out
 
 
-def robot(name=ROBOT):
+def robot(name=ROBOT) -> dict:
     """A robot's build (machine/robots/`name`.toml), each stack's parts found in the library. A build that
     `extends` another is that one with its own tables laid on it - only what is its own -, its `swap` the
     motors it takes for that one's in every stack it does not name."""

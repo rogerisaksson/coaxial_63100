@@ -84,6 +84,14 @@ def ansi_plain(text):
     return re.sub(r'\x1b\[[0-9;]*m', '', text)
 
 
+def looked_round(scanner, now):
+    """`scanner` shown what her eyes' view holds (`VisionScanner.seen`) turned a full turn where `now` has her."""
+    import math
+    from terminal.views.scanner import ACROSS
+    for k in range(int(math.ceil(math.tau / ACROSS))):
+        scanner.identified(dict(now, heading=k * ACROSS))
+
+
 def typed(pad, keys, state, now=None):
     """`keys` typed on a page one a frame (`bindings.act_on`), each two `bindings.REPEAT_S` after
     the one before - a press, not its repeat, within `console.HOLD_WINDOW_S` of it -, from `now`,

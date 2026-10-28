@@ -50,8 +50,7 @@ READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 #: ROTOR_FF: fed forward whole a standing start asked the knees and hips their clamps and she
 #: fell back in 3 starts of 12; at 0.5 and up off her form.
 REFLECTED, ROTOR_FF, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 0.0
-#: Where a drive's loop reads its angle and speed: 1 the motor's encoder, the rotor's side of
-#: the gearbox; 0 the link's own sensor.
+#: Where a drive's loop reads its angle and speed: 1 the motor's encoder; 0 the link's.
 WOUND = 1.0
 
 #: The gearboxes between the rotors and the links (`machine.gearbox`): 1, each rotor runs free
@@ -59,8 +58,8 @@ WOUND = 1.0
 #: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
 #: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
 #: 2, the loop on its torques walks them at 265-326 J/m (docs/findings/drives.md).
-#: ROOM: her lodge (`machine.room`); SIGHT her eyes (`machine.sight`).
-BOXED, ROOM, SIGHT = 0.0, 0.0, 0.0
+#: ROOM her lodge (`machine.room`); CAMERA her fake camera; SIGHT her registry on it (`machine.camera`).
+BOXED, ROOM, CAMERA, SIGHT = 0.0, 0.0, 0.0, 0.0
 
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from: 0.7 kg, 8 % more yaw.

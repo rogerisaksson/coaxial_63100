@@ -4,7 +4,7 @@ the instruments' column folded to its rail at first."""
 import sys
 
 from tools.dev.focus import chosen
-from views_kit import Report, ansi_plain, typed
+from views_kit import Report, ansi_plain, looked_round, typed
 
 
 def test_a_page_its_keys_the_terminals_after(report):
@@ -79,6 +79,7 @@ def test_her_modes_before_her_rows(report):
     sent, pad = [], humanoid_keys.PAD
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': scanner.VisionScanner(), 'tour': None,
           **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': room}}
+    looked_round(st['scanner'], st['now'])
     typed(pad, '/x\x1b', st)
     prompt = st['llm_prompt']
     typed(pad, ['f', 'left'], st)

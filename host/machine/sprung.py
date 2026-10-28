@@ -5,16 +5,14 @@
 """
 import math
 import os
-from machine import mechatronics, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, affordance, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
-#: Her eyes by `physics.SIGHT` off or on: none, her stand-in the world's boxes, the whole room's at a look;
-#: her fake camera (`camera.Camera`), a look from her head as her invariant EKF places it LOOK_S apart into
-#: her map apart, its things told a look later her registry's looks, what its frustum shows.
-KEEP = (lambda world: None, camera.Camera)
-LOOKS = ((lambda g: None, lambda g: g['world'].props()),
-         (lambda g: g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body'])), lambda g: g['keep'].told()))
+#: Her registry's looks by `physics.SIGHT` off or on: her stand-in the world's boxes, the whole room's at a look;
+#: her fake camera's things (`camera.Camera`, under CAMERA or SIGHT: a look from her head as her invariant EKF
+#: places it LOOK_S apart into her map apart), told a look later, what its frustum shows.
+LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
@@ -135,7 +133,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
          'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
-         'eyes': int(physics.SIGHT > 0.0), 'keep': KEEP[int(physics.SIGHT > 0.0)](world)}
+         'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -210,13 +208,24 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     _dropped(g)
 
 
+def named(g):
+    """Her things by what they afford her (`affordance.named`), named anew only when they change: the page names
+    none - named there each frame, 59 things took 12 ms a scan and the page drew 7 frames a second."""
+    key = tuple((t[0], t[4], round(t[1][0], 2), round(t[1][1], 2), round(t[1][2], 2), round(t[2][0], 2),
+                 round(t[2][2], 2)) for t in g['things'])
+    if g.get('_named', (None,))[0] != key:
+        g['_named'] = (key, affordance.named(g['things']))
+    return g['_named'][1]
+
+
 def looked(g):
     """A look (LOOKS): her eyes' map's things, or the world's boxes as their stand-in, into her registry
     at `g['t']`, her things its boxes; the step's at the kernel's SDF refresh, an errand's when told."""
     from machine import registry
     head = {'pos': g['s']['head']['pos'], 'quat': g['s']['head']['quat']}
-    look, looks = LOOKS[g['eyes']]
-    look(g)
+    if g['keep'] is not None:
+        g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']))
+    looks = LOOKS[g['eyes']]
     registry.passed(g['registry'], head, g['t'] - g.get('things_at', g['t']))
     registry.seen(g['registry'], looks(g), head, g['t'], everywhere=not g['eyes'])
     g['things'], g['things_at'] = registry.boxes(g['registry']), g['t']
@@ -301,7 +310,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
-            'seen': g['keep'].view() if g['eyes'] else None, 'things': g['things'],
+            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], 'afforded': named(g),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,

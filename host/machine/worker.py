@@ -296,8 +296,11 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0
 
 
 def laid(s):
-    """A new epoch: her world laid anew, standing (walking where the session `walks`)."""
+    """A new epoch: her world laid anew, standing (walking where the session `walks`); the last one's camera
+    ended."""
     import numpy as np
+    if s.get('g') is not None and s['g']['keep'] is not None:
+        s['g']['keep'].close()
     g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
     if s['walks']:
         sprung.walked(g)
@@ -431,8 +434,8 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
     unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
-    `shown`."""
-    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    `shown`. Her fake camera shoots for her vision's panel (`physics.CAMERA`)."""
+    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
     if os.environ.get(TELEMETRY):
         from machine import introspect
