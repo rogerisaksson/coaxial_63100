@@ -101,15 +101,15 @@ def lies(box, things):
 
 
 def back_of(box, things):
-    """The back of a seat `box` among `things`: one of its kind standing on the seat - its bottom within
-    a cell (`voxels.CELL_M`) of the seat's top, at its edge within a cell of its footprint, no longer
-    than the seat's side it stands along, a cell over - reaching LUMBAR_M over the top; a wall behind
-    a bench or a stair beside a landing stands on the floor, none: None."""
+    """The back of a seat `box` among `things`: one of its kind reaching LUMBAR_M over the seat's top, its
+    bottom no more than a cell (`voxels.CELL_M`) over that top - held within a cell of it, a chair painted
+    whole had none: its back and rear legs one structure off the floor -, at its edge within a cell of its
+    footprint, no longer than the seat's side it stands along, a cell over; none: None."""
     from machine.voxels import CELL_M
     _c, _axes, h = footprint(box)
     lumbar = top(box) + LUMBAR_M
     for t in things:
-        if t is box or t[0] != box[0] or not (top(t) >= lumbar and abs(bottom(t) - top(box)) <= CELL_M + 1e-9):
+        if t is box or t[0] != box[0] or not (top(t) >= lumbar and bottom(t) <= top(box) + CELL_M + 1e-9):
             continue
         reach = _within(box, t)
         gap = np.maximum(reach[:, 0] - h, 0.0) + np.maximum(-h - reach[:, 1], 0.0)

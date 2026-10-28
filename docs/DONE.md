@@ -115,3 +115,8 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     `/`, released as it closes; the Ollama host 127.0.0.1, where localhost
     paid 2.04 s a request: a prompt 2.42 -> 0.11 s, a board-chat question
     8.0 -> 1.4 s (MODELS.md).
+27. Her classifier on MuJoCo's furniture painted into her map (test_sight):
+    each piece's kind, place and floor hull within a voxel at 0.05 m, the
+    bed moved and turned; a map's voxel its own (`voxels.Map`), her eyes'
+    at the 0.1 m they fill; a look's `things` 994 -> 174 ms at 0.05 m
+    (findings/sight.md).

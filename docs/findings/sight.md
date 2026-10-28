@@ -130,10 +130,11 @@ affords her is the text's (`machine/affordance.py`,
 `evaluate-situational-affordances`): a seat a surface topping 0.28-0.92 m
 with 0.075 m^2 clear above it in the pelvic and thoracic slabs, a bed a
 surface under 0.75 m and 1.35 m long clear in the thoracic slab, a chair a
-seat with a back - one of its kind standing on it, no longer than its side
-a cell over, reaching her lumbar's 0.248 m over the seat (`figure`); a
-stair beside a landing stands on the floor, a wall behind a bench is
-longer. Her things are her registry's boxes in both modes (`g['things']`:
+seat with a back - one of its kind reaching her lumbar's 0.248 m over the
+seat (`figure`), its bottom no more than a cell over the seat's top (held
+within a cell of it, a chair painted whole had none: its back and rear legs
+one structure off the floor), no longer than its side a cell over; a wall
+behind a bench is longer. Her things are her registry's boxes in both modes (`g['things']`:
 without SIGHT the props, a look showing the whole room; with it what her
 frustum has shown), her route planned round them (`route.blocked`, grown by
 their blind spots' swell) and the furniture a verb goes to found among them
@@ -141,6 +142,23 @@ by what it affords (`furniture.GOES`), the errand's thing held by its slot
 through its stunt (`machine.errand`, `maneuver.said`), its stage laid anew
 where what she has seen since blocks it (`errand._cornered`), a look round
 first where nothing of the kind is in sight (phase `look`).
+
+Painted with MuJoCo's furniture (`world.props()`, each box's voxels filled
+in its kind's colour, test_sight) her map at 0.05 m tells the chairs, the
+table and the bed 0.000-0.035 m off, their floor hulls within 0.050-0.071
+m (a voxel's diagonal 0.071), the bed moved 0.9 m and turned 0.5 rad as
+well; at 0.1 neither chair (a back 0.9 m wide on a 0.7 m seat, the low
+chair's none). Her eyes fill none finer than 0.1: at 0.05 a look round told
+553-791 things to 85 (HITS 1-3; 490-559 at 640 x 480), her registry's 256
+slots all live, the bed off her buses. A map's cost, test_sight's looks
+(a voxel's kind over every voxel, empty ones too, took 0.78 s of 1.30 at
+0.05):
+
+| Voxel | Memory | `add` | `things` | Things |
+| --- | --- | --- | --- | --- |
+| 0.1 m | 2.7 MB | 78 ms | 28 ms | 96 |
+| 0.05 m | 21 MB | 86 ms | 174 ms | 553 |
+| 0.025 m | 168 MB | 171 ms | 6.2 s | 5 507 |
 
 A look round posed standing (`tools/sim/eyes.py`, 25 looks, 70 ms each
 here): every one of the 29 props her eyes could take in told, its centre
