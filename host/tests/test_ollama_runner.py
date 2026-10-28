@@ -434,7 +434,7 @@ def test_smart_selection(report):
                table.BOOT_CORE,
                table.BOOT_CLIENT, table.CTRL_CORE, table.WORLD_CORE, table.WIRE, table.SENSORLESS, table.DAQ_API,
                table.CONTROLLER, table.GYNOID,
-               table.SIGHT, table.REACH, table.TERMS, table.GVS, table.REPLAYS, table.SCENES, table.WBC, table.WBC_CORE, table.LEAP,
+               table.SIGHT, table.CAMERA, table.REACH, table.TERMS, table.GVS, table.REPLAYS, table.SCENES, table.WBC, table.WBC_CORE, table.LEAP,
                table.ORTHO, table.POSTURES, table.FOURS, table.GROUNDWORK, table.SUBSTRATE, table.CRAWL, table.BEDSIDE, table.VAULT, table.BALLISTIC, table.DSP, table.KERNEL, table.SHIELD, table.WAYFINDER, table.SAYS, table.INTROSPECT,
                table.GATE, table.TUNE, table.FLOOR, table.SITUATION, table.BUSES, table.WRENCH, table.SYSID, table.SYSID_LIVE, table.WEAR, table.ERRANDS, table.CYCLIC, table.QUAD, table.QUAD_PULL,
                table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.AERO_CORE, table.MPPI_CORE, table.STREAMS,

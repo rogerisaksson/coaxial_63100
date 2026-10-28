@@ -39,6 +39,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | floor | the slab, a sill, a patch, a rug, a stair, bricks, a board; a scene's lay (`lay`), her grounds the lodge's deck and stairs among them |
 | sight | humanoid robot eyes: a stereo pair on humanoid robot head, the disparity by block matching, the map she keeps, its things, humanoid robot way round them |
 | stereo | the stereo disparity on the card (wgpu or cupy) or the CPU: block matching over DISPARITIES |
+| camera | her fake camera: her eye's frames shot where the world runs, the renderer's parallax; her map kept in a process of its own, its things a look later |
 | gimbal | a camera on a stabilised gimbal: its sight the world's, leant a little into a turn |
 | edge | the one reader of the world for her law - IMU, encoders, sole loads, a skin a segment, insoles - and the one writer of her drives |
 | estimate | her pelvis's place and speed of what she measures: the IMU carried, drawn to her bearing insoles; how fast they slide |
@@ -105,6 +106,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | --- | --- |
 | `test_gynoid.py` | the body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): clothes, look, a leg by its foot, a virtual and a dynamic machine, the skeleton, the drives' mounts and gearboxes, kinematics as motors |
 | `test_sight.py` | the stereo against the renderer's depth; a look round, posed standing, into humanoid robot map against the room, the chair and the table told, a way planned clear; the page's picture |
+| `test_camera.py` | a look round on her fake camera's frames, the furniture told where it stands; her map apart telling what her map here does; her loop under SIGHT on it |
 | `test_dsp.py` | the ortho-DSP suite read as written, the kernel read whole, a patch voiced on her walk by its changes, a gallop, a sprint and a carioca refused by name, the runway's dialect alike, her walk converted against itself her walk |
 | `test_kernel.py` | the dual-domain kernel on her loop: her momentum observer against her skin walking and seated; her chest's yaw leaking nothing standing; what bears her weighed as felt; the capture point's barrier; a pulled chair |
 | `test_tune.py` | the autotuner's text read; her texts given play as her files; every literal walked where it stands, her gym's by its slot; each one's reach on her - the runway's, the sit's, her walk's -; its step a QP; a run's residuals and the verdicts on a step; a link's rings and banks, her walk linked as unlinked bit for bit, her raw passes cooked as MuJoCo reads them, her walk measured at runtime with her loop apart, a table laid at her barrier blending C2 |

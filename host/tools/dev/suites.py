@@ -106,8 +106,8 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 CONTROLLER = 'test_controller.py'
 
 #: The gynoid's body on fantasy boards, their SOA never binding: her clothes, her look, her
-#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes.
-GYNOID, WBC, SIGHT = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py'
+#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes; her fake camera.
+GYNOID, WBC, SIGHT, CAMERA = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.wrench`.
 WBC_CORE, LEAP, WRENCH = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py'
@@ -196,7 +196,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, LEAP, WRENCH, SYSID, SYSID_LIVE, COMPILED, PORTED, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
@@ -222,6 +222,7 @@ JOINS = (
     (12, CONTROLLER),
     (12, GYNOID),
     (12, SIGHT),
+    (12, CAMERA),
     (12, REACH),
     (12, TERMS),
     (12, GVS),

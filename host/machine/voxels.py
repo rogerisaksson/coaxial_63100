@@ -19,7 +19,8 @@ structure whose colour differs from
 the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of its own - the door
 in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
 layer nor under a surface, a stray left out. A thing's kind its pooled colour's; its box its
-footprint's principal axes (its turn), its extents along them a voxel wide, its height its voxels'; its
+footprint's principal axes (its turn), its extents along them a voxel wide, its height its voxels', a
+structure in pieces till no box claims floor further than a voxel from its cells (`_pieces`); its
 id the one of the thing it shares most voxels with at the look before, else new (`machine.registry`);
 `clear` 1.0 where the space over its top is seen through - a surface's -, 0.0 a structure's, its top
 unknown (`machine.affordance`: a seat or a bed is a surface). Nothing here reads the world's geometry.
@@ -49,6 +50,8 @@ STAND_M = (figure.ANKLE_H, 2.0 * room.DOOR[1])
 _AROUND = np.array([(i, j, k) for i in (-1, 0, 1) for j in (-1, 0, 1) for k in (-1, 0, 1) if (i, j, k) > (0, 0, 0)])
 #: The four neighbours' offsets in a floor grid, one of each pair.
 _BESIDE = np.array([(1, 0), (0, 1)])
+#: A cell's own and its eight neighbours' offsets, (i, k).
+_ROUND = np.array([(i, k) for i in (-1, 0, 1) for k in (-1, 0, 1)])
 #: A part of a structure is its own thing where its pooled colour lies this many standard errors off the
 #: structure's kind's lit line, the error the structure's own pixels' scatter: the three-sigma test.
 SIGMA = 3.0
@@ -213,15 +216,42 @@ class Map:
                 other[group] = kind[group] != parent
                 for part in _joined(other, _AROUND):
                     if self._apart(pixel, parent, part):
-                        labels[part] = len(out)
-                        out.append(self._box(part[0], part[2], int(part[1].min()), int(part[1].max()), self._kind(part)[0]))
+                        self._told(part, out, labels)
                         own &= labels[group] < 0
                 rest = tuple(a[own] for a in group)
                 # what rests on nothing - above the floor's layer under no surface - is a stray, not a thing
                 if len(rest[0]) and (level >= 0 or rest[1].min() == 0):
-                    labels[rest] = len(out)
-                    out.append(self._box(rest[0], rest[2], int(rest[1].min()), int(rest[1].max()), parent))
+                    self._told(rest, out, labels, parent)
         return out, labels, surfaces
+
+    def _told(self, at, out, labels, kind=None):
+        """A structure's voxels `at` (index arrays) onto `out` in its pieces (`_pieces`), each voxel's piece in
+        `labels`; each piece's kind `kind`, or its own pooled colour's."""
+        for piece in self._pieces(at):
+            labels[piece] = len(out)
+            out.append(self._box(piece[0], piece[2], int(piece[1].min()), int(piece[1].max()),
+                                 self._kind(piece)[0] if kind is None else kind))
+
+    def _pieces(self, at):
+        """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at
+        its mean till its box (`_box`) claims no floor further than a voxel from the cells its voxels stand
+        in: whole, the lodge's walls joined at its corners were one box 1.8-3.1 m off each wall. A surface
+        is told whole: its holes are what her eyes missed of a face seen from above - held to its cells, a
+        bed her stereo saw in patches came in pieces."""
+        out, todo = [], [np.arange(len(at[0]))]
+        while todo:
+            n = todo.pop()
+            ik = np.column_stack([at[0][n], at[2][n]]).astype(float)
+            ik -= ik.mean(axis=0)
+            _w, v = np.linalg.eigh(ik.T @ ik)
+            along, across = ik @ v[:, 1], ik @ v[:, 0]
+            cells = np.unique((at[0][n] + 1) * (self.nz + 2) + at[2][n] + 1)
+            near = np.unique((cells[:, None] + (_ROUND[:, 0] * (self.nz + 2) + _ROUND[:, 1])[None, :]).ravel())
+            if len(cells) > 1 and (np.ptp(along) + 1.0) * (np.ptp(across) + 1.0) > len(near) + 1e-9:
+                todo += [n[along >= 0.0], n[along < 0.0]]
+            else:
+                out.append(tuple(a[n] for a in at))
+        return out
 
     def _pixel(self, group, parent):
         """A structure `group`'s (index arrays) of kind `parent` pixels' spread from the kind's lit line: its

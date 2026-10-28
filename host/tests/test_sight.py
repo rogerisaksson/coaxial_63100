@@ -45,12 +45,11 @@ def _head(world):
     return {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
 
 
-def _looked_round(world, keep):
-    """Her heading posed once about, a look each of LOOKS from her head's pose."""
-    from machine import sight
+def _looked_round(world, eyes, keep):
+    """Her heading posed once about, a look each of LOOKS from her head's pose, matched by her stereo."""
     for k in range(LOOKS):
         _stood(world, math.tau * k / LOOKS)
-        keep.look(world, k * sight.LOOK_S, _head(world))
+        keep.took(*eyes.stereo(world, _head(world)))
 
 
 def _nearest(things, affords, at):
@@ -98,8 +97,8 @@ def test_her_map_is_the_room(report):
     from machine import room, sight
     body, world = _room()
     try:
-        keep = sight.Keep(world)
-        _looked_round(world, keep)
+        eyes, keep = sight.Eyes(world), sight.Keep()
+        _looked_round(world, eyes, keep)
         occ = keep.map.occupied().any(axis=1)
         boxes = [((-room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
                  ((room.WIDE, (room.FROM + room.TO) / 2.0), (room.THICK, (room.TO - room.FROM) / 2.0)),
@@ -138,7 +137,7 @@ def test_her_map_is_the_room(report):
         bed = world.model.body('bed')
         bed.pos[:], bed.quat[:] = (moved[0], room.BED[1], moved[1]), (math.cos(yaw / 2.0), 0.0, math.sin(yaw / 2.0), 0.0)
         keep.forget()
-        _looked_round(world, keep)
+        _looked_round(world, eyes, keep)
         found = _nearest(sight.told(keep), 'bed', moved)
         turn = None if found is None else abs(math.remainder(axis(found[1][2], found[1][3]) - axis((room.BED[0], 0.0, room.BED[2]), _turned(yaw)), math.pi))
         report.check('the bed moved and turned 0.5 rad is told within 0.3 m of its new place, its size and its turn',
@@ -265,7 +264,7 @@ def test_her_map_from_painted_furniture(report):
         for label in ('as laid', 'the bed moved'):
             world._mj.mj_forward(world.model, world.data)
             props = world.props()
-            things = _painted(voxels.Map(sight.Keep(world).map.means_of, PAINTED_M), props)
+            things = _painted(voxels.Map(sight.Keep().map.means_of, PAINTED_M), props)
             for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('low chair', 'chair', room.CHAIR_LOW_AT),
                                       ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
                 at = (world.model.body('bed').pos[0], world.model.body('bed').pos[2]) if name == 'bed' else at
@@ -383,17 +382,14 @@ def _meets(w0, w1):
 def test_her_things_fill_her_registry(report):
     """Her things into her registry (`machine.registry`): looked round, each look the room's boxes (`world.props()`,
     the stand-in's) seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed (a
-    bed) hold slots her buses take within 0.3 m of where they stand; on her loop under `physics.SIGHT` her things
-    are her map's (`sprung.LOOKS`)."""
-    from machine import physics, registry, room, sight, sprung
+    bed) hold slots her buses take within 0.3 m of where they stand."""
+    from machine import physics, registry, room, sight
     body, world = _room()
     try:
-        keep, slots = sight.Keep(world), registry.laid()
+        slots = registry.laid()
         for k in range(LOOKS):
             _stood(world, math.tau * k / LOOKS)
-            head = _head(world)
-            keep.look(world, k * sight.LOOK_S, head)
-            registry.seen(slots, world.props(), head, k * sight.LOOK_S)
+            registry.seen(slots, world.props(), _head(world), k * sight.LOOK_S)
         boxes = registry.boxes(slots)
         kinds = sorted({b[0] for b in boxes})
         for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
@@ -401,13 +397,6 @@ def test_her_things_fill_her_registry(report):
             report.check('the %s holds a slot her buses take within 0.3 m of where it stands, a %s' % (name, affords),
                          found is not None and found[0] < 0.3,
                          '%s of %d slots, %s' % ('%.2f' % found[0] if found else 'none', len(boxes), kinds))
-        g = sprung.laid(sprung.STACK_EVERY)
-        while g['t'] < 2.0 * sight.LOOK_S + 0.1:
-            sprung.passed(g)
-        report.check('on her loop under SIGHT her things are her map\'s: a keep looked twice, things told',
-                     isinstance(g['keep'], sight.Keep) and g['keep'].map.looks >= 2 and len(g['things']) >= 1,
-                     '%s, %d looks, %d things: %s' % (type(g['keep']).__name__, getattr(g['keep'], 'map', keep.map).looks,
-                                                    len(g['things']), sorted({b[0] for b in g['things']})))
     finally:
         physics.SIGHT = 0.0
         body.close()

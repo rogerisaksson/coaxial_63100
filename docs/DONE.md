@@ -120,3 +120,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     bed moved and turned; a map's voxel its own (`voxels.Map`), her eyes'
     at the 0.1 m they fill; a look's `things` 994 -> 174 ms at 0.05 m
     (findings/sight.md).
+28. Her fake camera, a vision SIL (`machine.camera`): her eye's frames shot
+    on the card where the world runs, her map and classifier in a process
+    of their own, her things a look later; her loop 1.09 x flat out with it,
+    1.08 without; a structure told in pieces by its cells (test_camera).

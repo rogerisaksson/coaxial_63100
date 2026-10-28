@@ -5,16 +5,16 @@
 """
 import math
 import os
-from machine import mechatronics, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, sight, situation, supervisor, touch
+from machine import mechatronics, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
 #: Her eyes by `physics.SIGHT` off or on: none, her stand-in the world's boxes, the whole room's at a look;
-#: her stereo's keep (`sight.Keep`), a look from her head as her invariant EKF places it into its map LOOK_S
-#: apart and its things told (`sight.told`) her registry's looks, what its frustum shows.
-KEEP = (lambda world: None, sight.Keep)
+#: her fake camera (`camera.Camera`), a look from her head as her invariant EKF places it LOOK_S apart into
+#: her map apart, its things told a look later her registry's looks, what its frustum shows.
+KEEP = (lambda world: None, camera.Camera)
 LOOKS = ((lambda g: None, lambda g: g['world'].props()),
-         (lambda g: g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body'])), lambda g: sight.told(g['keep'])))
+         (lambda g: g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body'])), lambda g: g['keep'].told()))
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
@@ -301,6 +301,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
+            'seen': g['keep'].view() if g['eyes'] else None,
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,

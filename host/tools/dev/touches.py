@@ -1,7 +1,7 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE, BROKER,
                               COMPILED, CONFORMANCE, PORTED,
-                              CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
+                              CAMERA, CONTROLLER, CORE, CTRL_CORE, CYCLIC, DAQ_API, DAQ_CORE, DRIVE,
                               DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, EMULATOR, ERRANDS, FILTER, GVS, GYNOID,
                               GROUND, HEATED, LEAP, NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, PAINT, QUADS, REACH, RENDER, REPLAYS, SCENES,
                               SENSORLESS, SHTP, SIGHT, SITUATION, STREAMS, STRUCTURE, SWEEP, SYSID, SYSID_LIVE, TERMS, THERMAL,
@@ -138,7 +138,7 @@ TOUCHES = (
     ('host/machine/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
     ('host/tools/sim/observed.py',             (KERNEL,)),
     ('host/machine/runway.lisp',               (DSP,)),
-    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
+    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
@@ -225,9 +225,8 @@ TOUCHES = (
     ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
-    # The control law is hardware-free like the SHTP layer, and its suite
-    # closes the loop through a motor model - the only check on it that needs
-    # no motor.
+    # The control law is hardware-free like the SHTP layer; its suite closes
+    # the loop through a motor model.
     ('drive/',                                 (DRIVE, DRIVE_OBSERVER, WORLD_CORE)),
     ('host/coaxial/devices/drive.py',          (SENSORLESS, 'test_simulated.py',
                                                 'test_parity.py')),

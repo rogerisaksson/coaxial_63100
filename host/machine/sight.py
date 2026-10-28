@@ -2,13 +2,15 @@
 disparity by block matching, depth from it, the points into the map she keeps of the room
 (`machine.voxels`) in her estimate's frame, its things boxes with their turn (docs/findings/sight.md).
 
-    keep = Keep(world)                      # her eyes on a world and the map she keeps
-    keep.look(world, now, head)             # one look into the map from her head's pose, LOOK_S apart at most
+    eyes, keep = Eyes(world), Keep()        # her eyes on a world, the map she keeps
+    keep.took(*eyes.stereo(world, head))    # a look matched by her stereo into the map, from her head's pose
+    keep.took(*eyes.shot(world, head))      # a look's parallax from the renderer's depth (`machine.camera`)
     things = told(keep)                     # [(kind, centre, half sizes, turn)] her registry's looks
     way = plan(keep.map.blocked(), at, to)  # [(x, z)] round what she knows
     keep.hulls()                            # what the last look showed, hulled by thing
 
-Nothing here reads the world's geometry: the cameras' images and her own pose alone (`physics.SIGHT`).
+Her keep reads nothing of the world: a look's frame - an eye's colour and parallax at her own pose - alone,
+rendered on the world's side (`physics.SIGHT`).
 """
 import heapq
 import math
@@ -131,6 +133,23 @@ class Eyes:
         return Seen(shots['left'], shots['right'], d.cam_xpos[i].copy(),
                     d.cam_xmat[i].reshape(3, 3).copy())
 
+    def stereo(self, world, head):
+        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`), laid at her `head`
+        {pos, quat} as her estimate has it."""
+        seen = self.see(world)
+        seen.at, seen.turn = eye_pose(head)
+        return (seen,) + tuple(disparity(seen.left, seen.right))
+
+    def shot(self, world, head):
+        """A look's frame (seen, disparity, kept) as her fake camera gives it (`machine.camera`): the left
+        eye's colour and the parallax her stereo would match from the renderer's own depth (`truth`), every
+        pixel within FAR_M kept, laid at her `head` {pos, quat} as her estimate has it."""
+        np = _np()
+        self.renderer.update_scene(world.data, camera=self.ids['left'])
+        left, z = self.renderer.render().copy(), self.truth(world)
+        kept = z < voxels.FAR_M
+        return Seen(left, None, *eye_pose(head)), np.where(kept, focal() * BASELINE_M / np.maximum(z, 1e-6), 0.0), kept
+
     def truth(self, world):
         """The left eye's depth from the renderer's own buffer, m: the measure to hold the
         stereo to, never hers."""
@@ -171,25 +190,17 @@ class Look:
 
 class Keep:
 
-    """Her eyes on a world and the map she keeps with them (`voxels.Map` of LOOKS' colours): `look`
-    at most LOOK_S apart, from her head's pose; the last look kept for the page."""
+    """The map she keeps (`voxels.Map` of LOOKS' colours) and her last look into it, kept for the page."""
 
-    def __init__(self, world):
-        self.eyes, self.map, self.looked_at, self.last = Eyes(world), voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None, None
+    def __init__(self):
+        self.map, self.last = voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None
 
     def forget(self):
         """Her map laid anew, the last look let go: the room changed under her."""
-        self.map, self.looked_at, self.last = voxels.Map(self.map.means_of), None, None
+        self.map, self.last = voxels.Map(self.map.means_of), None
 
-    def look(self, world, now, head):
-        """One look into the map from her `head` {pos, quat} as her estimate has it, if LOOK_S have
-        passed since the last; the Look, or None."""
-        if self.looked_at is not None and now - self.looked_at < LOOK_S:
-            return None
-        self.looked_at = now
-        seen = self.eyes.see(world)
-        seen.at, seen.turn = eye_pose(head)
-        disp, kept = disparity(seen.left, seen.right)
+    def took(self, seen, disp, kept):
+        """A look's frame (`Eyes.stereo`, `Eyes.shot`) into the map; the Look."""
         xyz, rgb, rows, cols = points(seen, disp, kept)
         self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at))
         return self.last

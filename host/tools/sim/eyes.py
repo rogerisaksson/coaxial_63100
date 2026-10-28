@@ -5,6 +5,7 @@ axis' turn off the prop's; her registry's slots; her way to the chair's stage pl
 against the props'.
 
     python -X utf8 tools/sim/eyes.py [--looks 25]       # a look round standing, her things against the props
+    python -X utf8 tools/sim/eyes.py --camera           # her fake camera's frames (`sight.Eyes.shot`), not her stereo's
     python -X utf8 tools/sim/eyes.py --errand           # her loop: a turn in place, then told to sit, then to lie
 """
 import argparse
@@ -97,7 +98,7 @@ def errand(seconds=20.0):
         worker.stepped(s)
     things = g['things']
     print('looked round in %.1f s: %d looks, %d things; seats %s; beds %s' % (
-        g['t'], g['keep'].map.looks, len(things),
+        g['t'], g['keep'].looks, len(things),
         [(t[0], round(t[1][0], 1), round(t[1][2], 1), '+back' if affordance.backed(t, things) else '') for t in things if affordance.sits(t, things)],
         [(t[0], round(t[1][0], 1), round(t[1][2], 1)) for t in things if affordance.lies(t, things)]))
     for verb, done, at in (('sit_chair', 'seated', None), ('lie_bed', 'bed_rest', None)):
@@ -132,6 +133,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--looks', type=int, default=25)
     ap.add_argument('--errand', action='store_true')
+    ap.add_argument('--camera', action='store_true')
     a = ap.parse_args(argv)
     if a.errand:
         errand()
@@ -139,14 +141,14 @@ def main(argv=None):
     from machine import affordance, registry, route, sight, voxels
     body, world = _room()
     try:
-        keep, slots = sight.Keep(world), registry.laid()
+        sights, keep, slots = sight.Eyes(world), sight.Keep(), registry.laid()
         hb = world.model.body('head').id
         took, eyes = [], []
         for k in range(a.looks):
             _stood(world, math.tau * k / a.looks)
             head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
             t0 = time.perf_counter()
-            keep.look(world, k * sight.LOOK_S, head)
+            keep.took(*(sights.shot if a.camera else sights.stereo)(world, head))
             took.append(time.perf_counter() - t0)
             eyes.append(sight.eye_pose(head)[0])
             registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)

@@ -160,6 +160,18 @@ slots all live, the bed off her buses. A map's cost, test_sight's looks
 | 0.05 m | 21 MB | 86 ms | 174 ms | 553 |
 | 0.025 m | 168 MB | 171 ms | 6.2 s | 5 507 |
 
+Her fake camera (`machine.camera`): her left eye's colour and the parallax from
+the renderer's depth, her map in a process of its own, its things a look
+later. A look round at 0.1 m: 64-67 ms a look to the stereo's 86-88, 43
+things to 86, centres 0.06 m off the props at the median to 0.09, 25 of 29
+props - the gable 3.41 m off lies at FAR_M, the stereo's depth error brought
+it in -, the chair a seat with a back, the bed on her buses, her way to the
+chair clear. On her loop 12.8 ms a look where she runs: 1.09 x flat out with
+it, 1.08 without. The lodge's walls joined at its corners were one structure,
+its box 1.8-3.1 m off each wall: a structure is told in pieces, halved across
+its long axis till no box claims floor further than a voxel from its cells
+(blocked cells 2 892 -> 2 242, the props' grown 2 371); a surface whole.
+
 A look round posed standing (`tools/sim/eyes.py`, 25 looks, 70 ms each
 here): every one of the 29 props her eyes could take in told, its centre
 0.09 m off at the median, its sizes 0.11, the lodge's axis-aligned turns 0
