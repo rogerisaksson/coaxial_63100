@@ -92,9 +92,9 @@ def test_the_stereo_holds_to_the_depth(report):
 
 def test_her_map_is_the_room(report):
     """A look round, posed standing: nine in ten occupied cells within 0.15 m of a wall or a thing
-    of the room, the chair (a seat with a back), the table (a seat) and the bed (a bed) told within
-    0.3 m of where they stand, a way to the chair found clear of what she knows; her view for the page
-    hulls what she told."""
+    of the room, a way to the chair found clear of what she knows; her view for the page hulls what she
+    told. What a thing is, the classifier's own (`test_her_kinds_from_their_boxes`): held to her
+    eyes' fragments the chair came and went with 0.05 px of her card's disparity against her CPU's."""
     from machine import room, sight
     body, world = _room()
     try:
@@ -118,12 +118,6 @@ def test_her_map_is_the_room(report):
                      '%d cells from %d looks' % (len(far), keep.map.looks))
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
-        things = sight.told(keep)
-        for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
-            found = _nearest(things, affords, at)
-            report.check('the %s is told within 0.3 m of where it stands, a %s' % (name, affords),
-                         found is not None and found[0] < 0.3,
-                         '%.2f m off, top %.2f' % (found[0], found[1][1][1] + found[1][2][1]) if found else 'not told')
         at = (0.0, 0.0)
         to = (room.CHAIR_AT[0], room.CHAIR_AT[1] - 0.6)
         way = sight.plan(keep.map.blocked(), at, to)
@@ -152,6 +146,52 @@ def test_her_map_is_the_room(report):
                      and abs(max(found[1][2][0], found[1][2][2]) - room.BED[2]) < 0.2,
                      '%.2f m off, half (%.2f %.2f), turn off %.2f rad' % (found[0], found[1][2][0], found[1][2][2], turn)
                      if found else 'not told')
+    finally:
+        body.close()
+
+
+#: The lodge's furniture to lay anywhere: (name, what it affords, where it stands, its seat's facing, rad, as laid);
+#: a box its group's within REACH_M of where it stands; DRAWS layings, each moved, turned and sized.
+FURNITURE = (('chair', 'chair', 'CHAIR_AT', math.pi), ('low chair', 'chair', 'CHAIR_LOW_AT', math.pi / 2.0),
+             ('table', 'seat', 'TABLE_AT', None), ('bed', 'bed', 'BED_AT', None))
+REACH_M, DRAWS = 0.7, 8
+
+
+def test_her_kinds_from_their_boxes(report):
+    """The classifier (`machine.affordance`) on the room's own boxes (`world.props()`, the stand-in's look) laid
+    anywhere: each piece of furniture moved up to 1 m, turned any way and sized 0.8-1.25 along the floor, told what
+    it affords where it now stands, its size and its turn, a seat's facing turned with it."""
+    import random
+    from machine import affordance, room
+    body, world = _room()
+    try:
+        props, rng, worst = world.props(), random.Random(63100), [0.0, 0.0, 0.0]
+        told = {name: 0 for name, *_ in FURNITURE}
+        for _ in range(DRAWS):
+            laid, want = [], []
+            for name, affords, at_name, faces in FURNITURE:
+                at, yaw, size = getattr(room, at_name), rng.uniform(-math.pi, math.pi), rng.uniform(0.8, 1.25)
+                to = (at[0] + rng.uniform(-1.0, 1.0), at[1] + rng.uniform(-1.0, 1.0))
+                R = np.array(_turned(yaw))
+                group = [b for b in props if math.dist((b[1][0], b[1][2]), at) <= REACH_M and math.dist(b[1], (0, 0, 0)) > 0]
+                for kind, c, h, turn in group:
+                    off = R @ (size * np.array([c[0] - at[0], 0.0, c[2] - at[1]]))
+                    laid.append((kind, np.array([to[0] + off[0], c[1], to[1] + off[2]]),
+                                 np.array([size * h[0], h[1], size * h[2]]), R @ np.asarray(turn)))
+                seat = min(group, key=lambda b: math.dist((b[1][0], b[1][2]), at))
+                want.append((name, affords, to, np.array([size * seat[2][0], seat[2][1], size * seat[2][2]]),
+                             None if faces is None else faces + yaw))
+            for name, affords, to, half, faces in want:
+                found = _nearest(laid, affords, to)
+                if found is None:
+                    continue
+                box = found[1]
+                off = abs(math.remainder(affordance.faced(box, laid) - faces, math.tau)) if faces is not None else 0.0
+                worst = [max(worst[0], found[0]), max(worst[1], float(np.abs(box[2] - half).max())), max(worst[2], off)]
+                told[name] += int(found[0] < 1e-6 and np.allclose(box[2], half) and off < 1e-6)
+        report.check('each piece of furniture laid %d ways told what it affords where it stands, its size, its facing'
+                     % DRAWS, all(n == DRAWS for n in told.values()),
+                     '%s; worst %.1e m, %.1e m, %.1e rad' % (', '.join('%s %d' % kv for kv in told.items()), *worst))
     finally:
         body.close()
 
@@ -249,10 +289,10 @@ def _meets(w0, w1):
 
 
 def test_her_things_fill_her_registry(report):
-    """Her eyes' things into her registry (`sight.told`, `machine.registry`): looked round, each look's
-    things seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed
-    (a bed) hold slots her buses take within 0.3 m of where they stand; on her loop under
-    `physics.SIGHT` her things are her map's (`sprung.LOOKS`)."""
+    """Her things into her registry (`machine.registry`): looked round, each look the room's boxes (`world.props()`,
+    the stand-in's) seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed (a
+    bed) hold slots her buses take within 0.3 m of where they stand; on her loop under `physics.SIGHT` her things
+    are her map's (`sprung.LOOKS`)."""
     from machine import physics, registry, room, sight, sprung
     body, world = _room()
     try:
@@ -261,7 +301,7 @@ def test_her_things_fill_her_registry(report):
             _stood(world, math.tau * k / LOOKS)
             head = _head(world)
             keep.look(world, k * sight.LOOK_S, head)
-            registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)
+            registry.seen(slots, world.props(), head, k * sight.LOOK_S)
         boxes = registry.boxes(slots)
         kinds = sorted({b[0] for b in boxes})
         for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
@@ -282,7 +322,7 @@ def test_her_things_fill_her_registry(report):
 
 
 ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through,
-          test_her_things_fill_her_registry]
+          test_her_kinds_from_their_boxes, test_her_things_fill_her_registry]
 
 
 def main(argv=None):
