@@ -282,7 +282,7 @@ def test_the_pages_held_space_lands_her(report):
     for _ in range(1500):
         worker.stepped(s)
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
-          'pad': humanoid_keys.pad(), 'now': {'doing': sprung.doing(s['g'])}}
+          'pad': humanoid_keys.pad(), 'now': worker.told(s)}
     t0, said, airs, air, frame, typed = float(s['g']['t']), [], 0, False, 0.0, -math.inf
     bindings.act_on(humanoid_keys.PAD, [' '], st, t0)
     while s['g']['t'] - t0 < HELD_S + 2.0 and s['fallen_at'] is None:
@@ -298,7 +298,7 @@ def test_the_pages_held_space_lands_her(report):
             bindings.act_on(humanoid_keys.PAD, [' '], st, t)
         if t - frame >= FRAME_S:
             frame = t
-            st['now'] = {'doing': sprung.doing(s['g'])}
+            st['now'] = worker.told(s)
             humanoid_keys._hop_held(st, t, (' ',) if held else ())
         up = max(s['g']['loads']) < 5.0
         airs, air = airs + int(up and not air), up
@@ -306,10 +306,56 @@ def test_the_pages_held_space_lands_her(report):
                  said == ['hop'] and airs >= 1 and s['fallen_at'] is None and min(s['g']['loads']) > 5.0)
 
 
+#: On the page: Shift+W held RUN_S, Space typed LEAP_AT_S into it, then let go; followed STOP_S on.
+RUN_S, LEAP_AT_S, STOP_S = 6.0, 3.0, 4.0
+
+
+def test_the_pages_run_leap_and_stop(report):
+    """Shift+W held on the HUMANOID page as a terminal types it (`humanoid_keys.steered` each frame, her twist the
+    page's), Space typed as she runs, the keys let go: on her loop as the page lays it she runs, leaps with both soles
+    off the floor, stops and stands - no fall, one hop said."""
+    from types import SimpleNamespace as SN
+    from machine import sprung, worker
+    from terminal.ui import bindings
+    from terminal.views import humanoid_keys
+    sent = []
+    s = worker.session()
+    worker.apply(s, {'scenario': 'flat'})
+    for _ in range(1500):
+        worker.stepped(s)
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
+          'pad': humanoid_keys.pad(), 'now': worker.told(s)}
+    t0, said, airs, air, frame, typed, z0 = float(s['g']['t']), [], 0, False, 0.0, -math.inf, float(s['g']['est']['pos'][2])
+    leapt = False
+    while s['g']['t'] - t0 < RUN_S + STOP_S and s['fallen_at'] is None:
+        for cmd in sent:
+            worker.apply(s, cmd)
+            said += [cmd['say']] if 'say' in cmd else []
+        sent.clear()
+        worker.stepped(s)
+        t = float(s['g']['t'])
+        if t - t0 <= RUN_S and t - typed >= REPEAT_GAP_S:
+            typed = t
+            keys = ['W', ' '] if t - t0 >= LEAP_AT_S and not leapt else ['W']
+            leapt = leapt or ' ' in keys
+            bindings.act_on(humanoid_keys.PAD, keys, st, t)
+        if t - frame >= FRAME_S:
+            frame = t
+            st['now'] = worker.told(s)
+            humanoid_keys.steered(st, t, 0.0)
+        up = max(s['g']['loads']) < 5.0
+        airs, air = airs + int(up and t - t0 > LEAP_AT_S and not air), up
+    went = float(s['g']['est']['pos'][2]) - z0
+    report.check('Shift+W %.0f s, Space at %.0f s, let go: said %s, %d flights after it, went %.1f m, stood %s, %s' % (
+        RUN_S, LEAP_AT_S, said, airs, went, s['fallen_at'] is None, sprung.doing(s['g'])),
+        said == ['hop'] and airs >= 1 and went > 2.0 and s['fallen_at'] is None and sprung.doing(s['g']) in ('stand', 'rest'))
+
+
 ROSTER = [test_her_soles_stand_as_they_bear, test_a_landing_is_under_her_within_reach,
           test_the_loop_meets_an_airborne_soles_ask, test_forward_leap_scales_with_charge,
           test_she_jumps_high_on_both_feet_from_standing, test_she_hops_and_stands,
-          test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on, test_the_pages_held_space_lands_her]
+          test_she_hops_on_the_loop, test_she_leaps_in_stride_and_walks_on, test_the_pages_held_space_lands_her,
+          test_the_pages_run_leap_and_stop]
 
 
 def main(argv=None):

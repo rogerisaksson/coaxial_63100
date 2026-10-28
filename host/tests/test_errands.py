@@ -8,9 +8,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
-from views_kit import Report
+from views_kit import Report, typed
 
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
+
+
+def _first(st, typed, pad):
+    """The page's first offer said by F (`humanoid_keys._interact`): at once with one, F again with more - a click on
+    the view says nothing unless F's choice is open."""
+    typed(pad, 'f', st)
+    if st.get('choosing') is not None:
+        typed(pad, 'f', st)
 
 
 def _run(s, seconds, until=None, after=0.0):
@@ -179,8 +187,8 @@ def test_chair_and_bed_seated_and_rising(report):
 
 
 def test_viewport_f_errands_chair_bed_and_door(report):
-    """Walking toward the chair, bed, or door offers it first in the viewport (`gym.offered`), and a
-    click makes her autonomously walk to the chair and sit, walk to the bed and lie down, or walk to
+    """Walking toward the chair, bed, or door offers it first in the viewport (`gym.offered`), and F
+    (`_first`) makes her autonomously walk to the chair and sit, walk to the bed and lie down, or walk to
     the door and exit."""
     from types import SimpleNamespace as SN
     from machine import modal, physics, sprung, worker
@@ -205,7 +213,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
         key, first = (gym.offered(st) or [('', None)])[0][:2]
         shown_prompt, expected_prompt = gym.prompt(st), '[%s] %s' % (key, gym.NAMED[verb])
         shown = first == verb and shown_prompt.startswith(expected_prompt)
-        viewpoint.mouse(st, lambda: (100, 40), humanoid_keys.clicked)['on_click'](20, 10)
+        _first(st, typed, humanoid_keys.PAD)
         max_prop = 0.0
         for _ in range(40000):
             worker.stepped(s)
@@ -229,14 +237,14 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                 _run(s, 0.8)
                 st['now'] = worker.told(s)
                 rise_prompt, rise_on = gym.prompt(st), (gym.offered(st) or [('',) * 5])[0][4]
-                viewpoint.mouse(st, lambda: (100, 40), humanoid_keys.clicked)['on_click'](20, 10)
+                _first(st, typed, humanoid_keys.PAD)
                 _flips, stood_t = _run(s, 6.0, until='stand')
                 _run(s, 0.5)
                 ok = (ok and rise_prompt == '[F1] rise bed' and rise_on.startswith('bed ') and stood_t is not None
                       and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
             detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
                 shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
-        report.check('viewport click for %s: %s offered first and completes autonomous errand' % (label, expected_prompt),
+        report.check('F for %s: %s offered first and completes autonomous errand' % (label, expected_prompt),
                      ok, detail)
 
 
