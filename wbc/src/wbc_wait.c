@@ -138,6 +138,26 @@ void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n
   got[1] = first;
 }
 
+void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                   double t, double dt, double got[3])
+{
+  unsigned char rises[WBC_WAIT_ROWS] = {0};
+  const double *rot = fr + k->f_rot;
+  const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
+  const double  vz = (rot[6] * y[k->y_vcom] + rot[7] * y[k->y_vcom + 1]) + rot[8] * y[k->y_vcom + 2];
+  double        first, shift;
+
+  for (int r = 0; r < rows; r++)
+  {
+    rises[r] = (unsigned char)(tab[r * w->table + w->rise] > 0.5);
+  }
+  shift = (dt * (double)(vz < 0.0)) * (double)due_rows(w, tab, rows, rises, t, dt, &first);
+  first = first - w->edge_s;
+  shifted(w, tab, rows, shift, first);
+  got[0] = shift;
+  got[1] = first;
+}
+
 void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
                     double got[3])
 {

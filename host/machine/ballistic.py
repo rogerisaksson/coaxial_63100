@@ -5,6 +5,7 @@
     dv = ballistic.braked(mu, cap, period)         # m/s: the most one step's stance brakes on a floor's friction
     n = ballistic.steps(v, v_walk, dv)             # steps from a run's speed to a walk's
     z = ballistic.crouch(fr)                       # axial: her deepest crouch to jump from, the text's
+    wire, names, s, ms = ballistic.bound(fr, ch, turns, now, label)   # her leap in stride, a table's rows
     v, t, w = ballistic.launch(depth, legs)        # m/s, s, rad/s: her hips leaving the floor, her knees then
     h, x = ballistic.parabola(vz, vx)              # m: a flight's apex and span, landing as high as it left
 
@@ -15,7 +16,8 @@ from machine import bemf, drives, figure
 
 #: Gravity, m/s^2.
 G = 9.81
-#: Her knee among her drives (`bemf.DRIVEN`).
+#: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, 1/s^2 (the stride leap's table's).
+THROW_K = 21600.0
 KNEE = bemf.DRIVEN.index('left_knee')
 
 
@@ -53,11 +55,9 @@ def steps(v, v_walk, dv):
     return np.ceil((np.asarray(v, float) - v_walk) / dv).astype(int)
 
 
-def launch(depth, legs=2.0, n=4000):
-    """(m/s, s, rad/s): her hips' speed leaving the floor, the push's seconds and her knees' speed then, pushed from
-    `depth` m under her straight legs by `legs` knees at their back-EMF bounds, their rotors spun with them, her
-    weight against them. Her kinetic energy, her rotors' with it, gains the push's work and loses her weight's; she
-    leaves where the floor's push would turn to a pull, or straight."""
+def _push(depth, legs, n):
+    """Her push from `depth` m under her straight legs (`launch`): (her rise from the crouch along her legs' line, m,
+    her speed there, m/s, the sample she leaves at, her knees' levers, m)."""
     import numpy as np
     straight = figure.THIGH + figure.SHANK
     x = np.linspace(straight - depth, straight, n + 1)[:-1]
@@ -74,8 +74,26 @@ def launch(depth, legs=2.0, n=4000):
         energy[k + 1] = max(0.0, energy[k] + (push - m * G) * dx)
         v[k + 1] = np.sqrt(2.0 * energy[k + 1] / big[k + 1])
     acc = np.gradient(v, dx) * v
-    k = int(np.argmax(np.append(m * (acc[:-1] + G) <= 0.0, True)))
-    return float(v[k]), float(np.sum(dx / np.maximum(v[1:k + 1], 1e-9))), float(v[k] / lever[k])
+    return x - x[0], v, int(np.argmax(np.append(m * (acc[:-1] + G) <= 0.0, True))), lever
+
+
+def launch(depth, legs=2.0, n=4000):
+    """(m/s, s, rad/s): her hips' speed leaving the floor, the push's seconds and her knees' speed then, pushed from
+    `depth` m under her straight legs by `legs` knees at their back-EMF bounds, their rotors spun with them, her
+    weight against them. Her kinetic energy, her rotors' with it, gains the push's work and loses her weight's; she
+    leaves where the floor's push would turn to a pull, or straight."""
+    import numpy as np
+    up, v, k, lever = _push(depth, legs, n)
+    return float(v[k]), float(np.sum((up[1] - up[0]) / np.maximum(v[1:k + 1], 1e-9))), float(v[k] / lever[k])
+
+
+def rise(depth, legs, at):
+    """m: her hips' rise from the crouch `depth` m under her straight legs at `at` s into her push (`launch`'s), her
+    leaving's from its end on."""
+    import numpy as np
+    up, v, k, _lever = _push(depth, legs, 4000)
+    t = np.concatenate([[0.0], np.cumsum((up[1] - up[0]) / np.maximum(v[1:k + 1], 1e-9))])
+    return np.interp(np.asarray(at, float), t, up[:k + 1])
 
 
 def parabola(vz, vx):
@@ -92,3 +110,59 @@ def crouch(fr):
     from machine import kernel, modal
     return 1e-3 * kernel.said('xform-standing-bilateral-jump', 'countermovement-crouch-mm') / (
         modal.AXIAL_M * fr[modal.HIPS_BY])
+
+
+def bound(fr, ch, turns, now, label, speed=0.69):
+    """(wire, names, seconds, the ms its push begins) of her leap in stride (`xform-in-stride-unilateral-leap`) from
+    the sole landing now: its stance dipped by the text's countermovement (a tap, charge `ch` 0, half of it) and pushed
+    straight by one knee at its WEP (`launch`, one leg) to leave as her other sole's swing ends - half a turn of her
+    rhythm `turns` rad/s on -, her flight in place of her double support, her rhythm untouched: the other sole lands
+    meant to stand, this one swings at its own time. The push's spring held into the flight (let go at its curve's end
+    she stood on, 0.28 m/s up), her other swing held through the push (ZMP none), her landing waiting on her soles;
+    her gait's height, spring and support as she had them (`now`) after, the last row named `label`. Braked to a stand
+    first, her leap from a run went no further than her walk's."""
+    import math
+    import numpy as np
+    from machine import kernel, latent, leap, modal, ortho, stride
+    z, k, zmp, d = latent.Z.start + modal.AXIAL, latent.K.start + modal.AXIAL, latent.ZMP, latent.D.start + modal.AXIAL
+    per = modal.AXIAL_M * fr[modal.HIPS_BY]
+    # dipped by the leap's countermovement, a hold thrown further ahead (the stride leap's sagittal throw): half the
+    # countermovement flew a walk's tap 0.13 s, the standing jump's felled a hold on landing
+    told = kernel.node('xform-in-stride-unilateral-leap', 'ssc-launch')['phase-1-countermovement']['crouch-depth-m']
+    dip = float(now[z]) + told / per
+    v, push_s, _w = launch((dip - leap.STRAIGHT) * per, legs=1.0)
+    leaves = math.pi / max(float(turns), 1e-9)
+    dip_s = max(min(push_s, leaves - push_s), 1e-3 * leap.PUSH_MS)
+    t_dip = max(0.0, leaves - push_s - dip_s)
+    n = max(2, int(math.ceil(1e3 * push_s / leap.PUSH_MS)))
+    off = t_dip + dip_s + push_s
+    land = off + 2.0 * v / G
+    at = np.concatenate([[t_dip], t_dip + dip_s + push_s * np.arange(n) / n, [off, land, land + dip_s]])
+    blend = np.concatenate([[dip_s], np.full(n, push_s / n), [1e-3 * leap.PUSH_MS, dip_s, dip_s]])
+    rows = np.zeros(n + 4, latent.WIRE)
+    rows['p'], rows['flags'] = np.nan, ortho.CURVE
+    rows['flags'][0], rows['flags'][n + 2:] = 0, 0
+    rows['at'], rows['blend'] = np.round(1e3 * at), np.round(1e3 * blend)
+    t = push_s * np.arange(n) / n
+    rows['p'][0, z], rows['p'][0, k] = dip, now[k]
+    rows['p'][1:n + 1, z] = dip - rise((dip - leap.STRAIGHT) * per, 1.0, t) / per
+    rows['p'][1:n + 2, k], rows['p'][1:n + 2, d] = THROW_K, 0.0
+    rows['p'][0:n + 2, zmp] = modal.NONE
+    rows['p'][n + 1, z] = leap.STRAIGHT
+    rows['flags'][1] |= ortho.RISE
+    thrown = 0.06 + 0.28 * ch + 0.08 * min(1.0, max(0.0, (float(np.nan_to_num(speed)) - 0.55) / 0.20))
+    rows['p'][1:n + 1, latent.Z.start + modal.SAGITTAL] = 0.28 + 0.60 * thrown
+    rows['p'][1:n + 1, latent.K.start + modal.SAGITTAL] = 1800.0 + 1000.0 * thrown
+    rows['p'][n + 2, latent.Z.start + modal.SAGITTAL] = now[latent.Z.start + modal.SAGITTAL]
+    rows['p'][n + 2, latent.K.start + modal.SAGITTAL] = now[latent.K.start + modal.SAGITTAL]
+    # her stride swept as much further as her flight carries her: at her walk's sweep her held sole reached 0.14 m
+    # short of her centre and she landed on both soles behind it
+    drive = latent.AMP.start + modal.DRIVE
+    rows['p'][0:n + 2, drive] = now[drive] * (1.0 + 2.0 * v / G / (2.0 * stride.PHI_W / max(float(turns), 1e-9)))
+    rows['p'][n + 2, drive] = now[drive]
+    landing = next(r[2] for r in leap._leap_specs() if r[:2] == (2, d))
+    rows['p'][n + 2, z], rows['p'][n + 2, k], rows['p'][n + 2, d] = leap.bottom(fr, v / per), 0.0, landing
+    rows['p'][n + 2, zmp] = now[zmp]
+    rows['p'][n + 3, z], rows['p'][n + 3, k], rows['p'][n + 3, d], rows['p'][n + 3, zmp] = now[z], now[k], now[d], now[zmp]
+    names = ('load',) + ('throw',) * n + ('flight', 'land', label)
+    return rows.tobytes(), names, 1e-3 * float(rows['at'][-1] + rows['blend'][-1]), int(rows['at'][1])

@@ -173,6 +173,7 @@ def control(g, dt):
     waits.held_back(g, dt * ev)
     waits.risen_back(g, dt * ev)
     waits.landed_back(g, dt * ev)
+    waits.sunk_back(g, dt * ev)
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)

@@ -23,7 +23,7 @@ class Wait(ctypes.Structure):
     _fields_ = ([(name, ctypes.c_int) for name in ('table', 'at', 'vals_z', 'said_z', 'vals_gain', 'said_gain', 'st_to_z',
                                                    'contact', 'vals_amp', 'said_phase', 'vals_phase', 'st_now_gain',
                                                    'st_now_phase', 'st_theta', 'latch', 'st_now_z', 'st_from_z',
-                                                   'st_v0_z', 'st_v1_z')]
+                                                   'st_v0_z', 'st_v1_z', 'rise')]
                 + [(name, ctypes.c_double) for name in ('edge_s', 'tiny', 'phi_w')] + [('blas', c_motion.Blas)])
 
 
@@ -41,6 +41,9 @@ def _typed():
                                    + [ctypes.c_void_p] * 4 + [ctypes.c_double] * 3 + [ctypes.c_void_p])
     lib.wbh_wait_landed.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
                                     + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
+    lib.wbh_wait_sunk.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
+                                  + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
+    lib.wbh_wait_sunk.restype = None
     lib.wbh_wait_borne.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
                                    + [ctypes.c_double] * 2 + [ctypes.c_void_p])
     lib.wbh_wait_woken.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
@@ -51,7 +54,7 @@ def _typed():
     lib.wbh_wait_borne.restype = lib.wbh_wait_latched.restype = None
     lib.wbh_wait_woken.restype = None
     return (lib.wbh_wait_held, lib.wbh_wait_risen, lib.wbh_wait_landed, lib.wbh_wait_borne, lib.wbh_wait_latched,
-            lib.wbh_wait_woken, int(lib.wbh_wait_rows()))
+            lib.wbh_wait_woken, int(lib.wbh_wait_rows()), lib.wbh_wait_sunk)
 
 
 class Waits:
@@ -70,13 +73,14 @@ class Waits:
                       st_now_gain=latent.NOW.start + latent.GAIN, st_now_phase=latent.NOW.start + latent.PHASE.start,
                       st_theta=latent.THETA, latch=latent.LATCH, st_now_z=latent.NOW.start + latent.Z.start,
                       st_from_z=latent.FROM.start + latent.Z.start, st_v0_z=latent.V0.start + latent.Z.start,
-                      st_v1_z=latent.V1.start + latent.Z.start, edge_s=latent.EDGE_S, tiny=stride.TINY,
+                      st_v1_z=latent.V1.start + latent.Z.start, rise=latent.RISES, edge_s=latent.EDGE_S, tiny=stride.TINY,
                       phi_w=stride.PHI_W,
                       blas=c_motion.numpy_blas())
         self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))
         self.at = [wbc.pointer(arr) for arr in self.kept]
         self.got = np.zeros(3)
-        self.held_c, self.risen_c, self.landed_c, self.borne_c, self.latched_c, self.woken_c, self.rows = _typed()
+        (self.held_c, self.risen_c, self.landed_c, self.borne_c, self.latched_c, self.woken_c, self.rows,
+         self.sunk_c) = _typed()
         self.k, self.wp, self.gp = ctypes.addressof(k), ctypes.byref(self.w), self.got.ctypes.data
 
     def _table(self, tab):
@@ -98,6 +102,11 @@ class Waits:
     def landed(self, tab, t, dt):
         """(shift, first) of `machine.waits.landed_rows`, `tab`'s times shifted in place."""
         self.landed_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[4], t, dt, self.gp)
+        return tuple(self.got[:2].tolist())
+
+    def sunk(self, tab, t, dt):
+        """(shift, first) of `machine.waits.sunk_rows`, `tab`'s times shifted in place."""
+        self.sunk_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], t, dt, self.gp)
         return tuple(self.got[:2].tolist())
 
     def borne(self, tab, t, dt):

@@ -215,9 +215,28 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
-               a[k->a_need], a + k->a_lead, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
+               a[k->a_need], a + k->a_lead, a + k->a_split, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   a[k->a_swings] = off[0];
   a[k->a_swings + 1] = off[1];
+  {
+    const double held = 1.0 - npclip(out[k->o_held], 0.0, 1.0);
+    const double gap = a[k->a_split] - a[k->a_split + 1];
+    const double half = 0.5 * (gap - (2.0 * PI) * rint(gap / (2.0 * PI)));
+    const double relax = npmin(1.0, (turns * fr[k->f_dt]) / (2.0 * PI));
+
+    for (int b = 0; b < 2; b++)
+    {
+      const double ahead = way * (flat[b][0] - c[0]);
+      const double to_swing = npmod(-k->phi_w - phi[b], 2.0 * PI);
+      const double free_ = (double)(y[k->y_load + b] < k->touch_n);
+      const double ends = (double)(u[b] <= 0.0) + (double)(u[b] >= 1.0);
+
+      a[k->a_split + b] += ((((stepping * held) * free_)
+                             * ((((double)(ahead <= 0.0) * ends) * to_swing)
+                                - ((((double)(ahead > 0.0) * (double)(u[b] >= 1.0)) * turns) * fr[k->f_dt])))
+                            - (((1.0 - held) * (half * k->limbs[b])) * relax));
+    }
+  }
   for (int m = 0; m < n; m++)
   {
     s.kp[m] = out[k->o_ks + m] / fr[k->f_mass + m];

@@ -273,7 +273,8 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
 }
 
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
-                  const double was[2], double need, const double lead[2], double *stepping, double *way,
+                  const double was[2], double need, const double lead[2], const double split[2], double *stepping,
+                  double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
@@ -283,8 +284,11 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   {
     const double side = ((-k->limbs[b]) * copysign(1.0, drive)) * *way;
 
-    sweep[b] = side * sin(psi);
-    phi[b] = atan2(side * sin(psi), side * cos(psi));
+    const double s = sin(psi) * cos(split[b]) + cos(psi) * sin(split[b]);
+    const double c = cos(psi) * cos(split[b]) - sin(psi) * sin(split[b]);
+
+    sweep[b] = side * s;
+    phi[b] = atan2(side * s, side * c);
     on[b] = (double)((phi[b] > k->phi_w - PI) && (phi[b] < k->phi_w));
     u[b] = npclip(0.5 * (phi[b] / k->phi_w + 1.0) + lead[b], 0.0, 1.0);
     off[b] = (npmax(*stepping, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));

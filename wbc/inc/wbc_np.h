@@ -44,6 +44,14 @@ static inline double npclip(double x, double lo, double hi)
   return npmin(npmax(x, lo), hi);
 }
 
+/** numpy's remainder (np.mod, npy_divmod): fmod's, moved to the divisor's sign, a zero carrying it. */
+static inline double npmod(double a, double b)
+{
+  const double m = fmod(a, b);
+
+  return m != 0.0 ? m + b * (double)((b < 0.0) != (m < 0.0)) : copysign(0.0, b);
+}
+
 /** numpy's power where its loop sees the exponent at stride 0 (DOUBLE_power): 1 / x at -1, 1 at 0,
     sqrt at 0.5, x at 1, x * x at 2, else pow - numpy's npy_pow, the CRT's both. */
 static inline double nppow(double x, double y)
