@@ -32,7 +32,8 @@ typedef struct
   double      eps;                         /**< the split's tie-break, of its largest curvature */
   double      weight;                      /**< her weight, N; gravity's prior's sharpness on a */
   double      upright;                     /**< push's cosine with the vertical, and its reach */
-  double      reach;                       /**< over her lowest point, m */
+  double      reach;                       /**< over her lowest point, m; a support's speed, m/s: */
+  double      still;                       /**< past it a point does not stand on what bears her */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
   int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in her edge's */
   int         driven_joint[WBC_DRIVEN];
@@ -72,6 +73,7 @@ typedef struct
   int         touched[WBC_GMO_TOUCH];      /**< out: each touch's pair, -1 none */
   int         past[WBC_N - 6];             /**< each hinge's row past its band: 1 over, -1 under */
   double      prior[WBC_GMO_POINTS];       /**< out: each point's push as gravity would have it, N */
+  double      speed[WBC_GMO_POINTS];       /**< out: each point's speed in the world, m/s */
   double      expected[WBC_GMO_F];         /**< and each unknown's */
   int         rounds;                      /**< out: the band's rounds this pass */
   wbc_body_t  body;

@@ -4,7 +4,7 @@
 ;;         Simplex Priors & Active Weight-Shift Compliance Probing
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp
 ;; Hers (`machine.observer`, wbc_gmo.c): her whole body's balance - her pelvis's IMU and her momentum - bears the
-;; sum, so no 0/0: what her joints cannot tell, gravity and height do, her soles their last pass's.
+;; sum, so no 0/0: what her joints cannot tell, gravity, height and stillness do, her soles their last pass's.
 ;; =============================================================================
 (defpackage :ortho-dsp.prior-observer
   (:use :ortho-dsp.core
@@ -16,6 +16,7 @@
            #:collapse-static-equilibrium-innovation
            #:fuse-tri-imu-axial-kinematics
            #:regularize-manifold-simplex-with-priors
+           #:gate-supports-by-stillness
            #:probe-unobserved-substrate-via-weight-shift
            #:xform-prior-regularized-observer
            #:specialize-observer-for-sensorless-soft-bed
@@ -129,6 +130,23 @@
            :min-denominator-newton-floor 85.0)))) ; Hard mathematical guard against 0/0!
 
 ;; -----------------------------------------------------------------------------
+;; 4b. A SUPPORT STANDS STILL (HERS)
+;; What bears her does not move through what it stands on: a point of hers moving past her grip's slip -
+;; a hand she lifts, a sole in swing, a limb she moves herself - takes no prior share and joins the split
+;; only where nothing still would. Her feet and hands on the floor bear her; her seat once it lands.
+;; -----------------------------------------------------------------------------
+(defprimitive gate-supports-by-stillness
+  [state &key (support-slip-mps 0.15)]          ; her law's slip: a contact slides past it (`wbc.SLIDE_M_S`)
+  (-> state
+      (gate-manifold-simplex-by-patch-speed
+        :observer-bank 'tri-imu-observer-soa-state
+        :patch-speed-source :encoder-forward-kinematics
+        :still-below-mps support-slip-mps
+        :on-moving-patch
+          (:zero-prior-share true
+           :hold-out-of-free-support-set true))))
+
+;; -----------------------------------------------------------------------------
 ;; 5. ACTIVE PROPRIOCEPTIVE WEIGHT-SHIFT PROBER (TEST BY REDISTRIBUTING WEIGHT!)
 ;; When sitting or lying on a soft, unmeasured surface (kappa > 0.45), injects a
 ;; gentle, bounded weight redistribution (via limb cantilever or trunk shift)
@@ -175,6 +193,7 @@
       (regularize-manifold-simplex-with-priors
         :min-prior-floor-mg-ratio 1.0e-6                ; (0.02)
         :uninstrumented-prior-boost 0.85)
+      (gate-supports-by-stillness :support-slip-mps 0.15)
       (probe-unobserved-substrate-via-weight-shift
         :probe-trigger-kappa 0.45
         :max-probe-com-shift-mm 16.0)))

@@ -14,8 +14,10 @@ squares over pushes alone (wbc_gmo.c, Lawson-Hanson), so it always sums to her w
 - a joint on its stop pushed off it; two of her capsules touching pushed apart;
 - a joint's row within its friction's band read as friction (`collapse-static-equilibrium-innovation`);
 - a point off her soles her comparator has not felt joining only where her soles cannot bear her;
+- her hands on a floor bearing her in the same pyramid;
 - what none of it can tell, her soles their last pass's and the rest gravity's prior over her points
-  (`regularize-manifold-simplex-with-priors`): upright and low bears, her weight's share each.
+  (`regularize-manifold-simplex-with-priors`): upright, low and still bears, her weight's share each; a point
+  moving past her grip's slip neither shares nor is free (`gate-supports-by-stillness`).
 The floor scoot's squat, her knees on their stops (17-25 N m) and her thighs on her belly (330-760 N): a sole a free
 wrench read 72-143 N on her butt with none there and her soles pulling to -1 365 N. Blind: no skin, no load cell.
 """
@@ -140,11 +142,18 @@ PYRAMID = _pyramid(_UP)
 _PRIOR = 'regularize-manifold-simplex-with-priors'
 FLOOR, UPRIGHT_COS, REACH_M = (kernel.said(_PRIOR, k) for k in ('min-prior-floor-mg-ratio', 'gravity-alignment-beta',
                                                                 'height-reach-m'))
+#: A support stands still: a point moving past this, m/s, takes no prior share and is not free (the kernel's
+#: `gate-supports-by-stillness`): a hand she lifts or a sole in swing does not bear her.
+STILL_M_S = kernel.said('gate-supports-by-stillness', 'support-slip-mps')
 #: The manifolds whose points bear on a support under her, pressed up the world's vertical (her IMU's), not their
 #: segment's: her palms' along her arm read 0 N of their 120-158 sat on the floor leaning back.
 UPRIGHT = ('ischial-bilateral', 'posterior-femoral-bilateral', 'palmar-carpal-bilateral')
+#: Her hands on a floor bear her as her soles do, in her law's pyramid up the vertical: pressing up alone, the floor
+#: scoot's strokes read their 171-248 N on her seat, its 0 N.
+HANDED = ('palmar-carpal-bilateral',)
 #: Each point's pushes: its pyramid's edges, else its normal.
-EDGES = tuple(PYRAMID if seg in SOLED else (_UP,) if sh[0][0] in UPRIGHT else (n,) for sh, seg, _p, n in POINTS)
+EDGES = tuple(PYRAMID if seg in SOLED or sh[0][0] in HANDED else (_UP,) if sh[0][0] in UPRIGHT else (n,)
+              for sh, seg, _p, n in POINTS)
 
 
 #: Her rows' manifolds (`ortho.MANIFOLDS`) among the observer's; the text's comparators on each,
@@ -250,7 +259,7 @@ def laid(body):
     lib, names = cores.library(), cores.Core().names
     o = gmo.Gmo()
     o.slip, o.eps = SLIP_RAD_S, FLOOR
-    o.weight, o.upright, o.reach = body.mass * G, UPRIGHT_COS, REACH_M
+    o.weight, o.upright, o.reach, o.still = body.mass * G, UPRIGHT_COS, REACH_M, STILL_M_S
     o.alpha = kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi
     o.loss[:] = body.m.dof_frictionloss[:body.n].tolist()
     driven = [k for k, j in enumerate(JOINTS) if body.driven[k]]

@@ -217,9 +217,10 @@ static void touches(wbc_gmo_t *o)
 }
 
 /** Each point's push as gravity would have it, N (`prior`): her weight over the points as far as
-    each presses up (`upright` of its pushes' mean's cosine with the vertical) and lies low (less
-    its height over her lowest point in `reach`s), a softmax; even over a point's edges into
-    `expected` - her soles' points there their last pass's pushes. */
+    each presses up (`upright` of its pushes' mean's cosine with the vertical), lies low (less its
+    height over her lowest point in `reach`s) and stands still (less its speed in `still`s), a
+    softmax; even over a point's edges into `expected` - her soles' points there their last pass's
+    pushes. */
 static void expect(wbc_gmo_t *o)
 {
   double logit[WBC_GMO_POINTS], lowest = o->at[0][1], top = -INFINITY, sum = 0.0;
@@ -242,7 +243,8 @@ static void expect(wbc_gmo_t *o)
         mean[i] += n[i];
       }
     }
-    logit[p] = o->upright * fmax(mean[1] / sqrt(dot(mean, mean)), 0.0) - (o->at[p][1] - lowest) / o->reach;
+    logit[p] = o->upright * fmax(mean[1] / sqrt(dot(mean, mean)), 0.0) - (o->at[p][1] - lowest) / o->reach
+               - o->speed[p] / o->still;
     top = fmax(top, logit[p]);
   }
   for (int p = 0; p < WBC_GMO_POINTS; p++)
@@ -272,6 +274,8 @@ static void columns(wbc_gmo_t *o, const double q[NH])
   memset(o->a, 0, sizeof o->a);
   for (int p = 0; p < WBC_GMO_POINTS; p++)
   {
+    double v[3] = {0.0, 0.0, 0.0};
+
     wbc_body_jacobian(&o->body, o->link[p], o->local[p], j);
     wbc_body_point(&o->body, o->link[p], o->local[p], o->at[p]);
     for (int e = 0; e < o->edges[p]; e++)
@@ -281,6 +285,13 @@ static void columns(wbc_gmo_t *o, const double q[NH])
       along(o, p, e, n);
       pushed(o, o->col[p] + e, j, n, 1.0);
     }
+    for (int i = 0; i < WBC_N; i++)
+    {
+      v[0] += j[3][i] * o->u[i];
+      v[1] += j[4][i] * o->u[i];
+      v[2] += j[5][i] * o->u[i];
+    }
+    o->speed[p] = sqrt(dot(v, v));
   }
   expect(o);
   for (int h = 0; h < NH; h++)
@@ -293,8 +304,9 @@ static void columns(wbc_gmo_t *o, const double q[NH])
 /** The least squares of A f = r over the rows `weight` keeps, each shifted by `shift`, every unknown
     pushing (Lawson-Hanson on the normal equations, the tie-break toward `expected` on their
     diagonal: what the rows cannot tell, her soles' last pass and gravity elsewhere do): a push joins
-    the set where it lowers the residual past rounding, one not felt (`gated`) only where none else
-    would, the set solved, a push it would pull stepped back to none and out. */
+    the set where it lowers the residual past rounding, one not felt (`gated`) or moving past
+    `still` only where none else would, the set solved, a push it would pull stepped back to none
+    and out. */
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
   static double g[NF], w[NF], z[NF], sub[NF];
@@ -306,7 +318,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   {
     for (int e = 0; e < o->edges[p]; e++)
     {
-      gate[o->col[p] + e] = o->gated[p];
+      gate[o->col[p] + e] = o->gated[p] || (o->speed[p] > o->still);
     }
   }
   for (int a = 0; a < NF; a++)
