@@ -196,6 +196,98 @@ def test_her_kinds_from_their_boxes(report):
         body.close()
 
 
+#: Her map painted whole resolves finer than her eyes fill (`voxels.CELL_M`): at that neither chair was told,
+#: the chair's back 0.9 m wide on its 0.7 m seat, the low chair's none.
+PAINTED_M = 0.05
+
+
+def _painted(chart, props):
+    """`chart` (`voxels.Map`) painted with the boxes `props` (`world.props()`: kind, centre, half, turn) as her looks
+    would tell them filled: each voxel a box overlaps its kind's colour, hit and told - a face on a voxel's own face
+    not, as her eyes' points there fall in the next -; the rest seen through."""
+    i, j, k = np.meshgrid(np.arange(chart.nx), np.arange(chart.ny), np.arange(chart.nz), indexing='ij')
+    at = np.stack([voxels.X_M[0] + (i + 0.5) * chart.voxel, voxels.FLOOR_M + (j + 0.5) * chart.voxel,
+                   voxels.Z_M[0] + (k + 0.5) * chart.voxel], axis=-1)
+    filled = np.zeros(at.shape[:3], bool)
+    for kind, c, h, R in props:
+        mine = (np.abs((at - np.asarray(c)) @ np.asarray(R)) < np.asarray(h) + 0.5 * chart.voxel).all(axis=-1)
+        mine &= kind in chart.means_of
+        chart.hits[mine], chart.told[mine] = voxels.HITS, voxels.TOLD
+        chart.colour[mine] = voxels.HITS * np.asarray(chart.means_of.get(kind, (0.0, 0.0, 0.0)), np.float32)
+        filled |= mine
+    chart.free[~filled] = voxels.TOLD
+    chart._made = None
+    return chart.things()[0]
+
+
+def _corners(box):
+    """A box's footprint's corners on the floor, (4, 2) x, z."""
+    c, half, R = box[1], box[2], np.asarray(box[3])
+    return np.array([[c[0], c[2]] + (R[:, 0] * a * half[0] + R[:, 2] * b * half[2])[[0, 2]]
+                     for a, b in ((-1, -1), (-1, 1), (1, 1), (1, -1))])
+
+
+def _hull(boxes):
+    """The convex hull of boxes' footprints on the floor, its corners counter-clockwise (monotone chain)."""
+    pts = sorted(map(tuple, np.concatenate([_corners(b) for b in boxes])))
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    half = lambda seq: _chain(seq, cross)
+    return np.array(half(pts)[:-1] + half(pts[::-1])[:-1])
+
+
+def _chain(pts, cross):
+    out = []
+    for p in pts:
+        while len(out) >= 2 and cross(out[-2], out[-1], p) <= 0.0:
+            out.pop()
+        out.append(p)
+    return out
+
+
+def _apart(a, b):
+    """The Hausdorff distance of two convex polygons' boundaries, m: each corner's to the other's nearest edge."""
+    def to(p, poly):
+        q = np.roll(poly, -1, axis=0)
+        d = q - poly
+        s = np.clip(((p - poly) * d).sum(axis=1) / np.maximum((d * d).sum(axis=1), 1e-12), 0.0, 1.0)
+        return float(np.linalg.norm(poly + s[:, None] * d - p, axis=1).min())
+    return max(max(to(p, b) for p in a), max(to(p, a) for p in b))
+
+
+def test_her_map_from_painted_furniture(report):
+    """Her map painted with the furniture as MuJoCo has it (`world.props()`, each box's voxels filled in its kind's
+    colour, the room seen through round them): her map's things and the classifier tell each piece what it affords,
+    its place and its convex hull on the floor - a chair's its seat's and its back's - within a voxel's diagonal of
+    MuJoCo's; the bed moved 0.9 m and turned 0.5 rad as well."""
+    from machine import affordance, room, sight
+    body, world = _room()
+    try:
+        for label in ('as laid', 'the bed moved'):
+            world._mj.mj_forward(world.model, world.data)
+            props = world.props()
+            things = _painted(voxels.Map(sight.Keep(world).map.means_of, PAINTED_M), props)
+            for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('low chair', 'chair', room.CHAIR_LOW_AT),
+                                      ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
+                at = (world.model.body('bed').pos[0], world.model.body('bed').pos[2]) if name == 'bed' else at
+                laid = min((b for b in props if b[0] in ('wood', 'bed')), key=lambda b: math.dist((b[1][0], b[1][2]), at)
+                           + 10.0 * (b[0] != ('bed' if name == 'bed' else 'wood')))
+                found = _nearest(things, affords, (laid[1][0], laid[1][2]))
+                whole = lambda b, among: [b] + ([affordance.back_of(b, among)] if affords == 'chair' else [])
+                told = None if found is None else _hull(whole(found[1], things))
+                truth = _hull(whole(laid, props))
+                off = math.inf if told is None else math.dist(told.mean(axis=0), truth.mean(axis=0))
+                hull = math.inf if told is None else _apart(told, truth)
+                cell = math.hypot(PAINTED_M, PAINTED_M)
+                report.check('%s: the %s told a %s, its place and hull as MuJoCo has it within a voxel' % (label, name, affords),
+                             off <= cell and hull <= cell, '%.3f m off, hull %.3f m' % (off, hull) if found else 'not told')
+            yaw = 0.5
+            bed = world.model.body('bed')
+            bed.pos[:], bed.quat[:] = (-0.9, room.BED[1], 1.2), (math.cos(yaw / 2.0), 0.0, math.sin(yaw / 2.0), 0.0)
+            world._room_props = None
+    finally:
+        body.close()
+
+
 def axis(half, R):
     """The turn of a box's longer floor axis, rad in [0, pi)."""
     k = 0 if half[0] >= half[2] else 2
@@ -322,7 +414,7 @@ def test_her_things_fill_her_registry(report):
 
 
 ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through,
-          test_her_kinds_from_their_boxes, test_her_things_fill_her_registry]
+          test_her_kinds_from_their_boxes, test_her_map_from_painted_furniture, test_her_things_fill_her_registry]
 
 
 def main(argv=None):

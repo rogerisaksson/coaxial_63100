@@ -13,13 +13,13 @@ dichromatic model: a highlight lies on the line from a kind's chroma to grey, so
 stays timber and a grey patch its neighbours'). A top is an occupied voxel seen through above with
 nothing standing in the layer above round it - its normal up, a hole in a wall's face none -; a
 surface the 4-connected tops of one level, a structure the 26-connected rest - joined apart over
-and under a surface within its footprint a cell round: what stands on a seat is not what holds it
+and under a surface within its footprint a voxel round: what stands on a seat is not what holds it
 up -, each wall one, a chair's seat a surface, its back and its legs structures; a part of a
 structure whose colour differs from
 the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of its own - the door
 in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
 layer nor under a surface, a stray left out. A thing's kind its pooled colour's; its box its
-footprint's principal axes (its turn), its extents along them a cell wide, its height its voxels'; its
+footprint's principal axes (its turn), its extents along them a voxel wide, its height its voxels'; its
 id the one of the thing it shares most voxels with at the look before, else new (`machine.registry`);
 `clear` 1.0 where the space over its top is seen through - a surface's -, 0.0 a structure's, its top
 unknown (`machine.affordance`: a seat or a bed is a surface). Nothing here reads the world's geometry.
@@ -33,10 +33,12 @@ import numpy as np
 
 from machine import figure, room
 
-#: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
-#: from TOLD looks with HITS points in it; a point NEAR_M to FAR_M from the eye - further the depth is
-#: a tenth out, nearer is her own raised hand -; her own radius, inflating what she plans round: her
-#: widest half (`figure.WIDE_HALF`) and the map's half cell - 0.3 shut the 0.9 m doorway.
+#: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high - her eyes' kept points
+#: fill none finer: at 0.05 m a look round told 553-791 things to 85 (HITS 1-3; 490-559 at 640 x 480), her
+#: registry's 256 slots all live and the bed off her buses -; a voxel is a thing from TOLD looks with HITS
+#: points in it; a point NEAR_M to FAR_M from the eye - further the depth is a tenth out, nearer is her own
+#: raised hand -; her own radius, inflating what she plans round: her widest half (`figure.WIDE_HALF`) and
+#: the map's half cell - 0.3 shut the 0.9 m doorway.
 CELL_M, X_M, Z_M, FLOOR_M, CEIL_M = 0.1, (-3.5, 3.5), (-2.0, 5.0), 0.08, 2.3
 HITS, TOLD, NEAR_M, FAR_M = 3, 2, 0.7, 3.5
 RADIUS_M = figure.WIDE_HALF + 0.5 * CELL_M
@@ -72,14 +74,14 @@ def lit(c, means):
 
 class Map:
 
-    """Her voxels: each's hits, looks that told it, looks through it, its colour."""
+    """Her voxels, `voxel` m a side: each's hits, looks that told it, looks through it, its colour."""
 
-    def __init__(self, palette):
-        self.means_of, self.names = dict(palette), list(palette)
+    def __init__(self, palette, voxel=CELL_M):
+        self.means_of, self.names, self.voxel = dict(palette), list(palette), voxel
         self.means = chroma(np.array([palette[k] for k in self.names], float))
-        self.nx = int(round((X_M[1] - X_M[0]) / CELL_M))
-        self.ny = int(math.ceil((CEIL_M - FLOOR_M) / CELL_M))
-        self.nz = int(round((Z_M[1] - Z_M[0]) / CELL_M))
+        self.nx = int(round((X_M[1] - X_M[0]) / self.voxel))
+        self.ny = int(math.ceil((CEIL_M - FLOOR_M) / self.voxel))
+        self.nz = int(round((Z_M[1] - Z_M[0]) / self.voxel))
         shape = (self.nx, self.ny, self.nz)
         self.hits, self.told, self.free = (np.zeros(shape, dtype=np.int32) for _ in range(3))
         self.colour = np.zeros(shape + (3,), dtype=np.float32)
@@ -87,16 +89,16 @@ class Map:
         self._labels, self._ids, self._next = None, [], 1
 
     def cell(self, x, z):
-        return (int(math.floor((x - X_M[0]) / CELL_M)), int(math.floor((z - Z_M[0]) / CELL_M)))
+        return (int(math.floor((x - X_M[0]) / self.voxel)), int(math.floor((z - Z_M[0]) / self.voxel)))
 
     def centre(self, i, k):
-        return (X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (k + 0.5) * CELL_M)
+        return (X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel)
 
     def _index(self, xyz):
         """(i, j, k) of points `xyz` (n, 3), and whether each lies in the map."""
-        i = np.floor((xyz[:, 0] - X_M[0]) / CELL_M).astype(int)
-        j = np.floor((xyz[:, 1] - FLOOR_M) / CELL_M).astype(int)
-        k = np.floor((xyz[:, 2] - Z_M[0]) / CELL_M).astype(int)
+        i = np.floor((xyz[:, 0] - X_M[0]) / self.voxel).astype(int)
+        j = np.floor((xyz[:, 1] - FLOOR_M) / self.voxel).astype(int)
+        k = np.floor((xyz[:, 2] - Z_M[0]) / self.voxel).astype(int)
         inside = (i >= 0) & (i < self.nx) & (j >= 0) & (j < self.ny) & (k >= 0) & (k < self.nz)
         return i, j, k, inside
 
@@ -117,10 +119,11 @@ class Map:
         self.looks, self._made = self.looks + 1, None
         return flat
 
-    def _seen_through(self, eye, xyz, step=0.8 * CELL_M):
-        """The voxels each ray from `eye` crossed short of its point by a cell, up to the first her map
-        holds occupied - a ray grazing along a wall she has seen stops at it -, counted free once a look."""
-        d = xyz - eye
+    def _seen_through(self, eye, xyz, step=0.8):
+        """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to
+        the first her map holds occupied - a ray grazing along a wall she has seen stops at it -, counted
+        free once a look."""
+        step, d = step * self.voxel, xyz - eye
         far = np.linalg.norm(d, axis=1)
         n = int(np.ceil(far.max() / step)) if len(far) else 0
         if n == 0:
@@ -131,7 +134,7 @@ class Map:
         flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0).reshape(len(far), n)
         solid = (inside & self.occupied().reshape(-1)[flat.reshape(-1)]).reshape(len(far), n)
         stop = np.where(solid.any(axis=1), solid.argmax(axis=1), n)
-        on = (t < (far[:, None] - CELL_M)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
+        on = (t < (far[:, None] - self.voxel)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
         self.free.reshape(-1)[np.unique(flat[on])] += 1
 
     def occupied(self):
@@ -139,8 +142,11 @@ class Map:
         return (self.told >= TOLD) & (self.told > self.free)
 
     def kinds(self):
-        """Each voxel's kind: the palette's nearest its colour's chromaticity, lit (`lit`)."""
-        return np.argmin(lit(chroma(self.colour / np.maximum(self.hits, 1)[:, :, :, None]), self.means), axis=-1)
+        """Each occupied voxel's kind: the palette's nearest its colour's chromaticity, lit (`lit`); -1 the
+        rest - over every voxel it took 0.78 s of a look's 1.30 at 0.05 m."""
+        out, occ = np.full(self.hits.shape, -1), self.occupied()
+        out[occ] = np.argmin(lit(chroma(self.colour[occ] / self.hits[occ][:, None]), self.means), axis=-1)
+        return out
 
     def _kind(self, at):
         """(the kind of the voxels `at` (index arrays) by their pooled colour, its distance from each kind's
@@ -193,20 +199,20 @@ class Map:
                 labels[i, j, k] = len(out)
                 out.append(self._box(i, k, j, j, self._kind((i, np.full(len(i), j), k))[0]))
         surfaces = len(out)
-        # each voxel's nearest surface above it in its column, a cell round: what holds a seat up is under
+        # each voxel's nearest surface above it in its column, a voxel round: what holds a seat up is under
         # it, a back on the seat under its own top, a wall under none
         over, run = np.full(occ.shape, -1), np.full((self.nx, self.nz), -1)
         for j in reversed(range(self.ny)):
             over[:, j, :] = run
-            run = np.where(grown(top[:, j, :], 0), j, run)
+            run = np.where(grown(top[:, j, :], 1), j, run)
         for level in np.unique(over[occ & ~top]):
             for group in _joined(occ & ~top & (over == level), _AROUND):
                 parent, _d = self._kind(group)
-                own = np.ones(len(group[0]), bool)
+                pixel, own = self._pixel(group, parent), np.ones(len(group[0]), bool)
                 other = np.zeros_like(occ)
                 other[group] = kind[group] != parent
                 for part in _joined(other, _AROUND):
-                    if self._apart(group, parent, part):
+                    if self._apart(pixel, parent, part):
                         labels[part] = len(out)
                         out.append(self._box(part[0], part[2], int(part[1].min()), int(part[1].max()), self._kind(part)[0]))
                         own &= labels[group] < 0
@@ -217,27 +223,31 @@ class Map:
                     out.append(self._box(rest[0], rest[2], int(rest[1].min()), int(rest[1].max()), parent))
         return out, labels, surfaces
 
-    def _apart(self, group, parent, part):
-        """Whether `part` (index arrays) of a structure `group` of kind `parent` is a thing of its own: its
-        pooled chroma's distance from the parent kind's lit line, over the standard error the structure's
-        pixels give it, past SIGMA."""
+    def _pixel(self, group, parent):
+        """A structure `group`'s (index arrays) of kind `parent` pixels' spread from the kind's lit line: its
+        voxels' chroma distance's deviation over the root of a voxel's points."""
         voxel = lit(chroma(self.colour[group] / np.maximum(self.hits[group], 1)[:, None]), self.means[parent:parent + 1])[:, 0]
-        pixel = float(voxel.std() * math.sqrt(max(1.0, float(np.median(self.hits[group])))))
+        return float(voxel.std() * math.sqrt(max(1.0, float(np.median(self.hits[group])))))
+
+    def _apart(self, pixel, parent, part):
+        """Whether `part` (index arrays) of a structure of kind `parent` is a thing of its own: its pooled
+        chroma's distance from the parent kind's lit line, over the standard error the structure's pixels
+        give it (`pixel`, `_pixel`'s), past SIGMA."""
         _k, d = self._kind(part)
         return d[parent] * math.sqrt(float(self.hits[part].sum())) > SIGMA * max(pixel, 1e-9)
 
     def _box(self, i, k, j_lo, j_hi, kind):
         """A thing's box of the cells (i, k) its voxels stand in, levels j_lo to j_hi: its footprint's
-        principal axes its turn, its extents along them a cell wide, its height its levels'."""
-        at = np.column_stack([X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (k + 0.5) * CELL_M])
+        principal axes its turn, its extents along them a voxel wide, its height its levels'."""
+        at = np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel])
         mean = at.mean(axis=0)
         cov = (at - mean).T @ (at - mean) / len(at)
         w, v = np.linalg.eigh(cov)
         a, b = v[:, 1], v[:, 0]
         along, across = (at - mean) @ a, (at - mean) @ b
         c = mean + 0.5 * (along.max() + along.min()) * a + 0.5 * (across.max() + across.min()) * b
-        half = (0.5 * (along.max() - along.min()) + 0.5 * CELL_M, 0.5 * (across.max() - across.min()) + 0.5 * CELL_M)
-        lo, hi = FLOOR_M + j_lo * CELL_M, FLOOR_M + (j_hi + 1) * CELL_M
+        half = (0.5 * (along.max() - along.min()) + 0.5 * self.voxel, 0.5 * (across.max() - across.min()) + 0.5 * self.voxel)
+        lo, hi = FLOOR_M + j_lo * self.voxel, FLOOR_M + (j_hi + 1) * self.voxel
         R = np.array([[a[0], 0.0, b[0]], [0.0, 1.0, 0.0], [a[1], 0.0, b[1]]])
         return (self.names[kind], (float(c[0]), 0.5 * (lo + hi), float(c[1])), (half[0], 0.5 * (hi - lo), half[1]), R)
 
@@ -246,16 +256,14 @@ class Map:
         door's not, grown by her radius; made once a look."""
         things, labels = self.things()
         j = np.arange(self.ny)
-        band = (FLOOR_M + (j + 1) * CELL_M > STAND_M[0]) & (FLOOR_M + j * CELL_M < STAND_M[1])
+        band = (FLOOR_M + (j + 1) * self.voxel > STAND_M[0]) & (FLOOR_M + j * self.voxel < STAND_M[1])
         door = np.array([t[0] == 'door' for t in things] + [False])
         hit = ((labels >= 0) & ~door[labels] & band[None, :, None]).any(axis=1)
-        return grown(hit, RADIUS_M)
+        return grown(hit, max(1, int(math.ceil(RADIUS_M / self.voxel))))
 
 
-def grown(cells, radius, join=np.logical_or):
-    """`cells` (nx, nz) grown by `radius` m round each, `join` of a cell and each neighbour's; a cell round
-    at 0."""
-    r = max(1, int(math.ceil(radius / CELL_M)))
+def grown(cells, r, join=np.logical_or):
+    """`cells` (nx, nz) grown by `r` of them round each, `join` of a cell and each neighbour's."""
     out = cells.copy()
     nx, nz = cells.shape
     for di in range(-r, r + 1):
