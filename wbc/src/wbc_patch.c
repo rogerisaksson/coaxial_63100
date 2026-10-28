@@ -29,7 +29,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
   for (int q = 0; q < nc; q++)
   {
     patched[q] = 0;
-    palmed = palmed || p->cpatch[q] >= p->carpal;
+    palmed = palmed || (p->cpatch[q] >= p->carpal && p->cpatch[q] < 3 * p->carpal);
   }
   for (int q = 0; q < nc; q++)
   {
@@ -76,7 +76,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
     for (int m = 0; m < nc; m++)
     {
       double left[3], jv[3], way[2], said[2], r3[3], mix[9], sliding, freed;
-      int    body = p->cpatch[m] < p->carpal;
+      int    let = p->cpatch[m] >= 3 * p->carpal, body = p->cpatch[m] < p->carpal || let;
 
       if (p->cpatch[m] != p->cpatch[q])
       {
@@ -91,7 +91,8 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       said[0] = p->slide[0];
       said[1] = p->slide[2];
       sliding = (body && hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
-      freed = pymax(sliding, (body && palmed && pin == 0.0 && wbc_dot(l, said, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0);
+      freed = pymax(pymax(sliding, (double)let),
+                    (body && palmed && pin == 0.0 && wbc_dot(l, said, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0);
       for (int i = 0; i < 3; i++)
       {
         for (int j = 0; j < 3; j++)
@@ -146,7 +147,7 @@ void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const doubl
 
   for (int q = 0; q < nc; q++)
   {
-    hands[q] = (double)(p->cpatch[q] >= p->carpal);
+    hands[q] = (double)(p->cpatch[q] >= p->carpal && p->cpatch[q] < 3 * p->carpal);
     off_hands[q] = felt[q] * (1.0 - hands[q]);
     others[q] = 1.0 - hands[q];
     on_hands[q] = felt[q] * hands[q];

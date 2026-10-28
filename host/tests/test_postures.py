@@ -53,7 +53,7 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     """`modal.poses` over what bears her (`ortho.MANIFOLDS`): her soles alone, the crouch's pose bit for
     bit (her walk's), her side, her back and her hands the same; the seat alone, `modal.seat`'s legs, the
     rest of her the crouch's; half on each, half way; her knees as asked whatever bears her; a let-go
-    leg's hip level less her pelvis's pitch (HUNG), the other's as it was."""
+    leg on the seat's hang law (`modal.hang`), the other's as it was."""
     import numpy as np
     from machine import bends, modal, ortho, rounds
     names = rounds.DRIVEN
@@ -65,10 +65,11 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     a[modal.BEND], a[modal.SWUNG], a[modal.REACHED], a[modal.ELBOWED] = knee, 0.1, -0.2, 0.3
     crouch = posture + bend * a[modal.BEND] + arms * a[modal.SWUNG] + reaches * a[modal.REACHED] + folds * a[modal.ELBOWED]
     hot, seat_at = np.eye(len(ortho.MANIFOLDS)), ortho.MANIFOLDS.index('ischial')
+    q = np.linspace(0.2, -0.2, len(names))
 
     def posed(w, let_go=(0.0, 0.0)):
         a[modal.LET_GO] = let_go
-        return modal.poses(a, y, fr, posture, *columns, knees, w)[1]
+        return modal.poses(a, y, fr, posture, *columns, knees, w, q)[1]
 
     seat = modal.seat(y, fr, crouch)
     alone = {m: posed(hot[k]) for k, m in enumerate(ortho.MANIFOLDS)}
@@ -85,11 +86,12 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     report.check('half on her soles and half on the seat: her legs half way',
                  np.allclose(half[modal.CHAIN], 0.5 * (crouch[modal.CHAIN] + seat), rtol=0.0, atol=1e-12))
     hung = posed(hot[seat_at], (1.0, 0.0))
-    want = modal.HUNG + modal.HUNG_BY * modal.pitched(y, fr[modal.ROT].reshape(3, 3))[0]
-    report.check("a leg let go: its hip level less her pelvis's pitch, the other's the seat's",
-                 np.allclose(hung[modal.HIPS[0]], want, rtol=0.0, atol=1e-12)
+    hang, share = modal.hang()
+    want = q[modal.LEGS5[0]] + share * (hang - q[modal.LEGS5[0]])
+    report.check("a leg let go: on the seat's hang law, at -24 dB of her stiffness; the other's the seat's",
+                 np.allclose(hung[modal.LEGS5[0]], want, rtol=0.0, atol=1e-12) and abs(share - 10 ** -1.2) < 1e-12
                  and np.array_equal(hung[modal.HIPS[1]], sat[modal.HIPS[1]]),
-                 '%s for %s' % (np.round(hung[modal.HIPS[0]], 4), np.round(want, 4)))
+                 '%s for %s' % (np.round(hung[modal.LEGS5[0]], 4), np.round(want, 4)))
 
 
 def test_the_posture_atlas_reads_whole(report):

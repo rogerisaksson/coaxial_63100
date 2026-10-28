@@ -8,7 +8,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.borne import CARPAL
+from machine.borne import CARPAL, LET
 from machine.rounds import NU
 from machine.wbc import CONTACT_K, SLIDE_M_S
 
@@ -43,10 +43,11 @@ def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False):
         split = np.zeros(nu)
         for k, j in enumerate(idx):
             split[NU + 3 * j:NU + 3 * j + 3] = n * (float(k == m) - w)
-        jv, said, body = c['J'] @ v, slide[[0, 2]], c.get('patch', 0) < CARPAL
+        jv, said, let = c['J'] @ v, slide[[0, 2]], c.get('patch', 0) >= LET
+        body = (c.get('patch', 0) < CARPAL) | let
         way = jv[[0, 2]]
         sliding = float(body & (np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ said > 0.0))
-        freed = max(sliding, float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
+        freed = max(sliding, float(let), float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
         mix = (1.0 - freed) * _EYE3 + freed * np.outer(_UP, _UP)
         left = -c['dJv'] - c['J'] @ full0
         rows.append((np.vstack([W_STILL * (mix @ (c['J'] @ full)), pin * split[None, :]]),
@@ -68,11 +69,11 @@ def patches(contacts, nu, full, full0, v, ask, pin):
     a hitch's hands took 0.84 of her and the seat let her go. `ask`'s `slide` the slide her contacts may take."""
     slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
     slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
-    palmed = any(c.get('patch', 0) >= CARPAL for c in contacts)
+    palmed = any(CARPAL <= c.get('patch', 0) < LET for c in contacts)
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
         rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, palmed)
         held.update(zip(idx, zip(rows, felt, slips)))
-    hands = np.array([float(c.get('patch', 0) >= CARPAL) for c in contacts])
+    hands = np.array([float(CARPAL <= c.get('patch', 0) < LET) for c in contacts])
     felt = np.array([held[j][1] for j in range(len(contacts))])
     shares = np.zeros(len(contacts))
     part = felt * (1.0 - hands)

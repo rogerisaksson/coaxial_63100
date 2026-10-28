@@ -66,8 +66,11 @@ def _room(k, local):
 #: its sign - friction leans a push by atan MU, under 45 deg, so a seat's, a bed's or a floor's pushes are all
 #: up, a backrest's or a wall's all one way across (the lodge's surfaces stand square; a yawed wall's split). Each
 #: hand a patch of its own past every other's (CARPAL on, a side's apart): split as felt between them, one hand's
-#: share held what it was and the asymmetry grew till it let go.
+#: share held what it was and the asymmetry grew till it let go. A let-go foot's past both hands' (LET on): held
+#: against the floor alone - held still along it too, her legs sliding out as she sat braked them 102 N and threw
+#: her back over her seat.
 CARPAL = 6
+LET = 3 * CARPAL
 
 
 def _points(k, push, at):
@@ -112,7 +115,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
         axis = int(np.argmax(np.abs(f)))
-        patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal)
+        patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * int(k in soled)
         for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
