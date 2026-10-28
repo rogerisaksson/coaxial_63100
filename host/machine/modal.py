@@ -157,7 +157,7 @@ FLEX = np.array([terms.TERMS[pt][1] for pt in (('hip', 'flexion'), ('knee', 'fle
 #: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
 #: the hip's axis her pelvis's pitch turns it on.
 HUNG, HUNG_BY = np.array([0.0, 0.0, -0.5 * np.pi]), np.array([0.0, 0.0, 1.0])
-ISCHIAL, PALMAR = ortho.MANIFOLDS.index('ischial'), ortho.MANIFOLDS.index('palmar')
+ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
 def pitched(y, rot):
@@ -338,12 +338,7 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
-    # a palm told to bear stands its arm as a column, the upper arm plumb, the elbow straight, her text's reach and
-    # fold on it: on her arms' swing alone her palms bore 0 as she tipped back off her knees till her head was down
-    pitch = pitched(y, fr[ROT].reshape(3, 3))
-    pose += w[PALMAR] * (np.abs(reaches) + np.abs(folds)) * (reaches * pitch[1] - posture)
-    # less her pelvis's pitch: plus it, lying back 80 deg asked her let-go thighs 170 deg up over her and they flailed
-    pose[HIPS] += a[LET_GO][:, None] * (HUNG - HUNG_BY * pitch[0] - pose[HIPS])
+    pose[HIPS] += a[LET_GO][:, None] * (HUNG + HUNG_BY * pitched(y, fr[ROT].reshape(3, 3))[0] - pose[HIPS])
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips

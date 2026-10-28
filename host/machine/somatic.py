@@ -23,7 +23,7 @@ import numpy as np
 from machine import kernel, latent, modal, ortho, stride
 from machine.observer import TINY
 from machine.rounds import ROOM
-from machine.figure import ANKLE_H, FIST_R, SHANK, THIGH
+from machine.figure import ANKLE_H, SHANK, THIGH
 
 _REACH = kernel.node('modulate-kinematic-reachability', 'reachability')['equinus-morph-window']
 #: Her leg's length, hip to sole, m; the reach the equinus morphs over, of it.
@@ -42,8 +42,8 @@ def asked(g, s, out, told, ask):
     """`ask` with the step's `edge` rolled onto the ball as each leg reaches, `slide` her text's along her way
     (world: the slide her contacts may take), `fz_cap`, what bears her told share of her weight, no less than her
     balance needs of it (`lever`), and `slid_cap`, a sliding contact's load's cap, that slide's regime's share
-    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what each hand told
-    to bear may take: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
+    (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what her hands
+    bear's, their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
     her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
     equinus = float(told[ortho.FURNITURE].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
@@ -55,9 +55,8 @@ def asked(g, s, out, told, ask):
     ask['slide'] = rot.T @ local
     told_cap = np.where(said > 0.0, weight * told[ortho.FURNITURE].sum() / np.maximum(said, TINY), np.inf)
     ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG], weight) * weight)
-    # a hand told to bear takes up to her weight, its arm's drives held at their clamps by the step: capped at its told
-    # share, 61 N, her arms gave way under the 177-420 N she fell on
-    ask['hand_cap'] = weight * float(told[ortho.PALMAR] > 0.0)
+    told_hand = np.where(said > 0.0, weight * told[ortho.PALMAR] / np.maximum(said, TINY), 0.0)
+    ask['hand_cap'] = np.where(rho.mean() < THIGH / LEG_M, weight * float(told[ortho.PALMAR] > 0.0), told_hand)
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     return ask
 
@@ -77,13 +76,3 @@ def lever(s, way, weight):
     gap = rear - seat
     need = np.where(gap > 0.0, np.clip((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
     return np.maximum(need - hands, 0.0)
-
-
-def reached(shoulders, fr, palmed):
-    """{side: its fist's place (3,)} of each palm told to bear (`palmed` (2,), 0 or 1): under its shoulder
-    (`shoulders` (2, 3), world), its radius over the floor, the arm a column - beside her hips as she sits; aimed
-    beside them crouched, or under her fists held back, her capture point went behind her heels, a sole parried, she
-    fell aside; reached only till it bore, her hands left the floor as she sat back on them."""
-    at = np.array(shoulders, float)
-    at[:, 1] = fr[modal.FLOOR] + FIST_R
-    return {int(k): at[k] for k in np.flatnonzero(np.asarray(palmed) > 0.0)}

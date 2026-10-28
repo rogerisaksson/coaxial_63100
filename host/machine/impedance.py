@@ -72,11 +72,11 @@ def ask(out, y, fr, a):
     flat, xi = (soles @ rot.T)[:, :2], c[:2] + v[:2] / om
     low, high = poise.boxes(flat, a[EDGE], tilt)
     floors, rise = under(y, fr, stood)
-    propped, unparried, sat, aim, prop = borne.held(y, rot, a, fr[DT], out, z[SAGITTAL], c[ALONG], fr[UNIT][SAGITTAL])
+    propped, prop = borne.latched(y, rot, a, fr[DT])
     # the lift's own rhythm is her stride's clearance, not a sole's place
     tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
-    ref[SAGITTAL], up = ref[SAGITTAL] + sat * (aim - ref[SAGITTAL]), LIMBS * ref[LIFT]
+    up = LIMBS * ref[LIFT]
     # her capture point past the soles that stood - past her ZMP's margin in them - steps her
     # while the rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
     still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / TINY, 0.0, 1.0)
@@ -85,7 +85,7 @@ def ask(out, y, fr, a):
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
-    a[NEED] = (1.0 - unparried) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
+    a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD])
