@@ -59,7 +59,20 @@ def test_her_loop_sees_through_it(report):
             g['keep'].close()
 
 
-ROSTER = [test_her_fake_camera_tells_the_room, test_her_loop_sees_through_it]
+def test_her_vision_panel_holds_her_view(report):
+    """Her vision's panel (`scanner.seen`) names what her eyes' view holds alone - a chair ahead, not one 62 deg
+    aside nor a door 3.6 m off -; F's offers keep their own reach (`scanner.scan`, test_views_floor)."""
+    from terminal.views import scanner
+    up = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+    props = [('wood', (0.2, 0.45, 1.5), (0.22, 0.02, 0.22), up), ('wood', (1.5, 0.45, 0.8), (0.22, 0.02, 0.22), up),
+             ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
+    now, sc = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': props}, scanner.VisionScanner()
+    seen, offered = ([(d['kind'], round(d['pos'][0], 2)) for d in got] for got in (sc.seen(now), sc.scan(now)))
+    report.check("her vision's panel names the chair ahead alone, the offers all three",
+                 seen == [('chair', 0.2)] and len(offered) == 3, (seen, offered))
+
+
+ROSTER = [test_her_fake_camera_tells_the_room, test_her_loop_sees_through_it, test_her_vision_panel_holds_her_view]
 
 
 def main(argv=None):

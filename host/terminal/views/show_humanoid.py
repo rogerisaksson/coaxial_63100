@@ -332,7 +332,7 @@ def boxes(state, now, name):
         ('      wear', ('%d drift: %s' % (len(al), al[0][0]) if al else 'none')[:25])]))
     scanner = state.get('scanner')
     if scanner is not None and now is not None:
-        det = scanner.scan(now, viewpoint.looks(state))
+        det = scanner.seen(now)
         out.append(hud('VISION (EYES)', [
             ('     model', scanner.model_name()[:25]), ('  detected', (det[0]['label'] if det else 'none')[:25]),
             ('    action', (det[0]['affordances'][0][1] if (det and det[0]['affordances']) else '-')[:25])]))
