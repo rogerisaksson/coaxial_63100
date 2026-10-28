@@ -291,7 +291,9 @@ static void columns(wbc_gmo_t *o, const double q[NH])
       v[1] += j[4][i] * o->u[i];
       v[2] += j[5][i] * o->u[i];
     }
-    o->speed[p] = sqrt(dot(v, v));
+    double w[3] = {v[0] - o->slide[0], v[1] - o->slide[1], v[2] - o->slide[2]};
+
+    o->speed[p] = fmin(sqrt(dot(v, v)), sqrt(dot(w, w)));
   }
   expect(o);
   for (int h = 0; h < NH; h++)

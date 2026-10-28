@@ -215,6 +215,7 @@ def control(g, dt):
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
     somatic.asked(g, s, out, told, ask)
+    g['observer']['slide'][:] = ask['slide']
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held = g['support'] = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,

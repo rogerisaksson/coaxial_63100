@@ -17,10 +17,10 @@ import math
 from machine import acts, dsp, figure, kernel, maneuver, seated
 from machine.errors import MachineError
 
-#: Each gait of hers the kernel's clock plays: its patch, the segment of its schedule, her own text's phases it
-#: follows and the one its strokes use.
-CLOCKED = {name: ('compile-scoot-and-lowcrawl-suite-soa', at, ('kneel', 'squat', 'tip', 'catch', 'sit'), 'sit')
-           for name, at in (('scoot_floor', 0), ('scoot_back', 1))}
+#: Each gait of hers the kernel's clock plays: its patch, the segment of its schedule, her own text it extends,
+#: that text's phases it follows and the one its strokes use.
+CLOCKED = {name: ('compile-scoot-and-lowcrawl-suite-soa', at, 'scoot_floor', ('kneel', 'squat', 'tip', 'catch', 'sit'),
+                  'sit') for name, at in (('scoot_floor', 0), ('scoot_back', 1))}
 #: A bar's turns of the clock.
 BAR = 4
 #: Her told manifold for each of the kernel's patches, by the body that bears.
@@ -35,8 +35,14 @@ COLUMNS = ('mode-axial-compression', 'mode-sagittal-shift', 'mode-pitch-attitude
 #: her rest's, her let-go soles bore 371 N of her 305 as her knees opened and threw her off her seat.
 LIMB = {'mode_axial_compression': 'plantar', 'mode_arm_reach': 'palmar', 'mode_arm_fold': 'palmar',
         'mode_pitch_attitude': 'ischial'}
-#: A limb under this authority is in High-Z (`partition-fault-tolerant-dynamics`' floor).
-FREEWHEEL = kernel.node('partition-fault-tolerant-dynamics', 'fault-partition')['freewheel-threshold']
+#: The modes a seat releases (`xform-balance-biped-to-seated`: seated, her knees and ankles released): her height
+#: is what bears her pelvis's. Sprung while her soles anchored, her legs pushed her pelvis off the floor, 0.16 ->
+#: 0.29 m, and her trunk over backward to -51 deg in a stroke.
+SEATED = ('mode_axial_compression',)
+#: Her manifold each kind of the clock's limbs bears on. With no axial duty her sled never bears alone: as her
+#: hands, the fore limbs, are carried her soles hold. Carried together, her seat bore her alone, her trunk went
+#: over backward, -108 deg, at the backward scoot's second stroke.
+LIMBED = {':hind': 'plantar', ':fore': 'palmar'}
 #: Her hip joints' height sat on the floor, m (`seated.sat`).
 SAT = seated.sat(0.0)
 
@@ -56,25 +62,26 @@ def _manifolds(told):
 
 
 def _segment(name):
-    """(the segment's state, its posture's origin and modal columns) of gait `name` (CLOCKED)."""
+    """(the segment's state, its posture's origin and modal columns, its anchors) of gait `name` (CLOCKED). Its
+    limbs' health (`limb-health`) is the kernel's robot's: hers is her drives' own. Its High-Z limb's soles
+    dropped, her hands bore its 0.72 alone and her trunk went over, -110 deg."""
     patch, at = CLOCKED[name][:2]
     g = dsp.schedule(kernel.read()[patch])[at][2]
-    health = g.get('limb-health') or {}
-    if health.get('authority', 1.0) < FREEWHEEL:
-        raise MachineError('refused: %s in %s; her step has no joint in High-Z' % (health['limb'], health['fault-mode']))
+    anchors = g['stick-slip']['anchors']
     sled = g['stick-slip']['sleds']
     postures = dsp.read(dsp.KERNEL)[g['posture-jet']['posture-atlas']]['postures']
     posture = next(p for p in postures.values() if set(sled) <= set(p['coupled-manifold']))
-    return g, posture['origin-q0'], posture['modal-basis-columns']
+    return g, posture['origin-q0'], posture['modal-basis-columns'], anchors
 
 
 def turns(name):
-    """(her turns of the clock, s a turn, s its stroke, m a stroke) of gait `name`'s segment (CLOCKED)."""
+    """(her turns of the clock, s a turn, s its stroke - her anchors' stance, the clock's limb duty -, m a stroke)
+    of gait `name`'s segment (CLOCKED)."""
     patch, at = CLOCKED[name][:2]
     b0, b1, g = dsp.schedule(kernel.read()[patch])[at]
     clock = g['axial-torus-clock']
     turn = 60.0 / clock['bpm']
-    return (int(round((b1 - b0) * BAR)), turn, turn * clock['limb-duty'] / (clock['limb-duty'] + clock['axial-duty']),
+    return (int(round((b1 - b0) * BAR)), turn, turn * clock['limb-duty'],
             g['stick-slip']['stroke-amplitude-m'])
 
 
@@ -109,9 +116,10 @@ def rowed(q0, columns, m, metres):
 
 
 def _springs(targets, told, released, modes):
-    """{mode: (stiffness, damping)} of `targets` at her rest's, a mode whose limb is `told` to bear nothing at the
-    `released` share of it (`acts.sprung`)."""
-    return {m: acts.sprung(m, 1.0 if told.get(LIMB[m], 0.0) > 0.0 else released, 1.0, modes) for m in targets}
+    """{mode: (stiffness, damping)} of `targets` at her rest's, a mode whose limb is `told` to bear nothing, or a
+    seat's (SEATED) her seat is told to bear, at the `released` share of it (`acts.sprung`)."""
+    held = {m: (told.get(LIMB[m], 0.0) > 0.0) * (1.0 - (m in SEATED) * (told.get('ischial', 0.0) > 0.0)) for m in targets}
+    return {m: acts.sprung(m, released + (1.0 - released) * held[m], 1.0, modes) for m in targets}
 
 
 def _targets(targets):
@@ -130,10 +138,11 @@ def _phase(name, use, ms, targets, springs, slide, told):
 
 
 def text(name):
-    """(defbehavior NAME (extends NAME) ..) of gait `name` as the kernel's clock plays it (CLOCKED): her own phases,
-    then each turn of its segment a stroke and her sled's, then her rest on her sled."""
-    patch, at, own, used = CLOCKED[name]
-    g, q0, columns = _segment(name)
+    """(defbehavior NAME (extends BASE) ..) of gait `name` as the kernel's clock plays it (CLOCKED): her own phases,
+    then each turn a stroke and its recovery - her sled's, her soles holding where it never bears alone (LIMBED),
+    their modes at the stroke's end -, then her rest on her sled."""
+    patch, at, base, own, used = CLOCKED[name]
+    g, q0, columns, anchors = _segment(name)
     sled = g['stick-slip']
     n, turn, stroke, metres = turns(name)
     modes, body = maneuver._manifest()
@@ -142,21 +151,24 @@ def text(name):
     half = 0.5 * way * rowed(q0, columns, m, metres)
     ahead, behind = (hers(posed(q0, columns, (m[0], m[1] + s, m[2])), modes, body) for s in (half, -half))
     gain = sled['pelvic-unweighting-gain']
-    anchored = _told(sled['anchors'], gain)
+    anchored = _told(anchors, gain)
     for k, v in _told(sled['sleds'], 1.0 - gain).items():
         anchored[k] = anchored.get(k, 0.0) + v
-    borne = _told(sled['sleds'], 1.0)
+    alone = g['axial-torus-clock']['axial-duty'] > 0.0
+    held = {} if alone else {m: v for m, v in anchored.items() if m == LIMBED[':hind']}
+    borne = dict(held, **_told(sled['sleds'], 1.0 - sum(held.values())))
+    held_back = {mode: (ahead if LIMB[mode] in held else behind)[mode] for mode in behind}
     cone = g['centroidal-balance']['nullspace-projector']
     released = 10.0 ** (cone['passive-cone-atten-db'] / 20.0) if cone['auto-release-unloaded-limbs'] else 1.0
     rows, last = ['  (phase %s)' % p for p in own], used
     for t in range(1, n + 1):
         rows.append(_phase('stroke_%d' % t, last, 1e3 * stroke, ahead, _springs(ahead, anchored, released, modes),
                            way * metres / stroke, anchored))
-        rows.append(_phase('sled_%d' % t, 'stroke_%d' % t, 1e3 * (turn - stroke), behind,
-                           _springs(behind, borne, released, modes), 0.0, borne))
+        rows.append(_phase('sled_%d' % t, 'stroke_%d' % t, 1e3 * (turn - stroke), held_back,
+                           _springs(held_back, borne, released, modes), 0.0, borne))
         last = 'sled_%d' % t
     rows.append('  (phase floor_rest (use %s) (duration 60s) (blend_duration 1000ms))' % last)
-    return '(defbehavior %s (extends %s)\n%s)\n' % (name, name, '\n'.join(rows))
+    return '(defbehavior %s (extends %s)\n%s)\n' % (name, base, '\n'.join(rows))
 
 
 def texts():

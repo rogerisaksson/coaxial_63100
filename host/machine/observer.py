@@ -17,7 +17,9 @@ squares over pushes alone (wbc_gmo.c, Lawson-Hanson), so it always sums to her w
 - her hands on a floor bearing her in the same pyramid;
 - what none of it can tell, her soles their last pass's and the rest gravity's prior over her points
   (`regularize-manifold-simplex-with-priors`): upright, low and still bears, her weight's share each; a point
-  moving past her grip's slip neither shares nor is free (`gate-supports-by-stillness`).
+  moving past her grip's slip neither shares nor is free (`gate-supports-by-stillness`), its speed the least of
+  its own and against her text's slide (`slide`, `motion`): the floor scoot's stroke slid her seat at 0.62 m/s,
+  her seat weighed 0 under its told 0.41 and her legs stood her up off it.
 The floor scoot's squat, her knees on their stops (17-25 N m) and her thighs on her belly (330-760 N): a sole a free
 wrench read 72-143 N on her butt with none there and her soles pulling to -1 365 N. Blind: no skin, no load cell.
 """
@@ -342,7 +344,7 @@ def laid(body):
     base, q, u = np.zeros(12), np.zeros(body.n - 6), np.zeros(body.n)
     return {'c': o, 'at': ctypes.byref(o), 'felt': lib.wbh_gmo_felt, 'step': lib.wbh_gmo_step,
             'r': view('r'), 'f': view('f'), 'normal': view('force'), 'points': view('at'), 'cols': np.array(cols),
-            'pushes': o.pushes, 'gated': view('gated'),
+            'pushes': o.pushes, 'gated': view('gated'), 'slide': view('slide'),
             'latch_of': np.array([[any(m == MANIFOLDS[k] for m, *_r in sh) for k in ROWS] for sh, *_r in POINTS], float),
             'soled': np.array([sh[0][0] == 'plantar-bilateral' for sh, *_r in POINTS]),
             'skin': np.array([seg not in SOLED for _sh, seg, *_r in POINTS]) & (row >= 0), 'row': row,

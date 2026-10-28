@@ -34,6 +34,7 @@ typedef struct
   double      upright;                     /**< push's cosine with the vertical, and its reach */
   double      reach;                       /**< over her lowest point, m; a support's speed, m/s: */
   double      still;                       /**< past it a point does not stand on what bears her */
+  double      slide[3];                    /**< her text's slide, world m/s: moving with it a point stands still */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
   int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in her edge's */
   int         driven_joint[WBC_DRIVEN];

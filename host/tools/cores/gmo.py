@@ -31,7 +31,7 @@ class Gmo(ctypes.Structure):
 
     """wbc_gmo_t: her momentum observer (`machine.observer`), laid and its state."""
 
-    _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('loss', _d * N), ('driven_at', _i * DRIVEN),
+    _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('slide', _d * 3), ('loss', _d * N), ('driven_at', _i * DRIVEN),
                 ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),
                 ('edge', ((_d * 3) * GMO_E) * GMO_P), ('edges', _i * GMO_P), ('col', _i * GMO_P), ('pushes', _i), ('gated', _i * GMO_P), ('world', _i * GMO_P), ('soled', _i * GMO_P),
                 ('stop_lo', _d * (N - 6)), ('stop_hi', _d * (N - 6)), ('stopped', _i * (N - 6)), ('capsules', _i),
