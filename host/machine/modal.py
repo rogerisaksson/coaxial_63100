@@ -23,7 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import kernel, latent, leap, ortho, rounds, stride, terms
+from machine import latent, leap, ortho, rounds, stride, terms
 from machine.figure import ANKLE_H, SHANK, THIGH
 from machine.poise import HALF_M, TINY, clip
 from machine.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
@@ -150,14 +150,15 @@ REST_K = 2.0
 LIMB_KD = (400.0, 40.0)
 #: Her ZMP's polygon: none, her support's, the dynamic footprint. No limit on her yaw momentum.
 NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
-#: Each leg's hip and sagittal chain (`rounds.LEGS`), and a radian of each's flexion (`terms`); the
-#: posture atlas (`canonical_posture_bundle.lisp`), a let-go hip (thigh level) and her pelvis's pitch on it.
+#: Each leg's hip's yaw, roll and pitch among her driven joints (`rounds.LEGS`); its sagittal chain, the
+#: hip's pitch, the knee and the ankle, and a radian of each's flexion on its joint - the ankle's
+#: dorsiflexion (`terms`).
 HIPS = np.array([leg[:3] for leg in rounds.LEGS])
 CHAIN = np.array([leg[2:5] for leg in rounds.LEGS])
 FLEX = np.array([terms.TERMS[pt][1] for pt in (('hip', 'flexion'), ('knee', 'flexion'), ('ankle', 'dorsiflexion'))], float)
-ATLAS = kernel.read()['canonical-posture-soa-atlas']['postures']
-HUNG = np.array([0.0, 0.0, FLEX[0] * float(ATLAS['ischial-seated']['gravity-hang-law']['dangling-q0']['tibiofemoral'])])
-HUNG_BY = np.array([0.0, 0.0, FLEX[0]])
+#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
+#: the hip's axis her pelvis's pitch turns it on.
+HUNG, HUNG_BY = np.array([0.0, 0.0, -0.5 * np.pi]), np.array([0.0, 0.0, 1.0])
 ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
@@ -313,12 +314,12 @@ def seat(y, fr, pose):
     it, the hip as high over the ankle and as far aside as she is (`_legs`), the sole flat - the ankle
     where that chain puts it (`seated.legs`), the hip off her pelvis's pitch (`pitched`)."""
     rot = fr[ROT].reshape(3, 3)
-    leg, long, _ = _legs(y, rot)
-    knee = np.arccos(clip((long * long - SHANK * SHANK - THIGH * THIGH) / (2.0 * SHANK * THIGH), -1.0, 1.0))
+    leg = _legs(y, rot)[0]
+    knee = FLEX[1] * pose[CHAIN[:, 1]]
     high = np.sqrt(leg[:, UP] * leg[:, UP] + leg[:, LEFT] * leg[:, LEFT])
-    behind = np.sqrt(np.maximum(long * long - high * high, 0.0))
+    behind = np.sqrt(np.maximum(SHANK * SHANK + THIGH * THIGH + 2.0 * SHANK * THIGH * np.cos(knee) - high * high, 0.0))
     lean = np.arctan2(-behind, high) + np.arctan2(THIGH * np.sin(knee), SHANK + THIGH * np.cos(knee))
-    return np.stack([FLEX[0] * (knee - lean + pitched(y, rot)[0]), pose[CHAIN[:, 1]], FLEX[2] * lean], axis=1)
+    return np.stack([FLEX[0] * (knee - lean + pitched(y, rot)[0]), FLEX[1] * knee, FLEX[2] * lean], axis=1)
 
 
 def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
@@ -339,7 +340,6 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
-    # less her pelvis's pitch (HUNG_BY is FLEX[0] = -1): plus it, lying back 80 deg asked her let-go thighs 170 deg up over her and they flailed
     pose[HIPS] += a[LET_GO][:, None] * (HUNG + HUNG_BY * pitched(y, fr[ROT].reshape(3, 3))[0] - pose[HIPS])
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])

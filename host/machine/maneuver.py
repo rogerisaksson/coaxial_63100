@@ -33,11 +33,11 @@ PLAYED = {
     'sit_chair': ('patch-sit-rigid-chair', None, {'descent': 'lower', 'contact': 'seated', 'rest': 'seated'}),
     'rise_chair': ('patch-rise-chair', 'sit_chair', {'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
                                                      'drive': 'stand'}),
-    'lie_bed': ('patch-supine-mattress-sleep', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
-    'rise_bed': ('patch-wake-and-stand', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
-                                                     'drive': 'stand'}),
-    'rise_floor': ('patch-wake-and-stand', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
-                                                       'contact': 'thrust', 'drive': 'stand'}),
+    'lie_bed': ('patch-bed-lean', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
+    'rise_bed': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
+                                              'drive': 'stand'}),
+    'rise_floor': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
+                                                 'contact': 'thrust', 'drive': 'stand'}),
 }
 #: The key a stunt's patch takes the seen furniture's height by, mm.
 SEEN = 'seat-z-mm'

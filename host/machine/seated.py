@@ -86,11 +86,12 @@ def clear(knee, ankle, edge, top):
     return min(gaps)
 
 
-def landed(hips, edge, top, trunk):
+def landed(hips, edge, top, trunk, deep=False):
     """(knee, ankle), rad, that land her hip joints `hips` m over the floor as far behind her ankles
     as sets her centre of mass at her soles' back edge (HEELS), her trunk `trunk` rad forward -
     halved for till HALVINGS -, as her thighs clear the edge of a seat `top` m up and `edge` m
-    behind her ankles (`clear`), and no further than a buttock past it (`figure.SEAT_Z`). Over her
+    behind her ankles (`clear`, unless sitting `deep` onto a bed), and no further than a buttock
+    past it (`figure.SEAT_Z`). Over her
     ankles her hips met a seat 0.19 m behind her soles' middle 2.6 cm onto it, her pelvis alone on
     its edge, and it bore 0.39 of her: 20 docks of 25 never borne. A buttock past an edge 0.12 m
     behind her soles' middle her thighs were 14 mm into it: they met it 2-5 cm over the seat, one
@@ -102,9 +103,9 @@ def landed(hips, edge, top, trunk):
     for _ in range(HALVINGS):
         mid = 0.5 * (lo + hi)
         knee, ankle = legs(hips, mid)
-        back = ahead(knee, ankle, trunk) < HEELS or clear(knee, ankle, edge, top) < 0.0
+        back = ahead(knee, ankle, trunk) < HEELS or (not deep and clear(knee, ankle, edge, top) < 0.0)
         lo, hi = (lo, mid) if back else (mid, hi)
-    return legs(hips, min(0.5 * (lo + hi), edge - figure.SEAT_Z[0]))
+    return legs(hips, min(0.5 * (lo + hi), edge - (2.5 if deep else 1.0) * figure.SEAT_Z[0]))
 
 
 def legs(hips, behind):
