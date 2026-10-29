@@ -1,4 +1,3 @@
-```markdown
 # coaxial_63100
 
 Senior embedded-firmware / Python / local-LLM engineer. Judge with authority.
@@ -79,6 +78,46 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
 - CubeMX keeps regenerating: `core/`, `startup_*.s`, `cmake/stm32cubemx/`
   are edited only inside `USER CODE` blocks; sources go in the root
   `CMakeLists.txt`.
+
+## Host
+
+- Map first, files second: `cd host; python tools/dev/host_map.py [--api]
+  [dir..]` (one line per module; `--api` adds public signatures; `--layers`
+  import graph by package, `--deps` per module). Every module opens on a
+  one-line docstring brief (`<= 100` chars, `test_structure`). Details:
+  `host/CLAUDE.md`.
+- Python domains, imports one way (`test_structure`): `motor/` (PMSM and
+  loads; imports nothing here) -> `machine/` (executive, gynoid,
+  `machine/aircraft/`; imports no board family) -> `coaxial/` (`Coaxial63100`
+  in `rig.py`, `comm/`, `devices/`, `acquire/`, `model/`, `control/`,
+  `kalman/`, `graphics/`, `draw/`, `simulated/`). Over them: `terminal/`
+  (`python -m terminal`, `pages/`, `views/`, `ui/`), `coaxial_mcp/`,
+  `coaxial_ollama/` (`dbg.py`, `board_chat.ps1`), `testline/`, `tools/`.
+- Inner law and C11 boundary (`test_structure`): numpy enters at module
+  level only behind `OPENBLAS_NUM_THREADS=1`. Her law (`LAW`: `motion`,
+  `se2`, `leap`, `support`, `latent`, `impedance`, `modal`, `poise`,
+  `stride`, `estimate`, `wrench`, `wbc`, `reach`, `touch`, `situation`,
+  `borne`, `grip`) reads the world through `machine.edge` alone and writes
+  no MuJoCo state (`test_her_law_reads_her_sensors_alone`,
+  `test_the_gym_moves_her_through_the_world_alone`); its array passes trace
+  and compile to C11 (`tools/cores/`, `wbc/`).
+- Lisp (`host/lisp/`, `mechatronics.LISP`): physical laws, manifolds,
+  postures, gaits and flight intents live in S-expressions, never as
+  hardcoded Python branches or magic constants.
+  + `host/lisp/humanoid/`: `<robot>.lisp` (`gynoid_mesomorph_medium.lisp`,
+    `_performance`, `_r80`), `builds/<robot>.manifest.lisp` (written from
+    `machine/humanoids/<robot>.toml` + `machine/library/*.toml` by `python
+    tools/cores/manifest.py --write`, held by `test_mirrors`; `COAXIAL_ROBOT`
+    selects the build), base texts (`gait_base.lisp`, `postures_base.lisp`,
+    `motion.lisp`, `situations.lisp`, `runway.lisp`, `examples.lisp`),
+    `suite/` (ortho-DSP patches and maneuvers: `machine.ortho`, `dsp`,
+    `maneuver`, `acts`), `kernel/` (somatic dual-domain kernel: `kernel`,
+    lowered to SoA banks in `wbc_soa.h` by `lowering` and swapped lock-free
+    by `rcu`), and `meta_ast_autotuner.lisp` (`tune`).
+  + `host/lisp/aircraft/`: `quadcopter.lisp`, `helicopter.lisp`,
+    `ornithopter.lisp`, `aerobat.lisp` and shared `aerodynamics.lisp`,
+    `dynamics.lisp`, `kinematics.lisp` (`machine.aircraft.aerolisp`,
+    compiled to stream rows for the `aero/` core).
 
 ## Rules
 
@@ -277,5 +316,3 @@ one question) and stop. Design questions are yours.
 - The editable install resolves `machine`, `coaxial` to the main checkout:
   a script in a git worktree runs its own code only with
   `PYTHONPATH=<worktree>/host`.
-
-```
