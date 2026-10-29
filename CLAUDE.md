@@ -61,6 +61,8 @@ Evaluate the prompt and working tree before invoking any tool:
   coordination notes. Never overwrite, revert, or touch uncommitted changes
   belonging to the user or a parallel session.
 
+---
+
 ### STATE 1 -- TOPOLOGY MAPPING & EMPIRICAL BASELINE (TURN 1 MAX)
 
 - **Forbidden Actions:** Mutating any file, creating scratch/temp files,
@@ -83,13 +85,14 @@ Evaluate the prompt and working tree before invoking any tool:
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`
 
+---
+
 ### STATE 2 -- EXEGESIS & INVARIANT PROOF GATE
 
 - **Forbidden Actions:** Mutating files before the proof block below is
   satisfied against actual State 1 outputs.
 - **Required Output Block:**
 
-```text
 [STATE 2 GATE: ROOT CAUSE & INVARIANT PROOF]
 - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
