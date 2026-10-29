@@ -142,9 +142,36 @@ def test_told_to_scoot_on_the_floor_she_drags_her_butt_forward(report):
                  'sat %s fallen %s went %.3f m' % (sat, s['fallen_at'], went))
 
 
+def test_her_legs_are_released_only_where_her_other_supports_hold_her(report):
+    """Her legs' release (intentional_limb_emancipation.lisp): asked where her soles are told nothing and something
+    else bears her; allowed where her capture point lies inside the contacts that bear her besides her soles by the
+    text's least margin - 0.2 m inside a seat's and hands' square, open; outside it, or with nothing but her soles,
+    shut; at her walk's 0.7 m/s her Froude number shuts it to its exp(-(Fr/0.045)^2)."""
+    import math
+    import numpy as np
+    from machine import emancipation as em
+    weight, w = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36])
+    report.check('her text asks her legs released where it tells her soles nothing and her seat and hands bear',
+                 em.intent(w) == 1.0 and em.intent(np.array([1.0, 0, 0, 0, 0])) == 0.0
+                 and em.intent(np.array([0.1, 0.9, 0, 0, 0])) == 0.0, str(em.intent(w)))
+    square = [{'p': np.array([x, 0.0, z]), 'patch': 0} for x in (-0.2, 0.2) for z in (-0.2, 0.2)]
+    still = {'vcom': np.zeros(3), 'com': np.array([0.0, 0.3, 0.0]), 'contacts': square}
+    inside, _, inside_nm = em.gate(still, w, weight, 0.0)
+    outside, _, outside_nm = em.gate(dict(still, com=np.array([0.3, 0.3, 0.0])), w, weight, 0.0)
+    soled, _, _ = em.gate(dict(still, contacts=()), w, weight, 0.0)
+    walking, parts, _ = em.gate(dict(still, vcom=np.array([0.0, 0.0, 0.7])), w, weight, 0.0)
+    froude = 0.7 * 0.7 / (9.81 * em.LEG_M)
+    report.check('0.2 m inside her seat and hands she may let her legs go; outside them or on her soles alone not',
+                 inside == 1.0 and abs(inside_nm - 0.2 * weight) < 1e-9 and outside == 0.0 and outside_nm < 0.0
+                 and soled == 0.0, '%.1f N m in, %.1f out' % (inside_nm, outside_nm))
+    report.check('at her walk\'s 0.7 m/s her Froude number holds her gate to exp(-(Fr/0.045)^2)',
+                 abs(parts[0] - math.exp(-(froude / em.FROUDE) ** 2)) < 1e-3 and walking < 0.2, '%.3f' % parts[0])
+
+
 ROSTER = [test_the_floor_runs_on_under_her_soles, test_a_grown_prop_bears_where_it_has_grown,
           test_her_grip_bounds_her_rhythm, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
-          test_told_to_scoot_on_the_floor_she_drags_her_butt_forward]
+          test_told_to_scoot_on_the_floor_she_drags_her_butt_forward,
+          test_her_legs_are_released_only_where_her_other_supports_hold_her]
 
 
 def main(argv=None):
