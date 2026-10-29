@@ -15,7 +15,7 @@ bearing patch she has no manifold for, a joint in High-Z - is refused by name.
 import math
 import os
 
-from machine import acts, dsp, figure, kernel, maneuver, ortho, seated
+from machine import acts, dsp, figure, kernel, maneuver, mechatronics, ortho, seated
 from machine.errors import MachineError
 
 #: Each gait of hers the kernel's clock plays: its patch, the segment of its schedule, her own text it extends,
@@ -50,7 +50,7 @@ SAT = seated.sat(0.0)
 
 def _sat(name='scoot_floor', phase='sit', mode='mode_pitch_attitude'):
     """Her own text's `mode` target in `phase` of `name` (lisp/humanoid/motion.lisp)."""
-    forms = ortho.read(ortho.source(os.path.join('lisp', 'humanoid', 'motion.lisp')))
+    forms = ortho.read(ortho.source(os.path.join(mechatronics.HUMANOID, 'motion.lisp')))
     body = next(f for f in forms if isinstance(f, list) and f[:2] == ['defbehavior', name])
     said = next(c for p in body if isinstance(p, list) and p[:2] == ['phase', phase] for c in p if c and c[0] == 'latent_targets')
     return float(next(t[1] for t in said[1:] if t[0] == mode))
