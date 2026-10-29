@@ -309,6 +309,54 @@ static void columns(wbc_gmo_t *o, const double q[NH])
     the set where it lowers the residual past rounding, one not felt (`gated`) or moving past
     `still` only where none else would, the set solved, a push it would pull stepped back to none
     and out. */
+/** Push `b` joined to the `n` pushing `at` (in the order they joined): `o->k`'s factor L of K = H over them
+    grown a row by forward substitution, the rows before it as they were, its new diagonal's square no less
+    than `least` - eps top lies on K's diagonal, so no Schur complement of it is smaller. 53 factorizations
+    of 26 a step from scratch were half her observer's time. */
+static int joined(wbc_gmo_t *o, int at[NF], int n, int b, double least)
+{
+  double d = o->h[b][b];
+
+  for (int x = 0; x < n; x++)
+  {
+    double s = o->h[b][at[x]];
+
+    for (int k = 0; k < x; k++)
+    {
+      s -= o->k[n][k] * o->k[x][k];
+    }
+    o->k[n][x] = s / o->k[x][x];
+    d -= o->k[n][x] * o->k[n][x];
+  }
+  at[n] = b;
+  o->k[n][n] = sqrt(fmax(d, least));
+  return n + 1;
+}
+
+/** The push at `p` among the `n` pushing `at` left: L's row taken out, its columns from `p` turned back
+    lower-triangular by Givens rotations - L L' K less its row and column. */
+static int left(wbc_gmo_t *o, int at[NF], int n, int p)
+{
+  for (int r = p; r < n - 1; r++)
+  {
+    at[r] = at[r + 1];
+    memcpy(o->k[r], o->k[r + 1], (size_t)(r + 2) * sizeof(double));
+  }
+  for (int j = p; j < n - 1; j++)
+  {
+    const double a = o->k[j][j], b = o->k[j][j + 1], r = hypot(a, b), c = a / r, s = b / r;
+
+    for (int i = j; i < n - 1; i++)
+    {
+      const double t1 = o->k[i][j], t2 = o->k[i][j + 1];
+
+      o->k[i][j] = c * t1 + s * t2;
+      o->k[i][j + 1] = c * t2 - s * t1;
+    }
+  }
+  return n - 1;
+}
+
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
   static double g[NF], w[NF], z[NF], sub[NF];
@@ -364,6 +412,8 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     g[a] += o->eps * top * o->expected[a];
     most = fmax(most, fabs(g[a]));
   }
+  int n = 0;
+
   for (int round = 0; round < 3 * NF; round++)
   {
     int free_ = -1, held = -1, pushing = 0;
@@ -392,25 +442,16 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       break;
     }
     set[best] = 1;
+    n = joined(o, at, n, best, o->eps * top);
     for (int inner = 0; inner < NF; inner++)
     {
-      int    n = 0, out = -1;
+      int    out = -1;
       double step = 1.0;
 
-      for (int a = 0; a < NF; a++)
-      {
-        at[n] = a;
-        n += set[a];
-      }
       for (int x = 0; x < n; x++)
       {
-        for (int y = 0; y < n; y++)
-        {
-          o->k[x][y] = o->h[at[x]][at[y]];
-        }
         sub[x] = g[at[x]];
       }
-      wbc_cholesky(n, NF, &o->k[0][0]);
       wbc_chol_solve(n, NF, &o->k[0][0], sub, z);
       for (int x = 0; x < n; x++)
       {
@@ -427,12 +468,13 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       {
         break;
       }
-      for (int x = 0; x < n; x++)
+      for (int x = n - 1; x >= 0; x--)
       {
         const int drop = (x == out) || (o->f[at[x]] <= 0.0);
 
         o->f[at[x]] = drop ? 0.0 : o->f[at[x]];
         set[at[x]] = !drop;
+        n = drop ? left(o, at, n, x) : n;
       }
     }
   }

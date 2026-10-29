@@ -169,17 +169,11 @@ DWELL_S, BLANK_S = 1e-3 * _LATCH['min-state-dwell-ms'], 1e-3 * _LATCH['impact-bl
 UP, DOWN = (kernel.said('bind-wrench-driven-homotopy', k) for k in ('slew-rate-up-per-s', 'slew-rate-down-per-s'))
 
 
-_SAID = [None, None]
-
-
 def said(told):
     """`told` (`latent.MANIFOLDED`) as her law takes it: each manifold's share of what is told; nothing told
-    (her rest), her soles alone - kept by its bytes (8 calls a law pass)."""
-    key = told.tobytes()
-    if key != _SAID[0]:
-        total = told.sum()
-        _SAID[:] = key, np.where(total > 0.0, told / np.maximum(total, TINY), SOLES)
-    return _SAID[1].copy()
+    (her rest), her soles alone."""
+    total = told.sum()
+    return np.where(total > 0.0, told / np.maximum(total, TINY), SOLES)
 
 
 @functools.cache
