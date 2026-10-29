@@ -10,12 +10,12 @@ wait till the seat bears her (`waits.borne_back`). A cross-fade is the furniture
 ZMP let go, her legs at its post-contact gain, what bears her panned to it (`ortho.MANIFOLDS`) - or
 her soles; a cascade or a gate a phase a node, its modes' stiffness at its dB (no reaction wheel of
 her arms); a recline her trunk's ramp; a pendulum her pelvis listed and turned onto her hip, refused
-past her modes' reach.
+past her modes' reach; a seek onto her carpal heels' manifold her fists set on a seat over her shins.
 """
 import collections
 import math
 
-from machine import figure, impedance, leap, ortho, seated, somatic, wrench
+from machine import figure, impedance, kernel, leap, ortho, seated, somatic, wrench
 from machine.errors import MachineError
 
 #: Her modes by the suite's nodes: what a node's stiffness or gate moves. Her head has none.
@@ -55,6 +55,10 @@ WAVEFRONT = {':greater-trochanter-r': ':trochanter-lateral', ':greater-trochante
              ':ischial-sacral': ':ischial-bilateral', ':scapular-dorsal': ':scapular-dorsal', ':occipital': ':occipital'}
 #: Her pelvis's half-width across, m: her hips' height over what she lies on her side on (`figure.BODY`).
 LAIN = next(0.5 * abs(b[0] - a[0]) + r for seg, r, a, b in figure.BODY if seg == 'pelvis' and a[0] != b[0])
+#: Her hands' frames a seat's manifold bears on (`_sought`), her carpal heels; the modes that set them.
+CARPAL, ARMS = (':carpal-heel-l', ':carpal-heel-r'), ('mode_arm_reach', 'mode_arm_fold')
+#: The kernel's seek of her arms down onto what her hands find (`specialize-with-tactile-arm-sweep`), m/s.
+SEEK_M_S = -kernel.node('specialize-with-tactile-arm-sweep', 'appendage-admittance')['seek-velocity-mps'][2]
 
 
 def _weighs(pan):
@@ -77,8 +81,9 @@ def _envelope(p, at, modes, body):
     of her and threw her off), her pelvis square to its edge (0.05-0.1 rad off, 11 docks of 20
     fell), her arms one ahead and one behind, the seat's side's ahead (hanging, a hand met it in 34
     docks of 50). Sat, a preload's knee and ankle are where the seat and her soles hold them, her
-    arms hanging: swung 25 deg either way, a sole rose 58 mm and she fell; it slides her forward off
-    the seat as the kernel's egress has it (`somatic.EGRESS_M_S`)."""
+    arms hanging - her fists off a seat they bore on (`_sought`): swung 25 deg either way, a sole rose
+    58 mm and she fell; it slides her forward off the seat as the kernel's egress has it
+    (`somatic.EGRESS_M_S`)."""
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))
     trunk = p.get('axial-counterweight', {}).get('dc-offset-rad', 0.0)
@@ -96,7 +101,9 @@ def _envelope(p, at, modes, body):
     targets['mode_sagittal_shift'] = min(com, 0.0) if sat else com
     seat = {'mode_arm_swing': math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
             'mode_pelvis_turn': at['turn']}
+    at['swung'] = seat['mode_arm_swing'] if seen else at.get('swung', 0.0)
     targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
+    targets.update(dict.fromkeys(ARMS, 0.0) if sat and at.get('palmed') else {})
     targets.update({'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0]} if 'axial-counterweight' in p else {})
     # held at her rest's springs, as `_paced` paces it: on her stand's sagittal 300 her centre of mass
     # ended 2.1 cm behind a descent's, her hips 2.8 cm back, a thigh on the seat's edge and not her buttocks
@@ -135,6 +142,7 @@ def _crossfade(p, then, at, modes, body):
                  springs, SUPPORT if plantar else NONE, None, shape=shape,
                  weighs=_weighs(((p['from-bus'], left), (p['to-bus'], 1.0 - left))), slide=0.0 if plantar else None)
     settle, (leaned, curve) = p.get('thoracic-settle-rad'), at.get('leaned', (ms, shape))
+    at['weighs'], at['trunk'] = fade.weighs, settle if settle is not None and seat else at.get('trunk', 0.0)
     return [fade] + ([Phase('contact', 'settle', leaned, leaned, {
         'mode_pitch_attitude': settle / modes['mode_pitch_attitude'][0],
         'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], settle, modes, body)}, {}, None, None, shape=curve)]
@@ -209,6 +217,42 @@ def _recline(p, then, at, modes, body):
     return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
+def _sought(p, then, at, modes, body):
+    """A seek onto an auxiliary manifold: the kernel's carpal seat boost (its `splice-auxiliary-manifold` on her
+    carpal heels) on a seat over her shins (`seated.POPLITEAL`), reached by its arm sweep's seek
+    (`drive-appendage-admittance`): her fists lifted a fist's height over it under her shoulders, set on it pressed as her
+    hips are (`impedance.PROP_ON`) at the kernel's seek (SEEK_M_S), told the weight law's share as they come
+    down - what bore her the rest as it was split -, held where they bear once each does (`ortho.PALMED`). On
+    the lodge's 0.47 m chair both bore, 9.7 cm onto it, 1 mm off her model: swung back from her descent's
+    counterweight one met the seat's front face 3 cm under its top, and told nothing as they came down the
+    wait for them never ended. A seat under her shins: none."""
+    if tuple(p['anatomical-frames']) != CARPAL or p['weight-law'].name != 'wrench-proportional':
+        raise MachineError('refused: a manifold on %s, %s; her hands bear on %s by a wrench-proportional share'
+                           % (' '.join(p['anatomical-frames']), p['weight-law'].name, ' '.join(CARPAL)))
+    if at['seat'] is None or at['seat'] <= seated.POPLITEAL:
+        return []
+    share, trunk = p['weight-law'].args['max-share'], at.get('trunk', 0.0)
+    pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    deg = dict(figure.stand(), spine=math.degrees(trunk))
+    ahead = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0][2]
+    on, over = figure.FIST_R + figure.SEAT_Y - figure.SEAT_R, 2.0 * figure.FIST_R
+    reach = max(math.dist(figure.fist(dict(deg, left_shoulder=math.degrees(s)))[1:], (on + over, ahead))
+                for s in (at.get('swung', 0.0), -at.get('swung', 0.0)))
+    lift, down = 1e3 * reach / SEEK_M_S, 1e3 * (over + pressed) / SEEK_M_S
+
+    def arms(up):
+        shoulder, elbow = seated.fisted(up, ahead, trunk)
+        return {'mode_arm_swing': 0.0, 'mode_arm_reach': shoulder / modes['mode_arm_reach'][0],
+                'mode_arm_fold': (elbow - math.radians(deg['left_elbow'])) / modes['mode_arm_fold'][0]}
+    pan = tuple(share if k == ortho.PALMAR else w * (1.0 - share) for k, w in enumerate(at['weighs']))
+    at['palmed'] = share
+    rest = {m: sprung(m, 1.0, 1.0, modes) for m in ARMS}
+    held = {m: sprung(m, wrench.W_STILL / wrench.W_POSTURE, 1.0, modes) for m in ARMS}
+    return [Phase('contact', 'carpal-reach', lift, lift, arms(on + over), rest, None, None),
+            Phase('contact', 'carpal-seek', down, down, arms(on - pressed), rest, None, None, weighs=pan),
+            Phase('contact', p['patch-id'], GRAIN_MS, GRAIN_MS, {}, held, None, ('palmar',), weighs=pan)]
+
+
 def _pendulum(p, then, at, modes, body):
     """A coupled pendulum: her trunk down onto her hip while her legs swing up onto the mattress as
     its counterweight, her pelvis turned to lie along the bed - her hip bearing her (the wavefront's
@@ -257,4 +301,4 @@ ACTS = {'trigger-one-shot-envelope': lambda p, then, at, modes, body: _envelope(
         'cascade-impedance-envelope': _cascade, 'cascade-actuator-gates': _gates,
         'on-manifold-equilibrium': _equilibrium, 'stage-sequential-manifold': _recline,
         'configure-contact-compliance': _compliance, 'latch-current-encoders': _latch,
-        'stage-coupled-pendulum': _pendulum}
+        'stage-coupled-pendulum': _pendulum, 'seek-auxiliary-manifold': _sought}

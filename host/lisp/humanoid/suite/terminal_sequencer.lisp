@@ -11,14 +11,25 @@
         :ortho-dsp.manifolds
         :ortho-dsp.substrates
         :ortho-dsp.supervisor)
-  (:export #:patch-sit-rigid-chair
+  (:export #:transfer-carpal-seat-boost
+           #:patch-sit-rigid-chair
            #:patch-supine-mattress-sleep
            #:patch-wake-and-stand
            #:patch-rise-chair
            #:compile-full-lifecycle-soa))
 (in-package :ortho-dsp.terminals)
 
-;; Composite 1: Dock and sit on a rigid chair
+;; Sat on a seat over her shins: her fists sought onto it beside her hips, bearing her (the kernel's carpal seat boost)
+(defmaneuver transfer-carpal-seat-boost
+  [seated-state &key (max-arm-push-share 0.20)]
+  (-> seated-state
+      (seek-auxiliary-manifold
+        :patch-id :carpal-seat-vault
+        :anatomical-frames [:carpal-heel-l :carpal-heel-r]
+        :surface-normal [0.0 0.0 1.0] :mu 0.65 :bilateral-grasp-pull false
+        :weight-law (:wrench-proportional :max-share max-arm-push-share))))
+
+;; Composite 1: Dock and sit on a rigid chair, her hands on it where it stands over her shins
 (defpatch patch-sit-rigid-chair [approach-gait &key (seat-z-mm 450.0)] ; the seat her eyes see
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159)
@@ -28,6 +39,7 @@
         :target-manifold :ischial-bilateral
         :descent-duration-ms 1050.0
         :seat-z-mm seat-z-mm)
+      (transfer-carpal-seat-boost)
       (master-anti-spasm-insert)))
 
 ;; Composite 2: Dock at bed, sit on mattress edge, roll to supine, and gate off inverters

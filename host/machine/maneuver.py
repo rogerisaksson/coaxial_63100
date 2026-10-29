@@ -157,12 +157,15 @@ def _legs(seat, plantar, modes):
 
 
 def _panned(p, then, weighs):
-    """A preload's pan: her soles at the share the cross-fade `then` waits for, what bore her the rest
-    as it was split; None where `p` is no such preload."""
+    """A preload's pan: her soles at the share the cross-fade `then` waits for, what bore her off her hands
+    the rest as it was split, her hands none - her arms hang in the lean (`acts._envelope`); None where `p`
+    is no such preload."""
     soles = then.waits[1] if then is not None and then.waits and then.waits[0] == 'soles' and weighs else None
     if p.stage != 'preload' or soles is None or weighs[0] >= 1.0:
         return None
-    return (soles,) + tuple(w * (1.0 - soles) / (1.0 - weighs[0]) for w in weighs[1:])
+    hands = weighs[ortho.PALMAR]
+    return (soles,) + tuple(w * (k != ortho.PALMAR) * (1.0 - soles) / (1.0 - weighs[0] - hands)
+                            for k, w in enumerate(weighs[1:], 1))
 
 
 def _form(name, p, last):

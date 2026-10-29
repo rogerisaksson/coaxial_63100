@@ -17,6 +17,12 @@ HEELS = leap.MIDDLE - float(poise.EXTENT[0])
 THIGHS = tuple((r, a, b) for seg, r, a, b in figure.BODY if seg == 'thigh')
 #: Her hand's capsule (`figure.BODY`): radius, its middle in the hand's frame.
 HAND = next((r, a) for seg, r, a, _b in figure.BODY if seg == 'hand')
+#: Her thigh's underside at her knee over the floor, m, her shank plumb on a flat sole: a seat over it her
+#: feet do not set her on (`acts._sought`).
+POPLITEAL = figure.ANKLE_H + figure.SHANK - THIGHS[-1][0]
+#: Newton's steps that set her fist where it is asked (`fisted`): within 1e-16 m from her arm hanging; the
+#: turn its slope is read over, rad.
+NEWTON, NUDGE = 12, 1e-6
 
 
 def axial(knee, modes, body):
@@ -135,3 +141,23 @@ def braced(trunk):
         low = at[1] + sum(here[1][k] * c for k, c in enumerate((hx, hy, hz))) - r
         lo, hi = (lo, mid) if low < 0.0 else (mid, hi)
     return 0.5 * (lo + hi)
+
+
+def fisted(up, ahead, trunk):
+    """(shoulder, elbow) flexion, rad, that set her fist `up` m over and `ahead` m ahead of her pelvis's middle,
+    her spine `trunk` rad forward (`figure.fist`, her right's mirroring her left's): NEWTON steps from her arm
+    hanging, its slope read NUDGE apart, her elbow no straighter than straight."""
+    deg = dict(figure.stand(), spine=math.degrees(trunk))
+    q = (0.0, math.radians(deg['left_elbow']))
+
+    def off(q):
+        deg['left_shoulder'], deg['left_elbow'] = math.degrees(q[0]), math.degrees(q[1])
+        at = figure.fist(deg)
+        return at[1] - up, at[2] - ahead
+    for _ in range(NEWTON):
+        e = off(q)
+        (a, b), (c, d) = (((f[0] - e[0]) / NUDGE, (f[1] - e[1]) / NUDGE)
+                          for f in (off((q[0] + NUDGE, q[1])), off((q[0], q[1] + NUDGE))))
+        det = a * d - b * c
+        q = (q[0] - (d * e[0] - c * e[1]) / det, max(0.0, q[1] - (a * e[1] - b * e[0]) / det))
+    return q

@@ -184,9 +184,9 @@ def _event(op):
 
 
 #: A maneuver's acts, each an event: (op, its params, the acts it releases).
-EVENTS = ('trigger-one-shot-envelope', 'on-contact-threshold', 'crossfade-support-manifold', 'stage-sequential-manifold',
-          'configure-contact-compliance', 'on-manifold-equilibrium', 'cascade-actuator-gates', 'latch-current-encoders',
-          'stage-coupled-pendulum', 'absorb-and-rebound-manifold', 'cascade-impedance-envelope')
+EVENTS = tuple('''trigger-one-shot-envelope on-contact-threshold crossfade-support-manifold stage-sequential-manifold
+    configure-contact-compliance on-manifold-equilibrium cascade-actuator-gates latch-current-encoders
+    stage-coupled-pendulum absorb-and-rebound-manifold cascade-impedance-envelope seek-auxiliary-manifold'''.split())
 #: The anti-spasm insert's ops (anti_spasm_supervisor.lisp), each its node's params: her loop's
 #: (`machine.supervisor`).
 GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-channel': 'derivative-channel',
