@@ -19,6 +19,8 @@ import os
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
+# np.clip's own ufunc, its Python layers left out: the same bits, 3.7 -> 1.3 us a call, 14 a law pass here
+from numpy._core.umath import clip as CLIP
 
 from machine import borne, edge, field, impedance, kernel, latent, leap, maneuver, melt, modal, observer, ortho, poise, rounds
 
@@ -66,13 +68,13 @@ _U = np.stack([np.cos(np.arange(DIRECTIONS) * 2.0 * np.pi / DIRECTIONS),
 
 def smooth(x):
     """The smooth step of `x` over [0, 1]."""
-    u = np.clip(x, 0.0, 1.0)
+    u = CLIP(x, 0.0, 1.0)
     return u * u * (3.0 - 2.0 * u)
 
 
 def window(gamma, span):
     """How far `gamma` is through the window `span` (lo, hi), 0 to 1."""
-    return np.clip((gamma - span[0]) / (span[1] - span[0]), 0.0, 1.0)
+    return CLIP((gamma - span[0]) / (span[1] - span[0]), 0.0, 1.0)
 
 
 def margin(point, pts, room, mask):
@@ -87,7 +89,7 @@ def margin(point, pts, room, mask):
 def told_nothing(told):
     """How far her text tells her soles nothing, 0 to 1: under her comparator's release share of what is told
     (`observer.said`; nothing told, her soles bear)."""
-    return float(np.clip(1.0 - observer.said(told)[PLANTAR] / TOLD_NOTHING, 0.0, 1.0))
+    return float(CLIP(1.0 - observer.said(told)[PLANTAR] / TOLD_NOTHING, 0.0, 1.0))
 
 
 def intent(told, out):
@@ -162,7 +164,7 @@ def step(g, s, out, told, dt):
     pts, room, soles = supports(s, g['observer'], told, floor, iota, loads)
     eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight)
     was = g.get('emancipated', np.zeros(2))
-    gamma = was + np.clip(iota * eta - was, -dt / RELOCK_S, dt / SLEW_S)
+    gamma = was + CLIP(iota * eta - was, -dt / RELOCK_S, dt / SLEW_S)
     g['emancipated'] = gamma
     g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
     g['a'][modal.LET_GO] = np.maximum(window(gamma, (0.0, SHED[0])),
@@ -170,7 +172,7 @@ def step(g, s, out, told, dt):
     g['unanchored'] = 1.0 - window(gamma, UNANCHOR)
     g['let_cap'] = (1.0 - window(gamma, SHED)) * weight
     leg = weight * (1.0 - 1.0 / float(g['fr'][modal.HIPS_BY]))
-    g['freed'] = window(gamma, FREE) * np.clip(1.0 - (loads - leg) / (FREED * weight), 0.0, 1.0)
+    g['freed'] = window(gamma, FREE) * CLIP(1.0 - (loads - leg) / (FREED * weight), 0.0, 1.0)
     hold, free = float(np.max(iota * (1.0 - g['freed']))), float(np.max(g['freed']))
     held = g['held_ref']
     held += (1.0 - hold) * (out[latent.REF][LEGGED] - held)
@@ -194,7 +196,7 @@ def settled(acc, g, s):
     body = obs['row'] != ortho.PALMAR
     near = float((told_on(obs, told, floor) & body).any())
     said = observer.said(told)
-    unfelt = np.clip(float(said.sum() - said[PLANTAR] - said[ortho.PALMAR]) - float(s['prop'][0]), 0.0, 1.0)
+    unfelt = CLIP(float(said.sum() - said[PLANTAR] - said[ortho.PALMAR]) - float(s['prop'][0]), 0.0, 1.0)
     out = np.array(acc, float)
     out[1] += near * (1.0 - g['sat']) * unfelt * field.RATE * (field.SEEK_M_S - float(s['vcom'][1]))
     return out
@@ -211,7 +213,7 @@ def counterweighted(acc, g):
     weight = float(g['fr'][modal.WEIGHT])
     m, edge = e['parts'][3][k] / weight, e['parts'][4][k]
     full = 2.0 * MARGIN_NM / weight
-    short = np.clip(full - m, 0.0, full) * float(np.isfinite(m))
+    short = CLIP(full - m, 0.0, full) * float(np.isfinite(m))
     out = np.array(acc, float)
     out[[0, 2]] -= e['iota'][k] * e['om'] ** 2 * short * edge
     return out
@@ -246,7 +248,7 @@ def opened(g, s, ask, dt):
     leg = modal._legs(y, rot)[0]
     g['high'] = let * g['high'] + (1.0 - let) * np.sqrt(leg[:, modal.UP] ** 2 + leg[:, modal.LEFT] ** 2)
     cosine = np.cos(0.5 * fr[modal.KNEE]) - modal.AXIAL_M * g['out'][latent.REF][modal.AXIAL] * fr[modal.HIPS_BY] / modal.LEG_M
-    told = 2.0 * np.arccos(np.clip(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]
+    told = 2.0 * np.arccos(CLIP(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]
     said = ask['posture'][modal.CHAIN[:, 1]] + g['bend'][modal.CHAIN[:, 1]] * told
     ref = g['q_open']
     ref[modal.CHAIN[:, 1]] += dt * let * (said - ref[modal.CHAIN[:, 1]]) / SLEW_S
@@ -261,7 +263,7 @@ def opened(g, s, ask, dt):
         target = ref[joints].copy()
         target[[2, 4]] = chain[k][[0, 2]]
         ref[joints] += dt * let[k] * (target - ref[joints]) / SLEW_S
-        ref[joints] = np.clip(let[k] * ref[joints] + (1.0 - let[k]) * q[joints], g['q_lo'][joints], g['q_hi'][joints])
+        ref[joints] = CLIP(let[k] * ref[joints] + (1.0 - let[k]) * q[joints], g['q_lo'][joints], g['q_hi'][joints])
         ask['posture'][joints] = let[k] * ref[joints] + (1.0 - let[k]) * ask['posture'][joints]
     ask['open'] = (OPEN['kp'], OPEN['kd'], g['freed'].copy())
     ask['let_hold'] = 1.0 - window(g['emancipated'], SHED)

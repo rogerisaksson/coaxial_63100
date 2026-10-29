@@ -19,6 +19,8 @@ import os
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
+# np.clip's own ufunc, its Python layers left out: the same bits, 3.7 -> 1.3 us a call
+from numpy._core.umath import clip as CLIP
 
 from machine import kernel, latent, modal, ortho, stride
 from machine.observer import TINY
@@ -47,8 +49,8 @@ def asked(g, s, out, told, ask):
     of them (`propped`) or their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
     her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
-    equinus = float(told[ortho.FURNITURE].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
-    ask['edge'] = tuple(np.clip(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
+    equinus = float(told[ortho.FURNITURE].sum()) * CLIP((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
+    ask['edge'] = tuple(CLIP(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
     rot = g['fr'][modal.ROT].reshape(3, 3)
     along, weight, said = out[latent.SLID], g['fr'][modal.WEIGHT], told.sum()
     local = np.zeros(3)
@@ -78,7 +80,7 @@ def propped(s, way):
     at, palm = way @ np.mean(seat, axis=0), way @ np.mean(hands, axis=0)
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
     xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(np.mean(seat, axis=0)[1]), TINY))
-    return float(np.clip((at - way @ xi) / np.maximum(at - palm, TINY), 0.0, 1.0))
+    return float(CLIP((at - way @ xi) / np.maximum(at - palm, TINY), 0.0, 1.0))
 
 
 def lever(s, way, weight):
@@ -94,5 +96,5 @@ def lever(s, way, weight):
     seat = way @ np.mean([c['p'] for c in contacts], axis=0)
     rear = way @ np.mean([f['sole'] for f in s['feet']], axis=0) - ROOM[1]
     gap = rear - seat
-    need = np.where(gap > 0.0, np.clip((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
+    need = np.where(gap > 0.0, CLIP((rear - way @ np.asarray(s['com'])) / np.maximum(gap, TINY), 0.0, 1.0), 0.0)
     return np.maximum(need - hands, 0.0)
