@@ -39,16 +39,10 @@ LIMB = {'mode_axial_compression': 'plantar', 'mode_arm_reach': 'palmar', 'mode_a
 #: is what bears her pelvis's. Sprung while her soles anchored, her legs pushed her pelvis off the floor, 0.16 ->
 #: 0.29 m, and her trunk over backward to -51 deg in a stroke.
 SEATED = ('mode_axial_compression',)
-#: Her manifold each kind of the clock's limbs bears on: her hands, the fore limbs, anchor her; her legs, stretched
-#: out, rest. Her soles anchoring too, her legs pushed from her sit's knees, 146 deg, and kicked her over backward.
+#: Her manifold each kind of the clock's limbs bears on. With no axial duty her sled never bears alone: as her
+#: hands, the fore limbs, are carried her soles hold. Carried together, her seat bore her alone, her trunk went
+#: over backward, -108 deg, at the backward scoot's second stroke.
 LIMBED = {':hind': 'plantar', ':fore': 'palmar'}
-#: Her lower legs' share of her weight (`figure.SEGMENTS`: shank, foot, toes): what her soles bear stretching her
-#: legs out along the floor, light enough to slide.
-LEGS = sum(s[5] for s in figure.SEGMENTS if s[0].split('_')[-1] in ('shank', 'foot', 'toes'))
-#: Her arms' modes' units, rad (`maneuver._manifest`); Newton's steps, its finite step and its bound a step, deg,
-#: laying `palmed` - the bound her arm reach's unit: unbounded, the forward scoot's palm asked a 17.68-unit reach.
-ARM_UNIT, FOLD_UNIT = (maneuver._manifest()[0][m][0] for m in ('mode_arm_reach', 'mode_arm_fold'))
-NEWTON, STEP, REACH_DEG = 16, 1e-3, math.degrees(ARM_UNIT)
 #: Her hip joints' height sat on the floor, m (`seated.sat`).
 SAT = seated.sat(0.0)
 
@@ -109,25 +103,6 @@ def hers(q, modes, body):
             'mode_arm_fold': q['cubital'] / modes['mode_arm_fold'][0]}
 
 
-def palmed(z, lean):
-    """{her arm's mode: target} that put her palm on the floor `z` m along her way from her pelvis, sat on it (SAT),
-    her trunk leant `lean` rad: her shoulder and elbow by Newton's steps on `figure.palm`, over her stand's. Turned
-    about her shoulder a stroke's metres over her arm's length, her palm pressed 7 cm into the floor and lifted 4 cm
-    off it."""
-    pelvis, rest = (0.0, SAT + figure.HIP_DROP, 0.0), figure.stand()
-    at = lambda q: figure.palm(dict(rest, spine=math.degrees(lean), left_shoulder=q[0], left_elbow=q[1]), pelvis)
-    q = [0.0, rest['left_elbow']]
-    for _ in range(NEWTON):
-        p = at(q)
-        r = (p[1], p[2] - z)
-        d = [[(at([q[0] + STEP * (k == 0), q[1] + STEP * (k == 1)])[i] - p[i]) / STEP for k in (0, 1)] for i in (1, 2)]
-        det = d[0][0] * d[1][1] - d[0][1] * d[1][0]
-        dq = [(d[1][1] * r[0] - d[0][1] * r[1]) / det, (d[0][0] * r[1] - d[1][0] * r[0]) / det]
-        q = [q[0] - max(-REACH_DEG, min(REACH_DEG, dq[0])), max(0.0, q[1] - max(-REACH_DEG, min(REACH_DEG, dq[1])))]
-    return {'mode_arm_reach': math.radians(q[0] - rest['left_shoulder']) / ARM_UNIT,
-            'mode_arm_fold': math.radians(q[1] - rest['left_elbow']) / FOLD_UNIT}
-
-
 def chord(knee):
     """m her hip joints sit behind her ankle, sat on the floor (SAT), her knee bent `knee`."""
     up = SAT - figure.ANKLE_H
@@ -164,12 +139,8 @@ def _phase(name, use, ms, targets, springs, slide, told):
 
 def text(name):
     """(defbehavior NAME (extends BASE) ..) of gait `name` as the kernel's clock plays it (CLOCKED): her own phases,
-    a bar stretching her legs out under her upright trunk (`stretch`: her soles their LEGS, her sled and hands
-    sliding her way as her knees open - a stance sole is held still: her hands held, her knees stopped at 124-135
-    deg; her soles bearing their anchors' share, her legs threw her over backward), then each turn a stroke - her hands its
-    anchors (LIMBED) bearing its vault, her palms on the floor from a stroke behind her to beside her (`palmed`), her
-    legs let go - and her sled's, her palms sliding back, then her rest
-    on her sled."""
+    then each turn a stroke and its recovery - her sled's, her soles holding where it never bears alone (LIMBED),
+    their modes at the stroke's end -, then her rest on her sled."""
     patch, at, base, own, used = CLOCKED[name]
     g, q0, columns, anchors = _segment(name)
     sled = g['stick-slip']
@@ -179,29 +150,22 @@ def text(name):
     way = math.copysign(1.0, g['axial-torus-clock']['desired-se2-twist'][0])
     half = 0.5 * way * rowed(q0, columns, m, metres)
     ahead, behind = (hers(posed(q0, columns, (m[0], m[1] + s, m[2])), modes, body) for s in (half, -half))
-    straight = seated.axial(math.radians(figure.STAND_KNEE), modes, body)
-    behind['mode_axial_compression'] = straight
-    lean = ahead['mode_pitch_attitude'] * modes['mode_pitch_attitude'][0]
-    behind.update(palmed(way * metres, lean))
-    ahead = dict(behind, mode_pitch_attitude=ahead['mode_pitch_attitude'], **palmed(0.0, lean))
-    hands = tuple(p for p in anchors if TOLD[p] == LIMBED[':fore'])
     gain = sled['pelvic-unweighting-gain']
-    anchored = dict(_told(sled['sleds'], 1.0 - gain), **_told(hands, gain))
-    borne = _told(sled['sleds'], 1.0)
-    stretched = dict(_told(sled['sleds'], 1.0 - LEGS - gain * len(hands) / len(anchors)),
-                     **_told(hands, gain * len(hands) / len(anchors)), plantar=LEGS)
+    anchored = _told(anchors, gain)
+    for k, v in _told(sled['sleds'], 1.0 - gain).items():
+        anchored[k] = anchored.get(k, 0.0) + v
+    alone = g['axial-torus-clock']['axial-duty'] > 0.0
+    held = {} if alone else {m: v for m, v in anchored.items() if m == LIMBED[':hind']}
+    borne = dict(held, **_told(sled['sleds'], 1.0 - sum(held.values())))
+    held_back = {mode: (ahead if LIMB[mode] in held else behind)[mode] for mode in behind}
     cone = g['centroidal-balance']['nullspace-projector']
     released = 10.0 ** (cone['passive-cone-atten-db'] / 20.0) if cone['auto-release-unloaded-limbs'] else 1.0
-    rows = ['  (phase %s)' % p for p in own]
-    upright = dict(behind, mode_pitch_attitude=0.0)
-    rows.append(_phase('stretch', used, 1e3 * BAR * turn, upright, _springs(upright, stretched, released, modes),
-                       way * chord(math.radians(figure.STAND_KNEE)) / (BAR * turn), stretched))
-    last = 'stretch'
+    rows, last = ['  (phase %s)' % p for p in own], used
     for t in range(1, n + 1):
         rows.append(_phase('stroke_%d' % t, last, 1e3 * stroke, ahead, _springs(ahead, anchored, released, modes),
                            way * metres / stroke, anchored))
-        rows.append(_phase('sled_%d' % t, 'stroke_%d' % t, 1e3 * (turn - stroke), behind,
-                           _springs(behind, borne, released, modes), 0.0, borne))
+        rows.append(_phase('sled_%d' % t, 'stroke_%d' % t, 1e3 * (turn - stroke), held_back,
+                           _springs(held_back, borne, released, modes), 0.0, borne))
         last = 'sled_%d' % t
     rows.append('  (phase floor_rest (use %s) (duration 60s) (blend_duration 1000ms))' % last)
     return '(defbehavior %s (extends %s)\n%s)\n' % (name, base, '\n'.join(rows))
