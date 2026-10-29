@@ -254,8 +254,9 @@ def _is_fallen(g, world):
     told = observer.said(g['told'])
     entry, was = g.get('active_entry'), g.get('_told_by', (object(), told))
     g['_told_by'] = (entry, world._np.maximum(told, was[1]) if was[0] is entry else told)
-    allowed = set().union(*(parts for share, parts in zip(g['_told_by'][1], observer.parts(m)) if share > 0.0))
-    g['_falls_by'][1][0][:] = world._np.isin(m.geom_bodyid, list(g['_falls_down'] - allowed))
+    on = tuple(g['_told_by'][1] > 0.0)
+    if g.get('_falls_of') != on:
+        g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, observer.unborne(m, on, g['_falls_down']))
     geom, pos = d.contact.geom, d.contact.pos
     below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
     return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))

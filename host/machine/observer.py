@@ -187,6 +187,11 @@ def parts(m):
     return [ids | {b for b in range(m.nbody) if m.body_parentid[b] in ids} for ids in found]
 
 
+def unborne(m, on, down):
+    """[`down`'s bodies] less those of the manifolds `on` (ROWS', a bool each) bear (`parts`)."""
+    return list(down - set().union(*(p for o, p in zip(on, parts(m)) if o)))
+
+
 def weighed(obs, told, weight, dt):
     """(her rows' manifolds,) what bears her as her law takes it, `dt` s on: each manifold her
     rows tell weighed as told where her comparator (ENGAGE, RELEASE, DWELL_S, BLANK_S) feels it -

@@ -312,9 +312,16 @@ static void columns(wbc_gmo_t *o, const double q[NH])
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
   static double g[NF], w[NF], z[NF], sub[NF];
-  static int    set[NF], at[NF], gate[NF];
+  static int    set[NF], at[NF], gate[NF], live[NF];
+  int           rows[WBC_N], weighed = 0;
   double        top = 0.0, most = 0.0;
 
+  /* A row weighed 0, or a push f 0, adds exactly +-0 to a sum that starts at +0: left out, the same bits. */
+  for (int i = 0; i < WBC_N; i++)
+  {
+    rows[weighed] = i;
+    weighed += weight[i] != 0.0;
+  }
   memset(gate, 0, sizeof gate);
   for (int p = 0; p < WBC_GMO_POINTS; p++)
   {
@@ -326,19 +333,26 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   for (int a = 0; a < NF; a++)
   {
     g[a] = 0.0;
-    for (int i = 0; i < WBC_N; i++)
+    for (int k = 0; k < weighed; k++)
     {
+      const int i = rows[k];
+
       g[a] += weight[i] * o->a[i][a] * (o->r[i] - shift[i]);
     }
+    /* each h[a][b] summed over the weighed rows in their order, the row's b innermost along its memory */
     for (int b = 0; b < NF; b++)
     {
-      double s = 0.0;
+      o->h[a][b] = 0.0;
+    }
+    for (int k = 0; k < weighed; k++)
+    {
+      const int    i = rows[k];
+      const double wa = weight[i] * o->a[i][a];
 
-      for (int i = 0; i < WBC_N; i++)
+      for (int b = 0; b < NF; b++)
       {
-        s += weight[i] * o->a[i][a] * o->a[i][b];
+        o->h[a][b] += wa * o->a[i][b];
       }
-      o->h[a][b] = s;
     }
     top = fmax(top, o->h[a][a]);
     o->f[a] = 0.0;
@@ -352,14 +366,19 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   }
   for (int round = 0; round < 3 * NF; round++)
   {
-    int free_ = -1, held = -1;
+    int free_ = -1, held = -1, pushing = 0;
 
+    for (int b = 0; b < NF; b++)
+    {
+      live[pushing] = b;
+      pushing += o->f[b] != 0.0;
+    }
     for (int a = 0; a < NF; a++)
     {
       w[a] = g[a];
-      for (int b = 0; b < NF; b++)
+      for (int k = 0; k < pushing; k++)
       {
-        w[a] -= o->h[a][b] * o->f[b];
+        w[a] -= o->h[a][live[k]] * o->f[live[k]];
       }
       const int fits = !set[a] && w[a] > DBL_EPSILON * NF * most;
 
