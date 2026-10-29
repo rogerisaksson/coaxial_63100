@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, edge, emancipation, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
 
 
 #: Her arms' modes, her hold's (`ask['hold']`).
@@ -182,6 +182,7 @@ def control(g, dt):
     weighed = g['weighed_w'] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= weighed[0]
     melt.step(g, out, told, dt * ev)
+    emancipation.step(g, s, told, weighed, dt * ev)
     unfelt, lean = float(weighed[0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
