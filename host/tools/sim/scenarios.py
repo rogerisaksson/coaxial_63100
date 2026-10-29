@@ -168,6 +168,8 @@ STUNTS = {
     'ascending_stairs': ('stairs/Ascending Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
     'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
     'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
+    'crawl_backwards': ('crawl/Crawl Backwards', 'flat', [(1.0, {'say': 'scoot_back'})], 1.0 + stunts.sat_s('scoot_back'),
+                        ('travel', 'back', 'knee', 'hips back')),
 }
 SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', key)
                   for key, (_take, scene, plan, start, _signature) in STUNTS.items()
@@ -245,9 +247,8 @@ def ran(name, wobble=0.0, laid=None, texts=None):
                 'jerk': {seg: math.nan for seg in JERKED}, 'met': False}
     placed(s, scene)
     world = s['g']['world']
-    q = world.data.qpos[3:7].copy()
-    world.data.qpos[3:7] = (q[0] * math.cos(wobble / 2.0) - q[2] * math.sin(wobble / 2.0), q[1] * math.cos(wobble / 2.0) + q[3] * math.sin(wobble / 2.0),
-                            q[2] * math.cos(wobble / 2.0) + q[0] * math.sin(wobble / 2.0), q[3] * math.cos(wobble / 2.0) - q[1] * math.sin(wobble / 2.0))
+    q, cw, sw = world.data.qpos[3:7].copy(), math.cos(wobble / 2.0), math.sin(wobble / 2.0)
+    world.data.qpos[3:7] = (q[0] * cw - q[2] * sw, q[1] * cw + q[3] * sw, q[2] * cw + q[0] * sw, q[3] * cw - q[1] * sw)
     world._mj.mj_forward(world.model, world.data)
     m, d = world.model, world.data
     hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)

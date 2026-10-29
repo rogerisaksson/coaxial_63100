@@ -7,8 +7,8 @@
     python tools/sim/stunts.py --reference          # the takes measured anew into tests/takes/
     measures = stunts.measured(times, joints)       # {name: value} of a take's (`fbx.take`) or her rows'
     got = stunts.evaluate(); stunts.total(got)      # every stunt run, how far off its take, the one number
-The takes lie in stunts/<folder>/ beside the repo (dance, falling, flips, jumping, kneel, lying,
-run, sitting, slipping, stairs, standing), read once: a take's seconds, its leg and MOVES'
+The takes lie in stunts/<folder>/ beside the repo (crawl, dance, falling, flips, jumping, kneel,
+lying, run, sitting, slipping, stairs, standing), read once: a take's seconds, its leg and MOVES'
 measures into tests/takes/stunts.json, the reference each scenario in `scenarios.STUNTS` is
 judged by - the scene placed, her told as a player would or handed the take's own rows
 (`machine.takes`), her rows measured here over the take's seconds from the telling, and each
@@ -325,6 +325,17 @@ def told(command):
     take, pattern = command.get('take'), command.get('pattern')
     rows = {'entries': [(take, takes.wire(take)[0], (take,))]} if take else command
     return {'entries': [(pattern, takes.pattern(pattern), (pattern,))]} if pattern else rows
+
+
+def sat_s(name):
+    """s her clocked scoot `name` takes down onto the floor, a take sat throughout measured from there: her text's
+    descent phases' durations end to end (`clocked.CLOCKED`, lisp/humanoid/motion.lisp)."""
+    from machine import clocked, mechatronics, ortho
+    _patch, _at, base, own, _used = clocked.CLOCKED[name]
+    forms = ortho.read(ortho.source(os.path.join(mechatronics.HUMANOID, 'motion.lisp')))
+    body = next(f for f in forms if isinstance(f, list) and f[:2] == ['defbehavior', base])
+    return sum(c[1][1] for p in body if isinstance(p, list) and p[:1] == ['phase'] and p[1] in own
+               for c in p if isinstance(c, list) and c[:1] == ['duration'])
 
 
 def reference():
