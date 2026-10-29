@@ -34,6 +34,7 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
 | Falling on Butt, Tripping Forward, Slipping Backwards | the head to 0.27, 0.04, 0.04 |
 | Ascending Stairs, Walking Up The Stairs | 0.55 up over 0.57 ahead in 1.2-1.4 s |
 | Edge Tripping Backwards | caught: ends level, the head 0.94 |
+| Crawl Backwards | sat on fists behind, feet 0.78 ahead: 7.03 back in 10 s, trunk 46 deg back (69 most), knees to 126 |
 
 - Her first run: 2 of 31 met - the slick patch and the ice, crossed standing
   -; 6 refused for want of a text (backflip twice, kneel twice, yawn,
@@ -285,6 +286,9 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
 - A take said at its beats, the squats and the dance on the legs and the
   trunk alone, the jogs, the runs and the moonwalk by their patterns over
   her walk: 5 of 31 met, 185.3 widths off ([sequencer](sequencer.md)).
+- The crawl take as her scoot_back from her sit (`stunts.sat_s`): 35.3
+  widths off, travel +0.14 where -7.03, back 29.8 where 68.8, knees 159
+  where 126.
 - The takes' knees at her size (hip, knee and ankle from the fbx, 30 ms
   means, times by similarity): the jog 10.9 rad/s, the run 17.5, the running
   jump 20.5, the standing jump 13.1; her knees' no-load 16.8 at 48 V, their
