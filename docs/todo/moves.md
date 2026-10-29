@@ -142,3 +142,14 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
     `compile-ballistic-velocity-lifecycle-soa` played on her loop on a flat
     floor - walk, brisk walk, double-time, the leap, the run, the brake to a
     walk, the standing jump - with no fall.
+12. **Her backward floor scoot** (asked; `scoot_back`, `machine.clocked`):
+    down at 9.33 s, 0.62 m back; the forward scoot, from the same sit, opens
+    her knees and goes 0.64 m backward, down at 6.89 s. Her sit holds her on
+    her arms, and her law moves no seated leg without a push
+    ([support](../findings/support.md)). Left: her arms bearing their told
+    share so her seat bears her; a let-go leg carried to its text's knee, its
+    sole bearing nothing (`wrench`'s hung knee and ankle, the drives' hold
+    where it was let go), in Python and C. DOD: said scoot_back on the flat
+    floor, her knees opened to the kernel's 94 deg with her soles at their own
+    weight and her pelvis not rising, her centre ahead of her hip joints, her
+    seat bearing; then 1 m back with no fall; test_floor's forward scoot green.
