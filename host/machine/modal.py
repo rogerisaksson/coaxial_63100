@@ -156,9 +156,6 @@ NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
 HIPS = np.array([leg[:3] for leg in rounds.LEGS])
 CHAIN = np.array([leg[2:5] for leg in rounds.LEGS])
 FLEX = np.array([terms.TERMS[pt][1] for pt in (('hip', 'flexion'), ('knee', 'flexion'), ('ankle', 'dorsiflexion'))], float)
-#: A let-go leg's hip, rad (yaw, roll, pitch): its thigh level, a quarter turn down from an upright pelvis;
-#: the hip's axis her pelvis's pitch turns it on.
-HUNG, HUNG_BY = np.array([0.0, 0.0, -0.5 * np.pi]), np.array([0.0, 0.0, 1.0])
 ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
@@ -329,8 +326,9 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     (`bends.crouch`), `arms` with her arms' swing (`bends.swing`), `reaches` with their reach (`bends.reach`),
     `folds` with their fold (`bends.fold`); `knees` each knee's index among them; `w` what bears her
     (`latent.MANIFOLDED`). Her legs as it holds them: her soles, her side and her back each hip on a
-    line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go hangs, its
-    thigh level (HUNG) less her pelvis's pitch. A palm told to bear its arm a column."""
+    line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go on the same, an open
+    chain (`machine.emancipation`): hung with its thigh level, on the floor its foot pressed her pelvis up off it.
+    A palm told to bear its arm a column."""
     soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
     q0, q2 = y[QUAT][0], y[QUAT][2]
     lat = np.array([q0 * q0 - q2 * q2, 0.0, -2.0 * q0 * q2]) / np.maximum(q0 * q0 + q2 * q2, 1e-12)
@@ -340,7 +338,6 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
-    pose[HIPS] += a[LET_GO][:, None] * (HUNG + HUNG_BY * pitched(y, fr[ROT].reshape(3, 3))[0] - pose[HIPS])
     turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips

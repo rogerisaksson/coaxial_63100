@@ -68,7 +68,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
     entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
-    from machine import bends, figure, heat, latent, modal, motion, physics, registry, servos, wbc, wrench
+    from machine import bends, figure, heat, latent, melt, modal, motion, physics, registry, servos, wbc, wrench
     from machine.drives import kind, peak
     from machine.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
@@ -131,7 +131,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
+         'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
          'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
          'planner': planner.Here()}
@@ -174,7 +174,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     with her: her estimate and grip, her senses, her frame's heading and rotation, her latent
     state, her heat, nothing asked."""
     import numpy as np
-    from machine import figure, latent, modal
+    from machine import figure, latent, melt, modal
     world, body, d = g['world'], g['body'], g['world'].data
     sh, ch = math.sin(yaw), math.cos(yaw)
     world.reset(figure.stand(), where=(float(where[0]), g['rest_y'], float(where[1])),
@@ -202,6 +202,15 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['twisted'][se2.LOOK_YAW], g['twisted'][se2.TURN_DC] = 0.0, 0.0
     g['touched'][:] = touch.REST       # what she felt stood in the world laid away
     g['_w_back'], g['_backing_yaw'] = 0.0, 0.0
+    g['emancipated'], g['unanchored'], g['let_cap'], g['freed'] = np.zeros(2), np.ones(2), np.full(2, np.inf), np.zeros(2)
+    g['emancipation'] = {'iota': np.zeros(2)}
+    g['held_ref'] = g['out'][latent.REF][melt.LEGGED].copy()
+    g['q_open'] = s['q'].copy()
+    g['high'] = np.zeros(2)
+    g['sat'], g['sat_off'], g['seat_on'], g['seat_near'] = 0.0, 0.0, 0.0, 0.0
+    g['seat_f'] = np.zeros(4)
+    g['knee_was'] = np.zeros(2)
+    g['axial_off'], g['axial_was'] = 0.0, float(g['out'][latent.REF][modal.AXIAL])
     supervisor.reset(g['bus'])
     for idx in (g.get('waist_idx'), g.get('head_idx')):
         if idx is not None:

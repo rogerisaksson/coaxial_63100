@@ -336,24 +336,10 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
+  /* a leg let go as her release has it (machine.emancipation): its foot then a contact (machine.borne) */
+  for (int b = 0; b < 2; b++)
   {
-    /* her legs let go while what bears her off her soles holds her and her text tells what bears her and nothing
-       of them, or a leg lifts (machine.impedance._let_go) */
-    double said = 0.0, gone;
-
-    for (int i = 1; i < 5; i++)
-    {
-      said = npmax(said, (double)(out[k->o_manifolded + i] > 0.0));
-    }
-    gone = propped * (said * (double)(out[k->o_manifolded] <= 0.0));
-
-    for (int b = 0; b < 2; b++)
-    {
-      const double gb = npmax(gone, propped * (double)(up[b] > k->lift_eps));
-
-      stance[b] *= 1.0 - gb;
-      a[k->a_let_go + b] = gb;
-    }
+    stance[b] *= 1.0 - a[k->a_let_go + b];
   }
   grounded = npmax(npmax(stance[0], stance[1]), propped);
   aloft[0] = 1.0 - stance[0];
@@ -427,7 +413,12 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                / npmax(leg[b][2], k->low_leg * fr[k->f_reach0]);
   }
   smax = npmax(stance[0], stance[1]);
-  lifted = ((smax * npdot(bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - smax) * k->axial_m) * pressed;
+  {
+    /* her standing legs' geometry sets her height only while nothing else bears her (machine.impedance) */
+    const double upright = smax * (1.0 - propped);
+
+    lifted = ((upright * npdot(bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - upright) * k->axial_m) * pressed;
+  }
   com[0] = grounded * along[0] + (1.0 - grounded) * k->falls[0];
   com[1] = grounded * along[1] + (1.0 - grounded) * k->falls[1];
   com[2] = grounded * npclip(lifted, -k->g, k->throw_m_s2) + (1.0 - grounded) * k->falls[2];

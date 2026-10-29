@@ -91,7 +91,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       said[0] = p->slide[0];
       said[1] = p->slide[2];
       sliding = (body && hypot(way[0], way[1]) > p->slide_m_s && wbc_dot(l, way, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0;
-      freed = pymax(pymax(sliding, (double)let),
+      freed = pymax(pymax(sliding, (double)let * (1.0 - p->let_hold[let ? p->cpatch[m] / (3 * p->carpal) - 1 : 0])),
                     (body && palmed && pin == 0.0 && wbc_dot(l, said, 1, said, 1, 2) > 0.0) ? 1.0 : 0.0);
       for (int i = 0; i < 3; i++)
       {
@@ -143,13 +143,15 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
 
 void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne)
 {
-  double hands[WBC_STEP_C], off_hands[WBC_STEP_C], others[WBC_STEP_C], on_hands[WBC_STEP_C], total, rest, palm, both;
+  double hands[WBC_STEP_C], lets[WBC_STEP_C], off_hands[WBC_STEP_C], others[WBC_STEP_C], on_hands[WBC_STEP_C], total,
+         rest, palm, both;
 
   for (int q = 0; q < nc; q++)
   {
     hands[q] = (double)(p->cpatch[q] >= p->carpal && p->cpatch[q] < 3 * p->carpal);
-    off_hands[q] = felt[q] * (1.0 - hands[q]);
-    others[q] = 1.0 - hands[q];
+    lets[q] = (double)(p->cpatch[q] >= 3 * p->carpal);
+    others[q] = (1.0 - hands[q]) - lets[q];
+    off_hands[q] = felt[q] * others[q];
     on_hands[q] = felt[q] * hands[q];
     borne[hands[q] > 0.0 ? p->cpatch[q] / p->carpal - 1 : 2] = 1.0;
   }
@@ -159,8 +161,12 @@ void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const doubl
   both = npsum(hands, nc);
   for (int q = 0; q < nc; q++)
   {
-    const double lim = hands[q] > 0.0 ? p->hand_cap : slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap) : p->fz_cap;
-    const double share = (0.0 + (total > 0.0 ? off_hands[q] / total : others[q] / npmax(rest, 1.0)))
+    /* a let-go foot a patch of its own, its side's cap (machine.emancipation) */
+    const double lim = hands[q] > 0.0  ? p->hand_cap
+                       : lets[q] > 0.0 ? p->let_cap[p->cpatch[q] / (3 * p->carpal) - 1]
+                       : slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap)
+                                            : p->fz_cap;
+    const double share = (lets[q] + (total > 0.0 ? off_hands[q] / total : others[q] / npmax(rest, 1.0)))
                          + (palm > 0.0 ? on_hands[q] / palm : hands[q] / npmax(both, 1.0));
 
     caps[q] = isfinite(lim) ? lim * share : INFINITY;

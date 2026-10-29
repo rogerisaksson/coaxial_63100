@@ -51,7 +51,9 @@
 ;; sat on the floor, she drags her butt forward on her hands: off her knees her palms down beside her hips as columns
 ;; (`modal.poses`) till each bears, her butt lowered on them and her soles till the floor bears it, her support's
 ;; polygon held throughout - let go, she threw herself back off her knees, her head down in 1.3 s; then a stroke - her
-;; elbows straightened, her shoulders turned back as her butt slides - and her hands lifted forward again
+;; elbows straightened, her shoulders turned back as her butt slides - and her hands lifted forward again. Caught and
+;; sat on her tripod: her fists on the floor behind her, her arms straight (seated.braced at the sit's pitch, -1.75);
+;; on bent elbows her hands came down under her shoulders and nothing held her as she leant back
 (defbehavior scoot_floor (extends stance_hold)
   (phase kneel
     (duration 2500ms) (blend_duration 1200ms)
@@ -76,7 +78,7 @@
   (phase catch (use tip) (wait palmar)
     (duration 100ms) (blend_duration 300ms)
     (latent_targets (mode_axial_compression 5.0) (mode_pitch_attitude -0.25)
-                    (mode_arm_reach -1.3) (mode_arm_fold 1.6))
+                    (mode_arm_reach -1.75) (mode_arm_fold 0.0))
     (impedance (stiffness mode_axial_compression 0) (damping mode_axial_compression 120)
                (stiffness mode_pitch_attitude 500) (damping mode_pitch_attitude 180)
                (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 0))
@@ -85,7 +87,7 @@
   (phase sit (use catch) (wait contact)
     (duration 650ms) (blend_duration 300ms)
     (latent_targets (mode_axial_compression 5.0) (mode_pitch_attitude -0.25) (mode_sagittal_shift -1.5)
-                    (mode_arm_reach -1.32) (mode_arm_fold 1.66))
+                    (mode_arm_reach -1.75) (mode_arm_fold 0.0))
     (impedance (stiffness mode_axial_compression 0) (damping mode_axial_compression 0)
                (stiffness mode_sagittal_shift 0) (damping mode_sagittal_shift 0))
     (task_constraints (maintain_zmp (polygon 0))

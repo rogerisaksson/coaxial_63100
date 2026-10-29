@@ -4,6 +4,8 @@
 ;;         Open-Chain Gravity Admittance & Cantilever Reaction Feedforward
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp,
 ;;           prior_regularized_observer.lisp
+;; Hers: fitted to her body (`machine.emancipation`, test_floor): her margins in N m of her 305 N, the text's
+;; robot's 608 N halved (18 -> 9.0, 45 -> 22.6); its relock the reference's 25 ms.
 ;; =============================================================================
 (defpackage :ortho-dsp.emancipation
   (:use :ortho-dsp.core
@@ -56,7 +58,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive evaluate-residual-cwc-sufficiency
   [state &key (froude-lockout-ceiling 0.045) ; Hard lockout if walking/running (v > ~0.6 m/s)
-              (min-complement-cwc-margin-nm 18.0)
+              (min-complement-cwc-margin-nm 9.0)
               (require-minimum-anchor-sum-w 0.65)]
   (-> state
       (compute-complement-cone-feasibility
@@ -81,11 +83,13 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive evacuate-manifold-simplex-preemptively
   [state &key (evacuation-slew-ms 160.0)
+              (relock-slew-ms 25.0)
               (confirm-unloaded-fz-ratio 0.03)]
   (-> state
       (drive-causal-unloading-cascade
         :emancipation-bank 'limb-emancipation-soa-state
         :slew-duration-ms evacuation-slew-ms
+        :relock-slew-ms relock-slew-ms
         ;; 1. Pre-emptive Observer Decoupling (Prevents "phantom falling" EKF spasm!):
         :observer-unanchor-window [0.00 -> 0.25]
         :inflate-inekf-contact-covariance-scale 1000.0
@@ -104,10 +108,10 @@
 ;; routes external GMO torques into smooth compliant backdrivability!
 ;; -----------------------------------------------------------------------------
 (defprimitive morph-stance-to-open-chain-admittance
-  [state &key (open-chain-kp-nm-rad 35.0)     ; Soft open-chain tracking (vs 450 Nm/rad in stance!)
-              (open-chain-kd-nms-rad 4.2)
+  [state &key (open-chain-kp-nm-rad 17.5)     ; Soft open-chain tracking (vs 450 Nm/rad in stance!)
+              (open-chain-kd-nms-rad 2.1)
               (external-admittance-rad-nms 0.18) ; Yield smoothly if pushed/pulled by hand or bed!
-              (external-torque-deadzone-nm 1.8)]
+              (external-torque-deadzone-nm 0.9)]
   (-> state
       (blend-closed-to-open-chain-impedance
         :emancipation-bank 'limb-emancipation-soa-state
@@ -147,10 +151,10 @@
   (-> state
       (evaluate-residual-cwc-sufficiency
         :froude-lockout-ceiling 0.045
-        :min-complement-cwc-margin-nm 18.0)
+        :min-complement-cwc-margin-nm 9.0)
       (evacuate-manifold-simplex-preemptively :evacuation-slew-ms 160.0)
       (morph-stance-to-open-chain-admittance
-        :open-chain-kp-nm-rad 35.0
+        :open-chain-kp-nm-rad 17.5
         :external-admittance-rad-nms 0.18)
       (feedforward-cantilever-reaction-wrench :feedforward-gain 1.00)))
 
@@ -166,7 +170,7 @@
   (-> gait-state
       (evaluate-residual-cwc-sufficiency
         :froude-lockout-ceiling 0.015
-        :min-complement-cwc-margin-nm 45.0)
+        :min-complement-cwc-margin-nm 22.6)
       (set-appendage-unload-intent
         :appendages [:left-leg :right-leg]
         :intent-iota 0.00)))

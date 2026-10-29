@@ -249,7 +249,8 @@ int wbc_step(wbc_step_t *p)
   }
   c[0] = p->com_acc[0];
   c[1] = p->com_acc[2];
-  at = lay(R0, rhs, rhs0, at, nu, VIEW(row, 2 * nu, 1), 2, c, p->w_com * grounded, NULL);
+  /* sat, her centre of mass's rows weigh as her turns' (machine.wrench) */
+  at = lay(R0, rhs, rhs0, at, nu, VIEW(row, 2 * nu, 1), 2, c, (p->w_com + (p->w_turn - p->w_com) * p->sat) * grounded, NULL);
   c[0] = p->com_acc[1] + G;
   c0[0] = G;
   at = lay(R0, rhs, rhs0, at, nu, VIEW(row + nu, nu, 1), 1, c, p->w_height * grounded, c0);

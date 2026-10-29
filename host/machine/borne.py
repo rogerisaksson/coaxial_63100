@@ -68,7 +68,8 @@ def _room(k, local):
 #: hand a patch of its own past every other's (CARPAL on, a side's apart): split as felt between them, one hand's
 #: share held what it was and the asymmetry grew till it let go. A let-go foot's past both hands' (LET on): held
 #: against the floor alone - held still along it too, her legs sliding out as she sat braked them 102 N and threw
-#: her back over her seat.
+#: her back over her seat. Each let-go foot a patch of its own (LET on, a side's apart), its push its own cap
+#: (`machine.emancipation`): shed one by one.
 CARPAL = 6
 LET = 3 * CARPAL
 
@@ -89,7 +90,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands among them where her text tells them to bear (`hands`, their
     share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it -, a let-go leg's
-    foot too, not its toes (`let_go`, `impedance._let_go`): no contact, the step took that leg for hanging on the
+    foot too, not its toes (`let_go`, `machine.emancipation`): no contact, the step took that leg for hanging on the
     floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing."""
     m, d, n = b.m, b.d, b.n
     ids = getattr(b, 'skin', None)
@@ -99,6 +100,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
     soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]
+    foot = {touch.SOLES[k][0]: k for k in (0, 1)}
     skin = np.concatenate([ABOVE, soled]).astype(int)
     pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
     jp, jr = b.jacs
@@ -111,11 +113,12 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         # her feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
         prop = float(k not in soled)
         up += f[1] * float(k not in HANDS) * prop
-        side = int(k in HANDS[len(touch.ARMS[0]):])
+        let = int(k in soled)
+        side = int(k in HANDS[len(touch.ARMS[0]):]) + let * foot.get(k, 0)
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
         axis = int(np.argmax(np.abs(f)))
-        patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * int(k in soled)
+        patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
         for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
@@ -123,7 +126,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
             contacts.append({'p': p, 'f': share * f, 'J': J, 'dJv': jp[:, :n] @ s['v'], 'carpal': carpal,
-                             'side': side, 'patch': patch})
+                             'side': side, 'patch': patch, 'room': float(room[0]), 'body': int(ids[k])})
     held = np.isfinite(low[0])
     return (up / weight, np.where(held, low, 0.0), np.where(held, high, 0.0)), contacts, palms / weight
 

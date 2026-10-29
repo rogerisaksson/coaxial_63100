@@ -21,7 +21,7 @@ W_STILL = 1e4
 _EYE3, _UP = np.eye(3), np.array([0.0, 1.0, 0.0])
 
 
-def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False):
+def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0)):
     """A bearing patch's rows, one (S, r, r0) a contact `cs` of it (its unknowns `idx` among the contacts): its
     point held still, up alone where it slides - its slip its velocity along the floor's plane (the force a patch
     feels leans into its push, 30 deg in a lean: no normal to measure across), past SLIDE_M_S and along the slide
@@ -44,7 +44,8 @@ def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False):
         for k, j in enumerate(idx):
             split[NU + 3 * j:NU + 3 * j + 3] = n * (float(k == m) - w)
         jv, said, let = c['J'] @ v, slide[[0, 2]], c.get('patch', 0) >= LET
-        body = (c.get('patch', 0) < CARPAL) | let
+        let = let * (1.0 - float(np.asarray(hold, float)[int(c.get('side', 0))]))
+        body = (c.get('patch', 0) < CARPAL) | (c.get('patch', 0) >= LET)
         way = jv[[0, 2]]
         sliding = float(body & (np.hypot(way[0], way[1]) > SLIDE_M_S) & (way @ said > 0.0))
         freed = max(sliding, float(let), float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
@@ -66,21 +67,26 @@ def patches(contacts, nu, full, full0, v, ask, pin):
     hers stands (`wrench.step`): alone on what bears her the split is the step's to plan - pinned as felt it ran away,
     128/74/64 N on pelvis and thighs to 697 on her pelvis in 0.4 s, and threw her.
     Her hands' patches (`borne.CARPAL`) apart: `hand_cap`, their told share, over both as felt - each hand's alone,
-    a hitch's hands took 0.84 of her and the seat let her go. `ask`'s `slide` the slide her contacts may take."""
+    a hitch's hands took 0.84 of her and the seat let her go. A let-go foot's (`borne.LET`) its own, `let_cap` its side's
+    (`machine.emancipation`: shed to nothing as its leg is released). `ask`'s `slide` the slide her contacts may take."""
     slide, cap = np.asarray(ask.get('slide', (0.0, 0.0, 0.0)), float), float(ask.get('fz_cap', np.inf))
     slid, hand, held = float(ask.get('slid_cap', np.inf)), float(ask.get('hand_cap', 0.0)), {}
     palmed = any(CARPAL <= c.get('patch', 0) < LET for c in contacts)
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
-        rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, palmed)
+        rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, palmed,
+                                  ask.get('let_hold', (0.0, 0.0)))
         held.update(zip(idx, zip(rows, felt, slips)))
     hands = np.array([float(CARPAL <= c.get('patch', 0) < LET) for c in contacts])
+    lets = np.array([float(c.get('patch', 0) >= LET) for c in contacts])
+    feet = np.array([np.asarray(ask.get('let_cap', (np.inf, np.inf)), float)[int(c.get('side', 0))] for c in contacts])
     felt = np.array([held[j][1] for j in range(len(contacts))])
-    shares = np.zeros(len(contacts))
-    part = felt * (1.0 - hands)
-    shares += part / part.sum() if part.sum() > 0.0 else (1.0 - hands) / max(float((1.0 - hands).sum()), 1.0)
+    shares = lets.copy()
+    others = 1.0 - hands - lets
+    part = felt * others
+    shares += part / part.sum() if part.sum() > 0.0 else others / max(float(others.sum()), 1.0)
     palm = felt * hands
     shares += palm / palm.sum() if palm.sum() > 0.0 else hands / max(float(hands.sum()), 1.0)
     slips = np.array([held[j][2] for j in range(len(contacts))]).reshape(len(contacts), 3)
-    limit = np.where(hands > 0.0, hand, np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap))
+    limit = np.where(hands > 0.0, hand, np.where(lets > 0.0, feet, np.where(slips[:, 0] > 0.0, np.minimum(cap, slid), cap)))
     caps = np.where(np.isfinite(limit), limit * shares, np.inf)
     return [held[j][0] for j in range(len(contacts))], caps, slips

@@ -135,8 +135,8 @@ def ask(out, y, fr, a):
                                swaying, (sweep, off, flying),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
-    stance, a[LET_GO] = _let_go(propped, stance, out, LIMBS * ref[LIFT])
-    grounded, aloft = np.maximum(stance.max(), propped), 1.0 - stance
+    stance = stance * (1.0 - a[LET_GO])
+    grounded, aloft, upright = np.maximum(stance.max(), propped), 1.0 - stance, stance.max() * (1.0 - propped)
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
     # along the floor no harder than her standing soles' grip gives: on ice (0.02) her step asked
@@ -164,8 +164,8 @@ def ask(out, y, fr, a):
     la = legs[0][:, :2] @ along
     risen = ((legs[2] ** 2 - ((v - shod) ** 2).sum(axis=1) - np.maximum(la, (1.0 - propped) * la)
               - legs[1] * AXIAL_M * fr[HIPS_BY] * pressed) / np.maximum(legs[0][:, UP], LOW_LEG * fr[REACH0]))
-    # borne off her soles alone, up as her height's spring asks of her centre of mass
-    lifted = stance.max() * (bears @ risen) / fr[HIPS_BY] - (1.0 - stance.max()) * AXIAL_M * pressed
+    # borne off her soles alone (propped, her floor sit's legs threw her back at 110-330 N), up as her height asks
+    lifted = upright * (bears @ risen) / fr[HIPS_BY] - (1.0 - upright) * AXIAL_M * pressed
     com = grounded * np.array([along[0], along[1], poise.clip(lifted, -G, THROW_M_S2)]) + (1.0 - grounded) * FALLS
     late = stride.lates(phi, turns, stepping)
     # what a sole met (`machine.touch`) her swings clear, for a turn of her rhythm; something bearing her off her
@@ -190,16 +190,6 @@ def ask(out, y, fr, a):
     a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE] = stance, com @ rot, stepping, propped
     _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
-
-
-def _let_go(propped, stance, out, up):
-    """(the soles that stand, each leg let go): borne off her soles, her text telling what bears her and nothing
-    of them (`latent.MANIFOLDED`), or lifting a leg (`LIFT`), her legs hang, their feet contacts (`borne.read`).
-    Let go only where its sole lifted, a landed foot stood and kicked her over at 261 N."""
-    told = out[latent.MANIFOLDED]
-    nothing = float((told[1:] > 0.0).any()) * float(told[0] <= 0.0)
-    gone = propped * np.maximum(nothing, (up > poise.LIFT_EPS).astype(float))
-    return stance * (1.0 - gone), gone
 
 
 def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying):

@@ -43,7 +43,8 @@ def asked(g, s, out, told, ask):
     (world: the slide her contacts may take), `fz_cap`, what bears her told share of her weight, no less than her
     balance needs of it (`lever`), and `slid_cap`, a sliding contact's load's cap, that slide's regime's share
     (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what her hands
-    bear's, their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
+    bear's, their told share - folded on the floor all of her, sat there (`g['sat']`) no more than her balance needs
+    of them (`propped`) or their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
     her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
     equinus = float(told[ortho.FURNITURE].sum()) * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
@@ -56,9 +57,28 @@ def asked(g, s, out, told, ask):
     told_cap = np.where(said > 0.0, weight * told[ortho.FURNITURE].sum() / np.maximum(said, TINY), np.inf)
     ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG], weight) * weight)
     told_hand = np.where(said > 0.0, weight * told[ortho.PALMAR] / np.maximum(said, TINY), 0.0)
-    ask['hand_cap'] = np.where(rho.mean() < THIGH / LEG_M, weight * float(told[ortho.PALMAR] > 0.0), told_hand)
+    braced = np.maximum(told_hand, propped(s, rot[stride.ALONG]) * weight)
+    ask['hand_cap'] = np.where(rho.mean() < THIGH / LEG_M,
+                               g['sat'] * braced + (1.0 - g['sat']) * weight * float(told[ortho.PALMAR] > 0.0), told_hand)
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     return ask
+
+
+def propped(s, way):
+    """The share of her weight her hands must take for her balance once sat, by the lever's rule: her capture point
+    along her `way` behind her seat's contacts (`borne`'s body patches and her told seat lying on the floor,
+    `emancipation.lying`) toward her hands' middle - her pendulum's omega over her seat's height; all of it with no
+    seat or hands. Folded on the floor her hands took up to all of her as she sat too, carried her a millimetre over
+    her seat and it bore 0 N; by her centre of mass alone they let her roll back over her buttocks onto the floor."""
+    from machine.borne import CARPAL
+    seat = [c['p'] for c in s.get('contacts', ()) if c.get('patch', 0) < CARPAL]
+    hands = [c['p'] for c in s.get('contacts', ()) if c.get('carpal')]
+    if not len(seat) or not len(hands):
+        return float(len(hands) > 0)
+    at, palm = way @ np.mean(seat, axis=0), way @ np.mean(hands, axis=0)
+    c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
+    xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(np.mean(seat, axis=0)[1]), TINY))
+    return float(np.clip((at - way @ xi) / np.maximum(at - palm, TINY), 0.0, 1.0))
 
 
 def lever(s, way, weight):

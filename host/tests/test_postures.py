@@ -53,7 +53,7 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     """`modal.poses` over what bears her (`ortho.MANIFOLDS`): her soles alone, the crouch's pose bit for
     bit (her walk's), her side, her back and her hands the same; the seat alone, `modal.seat`'s legs, the
     rest of her the crouch's; half on each, half way; her knees as asked whatever bears her; a let-go
-    leg's hip level less her pelvis's pitch (HUNG), the other's as it was."""
+    leg on the same, an open chain (`machine.emancipation`)."""
     import numpy as np
     from machine import bends, modal, ortho, rounds
     names = rounds.DRIVEN
@@ -85,11 +85,8 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     report.check('half on her soles and half on the seat: her legs half way',
                  np.allclose(half[modal.CHAIN], 0.5 * (crouch[modal.CHAIN] + seat), rtol=0.0, atol=1e-12))
     hung = posed(hot[seat_at], (1.0, 0.0))
-    want = modal.HUNG + modal.HUNG_BY * modal.pitched(y, fr[modal.ROT].reshape(3, 3))[0]
-    report.check("a leg let go: its hip level less her pelvis's pitch, the other's the seat's",
-                 np.allclose(hung[modal.HIPS[0]], want, rtol=0.0, atol=1e-12)
-                 and np.array_equal(hung[modal.HIPS[1]], sat[modal.HIPS[1]]),
-                 '%s for %s' % (np.round(hung[modal.HIPS[0]], 4), np.round(want, 4)))
+    report.check("a leg let go: on the seat's posture as the other, an open chain", np.array_equal(hung, sat),
+                 '%.1e rad off' % float(np.abs(hung - sat).max()))
 
 
 def test_the_posture_atlas_reads_whole(report):

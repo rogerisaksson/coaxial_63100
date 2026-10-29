@@ -43,13 +43,14 @@ def seen(g, dt):
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
     observer.step(g['observer'], s, qpos, dt)
-    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] / float(g['fr'][modal.WEIGHT]), dt,
-                  g['inekf_points'], g['inekf_step'])
+    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] * g['unanchored'] / float(g['fr'][modal.WEIGHT]),
+                  dt, g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
                                                       g['a'][modal.LET_GO])
+    emancipation.seated(g, s)
     return s
 
 
@@ -177,12 +178,13 @@ def control(g, dt):
     waits.borne_back(g, dt * ev)
     waits.latched_back(g, dt * ev)
     out = _step_latent(g, dt * ev)
-    # as told her legs let go on it (`impedance._let_go`): weighed, her hands told, unfelt, kept them standing
+    # her legs released as told and as what else bears her allows (`emancipation`): weighed, her hands told, unfelt,
+    # kept them standing
     told = g['told'] = out[latent.MANIFOLDED].copy()
     weighed = g['weighed_w'] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= weighed[0]
     melt.step(g, out, told, dt * ev)
-    emancipation.step(g, s, told, weighed, dt * ev)
+    emancipation.step(g, s, out, told, dt * ev)
     unfelt, lean = float(weighed[0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)
     se2.step_physical_twist(g, dt * ev, out)
@@ -207,20 +209,19 @@ def control(g, dt):
     imp[modal.STRIDES] *= sw
     imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
     q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
-    # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`). A leg
-    # let go (`impedance.ask`) hangs from a hip sprung to its thigh along what bears her (`modal.HUNG`), its knee and
-    # ankle hanging: sprung where it was let go, or a quarter turn from a pelvis tilted 11-18 deg forward, the thigh
-    # pointed 15 deg down off the seat's edge and the hanging foot stood on the floor bearing 0.3 of her through a
-    # hitch; sprung to its posture's hip, a crouch's 45 deg, it floated and her trunk drifted 3 -> 26 deg forward in 4 s
+    # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
+    ask['let_cap'], ask['sat'] = g['let_cap'], g['sat']
+    ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
+    emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
     g['observer']['slide'][:] = ask['slide']
     bears = np.array(g['loads']) >= leap.TOUCH_N
-    held = g['support'] = np.concatenate([s['feet'][k]['pts'] for k in np.flatnonzero(bears | ~bears.any())] + [observer.bearing(g['observer'])])
-    ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held,
-                                    (1.0 - float(g['a'][modal.STRIDES])) * float(bears.any()) * unfelt, g['ringed'])
+    held, rest = emancipation.held(g, s, bears, unfelt)
+    g['support'] = held
+    ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'])
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]))
@@ -247,11 +248,15 @@ def control(g, dt):
     g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'],
                                                     lo=lo, hi=hi))
     got = g['got']
+    g['seat_f'][:] = 0.0
+    for c, f in zip(s.get('contacts', ()), got.get('borne', ())):
+        g['seat_f'][c.get('corner', 0)] += float(f[1]) * float('corner' in c)
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
     _told(g)
     w = g['weighed_w']
-    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * w[0] + (1.0 - g['distal']) * (1.0 - w[2] - w[3])))
+    kept = np.maximum(w[0], g['a'][modal.LET_GO][g['distal_side']])
+    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * kept + (1.0 - g['distal']) * (1.0 - w[2] - w[3])))
 
 
 def _told(g):
@@ -320,6 +325,7 @@ def laid(g):
             'jeff': np.ascontiguousarray(g['jeff'], dtype=np.float64), 'over': np.zeros(n, dtype=np.bool_),
             'release': np.ones(n)}
     g['release'], g['distal'] = kept['release'], np.array([float(nm.endswith(DISTAL)) for nm in names])
+    g['distal_side'] = np.array([int(nm.startswith('right_')) for nm in names])
     g['got'] = {'qacc': kept['qacc'].copy(), 'tau': kept['tau'].copy(), 'over': kept['over'].copy()}
     k, bus, _arrays = g['bus'] = supervisor.bus(names, g['rate_hz'])
     p = cores.Drives(n=n, q_at=edge.Q.start, qd_at=edge.QD.start, qm_at=edge.QM.start, knee_nm=se2.KNEE_NM,

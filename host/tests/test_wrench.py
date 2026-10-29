@@ -166,7 +166,7 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     whole at 0.98; standing, nothing borne, her soles stay as her stride has them."""
     import numpy as np
     from machine import latent, modal, ortho, rounds, somatic, stride
-    g, told_by = {'fr': np.zeros(modal.FRAME)}, np.eye(len(ortho.MANIFOLDS))
+    g, told_by = {'fr': np.zeros(modal.FRAME), 'sat': 0.0}, np.eye(len(ortho.MANIFOLDS))
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0
     out = np.zeros(latent.OUT)

@@ -30,7 +30,9 @@ from machine.wbc import CONTACT_K, HEIGHT_BAND, HELD_K, MOMENTUM_K, MU, POSTURE_
 DAMP = 0.02
 #: Rounds more, at most, for an answer past her height's band after them.
 PAST = 2
-#: The rows' weights. Her centre of mass along the floor, m/s^2, all but exact; the turns and a
+#: The rows' weights. Her centre of mass along the floor, m/s^2, all but exact - sat (`ask['sat']`) as her turns',
+#: her balance her trunk's and hips' (`xform-balance-biped-to-seated`): all but exact there her trunk could not come to
+#: its pitch without moving it, and sat back 30-50 deg, her spine flexed 50 deg where its aim was -7 -; the turns and a
 #: swinging sole, rad/s^2 and m/s^2 - the sole at a third of the turns the walk fell at its 7th
 #: step -; her standing knees' posture, rad/s^2 - at 1, 60 N felled her 2 times of 8 -; the
 #: posture, her height, her angular momentum (N m), a swinging knee's fold, a buffer; a
@@ -96,14 +98,18 @@ def _maps(b, s, ask, want):
         f, cols = s['feet'][k], act[leg]
         twist = f['J6'] @ v
         if not ask['stance'][k] and k not in swing:
-            # let go: its hip on its posture as the swing's row asks it, what its foot rests on holding it
-            # (`borne.read`), its knee and ankle hanging (below); its hip's acceleration given, a squat's let-go
-            # hips pressed her soles and stood her up off her hands on the floor. Not let go, on its posture
+            # let go: an open chain (`machine.emancipation`), each joint on its posture as the swing's row asks it,
+            # what its foot rests on holding it (`borne.read`), its own weight in her dynamics; its hip's acceleration
+            # given, a squat's let-go hips pressed her soles and stood her up off her hands on the floor; its knee and
+            # ankle hanging, her heels held on the floor and her hips' extension lifted her pelvis 0.157 -> 0.25 m.
+            # Not let go, on its posture
             hung = float(bool(let_go[k]))
-            t0[cols] = want[leg]
-            t0[cols[:3]] *= 1.0 - hung
-            E[cols[:3], 6 * k:6 * k + 3] = hung * _EYE3
-            a6[6 * k:6 * k + 3] = hung * want[leg[:3]]
+            kp, kd, freed = ask.get('open', (0.0, 0.0, np.zeros(2)))
+            opened = freed[k] * (kp * (np.asarray(ask['posture'])[leg] - s['q'][leg]) - kd * v[cols]) / np.diag(M)[cols]
+            opened = opened + (1.0 - freed[k]) * want[leg]
+            t0[cols] = want[leg] * (1.0 - hung)
+            E[cols, 6 * k:6 * k + 6] = hung * _EYE6
+            a6[6 * k:6 * k + 6] = hung * opened
             asked[k] = hung
             continue
         inv = _inv(f['J6'][:, cols], DAMP ** 2)
@@ -118,14 +124,10 @@ def _maps(b, s, ask, want):
         asked[k] = 1.0
         t0[cols] = -inv @ f['dJv']
         E[cols, 6 * k:6 * k + 6] = inv
-    # the joints no drive holds, and a let-go leg's knee and ankle, by their own rows of her dynamics
+    # the joints no drive holds by their own rows of her dynamics
     passive = getattr(b, 'passive', None)
     if passive is None:
         passive = np.array([i >= 6 and i in b.free for i in range(n)])
-    hung = np.zeros(n, bool)
-    for k, leg in enumerate(LEGS):
-        hung[act[leg][3:]] = bool(let_go[k])
-    passive = passive | hung
     active = ~passive
     m_pp = M[np.ix_(passive, passive)]
     pull = -np.linalg.solve(m_pp, M[np.ix_(passive, active)])
@@ -241,7 +243,7 @@ def step(b, s, ask):
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
     still, caps, slips = patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G))
     a = np.asarray(ask['com_acc'], float)
-    lay(sumf[[0, 2]] / mass, a[[0, 2]], W_COM * grounded)
+    lay(sumf[[0, 2]] / mass, a[[0, 2]], (W_COM + (W_TURN - W_COM) * float(ask.get('sat', 0.0))) * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)
     for t, turn in zip(s['turns'], turns):
         left = -t['dJr'] - t['Jr'] @ full0

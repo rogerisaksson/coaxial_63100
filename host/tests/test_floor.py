@@ -117,61 +117,100 @@ def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
                      d.qpos[1], sprung.doing(g), math.degrees(worst_v), worst_f, s.get('epoch', 0)))
 
 
-def test_told_to_scoot_on_the_floor_she_drags_her_butt_forward(report):
-    """Said scoot_floor on the flat floor: she sits on her butt and hands (pelvis under 0.25 m) and her strokes drag
-    her 0.1 m along her way without a fall."""
+def test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight(report):
+    """Said scoot_floor on the flat floor: she sits (pelvis under 0.25 m), her butt bearing most of her, her legs out
+    ahead bent (the crawl take's knees, 34-124 deg) and her centre of mass ahead of her pelvis - their counterweight -,
+    her trunk within 10 deg of her sit's pitch over its last 3 s, 12 s without a fall."""
     import numpy as np
-    from machine import physics, sprung, worker
+    from machine import clocked, maneuver, modal, physics, worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data
+    m, pel = g['world'].model, g['world'].model.body('pelvis').id
+    torso, knees = m.body('torso').id, [m.jnt_qposadr[m.joint(k).id] for k in ('left_knee', 'right_knee')]
     worker.apply(s, {'scenario': 'flat'})
     for _ in range(int(round(0.5 / worker.DT))):
         worker.stepped(s)
     worker.apply(s, {'say': 'scoot_floor'})
     yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
     way = np.array([math.sin(yaw), 0.0, math.cos(yaw)])
-    t0, sat, start = g['t'], False, None
+    aim = math.degrees(clocked.SAT_PITCH * maneuver._manifest()[0]['mode_pitch_attitude'][0])
+    t0, sat, seat, knee, ahead, off = g['t'], False, math.inf, [math.inf, -math.inf], math.inf, 0.0
     while g['t'] < t0 + 12.0 and s['fallen_at'] is None:
         worker.stepped(s)
         sat = sat or float(d.qpos[1]) < 0.25
-        start = float(d.qpos[0:3] @ way) if start is None and str(sprung.doing(g)).startswith('stroke') else start
-    went = math.nan if start is None else float(d.qpos[0:3] @ way) - start
-    report.check('she sits on the floor and her strokes drag her 0.1 m forward, no fall',
-                 sat and s['fallen_at'] is None and went >= 0.1,
-                 'sat %s fallen %s went %.3f m' % (sat, s['fallen_at'], went))
+        if g['t'] < t0 + 9.0:
+            continue
+        up = d.xmat[torso].reshape(3, 3)[:, 1]
+        bent = [math.degrees(float(d.qpos[k])) for k in knees]
+        seat = min(seat, sum(float(c['f'][1]) for c in g['s']['contacts'] if c.get('body') == pel))
+        knee = [min(knee[0], *bent), max(knee[1], *bent)]
+        ahead = min(ahead, float((d.subtree_com[pel] - d.xpos[pel]) @ way))
+        off = max(off, abs(math.degrees(math.atan2(float(up @ way), float(up[1]))) - aim))
+    weight = float(g['fr'][modal.WEIGHT])
+    report.check('she sits on the floor, 12 s without a fall', sat and s['fallen_at'] is None,
+                 'sat %s fallen %s' % (sat, s['fallen_at']))
+    report.check('her butt bears most of her, her legs out ahead bent, her centre of mass ahead of her pelvis',
+                 seat >= 0.75 * weight and 34.0 < knee[0] and knee[1] < 124.0 and ahead > 0.0,
+                 'seat %.0f N of %.0f, knees %.0f-%.0f deg, centre of mass %+.3f m' % (seat, weight, knee[0], knee[1], ahead))
+    report.check("her trunk within 10 deg of her sit's pitch", off < 10.0, '%.1f deg off %.1f' % (off, aim))
 
 
-def test_her_legs_are_released_only_where_her_other_supports_hold_her(report):
+def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(report):
     """Her legs' release (intentional_limb_emancipation.lisp): asked where her soles are told nothing and something
-    else bears her; allowed where her capture point lies inside the contacts that bear her besides her soles by the
-    text's least margin - 0.2 m inside a seat's and hands' square, open; outside it, or with nothing but her soles,
-    shut; at her walk's 0.7 m/s her Froude number shuts it to its exp(-(Fr/0.045)^2)."""
+    else is; allowed where her capture point lies inside what bears her besides them by the text's margin - 0.2 m
+    inside a seat's and hands' square, open; outside it, or on her soles alone, shut; at her walk's 0.7 m/s her Froude
+    number holds it to exp(-(Fr/0.045)^2)."""
     import math
     import numpy as np
-    from machine import emancipation as em
-    weight, w = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36])
+    from machine import emancipation as em, latent, ortho
+    weight, told, out = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36]), np.zeros(latent.OUT)
     report.check('her text asks her legs released where it tells her soles nothing and her seat and hands bear',
-                 em.intent(w) == 1.0 and em.intent(np.array([1.0, 0, 0, 0, 0])) == 0.0
-                 and em.intent(np.array([0.1, 0.9, 0, 0, 0])) == 0.0, str(em.intent(w)))
-    square = [{'p': np.array([x, 0.0, z]), 'patch': 0} for x in (-0.2, 0.2) for z in (-0.2, 0.2)]
-    still = {'vcom': np.zeros(3), 'com': np.array([0.0, 0.3, 0.0]), 'contacts': square}
-    inside, _, inside_nm = em.gate(still, w, weight, 0.0)
-    outside, _, outside_nm = em.gate(dict(still, com=np.array([0.3, 0.3, 0.0])), w, weight, 0.0)
-    soled, _, _ = em.gate(dict(still, contacts=()), w, weight, 0.0)
-    walking, parts, _ = em.gate(dict(still, vcom=np.array([0.0, 0.0, 0.7])), w, weight, 0.0)
+                 (em.intent(told, out) == 1.0).all() and (em.intent(np.array([1.0, 0, 0, 0, 0]), out) == 0.0).all()
+                 and (em.intent(np.zeros(len(ortho.MANIFOLDS)), out) == 0.0).all(), str(em.intent(told, out)))
+    square = np.array([(x, z) for x in (-0.2, 0.2) for z in (-0.2, 0.2)])
+    soles = np.array([(0.1, 0.4), (-0.1, 0.4)])
+    pts, room = np.concatenate([square, soles]), np.zeros(6)
+    own = np.array([[0, 0, 0, 0, 1, 1], [0, 0, 0, 0, 1, 1]], float)
+    loads, still = np.array([10.0, 10.0]), np.zeros(3)
+    inside, parts = em.gate(np.zeros(2), pts, room, own, still, told, loads, weight)
+    outside, far = em.gate(np.array([0.3, 0.0]), pts, room, own, still, told, loads, weight)
+    soled, _ = em.gate(np.zeros(2), pts, room, np.ones((2, 6)), still, told, loads, weight)
+    walking, going = em.gate(np.zeros(2), pts, room, own, np.array([0.0, 0.0, 0.7]), told, loads, weight)
     froude = 0.7 * 0.7 / (9.81 * em.LEG_M)
-    report.check('0.2 m inside her seat and hands she may let her legs go; outside them or on her soles alone not',
-                 inside == 1.0 and abs(inside_nm - 0.2 * weight) < 1e-9 and outside == 0.0 and outside_nm < 0.0
-                 and soled == 0.0, '%.1f N m in, %.1f out' % (inside_nm, outside_nm))
-    report.check('at her walk\'s 0.7 m/s her Froude number holds her gate to exp(-(Fr/0.045)^2)',
-                 abs(parts[0] - math.exp(-(froude / em.FROUDE) ** 2)) < 1e-3 and walking < 0.2, '%.3f' % parts[0])
+    report.check('0.2 m inside her seat and hands she may let her legs go; 0.1 m outside, or on her soles alone, not',
+                 (inside == 1.0).all() and np.allclose(parts[3], 0.2 * weight, atol=1e-3 * weight)
+                 and (outside == 0.0).all() and np.allclose(far[3], -0.1 * weight, atol=1e-3 * weight)
+                 and (soled == 0.0).all(), '%s N m in, %s out' % (parts[3], far[3]))
+    report.check("at her walk's 0.7 m/s her Froude number holds her gate to exp(-(Fr/0.045)^2)",
+                 abs(going[0] - math.exp(-(froude / em.FROUDE) ** 2)) < 2e-3 and (walking < 0.2).all(), '%.3f' % going[0])
+
+
+def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(report):
+    """Released over the text's 160 ms (its cascade's windows): her estimator lets the sole go as an anchor by 0.25 of
+    it, her step lets the leg go then sheds its foot's push to nothing by 0.75, the leg moves after - and back within
+    the relock's 25 ms once the gate shuts."""
+    import numpy as np
+    from machine import emancipation as em, modal
+    gammas = np.linspace(0.0, 1.0, 101)
+    unanchored = 1.0 - em.window(gammas, em.UNANCHOR)
+    shed = em.window(gammas, em.SHED)
+    let = em.window(gammas, (0.0, em.SHED[0]))
+    free = em.window(gammas, em.FREE)
+    first = lambda x: float(gammas[np.argmax(x)])
+    report.check('anchor let go by 0.25, the leg let go by 0.15, its push shed from 0.15 to 0.75, free past it',
+                 first(unanchored == 0.0) == 0.25 and first(let >= 1.0) == 0.15 and first(shed > 0.0) > 0.15
+                 and first(shed >= 1.0) == 0.75 and first(free > 0.0) > 0.75,
+                 '%.2f %.2f %.2f %.2f' % (first(unanchored == 0.0), first(let >= 1.0), first(shed >= 1.0), first(free > 0.0)))
+    report.check('released within the slew, relocked within the relock', em.SLEW_S == 0.16 and em.RELOCK_S == 0.025
+                 and modal.LET_GO.stop - modal.LET_GO.start == 2, '%g %g' % (em.SLEW_S, em.RELOCK_S))
 
 
 ROSTER = [test_the_floor_runs_on_under_her_soles, test_a_grown_prop_bears_where_it_has_grown,
           test_her_grip_bounds_her_rhythm, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
-          test_told_to_scoot_on_the_floor_she_drags_her_butt_forward,
-          test_her_legs_are_released_only_where_her_other_supports_hold_her]
+          test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight,
+          test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her,
+          test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg]
 
 
 def main(argv=None):

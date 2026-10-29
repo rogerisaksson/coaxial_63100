@@ -56,17 +56,10 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
   int               hung[WBC_STEP_N] = {0}, pas[WBC_STEP_N], actv[WBC_STEP_N], np_ = 0, na = 0;
   double           *mpp, *mpa, *pull, *Ta, *Ea, *PT, *PE, *ta, *pt, *hp, *y, *rest;
 
-  /* the joints no drive holds, a let-go knee and ankle with them */
+  /* the joints no drive holds */
   for (int i = 0; i < p->npass; i++)
   {
     hung[p->passive[i]] = 1;
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    for (int i = 3; i < 6; i++)
-    {
-      hung[p->act[p->legs[k][i]]] |= p->let_go[k] != 0;
-    }
   }
   for (int i = 0; i < n; i++)
   {
@@ -122,17 +115,18 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
     wbc_matmul(l, VIEW(J6, n, 1), VIEW(p->v, 1, 0), twist, 1, 0, 6, n, 1);
     if (!p->stance[k] && !p->swing[k])
     {
-      /* let go: its hip an unknown on the swing's row, its foot a contact (machine.wrench._maps) */
+      /* let go: an open chain, each joint an unknown on the swing's row, its foot a contact (machine.wrench._maps) */
       const double loose = (double)(p->let_go[k] != 0);
 
       for (int i = 0; i < 6; i++)
       {
-        t0[cols[i]] = i < 3 ? want[p->legs[k][i]] * (1.0 - loose) : want[p->legs[k][i]];
-      }
-      for (int i = 0; i < 3; i++)
-      {
+        const int    j = p->legs[k][i];
+        const double opened = p->freed[k] * (p->open_kp * (p->posture[j] - p->q[j]) - p->open_kd * p->v[cols[i]])
+                              / p->M[cols[i] * n + cols[i]] + (1.0 - p->freed[k]) * want[j];
+
+        t0[cols[i]] = want[j] * (1.0 - loose);
         E[cols[i] * nu + 6 * k + i] = loose;
-        a6[6 * k + i] = loose * want[p->legs[k][i]];
+        a6[6 * k + i] = loose * opened;
       }
       asked[k] = loose;
       continue;

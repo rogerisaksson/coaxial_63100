@@ -50,10 +50,13 @@ typedef struct
   int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.borne) */
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep, let_go[2];
-  double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, mus[2], rests[2];
+  double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, sat, mus[2], rests[2];
   double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
                                                           off her soles' cap, N; a sliding contact's, the slide's
                                                           governor's; each of her hands' contacts' */
+  double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.emancipation) */
+  double        let_hold[2], freed[2], open_kp, open_kd; /**< each let-go foot held still, each leg's share free on
+                                                            its open chain's stiffness and damping (ask['open']) */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
   double        fold_knee[2], fold_rate[2], fold_acc[2], knee_rate[2];
   const double *posture, *derate, *clamp, *wep_nm, *lo, *hi; /* lo, hi: each drive's back-EMF bounds */

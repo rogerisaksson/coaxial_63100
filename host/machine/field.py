@@ -28,8 +28,9 @@ from machine import figure, impedance, kernel, latent, maneuver, modal, observer
 
 _FIELD = kernel.node('xform-blind-posterior-settle', 'admittance-field')
 _MODES, _BODY = maneuver._manifest()
-#: The seek, her modes' units a second: down her axial, none her sagittal; the field's rate, /s.
+#: The seek, her modes' units a second: down her axial, none her sagittal; the field's rate, /s; its seek down, m/s.
 SEEK = np.array([-_FIELD['free-air-seek-velocity'][2] / _MODES['mode_axial_compression'][0], 0.0])
+SEEK_M_S = _FIELD['free-air-seek-velocity'][2]
 RATE = _FIELD['damping-matrix-nsm'] / _FIELD['virtual-inertia-kg']
 MODES = np.array([modal.AXIAL, modal.SAGITTAL])
 

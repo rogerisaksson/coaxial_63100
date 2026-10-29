@@ -36,8 +36,8 @@ def _step_typed():
     fields += [('nc', i)] + [(name, p * c) for name in 'cJ cp cdJv cf'.split()] + [('cpatch', i * c)]
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i), ('let_go', i * 2),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
-               ('strides', f), ('borne', f), ('hold', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
-               ('slid_cap', f), ('hand_cap', f), ('swing_at', (f * 3) * 2),
+               ('strides', f), ('borne', f), ('hold', f), ('sat', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
+               ('slid_cap', f), ('hand_cap', f), ('let_cap', f * 2), ('let_hold', f * 2), ('freed', f * 2), ('open_kp', f), ('open_kd', f), ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
@@ -108,7 +108,7 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
 #: The step's fields read and written through numpy views of the struct's own memory.
-VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'swing', 'fold', 'swing_at', 'swing_speed',
+VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
           'bears', 'cop',
           'forces',
@@ -171,7 +171,11 @@ def _stepped(k, step, v, b, s, ask):
     v['slide'][:] = ask.get('slide', (0.0, 0.0, 0.0))
     k.fz_cap, k.slid_cap = float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf))
     k.hand_cap = float(ask.get('hand_cap', 0.0))
+    v['let_cap'][:] = ask.get('let_cap', (np.inf, np.inf))
+    v['let_hold'][:] = ask.get('let_hold', (0.0, 0.0))
+    k.open_kp, k.open_kd, v['freed'][:] = ask.get('open', (0.0, 0.0, (0.0, 0.0)))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
+    k.sat = float(ask.get('sat', 0.0))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):
         v['swing'][side] = side in swing
