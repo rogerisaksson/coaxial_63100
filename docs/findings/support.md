@@ -155,17 +155,6 @@ scenarios: [scenarios](scenarios.md).
   hands 148, the dead side's arm pushes 1.20 of the other for no yaw; her
   anchors hold the low crawl's belly from 0.441 of her, the seal drag's from
   0.509.
-- Her floor scoot's sit (`scoot_floor`'s descent, under both scoots): knees
-  146/148 deg, thighs 65 deg up against her belly, her centre 25 mm behind her
-  hip joints and 42 mm ahead of her seat's contact; the floor bears her seat
-  0-62 N, her hands 149-171, her soles 102-107 - her arms, at the kneel's
-  stiffness 600, hold her up off her seat. A seated leg moves only as it
-  bears: told nothing it is let go, its knee held where it was (150 deg);
-  told its lower leg's weight (0.122 of her) it stands, and its knee opening
-  to 119-134 deg pushed her hips 12 cm back to her hands, which unloaded, and
-  she went over (8.1 s). Her trunk asked forward with her shoulders on her
-  arms swung her pelvis back; her arms let go, her hips pushed +30 N m and
-  threw her over in 0.6 s.
 - Laid rigid, the dog's origin rests on its hands and toes; her back's bridge
   lies on her arms, its feet 313 mm up; the scooter's heels and fists hold her
   pelvis 25 mm up.
