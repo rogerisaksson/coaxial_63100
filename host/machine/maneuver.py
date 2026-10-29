@@ -90,7 +90,7 @@ def _played(name, got, seat):
 
 def phases(name, seen=None, got=None):
     """[Phase] of stunt `name`, its furniture `seen` (its top, its near edge behind her soles' middle, its
-    middle aside, its turn, its depth; None: its patch's own seat at its dock's standoff, no depth), its acts in
+    middle aside, its turn, its depth, its width; None: its patch's own seat at its dock's standoff, no depth), its acts in
     order - those of the stunt it rises from played first, her place and support theirs -, a phase a contact
     releases laid at the descent's start."""
     given, got = got, got if got is not None else dsp.read(dsp.SUITE)
@@ -99,7 +99,8 @@ def phases(name, seen=None, got=None):
     at = {'knee': math.radians(body['knee']), 'ankle': 0.5 * math.radians(body['knee']),
           'seat': None if told is None else 1e-3 * told,
           'behind': seen[1] if seen else standoff(name, given) + 0.5 * (figure.BALL + figure.HEEL),
-          'aside': seen[2] if seen else 0.0, 'turn': seen[3] if seen else 0.0, 'deep': seen[4] if seen else None}
+          'aside': seen[2] if seen else 0.0, 'turn': seen[3] if seen else 0.0, 'deep': seen[4] if seen else None,
+          'across': seen[5] if seen and len(seen) > 5 else None}
     out, own = [], []
     for k, (op, p, then) in enumerate(g['_events']):
         if op not in ACTS:

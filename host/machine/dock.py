@@ -5,7 +5,8 @@
     verbs = dock.docks()                                # her errands' verbs and how each docks
 
 A seat or a bed: her heels its stunt's standoff off the face's edge, facing away, her hips within the
-face. She stands on the face's normal the least out that her turn in place onto the dock - from each of
+face - on a seat over her shins her fists set beside them (`seated.placed`): her hips' 0.21 m let her land
+0.151 m aside and a fist met no seat; one her legs reach no floor from (`seated.reaches`) no dock. She stands on the face's normal the least out that her turn in place onto the dock - from each of
 her ARRIVALS, still, her soles bearing alike (`even`), its sweep as measured so
 (`footprint.swept`) - leaves each thing she sees, by its own height against her body's bands, her skin,
 that turn's spread (`footprint.spread`) and her stop's spread along her arrival toward the face
@@ -21,7 +22,7 @@ import heapq
 import itertools
 import math
 
-from machine import figure, footprint, poise, se2, stride, voxels, wayfinder
+from machine import figure, footprint, poise, se2, seated, stride, voxels, wayfinder
 
 #: Her arrivals off facing the face, rad: head on, aslant either way, along it either way.
 ARRIVALS = tuple(k * 0.25 * math.pi for k in (0, 1, -1, 2, -2))
@@ -101,6 +102,10 @@ def docked(at, things, floor, sc, box, standoff):
     import numpy as np
     from machine import affordance, furniture, route
     across, run_in = docks()[sc]
+    over = sc == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
+    if over and not seated.reaches(affordance.top(box)):
+        return None
+    across = seated.placed(seated.ON, 0.0)[2] if over else across
     cells = route.blocked(things, floor)
     far = walked(at, cells)
     s_dock = poise.HALF_M + standoff

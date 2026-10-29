@@ -53,7 +53,8 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
 
 def seen(g, stunt, at=None, thing=None):
     """(its top, the face she backs into behind her soles' middle along her way, its middle to her
-    left of theirs, m; that face's turn off square to her way, rad; its depth across that face, m)
+    left of theirs, m; that face's turn off square to her way, rad; its depth across that face and its
+    width along it, m)
     of the furniture stunt `stunt` is on nearest `at` (her without one), the thing of slot `thing`
     where given - a rise's that of the stunt it rises from -; None where she sees none. The face is the side whose outward normal lies most
     along her way: read as the box's reach along her way, a bed turned 0.6 rad to her was its far
@@ -74,4 +75,4 @@ def seen(g, stunt, at=None, thing=None):
     j, cos = 2 * k, abs(dots[k])
     face = (-math.copysign(1.0, dots[k]) * (off[0] * turn[0][j] + off[1] * turn[2][j]) - half[j]) / cos
     return (py + half[1], face, off[0] * way[1] - off[1] * way[0],
-            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j])
+            math.remainder(math.atan2(turn[0][2], turn[2][2]) - yaw, 0.5 * math.pi), 2.0 * half[j], 2.0 * half[2 - j])

@@ -15,7 +15,7 @@ past her modes' reach; a seek onto her carpal heels' manifold her fists set on a
 import collections
 import math
 
-from machine import figure, impedance, kernel, leap, ortho, seated, somatic, wrench
+from machine import drives, figure, impedance, kernel, leap, ortho, seated, somatic, wrench
 from machine.errors import MachineError
 
 #: Her modes by the suite's nodes: what a node's stiffness or gate moves. Her head has none.
@@ -59,6 +59,8 @@ LAIN = next(0.5 * abs(b[0] - a[0]) + r for seg, r, a, b in figure.BODY if seg ==
 CARPAL, ARMS = (':carpal-heel-l', ':carpal-heel-r'), ('mode_arm_reach', 'mode_arm_fold')
 #: The kernel's seek of her arms down onto what her hands find (`specialize-with-tactile-arm-sweep`), m/s.
 SEEK_M_S = -kernel.node('specialize-with-tactile-arm-sweep', 'appendage-admittance')['seek-velocity-mps'][2]
+#: What her shoulder's and her elbow's drives give at the most, N m (`drives.peak`).
+PEAKS = (drives.peak('left_shoulder'), drives.peak('left_elbow'))
 
 
 def _weighs(pan):
@@ -225,7 +227,10 @@ def _sought(p, then, at, modes, body):
     down - what bore her the rest as it was split -, held where they bear once each does (`ortho.PALMED`). On
     the lodge's 0.47 m chair both bore, 9.7 cm onto it, 1 mm off her model: swung back from her descent's
     counterweight one met the seat's front face 3 cm under its top, and told nothing as they came down the
-    wait for them never ended. A seat under her shins: none."""
+    wait for them never ended. A seat under her shins: none. Refused by name where she cannot: her legs
+    reaching no floor from it (`seated.reaches`), her fists no room on the seat she sees where she sits -
+    its width less its middle aside of hers (`furniture.seen`; landed 0.151 m aside, a fist met none and the
+    wait never ended) -, or their push past her arm drives' peak (PEAKS)."""
     if tuple(p['anatomical-frames']) != CARPAL or p['weight-law'].name != 'wrench-proportional':
         raise MachineError('refused: a manifold on %s, %s; her hands bear on %s by a wrench-proportional share'
                            % (' '.join(p['anatomical-frames']), p['weight-law'].name, ' '.join(CARPAL)))
@@ -233,9 +238,20 @@ def _sought(p, then, at, modes, body):
         return []
     share, trunk = p['weight-law'].args['max-share'], at.get('trunk', 0.0)
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    _s, _e, aside, levers = seated.placed(seated.ON - pressed, trunk)
+    room = math.inf if at['across'] is None else 0.5 * at['across'] - abs(at['aside']) - aside
+    torques = tuple(0.5 * share * body['weight'] * lever for lever in levers)
+    faults = [why for why, bad in (
+        ('her legs reach no floor from her hips on a seat %.2f m up' % at['seat'], not seated.reaches(at['seat'])),
+        ('a seat %.2f m wide, its middle %.2f m aside of hers, leaves her fists %.2f m aside no room'
+         % (at['across'] or 0.0, at['aside'], aside), room < 0.0),
+        ('her fists bearing %.2f of her ask her shoulder %.1f, her elbow %.1f N m past their peak %.1f, %.1f'
+         % ((share,) + torques + PEAKS), any(t > k for t, k in zip(torques, PEAKS)))) if bad]
+    if faults:
+        raise MachineError('refused: %s' % '; '.join(faults))
     deg = dict(figure.stand(), spine=math.degrees(trunk))
     ahead = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0][2]
-    on, over = figure.FIST_R + figure.SEAT_Y - figure.SEAT_R, 2.0 * figure.FIST_R
+    on, over = seated.ON, 2.0 * figure.FIST_R
     reach = max(math.dist(figure.fist(dict(deg, left_shoulder=math.degrees(s)))[1:], (on + over, ahead))
                 for s in (at.get('swung', 0.0), -at.get('swung', 0.0)))
     lift, down = 1e3 * reach / SEEK_M_S, 1e3 * (over + pressed) / SEEK_M_S

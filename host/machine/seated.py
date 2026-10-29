@@ -23,6 +23,8 @@ POPLITEAL = figure.ANKLE_H + figure.SHANK - THIGHS[-1][0]
 #: Newton's steps that set her fist where it is asked (`fisted`): within 1e-16 m from her arm hanging; the
 #: turn its slope is read over, rad.
 NEWTON, NUDGE = 12, 1e-6
+#: Her fist's centre on the seat she sits on, up off her pelvis's middle, m (`sat`).
+ON = figure.FIST_R + figure.SEAT_Y - figure.SEAT_R
 
 
 def axial(knee, modes, body):
@@ -161,3 +163,21 @@ def fisted(up, ahead, trunk):
         det = a * d - b * c
         q = (q[0] - (d * e[0] - c * e[1]) / det, max(0.0, q[1] - (a * e[1] - b * e[0]) / det))
     return q
+
+
+def placed(up, trunk):
+    """(shoulder, elbow, aside, levers) of her fist set `up` m over her pelvis's middle under her shoulder, her
+    spine `trunk` rad forward: its flexions, rad (`fisted`); how far aside of her middle it stands, m; and the
+    reach along her way from her shoulder and her elbow to it, m - what a push up on her fist turns them by."""
+    deg = dict(figure.stand(), spine=math.degrees(trunk))
+    shoulder = figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0]
+    flexed = fisted(up, shoulder[2], trunk)
+    deg['left_shoulder'], deg['left_elbow'] = (math.degrees(v) for v in flexed)
+    at, elbow = figure.fist(deg), figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_forearm'][0]
+    return flexed + (abs(at[0]), (abs(at[2] - shoulder[2]), abs(at[2] - elbow[2])))
+
+
+def reaches(top):
+    """Whether her legs reach the floor from her hips on a seat `top` m up (`sat`), plumb and straight: past
+    it nothing her soles stand on bears her up onto it, her hands no help."""
+    return sat(top) - figure.ANKLE_H <= figure.THIGH + figure.SHANK
