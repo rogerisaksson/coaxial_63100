@@ -184,15 +184,19 @@ def main(argv=None):
         # her way to the chair's stage on her things and on the props
         from types import SimpleNamespace
         at = (0.0, 0.0)
-        specs = route.docks()['sit_chair']
         from machine import room
-        out = (math.sin(specs[0]), math.cos(specs[0]))
-        dock = (room.CHAIR_AT[0] + room.SEAT[2] * out[0], room.CHAIR_AT[1] + room.SEAT[2] * out[1])
+        props = list(world.props())
+        seat = min((t for t in props if affordance.sits(t, props) and affordance.backed(t, props)),
+                   key=lambda t: math.dist((t[1][0], t[1][2]), room.CHAIR_AT))
+        hn = affordance.fronts(seat, props)[0]
+        out = (math.sin(hn), math.cos(hn))
+        dock = (seat[1][0] + affordance.support(seat, hn) * out[0], seat[1][2] + affordance.support(seat, hn) * out[1])
         ways = {}
         for name, things in (('props', world.props()), ('her things', boxes)):
-            g = {'things': list(things), 'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([at[0], 0.0, at[1]])))}
+            g = {'things': list(things), 'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([at[0], 0.0, at[1]]))),
+                 's': {'feet': [{'sole': (at[0], 0.0, at[1])}]}}
             cells = route.blocked(g)
-            d = route.staged(dock, out, specs[2], cells)
+            d = route.staged(dock, out, route.STRAIGHT_M, cells)
             stage = (dock[0] + d * out[0], dock[1] + d * out[1])
             ways[name] = (route.way(g, stage, cells), cells)
         truth = ways['props'][1]

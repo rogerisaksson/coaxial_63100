@@ -55,6 +55,12 @@ def footprint(box):
     return np.array([c[0], c[2]], float), np.array([[R[0][0], R[2][0]], [R[0][2], R[2][2]]]), np.array([h[0], h[2]], float)
 
 
+def distance(box, at):
+    """m from `at` (x, z) to a box's footprint, 0 within it."""
+    c, axes, h = footprint(box)
+    return float(np.hypot(*np.maximum(np.abs(axes @ (np.asarray(at, float) - c)) - h, 0.0)))
+
+
 def support(box, heading):
     """The half extent of a box's footprint along `heading` (rad, (sin, cos) along x, z): its edge's
     distance from its centre that way."""
@@ -136,6 +142,25 @@ def faced(box, things):
     if back is None:
         return None
     return math.atan2(float(box[1][0]) - float(back[1][0]), float(box[1][2]) - float(back[1][2]))
+
+
+def faces(box, _things):
+    """The headings of a box's four sides' outward normals, rad: its footprint's axes either way."""
+    _c, axes, _h = footprint(box)
+    return tuple(math.atan2(s * float(a[0]), s * float(a[1])) for a in axes for s in (1.0, -1.0))
+
+
+def fronts(box, things):
+    """The headings a seat `box` is sat on from, rad: the one it faces (`faced`), any side without a back."""
+    f = faced(box, things)
+    return faces(box, things) if f is None else (f,)
+
+
+def sides(box, _things):
+    """The headings of a box's long sides' outward normals, rad: a bed's sat on, a door's walked through."""
+    _c, axes, h = footprint(box)
+    a = axes[int(np.argmin(h))]
+    return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
 
 
 #: What a thing is to her by its look and what it affords her, the first that holds (`named`): a bed one of its

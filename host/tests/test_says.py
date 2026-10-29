@@ -11,13 +11,13 @@ def test_the_catalog_scans_her_sources(report):
     each row from its source, once; the whole serves as JSON; its counts are the sources' own, so a
     say added to a source appears with no hand on the catalog."""
     import numpy as np
-    from machine import maneuver, route, says, sprung, takes
+    from machine import dock, maneuver, says, sprung, takes
     rows = says.catalog()
     by = {}
     for r in rows:
         by.setdefault(r['kind'], set()).add(r['op'])
     ops = [r['op'] for r in rows]
-    docks = set(route.docks())
+    docks = set(dock.docks())
     stunts = set(maneuver.PLAYED) - docks
     names = sorted(set(k[:-2] for k in np.load(takes.FILE).files if k.endswith('_t')))
     entries = {label for label, _w, _n in sprung.entries()}

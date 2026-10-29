@@ -9,12 +9,12 @@ import math
 from machine import affordance
 
 #: What `verb` goes to among her things: whether a box affords it, whether it is the thing itself, and
-#: the heading it faces (None, as the room lays it).
-GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.faced),
-        'lie_bed': (affordance.lies, lambda _b, _t: True, lambda _b, _t: None),
-        'lie_floor': (affordance.lies, lambda _b, _t: True, lambda _b, _t: None),
-        'exit_door': (affordance.door, lambda _b, _t: True, lambda _b, _t: None)}
-_NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: None)
+#: the headings of the faces she docks at (`route.docked`).
+GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.fronts),
+        'lie_bed': (affordance.lies, lambda _b, _t: True, affordance.sides),
+        'lie_floor': (affordance.lies, lambda _b, _t: True, affordance.sides),
+        'exit_door': (affordance.door, lambda _b, _t: True, affordance.sides)}
+_NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: ())
 
 
 def _things(g, things):
@@ -33,20 +33,16 @@ def _found(g, verb, at=None, thing=None, things=None):
     ax, az = at if at is not None else (gx, gz)
     things = _things(g, things)
     held = [p for p in things if thing is not None and len(p) > 4 and p[4] == thing]
-    hits = [
-        (math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
-         max(0.0, math.hypot(float(p[1][0]) - gx, float(p[1][2]) - gz) - min(float(p[2][0]), float(p[2][2]))), p,
-         itself(p, things))
-        for p in (held or [p for p in things if affords(p, things)])
-    ]
+    hits = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az), affordance.distance(p, (gx, gz)), p, itself(p, things))
+            for p in (held or [p for p in things if affords(p, things)])]
     return min(hits, default=None, key=lambda h: (not h[3], h[0], h[1]))
 
 
 def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
-    """`(dist_edge, px, pz, top, thing, faced, box)` of the thing `verb` goes to nearest `at` (x, z) - her
+    """`(dist_edge, px, pz, top, thing, faces, box)` of the thing `verb` goes to nearest `at` (x, z) - her
     without one - among `things` (hers without): its edge's distance from her, its centre, its top's
-    height, its slot, the heading it faces (None as the room lays it), its box; `where`, no top, no slot,
-    no facing and no box with none seen."""
+    height, its slot, the headings of the faces she docks at (GOES), its box; `where`, no top, no slot,
+    no faces and no box with none seen."""
     hit = _found(g, verb, at, things=things)
     if hit is None:
         return math.inf, where[0], where[1], None, None, None, None

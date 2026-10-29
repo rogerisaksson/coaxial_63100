@@ -5,16 +5,17 @@
     stops, curve, held = route.planned(g, to, cells, held)   # where she stands still, the curve to the first
     k, aim, along, there = route.ahead(curve, k, (x, z))     # her place, aim, its heading at each
     d = route.staged((x, z), out, most, cells)   # m out along a dock's normal she stands free at
-    specs = route.docks()                        # how each errand docks
 """
 import math
 
-from machine import figure, room, se2, sight, stride, voxels
+from machine import footprint, se2, sight, stride, voxels
 
-#: Her map's things grown by her radius (`voxels.RADIUS_M`, her figure's): setting off she walks while
-#: her heading is CONE off her leg at most, her walk's arc (WALK_SPEED / YAW_RATE round) a cell off it
-#: at most.
-GROWN_M = voxels.RADIUS_M
+#: Her map's things grown by her body walking past them: her walking reach (`footprint.reach('walk')`)
+#: ACROSS her way - her sides, a direction either way - in the bands each thing meets, and half a cell;
+#: her strides' reach lies along her way; one radius for all (0.215 m) let her hand meet a chair's back.
+ACROSS = [k for k in range(footprint.K) if abs(math.cos(2.0 * math.pi * k / footprint.K)) <= math.sin(2.0 * math.pi / footprint.K) + 1e-9]
+#: Setting off she walks while her heading is CONE off her leg at most, her walk's arc (WALK_SPEED /
+#: YAW_RATE round) a cell off it at most.
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
 #: Her way walked through its corners: a convex corridor round each segment, her walk's arc ARC_M
@@ -37,23 +38,6 @@ ARCED = 0.5 * AIM_M / ARC_M
 SIDES = math.ceil(math.pi / CONE)
 
 
-def docks():
-    """How each errand docks, from her figure's, her stride's and the room's dimensions: kind ->
-    (the dock's normal toward her stage, rad - the thing facing as the room lays it, a chair -z, a
-    bed +x, the door's into the room; a chair's own where it has a back, `furniture.nearest` -; how
-    far along the edge her hips may land off a seat or her hanging hands off the doorway, m; where
-    she stages before it - her walk's stopping distance and the stride a turn in place drifts her;
-    the door's run in -, m; the prop's place failing one found). The dock itself is the thing's edge
-    along that normal (`errand._laid`)."""
-    d_stage = se2.STOP_M + stride.STRIDE_M
-    return {
-        'sit_chair': (math.pi, room.SEAT[0] - figure.HIP_HALF, d_stage, room.CHAIR_AT),
-        'lie_bed': (math.pi / 2.0, room.BED[2] - figure.HIP_HALF, d_stage, room.BED_AT),
-        'exit_door': (math.pi, 0.5 * (room.DOOR_X[1] - room.DOOR_X[0]) - figure.ASIDE, 4.0 * stride.STRIDE_M,
-                      (0.5 * (room.DOOR_X[0] + room.DOOR_X[1]), room.TO)),
-    }
-
-
 def _cell(x, z):
     return (int(math.floor((x - voxels.X_M[0]) / voxels.CELL_M)), int(math.floor((z - voxels.Z_M[0]) / voxels.CELL_M)))
 
@@ -68,8 +52,8 @@ def _free(cells, cell):
 
 def blocked(g):
     """Her map's cells she may not stand in: each of her things (`g['things']`, her registry's boxes)
-    within `voxels.STAND_M` over the floor - she steps over lower, walks under higher -, GROWN_M and
-    its blind spot's swell round. The door among them at its live pose: closed, no way out exists and
+    her body meets over her soles' floor (`footprint.met`) grown ACROSS's reach in its bands, half a
+    cell and its blind spot's swell. The door among them at its live pose: closed, no way out exists and
     `way`'s fallback straight line is the push; ajar, the look along her way rounds its panel - held
     out of her map she ground it onto its 1.92 rad stop and its spring flung her at 1.66 m/s."""
     np = sight._np()
@@ -78,16 +62,18 @@ def blocked(g):
     x, z = np.meshgrid(voxels.X_M[0] + (np.arange(nx) + 0.5) * voxels.CELL_M,
                        voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
     out = np.zeros((nx, nz), dtype=bool)
+    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
     for p in g['things']:
         if len(p) < 4 or len(p[1]) < 3 or not hasattr(p[2], '__len__') or len(p[2]) < 3:
             continue
         _kind, c, half, turn = p[:4]
-        if c[1] + half[1] < voxels.STAND_M[0] or c[1] - half[1] >= voxels.STAND_M[1]:
+        meets, toward = footprint.met([p], floor, footprint.reach('walk'))
+        if not meets[0]:
             continue
         dx, dz = x - c[0], z - c[2]
         along_x = np.abs(dx * turn[0][0] + dz * turn[2][0])
         along_z = np.abs(dx * turn[0][2] + dz * turn[2][2])
-        grown = GROWN_M + (float(p[6]) if len(p) > 6 else 0.0)
+        grown = float(toward[0][ACROSS].max()) + 0.5 * voxels.CELL_M + (float(p[6]) if len(p) > 6 else 0.0)
         out |= (along_x <= half[0] + grown) & (along_z <= half[2] + grown)
     return out
 

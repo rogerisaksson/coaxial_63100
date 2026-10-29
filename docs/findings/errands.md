@@ -192,3 +192,17 @@ brake fells her at the deck's rail; the push belongs to the somatic shove
 (`splice-somatic-object-interaction`, the Schlesinger transport, TODO 16),
 or her lane the hinge's side where omega r is small, the hinge the fixed
 point of the panel's move between looks.
+
+## Her dock solved from the thing and her turn
+
+The stage a stride past her stopping distance (1.17 m) turned her 0.56-1.25 m
+off the face and backed her 0.61-1.33 m (12 starts). Her turn in place pivots
+on her soles: from still with them bearing alike, left on their balls 0.10 m
+ahead, right on their middle; mid weight-swing - 1.0-1.5 s after a walk's
+stop, 349/4 N to 153/153 - anywhere from 0.44 m behind to 0.28 ahead. Her
+run-out is her speed over STOP_M / WALK_SPEED, a stride at least: capped at
+0.87 m she ran 1.17 from 0.92 m/s onto the bed. `dock.docked` stages her the
+least out her measured turn clears each thing by its height (`footprint`),
+her map grows each thing by her lateral reach in its bands (0.17-0.38 m, was
+0.215 for all): 12/12 sat or lay (11/12 before), 0.09-0.52 m off the face after
+the turn, backed 0-0.52 m.

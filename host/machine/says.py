@@ -3,7 +3,7 @@
     rows = says.catalog()          # [{op, kind, command, said, ..}], JSON-able, for the local LLM or MCP
     python -m machine.says         # the catalog served as JSON
 
-A row's kind and its source: 'errand' walks to a thing (`route.docks`, what affords it
+A row's kind and its source: 'errand' walks to a thing (`dock.docks`, what affords it
 `furniture.GOES`); 'stunt' plays a suite patch where she stands (`maneuver.PLAYED`, the furniture
 her eyes see its seat); 'gait' a stream of her texts; 'behavior' any other text of her gym
 (`sprung.entries`, its phases); 'take' a mocap take said at its beats (`machine.takes`); 'word'
@@ -45,14 +45,14 @@ def catalog(texts=None, suite=None):
     """The rows of everything she can be told, scanned live from her texts, the suite, the docks,
     the takes and the loop's words; `texts` and `suite` hers where given, else their files'."""
     import numpy as np
-    from machine import furniture, maneuver, route, se2, sprung, takes, tour
+    from machine import dock, furniture, maneuver, se2, sprung, takes, tour
     rows, said = [], _comments()
-    docks = route.docks()
-    for sc, spec in docks.items():
-        affords, _itself, _faces = furniture.GOES.get(sc, furniture._NONE)
+    docks = dock.docks()
+    for sc in docks:
+        affords, _itself, faces = furniture.GOES.get(sc, furniture._NONE)
         doc = (affords.__doc__ or '').strip().split('\n')[0]
         rows.append({'op': sc, 'kind': 'errand', 'command': {'say': sc}, 'optional': {'at': 'the (x, z) of the thing meant'},
-                     'affords': affords.__name__, 'heading_rad': spec[0], 'source': 'route.docks',
+                     'affords': affords.__name__, 'faces': faces.__name__, 'source': 'dock.docks',
                      'said': 'walks to the nearest thing among hers that affords it - %s' % doc})
     for name, (patch, under, stages) in maneuver.PLAYED.items():
         if name in docks:
