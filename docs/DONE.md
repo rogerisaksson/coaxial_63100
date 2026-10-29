@@ -124,3 +124,6 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     on the card where the world runs, her map and classifier in a process
     of their own, her things a look later; her loop 1.09 x flat out with it,
     1.08 without; a structure told in pieces by its cells (test_camera).
+29. The rotor page's segments read its feed once a frame in test_views_segments:
+    the stepper went 52-80 of 60 degrees under a full run, 56 and 52 on 24
+    copies side by side.

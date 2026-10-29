@@ -27,7 +27,22 @@ def run(segment, extra=2.0):
         marks.append(k.get('pointer_deg'))
         return real_render(*a, **k)
 
-    told = []
+    told, feeds = [], []
+
+    class Feed:
+        """The page's feed read once a frame, on the frame's thread: on its own at 20 Hz of the
+        wall it landed the stepper's vector between frames as the host's load had it, the rotor
+        rang 12 degrees about it and went 52-80 of 60 under a full run, 56 and 52 in lockstep."""
+
+        def __init__(self, read, period=0.0):
+            self.read = read
+            feeds.append(self)
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
 
     def compose(rig, origin, console, v):
         paced = getattr(rig.board.drive, 'paced', None)
@@ -37,6 +52,8 @@ def run(segment, extra=2.0):
             rig.board.host_clock = v['clock'] = told[0]
         if told:
             told[0].sleep(1.0 / FPS_CAP)
+        if feeds:
+            feeds[-1].read()
         n = len(marks)
         out = real(rig, origin, console, v)
         st = v['state'] or {}
@@ -51,11 +68,14 @@ def run(segment, extra=2.0):
                      marks[-1] if len(marks) > n else None, pairs))
         return out
     seconds = sum(stage[2] for stage in motions.CYCLE if stage[0] == segment) + extra
-    view.compose, motions.START_AT, cross_section.render = compose, segment, render
+    feed = view.Feed
+    view.compose, motions.START_AT, cross_section.render, view.Feed = (compose, segment, render,
+                                                                       Feed)
     try:
         page.frame('rotor_observer', 150, 44, frames=int(seconds * FPS_CAP))
     finally:
-        view.compose, motions.START_AT, cross_section.render = real, was, real_render
+        view.compose, motions.START_AT, cross_section.render, view.Feed = (real, was, real_render,
+                                                                           feed)
     rows = [r for r in rows if r[1] == segment]
     stages = []
     for row in rows:
