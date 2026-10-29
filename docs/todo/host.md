@@ -1,11 +1,15 @@
 # Host
 
-- **The offline gate red on main**: CI's host run fails since a5a74885 or
-  before, 19 checks in 11 suites - scenarios 3, errands 2-3, postures 3,
-  wbc_core 2, leap 2, kernel 2 (a 61.45 V bus peak of 60; the seat taken
-  0.000), wrench, sysid, shield, floor, introspect (3.12) 1 each; postures
-  and kernel the same here at 2ce345aa. DOD: `run_tests.py --offline` green
-  on 3.12 and 3.14.
+- **The offline gate red on main**: Linux's arithmetic (numpy 2.5.4,
+  AVX-512; EPYC 9V45 and Xeon 8573C alike) fells what holds here by a
+  margin. Camera: the chair's back told from one 0.1 m voxel here, none on
+  Linux. Chair rise (27/28 wobbles here): at seat-off the seat bears
+  230-280 N, the soles 10-40, and `wrench._rounds`' clip-and-pin flips their
+  split pass to pass (first solve 14/13 N, clipped 0/136); a sole asked 0 N
+  lifts 2 mm and `leap.standing` swings it. Replays' walk_turn_right, leap's
+  hop: mid-hop both soles under TOUCH_N 0.88 m up, stance 00, no force laid,
+  she drops (here on OPENBLAS_CORETYPE=Sandybridge). Postures' sat rise,
+  floor's scoot. DOD: `run_tests.py --offline` green on 3.12 and 3.14.
 - **wbc_blas's matmul against numpy 2.5**: at matrix @ matrix numpy copies an
   operand BLAS cannot take and calls gemm; wbc_matmul runs its plain loop
   there, so a hand core handing it such a view parts from numpy in the last
