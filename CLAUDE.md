@@ -103,6 +103,22 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   `machine/library/`, selected by `COAXIAL_ROBOT`) generate her orthokinematic
   manifest (`host/lisp/humanoid/builds/`), and Lisp kernels lower into
   64-byte-aligned SoA banks swapped lock-free into the real-time loop.
+- Introspection and live telemetry (`python -m machine.introspect --attach PORT
+  [--events] [--gate TRIGGER ...]`, enabled with `--telemetry PORT`;
+  `docs/findings/introspect.md`): streams her loop's layers (`latent`,
+  `impedance`, `wrench`, `observer`), joint peaks between passes, and traced
+  Python/C calls as JSON lines each law pass with every field and entry named
+  from the code's own layout constants. Hot-reloaded analyzers
+  (`machine/analyzers/`) reduce snapshots to body triggers, and armed scope
+  gates capture multi-rate pre/post-trigger windows across all streams without
+  blocking her loop.
+- Baton relay for testing (`cd host; python tools/dev/run_tests.py --file
+  test_a.py[:word]`, `--smart`, `--offline`, `.\run_tests.ps1`): schedules
+  suites, `--shard k/n` slices, Renode groups, and probes across one baton per
+  physical core (up to 32 batons and 32 shards in parallel on the 32-core /
+  64-thread Threadripper host), longest job first, gated by a machine-wide
+  commit-charge ledger (`%LOCALAPPDATA%\coaxial_63100\relay`) and per-resource
+  locks with `OPENBLAS_NUM_THREADS=1` per worker.
 
 ## Rules
 
@@ -172,12 +188,14 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   of its own (`isolation: worktree`), never in the shared tree: a suite run
   there met another's half-done refactor.
 - **The relay maxes the host.** Suites only through the baton relay (a baton
-  a physical core, the longest first, the long ones up to 32 shards, as the
-  free commit holds):
+  a physical core, the longest first, the long ones as `--shard k/n` slices,
+  handed on the instant a job ends as the machine-wide free commit holds):
   `python tools/dev/run_tests.py --file test_a.py --file test_b.py:word`
   (`--smart` what the diff reaches, `--offline` the gate); probes side by
   side through the relay's batons. Never a suite run straight nor a pool of
-  one's own (a pre-tool hook denies the first).
+  one's own (a pre-tool hook denies the first). On the Threadripper
+  workstation (32 physical cores / 64 threads), max out the machine with up
+  to 32 batons in parallel and 32 shards.
 - **Narrowest test first** while a bug is live. **Green before the next
   item**, pre-existing failures included.
 - **An hour without progress ends the session.** No measure nearer the
@@ -232,9 +250,13 @@ Fitted parts come from `0x6D` kind 4, never from a name. Host rules:
   *Emulated* (`emulator://`) is the image on Renode. Nothing goes on
   `native://` or `emulator://` until a plausible simulated model of it
   holds; firmware validation stays on Renode before the bench.
-- **Measure, measure and measure.** Introspection is a probe: compare your
-  understanding of her anatomy, kinematics, and dynamics against the robot's
-  telemetry before and after every change.
+- **Measure, measure and measure.** Introspection is a live oscilloscope on
+  her loop (`--telemetry PORT`, `python -m machine.introspect --attach PORT
+  [--events] [--gate TRIGGER ...]`): compare your understanding of her
+  anatomy, kinematics, and dynamics against her `latent`, `impedance`,
+  `wrench`, and `observer` layers, inter-snapshot joint peaks, hot-reloaded
+  event analyzers, and trigger-gated multi-stream captures before and after
+  every change.
 
 ## Routine, per item
 
