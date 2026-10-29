@@ -425,8 +425,10 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     }
     for (int a = 0; a < NF; a++)
     {
+      const int sums = set[a] ? 0 : pushing; /* a push in the set is never picked: its w unread */
+
       w[a] = g[a];
-      for (int k = 0; k < pushing; k++)
+      for (int k = 0; k < sums; k++)
       {
         w[a] -= o->h[a][live[k]] * o->f[live[k]];
       }

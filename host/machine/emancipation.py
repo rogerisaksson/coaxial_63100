@@ -54,6 +54,8 @@ SEAT_BOX = {r: tuple(1e-3 * np.array(_REGISTRY['ischial-bilateral']['cop-bounds-
 #: Her legs' modes (`melt.LEGGED`): held where they were as a leg is asked released, till it is free - moved by her
 #: text while its leg stood on the gate's leave, the sled's knees opened under 294 N on her soles and threw her back.
 LEGGED = melt.LEGGED
+#: Her legs' joints, a row a leg (`rounds.LEGS`).
+LEG_JOINTS = np.array(rounds.LEGS)
 #: The directions her support's margin is taken along: its error at most R (1 - cos(pi / DIRECTIONS)), 0.6 mm over
 #: her 0.5 m reach.
 DIRECTIONS = 64
@@ -259,12 +261,13 @@ def opened(g, s, ask, dt):
     lean = np.arctan2(-behind, high) + np.arctan2(modal.THIGH * np.sin(knee), modal.SHANK + modal.THIGH * np.cos(knee))
     aim = fr[modal.PITCH0][0] + modal.PITCH_RAD * g['out'][latent.REF][modal.PITCH]
     chain = np.stack([modal.FLEX[0] * (knee - lean + aim), modal.FLEX[1] * knee, modal.FLEX[2] * lean], axis=1)
-    for k, joints in enumerate(rounds.LEGS):
-        target = ref[joints].copy()
-        target[[2, 4]] = chain[k][[0, 2]]
-        ref[joints] += dt * let[k] * (target - ref[joints]) / SLEW_S
-        ref[joints] = CLIP(let[k] * ref[joints] + (1.0 - let[k]) * q[joints], g['q_lo'][joints], g['q_hi'][joints])
-        ask['posture'][joints] = let[k] * ref[joints] + (1.0 - let[k]) * ask['posture'][joints]
+    # both legs at once, each element's ops as a leg's alone (their joints apart): 20 numpy calls where 10
+    joints, on = LEG_JOINTS, let[:, None]
+    target = ref[joints]
+    target[:, [2, 4]] = chain[:, [0, 2]]
+    ref[joints] += dt * on * (target - ref[joints]) / SLEW_S
+    ref[joints] = CLIP(on * ref[joints] + (1.0 - on) * q[joints], g['q_lo'][joints], g['q_hi'][joints])
+    ask['posture'][joints] = on * ref[joints] + (1.0 - on) * ask['posture'][joints]
     ask['open'] = (OPEN['kp'], OPEN['kd'], g['freed'].copy())
     ask['let_hold'] = 1.0 - window(g['emancipated'], SHED)
 
