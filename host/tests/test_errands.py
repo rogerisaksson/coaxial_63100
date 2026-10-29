@@ -250,7 +250,8 @@ def test_viewport_f_errands_chair_bed_and_door(report):
 
 def test_the_errand_goes_to_the_thing_told(report):
     """Two chairs, the scene's ahead and the lodge's aside: told to sit she looks (her registry's three
-    sightings) and walks to the nearer one, told to sit at the lodge's (`at`, its balloon's) to that one."""
+    sightings), her planner docks her (`machine.planner`) and she walks to the nearer one, told to sit at
+    the lodge's (`at`, its balloon's) to that one."""
     from machine import physics, room, worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     docks = []
@@ -258,7 +259,7 @@ def test_the_errand_goes_to_the_thing_told(report):
         s = worker.session()
         worker.apply(s, {'scenario': 'chair'})
         worker.apply(s, told)
-        while (s['g'].get('_errand') or {}).get('phase') == 'look' and s['g']['t'] < 1.0:
+        while (s['g'].get('_errand') or {}).get('phase') in ('look', 'plan') and s['g']['t'] < 1.0:
             worker.stepped(s)
         er = s['g'].get('_errand') or {}
         docks.append(tuple(round(er.get(k, math.nan), 6) for k in ('x_dock', 'z_dock')))

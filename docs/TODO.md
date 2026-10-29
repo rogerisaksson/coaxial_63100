@@ -38,3 +38,4 @@ the table under [Subjects](#subjects).
 | The bench: what the board has still to show | [todo/bench.md](todo/bench.md) |
 | Flight pages: the crafts in wind, the aerobat's landing | [todo/flight.md](todo/flight.md) |
 | Host: native://, identification on the robot, her law compiled | [todo/host.md](todo/host.md) |
+| Her wayfinder: her dock and her way round her things, planned apart | [todo/wayfinder.md](todo/wayfinder.md) |

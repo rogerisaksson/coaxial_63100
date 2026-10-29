@@ -1,19 +1,18 @@
-"""Her way round the furniture: A* round her floor's things grown by her radius, a curve along it.
+"""Her way round her things: A* over their cells' costs (`machine.obstacles`), a curve on its corners.
 
-    cells = route.blocked(g)                     # her map's cells she may not stand in
-    corners = route.way(g, to, cells)            # [(x, z)] from where she stands round them, `to` last
-    stops, curve, held = route.planned(g, to, cells, held)   # where she stands still, the curve to the first
+    cost = route.costs(things, floor, seen, slot, face)   # (nx, nz) a metre's cost through each cell, inf blocked
+    cells = route.blocked(things, floor)             # her map's cells she may not stand in
+    corners = route.way((x, z), to, cost)            # [(x, z)] from her place round them, `to` last
+    stops, curve, held = route.planned((x, z), yaw, still, to, cost, held)   # her stops, the curve to the first
     k, aim, along, there = route.ahead(curve, k, (x, z))     # her place, aim, its heading at each
-    d = route.staged((x, z), out, most, cells)   # m out along a dock's normal she stands free at
+    barred = route.barred(cells, [(x, z), ..])       # whether her way left is blocked past its first free cell
+    d = route.staged((x, z), out, most, cells)       # m out along a dock's normal she stands free at
+
+Her planner runs these apart (`machine.planner`).
 """
 import math
 
-from machine import footprint, se2, sight, stride, voxels
-
-#: Her map's things grown by her body walking past them: her walking reach (`footprint.reach('walk')`)
-#: ACROSS her way - her sides, a direction either way - in the bands each thing meets, and half a cell;
-#: her strides' reach lies along her way; one radius for all (0.215 m) let her hand meet a chair's back.
-ACROSS = [k for k in range(footprint.K) if abs(math.cos(2.0 * math.pi * k / footprint.K)) <= math.sin(2.0 * math.pi / footprint.K) + 1e-9]
+from machine import obstacles, se2, sight, stride, voxels
 #: Setting off she walks while her heading is CONE off her leg at most, her walk's arc (WALK_SPEED /
 #: YAW_RATE round) a cell off it at most.
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
@@ -50,45 +49,61 @@ def _free(cells, cell):
     return 0 <= cell[0] < cells.shape[0] and 0 <= cell[1] < cells.shape[1] and not cells[cell]
 
 
-def blocked(g):
-    """Her map's cells she may not stand in: each of her things (`g['things']`, her registry's boxes)
-    her body meets over her soles' floor (`footprint.met`) grown ACROSS's reach in its bands, half a
-    cell and its blind spot's swell. The door among them at its live pose: closed, no way out exists and
-    `way`'s fallback straight line is the push; ajar, the look along her way rounds its panel - held
-    out of her map she ground it onto its 1.92 rad stop and its spring flung her at 1.66 m/s."""
+def _grid():
+    """(nx * nz, 2) her map's cells' centres (x, z), and its shape."""
     np = sight._np()
     nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
     nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
     x, z = np.meshgrid(voxels.X_M[0] + (np.arange(nx) + 0.5) * voxels.CELL_M,
                        voxels.Z_M[0] + (np.arange(nz) + 0.5) * voxels.CELL_M, indexing='ij')
-    out = np.zeros((nx, nz), dtype=bool)
-    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
-    for p in g['things']:
-        if len(p) < 4 or len(p[1]) < 3 or not hasattr(p[2], '__len__') or len(p[2]) < 3:
-            continue
-        _kind, c, half, turn = p[:4]
-        meets, toward = footprint.met([p], floor, footprint.reach('walk'))
-        if not meets[0]:
-            continue
-        dx, dz = x - c[0], z - c[2]
-        along_x = np.abs(dx * turn[0][0] + dz * turn[2][0])
-        along_z = np.abs(dx * turn[0][2] + dz * turn[2][2])
-        grown = float(toward[0][ACROSS].max()) + 0.5 * voxels.CELL_M + (float(p[6]) if len(p) > 6 else 0.0)
-        out |= (along_x <= half[0] + grown) & (along_z <= half[2] + grown)
-    return out
+    return np.column_stack([x.ravel(), z.ravel()]), (nx, nz)
 
 
-def way(g, to, cells):
-    """[(x, z)] her corners from where she stands to `to` through `cells`' free ones, `to` last; [`to`]
-    where no way is found or either end is off her map."""
-    d = g['world'].data
-    start, goal = _cell(float(d.qpos[0]), float(d.qpos[2])), _cell(*to)
-    if not all(0 <= c[0] < cells.shape[0] and 0 <= c[1] < cells.shape[1] for c in (start, goal)):
+def costs(things, floor, seen=None, slot=-1, face=None):
+    """(nx, nz) a metre's cost walked through each of her map's cells among `things` (her registry's
+    boxes) over her soles' `floor` (`obstacles.costed`): inf where she may not stand, `seen` (nx, nz) 1
+    where her eyes have seen - the whole room without -, `slot` the thing she goes to, opened before
+    the `face` she docks at, its outward normal (x, z), None where she docks at none. The door among
+    them at its live pose: closed, no way out exists and `way`'s fallback straight line is the push;
+    ajar, the look along her way rounds its panel - held out of her map she ground it onto its 1.92
+    rad stop and its spring flung her at 1.66 m/s."""
+    np = sight._np()
+    at, shape = _grid()
+    known = np.ones(len(at)) if seen is None else np.asarray(seen, float).reshape(-1)
+    return obstacles.costed(at, things, floor, known, slot, face).reshape(shape)
+
+
+def blocked(things, floor, slot=-1, face=None):
+    """Her map's cells she may not stand in among `things` over `floor` (`costs`' inf)."""
+    return sight._np().isinf(costs(things, floor, None, slot, face))
+
+
+def way(at, to, cost):
+    """[(x, z)] her corners from `at` (x, z) to `to` through `cost`'s free cells (`costs`), its least,
+    `to` last; [`to`] where no way is found or either end is off her map."""
+    np = sight._np()
+    start, goal = _cell(*at), _cell(*to)
+    if not all(0 <= c[0] < cost.shape[0] and 0 <= c[1] < cost.shape[1] for c in (start, goal)):
         return [tuple(to)]
+    cells = np.isinf(cost)
     start = start if not cells[start] else sight._nearest_free(cells, start)
     goal = goal if not cells[goal] else sight._nearest_free(cells, goal)
-    path = sight._astar(cells, start, goal)
-    return [_centre(*c) for c in sight._pruned(cells, path)[1:-1]] + [tuple(to)] if path else [tuple(to)]
+    path = sight._astar(cost, start, goal)
+    return [_centre(*c) for c in sight._pruned(cost, path)[1:-1]] + [tuple(to)] if path else [tuple(to)]
+
+
+def barred(cells, pts):
+    """Whether her way through `pts` [(x, z)], her place first, is blocked in `cells`: a blocked cell past
+    a free one along its legs, a cell a sample. Its leading blocked run (her own cell inside a thing's
+    grown disc as she docks) and its last point (a stage laid inside one, `staged`'s) are hers to stand
+    in: checked every look they replanned her mid-stride at the chair and she perched unsure, and felled
+    her at the door."""
+    samples = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
+               for a, b in zip(pts, pts[1:])
+               for n in (max(1, int(math.ceil(math.dist(a, b) / voxels.CELL_M))),)
+               for k in range(n + 1)]
+    free = [_free(cells, _cell(x, z)) for x, z in samples[:-1]]
+    return any(not f and any(free[:k]) for k, f in enumerate(free))
 
 
 def staged(dock, out, most, cells):
@@ -303,25 +318,24 @@ def carried(cells, points):
             for q in range(len(u))]
 
 
-def planned(g, to, cells, warm=(), passed=0.0):
-    """(stops, curve, held): where she stands still on her way to `to` - `way`'s corners no curve
-    fits through, `to` last, its leading corners within `passed` of her dropped -, the curve she
-    walks to the first (`spline`; (0, 3) where she walks straight at it), the rows its QP held. Where
-    none fits her heading is let go - she turns standing first, as she does at a stop -, then the
+def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
+    """(stops, curve, held): where she stands still on her way from `at` (x, z) to `to` through `cost`
+    (`costs`) - `way`'s corners no curve fits through, `to` last, its leading corners within `passed`
+    of her dropped -, the curve she walks to the first (`spline`; (0, 3) where she walks straight at
+    it), the rows its QP held. Where none fits leaving along her heading `yaw`, it is let go - she
+    turns standing first, as she does at a stop; `still` her rhythm at rest, let go at once -, then the
     way is cut at its sharpest corner, a stop: with none anywhere, `way`'s corners."""
     np = sight._np()
-    from machine import edge, latent
-    d = g['world'].data
-    here = (float(d.qpos[0]), float(d.qpos[2]))
-    corners = way(g, to, cells)
+    cells = np.isinf(cost)
+    here = tuple(at)
+    corners = way(here, to, cost)
     corners = [p for k, p in enumerate(corners) if any(math.dist(here, q) > passed for q in corners[:k + 1])]
-    yaw = edge.yaw(g['sense'])
-    tries = ((math.sin(yaw), math.cos(yaw)), None)[int(float(g['st'][latent.NOW][latent.GAIN]) < 1e-6):]
+    tries = ((math.sin(yaw), math.cos(yaw)), None)[int(still):]
     pts = [here] + corners
-    at = centres(cells)
+    at_ = centres(cells)
     last, curve, held = len(pts) - 1, None, tuple(warm)
     while curve is None and last > 1:
-        walls = [corridor(at, a, b) for a, b in carried(cells, pts[:last + 1])]
+        walls = [corridor(at_, a, b) for a, b in carried(cells, pts[:last + 1])]
         for lead in tries:
             curve, held = (curve, held) if curve is not None else spline(pts[:last + 1], walls, lead, held)
         last = last if curve is not None else _sharpest(pts[:last + 1])

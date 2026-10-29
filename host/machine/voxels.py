@@ -268,12 +268,11 @@ class Map:
 
     def _box(self, i, k, j_lo, j_hi, kind):
         """A thing's box of the cells (i, k) its voxels stand in, levels j_lo to j_hi: its footprint's
-        principal axes its turn, its extents along them a voxel wide, its height its levels'."""
+        axes by the text's fit (`fitted`) its turn, its extents along them a voxel wide, its height its
+        levels'."""
         at = np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel])
         mean = at.mean(axis=0)
-        cov = (at - mean).T @ (at - mean) / len(at)
-        w, v = np.linalg.eigh(cov)
-        a, b = v[:, 1], v[:, 0]
+        a, b = fitted(at, self.voxel)
         along, across = (at - mean) @ a, (at - mean) @ b
         c = mean + 0.5 * (along.max() + along.min()) * a + 0.5 * (across.max() + across.min()) * b
         half = (0.5 * (along.max() - along.min()) + 0.5 * self.voxel, 0.5 * (across.max() - across.min()) + 0.5 * self.voxel)
@@ -290,6 +289,39 @@ class Map:
         door = np.array([t[0] == 'door' for t in things] + [False])
         hit = ((labels >= 0) & ~door[labels] & band[None, :, None]).any(axis=1)
         return grown(hit, max(1, int(math.ceil(RADIUS_M / self.voxel))))
+
+
+def least_area(at, voxel):
+    """(a, b) the floor axes of the least-area rectangle round points `at` (n, 2), a its longer: over
+    their hull's edges' directions, each extent a voxel wider (rotating calipers). 2000 boxes 0.3-2.5 m
+    laid at 0.1 m: turned 0.34 deg off at the median, 2.2 at the ninth decile (2.4 squarish), its area
+    1.26 of theirs there; their principal axes 0.63, 5.2 (26 squarish), 1.33."""
+    from machine.sight import convex
+    h = np.array(convex([tuple(p) for p in at]), float).reshape(-1, 2)
+    e = np.roll(h, -1, axis=0) - h
+    th = np.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)
+    c, s = np.cos(th), np.sin(th)
+    along, across = np.ptp(h @ np.stack([c, s]), axis=0) + voxel, np.ptp(h @ np.stack([-s, c]), axis=0) + voxel
+    k = int(np.argmin(along * across))
+    a, b = np.array([c[k], s[k]]), np.array([-s[k], c[k]])
+    return (a, b) if along[k] >= across[k] else (b, -a)
+
+
+def principal(at, voxel):
+    """(a, b) the principal axes of points `at` (n, 2), a the larger's."""
+    mean = at.mean(axis=0)
+    _w, v = np.linalg.eigh((at - mean).T @ (at - mean) / len(at))
+    return v[:, 1], v[:, 0]
+
+
+#: A footprint's floor axes by the text's fit (`orient-stereo-footprints`); an extension's fit its own entry.
+FITS = {':min-area-rectangle': least_area, ':principal-axes': principal}
+
+
+def fitted(at, voxel):
+    """(a, b) the floor axes of a footprint's cells `at` (n, 2) by the wayfinder's texts' fit (`FITS`)."""
+    from machine import obstacles
+    return FITS[obstacles.laws()['obstacle-boxes']['footprint-fit']](at, voxel)
 
 
 def grown(cells, r, join=np.logical_or):

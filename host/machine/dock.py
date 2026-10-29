@@ -1,6 +1,6 @@
 """Where she docks at a thing: the face, her place along it, where she stands to turn onto it.
 
-    laid = dock.docked(g, 'sit_chair', box, standoff)   # her dock and stage on `box`; None where none fits
+    laid = dock.docked((x, z), things, floor, 'sit_chair', box, standoff)   # her dock and stage on `box`; None where none fits
     way = dock.turns(g, (x, z), heading, to, first)     # the way her turn in place clears her things, 0 none
     verbs = dock.docks()                                # her errands' verbs and how each docks
 
@@ -18,6 +18,7 @@ middle first, then the face her walk reaches soonest. Staged her stopping distan
 (1.17 m), she backed 0.37-1.03 m after her turn, in 3.9-8.3 s.
 """
 import heapq
+import itertools
 import math
 
 from machine import figure, footprint, poise, se2, stride, voxels, wayfinder
@@ -43,8 +44,8 @@ def _ways(heading, to):
     return [(w, d) for w in (1.0, -1.0) for d in (math.degrees((w * (to - heading)) % math.tau),) if d <= 180.0 + 1e-6]
 
 
-def _gap(g, at, heading, way, deg, floor):
-    return footprint.clear([(at[0], at[1], heading)], footprint.swept(deg, way), g['things'], floor)
+def _gap(things, at, heading, way, deg, floor):
+    return footprint.clear([(at[0], at[1], heading)], footprint.swept(deg, way), things, floor)
 
 
 def turns(g, at, heading, to, first):
@@ -52,7 +53,8 @@ def turns(g, at, heading, to, first):
     her things her skin and its own end's spread, its sweep as measured from a walk's stop, `first` tried
     first; 0 where neither does."""
     floor = _floor(g)
-    fits = {w: _gap(g, at, heading, w, d, floor) >= wayfinder.MARGIN + footprint.spread(d, w) for w, d in _ways(heading, to)}
+    fits = {w: _gap(g['things'], at, heading, w, d, floor) >= wayfinder.MARGIN + footprint.spread(d, w)
+            for w, d in _ways(heading, to)}
     return next((w for w in (first, -first) if fits.get(w, False)), 0.0)
 
 
@@ -70,12 +72,11 @@ def even(g, e=None):
     return g['t'] - e['alike_at'] >= 0.5 * se2.BRAKE_S
 
 
-def walked(g, cells):
-    """(nx, nz) m her walk over `cells`' free ones from where she stands, inf where none reaches."""
+def walked(at, cells):
+    """(nx, nz) m her walk over `cells`' free ones from `at` (x, z), inf where none reaches."""
     import numpy as np
     from machine import route, sight
-    d = g['world'].data
-    here = route._cell(float(d.qpos[0]), float(d.qpos[2]))
+    here = route._cell(*at)
     start = here if route._free(cells, here) else sight._nearest_free(cells, here)
     out = np.full(cells.shape, np.inf)
     todo = [(voxels.CELL_M * math.dist(here, start), start)]
@@ -90,22 +91,23 @@ def walked(g, cells):
     return out
 
 
-def docked(g, sc, box, standoff):
-    """Errand `sc`'s dock on her thing `box` - {'hn' the face's outward heading, 'edge' its edge's point
-    she docks at (x, z), 'lat_tol' how far along the edge she may land off that point, 'd_stage' m out
-    along the face's normal she stands to turn, 'stage' (x, z)} -, None where none fits. At the door its
-    face her walk reaches soonest, her run in its stage."""
+def docked(at, things, floor, sc, box, standoff):
+    """Errand `sc`'s dock on her thing `box` among `things` over `floor`, from `at` (x, z) - {'hn' the
+    face's outward heading, 'face' its normal (x, z), 'edge' its edge's point she docks at (x, z),
+    'lat_tol' how far along the edge she may land off that point, 'd_stage' m out along the face's
+    normal she stands to turn, 'stage' (x, z)} -, None where none fits: the face's middle first, then
+    the face her walk reaches soonest. At the door its face her walk reaches soonest, her run in its
+    stage."""
     import numpy as np
     from machine import affordance, furniture, route
     across, run_in = docks()[sc]
-    floor = _floor(g)
-    cells = route.blocked(g)
-    far = walked(g, cells)
+    cells = route.blocked(things, floor)
+    far = walked(at, cells)
     s_dock = poise.HALF_M + standoff
     carried = max(footprint.carry(180.0, w)[0] for w in (1.0, -1.0))
-    outs = [run_in] if run_in is not None else list(s_dock + np.arange(0.0, carried + voxels.CELL_M, 0.25 * voxels.CELL_M))
+    outs = np.array([run_in] if run_in is not None else s_dock + np.arange(0.0, carried + voxels.CELL_M, 0.25 * voxels.CELL_M))
     rows = []
-    for hn in furniture.GOES[sc][2](box, g['things']):
+    for hn in furniture.GOES[sc][2](box, things):
         n, tan = np.array([math.sin(hn), math.cos(hn)]), np.array([math.cos(hn), -math.sin(hn)])
         edge, lat = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi) - across
         mid = np.array([float(box[1][0]), float(box[1][2])]) + edge * n
@@ -113,21 +115,39 @@ def docked(g, sc, box, standoff):
         offs = [0.0] * (lat >= 0.0) + [s * k * voxels.CELL_M for k in range(1, steps + 1) for s in (1.0, -1.0)]
         rows += [(abs(t), hn, mid + t * tan, n, lat - abs(t)) for t in offs]
 
-    def fits(at, hn, n, s):
-        stage = at + s * n
-        backs = [tuple(at + b * n) + (hn,) for b in np.arange(s_dock, s + 1e-9, 0.5 * voxels.CELL_M)]
-        return run_in is not None or (all(
-            any(_gap(g, stage, hn + math.pi + a, w, d, floor)
-                >= wayfinder.MARGIN + footprint.spread(d, w) + se2.STOP_SPREAD_M * max(0.0, math.cos(a))
-                for w, d in _ways(hn + math.pi + a, hn)) for a in ARRIVALS)
-            and footprint.clear(backs, footprint.reach('back'), g['things'], floor) >= wayfinder.MARGIN)
+    def gaps(poses, h):
+        return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)
+
+    def turned(edge, hn, n, a):
+        """(len(outs),) whether her turn onto the dock from arrival `a` at each stage leaves her things
+        her skin, its end's spread and her stop's along her arrival."""
+        heading = hn + math.pi + a
+        poses = np.column_stack([edge + outs[:, None] * n, np.full(len(outs), heading)])
+        return np.any([gaps(poses, footprint.swept(d, w)) >= wayfinder.MARGIN + footprint.spread(d, w)
+                       + se2.STOP_SPREAD_M * max(0.0, math.cos(a)) for w, d in _ways(heading, hn)], axis=0)
+
+    def backed(edge, hn, n):
+        """(len(outs),) whether her walk back from each stage onto the dock leaves her things her skin."""
+        b = np.arange(s_dock, outs[-1] + 1e-9, 0.5 * voxels.CELL_M)
+        ok = gaps(np.column_stack([edge + b[:, None] * n, np.full(len(b), hn)]), footprint.reach('back')) >= wayfinder.MARGIN
+        return np.array([bool(ok[b <= s + 1e-9].all()) for s in outs])
 
     def laid(row):
-        off, hn, at, n, lat = row
-        s = next((s for s in outs if fits(at, hn, n, s)), None)
-        cell = route._cell(*(at + (s or 0.0) * n))
+        off, hn, edge, n, lat = row
+        fits = np.ones(1, bool) if run_in is not None else backed(edge, hn, n) & np.all(
+            [turned(edge, hn, n, a) for a in ARRIVALS], axis=0)
+        s = float(outs[np.argmax(fits)]) if fits.any() else None
+        stage = edge + (s or 0.0) * n
+        cell = route._cell(*stage)
         walk = far[cell] if s is not None and route._free(cells, cell) else math.inf
-        return {'hn': hn, 'edge': tuple(at), 'lat_tol': lat, 'd_stage': s, 'stage': tuple(at + (s or 0.0) * n),
+        return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'lat_tol': lat, 'd_stage': s, 'stage': tuple(stage),
                 'key': (walk == math.inf, off, walk)}
-    best = min((laid(r) for r in rows), key=lambda r: r['key'], default=None)
+
+    # by their offsets along the face, the first her walk reaches ending it: none further out beats it
+    best = None
+    for _off, level in itertools.groupby(sorted(rows, key=lambda r: r[0]), key=lambda r: r[0]):
+        found = [laid(r) for r in level] + ([best] if best is not None else [])
+        best = min(found, key=lambda r: r['key'])
+        if not best['key'][0]:
+            break
     return None if best is None or best['key'][0] else best

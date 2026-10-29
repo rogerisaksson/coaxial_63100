@@ -167,9 +167,10 @@ def booked(path, gb, pid=None, owner=None):
 
 
 def outstanding():
-    """(the commit every relay's running jobs have still to take, GB; how many run), machine-wide:
-    a job counted at its booking less what its process holds; one whose relay is gone, dropped."""
-    owed, running = 0.0, 0
+    """(the commit every relay's running jobs have still to take, GB; how many run; their processes),
+    machine-wide: a job counted at its booking less what its process holds; one whose relay is gone,
+    dropped."""
+    owed, running, pids = 0.0, 0, []
     with suppress(OSError):
         for name in os.listdir(LEDGER):
             if name.startswith('.'):
@@ -187,7 +188,48 @@ def outstanding():
             held = _private_gb(job['pid']) if job['pid'] is not None else None
             owed += max(0.0, job['gb'] - (held or 0.0))
             running += 1
-    return owed, running
+            pids += [job['pid']] * (job['pid'] is not None)
+    return owed, running, pids
+
+
+def _parents():
+    """{pid: its parent's} of every process on the machine."""
+    if os.name != 'nt':
+        out = {}
+        for name in filter(str.isdigit, os.listdir('/proc')):
+            with suppress(OSError, ValueError, IndexError), open('/proc/%s/stat' % name, encoding='utf-8') as f:
+                out[int(name)] = int(f.read().rsplit(')', 1)[1].split()[1])
+        return out
+
+    class Entry(ctypes.Structure):
+        _fields_ = [('size', ctypes.c_ulong), ('usage', ctypes.c_ulong), ('pid', ctypes.c_ulong), ('heap', ctypes.c_size_t),
+                    ('module', ctypes.c_ulong), ('threads', ctypes.c_ulong), ('parent', ctypes.c_ulong),
+                    ('base', ctypes.c_long), ('flags', ctypes.c_ulong), ('exe', ctypes.c_char * 260)]
+    k = ctypes.windll.kernel32
+    k.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+    snap, e, out = ctypes.c_void_p(k.CreateToolhelp32Snapshot(2, 0)), Entry(), {}
+    e.size = ctypes.sizeof(Entry)
+    ok = k.Process32First(snap, ctypes.byref(e))
+    while ok:
+        out[e.pid] = e.parent
+        ok = k.Process32Next(snap, ctypes.byref(e))
+    k.CloseHandle(snap)
+    return out
+
+
+def processes(pids):
+    """The live processes in the trees `pids` root: a job's children - her planner, an emulator's
+    Renode - are cores it holds too; counted by its own process alone, a batch of 28 batons held 282."""
+    parents = _parents()
+    kids = collections.defaultdict(list)
+    for pid, parent in parents.items():
+        kids[parent].append(pid)
+    todo, seen = [p for p in pids if p in parents], set()
+    while todo:
+        pid = todo.pop()
+        todo += kids[pid] * (pid not in seen)
+        seen.add(pid)
+    return len(seen)
 
 
 def admitted(gb, start, name, busy=None):
@@ -270,8 +312,9 @@ def relay(jobs, batons=None):
     """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
     a physical core each - each taking the first job whose commit fits the free commit less what
     every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
-    an idle host fits anything -, OpenBLAS on one thread in each; a job ending hands its baton to
-    the next at once. (job, output, exit code - None out of time -, seconds) as each ends."""
+    an idle host fits anything -, while every relay's jobs with their children hold fewer processes
+    than the batch's physical cores (`processes`), OpenBLAS on one thread in each; a job ending hands its
+    baton to the next at once. (job, output, exit code - None out of time -, seconds) as each ends."""
     waiting = collections.deque(jobs)
     count = len(waiting)
     held = {'running': 0, 'locks': set(), 'n': 0}
@@ -298,9 +341,10 @@ def relay(jobs, batons=None):
             while waiting:
                 with _Locked():
                     free = free_commit_gb()
-                    owed, running = outstanding()
+                    owed, running, pids = outstanding()
                     room = None if free is None or not running else free - owed - RESERVE_GB
-                    job = next((j for j in waiting if fits(j, room)), None)
+                    cores = processes(pids) + running - len(pids) < background.cores()
+                    job = next((j for j in waiting if fits(j, room)), None) if cores else None
                     if job is not None:
                         waiting.remove(job)
                         held['running'] += 1

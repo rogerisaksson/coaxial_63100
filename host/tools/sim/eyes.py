@@ -182,7 +182,6 @@ def main(argv=None):
                 print("%s among %s: %d (%s)" % (name, label, len(mine), ', '.join(
                     '%s (%.1f %.1f)%s' % (t[0], t[1][0], t[1][2], '+back' if affordance.backed(t, things) else '') for t in mine)))
         # her way to the chair's stage on her things and on the props
-        from types import SimpleNamespace
         at = (0.0, 0.0)
         from machine import room
         props = list(world.props())
@@ -193,12 +192,10 @@ def main(argv=None):
         dock = (seat[1][0] + affordance.support(seat, hn) * out[0], seat[1][2] + affordance.support(seat, hn) * out[1])
         ways = {}
         for name, things in (('props', world.props()), ('her things', boxes)):
-            g = {'things': list(things), 'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([at[0], 0.0, at[1]]))),
-                 's': {'feet': [{'sole': (at[0], 0.0, at[1])}]}}
-            cells = route.blocked(g)
+            cells = route.blocked(list(things), 0.0)
             d = route.staged(dock, out, route.STRAIGHT_M, cells)
             stage = (dock[0] + d * out[0], dock[1] + d * out[1])
-            ways[name] = (route.way(g, stage, cells), cells)
+            ways[name] = (route.way(at, stage, np.where(cells, np.inf, 1.0)), cells)
         truth = ways['props'][1]
         hers = ways['her things'][0]
         crossed = sum(int(truth[route._cell(x, z)]) for x, z in hers if 0 <= route._cell(x, z)[0] < truth.shape[0])

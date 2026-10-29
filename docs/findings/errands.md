@@ -206,3 +206,14 @@ least out her measured turn clears each thing by its height (`footprint`),
 her map grows each thing by her lateral reach in its bands (0.17-0.38 m, was
 0.215 for all): 12/12 sat or lay (11/12 before), 0.09-0.52 m off the face after
 the turn, backed 0-0.52 m.
+
+## Her wayfinder apart
+
+Her dock, her way and its watch are `machine.planner`'s, in `python -m
+machine.planner` on her page (`machine.planner.Here` in a run off it, one
+process a relay baton). house.py, 112 starts a verb: the chair 28 of 39 offered
+sat (34 before), the bed 20 of 25 lain (20). Her stage cleared from one arrival
+lies 0.22-0.45 m out (all five: 0.45). Walking at a thing her swinging foot
+reaches 0.32 m ahead, 0.24 across: the text's funnel opens a thing before its
+face from her hips up only. The lodge's chair stands 1.03 m off its table's
+edge, her stage 0.58 m off it.

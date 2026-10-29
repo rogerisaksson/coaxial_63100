@@ -98,7 +98,50 @@ def test_her_map_keeps_what_her_looks_told(report):
                  and len(taken) == 1 and taken[0][0] == 'thing0' and tuple(taken[0][1]) == at, str(full['kinds'][:3]))
 
 
-ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told)
+def test_her_wayfinder_apart(report):
+    """Her wayfinder apart (`machine.planner`): the lodge's chair docked by her planner's process at once,
+    as answered here, her way to it watched LATENCY_S on, none before; a table top she goes to opened to her reach ahead
+    before its face, behind it her reach across (`:affordance-aperture`); the text's clothoid her
+    arc's, its rate her arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
+    import math
+    import numpy as np
+    from machine import furniture, maneuver, obstacles, physics, planner, route, se2, worker
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    s = worker.session()
+    g = s['g']
+    while g['t'] < 0.1:
+        worker.stepped(s)
+    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+    box = furniture.nearest(g, 'sit_chair')[6]
+    ask = {'kind': 'dock', 'at': (0.0, 0.0), 'yaw': 0.0, 'still': True, 'things': list(g['things']), 'floor': floor,
+           'seen': None, 'slot': int(box[4]) if box is not None else -1, 'face': None, 'to': None, 'warm': (),
+           'dock': ('sit_chair', box, maneuver.standoff('sit_chair')), 'passed': 0.0, 'way': ()}
+    here: dict = planner.answered(ask)
+    laid = here.get('laid') or {}
+    watch = dict(ask, kind='watch', to=laid.get('stage'), face=laid.get('face'), way=[(0.0, 0.0), laid.get('stage')])
+    p = planner.Planner()
+    try:
+        p.ask(1.0, ask)
+        told: dict | None = p.answer(1.0)
+        p.ask(2.0, watch)
+        early, watched = p.answer(2.0 + 0.5 * planner.LATENCY_S), p.answer(2.0 + planner.LATENCY_S)
+    finally:
+        p.close()
+    report.check('a dock answered at once as here, stage %s; a watch %.2f s on, none before' % (laid.get('stage'), planner.LATENCY_S),
+                 told is not None and told.get('laid') == laid and told.get('stops') == here.get('stops')
+                 and early is None and watched is not None, '%s %s' % (told, watched))
+    top = [('wood', (0.0, floor + 0.9, 0.0), (0.4, 0.05, 0.3), np.eye(3), 7)]
+    at = [(0.0, 0.3 + d) for d in (0.3, 0.36)] + [(0.0, -0.3 - d) for d in (0.3, 0.36)]
+    plain, opened = (np.isinf(obstacles.costed(at, top, floor, np.ones(4), 7, f)) for f in (None, (0.0, 1.0)))
+    report.check('the top before its face blocked 0.30 m out, free 0.36 (0.38 plain); behind it blocked both',
+                 list(plain) == [True, True, True, True] and list(opened) == [True, False, True, True], '%s %s' % (plain, opened))
+    c = obstacles.laws()['clothoid']
+    report.check('the clothoid within her arc (%.2f /m), its rate her arc over a step (%.2f /m s)' % (c['kappa-max'], c['dkappa-max']),
+                 math.isclose(c['kappa-max'], 1.0 / route.ARC_M, abs_tol=0.01)
+                 and math.isclose(c['dkappa-max'], 1.0 / route.ARC_M / (0.5 * se2.BRAKE_S), abs_tol=0.01), str(c))
+
+
+ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart)
 
 
 def main(argv=None):

@@ -298,15 +298,6 @@ def _turned(yaw):
     return ((math.cos(yaw), 0.0, math.sin(yaw)), (0.0, 1.0, 0.0), (-math.sin(yaw), 0.0, math.cos(yaw)))
 
 
-def _laid(x, z, yaw=0.0):
-    """`g` as `route.planned` reads it: her place, her heading, her rhythm at rest."""
-    from machine import edge, latent
-    sense = np.zeros(edge.SENSED)
-    sense[edge.QUAT] = (math.cos(yaw / 2.0), 0.0, math.sin(yaw / 2.0), 0.0)
-    return {'world': SimpleNamespace(data=SimpleNamespace(qpos=np.array([x, 0.0, z]))), 'sense': sense,
-            'st': np.zeros(latent.STATE)}
-
-
 def _bent(curve):
     """Her curve's sharpest bend, 1/m: its chords' turn over their length."""
     d = np.diff(curve[:, :2], axis=0)
@@ -315,11 +306,11 @@ def _bent(curve):
 
 
 def test_her_way_walked_through(report):
-    """Her way to the chair's and the bed's stages from house.py's spots on the lodge's cells: every
-    corridor holds no blocked cell's centre and the next overlaps it, every curve's samples lie in
-    free cells and bend within her arc, her last stop her stage; to a walled-off goal and from
-    inside a grown prop her stops are `route.way`'s corners, no curve; a plan within a look of her
-    eyes (`sight.LOOK_S`), timed."""
+    """Her way to the chair's and the bed's stages from house.py's spots on the lodge's cells, costed and
+    opened before the dock's face (`route.costs`): every corridor holds no blocked cell's centre and the
+    next overlaps it, every curve's samples lie in free cells and
+    bend within her arc, her last stop her stage; to a walled-off goal and from inside a grown prop her
+    stops are `route.way`'s corners, no curve; a plan within a look of her eyes (`sight.LOOK_S`), timed."""
     from machine import dock, furniture, maneuver, physics, route, sight, worker
     from tools.sim import house
     physics.ROOM, physics.SIGHT = 1.0, 0.0
@@ -327,41 +318,47 @@ def test_her_way_walked_through(report):
     g = s['g']
     while g['t'] < 0.1:
         worker.stepped(s)
-    cells = route.blocked(g)
-    at = route.centres(cells)
+    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+    here = (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
     held, inside, overlap, off, bent, last, walked, kept, took = [], 0, True, 0, 0.0, True, 0, 0, []
     for verb in ('sit_chair', 'lie_bed'):
-        to = (dock.docked(g, verb, furniture.nearest(g, verb)[6], maneuver.standoff(verb)) or {'stage': (math.nan,) * 2})['stage']
+        found = furniture.nearest(g, verb)
+        laid = dock.docked(here, g['things'], floor, verb, found[6], maneuver.standoff(verb)) or {'stage': (math.nan,) * 2, 'face': None}
+        to = laid['stage']
+        box = found[6]
+        cost = route.costs(g['things'], floor, None, int(box[4]) if box is not None else -1, laid['face'])
+        cells = np.isinf(cost)
+        at = route.centres(cells)
         for x, z in house.spots():
-            g_at = _laid(x, z)
-            corners = route.way(g_at, to, cells)
+            corners = route.way((x, z), to, cost)
             walls = [route.corridor(at, a, b) for a, b in route.carried(cells, [(x, z)] + corners)]
             inside += sum(int(((at @ A.T) < b).all(axis=1).sum()) for A, b in walls)
             overlap = overlap and all(_meets(w0, w1) for w0, w1 in zip(walls, walls[1:]))
             t0 = time.perf_counter()
-            stops, curve, held = route.planned(g_at, to, cells, held)
+            stops, curve, held = route.planned((x, z), 0.0, True, to, cost, held)
             took.append(time.perf_counter() - t0)
             off += sum(int(cells[route._cell(px_, pz_)]) for px_, pz_ in curve[:, :2])
             bent = max(bent, _bent(curve) if len(curve) > 2 else 0.0)
             last = last and stops[-1] == to and stops == corners[len(corners) - len(stops):]
             walked += len(corners) - len(stops)
             kept += len(stops) - 1
-    report.check('no corridor holds a blocked cell\'s centre, each meets the next', inside == 0 and overlap,
+    report.check("no corridor holds a blocked cell's centre, each meets the next", inside == 0 and overlap,
                  '%d centres inside' % inside)
-    report.check('the curves\' samples all in free cells, bent within her arc', off == 0 and bent <= 1.0 / route.ARC_M,
+    report.check("the curves' samples all in free cells, bent within her arc", off == 0 and bent <= 1.0 / route.ARC_M,
                  '%d samples blocked, %.3f/m of %.3f' % (off, bent, 1.0 / route.ARC_M))
-    report.check('her stops `way`\'s corners she does not walk through, her stage last', last,
+    report.check("her stops `way`'s corners she does not walk through, her stage last", last,
                  '%d corners walked through, %d kept' % (walked, kept))
     report.check('a plan within a look (%.1f s)' % sight.LOOK_S, max(took) < sight.LOOK_S,
                  'median %.1f ms, most %.1f ms over %d plans' % (1e3 * float(np.median(took)), 1e3 * max(took), len(took)))
+    cells = route.blocked(g['things'], floor)
     walled = cells.copy()
     goal = route._cell(-0.2, 1.4)
     walled[goal[0] - 3:goal[0] + 4, goal[1] - 3:goal[1] + 4] = True
     walled[goal[0] - 2:goal[0] + 3, goal[1] - 2:goal[1] + 3] = False
     edge_ = [(-1.9, -1.0), (1.5, 0.8)]
-    same = [(route.planned(_laid(*p), to_, c)[:2], route.way(_laid(*p), to_, c)) for p, to_, c in (
-        (edge_[0], route._centre(*goal), walled), (edge_[1], (-0.35, 1.8), cells))]
-    report.check('to a walled-off goal and from inside the chair\'s grown cells, `way`\'s corners, no curve',
+    same = [(route.planned(p, 0.0, True, to_, c)[:2], route.way(p, to_, c)) for p, to_, c in (
+        (edge_[0], route._centre(*goal), np.where(walled, np.inf, 1.0)), (edge_[1], (-0.35, 1.8), np.where(cells, np.inf, 1.0)))]
+    report.check("to a walled-off goal and from inside the chair's grown cells, `way`'s corners, no curve",
                  all(stops == way and not len(curve) for (stops, curve), way in same),
                  [(stops, len(curve), way) for (stops, curve), way in same])
 

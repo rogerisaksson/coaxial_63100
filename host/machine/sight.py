@@ -268,12 +268,16 @@ def _nearest_free(blocked, cell):
     return (int(free[k][0]), int(free[k][1]))
 
 
-def _astar(blocked, start, goal):
-    nx, nz = blocked.shape
+def _astar(cost, start, goal):
+    """The cells from `start` to `goal` of least cost, `cost` (nx, nz) a metre's through each, inf blocked:
+    eight ways, a step its length times its two cells' mean cost, no diagonal past a blocked cell; []
+    where none. Each cell costs 1 at least: the straight distance is its heuristic."""
+    nx, nz = cost.shape
+    c_ = cost.tolist()
     root2 = math.sqrt(2.0)
     steps = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
              (1, 1, root2), (1, -1, root2), (-1, 1, root2), (-1, -1, root2)]
-    came, cost = {start: None}, {start: 0.0}
+    came, spent = {start: None}, {start: 0.0}
     todo = [(math.dist(start, goal), start)]
     while todo:
         _f, here = heapq.heappop(todo)
@@ -285,34 +289,38 @@ def _astar(blocked, start, goal):
             return path[::-1]
         for di, dj, w in steps:
             nxt = (here[0] + di, here[1] + dj)
-            if not (0 <= nxt[0] < nx and 0 <= nxt[1] < nz) or blocked[nxt]:
+            if not (0 <= nxt[0] < nx and 0 <= nxt[1] < nz) or math.isinf(c_[nxt[0]][nxt[1]]):
                 continue
-            if w > 1.0 and (blocked[here[0] + di, here[1]] or blocked[here[0], here[1] + dj]):
+            if w > 1.0 and (math.isinf(c_[here[0] + di][here[1]]) or math.isinf(c_[here[0]][here[1] + dj])):
                 continue
-            c = cost[here] + w
-            if c < cost.get(nxt, math.inf):
-                cost[nxt], came[nxt] = c, here
+            c = spent[here] + w * 0.5 * (c_[here[0]][here[1]] + c_[nxt[0]][nxt[1]])
+            if c < spent.get(nxt, math.inf):
+                spent[nxt], came[nxt] = c, here
                 heapq.heappush(todo, (c + math.dist(nxt, goal), nxt))
     return []
 
 
-def _clear(blocked, a, b):
-    """Whether the straight line of cells from `a` to `b` is free."""
+def _line(a, b):
+    """The cells of the straight line from `a` to `b`, a cell a sample."""
     n = max(abs(b[0] - a[0]), abs(b[1] - a[1]), 1)
-    for k in range(n + 1):
-        i = int(round(a[0] + (b[0] - a[0]) * k / n))
-        j = int(round(a[1] + (b[1] - a[1]) * k / n))
-        if blocked[i, j]:
-            return False
-    return True
+    return [(int(round(a[0] + (b[0] - a[0]) * k / n)), int(round(a[1] + (b[1] - a[1]) * k / n))) for k in range(n + 1)]
 
 
-def _pruned(blocked, path):
-    """The path's corners: each the furthest cell seen straight from the one before."""
+def _cuts(cost, a, b, most):
+    """Whether the straight line from cell `a` to `b` is free and its dearest cell costs `most` or less."""
+    on = [float(cost[c]) for c in _line(a, b)]
+    return max(on) <= most + 1e-9
+
+
+def _pruned(cost, path):
+    """The path's corners: each the furthest cell straight from the one before whose line's dearest
+    cell is no dearer than the path's it cuts (`_cuts`): no nearer her things than the way it
+    replaces; at a cost of 1 each, the furthest seen free."""
     out, i = [path[0]], 0
+    on = [float(cost[c]) for c in path]
     while i < len(path) - 1:
         j = len(path) - 1
-        while j > i + 1 and not _clear(blocked, path[i], path[j]):
+        while j > i + 1 and not _cuts(cost, path[i], path[j], max(on[i:j + 1])):
             j -= 1
         out.append(path[j])
         i = j
@@ -334,5 +342,6 @@ def plan(blocked, at, to):
     if not all(0 <= c[0] < blocked.shape[0] and 0 <= c[1] < blocked.shape[1] for c in cells):
         return []
     start, goal = (c if not blocked[c] else _nearest_free(blocked, c) for c in cells)
-    path = _astar(blocked, start, goal)
-    return [(X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M) for i, j in _pruned(blocked, path)[1:]] if path else []
+    cost = np.where(blocked, np.inf, 1.0)
+    path = _astar(cost, start, goal)
+    return [(X_M[0] + (i + 0.5) * CELL_M, Z_M[0] + (j + 0.5) * CELL_M) for i, j in _pruned(cost, path)[1:]] if path else []

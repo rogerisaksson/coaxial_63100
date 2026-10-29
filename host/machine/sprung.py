@@ -5,7 +5,7 @@
 """
 import math
 import os
-from machine import mechatronics, affordance, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, se2, situation, supervisor, touch
+from machine import mechatronics, affordance, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, planner, se2, situation, supervisor, touch
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -133,7 +133,8 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
          'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
-         'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None}
+         'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
+         'planner': planner.Here()}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g

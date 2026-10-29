@@ -62,11 +62,13 @@
              :export-kkt-multipliers-to-wayfinder true)))))
 
 (defprimitive gate-affordance-contact-permeability
-  [state &key (approach-window-mm 160.0) (preserve-tangential-guard true)]
+  [state &key (approach-window-mm 160.0) (preserve-tangential-guard true)
+              (allow-contact-zones []) (target-object-id :active-interaction-quadric)]
   (-> state
       (modulate-ecbf-permeability-mask
         :active-contact-manifolds :live-and-scheduled-patches
-        :target-quadric-slot      :active-interaction-quadric
+        :allowed-contact-zones    allow-contact-zones
+        :target-quadric-slot      target-object-id
         :normal-attenuation-ramp-m (* 0.001 approach-window-mm)
         :unscheduled-limb-protection 1.00
         :keep-self-collision-active  preserve-tangential-guard)))
