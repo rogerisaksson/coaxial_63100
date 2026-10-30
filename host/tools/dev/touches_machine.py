@@ -38,6 +38,7 @@ MACHINE = (
     ('host/machine/identify/campaign.py',               (STRUCTURE, SYSID, SYSID_LIVE, NATIVE_SYSID)),
     ('host/machine/identify/identified.py',             (STRUCTURE, SYSID, SYSID_LIVE, WBC, WBC_CORE)),
     ('host/machine/identify/wear.py',                   (STRUCTURE, WEAR)),
+    ('host/machine/process/worn.py',                    (STRUCTURE, WEAR)),
     ('host/machine/senses/situation.py',              (STRUCTURE, SITUATION, FLOOR, SCENES, REPLAYS)),
     ('host/machine/texts/takes.npz',                 (SCENES, ERRANDS)),
     ('host/machine/texts/dsp.py',                    (STRUCTURE, DSP, TUNE)),

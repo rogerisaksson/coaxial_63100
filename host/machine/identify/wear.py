@@ -5,6 +5,7 @@
     wear.step(w, got)                                    # the filter walked the window on and corrected
     wear.boxed(w, ys, taus, dt)                          # her boxes' play, wind-up and zero off the window
     wear.loaded(w, g)                                    # the load laid onto her law's model and frame
+    wear.landed(w, wear.deltas(w), g)                    # the same apart: read, then laid (`worn`)
     wear.told(w)                                         # the load, each drift, the alarms, the service
 
 A load rides a SITE as a mass and where it hangs (a first moment), or her torso as her insoles
@@ -278,9 +279,13 @@ def boxed(w, ys, taus, dt):
 
 
 def loaded(w, g=None):
-    """The load identified in `w` - her hands' where past SIGMAS of their doubt, her torso's where
-    past HUNG_KG - laid over `w['body']` from her build (`identified.correct`), and onto `g['fr']`
-    (her weight, her hips' share and her modal masses) when `g` is given; the links touched."""
+    """The load identified in `w` (`deltas`) laid over her (`landed`): the links touched."""
+    return landed(w, deltas(w), g)
+
+
+def deltas(w):
+    """{name: correction} of the load identified in `w` - her hands' where past SIGMAS of their doubt,
+    her torso's where past HUNG_KG - over `w['body']` as it stands, from her build: what `landed` lays."""
     import numpy as np
     lay, body, nominal = w['lay'], w['body'], w['nominal']
     theta = w['z'] * w['unit']
@@ -292,7 +297,7 @@ def loaded(w, g=None):
         loads[site] = (mass, h) if mass > max(HUNG_KG, SIGMAS * float(doubt[4 * s])) else (0.0, np.zeros(3))
     t_mass, t_where = w['torso']
     loads['torso'] = (float(t_mass), float(t_mass) * np.asarray(t_where, float)) if t_mass > HUNG_KG else (0.0, np.zeros(3))
-    deltas = {}
+    out = {}
     for site, (dm, dh) in loads.items():
         k = int(lay['col'][body.m.body(site).id])
         was = nominal[k:k + 10]
@@ -304,9 +309,16 @@ def loaded(w, g=None):
         if float(np.max(np.abs(diff))) > 1e-12:
             for p, d in enumerate(diff):
                 if abs(float(d)) > 1e-12:
-                    deltas[lay['names'][k + p]] = float(d)
-    touched = identified.correct(body, deltas)
-    if g is not None and deltas:
+                    out[lay['names'][k + p]] = float(d)
+    return out
+
+
+def landed(w, moved, g=None):
+    """`moved` ({name: correction}, `deltas`) laid over `w['body']` (`identified.correct`), and onto
+    `g['fr']` (her weight, her hips' share and her modal masses) when `g` is given; the links touched."""
+    body = w['body']
+    touched = identified.correct(body, moved)
+    if g is not None and moved:
         m = body.m
         mass = float(m.body_subtreemass[body.pelvis])
         limb = float(m.body_subtreemass[m.body('left_hip_yaw').id])

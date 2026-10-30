@@ -4,7 +4,7 @@ put in her hand read with no alarm and laid into her law, the filter in her work
 a knee's friction doubled, a hip's torque an amp down a fifth and a slipped encoder zero named and
 nothing else, the load still read; on the boxed stand a box's play doubled and a slipped encoder
 zero named; standing on her insoles, a load on her back read and laid into her law; the hours run
-and the service left in what she tells."""
+and the service left in what she tells; her windows read apart landing as they land here."""
 import os
 import sys
 
@@ -184,9 +184,55 @@ def test_a_load_on_her_back_is_read_off_her_insoles(report):
                      read_kg, np.round(told['load']['torso'][1], 3), law_dm, law_dw))
 
 
+#: Her walk carrying LOAD_KG from pass LOADED_AT, the first window's landed, to APART_S: two windows read.
+LOADED_AT, APART_S = 4600, 9.0
+
+
+def _carried(apart):
+    """Her walk to APART_S, LOAD_KG put in her left hand at pass LOADED_AT, her wear's windows here or apart
+    (`machine.process.worn`): (her passes' hash, each landing's pass and hand load, her law's hand mass,
+    whether she stood, whether every window was read apart)."""
+    import hashlib
+    from machine.process import worker, worn
+    s = worker.session(walks=True)
+    g, world = s['g'], s['g']['world']
+    hand = world.model.body('left_hand').id
+    if apart:
+        s['worn'] = worn.Apart(worker.DT).start()
+        s['worn'].laid(s['wear'])
+    h, d, landed, was = hashlib.sha1(), world.data, [], s['wear_told']
+    while g['t'] < APART_S - 1e-9 and s['fallen_at'] is None:
+        if s['passes'] == LOADED_AT:
+            _changed(world, lambda m: m.body_mass.__setitem__(hand, m.body_mass[hand] + LOAD_KG))
+        worker.stepped(s)
+        for a in (d.qpos, d.qvel, d.ctrl, g['out'], g['y'], s['torque']):
+            h.update(a.tobytes())
+        if s['wear_told'] is not was:
+            was = s['wear_told']
+            landed.append((s['passes'], was['load']['left_hand'][0]))
+    stood, read = s['fallen_at'] is None, getattr(s['worn'], 'aside', None) is not None
+    s['worn'].close()
+    return h.hexdigest(), landed, float(g['body'].m.body_mass[g['body'].m.body('left_hand').id]), stood, read
+
+
+def test_her_wear_apart_lands_as_here(report):
+    """Her walk carrying LOAD_KG from LOADED_AT, her wear's windows read here and apart (`worn.Here`,
+    `worn.Apart`): each window's load laid on her LAND passes after it shut, the same load the same pass,
+    her law the same and her every pass the same bits; apart, every window read there."""
+    from machine.process import worn
+    here, apart = _carried(False), _carried(True)
+    shut = [k - worn.LAND for k, _load in here[1]]
+    report.check('her wear here and apart: %.2f kg laid into her law at passes %s, each LAND after its window shut, bit for bit' % (
+        here[1][-1][1] if here[1] else float('nan'), [k for k, _load in here[1]]),
+                 here[:3] == apart[:3] and here[3] and apart[3] and apart[4] and len(here[1]) == 2
+                 and all(k % 4000 == 1 for k in shut) and here[1][-1][1] > 0.2 * LOAD_KG,
+                 'here %s, stood %s; apart %s, stood %s, read apart %s' % (here[1], here[3], apart[1], apart[3], apart[4]))
+
+
 ROSTER = (test_a_load_is_read_and_her_wear_named,
           test_a_box_played_out_and_a_zero_slipped_are_named,
-          test_a_load_on_her_back_is_read_off_her_insoles)
+          test_a_load_on_her_back_is_read_off_her_insoles,
+          test_her_wear_apart_lands_as_here)
 
 
 def main(argv=None):

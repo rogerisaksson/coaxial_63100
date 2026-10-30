@@ -5,7 +5,7 @@ import math
 import os
 import queue
 import time
-from machine.process import apart, placed, sprung
+from machine.process import apart, placed, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
 from machine.texts import ortho
@@ -272,7 +272,7 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0
     s = {'every': every, 'walks': walks, 'gym_name': sprung.GYMS[0], 'gym': sprung.entries(texts=texts, suite=suite),
          'texts': texts, 'suite': suite, 'each': [], 'links': [],
          'refused': None, 'epoch': -1, 'ratio': 1.0, 'headroom': 1.0, 'heard': heard or (lambda entry: None),
-         'ber': ber}
+         'ber': ber, 'worn': worn.Here(DT)}
     s['says'] = [s['gym_name']] + [entry[0] for entry in s['gym']]
     laid(s)
     return s
@@ -293,7 +293,8 @@ def laid(s):
     edge.noise(g['world'], s['ber'], seed=s['epoch'] + 2)
     n = len(g['world'].peak)
     s.update(fallen_at=None, shutdown=None, torque=np.zeros(n), power=np.zeros(n), watts=0.0, epoch=s['epoch'] + 1,
-             passes=0, wear=wear.laid(g['body']), ys=[], taus=[], wearing=None)
+             passes=0, wear=wear.laid(g['body']))
+    s['worn'].laid(s['wear'])
     s['wear_told'] = wear.told(s['wear'])
     s['heard']((s['epoch'], 0, g['t'], {'laid': {'every': s['every'], 'walks': s['walks'], 'gym': s['gym_name'],
                                                  'room': physics.ROOM, 'sight': physics.SIGHT}}))
@@ -319,7 +320,8 @@ def apply(s, command):
             command, s['refused'] = dict(command, entries=sprung.entries(command['text'])), None
         heard(s['g'], s['gym'], command)
         if 'scenario' in command:
-            s['fallen_at'], s['ys'], s['taus'] = None, [], []
+            s['fallen_at'] = None
+            s['worn'].emptied()
     except (SyntaxError, MachineError) as error:
         s['refused'] = str(error)
 
@@ -346,29 +348,25 @@ def stepped(s):
         if s['fallen_at'] is None:
             _errand().step_errand(g, s['gym'], heard, heard_say)
             sprung.passed(g, DT)
-            ys, taus = s['ys'], s['taus']
-            ys.append(g['sense'].copy())
-            taus.append(world.motor.copy())
-            if len(ys) > WINDOW_STEPS:
-                s['wearing'] = wear.wearing(s['wear'], ys, taus[:-1], DT, g)
-                s['ys'], s['taus'] = [ys[-1]], [taus[-1]]
+            if s['worn'].put(g['sense'], world.motor):
+                s['worn'].shut(s['passes'])
         else:
             # fallen she lies with her drives let go, as the bench's STO drops them: driven on
             # through the fall the rest law fought the ground - 1 658 deg/s, 3 793 N into it
             # supine, 40 deg/s and 45 N let go - the spasm of every fall and tipped lie.
-            s['ys'], s['taus'], g['surety'] = [], [], 0.0
+            s['worn'].emptied()
+            g['surety'] = 0.0
             edge.felt(world, g['sense'])
             edge.off(world)
             g['t'] += DT
             world.advance()
-        if s['wearing'] is not None:
-            # a part of her wear's window a pass: in one the window held her world 0.12 s
+        if s['worn'].due_at is not None:
+            # a part of her wear's window a pass, or its read apart; its load laid LAND passes on (`worn`):
+            # in one pass the window held her world 0.12 s
             t_wear = time.perf_counter()
-            try:
-                next(s['wearing'])
-            except StopIteration:
-                s['wearing'] = None
-                s['wear_told'] = wear.told(s['wear'])
+            said = s['worn'].due(s['passes'], g)
+            if said is not None:
+                s['wear_told'] = said
             s['_wear_s'] = time.perf_counter() - t_wear
     except BusFault as fault:
         s['shutdown'], s['fallen_at'] = str(fault), g['t']
@@ -433,6 +431,8 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     s['g']['planner'], s['g']['vision'] = planner.Planner(), vision.Apart()
     s['g']['planner'].start()
     s['g']['vision'].start()
+    s['worn'] = worn.Apart(DT).start()
+    s['worn'].laid(s['wear'])
     if os.environ.get(TELEMETRY):
         from machine.process import introspect
         introspect.attach(s, int(os.environ[TELEMETRY]))
