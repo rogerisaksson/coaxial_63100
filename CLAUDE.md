@@ -96,7 +96,7 @@ Evaluate the prompt and working tree before invoking any tool:
 [STATE 2 GATE: ROOT CAUSE & INVARIANT PROOF]
 - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
-- Generated File: [NO (safe to edit) OR YES (must edit generator script)]
+- Generated File: [NO (safe to edit) OR YES (create)]
 - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
 - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
 - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
