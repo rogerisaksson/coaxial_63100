@@ -69,11 +69,19 @@ def _put(into, item):
 def forms(text):
     """The text's forms: lists, vectors as tuples, keywords and symbols as strings, numbers, a
     quoted form (quote form)."""
+    return list(heads(text))
+
+
+def heads(text):
+    """The text's forms (`forms`) one at a time, each as it closes - a quote's mark once a form
+    takes it, or the text ends: a text's head read without the rest."""
     stack = [[]]
+    top = stack[0]
     for tok, _start, _end in spans(text):
         if tok in ('(', '['):
             stack.append([] if tok == '(' else ['[]'])
-        elif tok in (')', ']'):
+            continue
+        if tok in (')', ']'):
             if len(stack) == 1:
                 raise SyntaxError('a %s closes nothing' % tok)
             done = stack.pop()
@@ -82,9 +90,11 @@ def forms(text):
             _put(stack[-1], [QUOTES[tok[0]], _atom(tok[1:])])
         else:
             _put(stack[-1], _atom(tok))
+        if len(stack) == 1 and not (isinstance(top[-1], str) and top[-1] in QUOTES):
+            yield top.pop()
     if len(stack) != 1:
         raise SyntaxError('%d forms left open' % (len(stack) - 1))
-    return stack[0]
+    yield from top
 
 
 def morph(dry, wet, bands, clock, bars=2.0):

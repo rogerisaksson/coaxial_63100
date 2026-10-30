@@ -14,7 +14,7 @@ def ordered(paths):
     found, out = {}, []
     for path in paths:
         with open(path, encoding='utf-8') as f:
-            head = next(form for form in patch.forms(f.read()) if form[0] == 'defpackage')
+            head = next(form for form in patch.heads(f.read()) if form[0] == 'defpackage')
         found[head[1]] = (path, [u for clause in head[2:] if clause[0] == ':use' for u in clause[1:] if u not in LANGUAGE])
 
     def after(name, seen=()):
