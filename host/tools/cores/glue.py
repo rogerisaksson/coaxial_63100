@@ -5,13 +5,14 @@
     walk = glue.walk(bound, todo)     # args -> whether each leaf fits, its extern addressed (`Bound.fits`)
 
 Each a Python function of straight lines, its paths, shapes and places constants of the build: a loop
-over them a call had walked 1 us a leaf (`tools.cores.bodied.Bound`).
+over them a call had walked 1 us a leaf (`tools.cores.bodied.Bound`). The walk in C where the host
+builds it (`tools.cores.quick`), these lines its fallback.
 """
 from collections.abc import Callable
 
 import numpy as np
 
-from tools.cores import layout
+from tools.cores import layout, quick
 from tools.cores.wbc import address
 
 #: numpy's float64, the dtype an extern is.
@@ -93,7 +94,8 @@ def head(b):
 
 def walk(b, todo):
     """Bound `b`'s fits over its leaves `todo`: each found by its path; a float a scalar of its own;
-    the array laid last kept, a fresh float array of its shape addressed, else `Bound.leaf`."""
+    the array laid last kept, a fresh float array of its shape addressed, else `Bound.leaf` - in C
+    (`quick.walker`) where it is built, these lines where it gives up."""
     consts, lines = [], []
 
     def put(x):
@@ -111,5 +113,6 @@ def walk(b, todo):
         lines += ['            if type(a) is ndarray and a.dtype is F64 and a.shape == %s and a.flags.c_contiguous:' % s,
                   '                seen[%d] = a' % j, '                words[%d] = address(a)' % i,
                   '            elif not leaf(%d, a):' % j, '                return False']
-    return _written('walk', lines, consts, {'seen': b.seen, 'words': b.words, 'scalars': b.scalars, 'own_at': b.own_at,
+    slow = _written('walk', lines, consts, {'seen': b.seen, 'words': b.words, 'scalars': b.scalars, 'own_at': b.own_at,
                                             'leaf': b.leaf, 'ndarray': np.ndarray, 'F64': F64, 'address': address})
+    return quick.walker(b, todo, slow) or slow

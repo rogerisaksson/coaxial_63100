@@ -119,7 +119,10 @@ def building(source, name, matmul, solves=False):
 
 
 def _builds():
-    """This process's builds one after another, while any are queued."""
+    """This process's builds one after another, while any are queued - the glue's extension first
+    (`quick`), so a part held is called through it and no build of it waits in her loop."""
+    from tools.cores import quick
+    quick.module()
     while True:
         with _LOCK:
             if not _QUEUE:

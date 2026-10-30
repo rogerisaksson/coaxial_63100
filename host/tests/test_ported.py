@@ -2,8 +2,9 @@
 """Her law's parts ported to C by hand beside their python (`tools.cores.surety`, `touch`, `twist`,
 `wait`, `brace`): each at every pass of her law over PASSES of her walk, on copies of her arrays,
 bit for bit - her surety field, her touch's filter, her twist's step, her table's waits, her
-surety's brace on the solve - and each step's time beside its python's. Where numpy's arithmetic
-is not this C's (`motion.exact_host`), within the last bits. The tracer's parts: test_compiled."""
+surety's brace on the solve - and each step's time beside its python's; her parts' leaves laid in
+C as Python lays them (`tools.cores.quick`). Where numpy's arithmetic is not this C's
+(`motion.exact_host`), within the last bits. The tracer's parts: test_compiled."""
 import os
 import sys
 import time
@@ -288,11 +289,58 @@ def test_her_brace_in_c_as_she_walks(report, c):
     report.check("a blend of her brace in C on this host", us[0] < 40.0, '%.1f us, its python %.0f' % tuple(us))
 
 
+def _leaves(x, d, s):
+    """An array, a dict's two and a number: a walk's every kind of leaf."""
+    return x * s + d['a'] - d['b'].sum()
+
+
+def test_her_leaves_laid_in_c_as_in_python(report, c):
+    """`_leaves` on her memory (`bodied.on_args`), its walk ported to C (`tools.cores.quick`) beside the lines
+    it gives up to (`glue.walk`'s): fresh arrays, a strided and a bool array and an int handed to Python, a
+    shape not traced, a key not there - the same answer, table, scalars and own blocks; called, numpy's bits."""
+    from tools.cores import bodied, glue, quick
+    from tools.cores.orders import same
+    if quick.module() is None:
+        report.check('her glue in C built here', False, 'quick stays python')
+        return
+    rng = np.random.default_rng(43)
+    x, d = rng.normal(size=4), {'a': rng.normal(size=4), 'b': rng.normal(size=3)}
+    part = bodied.on_args(_leaves, 'leaves', (0, 1, 2))
+    b = part.wait(x, d, 0.5)
+    walker, quick.walker = quick.walker, lambda bound, todo, slow: None
+    try:
+        slow = glue.walk(b, b.all_args)
+    finally:
+        quick.walker = walker
+    fast, words, owns = glue.walk(b, b.all_args), b.words.copy(), [o for o in b.own if o is not None]
+    fits = {'fresh': (rng.normal(size=4), {'a': rng.normal(size=4), 'b': rng.normal(size=3)}, 1.5),
+            'strided': (rng.normal(size=8)[::2], d, 0.25), 'bool': (rng.normal(size=4) > 0.0, d, 2.0),
+            'an int': (x, d, 2)}
+    cases = dict(fits, **{'a shape not traced': (rng.normal(size=5), d, 0.5), 'a key not there': (x, {'a': d['a']}, 0.5)})
+    apart = []
+    for name, args in cases.items():
+        laid = []
+        for walk in (fast, slow):
+            b.seen[:], b.words[:] = [None] * len(b.seen), words
+            for o in owns:
+                o[...] = 0.0
+            laid.append((walk(args), b.words.copy(), [o.copy() for o in owns]))
+        (ok, w, o), (ok2, w2, o2) = laid
+        if ok != ok2 or (ok and not (np.array_equal(w, w2) and all(map(np.array_equal, o, o2)))):
+            apart.append(name)
+    b.words[:] = words
+    called = [same(part(*args), _leaves(*args)) for args in fits.values()]
+    report.check("her leaves laid in C as Python lays them, %d cases; called, numpy's bits" % len(cases),
+                 not apart and all(called) and part.c is not None and part.why is None,
+                 'apart %s; called %s; why %s' % (apart, called, part.why))
+
+
 ROSTER = (test_her_surety_in_c_as_she_walks,
           test_her_touch_in_c_as_she_walks,
           test_her_twist_in_c_as_she_walks,
           test_her_waits_in_c_as_she_walks,
-          test_her_brace_in_c_as_she_walks)
+          test_her_brace_in_c_as_she_walks,
+          test_her_leaves_laid_in_c_as_in_python)
 
 
 def main(argv=None):

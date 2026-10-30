@@ -21,7 +21,7 @@ import time
 
 import numpy as np
 
-from tools.cores import emit, glue, held, layout, trace, trace_mj
+from tools.cores import emit, glue, held, layout, quick, trace, trace_mj
 from tools.cores.glue import F64
 from tools.cores.wbc import address
 
@@ -325,10 +325,11 @@ class Bound:
 
     """A build's C on her memory: its workspace laid once; her body's externs, her model's, her data's
     and MuJoCo's addresses where bound; its arguments' addressed at each call; fn's result laid back
-    of a fresh output block a call."""
+    of a fresh output block a call - called and read through `quick` where it is built."""
 
     def __init__(self, lib, cfn, prog, info, specs=(), body=None, sources=None):
         self.lib, self.cfn, self.prog, self.at, self.sources = lib, cfn, prog, body, sources or {}
+        self.call, self.block_at = quick.caller(cfn) or cfn, quick.addressing()
         self.consts = list(prog.consts.items())
         index = {e.name: i for i, e in enumerate(prog.externs)}
         written = {b.id for st in prog.statements for b in layout.writes(st)}
@@ -463,13 +464,13 @@ class Bound:
 
     def __call__(self, args):
         if not self.total:
-            if self.cfn(None, None, *self.fixed):
+            if self.call(None, None, *self.fixed):
                 raise np.linalg.LinAlgError('Singular matrix')
             self.last = (None, None)
             return None
         flat = np.empty(self.total)
-        at = address(flat)
-        if self.cfn(None, at, *self.fixed):
+        at = self.block_at(flat)
+        if self.call(None, at, *self.fixed):
             raise np.linalg.LinAlgError('Singular matrix')
         got = self.made(flat, args)
         self.last = (got, at)
