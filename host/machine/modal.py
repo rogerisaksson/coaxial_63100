@@ -338,7 +338,10 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     pose = posture + bend * a[BEND] + arms * a[SWUNG] + reaches * a[REACHED] + folds * a[ELBOWED]
     pose[list(knees)] += a[STANCE] * a[PREFOLD]
     pose[CHAIN] += w[ISCHIAL] * (seat(y, fr, pose) - pose[CHAIN])
-    turns = _turned(fr[HEADING] + a[HEADED], a[WANT], a[ROLLED])
+    dorsal = a[BORNE] * clip((-a[WANT][1] - 0.35) / (0.85 - 0.35), 0.0, 1.0)
+    headed = (1.0 - dorsal) * a[HEADED] + dorsal * (0.5 * np.pi / 0.6) * a[HEADED][0]
+    rolled = (1.0 - dorsal) * a[ROLLED] * (np.cos(headed) ** 2)
+    turns = _turned(fr[HEADING] + headed, a[WANT], rolled)
     tips = _turned(fr[HEADING] + 0.0 * a[TIPPED], a[TIPPED], 0.0 * a[TIPPED])
     return sw_at, pose, turns, tips
 

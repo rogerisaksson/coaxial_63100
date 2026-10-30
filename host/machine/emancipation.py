@@ -44,7 +44,7 @@ FREE = (SHED[1], 1.0)
 LEG_M = maneuver._manifest()[1]['leg']
 #: Her comparator's release share (`observer.RELEASE`): soles told less of what is told are told nothing.
 TOLD_NOTHING = observer.RELEASE
-PLANTAR = ortho.MANIFOLDS.index('plantar')
+PLANTAR, DORSAL = ortho.MANIFOLDS.index('plantar'), ortho.MANIFOLDS.index('dorsal')
 #: Her seat's manifolds facing up (`observer.UPRIGHT`): her rows, the segment their points lie on, the kernel's CoP box
 #: for each (`anatomical-manifold-registry`'s cop-bounds, m: along her way, across).
 _REGISTRY = kernel.read()['anatomical-manifold-registry']
@@ -121,7 +121,7 @@ def told_on(obs, told, floor):
     """Which of her observer's points (`observer.POINTS`) are of what her text tells bears her besides her soles
     (`told`, `latent.MANIFOLDED`, her rows' order; her toes are her soles') within the prior's reach of the `floor`
     (`observer.REACH_M`)."""
-    return (obs['skin'] & (obs['row'] != PLANTAR) & (told[np.maximum(obs['row'], 0)] > 0.0)
+    return (~obs['soled'] & (obs['row'] != PLANTAR) & (obs['latch_of'][:, 1:] @ told[1:] > 0.0)
             & (obs['points'][:, 1] - floor <= observer.REACH_M))
 
 
@@ -134,7 +134,8 @@ def supports(s, obs, told, floor, legs, loads):
     leant her further onto her hands and over."""
     from machine.borne import LET
     held = [c for c in s.get('contacts', ()) if c['patch'] < LET]
-    said = told_on(obs, told, floor)
+    top = max(floor, float(s.get('prop', (0.0, 0.0, (0.0, 0.0, 0.0)))[2][1]), float(s['com'][1]) - 0.35)
+    said = told_on(obs, told, top)
     corners = [f['pts'] for f in s['feet']]
     pts = np.concatenate([np.array([c['p'][[0, 2]] for c in held]).reshape(-1, 2), obs['points'][said][:, [0, 2]]]
                          + [p[:, [0, 2]] for p in corners])
@@ -159,23 +160,29 @@ def step(g, s, out, told, dt):
     each leg moves - the parts in `g['emancipation']`; her legs' modes in `out` held (`g['held_ref']`) as far as a leg
     asked released is not yet free; her centre of mass's ask leant to her counterweight after (`counterweighted`)."""
     weight, floor, loads = float(g['fr'][modal.WEIGHT]), float(g['fr'][modal.FLOOR]), np.asarray(g['loads'], float)
-    iota = intent(told, out)
+    was = g.get('emancipated', np.zeros(2))
+    g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
+    bed = float(g['a'][modal.PROPPED]) * (1.0 - g['sat'])
+    kept = (1.0 - g['sat']) * float(observer.said(told)[PLANTAR] < 0.10) * (was > 0.85)
+    iota = np.maximum(intent(told, out), kept)
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
     om = np.sqrt(modal.G / max(float(c[1]) - floor, impedance.LOW_M))
     xi = c[[0, 2]] + v[[0, 2]] / om
     pts, room, soles = supports(s, g['observer'], told, floor, iota, loads)
     eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight)
-    was = g.get('emancipated', np.zeros(2))
+    aloft = (1.0 - g['sat']) * (g['y'][modal.LOWEST] - float(s['com'][1]) > -0.38) * (was > SHED[0]) * float(
+        observer.said(told)[PLANTAR] < 0.10)
+    eta = np.maximum(eta, np.maximum(kept, aloft))
     gamma = was + CLIP(iota * eta - was, -dt / RELOCK_S, dt / SLEW_S)
     g['emancipated'] = gamma
-    g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
     g['a'][modal.LET_GO] = np.maximum(window(gamma, (0.0, SHED[0])),
                                       max(told_nothing(told) * float(g['a'][modal.PROPPED]), g['sat']))
     g['unanchored'] = 1.0 - window(gamma, UNANCHOR)
     g['let_cap'] = (1.0 - window(gamma, SHED)) * weight
     leg = weight * (1.0 - 1.0 / float(g['fr'][modal.HIPS_BY]))
-    g['freed'] = window(gamma, FREE) * CLIP(1.0 - (loads - leg) / (FREED * weight), 0.0, 1.0)
+    g['freed'] = np.maximum(window(gamma, FREE) * CLIP(1.0 - (loads - leg) / (FREED * weight), 0.0, 1.0), kept)
     hold, free = float(np.max(iota * (1.0 - g['freed']))), float(np.max(g['freed']))
+    hold *= 1.0 - free
     held = g['held_ref']
     held += (1.0 - hold) * (out[latent.REF][LEGGED] - held)
     out[latent.REF][LEGGED] = held
@@ -211,7 +218,7 @@ def counterweighted(acc, g):
     pendulum's omega^2, from no further than its edge; none with nothing else bearing her. Asked of her pitch, her
     step's rows on her centre of mass held it and her trunk never leant."""
     e = g['emancipation']
-    k = int(np.argmax(e['iota']))
+    k = int(np.argmax(e['iota'] * (1.0 - 0.5 * g['freed'])))
     weight = float(g['fr'][modal.WEIGHT])
     m, edge = e['parts'][3][k] / weight, e['parts'][4][k]
     full = 2.0 * MARGIN_NM / weight
@@ -248,9 +255,15 @@ def opened(g, s, ask, dt):
     let, q, fr, a, y = g['a'][modal.LET_GO], s['q'], g['fr'], g['a'], g['y']
     rot = fr[modal.ROT].reshape(3, 3)
     leg = modal._legs(y, rot)[0]
-    g['high'] = let * g['high'] + (1.0 - let) * np.sqrt(leg[:, modal.UP] ** 2 + leg[:, modal.LEFT] ** 2)
+    up = CLIP(impedance.LIMBS * g['out'][latent.REF][modal.LIFT], 0.0, 1.0)
+    rising = float((g['out'][latent.RATE][modal.PITCH] > 0.05) & (g['out'][latent.RATE][modal.AXIAL] > 0.0))
+    lifted = (1.0 - rising) * np.maximum(g['emancipation']['iota'], g['freed'] * CLIP(float(g['told'][DORSAL]) / 0.10, 0.0, 1.0))
+    bed = let * (1.0 - g['sat'])
+    down = 0.42 * (1.0 - lifted) + 0.08 * lifted
+    g['high'] = (let * (g['high'] + dt * bed * (down - 0.04 * up - g['high']) / SLEW_S)
+                 + (1.0 - let) * np.sqrt(leg[:, modal.UP] ** 2 + leg[:, modal.LEFT] ** 2))
     cosine = np.cos(0.5 * fr[modal.KNEE]) - modal.AXIAL_M * g['out'][latent.REF][modal.AXIAL] * fr[modal.HIPS_BY] / modal.LEG_M
-    told = 2.0 * np.arccos(CLIP(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]
+    told = (1.0 - bed * (1.0 - rising)) * (2.0 * np.arccos(CLIP(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]) + 0.15 * bed * up
     said = ask['posture'][modal.CHAIN[:, 1]] + g['bend'][modal.CHAIN[:, 1]] * told
     ref = g['q_open']
     ref[modal.CHAIN[:, 1]] += dt * let * (said - ref[modal.CHAIN[:, 1]]) / SLEW_S
@@ -260,15 +273,16 @@ def opened(g, s, ask, dt):
                                 - high ** 2, 0.0))
     lean = np.arctan2(-behind, high) + np.arctan2(modal.THIGH * np.sin(knee), modal.SHANK + modal.THIGH * np.cos(knee))
     aim = fr[modal.PITCH0][0] + modal.PITCH_RAD * g['out'][latent.REF][modal.PITCH]
-    chain = np.stack([modal.FLEX[0] * (knee - lean + aim), modal.FLEX[1] * knee, modal.FLEX[2] * lean], axis=1)
+    chain = np.stack([modal.FLEX[0] * (knee - lean + aim), modal.FLEX[1] * knee,
+                      (1.0 - bed) * modal.FLEX[2] * lean + bed * g['posture'][modal.CHAIN[:, 2]]], axis=1)
     # both legs at once, each element's ops as a leg's alone (their joints apart): 20 numpy calls where 10
     joints, on = LEG_JOINTS, let[:, None]
-    target = ref[joints]
-    target[:, [2, 4]] = chain[:, [0, 2]]
+    target = (1.0 - bed[:, None]) * ref[joints] + bed[:, None] * g['posture'][joints]
+    target[:, 2:5] = chain
     ref[joints] += dt * on * (target - ref[joints]) / SLEW_S
     ref[joints] = CLIP(on * ref[joints] + (1.0 - on) * q[joints], g['q_lo'][joints], g['q_hi'][joints])
     ask['posture'][joints] = on * ref[joints] + (1.0 - on) * ask['posture'][joints]
-    ask['open'] = (OPEN['kp'], OPEN['kd'], g['freed'].copy())
+    ask['open'] = (OPEN['kp'], OPEN['kd'], g['freed'] * (1.0 - bed))
     ask['let_hold'] = 1.0 - window(g['emancipated'], SHED)
 
 
@@ -295,7 +309,8 @@ def seated(g, s):
         radii = [rr for rr, _e0, _e1 in borne.CAPSULES[edge.SKIN.index(seg)] for _ in (0, 1)]
         low = min(e[1] - rr for e, rr in zip(ends, radii)) - floor
         felt = float(any(c.get('body') == at for c in s['contacts']))
-        on = max(on, float(low <= leap.TOUCH_M), felt * float(low <= observer.REACH_M))
+        on = max(on, float(low <= leap.TOUCH_M), felt * float(low <= observer.REACH_M)) * float(
+            g.get('emancipated', np.zeros(2)).max() <= SHED[0])
         near = max(near, float(low <= observer.REACH_M))
     g['seat_on'], g['seat_near'] = on, near
     if g['sat'] <= 0.5:

@@ -100,7 +100,8 @@ def phases(name, seen=None, got=None):
           'seat': None if told is None else 1e-3 * told,
           'behind': seen[1] if seen else standoff(name, given) + 0.5 * (figure.BALL + figure.HEEL),
           'aside': seen[2] if seen else 0.0, 'turn': seen[3] if seen else 0.0, 'deep': seen[4] if seen else None,
-          'across': seen[5] if seen and len(seen) > 5 else None}
+          'across': seen[5] if seen and len(seen) > 5 else None,
+          'reclines': any(op == 'stage-sequential-manifold' for op, _p, _t in g['_events'][first:])}
     out, own = [], []
     for k, (op, p, then) in enumerate(g['_events']):
         if op not in ACTS:

@@ -14,7 +14,8 @@ from machine import acts, kernel, latent, ortho
 #: squat's height while her hands bore 0.04-0.23 - under the 0.18 that counts them -, then dropped her 21 cm in 0.4 s.
 _MELT = kernel.node('bind-wrench-driven-homotopy', 'impedance-melt')
 MELT_DB, MELT_S = _MELT['full-support-atten-db'], 1e-3 * _MELT['unloaded-rebound-rate-ms']
-LEGGED = sorted({ortho.MODES.index(m[len('mode_'):]) for node in acts.LEGS for m in acts.NODES[node]})
+LEGGED = sorted({ortho.MODES.index(m[len('mode_'):]) for node in acts.LEGS for m in acts.NODES[node]}
+                - {ortho.MODES.index('pelvis_turn'), ortho.MODES.index('limb_lift')})
 
 
 def melted(melt, share, was, dt):

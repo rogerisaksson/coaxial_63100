@@ -213,7 +213,7 @@ def control(g, dt):
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
-    ask['let_cap'], ask['sat'] = g['let_cap'], g['sat']
+    ask['let_cap'], ask['sat'] = g['let_cap'], max(g['sat'], float(g['a'][modal.BORNE]) * float(g['a'][modal.LET_GO].max()))
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
@@ -256,7 +256,8 @@ def control(g, dt):
     _told(g)
     w = g['weighed_w']
     kept = np.maximum(w[0], g['a'][modal.LET_GO][g['distal_side']])
-    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * kept + (1.0 - g['distal']) * (1.0 - w[2] - w[3])))
+    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * kept + (1.0 - g['distal']) * np.maximum(
+        1.0 - w[2] - w[3], kept)))
 
 
 def _told(g):

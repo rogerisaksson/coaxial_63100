@@ -307,7 +307,8 @@ def ran(name, wobble=0.0, laid=None, texts=None):
     qw, qx, qy, qz = (float(v) for v in d.qpos[3:7])
     out = {'name': name, 'stood': fell is None, 'fell_at': fell, 'goal': goal, 'aim': aim,
            'went': round(float(t[-1, 3] - t[0, 3]), 3), 'rose': round(float(t[-1, 2] - t[0, 2]), 3),
-           'rolled': round(abs(math.degrees(math.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz)))), 1),
+           'rolled': round(abs(math.degrees(math.atan2(2.0 * (qw * qz + qx * qy),
+                                                       math.hypot(1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qz - qw * qy))))), 1),
            'speed': round(float(np.linalg.norm(t[-1, 1:4] - t[-51, 1:4]) / 0.05), 3),
            'bore': {kd: round(v, 2) for kd, v in bore.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd not in ('floor', 'soles')},

@@ -34,6 +34,10 @@ NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
 #: on them as far as it pushes up her pelvis (sat; lying on her back or side the two meet at the touch).
 #: One point, a seat held her roll by nothing: sat on her pelvis alone she rolled off at 2e-4 rad.
 PELVIS = edge.SKIN.index('pelvis')
+#: Her thighs and shanks: sat on a bed's edge with her hands asked behind her (`hands > 0`) or a leg released
+#: (`let_go`), her pelvis holds the bed; holding her legs still on the mattress (`wrench.W_STILL`) locked her
+#: hip and knee joints against her recline and leg swing.
+THIGHS = tuple(edge.SKIN.index(s + p) for s in ('left_', 'right_') for p in ('thigh', 'shank'))
 #: What bears her is a surface under her skin: a bearing point's room is its segment's capsule's radius round
 #: it along the floor (CAPSULES, `figure.BODY` by its name without its side; MuJoCo gives a capsule one
 #: contact point). Points alone, sat on her pelvis its box was the ischia's line and her centre of mass was
@@ -74,10 +78,10 @@ CARPAL = 6
 LET = 3 * CARPAL
 
 
-def _points(k, push, at):
+def _points(k, push, at, pivot=False):
     """((share, point in the segment's frame), ..) of skin segment `k`'s touch `push` at `at`: one, her pelvis's
-    two ischia's (PELVIS)."""
-    if k != PELVIS:
+    two ischia's (PELVIS) unless pivoting on the bed (`pivot`)."""
+    if k != PELVIS or pivot:
         return ((1.0, at),)
     sat = float(np.clip(push[1] / max(float(np.linalg.norm(push)), 1e-9), 0.0, 1.0))
     left = float(np.clip((at[0] + figure.SEAT_X) / (2.0 * figure.SEAT_X), 0.0, 1.0))
@@ -103,6 +107,8 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     foot = {touch.SOLES[k][0]: k for k in (0, 1)}
     skin = np.concatenate([ABOVE, soled]).astype(int)
     pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
+    pivot = bool(soled) and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N
+    ischial = pivot or (hands > 0.0 and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N)
     jp, jr = b.jacs
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
@@ -119,9 +125,11 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         palms[side] += f[1] * carpal
         axis = int(np.argmax(np.abs(f)))
         patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
-        for share, local in _points(k, pushes[k], at[k]):
+        for share, local in _points(k, pushes[k], at[k], pivot):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
+            if ischial and k in THIGHS:
+                continue
             b.mj.mj_jac(m, d, jp, jr, p, ids[k])
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])

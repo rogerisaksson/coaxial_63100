@@ -101,10 +101,12 @@ def _envelope(p, at, modes, body):
     # a preload to her soles' middle, no further: 5 cm past it, the seat let her go at 0.54 m/s
     com = seated.com(at['knee'], at['ankle'], trunk, modes, body)
     targets['mode_sagittal_shift'] = min(com, 0.0) if sat else com
-    seat = {'mode_arm_swing': math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
+    reclines = seen and bool(at.get('reclines'))
+    seat = {'mode_arm_swing': 0.0 if reclines else math.copysign(p.get('appendage-counterweight', {}).get('flexion-rad', 0.0), at['aside']),
             'mode_pelvis_turn': at['turn']}
     at['swung'] = seat['mode_arm_swing'] if seen else at.get('swung', 0.0)
     targets.update({m: v * seen / modes[m][0] for m, v in seat.items()} if seen or sat else {})
+    targets.update({'mode_arm_reach': -2.8, 'mode_arm_fold': 1.8} if reclines else {})
     targets.update(dict.fromkeys(ARMS, 0.0) if sat and at.get('palmed') else {})
     targets.update({'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0]} if 'axial-counterweight' in p else {})
     # held at her rest's springs, as `_paced` paces it: on her stand's sagittal 300 her centre of mass
@@ -206,17 +208,31 @@ def _recline(p, then, at, modes, body):
     sweep = p.get('counterweight-limb-sweep', {})
     at['knee'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1]
     trunk, weighs = p['torso-pitch-ramp'][-1], _weighs(p.get('manifold-pan'))
+    spine = max(trunk, math.radians(drives.TRAVEL['spine'][0]))
+    supine = weighs is not None and weighs[0] < 0.12
+    com = seated.com(at['knee'], at['ankle'], spine, modes, body)
     targets = {'mode_axial_compression': seated.axial(at['knee'], modes, body),
                'mode_pitch_attitude': trunk / modes['mode_pitch_attitude'][0],
-               'mode_sagittal_shift': seated.com(at['knee'], at['ankle'], trunk, modes, body),
+               'mode_sagittal_shift': min(com, -1.2) if supine else com,
                'mode_pelvis_turn': p.get('axial-yaw-ramp', (0.0,))[-1] / modes['mode_pelvis_turn'][0]}
+    if 'limb-lift' in sweep:
+        targets['mode_limb_lift'] = sweep['limb-lift']
     palmed = weighs is not None and weighs[ortho.PALMAR] > 0.0
-    targets.update({'mode_arm_reach': seated.braced(trunk) * palmed / modes['mode_arm_reach'][0],
+    targets.update({'mode_arm_reach': seated.braced(spine) * palmed / modes['mode_arm_reach'][0],
+                    'mode_arm_fold': 0.2 * palmed,
                     'mode_arm_swing': 0.0} if weighs is not None else {})
-    springs = {'mode_sagittal_shift': sprung('mode_sagittal_shift', 1.0, 1.0, modes),
-               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE if palmed else 1.0, 1.0, modes)}
+    sag = (0.0, modes['mode_sagittal_shift'][2]) if supine else sprung('mode_sagittal_shift', 1.0, 1.0, modes)
+    springs = {'mode_sagittal_shift': sag,
+               'mode_pitch_attitude': sprung('mode_pitch_attitude', 1.0, 1.0, modes),
+               'mode_pelvis_turn': sprung('mode_pelvis_turn', 1.0, 1.0, modes),
+               'mode_limb_lift': sprung('mode_limb_lift', 1.0, 1.0, modes),
+               **({'mode_axial_compression': (0.0, 0.0)} if weighs is not None and weighs[BUSES[':scapular-dorsal']] >= 0.5 else {}),
+               **({'mode_arm_reach': sprung('mode_arm_reach', wrench.W_STILL / wrench.W_POSTURE if palmed else 1.0, 1.0, modes),
+                   'mode_arm_fold': sprung('mode_arm_fold', 1.0, 1.0, modes)}
                   if weighs is not None else {})}
-    return [Phase('recline', 'recline', p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
+    chain = p.get('contact-chain', ('recline',))
+    what = str(chain[-1]) if len(chain) > 1 else 'recline'
+    return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
 def _sought(p, then, at, modes, body):
