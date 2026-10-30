@@ -4,7 +4,7 @@ from coaxial.comm.protocol import LinkOp
 from coaxial.comm.wire import Reader, pack
 from coaxial.devices.subsystem import Device
 from coaxial.errors import DeviceStateError, FrameError
-from machine.roles import Endpoint
+from machine.rig.roles import Endpoint
 
 #: Every loopback pattern returned, one bit each.
 ALL_PATTERNS = (1 << len(protocol.ECHO_PATTERNS)) - 1

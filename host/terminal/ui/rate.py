@@ -5,7 +5,7 @@ import weakref
 from rich.cells import cell_len
 from rich.segment import Segment
 
-from machine import apart
+from machine.process import apart
 
 
 #: The newest frame's weight in the drawing's rate: about five frames

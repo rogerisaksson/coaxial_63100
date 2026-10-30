@@ -1,4 +1,4 @@
-/** wbc_wrench.c - her whole body's step without an active set: machine/wrench.py, row for row.
+/** wbc_wrench.c - her whole body's step without an active set: machine/stack/wrench.py, row for row.
 
     WBC_U unknowns: six a sole - the wrench it takes of the floor where it stands (m, f; world,
     about its middle), its own acceleration where it does not - and her upper body's drives'
@@ -24,13 +24,13 @@ static const double G = 9.81;
 static const double HELD_K = 50.0, CONTACT_K = 20.0, MOMENTUM_K = 3.0, HEIGHT_BAND = 3.0;
 static const double TURN_KP = 100.0, TURN_KD = 20.0, POSTURE_KP = 100.0, POSTURE_KD = 20.0;
 static const double SWING_KP = 1600.0, SWING_KD = 80.0;
-/** machine/wrench.py's: a sole's edge, m; a leg's solve's damping; the rows' weights. */
+/** machine/stack/wrench.py's: a sole's edge, m; a leg's solve's damping; the rows' weights. */
 static const double EDGE_M = 0.003, DAMP = 0.02;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
 static const double W_HEIGHT = 1.0, W_MOMENT = 0.3, W_FOLD = 3.0, W_STOP = 30.0, W_PART = 0.1;
 static const double W_AIR = 1e-3, W_PIN = 1e5;
 /* striding, a standing sole's wrench kept in the projection's metric, of its share of her weight:
-   her soles pushed against each other move her by nothing (machine/wrench.py, W_KEEP) */
+   her soles pushed against each other move her by nothing (machine/stack/wrench.py, W_KEEP) */
 static const double W_KEEP = 3.0;
 
 static double clip(double x, double lo, double hi)
@@ -392,7 +392,7 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
     memcpy(w->k, w->h, sizeof(w->k));
     memcpy(w->gk, g, NU * sizeof(double));
     /* a clipped force is held by a row, a clipped moment is its value and the rest solved
-       round it (machine/wrench.py) */
+       round it (machine/stack/wrench.py) */
     for (int c = 0; c < NU; c++)
     {
       const double pw = W_PIN * pinned[c] * part[c] * (((c < 12) && (c % 6 < 3)) ? 0.0 : 1.0);
@@ -460,7 +460,7 @@ static int solved(wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const do
       pinned[c] = (moved[c] > pinned[c]) ? moved[c] : pinned[c];
       clipped += pinned[c];
     }
-    /* an answer past her height's band after the rounds is held to its edge (machine/wrench.py) */
+    /* an answer past her height's band after the rounds is held to its edge (machine/stack/wrench.py) */
     ay = (stance[0] * at[4] + stance[1] * at[10]) / mass - G;
     if ((round == rounds - 1) && (rounds < WBC_ROUNDS + WBC_PAST) && (ask->strides == 0.0) && (grounded > 0.0)
         && (fabs(clip(ay, lo, hi) - ay) > 1e-9))

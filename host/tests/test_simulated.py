@@ -18,8 +18,8 @@ from coaxial.simulated import CHANNELS, SimulatedSession
 from coaxial.simulated.sto import PILOT_VOLTS
 from coaxial_mcp import bus as busmod
 from coaxial_mcp import tools as toolmod
-from machine import ansi
-from machine.modes import SIMULATED
+from machine.rig import ansi
+from machine.rig.modes import SIMULATED
 from tools.dev.focus import chosen, watchdog
 
 REPO = os.path.dirname(os.path.dirname(

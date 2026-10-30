@@ -29,7 +29,7 @@ BODY_DOUBLES = (2 * 12 * _LINKS + (N - 6) + 2 * 3 * _LINKS + N + 3 * 6 * _LINKS 
 
 class Gmo(ctypes.Structure):
 
-    """wbc_gmo_t: her momentum observer (`machine.observer`), laid and its state."""
+    """wbc_gmo_t: her momentum observer (`machine.senses.observer`), laid and its state."""
 
     _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('slide', _d * 3), ('loss', _d * N), ('driven_at', _i * DRIVEN),
                 ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),

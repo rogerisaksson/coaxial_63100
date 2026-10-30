@@ -109,7 +109,7 @@ class Boards:
 
     def __init__(self, air=None, things=(), clock=10, warm_s=0.0, eyes=None):
         from coaxial import Coaxial63100
-        from machine.modes import SIMULATED
+        from machine.rig.modes import SIMULATED
         from terminal.views.quad import flight as view
         self.view, self.sky, self.core, self.top = view, quad.Sky(things), aero.Core(), TOP_RAD_S
         self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(),

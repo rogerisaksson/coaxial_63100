@@ -21,7 +21,7 @@ import ctypes
 import math
 
 from machine.aircraft.aerobatics import ease
-from machine.figure import cross
+from machine.body.figure import cross
 from machine.aircraft.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y, _so3_error
 
 _d3, _d4, _d6, _d8, _d9 = (

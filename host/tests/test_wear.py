@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her identification on-line, under a load (`machine.wear`): on her walk with her jeans on, a load
+"""Her identification on-line, under a load (`machine.identify.wear`): on her walk with her jeans on, a load
 put in her hand read with no alarm and laid into her law, the filter in her worker and on the page;
 a knee's friction doubled, a hip's torque an amp down a fifth and a slipped encoder zero named and
 nothing else, the load still read; on the boxed stand a box's play doubled and a slipped encoder
@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import mjcf, physics
+from machine.body import mjcf
+from machine.world import physics
 
 #: Her walk's phases, s: as built, carrying LOAD_KG in her left hand, then a knee's friction
 #: FRICTION_X, a hip's torque an amp TORQUE_X of themselves and an elbow's encoder slipped ZERO_RAD
@@ -29,7 +30,7 @@ TORSO_KG, SWAY_S = 1.5, 6.0
 def _laid():
     """Her session on the gym's floor with her jeans on (`mjcf.HEM_KG`), and the filter in her
     worker (`s['wear']`)."""
-    from machine import worker
+    from machine.process import worker
     physics.ROOM, physics.SIGHT, mjcf.STAND = 0.0, 0.0, 0.0
     try:
         s = worker.session()
@@ -40,7 +41,7 @@ def _laid():
 
 def _walked(s, until, walked=True):
     """Her worker stepped on to `until` s, her walk at 0.69 m/s from 1 s when `walked`."""
-    from machine import worker
+    from machine.process import worker
     g = s['g']
     told = g['t'] >= 1.0
     while g['t'] < until and s['fallen_at'] is None:
@@ -67,8 +68,9 @@ def test_a_load_is_read_and_her_wear_named(report):
     knee's friction FRICTION_X, her left hip's torque an amp TORQUE_X and her right elbow's encoder
     zero ZERO_RAD besides, each is named within WORN_S and nothing else, the load still read; the
     hours run in what she tells, service due."""
-    from machine import modal, worker
-    from machine.figure import JOINTS
+    from machine.law import modal
+    from machine.process import worker
+    from machine.body.figure import JOINTS
     from terminal.views import show_humanoid
     s, w = _laid()
     g, world = s['g'], s['g']['world']
@@ -120,7 +122,7 @@ def test_a_load_is_read_and_her_wear_named(report):
                  'alarms %s; knee f %+.2f N m, hip kt %+.3f, elbow zero %+.4f rad' % (
                      told['alarms'], told['drift']['left_knee']['f'], told['drift']['left_hip']['kt'],
                      told['drift']['right_elbow']['zero']))
-    from machine import wear
+    from machine.identify import wear
     report.check('%.4f hours run, service due now on %s; %.0f h left as built' % (told['hours'], told['next'], built['left_h']),
                  abs(told['hours'] - g['t'] / 3600.0) < 2 * wear.WINDOW_S / 3600.0 and told['left_h'] == 0.0
                  and told['next'] in named and abs(built['left_h'] - w['service']['hours']) < 0.1)
@@ -130,8 +132,9 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
     """On the boxed stand (`physics.BOXED`), her left knee's play PLAY_X and her right hip's encoder
     zero ZERO_RAD: the campaign's windows read and name both, no other box's play or zero; the
     wind-ups within their band."""
-    from machine import campaign, wbc, wear
-    from machine.figure import JOINTS
+    from machine.identify import campaign, wear
+    from machine.stack import wbc
+    from machine.body.figure import JOINTS
     mjcf.STAND, physics.BOXED = 1.0, 1.0
     try:
         world = physics.World()
@@ -158,7 +161,8 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
 def test_a_load_on_her_back_is_read_off_her_insoles(report):
     """Standing on her insoles (`sway`), TORSO_KG put on her back (`torso`) is read off her insoles'
     rows (`wear.torso_load`, `wear.window`) within WITHIN of itself and laid into her law."""
-    from machine import modal, worker
+    from machine.law import modal
+    from machine.process import worker
     s, _w = _laid()
     g, world = s['g'], s['g']['world']
     m = world.model

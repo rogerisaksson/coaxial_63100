@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 
 from coaxial.errors import RigError
-from machine.roles import Output
+from machine.rig.roles import Output
 
 
 class GateControl(Output, ABC):

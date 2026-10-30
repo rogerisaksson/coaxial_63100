@@ -1,7 +1,7 @@
 """three.js AsciiEffect, ported to run without a browser."""
 import math
 
-from machine import ansi
+from machine.rig import ansi
 
 #: AsciiEffect's default ramp, darkest first.
 CHARACTERS = ' .:-+*=%@#'

@@ -54,7 +54,7 @@
   chain's 2 ms recovery at 1 us substeps (emulation.md). DOD: the body's
   balance and gait from the SIL.
 - **Identification on the robot** (identification.md): her tree's campaign
-  (`machine.sysid`) through her buses once the SIL moves her figure; the
+  (`machine.identify.sysid`) through her buses once the SIL moves her figure; the
   hips' yaw and roll armature untold on the stand; a link's inertia about
   its centre as built under a correction. As it is: a drive on its board
   (`coaxial.control.identify`, `tools/bench/sysid_drives.py`) - held, swung

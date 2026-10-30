@@ -9,7 +9,7 @@ from coaxial.comm.protocol import TimeOp
 from coaxial.comm.wire import Reader
 from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
-from machine.roles import Input
+from machine.rig.roles import Input
 
 #: CYCCNT is 32 bits and free-running.
 WRAP = 1 << 32

@@ -14,7 +14,7 @@ from coaxial.errors import DeviceStateError
 from coaxial.simulated.system import UNITS
 from coaxial.simulated.values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
                                       phase_codes, quiet_code)
-from machine.roles import Input, Output
+from machine.rig.roles import Input, Output
 
 
 class SimulatedAfe(Output):

@@ -1,5 +1,5 @@
 /** harness.c - A flat C API over ctrl/, so test_ctrl_core.py can step the real parts on
-    the host through ctypes beside machine.parts. */
+    the host through ctypes beside machine.rig.parts. */
 #include "ctrl.h"
 
 #include <math.h>

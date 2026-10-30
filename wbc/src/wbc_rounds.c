@@ -1,4 +1,4 @@
-/** wbc_rounds.c - the step's rounds (wbc_step.h): machine.wrench's bounded, pushed, faced, _taken
+/** wbc_rounds.c - the step's rounds (wbc_step.h): machine.stack.wrench's bounded, pushed, faced, _taken
     and _rounds, numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation.
     Portable C11, the host's alone. */
 #include "wbc_np.h"
@@ -28,7 +28,7 @@ static double clipped(double x, double lo, double hi)
   return isnan(m) ? m : (m < hi ? m : hi);
 }
 
-/** machine.wrench.bounded: each standing sole's wrench inside its bounds, and which parts moved. */
+/** machine.stack.wrench.bounded: each standing sole's wrench inside its bounds, and which parts moved. */
 static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, double *out, double *moved)
 {
   memcpy(out, u, (size_t)g->nu * sizeof(double));
@@ -59,7 +59,7 @@ static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, do
   }
 }
 
-/** machine.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
+/** machine.stack.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
     its cap, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
     z) has its friction the kinetic one against its slip, given -; which parts moved. */
 static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, const double *bears, double *out,
@@ -84,7 +84,7 @@ static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, con
   }
 }
 
-/** machine.wrench.faced: each standing sole's wrench in its cone, the faces it was past, each
+/** machine.stack.wrench.faced: each standing sole's wrench in its cone, the faces it was past, each
     face's share of the sole's push. */
 static void faced(const wbc_step_t *p, const wbc_geo_t *g, const double *u, double *out, double past[12],
                   double share[12])
@@ -123,7 +123,7 @@ static void faced(const wbc_step_t *p, const wbc_geo_t *g, const double *u, doub
   }
 }
 
-/** machine.wrench._solved: K^-1 rhs (rhs a view, nu by m), K ridged on its `free` unknowns where
+/** machine.stack.wrench._solved: K^-1 rhs (rhs a view, nu by m), K ridged on its `free` unknowns where
     it has no inverse; 1 where even that raises. `K` is changed by a ridge. */
 static int solved(const wbc_step_t *p, double *K, int nu, wbc_view_t rhs, int m, const double *free, double *x,
                   double *work)
@@ -149,7 +149,7 @@ static int solved(const wbc_step_t *p, double *K, int nu, wbc_view_t rhs, int m,
   return wbc_solve(&p->blas, VIEW(K, nu, 1), rhs, nu, m, x, work);
 }
 
-/** machine.wrench._taken: striding, what the floor cannot give her inertia takes - `u0` brought
+/** machine.stack.wrench._taken: striding, what the floor cannot give her inertia takes - `u0` brought
     to the faces her soles' wrenches are past by the least change in her kinetic energy's metric. */
 static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *u0, double lo, double hi, double *at,
                  double *work)

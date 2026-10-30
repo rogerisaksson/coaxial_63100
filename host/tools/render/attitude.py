@@ -14,7 +14,7 @@ import sys
 
 from coaxial.draw import orientation
 from coaxial.graphics import craft
-from machine import ansi
+from machine.rig import ansi
 
 
 def quaternion(roll, pitch, yaw):

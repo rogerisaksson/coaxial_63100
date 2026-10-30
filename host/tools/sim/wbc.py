@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her stand on the whole-body stack (`machine.wbc`) in a world without buses: still, and shoved.
+"""Her stand on the whole-body stack (`machine.stack.wbc`) in a world without buses: still, and shoved.
 
     python tools/sim/wbc.py                      # 10 s still: drift, pressure, effort, its cost
     python tools/sim/wbc.py --polar 60 80 100    # a shove from each of 8 ways a force, the relay
@@ -10,7 +10,7 @@
 
 A shove is `sprung.SHOVE_S` on the trunk at AT_S; she has stood if to the end her pelvis keeps
 within HELD_DEG of upright and nothing but her soles touches the floor. Her ask is the capture
-point's law (`law`) or a caller's; her steps are her latent loop's (`machine.sprung`).
+point's law (`law`) or a caller's; her steps are her latent loop's (`machine.process.sprung`).
 """
 import argparse
 import json
@@ -39,7 +39,7 @@ CREEP_S = 2.0
 WAYS = tuple(range(0, 360, 45))
 
 #: The drives' PD round the stack's reference and war emergency power, as the loop has them.
-from machine.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S
+from machine.process.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S
 
 NAMES = ()
 
@@ -47,7 +47,7 @@ NAMES = ()
 def law(s, st, mid):
     """The stack's ask standing: the capture point brought to `mid` (x, z)."""
     import numpy as np
-    from machine import wbc
+    from machine.stack import wbc
     c, v = s['com'], s['vcom']
     omega = math.sqrt(9.81 / max(0.3, c[1]))
     xi = c[[0, 2]] + v[[0, 2]] / omega
@@ -101,16 +101,19 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
     """{stood, tilt deg, drift m, top share, us a step, wep s, ..} standing `seconds` (TO_S
     past the shove), shoved `push` N from `way` deg at `at`; `wep` war emergency power granted;
     `core` the
-    loop in C, `wrench` the step without an active set (`machine.wrench`), in the python
+    loop in C, `wrench` the step without an active set (`machine.stack.wrench`), in the python
     stack's place; `inner` the drives' own loop: 'pd' round a reference integrated from the
     stack's accelerations, 'eso' each drive's disturbance observed (`parts.Eso` at ESO_WO) and
     taken off its torque, 'none' the torque as asked; `asked` a law of the caller's in the
     capture point's place: (st, s, loads, now, bears, body) -> the stack's ask."""
     import numpy as np
-    from machine import figure, parts, physics, wbc, wrench as bare
+    from machine.body import figure
+    from machine.rig import parts
+    from machine.world import physics
+    from machine.stack import wbc, wrench as bare
     from machine.errors import MachineError
-    from machine.drives import kind
-    from machine.figure import JOINTS, SEGMENTS
+    from machine.body.drives import kind
+    from machine.body.figure import JOINTS, SEGMENTS
     from tools.cores.wbc import shared, stack_step, wrench_step
     from tools.sim.look import LEG_KINDS
     global NAMES
@@ -223,7 +226,7 @@ def _torques(esos, world, body, out):
     observer reads its board's encoder (`physics.WOUND`): on the joint it took the gearbox's
     play for 84 N m of disturbance and she fell standing."""
     import numpy as np
-    from machine import physics
+    from machine.world import physics
     if not esos:
         return out['tau']
     seen = world.data.qpos[body.qact] + physics.WOUND * world.boxes.delta[body.driven]
@@ -273,14 +276,14 @@ def main(argv=None):
     parser.add_argument('--no-wep', action='store_true', help='no war emergency power')
     parser.add_argument('--core', action='store_true', help='the loop in C, not the python stack')
     parser.add_argument('--wrench', action='store_true',
-                        help='the step without an active set (machine.wrench), not the stack')
+                        help='the step without an active set (machine.stack.wrench), not the stack')
     parser.add_argument('--rigid', action='store_true', help='the gearboxes rigid (`physics.BOXED`)')
     parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
                         help="the drives' own loop")
     parser.add_argument('--eso-wo', type=float, default=ESO_WO, help="the observers' rad/s")
     args = parser.parse_args(argv)
     ESO_WO = args.eso_wo
-    from machine import physics
+    from machine.world import physics
     physics.BOXED = 0.0 if args.rigid else 1.0
     flags = {'wep': not args.no_wep, 'core': args.core, 'inner': args.inner, 'wrench': args.wrench}
     if args.polar:

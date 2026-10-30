@@ -6,13 +6,13 @@ in `test_scenarios`, 20 of 31 at every wobble now:
 [scenarios](../findings/scenarios.md)). In order: each a mechanism, the scenes it
 serves its DOD; none an entry a case.
 
-1. **Her support, whatever bears her** (`machine.borne`): a segment the skin
+1. **Her support, whatever bears her** (`machine.senses.borne`): a segment the skin
    feels pushed up is in her support region, grounds her, and is a contact of
    her whole-body step. A prop counts, and spans her support, by its share
    of her weight up to 0.15 of it, whole from there (by the share alone a
    brush of the bed's frame at the dock stepped her over its edge); her soles
    lifted by the seat's excess stay so, a human's seated feet down open
-   (stunts.md). Met: the chair by the suite's patches (`machine.maneuver`),
+   (stunts.md). Met: the chair by the suite's patches (`machine.texts.maneuver`),
    risen at the dock 13-14 of 14 ([sequencer](../findings/sequencer.md)). The
    bed by its text is out of the held scenes: a 27 deg recline, the bed 0.39
    of her to her soles' 0.61 - the step splits her weight evenly over three
@@ -88,7 +88,7 @@ serves its DOD; none an entry a case.
    (lisp) laid over the general law's: the friction her step asks, her
    rhythm, her step's length, her stiffness - no branch in the law. Skates:
    a sole's room a line along its blade, free along it, held across it. As
-   it is: her grip felt as a sole slides (`machine.grip`) or told, her
+   it is: her grip felt as a sole slides (`machine.senses.grip`) or told, her
    centre of mass, her going, her landings and her step's cones bounded by
    it outside her envelope, a situation's text capping her rhythm under its
    grip (`situations.lisp`, situation.md: seven read, one laying caps); the
@@ -100,12 +100,12 @@ serves its DOD; none an entry a case.
    (scenarios.md, blind on a flight); skates. DOD: on skates she stands 10 s
    and goes 2 m by strides across her blades.
 5. **Reachable landings ahead**: where each limb lands before her capture
-   point is past it, read from her reach (`machine.reach`); none, her height
+   point is past it, read from her reach (`machine.body.reach`); none, her height
    lowered and a limb set to meet the fall, knees then hands, head off the
    floor. 80 N met: standing 32 of 32, walking 28 (forward-aside 5 of 8).
    200 N: standing 14 of 32 stand or fall soft, walking 21; the rest strike
    her head at 1.1-4.5 m/s. DOD: 200 N falls with the head under 1 m/s.
-6. **One jump** (`machine.leap`, `terminal.views.humanoid_keys`): takeoff from
+6. **One jump** (`machine.moves.leap`, `terminal.views.humanoid_keys`): takeoff from
    the height and distance to land - a hop's landing said with it, its throw
    parameterized continuously by `Space` hold duration (`5 ms` to `250 ms` ->
    `charge` in `[0, 1]`). Met: the walking and running forward leaps (`5 ms`
@@ -147,7 +147,7 @@ serves its DOD; none an entry a case.
    runs and jogs 47 by their patterns, her stride without flight at
    1.3-2.0 m/s where the takes go 1.9-4.5); a take said at its beats, the
    squats and the dance on the legs and the trunk alone, a gait take as
-   amounts on her one standard gait (`machine.gait`: pace, stride, swing,
+   amounts on her one standard gait (`machine.law.gait`: pace, stride, swing,
    sway, roll, turn, rock, crouch, lean, width; a catwalk is roll +0.86,
    sequencer.md); the score's reach ends there,
    the rest the law's (the seats, the lie, the jumps' throw, the runs'
@@ -163,7 +163,7 @@ serves its DOD; none an entry a case.
    wants the stance's lateral reach (the trunk's roll taking the swing's
    reaction) before its track. DOD: the runway patch's wet, track and all,
    26 bars standing, the feet never into each other passing. The ortho-DSP
-   suite and the takes as its modifiers play on her walk (`machine.dsp`,
+   suite and the takes as its modifiers play on her walk (`machine.texts.dsp`,
    `tools/sim/suite.py`, sequencer.md): her trunk, arms and roll within
    10-20 % of a take's, her stride 0.76 m and 118 BPM where the takes stride
    1.0-1.2 m at 98-110. DOD: three of the pack's walks at their tempo and
@@ -215,7 +215,7 @@ serves its DOD; none an entry a case.
    0.43-0.51 legs of the human's 0.55 on her own stack (stunts.md). DOD: 31
    of 31 met at every wobble, each stunt's jerk within her walk's.
 9. **Her place a glazed mountain lodge** (asked, pictures given): built and
-   drawn (`machine.room`, scene 'lodge', [lodge](../findings/lodge.md)):
+   drawn (`machine.world.room`, scene 'lodge', [lodge](../findings/lodge.md)):
    the timber walls, the glass gable and its door, the snowy roof, the deck
    with its rail, the stone step and terrace, the loft stair; the wooden
    stair down the slope on the door's line. Open: the descent falls as item
@@ -252,7 +252,7 @@ serves its DOD; none an entry a case.
     within `_Q_LIM` through every scene, her errands and scenes as they are.
 12. **Her soles' friction a pyramid along them** (found): her step clips a
     sole's force to mu along the world's x and z (`wbc_rounds.c`,
-    `machine.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
+    `machine.stack.wrench`'s `bounded`, `faced`, `_taken`; `pushed`, `wbc_cone.c`,
     `wbc_stack.c` alike): walking straight 45 or 135 deg off them her head's
     and pelvis's peaks are 2 250-2 500 and 1 140-1 270 m/s^3, 0, 90 and 180 deg
     off 570-600 and 530-560 - MuJoCo's own pyramid felled her on its diagonal

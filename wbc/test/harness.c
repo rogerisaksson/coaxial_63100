@@ -586,7 +586,7 @@ API void wbh_gmo_step(wbc_gmo_t *o, const double *base, const double *q, const d
   wbc_gmo_step(o, &f, q, u, dt);
 }
 
-/** wbc_soa_t's sections' offsets, bytes, in machine.lowering.SECTIONS's order, then its size. */
+/** wbc_soa_t's sections' offsets, bytes, in machine.texts.lowering.SECTIONS's order, then its size. */
 API void wbh_soa_offsets(long long *out)
 {
   const size_t at[] = {

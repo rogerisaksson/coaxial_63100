@@ -321,7 +321,7 @@ def program(session, op='card', text='', machine='humanoid', **_):
     whole run, or live - start, send (a line plays once checked), wait (one line), now, stop."""
     from coaxial.comm import session as sessionmod
     from machine import EMULATED, HARDWARE, SIMULATED, Machine, MachineError, Nodes
-    from machine.live import Live
+    from machine.rig.live import Live
     held = vars(session)
     machines, lives = held.setdefault('machines', {}), held.setdefault('lives', {})
     if machine not in machines:

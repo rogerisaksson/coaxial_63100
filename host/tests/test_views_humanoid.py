@@ -119,7 +119,8 @@ def test_the_keys_that_move_her_are_one_twist(report):
     report.check('a W typed walks her, sent once while held, the stop once when let go',
                  sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}]
                  and not humanoid_keys.polled(['s'], st['pad'], t, held=set())['s'], sent)
-    from machine import latent, modal, worker
+    from machine.law import latent, modal
+    from machine.process import worker
     s = worker.session()
     g, gym = s['g'], s['gym']
     g['active_entry'], g['out'][latent.SWAY][modal.DRIVE], g['est']['vel'][2] = 'turn_right', 0.28, 0.55
@@ -231,7 +232,9 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
     BAL/THM/STB gauges, and 40-cell HUD boxes."""
     import io
     from rich.console import Console
-    from machine import floor, se2, tour
+    from machine.world import floor
+    from machine.law import se2
+    from machine.way import tour
     from terminal.ui import stage
     from terminal.views import gym, humanoid_keys, scanner, show_humanoid, viewpoint
 

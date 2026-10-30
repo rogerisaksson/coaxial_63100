@@ -46,7 +46,7 @@ pulled answers.
 
 The HUMANOID page's prompt in the operator's own words: the page's model
 (`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of her catalog
-(`machine.says`, every row generated from the code that plays it - errands,
+(`machine.texts.says`, every row generated from the code that plays it - errands,
 stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
 Schema enum, null when nothing fits, the mocap takes named after her own
 rows and chosen only when asked for. Asked off the page's thread, the plan

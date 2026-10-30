@@ -25,8 +25,8 @@ import threading
 import traceback
 import types
 
-from machine import placed
-from machine.apart import CONTEXT
+from machine.process import placed
+from machine.process.apart import CONTEXT
 
 #: The longest a page waits for a drawing, s: the worker's first loads its meshes and its raster.
 WAIT_S = 60.0

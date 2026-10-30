@@ -10,7 +10,7 @@ braille box is narrower than its cell. Two choices in the thermal map -
 a two-dot edge, a half-density floor - were reversed on the raster
 before the bench saw them.
 
-The drawing is `machine.ansi.image` - the same one a notebook shows
+The drawing is `machine.rig.ansi.image` - the same one a notebook shows
 inline - and this is the command line over it: Consolas for text and
 Segoe UI Symbol for braille (Consolas has none), one cell 10 x 20 px on
 black by default, which is near the bench's terminal. Pillow draws it,
@@ -18,7 +18,7 @@ and arrives with matplotlib.
 """
 import sys
 
-from machine import ansi
+from machine.rig import ansi
 
 
 def main(argv=None):

@@ -1,5 +1,5 @@
 /** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
-    machine.waits.held_rows, risen_rows, borne_rows, latched_rows and woken_rows on her law's arrays, numpy's and Python's
+    machine.law.waits.held_rows, risen_rows, borne_rows, latched_rows and woken_rows on her law's arrays, numpy's and Python's
     arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"

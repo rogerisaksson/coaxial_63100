@@ -34,10 +34,11 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out):
-    """Her surety field in C on her law's arrays, pointed at once - `machine.motion.surety_field` of
+    """Her surety field in C on her law's arrays, pointed at once - `machine.law.motion.surety_field` of
     her edge's `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its `out` -: a step (prev, dt,
     ct, t) -> (cur, vec), `vec` its (5,) laid once; `k` the ask's (`tools.cores.motion.laid`)."""
-    from machine import edge, latent, modal
+    from machine.senses import edge
+    from machine.law import latent, modal
     s = Surety(quat_at=edge.QUAT.start, gyro_at=edge.GYRO.start, accel_at=edge.ACCEL.start, load_at=edge.LOAD.start,
                k_to=latent.TO.start + latent.K.start + modal.AXIAL, k_from=latent.FROM.start + latent.K.start + modal.AXIAL,
                gain_now=latent.NOW.start + latent.GAIN, zmp_out=latent.ZMP,

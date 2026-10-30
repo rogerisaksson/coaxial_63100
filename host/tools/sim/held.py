@@ -2,7 +2,7 @@
 """What holds each of her drives, standing.
 
 A bone, a gimbal, the boom or the trunk's frame touching its drum, or its own collars and struts
-between (`machine.skeleton.HELD`); a drum held by nothing floats (the hip's
+between (`machine.body.skeleton.HELD`); a drum held by nothing floats (the hip's
 roll drum, the ankles', the toes').
 
     python tools/sim/held.py
@@ -21,7 +21,7 @@ def held_by(touch=0.001):
     each - a bone, a gimbal, the boom, the trunk's frame, a bone's collar - touching it or through
     its own collars and struts, within `touch`; never a rod, a drum, a board, nor a wire through a
     segment's middle (a straight bone where `skeleton.HUNG` has none)."""
-    from machine import figure, skeleton
+    from machine.body import figure, skeleton
     parts_, _rides = fit.parts(figure.stand())
 
     def structure(name):

@@ -373,7 +373,7 @@ def bone(segment):
 
 def joints(rows):
     """(times s, {joint: (n, 3) places, m}) of her look's rows, as `take` has a take's."""
-    from machine.figure import SEGMENTS
+    from machine.body.figure import SEGMENTS
     return (np.array([float(r['t']) for r in rows]),
             {bone(seg[0]): np.array([[float(r['%s_%s' % (seg[0], axis)]) for axis in 'xyz']
                                      for r in rows]) for seg in SEGMENTS})
@@ -382,7 +382,7 @@ def joints(rows):
 def wrote(path, rows):
     """Her look's rows written a take: a bone a segment, the pelvis's place and every bone's
     turn in its parent's frame keyed a row."""
-    from machine import figure
+    from machine.body import figure
     turns = {seg[0]: [] for seg in figure.SEGMENTS}
     for r in rows:
         placed = figure.frames({j: float(r[j]) for j in figure.JOINTS},

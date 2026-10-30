@@ -4,7 +4,7 @@
 ;;         Open-Chain Gravity Admittance & Cantilever Reaction Feedforward
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp,
 ;;           prior_regularized_observer.lisp
-;; Hers: fitted to her body (`machine.emancipation`, test_floor): her margins in N m of her 305 N, the text's
+;; Hers: fitted to her body (`machine.moves.emancipation`, test_floor): her margins in N m of her 305 N, the text's
 ;; robot's 608 N halved (18 -> 9.0, 45 -> 22.6); its relock the reference's 25 ms.
 ;; =============================================================================
 (defpackage :ortho-dsp.emancipation

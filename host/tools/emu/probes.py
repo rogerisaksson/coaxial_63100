@@ -70,7 +70,7 @@ def answers(port):
 
 def boot_answers(port):
     """Whether a bootloader on `port` answers device 11's state as a blank node."""
-    from machine.rtu import crc16
+    from machine.rig.rtu import crc16
 
     body = bytes([BLANK_UNIT, 0x6E, protocol.DEVICE_BOOT, BootOp.STATE])
     try:

@@ -9,12 +9,12 @@ was told beside what she did, against her walk.
     python tools/sim/suite.py --schedule            # the suite's 32 bars to its first refusal
     rows, fell = suite.played(row, told, scene)     # her look's rows from SETTLE_S, her fall's s
 
-A patch is voiced on her walk by `machine.dsp`; told her twist and grip with her walk from 1 s,
+A patch is voiced on her walk by `machine.texts.dsp`; told her twist and grip with her walk from 1 s,
 its row laid LAY_S in, after her walk's own (laid in their tick the two add, her rhythm's gain 2).
 Her walk itself is the reference, recorded the same way and identified once a run (REFERENCE): a
 take's modifier is its change off her walk, and her run's change off it is how much of the take
 she played (SHARE). A patch's world is its stages' (WORLDS); a schedule's morph waits for her
-lateral voice's crossing and the double support's lock (`machine.patch`). Several items run as
+lateral voice's crossing and the double support's lock (`machine.texts.patch`). Several items run as
 jobs side by side on the relay's batons (`tools.dev.focus`).
 """
 import argparse
@@ -60,7 +60,9 @@ def played(row, told, scene, seconds=SECONDS, laid=None, texts=None):
     """(her look's rows from SETTLE_S on, the s she fell at or None): her walk told `told` from
     1 s - its twist and grip, a behaviour said -, `row` ({slot: value}) laid LAY_S in; `laid(s)`
     each pass after, a schedule's hand; of her texts `texts` where given (`worker.session`)."""
-    from machine import gait, ortho, patch, worker
+    from machine.law import gait
+    from machine.texts import ortho, patch
+    from machine.process import worker
     from tools.sim import scenarios
     s = worker.session(texts=texts)
     scenarios.placed(s, scene)
@@ -112,14 +114,14 @@ def reference():
 
 def _her():
     """Her statics standing (`modal.frame`)."""
-    from machine import worker
+    from machine.process import worker
     return worker.session()['g']['fr']
 
 
 def line(item):
     """{item, told, her, ...} of one item: a suite patch by name or a take's FBX, voiced, played,
     measured; refused by name where she cannot."""
-    from machine import dsp, voicing
+    from machine.texts import dsp, voicing
     from machine.errors import MachineError
     got = dsp.read(dsp.SUITE)
     out = {'item': item}
@@ -191,7 +193,7 @@ def table(lines, ref):
 def _step(seg, dry, fr, gym):
     """A schedule's segment as her loop lays it, her walk `gym`'s: ('patch', from bar, to bar, row,
     told) or ('morph', from bar, to bar, rows, span); a one-shot or a dwell, the gym's, refused."""
-    from machine import dsp, voicing
+    from machine.texts import dsp, voicing
     from machine.errors import MachineError
     if len(seg) != 3:
         raise MachineError("a %s: the gym's" % seg[0])
@@ -206,7 +208,8 @@ def schedule(name='compile-omnidirectional-suite', also=lambda s: None, texts=No
     on a flat floor, its worlds named, not laid: each patch's row at its bar, each morph's rows from
     the lock past its crossing; `also(s)` each pass; of her texts `texts` where given. [(from bar,
     to bar, what, laid at s or the refusal)] and her rows."""
-    from machine import dsp, patch, sprung, worker
+    from machine.texts import dsp, patch
+    from machine.process import sprung, worker
     from machine.errors import MachineError
     got = dsp.read(dsp.SUITE, texts)
     dry, fr, gym = got['nominal-biped-manifold'], _her(), sprung.entries(texts=texts, suite=got)
@@ -220,7 +223,8 @@ def schedule(name='compile-omnidirectional-suite', also=lambda s: None, texts=No
     state = {'k': 0, 'next': None, 'due': at}
 
     def laid(s):
-        from machine import gait, latent, ortho
+        from machine.law import gait, latent
+        from machine.texts import ortho
         g = s['g']
         if state['k'] >= len(steps) or g['t'] < state['due']:
             return
@@ -275,7 +279,7 @@ def main(argv=None):
     if args.one:
         print(json.dumps(line(args.items[0]), default=float))
         return 0
-    from machine import dsp
+    from machine.texts import dsp
     items = args.items or [k for k, v in dsp.read(dsp.SUITE).items() if k.startswith('patch-') and isinstance(v, dict)]
     reference()
     from tools.dev import focus

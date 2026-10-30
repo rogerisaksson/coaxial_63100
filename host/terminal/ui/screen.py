@@ -17,8 +17,8 @@ from coaxial.comm.session import standing
 from coaxial.devices.thermal import THROTTLE_AT
 from coaxial.draw import cross_section, gauges
 from coaxial.errors import DeviceStateError, NoReplyError, RigError
-from machine.modes import HARDWARE, SIMULATED
-from machine import ansi
+from machine.rig.modes import HARDWARE, SIMULATED
+from machine.rig import ansi
 from terminal.ui import bindings
 from terminal.ui.console import SELECT_KEYS, Keys, _ignore
 from terminal.ui.rate import rate_of

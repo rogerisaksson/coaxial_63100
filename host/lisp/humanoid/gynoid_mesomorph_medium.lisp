@@ -1,6 +1,6 @@
 ;; ============================================================================
 ;; GYNOID MESOMORPH MEDIUM ORTHOKINEMATIC MANIFEST
-;; (lisp/humanoid/gynoid_mesomorph_medium.lisp, machine/ortho.py)
+;; (lisp/humanoid/gynoid_mesomorph_medium.lisp, machine/texts/ortho.py)
 ;; Balance, rhythm and elasticity for the mesomorph-medium gynoid locomotion
 ;; and stunt repertoire, composed from modular base traits and archetypes.
 ;;

@@ -294,7 +294,7 @@ def test_the_bead_trails_its_speed(report):
     import re
 
     from coaxial.draw import cross_section
-    from machine import ansi
+    from machine.rig import ansi
 
     inks = {ansi.code(cross_section.INK[c]) for c in cross_section.TRAIL}
 

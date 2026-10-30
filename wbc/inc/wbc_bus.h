@@ -1,10 +1,10 @@
-/** wbc_bus.h - the master bus insert (machine.supervisor, anti_spasm_supervisor.lisp): its stages
+/** wbc_bus.h - the master bus insert (machine.law.supervisor, anti_spasm_supervisor.lisp): its stages
     on her drives' flat arrays at the drives' pass, 1 kHz - her ask's jerk, her torque command as
     her drives take it. Portable C11. */
 #ifndef WBC_BUS_H
 #define WBC_BUS_H
 
-/** The insert's numbers, as its text says them (machine.supervisor lays them). */
+/** The insert's numbers, as its text says them (machine.law.supervisor lays them). */
 typedef struct
 {
   double tank_max_j;    /**< the tank: its capacity, its floor, J */

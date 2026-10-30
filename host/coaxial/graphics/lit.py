@@ -10,7 +10,7 @@ Its meshes come from `shapes`.
 """
 from coaxial.graphics.callouts import LEADER_INK
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, NOISE
-from machine import ansi
+from machine.rig import ansi
 
 #: A corner's material, as `gpu.LIT_WGSL` colours it; past PAINTED the colour it wears.
 MESH, SKIN, PLATE, CORE = 0, 1, 2, 3

@@ -11,7 +11,7 @@ share. A drive's heat: [thermals](thermals.md). Findings:
 | `motor/` | pmsm (Motor, Parameters, TWO_PI, RAD_S_PER_RPM), catalog (5230SL, BENCH_MOTOR), loads (Propeller), sysid; imports nothing here |
 | `drive/` | control law + motor model, portable C11, host-tested: `drive_step(d, in, stage, out)` one PWM period |
 | `filter/` | anti-alias biquad chain; designed on the host in `coaxial/acquire/bessel` |
-| `ctrl/` | machine.parts and a feedback in C, rows played; `ctrl_loop.c` that loop on a drive, device 12, ticked in the drive's sample - the part's (`board_ctrl.c`) and a stand-in's; host-tested |
+| `ctrl/` | machine.rig.parts and a feedback in C, rows played; `ctrl_loop.c` that loop on a drive, device 12, ticked in the drive's sample - the part's (`board_ctrl.c`) and a stand-in's; host-tested |
 | `coaxial/model/` | inverter (the power stage's numbers), sensorless (what the measurements buy), blocks (the control loops as sim blocks around `motor.pmsm`) |
 | `coaxial/control/` | motion, commission, identify: procedures on a rig |
 | `coaxial/kalman/observer` | the rotor observers, and which motor they watch |

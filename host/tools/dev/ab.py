@@ -29,7 +29,7 @@ from coaxial.comm.hostclock import WALL, clock_of
 from coaxial.comm.session import standing
 from coaxial.devices.subsystem import Subsystem
 from coaxial.rig import Coaxial63100
-from machine.roles import Input
+from machine.rig.roles import Input
 from tools.dev.focus import WORKER_GB, Job, relay
 from tools.render import page as pages
 

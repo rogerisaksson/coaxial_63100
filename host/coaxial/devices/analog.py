@@ -6,7 +6,7 @@ from coaxial.devices import scaling
 from coaxial.devices.afe import powered
 from coaxial.devices.subsystem import Subsystem, remembered
 from coaxial.errors import DeviceStateError, PayloadError
-from machine.roles import Input
+from machine.rig.roles import Input
 
 
 class Analog(Subsystem, Input):

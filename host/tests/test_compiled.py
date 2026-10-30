@@ -20,6 +20,7 @@ import numpy as np
 from tools.dev.focus import chosen
 from machine.aircraft import aerobat, helicopter, ornithopter, quad, wingborne
 from gynoid_kit import Report
+from cores_kit import apart
 
 #: Configurations her sensing is held at; the passes of her walk it is held over, her law every third.
 POSES, PASSES = 40, 3000
@@ -43,11 +44,6 @@ def _configurations(b, rng):
                 q[at] = rng.uniform(lo, hi)
         v[:b.n] = rng.normal(size=b.n)
         yield q, v
-
-
-def _apart(got, want):
-    from tools.cores.orders import same
-    return any(not same(got[k], want[k]) for k in want)
 
 
 def _numpys(x, y, m):
@@ -118,7 +114,7 @@ def test_numpys_reductions_and_selections_in_c(report, c):
 def test_her_sensing_in_c_is_her_numpys(report, c):
     """`wbc.sense` compiled on her body beside its numpy on a body of its own, over random
     configurations: every array it returns, her data and her scratch after, bit for bit."""
-    from machine import wbc
+    from machine.stack import wbc
     from tools.cores import bodied, motion, trace, trace_mj
     from tools.cores.orders import same
     b = c['body']
@@ -131,7 +127,7 @@ def test_her_sensing_in_c_is_her_numpys(report, c):
         return
     bad = 0
     for q, v in configurations:
-        bad += _apart(trace.leaves_of(shape, sense(b, q, v)), trace.leaves_of(shape, wbc.sense(twin, q, v)))
+        bad += apart(trace.leaves_of(shape, sense(b, q, v)), trace.leaves_of(shape, wbc.sense(twin, q, v)))
         bad += any(not same(getattr(b.d, x), getattr(twin.d, x)) for x in DATA)
         bad += any(not same(getattr(b, x), getattr(twin, x)) for x in SCRATCH)
     spent = {}
@@ -175,8 +171,8 @@ def _beside(real, fn, twin, tally, at=0):
         if real.c is not None:
             shape = real.c.prog.shape
             tally[0] += 1
-            tally[1] += _apart(trace.leaves_of(shape, got), trace.leaves_of(shape, want))
-            tally[1] += _apart(dict(enumerate(_arrays(args))), dict(enumerate(_arrays(ours))))
+            tally[1] += apart(trace.leaves_of(shape, got), trace.leaves_of(shape, want))
+            tally[1] += apart(dict(enumerate(_arrays(args))), dict(enumerate(_arrays(ours))))
         return got
     return called
 
@@ -186,7 +182,10 @@ def test_her_law_in_c_as_she_walks(report, c):
     situation, her drive's cap, her ask's poses, her sensing flat (`motion.laid`) -
     at every pass of her motion over PASSES of her walk, built at their first and held there, each
     beside its numpy on copies."""
-    from machine import estimate, grip, modal, motion, situation, touch, wbc, worker
+    from machine.senses import estimate, grip, situation, touch
+    from machine.law import modal, motion
+    from machine.stack import wbc
+    from machine.process import worker
     from tools.cores import motion as c_motion, trace_mj
     s = worker.session(walks=True)
     g = s['g']
@@ -455,7 +454,7 @@ def main(argv=None):
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    from machine import wbc
+    from machine.stack import wbc
     report = Report()
     c = {'body': wbc.Body()}
     for test in chosen(ROSTER, sys.argv[1:] if argv is None else argv):

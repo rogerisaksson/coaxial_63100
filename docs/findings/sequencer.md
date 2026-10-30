@@ -1,8 +1,8 @@
 # Findings: sequencer
 
 The takes played as a sequencer plays a score: a posture take's beats as rows
-on her loop (`machine.takes`), a gait take as amounts on her one standard
-gait (`machine.gait`); the takes' bench: [stunts](stunts.md); the vocabulary:
+on her loop (`machine.texts.takes`), a gait take as amounts on her one standard
+gait (`machine.law.gait`); the takes' bench: [stunts](stunts.md); the vocabulary:
 docs/todo/scenarios.md.
 
 ## Beats
@@ -120,7 +120,7 @@ saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
   widths, down at 13.3 s for 4.1; with its arms said too, at 5.2 s.
 - Told by their beats instead of their texts the chair's jumps fall from
   the crouch (jump_down 7.4 to 11.3 widths, jumping_down 12.7 to 18.8,
-  jumping_up 21.5 to 23.1): a jump is the drives' throw (`machine.leap`),
+  jumping_up 21.5 to 23.1): a jump is the drives' throw (`machine.moves.leap`),
   not a score. The dance on the legs alone drifts 2.6 legs and falls at
   21.8 s (16.4); the bed turn with the pelvis's list and turn said rolls
   60 deg for the take's 88 (4.1 for 4.2 without): neither kept.
@@ -132,7 +132,7 @@ saying): the take's tempo, drive, arms, crouch and lean, the rest the walk's.
 
 ## Modifiers
 
-One standard gait, moved by named amounts (`machine.gait`): the walk's
+One standard gait, moved by named amounts (`machine.law.gait`): the walk's
 parameters as the lisp's streams fold them (stand, sway, step, walk), each
 modifier one of them. A gait take is its amounts (`takes.amounts`), a word of
 her movement language (`tools.sim.normal`) an amount; no gait a special.
@@ -216,7 +216,7 @@ clearance, the ZMP's margin in the hull of the standing soles, jerk).
 
 ## The ortho-DSP suite
 
-The six modules as given (lisp/humanoid/suite/) read by `machine.dsp`, each
+The six modules as given (lisp/humanoid/suite/) read by `machine.texts.dsp`, each
 patch voiced on her walk by its changes off the nominal manifold - the
 nominal plays her walk to the last slot -, told its twist and grip, laid
 3 s into her walk on its stages' scene, measured by the converter that
@@ -250,7 +250,7 @@ makes a modifier of a take (`tools/sim/suite.py`, 20 s).
 
 ## The suite's maneuvers
 
-The chair's sit and rise played from the suite's patches (`machine.maneuver`):
+The chair's sit and rise played from the suite's patches (`machine.texts.maneuver`):
 a patch's acts her phases, each paced to the spring it moves (1e3 sqrt(BENT) /
 omega_n ms: the preload 350 -> 575), her arms held (`mode_arm_swing` is
 antisymmetric: no counterweight to voice), her hips landed where her centre of

@@ -343,7 +343,7 @@ A dive pushed inverted, no level flight kept.
 ## Thrusts shared as her torques
 
 The collective and the torques shared over the rotors by her whole-body
-law's levels under bounds (`machine.qp.stack`) flew the race 0.3 s a lap
+law's levels under bounds (`machine.stack.qp.stack`) flew the race 0.3 s a lap
 slower on the boards than shared by hand, a strike more in 12 flights. A row
 of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the
 heading's torque came 15 % short: rows are laid at unit scale. The share is

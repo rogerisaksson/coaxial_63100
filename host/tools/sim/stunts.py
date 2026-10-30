@@ -11,10 +11,10 @@ The takes lie in stunts/<folder>/ beside the repo (crawl, dance, falling, flips,
 lying, run, sitting, slipping, stairs, standing), read once: a take's seconds, its leg and MOVES'
 measures into tests/takes/stunts.json, the reference each scenario in `scenarios.STUNTS` is
 judged by - the scene placed, her told as a player would or handed the take's own rows
-(`machine.takes`), her rows measured here over the take's seconds from the telling, and each
+(`machine.texts.takes`), her rows measured here over the take's seconds from the telling, and each
 measure of the scenario's signature within WITHIN of the take's: a sole's length, her list, her
 arm's cone, one natural time; whatever she does, her head goes no lower than the human's (SAFE)
-- and its modes at its frames into `machine/takes.npz`, read as `modal.reading` reads hers.
+- and its modes at its frames into `machine/texts/takes.npz`, read as `modal.reading` reads hers.
 
 The take's human and she are alike by dynamic similarity (SIMILAR): the measures are in legs,
 sqrt(leg / g) and sqrt(g leg), so neither size enters them; what does is a woman of her size,
@@ -31,7 +31,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
-from machine import figure, modal, stride, takes
+from machine.body import figure
+from machine.law import modal, stride
+from machine.texts import takes
 from tools import REPO
 
 G = 9.81
@@ -330,7 +332,9 @@ def told(command):
 def sat_s(name):
     """s her clocked scoot `name` takes down onto the floor, a take sat throughout measured from there: her text's
     descent phases' durations end to end (`clocked.CLOCKED`, lisp/humanoid/motion.lisp)."""
-    from machine import clocked, mechatronics, ortho
+    from machine.moves import clocked
+    from machine.body import mechatronics
+    from machine.texts import ortho
     _patch, _at, base, own, _used = clocked.CLOCKED[name]
     forms = ortho.read(ortho.source(os.path.join(mechatronics.HUMANOID, 'motion.lisp')))
     body = next(f for f in forms if isinstance(f, list) and f[:2] == ['defbehavior', base])
@@ -403,7 +407,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     from tools.sim import scenarios
     if args.reference:
-        from machine import worker
+        from machine.process import worker
         got, kept = measure_takes({k: row[0] for k, row in scenarios.STUNTS.items()}, worker.session()['g']['fr'])
         with open(REFERENCE, 'w', encoding='utf-8') as f:
             json.dump(got, f, indent=1, sort_keys=True)

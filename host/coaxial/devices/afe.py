@@ -6,7 +6,7 @@ from coaxial.comm.wire import Reader, pack
 from coaxial.devices.power import named
 from coaxial.devices.subsystem import Subsystem
 from coaxial.errors import DeviceStateError
-from machine.roles import Output
+from machine.rig.roles import Output
 
 
 def powered(reading):

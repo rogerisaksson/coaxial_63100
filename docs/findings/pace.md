@@ -108,7 +108,7 @@ machine ([body](body.md), [emulation](emulation.md),
   test_ported.
 - The rows that wake her rhythm in the waits' C (`wbc_wait_woken`,
   `waits.woken`: the last numpy of her latent step; their python the
-  reference in `machine.waits`, the waits split off `motion`): bit for bit
+  reference in `machine.law.waits`, the waits split off `motion`): bit for bit
   at 4 001 calls over 12 s of her walk, 36 -> 6.0 us a call. Her loop 329 ->
   325 us a pass, 3.08 of real time, walking 3.02; the worker 382, 2.62;
   MuJoCo's step 84 of the 325.
@@ -172,7 +172,7 @@ machine ([body](body.md), [emulation](emulation.md),
   where its own result fits more than one: her loop 594 -> 539 us a pass,
   1.70 -> 1.88 of real time. Her run and every pair's clearance the same at
   each law pass of the five scenes. The brace's python beside its C
-  (`machine.brace`), motion at its cap.
+  (`machine.law.brace`), motion at its cap.
 - Her wayfinder's gap compiled from its numpy a room's size a part
   (`wayfinder.gap` on every box, those out of the band masked, the same as
   compacting them in 100 000 fuzzed rooms): her loop 527 -> 502 us a pass,

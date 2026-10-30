@@ -12,7 +12,7 @@ from coaxial.comm.protocol import DriveOp
 from coaxial.comm.wire import Reader, micro, pack
 from coaxial.devices.subsystem import Device
 from coaxial.errors import RigError
-from machine.roles import Controller, Input
+from machine.rig.roles import Controller, Input
 
 #: The motor profiles: this drive's record and its stand-in model, one motor a file.
 PROFILES = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'profiles')

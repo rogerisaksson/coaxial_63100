@@ -1,4 +1,4 @@
-"""Her whole body as one stack of QPs a step (`machine.wbc`): the solver against its
+"""Her whole body as one stack of QPs a step (`machine.stack.wbc`): the solver against its
 optimality, her stand still on the stack, a nudge held - in a world without buses
 (`tools/sim/wbc.py`)."""
 import os
@@ -17,7 +17,7 @@ def test_the_solver_meets_its_optimality(report):
     """Random strictly convex QPs, cold and warm from the set they ended on: stationary, feasible,
     multipliers pressing, slack where a row is loose; the warm solve the cold one's."""
     import numpy as np
-    from machine import qp
+    from machine.stack import qp
     rng = np.random.default_rng(7)
     worst, apart, fails = 0.0, 0.0, 0
     for _ in range(PROBLEMS):
@@ -51,7 +51,7 @@ def test_a_level_keeps_what_those_above_it_won(report):
     """A stack of two tasks that cannot both be met under a bound: the first as if alone, the
     second only in what the first left."""
     import numpy as np
-    from machine import qp
+    from machine.stack import qp
     E, e = np.zeros((0, 3)), np.zeros(0)
     G, h = np.array([[0.0, 0.0, 1.0]]), np.array([0.5])          # x2 <= 0.5
     first = (np.array([[1.0, 1.0, 0.0]]), np.array([2.0]), np.zeros((0, 3)), np.zeros(0), 1e3)

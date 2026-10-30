@@ -20,8 +20,10 @@ def _passes(joint, amps, walk):
     fed forward at its board - her walk told after the settling with `walk` -: the torque her drive was
     given and it less the sine."""
     import numpy as np
-    from machine import edge, margin, sprung
-    from machine.figure import JOINTS
+    from machine.senses import edge
+    from machine.law import margin
+    from machine.process import sprung
+    from machine.body.figure import JOINTS
     g = sprung.laid(sprung.STACK_EVERY)
     j, kept = JOINTS.index(joint), edge.drive
     hot = np.zeros(len(g['joints']))
@@ -53,7 +55,7 @@ def probed(joint, amps=AMPS, walk=False):
     same pass's with the probe off (with it off u = c and L reads -1, 0 dB at 180 deg, whatever her
     torque: walking, her gait's own swamped a 1 N m probe at 30 Hz). Her session is deterministic: a
     pass count or a time differing between the two is refused."""
-    from machine import margin
+    from machine.law import margin
     from machine.errors import MachineError
     on, off = _passes(joint, amps, walk), _passes(joint, 0.0, walk)
     if len(on) != len(off) or any(abs(a[0] - b[0]) > 1e-9 for a, b in zip(on, off)):
@@ -71,7 +73,8 @@ def main(argv=None):
     parser.add_argument('--boxed', action='store_true', help="her gearboxes' wind-up (`physics.BOXED`)")
     parser.add_argument('--walk', action='store_true', help='her walk told after her settling')
     args = parser.parse_args(argv)
-    from machine import margin, physics
+    from machine.law import margin
+    from machine.world import physics
     physics.BOXED = float(args.boxed)
     for joint in args.joints:
         got = probed(joint, args.amps, args.walk)

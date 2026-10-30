@@ -4,8 +4,8 @@
     python tools/sim/members.py             # every member, the ones past a limit starred
     python tools/sim/members.py --family 3  # her tubes cut from three stock sizes
 
-A member is a run of her skeleton (`machine.skeleton`: the bones, the trunk's frame, the boom,
-the hip's gimbal, the holders' struts) or a linkage's part (`machine.linkage`: a crank, a horn, a
+A member is a run of her skeleton (`machine.body.skeleton`: the bones, the trunk's frame, the boom,
+the hip's gimbal, the holders' struts) or a linkage's part (`machine.body.linkage`: a crank, a horn, a
 rod). Its load is the peak its drive delivers (`drives.peak`, through the lever) as a bending
 moment, a twist, or a rod's pull on a crank's arm; its section a carbon tube (WALL of its radius),
 a printed PAHT-CF plate loaded in its plane, or a solid carbon rod. Each is judged on stress
@@ -75,8 +75,8 @@ def plate(t, w):
 def members():
     """[(name, kind, length m, load, (I, J, A), material, c)]: kind 'bend' with a moment N m,
     'twist' with one, 'pull' with a rod's newtons; c the section's outer fibre, m."""
-    from machine import drives, linkage, skeleton
-    from machine.servos import SERVO
+    from machine.body import drives, linkage, skeleton
+    from machine.body.servos import SERVO
     out = []
     # The design load: the drive's deliverable peak, or MARGIN times the controller's clamp where
     # that is less (one frame on the wrist delivers 120 N m it is never asked).
@@ -186,7 +186,7 @@ def judge(name, kind, length, load, section, material, c):
 def compliance(name, kind, length, load, section, material, c):
     """rad a N m of torque at the joint this member winds up: bending L/(E I), twist L/(G J),
     a rod's stretch over its horn, L/(E A h^2) - the horn PATH's joint's (`linkage`)."""
-    from machine import linkage
+    from machine.body import linkage
     i, j, area = section
     e, g, _allow = material[0] * 1e9, material[1] * 1e9, material[2]
     if kind == 'bend':
@@ -250,8 +250,8 @@ def families(served, most=6):
 
 def main(argv=None):
     import argparse
-    from machine import drives
-    from machine.servos import SERVO
+    from machine.body import drives
+    from machine.body.servos import SERVO
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--family', type=int, default=0, metavar='N',
                         help='the tubes cut from the lightest family of N stock sizes')

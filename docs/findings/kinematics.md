@@ -1,6 +1,6 @@
 # Findings: kinematics
 
-The lowest level's geometry: the figure's recipes (`machine/figure.py`: a
+The lowest level's geometry: the figure's recipes (`machine/body/figure.py`: a
 leg's joints from its ankle back to its hip, a strut's reach) and what might
 replace them.
 
@@ -95,8 +95,8 @@ The last walked its walk row backward at 0.26 m/s (docs/TODO.md, lumbar curve).
 
 ## A leg's reach over its foot
 
-Static arrays (`machine/reach_rows.py`, laid by `tools/cores/reach.py`) read
-by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
+Static arrays (`machine/body/reach_rows.py`, laid by `tools/cores/reach.py`) read
+by `machine/body/reach.py`, a limb an index; tests/test_reach.py holds them.
 
 - A hip's place in its foot's frame is the ankle's roll, the ankle's pitch
   and the knee; the hip's three joints take the pelvis's turn. The pelvis
@@ -133,8 +133,8 @@ by `machine/reach.py`, a limb an index; tests/test_reach.py holds them.
 
 ## Her movements' orthopaedic terms
 
-Static rows (`machine/term_rows.py`, laid by `tools/cores/terms.py`) read by
-`machine/terms.py`; tests/test_terms.py holds them.
+Static rows (`machine/body/term_rows.py`, laid by `tools/cores/terms.py`) read by
+`machine/body/terms.py`; tests/test_terms.py holds them.
 
 - Anatomy says what a movement does - hip flexion brings the knee forward,
   abduction takes it from the midline, dorsiflexion raises the toes; which

@@ -8,7 +8,7 @@ from coaxial.comm.wire import Reader, label, pack, pages
 from coaxial.devices.afe import powered
 from coaxial.devices.subsystem import Device, forgetting, remembered
 from coaxial.errors import DeviceStateError, ModbusException, RigError
-from machine.roles import Input, Output
+from machine.rig.roles import Input, Output
 from typing import Any
 
 

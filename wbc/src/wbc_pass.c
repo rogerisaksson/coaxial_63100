@@ -1,7 +1,7 @@
 /** wbc_pass.c - a pass of her world on the host, its arrays laid once (wbc.h): her drives told as
-    machine.law.drives tells them, her world's torques and their meters as machine.physics steps
-    them, her IMU, encoders, soles and skin as machine.edge reads them, her drives' heat as
-    machine.heat keeps it - numpy's arithmetic operation for operation, its clip and its pairwise
+    machine.law.drives tells them, her world's torques and their meters as machine.world.physics steps
+    them, her IMU, encoders, soles and skin as machine.senses.edge reads them, her drives' heat as
+    machine.body.heat keeps it - numpy's arithmetic operation for operation, its clip and its pairwise
     sum, so a pass is the same bit for bit. Portable C11. */
 #include "wbc_pass.h"
 #include "wbc_np.h"

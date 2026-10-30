@@ -25,7 +25,7 @@ the table under [Subjects](#subjects).
   dynamics, smooth convex blends and support-polygon projections. Whether she
   walks, stands, sits on a chair, lies on a bed or leans on an obstacle is
   implicit in her continuous SE(3) and modal state vectors; discrete labels
-  project strictly outward (`machine.situation` -> `state['situation']`).
+  project strictly outward (`machine.senses.situation` -> `state['situation']`).
 - A special case means the problem needs a more general form.
 
 ## Subjects

@@ -10,7 +10,7 @@ from coaxial.errors import RigError
 from coaxial.model import rooms
 from coaxial.model.thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
 from coaxial.model.thermal_app import APPLICATIONS
-from machine.roles import Input
+from machine.rig.roles import Input
 
 #: Where derating starts, a fraction of a node's ceiling: the record's
 #: `soa_throttle_ppm` default (from 0.85: that took a sixth of every burst).

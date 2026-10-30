@@ -1,7 +1,7 @@
 /** wbc_shrunk.c - what the step without an active set (wbc_wrench.c) hands out: every
     acceleration and the drives' torques at its unknowns; an ask the drives cannot carry shrunk
     as one toward nothing asked, as far as brings every torque within its clamp
-    (machine.wrench.shrunk). */
+    (machine.stack.wrench.shrunk). */
 #include "wbc.h"
 
 #include <math.h>

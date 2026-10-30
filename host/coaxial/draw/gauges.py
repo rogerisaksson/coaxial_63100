@@ -4,7 +4,7 @@ from coaxial.draw import cross_section
 from coaxial.draw.cross_section import Frame, INK, SOA_OK, TRACK
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.model.thermal import IDENT_MARGIN_FLOOR
-from machine import ansi
+from machine.rig import ansi
 
 #: The tick class a caller puts on a gauge - a burst's extreme, a held
 #: peak - here so a view need not reach into `cross_section` for it.

@@ -4,7 +4,7 @@
     python tools/sim/drifted.py                     # her walk, her turns, her moves: a table
     python tools/sim/drifted.py --one play_walk     # one scene, its line as JSON (the relay's job)
 
-Each law pass from her first stride (`machine.estimate`, `machine.inekf`): how far each has drifted
+Each law pass from her first stride (`machine.senses.estimate`, `machine.senses.inekf`): how far each has drifted
 along the floor and in height by the end, m, against how far she went; its velocity's error at the
 90th percentile, m/s.
 """

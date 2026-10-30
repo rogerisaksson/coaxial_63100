@@ -17,7 +17,7 @@ from coaxial.devices.board import Board
 from coaxial.devices.gates import GateStage
 from coaxial.errors import LINK_FAULTS, ConnectError, RigError
 from coaxial.model import thermal
-from machine.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
+from machine.rig.modes import EMULATED, HARDWARE, SIMULATED, ExecutionMode
 
 
 def _subsystem_names():

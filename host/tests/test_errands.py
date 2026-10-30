@@ -24,7 +24,7 @@ def _first(st, typed, pad):
 def _run(s, seconds, until=None, after=0.0):
     """`seconds` of passes: (the flips of her doing from `after` s on, the seconds to `until`'s
     doing, or None)."""
-    from machine import sprung, worker
+    from machine.process import sprung, worker
     g, last, flips, got, t0 = s['g'], None, 0, None, s['g']['t']
     for _ in range(int(round(seconds / worker.DT))):
         worker.stepped(s)
@@ -46,7 +46,10 @@ def test_a_stop_settles_and_f_is_heard(report):
     and two of her rhythm's swings more, and holds - read between her law's passes it came at 1.2 s
     and went; told to sit she is seated within 5 s, told to rise she stands within 6 s; a scene
     laid anew with a walk asked at once, she walks at once."""
-    from machine import floor, leap, modal, worker
+    from machine.world import floor
+    from machine.moves import leap
+    from machine.law import modal
+    from machine.process import worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     _run(s, 0.5)
@@ -78,7 +81,7 @@ def test_a_halting_row_waits_for_a_swing_only_while_her_rhythm_turns(report):
     rhythm turns; at rest no swing comes and it comes at once (`waits.held_back`): sitting, her
     centre of mass behind her heels, a seat asked was held for ever."""
     import numpy as np
-    from machine import latent, modal, waits
+    from machine.law import latent, modal, waits
     from tools.cores import motion as c_motion, wait as c_wait
     k, _ask = c_motion.laid()
 
@@ -98,7 +101,10 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
     """The chair 0.4 um off where her stop left her: a sole let go as she sat, the other standing,
     rose where her folded legs put it and she was thrown off the chair at 4.1 s (`swing.free`);
     she sits within 5 s and rises within 6 s."""
-    from machine import floor, leap, modal, worker
+    from machine.world import floor
+    from machine.moves import leap
+    from machine.law import modal
+    from machine.process import worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     _run(s, 0.5)
@@ -124,7 +130,9 @@ def test_doorway_arm_yields_and_she_walks_on(report):
     near either jamb so her hand or forearm strikes the door frame, her arm yields backward (`<= -0.40 rad`)
     and she walks on past the doorway without braking to `stand`."""
     import numpy as np
-    from machine import edge, physics, touch, worker
+    from machine.world import physics
+    from machine.senses import edge, touch
+    from machine.process import worker
     for side_name, hd, sh_idx, arm_skin in (('right jamb', 0.148, 13, touch.ARMS[1]),
                                             ('left jamb', 0.265, 5, touch.ARMS[0])):
         physics.ROOM = 1.0
@@ -155,7 +163,10 @@ def test_chair_and_bed_seated_and_rising(report):
     (`sum(loads) >= 0.85 * weight`); told to lie on the bed by its text it bears her reclined and
     she stays (by the take's rows her feet hang - a seat of 0.45 m over shanks of 0.455 with her
     thighs level - and she collapses back from its edge: stunts.md) (docs/TODO.md)."""
-    from machine import leap, modal, physics, worker
+    from machine.moves import leap
+    from machine.law import modal
+    from machine.world import physics
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
 
     def seated(scene, told):
@@ -191,7 +202,9 @@ def test_viewport_f_errands_chair_bed_and_door(report):
     (`_first`) makes her autonomously walk to the chair and sit, walk to the bed and lie down, or walk to
     the door and exit."""
     from types import SimpleNamespace as SN
-    from machine import modal, physics, sprung, worker
+    from machine.law import modal
+    from machine.world import physics
+    from machine.process import sprung, worker
     from terminal.views import gym, humanoid_keys, scanner, viewpoint
     sc = scanner.VisionScanner()
     physics.ROOM, physics.SIGHT = 1.0, 0.0
@@ -250,9 +263,10 @@ def test_viewport_f_errands_chair_bed_and_door(report):
 
 def test_the_errand_goes_to_the_thing_told(report):
     """Two chairs, the scene's ahead and the lodge's aside: told to sit she looks (her registry's three
-    sightings), her planner docks her (`machine.planner`) and she walks to the nearer one, told to sit at
+    sightings), her planner docks her (`machine.way.planner`) and she walks to the nearer one, told to sit at
     the lodge's (`at`, its balloon's) to that one."""
-    from machine import physics, room, worker
+    from machine.world import physics, room
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     docks = []
     for told in ({'say': 'sit_chair'}, {'say': 'sit_chair', 'at': room.CHAIR_AT}):
@@ -275,7 +289,8 @@ def test_the_low_chair_is_docked_as_it_faces(report):
     """The lodge's low chair against the west wall facing +x, F's offer from the start: told to sit
     at it she docks before it facing the room, not at its flank against the wall where she shuttled
     30 s (findings/errands.md), and is seated within 30 s."""
-    from machine import physics, room, worker
+    from machine.world import physics, room
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
     g = s['g']
@@ -296,7 +311,9 @@ def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
     """Sat on the lodge's low chair and risen, told the door: her way round the bed - a straight run at
     the doorway from there crossed its foot and she tripped (findings/errands.md) -, out past the
     door's line, clear of the bed's box by her hips, no fall."""
-    from machine import figure, physics, room, sprung, worker
+    from machine.body import figure
+    from machine.world import physics, room
+    from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data
@@ -329,7 +346,11 @@ def test_multi_pose_bed_settle_and_randomized_scenarios(report):
     sole's half-length of the edge and begins to sit, no fall; seeded randomized scenario
     perturbations stay upright without falling. Lying from the dock: scenarios.md item 1."""
     import random
-    from machine import edge, figure, modal, physics, se2, sprung, worker
+    from machine.world import physics
+    from machine.senses import edge
+    from machine.body import figure
+    from machine.law import modal, se2
+    from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     for name, x0, z0, yaw0 in (('csv_rec', -0.62, 1.86, -1.50), ('south_face', -0.80, 1.50, 3.10),
                                ('llm_rec', -0.37, 1.45, 2.365)):
@@ -377,7 +398,8 @@ def test_multi_pose_bed_settle_and_randomized_scenarios(report):
 
 def test_continuous_outer_loop_told_and_walk_again(report):
     """Zero discrete delay tables in `se2`/`worker`; `W` at any moment of a stop reaches `> 0.3 m/s` in `< 1.0 s`."""
-    from machine import se2, sprung, worker
+    from machine.law import se2
+    from machine.process import sprung, worker
     from tools.sim import told
     no_tables = not any(hasattr(se2, k) or hasattr(worker, k) for k in ('INIT_DELAYS', 'BRAKE_DELAYS', 'RISES'))
     by = {e[0]: e for e in sprung.entries()}

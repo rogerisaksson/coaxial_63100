@@ -3,8 +3,9 @@ import math
 
 from coaxial.graphics.callouts import line
 from coaxial.graphics.lit import project
-from machine import figure, se2
-from machine.figure import quat
+from machine.body import figure
+from machine.law import se2
+from machine.body.figure import quat
 
 FRAME_INK, FILL_INK = (72, 216, 255), (88, 255, 144)
 STOP_INK, LAND_INK = (255, 112, 96), (255, 184, 72)

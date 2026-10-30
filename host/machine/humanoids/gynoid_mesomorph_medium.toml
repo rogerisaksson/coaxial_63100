@@ -150,7 +150,7 @@ wrist = 1.0
 gripper = 1.0
 foot = 1.0
 
-# Service (`machine.wear`): a drift from the build past these raises an alarm - a drive's
+# Service (`machine.identify.wear`): a drift from the build past these raises an alarm - a drive's
 # Coulomb friction up this share of its own and at least this, N m; its viscous friction, N m
 # s/rad; its torque an amp down this share; a box's play up this share, its wind-up down this
 # (the ankles' read 0.35 low on the stand); an encoder's zero slipped past this, rad; a load

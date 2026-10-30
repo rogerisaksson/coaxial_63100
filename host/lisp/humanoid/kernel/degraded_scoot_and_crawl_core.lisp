@@ -4,7 +4,7 @@
 ;;         Cancellation, Seated Butt-Scoot & Prone Leopard Low-Crawl Physics
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp,
 ;;           terrestrial_multimodal_gaits.lisp, prior_regularized_observer.lisp
-;; Hers: fitted to her body (`machine.crawl`, test_crawl): her hip turns out 25 deg at its stop, her shoulders do not
+;; Hers: fitted to her body (`machine.moves.crawl`, test_crawl): her hip turns out 25 deg at its stop, her shoulders do not
 ;; abduct; a drive in High-Z still holds its gearbox's backdrive (1.2-2.2 N m, `drives.backdrive`). None of it on
 ;; her loop.
 ;; =============================================================================

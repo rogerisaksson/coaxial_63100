@@ -1,4 +1,4 @@
-/** wbc_maps.c - machine.wrench._maps in C (wbc_step.h): a leg through its sole's damped inverse, the joints no drive
+/** wbc_maps.c - machine.stack.wrench._maps in C (wbc_step.h): a leg through its sole's damped inverse, the joints no drive
     holds, each swinging sole's asked acceleration - numpy's arithmetic and its OpenBLAS operation for operation. */
 #include "wbc_np.h"
 #include "wbc_step.h"
@@ -8,7 +8,7 @@
 
 #define VIEW(at, s0, s1) ((wbc_view_t){(at), (s0), (s1)})
 
-/** machine.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad. */
+/** machine.stack.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad. */
 void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double have[4], double out[3])
 {
   const double w0 = have[0], x0 = have[1], y0 = have[2], z0 = have[3];
@@ -31,7 +31,7 @@ void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double
   }
 }
 
-/** machine.wrench._inv: A's damped inverse, `damp2` its lambda^2, A (6, 6) F-ordered as numpy lays a[:, idx]. */
+/** machine.stack.wrench._inv: A's damped inverse, `damp2` its lambda^2, A (6, 6) F-ordered as numpy lays a[:, idx]. */
 static int inv6(const wbc_step_t *p, const double At[36], double damp2, double out[36], double *work)
 {
   double K[36];
@@ -47,7 +47,7 @@ static int inv6(const wbc_step_t *p, const double At[36], double damp2, double o
   return wbc_solve(&p->blas, VIEW(K, 6, 1), VIEW(At, 6, 1), 6, 6, out, work);
 }
 
-/** machine.wrench._maps: qdd = T base + E u + t0 (E n by nu); each swinging sole's asked a6 and whether asked. */
+/** machine.stack.wrench._maps: qdd = T base + E u + t0 (E n by nu); each swinging sole's asked a6 and whether asked. */
 int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E, double *t0, double *a6,
                 double asked[2], int nu, double *work)
 {
@@ -115,7 +115,7 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
     wbc_matmul(l, VIEW(J6, n, 1), VIEW(p->v, 1, 0), twist, 1, 0, 6, n, 1);
     if (!p->stance[k] && !p->swing[k])
     {
-      /* let go: an open chain, each joint an unknown on the swing's row, its foot a contact (machine.wrench._maps) */
+      /* let go: an open chain, each joint an unknown on the swing's row, its foot a contact (machine.stack.wrench._maps) */
       const double loose = (double)(p->let_go[k] != 0);
 
       for (int i = 0; i < 6; i++)

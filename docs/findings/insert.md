@@ -2,7 +2,7 @@
 
 Her errands said from every spot (`tools/sim/house.py --said`, 112 runs a
 verb; a spasm an arm past 87 deg/s, her neck past 37 - her walk's), traced pass
-by pass, against the insert's five roots (`machine.supervisor`,
+by pass, against the insert's five roots (`machine.law.supervisor`,
 anti_spasm_supervisor.lisp):
 
 - A regime switch at her brake's last landing (sit_chair from -0.1, -0.4, 0):

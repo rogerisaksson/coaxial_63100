@@ -7,7 +7,7 @@ import os
 from coaxial.graphics import shadow
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N, RUNGS, SHADE
 from coaxial.graphics.solids import _casters
-from machine.ansi import rgb as _rgb
+from machine.rig.ansi import rgb as _rgb
 
 
 #: The light in view space, over the viewer's shoulder: the key light's and

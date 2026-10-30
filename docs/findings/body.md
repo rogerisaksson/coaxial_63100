@@ -25,13 +25,13 @@ her latent loop in [orthokinematics](orthokinematics.md).
 
 ## Buses
 
-- Boards on their buses, simulated (`machine.buses`):
+- Boards on their buses, simulated (`machine.rig.buses`):
   + A bus a limb (the type's subsystems: the axis, each arm, each leg), a
     process each with its boards' PD loops, in lockstep with the world a
     step at a time over a shared block (q, qd, limit in; ctrl out; a byte on
     stdin a step); the host's frames real bytes on a TCP socket a bus
     (`socket://`, an emulated limb's port).
-  + Modbus RTU (`machine.rtu`): a pass is one 0x10 broadcast of the bus's
+  + Modbus RTU (`machine.rig.rtu`): a pass is one 0x10 broadcast of the bus's
     setpoints (9 bytes and an i32 mdeg a unit, SETPOINT_REG) and a 0x03 poll
     a board (8 bytes; reply 13: angle and rate, i32 mdeg and mdeg/s,
     STATE_REG); a frame lands its bytes after its stamp at 9 216 000 baud
@@ -49,12 +49,12 @@ her latent loop in [orthokinematics](orthokinematics.md).
   + The setpoint rate a board carries on at is read between two frames, never
     from a hold: from the reset's hold to the first frame 37 us later it came
     to 150 rad/s and every drive slammed to its peak.
-  + A world with no buses runs the drives itself (`machine.sprung`).
+  + A world with no buses runs the drives itself (`machine.process.sprung`).
 - Five processes (the axis's 5 boards, each arm's 4, each leg's 7), 0 bad
   frames:
   + With the heat in each reply (21 bytes) a leg's wire is busy 430 us of a
     1 ms pass.
-  + Each board keeps its heat (`machine.heat`: thermal.c's envelope on three
+  + Each board keeps its heat (`machine.body.heat`: thermal.c's envelope on three
     lumped nodes, the 5230SL through a 1:64 cycloid, heat at 10 times the
     clock).
   + A knee warmed to 100 C (0.93, derated 0.73) walked on, 0.98 2.5 s later;
@@ -197,7 +197,7 @@ her latent loop in [orthokinematics](orthokinematics.md).
     65), 94 wide at the ball, 76 tall at the heel, 15 mm of toe spring; the
     gum sole 28 mm at the heel, 18 at the ball; 0.25 kg (`build.HOLDS`).
   + The forefoot's bend is the toes' spring, 10 N m/rad (`drives.passive`);
-    grip and give in `machine.mjcf`.
+    grip and give in `machine.body.mjcf`.
   + A bare quarter render reads as a low-top sneaker, the toe box rounded,
     the sole band seen.
 - The shell fitted to the skeleton as sized, the clothes over it

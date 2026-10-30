@@ -3,7 +3,7 @@
 - **Her wayfinder apart, its smooth interactive text**
   (`smooth_interactive_wayfinder.lisp`, bridged by
   `agnostic_terrain_and_clutter_nav.lisp`): her dock and her way planned in a
-  process of their own (`machine.planner`; a dock or a way she stands for told
+  process of their own (`machine.way.planner`; a dock or a way she stands for told
   at once, her way watched walking told 0.25 s on from where she will be
   then); her map opened before the face she docks at
   (`:affordance-aperture`). Left: corners rounded where her arc fits - an

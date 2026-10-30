@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 import numpy as np
 
-from machine import figure
+from machine.body import figure
 from tools.sim import fbx, normal
 
 G = 9.81
@@ -421,7 +421,8 @@ def evaluate_simulation(ref_path, duration=15.0, joints=EVAL_JOINTS, tolerance=M
                         asked=None, text=None):
     """Run simulation on the latent loop from plan onset, evaluate against reference FBX take,
     execute CI guillotine check across both SO(3) GPS and ballistic initiation gates."""
-    from machine import ortho, sprung
+    from machine.texts import ortho
+    from machine.process import sprung
     from machine.errors import MachineError
     from tools.sim import ortho as run
     ref_times, ref_joints, ref_rots = extract_take_rotations(ref_path)

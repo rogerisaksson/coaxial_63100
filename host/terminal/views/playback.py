@@ -27,7 +27,7 @@ class Playback:
 
     @classmethod
     def steady(cls, blend=None):
-        """For a world held to what its page has shown (`machine.apart`): in real time or slower,
+        """For a world held to what its page has shown (`machine.process.apart`): in real time or slower,
         never ahead - no catch-up, a frame STEADY_S at the most, the wall's pace, not its world's
         ratio (held back, that ratio would slow the page that holds it)."""
         return cls(blend, catch_up=0.0, most_s=STEADY_S, follows=False)

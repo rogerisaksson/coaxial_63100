@@ -12,13 +12,15 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import mjcf, physics
+from machine.body import mjcf
+from machine.world import physics
 
 mjcf.STAND = 1.0
 
 
 def main(argv=None):
-    from machine import campaign, identified, sysid, wbc
+    from machine.identify import campaign, identified, sysid
+    from machine.stack import wbc
     p = argparse.ArgumentParser(description='Her identification campaign on the stand, run and tabled.')
     p.add_argument('--seconds', type=float, default=24.0, help='the campaign, s')
     p.add_argument('--payload', type=float, default=0.0, help='kg in her left hand, the world\'s')

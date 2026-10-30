@@ -1,4 +1,4 @@
-"""Her streams gated (`machine.gate`) as her passes made them: each gated section the same, sample for
+"""Her streams gated (`machine.rig.gate`) as her passes made them: each gated section the same, sample for
 sample and to the bit, as a harness recording each subsystem where it runs; her triggers held off and
 re-armed; the gate armed by a client of her telemetry."""
 import json
@@ -21,7 +21,11 @@ def _harnessed(s):
     the world after each step, her things after each look, her wear told, the commands heard -; and
     the undo."""
     import numpy as np
-    from machine import edge, motion, physics, sprung, wear
+    from machine.world import physics
+    from machine.senses import edge
+    from machine.law import motion
+    from machine.process import sprung
+    from machine.identify import wear
     got = {k: [] for k in ('felt', 'read', 'law', 'drives', 'world', 'things', 'wear', 'heard')}
     copied = lambda d: {k: v.copy() if isinstance(v, np.ndarray) else v for k, v in d.items()}
     was = {(edge, 'felt'): edge.felt, (edge, 'read'): edge.read, (motion, 'control'): motion.control,
@@ -74,7 +78,7 @@ def _harnessed(s):
 
 
 def _plain(v):
-    from machine import introspect
+    from machine.process import introspect
     return json.dumps(introspect._plain(v), sort_keys=True)
 
 
@@ -82,7 +86,8 @@ def _expected(stream, meta, sample):
     """The gated vector `stream`'s sample as the harness's `sample` gives it, field by field through
     her code's own slices and names: the metadata's offsets checked as the values are."""
     import numpy as np
-    from machine import edge, latent, modal
+    from machine.senses import edge
+    from machine.law import latent, modal
     fields = meta['fields']
     v = np.full(meta['n'], np.nan)
     for name, f in fields.items():
@@ -103,7 +108,7 @@ def _sections(path, got, events):
     stream [k, matched] - a vector's samples equal to the bit, a record's as JSON, times the same,
     none missing -, and whether its records run in time."""
     import numpy as np
-    from machine import gate, streams
+    from machine.rig import gate, streams
     harness = {'felt': got['felt'], 'read': got['read'], 'latent': got['law'], 'impedance': got['law'],
                'drives': got['drives'], 'world': got['world'], 'things': got['things'], 'wear': got['wear'],
                'heard': got['heard'], 'wrench': [(t, {'ask': x['ask'], 'got': x['got']}) for t, x in got['law']],
@@ -140,7 +145,7 @@ def test_each_gated_section_is_her_passes_own(report):
     where it runs, none missing and none made up; the fields' names and offsets her code's; the
     records in time, one instant's in her pass's order; the trigger in a window held off, the gate
     re-armed, none past its count."""
-    from machine import introspect, worker
+    from machine.process import introspect, worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     for _ in range(500):
@@ -192,7 +197,8 @@ def test_each_gated_section_is_her_passes_own(report):
 def _in_a_daemon(out):
     """Her session in a daemon process, as her page's worker runs her: a gate armed, fired and its
     window written - its notices put on `out`."""
-    from machine import gate, worker
+    from machine.rig import gate
+    from machine.process import worker
     s = worker.session()
     scope, told = gate.Scope(), []
     key = scope.arm(s, {'tag': 'daemon', 'count': 1, 'pre_s': 0.1, 'post_s': 0.1}, told.append)

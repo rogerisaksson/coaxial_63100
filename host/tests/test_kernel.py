@@ -2,12 +2,12 @@
 import sys
 
 from tools.dev.focus import chosen
-from gynoid_kit import Report
+from gynoid_kit import Report, near
 
 
 def _engage():
     """The text's contact comparator's engaging share of her weight (`latch-hysteretic-contact`)."""
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     got = kernel.read()
     return dsp.value(['latch-hysteretic-contact', 'nominal-biped-gait'], got)['contact-comparators']['schmitt-high-engage-fz']
 
@@ -15,7 +15,7 @@ def _engage():
 def _observed(scene, since, until):
     """(observed, felt) each law pass of `scene` from `since` to `until` s, (n, MANIFOLDS); her weight, N."""
     import numpy as np
-    from machine import observer
+    from machine.senses import observer
     from tools.sim import scenarios
     rows, last, weight = [], [None], [0.0]
 
@@ -34,7 +34,7 @@ def test_her_patches_observed_walking(report):
     """Walking past her first stride, the observer reads her soles' push within the text's engaging
     share of her weight at its 95th percentile, and nowhere her skin feels nothing past it."""
     import numpy as np
-    from machine import observer
+    from machine.senses import observer
     from tools.sim import observed
     got, felt, weight = _observed('play_walk', 1.5, 6.0)
     share, sole = _engage() * weight, observer.MANIFOLDS.index('plantar-bilateral')
@@ -48,7 +48,7 @@ def test_her_patches_observed_seated(report):
     """Sat on the chair: her soles and the seat each within the text's engaging share of her weight of
     what her skin feels, at the 95th percentile."""
     import numpy as np
-    from machine import observer
+    from machine.senses import observer
     got, felt, weight = _observed('chair', 4.0, 7.5)
     share = _engage() * weight
     worst = {m: float(np.percentile(np.abs(got[:, k] - felt[:, k]), 95)) for k, m in enumerate(observer.MANIFOLDS)
@@ -64,7 +64,7 @@ def test_her_chest_yaw_leaks_nothing_standing(report):
     import copy
     import math
     import numpy as np
-    from machine import worker
+    from machine.process import worker
     from tools.cores import wbc as cores
     s = worker.session()
     g = s['g']
@@ -97,7 +97,7 @@ def test_what_bears_her_weighs_as_felt(report):
     seat unfelt weighs nothing, its share her soles'; felt past the engaging share, as told after 1 /
     UP s; let go, nothing within 1 / DOWN s of its release's dwell."""
     import numpy as np
-    from machine import observer
+    from machine.senses import observer
     obs = {k: np.zeros(len(observer.ROWS)) for k in ('latched', 'below', 'since', 'gate')}
     obs['normal'] = np.zeros(len(observer.MANIFOLDS))
     weight, dt, seat = 300.0, 0.003, int(observer.ROWS[1])
@@ -125,7 +125,7 @@ def test_the_barrier_holds_her_capture_point(report):
     0.5 m/s, an ask outward cut to the edge's h' + gamma h = 0; past the edge none further out; at
     rest 0 the ask as given."""
     import numpy as np
-    from machine import barrier
+    from machine.law import barrier
     corners = np.array([[x, 0.0, z] for x in (-0.1, 0.1) for z in (-0.1, 0.1)])
     om, v = 3.3, np.array([0.5, 0.0, 0.0])
     com = np.array([0.1 - 0.05 - v[0] / om, 0.9, 0.0])
@@ -142,7 +142,7 @@ def test_a_pulled_chair_weighs_nothing(report):
     """The chair pulled 1 m back over 0.3 s from under her sit while her pelvis descends over it
     (1.5 s): what bears her takes no seat till her rise is said (8 s), and she stands."""
     import numpy as np
-    from machine import latent
+    from machine.law import latent
     from tools.sim import scenarios
     seat, x0 = [0.0], [None]
 
@@ -159,9 +159,9 @@ def test_a_pulled_chair_weighs_nothing(report):
 
 
 def test_her_link_under_its_ceiling(report):
-    """Her DC link (`machine.dclink`) through a hop down off a chair: its landing's braking bled on her
+    """Her DC link (`machine.body.dclink`) through a hop down off a chair: its landing's braking bled on her
     boards' d axes past the text's onset, the link under its clamp; at rest her packs' volts."""
-    from machine import dclink, drives
+    from machine.body import dclink, drives
     from tools.sim import scenarios
     seen = {}
     out = scenarios.ran('hop_down', laid=lambda s: seen.update(link=s['g']['world'].link))
@@ -176,7 +176,8 @@ def test_the_field_seeks_a_seat_not_found(report):
     at the text's 0.30 m/s through 43 ms; still descending, nothing; the seat bearing her, it stops
     and holds; her rows leaning on none, it lets go."""
     import numpy as np
-    from machine import field, impedance, latent, modal
+    from machine.senses import field
+    from machine.law import impedance, latent, modal
     tab = np.zeros((1, latent.TABLE))
     tab[0, latent.CONTACT] = 1.0
     y, out, dt = np.zeros(modal.SENSED), np.zeros(latent.OUT), 0.003
@@ -206,8 +207,70 @@ def test_the_invariant_ekf_drifts_less(report):
         i['floor'] < e['floor'] and abs(i['height']) < abs(e['height']) and i['speed'] < e['speed'], '')
 
 
+def test_the_kernel_reads_whole(report):
+    """The dual-domain kernel's texts (lisp/humanoid/kernel/) evaluated, each op its mechanism's
+    node: the room's schedule; the room's walk with its bus, bands, body schema and shield; the
+    stool's shove gated on its funnel, each funnel's executor run from her nominal, the sit's blind
+    settle at the observer's 35 Hz, weights slewed 4.5 up and 45 down, the barrier at 14 /s and 18
+    mm, its slide; the stairs; the lowering's own functions evaluated as written."""
+    import math
+    from machine.texts import dsp
+    got = dsp.read(dsp.KERNEL)
+    plan = dsp.schedule(got['compile-complete-humanoid-soa'])
+    report.check('the room schedule: 8 bars of the room, the stool, 4 s, the bed, 8 s, the stairs',
+                 [p[0] for p in plan] == [0.0, 'oneshot', 'dwell', 'oneshot', 'dwell', 'oneshot']
+                 and plan[0][1] == 8.0 and (plan[2][1], plan[4][1]) == (4.0, 8.0), str([p[:2] for p in plan]))
+    room = plan[0][2]
+    omega = 2.0 * 3.14159265 * 11.0
+    report.check('the room: its bus 48 / 56.5 / 60 V, bands cut at 260 and 980 mm, the shield at 11 Hz, 1.05, '
+                 'the cocoon 14 mm, shins 32 mm clear, the margin probed at 15-38 Hz',
+                 (room['dc-bus']['nominal-voltage-v'], room['dc-bus']['bleed-threshold-v'], room['dc-bus']['max-voltage-v'])
+                 == (48.0, 56.5, 60.0)
+                 and [s.args['z-window-mm'] for s in room['sdf-bands']['slabs']] == [(0.0, 260.0), (260.0, 980.0), (980.0, 1920.0)]
+                 and near(room['ecbf-shield']['position-gain-kp'], omega * omega)
+                 and near(room['ecbf-shield']['velocity-gain-kd'], 2.0 * 1.05 * omega)
+                 and room['braking-cocoon']['base-margin-m'] == 0.014
+                 and room['foothold']['crural-capsule-fk-guard']['min-shin-clearance-m'] == 0.032
+                 and room['phase-margin']['probe-frequencies-hz'] == (15.0, 22.0, 30.0, 38.0), str(room['ecbf-shield']))
+    schema = got['anatomical-capsule-schema']
+    report.check('the body schema: 18 capsules and 4 payload slots, LSE at 25, 13 pairs; eight manifolds, the soles 0.80 mu',
+                 len(schema['capsules']) == schema['memory-layout']['num-body-capsules'] == 18.0
+                 and schema['memory-layout']['num-payload-slots'] == 4.0 and len(schema['self-collision-pairs']) == 13
+                 and len(got['anatomical-manifold-registry']) == 8
+                 and got['anatomical-manifold-registry']['plantar-bilateral']['default-mu'] == 0.80
+                 and got['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'] == 256.0, str(schema['memory-layout']))
+    stool = plan[1][1]
+    report.check('the stool: the shove gated on its funnel, 18 N on the chair, its payload spliced',
+                 stool['_gates'][0][:2] == ('when-funnel-active', ':somatic-object-coupled')
+                 and {'somatic-shove', 'payload-capsule'} <= set(stool['_gates'][0][2])
+                 and stool['somatic-shove']['unilateral-contact-maintenance']['min-normal-bias-n'] == 18.0, str(stool['_gates']))
+    runs = {(t['from'], t['to']): dsp.run(t['execute'], got['nominal-biped-gait'])
+            for t in stool['funnel-executors']['transitions']}
+    sit = runs[(':bipedal-upright', ':ischial-seated')]
+    report.check("each executor runs; the sit's observer 35 Hz, weights 4.5 / 45 per s, barrier 14 /s 18 mm, "
+                 "slid at 0.16 m/s under 0.55 of her, her leg 890 mm",
+                 len(runs) == 4 and sit['momentum-observer']['filter-cutoff-hz'] == 35.0
+                 and sit['manifold-weights']['asymmetric-slew'] == {'attack-rate': 4.5, 'release-rate': 45.0}
+                 and (sit['dcm-barrier']['barrier-decay-rate'], sit['dcm-barrier']['safety-margin-mm']) == (14.0, 18.0)
+                 and sit['coulomb-slide']['tangent-velocity-attractor'][0] == -0.16
+                 and sit['coulomb-slide']['normal-load-governor']['cap-fz-ratio'] == 0.55
+                 and sit['reachability']['nominal-max-length-mm'] == 890.0, str(sit['manifold-weights']))
+    stairs = plan[5][1]
+    brace = stairs['adjoint-cones']['opportunistic-egress-brace']
+    report.check("the stairs at 90 BPM, down 175 mm 38 mm clear of the nosing; the egress's brace on what her "
+                 "registry finds within 680 mm",
+                 stairs['oscillator']['bpm'] == 90.0 and stairs['step-energy']['elevation-delta-mm'] == -175.0
+                 and stairs['step-energy']['nosing-radial-guard-mm'] == 38.0
+                 and isinstance(brace['mu-static'], dsp.Law) and brace['mu-static'].name == 'slot-estimated-mu', str(brace))
+    b0, b1, b2, a1, a2 = dsp.value(['precompute-tustin-biquad', ':lowpass', 42.0, 0.70710678], got)
+    s1, s2 = dsp.value(['seed-bumpless-biquad-states', b0, b1, b2, a1, a2, 0.3], got)
+    report.check("the lowering's biquad as written: unity at DC, seeded on 0.3 its first output 0.3",
+                 near(b0 + b1 + b2, 1.0 + a1 + a2) and math.isclose(b0 * 0.3 + s1, 0.3, rel_tol=1e-6)
+                 and got['*abi-field-descriptors*'][0] == (':bpm', 0.0, 0.016666668, 0.0, 4.0), '%r' % ((b0, b1, b2, a1, a2),))
+
+
 ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
-          test_what_bears_her_weighs_as_felt)
+          test_what_bears_her_weighs_as_felt, test_the_kernel_reads_whole)
 
 
 def main(argv=None):

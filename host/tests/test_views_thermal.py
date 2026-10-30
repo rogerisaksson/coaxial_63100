@@ -14,7 +14,7 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     """
     import re
     from coaxial.draw import thermalmap
-    from machine import ansi
+    from machine.rig import ansi
     from coaxial.model.thermal import ALL_NODES
 
     warm = {n: 40.0 for n in ALL_NODES}
@@ -341,7 +341,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     from rich.console import Console
 
     from coaxial.draw import cross_section, gauges
-    from machine import ansi
+    from machine.rig import ansi
     from terminal.views.thermal import boxes
     from terminal.ui import scroll, stage
 

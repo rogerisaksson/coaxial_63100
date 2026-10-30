@@ -15,7 +15,8 @@ import threading
 
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
-from machine import room, sight, stereo, voxels
+from machine.world import room
+from machine.eyes import sight, stereo, voxels
 
 
 #: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
@@ -222,7 +223,7 @@ def _board_cell(now, joint, alarmed, passive, pk_default):
 
 
 def _limb_bus_row(r, left, width, inner, b_name, joints, now, alarms, key_frame, trunk_code):
-    from machine import drives
+    from machine.body import drives
     out = {(r, left): (ord('│'), key_frame), (r, left + width - 1): (ord('│'), key_frame),
            (r, left + 6): (ord('├'), packed(FRAME_INK, PLATE_BG))}
     tag = BUS_TAGS.get(b_name) or b_name[:5].upper().ljust(5)
@@ -243,7 +244,7 @@ def _limb_bus_row(r, left, width, inner, b_name, joints, now, alarms, key_frame,
 
 def bus_plate(now, top, left, width):
     """Render the framed 10 Mbit/s RS485 Modbus RTU per-extremity SIL bus & 27-board status graphic."""
-    from machine import edge
+    from machine.senses import edge
     inner = width - 2
     if inner < 18:
         return {}

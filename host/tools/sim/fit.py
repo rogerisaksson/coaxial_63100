@@ -10,7 +10,7 @@ squat - or over a recording's poses.
 
 A drum is a drive's assembly as drawn (`coaxial.graphics.drums`), a cylinder, the hip's with the
 yokes they ride; a bone its carbon tube from joint to joint; a rod its tube from its crank's pin
-to its ball (`machine.linkage`). Parts in segments neither the same nor neighbours are not a
+to its ball (`machine.body.linkage`). Parts in segments neither the same nor neighbours are not a
 pair - their shells keep them apart - nor parts bolted together: a drum and its segment's bone,
 neighbouring bones at their joint, a rod within a ball of its ends.
 """
@@ -36,7 +36,7 @@ GIRDLE_Y = 0.325
 def poses(csv=None, every=10):
     """[(name, {joint: deg})]: where she is put - standing, the squat - or where a recording
     (`csv`, R's rows) had her, every `every`th row."""
-    from machine import figure
+    from machine.body import figure
     if csv:
         from tools.sim.look import recorded
         rows = recorded(csv)[::every]
@@ -47,7 +47,7 @@ def poses(csv=None, every=10):
 
 def rods():
     """[(joint kind, stroke, worst transmission in and out deg, lever least and most)]."""
-    from machine import linkage
+    from machine.body import linkage
     out = []
     for kind, (rod, (lo, hi)) in linkage.RODS.items():
         up, ahead, r, _t0, b, _beta = rod
@@ -77,7 +77,7 @@ def outputs():
     a crank or a belt past its gearbox's end; on its joint's axis, the pivot on the drum's line
     and, the drum along the segment it turns, its gearbox's end toward that."""
     from coaxial.graphics import drums
-    from machine import drives, figure, linkage
+    from machine.body import drives, figure, linkage
     placed = {name[len('drive_'):]: (parent, at) for name, parent, at, _m in drums.drums()}
     segs = {j: seg for seg in figure.SEGMENTS for j, _ax, _s in seg[2]}
     out = []
@@ -115,7 +115,7 @@ def outputs():
 
 
 def _frames(angles):
-    from machine import figure
+    from machine.body import figure
     return {k: (np.array(R), np.array(p)) for k, (p, R) in figure.frames(
         angles, (0.0, 0.0, 0.0), ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))).items()}
 
@@ -124,7 +124,7 @@ def parts(angles):
     """{name: ('drum', centre, axis, radius, half) | ('tube', a, b, radius)}, world, and the
     segment each rides."""
     from coaxial.graphics import drums
-    from machine import drives, figure, linkage, skeleton
+    from machine.body import drives, figure, linkage, skeleton
     fr = _frames(angles)
     out, rides = {}, {}
     for name, parent, at, *_mesh in drums.drums():
@@ -264,7 +264,7 @@ def _bolted(a, b, rides, parts_):
     shells keep them apart, and the physics collides those - unless one is a rod, which no shell
     holds; a bone and a drum on its segment or on a joint at either of its ends, two bones meeting
     at a joint."""
-    from machine import figure, skeleton
+    from machine.body import figure, skeleton
     if _stack(a) == _stack(b):
         return True
     a, b = _stack(a), _stack(b)
@@ -393,7 +393,7 @@ def drawn(dressed):
     """{joint: m}: each drum's, board's and rod's worst reach past her drawn shell (`dressed`
     False) or past her clothes and her skin where they leave it bare, standing."""
     from coaxial.graphics import gynoid
-    from machine import figure
+    from machine.body import figure
     stand = figure.stand()
     body = gynoid.body(dressed=dressed)
     frames = body._frames(stand)
@@ -419,7 +419,7 @@ def main(argv=None):
     parser.add_argument('--worst', type=int, default=12, help='the closest pairs shown')
     parser.add_argument('--csv', help='poses from a recording (R, build/recordings/*.csv)')
     args = parser.parse_args(argv)
-    from machine import drives, figure
+    from machine.body import drives, figure
     from tools.sim.strides import _out
     wrong = [(j, w) for j, _what, w in outputs() if w]
     print('drives turning what they drive from their gearbox: %d wrong' % len(wrong))
@@ -429,7 +429,7 @@ def main(argv=None):
     for kind, (lo, hi), mi, mo, l0, l1 in rods():
         print('  %-10s %+4.0f..%+3.0f deg  %4.1f / %4.1f deg  %.2f-%.2f' % (kind, lo, hi, mi, mo,
                                                                          l0, l1))
-    stand = __import__('machine.figure', fromlist=['stand']).stand()
+    stand = __import__('machine.body.figure', fromlist=['stand']).stand()
     row = dict({j: stand.get(j, 0.0) for j in figure.JOINTS},
                **{'%s_%s' % (s[0], a): 0.0 for s in figure.SEGMENTS for a in 'xyz'})
     reach = sorted(((_out(row, [j]), drives.kind(j), drives.of(j)[0]) for j in figure.JOINTS

@@ -226,7 +226,7 @@ BENCH = ('No flags on `gates.on()`, no `on_model`, `load_k` = `APC20x10E.k`, the
 
 REFERENCES = [
     ('host/coaxial/control/motion.py', 'the three verbs: the slew, the servo\'s mean over the ring, the velocity loop at link rate'),
-    ('host/machine/parts.py', '`SpeedPI`, the velocity verb\'s regulator: the zero on the mechanical pole, acceleration and drag fed forward, the integrator held on the clamp'),
+    ('host/machine/rig/parts.py', '`SpeedPI`, the velocity verb\'s regulator: the zero on the mechanical pole, acceleration and drag fed forward, the integrator held on the clamp'),
     ('host/motor/loads.py', '`Propeller`, `APC20x10E` off the thrust stand'),
     ('host/coaxial/control/motion.py', '`on_model`: a load on the stand-in\'s rotor'),
     ('host/coaxial/simulated/drive/', 'the stand-in\'s rotor the missions turned, a pendulum integrated at a fixed sub-step'),

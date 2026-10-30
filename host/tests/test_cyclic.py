@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor."""
+"""The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, its cycle on a toy rotor."""
 import math
 import os
 import random
@@ -10,8 +10,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from machine import cyclic, parts
-from machine.nodes import Module
+from machine.rig import cyclic, parts
+from machine.rig.nodes import Module
 
 from test_modbus_core import Report
 
@@ -55,7 +55,7 @@ def test_steps_are_the_parts(report):
                       for i, p in enumerate(ports, 1)}
                 want = next(iter(part.step(DT, **kw).values()))
                 worst = max(worst, abs(y[r] - want) / max(1.0, abs(want)))
-        report.check('%s steps as machine.parts does, row by row' % kind, worst < 1e-9,
+        report.check('%s steps as machine.rig.parts does, row by row' % kind, worst < 1e-9,
                      '%.1e worst' % worst)
 
 

@@ -5,7 +5,7 @@ from coaxial.draw import braille, shutter
 from coaxial.draw.ascii3d import CELL_ASPECT
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
-from machine import ansi
+from machine.rig import ansi
 
 #: A cell's height in widths is `ascii3d.CELL_ASPECT`, one value for every
 #: renderer: a taller font draws the circle an ellipse by exactly the ratio.

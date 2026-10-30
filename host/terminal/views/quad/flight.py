@@ -18,10 +18,10 @@ from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine import heat as mheat
+from machine.body import heat as mheat
 from machine.aircraft import aerobatics, aerokin, course, flightpack, pull, quad, senses, sweep, weather
-from machine.controller import Feedback
-from machine.parts import Gain, Slew, SpeedPI
+from machine.rig.controller import Feedback
+from machine.rig.parts import Gain, Slew, SpeedPI
 from tools.cores import aero, stand
 
 _LIB = stand.library()

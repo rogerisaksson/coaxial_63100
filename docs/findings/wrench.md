@@ -1,6 +1,6 @@
 # Findings: wrench
 
-Her whole body's step without an active set (`machine/wrench.py`), in the
+Her whole body's step without an active set (`machine/stack/wrench.py`), in the
 stack's place ([wbc](wbc.md)); `tools/sim/wbc.py --wrench` and
 `tools/sim/hop.py --wrench` run it, tests/test_wrench.py holds it.
 

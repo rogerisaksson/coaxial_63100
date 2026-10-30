@@ -3,7 +3,7 @@ from coaxial.comm import protocol
 from coaxial.comm.wire import Reader, pack
 from coaxial.devices.subsystem import Subsystem, remembered
 from coaxial.errors import RigError
-from machine.roles import Input, Output
+from machine.rig.roles import Input, Output
 
 
 def _letter(port):

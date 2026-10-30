@@ -60,7 +60,7 @@
 ;;     to the object's oriented face!
 ;; Hers: her slot's margin from her reach across her way (0.20-0.33 m in the bands it
 ;; meets) to her reach ahead (0.10-0.32 m) and the standoff; the face her dock's
-;; (`machine.dock`, by what the thing affords), the cone's apex its centre.
+;; (`machine.way.dock`, by what the thing affords), the cone's apex its centre.
 ;; -----------------------------------------------------------------------------
 (defprimitive carve-anisotropic-affordance-docking-funnel
   [state &key (target-selection :nearest-goal-cluster) ; :nearest-goal-cluster | :recognized-semantic-class | :none
@@ -88,7 +88,7 @@
 ;;   d(psi)/dt = v * kappa,  |kappa| <= mu * g / v^2,  |d(kappa)/dt| <= sigma_max
 ;; Hers: |kappa| within her walk's arc (WALK_SPEED / YAW_RATE, 0.99 m) - she has one
 ;; walk's speed, so her arc bounds kappa, not her speed -; d(kappa)/dt her arc taken up
-;; over a step, where a sole lands and turns her (`machine.errand`).
+;; over a step, where a sole lands and turns her (`machine.way.errand`).
 ;; -----------------------------------------------------------------------------
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
@@ -119,7 +119,7 @@
 ;; allows the feet `p_td` to step UNDER the overhang so the torso/pelvis can
 ;; reach true 0.0 mm contact with the upper edge without leaning off-balance!
 ;; Hers by her bands: a thing meets her reach in the bands its box spans
-;; (`footprint.met`), a surface told apart from the legs under it (`machine.voxels`).
+;; (`footprint.met`), a surface told apart from the legs under it (`machine.eyes.voxels`).
 ;; -----------------------------------------------------------------------------
 (defprimitive allow-sub-overhang-interactive-footholds
   [state &key (shin-to-bevel-min-clearance-mm 14.0)]
@@ -173,7 +173,7 @@
 ;; Guides the robot along a C^2 clothoid curve around clutter, approaches the
 ;; furniture's front/long face orthogonally, steps feet right up to the base,
 ;; and brings the calves/thighs to -5 mm (light 9 N tactile preload!) for sitting/lying.
-;; Hers: her stage where her turn onto the face clears from any arrival (`machine.dock`),
+;; Hers: her stage where her turn onto the face clears from any arrival (`machine.way.dock`),
 ;; her heels then the stunt's standoff off the edge (`maneuver.standoff`).
 (defmodifier specialize-nav-zero-distance-furniture-dock
   [nav-state &key (target-class :chair-or-bed) (tactile-preload-standoff-mm -5.0)]

@@ -16,11 +16,11 @@ from coaxial.control.motion import started
 from coaxial.comm.session import standing
 from coaxial.errors import RigError
 from coaxial.simulated.sto import PILOT_VOLTS
-from machine.controller import Feedback
-from machine.machine import Actuator
-from machine.modes import EMULATED, HARDWARE, SIMULATED
-from machine.nodes import Module, Node
-from machine.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
+from machine.rig.controller import Feedback
+from machine.rig.machine import Actuator
+from machine.rig.modes import EMULATED, HARDWARE, SIMULATED
+from machine.rig.nodes import Module, Node
+from machine.rig.parts import AngleHold, Direct, Gain, Slew, SpeedPI, Wrap
 from motor.pmsm import RAD_S_PER_RPM
 
 #: The stand-in's joint damping, N.m.s: a gearbox and a limb, zeta 0.4..0.7 on a 2 A hold of

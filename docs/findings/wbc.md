@@ -1,6 +1,6 @@
 # Findings: the whole-body stack
 
-The whole-body stack (`machine/wbc.py`) on its solver (`machine/qp.py`),
+The whole-body stack (`machine/stack/wbc.py`) on its solver (`machine/stack/qp.py`),
 measured by `tools/sim/wbc.py` in a world without buses. The board's
 findings: [FINDINGS](../FINDINGS.md); her steps on the latent loop:
 [orthokinematics](orthokinematics.md), [wrench](wrench.md).
@@ -123,14 +123,14 @@ configurations (`tests/test_wbc_core.py`):
 `wbc_stack.c` over the chain: the torques of the drives and the held joints
 the unknowns; the soles standing still and the dynamics make every
 acceleration and each sole's wrench affine in them (M's Cholesky, the
-contacts' Schur complement); the levels of `machine.wbc` in the null space of
+contacts' Schur complement); the levels of `machine.stack.wbc` in the null space of
 those above - a small level by its Gram matrix damped at 1e-6, the last by its
 normal equations; the polytope on the drives' loads, the lowest level scaled
 back first, then a hard clamp.
 
 | Measure | Result |
 | --- | --- |
-| standing, asked to stay: the loop's torques against `machine.wbc.step`'s | 0.01 N m apart, the largest 2.9 |
+| standing, asked to stay: the loop's torques against `machine.stack.wbc.step`'s | 0.01 N m apart, the largest 2.9 |
 | a tick: pose, M, bias, centre, the contacts, 4 levels, the clip; this host at -O2 | 125 us |
 | in MuJoCo on the loop, 3 s | stood, tilt 0.8 deg, drift 28 mm |
 | shoved 60 N from behind | stood, tilt 1.5 deg, no step |
@@ -172,7 +172,7 @@ standing).
 
 | Measure | Result |
 | --- | --- |
-| standing, asked to stay, against `machine.wbc.step` | 0.01 N m apart, no bound at its edge |
+| standing, asked to stay, against `machine.stack.wbc.step` | 0.01 N m apart, no bound at its edge |
 | a tick on this host at -O2 | 205 us |
 | in MuJoCo, 3 s | stood, tilt 0.3 deg, drift 25 mm |
 | shoved 60 N from behind | stood, tilt 5.8 deg, no step |
@@ -198,7 +198,7 @@ twelve components.
 
 | Measure | Result |
 | --- | --- |
-| standing, asked to stay, against `machine.wbc.step` | 0.00 N m apart |
+| standing, asked to stay, against `machine.stack.wbc.step` | 0.00 N m apart |
 | a tick on this host at -O2, 37 variables, 134 bounds | 415 us |
 | shoved from 8 ways at 60 / 80 / 100 / 120 N, the MPC's steps, WEP: stood of 8 | 8 / 4 / 3 / 2; the stack 8 / 7 / 7 / 3 |
 | the walk | 13 steps, 0.51 m, 0.12 m/s, down at 7.3 s; the stack 16 steps, 1.88 m, 0.31 m/s |

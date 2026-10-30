@@ -11,9 +11,10 @@ import numpy as np
 
 from tools import REPO
 from tools.cores.build import cached
-from machine import ortho
-from machine.wbc import MU
+from machine.texts import ortho
+from machine.stack.wbc import MU
 from tools.cores.model import HEADER, rotation
+from tools.cores.arrays import data_at
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
@@ -64,7 +65,7 @@ class Out(ctypes.Structure):
 
 class OrthoRow(ctypes.Structure):
 
-    """ortho_row_t: a row on the wire (machine.ortho.ROW)."""
+    """ortho_row_t: a row on the wire (machine.texts.ortho.ROW)."""
 
     _fields_ = [('id', ctypes.c_uint32), ('at', ctypes.c_uint32), ('blend', ctypes.c_uint32),
                 ('flags', ctypes.c_uint32), ('p', ctypes.c_float * ortho.P)]
@@ -99,7 +100,7 @@ class World(ctypes.Structure):
 
 class Contacts(ctypes.Structure):
 
-    """wbc_contacts_t: her soles' and skin's contacts read, pointing at the edge's bins (`machine.edge.laid`)."""
+    """wbc_contacts_t: her soles' and skin's contacts read, pointing at the edge's bins (`machine.senses.edge.laid`)."""
 
     _fields_ = [('nbody', _i), ('nskin', _i), ('ninsoles', _i), ('nfeet', _i), ('stride', _i), ('off_geom', _i),
                 ('off_frame', _i), ('off_dim', _i), ('off_efc', _i), ('off_friction', _i),
@@ -111,7 +112,7 @@ class Contacts(ctypes.Structure):
 
 class Heat(ctypes.Structure):
 
-    """wbc_heat_t: her drives' heat, pointing at `machine.heat.Heat`'s arrays."""
+    """wbc_heat_t: her drives' heat, pointing at `machine.body.heat.Heat`'s arrays."""
 
     _fields_ = [('n', _i), ('at', _d), ('haste', _d), ('ambient_c', _d), ('rds_ohm', _d), ('rds_alpha', _d),
                 ('rds_beta', _d), ('shunt_ohm', _d), ('switching_w', _d), ('into_k_w', _d), ('rth_jc', _d),
@@ -124,17 +125,8 @@ class Heat(ctypes.Structure):
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
 
 
-def _data_at():
-    """Where in an ndarray's object its data pointer is, bytes: numpy's PyArrayObject, after the head."""
-    probes = [np.empty(k + 1) for k in range(3)]
-    for at in range(8, 80, 8):
-        if all(ctypes.c_void_p.from_address(id(a) + at).value == a.ctypes.data for a in probes):
-            return at
-    raise RuntimeError("numpy's array head not found")
-
-
 #: Where an ndarray's data pointer lies in its object (`address`).
-_AT = _data_at()
+_AT = data_at()
 _DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
 
 
@@ -161,8 +153,8 @@ def pointer(a, dtype: type = np.float64):
 
 
 def ask_of(ask, a=None):
-    """An `Ask` from `machine.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
-    -, swing, fold, posture, derate, wep, kdot; `machine.wrench.step`'s settle, edge, strides and mu."""
+    """An `Ask` from `machine.stack.wbc.step`'s dict: stance, com_acc, turns - none asked, all zeros
+    -, swing, fold, posture, derate, wep, kdot; `machine.stack.wrench.step`'s settle, edge, strides and mu."""
     if a is None:
         a = Ask()
     else:
@@ -387,7 +379,7 @@ class Core:
         return float(self.lib.wbh_seconds(_ptr(base), _ptr(q), _ptr(u), a, b, reps))
 
     def stack(self, base, q, u, ask):
-        """One tick of the loop for `ask` (`machine.wbc.step`'s dict): {tau, udot, wrench, bears,
+        """One tick of the loop for `ask` (`machine.stack.wbc.step`'s dict): {tau, udot, wrench, bears,
         held, passes, over, load, jeff}, udot in u's order."""
         base, q, u, out = _arr(base), _arr(q), _arr(u), self._out
         self.lib.wbh_stack(_ptr(base), _ptr(q), _ptr(u), ctypes.byref(ask_of(ask, self._ask)), ctypes.byref(out))
@@ -406,7 +398,7 @@ class Core:
 
     def wrench(self, base, q, u, ask):
         """One tick of the step without an active set (wbc_wrench.c) for `ask`
-        (`machine.wrench.step`'s dict): {tau, udot, wrench, bears, over, load, scale}."""
+        (`machine.stack.wrench.step`'s dict): {tau, udot, wrench, bears, over, load, scale}."""
         self._base[:], self._q[:], self._u[:] = base, q, u
         return self.wrench_laid(ask)
 
@@ -456,7 +448,7 @@ def shared():
 
 
 def stack_step(b, s, ask, core=None):
-    """`machine.wbc.step`'s answer from the loop in C, on her `wbc.Body` as `sense` left it:
+    """`machine.stack.wbc.step`'s answer from the loop in C, on her `wbc.Body` as `sense` left it:
     {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, passes, wrench, load,
     jeff}; `held` the rows held at a bound this tick, `passes` the solves after the first."""
     core = core or shared()
@@ -478,7 +470,7 @@ def stack_step(b, s, ask, core=None):
 
 
 def wrench_step(b, s, ask, core=None):
-    """`machine.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
+    """`machine.stack.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
     {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, scale, borne}."""
     core = core or shared()
     qpos, qvel, n = b.d.qpos, b.d.qvel, b.n

@@ -176,7 +176,9 @@ def test_rig_invariant_anatomical_frames_and_capture_gates(report):
 def test_data_oriented_ballistic_wire_and_module_addressing(report):
     """Data-oriented addressing in `tools.sim.ballistic` across flat `<4I62f` wire rows,
     behaviour phases, and branchless module constants."""
-    from machine import impedance, ortho, sprung, stride
+    from machine.law import impedance, stride
+    from machine.texts import ortho
+    from machine.process import sprung
     from tools.sim import ballistic
     from tools.sim import ortho as sim_ortho
 

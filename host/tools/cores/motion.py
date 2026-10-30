@@ -21,7 +21,7 @@ import numpy as np
 
 from tools.cores import wbc
 
-#: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.modal`),
+#: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.law.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach elbows'.split()
 OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded'.split()
@@ -44,7 +44,11 @@ def _at(x):
 
 def _doubles():
     """wbc_imp_t's doubles in its order: (name, value) - a tuple or an array lays that many."""
-    from machine import borne, edge, figure, impedance as imp, leap, modal, poise, stride, wbc as law
+    from machine.senses import borne, edge
+    from machine.body import figure
+    from machine.law import impedance as imp, modal, poise, stride
+    from machine.moves import leap
+    from machine.stack import wbc as law
     return (('on', imp.ON), ('going_s', imp.GOING_S), ('ahead', imp.AHEAD), ('yaw_k', imp.YAW_K),
             ('throw_m_s2', imp.THROW_M_S2), ('prop_on', imp.PROP_ON), ('prop_engage', borne.PROP_ENGAGE),
             ('prop_release', borne.PROP_RELEASE), ('prop_dwell_s', borne.PROP_DWELL_S), ('prop_blank_s', borne.PROP_BLANK_S),
@@ -86,7 +90,7 @@ def _typed(fields):
 def laid():
     """(k, ask): wbc_imp_t filled of the constants as they are now - `tools.sim.ballistic` sets
     them before her session is laid -, and the step on it."""
-    from machine import impedance, latent, modal, stride
+    from machine.law import impedance, latent, modal, stride
     if (stride.ALONG, stride.LEFT, stride.UP) != (0, 1, 2) or modal.HANDS.shape != (modal.N, 2, 3):
         raise ValueError('wbc_imp.c reads her way along, left, up and her hands (n, 2, 3)')
     if modal.N > 16:
@@ -211,9 +215,10 @@ def _law_typed():
 
 
 def latent_laid():
-    """wbc_law_t filled of machine.latent, machine.ortho and machine.support as they are now, and
+    """wbc_law_t filled of machine.law.latent, machine.texts.ortho and machine.law.support as they are now, and
     its steps: (struct, latent, couple)."""
-    from machine import latent, ortho, support
+    from machine.law import latent, support
+    from machine.texts import ortho
     if ortho.N > 16 or ortho.P > 93 or len(ortho.MANIFOLDS) != 5 or support.DRIVEN > 32:
         raise ValueError('wbc_law.c lays 16 modes, 93 parameters, 5 manifolds and 32 drives at most')
     names = {'n': ortho.N, 'p': ortho.P, 'driven': support.DRIVEN, 'gain': latent.GAIN, 'hz': latent.HZ,

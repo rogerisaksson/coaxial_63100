@@ -6,7 +6,7 @@ import sys
 import time
 
 from tools.dev.focus import chosen
-from gynoid_kit import Report
+from gynoid_kit import Report, same
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,14 +16,9 @@ def _text(name):
         return f.read()
 
 
-def _same(got, want):
-    return len(got) == len(want) and all(
-        (math.isnan(a) and math.isnan(b)) or abs(a - b) < 1e-6 * max(1.0, abs(b)) for a, b in zip(got, want))
-
-
 def test_a_text_compiles_to_rows(report):
     """The first texts as given: a payload a row of ROW.size bytes, a behaviour its phases' rows."""
-    from machine import ortho
+    from machine.texts import ortho
     nan, n = math.nan, ortho.N
     tables, phases = ortho.compiled(_text('examples'))
     stream = ortho.rows(tables[''])
@@ -33,19 +28,19 @@ def test_a_text_compiles_to_rows(report):
     p = stream[1][4:]
     k, d, amp, phase = (p[at:at + n] for at in (ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
     report.check('102: blended 800 ms; axial 0.25; lateral 1 200 N/m and 15 N s/m; her rhythm on at 1.1 Hz',
-                 stream[1][1:4] == (0, 800, 0) and _same(p[:n], (0.25,) + (nan,) * (n - 1))
-                 and _same(k, (nan, 1200.0) + (nan,) * (n - 2)) and _same(d, (nan, 15.0) + (nan,) * (n - 2))
-                 and _same(amp, (nan, 0.35, 0.4) + (nan,) * (n - 3))
-                 and _same(phase, (nan, math.pi / 2) + (nan,) * (n - 2))
-                 and _same(p[ortho.GAIN:ortho.YAW + 1], (1.0, 1.1, nan, nan))
-                 and _same(p[ortho.DUCK], (nan,) * 3), '%s' % (stream[1][:4],))
+                 stream[1][1:4] == (0, 800, 0) and same(p[:n], (0.25,) + (nan,) * (n - 1))
+                 and same(k, (nan, 1200.0) + (nan,) * (n - 2)) and same(d, (nan, 15.0) + (nan,) * (n - 2))
+                 and same(amp, (nan, 0.35, 0.4) + (nan,) * (n - 3))
+                 and same(phase, (nan, math.pi / 2) + (nan,) * (n - 2))
+                 and same(p[ortho.GAIN:ortho.YAW + 1], (1.0, 1.1, nan, nan))
+                 and same(p[ortho.DUCK], (nan,) * 3), '%s' % (stream[1][:4],))
     pre, go, rest = ortho.rows(tables['hop_asymmetric'])
     report.check('the hop: pre_load at 0 ms, propulsion at 400, her rest at 550 blended 200',
                  phases['hop_asymmetric'] == ('pre_load', 'propulsion')
                  and (pre[1], go[1], rest[1:4]) == (0, 400, (550, ortho.REST_MS, ortho.REST)),
                  '%s %s %s' % (pre[:4], go[:4], rest[:4]))
     report.check('pre_load: compressed 0.8, shifted 0.5, upright; 4 500 N/m, 25 N s/m; her rhythm off',
-                 _same(pre[4:4 + n], (0.8, 0.5, nan, 0.0) + (nan,) * (n - 4))
+                 same(pre[4:4 + n], (0.8, 0.5, nan, 0.0) + (nan,) * (n - 4))
                  and pre[4 + ortho.K] == 4500.0 and pre[4 + ortho.D] == 25.0 and pre[4 + ortho.GAIN] == 0.0)
     report.check('propulsion: extended -1.0 at MAX_SYS_K undamped, her ZMP in her support polygon',
                  go[4] == -1.0 and go[4 + ortho.K] == ortho.SYMBOLS['MAX_SYS_K'] and go[4 + ortho.D] == 0.0
@@ -77,7 +72,7 @@ def test_a_text_compiles_to_rows(report):
     bm_r0, _bm_r1, _bm_rest = ortho.rows(oo_t['b_mro'])
     report.check('inheritance: derive, (deftrait ..), (use ..), MRO, phase reordering and none/unsaid clearing',
                  sl[:4] == sr[:4] and abs(sl[4 + 1] - 0.08) < 1e-6 and abs(sr[4 + 1] + 0.08) < 1e-6
-                 and _same(sl[4 + 2:], sr[4 + 2:]) and oo_p['b2'] == ('p1', 'p2')
+                 and same(sl[4 + 2:], sr[4 + 2:]) and oo_p['b2'] == ('p1', 'p2')
                  and (b2_r0[1], b2_r1[1]) == (0, 300)
                  and abs(b2_r0[4] - 0.6) < 1e-6 and abs(b2_r1[4] - 0.4) < 1e-6
                  and abs(b2_r0[5] - 0.5) < 1e-6 and math.isnan(b2_r1[5])
@@ -89,7 +84,7 @@ def test_a_text_compiles_to_rows(report):
 
 def test_what_is_no_text_is_refused(report):
     """Invalid modes, targets, stiffnesses, missing durations/units, and malformed OO/module forms are refused."""
-    from machine import ortho
+    from machine.texts import ortho
     phase = '(defbehavior b (phase p (duration 1s) %s))'
     texts = (phase % '(latent_targets (mode_wing_flap 0.5))',
              phase % '(latent_targets (mode_axial_compression 6.5))',
@@ -130,10 +125,11 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
     """latent.py, impedance.py, swing.py, stride.py, poise.py, fours.py, groundwork.py, substrate.py, crawl.py, bedside.py, modal.py, touch.py, motion.py and grip.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
-    pure = ('latent', 'impedance', 'swing', 'stride', 'poise', 'support', 'fours', 'groundwork', 'substrate', 'crawl', 'bedside')
-    inner = ('touch', 'motion', 'grip')
-    for name in pure + ('modal',) + inner:
-        with open(os.path.join(HERE, 'machine', name + '.py'), encoding='utf-8') as f:
+    pure = ('law/latent', 'law/impedance', 'law/swing', 'law/stride', 'law/poise', 'law/support', 'moves/fours',
+            'world/groundwork', 'world/substrate', 'moves/crawl', 'moves/bedside')
+    inner = ('senses/touch', 'law/motion', 'senses/grip')
+    for name in pure + ('law/modal',) + inner:
+        with open(os.path.join(HERE, 'machine', *name.split('/')) + '.py', encoding='utf-8') as f:
             tree = ast.parse(f.read())
         found[name] = (['%s:%d' % (type(node).__name__, getattr(node, 'lineno', 0)) for node in ast.walk(tree)
                         if isinstance(node, branches) or (isinstance(node, ast.comprehension) and node.ifs)],
@@ -144,18 +140,19 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
                      ', '.join(found[name][0]) or 'none')
     for name in inner:
         report.check('%s.py: no branch' % name, not found[name][0], ', '.join(found[name][0]) or 'none')
-    given = next(node for node in found['modal'][2].body
-                 if isinstance(node, ast.FunctionDef) and node.name == 'given')
-    dicts = [node.lineno for node in found['modal'][1] if isinstance(node, (ast.Dict, ast.DictComp))]
+    modal = found['law/modal']
+    given = next(node for node in modal[2].body if isinstance(node, ast.FunctionDef) and node.name == 'given')
+    dicts = [node.lineno for node in modal[1] if isinstance(node, (ast.Dict, ast.DictComp))]
     report.check("modal.py: no branch; its dicts the stack's ask alone",
-                 not found['modal'][0] and all(given.lineno <= at <= (given.end_lineno or 0) for at in dicts),
-                 ', '.join(found['modal'][0]) or 'none; dicts at %s' % dicts)
+                 not modal[0] and all(given.lineno <= at <= (given.end_lineno or 0) for at in dicts),
+                 ', '.join(modal[0]) or 'none; dicts at %s' % dicts)
 
 
 def test_her_latent_state_blends_and_turns(report):
     """A row laid over her rest blends in, steps CPG sine references, and returns to rest on REST."""
     import numpy as np
-    from machine import latent, ortho
+    from machine.law import latent
+    from machine.texts import ortho
     rest = np.zeros(ortho.P)
     rest[latent.K], rest[latent.HZ] = 100.0, 1.0
     tables, _ = ortho.compiled(
@@ -231,7 +228,7 @@ def test_she_stands_on_one_sole(report):
 def test_she_hops_and_stands(report):
     """`hop`: loaded, thrown, landed on soft knees: >= 0.15 s off the floor, standing."""
     import numpy as np
-    from machine import latent, modal, support
+    from machine.law import latent, modal, support
     got = _went(['hop'], to=5.0)
     report.check('she leaves the floor 0.15 s and more, 0.9 m/s up and more',
                  got['air'] >= 0.15 and got['up'] >= 0.9, '%.2f s, %.2f m/s' % (got['air'], got['up']))
@@ -306,7 +303,7 @@ def test_the_gym_runs_her_in_a_process(report):
     """`sprung.Running`, the page's body: her state said with her modes and what the digits
     say; an entry said, she does it; the gym's other text taken; a text the compiler refuses
     and a command the loop does not know said with her state."""
-    from machine import sprung
+    from machine.process import sprung
     from terminal.views import gym
     body = sprung.Running(walks=False)
     try:

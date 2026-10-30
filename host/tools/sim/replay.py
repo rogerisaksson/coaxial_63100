@@ -42,7 +42,8 @@ def replayed(heard, rows=(), to=None, wobble=0.0):
     """{fell: (epoch, t) or None, off: m her pelvis furthest from the rows' (x, y, z) at their
     (epoch, t), t: where it ended, epochs}: `heard` (`entries`) replayed from its first epoch's
     lay to its last command, or `to` s into its last epoch; laid `wobble` m to her left."""
-    from machine import physics, worker
+    from machine.world import physics
+    from machine.process import worker
     laid = next(c['laid'] for _e, _p, _t, c in heard if 'laid' in c)
     first = heard[0][0]
     physics.ROOM, physics.SIGHT = laid.get('room', 1.0), laid.get('sight', 0.0)

@@ -12,13 +12,13 @@ import time
 
 from coaxial import Coaxial63100
 from coaxial.comm.hostclock import Told
-from machine.controller import Feedback, Loop, Paced
+from machine.rig.controller import Feedback, Loop, Paced
 from machine.errors import MachineError
-from machine.modes import SIMULATED
-from machine.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI
-from machine.roles import Estimator, Input, Output, Regulator
-from machine.sequencer import Sequencer
-from machine.wiring import diagram, feedback
+from machine.rig.modes import SIMULATED
+from machine.rig.parts import Gain, LowPass, PI, Slew, SpeedKalman, SpeedPI
+from machine.rig.roles import Estimator, Input, Output, Regulator
+from machine.rig.sequencer import Sequencer
+from machine.rig.wiring import diagram, feedback
 from gynoid_kit import Report
 
 KT, J, B = 0.07, 2e-5, 1e-5
@@ -279,9 +279,9 @@ def test_the_table_refuses(report):
     routines calling each other past 8 deep - each refused, saying which; the prompt is
     the grammar and the machine's card; a level on a channel the bus does not carry is
     left alone."""
-    from machine import sequencer
-    from machine.alarms import Alarms
-    from machine.routines import Routine
+    from machine.rig import sequencer
+    from machine.rig.alarms import Alarms
+    from machine.rig.routines import Routine
 
     said = {}
     for text, routines in (('w_target=100', None), ('1 group=later', None),
@@ -309,10 +309,10 @@ def test_the_table_refuses(report):
 
 
 def test_the_alarm_handler(report):
-    """machine.alarms beside the sequencer: L and H logged once a step, LL and HH to cleanup,
+    """machine.rig.alarms beside the sequencer: L and H logged once a step, LL and HH to cleanup,
     a row's level held from its row on, a timeout's alarm where the row does not branch, a
     stop from outside."""
-    from machine.alarms import Alarms
+    from machine.rig.alarms import Alarms
 
     def ran(text, watch=None, **kw):
         """`text` on a rotor at rest."""
@@ -442,7 +442,7 @@ def test_the_pictures_and_the_panel(report):
     if importlib.util.find_spec('ipywidgets') is None:
         report.check('the panel (ipywidgets absent: skipped)', True)
         return
-    from machine.panel import kinds, panel
+    from machine.rig.panel import kinds, panel
     report.check('a part of your own is a kind the panel offers',
                  'Proportional' in kinds(Regulator) and 'Regulator' not in kinds(Regulator))
     box = panel(loop, path=os.path.join(tempfile.mkdtemp(), 'loop.json'))
@@ -486,7 +486,7 @@ def test_velocity_is_a_feedback(report):
 
 
 def test_nodes_offer_then_configure(report):
-    from machine.nodes import Nodes
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         names = [n.name for n in nodes]
@@ -521,7 +521,7 @@ LEGS = {'left_hip': 'LL_1', 'left_knee': 'LL_2', 'right_hip': 'RL_1', 'right_kne
 
 def test_fitment_by_measurement(report):
     from machine import Machine
-    from machine.nodes import Nodes
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         humanoid = Machine(nodes, type='humanoid')
@@ -552,7 +552,7 @@ def test_fitment_by_measurement(report):
 
 def test_the_body_runs_a_program(report):
     from machine import Machine
-    from machine.nodes import Nodes
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
@@ -589,7 +589,7 @@ def test_the_body_loops_on_its_boards(report):
     """node_hz: each joint's feedback runs on its board once armed; the host forwards
     setpoints and reads the joints back through the same measure."""
     from machine import Machine
-    from machine.nodes import Nodes
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED, peripherals=())
     try:
         body = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},
@@ -619,8 +619,8 @@ def test_the_body_loops_on_its_boards(report):
 
 def test_machine_types_and_routines(report):
     from machine import Machine
-    from machine.routines import TYPES
-    from machine.nodes import Nodes
+    from machine.rig.routines import TYPES
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         for kind, program, back in (
@@ -667,9 +667,9 @@ def test_machine_types_and_routines(report):
 
 
 def test_live_from_a_stream(report):
-    from machine.live import Live
+    from machine.rig.live import Live
     from machine import Machine
-    from machine.nodes import Nodes
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()})
@@ -717,8 +717,8 @@ def test_live_from_a_stream(report):
 
 def test_a_model_streams_and_is_woken(report):
     from machine import Machine
-    from machine.live import Live
-    from machine.nodes import Nodes
+    from machine.rig.live import Live
+    from machine.rig.nodes import Nodes
     nodes = Nodes.discover(execution_mode=SIMULATED)
     try:
         machine = Machine(nodes, {j: nodes[n].actuator('joint') for j, n in LEGS.items()},

@@ -15,7 +15,7 @@ import math
 from coaxial.graphics import engine, scenery, shapes
 from coaxial.graphics.callouts import line, lines
 from coaxial.graphics.lit import CORE, PLATE, braille, paint, project, splat
-from machine import ansi
+from machine.rig import ansi
 from machine.aircraft import quad
 
 #: The camera: the eye's distance in reaches framed, and the reach the quad fills, m - the

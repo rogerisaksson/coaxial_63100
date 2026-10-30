@@ -25,7 +25,7 @@ import time
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
-from machine.modes import HARDWARE, SIMULATED
+from machine.rig.modes import HARDWARE, SIMULATED
 
 #: The gate state's fields that speak of the chain, by the name the board
 #: answers with and the name printed. A stand-in or an older firmware

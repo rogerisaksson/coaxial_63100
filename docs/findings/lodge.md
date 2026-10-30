@@ -1,10 +1,10 @@
 # Findings: the lodge
 
-Her place: the glazed mountain lodge round her (`machine.room`), its scene
+Her place: the glazed mountain lodge round her (`machine.world.room`), its scene
 (`floor.scenario`, 'lodge'), what the page draws of it and her eyes tell; the
 scenes on its stairs in [scenarios](scenarios.md).
 
-- The lodge (`machine.room`, scene 'lodge'; asked, from pictures of dark timber
+- The lodge (`machine.world.room`, scene 'lodge'; asked, from pictures of dark timber
   cabins on snow): timber walls, the gable glazed between mullions with the
   door in it, two roof slabs under snow nothing collides with, the deck past
   the gable with a glass rail and a gap on the door's line for the wooden

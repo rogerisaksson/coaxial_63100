@@ -1,12 +1,12 @@
 # Findings: support
 
 What bears her off her soles - a seat, a bed, a knee or a hand on the floor -
-as her skin feels it (`machine.borne`) and her law and her step take it. Her
+as her skin feels it (`machine.senses.borne`) and her law and her step take it. Her
 scenarios: [scenarios](scenarios.md).
 
 - Past her modes' 1 onto a chair: 447 N on its seat at 1.83 s, her soles
   unload, her law reads no stance and lets her fall freely: down at 3.06 s.
-- A segment the skin feels pushed up is support (`machine.borne`): in her
+- A segment the skin feels pushed up is support (`machine.senses.borne`): in her
   support region, grounding her, her soles standing while it bears. Its sensed
   force fed to her whole-body step a pass late chattered: 695, 250, 88, 539, 131
   N on the seat 30 ms apart, her soles 0 to 286 N; unfed, seat and soles shared
@@ -80,7 +80,7 @@ scenarios: [scenarios](scenarios.md).
   Her legs, the contacts', moved not at all; the chair and the walk the same
   to the digit; bed_rise, unmet both, fell at 19.7 s and now never rises.
   `HUNG` adds her pelvis's pitch to a let-go hip where the chain subtracts it.
-- On all fours (`machine.fours`, test_fours), her toes and fists, limbs
+- On all fours (`machine.moves.fours`, test_fours), her toes and fists, limbs
   plumb at the dog trot's -0.06 rad: knee 1.68 rad, hips 0.648 m up, her
   legs 0.48 of her. The text's 0.68 is her centre 0.099 m back; no contact
   metric moves it - a static stance's vertical loads are its statics' (her
@@ -92,7 +92,7 @@ scenarios: [scenarios](scenarios.md).
 - Four contacts on one plane cannot all be squeezed alike: 6.1 N short of
   32 (a braced quadrilateral's self-stress); three can, to 3e-14.
 - The kernel's six ground origins laid rigid on a hard floor
-  (`machine.groundwork`, test_groundwork; her 30.8 kg as built): the supine
+  (`machine.world.groundwork`, test_groundwork; her 30.8 kg as built): the supine
   rests on its dorsal patch, pelvis and head bearing, her torso 9.8 mm up.
   On her shins and toes the tall kneel's centre is 79 mm past her knees, no
   rest, until 0.60 of its axial column (knee 115 deg, pitched -17 deg). The
@@ -111,7 +111,7 @@ scenarios: [scenarios](scenarios.md).
   2.55 N/mm; its cantilever (hip 0.95 rad, knee straight) holds that heel
   0.73 m up. Its m g / (2 k L) is a length only with k L the floor's
   d Fz / dz.
-- On soft ground (`machine.substrate`, test_substrate): the work loop's
+- On soft ground (`machine.world.substrate`, test_substrate): the work loop's
   energy return of a linear contact is exp(-2 pi zeta / sqrt(1 - zeta^2)),
   so its regimes are damping ratios: harmonic under 0.076, plastic over
   0.28 - an elastic foam damped at 0.5 returns 2.7 % and reads as snow. Her
@@ -132,7 +132,7 @@ scenarios: [scenarios](scenarios.md).
   periods if as heavy as her, 4e-4 if a fifth. The kip's 340 mm takes 263 ms
   and 102.9 J; her hips and knees at its 12.5 and 14 rad/s keep their 108
   N m (48 V, 16.8 rad/s at most).
-- Off her feet (`machine.crawl`, test_crawl), the crab at her capacity: its
+- Off her feet (`machine.moves.crawl`, test_crawl), the crab at her capacity: its
   hips turned out to their 25 deg stop, her shoulders not at all. So turned,
   her abduction moves her ankle sideways 0.74 of its stroke (0.30 m for
   +-20 deg), her knee 0.60, her hip's turn 0.07, her elbow 0.08; her trunk's
@@ -161,7 +161,7 @@ scenarios: [scenarios](scenarios.md).
 - The supine ratchet: a 175 mm riser takes 52.9 J; the text caps her
   shoulder's extension at 28 N m, her shoulder holds 22.3 for ever; its 18 mm
   skim is a 0.59 m/s, 5.4 J drop.
-- At a seat's or a bed's edge (`machine.bedside`, test_bedside), standing:
+- At a seat's or a bed's edge (`machine.moves.bedside`, test_bedside), standing:
   her heels reach 54 mm behind her hips (0-0.06 m up), her calves 43 (to
   0.43 m), her thighs' backs 46 (to 0.76), her buttocks 148. The chairs'
   seat edges and the lodge bed's side (0.10-0.44 m) meet her calves, on no

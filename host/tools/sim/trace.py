@@ -31,7 +31,9 @@ def main(argv=None):
     parser.add_argument('--wobble', type=float, default=0.0, help='laid turned this rad about up')
     args = parser.parse_args(argv)
     from coaxial.graphics import arrows
-    from machine import modal, physics, worker
+    from machine.law import modal
+    from machine.world import physics
+    from machine.process import worker
     from tools.sim import scenarios
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     scene, plan, seconds, _goal, _aim = scenarios.SCENARIOS[args.scenario]

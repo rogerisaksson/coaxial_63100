@@ -10,7 +10,7 @@ Her walk, her hop and a shove on her loop as the page runs it, and every scenari
 
 A drive's amps are its joint's torque over its N m an amp (`World.motor`, `drives.kt`); a
 parallel pair's two give the first joint's share plus and less its roll's (`physics.paired`),
-and turn at its speed plus and less its roll's the same way. Its heat is `machine.heat`'s nodes
+and turn at its speed plus and less its roll's the same way. Its heat is `machine.body.heat`'s nodes
 on those amps, HASTE times the clock. Its parts' limits: its board's amps (`Size.amps`), the
 amps it holds for ever (`heat.held`), its gearbox's momentary torque (`Size.shock`), its motor's
 speed with no load at the pack's volts (`drives.speed`), a node's span to its ceiling. A share
@@ -40,7 +40,7 @@ def laid(world):
     """The drives of `world`: (names, first, second, sign) - a joint's own drive, or a parallel
     pair's two: the first joint's share plus (sign 1) and less (-1) its roll's."""
     import numpy as np
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     paired = {int(i) for pair in world.pairs for i in pair}
     rows = [(JOINTS[i], i, i, 0.0) for i in np.flatnonzero(world.driven) if int(i) not in paired]
     for p, r in world.pairs:
@@ -53,8 +53,8 @@ def meter(world):
     """`world`'s drives laid to be metered a pass at a time (`ticked`): their parts' limits and
     what they have been asked so far."""
     import numpy as np
-    from machine import drives, heat
-    from machine.figure import JOINTS
+    from machine.body import drives, heat
+    from machine.body.figure import JOINTS
     names, first, second, sign = laid(world)
     joints = [JOINTS[i] for i in first]
     sizes = [drives.of(j)[1] for j in joints]
@@ -98,7 +98,7 @@ def row(m, **head):
 
 def ran(scene, way=0):
     """`row` of `scene` on her loop as the page runs it, a shove from `way` deg."""
-    from machine import sprung
+    from machine.process import sprung
     asked, shove, seconds = SCENES[scene]
     g = sprung.laid(sprung.STACK_EVERY)
     by = {entry[0]: entry for entry in sprung.entries()}
@@ -118,7 +118,7 @@ def ran(scene, way=0):
 
 def scenario(name):
     """`row` of the bench's scenario `name` as `scenarios.ran` runs it, standing if she stood."""
-    from machine import worker
+    from machine.process import worker
     from tools.sim import scenarios
     was, held = worker.stepped, {}
 

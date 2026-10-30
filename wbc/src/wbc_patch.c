@@ -1,6 +1,6 @@
-/** wbc_patch.c - a bearing patch's rows (wbc_step.h): machine.wrench._patch, numpy's arithmetic and numpy's
+/** wbc_patch.c - a bearing patch's rows (wbc_step.h): machine.stack.wrench._patch, numpy's arithmetic and numpy's
     own OpenBLAS (wbc_blas.h) operation for operation. The segments one surface bears are a patch
-    (machine.borne's cpatch): each contact's point held still, up alone where it slides along the floor's plane
+    (machine.senses.borne's cpatch): each contact's point held still, up alone where it slides along the floor's plane
     along the slide its text says it may (p->slide); and the
     patch's normal force split as it is felt - each contact's, along the patch's normal, its share of the forces
     felt along it - pinned at w_pin in shares of her weight, as a clipped force is held. */
@@ -82,7 +82,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       {
         continue;
       }
-      /* its point held still, along the patch's normal alone where it slides across it (machine.wrench._patch) */
+      /* its point held still, along the patch's normal alone where it slides across it (machine.stack.wrench._patch) */
       wbc_matmul(l, VIEW(p->cJ[m], n, 1), VIEW(full0, 1, 0), left, 1, 0, 3, n, 1);
       wbc_matmul(l, VIEW(p->cJ[m], n, 1), VIEW(full, nu, 1), rows3, nu, 1, 3, n, nu);
       wbc_matmul(l, VIEW(p->cJ[m], n, 1), VIEW(p->v, 1, 0), jv, 1, 0, 3, n, 1);
@@ -161,7 +161,7 @@ void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const doubl
   both = npsum(hands, nc);
   for (int q = 0; q < nc; q++)
   {
-    /* a let-go foot a patch of its own, its side's cap (machine.emancipation) */
+    /* a let-go foot a patch of its own, its side's cap (machine.moves.emancipation) */
     const double lim = hands[q] > 0.0  ? p->hand_cap
                        : lets[q] > 0.0 ? p->let_cap[p->cpatch[q] / (3 * p->carpal) - 1]
                        : slips[3 * q] > 0.0 ? fmin(p->fz_cap, p->slid_cap)

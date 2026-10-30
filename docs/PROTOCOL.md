@@ -494,7 +494,7 @@ States: 0 blank, 1 held, 2 assigned, 3 erased, 4 verified, 5 sealed.
 
 ### 12 CTRL, `cmd_ctrl.c`
 
-The board's loop: `machine.parts` in C (`ctrl/`), a tick every whole number
+The board's loop: `machine.rig.parts` in C (`ctrl/`), a tick every whole number
 of PWM periods in the drive's sample, before its step. Rows stream in, each
 held for its milliseconds, the last held. Channels in milli-units.
 

@@ -13,7 +13,7 @@ def flown(seconds, until, things=(), dt=0.05):
     height)] a step, the flight's own)."""
     from coaxial import Coaxial63100
     from machine.aircraft import aerobatics, aerokin, quad
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
     rows, clock = [], 0.0
@@ -38,7 +38,7 @@ def test_the_boards_air_is_the_rotors(report):
     pairs."""
     from coaxial import Coaxial63100
     from machine.aircraft import flightpack, quad
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
@@ -71,7 +71,7 @@ def test_a_rotor_turns_by_its_pass(report):
     import time
 
     from coaxial import Coaxial63100
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     came = []
     for stall in (0.0, 0.12):
@@ -102,7 +102,7 @@ def test_an_ask_is_rows_a_tick_of_its_loop(report):
     where each ask is a spool to the loop's feed-forward and the tick after its end."""
     from coaxial import Coaxial63100
     from machine.aircraft import pull, quad
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     apart = {}
     for rows in (True, False):
@@ -197,7 +197,7 @@ def test_a_board_holds_its_clamp(report):
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
     from machine.aircraft import pull, quad
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     try:
@@ -250,7 +250,7 @@ def test_full_tilt_cuts_no_rotor_alone(report):
     from coaxial import Coaxial63100
     from coaxial.devices.thermal import THROTTLE_AT
     from machine.aircraft import aerobatics, aerokin, pull, quad
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open()) for _ in range(4)]
     rows, clock = [], 0.0

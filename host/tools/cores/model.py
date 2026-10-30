@@ -50,7 +50,7 @@ def links(b=None):
     one, negative on the second of the two, 0 alone."""
     mujoco = importlib.import_module('mujoco')
     if b is None:
-        from machine import wbc
+        from machine.stack import wbc
         b = wbc.Body()
     m = b.m
     pelvis = m.body('pelvis').id
@@ -126,7 +126,9 @@ def _table(name, width, rows, cells):
 def standing(b):
     """(base, q) of her stand on the floor: the pelvis's frame (R by rows, then p) and the
     hinges' rad, as test_wbc_core's standing state."""
-    from machine import figure, physics, wbc
+    from machine.body import figure
+    from machine.world import physics
+    from machine.stack import wbc
     world = physics.World()
     world.reset(figure.stand())
     s = wbc.sense(b, world.data.qpos, world.data.qvel)
@@ -234,8 +236,8 @@ def render(rows, b):
 
 def _driven(b):
     """The drives' joint names in `b.act`'s order."""
-    from machine import drives
-    from machine.figure import JOINTS
+    from machine.body import drives
+    from machine.body.figure import JOINTS
     return [j for j in JOINTS if drives.passive(j) is None]
 
 
@@ -252,7 +254,7 @@ def _soles(b, names):
 
 def write(b=None):
     """The header and the source written; the rows they hold."""
-    from machine import wbc
+    from machine.stack import wbc
     b = b or wbc.Body()
     rows = links(b)
     for path, text in zip((HEADER, SOURCE), render(rows, b)):

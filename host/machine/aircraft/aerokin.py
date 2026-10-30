@@ -17,7 +17,7 @@ import math
 
 from machine.aircraft import pull, quad
 from machine.aircraft.aerolisp import CompiledAeroPayload, K_MODES, LATENT_SYMBOL_MAP
-from machine.figure import cross
+from machine.body.figure import cross
 
 _IMP, _KIN = quad.DYNAMICS['impedance'], quad.KINEMATICS
 _ENV, _VERT, _HORIZ, _HOLD = (

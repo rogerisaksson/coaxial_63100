@@ -1,4 +1,4 @@
-/** wbc_rcu.h - her loop's side of a tuner apart (machine.rcu): the shared block's layout in C, no
+/** wbc_rcu.h - her loop's side of a tuner apart (machine.process.rcu): the shared block's layout in C, no
     lock between them. Each section on whole 64-byte lines: the header's words, a line a ring, each
     ring's slots, two banks of a table each, a column's rows contiguous (SoA). A word is written by
     one side alone: her loop's stores of a ring's head and of TOOK release, its loads of the tuner's

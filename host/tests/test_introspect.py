@@ -1,4 +1,4 @@
-"""Her loop's layers served live (`machine.introspect`): the layouts generated from her code, a pass's
+"""Her loop's layers served live (`machine.process.introspect`): the layouts generated from her code, a pass's
 snapshot named, a client attached reading them, nothing paid with none attached."""
 import socket
 import sys
@@ -11,12 +11,14 @@ from views_kit import Report
 def test_the_layouts_are_her_codes_own(report):
     """Each vector's fields generated from its module's constants: the ask's cover 0 to modal.ASK
     without a gap, latent out's to latent.OUT, a state row's to ortho.P; none written by hand."""
-    from machine import introspect, latent, modal, ortho
+    from machine.process import introspect
+    from machine.law import latent, modal
+    from machine.texts import ortho
     cover = lambda f: sorted((sp.start, sp.stop) for sp in f.values())
     gapless = lambda f, n: cover(f)[0][0] == 0 and cover(f)[-1][1] == n and all(
         a[1] == b[0] for a, b in zip(cover(f), cover(f)[1:]))
-    ask, out, row = (introspect.layout('machine.modal', 'ASK'), introspect.layout('machine.latent', 'OUT'),
-                     introspect.layout('machine.latent', 'P', 'NOW'))
+    ask, out, row = (introspect.layout('machine.law.modal', 'ASK'), introspect.layout('machine.law.latent', 'OUT'),
+                     introspect.layout('machine.law.latent', 'P', 'NOW'))
     report.check('the ask, latent out and a state row generated, each gapless to its size',
                  gapless(ask, modal.ASK) and gapless(out, latent.OUT) and gapless(row, ortho.P)
                  and {'STANCE', 'COM_ACC', 'LET_GO'} <= set(ask) and {'KS', 'MANIFOLDED'} <= set(out),
@@ -26,7 +28,8 @@ def test_the_layouts_are_her_codes_own(report):
 def test_a_client_reads_her_layers_live(report):
     """Attached to her session, a client connected reads a snapshot each law pass - her latent
     rows by mode, the ask, the step's answer -; none connected, the hook makes none."""
-    from machine import introspect, ortho, worker
+    from machine.process import introspect, worker
+    from machine.texts import ortho
     s = worker.session()
     made, was = [], introspect.snapshot
     introspect.snapshot = lambda s, peaks=None, lazy=False: (made.append(1), was(s, peaks, lazy))[1]
@@ -59,7 +62,9 @@ def test_a_client_reads_her_layers_live(report):
 def test_a_traced_pass_names_her_calls_and_her_observer(report):
     """Traced (`calls.Calls`), a snapshot carries what her law called since the last - her law pass and her C
     cores by name, none of her telemetry's -; her observer named by manifold against her skin; stopped, gone."""
-    from machine import calls, introspect, observer, worker
+    from machine.texts import calls
+    from machine.process import introspect, worker
+    from machine.senses import observer
     s = worker.session()
     for _ in range(200):
         worker.stepped(s)
@@ -73,7 +78,7 @@ def test_a_traced_pass_names_her_calls_and_her_observer(report):
         tracer.stop(s)
     called, soles = snaps[-1]['calls'], named['manifolds']['plantar-bilateral']
     report.check("her law pass and her cores named, her telemetry's not; her observer by manifold, her soles felt and on her skin",
-                 'motion.control' in called and any(k.startswith('c.') for k in called)
+                 'law.motion.control' in called and any(k.startswith('c.') for k in called)
                  and not any(k.startswith(calls.QUIET) for k in called) and 'calls' not in s
                  and set(named['manifolds']) == set(observer.MANIFOLDS) and soles['felt'] > 0.0 and soles['skin'] > 0.0,
                  '%d called, soles felt %.0f N, skin %.0f N' % (len(called), soles['felt'], soles['skin']))
@@ -84,8 +89,8 @@ def test_her_analyzers_reduce_as_the_probes_do(report):
     (`Tap`, `watch.Watch`) and every pass of her world (the probes' way): each closed phase's fastest
     joint and deg/s the same, the phases told in order, a few events where thousands of snapshots."""
     import numpy as np
-    from machine import introspect, sprung, watch, worker
-    from machine.figure import JOINTS
+    from machine.process import introspect, sprung, watch, worker
+    from machine.body.figure import JOINTS
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     for _ in range(500):
@@ -115,7 +120,7 @@ def test_the_analyzers_reload_as_she_runs(report):
     one that raises is told and the rest fire on."""
     import os
     import tempfile
-    from machine import watch
+    from machine.process import watch
     with tempfile.TemporaryDirectory() as folder:
         fire = os.path.join(folder, 'fire.py')
         with open(fire, 'w') as f:

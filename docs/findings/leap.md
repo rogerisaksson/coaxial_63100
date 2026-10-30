@@ -3,7 +3,7 @@
 Her soles off the floor on the whole-body stack ([wbc](wbc.md)): which
 stand, the others asked to their landing.
 
-`machine/leap.py` stands between a motion pass's ask and the stack's step;
+`machine/moves/leap.py` stands between a motion pass's ask and the stack's step;
 `tools/sim/hop.py` throws her; tests/test_leap.py holds it.
 
 - The stack and the loop both solve a step with no sole standing: no force,

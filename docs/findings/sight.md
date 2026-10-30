@@ -1,9 +1,9 @@
 # Findings: her eyes
 
-A stereo pair on her head (`machine/sight.py`, `machine/stereo.py`,
+A stereo pair on her head (`machine/eyes/sight.py`, `machine/eyes/stereo.py`,
 `physics.SIGHT`), rendered from the world by MuJoCo, the disparity by block
 matching on the card (`wgpu` WGSL compute / `cupy`) or numpy, the depth from
-it, the points into a map she keeps of the room (`machine/room.py`), its things
+it, the points into a map she keeps of the room (`machine/world/room.py`), its things
 told by shape and colour, a way planned round them, and the page's
 picture of her view (`coaxial/graphics/inset.py`); test_sight.py holds it.
 Nothing of hers reads the world's geometry.
@@ -98,7 +98,7 @@ height for a standing thing. A lump's kind is a table (`sight.KINDS`).
 
 ## Her map in voxels
 
-Her looks into voxels (`machine/voxels.py`, 0.1 m, the floor's 0.08 to
+Her looks into voxels (`machine/eyes/voxels.py`, 0.1 m, the floor's 0.08 to
 2.3 m) in her estimate's frame - her eyes' pose from her head as her
 invariant EKF places it, not the renderer's -; a voxel a thing from 2
 looks with 3 points in it, hit more often than seen through, the rays
@@ -120,13 +120,13 @@ under no surface - a stray. A thing's box: its footprint's principal axes
 its turn, its extents along them a cell wide, its height its levels'; its
 id the thing's it shares most voxels with at the look before; whether the
 space over it is seen clear with it (`clear`: a seat or a bed is such a
-surface, a structure's top unknown). Her registry (`machine.registry`)
+surface, a structure's top unknown). Her registry (`machine.eyes.registry`)
 matches a look's thing by that id before the Wasserstein gate and takes its
 box as the look has it (a growing bed top filtered in by halves had split
 into slots short of her buses' 1.8); its frustum test on a box's corners
 (the nearest point alone left a table top's near edge under her view
 and the table unseen); its boxes carry their slot and `clear`. What a thing
-affords her is the text's (`machine/affordance.py`,
+affords her is the text's (`machine/way/affordance.py`,
 `evaluate-situational-affordances`): a seat a surface topping 0.28-0.92 m
 with 0.075 m^2 clear above it in the pelvic and thoracic slabs, a bed a
 surface under 0.75 m and 1.35 m long clear in the thoracic slab, a chair a
@@ -139,7 +139,7 @@ without SIGHT the props, a look showing the whole room; with it what her
 frustum has shown), her route planned round them (`route.blocked`, grown by
 their blind spots' swell) and the furniture a verb goes to found among them
 by what it affords (`furniture.GOES`), the errand's thing held by its slot
-through its stunt (`machine.errand`, `maneuver.said`), its stage laid anew
+through its stunt (`machine.way.errand`, `maneuver.said`), its stage laid anew
 where what she has seen since blocks it (`errand._cornered`), a look round
 first where nothing of the kind is in sight (phase `look`).
 
@@ -160,7 +160,7 @@ slots all live, the bed off her buses. A map's cost, test_sight's looks
 | 0.05 m | 21 MB | 86 ms | 174 ms | 553 |
 | 0.025 m | 168 MB | 171 ms | 6.2 s | 5 507 |
 
-Her fake camera (`machine.camera`): her left eye's colour and the parallax from
+Her fake camera (`machine.eyes.camera`): her left eye's colour and the parallax from
 the renderer's depth, her map in a process of its own, its things a look
 later. A look round at 0.1 m: 64-67 ms a look to the stereo's 86-88, 43
 things to 86, centres 0.06 m off the props at the median to 0.09, 25 of 29
@@ -171,7 +171,7 @@ it, 1.08 without. The lodge's walls joined at its corners were one structure,
 its box 1.8-3.1 m off each wall: a structure is told in pieces, halved across
 its long axis till no box claims floor further than a voxel from its cells
 (blocked cells 2 892 -> 2 242, the props' grown 2 371); a surface whole.
-Her camera runs as `python -m machine.camera`: her page's worker is daemonic
+Her camera runs as `python -m machine.eyes.camera`: her page's worker is daemonic
 and multiprocessing gives such no children. On her loop turning in place her
 head's estimate (`inekf.head`) rose 5 mm/s - 0.058 m at 12 s, 0.153 at 38 -
 and her map smeared: the chair told with no back, the bed in three; laid from

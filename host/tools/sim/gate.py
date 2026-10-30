@@ -23,7 +23,7 @@ FAILED = re.compile(r'^  (test_[^:\s]+): ([^:]+)', re.M)
 
 def changed(texts):
     """{repository path: text} of `texts` unlike their files."""
-    from machine import ortho
+    from machine.texts import ortho
     return {os.path.relpath(path, ROOT).replace(os.sep, '/'): text for path, text in texts.items()
             if text != ortho.source(path)}
 

@@ -77,7 +77,7 @@ HEAVY = {
     'host/tests/test_sensorless.py': 9100,
     'host/coaxial/draw/cross_section.py': 8700,
     'thermal/src/thermal.c': 8500,
-    'host/machine/physics.py': 7500,
+    'host/machine/world/physics.py': 7500,
     'board/native/native.c': 6800,
     'host/tests/test_conformance.py': 7400,
     'host/tests/test_modbus_core.py': 7300,

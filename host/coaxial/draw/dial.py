@@ -7,7 +7,7 @@ from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 from coaxial.draw.ascii3d import CELL_ASPECT
 from coaxial.graphics.raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
                      SUBDOT, covered)
-from machine import ansi
+from machine.rig import ansi
 
 #: Dots between the rim and the ring the numbers stand on, and the room
 #: their own row needs beyond that. The face is sized to whatever is left

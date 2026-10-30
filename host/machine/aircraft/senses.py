@@ -183,7 +183,8 @@ def _bus_row_svg(k, title, mbps, nodes):
 def aircraft_bus_layout_svg():
     """Render the live 10 Mbit/s RS485 Modbus RTU aircraft drive, servo & avionics bus topology
     as a deterministic SVG diagram for `docs/architecture/aircraft_bus_layout.svg`."""
-    from machine import edge, rtu
+    from machine.senses import edge
+    from machine.rig import rtu
     from machine.aircraft import flightpack, pull, quad
     from machine.aircraft.aerobat import airframe as aero_af
     from machine.aircraft.helicopter import airframe as heli_af

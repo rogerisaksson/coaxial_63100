@@ -6,7 +6,7 @@ import sys
 
 from tools.dev.focus import chosen
 
-from machine import physics
+from machine.world import physics
 
 physics.ENVELOPE = 0.0
 
@@ -58,8 +58,8 @@ def test_a_virtual_body_is_told(report):
     """VIRTUAL: no board, the humanoid's twenty joints each where it is told, slewed; a pose
     written, each reads its command back, the type's routines run."""
     from machine import Machine
-    from machine.modes import VIRTUAL
-    from machine.virtual import VirtualJoint
+    from machine.rig.modes import VIRTUAL
+    from machine.rig.virtual import VirtualJoint
     body = Machine.discover('humanoid', execution_mode=VIRTUAL)
     report.check('twenty virtual joints, fitted bus by bus as the type names them',
                  len(body.actuators) == 20
@@ -90,7 +90,7 @@ def test_a_leg_by_its_foot(report):
     """figure.leg answers the six joints that put a foot where `foot_of` finds it, any pose."""
     import math
     import random
-    from machine import figure
+    from machine.body import figure
     rng, worst = random.Random(1), 0.0
     for _ in range(200):
         angles = (rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(-0.8, 0.4),
@@ -113,8 +113,8 @@ def test_a_body_with_mass_is_fitted(report):
     """DYNAMIC: the gynoid's 27 joints each a drive on a body with mass, her pose read beside
     them."""
     from machine import Machine
-    from machine.modes import DYNAMIC
-    from machine.dynamic import DriveJoint
+    from machine.rig.modes import DYNAMIC
+    from machine.rig.dynamic import DriveJoint
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     report.check('27 drives fitted bus by bus, and her pose read beside them',
                  len(body.actuators) == 27
@@ -126,12 +126,13 @@ def test_a_body_with_mass_is_fitted(report):
 
 
 def test_her_skeleton_collides(report):
-    """Her skeleton switched on (`physics.SKELETON`, `machine.skeleton`): her model with it, the
+    """Her skeleton switched on (`physics.SKELETON`, `machine.body.skeleton`): her model with it, the
     same weight; standing and in the squat it touches nothing; the knee folded to 170 degrees the
     calf's two ankle drives meet the femur, her skins next to each other still not."""
     import importlib
     import math
-    from machine import mjcf, physics, skeleton
+    from machine.body import mjcf, skeleton
+    from machine.world import physics
     mujoco = importlib.import_module('mujoco')
     was = physics.SKELETON
     try:
@@ -145,7 +146,7 @@ def test_her_skeleton_collides(report):
                  model.ngeom > bare.ngeom
                  and abs(sum(model.body_mass) - sum(bare.body_mass)) < 1e-3,
                  '%.4f kg apart' % abs(sum(model.body_mass) - sum(bare.body_mass)))
-    from machine import figure
+    from machine.body import figure
     report.check('standing and in the squat it touches nothing',
                  not skeleton.overlapping(model, figure.stand())
                  and not skeleton.overlapping(model, figure.SQUAT))
@@ -184,12 +185,12 @@ def test_each_drive_is_held(report):
 
 
 def test_her_kinematics_as_motors(report):
-    """`machine.motors`: a chain of `figure.SEGMENTS` multiplied out puts a segment where
+    """`machine.body.motors`: a chain of `figure.SEGMENTS` multiplied out puts a segment where
     `figure.frames` has it; its damped solve answers `figure.leg`'s six joints; half the screw
     between two poses taken twice is the other."""
     import math
     import random
-    from machine import figure, motors
+    from machine.body import figure, motors
     rng = random.Random(2)
     pelvis, turn = (0.1, 0.89, -0.2), figure.mul(figure.ry(0.3), figure.rx(0.08))
     base, off, leg, half = motors.of(turn, pelvis), 0.0, 0.0, 0.0
@@ -227,10 +228,11 @@ def test_her_kinematics_as_motors(report):
 def test_a_gearbox_has_play(report):
     """BOXED: fed a torque, a drive's rotor runs free across its gearbox's play before any of it
     reaches the link, winds the box up tau / wind past it as the link turns, and reversed crosses
-    the play again before the link turns back (`machine.gearbox`):
+    the play again before the link turns back (`machine.body.gearbox`):
     the waist, its servo off, standing."""
-    from machine import figure, physics
-    from machine.figure import JOINTS
+    from machine.body import figure
+    from machine.world import physics
+    from machine.body.figure import JOINTS
     i = JOINTS.index('waist')
     physics.BOXED = 1.0
     try:
@@ -283,7 +285,7 @@ def test_every_build_runs_her(report):
     every module imported, her first seconds and a walk told (`tools/dev/smoke.py`)."""
     import os
     import subprocess
-    from machine import mechatronics
+    from machine.body import mechatronics
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     others = [n for n in mechatronics.robots() if n != mechatronics.ROBOT]
     report.check('a second build beside hers', bool(others), ', '.join(mechatronics.robots()))
@@ -300,7 +302,8 @@ def test_her_tiers_by_the_machine(report):
     not on Renode; her body wired to in-process alone, that is chosen; on 2 cores in-process alone
     fits; on 1 none does and she runs in her own process. `sprung.state` tells her headroom beside
     her ratio."""
-    from machine import modes, sprung, worker
+    from machine.rig import modes
+    from machine.process import sprung, worker
     fits = {name: ok for name, _c, ok in modes.afforded(16, 20)}
     report.check('on 16 cores 20 boards fit in-process and native, not on Renode; in-process chosen, the one wired',
                  fits['in-process'] and fits['native'] and not fits['emulated'] and modes.chosen(16, 20) == 'in-process',
@@ -323,7 +326,10 @@ def test_the_referee_and_her_averages_in_c(report):
     (wbc_pass_averaged) beside their numpy at every pass of her walk and a shove that throws her:
     the same fall at each pass, a fall seen, the averages bit for bit."""
     import numpy as np
-    from machine import figure, modal, referee, worker
+    from machine.body import figure
+    from machine.law import modal
+    from machine.world import referee
+    from machine.process import worker
     from tools.cores.orders import same
     s = worker.session(walks=True)
     g, apart, falls = s['g'], 0, 0

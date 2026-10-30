@@ -1,9 +1,9 @@
-/** wbc_gmo.h - her generalized momentum observer (machine.observer): the external force on her and
+/** wbc_gmo.h - her generalized momentum observer (machine.senses.observer): the external force on her and
     each manifold's normal force of it, of her drives, encoders and IMU over her chain (wbc.h).
     The residual of her momentum over a law pass, M u' + h - S'tau less her drives' friction,
     low-passed; split by least squares with every unknown pushing (Lawson-Hanson): her patches'
     points - a sole's four corners in her law's pyramid -, a joint on its stop pushed off it, her
-    capsules touching each other pushed apart. Laid by machine.observer from the kernel's registry
+    capsules touching each other pushed apart. Laid by machine.senses.observer from the kernel's registry
     and her model. Portable C11. */
 #ifndef WBC_GMO_H
 #define WBC_GMO_H

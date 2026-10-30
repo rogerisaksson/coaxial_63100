@@ -6,7 +6,7 @@ import random
 
 from coaxial.draw import ascii3d
 from coaxial.graphics import mesh
-from machine import ansi
+from machine.rig import ansi
 
 #: The board, in units of its own outer radius: 100 mm across, a 10 mm bore
 #: through the middle, 1.6 mm thick. Proportions, not a measurement - the

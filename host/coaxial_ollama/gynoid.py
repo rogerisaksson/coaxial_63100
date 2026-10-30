@@ -1,6 +1,6 @@
 """Her prompt in the operator's own words: the local chat model picks one row of her catalog.
 
-Any language; the catalog `machine.says` - errands, stunts, behaviours, gaits, takes, the page's
+Any language; the catalog `machine.texts.says` - errands, stunts, behaviours, gaits, takes, the page's
 programs, every one generated from the code that plays it -, the answer held to them by a JSON
 Schema enum (ollama's structured outputs), null when nothing fits.
 
@@ -50,14 +50,14 @@ def release(name, timeout=5.0):
 
 def choices(rows=None):
     """{op: its row} a prompt may choose: every row of her catalog but the loop's raw words."""
-    from machine import says
+    from machine.texts import says
     return {r['op']: r for r in (says.catalog() if rows is None else rows) if r['kind'] != 'word'}
 
 
 def command(row):
     """What the loop or the page hears for `row`: a take's rows as the bench says them (`takes.told`),
     else its catalog command."""
-    from machine import takes
+    from machine.texts import takes
     return takes.told(row['op']) if row['kind'] == 'take' else dict(row['command'])
 
 

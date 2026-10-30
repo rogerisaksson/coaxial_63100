@@ -78,5 +78,5 @@ coaxial/simulated/  the stand-in, same reply shapes as the board; acquire/
   over the board seconds both cover, or a number the physics rules out;
   `test_native` holds the board's thermometers, current and legs to the
   world's; `test_native_sysid` a drive read off its board.
-- `machine.modes`: where a machine's boards run - the hardware, a stand-in,
+- `machine.rig.modes`: where a machine's boards run - the hardware, a stand-in,
   their images emulated, or none.

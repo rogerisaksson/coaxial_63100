@@ -20,17 +20,17 @@ NEAR_M = 0.5
 
 
 def _room():
-    from machine import physics
+    from machine.world import physics
     physics.ROOM = physics.SIGHT = 1.0
     from machine import Machine
-    from machine.modes import DYNAMIC
+    from machine.rig.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     world = next(n.world for n in body.others + list(a.node for a in body.actuators.values()) if hasattr(n, 'world'))
     return body, world
 
 
 def _stood(world, heading):
-    from machine import figure
+    from machine.body import figure
     world.reset(figure.stand(), where=(0.0, figure.standing(), 0.0),
                 turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
@@ -44,7 +44,7 @@ def axis(half, R):
 def visible(props, eye, floor_m, ceil_m, far_m):
     """The props her eyes could take in from `eye`: standing above `floor_m`, under `ceil_m`, their nearest
     point within `far_m`."""
-    from machine import registry
+    from machine.eyes import registry
     out = []
     for p in props:
         if len(p) < 4 or len(p[1]) != 3 or np.size(p[2]) != 3 or np.size(p[3]) != 9:
@@ -58,7 +58,8 @@ def visible(props, eye, floor_m, ceil_m, far_m):
 
 def matched(props, told):
     """[(prop, its nearest told thing or None, centre off (m), sizes off (m), its axis off (rad))]."""
-    from machine import affordance, voxels
+    from machine.way import affordance
+    from machine.eyes import voxels
     out = []
     for kind, c, h, R in props:
         best = None
@@ -86,7 +87,10 @@ def errand(seconds=20.0):
     """Her loop under SIGHT (the page's worker, her lodge): a turn in place for a look round, then
     `sit_chair`, then `lie_bed`, each from the room's middle: what she finds, where she ends, whether she
     sits or lies."""
-    from machine import affordance, modal, physics, se2, sprung, worker
+    from machine.way import affordance
+    from machine.law import modal, se2
+    from machine.world import physics
+    from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 1.0, 1.0
     s = worker.session()
     g, world = s['g'], s['g']['world']
@@ -138,7 +142,8 @@ def main(argv=None):
     if a.errand:
         errand()
         return 0
-    from machine import affordance, registry, route, sight, voxels
+    from machine.way import affordance, route
+    from machine.eyes import registry, sight, voxels
     body, world = _room()
     try:
         sights, keep, slots = sight.Eyes(world), sight.Keep(), registry.laid()
@@ -183,7 +188,7 @@ def main(argv=None):
                     '%s (%.1f %.1f)%s' % (t[0], t[1][0], t[1][2], '+back' if affordance.backed(t, things) else '') for t in mine)))
         # her way to the chair's stage on her things and on the props
         at = (0.0, 0.0)
-        from machine import room
+        from machine.world import room
         props = list(world.props())
         seat = min((t for t in props if affordance.sits(t, props) and affordance.backed(t, props)),
                    key=lambda t: math.dist((t[1][0], t[1][2]), room.CHAIR_AT))

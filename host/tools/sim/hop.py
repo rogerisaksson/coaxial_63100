@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""A hop on the whole-body stack: thrown, airborne and landed, her soles released by `machine.leap`.
+"""A hop on the whole-body stack: thrown, airborne, landed, her soles released by `machine.moves.leap`.
 
     python tools/sim/hop.py                  # one hop standing: leap, apex, landing, stood
     python tools/sim/hop.py --push 18 -v     # the throw's ask, m/s^2; traced 10 ms a row
     python tools/sim/hop.py --core           # on the loop in C (`tools.cores.wbc.stack_step`)
-    python tools/sim/hop.py --wrench         # on the step without an active set (`machine.wrench`)
+    python tools/sim/hop.py --wrench         # on the step without an active set (`machine.stack.wrench`)
     python tools/sim/hop.py --hops 3         # that many, one after another
     ... --load 0.12 0.6 --push-s 0.2         # the load's depth m and time s, the throw's s
     ... --held                               # her soles never released: the stack as it was
@@ -49,7 +49,7 @@ def _eased(u):
 
 def _ahead(posture, names):
     """Her centre of mass ahead of her ankles along her soles, m, in a posture (rad, `names`)."""
-    from machine import figure
+    from machine.body import figure
     degrees = {n: math.degrees(float(q)) for n, q in zip(names, posture)}
     placed = figure.frames(degrees, (0.0, 0.0, 0.0), figure.IDENT)
     com = figure.com(degrees, (0.0, 0.0, 0.0), figure.IDENT)
@@ -61,8 +61,8 @@ def crouched(posture, names, deg):
     """`posture` with each knee flexed `deg`, its hip and its ankle half that - her pelvis let
     down over her ankles -, then leant at the ankles until her centre of mass is over her soles
     where it was: straight down it lay 26 mm behind their middle at a 46 deg crouch. The
-    movements by their terms (`machine.terms`)."""
-    from machine import terms
+    movements by their terms (`machine.body.terms`)."""
+    from machine.body import terms
 
     def bent(lean):
         out = posture.copy()
@@ -89,10 +89,11 @@ def hop(push=PUSH, hops=1, core=False, trace=False, release=True, inner='pd', fr
     """{stood, leaps, air_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
     standing, her throw `push` m/s^2. `release` False, her soles are never released - the stack as
     it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
-    is asked to its time's end; `wrench`, on `machine.wrench`'s step; `trace` a row every 10 ms,
+    is asked to its time's end; `wrench`, on `machine.stack.wrench`'s step; `trace` a row every 10 ms,
     `stack` the stand's own rows."""
-    from machine import leap, wbc
-    from machine.figure import SHANK, THIGH
+    from machine.moves import leap
+    from machine.stack import wbc
+    from machine.body.figure import SHANK, THIGH
     from tools.sim import wbc as sim
     period = LOAD_S + PUSH_S + SETTLE_S
     rec = {'air': 0, 'apex': 0.0, 'clear': 0.0, 'landed': 0.0, 'leaps': 0, 'run': 0,

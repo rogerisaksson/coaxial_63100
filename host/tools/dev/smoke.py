@@ -31,7 +31,7 @@ def imported(package='machine'):
 
 def ran():
     """None, or how her first SECONDS on the loop went wrong."""
-    from machine import sprung
+    from machine.process import sprung
     g, gym = sprung.laid(sprung.STACK_EVERY), sprung.entries()
     told = False
     try:

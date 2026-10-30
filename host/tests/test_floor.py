@@ -15,7 +15,7 @@ def test_the_floor_runs_on_under_her_soles(report):
     """Level, the floor under each sole is the floor's height to the bit; pitched as her standing
     soles stand, a sole 0.3 m on along her way stands on it 0.3 tan(pitch) higher."""
     import numpy as np
-    from machine import modal
+    from machine.law import modal
     fr, y = np.zeros(modal.FRAME), np.zeros(modal.SENSED)
     fr[modal.ROT] = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]], float).ravel()
     fr[modal.FLOOR], fr[modal.FLOOR_AT] = 0.0123, (0.0, 0.0)
@@ -35,7 +35,7 @@ def test_a_grown_prop_bears_where_it_has_grown(report):
     """A prop grown past its compiled size has its bounds grown with it: a 6 m top bears 2 m from its
     middle, where MuJoCo's cull by its compiled ones left it nothing."""
     import numpy as np
-    from machine import floor, physics
+    from machine.world import floor, physics
     world = physics.World()
     floor.place(world, 'slope', z=0.25, top=6.0)
     m, d = world.model, world.data
@@ -52,8 +52,10 @@ def test_her_grip_bounds_her_rhythm(report):
     """Her text's slippery situation caps her rhythm under its grip, its targets kept; at her law's
     own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that."""
     import numpy as np
-    from machine import grip, latent, modal, motion, ortho, situation
-    from machine.wbc import MU
+    from machine.senses import grip, situation
+    from machine.law import latent, modal, motion
+    from machine.texts import ortho
+    from machine.stack.wbc import MU
     table = situation.text()
     k = table['names'].index('slippery')
     report.check('her text has the slippery floor under a quarter of a sole\'s load',
@@ -91,7 +93,8 @@ def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
     doing floor_rest, her drives limp (se2.LIMP, clamps zero over the bus) - quiet (joints under 30
     deg/s, no contact past 300 N after the settle), no fall reset for 14 s (se2.GROUNDED)."""
     import numpy as np
-    from machine import physics, sprung, worker
+    from machine.world import physics
+    from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data
@@ -122,7 +125,11 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight(report):
     ahead bent (the crawl take's knees, 34-124 deg) and her centre of mass ahead of her pelvis - their counterweight -,
     her trunk within 10 deg of her sit's pitch over its last 3 s, 12 s without a fall."""
     import numpy as np
-    from machine import clocked, maneuver, modal, physics, worker
+    from machine.moves import clocked
+    from machine.texts import maneuver
+    from machine.law import modal
+    from machine.world import physics
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data
@@ -163,7 +170,9 @@ def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(r
     number holds it to exp(-(Fr/0.045)^2)."""
     import math
     import numpy as np
-    from machine import cascade, emancipation as em, latent, ortho
+    from machine.moves import cascade, emancipation as em
+    from machine.law import latent
+    from machine.texts import ortho
     weight, told, out = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36]), np.zeros(latent.OUT)
     report.check('her text asks her legs released where it tells her soles nothing and her seat and hands bear',
                  (cascade.intent(told, out) == 1.0).all() and (cascade.intent(np.array([1.0, 0, 0, 0, 0]), out) == 0.0).all()
@@ -191,7 +200,8 @@ def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(repo
     it, her step lets the leg go then sheds its foot's push to nothing by 0.75, the leg moves after - and back within
     the relock's 25 ms once the gate shuts."""
     import numpy as np
-    from machine import cascade as em, modal
+    from machine.moves import cascade as em
+    from machine.law import modal
     gammas = np.linspace(0.0, 1.0, 101)
     unanchored = 1.0 - em.window(gammas, em.UNANCHOR)
     shed = em.window(gammas, em.SHED)

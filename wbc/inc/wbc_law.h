@@ -1,19 +1,19 @@
 /** wbc_law.h - her latent loop's step and her upper body's coupling on the host (wbc_law.c):
-    machine.latent.step and machine.support.couple, numpy's arithmetic and numpy's own OpenBLAS
+    machine.law.latent.step and machine.law.support.couple, numpy's arithmetic and numpy's own OpenBLAS
     (wbc_blas.h) operation for operation. Portable C11, the host's alone. */
 #ifndef WBC_LAW_H
 #define WBC_LAW_H
 
 #include "wbc_blas.h"
 
-/** The most modes, her contact manifolds (machine.ortho.MANIFOLDS), row parameters, driven joints. */
+/** The most modes, her contact manifolds (machine.texts.ortho.MANIFOLDS), row parameters, driven joints. */
 #define WBC_LAW_N 16
 #define WBC_LAW_M 5
 #define WBC_LAW_P (5 * WBC_LAW_N + 7 + WBC_LAW_M + 1)
 #define WBC_LAW_D 32
 
-/** What the step and the coupling are laid on, filled once from machine.latent, machine.ortho
-    and machine.support: their layouts' offsets and their constants. */
+/** What the step and the coupling are laid on, filled once from machine.law.latent, machine.texts.ortho
+    and machine.law.support: their layouts' offsets and their constants. */
 typedef struct
 {
   int           n, p, driven;
@@ -28,12 +28,12 @@ typedef struct
   wbc_blas_t    blas;
 } wbc_law_t;
 
-/** machine.latent.step: `out` this pass, `st` blended, of the table `tab` (ntab rows, contiguous);
+/** machine.law.latent.step: `out` this pass, `st` blended, of the table `tab` (ntab rows, contiguous);
     `hit` ntab doubles of work. */
 void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab, double now, double dt, double *out,
                     double *hit);
 
-/** machine.support.couple: `dq` (driven), out's REF shifted, `eso_z` bled. */
+/** machine.law.support.couple: `dq` (driven), out's REF shifted, `eso_z` bled. */
 void wbc_law_couple(const wbc_law_t *k, const double *q, const double *qd, const double *ref_q, const double *ref_v,
                     double *eso_z, double *out, double *dq);
 

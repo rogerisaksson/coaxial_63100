@@ -2,7 +2,7 @@
 # 4.5 kW, 778 g) on box A (84 mm, 289 N m momentary) for the spine, hips, knees and ankles - the
 # jump's chain, where her hop has her hips, knees and spine at the U8's clamps (demand.md) - and
 # their servo peaks let through to the stacks'; the rest hers. 3.7 kg more. COAXIAL_ROBOT names
-# it (machine.mechatronics); host/tools/cores/manifest.py writes its manifest; her text extended
+# it (machine.body.mechatronics); host/tools/cores/manifest.py writes its manifest; her text extended
 # (lisp/humanoid/gynoid_mesomorph_medium_performance.lisp).
 extends = "gynoid_mesomorph_medium"
 

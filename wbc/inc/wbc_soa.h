@@ -1,8 +1,8 @@
-/** wbc_soa.h - the kernel's SoA ABI (ast_to_soa_lowering.lisp, machine.lowering): a bank of floats on
+/** wbc_soa.h - the kernel's SoA ABI (ast_to_soa_lowering.lisp, machine.texts.lowering): a bank of floats on
     64-byte lines a tuner lowers a gait into and her loop reads. The text's fields at its offsets, SI;
     a float a node where a field is each node's (her nominal gait's nodes, in its order); a biquad a
     node, a column a coefficient or state; the manifolds' weights; the body schema's capsules, a
-    column a coordinate. A bank rides machine.rcu's table as its words. */
+    column a coordinate. A bank rides machine.process.rcu's table as its words. */
 #ifndef WBC_SOA_H
 #define WBC_SOA_H
 

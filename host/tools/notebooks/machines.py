@@ -11,7 +11,7 @@ SECTIONS = [
            'its boards on every bus, each a node named by its bus and unit (`LL_2`); then the '
            'robot\'s other boards, a battery pack and a head camera. Each is asked what it '
            'offers first.'),
-        code('''from machine.nodes import Nodes
+        code('''from machine.rig.nodes import Nodes
 
 nodes = Nodes.discover(port=PORT, execution_mode=MODE)
 kinds = sorted({n.type for n in nodes})
@@ -88,7 +88,7 @@ for wrong in ('0 run=wlak', '0 run=walk strides=3', '0 run=squat knee=120', '0.5
         md('A type is data: the actuators it wants by kind, and its routines. The quad\'s rotors '
            'are speed loops (rpm), the fixed wing\'s surfaces narrow joints, the e-bike\'s '
            'assist a current.'),
-        code('''from machine.sequencer import card
+        code('''from machine.rig.sequencer import card
 
 RUNS = {'quad': '0 run=take_off\\n0 run=hover seconds=1\\n0 run=yaw\\n0 run=land',
         'fixed_wing': '0 run=take_off\\n0 run=bank deg=-15\\n0 run=land',
@@ -107,7 +107,7 @@ for kind, steps in RUNS.items():
            'plays at once. `wait` returns one line when the buffer runs low or something '
            'happens, with what changed. Silence plays the type\'s failsafe.'),
         code('''import time
-from machine.live import Live
+from machine.rig.live import Live
 
 ANSWER = ('0.5 left_knee=20 right_knee=20\\n0 run=walk stride=15 period=0.25\\n'
           '0 run=walk stride=15 period=0.25\\n')
@@ -184,12 +184,12 @@ BENCH = ('Discover through the broker, the pack and camera given as `peripherals
          'failsafe a routine that is safe from anywhere.')
 
 REFERENCES = [
-    ('host/machine/nodes.py', '`Node`, `Nodes`, `FAMILIES`: boards as IO nodes, capabilities first'),
-    ('host/machine/machine.py', '`Machine`: actuators over nodes; `discover`, `prompt`, `run`'),
+    ('host/machine/rig/nodes.py', '`Node`, `Nodes`, `FAMILIES`: boards as IO nodes, capabilities first'),
+    ('host/machine/rig/machine.py', '`Machine`: actuators over nodes; `discover`, `prompt`, `run`'),
     ('host/coaxial/node.py', 'the Coaxial63100 family: its node, joint, surface, rotor, torque'),
-    ('host/machine/routines.py', 'the types and their routines'),
-    ('host/machine/live.py', '`Live`: chunks, a buffer, a watchdog, a failsafe'),
-    ('host/machine/sequencer.py', 'lines or tables; `check`, `summary`, `card`, `GRAMMAR`'),
+    ('host/machine/rig/routines.py', 'the types and their routines'),
+    ('host/machine/rig/live.py', '`Live`: chunks, a buffer, a watchdog, a failsafe'),
+    ('host/machine/rig/sequencer.py', 'lines or tables; `check`, `summary`, `card`, `GRAMMAR`'),
     ('host/coaxial_mcp/tools.py', '`program`, `close_programs`: the board-chat tool'),
     ('host/coaxial/rig.py', '`Coaxial63100`: the board in its execution mode'),
 ]

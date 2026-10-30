@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""A take identified as an ortho-DSP modifier against a reference walk, for `machine.dsp`.
+"""A take identified as an ortho-DSP modifier against a reference walk, for `machine.texts.dsp`.
 
 Its clock locked to its strikes, its coronal mid and side, its pelvis's sidechain, its trunk's
-filter bank, emitted as a (defmodifier ..) that `machine.dsp` reads and voices on her.
+filter bank, emitted as a (defmodifier ..) that `machine.texts.dsp` reads and voices on her.
 
     python tools/sim/identify.py TAKE.fbx [..] [--against REF.fbx] [--out DIR]
     soa = identify.soa(times, joints)            # flat signals: mm in her path's frame, rad, at her size
@@ -17,7 +17,7 @@ joint's lowest is mid-stance, not a strike. Lengths at her size (her leg over th
 by its square root (`stunts.similar`). What is hers to play - tempo, track, roll, sidechain,
 postures, arms, stride, clearance, height - is the suite's nominal moved by the take's change off
 the reference walk's (`--against`, REFERENCE her walk as approved): her walk against itself emits
-the nominal, which plays her walk to the last slot. What `machine.dsp` refuses or names voiceless
+the nominal, which plays her walk to the last slot. What `machine.texts.dsp` refuses or names voiceless
 - duty, swing gate, the legs' phase, heading and turning, transients - is the take's own, as the
 spec's: a duty under 0.5 is a flight wherever her walk's lies. Its way is the nearest of her four
 (`se2.GAIT_BOXES`): 0.08 m/s aside of a walk measured 4.8 deg off its facing strafed her.
@@ -30,7 +30,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
-from machine import modal
+from machine.law import modal
 from tools.sim import mocap, normal, stunts
 from tools.sim.fbx import take
 

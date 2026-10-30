@@ -1,13 +1,13 @@
-"""The board's parts and feedback (ctrl/), stepped beside host/machine/parts.py."""
+"""The board's parts and feedback (ctrl/), stepped beside host/machine/rig/parts.py."""
 import ctypes
 import math
 import os
 import random
 import sys
 
-from machine import parts
-from machine.controller import Feedback, Loop, Polled
-from machine.roles import Part
+from machine.rig import parts
+from machine.rig.controller import Feedback, Loop, Polled
+from machine.rig.roles import Part
 from tools.cores.build import build, find_cc
 
 from test_modbus_core import Report
@@ -69,7 +69,7 @@ class C:
         return self.lib.ctl_kind(name.encode())
 
     def part(self, py):
-        """The C twin of a machine.parts part, its parameters in PARAMS order."""
+        """The C twin of a machine.rig.parts part, its parameters in PARAMS order."""
         values = [float(getattr(py, n)) for n in py.PARAMS]
         return self.lib.ctl_part(self.kind(type(py).__name__),
                                  (ctypes.c_float * max(1, len(values)))(*values))
@@ -127,7 +127,7 @@ def test_each_part_steps_as_the_host(report, c):
             if first is None and not near(got, want, scale):
                 first = (i, got, want)
         c.lib.ctl_free(part)
-        report.check('%s: 400 steps as machine.parts steps them' % name, first is None,
+        report.check('%s: 400 steps as machine.rig.parts steps them' % name, first is None,
                      'worst %.2g of %.3g' % (worst, scale) if first is None else first)
 
 

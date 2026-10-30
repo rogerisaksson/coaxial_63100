@@ -1,11 +1,11 @@
-/** ctrl.h - host/machine/parts.py and a feedback in C11, step for step, for a board's loops. */
+/** ctrl.h - host/machine/rig/parts.py and a feedback in C11, step for step, for a board's loops. */
 #ifndef CTRL_H
 #define CTRL_H
 
 #include <stdbool.h>
 #include <stdint.h>
 
-/** A part's kind; `ctrl_kind_names` spells each as its class in machine.parts. */
+/** A part's kind; `ctrl_kind_names` spells each as its class in machine.rig.parts. */
 typedef enum
 {
   CTRL_NONE = 0,

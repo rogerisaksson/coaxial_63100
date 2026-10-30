@@ -620,7 +620,7 @@ for name, f in w['fields'].items():
 print('rho', [round(r, 4) for r in w['rho']])'''),
         code('''from IPython.display import display
 from coaxial.draw import cross_section
-from machine import ansi
+from machine.rig import ansi
 
 t = [r[0] for r in spin]
 fig, (angle, mid, bottom) = figure(rows=3, sharex=True)

@@ -1,0 +1,286 @@
+"""The ortho-DSP suite's maneuvers (`machine.texts.dsp`) as her texts: her sits, lies, rises as said.
+
+    text = maneuver.text('sit_chair', (0.47, 0.17, 0.0, 0.0))   # the suite's patch, a seat seen (`furniture.seen`)
+    label, wire, names = maneuver.entry('sit_chair', (0.47, 0.17, 0.0, 0.0))    # its gym entry
+    texts = maneuver.texts()                  # every stunt the suite plays (PLAYED), its own seats
+
+A stunt plays a suite patch (PLAYED), the height of the furniture her eyes see its key; its acts
+in order (`dsp`'s '_events') are phases of her text (`machine.texts.acts`), named by their stage of the
+stunt, each paced no quicker than her springs follow it, her arms held, what bears her carried
+till her soles are given back. Her errand docks her heels the patch's standoff off the furniture's
+edge (`standoff`, `tour`). Her units and rest stiffness are her manifest's (`defrobot.read`). What has
+no phase of hers is named (PASSED), any other act refused.
+"""
+import functools
+import math
+
+from machine.texts import curves, dsp, ortho
+from machine.body import defrobot, figure
+from machine.law import supervisor
+from machine.stack import wrench
+from machine.texts.acts import ACTS, GRAIN_MS, LEGS, NODES, SUPPORT, sprung
+from machine.errors import MachineError
+
+#: Her legs' modes: at the furniture's gain through a cross-fade onto it, back toward their rest through a pan
+#: to her soles (`_legs`).
+LEGS_MODES = tuple(m for node in LEGS for m in NODES[node])
+
+#: Each stunt of hers the suite plays: its patch, the stunt it rises from (its patch played on that
+#: one's gait, as the suite's lifecycle plays it), her phases' names by the stunt's stages. Her chair
+#: the rigid one's: the confident sit's upright trunk stands on a foot staggered under the seat's
+#: edge (`pivot-single-anchor-arc`'s footprint), and her errand docks her feet together - upright,
+#: her hips landed on its front edge and she slid off it. Her bed's is her gym's (motion.lisp): the
+#: suite's side-lie (side_lie.lisp) rolls her onto her trochanter, past her modes (`acts._pendulum`), and
+#: its supine sleep's dock, 70 mm, fell her off the mattress's edge 3 of 3 where the chair's 85 held.
+PLAYED = {
+    'sit_chair': ('patch-sit-rigid-chair', None, {'descent': 'lower', 'contact': 'seated', 'rest': 'seated'}),
+    'rise_chair': ('patch-rise-chair', 'sit_chair', {'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
+                                                     'drive': 'stand'}),
+    'lie_bed': ('patch-bed-lean', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
+    'rise_bed': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
+                                              'drive': 'stand'}),
+    'rise_floor': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
+                                                 'contact': 'thrust', 'drive': 'stand'}),
+}
+#: The key a stunt's patch takes the seen furniture's height by, mm.
+SEEN = 'seat-z-mm'
+#: Her ischia's height over a seat bearing them, m (`figure`'s seat capsules).
+ISCHIA = -figure.SEAT_Y + figure.SEAT_R
+
+
+@functools.lru_cache(maxsize=1)
+def _reach():
+    """m, her pelvis's floor on her legs: flat soles, the knees at their drives' range (her
+    manifest's). A seat asking her pelvis under it has no leg path - the deep landing is a tip
+    onto a known seat, protocol item 13 - and its stunt is refused by name (`text`)."""
+    r = defrobot.read()
+    if r is None:
+        raise MachineError('no (defrobot ..) in her manifest')
+    knee = math.radians(next(v['range'][1] for k, v in r['drives'].items() if 'knee' in k))
+    return figure.pelvis_at(knee)
+#: A sit's or a lie's rest, s: her text holds it till a rise is said.
+REST_S = 60.0
+#: Trace entries that are no act of a text, and what does them instead.
+PASSED = {'dock-terminal-stance': 'her errand docks her heels its standoff off the edge (`standoff`, `tour`)',
+          'pivot-single-anchor-arc': 'her errand docks her (`tour`)',
+          'ignite-cyclic-clock': 'her walk said after her rise', 'lock-horizon-gaze': 'no head voice'}
+
+
+def _manifest():
+    """({mode: (unit, stiffness, damping, mass)}, her body's numbers) of her manifest (`defrobot.read`)."""
+    r = defrobot.read()
+    if r is None:
+        raise MachineError('no (defrobot ..) in her manifest')
+    return {m: (v['unit'], v['stiffness'], v['damping'], v['mass']) for m, v in r['modes'].items()}, r['body']
+
+
+def _played(name, got, seat):
+    """(the gait the suite's patch for stunt `name` makes of the gait it rises from - the stunt's it
+    rises from, else the suite's nominal manifold -, a seat `seat` m up its key, how many of its acts
+    are that gait's)."""
+    patch_name, under = PLAYED[name][:2]
+    base = _played(under, got, seat)[0] if under else got['nominal-biped-manifold']
+    keys = [':' + SEEN, 1e3 * seat] if seat is not None and SEEN in got[patch_name].keys else []
+    g = dsp.called(patch_name, [base] + [got['nominal-biped-manifold']] * (len(got[patch_name].params) - 1), keys, got)
+    if not isinstance(g, dict):
+        raise MachineError('%s: a patch of a gait, not of a transition' % patch_name)
+    supervisor.checked(g)
+    for step, info in g['_trace']:
+        if isinstance(info, dsp.Morph) and step not in PASSED:
+            raise MachineError('refused: %s, no phase of hers for it' % step)
+    return g, len(base['_events'])
+
+
+def phases(name, seen=None, got=None):
+    """[Phase] of stunt `name`, its furniture `seen` (its top, its near edge behind her soles' middle, its
+    middle aside, its turn, its depth, its width; None: its patch's own seat at its dock's standoff, no depth), its acts in
+    order - those of the stunt it rises from played first, her place and support theirs -, a phase a contact
+    releases laid at the descent's start."""
+    given, got = got, got if got is not None else dsp.read(dsp.SUITE)
+    (g, first), (modes, body) = _played(name, got, seen[0] if seen else None), _manifest()
+    told = next((info[SEEN] for step, info in g['_trace'] if isinstance(info, dict) and SEEN in info), None)
+    at = {'knee': math.radians(body['knee']), 'ankle': 0.5 * math.radians(body['knee']),
+          'seat': None if told is None else 1e-3 * told,
+          'behind': seen[1] if seen else standoff(name, given) + 0.5 * (figure.BALL + figure.HEEL),
+          'aside': seen[2] if seen else 0.0, 'turn': seen[3] if seen else 0.0, 'deep': seen[4] if seen else None,
+          'across': seen[5] if seen and len(seen) > 5 else None,
+          'reclines': any(op == 'stage-sequential-manifold' for op, _p, _t in g['_events'][first:])}
+    out, own = [], []
+    for k, (op, p, then) in enumerate(g['_events']):
+        if op not in ACTS:
+            raise MachineError('refused: %s, no phase of hers for it' % op)
+        made = [_paced(_armed(phase, modes), modes) for phase in ACTS[op](p, then, at, modes, body)]
+        out, own = out + made, own + [k >= first] * len(made)
+    out = _supported([p._replace(ms=GRAIN_MS) if k + 1 < len(out) and out[k + 1].waits and p.stage == 'descent' else p
+                      for k, p in enumerate(out)], modes)
+    return [p for p, mine in zip(out, own) if mine]
+
+
+def _armed(p, modes):
+    """`p`, her arms held where they hang as a pressing contact's point is (`wrench.W_STILL`)
+    unless it springs them itself: no reaction wheel. Let go to their rest in her rise, they swung
+    454 deg/s through 74 deg."""
+    return p._replace(springs={'mode_arm_swing': sprung('mode_arm_swing', wrench.W_STILL / wrench.W_POSTURE, 1.0, modes),
+                               **p.springs})
+
+
+def _paced(p, modes):
+    """`p` no quicker than her springs follow its curve: its time stretched as far as brings the
+    curve's bandwidth, the root of its greatest |S''| over its time (`curves.BENT`), under each of
+    its targets' natural frequency, the root of its mode's stiffness over its mass (`defrobot.read`).
+    The suite's 350 ms preload asked her centre of mass 11.7 m/s^2 and her drives carried 0.20 of
+    the ask: the seat let her go 0.16 s in and a sole rose; at 575 ms she stood 6 times of 6."""
+    wn = min((math.sqrt(modes[m][1] / modes[m][3]) for m in p.targets), default=math.inf)
+    least = 1e3 * math.sqrt(curves.BENT[p.shape]) / wn
+    return p._replace(ms=max(p.ms, least), blend=max(p.blend, least))
+
+
+def _supported(ps, modes):
+    """`ps`, each after a cross-fade on the support it gave her - the furniture's, her ZMP let go,
+    till one gives her soles back - where her stunts' own (`stance_hold`) would hold her polygon; a
+    preload before a cross-fade onto her soles pans what bears her to the share that fade waits for
+    (the handover's liftoff), her ZMP in her support as they take her and her legs' springs back from
+    the furniture's gain toward their rest by that share (`_panned`, `_legs`). Left to the fade, the
+    seat bore 0.9-1.1 of her through the lean and one sole took her at the thrust, 33/156 N; panned
+    with her legs at the seat's -24 dB, one sole took her through the lean and rolled her 13 deg."""
+    out, zmp, weighs, legs = [], None, None, None
+    for p, then in zip(ps, ps[1:] + [None]):
+        zmp = p.zmp if p.zmp is not None else zmp
+        weighs = p.weighs if p.weighs is not None else weighs
+        legs = p.springs if all(m in p.springs for m in LEGS_MODES) else legs
+        panned = _panned(p, then, weighs)
+        springs = {**_legs(legs, panned[0], modes), **p.springs} if panned and legs else p.springs
+        out.append(p._replace(zmp=SUPPORT if panned else zmp, weighs=panned or weighs, springs=springs))
+    return out
+
+
+def _legs(seat, plantar, modes):
+    """Her legs' modes' springs `plantar` of the way from the furniture's gain on them (`seat`, its
+    cross-fade's springs) to their rest (`modes`)."""
+    return {m: sprung(m, seat[m][0] / modes[m][1] + plantar * (1.0 - seat[m][0] / modes[m][1]), 1.0, modes)
+            for m in LEGS_MODES}
+
+
+def _panned(p, then, weighs):
+    """A preload's pan: her soles at the share the cross-fade `then` waits for, what bore her off her hands
+    the rest as it was split, her hands none - her arms hang in the lean (`acts._envelope`); None where `p`
+    is no such preload."""
+    soles = then.waits[1] if then is not None and then.waits and then.waits[0] == 'soles' and weighs else None
+    if p.stage != 'preload' or soles is None or weighs[0] >= 1.0:
+        return None
+    hands = weighs[ortho.PALMAR]
+    return (soles,) + tuple(w * (k != ortho.PALMAR) * (1.0 - soles) / (1.0 - weighs[0] - hands)
+                            for k, w in enumerate(weighs[1:], 1))
+
+
+def _form(name, p, last):
+    """Her text's phase of `p`, named `name`: the `last` of a sit or a lie held REST_S."""
+    lines = ['(duration %dms) (blend_duration %dms)' % (round(1e3 * REST_S if last else p.ms), round(p.blend))]
+    lines += ['(wait %s)' % ' '.join(map(str, p.waits))] if p.waits else []
+    lines += ['(latch)'] if p.latch else []
+    lines += ['(shape %s)' % p.shape] if p.shape != 'linear' else []
+    lines += ['(latent_targets %s)' % ' '.join('(%s %.4f)' % kv for kv in p.targets.items())] if p.targets else []
+    lines += ['(impedance %s)' % ' '.join('(stiffness %s %.2f) (damping %s %.2f)' % (m, k, m, d)
+                                          for m, (k, d) in p.springs.items())] if p.springs else []
+    held = (['(maintain_zmp (polygon %g))' % p.zmp] if p.zmp is not None else []) + (
+        ['(contact_manifolds %s)' % ' '.join('(%s %g)' % kv for kv in zip(ortho.MANIFOLDS, p.weighs))] if p.weighs else []) + (
+        ['(slide %g)' % p.slide] if p.slide is not None else [])
+    lines += ['(task_constraints %s)' % ' '.join(held)] if held else []
+    return '  (phase %s\n    %s)' % (name, '\n    '.join(lines))
+
+
+def text(name, seen=None, got=None):
+    """(defbehavior NAME ..) of stunt `name` as the suite plays it (PLAYED), its furniture `seen`;
+    a seat asking her pelvis under her legs' floor (`_reach`) refused by name - the suite's bed
+    patch at a 0.14 m floor mattress asked mode_axial_compression 4.10 where her legs reach 3.4
+    and she froze mid-descent at 0.505 m, every joint still."""
+    if seen is not None and seen[0] + ISCHIA < _reach():
+        raise MachineError('%s: a seat %.2f m up asks her pelvis %.3f m, under her legs %.3f '
+                           '(the deep landing, protocol item 13)' % (name, seen[0], seen[0] + ISCHIA, _reach()))
+    named, ps = PLAYED[name][2], phases(name, seen, got)
+    unnamed = sorted({p.stage for p in ps} - set(named))
+    if unnamed:
+        raise MachineError('%s: no phase of hers named for %s' % (name, ', '.join(unnamed)))
+    names = [named[p.stage] for p in ps]
+    names = [n if k + 1 == len(ps) or names[k + 1] != n else '%s_%s' % (n, ps[k].what.lstrip(':').replace('-', '_'))
+             for k, n in enumerate(names)]
+    return '(defbehavior %s (extends stance_hold)\n%s)\n' % (
+        name, '\n'.join(_form(n, p, k == len(ps) - 1 and not PLAYED[name][1]) for k, (n, p) in enumerate(zip(names, ps))))
+
+
+@functools.lru_cache(maxsize=None)
+def _suite():
+    return dsp.read(dsp.SUITE)
+
+
+def _footprint(name, got):
+    g = _played(name, got, None)[0]
+    return next((1e-3 * q['sagittal-standoff-mm'] for step, info in g['_trace'] if step == 'dock-terminal-stance'
+                 for op, q, _then in info.acts if op == 'align-terminal-footprint'), 0.0)
+
+
+@functools.lru_cache(maxsize=None)
+def _standoff(name):
+    return _footprint(name, _suite())
+
+
+def standoff(name, got=None):
+    """m, her heels off the edge of the furniture stunt `name` docks her at, of the suite `got` (else
+    its files'): its patch's terminal footprint (`dock-terminal-stance`), 0 where it docks her at none."""
+    return _standoff(name) if got is None else _footprint(name, got)
+
+
+def entry(name, seen=None, got=None, texts=None):
+    """(label, wire, names) of stunt `name`, its furniture `seen`, of the suite `got` and her texts
+    `texts` (else their files'): her gym's entry (`sprung.entries`)."""
+    tables, named = ortho.compiled('(include "gait_base.lisp")\n' + text(name, seen, _suite() if got is None else got),
+                                   texts=texts)
+    return name, tables[name], named[name] + ('rest',)
+
+
+def said(g, item, at=None, thing=None):
+    """A gym entry `item` as her session says it: a stunt she plays (PLAYED) compiled for the furniture
+    she sees nearest `at`, the thing of slot `thing` where given (`furniture.seen`); nothing among her
+    things yet, she looks till a sighting is hers (`registry.TAKEN` of HIT a look); still none, refused
+    by name - unseen, the patch's own seat played a 0.45 m descent onto a floor mattress that was not
+    there and she froze mid-air at 0.504 m."""
+    import math as _math
+    from machine.way import furniture
+    from machine.eyes import registry
+    from machine.process import sprung
+    if item[0] not in PLAYED:
+        return item
+    from machine.law import se2, stride
+    # lying on the floor (`se2.GROUNDED`) the floor is her seat, its top 0, her edge on it: a rise
+    # asked of her there is refused by her legs' reach, not 'nothing affords it' as the bed patch's
+    # search for a bed said
+    floor = float(sprung.doing(g) in se2.GROUNDED)
+    seen = (0.0, 0.0, 0.0, 0.0, 0.0) if floor else furniture.seen(g, item[0], at, thing)
+    for _ in range(int(_math.ceil(registry.TAKEN / registry.HIT))):
+        if seen is not None:
+            break
+        sprung.looked(g)
+        seen = furniture.seen(g, item[0], at, thing)
+    if seen is None:
+        raise MachineError('%s: nothing among her things affords it' % item[0])
+    reach = stride.STRIDE_M + standoff(item[0], g['suite'])
+    edge = (1.0 - floor) * furniture.nearest(g, PLAYED[item[0]][1] or item[0], at)[0]
+    if edge > reach:
+        raise MachineError('%s plays where she stands: its furniture is %.1f m off, past her %.2f '
+                           '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))
+    return entry(item[0], seen, g['suite'], g['texts'])
+
+
+def _joined(got):
+    return '\n'.join(text(name, None, got) for name in PLAYED)
+
+
+@functools.lru_cache(maxsize=1)
+def _texts():
+    return _joined(_suite())
+
+
+def texts(got=None):
+    """Every stunt the suite plays (PLAYED), its patches' own seats, as one text for her gym, of the
+    suite `got` (else its files')."""
+    return _texts() if got is None else _joined(got)

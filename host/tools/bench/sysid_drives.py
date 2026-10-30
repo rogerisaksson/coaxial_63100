@@ -4,7 +4,7 @@
     python tools/bench/sysid_drives.py --port native://?nodes=4&world=humanoid_leg --units 1-4
     python tools/bench/sysid_drives.py --port COM4 --gear 30 --profile outrunner_63100_14p
 
-J, b, f and the gravity on each shaft (`coaxial.control.identify`, `machine.sysid.motor`); on a
+J, b, f and the gravity on each shaft (`coaxial.control.identify`, `machine.identify.sysid.motor`); on a
 native world, the world's own beside.
 """
 import argparse

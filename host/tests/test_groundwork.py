@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her body on the floor (`machine.groundwork`; the kernel's floor_groundwork_core.lisp,
+"""Her body on the floor (`machine.world.groundwork`; the kernel's floor_groundwork_core.lisp,
 ground_rolling_and_transitions.lisp, floor_lifecycle_patches.lisp): the texts read whole, the roll's ring and girdles,
 her roll on a hard floor and out of a mattress's trough, the six ground postures laid on her figure."""
 import math
@@ -11,79 +11,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
+from ground_kit import LANDMARKS, MOVES, TOUCH, laid, part, skin
 
 #: The groundwork texts, lisp/humanoid/kernel/.
 TEXTS = ('floor_groundwork_core.lisp', 'ground_rolling_and_transitions.lisp', 'floor_lifecycle_patches.lisp')
-#: The texts' joints as her movements (`term_rows.TERMS`, or `ABSENT`): her trunk one joint, lumbar and thoracic
-#: summed.
-MOVES = {'talocrural': ('ankle', 'dorsiflexion'), 'tibiofemoral': ('knee', 'flexion'),
-         'coxofemoral': ('hip', 'flexion'), 'l4-l5-lumbar': ('trunk', 'flexion'),
-         'c7-t12-thoracic': ('trunk', 'flexion'), 'glenohumeral': ('shoulder', 'flexion'),
-         'cubital': ('elbow', 'flexion'), 'c1-c2-atlas': ('neck', 'flexion'), 'c1-c2-atlas-yaw': ('head', 'rotation'),
-         'iliac-coronal': ('trunk', 'lateral-flexion'), 'calcaneus': ('foot', 'eversion'),
-         'glenohumeral-ext-rot': ('shoulder', 'lateral-rotation'), 'glenohumeral-abduction': ('shoulder', 'abduction'),
-         'glenohumeral-abduct': ('shoulder', 'abduction'), 'coxofemoral-abduct': ('hip', 'abduction'),
-         'coxofemoral-ext-rot': ('hip', 'lateral-rotation')}
-#: The texts' landmarks by the segment of hers that carries each; her wrist's patch her fist (her hands bear on their
-#: fists, `borne`).
-LANDMARKS = {'calcaneus': 'foot', 'metatarsal-head': 'toes', 'femoral-diaphysis-dorsal': 'thigh',
-             'femoral-diaphysis-ventral': 'thigh', 'ischial-tuberosity': 'pelvis', 'greater-trochanter': 'pelvis',
-             'sacral': 'pelvis', 'iliac-anterior-spine': 'pelvis', 'l4-l5-lumbar': 'torso', 'c7-t12-thoracic': 'torso',
-             'sternal-pectoral': 'torso', 'occipital': 'head', 'olecranon': 'forearm', 'ulna-distal': 'hand',
-             'carpal-heel': 'hand', 'palmar-carpal': 'hand', 'tibial-tuberosity': 'shank', 'tarsal-dorsum': 'foot'}
-#: Samples round a turn; a part within TOUCH m of the floor touches it; the text's cranium clear of the floor in the
-#: roll (`drive-helical-axial-roll-wave`'s comment), m.
-TURN, TOUCH, CRANIUM_M = 7200, 1e-3, 0.035
-
-
-def _laid(origin):
-    """{joint: deg} of her figure posed as a text's origin ({name: rad}): her hips, knees, ankles, shoulders and
-    elbows as told, both sides, else straight; a movement she lacks left out."""
-    from machine import figure
-    from machine.term_rows import ABSENT, TERMS
-    deg = figure.stand()
-    deg.update({k: 0.0 for k in deg if k.endswith(('_hip', '_knee', '_ankle', '_shoulder', '_elbow'))})
-    for name, rad in origin.items():
-        if MOVES[name] in ABSENT:
-            continue
-        kind, sign = TERMS[MOVES[name]][:2]
-        d = sign * math.degrees(rad)
-        if kind == 'spine':
-            deg['spine'] += d
-        else:
-            deg.update({j: d for j in ([kind] if kind in deg else ['left_' + kind, 'right_' + kind])})
-    return deg
-
-
-def _part(segment):
-    return segment.split('_', 1)[1] if segment.startswith(('left_', 'right_')) else segment
-
-
-def _skin(deg, turn=None):
-    """(points (n, 3), radii (n,), their segments, her centre) of her figure posed `deg`, the pelvis at the origin
-    turned `turn`: each capsule of `figure.BODY` its two ends, each sole's and toes' box its corners at 0; her
-    fingers left out, her fists what her hands bear on."""
-    import itertools
-    import numpy as np
-    from machine import figure
-    turn = turn or figure.IDENT
-    segments = {s[0] for s in figure.SEGMENTS if not s[0].endswith('fingers')}
-    points, radii, of = [], [], []
-    for name, (at, here) in figure.frames(deg, (0.0, 0.0, 0.0), turn).items():
-        caps = [(r, e) for p, r, a, b in figure.BODY if name in segments and p == _part(name) for e in (a, b)]
-        boxes = [(0.0, tuple(c[i] + s[i] * size[i] for i in range(3)))
-                 for p, _shape, size, c in figure.CONTACTS if name in segments and p == _part(name)
-                 for s in itertools.product((-1.0, 1.0), repeat=3)]
-        for r, e in caps + boxes:
-            points.append(np.add(at, figure.apply(here, e)))
-            radii.append(r)
-            of.append(name)
-    return np.array(points), np.array(radii), of, np.array(figure.com(deg, (0.0, 0.0, 0.0), turn))
+#: Samples round a turn; the text's cranium clear of the floor in the roll (`drive-helical-axial-roll-wave`'s
+#: comment), m.
+TURN, CRANIUM_M = 7200, 0.035
 
 
 def _parts(manifolds):
     """Her segments' names, side-less, that carry the landmarks of `manifolds` (their frames)."""
-    from machine import kernel
+    from machine.texts import kernel
     got = kernel.read()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
     frames = [f.lstrip(':') for m in manifolds for f in patches[m.lstrip(':')]['frames']]
@@ -95,8 +34,8 @@ def _pitched(deg):
     margin at a pitch's index - her centre's over what touches along the floor, m, negative past it -, what touches
     at an index, the points' parts) of her figure posed `deg`."""
     import numpy as np
-    from machine import groundwork
-    points, radii, of, centre = _skin(deg)
+    from machine.world import groundwork
+    points, radii, of, centre = skin(deg)
     phi = np.linspace(-np.pi, np.pi, TURN, endpoint=False)
     up = groundwork.pitched(phi)
     gap = groundwork.clear(points, radii, up)
@@ -107,15 +46,15 @@ def _pitched(deg):
         return min(c - along.min(), along.max() - c)
 
     def touching(k):
-        return sorted({_part(of[i]) for i in np.flatnonzero(gap[k] < TOUCH)})
-    return phi, gap, groundwork.rest(points, radii, centre, up), margin, touching, np.array([_part(s) for s in of])
+        return sorted({part(of[i]) for i in np.flatnonzero(gap[k] < TOUCH)})
+    return phi, gap, groundwork.rest(points, radii, centre, up), margin, touching, np.array([part(s) for s in of])
 
 
 def _bearing(deg, parts):
     """Her figure posed `deg` at its rest, pitched about her x axis, where `parts` bear best: (pitch rad, the worst of
     them and its float m, her centre's margin m, what touches, every rest's margin)."""
     import numpy as np
-    from machine import groundwork
+    from machine.world import groundwork
     phi, gap, h, margin, touching, names = _pitched(deg)
     rests = groundwork.settled(h)
     each = np.array([gap[rests][:, names == p].min(axis=1) for p in parts])
@@ -138,7 +77,8 @@ def test_the_texts_read_whole(report):
     patches more, every manifold the texts name one of the registry's or theirs; the core, the transforms, the
     specializers and the patches stages; the schedule four oneshots 1.5 s apart, the last igniting her walk's clock;
     the roll's node as the default roll lays it, rolling her right."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got = kernel.read()
     atlas = got['groundwork-1jet-posture-atlas']['postures']
     report.check('six postures, each its origin and three columns',
@@ -185,7 +125,9 @@ def test_the_ring_and_the_girdles(report):
     her waist by the text's lag at most, within its stops, the leader ahead throughout, both done at
     (angle + lag) / omega."""
     import numpy as np
-    from machine import drives, dsp, groundwork, kernel
+    from machine.body import drives
+    from machine.texts import dsp, kernel
+    from machine.world import groundwork
     theta = np.linspace(0.0, 4.0 * np.pi, 2 * TURN)
     w = groundwork.ring(theta)
     report.check('the ring: one patch whole a quarter, shares summing to 1 within %.0e' % np.abs(w.sum(axis=1) - 1).max(),
@@ -213,8 +155,8 @@ def _rolled(deg, side):
     """(her centre's height round a turn on her back rolled onto `side`, each point's skin over the floor, her
     segments, the samples) of her figure posed `deg`."""
     import numpy as np
-    from machine import groundwork
-    points, radii, of, centre = _skin(deg)
+    from machine.world import groundwork
+    points, radii, of, centre = skin(deg)
     theta = np.linspace(0.0, 2.0 * np.pi, TURN, endpoint=False)
     up = groundwork.rolled(theta, side)
     return groundwork.rest(points, radii, centre, up), groundwork.clear(points, radii, up), of, theta
@@ -223,12 +165,12 @@ def _rolled(deg, side):
 def _roll_postures():
     """Her supine origin; the roll's right arm overhead (its slot); the slot and the left limbs across (its
     cantilever, her shoulder's only axis its flexion)."""
-    from machine import kernel
-    from machine.term_rows import TERMS
+    from machine.texts import kernel
+    from machine.body.term_rows import TERMS
     origin = kernel.read()['groundwork-1jet-posture-atlas']['postures']['floor-supine-flat']['origin-q0']
     roll = kernel.node('xform-continuous-ground-roll', 'body-roll')
     slot, lever = roll['ipsilateral-limb-clearance'], roll['contralateral-momentum-driver']
-    sides = _laid(origin)
+    sides = laid(origin)
     slotted = dict(sides, right_shoulder=math.degrees(slot['glenohumeral-flexion-rad']),
                    right_elbow=math.degrees(slot['cubital-flexion-rad']))
     across = dict(slotted, left_hip=TERMS[('hip', 'flexion')][1] * math.degrees(lever['coxofemoral-flexion-rad']),
@@ -243,14 +185,15 @@ def test_her_roll_on_a_hard_floor(report):
     down; the roll's overhead slot lowers her climb onto her side, the cantilever lowers it again and moves her centre
     toward the roll; her head clears the floor by the text's 35 mm round the turn in the slot."""
     import numpy as np
-    from machine import figure, groundwork
+    from machine.body import figure
+    from machine.world import groundwork
     rng = np.random.default_rng(0)
     deg = _roll_postures()[1]
-    points, radii, _of, centre = _skin(deg)
+    points, radii, _of, centre = skin(deg)
     worst = 0.0
     for q in rng.normal(size=(16, 4)):
         turn = figure.quat(*(q / np.linalg.norm(q)))
-        world, _r, _o, at = _skin(deg, turn)
+        world, _r, _o, at = skin(deg, turn)
         h = groundwork.rest(points, radii, centre, np.array(turn)[1][None])[0]
         worst = max(worst, abs(h - (at[1] - (world[:, 1] - radii).min())))
     report.check('her centre over her lowest skin, any turn: within %.0e m' % worst, worst < 1e-12)
@@ -263,7 +206,7 @@ def test_her_roll_on_a_hard_floor(report):
         torque = weight * np.gradient(h, theta)[:top + 1].max(initial=0.0)
         lowest = sorted({of[i] for i in np.flatnonzero(gap[side] < TOUCH)})
         head = float(gap[:, [s == 'head' for s in of]].min())
-        centre = _skin(posed)[3]
+        centre = skin(posed)[3]
         climbs.append(weight * (h[top] - h[0]))
         held.append((lowest, head, centre[0]))
         report.check('%s: onto her side %.1f J, %.1f N m at most; on it she lies on %s; her head %.0f mm clear, her '
@@ -283,7 +226,9 @@ def test_out_of_a_mattress_trough(report):
     sinkage times her weight. Its 110 N heel push about her right buttock's edge, lying on her back, against that
     trough: the stiffness at which they are equal, and how high the cantilever holds that heel."""
     import numpy as np
-    from machine import figure, groundwork, kernel
+    from machine.body import figure
+    from machine.world import groundwork
+    from machine.texts import kernel
     law = kernel.node('xform-continuous-ground-roll', 'substrate-roll')
     above = law['hard-substrate-compensation']['active-above-npmm'] * 1e3
     below = law['soft-substrate-compensation']['active-below-npmm'] * 1e3
@@ -300,13 +245,13 @@ def test_out_of_a_mattress_trough(report):
     report.check('her %.1f N sinks %.2f mm at %.0f N/mm, %.2f at %.0f; the trough holds her with %.2f N m' % (
         weight, 1e3 * sink[0], below / 1e3, 1e3 * sink[1], above / 1e3, trough),
         abs(sink[0] * below - weight) < 1e-9 and abs(trough - 0.5 * weight * sink[0]) < 1e-12)
-    points, radii, of, _centre = _skin(sides)
+    points, radii, of, _centre = skin(sides)
     gap = groundwork.clear(points, radii, groundwork.rolled(0.0, -1.0))[0]
     edge = points[gap < TOUCH, 0].min()
     lever = figure.frames(sides, (0.0, 0.0, 0.0), figure.IDENT)['left_foot'][0][0] - edge
     equal = weight * weight / (2.0 * push * lever)
-    lifted = groundwork.clear(*_skin(across)[:2], groundwork.rolled(0.0, -1.0))[0]
-    heel = float(lifted[[s == 'left_foot' for s in _skin(across)[2]]].min())
+    lifted = groundwork.clear(*skin(across)[:2], groundwork.rolled(0.0, -1.0))[0]
+    heel = float(lifted[[s == 'left_foot' for s in skin(across)[2]]].min())
     report.check('the heel %.0f N at %.3f m from her right buttock: %.1f N m, %.0f times the trough at %.0f N/mm; '
                  'equal at %.2f N/mm. The cantilever holds that heel %.0f mm up' % (
                      push, lever, push * lever, push * lever / trough, below / 1e3, equal / 1e3, 1e3 * heel),
@@ -320,8 +265,9 @@ def test_the_postures_on_her_figure(report):
     worst part and her centre's margin. Her supine rests on its dorsal patch, her pelvis and head bearing; the tall
     kneel rests on her shins at no point of its origin, and at the least of its axial column that sets her centre
     over them."""
-    from machine import drives, kernel
-    from machine.term_rows import ABSENT, TERMS
+    from machine.body import drives
+    from machine.texts import kernel
+    from machine.body.term_rows import ABSENT, TERMS
     got = kernel.read()
     atlas = got['groundwork-1jet-posture-atlas']['postures']
     roll = kernel.node('xform-continuous-ground-roll', 'body-roll')
@@ -337,16 +283,16 @@ def test_the_postures_on_her_figure(report):
     report.check('every joint hers or one she lacks: %s; past her stops: %s; the 90/90 bridge turns a hip %.0f deg, '
                  'hers %g' % ('; '.join(lacks), '; '.join(out) or 'none', turn, drives.TRAVEL['hip_yaw'][1]),
                  not unknown, str(unknown))
-    rests, laid = [], {}
+    rests, by_name = [], {}
     for name, p in atlas.items():
         coupled = p['coupled-manifold'] if isinstance(p['coupled-manifold'], tuple) else (p['coupled-manifold'],)
-        laid[name] = _bearing(_laid(p['origin-q0']), _parts(coupled))
-        phi, part, worst, margin, touching, every = laid[name]
+        by_name[name] = _bearing(laid(p['origin-q0']), _parts(coupled))
+        phi, part, worst, margin, touching, every = by_name[name]
         rests += every
         report.check('%s: best at %+.0f deg on %s, its %s %.0f mm up, her centre %.0f mm inside' % (
             name, math.degrees(phi), ', '.join(touching), part, 1e3 * worst, 1e3 * margin), True)
     report.check('every rest her centre over what touches (%.1f mm at least)' % (1e3 * min(rests)), min(rests) >= -TOUCH)
-    supine = laid['floor-supine-flat']
+    supine = by_name['floor-supine-flat']
     report.check('her supine on its dorsal patch: her pelvis and head bear, her %s %.1f mm up' % (supine[1], 1e3 * supine[2]),
                  {'pelvis', 'head'} <= set(supine[4]) and supine[3] > 0.0)
     kneel = atlas['kneeling-tall-biped']
@@ -355,10 +301,10 @@ def test_the_postures_on_her_figure(report):
     steps = []
     for a in [0.05 * n for n in range(21)]:
         origin = dict(kneel['origin-q0'], **{j: kneel['origin-q0'][j] + a * v for j, v in column.items()})
-        phi, _shank, worst, margin, _touching, _every = _bearing(_laid(origin), ['shank'])
+        phi, _shank, worst, margin, _touching, _every = _bearing(laid(origin), ['shank'])
         steps.append((a, origin['tibiofemoral'], phi, worst, margin))
     found = next((s for s in steps if s[3] < TOUCH), None)
-    past, on = _placed(_laid(kneel['origin-q0']), 'shank')
+    past, on = _placed(laid(kneel['origin-q0']), 'shank')
     report.check('the tall kneel: on her %s her centre %.0f mm past them, no rest; %.2f of its axial column - knee '
                  '%.0f deg, pitched %+.0f deg - sets it %.0f mm inside' % (
                      ' and '.join(on), -1e3 * past, found[0], math.degrees(found[1]), math.degrees(found[2]),

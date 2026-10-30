@@ -3,8 +3,8 @@
 Seven steps on her loop and five tests in the lodge (`tools/sim/house.py`):
 her loop the real-time domain, a tuner apart the background one. Its texts
 as given: host/lisp/humanoid/kernel/, a module a file (the two master
-texts' 26). Her figure, drives and pack are bound from `machine.figure`,
-`machine.drives` and her build; the lodge's door, table, chair, stool, bed
+texts' 26). Her figure, drives and pack are bound from `machine.body.figure`,
+`machine.body.drives` and her build; the lodge's door, table, chair, stool, bed
 and loft stair (5 steps of 0.15 m along its right wall) unknown to her at
 t = 0; no fingers grip. Each mechanism's numbers are its text's
 (`dsp.read(dsp.KERNEL)`); what is done: [kernel](../findings/kernel.md).
@@ -17,7 +17,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    under 0. 46 Hz keeps 38 walking; standing needs the rollback (item 2) or
    the text's zero-phase compensation. DOD: both on her loop at their text's
    numbers, every suite as green.
-2. **Step 2, the discrete phase margin on her loop**: `machine.margin`
+2. **Step 2, the discrete phase margin on her loop**: `machine.law.margin`
    measures her loops' return ratio (`tools/sim/margin.py`); her gearboxes
    in, her hip's crosses 0 dB at 22 Hz with 25 deg standing (rollback 0.65);
    walking (`--walk`, the probe's own response, the same passes with it off
@@ -33,7 +33,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    soles' bounds bind. DOD: under 1e-4 of the chest's acceleration walking,
    as standing; her walk as solved.
 4. **Step 4, reachability**: rho = |hip - sole| / her leg's 845 mm each
-   pass (`machine.somatic`); from 0.86 to 0.98 her sole's centre of pressure
+   pass (`machine.law.somatic`); from 0.86 to 0.98 her sole's centre of pressure
    onto its ball by the furniture's told share (standing 0.998, nothing
    borne; sat on the chair 0.70-0.75). Left: her ankle's 0.58 rad
    plantarflex slew and the achilles' series elastic, past 0.99 her soles'
@@ -97,7 +97,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    way; she slides onto and off a seat over her knees, forward to its edge
    before her rise, and 180 mm deeper onto the bed; her walk, the bed and
    the errands as solved.
-6. **Step 5, the body schema on the room**: `machine.schema` holds her
+6. **Step 5, the body schema on the room**: `machine.law.schema` holds her
    pairs; her arms held off the room's boxes by their elbows alone spared no
    strike at a jamb and halved her shoulder's yield (kernel findings) -
    undone. Left: the text's null space whole (her balance bus for her trunk
@@ -105,16 +105,16 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
    the three slabs, the 4 payload slots spliced, in C. DOD: an arm swung at
    a table corner in her run stops short of it, 0 N m to her ankles, the
    jamb's yield kept.
-7. **Step 6, the wayfinder's rest**: `machine.wayfinder` twists her trunk
+7. **Step 6, the wayfinder's rest**: `machine.way.wayfinder` twists her trunk
    through the gap 0.6 s ahead. Left: her flow bent by the rows a shield
    holds against the room (item 6), a box held past 140 ms baked into her
    route's metric, a gap under her contorted width marked impassable, the
    crural foothold guard over swing 0.05-0.38. DOD: no oscillation before a
    doorway; a foot placed off a chair's crossbar.
 8. **Step 6, her map's rest**: her map in voxels in her estimate's frame
-    (`machine.voxels`), its surfaces and structures boxes with their turn and
-    an id look to look, her registry on them (`machine.registry`), what each
-    affords her the text's (`machine.affordance`), her route and her errands
+    (`machine.eyes.voxels`), its surfaces and structures boxes with their turn and
+    an id look to look, her registry on them (`machine.eyes.registry`), what each
+    affords her the text's (`machine.way.affordance`), her route and her errands
     on her things in both modes (sight findings, `tools/sim/eyes.py`): posed,
     every prop in reach told, 0.09 m off, the chair a seat with a back, the
     table a seat, the bed a bed. Left: her estimate rises 5-8 mm/s stepping
@@ -128,7 +128,7 @@ t = 0; no fingers grip. Each mechanism's numbers are its text's
     navel and crown, the kernel's funnels on her things, the mover's wake to
     the wayfinder. DOD: her sit and lie on her eyes' things, as on the
     stand-in's.
-9. **Step 7, the lowering and the tuner**: `machine.lowering` folds a
+9. **Step 7, the lowering and the tuner**: `machine.texts.lowering` folds a
     gait into a bank of the text's ABI (wbc_soa.h), its biquads seeded, a
     bank carried over her link's table. Left: her loop's channels through a
     bank's biquads and its fields, a bank taken at her barrier (`tap.due`)

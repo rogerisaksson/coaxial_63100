@@ -3,7 +3,7 @@
 ;; DOMAIN: Laplace Innovation Collapse, Tri-IMU (Head/Torso/Pelvis) Gravity
 ;;         Simplex Priors & Active Weight-Shift Compliance Probing
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, canonical_posture_bundle.lisp
-;; Hers (`machine.observer`, wbc_gmo.c): her whole body's balance - her pelvis's IMU and her momentum - bears the
+;; Hers (`machine.senses.observer`, wbc_gmo.c): her whole body's balance - her pelvis's IMU and her momentum - bears the
 ;; sum, so no 0/0: what her joints cannot tell, gravity, height and stillness do, her soles their last pass's.
 ;; =============================================================================
 (defpackage :ortho-dsp.prior-observer

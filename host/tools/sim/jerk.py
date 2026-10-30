@@ -28,7 +28,7 @@ def peaks(name, t0, t1):
     """{segment: peak jerk, m/s^3} of scenario `name` between `t0` and `t1` s, and whether it met
     its goal."""
     import numpy as np
-    from machine import worker
+    from machine.process import worker
     from tools.sim import scenarios
     real, rows = worker.stepped, []
 

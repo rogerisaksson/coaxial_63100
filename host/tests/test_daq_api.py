@@ -11,7 +11,7 @@ from coaxial import Coaxial63100
 from coaxial.acquire import bessel
 from coaxial.acquire.fanout import Fanout
 from coaxial.errors import RigError
-from machine.modes import SIMULATED
+from machine.rig.modes import SIMULATED
 
 
 class Report:

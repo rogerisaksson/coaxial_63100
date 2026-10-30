@@ -1,6 +1,6 @@
-"""The gynoid: a slender body on `machine.figure`'s joints, posed, lit, drawn in braille.
+"""The gynoid: a slender body on `machine.body.figure`'s joints, posed, lit, drawn in braille.
 
-1.69 m tall; each part is a closed loft or ellipsoid hung off its parent at `machine.figure`'s
+1.69 m tall; each part is a closed loft or ellipsoid hung off its parent at `machine.body.figure`'s
 offset. Without `root`, the lowest foot stands on y = 0.
 """
 import math
@@ -14,8 +14,9 @@ from coaxial.graphics.props import lines as prop_lines
 from coaxial.graphics.raster import DOTS_X, DOTS_Y
 from coaxial.graphics.shapes import (ellipsoid, limb, loft, moved, sampled, smooth, turn_about,
                                      view)
-from machine import ansi, figure
-from machine.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPER_ARM
+from machine.rig import ansi
+from machine.body import figure
+from machine.body.figure import ANKLE_H, FOREARM, HAIR_AT, HEM_AT, SHANK, THIGH, UPPER_ARM
 
 DISTANCE, CENTRE, REACH = 3.2, (0.0, 0.84, 0.0), 0.92
 _SIDES = (('left', 1.0), ('right', -1.0))

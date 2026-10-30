@@ -6,7 +6,7 @@ drives and the rods show, the neck and the waist open too.
     meshes = panels.over(meshes)        # {segment: mesh} with their shells' corners re-painted
 """
 from coaxial.graphics.lit import PLATE, paint
-from machine.figure import FOREARM, SHANK, THIGH, UPPER_ARM
+from machine.body.figure import FOREARM, SHANK, THIGH, UPPER_ARM
 
 #: The open joints' dark, the skeleton under the panels.
 OPEN = paint((38, 40, 46))

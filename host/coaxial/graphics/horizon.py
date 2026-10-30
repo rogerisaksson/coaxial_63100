@@ -1,6 +1,6 @@
 """Her maneuver horizon, drawn from her law's own reading: an externality each.
 
-Each sole's room - the floor its leg reaches with it flat (`machine.reach`), dim, and the room
+Each sole's room - the floor its leg reaches with it flat (`machine.body.reach`), dim, and the room
 her law lets it land in (`stride.meets`: REACH_M about her centre of mass, APART_M its own side
 of the other sole), bright while it swings -, her capture point; each arm's band, its hand from
 its elbow's stop to straight over its shoulder's range. The reading is `sprung.state`'s
@@ -11,10 +11,10 @@ its elbow's stop to straight over its shoulder's range. The reading is `sprung.s
 import math
 
 from coaxial.graphics.arrows import _ring_segments, surface_at
-from machine import reach
-from machine.figure import ANKLE_H, FOREARM, UPPER_ARM, frames, quat
-from machine.drives import TRAVEL
-from machine.stride import APART_M, REACH_M
+from machine.body import reach
+from machine.body.figure import ANKLE_H, FOREARM, UPPER_ARM, frames, quat
+from machine.body.drives import TRAVEL
+from machine.law.stride import APART_M, REACH_M
 
 #: What is drawn: nothing, the soles' rooms and her capture point, the arms' bands, all.
 MODES = ('off', 'soles', 'arms', 'all')

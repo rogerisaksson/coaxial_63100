@@ -1,7 +1,7 @@
 # Findings: drives
 
 Motors, gearboxes, inverters and the numbers that size them
-(`machine.drives`). The body's findings:
+(`machine.body.drives`). The body's findings:
 [body](body.md); the board's: [FINDINGS](../FINDINGS.md); one stack for
 every drive, its demand and the candidates: [stacks](stacks.md); each
 drive's demand on her loop and the stunts against it: [demand](demand.md).
@@ -131,7 +131,7 @@ At the box's output, 1.5x:
 
 ## A printed box's play
 
-The gearboxes as bodies of their own (`machine.gearbox`, `physics.BOXED`,
+The gearboxes as bodies of their own (`machine.body.gearbox`, `physics.BOXED`,
 play and hysteresis as a good printed box has them):
 each rotor runs free across the play, winds the box and the structure up past
 it against the mesh's friction, and the link is turned by that wind-up

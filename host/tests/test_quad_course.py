@@ -307,7 +307,7 @@ def test_its_tilt_is_its_discs_own(report):
     """The tilt asked of the core, the frame's nose a quarter turn off the law's heading and a
     lean asked: the rotors' thrusts turn its discs the way of the lean, none across it; its
     nose is turned back where the row holds it on its heading, left where it is free."""
-    from machine.figure import ry
+    from machine.body.figure import ry
     from tools.cores import aero
 
     def moments(yawed, **row):

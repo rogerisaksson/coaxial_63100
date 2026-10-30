@@ -10,7 +10,7 @@ instruments' rounded frame, its title in the top edge and a note in the bottom o
 """
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
-from machine import sight
+from machine.eyes import sight
 
 #: The inks of the frame's title and its note (the theme's `name` and `value`), and a label's
 #: plate.

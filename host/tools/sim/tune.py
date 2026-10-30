@@ -75,7 +75,7 @@ def judged(before, after, verdicts=VERDICTS):
 def runs(items):
     """[`telemetry.ran`'s dict, or {error}] of each (root, state {span: value}) of `items`, side by side on
     the relay's batons."""
-    from machine import tune
+    from machine.texts import tune
     from tools.dev import focus
     jobs = [focus.Job('tune %d' % k, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), root, '--one'] + [
         '--set=%s:%d:%d=%s' % (p, a, z, tune.number(v)) for (p, a, z), v in said.items()], 1.5, 3600.0, None)
@@ -90,7 +90,7 @@ def runs(items):
 def walk_report(root, table, cols, refused):
     """The binding table's lines: * a live literal and how many voices it moves, ! one refused and
     why, the rest inert."""
-    from machine import ortho
+    from machine.texts import ortho
     lines = ['%s: %d literals walked, %d live, %d refused, %d inert' % (
         root, len(table), len(cols), len(refused), len(table) - len(cols) - len(refused))]
     for i, (lit, cls) in enumerate(table):
@@ -125,7 +125,7 @@ def tuned(root, steps, ran=None):
     """(the kept state {span: value}, whether the norm converged) of `root`'s live literals stepped
     up to `steps` times from the texts as they are, each step printed; its runs `ran`'s (`runs`'s
     signature: the relay's where none, windows on her running loop at runtime)."""
-    from machine import tune, voicing
+    from machine.texts import tune, voicing
     gr, tx, fr = tune.grammar(), tune.texts(), suite._her()
     table = tune.walked(root, gr, tx)
     cols, refused = tune.reach(root, table, tx, fr)
@@ -188,7 +188,7 @@ def stepped(c, state, cur, before, measured):
     text's step on `measured` (J, held, ok), its trust region halved while a step is not kept,
     till the gain its own model predicts is under the floor, the step under the text's last place
     (its deadband) or her run the same bit for bit (a literal her law rounds: the sit's ms)."""
-    from machine import tune
+    from machine.texts import tune
     J, held, ok = measured
     r, shrink = np.array(before['r']), 1.0
     while ok:
@@ -219,7 +219,7 @@ def stepped(c, state, cur, before, measured):
 
 def _voices(name, played, fr):
     """`name`'s voices as `played` (the suite, her gym) has them, or the refusal's words."""
-    from machine import tune
+    from machine.texts import tune
     from machine.errors import MachineError
     got, gym = played
     try:
@@ -232,7 +232,7 @@ def moved(root, state):
     """The other roots `state` moves, by evaluation: each gait and schedule of the suite, each stunt
     she plays, each behaviour of her gym, whose voices differ as her texts are and with `state` - a
     gait on her walk moved by her walk's numbers too."""
-    from machine import maneuver, tune
+    from machine.texts import maneuver, tune
     fr, tx = suite._her(), tune.texts()
     was, now = tune.evaluated(tx), tune.evaluated(tune.given(state, tx))
     names = dict.fromkeys(list(was[0]) + list(maneuver.PLAYED) + [e[0] for e in was[1]] + list(tune.WHOLE))
@@ -243,7 +243,7 @@ def elsewhere(root, state):
     """[(root, why)] of each other root `state` moves (`moved`) that it breaks: run as the texts are
     and with `state`, judged as a step is but for the norm; one not run as they are, named; the
     bench's scenarios too (`benched`)."""
-    from machine import tune
+    from machine.texts import tune
     unit = 10.0 ** -tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')]
     others = moved(root, state)
     got_runs = runs([(other, said) for other in others for said in (
@@ -265,7 +265,7 @@ def elsewhere(root, state):
 def benched(state):
     """[(scenario@wobble, why)] of the bench's scenarios and shoves (`bench.jobs`) met as her texts
     are and not with `state`: a step on her walk held her suite's roots and broke the wall."""
-    from machine import tune
+    from machine.texts import tune
     from tools.sim import bench
     host = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sets = ['%s:%d:%d=%s' % (p, a, z, tune.number(v)) for (p, a, z), v in state.items()]
@@ -289,7 +289,7 @@ def main(argv=None):
     p.add_argument('--steps', type=int, default=1)
     p.add_argument('--write', action='store_true', help='the kept texts written, converged and held elsewhere')
     args = p.parse_args(argv)
-    from machine import tune
+    from machine.texts import tune
     if args.one:
         print(json.dumps(telemetry.ran(args.root, dict(tune.setting(s) for s in args.set)), default=float))
         return 0
@@ -306,7 +306,7 @@ def kept(root, state, converged, write):
     """The kept `state` said; written (`write`) where it converged, holds on every other root it
     moves (`elsewhere`) and on the suites its files reach (`gate.held`) - refused, half its move
     from her texts as they are, as a step's trust region halves, till it rounds to nothing."""
-    from machine import tune
+    from machine.texts import tune
     from tools.sim import gate
     digits, tx = tune.knobs()[('sync-mutated-packages-to-disk', 'float-precision')], tune.texts()
     print('\n%d literals kept moved; %s' % (len(state), 'converged' if converged else 'not converged'))

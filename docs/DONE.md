@@ -6,11 +6,11 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
 [DONE_51-100](DONE_51-100.md), [DONE_101-150](DONE_101-150.md),
 [DONE_151-200](DONE_151-200.md).
 
-1. Her DC link (`machine.dclink`): her packs, their BMS and her boards'
+1. Her DC link (`machine.body.dclink`): her packs, their BMS and her boards'
     capacitance under her drives' power, bled on her boards' d axes past the
     text's onset; under its 60 V through every scene, a hop down's landing
     58.93 V (test_kernel.py, [kernel](findings/kernel.md)).
-2. Her blind field (`machine.field`): the kernel's admittance seek down
+2. Her blind field (`machine.senses.field`): the kernel's admittance seek down
     where her rows wait on a seat not bearing her; a chair lower than seen
     found and sat on, a chair pulled before it bears her a squat
     (test_kernel.py, [kernel](findings/kernel.md)).
@@ -18,7 +18,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     forefoot by her soles' centre of pressure, her thighs' backs, her
     forearms' and carpal heels' shove; read against her skin walking,
     seated and lying ([kernel](findings/kernel.md)).
-4. Her right-invariant EKF on SE_2+2(3) (`machine.inekf`) beside her
+4. Her right-invariant EKF on SE_2+2(3) (`machine.senses.inekf`) beside her
     estimate: IMU and her soles' contacts by the observer's weights; walking
     0.039 m along the floor and 0.004 in height in 7.2 m where her estimate
     0.060 and 0.041 (test_kernel.py, `tools/sim/drifted.py`).
@@ -26,35 +26,35 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     22-capsule body schema, the AST-to-SoA lowering - its functions
     evaluated as written -, the somatic schedule folded into the room's; the
     protocol's list rewritten to its seven steps and five tests.
-6. The SoA ABI and the lowering (`machine.lowering`, wbc_soa.h): a gait
+6. The SoA ABI and the lowering (`machine.texts.lowering`, wbc_soa.h): a gait
     folded into a bank of the text's fields at its offsets over her nominal's,
     a biquad a node seeded on her value, the manifolds' weights, the capsules;
     carried over her link's table, her loop's biquad in C bit for bit; swapped
     settled, a step of 8.6e-7 where unseeded 0.30 ([kernel](findings/kernel.md)).
-7. Her body schema (`machine.schema`): the kernel's 18 capsules on her
+7. Her body schema (`machine.law.schema`): the kernel's 18 capsules on her
     skin, its 13 pairs' clearances, her posture held to each near pair's
     ECBF in her mass's metric, each floor raised by its braking distance
-    through her drives' back-EMF bounds (`machine.bemf`); walking every pair
+    through her drives' back-EMF bounds (`machine.body.bemf`); walking every pair
     clear of its floor ([kernel](findings/kernel.md)).
-8. Her law's torque box her drives' back-EMF bounds (`machine.bemf`,
-    `machine.shrunk`): each driven joint's bounds by its speed on her link's
+8. Her law's torque box her drives' back-EMF bounds (`machine.body.bemf`,
+    `machine.stack.shrunk`): each driven joint's bounds by its speed on her link's
     volts inside its clamp, in her python step, wbc_step.c and the board's
     wbc_shrunk.c: her ask shrunk to her clamps, each drive clipped to its
     bounds, her C twins as her python ([kernel](findings/kernel.md)).
-9. The insert's phase-margin probe (`machine.margin`, `tools/sim/margin.py`):
+9. The insert's phase-margin probe (`machine.law.margin`, `tools/sim/margin.py`):
     the text's lock-in at 15, 22, 30 and 38 Hz, each in its turn, on her loop
     broken at a drive's torque; a known loop read within 0.11 dB and 1.7 deg;
     her gearboxes in, her hip's loop at 22 Hz past 0 dB with 25 deg
     ([kernel](findings/kernel.md)).
-10. Her things as the room's boxes (`machine.schema`, `machine.capsules`
+10. Her things as the room's boxes (`machine.law.schema`, `machine.body.capsules`
     the kernel's capsules apart); her arms' shield against them through their
     elbows tried and undone: at a doorway's jamb it spared no strike and
     halved her shoulder's yield ([kernel](findings/kernel.md)).
-11. The wayfinder's gauge (`machine.wayfinder`, `tools/sim/doorway.py`): her
+11. The wayfinder's gauge (`machine.way.wayfinder`, `tools/sim/doorway.py`): her
     trunk twisted through the gap 0.6 s ahead; the lodge's door ajar at 0.8
     of her shoulders passed, her waist 28 deg, her arms 55 mm clear
     ([kernel](findings/kernel.md)).
-12. Her map (`machine.registry`): the kernel's 256 slots of what her looks
+12. Her map (`machine.eyes.registry`): the kernel's 256 slots of what her looks
     told her within her eyes' frustum, a thing matched to a slot of its kind
     within its position's precision, weighed by the text's log-odds, blind
     spots kept 45 s and swollen, a mover at its velocity; 45 of the lodge's
@@ -85,7 +85,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
 20. A slide said by her text: `(slide v)` in a phase's task constraints
     (`ortho.SLIDE`, the row 304 bytes), carried by her latent (`latent.SLID`,
     wbc_law.c alike) to her step's ask; nothing said, nothing moved.
-21. The kernel's reachability on her loop (`machine.somatic`): each leg's
+21. The kernel's reachability on her loop (`machine.law.somatic`): each leg's
     reach over her leg's length rolls her sole's centre of pressure onto its
     ball from 0.86 to 0.98 of it by the furniture's told share; the slide's
     ask laid there too. Standing and sat on the chair, nothing moves.
@@ -97,11 +97,11 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     back with it, her neck braced seated. The chair laid 2e-4 rad either way
     sat (main fell at -2e-4), square and +2e-4 risen at roll 2.4 deg, the
     dock stood, her walk as it was; the -2e-4 rise stays open (protocol 5).
-23. Her loop's layers live (`machine.introspect`, findings/introspect.md):
+23. Her loop's layers live (`machine.process.introspect`, findings/introspect.md):
     latent, impedance and wrench a JSON line each law pass to any client
     attached, every field named from her code's constants; idle 604 us a
     pass where 615 without, 875 read.
-24. Her telemetry gated (`machine.gate`, `machine.streams`, findings/
+24. Her telemetry gated (`machine.rig.gate`, `machine.rig.streams`, findings/
     introspect.md): her analyzers beside her loop, a trigger's half swing
     before and after written gate after gate, 11 streams on their own
     clocks interleaved in time with their metadata; every gated section her
@@ -120,7 +120,7 @@ the two hundred before these: [DONE_1-50](DONE_1-50.md),
     bed moved and turned; a map's voxel its own (`voxels.Map`), her eyes'
     at the 0.1 m they fill; a look's `things` 994 -> 174 ms at 0.05 m
     (findings/sight.md).
-28. Her fake camera, a vision SIL (`machine.camera`): her eye's frames shot
+28. Her fake camera, a vision SIL (`machine.eyes.camera`): her eye's frames shot
     on the card where the world runs, her map and classifier in a process
     of their own, her things a look later; her loop 1.09 x flat out with it,
     1.08 without; a structure told in pieces by its cells (test_camera).

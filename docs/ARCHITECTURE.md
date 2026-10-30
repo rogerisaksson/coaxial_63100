@@ -17,8 +17,8 @@ order a table; the hardware at one edge.
   and tested on this host; `drive_step(d, in, stage, out)` is one PWM
   period; `ctrl.c` steps a part through `FILTERS`, `ESTIMATORS`,
   `REGULATORS`, tables by kind.
-- Host: `machine/cyclic.py` - `frame`, `state`, the parts as steps
-  (`STEPS`, `machine.parts` step for step), `edge`, `poll`, `push`, `cycle`,
+- Host: `machine/rig/cyclic.py` - `frame`, `state`, the parts as steps
+  (`STEPS`, `machine.rig.parts` step for step), `edge`, `poll`, `push`, `cycle`,
   `run`. `machine.Loop` is the same pass over a dict of channels, for the
   panel and the sequencer.
 - Notebooks: the paper's loop in four cells - memory, steps, table, cycle

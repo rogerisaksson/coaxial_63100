@@ -1,7 +1,7 @@
 # Dimensions
 
 The gynoid's axes by drive type: 21 driven on 2 types, 6 without a drive.
-The candidate of record, laid in `machine/drives.py` and written by
+The candidate of record, laid in `machine/body/drives.py` and written by
 `tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.
 
 ## Types

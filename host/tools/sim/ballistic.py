@@ -26,7 +26,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 import numpy as np
 
-from machine import figure, impedance, latent, modal, ortho, poise, sprung, stride
+from machine.body import figure
+from machine.law import impedance, latent, modal, poise, stride
+from machine.texts import ortho
+from machine.process import sprung
 from machine.errors import MachineError
 from tools import REPO
 from tools.dev import background

@@ -6,7 +6,7 @@
 """
 from coaxial.graphics.lit import PLATE
 from coaxial.graphics.shapes import drum
-from machine import drives, figure, skeleton
+from machine.body import drives, figure, skeleton
 
 #: Each drum's axis (unit, its part's frame) and half its length, m, by its joint - filled as the
 #: drums are built.

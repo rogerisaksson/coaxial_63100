@@ -1,6 +1,6 @@
 """Her body's footprint as static arrays: her reach each way by height, standing, walking, turning.
 
-    python tools/cores/footprint.py --write     # machine/footprint_rows.py
+    python tools/cores/footprint.py --write     # machine/body/footprint_rows.py
     laid = footprint.laid()                     # what the file holds, laid anew on her loop
 
 Her own motions on her loop in the open (`physics.ROOM` 0). Each pass every geom of her body, its
@@ -10,7 +10,7 @@ Standing, walking, her walk back and her sidesteps, each with its stop: about he
 heading's frame. A turn in place by each of TURN_DEG either way, from still after a walk's stop - her
 soles bearing alike - as an errand turns: about her pelvis's place and heading as the turn began, its
 stop's settling with it, the
-most over WALKS walked before; its carry the mean of her pelvis's end there. `machine.footprint`
+most over WALKS walked before; its carry the mean of her pelvis's end there. `machine.body.footprint`
 reads them.
 
 STEP_M: the least her swinging soles clear the floor at the top of a swing over her steady walk.
@@ -22,11 +22,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import leap, modal, se2, voxels
+from machine.moves import leap
+from machine.law import modal, se2
+from machine.eyes import voxels
 from tools import REPO
 from tools.cores import written
 
-PATH = os.path.join(REPO, 'host', 'machine', 'footprint_rows.py')
+PATH = os.path.join(REPO, 'host', 'machine', 'body', 'footprint_rows.py')
 NOTICE = "Her body's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."
 
 #: Directions about her, bands over the floor, m; her bodies (`mjcf`'s, the pelvis down).
@@ -60,7 +62,8 @@ def _points(m, d, i):
 
 
 def _session():
-    from machine import physics, sprung, worker
+    from machine.world import physics
+    from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     s = worker.session()
     sprung.relaid(s['g'], (0.0, 0.0), 0.0)
@@ -72,7 +75,7 @@ def _session():
 def _frame(g, d):
     """(her pelvis (x, z), her heading)."""
     import numpy as np
-    from machine import edge
+    from machine.senses import edge
     return np.array([float(d.qpos[0]), float(d.qpos[2])]), edge.yaw(g['sense'])
 
 
@@ -93,7 +96,7 @@ def _reach(m, d, hers, root, yaw, h):
 
 def _go(s, seconds, each=lambda: None, until=lambda: False):
     """`seconds` of passes or till `until`, `each` every ten passes."""
-    from machine import worker
+    from machine.process import worker
     g, t0 = s['g'], s['g']['t']
     while g['t'] - t0 < seconds and not until():
         worker.stepped(s)
@@ -104,7 +107,8 @@ def _go(s, seconds, each=lambda: None, until=lambda: False):
 
 def _still(s):
     """Still as an errand turns her: settled, her rhythm still, her soles bearing alike (`dock.even`)."""
-    from machine import dock, errand, latent
+    from machine.way import dock, errand
+    from machine.law import latent
     g = s['g']
     return errand._settled(g) > 0.0 and float(g['st'][latent.NOW][latent.GAIN]) < 1e-6 and dock.even(g)
 
@@ -113,7 +117,7 @@ def moved(mode):
     """((bands, K) her reach about her pelvis in her own frame over `mode`'s motion, [each swing's top
     over her steady walk, m])."""
     import numpy as np
-    from machine import worker
+    from machine.process import worker
     s, hers, body = _session()
     g, m, d = s['g'], s['g']['world'].model, s['g']['world'].data
     feet = {side: [i for i in hers if body[i] in ('%s_foot' % side, '%s_toes' % side)] for side in ('left', 'right')}
@@ -141,7 +145,7 @@ def turned(deg, way, walked_s, arc=0.0):
     her pelvis's place and heading as it began - walked `walked_s` turning `arc` rad/s, and still -,
     (forward, left) m her pelvis's end there, s it took)."""
     import numpy as np
-    from machine import worker
+    from machine.process import worker
     s, hers, _body = _session()
     g, m, d = s['g'], s['g']['world'].model, s['g']['world'].data
     _go(s, SETTLE_S)

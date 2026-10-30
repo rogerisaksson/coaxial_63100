@@ -6,7 +6,7 @@ import os
 import sys
 
 from tools.dev.focus import chosen
-from structure_kit import HOST, PACKAGES, TWINS, WIRE_ONLY, Report, depth, sources, svg_connectors_clear
+from structure_kit import HOST, NUMPY_AT_IMPORT, PACKAGES, TWINS, WIRE_ONLY, Report, depth, sources, svg_connectors_clear
 
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
@@ -233,7 +233,7 @@ def test_no_unused_imports(r):
 
 def test_numpy_enters_behind_the_thread_cap(r):
     """numpy is imported at module level by the modules that step arrays - blocks.py,
-    machine/cyclic.py, the whole-body loop's and the bank it reads, listed below - each capping OpenBLAS's thread pool
+    machine/rig/cyclic.py, the whole-body loop's and the bank it reads, listed below - each capping OpenBLAS's thread pool
     before importing it."""
     importers, uncapped = [], []
     for path, _text, tree in sources(beside=False):
@@ -246,10 +246,7 @@ def test_numpy_enters_behind_the_thread_cap(r):
                     uncapped.append(path)
                 break
     r.check('numpy enters the packages at module level in blocks.py, cyclic.py and the whole-body loop alone',
-            sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')]
-                                        + [os.path.join('machine', m + '.py') for m in (
-                                            'cyclic qp wbc wrench rounds latent modal impedance swing poise stride support '
-                                            'motion edge estimate borne grip situation touch waits supervisor observer barrier field inekf lowering schema shrunk capsules registry somatic bemf brace affordance voxels obstacles fours bends pressed groundwork substrate crawl bedside emancipation cascade').split()]),
+            sorted(importers) == sorted([os.path.join('coaxial', 'model', 'blocks.py')] + list(NUMPY_AT_IMPORT)),
             ', '.join(importers) or 'nowhere')
     r.check('each sets OPENBLAS_NUM_THREADS before importing it', not uncapped,
             ', '.join(uncapped))
@@ -276,9 +273,10 @@ def test_motor_imports_no_board(r):
             ', '.join(importers))
 
 
-#: Her motion pass: what `machine.motion` steps. It reads the world through `machine.edge` alone.
-LAW = ('motion', 'se2', 'leap', 'support', 'latent', 'impedance', 'modal', 'poise', 'stride',
-       'estimate', 'wrench', 'wbc', 'reach', 'touch', 'situation', 'borne', 'grip')
+#: Her motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
+LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/impedance', 'law/modal', 'law/poise',
+       'law/stride', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
+       'senses/borne', 'senses/grip')
 #: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'brace'))
 LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'stride', 'floor', 'surety', 'touch', 'twist', 'wait', 'brace', 'law', 'blas'))
@@ -286,12 +284,12 @@ LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'stride', 'floor', 'surety
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',
          'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat'}
-WORLDS, POSED = ('machine.physics', 'machine.floor', 'machine.room', 'machine.buses'), {'sense', 'step'}
+WORLDS, POSED = ('machine.world.physics', 'machine.world.floor', 'machine.world.room', 'machine.rig.buses'), {'sense', 'step'}
 
 
 def _modules_imported(node):
-    """The modules one import statement names, dotted: `from machine import physics` names
-    machine.physics."""
+    """The modules one import statement names, dotted: `from machine.world import physics` names
+    machine.world.physics."""
     if isinstance(node, ast.Import):
         return [a.name for a in node.names]
     if isinstance(node, ast.ImportFrom) and node.module:
@@ -316,7 +314,7 @@ def test_her_law_reads_her_sensors_alone(r):
     their ids and a shove's newtons choosing her reaction were in it once."""
     named, posed = [], []
     for name in LAW:
-        tree = ast.parse(open(os.path.join(HOST, 'machine', name + '.py'), encoding='utf-8').read())
+        tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())
         for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name not in POSED]:
             for node in ast.walk(fn):
                 targets = (node.targets if isinstance(node, ast.Assign)
@@ -342,7 +340,7 @@ def test_her_law_reads_her_sensors_alone(r):
 
 
 #: Her gym over her law, and the crafts' flight laws.
-GYM = ('sprung', 'worker', 'tour')
+GYM = ('process/sprung', 'process/worker', 'way/tour')
 AERO_LAWS = tuple('aircraft/' + n for n in ('aerokin', 'wingborne', 'helicopter/law', 'helicopter/kit',
                                               'ornithopter/law', 'aerobat/law'))
 MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat',
@@ -354,7 +352,9 @@ def test_the_gym_moves_her_through_the_world_alone(r):
     directly: a lay, a scene and a shove are the world's own calls (`physics.World.reset`, `.scenario`,
     `.push`), and drives are told on their
     10 Mbit/s RS485 Modbus RTU buses (`edge.LIMBS`, `edge.drive`, `CoaxialDrives`) alone."""
-    from machine import edge, figure, layouts, routines
+    from machine.senses import edge
+    from machine.body import figure
+    from machine.rig import layouts, routines
     from machine.aircraft import senses
     wrote = []
     for name in GYM + AERO_LAWS:

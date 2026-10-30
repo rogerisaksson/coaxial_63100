@@ -1,6 +1,6 @@
 # Findings: identification
 
-Her body identified of what a robot of her build measures (`machine.sysid`,
+Her body identified of what a robot of her build measures (`machine.identify.sysid`,
 `tests/test_sysid.py`, `tools/sim/sysid.py`): the drives' torques are linear in
 each link's ten inertial parameters and each drive's armature, viscous and
 Coulomb friction, tau = Y(q, v, a) theta; Y is Newton-Euler down her tree from
@@ -174,7 +174,7 @@ torques. What her law senses: [sensing](sensing.md); the drives:
 
 ## On-line, under a load
 
-`machine.wear` (tests/test_wear.py): her walk's rows every 4 s against her
+`machine.identify.wear` (tests/test_wear.py): her walk's rows every 4 s against her
 build's prediction, where her model holds; a load in a hand (a mass and its
 first moment), each drive's Coulomb and viscous friction and its torque an
 amp the movers, a Kalman filter on a random walk keeping each with its
@@ -212,7 +212,7 @@ doubt.
   and the right knee's torque an amp +0.67 of itself in 36 s, both named;
   wrapped round (`np.roll`), they had been judged by the window's other end.
   A neighbour unseen counts as touched (`sysid.free`).
-- Her regressor in C, compiled from its numpy (`machine/regressor.py`,
+- Her regressor in C, compiled from its numpy (`machine/identify/regressor.py`,
   `tools.cores.held`): numpy's arithmetic operation for operation -
   'nij,nj->ni' on R's views SSE's two lanes, its other einsums a plain sum,
   its cross's formula, each read off numpy's own -; 0 of 5.35 M entries apart

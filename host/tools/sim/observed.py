@@ -5,7 +5,7 @@
     python tools/sim/observed.py --one chair         # one scene, its line as JSON (the relay's job)
 
 Each law pass, standing or not yet fallen: the observer's normal force on each manifold
-(`machine.observer`, blind) against her skin's (`edge.TOUCH`, MuJoCo's contacts) - each segment's
+(`machine.senses.observer`, blind) against her skin's (`edge.TOUCH`, MuJoCo's contacts) - each segment's
 touch along each of its manifolds' normals, pushing, a sole's along its up. Per manifold: the
 error's rms and 95th percentile, N; the most it reads where her skin feels under FELT_N.
 """
@@ -25,7 +25,7 @@ FELT_N = 5.0
 def one(name):
     """{scene, fell_at, passes, per manifold: rms, p95, ghost N}."""
     import numpy as np
-    from machine import observer
+    from machine.senses import observer
     from tools.sim import scenarios
     rows, last = [], [None]
 
@@ -56,7 +56,7 @@ def main(argv=None):
     if args.one:
         print(json.dumps(one(args.one)))
         return 0
-    from machine import observer
+    from machine.senses import observer
     from tools.dev import focus
     jobs = [focus.Job(n, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--one', n], timeout=1800.0)
             for n in args.scenes]

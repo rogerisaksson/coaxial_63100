@@ -18,7 +18,8 @@ def _said(prompt, room=0.0, before=(), lead_s=0.5):
     """(session, page state, sent) after `prompt` went through the page's path to her loop: her
     session laid (`room` the lodge or the flat floor), `before` commands said and `lead_s` stepped,
     then the prompt typed and its plan dispatched."""
-    from machine import physics, worker
+    from machine.world import physics
+    from machine.process import worker
     from terminal.views import gym, humanoid_keys, viewpoint
     physics.ROOM, physics.SIGHT = room, 0.0
     s = worker.session()
@@ -41,7 +42,7 @@ def _steps(s, seconds, until=None):
     """Her session `seconds` of passes on, or till `until(s)` or a fall; the seconds it took, None
     never met. Passes counted: a fall lays a new epoch's `s['g']`, and a loop on the old one's time
     never ended (the first run hung 1200 s)."""
-    from machine import worker
+    from machine.process import worker
     for k in range(int(round(seconds / worker.DT))):
         worker.stepped(s)
         if until is not None and until(s):
@@ -68,7 +69,7 @@ def test_lie_down_on_the_floor_said_in_swedish(report):
     """'lägg dig på golvet' on the flat floor: lie_floor said; her doing through kneel and tip to
     floor_rest, her pelvis under 0.25 m, no fall's epoch, her drives' clamps zero (limp)."""
     import numpy as np
-    from machine import sprung
+    from machine.process import sprung
     case = 'lie down on the floor, said in Swedish'
     if _model(report, case) is None:
         return
@@ -83,7 +84,7 @@ def test_lie_down_on_the_floor_said_in_swedish(report):
 
 def test_sit_on_the_chair_said_in_swedish(report):
     """'sätt dig på stolen' in the lodge: the sit errand laid on a chair, seated within 40 s, unfallen."""
-    from machine import sprung
+    from machine.process import sprung
     case = 'sit on the chair, said in Swedish'
     if _model(report, case) is None:
         return
@@ -96,7 +97,7 @@ def test_sit_on_the_chair_said_in_swedish(report):
 
 def test_lie_on_the_bed_said_in_english(report):
     """'lie on the bed' in the lodge: the bed errand laid, bed_rest within 40 s, unfallen."""
-    from machine import sprung
+    from machine.process import sprung
     case = 'lie on the bed, said in English'
     if _model(report, case) is None:
         return
@@ -109,7 +110,7 @@ def test_lie_on_the_bed_said_in_english(report):
 
 def test_out_through_the_door_said_in_swedish(report):
     """'gå ut genom dörren' in the lodge: the door errand laid, past the door's line within 30 s, unfallen."""
-    from machine import room
+    from machine.world import room
     case = 'out through the door, said in Swedish'
     if _model(report, case) is None:
         return
@@ -134,7 +135,8 @@ def test_walk_forward_said_in_swedish(report):
 
 def test_dance_said_in_swedish(report):
     """'dansa' on the flat floor: the dance said, one of its phases her doing within 4 s."""
-    from machine import says, sprung
+    from machine.texts import says
+    from machine.process import sprung
     case = 'dance, said in Swedish'
     if _model(report, case) is None:
         return
@@ -162,7 +164,7 @@ def test_rise_from_the_floor_refused_by_name(report):
     """'res dig' lying on the floor: the rise said and refused by name - her legs' floor, item 13 -,
     she lies on, quiet."""
     import numpy as np
-    from machine import sprung
+    from machine.process import sprung
     case = 'rise from the floor refused by name'
     if _model(report, case) is None:
         return

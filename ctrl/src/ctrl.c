@@ -1,4 +1,4 @@
-/** ctrl.c - machine.parts and a feedback, step for step (ctrl.h). */
+/** ctrl.c - machine.rig.parts and a feedback, step for step (ctrl.h). */
 #include "ctrl.h"
 
 #include <math.h>
@@ -102,7 +102,7 @@ static float speed_kalman(ctrl_part_t *part, float dt, float measured, float com
   return part->y;
 }
 
-/** machine.parts.Eso: y the angle, x the speed, was the disturbance, rad/s^2; j was out. */
+/** machine.rig.parts.Eso: y the angle, x the speed, was the disturbance, rad/s^2; j was out. */
 static float eso(ctrl_part_t *part, float dt, float measured, float command)
 {
   const float *p = part->p;     /* j wo */

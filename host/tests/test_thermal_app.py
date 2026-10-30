@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
 from coaxial.model import thermal, thermal_app
-from machine.modes import SIMULATED
+from machine.rig.modes import SIMULATED
 from tools.cores.build import build, find_cc
 from tools.cores.thermal import NODES, SOURCES, THERMAL, Model
 
@@ -136,7 +136,7 @@ def test_the_stand_in_is_mounted(report, lib):
 
 def test_the_heat_dry_loss_scales_with_bus_voltage(report, _lib):
     """Dry switching loss in heat.py fits bench measurements: 2.4 W at 24 V to 4.4 W at 44 V."""
-    from machine import heat
+    from machine.body import heat
     report.check('dry loss is 2.4 W at 24 V', abs(heat.dry_loss(24.0) - 2.4) < 1e-6)
     report.check('dry loss is 4.4 W at 44 V', abs(heat.dry_loss(44.0) - 4.4) < 1e-6)
     report.check('dry loss at nominal 48 V is 4.8 W', abs(heat.dry_loss(48.0) - 4.8) < 1e-6)

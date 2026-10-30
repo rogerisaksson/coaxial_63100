@@ -6,7 +6,7 @@
 The board plays the setpoint rows itself (device 12, a Direct regulator on `theta`); its DAQ
 streams two phase currents and the A1335 in one stamped record (`RATE_HZ`); the rotor frame's
 q current is the torque, kt (1.5 p lambda) times it, the A1335's angle at the window's middle
-the rotor's. `machine.sysid.motor` fits J, b, f and the gravity on the shaft. The record's
+the rotor's. `machine.identify.sysid.motor` fits J, b, f and the gravity on the shaft. The record's
 drive part is the motor's (`drive.configure(**profile['drive'])`): a profile loaded whole on a
 native rig lays its model on the world's plant, and the load's inertia and damping with it.
 """
@@ -15,9 +15,9 @@ import math
 from coaxial.acquire.task import SENSOR_FIELDS
 from coaxial.comm.hostclock import clock_of
 from coaxial.devices.scaling import from_calibration
-from machine import sysid
-from machine.campaign import TONES, tone
-from machine.parts import Direct
+from machine.identify import sysid
+from machine.identify.campaign import TONES, tone
+from machine.rig.parts import Direct
 
 #: The hold's current, A, ramped up in RAMP steps; the first tone's swing, rad, the rest as
 #: much slower (`campaign.tone`), at TONES_HZ - the stand's first tones and 2.9, the inertia's

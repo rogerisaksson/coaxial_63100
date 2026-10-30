@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her body identified of her edge alone (`machine.sysid`, `machine.identified`): the regressor against MuJoCo's inverse
+"""Her body identified of her edge alone (`machine.identify.sysid`, `machine.identify.identified`): the regressor against MuJoCo's inverse
 dynamics; a campaign on the stand reading her drives' friction and armature and her links; a
 payload in her hand found; its corrections laid over her law's model and judged on a fresh
 campaign; a world built 15 % off the figure read back; her rotors and her gearboxes' wind-up
@@ -12,7 +12,8 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import mjcf, physics
+from machine.body import mjcf
+from machine.world import physics
 
 mjcf.STAND = 1.0
 
@@ -79,7 +80,7 @@ def _states(b, rng):
 def test_the_regressor_is_mujocos(report, c):
     """Y theta, theta the model's own, is MuJoCo's inverse dynamics on her drives' rows at random
     states - the Coulomb columns aside, which no model without constraints has."""
-    from machine import regressor, sysid
+    from machine.identify import regressor, sysid
     b, lay = c['body'], c['lay']
     m, d, mj = b.m, b.d, b.mj
     qpos, qvel, qacc = _states(b, np.random.default_rng(1))
@@ -102,7 +103,7 @@ def test_the_regressor_is_mujocos(report, c):
 def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
     """A campaign on the stand, or `hung` in the harness where the stand would hold her, its
     load cell's six rows after the drives': (Y, tau, touched, world)."""
-    from machine import campaign, sysid
+    from machine.identify import campaign, sysid
     if hung:
         mjcf.STAND = 0.0
         try:
@@ -124,9 +125,9 @@ def _campaign(c, seed, world=None, seconds=SECONDS, hung=False):
 
 
 def test_the_regressor_in_c_is_its_numpy_s(report, c):
-    """machine.regressor's C, compiled from its numpy, beside its numpy at random states, a motor's
+    """machine.identify.regressor's C, compiled from its numpy, beside its numpy at random states, a motor's
     own acceleration given and not: bit for bit, as it was held when built (`tools.cores.held`)."""
-    from machine import regressor
+    from machine.identify import regressor
     b, lay = c['body'], c['lay']
     qpos, qvel, qacc = _states(b, np.random.default_rng(2))
     a0 = qacc[:, :3] - np.array(b.m.opt.gravity)
@@ -163,8 +164,8 @@ def test_hung_in_a_harness_she_reads_as_on_the_stand(report, c):
 
 
 def _read(report, c, hung):
-    from machine import sysid
-    from machine.drives import kind
+    from machine.identify import sysid
+    from machine.body.drives import kind
     lay = c['lay']
     Y, tau, touched, world = _campaign(c, 1, hung=hung)
     base = sysid.base(lay, Y)
@@ -219,7 +220,7 @@ def _read(report, c, hung):
 def _payload(c):
     """The payload's campaign, once: (base, got, Y, tau, touched, world), PAYLOAD_KG in her left
     hand."""
-    from machine import sysid
+    from machine.identify import sysid
     if 'payload' not in c:
         world = physics.World()
         world.model.body_mass[world.model.body('left_hand').id] += PAYLOAD_KG
@@ -233,7 +234,7 @@ def _payload(c):
 def test_a_payload_is_found(report, c):
     """PAYLOAD_KG in her left hand: the first moments it moves - her forearm's, her upper
     arm's, her trunk's - shift as the world's do."""
-    from machine import sysid
+    from machine.identify import sysid
     lay = c['lay']
     base, got, _Y, _tau, touched, world = _payload(c)
     was, now = sysid.projected(base, sysid.truth(lay, c['body'].m)), sysid.projected(base, sysid.truth(lay, world.model))
@@ -250,7 +251,8 @@ def test_her_corrections_are_laid_over_her_build(report, c):
     """The payload's campaign as the least move of her build that fits it, saved, read back and
     laid over a fresh model of her law: on a third campaign carrying the payload its residual
     falls where the payload is and rises nowhere."""
-    from machine import identified, sysid, wbc
+    from machine.identify import identified, sysid
+    from machine.stack import wbc
     lay = c['lay']
     _base, got, Y, tau, _touched, world = _payload(c)
     with tempfile.TemporaryDirectory() as folder:
@@ -284,8 +286,9 @@ def test_a_world_off_the_figure_is_read_back(report, c):
     armature and friction drawn apart -: each drive's Coulomb friction read back within
     FRICTION, the armatures a swing tells apart within it; its corrections take the build's
     misfit on a fresh campaign at least halfway to the world's own."""
-    from machine import identified, sysid, wbc
-    from machine.drives import kind
+    from machine.identify import identified, sysid
+    from machine.stack import wbc
+    from machine.body.drives import kind
     lay = c['lay']
     world = _off(physics.World(), c, 7)
     m = world.model
@@ -317,8 +320,8 @@ def test_her_gearboxes_are_read(report, c):
     inside its play, within ROTOR on every drive; each box's wind-up and play from its two
     encoders on BOXES within FRICTION - at the campaign's phases drawn with seed 1: drawn with 6
     she touched herself 83 steps and the head's wind-up came 24 % off."""
-    from machine import campaign, sysid
-    from machine.drives import kind
+    from machine.identify import campaign, sysid
+    from machine.body.drives import kind
     lay = c['lay']
     physics.BOXED = 1.0
     try:
@@ -359,7 +362,7 @@ def test_a_motor_is_read_off_its_rows(report, _c):
     the tones through a 36:1 joint, its torque J qdd + b qd + gravity sin(q / 36) + an offset, each
     read back within 5 % - the low-pass and the differences at the 2.9 Hz tone cost 2 to 3 -, the
     Coulomb term under 1e-3 N m, the rows either side of a lost record left out."""
-    from machine import campaign, sysid
+    from machine.identify import campaign, sysid
     t = np.arange(0.0, 16.0, 0.01)
     q = campaign.tone(t, campaign.TONES[0] + (2.9,), np.array([0.3, 1.1, 2.0, 4.0]), 1.0)
     w, a = np.gradient(q, t), np.gradient(np.gradient(q, t), t)
@@ -383,7 +386,8 @@ ROSTER = (test_the_regressor_is_mujocos, test_the_regressor_in_c_is_its_numpy_s,
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
-    from machine import sysid, wbc
+    from machine.identify import sysid
+    from machine.stack import wbc
     report = Report()
     body = wbc.Body(identified=False)
     c = {'body': body, 'lay': sysid.laid(body)}

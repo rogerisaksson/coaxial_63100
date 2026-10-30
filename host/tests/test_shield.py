@@ -9,11 +9,12 @@ from gynoid_kit import Report
 
 
 def test_the_lowering_lays_the_texts_abi(report):
-    """The room's schedule lowered (`machine.lowering`): C lays every section where Python does, the
+    """The room's schedule lowered (`machine.texts.lowering`): C lays every section where Python does, the
     text's offsets held by wbc_soa.h; each bank's fields as its gait says them in SI over her
     nominal's, a field past its bounds clamped; each node's biquad the text's, seeded on her value."""
     import numpy as np
-    from machine import dsp, kernel, lowering as L, rcu
+    from machine.texts import dsp, kernel, lowering as L
+    from machine.process import rcu
     lib, got = rcu._core(), kernel.read()
     at = np.zeros(len(L.SECTIONS) + 1, np.int64)
     lib.wbh_soa_offsets(at.ctypes.data)
@@ -48,11 +49,12 @@ def test_the_lowering_lays_the_texts_abi(report):
 
 
 def test_a_bank_swaps_with_no_step(report):
-    """A bank published over her link (`machine.rcu`) and taken by her loop's C side: its biquad in C
+    """A bank published over her link (`machine.process.rcu`) and taken by her loop's C side: its biquad in C
     bit for bit Python's; her thorax's filter settled on one bank, the next lowered on her value goes
     on with no step where an unseeded one drops."""
     import numpy as np
-    from machine import kernel, lowering as L, rcu
+    from machine.texts import kernel, lowering as L
+    from machine.process import rcu
     got, node = kernel.read(), 'c7-t12-thoracic'
     rng = np.random.default_rng(7)
     x = (0.3 + 0.05 * rng.standard_normal(500)).astype(np.float32)
@@ -95,11 +97,12 @@ def _brute(caps, pairs, steps=20001):
 
 
 def test_the_body_schema_lays_her_capsules(report):
-    """The text's 18 capsules on her skin (`machine.schema`): her segments, the barriers' floors;
+    """The text's 18 capsules on her skin (`machine.law.schema`): her segments, the barriers' floors;
     two capsules' nearest axes as a fine walk finds them, parallel, offset and a sphere among them;
     the log-sum-exp under the least by at most log(n) / alpha."""
     import numpy as np
-    from machine import capsules, schema
+    from machine.body import capsules
+    from machine.law import schema
     rng = np.random.default_rng(3)
     n = 64
     caps = {'p0': rng.normal(size=(n, 3)), 'p1': rng.normal(size=(n, 3)), 'r0': np.zeros(n), 'r1': np.zeros(n)}
@@ -133,8 +136,11 @@ def test_the_shield_holds_a_closing_pair(report):
     held rows, their multipliers not negative); her left forearm closing on her hips, a pair whose
     barrier evades by her shoulder's abduction she has not, at 1.5 m/s spilled whole; at rest nothing."""
     import numpy as np
-    from machine import bemf, capsules, edge, schema, worker
-    from machine.wbc import POSTURE_KD
+    from machine.body import bemf, capsules
+    from machine.senses import edge
+    from machine.law import schema
+    from machine.process import worker
+    from machine.stack.wbc import POSTURE_KD
     s = worker.session()
     while s['g']['t'] < 1.0:
         worker.stepped(s)
@@ -180,14 +186,16 @@ def test_the_shield_holds_a_closing_pair(report):
 
 
 def test_her_drives_back_emf_bounds(report):
-    """Her drives' torque bounds under their back-EMF (`machine.bemf`): still, each its peak or its
+    """Her drives' torque bounds under their back-EMF (`machine.body.bemf`): still, each its peak or its
     winding's volts' torque both ways; motoring falls with speed to 0 at V m / E, braking keeps its
     peak. Her law's three steps (`wrench.step`, wbc_step.c, the board's wbc_wrench.c) under a box
     that binds: her ask not shrunk for it, each drive clipped inside it, the same torques within the
     twins' own 5e-3 N m."""
     import math
     import numpy as np
-    from machine import bemf, drives, physics, figure, wbc, wrench
+    from machine.body import bemf, drives, figure
+    from machine.world import physics
+    from machine.stack import wbc, wrench
     from tools.cores import step as c_step
     from tools.cores.wbc import shared, wrench_step
     volts = drives.PACK_V
@@ -225,13 +233,13 @@ def test_her_drives_back_emf_bounds(report):
 
 
 def test_the_lock_in_reads_a_known_loop(report):
-    """The insert's phase-margin probe (`machine.margin`) on a known loop at 1 kHz - a drive's PD on
+    """The insert's phase-margin probe (`machine.law.margin`) on a known loop at 1 kHz - a drive's PD on
     an inertia, its torque three passes late, the probe's sine in its torque, each frequency in its
     turn: its gain and phase at each as the loop's own L(e^jwT); the text's rollback where a margin falls short, to
     its floors, none where all hold."""
     import cmath
     import math
-    from machine import margin
+    from machine.law import margin
     inertia, kp, kd, dt, late = 0.02, 40.0, 0.8, 1e-3, 3
     probe, x, v, t, past = margin.laid(), 0.0, 0.0, 0.0, [0.0] * late
     while t < 4 * margin.DWELL_S + 0.01:

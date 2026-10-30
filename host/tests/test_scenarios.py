@@ -39,7 +39,8 @@ def test_the_referee_judges_by_touch(report):
     """Laid on her back onto a bed she lies, onto the floor she fell (`referee.fallen`): judged
     by what she was doing, a tilt past 45 deg on a bed was a fall."""
     import math
-    from machine import floor, referee, worker
+    from machine.world import floor, referee
+    from machine.process import worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     g, world = s['g'], s['g']['world']

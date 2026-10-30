@@ -110,8 +110,11 @@ def recorded(path, start, end):
 def simulated(scene, verb, seconds):
     """(times, joints, flickers) of her sit here: `scene` laid, `verb` said, `seconds` followed;
     `flickers` how often a sole's load came and went past her soles' touch."""
-    from machine import figure, leap, physics, worker
-    from machine.figure import JOINTS
+    from machine.body import figure
+    from machine.moves import leap
+    from machine.world import physics
+    from machine.process import worker
+    from machine.body.figure import JOINTS
     from terminal.views.humanoid_keys import HEADER, row
     from tools.sim import fbx, look
     physics.ROOM, physics.SIGHT = 0.0, 0.0

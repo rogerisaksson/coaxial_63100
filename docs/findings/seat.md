@@ -206,7 +206,7 @@ edge sit), 2 s of asks of the step, the regime then an ask (`slide_probe`):
   with the regime, not a velocity on the point.
 - A lower hold on a contact's normal force (within GROW_N of the force felt)
   felled her sit as the seat's first touch spiked: the felt force is a pass
-  late (`machine.borne`).
+  late (`machine.senses.borne`).
 - Her text says it: `(slide -0.15)` in a phase's task constraints, m/s along
   her way, forward + (`ortho.SLIDE`, the row 304 bytes; `latent.SLID`,
   wbc_law.c alike; the step's ask from it). Nothing said, the sit and rise
@@ -220,7 +220,7 @@ edge sit), 2 s of asks of the step, the regime then an ask (`slide_probe`):
   planted and her knee held set her hips' depth; a slide deeper needs her feet
   to come along - the reachability's equinus onto the forefoot (item 4), or
   the feet's own slide.
-- The reachability on her loop (`machine.somatic`): each leg's reach, hip to
+- The reachability on her loop (`machine.law.somatic`): each leg's reach, hip to
   sole over her leg's 845 mm. Standing 0.998 (her knee 6 deg), nothing borne:
   her soles her stride's; sat on the chair 0.70 and 0.75, under the text's
   0.86; 0.18 m deeper would be 0.92, her sole's centre of pressure half onto
@@ -232,7 +232,7 @@ edge sit), 2 s of asks of the step, the regime then an ask (`slide_probe`):
 The chair scene laid 2e-4 rad off (scenarios' chair, red on main): sat as
 square to the digit for 2.5 s (the seat 0.59 of her, soles 63/63 N), then at
 4.0 s the step's expectation of the seat's two contacts - a thigh each,
-`machine.borne` a point a segment - chatters pass to pass, 63/65 -> 40/60 ->
+`machine.senses.borne` a point a segment - chatters pass to pass, 63/65 -> 40/60 ->
 146/112 -> 104/0 -> 4/4 -> 68/219 N, her knees -13 to +50 N m, her soles 13
 to 320 N; she pops off the seat at 4.5 s, yaws -0.22 rad and rolls -10 deg by
 5.7 s, and the rise at 8.0 fells her (8.44 s). Laid square the split stays

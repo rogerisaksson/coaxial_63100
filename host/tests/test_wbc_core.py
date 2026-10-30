@@ -1,7 +1,7 @@
 """Her chain and the loop on the static model (wbc/) against MuJoCo and the python stack.
 
 The arrays as the figure compiles; the core's poses, Jacobians, mass matrix and bias at random
-configurations; the loop's torques standing against `machine.wbc.step`'s; her latent step,
+configurations; the loop's torques standing against `machine.stack.wbc.step`'s; her latent step,
 coupling and ask against her python's; her stand and a shove in MuJoCo on the loop; a step's
 and a tick's time on this host."""
 import ctypes
@@ -15,16 +15,17 @@ from tools.cores import wbc as core
 from tools.cores.build import build, find_cc
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import physics
+from cores_kit import configurations
+from machine.world import physics
 
-#: The loop's world has the gearboxes with their play (`machine.gearbox`).
+#: The loop's world has the gearboxes with their play (`machine.body.gearbox`).
 physics.BOXED = 1.0
 
 #: Configurations compared, and how far the core may sit from MuJoCo (m, kg m^2, N m).
 POSES, APART = 40, 1e-9
 
 #: States the step in C is compared on, three asks each, and how far its torques (N m) and
-#: loads (N) may sit from `machine.wrench`'s: both solve the same normal equations, two soles
+#: loads (N) may sit from `machine.stack.wrench`'s: both solve the same normal equations, two soles
 #: standing leave what they share between them to 1e-7 of the largest curvature.
 STEPS, STEP_APART = 12, 5e-3
 #: Her walk from rest for the striding step, s: she sets out at 5 and strides from there.
@@ -32,21 +33,6 @@ WALK_S = 9.0
 
 #: Links whose Jacobians are compared, at the soles' corners, their middles and the origins.
 POINTED = ('left_ankle_roll', 'right_ankle_roll', 'left_wrist', 'right_wrist', 'head', 'root')
-
-
-def _configurations(b, rows, rng):
-    """(qpos, qvel) within the stops, the pelvis anywhere, for POSES draws."""
-    import numpy as np
-    for _ in range(POSES):
-        q = np.zeros(b.m.nq)
-        quat = rng.normal(size=4)
-        q[:3], q[3:7] = rng.normal(size=3), quat / np.linalg.norm(quat)
-        for k, row in enumerate(rows[1:]):
-            lo, hi = row['stop'] or (-1.5, 1.5)
-            q[7 + k] = rng.uniform(lo, hi)
-        v = np.zeros(b.m.nv)
-        v[:b.n] = rng.normal(size=b.n)
-        yield q, v
 
 
 def _mujoco(b, q, v):
@@ -83,7 +69,7 @@ def test_the_frames_are_mujocos(report, c, b, rows):
     """Every body's frame in the world, over random configurations."""
     import numpy as np
     rng, worst = np.random.default_rng(3), 0.0
-    for q, v in _configurations(b, rows, rng):
+    for q, v in configurations(b, rows, rng, POSES):
         at = _mujoco(b, q, v)
         t = c.pose(at['base'], q[7:7 + c.n - 6])
         for k, row in enumerate(rows):
@@ -98,7 +84,7 @@ def test_the_mass_matrix_is_mujocos(report, c, b, rows):
     """M, the armatures on its diagonal, in the core's coordinates: T^T M_mujoco T."""
     import numpy as np
     rng, worst = np.random.default_rng(5), 0.0
-    for q, v in _configurations(b, rows, rng):
+    for q, v in configurations(b, rows, rng, POSES):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
         worst = max(worst, float(np.abs(c.mass() - at['T'].T @ at['M'] @ at['T']).max()))
@@ -111,7 +97,7 @@ def test_the_bias_is_mujocos(report, c, b, rows):
     + M_mujoco dT u), dT u the pelvis's frame turning under its world-frame velocity."""
     import numpy as np
     rng, worst = np.random.default_rng(7), 0.0
-    for q, v in _configurations(b, rows, rng):
+    for q, v in configurations(b, rows, rng, POSES):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
         h = at['T'].T @ (at['h'] + at['M'] @ at['dT_u'])
@@ -128,7 +114,7 @@ def test_the_centre_of_mass_is_mujocos(report, c, b, rows):
                                              'drift': 0.0}
     jp, jr, am = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
     links = [c.names.index(name) for name in POINTED[:2]] + [c.names.index('waist')]
-    for q, v in _configurations(b, rows, rng):
+    for q, v in configurations(b, rows, rng, POSES):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
         c.mass()
@@ -161,7 +147,7 @@ def test_the_jacobians_are_mujocos(report, c, b, rows):
     rng, worst, placed = np.random.default_rng(11), 0.0, 0.0
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
     links = [c.names.index(name) for name in POINTED]
-    for q, v in _configurations(b, rows, rng):
+    for q, v in configurations(b, rows, rng, POSES):
         at = _mujoco(b, q, v)
         c.pose(at['base'], q[7:7 + c.n - 6])
         for link in links:
@@ -181,7 +167,7 @@ def test_the_jacobians_are_mujocos(report, c, b, rows):
 def test_a_step_on_this_host(report, c, b, rows):
     """The pose, M, the bias and the soles' Jacobians: microseconds a step here, -O2."""
     import numpy as np
-    q, v = next(_configurations(b, rows, np.random.default_rng(13)))
+    q, v = next(configurations(b, rows, np.random.default_rng(13), POSES))
     at = _mujoco(b, q, v)
     feet = [c.names.index(name) for name in POINTED[:2]]
     us = 1e6 * c.seconds(at['base'], q[7:7 + c.n - 6], at['u'], feet[0], feet[1], 2000)
@@ -192,7 +178,9 @@ def _standing(b):
     """Her stand's state in `b` and the ask that keeps it: both soles, no acceleration, the
     turns and the posture as they are."""
     import numpy as np
-    from machine import figure, physics, wbc
+    from machine.body import figure
+    from machine.world import physics
+    from machine.stack import wbc
     world = physics.World()
     world.reset(figure.stand())
     s = wbc.sense(b, world.data.qpos, world.data.qvel)
@@ -206,10 +194,11 @@ def _standing(b):
 
 
 def test_the_ortho_row_is_the_wires(report, c, b, rows):
-    """`ortho_row_t` (wbc/inc/wbc_ortho.h) is `machine.ortho.ROW` and `machine.latent.WIRE` on
+    """`ortho_row_t` (wbc/inc/wbc_ortho.h) is `machine.texts.ortho.ROW` and `machine.law.latent.WIRE` on
     the wire: 252 bytes, and every compiled row of her text unpacks identically in C."""
     import numpy as np
-    from machine import latent, ortho
+    from machine.law import latent
+    from machine.texts import ortho
     sz = c.ortho_row_size()
     report.check('sizeof(ortho_row_t) is ortho.ROW.size (%d bytes)' % ortho.ROW.size,
                  sz == ortho.ROW.size == ctypes.sizeof(core.OrthoRow) == latent.WIRE.itemsize,
@@ -233,11 +222,13 @@ def test_the_ortho_row_is_the_wires(report, c, b, rows):
 
 
 def test_the_step_in_c_is_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.wrench.step` on her stand's pose under random velocities:
+    """wbc_wrench.c beside `machine.stack.wrench.step` on her stand's pose under random velocities:
     both soles standing, one with the other swung and its knee folded (still and striding),
     neither - the torques, every acceleration and the soles' loads; a tick's microseconds here."""
     import numpy as np
-    from machine import figure, physics, wbc, wrench
+    from machine.body import figure
+    from machine.world import physics
+    from machine.stack import wbc, wrench
     from tools.cores.wbc import state_of, wrench_step
     world, rng, worst, stride_worst = physics.World(), np.random.default_rng(5), np.zeros(3), np.zeros(3)
     world.reset(figure.stand())
@@ -265,7 +256,7 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
         stride_worst = np.maximum(stride_worst, [np.abs(ours['tau'] - theirs['tau']).max(),
                                                  np.abs(ours['qacc'] - theirs['qacc']).max(),
                                                  max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears']))])
-    report.check("the step in C is machine.wrench's over %d states" % (3 * STEPS),
+    report.check("the step in C is machine.stack.wrench's over %d states" % (3 * STEPS),
                  worst[0] < STEP_APART and worst[1] < 1e3 * STEP_APART and worst[2] < STEP_APART,
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
     report.check("and striding on one sole within %.0e over %d states" % (APART, STEPS),
@@ -277,11 +268,11 @@ def test_the_step_in_c_is_the_steps(report, c, b, rows):
 
 
 def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
-    """wbc_wrench.c beside `machine.wrench.step` at every solve of her walk from rest, WALK_S s
+    """wbc_wrench.c beside `machine.stack.wrench.step` at every solve of her walk from rest, WALK_S s
     on the python step: striding, by her standing soles - one, the rows' own answer; two, as
     far apart as what the two share between them is free."""
     import numpy as np
-    from machine import sprung
+    from machine.process import sprung
     from tools.cores.wbc import wrench_step
     g = sprung.laid(sprung.STACK_EVERY)
     sprung.walked(g)
@@ -304,7 +295,7 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
     g['solve'] = both
     while g['t'] < WALK_S:
         sprung.passed(g)
-    report.check("striding on one sole the step in C is machine.wrench's within %.0e" % APART,
+    report.check("striding on one sole the step in C is machine.stack.wrench's within %.0e" % APART,
                  count[1] > 500 and worst[1] < APART,
                  '%.1e N m, rad/s^2 or N apart at most over %d solves' % (worst[1], count[1]))
     report.check('and on two, within what they share',
@@ -318,10 +309,12 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
     moves - a walk, turns, a strafe, back, a sprint, a stop -, a sit on a chair and up, and her walk
     ducked and narrowed by a row: every field the same, bit for bit."""
     import numpy as np
-    from machine import impedance, latent, modal, ortho, support, worker
+    from machine.law import impedance, latent, modal, support
+    from machine.texts import ortho
+    from machine.process import worker
     from tools.cores import motion, step
     from tools.sim import scenarios
-    from machine import wrench
+    from machine.stack import wrench
     kept, tally = (motion.asked, motion.stepped, motion.coupled, step._stepped), {}
 
     def check(name, got, want):
@@ -387,10 +380,10 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
 
 
 def test_the_loop_stands_as_the_python_stack(report, c, b, rows):
-    """Standing still, asked to stay: the loop's torques against `machine.wbc.step`'s, whose
+    """Standing still, asked to stay: the loop's torques against `machine.stack.wbc.step`'s, whose
     inequalities all sleep there; its clip untouched; a tick's time."""
     import numpy as np
-    from machine import wbc
+    from machine.stack import wbc
     s, ask = _standing(b)
     theirs = wbc.step(b, s, ask)
     ours = core.stack_step(b, s, ask, c)
@@ -435,7 +428,7 @@ def main(argv=None):
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    from machine import wbc
+    from machine.stack import wbc
     report = Report()
     lib_path, warnings = build(cc, core.SOURCES, core.INCLUDES, 'wbccore', core.FLAGS)
     report.check('wbc/ builds warning-free with the firmware flags', not warnings,

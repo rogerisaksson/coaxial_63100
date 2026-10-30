@@ -17,7 +17,6 @@ image, unless COAXIAL_EMULATOR is `required` (CI).
 import os
 import subprocess
 import sys
-import time
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,6 +34,7 @@ from tools.emu import protocol_emulator
 from tools.emu import world as worlds
 from tools.emu.emulator import (BOOT_ELF, ELF, FAITHFUL_MIPS, Emulator, Limb,
                                 find_renode)
+from emulator_kit import one, run
 
 AFE = worlds.AFE
 ANGLE = 'sysbus.spi4.angle'
@@ -54,7 +54,7 @@ def test_the_bench_conformance_holds(report, emu):
 def test_the_image_proves_itself(report, rig, emu):
     """The board's self test where the image runs: none of it failed, its code's CRC the
     build's own."""
-    from machine.rtu import crc16
+    from machine.rig.rtu import crc16
 
     checks = {c['name']: c for c in rig.board.system.self_test()}
     failed = sorted(name for name, c in checks.items() if c['status'] == 'fail')
@@ -77,7 +77,7 @@ def test_the_loop_ticks_on_the_image(report, rig, emu):
                  '%.0f us cold, %.0f us warm at %.0f MHz; %d held, %d passes' % (
                      got['us_first'], got['us_last'], got['sysclk_hz'] / 1e6, got['held'],
                      got['passes']))
-    from machine import wbc
+    from machine.stack import wbc
     from test_wbc_core import _standing
     b = wbc.Body()
     _s, ask = _standing(b)
@@ -95,7 +95,7 @@ def test_the_step_ticks_on_the_image(report, rig, emu):
     torques and her soles' loads the host's: on her stand, then her right sole swung (op 2) -
     its four rounds, striding, setting out."""
     import numpy as np
-    from machine import wbc
+    from machine.stack import wbc
     from test_wbc_core import _standing
     from tools.cores import wbc as core
     b = wbc.Body()
@@ -228,7 +228,6 @@ def test_the_angle_sensor_reads(report, rig, emu):
                  all(read is not None and abs(read - want) <= 360.0 / 4096 for want, read in got)
                  and st.get('crc_errors') == 0,
                  'errors=%s, %s' % (st.get('crc_errors'), ', '.join('%g -> %s' % p for p in got)))
-
 
 
 def test_the_imu_answers(report, rig, emu):
@@ -413,15 +412,6 @@ BOARD = (wire.test_every_read_decodes, wire.test_settings_are_taken, wire.test_t
          wire.test_acquisition_answers_or_refuses)
 
 
-def run(report, tests):
-    """`tests` in order, their names first, each one's seconds after it."""
-    for test, *given in tests:
-        print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
-        began = time.monotonic()
-        test(report, *given)
-        print('  %.0f s' % (time.monotonic() - began))
-
-
 def board(report, names=()):
     """A rig on an emulator of its own through BOARD, or those of it `names` picks. Renode's own
     100 MIPS: nothing here runs to the part's cycle budget."""
@@ -439,18 +429,12 @@ def conformance(report, _names=()):
         run(report, [(test_the_bench_conformance_holds, emu)])
 
 
-def one(test):
-    """A group of `test` alone."""
-    return lambda report, _names=(): run(report, [(test,)])
-
-
 #: A Renode and a process each, the longest first: board 150 s here, blank 133, bus 129,
 #: rate 63, conformance 44.
 GROUPS = {'board': board, 'blank': one(test_a_blank_node_takes_the_host_build),
           'bus': one(test_echoes_on_the_bus),
           'rate': one(test_a_bus_off_the_nodes_rate_carries_nothing),
           'conformance': conformance, 'fallback': one(test_emulated_falls_back_where_none_runs)}
-
 
 
 def main(argv=None):

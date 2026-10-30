@@ -9,12 +9,12 @@ from gynoid_kit import Report
 
 
 def test_the_wayfinder_gauges_her_way(report):
-    """The wayfinder's gauge (`machine.wayfinder`): the free width across her way through a doorway and
+    """The wayfinder's gauge (`machine.way.wayfinder`): the free width across her way through a doorway and
     inside its post; the trunk's twist that fits her through a gap - none square on, past twice
     atan(depth / across) under her shoulders, the text's most past her contorted width."""
     import math
     import numpy as np
-    from machine import wayfinder as w
+    from machine.way import wayfinder as w
     centre = np.array([[-0.6, 1.0, 0.0], [0.6, 1.0, 0.0], [0.0, 0.3, 0.0]])
     half = np.array([[0.1, 1.0, 0.1], [0.1, 1.0, 0.1], [0.5, 0.3, 0.5]])
     R = np.repeat(np.eye(3)[None], 3, 0)
@@ -32,7 +32,7 @@ def test_the_wayfinder_gauges_her_way(report):
 
 
 def test_her_map_keeps_what_her_looks_told(report):
-    """Her registry (`machine.registry`): three things before her looked at thrice confirmed, none behind
+    """Her registry (`machine.eyes.registry`): three things before her looked at thrice confirmed, none behind
     her; a chair shoved at 1 m/s under the stand-in's looks (8 ms apart) kept one slot, moving once its
     drift passes the text's chi2, its velocity within 5 %; a pane 1.1 m from its twin never takes its
     slot; a thing before her unseen pruned at the text's rate, her head aside; the lamp out of her view
@@ -40,7 +40,8 @@ def test_her_map_keeps_what_her_looks_told(report):
     salient's slot, not the thrice-seen one's; her buses' boxes the slots at 1.8."""
     import math
     import numpy as np
-    from machine import registry, schema
+    from machine.eyes import registry
+    from machine.law import schema
     head = {'pos': np.array([0.0, 1.6, 0.0]), 'quat': np.array([1.0, 0.0, 0.0, 0.0])}
     eye = np.eye(3)
     before = [('chair', (0.3, 0.4, 2.0), (0.2, 0.4, 0.2), eye), ('table', (-0.5, 0.7, 2.5), (0.6, 0.02, 0.4), eye),
@@ -99,13 +100,17 @@ def test_her_map_keeps_what_her_looks_told(report):
 
 
 def test_her_wayfinder_apart(report):
-    """Her wayfinder apart (`machine.planner`): the lodge's chair docked by her planner's process at once,
+    """Her wayfinder apart (`machine.way.planner`): the lodge's chair docked by her planner's process at once,
     as answered here, her way to it watched LATENCY_S on, none before; a table top she goes to opened to her reach ahead
     before its face, behind it her reach across (`:affordance-aperture`); the text's clothoid her
     arc's, its rate her arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
     import math
     import numpy as np
-    from machine import furniture, maneuver, obstacles, physics, planner, route, se2, worker
+    from machine.way import furniture, obstacles, planner, route
+    from machine.texts import maneuver
+    from machine.world import physics
+    from machine.law import se2
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
     g = s['g']

@@ -15,7 +15,7 @@
 /** Her law's drive-side step (machine.law.drives): each driven joint's observer on its motor's
     encoder, its setpoint carried on by the loop's ask and leaking to its encoder, its feed and its
     clamp; the knees' spring. Pointers into her law's arrays, the driven joints in wbc_driven's
-    order, y machine.edge's. */
+    order, y machine.senses.edge's. */
 typedef struct
 {
   int                  n;          /**< the driven joints */
@@ -49,7 +49,7 @@ typedef struct
   double              *feed;       /**< out: each drive's feed and its clamp this pass */
   double              *limit;
   const double        *release;    /**< each drive's share of its clamp: let go to its passive cone */
-  const wbc_bus_k     *bus_k;      /**< the master bus insert (machine.supervisor): its numbers, its state */
+  const wbc_bus_k     *bus_k;      /**< the master bus insert (machine.law.supervisor): its numbers, its state */
   wbc_bus_t           *bus;
   double               posture_kd; /**< a drive's own damping over its inertia, 1/s */
 } wbc_drives_t;
@@ -58,7 +58,7 @@ typedef struct
     she tilts (1 upright), `in_hop` whether she is in a hop, `wb` whether the raised WEP limit is hers. */
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb);
 
-/** Her world's drives on their setpoints (machine.physics.World.advance): each joint's PD at the
+/** Her world's drives on their setpoints (machine.world.physics.World.advance): each joint's PD at the
     world's step, a parallel pair's shared, the motors' torques and their meters; her IMU and
     encoders read. Pointers into the world's arrays and MuJoCo's. */
 typedef struct
@@ -113,15 +113,15 @@ int wbc_pass_paired(const unsigned char *geom, const unsigned char *pos, ptrdiff
                     const unsigned char *a, const unsigned char *b, double below);
 
 /** The drives' torque (ctrl) and its power on each joint's speed eased into `torque` and `power` by
-    `k` of the way (machine.worker's averages). */
+    `k` of the way (machine.process.worker's averages). */
 void wbc_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power);
 
-/** Her IMU and encoders into `y` at its offsets (machine.edge): her turn, spin and specific force,
+/** Her IMU and encoders into `y` at its offsets (machine.senses.edge): her turn, spin and specific force,
     each joint's angle and rate, each motor's angle through its gearbox. */
 void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,
                    int qm_at);
 
-/** Her soles' and her skin's contacts read (machine.edge.read): the contacts between a body of hers
+/** Her soles' and her skin's contacts read (machine.senses.edge.read): the contacts between a body of hers
     and one not, a contact's force its rows of the solver's (the cone elliptic), summed a bin a
     segment in the contacts' order. The contacts' fields are read at their offsets from each
     contact's `pos`, `stride` bytes a contact (MuJoCo's mjContact, laid from its arrays). */
@@ -160,7 +160,7 @@ typedef struct
 /** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`. */
 void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force);
 
-/** Her contacts copied as they stand (machine.live.raw): of `ncon` contacts at `pos`, each between a
+/** Her contacts copied as they stand (machine.rig.live.raw): of `ncon` contacts at `pos`, each between a
     body of hers and one not with rows of the solver's, a row of `width` doubles in `out`, at most
     `cap` - at `at`'s offsets whether hers is the first geom, its place, frame, force (the solver's
     rows), friction and tangential velocity (the solver's velocity rows). Returns how many she has. */
@@ -172,7 +172,7 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
                      int cells_at, int at_at);
 
-/** Her drives' heat as their boards keep it (machine.heat.Heat): four nodes a drive - the switches,
+/** Her drives' heat as their boards keep it (machine.body.heat.Heat): four nodes a drive - the switches,
     the laminate, the stator, the winding - on their losses, the envelope's derate and trip on them. */
 typedef struct
 {
@@ -224,7 +224,7 @@ typedef struct
   unsigned char       *shorted;
 } wbc_heat_t;
 
-/** A tick's torques and joint speeds into each drive's mean square and speeds (machine.heat.Heat.step_joints). */
+/** A tick's torques and joint speeds into each drive's mean square and speeds (machine.body.heat.Heat.step_joints). */
 void wbc_pass_heat_load(wbc_heat_t *h, const double *torques, const double *qd);
 
 /** `dt` s of the clock on: the nodes on their losses, `air` and `rds` each drive's air and
@@ -234,13 +234,13 @@ void wbc_pass_heat(wbc_heat_t *h, double dt, const double *air, const double *rd
 /** Each drive's hottest: its junction or its nodes' peak. */
 void wbc_pass_heat_peak(const wbc_heat_t *h, double *out);
 
-/** What her drives draw now, W (machine.physics.World.drawn): the work they do on `speed` (NULL the
+/** What her drives draw now, W (machine.world.physics.World.drawn): the work they do on `speed` (NULL the
     joints'), their copper, their boards' own, the drives `driven`, switching, and a check's copper. */
 double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *speed, const double *loss,
                       const unsigned char *driven, const double *testing, const double *ohm, double housekeeping_w,
                       double switching_w);
 
-/** machine.wear._hems' pendulum: a hem 2-DoF about its x and z hinges with their stops, `n` steps of
+/** machine.identify.wear._hems' pendulum: a hem 2-DoF about its x and z hinges with their stops, `n` steps of
     `dt` on its hinge's acceleration `ap`, spin `om` and angular acceleration `alb` (n, 3 each, its
     frame): its angles, rates and accelerations (n, 2 each), the steps it met a stop, its (qx, qz,
     vx, vz) carried in and out. `c`: its arm, mass, inertia, J, stiffness, damping, the stop's

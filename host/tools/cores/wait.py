@@ -1,11 +1,11 @@
 """The rows of her table that wait or wake her, in C through ctypes (wbc_wait.c), bit for bit.
 
     k, ask = motion.laid()
-    waits = wait.laid(k, a, out, y, fr, st)                      # machine.waits.held_rows, risen_rows, woken_rows
+    waits = wait.laid(k, a, out, y, fr, st)                      # machine.law.waits.held_rows, risen_rows, woken_rows
     shift, first, held_s = waits.held(tab, t, dt, held_s)        # tab's times shifted in place
     shift, first, prop_until = waits.risen(tab, t, dt, prop_until)
-    shift, first = waits.borne(tab, t, dt)                       # machine.waits.borne_rows
-    waits.latched(tab, t, dt)                                    # machine.waits.latched_rows: her vector in st
+    shift, first = waits.borne(tab, t, dt)                       # machine.law.waits.borne_rows
+    waits.latched(tab, t, dt)                                    # machine.law.waits.latched_rows: her vector in st
     waits.woken(tab, t, dt)                                      # her rhythm woken in st
 """
 import ctypes
@@ -63,7 +63,7 @@ class Waits:
     `rows` (wbc_wait.c's), an empty one a laid row read nowhere."""
 
     def __init__(self, k, a, out, y, fr, st):
-        from machine import latent, stride
+        from machine.law import latent, stride
         self.w = Wait(table=latent.TABLE, at=latent.AT, vals_z=latent.VALS.start + latent.Z.start,
                       said_z=latent.SAID.start + latent.Z.start, vals_gain=latent.VALS.start + latent.GAIN,
                       contact=latent.CONTACT,
@@ -89,38 +89,38 @@ class Waits:
         return wbc.pointer(tab) if len(tab) else self.at[5]
 
     def held(self, tab, t, dt, held_s):
-        """(shift, first, held_s) of `machine.waits.held_rows`, `tab`'s times shifted in place."""
+        """(shift, first, held_s) of `machine.law.waits.held_rows`, `tab`'s times shifted in place."""
         self.held_c(self.k, self.wp, self._table(tab), len(tab), self.at[0], self.at[1], t, dt, held_s, self.gp)
         return tuple(self.got.tolist())
 
     def risen(self, tab, t, dt, prop_until):
-        """(shift, first, prop_until) of `machine.waits.risen_rows`, `tab`'s times shifted in place."""
+        """(shift, first, prop_until) of `machine.law.waits.risen_rows`, `tab`'s times shifted in place."""
         self.risen_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], self.at[0], self.at[4], t, dt,
                      prop_until, self.gp)
         return tuple(self.got.tolist())
 
     def landed(self, tab, t, dt):
-        """(shift, first) of `machine.waits.landed_rows`, `tab`'s times shifted in place."""
+        """(shift, first) of `machine.law.waits.landed_rows`, `tab`'s times shifted in place."""
         self.landed_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[4], t, dt, self.gp)
         return tuple(self.got[:2].tolist())
 
     def sunk(self, tab, t, dt):
-        """(shift, first) of `machine.waits.sunk_rows`, `tab`'s times shifted in place."""
+        """(shift, first) of `machine.law.waits.sunk_rows`, `tab`'s times shifted in place."""
         self.sunk_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], t, dt, self.gp)
         return tuple(self.got[:2].tolist())
 
     def borne(self, tab, t, dt):
-        """(shift, first) of `machine.waits.borne_rows`, `tab`'s times shifted in place."""
+        """(shift, first) of `machine.law.waits.borne_rows`, `tab`'s times shifted in place."""
         self.borne_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], t, dt, self.gp)
         return tuple(self.got[:2].tolist())
 
     def latched(self, tab, t, dt):
-        """`machine.waits.latched_rows`: her vector latched in `st` where she is by the rows of `tab` due."""
+        """`machine.law.waits.latched_rows`: her vector latched in `st` where she is by the rows of `tab` due."""
         self.latched_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], self.at[0], self.at[4], t,
                        dt)
 
     def woken(self, tab, t, dt):
-        """`machine.waits.woken_rows`: her rhythm woken in `st` by the rows of `tab` due."""
+        """`machine.law.waits.woken_rows`: her rhythm woken in `st` by the rows of `tab` due."""
         self.woken_c(self.k, self.wp, self._table(tab), len(tab), self.at[4], t, dt)
 
 

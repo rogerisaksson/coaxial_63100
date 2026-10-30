@@ -22,7 +22,7 @@ import os
 from coaxial import Coaxial63100
 from coaxial.control.commission import Commissioning
 from coaxial.errors import RigError
-from machine.modes import HARDWARE, SIMULATED
+from machine.rig.modes import HARDWARE, SIMULATED
 
 STEPS = ('afe', 'sample_point', 'offsets', 'gains_afe', 'sign', 'deadtime',
          'l_map', 'flux', 'budget', 'gains', 'decide', 'verify')

@@ -23,7 +23,8 @@ def test_her_surety_in_c_as_she_walks(report, c):
     """Her surety field in C (`c_motion.surety_laid`, wbc_surety.c) beside its python
     (`motion.surety_field`) on her arrays at every call of her law over PASSES of her walk - her
     surety, its vector and its probe bit for bit -, and a step's time beside its python's."""
-    from machine import motion, worker
+    from machine.law import motion
+    from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -59,7 +60,10 @@ def test_her_touch_in_c_as_she_walks(report, c):
     """Her touch's filter in C (`c_touch.laid`, wbc_touch.c) beside its python (`touch.stepped`) on
     copies of her arrays at every pass of her law over PASSES of her walk - the latent out, the
     ask, the filter's state and her twist bit for bit -, and a step's time beside its python's."""
-    from machine import edge, modal, touch, worker
+    from machine.senses import edge
+    from machine.law import modal
+    from machine.senses import touch
+    from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -100,7 +104,8 @@ def test_her_twist_in_c_as_she_walks(report, c):
     """Her twist's step in C (`c_twist.laid`, wbc_twist.c) beside its python (`se2.twisted`) on
     copies of her arrays at every pass of her law over PASSES of her walk - fr, st, the latent
     out, her posture, the state and the words bit for bit -, and a step's time beside its python's."""
-    from machine import se2, worker
+    from machine.law import se2
+    from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -140,7 +145,8 @@ def test_her_waits_in_c_as_she_walks(report, c):
     `risen_rows`, `woken_rows`, `borne_rows`, `latched_rows`) on copies of her table and her state at
     every pass of her law over PASSES of her walk - the table's times, the shift, the first row, the
     state and her rhythm woken bit for bit -, and a step's time."""
-    from machine import latent, waits as py_waits, worker
+    from machine.law import latent, waits as py_waits
+    from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
@@ -237,7 +243,8 @@ def test_her_brace_in_c_as_she_walks(report, c):
     (`brace.scaled`, `braced`) on copies at every pass of her law over PASSES of her walk - the
     solve's M, its answer blended, her drives' inertia and her legs' stiffness bit for bit -, and
     a blend's time beside its python's."""
-    from machine import brace, worker
+    from machine.law import brace
+    from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)

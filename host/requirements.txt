@@ -61,7 +61,7 @@ ipywidgets>=8.0      # the controller panel: a dropdown per port
 # raster on a GTX 1080 Ti.
 wgpu>=0.32
 
-# The gynoid's body with mass (machine.physics): her figure in MuJoCo, 1 ms steps,
+# The gynoid's body with mass (machine.world.physics): her figure in MuJoCo, 1 ms steps,
 # its own process at x1.6 real time. Imported where it is called. Pinned: her scenarios'
 # margins are the engine's - on 3.16.0 CI felled a hole and left a tree still moving that
 # 3.14.0 here held at every wobble.

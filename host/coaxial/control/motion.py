@@ -3,9 +3,9 @@ import math
 
 from coaxial.comm.hostclock import clock_of
 from coaxial.errors import RigError
-from machine.controller import Feedback, Loop, Polled
+from machine.rig.controller import Feedback, Loop, Polled
 from machine.errors import MachineError
-from machine.parts import Rate, Slew, SpeedPI
+from machine.rig.parts import Rate, Slew, SpeedPI
 from motor.loads import Propeller
 from motor.pmsm import RAD_S_PER_RPM, Parameters
 

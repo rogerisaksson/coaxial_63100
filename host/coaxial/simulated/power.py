@@ -11,7 +11,7 @@ from coaxial.devices.scaling import ADC_CODES, ADC_HALF_CODES
 from coaxial.simulated import sto
 from coaxial.simulated.values import (DCBUS_V, NOMINAL, VGATE_PIN_RATIO, phase_codes,
                                       quiet_code)
-from machine.roles import Output
+from machine.rig.roles import Output
 
 
 class SimulatedPower(Output):

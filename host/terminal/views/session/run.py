@@ -4,7 +4,7 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from machine.errors import MachineError
-from machine.modes import HARDWARE, SIMULATED
+from machine.rig.modes import HARDWARE, SIMULATED
 from terminal.ui import bindings
 from terminal.ui.screen import park, QUIET, say, steady
 from terminal.views.session.state import ACTIVITIES, DEFAULT_PHASES

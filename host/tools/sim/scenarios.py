@@ -21,8 +21,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import floor as fl
-from machine import sprung, takes
+from machine.world import floor as fl
+from machine.process import sprung
+from machine.texts import takes
 from tools.sim import stunts
 from tools.sim.player import FORCES_N, KEYS, MOMENTS, PLAYS, SHOVE_S, SHOVES, STOP, WALK, played
 
@@ -153,13 +154,13 @@ SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', 
 
 def placed(s, scene):
     """`scene` laid round her in her session `s`: a floor event, or a chair or a bed set at her."""
-    from machine import worker
+    from machine.process import worker
     worker.apply(s, {'scenario': scene})
 
 
 def _row(g, world):
     """Her look's row now, as the page records her (`humanoid_keys.row`)."""
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     from terminal.views.humanoid_keys import HEADER, row
     d = world.data
     angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
@@ -201,7 +202,10 @@ def ran(name, wobble=0.0, laid=None, texts=None):
     texts `texts` where given (`worker.session`); `laid(s)` each pass after."""
     import numpy as np
     from tools.sim import look
-    from machine import edge, modal, physics, worker
+    from machine.world import physics
+    from machine.senses import edge
+    from machine.law import modal
+    from machine.process import worker
     shove = SHOVES.get(name)
     if shove:
         n, way, gait, at = shove
@@ -232,7 +236,7 @@ def ran(name, wobble=0.0, laid=None, texts=None):
     weight = float(s['g']['fr'][modal.WEIGHT])
     head, force = m.body('head').id, np.zeros(6)
     jerked = [m.body(n).id for n in JERKED]
-    from machine import rounds
+    from machine.stack import rounds
     leg_cols = [s['g']['body'].act[leg] for leg in rounds.LEGS]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
     rows, told_at = [], -math.inf
@@ -317,7 +321,7 @@ def judged(out):
     if goal == 'sank':
         return out['rose'] <= -aim
     if goal == 'lay':
-        from machine import modal
+        from machine.law import modal
         return out['bore'].get(aim, 0.0) >= HELD_S and out['rolled'] <= math.degrees(modal.LIST_RAD)
     if goal == 'refused':
         return out['stood'] and aim in (out['refused'] or '')
@@ -336,7 +340,7 @@ def main(argv=None):
     parser.add_argument('--shoves', help="the shoves' polar too, of these N (80, 200)")
     args = parser.parse_args(argv)
     if args.one:
-        from machine import tune
+        from machine.texts import tune
         print(json.dumps(ran(args.one, args.wobble, texts=tune.given(dict(tune.setting(s) for s in args.set)) if args.set else None)))
         return 0
     from tools.dev import focus

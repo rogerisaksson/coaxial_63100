@@ -20,7 +20,7 @@ def test_r_records_and_saves(report):
     the epoch's commands so far ride the first row, those heard after the row after them."""
     import json
     import tempfile
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     from terminal.ui import recorder
     from terminal.views import humanoid_keys
     now = {'t': 1.25, 'stage': 'walk', 'speed': 0.5, 'phase': 0.3, 'loads': (200.0, 300.0),

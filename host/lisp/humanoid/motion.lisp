@@ -14,7 +14,7 @@
 (deftrait arms_held
   (impedance (stiffness mode_arm_swing 1198000) (damping mode_arm_swing 2395)))
 
-;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/maneuver.py)
+;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/texts/maneuver.py)
 
 
 ;; lie down where she stands: crouch to her modes' floor, then the drives soft and the pitch

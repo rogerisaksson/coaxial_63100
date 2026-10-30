@@ -143,7 +143,7 @@ def turntable(view, width=52, height=18):
 def _her(view, width, height):
     """Her standing on the stand, turning as the board turns."""
     from coaxial.graphics import gynoid
-    from machine import figure
+    from machine.body import figure
     return '\n'.join(gynoid.render(figure.stand(), width, height,
                                     yaw=(view['spun'] * TURN_DPS) % 360.0, lit=_STAGE['lit'],
                                     root=((0.0, figure.standing(), 0.0), figure.IDENT)))
@@ -154,7 +154,7 @@ def _quad(view, width, height):
     its nose; seen turning as the board turns."""
     from coaxial.graphics import quadcopter
     from machine.aircraft import aerobatics, quad
-    from machine.figure import mul, rx, rz
+    from machine.body.figure import mul, rx, rz
     t = time.monotonic() - view['opened']
     into = t % (BOARD_S + HER_S + QUAD_S) - BOARD_S - HER_S
     lean, round_ = math.radians(LEAN_DEG), math.tau * t / LEAN_S

@@ -5,7 +5,7 @@
     python tools/sim/dimensions.py --write    # docs/DIMENSIONS.md written
 
 A type is a stack (`drives.STACKS`): its motor, its gearbox, its inverter; under it every axis it
-turns. The page is this tool's output: a candidate laid in `machine/drives.py` and written again
+turns. The page is this tool's output: a candidate laid in `machine/body/drives.py` and written again
 is the page edited (tests/test_mirrors.py holds the two together).
 """
 import argparse
@@ -21,14 +21,14 @@ PAGE = os.path.join(REPO, 'docs', 'DIMENSIONS.md')
 
 def _joint(kind):
     """A joint of `kind`: its left one where it has sides."""
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     return kind if kind in JOINTS else 'left_' + kind
 
 
 def types():
     """[(name, stack, [kind, ..])] of the driven kinds, the type turning the most first: a type
     its frame's letter, its box's and its inverter's after it where another type shares it."""
-    from machine import drives
+    from machine.body import drives
     by = {}
     for kind, stack in drives.STACKS.items():
         if not drives.passive(_joint(kind)):
@@ -40,7 +40,7 @@ def types():
 
 
 def _through(kind):
-    from machine import linkage
+    from machine.body import linkage
     other = linkage.PAIRS.get(kind) or next((k for k, v in linkage.PAIRS.items() if v == kind), None)
     if other:
         return 'a rod, a pair with the %s' % other.replace('_', ' ')
@@ -52,7 +52,7 @@ def _through(kind):
 
 
 def _sits(kind):
-    from machine import drives
+    from machine.body import drives
     where = drives.JOINTS[kind]
     board = drives.BOARDS.get(kind)
     return ('on its axis' if where is None else 'on the %s' % where[0].replace('_', ' ')) + (
@@ -61,14 +61,14 @@ def _sits(kind):
 
 def text():
     """The page."""
-    from machine import drives, heat, servos
-    from machine.figure import JOINTS
+    from machine.body import drives, heat, servos
+    from machine.body.figure import JOINTS
     rows = types()
     driven = [j for j in JOINTS if not drives.passive(j)]
     out = ['# Dimensions', '',
            'The gynoid\'s axes by drive type: %d driven on %d type%s, %d without a drive.'
            % (len(driven), len(rows), '' if len(rows) == 1 else 's', len(JOINTS) - len(driven)),
-           'The candidate of record, laid in `machine/drives.py` and written by',
+           'The candidate of record, laid in `machine/body/drives.py` and written by',
            '`tools/sim/dimensions.py --write`; the rationale: docs/findings/stacks.md.', '',
            '## Types', '',
            '| type | drives | motor | gearbox | inverter | stack mm | kg | peak N m | holds N m '

@@ -1,6 +1,6 @@
 """A craft's flight run apart as her body is: stepped in its own process, played back by its page.
 
-Its boards, its sky, its law and its card stepped STEP_S at a time (`machine.apart`), paced to the
+Its boards, its sky, its law and its card stepped STEP_S at a time (`machine.process.apart`), paced to the
 wall and no further than its lead past what the page has shown; each step said as the page draws
 it: the frame, its rotors, the flight's instruments. The page plays them back steady
 (`terminal.views.playback`, `blend`): in real time or slower, never run ahead.
@@ -23,9 +23,9 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
-from machine import apart, placed
+from machine.process import apart, placed
 from machine.aircraft import aerobatics, aerokin, flightpack, gimbal, grounds, weather
-from machine.modes import EMULATED, SIMULATED
+from machine.rig.modes import EMULATED, SIMULATED
 from terminal.views.quad import flight as qflight
 
 #: The flight's loop's least turn while it waits, s.
@@ -50,8 +50,8 @@ def arm_emulated(rig, clock=1, warm_s=100.0, room='bench', rotor_m=None):
     from coaxial.control.motion import started
     from coaxial.simulated.sto import PILOT_VOLTS
     from machine.aircraft import pull, quad
-    from machine.controller import Feedback
-    from machine.parts import Gain, Slew, SpeedPI
+    from machine.rig.controller import Feedback
+    from machine.rig.parts import Gain, Slew, SpeedPI
     rotor_m = rotor_m or pull.ROTOR
     board, drive = rig.board, rig.board.drive
     board.thermal.configure(application=qflight.APPLICATION, clock=clock, margin_floor=1.0)

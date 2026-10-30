@@ -1,7 +1,7 @@
 """Her twist's step in C through ctypes (wbc_twist.c), her python's bit for bit.
 
     k, ask = motion.laid()
-    step = twist.laid(k, y_in, y, fr, a, st, out, posture, state, words, waist, head)    # machine.se2.twisted
+    step = twist.laid(k, y_in, y, fr, a, st, out, posture, state, words, waist, head)    # machine.law.se2.twisted
     step(dt, vel, held, prior)       # a pass: fr, st, out, posture, state and words in place
 """
 import ctypes
@@ -40,11 +40,13 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out, posture, state, words, waist, head):
-    """The step in C on her law's arrays, pointed at once - `machine.se2.twisted` of her edge's
+    """The step in C on her law's arrays, pointed at once - `machine.law.se2.twisted` of her edge's
     `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its `out`, her `posture` with her
     `waist`'s and her `head`'s places in it, the step's `state` and its `words` -: a step (dt, vel,
     held, prior); `k` the ask's (`tools.cores.motion.laid`)."""
-    from machine import edge, latent, leap, modal, se2, stride
+    from machine.senses import edge
+    from machine.law import latent, modal, se2, stride
+    from machine.moves import leap
     t = Twist(gyro_at=edge.GYRO.start, quat_at=edge.QUAT.start, y_cells=modal.CELLS.start, f_heading=modal.HEADING,
               st_now_gain=latent.NOW.start + latent.GAIN, st_now_phase=latent.NOW.start + latent.PHASE.start,
               st_to_amp=latent.TO.start + latent.AMP.start, st_to_hz=latent.TO.start + latent.HZ,

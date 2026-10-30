@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her limbs on all fours (`machine.fours`; the kernel's multimodal_*.lisp): the texts read whole, the torus clock
+"""Her limbs on all fours (`machine.moves.fours`; the kernel's multimodal_*.lisp): the texts read whole, the torus clock
 locked to each symmetry and turned between them, the fifth limb bearing through her limbs' swing, her legs levelled
 to her arms on her figure, the truss meeting her weight."""
 import math
@@ -18,14 +18,14 @@ DT, MET = 1e-3, 1e-6
 
 
 def _gait(symmetry):
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.value(['specialize-quad-phase-topology', 'nominal-biped-gait', ':gait-symmetry', symmetry], kernel.read())
 
 
 def _turned(phi, lag, hz, k, seconds):
     """`phi` after `seconds` of the clock, and its phases each tick (ticks, n)."""
     import numpy as np
-    from machine import fours
+    from machine.moves import fours
     out = []
     for _ in range(int(round(seconds / DT))):
         phi = fours.clock(phi, lag, hz, k, DT)
@@ -43,7 +43,8 @@ def test_the_texts_read_whole(report):
     """The three texts read with the kernel (`dsp.read`): the two postures their origins and three columns each; the
     clock, the equalizer, the truss, the fifth limb, the two gaits and five specializers stages; the schedule a
     trot, a morph, a crawl and the crab's scoot, each its clock as the texts compose it."""
-    from machine import dsp, fours, kernel
+    from machine.texts import dsp, kernel
+    from machine.moves import fours
     got = kernel.read()
     postures = got['quadrupedal-posture-extensions']['postures']
     report.check('two postures, each its origin and three columns',
@@ -76,7 +77,7 @@ def test_each_symmetry_locks_from_anywhere(report):
     landing left hind, left fore, right hind, right fore; the trot's diagonals as one, the pace's sides as one, the
     bound's girdles a twentieth of a turn apart."""
     import numpy as np
-    from machine import fours
+    from machine.moves import fours
     rng = np.random.default_rng(0)
     for symmetry in SYMMETRIES:
         lag, duty, _bpm, k = fours.clock_of(_gait(symmetry))
@@ -104,7 +105,8 @@ def test_a_morph_turns_her_lags_continuously(report):
     turn: no limb's phase steps past twice what the clock turns it in a tick, her limbs trail their lags by at most
     the fastest lag's rate over the clock's pull (4 x 8.5/s), and two or more bear throughout."""
     import numpy as np
-    from machine import dsp, fours, kernel
+    from machine.texts import dsp, kernel
+    from machine.moves import fours
     plan = dsp.schedule(kernel.read()['compile-multimodal-locomotion-soa'])
     (lag0, duty0, bpm, k), (lag1, duty1, _b, _k), bars = fours.clock_of(plan[0][2]), fours.clock_of(plan[2][2]), plan[1][2].bars
     hz = bpm / 120.0
@@ -130,7 +132,8 @@ def test_the_fifth_bears_while_her_limbs_swing(report):
     limbs' swing (`fours.fifth`) bears through every limb's swing when they advance as one, its flag; under the trot
     its topology lays, through half of it - one diagonal's swing."""
     import numpy as np
-    from machine import dsp, fours, kernel
+    from machine.texts import dsp, kernel
+    from machine.moves import fours
     crab = dsp.schedule(kernel.read()['compile-multimodal-locomotion-soa'])[3][2]
     lag, duty, _bpm, k = fours.clock_of(crab)
     axial = crab['axial-peristalsis']
@@ -152,8 +155,9 @@ def _stance(origin, pitch, hind_point):
     (`fours.bend`) for her shoulders `pitch` rad over her hips; the contacts a sole's `hind_point` and a fist's
     lowest."""
     import numpy as np
-    from machine import figure, fours
-    from machine.term_rows import TERMS
+    from machine.body import figure
+    from machine.moves import fours
+    from machine.body.term_rows import TERMS
 
     def told(part, term, rad):
         kind, sign = TERMS[(part, term)][:2]
@@ -205,8 +209,9 @@ def test_her_legs_levelled_to_her_arms(report):
     shoulders over her hips at that pitch, the knee within her travel; her hips' height, her legs' share and how far
     back the text's share wants her centre as that stance makes them."""
     import numpy as np
-    from machine import drives, kernel
-    from machine.figure import SOLE_BALL
+    from machine.body import drives
+    from machine.texts import kernel
+    from machine.body.figure import SOLE_BALL
     got = kernel.read()
     origin = got['quadrupedal-posture-extensions']['postures']['pronograde-quadruped']['origin-q0']
     told = kernel.node('xform-gait-pronograde-quadruped', 'limb-lengths')
@@ -231,7 +236,10 @@ def test_the_truss_meets_her_weight_and_squeezes_nothing(report):
     0 N as told; her legs' share her centre's place alone, the same to 1e-9 N under her drives' held torques as the
     metric (`heat.held`: arms 22.3 N m, legs 43.0); the scramble's 32 N wedge on all six edges, her hands a riser up."""
     import numpy as np
-    from machine import figure, fours, heat, kernel, modal
+    from machine.body import figure, heat
+    from machine.moves import fours
+    from machine.texts import kernel
+    from machine.law import modal
     origin = kernel.read()['quadrupedal-posture-extensions']['postures']['pronograde-quadruped']['origin-q0']
     _deg, _turn, points, com, _kappa, _fr = _stance(origin, -0.06, figure.SOLE_BALL)
     weight = fours.held(com, figure.mass() * modal.G, (0.0, 1.0, 0.0))

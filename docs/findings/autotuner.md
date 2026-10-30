@@ -1,6 +1,6 @@
 # Findings: autotuner
 
-The text as given (lisp/humanoid/meta_ast_autotuner.lisp), read by `machine.tune`:
+The text as given (lisp/humanoid/meta_ast_autotuner.lisp), read by `machine.texts.tune`:
 six classes, 33 keys (32 in the suite's names); its step's numbers its own (lambda
 0.08, a literal's move 0.15 of its scale, tol 1e-3, four places).
 
@@ -61,7 +61,7 @@ six classes, 33 keys (32 in the suite's names); its step's numbers its own (lamb
   and raised |r| the rest - her sit is chaotic in it -; under 0.4 ms her law
   rounds it away, her run the same bit for bit. Its |r| 8.23 is 8.23 of
   energy: a sit is no transport.
-- At runtime (`machine.rcu`, `machine.tap`): her walk linked passes as
+- At runtime (`machine.process.rcu`, `machine.process.tap`): her walk linked passes as
   unlinked bit for bit, 6000 passes tapped, none dropped. Her raw pass
   copied in C beside her contacts' read, 26 us (numpy's gathers 90, a
   per-pass sample 146); her hook 0.035 ms a pass median, p99 0.10, against

@@ -4,7 +4,7 @@ from typing import Any
 
 from coaxial.devices.ctrl import COMMANDS, KINDS, MEASURED, SLOTS, _index, _rows
 from coaxial.errors import RigError
-from machine.roles import Controller
+from machine.rig.roles import Controller
 from tools.cores import stand
 
 #: Rows a call carries to the ring at once (a u8), each call all or none.

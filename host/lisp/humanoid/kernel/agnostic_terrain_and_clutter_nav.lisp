@@ -75,7 +75,7 @@
         :watch-period-s watch-period-s)))
 
 ;; Her way: A* over the costed cells, a corner cut only where the straight line costs no more
-;; than the cells it replaces, the curve along the corners her walk's (`machine.route`); her
+;; than the cells it replaces, the curve along the corners her walk's (`machine.way.route`); her
 ;; trunk twisted through a gap under her shoulders (`slice-narrow-aperture-axial`); apart.
 (defprimitive solve-permeability-sherman-morrison-streamline
   [state &key (goal-xyz [4.0 0.0 0.0])

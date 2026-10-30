@@ -111,7 +111,7 @@ def test_helicopter_boards_and_view(report):
     from coaxial import Coaxial63100
     from coaxial.graphics import (aerobat as aero_gfx, engine, helicopter as heli_gfx, shapes,
                                   ornithopter as orni_gfx, quadcopter as quad_gfx)
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.ui import bindings, stage
     from terminal.views import (show_aerobat as aview, show_helicopter as view,
                                 show_ornithopter as oview, show_quad as quad_view)
@@ -237,7 +237,7 @@ def test_helicopter_course_laps(report):
 
 def test_lisp_manifests_and_validation(report):
     """Shared Lisp blocks compile alone and into the four crafts' files; cooling and errors check."""
-    from machine import heat
+    from machine.body import heat
     hm, qm, om, am = helicopter.MANIFEST, quad.MANIFEST, ornithopter.MANIFEST, aerobat.MANIFEST
     mdir = os.path.dirname(os.path.abspath(helicopter.LISP_PATH))
     shared_files = ('aerodynamics.lisp', 'dynamics.lisp', 'kinematics.lisp')

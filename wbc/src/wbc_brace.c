@@ -1,4 +1,4 @@
-/** wbc_brace.c - her surety's brace on the solve (wbc_imp.h): machine.motion.scaled and braced on her
+/** wbc_brace.c - her surety's brace on the solve (wbc_imp.h): machine.law.motion.scaled and braced on her
     law's arrays - the cervical and shoulder dofs' inertia scaled off the solve, the tuck's torques
     and the cervical blend laid over its answer, her drives' inertia and her legs' stiffness -
     numpy's arithmetic operation for operation (wbc_np.h), its matmuls numpy's own BLAS on the

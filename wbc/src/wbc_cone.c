@@ -1,6 +1,6 @@
 /** wbc_cone.c - a standing sole's wrench in its cone, for the step without an active set
     (wbc_wrench.c): clipped a part at a time for its rounds (`wbc_cone_bounded`); striding, met
-    a face at a time by her inertia (`wbc_cone_taken`: machine.wrench's `faced` and `_taken`). */
+    a face at a time by her inertia (`wbc_cone_taken`: machine.stack.wrench's `faced` and `_taken`). */
 #include "wbc.h"
 #include "wbc_solve.h"
 
@@ -60,7 +60,7 @@ void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_
 
 /** x with each standing sole's wrench in its cone, as `bounded`, into at; the faces it is past
     - six a sole: its moment about its own axes, then its force - into past, and each one's
-    share of the sole's push into to (machine.wrench.faced). */
+    share of the sole's push into to (machine.stack.wrench.faced). */
 static void faced(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *ask,
                   const double stance[2], const double x[NU], double at[NU], double past[12],
                   double to[12])
@@ -213,7 +213,7 @@ static void kinetic(const wbc_body_t *b, wbc_wrench_t *w, const double mbt[6][6]
     unbounded, brought to the faces her soles' wrenches are past by the least change in the
     metric w->k holds factored - a face a part of a sole's wrench, about its own axes, less its
     share of the sole's push; her height's band decided before the faces, and giving where a
-    cone and it cannot both be met. Into at (machine.wrench._taken). */
+    cone and it cannot both be met. Into at (machine.stack.wrench._taken). */
 static void taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
                   double lo, double hi, const double u0[NU], double at[NU])
 {

@@ -1,7 +1,7 @@
 """The demo's own drive: its cycle on the speed loop, the burst, the load."""
 import math
 
-from machine.parts import SpeedPI
+from machine.rig.parts import SpeedPI
 from motor.pmsm import RAD_S_PER_RPM
 
 

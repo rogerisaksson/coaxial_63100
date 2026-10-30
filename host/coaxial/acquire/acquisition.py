@@ -3,7 +3,7 @@ import time
 from abc import ABC, abstractmethod
 
 from coaxial.comm.hostclock import clock_of
-from machine.roles import Stream
+from machine.rig.roles import Stream
 
 
 class Acquisition(Stream, ABC):

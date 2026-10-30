@@ -1,7 +1,7 @@
 """Her touch's filter in C through ctypes (wbc_touch.c), her python's bit for bit.
 
     k, ask = motion.laid()
-    step = touch.laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state)    # machine.touch.stepped
+    step = touch.laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state)    # machine.senses.touch.stepped
     twist = step(asked, twist, tw_on, heading, dt, vel)       # a pass: out, a and state in place, her twist back
 """
 import ctypes
@@ -39,11 +39,13 @@ def _typed():
 
 
 def laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state):
-    """The filter in C on her law's arrays, pointed at once - `machine.touch.stepped` of her edge's
+    """The filter in C on her law's arrays, pointed at once - `machine.senses.touch.stepped` of her edge's
     `y_in`, her model's `xmat` and `xpos` with her skin's bodies `ids` and the toes' `tips`, modal's
     `y`, `fr` and `a`, her latent `st`, its `out` and her `rest`, the filter's `state` -: a step
     (asked, twist, tw_on, heading, dt, vel) -> her twist (3,); `k` the ask's (`tools.cores.motion.laid`)."""
-    from machine import edge, latent, touch
+    from machine.senses import edge
+    from machine.law import latent
+    from machine.senses import touch
     t = Touch(touch_at=edge.TOUCH.start, st_now_gain=latent.NOW.start + latent.GAIN, st_to_gain=latent.TO.start + latent.GAIN,
               r_z=latent.Z.start, r_k=latent.K.start, r_d=latent.D.start, s_felt=touch.FELT.start, s_hold=touch.HOLD_S,
               s_brake=touch.U_BRAKE, s_stand=touch.U_STAND, s_drv=touch.U_DRV, s_clear=touch.CLEAR.start,

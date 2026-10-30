@@ -1,4 +1,4 @@
-"""Her movements' terms (`machine.terms`): its rows her figure's laid anew; a term moves her in
+"""Her movements' terms (`machine.body.terms`): its rows her figure's laid anew; a term moves her in
 MuJoCo as its name says, either limb the one sign; its stops the figure's; what she has not is
 absent; the leg's own IK bends its joints the terms' way."""
 import importlib
@@ -14,7 +14,7 @@ ASKED_DEG = 10.0
 
 
 def test_the_rows_are_her_figure(report):
-    """machine/term_rows.py is what tools/cores/terms.py lays from her figure now."""
+    """machine/body/term_rows.py is what tools/cores/terms.py lays from her figure now."""
     from tools.cores import terms as laid
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
@@ -39,7 +39,7 @@ def test_a_term_moves_her_as_its_name_says(report):
     segment's point or axis goes the way anatomy says (`tools.cores.terms.ANATOMY`), nine
     tenths of its motion at the least; its opposite the other way; a term toward a side, toward
     the limb's whose mirror it took."""
-    from machine import mjcf, reach_rows, term_rows, terms
+    from machine.body import mjcf, reach_rows, term_rows, terms
     from tools.cores import terms as laid
     mujoco = importlib.import_module('mujoco')
     model = mujoco.MjModel.from_xml_string(mjcf.mjcf())
@@ -69,7 +69,7 @@ def test_a_term_moves_her_as_its_name_says(report):
 def test_its_stops_are_the_figures(report):
     """A term's stops are her figure's as declared - `drives.TRAVEL` -, through the term's sign; with none
     declared, none."""
-    from machine import drives, terms
+    from machine.body import drives, terms
     declared = drives.TRAVEL
     wrong, held, free = [], 0, []
     for (part, name), (joint, sign, low, high) in terms.TERMS.items():
@@ -89,7 +89,7 @@ def test_what_she_has_not_is_absent(report):
     """A movement anatomy names and no driven joint of hers makes is not found: her shoulder's
     abduction, her forearm's pronation, her wrist's flexion - held -, her toes' - sprung; no
     term is on a joint without a drive."""
-    from machine import drives, term_rows, terms
+    from machine.body import drives, term_rows, terms
     found = [t for t in term_rows.ABSENT if terms.find(*t) is not None]
     named = all(t in term_rows.ABSENT for t in (('shoulder', 'abduction'), ('forearm', 'pronation'),
                                                  ('wrist', 'flexion'), ('toes', 'extension')))
@@ -104,8 +104,8 @@ def test_the_legs_ik_bends_the_terms_way(report):
     """`figure.leg`, either limb: the foot ahead of the hip is hip flexion, behind it extension;
     a foot drawn up, knee flexion; out to its side, abduction; turned out, lateral rotation;
     its toes up, dorsiflexion - each joint's angle times its term's sign."""
-    from machine import figure, reach_rows, terms
-    from machine.figure import ANKLE_H
+    from machine.body import figure, reach_rows, terms
+    from machine.body.figure import ANKLE_H
     pelvis, wrong = (0.0, 0.9, 0.0), []
     for limb, mirror in enumerate(reach_rows.LIMBS):
         hip = figure.hip(mirror, pelvis, IDENT)

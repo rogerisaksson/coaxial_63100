@@ -1,7 +1,7 @@
 # Findings: one stack for every drive
 
 One motor, one gearbox and one inverter: the candidates, the motors as bought,
-and what the stacks hold (`machine/drives.py`, `docs/DIMENSIONS.md`). The
+and what the stacks hold (`machine/body/drives.py`, `docs/DIMENSIONS.md`). The
 drives' own sizing: [drives](drives.md); each drive's demand on her loop:
 [demand](demand.md).
 

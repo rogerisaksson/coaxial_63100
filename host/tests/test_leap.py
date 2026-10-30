@@ -1,4 +1,4 @@
-"""Leap on the stack (`machine.leap`): which soles stand told from one pass - each as it bears,
+"""Leap on the stack (`machine.moves.leap`): which soles stand told from one pass - each as it bears,
 an unloaded one beside one that bears or with her at rest; a landing under her within her leg's
 reach; the loop in C meeting an airborne sole's ask as the python stack does; a hop stood on both;
 forward leaps from standing and in-stride scaled by hold charge."""
@@ -18,7 +18,7 @@ def test_her_soles_stand_as_they_bear(report):
     unloaded one beside one that bears whatever her speed; bearing nothing as she rises both
     leave in the one pass, a millimetre over the floor; as she falls none stands until one
     bears; one bearing alone stands at every speed of hers; a sole the ask swings never."""
-    from machine.leap import standing
+    from machine.moves.leap import standing
     both = (True, True)
     rest = standing(both, (LIGHT, LIGHT), (ON, ON), 0.0)
     beside = [standing(both, (LIGHT, PRESSED), (ON, ON), v) for v in (-0.5, 0.0, 0.3, 0.8)]
@@ -40,8 +40,9 @@ def test_a_landing_is_under_her_within_reach(report):
     """`leap.landing` from a hip over a floor, her centre of mass still or moving: the sole
     asked flat, falling as she falls, its ankle within her leg's reach (`reach.margins`); still,
     under her centre of mass by its own way off it."""
-    from machine import figure, leap, reach
-    from machine.figure import ANKLE_H
+    from machine.body import figure, reach
+    from machine.moves import leap
+    from machine.body.figure import ANKLE_H
     pelvis, worst, off_by, asks = (0.0, 0.92, 0.0), math.inf, 0.0, 0
     for limb, mirror in enumerate(reach.LIMBS):
         hip = figure.hip(mirror, pelvis, figure.IDENT)
@@ -66,8 +67,11 @@ def _airborne():
     """(body, s, ask, names): her crouch lifted off the floor, rising 0.7 m/s, her knees going
     out 4.7 rad/s as at a take-off, no sole standing, each asked to its landing, no turn."""
     import numpy as np
-    from machine import figure, leap, physics, wbc
-    from machine.figure import JOINTS
+    from machine.body import figure
+    from machine.moves import leap
+    from machine.world import physics
+    from machine.stack import wbc
+    from machine.body.figure import JOINTS
     from tools.sim.hop import crouched
     world, body = physics.World(), wbc.Body()
     names = [j for j, d in zip(JOINTS, body.driven) if d]
@@ -93,7 +97,7 @@ def test_the_loop_meets_an_airborne_soles_ask(report):
     """No sole standing, the loop in C plans each sole the acceleration the python stack plans,
     and no force: the margins' rows laid for a sole in the air too, it met 33 of 115 m/s^2."""
     import numpy as np
-    from machine import wbc
+    from machine.stack import wbc
     from tools.cores.wbc import shared, stack_step
     body, s, ask, _names = _airborne()
     ours = wbc.step(body, s, ask)
@@ -113,7 +117,10 @@ def test_forward_leap_scales_with_charge(report):
     and throw; in-stride leap (`ballistic.bound`) dips by the text's countermovement, its push waiting
     on her dip, its sagittal throw scaled with charge and speed."""
     import numpy as np
-    from machine import kernel, latent, leap, modal, ortho, se2, sprung, takes
+    from machine.texts import kernel, ortho, takes
+    from machine.law import latent, modal, se2
+    from machine.moves import leap
+    from machine.process import sprung
     c_min, c_mid, c_max = leap.hop_charge(0.005), leap.hop_charge(0.1275), leap.hop_charge(0.250)
     report.check('Space hold duration 5 ms to 250 ms maps linearly to [0, 1]',
                  c_min == 0.0 and abs(c_mid - 0.5) < 1e-6 and c_max == 1.0,
@@ -162,7 +169,8 @@ def test_she_jumps_high_on_both_feet_from_standing(report):
     and her rise from the crouch grow, within a stride of her spot (a sole's length is the DOD,
     docs/todo/scenarios.md). The flight's seconds and the clearance are the drives' (`leap.pushed`):
     0.17 s and 11 mm at 2/3 of the knees' clamp, her legs long in flight."""
-    from machine import stride, worker
+    from machine.law import stride
+    from machine.process import worker
     stats = {}
     for ch in (0.0, 1.0):
         s = worker.session()
@@ -227,7 +235,7 @@ def test_she_leaps_in_stride_and_walks_on(report):
     `>= 45 mm` clearance), leaps further - her longest flight's span, lift-off to touch-down - when Space
     is held 250 ms vs 5 ms and when running vs walking, lands and continues her gait. Measured 4.2 s
     on, her gait's after it buried the hold's: walk 2.22 -> 2.23 m, run 3.00 -> 2.89."""
-    from machine import sprung, worker
+    from machine.process import sprung, worker
     leap_dz = {}
     for label, vx in (('walk', 0.69), ('run', 1.40)):
         for ch in (0.0, 1.0):
@@ -278,7 +286,7 @@ def test_the_pages_held_space_lands_her(report):
     way; on her loop as the page lays it she lands on both soles and stands. A held Space said a new hop every 0.12 s
     in her flight and felled her (a recording on the page)."""
     from types import SimpleNamespace as SN
-    from machine import sprung, worker
+    from machine.process import sprung, worker
     from terminal.ui import bindings
     from terminal.views import humanoid_keys
     sent = []
@@ -320,7 +328,7 @@ def test_the_pages_run_leap_and_stop(report):
     page's), Space typed as she runs, the keys let go: on her loop as the page lays it she runs, leaps with both soles
     off the floor, stops and stands - no fall, one hop said."""
     from types import SimpleNamespace as SN
-    from machine import sprung, worker
+    from machine.process import sprung, worker
     from terminal.ui import bindings
     from terminal.views import humanoid_keys
     sent = []

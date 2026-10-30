@@ -7,7 +7,7 @@ past it.
     drape.bent(pos, norm, local, spans, frames, table)              # a pose, in place
 """
 from coaxial.graphics.shapes import turn_about
-from machine import figure
+from machine.body import figure
 
 #: A garment, the segment its corners bend into, and the local y where the bend begins (its
 #: own frame whole) and ends (the other's whole), m; `{side}` either side.

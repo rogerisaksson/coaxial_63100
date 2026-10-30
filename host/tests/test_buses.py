@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her buses under faults (`machine.edge`, wbc_sil.c, Renode): a burst within her horizon ridden, past it drives off."""
+"""Her buses under faults (`machine.senses.edge`, wbc_sil.c, Renode): a burst within her horizon ridden, past it drives off."""
 import os
 import sys
 
@@ -18,7 +18,9 @@ RENODE_NODES, RENODE_ECHOES = 3, 24
 
 def _laid():
     """Her session standing SETTLE passes, the bus BUS, her horizon 1/omega in passes, its frames a pass."""
-    from machine import edge, modal, worker
+    from machine.senses import edge
+    from machine.law import modal
+    from machine.process import worker
     s = worker.session()
     for _ in range(SETTLE):
         worker.stepped(s)
@@ -33,7 +35,7 @@ def _laid():
 def test_a_burst_within_her_horizon_is_ridden(report):
     """Half her horizon's frames corrupted on one bus: each refused once, the boards hold their
     last setpoints, the next pass sends anew - she stands, her drives on."""
-    from machine import worker
+    from machine.process import worker
     s, bus, horizon, per_pass, edge = _laid()
     frames, e0 = int(horizon * per_pass / 2), bus.comm_errors
     edge.burst(s['g']['world'], BUS, frames)
@@ -47,7 +49,7 @@ def test_a_burst_within_her_horizon_is_ridden(report):
 def test_a_systematic_fault_shuts_her_down(report):
     """A bus refusing every frame: past her horizon her drives off, no new epoch while she lies,
     a restart lays her anew."""
-    from machine import sprung, worker
+    from machine.process import sprung, worker
     s, _bus, horizon, _per_pass, edge = _laid()
     world, epoch = s['g']['world'], s['epoch']
     edge.burst(world, BUS, 1 << 30)
@@ -69,7 +71,7 @@ def test_a_systematic_fault_shuts_her_down(report):
 def test_the_line_noise_is_sporadic(report):
     """Her buses at the line's noise a run's while she stands: frames refused, counted once each,
     none systematic."""
-    from machine import worker
+    from machine.process import worker
     s, _bus, _horizon, _per_pass, edge = _laid()
     world = s['g']['world']
     edge.noise(world, edge.LINE_BER, SEED)

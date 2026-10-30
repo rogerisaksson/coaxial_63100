@@ -12,7 +12,7 @@ from coaxial.graphics import craft as _craft
 from coaxial.graphics.ground import (_BACKDROP_STATIC as _geometries, GROUND_SPEED,
                                      RUNG_SPACING, _ground)
 from coaxial.graphics.lines import _edge, _outline
-from machine import ansi
+from machine.rig import ansi
 from coaxial.graphics.shading import (BIAS, FLOOR, LIGHT, PIVOT, SHADOW_DIM, SLOPE, SUN_MIN, _dots,
                                       _expose, _face, _glow, _rim, _shadowmap)
 from coaxial.graphics.solids import (LODS, MESHES_KEPT, _decimate_missing, _decimated, _parametric,

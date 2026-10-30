@@ -10,7 +10,7 @@ def test_the_flight_apart_keeps_to_what_is_shown(report):
     past LEAD_S of what the page has shown while it shows nothing, a state a STEP_S as the page
     shows it in real time and none ahead of the wall; A begins it again, a new epoch."""
     import time
-    from machine import apart as world_apart
+    from machine.process import apart as world_apart
     from machine.aircraft import quad
     from terminal.views.quad import flight as view
     from terminal.views.quad import flying
@@ -56,7 +56,7 @@ def test_the_page_plays_it_back_never_ahead(report):
     two states the turn a rotation and a rotor's angle on at its speed."""
     import math
     import numpy as np
-    from machine.apart import LEAD_S
+    from machine.process.apart import LEAD_S
     from terminal.views.playback import STEADY_S, Playback
     from terminal.views.quad import flying
 
@@ -147,7 +147,7 @@ def test_a_world_ended_mid_state_is_left_unread(report):
     waits for its rest for ever (her page hung so in close on CI's runner)."""
     import threading
     import time
-    from machine import apart as world_apart
+    from machine.process import apart as world_apart
     apart = world_apart.Apart(_spilling)
     time.sleep(0.5)
     began = time.monotonic()

@@ -11,8 +11,10 @@ def test_her_horizon(report):
     import math
     import numpy as np
     from coaxial.graphics import gynoid, horizon
-    from machine import reach, sprung, stride
-    from machine.figure import ANKLE_H
+    from machine.body import reach
+    from machine.process import sprung
+    from machine.law import stride
+    from machine.body.figure import ANKLE_H
     from terminal.views import humanoid_keys, viewpoint
     z3 = np.zeros(27)
     seen = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None)['horizon']
@@ -63,7 +65,8 @@ def test_surface_arrows_setpoint_actual_and_landing_zones(report):
     """The arrows on the floor: asked, done, a hop, a stop, a fall."""
     import numpy as np
     from coaxial.graphics import arrows, gynoid
-    from machine import physics, sprung
+    from machine.world import physics
+    from machine.process import sprung
     from terminal.views import humanoid_keys
     z3 = np.zeros(27)
     b0, w = sprung.state(sprung.laid(every=3), z3, z3, 0.0, 1.0, None), physics.World()

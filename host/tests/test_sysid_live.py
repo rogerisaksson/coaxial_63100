@@ -7,7 +7,8 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import mjcf, physics
+from machine.body import mjcf
+from machine.world import physics
 from test_sysid import EVERY, OFF, SHORT, _campaign, _off
 
 #: Her walk on the world off the figure, s, its first SPLIT_S s a campaign's rows and the rest the
@@ -23,7 +24,8 @@ WEIGHT, SWUNG, ABOUT_NM = 0.01, 0.05, 0.2
 def _run(c, command, seconds, off):
     """Her run on the gym's world, `command` heard at 1 s, built `off` the figure or not: (ys, taus,
     s) her edge arrays and her drives' torques a step, the session."""
-    from machine import edge, worker
+    from machine.senses import edge
+    from machine.process import worker
     physics.ROOM, physics.SIGHT, mjcf.STAND = 0.0, 0.0, 0.0
     try:
         s = worker.session()
@@ -50,7 +52,8 @@ def test_her_model_holds_on_her_walk(report, c):
     takes TAKEN of what the world's own model takes off the build's misfit on the second half, in
     the mean, and adds none to any drive - from the stand alone it rose on her legs: her pelvis
     still there, masses and first moments never stand apart."""
-    from machine import identified, sysid, wbc
+    from machine.identify import identified, sysid
+    from machine.stack import wbc
     lay = c['lay']
     Y, tau, _touched, world = _campaign(c, 4, _off(physics.World(), c, 7))
     ys, taus, s = _run(c, {'twist': (0.69, 0.0, 0.0)}, WALK_S, True)
@@ -87,7 +90,7 @@ def test_her_weight_and_its_moments_are_read(report, c):
     own model's - her weight within WEIGHT of itself, the moments within SWUNG of their swing -,
     and beside the stand's campaign they add her pelvis's own to the base parameters: her mass,
     and a first moment of her pelvis within TRUST of itself."""
-    from machine import sysid
+    from machine.identify import sysid
     lay = c['lay']
     ys, _taus, s = _run(c, {'say': 1}, STAND_S, False)
     Yb, fb = sysid.borne(lay, c['body'], ys, physics.STEP_S, EVERY)
@@ -120,7 +123,8 @@ ROSTER = (test_her_model_holds_on_her_walk, test_her_weight_and_its_moments_are_
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
-    from machine import sysid, wbc
+    from machine.identify import sysid
+    from machine.stack import wbc
     report = Report()
     body = wbc.Body(identified=False)
     c = {'body': body, 'lay': sysid.laid(body)}

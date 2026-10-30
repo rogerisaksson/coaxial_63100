@@ -275,7 +275,7 @@ def test_the_marquee_decodes_the_art_itself(report):
     from rich.console import Console
     from rich.measure import Measurement
     from rich.text import Text
-    from machine import ansi
+    from machine.rig import ansi
     from terminal.ui import marquee, stage
 
     class ByText:

@@ -5,7 +5,7 @@
     mechanism.posed(parts, placed, angles, frames)   # each crank's, pin's and rod's (turn, spot)
     layers = mechanism.wires(parts, frames)  # the kinematic stick figure: [(a, b, ink)], world
 
-Her skeleton's parts (`machine.skeleton`), each drive's drum (`drums`), each belt over its two
+Her skeleton's parts (`machine.body.skeleton`), each drive's drum (`drums`), each belt over its two
 pulleys; cranks, pins and rods posed each frame (`posed`), their parent '*'.
 """
 import math
@@ -13,9 +13,9 @@ import math
 from coaxial.graphics import drums
 from coaxial.graphics.lit import paint
 from coaxial.graphics.shapes import drum, ellipsoid, limb, loft
-from machine import build, drives, figure, linkage
-from machine.skeleton import BOOM, HUNG, collars, gimbal, held, runs, trunk
-from machine.figure import ANKLE_H, BALL, FOREARM, HEEL, SHANK, THIGH, UPPER_ARM
+from machine.body import build, drives, figure, linkage
+from machine.body.skeleton import BOOM, HUNG, collars, gimbal, held, runs, trunk
+from machine.body.figure import ANKLE_H, BALL, FOREARM, HEEL, SHANK, THIGH, UPPER_ARM
 
 #: The colours: the carbon's, the rods' and their ball joints' steel, the quick-releases' printed
 #: polymer - violet, off the heat's ramp: orange read as a warm hip - and

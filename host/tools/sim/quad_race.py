@@ -224,7 +224,7 @@ def boards(air, room=BENCH, left=1.0):
     struck, the boards' worst envelope, the least share of the clamp's pull its rows had, the
     seconds a rotor was over the flight's clamp, on WEP's)."""
     from coaxial import Coaxial63100
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     view = owner('flight.CARD')[0]
     rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(), room=room) for _ in range(4)]
     sky, route = quad.Sky(grounds.solids()), aerobatics.routine(course.CARD)

@@ -1,4 +1,4 @@
-"""Her whole-body step in C through ctypes (wbc_step.c), `machine.wrench.step`'s bit for bit.
+"""Her whole-body step in C through ctypes (wbc_step.c), `machine.stack.wrench.step`'s bit for bit.
 
     solve = step.wrench_laid(body)
     out = solve(body, s, ask)               # wrench.step(body, s, ask)
@@ -9,7 +9,7 @@ import operator
 
 import numpy as np
 
-from machine import borne
+from machine.senses import borne
 from tools.cores import wbc
 from tools.cores.motion import Blas, numpy_blas
 
@@ -53,11 +53,11 @@ def _step_typed():
 
 
 def wrench_laid(b, sensed=None):
-    """`machine.wrench.step` in C on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
+    """`machine.stack.wrench.step` in C on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
     set; her body's indices and the step's constants laid once, her mass, clamps and WEP read at
     each - her model's masses move as her wear finds a load. `s` her compiled sensing's last
     (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
-    from machine import rounds, wbc as law, wrench
+    from machine.stack import rounds, wbc as law, wrench
     Step, step, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
     if b.n > most_n or len(b.act) > most_d or rounds.NU > most_d:
@@ -125,7 +125,7 @@ def _spread(a, n):
 def _stepped(k, step, v, b, s, ask):
     """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - her compiled sensing's
     last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views."""
-    from machine import wbc as law
+    from machine.stack import wbc as law
     kept = []
 
     def at(a):

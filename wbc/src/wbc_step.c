@@ -1,4 +1,4 @@
-/** wbc_step.c - machine.wrench.step in C (wbc_step.h): maps, rows, rounds (wbc_rounds.c), shrink -
+/** wbc_step.c - machine.stack.wrench.step in C (wbc_step.h): maps, rows, rounds (wbc_rounds.c), shrink -
     numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for operation. Portable C11. */
 #include "wbc_np.h"
 #include "wbc_step.h"
@@ -80,7 +80,7 @@ static void torques(const wbc_step_t *p, const double *full, const double *full0
   }
 }
 
-/** machine.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
+/** machine.stack.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
 static double shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
 {
   double least = 0.0;
@@ -137,7 +137,7 @@ int wbc_step(wbc_step_t *p)
 
   if (nc > WBC_STEP_C)
   {
-    return 1; /* machine.wrench lays no more: its mirror refuses them before the call */
+    return 1; /* machine.stack.wrench lays no more: its mirror refuses them before the call */
   }
   stance[0] = (double)(p->stance[0] != 0);
   stance[1] = (double)(p->stance[1] != 0);
@@ -249,7 +249,7 @@ int wbc_step(wbc_step_t *p)
   }
   c[0] = p->com_acc[0];
   c[1] = p->com_acc[2];
-  /* sat, her centre of mass's rows weigh as her turns' (machine.wrench) */
+  /* sat, her centre of mass's rows weigh as her turns' (machine.stack.wrench) */
   at = lay(R0, rhs, rhs0, at, nu, VIEW(row, 2 * nu, 1), 2, c, (p->w_com + (p->w_turn - p->w_com) * p->sat) * grounded, NULL);
   c[0] = p->com_acc[1] + G;
   c0[0] = G;

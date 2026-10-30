@@ -67,7 +67,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     drive/src/drive_thermal.c
     # Filter: the decimating anti-alias chain.
     filter/src/filter.c
-    # Ctrl: machine.parts and a feedback, the board's loop.
+    # Ctrl: machine.rig.parts and a feedback, the board's loop.
     ctrl/src/ctrl.c
     ctrl/src/ctrl_loop.c
     # Wbc: her chain on its static model, and the loop over it.

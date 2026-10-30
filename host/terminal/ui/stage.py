@@ -38,7 +38,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from coaxial.comm import broker
-from machine import placed
+from machine.process import placed
 from terminal.ui import bindings
 from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
@@ -91,7 +91,7 @@ def _vt_on():
 
 def stage():
     """The console every view draws on. Plain and sequential when piped; on a terminal, the page's process
-    placed a core apart from her worker's and its drawing's (`machine.placed`)."""
+    placed a core apart from her worker's and its drawing's (`machine.process.placed`)."""
     _vt_on()
     console = Console(highlight=False, theme=THEME)
     if console.is_terminal:
@@ -248,10 +248,10 @@ def mode_of(port):
     """The mode an emulated board's port runs it in: NAT on native://, else EMU."""
     return 'NAT' if str(port).startswith('native://') else 'EMU'
 
-#: Virtual actuators' chip (machine.virtual): no board, nothing simulated.
+#: Virtual actuators' chip (machine.rig.virtual): no board, nothing simulated.
 VIRTUAL_CHIP = Text(' VIRTUAL ', style='chip.virtual')
 
-#: A body with mass's chip (machine.physics): no board, the physics simulated.
+#: A body with mass's chip (machine.world.physics): no board, the physics simulated.
 DYNAMIC_CHIP = Text(' DYNAMIC ', style='chip.dynamic')
 
 

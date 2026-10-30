@@ -10,8 +10,8 @@ SECTIONS = [
         md('A table says what to set and what to wait for; the sequencer runs it row by row '
            'into a loop, init first and cleanup last; the loop runs the drive through its '
            'feedback, the limits over all of it.'),
-        code('''from machine import ansi
-from machine.wiring import blocks
+        code('''from machine.rig import ansi
+from machine.rig.wiring import blocks
 
 ansi.image(blocks([([('Table', 'CSV', ['a row a step: setpoints,', 'tests, limits, jumps']),
                      ('Sequencer', 'the run', ['init, the steps, cleanup', 'alarms beside it']),
@@ -24,10 +24,10 @@ ansi.image(blocks([([('Table', 'CSV', ['a row a step: setpoints,', 'tests, limit
            "module's channels, ins with units, outs with ranges - and every number is a float."),
         code('''from coaxial.control.commission import Commissioning
 from motor.pmsm import RAD_S_PER_RPM
-from machine import ansi
-from machine.nodes import Nodes
-from machine.parts import Gain
-from machine.wiring import diagram, feedback
+from machine.rig import ansi
+from machine.rig.nodes import Nodes
+from machine.rig.parts import Gain
+from machine.rig.wiring import diagram, feedback
 
 nodes = Nodes.discover(port=PORT, execution_mode=MODE, peripherals=())
 node = nodes.of_type('bldc_inverter')[0]
@@ -59,7 +59,7 @@ ansi.image(feedback(loop, 'speed'))'''),
            '`init` and `cleanup` hooks enter and leave the drive\'s mode.'),
         code('''import os
 import tempfile
-from machine.sequencer import Sequencer
+from machine.rig.sequencer import Sequencer
 
 TABLE = """group,seconds,label,rpm_target,rpm.GE,rpm.LE,goto,times
 init,0.5,,0,,,,
@@ -142,8 +142,8 @@ print('then cleanup: row %d, %.2f s, rpm %.0f at the end'
            'as they come and as they go (`ok`), `rpm.HH` and `rpm.LL` trip to cleanup, and '
            'a row\'s level holds from that row on. A test (`rpm.GE`, `rpm.LE`) is what a step '
            'waits for; out of its time it is an alarm - unless the row branches: then '
-           '`else` is its answer. The handler is `machine.alarms`, beside the sequencer.'),
-        code('''from machine.alarms import Alarms
+           '`else` is its answer. The handler is `machine.rig.alarms`, beside the sequencer.'),
+        code('''from machine.rig.alarms import Alarms
 
 ALARMED = \"\"\"group,seconds,label,rpm_target,rpm.GE,rpm.LE,rpm.H,rpm.L,else
 init,0.5,,0,,,1600,,
@@ -223,8 +223,8 @@ BENCH = ('Commission the record first; `init` arms, `cleanup` disarms; HH and LL
          'currents the stage may carry.')
 
 REFERENCES = [
-    ('host/machine/sequencer.py', '`Sequencer`: rows, groups, jumps, limits, `run`'),
-    ('host/machine/controller.py', '`Loop`, `Feedback`: the controller it drives'),
+    ('host/machine/rig/sequencer.py', '`Sequencer`: rows, groups, jumps, limits, `run`'),
+    ('host/machine/rig/controller.py', '`Loop`, `Feedback`: the controller it drives'),
     ('host/coaxial/control/motion.py', '`Velocity`: the loop behind `motion.velocity`'),
     ('host/tests/test_controller.py', 'the sequencer against a toy rotor'),
 ]

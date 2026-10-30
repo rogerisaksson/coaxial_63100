@@ -5,7 +5,7 @@ host/lisp/humanoid/kernel/).
 
 ## The momentum observer
 
-`machine.observer`, blind, in C (wbc_gmo.c on her chain, wbc.h): her drives'
+`machine.senses.observer`, blind, in C (wbc_gmo.c on her chain, wbc.h): her drives'
 torques (`edge.TAU`), encoders, IMU and estimate over M(q), low-passed at the
 text's 35 Hz, split over the registry's patches by 4 least squares, each
 pulling normal pinned for the next. Against her skin
@@ -82,7 +82,7 @@ sum badly (walking 61.4 N rms where 20.8).
 
 ## Her capture point's barrier
 
-`machine.barrier`: her centre of mass's floor ask projected onto each edge's
+`machine.law.barrier`: her centre of mass's floor ask projected onto each edge's
 h' + 14 h >= 0 (h her capture point's distance in, less 18 mm) over the hull
 of her bearing soles and the observer's pressing points on felt manifolds;
 past an edge, no further out.
@@ -102,7 +102,7 @@ past an edge, no further out.
 
 ## Her DC link
 
-`machine.dclink`, each world step: her drives' electrical power (work,
+`machine.body.dclink`, each world step: her drives' electrical power (work,
 braking negative, copper, each board's housekeeping) from her two 15S2P packs
 (48 V, 75 mOhm, their BMS's charge 19.6 A, estimated) into her 21 boards' DC
 link (33 x 10 uF X7S each, 6.93 mF nominal), implicit in its volts.
@@ -122,7 +122,7 @@ link (33 x 10 uF X7S each, 6.93 mF nominal), implicit in its volts.
 
 ## The blind field
 
-`machine.field`: while a seat's contact rows wait on a seat that does not bear
+`machine.senses.field`: while a seat's contact rows wait on a seat that does not bear
 her and her rows' height has landed, her height seeks down at the text's
 0.30 m/s through its 43 ms; held while her rows lean on a manifold, its floor
 her knee where her thigh meets her shank less the text's 0.28 rad.
@@ -141,14 +141,14 @@ her knee where her thigh meets her shank less the text's 0.28 rad.
 
 ## The body schema
 
-`machine.schema`: the text's 18 capsules by its names, frames and 13 pairs on
+`machine.law.schema`: the text's 18 capsules by its names, frames and 13 pairs on
 her skin (`figure.BODY`; her sole a capsule as wide as it from heel to ball,
 her knee where the text lays it). Its own are another body's: its shank 0.41 m
 and 68 mm round where hers 0.38 and 50, its thighs 95 mm round, through each
 other at her hips 95 mm off her middle. Her posture's ask held to each near
 pair's ECBF (11 Hz, 1.05), least in her mass's metric on the pair's barrier's
 evading joint, within its drive's peak; each pair's floor raised by its
-braking distance through `machine.bemf`.
+braking distance through `machine.body.bemf`.
 
 - Walking (`play_walk`, 4 334 law passes, her law's pose): her feet 22.8 mm
   apart at least (floor 7.5), shanks 41.9 (12), knees 40.8 (12), forearm and
@@ -184,7 +184,7 @@ where scheduled or felt: tried and undone. At the doorway's jambs
 94.0 without on the left, 240 and 208 on the right; her shoulder yielded
 -0.31 rad with it where -0.53 without on the left (the test's -0.40), -0.75
 where -0.56 on the right: the elbow spared no strike and halved a yield. The
-room's boxes stay her gauge's (`machine.wayfinder`); the text's shield holds
+room's boxes stay her gauge's (`machine.way.wayfinder`); the text's shield holds
 her trunk by her balance bus and her legs by her footholds, neither hers yet.
 
 - Her legs held off the room through her hips (the self-collision barriers'
@@ -205,7 +205,7 @@ her trunk by her balance bus and her legs by her footholds, neither hers yet.
 
 ## Her map
 
-`machine.registry`: the text's 256 slots of what her looks told her - her eyes'
+`machine.eyes.registry`: the text's 256 slots of what her looks told her - her eyes'
 or their stand-in (the world's boxes), those her eyes' frustum shows at the
 box's point nearest her eye -, matched to a slot of its kind in the
 Wasserstein metric over the slot's and the look's variances (chi2 5.99), the
@@ -230,7 +230,7 @@ model's summed innovation, past 16.27 a mover at its velocity.
 
 ## The wayfinder
 
-`machine.wayfinder`: her trunk twisted through the gap her way meets 0.6 s on
+`machine.way.wayfinder`: her trunk twisted through the gap her way meets 0.6 s on
 among what her high band meets; its backward coupling (her flow bent by the
 rows a shield holds against the room, Sherman-Morrison at eta 18.5) waits on
 such rows.
@@ -246,10 +246,10 @@ such rows.
 
 ## Her drives' back-EMF bounds
 
-`machine.bemf`, the text's quadrant law on her link's volts, her boards' own.
+`machine.body.bemf`, the text's quadrant law on her link's volts, her boards' own.
 On 48 V motoring falls under her law's clamps past 9.2 rad/s (hip roll), 14.7
 (hip, knee), 16.8 (ankle), 24-26 (shoulder, elbow, neck); braking keeps its
-peak. Her walk never reaches it. Her law each pass (`machine.shrunk`,
+peak. Her walk never reaches it. Her law each pass (`machine.stack.shrunk`,
 wbc_step.c, wbc_shrunk.c): her ask shrunk as one to her clamps as before,
 each drive clipped to these bounds.
 
@@ -262,7 +262,7 @@ each drive clipped to these bounds.
 
 ## The discrete phase margin
 
-`machine.margin`, `tools/sim/margin.py`: the text's lock-in at 15, 22, 30 and
+`machine.law.margin`, `tools/sim/margin.py`: the text's lock-in at 15, 22, 30 and
 38 Hz on her loop broken at a drive's torque, standing, 0.5 N m. The four at
 once beat 7-8 Hz apart through its 250 ms leak, 9 % of each in the others':
 each frequency in its turn, 1.5 s. A known loop (a PD on an inertia, its
@@ -307,7 +307,7 @@ torque 3 ms late) read within 0.11 dB and 1.7 deg.
 
 ## The lowering
 
-`machine.lowering`: a gait folded into a bank of the text's ABI (wbc_soa.h, 2 176
+`machine.texts.lowering`: a gait folded into a bank of the text's ABI (wbc_soa.h, 2 176
 bytes on 34 lines) over her nominal gait's, its fields' offsets held by
 `static_assert`s; the room's schedule four banks.
 
@@ -325,7 +325,7 @@ bytes on 34 lines) over her nominal gait's, its fields' offsets held by
 
 ## Her right-invariant EKF
 
-`machine.inekf` beside her estimate: SE_2+2(3), her IMU's mean over each law
+`machine.senses.inekf` beside her estimate: SE_2+2(3), her IMU's mean over each law
 pass carrying it, each sole's point under its insoles' centre of pressure -
 foot and toes by their loads - measured last pass and re-laid each, weighted
 by the observer's share of her on it, the text's Mahalanobis gate (11.34) a

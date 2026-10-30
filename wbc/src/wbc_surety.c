@@ -1,4 +1,4 @@
-/** wbc_surety.c - her directional surety field (wbc_imp.h): machine.motion.surety_field on her law's
+/** wbc_surety.c - her directional surety field (wbc_imp.h): machine.law.motion.surety_field on her law's
     arrays, numpy's and Python's arithmetic operation for operation (wbc_np.h). Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -8,7 +8,7 @@
 
 #define PI 3.14159265358979323846
 
-/** Her pelvis's tilt from upright as her IMU has it, deg (machine.edge.tilt). */
+/** Her pelvis's tilt from upright as her IMU has it, deg (machine.senses.edge.tilt). */
 static double tilt_deg(const double *q)
 {
   const double s = pow(q[1], 2.0) + pow(q[3], 2.0);

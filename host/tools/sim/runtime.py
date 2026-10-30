@@ -30,7 +30,7 @@ NAP_S, WALL_S = 0.005, 600.0
 
 def loop(name):
     """Her loop, linked to `name`: her walk told, each new epoch's too, till the tuner says halt."""
-    from machine import worker
+    from machine.process import worker
     from tools.sim import scenarios
     s = worker.session()
     worker.apply(s, {'link': name})
@@ -47,7 +47,7 @@ def loop(name):
 def row(c, state):
     """Her walk's row in its reached slots (`c['slots']`) compiled from her texts with `state`'s
     literals ({span: value}) spliced: her gym re-read, her walk voiced (`voicing.walk`)."""
-    from machine import tune, voicing
+    from machine.texts import tune, voicing
     walked = voicing.walk(c['fr'], tune.evaluated(tune.given(state, c['texts']))[1])
     return {k: float(walked[k]) for k in c['slots']}
 
@@ -55,7 +55,8 @@ def row(c, state):
 def window(c, seq):
     """Her run of the table `seq` (`telemetry.scored`'s dict): her passes from SETTLE_S past its
     laying for WINDOW_S, or where she fell first, her fall."""
-    from machine import gait, tap
+    from machine.law import gait
+    from machine.process import tap
     raws, looks, began, link = [], [], time.time(), c['link']
     while True:
         if not c['her'].is_alive() or time.time() - began > WALL_S:
@@ -83,7 +84,7 @@ def window(c, seq):
 def walking(c):
     """Drained till she walks: her epoch past the suite's settling (`suite.SETTLE_S`), standing - a
     table laid at rest turns her rhythm on under her stand."""
-    from machine import tap
+    from machine.process import tap
     began = time.time()
     while time.time() - began < WALL_S and c['her'].is_alive():
         got = c['link'].drained(0)
@@ -96,7 +97,8 @@ def walking(c):
 def runs(c):
     """The offline tuner's runs (`tools.sim.tune.runs`) as windows on her loop, one after another:
     each state's table published once she walks (`walking`), laid, its window measured."""
-    from machine import gait, tap
+    from machine.law import gait
+    from machine.process import tap
 
     def ran(items):
         out = []
@@ -113,7 +115,9 @@ def runs(c):
 def main(argv=None):
     """Her loop started linked, her walk tuned on it, the kept state written where asked."""
     import multiprocessing
-    from machine import modal, tap, tune
+    from machine.law import modal
+    from machine.process import tap
+    from machine.texts import tune
     p = argparse.ArgumentParser(description='The autotuner at runtime, on her walk.')
     p.add_argument('--steps', type=int, default=1)
     p.add_argument('--write', action='store_true', help='the kept texts written, converged and held elsewhere')

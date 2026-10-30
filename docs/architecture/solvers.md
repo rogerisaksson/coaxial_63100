@@ -11,7 +11,7 @@ The chain they solve over: [kinematics](kinematics.md); what asks them:
 | `machine/qp` | dense convex QP: dual active set, an interior-point fallback, a strict hierarchy by null space |
 | `machine/wbc` | the whole-body stack: accelerations and corner forces a step, torques after |
 | `machine/wrench` | the stack's step without an active set: each sole's wrench or acceleration and humanoid robot upper body's accelerations by one least squares, four times, clipped |
-| `wbc/` | the loop over the chain (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set), asks of R^k into torques by priority within the bounds; the step without an active set (wbc_wrench.c, machine.wrench's rows; a sole's cone and humanoid robot stride through it, wbc_cone.c; what it hands out, wbc_shrunk.c); host-tested; device 13 (`coaxial/devices/wbc`) |
+| `wbc/` | the loop over the chain (wbc_stack.c the levels and bounds, wbc_solve.c the dual active set), asks of R^k into torques by priority within the bounds; the step without an active set (wbc_wrench.c, machine.stack.wrench's rows; a sole's cone and humanoid robot stride through it, wbc_cone.c; what it hands out, wbc_shrunk.c); host-tested; device 13 (`coaxial/devices/wbc`) |
 | `aero/aero_share.c` | the quad's thrusts shared by an active set: [quad](quad.md) |
 | `host/tools/sim/wbc` | the whole-body stack standing, shoved |
 | `host/tools/cores/wbc.py` | the wbc core's ctypes harness |

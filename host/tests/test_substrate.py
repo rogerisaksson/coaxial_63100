@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What she stands on when it gives (`machine.substrate`; the kernel's deformable_substrate_core.lisp,
+"""What she stands on when it gives (`machine.world.substrate`; the kernel's deformable_substrate_core.lisp,
 deformable_groundwork_specializers.lisp, deformable_groundwork_patches.lisp): the texts read whole, the work loop's
 regimes as a contact's damping, her patches' pressures, the tamp's gate, a bed under her still centre, the kip."""
 import math
@@ -22,7 +22,7 @@ N_MOST = 2.0
 
 
 def _plan():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-deformable-groundwork-suite-soa'])
 
 
@@ -44,7 +44,8 @@ def test_the_texts_read_whole(report):
     """The three texts read with the kernel (`kernel.read`): the substrate's state, 9 slots of 8 patches; every
     manifold they name a patch; the core, the specializers and the patches stages; the schedule the mattress, the snow
     and the trampoline, each up again on her walk's clock; the regimes, ceilings, tamp and kip as the runs lay them."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got = kernel.read()
     state = got['rheological-substrate-soa-state']
     report.check('the state: %d slots of %d patches' % (len(state['slot-schema']),
@@ -86,7 +87,9 @@ def test_the_work_loop_names_a_damping(report):
     springing back whole, reads plastic. Her stroke, touch to deepest, fits the identifier's 35 ms only on a contact
     stiffer than her mass times (pi / 2 / 0.035)^2."""
     import numpy as np
-    from machine import figure, kernel, substrate
+    from machine.body import figure
+    from machine.texts import kernel
+    from machine.world import substrate
     classes = _plan()[0][1]['work-loop']['regime-classifier']
     ceiling, floor = classes[0]['when-eta-below'], classes[2]['when-eta-above']
     soft = kernel.node('xform-continuous-ground-roll', 'substrate-roll')['soft-substrate-compensation']
@@ -110,7 +113,8 @@ def _patches():
     """{patch: m^2} of hers: a sole and its toes (their boxes' undersides), a fist, a shin, a forearm and its fist, a
     thigh (capsules flat on their segments' x-y planes), her buttocks (the seat's capsules on its x-z plane)."""
     import numpy as np
-    from machine import figure, substrate
+    from machine.body import figure
+    from machine.world import substrate
 
     def flat(caps, plane=(0, 1)):
         a, b = (np.array([[c[k][i] for i in plane] for c in caps]) for k in (1, 2))
@@ -130,7 +134,9 @@ def test_her_patches_under_her_weight(report):
     multipliers; her pressure standing, landing a step (her walk's bound), kneeling, on all fours' fists (the text's
     share), on her forearms and sat, against the texts' ceilings."""
     import numpy as np
-    from machine import figure, kernel, substrate
+    from machine.body import figure
+    from machine.texts import kernel
+    from machine.world import substrate
     from tools.sim.looks import LANDS
     r, length = 0.03, 0.2
     disc = substrate.footprint(np.zeros((1, 2)), np.zeros((1, 2)), np.array([r]), STEP)
@@ -165,7 +171,8 @@ def test_a_tamp_commits_only_where_snow_bears_her(report):
     gate opens under its pre-load only at a sinkage under n F / k, any n to 2: in the first 2 % of the sinkage the
     tamp allows."""
     import numpy as np
-    from machine import figure, substrate
+    from machine.body import figure
+    from machine.world import substrate
     rng = np.random.default_rng(0)
     worst = 0.0
     for scale, n, z in zip(rng.uniform(1e4, 1e7, 16), rng.uniform(0.5, N_MOST, 16), rng.uniform(1e-3, 0.3, 16)):
@@ -191,7 +198,8 @@ def test_a_bed_under_her_still_centre(report):
     harmonic regime's most damped bed keeping what it keeps after the text's 1.5 periods; the kip's apex time and
     energy, her hips and knees at its tuck's speeds within their peak."""
     import numpy as np
-    from machine import bemf, drives, figure, substrate
+    from machine.body import bemf, drives, figure
+    from machine.world import substrate
     report.check('phase: top %.3f, bottom %.3f rad' % (substrate.phase(1.0, 0.0, 1.0), substrate.phase(-1.0, 0.0, 1.0)),
                  substrate.phase(1.0, 0.0, 1.0) == 0.0 and abs(substrate.phase(-1.0, 0.0, 1.0) - math.pi) < 1e-12)
     plan = _plan()

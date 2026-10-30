@@ -9,7 +9,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy
 
-from machine.parts import SpeedPI
+from machine.rig.parts import SpeedPI
 from motor import sysid
 from motor.pmsm import TWO_PI, Motor, Parameters
 
@@ -100,7 +100,7 @@ class Probe(Block):
 
 class SpeedLoop(Block):
 
-    """iq_ref from w_ref: `machine.parts.SpeedPI` on the bus."""
+    """iq_ref from w_ref: `machine.rig.parts.SpeedPI` on the bus."""
 
     def __init__(self, hz, limit, motor, load=None):
         self.law = SpeedPI.of(hz, limit, motor, load)

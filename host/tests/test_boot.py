@@ -12,7 +12,7 @@ from coaxial import Coaxial63100
 from coaxial.devices.boot import Boot, BootControl, Master, chunks_of, enumerate_blank
 from coaxial.errors import DeviceStateError
 from coaxial.simulated.boot import SimulatedBoot, SimulatedSegment
-from machine.modes import SIMULATED
+from machine.rig.modes import SIMULATED
 
 from test_modbus_core import Report
 

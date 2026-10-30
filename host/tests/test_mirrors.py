@@ -53,23 +53,23 @@ MIRRORS = (
     ('coaxial.simulated.values', 'RING_BYTES',
      'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
     ('coaxial.devices.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
-    ('machine.wbc', 'MU', 'wbc/inc/wbc.h', 'WBC_MU', 1.0),
-    ('machine.wrench', 'ROUNDS', 'wbc/inc/wbc.h', 'WBC_ROUNDS', 1.0),
-    ('machine.wrench', 'PAST', 'wbc/inc/wbc.h', 'WBC_PAST', 1.0),
-    ('machine.ortho', 'N', 'wbc/inc/wbc_ortho.h', 'ORTHO_MODES', 1.0),
-    ('machine.ortho', 'P', 'wbc/inc/wbc_ortho.h', 'ORTHO_P', 1.0),
-    ('machine.ortho', 'Z', 'wbc/inc/wbc_ortho.h', 'ORTHO_Z', 1.0),
-    ('machine.ortho', 'K', 'wbc/inc/wbc_ortho.h', 'ORTHO_K', 1.0),
-    ('machine.ortho', 'D', 'wbc/inc/wbc_ortho.h', 'ORTHO_D', 1.0),
-    ('machine.ortho', 'AMP', 'wbc/inc/wbc_ortho.h', 'ORTHO_AMP', 1.0),
-    ('machine.ortho', 'PHASE', 'wbc/inc/wbc_ortho.h', 'ORTHO_PHASE', 1.0),
-    ('machine.ortho', 'GAIN', 'wbc/inc/wbc_ortho.h', 'ORTHO_GAIN', 1.0),
-    ('machine.ortho', 'HZ', 'wbc/inc/wbc_ortho.h', 'ORTHO_HZ', 1.0),
-    ('machine.ortho', 'ZMP', 'wbc/inc/wbc_ortho.h', 'ORTHO_ZMP', 1.0),
-    ('machine.ortho', 'YAW', 'wbc/inc/wbc_ortho.h', 'ORTHO_YAW', 1.0),
-    ('machine.ortho', 'SLIDE', 'wbc/inc/wbc_ortho.h', 'ORTHO_SLIDE', 1.0),
-    ('machine.ortho', 'REST', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST', 1.0),
-    ('machine.ortho', 'REST_MS', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST_MS', 1.0),
+    ('machine.stack.wbc', 'MU', 'wbc/inc/wbc.h', 'WBC_MU', 1.0),
+    ('machine.stack.wrench', 'ROUNDS', 'wbc/inc/wbc.h', 'WBC_ROUNDS', 1.0),
+    ('machine.stack.wrench', 'PAST', 'wbc/inc/wbc.h', 'WBC_PAST', 1.0),
+    ('machine.texts.ortho', 'N', 'wbc/inc/wbc_ortho.h', 'ORTHO_MODES', 1.0),
+    ('machine.texts.ortho', 'P', 'wbc/inc/wbc_ortho.h', 'ORTHO_P', 1.0),
+    ('machine.texts.ortho', 'Z', 'wbc/inc/wbc_ortho.h', 'ORTHO_Z', 1.0),
+    ('machine.texts.ortho', 'K', 'wbc/inc/wbc_ortho.h', 'ORTHO_K', 1.0),
+    ('machine.texts.ortho', 'D', 'wbc/inc/wbc_ortho.h', 'ORTHO_D', 1.0),
+    ('machine.texts.ortho', 'AMP', 'wbc/inc/wbc_ortho.h', 'ORTHO_AMP', 1.0),
+    ('machine.texts.ortho', 'PHASE', 'wbc/inc/wbc_ortho.h', 'ORTHO_PHASE', 1.0),
+    ('machine.texts.ortho', 'GAIN', 'wbc/inc/wbc_ortho.h', 'ORTHO_GAIN', 1.0),
+    ('machine.texts.ortho', 'HZ', 'wbc/inc/wbc_ortho.h', 'ORTHO_HZ', 1.0),
+    ('machine.texts.ortho', 'ZMP', 'wbc/inc/wbc_ortho.h', 'ORTHO_ZMP', 1.0),
+    ('machine.texts.ortho', 'YAW', 'wbc/inc/wbc_ortho.h', 'ORTHO_YAW', 1.0),
+    ('machine.texts.ortho', 'SLIDE', 'wbc/inc/wbc_ortho.h', 'ORTHO_SLIDE', 1.0),
+    ('machine.texts.ortho', 'REST', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST', 1.0),
+    ('machine.texts.ortho', 'REST_MS', 'wbc/inc/wbc_ortho.h', 'ORTHO_REST_MS', 1.0),
     ('coaxial.devices.boot', 'UID_BYTES', 'boot/inc/boot.h', 'BOOT_UID_BYTES', 1.0),
     ('coaxial.devices.boot', 'WORD', 'boot/inc/boot.h', 'BOOT_WORD_BYTES', 1.0),
     ('coaxial.devices.boot', 'HEADER', 'boot/inc/boot.h', 'BOOT_HEADER_OFFSET', 1.0),
@@ -259,7 +259,8 @@ def test_dimensions_page_is_the_drives(r):
 def test_her_manifest_is_her_build(r):
     """Her orthokinematic manifest is what `tools/cores/manifest.py` writes of her build's file
     and her figure, and her text compiles it; her build names only the library's parts."""
-    from machine import defrobot, mechatronics, ortho
+    from machine.body import defrobot, mechatronics
+    from machine.texts import ortho
     from machine.errors import MachineError
     from tools.cores import manifest
     with open(manifest.path(), encoding='utf-8') as f:

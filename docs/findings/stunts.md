@@ -132,7 +132,7 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   -5.4, the rise from the chair -4.3, lying down -2.8, the bed's sit -2.2;
   the rise from a kneel +2.5 (fell at 3.1 m/s).
 - The lie by the takes on the page, measured and not kept: the law back to
-  the seat round's, the lisp's lie_bed the page's text, `machine/takes.py`
+  the seat round's, the lisp's lie_bed the page's text, `machine/texts/takes.py`
   telling a take for the bench. Kept: a take's legs hip to ankle, the
   straight leg their zero (hip to sole had the ankle's 0.05 m in it; the
   takes' standing ends' median fell 3.7 cm short of a straight stand); a take

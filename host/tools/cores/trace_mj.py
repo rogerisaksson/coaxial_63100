@@ -21,7 +21,7 @@ import numpy as np
 from tools.cores import trace
 from tools.cores.trace import Traced, Untraced
 
-#: Her body's own scratch a MuJoCo call writes into (`machine.wbc.Body`).
+#: Her body's own scratch a MuJoCo call writes into (`machine.stack.wbc.Body`).
 SCRATCH = ('_M', '_jp', '_jr', '_am')
 #: MjData's float arrays a holder may keep a view of (`quad.Sky._xmat`, `_vel`, `_xfrc`).
 DATA_ARRAYS = ('qpos', 'qvel', 'qacc', 'act', 'ctrl', 'qfrc_applied', 'xfrc_applied',

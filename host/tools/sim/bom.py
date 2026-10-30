@@ -5,7 +5,7 @@
 
 Each line a part type and its count, from the drives as stacked (`drives.STACKS`, the held and
 sprung joints' left out), the tubes by stock size (`tools/sim/members.py`), the transmissions
-(`machine.linkage`) and the gimbals' and the ankles' pins and bearings (`machine.skeleton`).
+(`machine.body.linkage`) and the gimbals' and the ankles' pins and bearings (`machine.body.skeleton`).
 The last line counts the types: the fewest variants.
 """
 import collections
@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 def parts():
     """[(part, count)] of her purchased parts, the drives first."""
-    from machine import drives, linkage, skeleton
-    from machine.figure import JOINTS
+    from machine.body import drives, linkage, skeleton
+    from machine.body.figure import JOINTS
     from tools.sim import members
     out = collections.Counter()
     driven = [j for j in JOINTS if not drives.passive(j)]

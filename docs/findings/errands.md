@@ -209,8 +209,8 @@ the turn, backed 0-0.52 m.
 
 ## Her wayfinder apart
 
-Her dock, her way and its watch are `machine.planner`'s, in `python -m
-machine.planner` on her page (`machine.planner.Here` in a run off it, one
+Her dock, her way and its watch are `machine.way.planner`'s, in `python -m
+machine.way.planner` on her page (`machine.way.planner.Here` in a run off it, one
 process a relay baton). house.py, 112 starts a verb: the chair 28 of 39 offered
 sat (34 before), the bed 20 of 25 lain (20). Her stage cleared from one arrival
 lies 0.22-0.45 m out (all five: 0.45). Walking at a thing her swinging foot

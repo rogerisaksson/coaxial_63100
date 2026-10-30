@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Onto and off a stool over her hips (`machine.bedside`; the kernel's overheight_*.lisp): the texts read whole, her
+"""Onto and off a stool over her hips (`machine.moves.bedside`; the kernel's overheight_*.lisp): the texts read whole, her
 dip hung from her fists, the seat's edge and the stool under her, her way down to the floor."""
 import math
 import os
@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from test_groundwork import LANDMARKS, MOVES, _laid, _part, _skin
+from ground_kit import LANDMARKS, MOVES, laid, part, skin
 
 #: The texts' landmarks by the segment of hers that carries each.
 CARRIED = {**LANDMARKS, 'posterior-femoral': 'thigh'}
@@ -23,7 +23,7 @@ DIP, SAMPLES, TURN, NUDGE = (-0.6, 0.95), 41, 7200, 1e-4
 
 
 def _plan():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-overheight-vault-and-dip-soa'])
 
 
@@ -38,14 +38,15 @@ def _calls(shot, stage):
 
 
 def _dip():
-    from machine import kernel
+    from machine.texts import kernel
     return kernel.read()['high-vault-1jet-posture-atlas']['postures']['carpal-dip-suspension']
 
 
 def test_the_texts_read_whole(report):
     """The texts read with the kernel: one posture, its origin, three columns and its hang; every manifold they name a
     patch, every landmark a segment of hers; their stages; the mount, 4 s seated, the dismount."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got, plan = kernel.read(), _plan()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
     folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
@@ -77,14 +78,15 @@ def _posed(a):
     """Her figure on the dip's origin moved `a` along its axial column."""
     dip = _dip()
     origin, column = dip['origin-q0'], dip['modal-basis-columns']['mode-axial-compression']
-    return _laid({j: origin.get(j, 0.0) + a * column.get(j, 0.0) for j in {**origin, **column}})
+    return laid({j: origin.get(j, 0.0) + a * column.get(j, 0.0) for j in {**origin, **column}})
 
 
 def _hung(a):
     """Her figure on the dip's origin `a` along its axial column, pitched so her centre stands over her fists - a
     point each, no moment - nearest upright: (deg, the floor's up in her frame, her fists' bottom, her pitch rad)."""
     import numpy as np
-    from machine import figure, groundwork
+    from machine.body import figure
+    from machine.world import groundwork
     deg = _posed(a)
     fists = np.mean([np.subtract(figure.fist(deg, side=s), (0.0, figure.FIST_R, 0.0)) for s in ('left', 'right')],
                     axis=0)
@@ -100,7 +102,7 @@ def _hung(a):
 def _torque(deg, up, joint, force):
     """N m: her left `joint`'s static torque holding `force` N up at her left fist (virtual work, her pelvis held)."""
     import numpy as np
-    from machine import figure
+    from machine.body import figure
     moved = [np.array(figure.fist(dict(deg, **{'left_' + joint: deg['left_' + joint] + s * math.degrees(NUDGE)})))
              for s in (-1.0, 1.0)]
     return abs(force * float(up @ (moved[1] - moved[0])) / (2.0 * NUDGE))
@@ -118,8 +120,9 @@ def test_her_dip_hung_from_her_fists(report):
     dip's range by its travel; her shoulder and elbow at the anchors' share of her within their peak, past what they
     hold for ever; her heel hooked bearing its share, her arms the rest."""
     import numpy as np
-    from machine import drives, figure, heat, kernel
-    from machine.term_rows import ABSENT
+    from machine.body import drives, figure, heat
+    from machine.texts import kernel
+    from machine.body.term_rows import ABSENT
     dip, shots = _dip(), _shots()
     origin, column = dip['origin-q0'], dip['modal-basis-columns']['mode-axial-compression']
     lockout = kernel.node('drive-capstan-bevel-arm-vault', 'bevel-vault')['coupled-1jet-vault-trajectory'][
@@ -159,7 +162,9 @@ def test_the_edge_and_the_stool(report):
     her weight on its seat and that drag at its top (`bedside.cop`) keep its centre of pressure inside its base by the
     cone's margin; the shear that tips it under the text's cap. Her fists reach along the seat past the replants."""
     import numpy as np
-    from machine import bedside, figure, kernel
+    from machine.moves import bedside
+    from machine.body import figure
+    from machine.texts import kernel
     shots = _shots()
     vault = kernel.node('xform-overheight-arm-vault-ingress', 'bevel-vault')
     alpha, sigma = vault['capstan-edge-unweighting-alpha'], vault['bevel-transition-halfwidth-m']
@@ -191,9 +196,9 @@ def test_the_edge_and_the_stool(report):
                                    cap, fist),
                  abs(x) < base - cone['object-floor-zmp-margin-m'] and push > weight
                  and fist == (-1e3 * figure.FIST_R, 1e3 * figure.FIST_R))
-    sat = _laid(kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0'])
-    points, radii, of, _c = _skin(sat)
-    floor = min(p[1] - r for p, r, o in zip(points, radii, of) if _part(o) == 'pelvis')
+    sat = laid(kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0'])
+    points, radii, of, _c = skin(sat)
+    floor = min(p[1] - r for p, r, o in zip(points, radii, of) if part(o) == 'pelvis')
     straight = dict(sat, left_elbow=0.0, left_shoulder=0.0)
     shoulder = figure.frames(straight, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0]
     arm = np.linalg.norm(np.subtract(figure.fist(straight), shoulder)) + figure.FIST_R
@@ -208,12 +213,14 @@ def test_her_way_down(report):
     dip she steps down from no higher than that less her hip, dipped from that less her hip at the dip's end - from
     there undipped a drop."""
     import numpy as np
-    from machine import figure, kernel, somatic
+    from machine.body import figure
+    from machine.texts import kernel
+    from machine.law import somatic
     shots = _shots()
-    sat = _laid(kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0'])
-    points, radii, of, _c = _skin(sat)
+    sat = laid(kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0'])
+    points, radii, of, _c = skin(sat)
     hip = figure.frames(sat, (0.0, 0.0, 0.0), figure.IDENT)['left_thigh'][0][1] - min(
-        p[1] - r for p, r, o in zip(points, radii, of) if _part(o) == 'pelvis')
+        p[1] - r for p, r, o in zip(points, radii, of) if part(o) == 'pelvis')
     rho = shots[1]['overhang-dip']['ground-capture-handover']['require-reachability-rho-below']
     reach = rho * somatic.LEG_M
     deg, up, fists, _phi = _hung(DIP[1])

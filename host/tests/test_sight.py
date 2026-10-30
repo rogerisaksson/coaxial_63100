@@ -1,9 +1,9 @@
-"""Her eyes (`machine.sight`): the stereo's depth held to the renderer's own on one look into the
-room; a look round, posed standing, into her map (`machine.voxels`), its occupied cells against the
+"""Her eyes (`machine.eyes.sight`): the stereo's depth held to the renderer's own on one look into the
+room; a look round, posed standing, into her map (`machine.eyes.voxels`), its occupied cells against the
 room's walls and things, the chair, the table and the bed told where they stand by what they afford
-her (`machine.affordance`), the bed's turn with it; a way to the chair planned round what she knows,
+her (`machine.way.affordance`), the bed's turn with it; a way to the chair planned round what she knows,
 clear of it all; the page's picture of her view (`coaxial.graphics.inset`); her way round the lodge's
-furniture walked through its corners (`machine.route`)."""
+furniture walked through its corners (`machine.way.route`)."""
 import itertools
 import math
 import sys
@@ -14,7 +14,7 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from machine import voxels
+from machine.eyes import voxels
 
 #: A look round is LOOKS looks, her heading posed a turn about; the stereo is held to the
 #: renderer out to STEREO_M, the room's depth: her map takes less (`sight.FAR_M`).
@@ -22,10 +22,10 @@ LOOKS, STEREO_M = 25, 4.0
 
 
 def _room():
-    from machine import physics
+    from machine.world import physics
     physics.ROOM = physics.SIGHT = 1.0
     from machine import Machine
-    from machine.modes import DYNAMIC
+    from machine.rig.modes import DYNAMIC
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
     world = next(n.world for n in body.others + list(a.node for a in body.actuators.values())
                  if hasattr(n, 'world'))
@@ -34,7 +34,7 @@ def _room():
 
 def _stood(world, heading=0.0):
     """Her posed standing in the room's middle, headed `heading` rad: nothing walks her."""
-    from machine import figure
+    from machine.body import figure
     world.reset(figure.stand(), where=(0.0, figure.standing(), 0.0),
                 turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
@@ -54,7 +54,7 @@ def _looked_round(world, eyes, keep):
 
 def _nearest(things, affords, at):
     """(its distance from `at`, the thing) of the thing affording `affords` (seat, bed, chair) nearest `at`."""
-    from machine import affordance
+    from machine.way import affordance
     by = {'seat': affordance.sits, 'bed': affordance.lies,
           'chair': lambda t, ts: affordance.sits(t, ts) and affordance.backed(t, ts)}[affords]
     near = [(math.hypot(t[1][0] - at[0], t[1][2] - at[1]), t) for t in things if by(t, things)]
@@ -64,7 +64,7 @@ def _nearest(things, affords, at):
 def test_the_stereo_holds_to_the_depth(report):
     """One look from her stand: the depth from the two eyes' disparity against the renderer's
     own, on the pixels kept."""
-    from machine import sight, stereo
+    from machine.eyes import sight, stereo
     body, world = _room()
     try:
         _stood(world)
@@ -94,7 +94,8 @@ def test_her_map_is_the_room(report):
     of the room, a way to the chair found clear of what she knows; her view for the page hulls what she
     told. What a thing is, the classifier's own (`test_her_kinds_from_their_boxes`): held to her
     eyes' fragments the chair came and went with 0.05 px of her card's disparity against her CPU's."""
-    from machine import room, sight
+    from machine.world import room
+    from machine.eyes import sight
     body, world = _room()
     try:
         eyes, keep = sight.Eyes(world), sight.Keep()
@@ -157,11 +158,12 @@ REACH_M, DRAWS = 0.7, 8
 
 
 def test_her_kinds_from_their_boxes(report):
-    """The classifier (`machine.affordance`) on the room's own boxes (`world.props()`, the stand-in's look) laid
+    """The classifier (`machine.way.affordance`) on the room's own boxes (`world.props()`, the stand-in's look) laid
     anywhere: each piece of furniture moved up to 1 m, turned any way and sized 0.8-1.25 along the floor, told what
     it affords where it now stands, its size and its turn, a seat's facing turned with it."""
     import random
-    from machine import affordance, room
+    from machine.way import affordance
+    from machine.world import room
     body, world = _room()
     try:
         props, rng, worst = world.props(), random.Random(63100), [0.0, 0.0, 0.0]
@@ -258,7 +260,9 @@ def test_her_map_from_painted_furniture(report):
     colour, the room seen through round them): her map's things and the classifier tell each piece what it affords,
     its place and its convex hull on the floor - a chair's its seat's and its back's - within a voxel's diagonal of
     MuJoCo's; the bed moved 0.9 m and turned 0.5 rad as well."""
-    from machine import affordance, room, sight
+    from machine.way import affordance
+    from machine.world import room
+    from machine.eyes import sight
     body, world = _room()
     try:
         for label in ('as laid', 'the bed moved'):
@@ -311,7 +315,11 @@ def test_her_way_walked_through(report):
     next overlaps it, every curve's samples lie in free cells and
     bend within her arc, her last stop her stage; to a walled-off goal and from inside a grown prop her
     stops are `route.way`'s corners, no curve; a plan within a look of her eyes (`sight.LOOK_S`), timed."""
-    from machine import dock, furniture, maneuver, physics, route, sight, worker
+    from machine.way import dock, furniture, route
+    from machine.texts import maneuver
+    from machine.world import physics
+    from machine.eyes import sight
+    from machine.process import worker
     from tools.sim import house
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     s = worker.session()
@@ -371,10 +379,11 @@ def _meets(w0, w1):
 
 
 def test_her_things_fill_her_registry(report):
-    """Her things into her registry (`machine.registry`): looked round, each look the room's boxes (`world.props()`,
+    """Her things into her registry (`machine.eyes.registry`): looked round, each look the room's boxes (`world.props()`,
     the stand-in's) seen from the head that looked, the chair (a seat with a back), the table (a seat) and the bed (a
     bed) hold slots her buses take within 0.3 m of where they stand."""
-    from machine import physics, registry, room, sight
+    from machine.world import physics, room
+    from machine.eyes import registry, sight
     body, world = _room()
     try:
         slots = registry.laid()

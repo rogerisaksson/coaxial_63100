@@ -12,9 +12,11 @@ from coaxial.comm.session import Origin
 from coaxial.draw import cross_section, gauges as _gauges
 from coaxial.graphics import arrows, gynoid, horizon
 from coaxial.graphics.callouts import packed
-from machine import figure, se2, sprung
-from machine.figure import JOINTS, quat
-from machine.routines import TYPES
+from machine.body import figure
+from machine.law import se2
+from machine.process import sprung
+from machine.body.figure import JOINTS, quat
+from machine.rig.routines import TYPES
 from terminal import boards
 from terminal.loader import answer
 from terminal.views import gym, viewpoint
@@ -249,7 +251,7 @@ def _joint_row(now, joint, label, shown):
 def _bus_row(now, name, joints):
     """A bus's boards, each by its drive's load and heat: her wear's alarms are SERVICE's - red
     here, a seat's and a fall's misread drift was taken for her buses' errors."""
-    from machine import drives
+    from machine.body import drives
     get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
     nodes, pk_share, max_c = ['\x1b[38;5;66m├'], 0.0, 25.0
     for u in range(7):
@@ -281,7 +283,7 @@ def _tier_row(state, now, emu):
 
 
 def boxes(state, now, name):
-    from machine import edge
+    from machine.senses import edge
     z0, keys, shown = (0.0, 0.0, 0.0), state.get('pad'), state.get('shown', 'torque')
     tw_act = _sync_actual(now, keys)
     raw_set = (keys.get('setpoint') or z0) if keys is not None else z0
@@ -414,10 +416,10 @@ def main(argv=None):
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
     parser.add_argument('--telemetry', type=int, default=0,
-                        help='serve her latent, impedance and wrench live on 127.0.0.1:PORT (machine.introspect)')
+                        help='serve her latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
     args, board_view = parser.parse_args(argv), stage()
     if args.telemetry:
-        from machine import worker as _worker
+        from machine.process import worker as _worker
         os.environ[_worker.TELEMETRY] = str(args.telemetry)
     terminal, body, leaving, name = board_view.is_terminal, None, None, 'a process of its own, dots'
     emu_port = args.port if (not args.simulated and str(args.port).startswith('emulator://')) else None

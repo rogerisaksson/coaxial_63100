@@ -92,7 +92,7 @@ const char *ctrl_loop_slot(ctrl_loop_t *l, uint8_t slot, uint8_t kind, const flo
   }
   if (n != ctrl_kind_params[kind])
   {
-    return "that kind takes another number of parameters (machine.parts PARAMS)";
+    return "that kind takes another number of parameters (machine.rig.parts PARAMS)";
   }
   (void)ctrl_part_set(slot_part(l, slot), kind, params);
   return NULL;

@@ -27,7 +27,7 @@ identification. Her figure: [kinematics](kinematics.md); her drives:
 | live | fed a line at a time, a buffer, woken with a line, a failsafe |
 | simulated | pack, camera |
 | virtual | VIRTUAL: a type's joints where told, no board |
-| dynamic | a body with mass as a Machine's nodes: a drive a joint, the pelvis's pose (`machine.physics`) |
+| dynamic | a body with mass as a Machine's nodes: a drive a joint, the pelvis's pose (`machine.world.physics`) |
 
 ## The gynoid
 

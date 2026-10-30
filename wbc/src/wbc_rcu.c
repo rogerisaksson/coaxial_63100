@@ -1,4 +1,4 @@
-/** wbc_rcu.c - her loop's side of the shared block (wbc_rcu.h, machine.rcu). */
+/** wbc_rcu.c - her loop's side of the shared block (wbc_rcu.h, machine.process.rcu). */
 #include "wbc_rcu.h"
 
 #include <stdatomic.h>

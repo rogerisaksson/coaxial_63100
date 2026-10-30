@@ -9,7 +9,7 @@
     emergency power where it ran near its clamp), her vertical acceleration within its band, each
     corner pressing inside its friction pyramid, each sole's centre of pressure inside its
     margin, a joint short of its stop - by an active set (wbc_solve.c). A pair's rods share
-    loads as machine.wbc._currents has it. machine.wbc's levels and bounds, deterministic
+    loads as machine.stack.wbc._currents has it. machine.stack.wbc's levels and bounds, deterministic
     (docs/findings/wbc.md). */
 #include "wbc.h"
 #include "wbc_solve.h"

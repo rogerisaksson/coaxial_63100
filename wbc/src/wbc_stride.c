@@ -1,5 +1,5 @@
-/** wbc_stride.c - under the ask (wbc_imp.h): machine.modal's reading of her, machine.stride's
-    beat, landings, rocks and heels, machine.poise's boxes and stance, flight.standing - numpy's
+/** wbc_stride.c - under the ask (wbc_imp.h): machine.law.modal's reading of her, machine.law.stride's
+    beat, landings, rocks and heels, machine.law.poise's boxes and stance, flight.standing - numpy's
     arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
@@ -20,7 +20,7 @@ void wbc_imp_shares(const wbc_imp_t *k, const double stance[2], double bears[2])
   }
 }
 
-/** machine.modal.shortened: her axial compression and its rate. */
+/** machine.law.modal.shortened: her axial compression and its rate. */
 void wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rate[2], const double *fr,
                       const double stance[2], double axial[2])
 {
@@ -31,7 +31,7 @@ void wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rat
   axial[1] = -npdot(w, 1, rate, 1, 2) / (k->axial_m * fr[k->f_hips_by]);
 }
 
-/** machine.modal.under: the floor under each sole's middle, its rise along her way. */
+/** machine.law.modal.under: the floor under each sole's middle, its rise along her way. */
 double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double floors[2])
 {
   const double rr[2] = {fr[k->f_rot], fr[k->f_rot + 2]};
@@ -51,7 +51,7 @@ double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, cons
   return rise;
 }
 
-/** machine.modal.reading: her modes and their rates as she is, her legs (each hip from its
+/** machine.law.modal.reading: her modes and their rates as she is, her legs (each hip from its
     ankle (2, 3), its length, that's rate), her turns and their rates (3, 2). */
 void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double *z,
                     double *zd, double leg[2][3], double len[2], double lrate[2], double turn[3][2],
@@ -163,7 +163,7 @@ void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2]
   }
 }
 
-/** machine.poise.into: `zmp` in the box lo to hi, `share` of the way to where xi stays in it. */
+/** machine.law.poise.into: `zmp` in the box lo to hi, `share` of the way to where xi stays in it. */
 static void into(const wbc_imp_t *k, const double zmp[2], const double xi[2], const double lo[2], const double hi[2],
                  double om, double share, double got[2])
 {

@@ -1,6 +1,6 @@
 """Her leg's reach over its foot as static arrays: where its stops leave the hip, by its height.
 
-    python tools/cores/reach.py --write     # machine/reach_rows.py
+    python tools/cores/reach.py --write     # machine/body/reach_rows.py
     laid = reach.rows()                     # what the file holds, laid anew from her figure
 
 A hip's place in its foot's frame - across to the limb's own side, up, along the toes - is the
@@ -9,7 +9,7 @@ joints take that, its yaw alone stopped. The roll tilts the leg's plane about th
 in that plane the hip stands `u` m up and `z` m along. Laid: for each `u` the run of `z` the
 ankle's pitch's travel and the knee's (`drives.TRAVEL`) leave, BACK to FORE - free, the leg's
 length alone bounding it, at -+(THIGH + SHANK); the roll's travel as tangents; the hip's yaw's
-stops; the sole. `machine.reach` reads them,
+stops; the sole. `machine.body.reach` reads them,
 tests/test_reach.py holds them to MuJoCo.
 
 A run is the longest along its `u`: ahead of an island the ankle's stroke forbids (the hip
@@ -22,12 +22,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import drives, figure
-from machine.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
+from machine.body import drives, figure
+from machine.body.figure import BALL, HEEL, HIP_DROP, HIP_HALF, SHANK, THIGH, TOE_M
 from tools import REPO
 from tools.cores import written
 
-PATH = os.path.join(REPO, 'host', 'machine', 'reach_rows.py')
+PATH = os.path.join(REPO, 'host', 'machine', 'body', 'reach_rows.py')
 NOTICE = "Her leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."
 
 #: The rows: the hip from U0 m up in its leg's plane, DU apart; a row scanned SCAN_M apart, its
@@ -97,7 +97,7 @@ def sole(toes):
 
 
 def rows():
-    """What machine/reach_rows.py holds, {name: value}."""
+    """What machine/body/reach_rows.py holds, {name: value}."""
     limits = stops()
     count = int(round((LENGTH - U0) / DU))
     true = [run(U0 + DU * k, limits) for k in range(count)]

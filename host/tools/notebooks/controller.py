@@ -10,8 +10,8 @@ SECTIONS = [
         md('Boards offer channels, each a float; a loop on the host reads some, writes others, '
            'and between them runs its feedbacks, each slot a part to swap; the board closes '
            'its own current loop under them.'),
-        code('''from machine import ansi
-from machine.wiring import blocks
+        code('''from machine.rig import ansi
+from machine.rig.wiring import blocks
 
 ansi.image(blocks([([('Nodes', 'discovered', ['every board, its channels', 'each a float, in or out']),
                      ('Loop', 'the host', ['sources in, sinks out', 'feedbacks between them']),
@@ -25,11 +25,11 @@ ansi.image(blocks([([('Nodes', 'discovered', ['every board, its channels', 'each
            '`<node>.drive.omega_hat` in, `<node>.drive.iq_ref` out, every channel a float.'),
         code('''from coaxial.control.commission import Commissioning
 from motor.pmsm import RAD_S_PER_RPM, Parameters
-from machine import ansi
-from machine.controller import Feedback, Loop, Paced
-from machine.nodes import Nodes
-from machine.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
-from machine.wiring import feedback
+from machine.rig import ansi
+from machine.rig.controller import Feedback, Loop, Paced
+from machine.rig.nodes import Nodes
+from machine.rig.parts import Gain, LowPass, Slew, SpeedKalman, SpeedPI
+from machine.rig.wiring import feedback
 
 J, B = 2e-5, 1e-5
 nodes = Nodes.discover(port=PORT, execution_mode=MODE, peripherals=())
@@ -73,7 +73,7 @@ for r in rows[::10]:
            '`SpeedKalman` predicts on the command, corrects on the measurement: `w` raw, '
            '`w_hat` estimated, one run.'),
         code('''import random
-from machine.roles import Filter
+from machine.rig.roles import Filter
 
 def spread(values):
     m = sum(values) / len(values)
@@ -139,7 +139,7 @@ loop.pause = 0.04'''),
         'A regulator of your own',
         md('A `Regulator` names its PARAMS and steps: `step(dt, setpoint, measured)` -> '
            '`{\'command\': ...}`. Proportional alone leaves the drag as its error.'),
-        code('''from machine.roles import Regulator
+        code('''from machine.rig.roles import Regulator
 
 class Proportional(Regulator):
     PARAMS = ('kp', 'limit')
@@ -169,7 +169,7 @@ print('error at 1000 rpm: Proportional %.0f rpm, SpeedPI %.0f rpm' % (p_error, p
            '`Loop.load` rebuilds it on live sources and sinks.'),
         code('''import os
 import tempfile
-from machine.panel import panel
+from machine.rig.panel import panel
 
 path = os.path.join(tempfile.gettempdir(), 'coaxial_controller.json')
 loop.save_at_exit(path)
@@ -201,11 +201,11 @@ BENCH = ('The record commissioned first (`commissioning.ipynb`); no flags on `ga
          'At the bench `r` is the observer\'s measured variance.')
 
 REFERENCES = [
-    ('host/machine/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
-    ('host/machine/nodes.py', '`Nodes`: `card`, and `loop` over their modules'),
-    ('host/machine/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
-    ('host/machine/panel.py', 'the panel'),
-    ('host/machine/wiring.py', 'the pictures: a loop, a feedback'),
-    ('host/machine/roles.py', 'the roles, and Part: ports, PARAMS, step'),
+    ('host/machine/rig/controller.py', '`Loop`, `Feedback`, `Paced`, `Polled`; save and load'),
+    ('host/machine/rig/nodes.py', '`Nodes`: `card`, and `loop` over their modules'),
+    ('host/machine/rig/parts.py', 'the parts: Gain, Slew, LowPass, SpeedKalman, PI, SpeedPI'),
+    ('host/machine/rig/panel.py', 'the panel'),
+    ('host/machine/rig/wiring.py', 'the pictures: a loop, a feedback'),
+    ('host/machine/rig/roles.py', 'the roles, and Part: ports, PARAMS, step'),
     ('host/tests/test_controller.py', 'the loop against a toy rotor and the stand-in'),
 ]

@@ -8,7 +8,7 @@
 
 The page runs its own `main` with `--simulated --frames N` - or `--port PORT` - on a
 console of the given size, as a terminal would size it; the last frame it drew is printed to text and,
-with `--png`, drawn by `machine.ansi.png`. PAGES names each page's module.
+with `--png`, drawn by `machine.rig.ansi.png`. PAGES names each page's module.
 """
 import argparse
 import importlib
@@ -21,7 +21,7 @@ import sys
 from rich.console import Console
 from rich.live import Live
 
-from machine import ansi
+from machine.rig import ansi
 from terminal.ui import console as keys_module
 from terminal.ui import stage as stage_module
 

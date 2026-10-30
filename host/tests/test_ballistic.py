@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Walk to run, a brake, a jump and a leap (`machine.ballistic`; the kernel's ballistic_*.lisp): the texts read
+"""Walk to run, a brake, a jump and a leap (`machine.moves.ballistic`; the kernel's ballistic_*.lisp): the texts read
 whole, their regimes on her leg, her run's stance on her knees, her jumps and leap from her drives, her brake on a
 floor's friction and her DC link."""
 import math
@@ -20,19 +20,19 @@ REGIMES = (':normal-walk', ':brisk-walk', ':sprangmarsch', ':slip-run')
 
 
 def _plan():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-ballistic-velocity-lifecycle-soa'])
 
 
 def _on(form):
     """Her nominal gait through one of the texts' forms, `[stage, keys..]`."""
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.value([form[0], 'nominal-biped-gait', *form[1:]], kernel.read())
 
 
 def _regime(regime):
     """(m/s, BPM, the stance's share of a stride) of a regime on her leg."""
-    from machine import ballistic
+    from machine.moves import ballistic
     g = _on(['xform-continuous-velocity-spectrum', ':regime', regime])
     morph = g['froude-homotopy']
     law = morph['duty-factor-law'].args
@@ -44,7 +44,8 @@ def test_the_texts_read_whole(report):
     """The texts read with the kernel: four postures, each an origin and three columns; every manifold they name a
     patch; their stages; the schedule's walk, morphs, double-time, leap, run, brake, walk and jump; the brisk walk's
     leap held on her world's obstacle ahead."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got, plan = kernel.read(), _plan()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
     folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
@@ -82,7 +83,10 @@ def test_her_regimes_on_her_leg(report):
     """Each regime's Froude number on her leg and the duty the text's Hermite map gives it: double support walking,
     flight running. Her run's stance: one sole bears her weight over a step through a stance of its share (a
     half-sine's peak), her knee holds it at the run origin's bend within its peak."""
-    from machine import ballistic, drives, figure, kernel, somatic
+    from machine.moves import ballistic
+    from machine.body import drives, figure
+    from machine.texts import kernel
+    from machine.law import somatic
     rows = [(r, *_regime(r)) for r in REGIMES]
     fr = [float(ballistic.froude(v, somatic.LEG_M)) for _r, v, _b, _d in rows]
     report.check('on her %.3f m leg: %s' % (somatic.LEG_M, '; '.join(
@@ -109,7 +113,9 @@ def test_her_jumps_and_leap_from_her_drives(report):
     little past it before their rotors are spun. Its broad jump at the text's angle, the platform under her apex by
     its margin, the leap one knee's from its stance at her double-time march, the gap leap's floor her apex less
     its margin."""
-    from machine import ballistic, drives, figure, kernel
+    from machine.moves import ballistic
+    from machine.body import drives, figure
+    from machine.texts import kernel
     no_load = math.radians(drives.speed('left_knee'))
     ankle = figure.BALL * math.radians(drives.speed('left_ankle'))
     shots = [seg[1] for seg in _plan() if seg[0] == 'oneshot']
@@ -149,7 +155,9 @@ def test_her_brake(report):
     """From her run to the walk the brake asks: each step's stance brakes her by its cap of the floor's friction
     (`ballistic.braked`, `ballistic.steps`) - within the text's two steps on a dry floor and her soles' own, its
     stutter's steps on a slick one -; what her speed gives her DC link over two steps under what her packs take."""
-    from machine import ballistic, dclink, figure, kernel
+    from machine.moves import ballistic
+    from machine.body import dclink, figure
+    from machine.texts import kernel
     v, bpm, _beta = _regime(':slip-run')
     node = _on(['xform-substrate-gated-rapid-brake'])
     brake, walk = node['brake-horizon'], node['brake-horizon']['target-speed-mps']

@@ -1,4 +1,4 @@
-/** wbc_twist.c - her twist on the loop (wbc_imp.h): machine.se2.twisted on her law's arrays - the
+/** wbc_twist.c - her twist on the loop (wbc_imp.h): machine.law.se2.twisted on her law's arrays - the
     floor under her, her heading, her rhythm flipped, her gait modulated, her look - numpy's and
     Python's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -9,7 +9,7 @@
 #define PI  3.14159265358979323846
 #define TAU 6.28318530717958647692
 
-/** Python's math.hypot of two; its float %, the divisor's sign; machine.se2.wrap_angle. */
+/** Python's math.hypot of two; its float %, the divisor's sign; machine.law.se2.wrap_angle. */
 static double hypot2(double a, double b)
 {
   const double v[2] = {a, b};
@@ -40,7 +40,7 @@ static double wrap(double angle)
   return atan2(sin(angle), cos(angle));
 }
 
-/** machine.se2.floored: the floor under her bearing soles' lowest corners, where it is along her
+/** machine.law.se2.floored: the floor under her bearing soles' lowest corners, where it is along her
     way, its pitch under each sole. */
 static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
 {
@@ -75,7 +75,7 @@ static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
   }
 }
 
-/** machine.se2._modulate_cpg: her gait's rhythm, drive, turn and arms under a twist told. */
+/** machine.law.se2._modulate_cpg: her gait's rhythm, drive, turn and arms under a twist told. */
 static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double vy, double wz, double vxp,
                      const double *held, const double *prior)
 {

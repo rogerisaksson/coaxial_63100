@@ -22,7 +22,7 @@ from coaxial.comm.session import standing
 from coaxial.devices import angle
 from coaxial.draw import dial
 from coaxial.errors import RigError
-from machine import ansi
+from machine.rig import ansi
 from terminal.loader import answer
 from terminal.ui import aspect as _aspect, screen as _screen
 from terminal.ui.demo import stop_motor, sweep_motor

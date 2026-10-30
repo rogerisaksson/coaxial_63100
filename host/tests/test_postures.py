@@ -17,9 +17,10 @@ def _seated(hips, behind, trunk):
     `behind` m behind her ankles (`seated.legs`), her pelvis pitched `trunk` rad forward, her way along
     the world's z."""
     import numpy as np
-    from machine import modal, seated
-    from machine.figure import ANKLE_H
-    from machine.leap import MIDDLE
+    from machine.law import modal
+    from machine.moves import seated
+    from machine.body.figure import ANKLE_H
+    from machine.moves.leap import MIDDLE
     knee, ankle = seated.legs(hips, behind)
     hx, hy = seated.hips(knee, ankle)
     y, fr = np.zeros(modal.SENSED), np.zeros(modal.FRAME)
@@ -35,7 +36,9 @@ def test_the_seat_holds_her_legs_as_she_sits(report):
     her ankles), her pelvis pitched -0.3 to 0.3 rad, her knee as landed - each leg's hip and ankle the
     landing's (`seated.posed`)."""
     import numpy as np
-    from machine import modal, rounds, seated
+    from machine.law import modal
+    from machine.stack import rounds
+    from machine.moves import seated
     worst = 0.0
     for hips in (0.40, 0.47, 0.55):
         for behind in (0.10, 0.20, 0.30):
@@ -53,9 +56,12 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     """`modal.poses` over what bears her (`ortho.MANIFOLDS`): her soles alone, the crouch's pose bit for
     bit (her walk's), her side, her back and her hands the same; the seat alone, `modal.seat`'s legs, the
     rest of her the crouch's; half on each, half way; her knees as asked whatever bears her; a let-go
-    leg on the same, an open chain (`machine.emancipation`)."""
+    leg on the same, an open chain (`machine.moves.emancipation`)."""
     import numpy as np
-    from machine import bends, modal, ortho, rounds
+    from machine.body import bends
+    from machine.law import modal
+    from machine.texts import ortho
+    from machine.stack import rounds
     names = rounds.DRIVEN
     y, fr, knee, _ankle = _seated(0.47, 0.2, 0.1)
     bend, arms, reaches, folds = columns = (bends.crouch(names), bends.swing(names), bends.reach(names), bends.fold(names))
@@ -94,7 +100,7 @@ def test_the_posture_atlas_reads_whole(report):
     (`posture_specializers.lisp`): seven postures, each its origin, its three modal columns and its hang
     law - the seat's shank plumb, its soles unloaded -; the blend, the reconstruction, the synthesizer
     and the five specializers its stages."""
-    from machine import dsp
+    from machine.texts import dsp
     got = dsp.read(dsp.KERNEL)
     atlas = got['canonical-posture-soa-atlas']
     layout, postures = atlas['memory-layout'], atlas['postures']
@@ -120,7 +126,8 @@ def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
     and ankles (`modal.poses`) nearer her legs than half what the crouch's column asks of her knee
     (`bends.crouch`, hip and ankle half the knee: 25-29 deg off them, findings/seat.md)."""
     import numpy as np
-    from machine import modal, ortho
+    from machine.law import modal
+    from machine.texts import ortho
     from tools.sim import scenarios
     seat, legs = ortho.MANIFOLDS.index('ischial'), modal.CHAIN[:, [0, 2]]
     knees, offs = modal.CHAIN[:, [1, 1]], []

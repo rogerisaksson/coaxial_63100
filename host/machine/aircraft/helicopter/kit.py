@@ -7,7 +7,7 @@ import ctypes
 import math
 
 from machine.aircraft import grounds
-from machine.figure import cross
+from machine.body.figure import cross
 from machine.aircraft.helicopter.airframe import (GRAVITY, MASS_KG, MIN_AIR_M_S, WIND_REG, WO_TURN, WO_WIND)
 
 _d3, _d4, _d9, _d12 = ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 9, ctypes.c_double * 12

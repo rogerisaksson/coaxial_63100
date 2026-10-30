@@ -3,7 +3,7 @@ import math
 
 from coaxial.graphics.lines import _trace
 from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS
-from machine.ansi import rgb as _rgb
+from machine.rig.ansi import rgb as _rgb
 
 
 #: THE TRIAD: the board's own X, Y and Z as a small gizmo in the

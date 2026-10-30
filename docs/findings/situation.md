@@ -1,6 +1,6 @@
 # Findings: situation
 
-Where she is, read from her sensors each pass (`machine/situation.py`), and
+Where she is, read from her sensors each pass (`machine/senses/situation.py`), and
 the text that fits it laid over her law (`lisp/humanoid/situations.lisp`);
 tests/test_situation.py holds it.
 

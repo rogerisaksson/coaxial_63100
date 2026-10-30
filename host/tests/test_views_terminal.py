@@ -300,7 +300,7 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     """`ansi.image` draws a coloured frame cell by cell, the way the bench's
     terminal shows it: the notebooks' pictures, and `tools/render/ansi2png.py`.
     """
-    from machine import ansi
+    from machine.rig import ansi
 
     frame = (ansi.paint('ab', ansi.RED) + 'c\n'
              + ansi.paint('\u28ff', ansi.GREEN) + ' \u2801')

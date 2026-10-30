@@ -16,7 +16,7 @@ from coaxial.devices.drive import from_wire, to_wire
 from coaxial.errors import RigError
 from coaxial.model import sensorless
 from coaxial.simulated import SimulatedDrive
-from machine.modes import SIMULATED
+from machine.rig.modes import SIMULATED
 
 
 class Report:

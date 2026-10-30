@@ -53,7 +53,7 @@ ahead of its edge and they came down in front of it; carried back over it,
 her arms moved her centre of mass behind her descent's and she missed the
 seat, her hips 0.39 m up. Her fists asked by joint angles land within
 several cm of her model's: placed by touch instead, as her hips find a seat
-(`machine.field`).
+(`machine.senses.field`).
 
 The pan as a row of the step (each patch's load toward its told share, weight
 30 as the turns') held nothing: the seated rest's told 0.85 pushed the seat

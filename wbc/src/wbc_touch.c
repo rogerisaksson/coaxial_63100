@@ -1,4 +1,4 @@
-/** wbc_touch.c - what her skin and her soles feel (wbc_imp.h): machine.touch.stepped on her law's
+/** wbc_touch.c - what her skin and her soles feel (wbc_imp.h): machine.senses.touch.stepped on her law's
     arrays, numpy's and Python's arithmetic operation for operation (wbc_np.h). Portable C11, the
     host's alone. */
 #include "wbc_imp.h"
@@ -14,7 +14,7 @@ static double hypot2(double a, double b)
   return pyhypot(v, 2);
 }
 
-/** machine.touch.against: `tw` less any axis aimed into what she felt (`ox`, `oz`). */
+/** machine.senses.touch.against: `tw` less any axis aimed into what she felt (`ox`, `oz`). */
 static void against(double ox, double oz, double heading, double along_cos, const double tw[3], double got[3])
 {
   const double rem = hypot2(ox, oz), w = npmin(1.0, rem / 0.10);
@@ -133,7 +133,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
     out[k->o_ds + m] = ((1.0 - u_b) * out0[k->o_ds + m] + (u_b * (1.0 - u_s)) * db[m]) + (u_b * u_s) * t->rest[t->r_d + m];
   }
   /* her soles: each's pushes turned out of its foot and its toes, their sizes, its toes' lowest
-     tip, the floor under it (machine.touch.soles) */
+     tip, the floor under it (machine.senses.touch.soles) */
   for (int s = 0; s < 2; s++)
   {
     const int     toes = t->ids[t->soles[s][1]];

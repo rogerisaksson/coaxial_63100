@@ -9,9 +9,9 @@
 /** A level's curvature damped by REG of its largest - level 0, the exact rows, by REG0 only. */
 static const double REG = 1e-6, REG0 = 1e-10;
 /** The tie-break: the levels below weigh LOWER of a level's curvature over theirs in the
-    directions its rows leave flat (machine.qp.stack); not on level 0, the exact rows. */
+    directions its rows leave flat (machine.stack.qp.stack); not on level 0, the exact rows. */
 static const double LOWER = 1e-3;
-/** A bound held with a dual over HOLD stays held below its level (machine.qp.stack's rule):
+/** A bound held with a dual over HOLD stays held below its level (machine.stack.qp.stack's rule):
     at 1e-7 a 38 N shove from behind felled her, at 1e-1 the walk fell; 1e-3 and 1e-2 hold
     both, 80 N too. */
 static const double HOLD = 1e-2;
@@ -671,7 +671,7 @@ void wbc_level_solve(wbc_stack_t *s, int level, int last)
     return;
   }
   /* Z cut to the null space of the rows, and of the bounds held pressing (a positive dual:
-     leaving one would cost the level its optimum, machine.qp.stack's rule): their span
+     leaving one would cost the level its optimum, machine.stack.qp.stack's rule): their span
      orthonormalised into s->qq, each old basis direction less that span orthonormalised
      again (Gram-Schmidt, twice for its accuracy). */
   {

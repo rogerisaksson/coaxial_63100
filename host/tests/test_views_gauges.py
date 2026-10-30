@@ -207,7 +207,7 @@ def test_the_face_wears_its_two_scales(report):
     die temperature and field strength in gauss.
     """
     from coaxial.draw import dial
-    from machine import ansi
+    from machine.rig import ansi
 
     def dots(lines):
         return sum(bin(ord(c) - 0x2800).count('1')

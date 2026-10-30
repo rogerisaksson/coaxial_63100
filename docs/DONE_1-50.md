@@ -75,9 +75,9 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     flown on ideal rotors, caught 79 degrees off of 80 and stood again; a
     hover stood from upsets ([streams](findings/streams.md)).
 29. Orthokinematics: Humanoid robot movement as text compiled to rows
-    (`machine.ortho`), Humanoid robot latent state stepped and rendered with no
+    (`machine.texts.ortho`), Humanoid robot latent state stepped and rendered with no
     branch
-    (`machine.latent`, `machine.modal`), on the page's gym (`<`): crouched,
+    (`machine.law.latent`, `machine.law.modal`), on the page's gym (`<`): crouched,
     Humanoid robot weight over one sole, bowed, on one sole, a hop stood,
     walking
     0.27 m/s for a minute ([orthokinematics](findings/orthokinematics.md)).

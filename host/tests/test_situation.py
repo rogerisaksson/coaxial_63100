@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her situation read from her sensors (`machine.situation`): her text's bounds and caps, the readings
+"""Her situation read from her sensors (`machine.senses.situation`): her text's bounds and caps, the readings
 off what she senses, each situation entered unannounced on the world told within a second."""
 import math
 import os
@@ -26,7 +26,7 @@ def test_her_text_names_her_situations(report):
     under 0.25 of grip with the ice walk's caps, a slope past 0.08 either way, a seat bearing half
     her weight, lying, held by a push on her, stepping over an edge met; one without a bound, with
     a bound of 0, on no reading of hers or neither below nor above is refused."""
-    from machine import situation
+    from machine.senses import situation
     table = situation.text()
     names = table['names']
     report.check('her text names %s' % ', '.join(names),
@@ -52,8 +52,10 @@ def test_her_readings_place_her(report):
     nothing, she is in no situation; at a grip of 0.1 on the slippery floor, at 0.225 half in; up a
     10 deg ramp uphill and down it downhill; half her weight on a seat seated, lying on it lying and
     not seated; 20 N on her torso held; an edge 3 cm up stepping."""
-    from machine import edge, modal, situation
-    from machine.wbc import MU
+    from machine.senses import edge
+    from machine.law import modal
+    from machine.senses import situation
+    from machine.stack.wbc import MU
     table = situation.text()
     y, fr, a = np.zeros(modal.SENSED), np.zeros(modal.FRAME), np.zeros(modal.ASK)
     y[modal.QUAT] = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0)
@@ -97,7 +99,11 @@ def test_her_readings_place_her(report):
 def _entered(name, wobble):
     """(entered s, told s, fell s) of scene `name` laid turned `wobble` rad: when the world had her
     in it by its own contacts, when her law named it."""
-    from machine import edge, modal, physics, situation, worker
+    from machine.world import physics
+    from machine.senses import edge
+    from machine.law import modal
+    from machine.senses import situation
+    from machine.process import worker
     from tools.sim import scenarios
     body, share, said = SCENES[name]
     scene, plan, _seconds, _goal, _aim = scenarios.SCENARIOS[name]

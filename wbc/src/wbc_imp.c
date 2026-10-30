@@ -1,4 +1,4 @@
-/** wbc_imp.c - her modes' springs on her body (wbc_imp.h): machine.impedance.ask, machine.modal's
+/** wbc_imp.c - her modes' springs on her body (wbc_imp.h): machine.law.impedance.ask, machine.law.modal's
     reading under it, numpy's arithmetic operation for operation (wbc_np.h) - the ask the same bit
     for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -11,7 +11,7 @@
 
 typedef wbc_imp_said_t said_t;
 
-/** machine.impedance._poses: her turns, her arms and her knees into `a`; `z` her modes as she
+/** machine.law.impedance._poses: her turns, her arms and her knees into `a`; `z` her modes as she
     is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still`
     how still her rhythm is - her trunk's rates then her head's, shrunk where they are small. */
 static void poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
@@ -336,7 +336,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
-  /* a leg let go as her release has it (machine.emancipation): its foot then a contact (machine.borne) */
+  /* a leg let go as her release has it (machine.moves.emancipation): its foot then a contact (machine.senses.borne) */
   for (int b = 0; b < 2; b++)
   {
     stance[b] *= 1.0 - a[k->a_let_go + b];
@@ -414,7 +414,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   smax = npmax(stance[0], stance[1]);
   {
-    /* her standing legs' geometry sets her height only while nothing else bears her (machine.impedance) */
+    /* her standing legs' geometry sets her height only while nothing else bears her (machine.law.impedance) */
     const double upright = smax * (1.0 - propped);
 
     lifted = ((upright * npdot(bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - upright) * k->axial_m) * pressed;

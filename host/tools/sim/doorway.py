@@ -21,7 +21,7 @@ STEPS = 50
 def ajar(world, gap, nominal):
     """The door's hinge locked at the angle leaving `gap` x `nominal` m between its free edge and the far
     post: rad."""
-    from machine import room
+    from machine.world import room
     width = room.DOOR_X[1] - room.DOOR_X[0]
     angle = math.acos(max(-1.0, min(1.0, 1.0 - (gap * nominal - (width - 2.0 * room.DOOR[0])) / (2.0 * room.DOOR[0]))))
     m, d = world.model, world.data
@@ -45,11 +45,13 @@ def clearance(caps, k, box):
 
 
 def run(gap, seconds, x=0.75, z=2.2):
-    from machine import bemf, capsules, room, wayfinder
+    from machine.body import bemf, capsules
+    from machine.world import room
+    from machine.way import wayfinder
     from tools.sim.house import Watch
     w = Watch(x, z, 0.0)
     angle = ajar(w.world, gap, wayfinder.NOMINAL)
-    from machine import worker
+    from machine.process import worker
     worker.apply(w.s, {'say': 'exit_door'})
     rows, g = [], w.g
     t0 = g['t']

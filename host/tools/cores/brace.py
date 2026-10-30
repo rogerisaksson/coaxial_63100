@@ -1,6 +1,6 @@
 """Her surety's brace on the solve in C through ctypes (wbc_brace.c), her python's bit for bit.
 
-    brace = brace.laid(body, brace_rows, cv, acv, legs, free_kp)      # machine.brace.scaled, braced
+    brace = brace.laid(body, brace_rows, cv, acv, legs, free_kp)      # machine.law.brace.scaled, braced
     Ms = brace.scaled(M, w_up)                                       # the solve's M, the four dofs' inertia scaled off
     jeff, leg_kp = brace.blend(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance)
 """
@@ -44,7 +44,8 @@ class Braced:
     their free stiffness `free_kp`; the arrays of a pass given at each call."""
 
     def __init__(self, b, rows, cv, acv, legs, free_kp):
-        from machine import se2, wbc as law
+        from machine.law import se2
+        from machine.stack import wbc as law
         n, nd, ncv = b.n, len(b.act), len(cv)
         self.kept = [np.ascontiguousarray(a, dtype=np.int32) for a in (b.act, acv, cv, np.concatenate(legs),
                                                                        [len(leg) for leg in legs])]
@@ -63,12 +64,12 @@ class Braced:
         self.mp, self.jp, self.lp = wbc.pointer(self.Ms), wbc.pointer(self.jeff), wbc.pointer(self.leg_kp)
 
     def scaled(self, M, w_up):
-        """The solve's M: `M` with the four dofs' inertia scaled off by `w_up` (`machine.brace.scaled`)."""
+        """The solve's M: `M` with the four dofs' inertia scaled off by `w_up` (`machine.law.brace.scaled`)."""
         self.scaled_c(self.sp, wbc.pointer(M), wbc.pointer(w_up), self.mp)
         return self.Ms
 
     def blend(self, M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance):
-        """(jeff, leg_kp) of `machine.brace.braced`; `qacc`, `tau` and `over` blended in place."""
+        """(jeff, leg_kp) of `machine.law.brace.braced`; `qacc`, `tau` and `over` blended in place."""
         p = [wbc.pointer(a) for a in (M, Ms, q, v, h, posture, qacc, tau)]
         self.blend_c(self.sp, *p, wbc.pointer(over, np.bool_), sw, bw, d_ax, d_lat, w_hop, wbc.pointer(w_up),
                      wbc.pointer(stance), self.jp, self.lp)

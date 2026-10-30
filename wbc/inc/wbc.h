@@ -107,8 +107,8 @@ typedef struct
   double settle[2][6];            /**< a standing sole's own acceleration (w, v), world: 0 still */
   double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
   double strides;                 /**< how far she strides, 0 to 1: the floor's shortfall her inertia's */
-  double mu[2];                   /**< each standing sole's friction: her grip (machine.grip) */
-  double lo[WBC_DRIVEN];          /**< each drive's back-EMF bounds, N m (machine.bemf): none -inf, inf */
+  double mu[2];                   /**< each standing sole's friction: her grip (machine.senses.grip) */
+  double lo[WBC_DRIVEN];          /**< each drive's back-EMF bounds, N m (machine.body.bemf): none -inf, inf */
   double hi[WBC_DRIVEN];
 } wbc_ask_t;
 
@@ -214,9 +214,9 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
 #define WBC_U (12 + WBC_DRIVEN - 12)
 /** Its rounds of clipping, and of faces striding. */
 #define WBC_ROUNDS 4
-/** Rounds more, at most, for an answer past her height's band after them (machine.wrench.PAST). */
+/** Rounds more, at most, for an answer past her height's band after them (machine.stack.wrench.PAST). */
 #define WBC_PAST 2
-/** Her law's own friction, a sole's, before she has felt a floor (machine.wbc.MU). */
+/** Her law's own friction, a sole's, before she has felt a floor (machine.stack.wbc.MU). */
 #define WBC_MU 0.6
 #define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)
 

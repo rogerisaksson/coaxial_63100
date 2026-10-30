@@ -32,7 +32,8 @@ class Run:
     flips counted, her arms and her support logged and a sit's joints kept (`seats.measured`)."""
 
     def __init__(self, scene='flat', room=False):
-        from machine import physics, worker
+        from machine.world import physics
+        from machine.process import worker
         from tools.sim import scenarios
         physics.ROOM, physics.SIGHT = float(room), 0.0
         self.s = worker.session()
@@ -51,7 +52,7 @@ class Run:
 
     def go(self, seconds, until=None):
         """`seconds` of passes, or to her fall: the seconds until `until(self)` first holds, or None."""
-        from machine import sprung, worker
+        from machine.process import sprung, worker
         t0, got = self.t, None
         while self.t - t0 < seconds and self.s['fallen_at'] is None:
             worker.stepped(self.s)
@@ -64,7 +65,8 @@ class Run:
         return got
 
     def _logged(self, doing):
-        from machine import modal, worker
+        from machine.law import modal
+        from machine.process import worker
         from terminal.views.humanoid_keys import HEADER, row
         from tools.sim import look
         g = self.s['g']
@@ -77,7 +79,7 @@ class Run:
         self.rows.append(dict(zip(HEADER, row(dict(now, stage='sit'), 60.0))))
 
     def tell(self, **command):
-        from machine import worker
+        from machine.process import worker
         self.flips = 0
         worker.apply(self.s, command)
 
@@ -126,7 +128,7 @@ def still(r):
 
 
 def doing(*names):
-    from machine import sprung
+    from machine.process import sprung
     return lambda r: sprung.doing(r.s['g']) in names
 
 
@@ -214,7 +216,7 @@ def errand_bed():
 
 
 def errand_chair_errand():
-    from machine import room
+    from machine.world import room
     r = Run(room=True)
     t0 = r.t
     r.tell(say='sit_chair', at=room.CHAIR_AT)
@@ -224,7 +226,7 @@ def errand_chair_errand():
 
 
 def errand_bed_errand():
-    from machine import room
+    from machine.world import room
     r = Run(room=True)
     t0 = r.t
     r.tell(say='lie_bed', at=room.BED_AT)
@@ -234,7 +236,7 @@ def errand_bed_errand():
 
 
 def errand_door():
-    from machine import room
+    from machine.world import room
     r = Run(room=True)
     t0 = r.t
     r.tell(say='exit_door')

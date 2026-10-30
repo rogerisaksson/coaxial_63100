@@ -1,4 +1,4 @@
-/** wbc_floor.c - under the ask (wbc_imp.h): a floor told her, machine.stride's footholds and the height
+/** wbc_floor.c - under the ask (wbc_imp.h): a floor told her, machine.law.stride's footholds and the height
     her centre keeps over its incline - numpy's arithmetic operation for operation (wbc_np.h). Portable
     C11, the host's alone. */
 #include "wbc_imp.h"
@@ -8,7 +8,7 @@
 
 #define PI 3.14159265358979323846
 
-/** machine.stride.footholds: each landing moved onto the nearest flat tread of a floor told her its whole sole fits
+/** machine.law.stride.footholds: each landing moved onto the nearest flat tread of a floor told her its whole sole fits
     within her reach, the tread it left from kept (hold, -1 none); the highest floor between each sole and its landing;
     the landing's height over the floor felt; each tread's run; the tread landed on (-1 none). */
 void wbc_imp_footholds(const wbc_imp_t *k, const double *along, const double *rise, int told, const double s_meet[2],
@@ -97,7 +97,7 @@ double wbc_imp_interp(double x, const double *along, const double *rise, int n)
   return rise[n - 1];
 }
 
-/** machine.impedance._landings: her cruise no faster than a tread a step, each landing onto its tread, the highest floor
+/** machine.law.impedance._landings: her cruise no faster than a tread a step, each landing onto its tread, the highest floor
     between and the landing's height; the tread a swing left from kept in a[cell]. */
 void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, double *a, const double *rot, const double c[3],
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
@@ -171,13 +171,13 @@ static double floor_area(const wbc_imp_t *k, const double *along, const double *
   return (rise[0] * npmin(s - along[0], 0.0) + rise[n - 1] * npmax(s - along[n - 1], 0.0)) + npsum(terms, K - 1);
 }
 
-/** machine.stride.floor_mean: a told floor's mean height from s0 to s1, its ends' past them; 0 with nothing told. */
+/** machine.law.stride.floor_mean: a told floor's mean height from s0 to s1, its ends' past them; 0 with nothing told. */
 double wbc_imp_floor_mean(const wbc_imp_t *k, const double *along, const double *rise, int told, double s0, double s1)
 {
   return (double)(told > 0) * (floor_area(k, along, rise, told, s1) - floor_area(k, along, rise, told, s0)) / (s1 - s0);
 }
 
-/** machine.stride.floor_at: a told floor's height under `s`, the tread's it lies on; its ends' past them. */
+/** machine.law.stride.floor_at: a told floor's height under `s`, the tread's it lies on; its ends' past them. */
 double wbc_imp_floor_at(const double *along, const double *rise, int told, double s)
 {
   const int    n = (told > 2 ? told : 2);

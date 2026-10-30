@@ -1,4 +1,4 @@
-"""Her leg's reach (`machine.reach`): its rows her figure's laid anew; what they hold, her stops
+"""Her leg's reach (`machine.body.reach`): its rows her figure's laid anew; what they hold, her stops
 allow; a place landed stands in MuJoCo, either limb the one code; two feet's gap."""
 import importlib
 import math
@@ -13,7 +13,7 @@ SIDES = ('left', 'right')
 
 
 def test_the_rows_are_her_figure(report):
-    """machine/reach_rows.py is what tools/cores/reach.py lays from her figure now."""
+    """machine/body/reach_rows.py is what tools/cores/reach.py lays from her figure now."""
     from tools.cores import reach as laid
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
@@ -26,7 +26,7 @@ def test_what_the_rows_hold_her_stops_allow(report):
     a place in to: none the rows hold is past a stop (`figure.leg` against the compiled figure's
     stops and the rods' strokes). Of what her stops allow the rows leave out a row's caution
     and, at the leg's length, the strip past the ankle's island."""
-    from machine import reach
+    from machine.body import reach
     from tools.cores import reach as laid
     limits, rng = laid.stops(), random.Random(7)
     held, lost, past = [0, 0], [0, 0], 0.0
@@ -50,7 +50,7 @@ def test_what_the_rows_hold_her_stops_allow(report):
 
 def _figure():
     mujoco = importlib.import_module('mujoco')
-    from machine import mjcf
+    from machine.body import mjcf
     model = mujoco.MjModel.from_xml_string(mjcf.mjcf())
     return mujoco, model, mujoco.MjData(model)
 
@@ -58,7 +58,7 @@ def _figure():
 def _foot(mujoco, model, data, side, pelvis, heading, angles):
     """(ankle, turn) of a foot in MuJoCo, the pelvis at `pelvis` headed `heading`, the leg's six
     joints at `angles`."""
-    from machine import figure
+    from machine.body import figure
     data.qpos[:] = model.qpos0
     data.qpos[0:3] = pelvis
     data.qpos[3:7] = (math.cos(0.5 * heading), 0.0, math.sin(0.5 * heading), 0.0)
@@ -73,8 +73,8 @@ def test_a_place_landed_stands_in_mujoco(report):
     """Hips and wants at random, either limb: the place `land` answers, its leg solved
     (`figure.leg`) and set in the compiled figure, has the foot there, flat and turned as told,
     every stopped joint within its stop; its margins not negative, its knee the leg's."""
-    from machine import figure, reach
-    from machine.figure import ANKLE_H
+    from machine.body import figure, reach
+    from machine.body.figure import ANKLE_H
     from tools.cores import reach as laid
     mujoco, model, data = _figure()
     limits, rng = laid.stops(), random.Random(11)
@@ -116,7 +116,7 @@ def test_a_place_landed_stands_in_mujoco(report):
 def test_her_right_is_her_left_mirrored(report):
     """The one code, a limb an index: her right's landing is her left's mirrored - the hip, the
     want and the heading across."""
-    from machine import reach
+    from machine.body import reach
     rng, apart = random.Random(13), 0.0
     for _ in range(2000):
         hip = (rng.uniform(-1.0, 1.0), rng.uniform(0.3, 0.9), rng.uniform(-1.0, 1.0))
@@ -142,7 +142,7 @@ def _edge(corners, step=0.004):
 def test_two_feet_clear_of_each_other(report):
     """`clear`: two feet side by side, one before the other, one on the other; at random against
     their edges walked 4 mm apart."""
-    from machine import reach
+    from machine.body import reach
     half, heel, front = reach.FOOT[1][0], -reach.FOOT[0][1], reach.FOOT[2][1]
     beside = reach.clear(((0.095, 0.075, 0.0), 0.0), ((-0.095, 0.075, 0.0), 0.0))
     before = reach.clear(((0.0, 0.075, 0.3), 0.0), ((0.0, 0.075, 0.0), 0.0))

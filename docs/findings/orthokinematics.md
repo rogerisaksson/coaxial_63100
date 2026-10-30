@@ -2,10 +2,10 @@
 
 Her movement as text: compiled to rows of numbers, stepped in a latent space
 with no branch, rendered on her body by her modes, solved by the whole-body
-step without an active set ([wrench](wrench.md)). `machine/ortho.py`
-compiles, `machine/latent.py` steps, `machine/impedance.py` renders - her
-modes read by `machine/modal.py`, her soles' polygon by `machine/poise.py`,
-her stride by `machine/stride.py` -, `machine/sprung.py` runs it: the
+step without an active set ([wrench](wrench.md)). `machine/texts/ortho.py`
+compiles, `machine/law/latent.py` steps, `machine/law/impedance.py` renders - her
+modes read by `machine/law/modal.py`, her soles' polygon by `machine/law/poise.py`,
+her stride by `machine/law/stride.py` -, `machine/process/sprung.py` runs it: the
 HUMANOID page, where nothing else moves her, and `tools/sim/ortho.py`.
 tests/test_ortho.py holds it, 43 of 43. Her moves are `lisp/humanoid/gynoid_mesomorph_medium.lisp`;
 the language's first texts, as given, `lisp/humanoid/examples.lisp` (`>` on the
@@ -72,7 +72,7 @@ Each a mass on a spring and a damper to its reference.
 
 ## Her stride
 
-`machine/stride.py`, from her drive's phase alone.
+`machine/law/stride.py`, from her drive's phase alone.
 
 | What | How |
 | --- | --- |

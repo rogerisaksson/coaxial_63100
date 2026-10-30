@@ -1,6 +1,6 @@
 """The autotuner on her texts: its text read, her texts given, every literal walked, its reach, its step.
 
-`machine.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`, `machine.rcu`, `machine.tap`: her texts
+`machine.texts.tune`, `tools/sim/tune.py`, `tools/sim/telemetry.py`, `machine.process.rcu`, `machine.process.tap`: her texts
 given play as her files, every literal is walked where it stands and reaches her where a voice reads
 it, the step is the text's, a run's residuals and the verdicts on a step; at runtime a link between
 her loop and a tuner apart, her walk linked as unlinked, her raw passes cooked as MuJoCo reads
@@ -13,12 +13,12 @@ from gynoid_kit import Report
 
 
 def _got():
-    from machine import dsp
+    from machine.texts import dsp
     return dsp.read(dsp.SUITE)
 
 
 def _her():
-    from machine import worker
+    from machine.process import worker
     return worker.session()['g']['fr']
 
 
@@ -29,7 +29,7 @@ def _near(a, b):
 def test_the_autotuner_reads_as_written(report):
     """The autotuner's text: its six classes in order, its keys and invariants the suite's names,
     each primitive done here, its step's numbers its own."""
-    from machine import tune
+    from machine.texts import tune
     gr = tune.grammar()
     report.check("six classes in its order, their invariants the manifold's",
                  [(r.name, r.invariant) for r in gr.values()] == [
@@ -53,7 +53,8 @@ def test_the_autotuner_reads_as_written(report):
 def test_her_texts_given_play_as_her_files(report):
     """Her texts read and given (`tune.texts`): the suite, her gym's entries and a stunt's entry the
     same as her files'; one not among them refused by name."""
-    from machine import dsp, maneuver, ortho, sprung, tune
+    from machine.texts import dsp, maneuver, ortho, tune
+    from machine.process import sprung
     tx = tune.texts()
     got, gym = tune.evaluated(tx)
     report.check('%d texts: the suite and her gym as from her files' % len(tx),
@@ -72,7 +73,9 @@ def test_a_literal_is_walked_where_it_stands(report):
     """Each keyword's number, each op's and each of her gym's clauses' where it stands: written back
     in full the suite and her gym read the same; a value at the text's precision reads back; her gym's
     stiffness the suite's compliance, its value her walk's row's axial spring."""
-    from machine import dsp, modal, ortho, sprung, tune, voicing
+    from machine.texts import dsp, ortho, tune, voicing
+    from machine.law import modal
+    from machine.process import sprung
     tx = tune.texts()
     lits = [lit for path, text in tx.items() for lit in tune.literals(path, text)]
     report.check('%d literals, each span its value' % len(lits),
@@ -96,7 +99,8 @@ def test_a_literal_reaches_her_where_a_voice_reads_it(report):
     """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move her
     voices by their rules, nothing voiceless does, a 0 the manifold says nothing larger of has no
     scale. The chair's sit: its hand-over's and its descent's times move her phases."""
-    from machine import modal, ortho, tune, voicing
+    from machine.law import modal
+    from machine.texts import ortho, tune, voicing
     tx, fr, gr = tune.texts(), _her(), tune.grammar()
     table = tune.walked('patch-sneaker-runway', gr, tx)
     cols, refused = tune.reach('patch-sneaker-runway', table, tx, fr)
@@ -128,7 +132,7 @@ def test_the_step_is_damped_least_squares_in_its_trust_region(report):
     """The step solves (J^T J + lambda I) x = -J^T r in the literals' scales, each move within the
     text's trust region of its scale, a held measure not growing."""
     import numpy as np
-    from machine import tune
+    from machine.texts import tune
     J, scales = np.array([[2.0, 0.0], [0.0, 0.5]]), np.array([1.0, 4.0])
     small = tune.step(J, np.array([0.01, -0.02]), scales)
     a = np.diag(J) * scales
@@ -148,7 +152,8 @@ def test_a_run_measured_and_a_step_judged(report):
     dimensions; a step not kept where she falls, its goal is lost, her form moves out past its
     floor or the norm falls no further than its floor."""
     import numpy as np
-    from machine import tap, tune
+    from machine.process import tap
+    from machine.texts import tune
     from tools.sim import looks, telemetry, tune as tuner
     square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)]
     margin = tap.margin
@@ -180,7 +185,7 @@ def test_a_link_between_her_loop_and_a_tuner(report):
     every section on a 64-byte line where both sides lay it; the block locked in memory here."""
     import sys
     import numpy as np
-    from machine import rcu
+    from machine.process import rcu
     a = rcu.Link.made(((13, 4), (5, 3)), 5, 3)
     b = rcu.Link.found(a.name)
     lib, words = rcu._core(), lambda x: (x.ctypes.data - a.base) // rcu.WORD
@@ -206,7 +211,7 @@ def test_a_link_between_her_loop_and_a_tuner(report):
 def _walked(seconds, link=None):
     """Her session walking `seconds` s, linked to `link` where given: (the session, each pass's time)."""
     import time
-    from machine import worker
+    from machine.process import worker
     from tools.sim import scenarios
     s = worker.session()
     if link is not None:
@@ -224,7 +229,7 @@ def test_her_loop_linked_passes_as_unlinked(report):
     """Her walk with a tuner linked and nothing laid passes as without one, bit for bit: the hook reads
     her world and writes the link alone."""
     import numpy as np
-    from machine import tap
+    from machine.process import tap
     plain, plain_s = _walked(3.0)
     link = tap.made(4.0)
     linked, linked_s = _walked(3.0, link)
@@ -243,7 +248,8 @@ def test_her_raw_passes_cook_as_mujoco_reads_them(report):
     own reads of each contact give them - `mj_contactForce`, her point's velocity off `cvel`."""
     import importlib
     import numpy as np
-    from machine import edge, tap, worker
+    from machine.senses import edge
+    from machine.process import tap, worker
     mujoco = importlib.import_module('mujoco')
     s, _times = _walked(1.0)
     world = s['g']['world']
@@ -278,7 +284,9 @@ def test_her_walk_measured_at_runtime(report):
     residuals finite, her form measured."""
     import multiprocessing
     import numpy as np
-    from machine import modal, tap, tune, voicing
+    from machine.law import modal
+    from machine.process import tap
+    from machine.texts import tune, voicing
     from tools.sim import runtime, suite
     tx, fr = tune.texts(), suite._her()
     c = {'gr': tune.grammar(), 'texts': tx, 'fr': fr, 'got': tune.evaluated(tx)[0], 'weight': float(fr[modal.WEIGHT]),
@@ -304,7 +312,9 @@ def test_a_table_is_laid_at_her_barrier_and_blends_c2(report):
     and her last blend done; her lean's target leaves and meets its new value minimum-jerk, its rate
     with no step - a linear blend's step the control."""
     import numpy as np
-    from machine import gait, latent, modal, ortho, patch, tap, worker
+    from machine.law import gait, latent, modal
+    from machine.texts import ortho, patch
+    from machine.process import tap, worker
     slot, link = ortho.Z + modal.PITCH, tap.made(30.0)
     s, _times = _walked(6.0, link)
     g, said, flags = s['g'], [], []

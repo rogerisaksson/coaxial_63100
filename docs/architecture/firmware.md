@@ -32,7 +32,7 @@ image.
 | --- | --- | --- | --- |
 | `drive/` | control law + motor model | 10 | [drivetrain](drivetrain.md) |
 | `filter/` | anti-alias biquad chain | | [drivetrain](drivetrain.md) |
-| `ctrl/` | machine.parts and a feedback in C, rows played | 12 | [drivetrain](drivetrain.md) |
+| `ctrl/` | machine.rig.parts and a feedback in C, rows played | 12 | [drivetrain](drivetrain.md) |
 | `thermal/` | 20-node observer, envelope, online identification | 8 | [thermals](thermals.md) |
 | `wbc/` | humanoid robot chain on its static model, the loop over it, the step without an active set | 13 | [kinematics](kinematics.md), [solvers](solvers.md) |
 | `aero/` | a frame flown from a compiled intent | 14 | [quad](quad.md) |

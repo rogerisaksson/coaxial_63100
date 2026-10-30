@@ -13,7 +13,7 @@ def test_her_eyes_picture_is_framed(report):
     room."""
     import numpy as np
     from coaxial.graphics import callouts, inset
-    from machine import sight
+    from machine.eyes import sight
     wide, rows = sight.VIEW
     thumb = np.full((rows, wide, 3), 90, np.uint8)
     box = [(40, 60), (200, 60), (200, 200), (40, 200)]

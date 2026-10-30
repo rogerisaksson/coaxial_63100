@@ -1,4 +1,4 @@
-/** wbc_soa.c - her loop's side of the kernel's SoA bank (wbc_soa.h, machine.lowering). */
+/** wbc_soa.c - her loop's side of the kernel's SoA bank (wbc_soa.h, machine.texts.lowering). */
 #include "wbc_soa.h"
 
 float wbc_soa_biquad(wbc_soa_t *b, int k, float x)

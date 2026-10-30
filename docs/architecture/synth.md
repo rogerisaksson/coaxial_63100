@@ -48,10 +48,10 @@ A runway take as a patch, and what the loop does with it
 | clip | a take's beats as notes, legato | `takes.beats`, `takes.wire` |
 | patch, preset | a text; a gait take as amounts on the walk | the lisp; `takes.amounts` |
 | modulation, mod wheel | the patch's knobs moved by named amounts; a word of her movement language as one | `gait.MODIFIERS`, `tools.sim.normal` |
-| patch file | a dry state, a modifier, a morph, a schedule in bars, read as written | `machine.dsp`, lisp/humanoid/runway.lisp |
+| patch file | a dry state, a modifier, a morph, a schedule in bars, read as written | `machine.texts.dsp`, lisp/humanoid/runway.lisp |
 | suite | the ortho-DSP modules: a manifold, transducers, topologies, modulators, limiters, a sequencer; their patches gaits voiced on her walk by their changes off the nominal, which plays her walk | `dsp.read`, `voicing.voiced`, `VOICES`, lisp/humanoid/suite/ |
 | system identification | a take's clock on its strikes, its coronal mid and side, its sidechain, its filter bank, emitted as a modifier against her walk | `tools/sim/identify.py` |
-| autotune | a root's knobs each moved by its measured sensitivity on six physics residuals, a step within 0.15 of each knob's scale, her form held; of her texts' 173 named knobs 100 reach her; at runtime on her running walk | `machine.tune`, `tools/sim/tune.py`, `tools/sim/runtime.py` |
+| autotune | a root's knobs each moved by its measured sensitivity on six physics residuals, a step within 0.15 of each knob's scale, her form held; of her texts' 173 named knobs 100 reach her; at runtime on her running walk | `machine.texts.tune`, `tools/sim/tune.py`, `tools/sim/runtime.py` |
 | sidechain | each touchdown latches a duck of her height: depth, attack, release | `ortho.DUCK`, `stride.ducked` |
 | sync trigger | the morph begun in the double support past the lateral voice's zero crossing, the asked ZMP in the soles' boxes | `patch.crossing`, `window`, `locked` |
 | program change | a text said in place of what was to come | `worker.heard_say`, `se2.said` |
@@ -82,7 +82,7 @@ A runway take as a patch, and what the loop does with it
 
 The anti-spasm supervisor (`anti_spasm_supervisor.lisp`) is the last stage of
 every patch, gait or maneuver, before her rows are laid. Each of its params is
-named on her loop (`machine.supervisor`); a gait saying another is refused:
+named on her loop (`machine.law.supervisor`); a gait saying another is refused:
 
 | stage | as written | on her loop |
 | --- | --- | --- |

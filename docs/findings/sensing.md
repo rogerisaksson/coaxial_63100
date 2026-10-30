@@ -1,7 +1,7 @@
 # Findings: sensing
 
-Her law on what a robot of her build measures (`machine.edge`,
-`machine.estimate`); the board's findings: [FINDINGS](../FINDINGS.md).
+Her law on what a robot of her build measures (`machine.senses.edge`,
+`machine.senses.estimate`); the board's findings: [FINDINGS](../FINDINGS.md).
 
 - Her law moved onto the edge, the world's state handed to it: her walk the same
   to the digit - 51 s, 0.69 m/s, 415 J/m, 2.57 off the band, four of FORM
@@ -24,7 +24,7 @@ Her law on what a robot of her build measures (`machine.edge`,
   the 35 mm sill's face 14 to 38 mm up: an edge met past 10 mm trips her
   (`touch.EDGE_M`), none on a flat floor in 30 s.
 - Her slide is the draw's sum, kept through a pass no sole bears
-  (`machine.estimate`): dropped there, a swing's toes scuffing the floor at
+  (`machine.senses.estimate`): dropped there, a swing's toes scuffing the floor at
   2.6-2.9 m/s under 64-77 N drew her speed to 2.2 m/s where 1.3, its return read
   a slide of the sole that held, 0.6 m/s - its grip 0.157 - and she fell off the
   snow at 7.6 s. Kept, a pull and its return cancel: on the snow her holding

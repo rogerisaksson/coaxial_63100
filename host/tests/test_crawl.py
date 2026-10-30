@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her gaits off her feet (`machine.crawl`; the kernel's terrestrial_multimodal_gaits.lisp,
+"""Her gaits off her feet (`machine.moves.crawl`; the kernel's terrestrial_multimodal_gaits.lisp,
 terrestrial_gait_specializers.lisp, terrestrial_locomotion_patches.lisp): the texts read whole, her hinges sideways,
 both crabs holding her, a sled and its anchors, the four origins on her figure, the supine ratchet on her
 drives; the degraded scoot and crawl (degraded_scoot_and_crawl_*.lisp) read whole, on her figure, a dead leg of hers
@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from test_groundwork import MOVES, TOUCH, _bearing, _laid, _parts
+from ground_kit import MOVES, TOUCH, laid
+from test_groundwork import _bearing, _parts
 
 #: The terrestrial texts, lisp/humanoid/kernel/, and the overlay their patches use that no text defined.
 TEXTS = ('terrestrial_multimodal_gaits.lisp', 'terrestrial_gait_specializers.lisp',
@@ -23,13 +24,13 @@ HALF, NUDGE = 100001, 1e-4
 
 
 def _plan():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-terrestrial-multimodal-suite-soa'])
 
 
 def _patch(name):
     """The patch of the registry or the floor texts a name says: itself, or the one whose frames hold it."""
-    from machine import kernel
+    from machine.texts import kernel
     got = kernel.read()
     patches = {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
     name = name.lstrip(':')
@@ -41,7 +42,8 @@ def test_the_texts_read_whole(report):
     manifold they name a patch; the stages; the schedule five segments of 8 bars - the dog's trot, her back's crawl
     with its stair ratchet, the scoot and its hip drag, the crab on her back to her right and belly down to her left -
     each on the overlay, each crab's outer pair half a turn ahead of the inner."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got = kernel.read()
     atlas = got['terrestrial-1jet-posture-atlas']['postures']
     report.check('four postures, each its origin and three columns',
@@ -83,8 +85,10 @@ def test_her_hinges_sideways(report):
     flex. In the crab's origin her abduction moves her ankle sideways more than her knee, her hip's turn least; her
     trunk's lateral bend carries her shoulders sideways for her hands."""
     import numpy as np
-    from machine import crawl, drives, figure, kernel
-    from machine.term_rows import ABSENT
+    from machine.moves import crawl
+    from machine.body import drives, figure
+    from machine.texts import kernel
+    from machine.body.term_rows import ABSENT
     plan = _plan()
     kappa = [float(crawl.coronal(g['axial-torus-clock']['desired-se2-twist'])) for _a, _b, g in plan]
     stop = math.radians(drives.TRAVEL['hip_yaw'][1])
@@ -97,8 +101,8 @@ def test_her_hinges_sideways(report):
         kappa[:2] == [0.0, 0.0] and abs(kappa[3] - 1.0) < 1e-12 and most <= stop + 5e-4
         and ('shoulder', 'lateral-rotation') in ABSENT)
     atlas = kernel.read()['terrestrial-1jet-posture-atlas']['postures']
-    deg = _laid(atlas['terrestrial-coronal-crab']['origin-q0'])
-    belly = _laid(dict(atlas['terrestrial-pronograde-dog']['origin-q0'], **{'coxofemoral-ext-rot': stop}))
+    deg = laid(atlas['terrestrial-coronal-crab']['origin-q0'])
+    belly = laid(dict(atlas['terrestrial-pronograde-dog']['origin-q0'], **{'coxofemoral-ext-rot': stop}))
 
     def ankle(d):
         return figure.frames(d, (0.0, 0.0, 0.0), figure.IDENT)['left_foot'][0]
@@ -122,8 +126,11 @@ def test_her_crabs_hold_her(report):
     bearing the share the crab tells to 0.01; there every drive's static torque - her contacts' push along the floor's
     up through each joint, by virtual work - within what it holds for ever (`heat.held`)."""
     import numpy as np
-    from machine import figure, groundwork, heat, kernel
-    from test_groundwork import TURN, _part, _skin
+    from machine.body import figure, heat
+    from machine.world import groundwork
+    from machine.texts import kernel
+    from ground_kit import part, skin
+    from test_groundwork import TURN
     atlas, plan = kernel.read()['terrestrial-1jet-posture-atlas']['postures'], _plan()
     belly = dict(atlas['terrestrial-pronograde-dog']['origin-q0'],
                  **{'coxofemoral-ext-rot': plan[4][2]['coxa-turnout']['max-hip-external-rot-rad']})
@@ -131,9 +138,9 @@ def test_her_crabs_hold_her(report):
     up, weight = groundwork.pitched(phi), figure.mass() * 9.81
     for name, origin, sole, at in (('on her back', atlas['terrestrial-coronal-crab']['origin-q0'], 'foot', plan[3][2]),
                                    ('belly down', belly, 'toes', plan[4][2])):
-        deg = _laid(origin)
-        points, radii, of, centre = _skin(deg)
-        names = np.array([_part(s) for s in of])
+        deg = laid(origin)
+        points, radii, of, centre = skin(deg)
+        names = np.array([part(s) for s in of])
         gap = groundwork.clear(points, radii, up)
         rests = groundwork.settled(groundwork.rest(points, radii, centre, up))
         worst = np.array([gap[rests][:, names == p].min(axis=1) for p in (sole, 'hand')]).max(axis=0)
@@ -144,17 +151,17 @@ def test_her_crabs_hold_her(report):
         arm = np.subtract(figure.fist(deg), figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_upper_arm'][0])
         tilt = math.degrees(math.atan2(arm @ ahead, -(arm @ u)))
         torques = {}
-        for joint, part, share in (('hip', sole, legs), ('hip_roll', sole, legs), ('hip_yaw', sole, legs),
+        for joint, limb, share in (('hip', sole, legs), ('hip_roll', sole, legs), ('hip_yaw', sole, legs),
                                    ('knee', sole, legs), ('ankle', sole, legs), ('shoulder', 'hand', 1.0 - legs),
                                    ('elbow', 'hand', 1.0 - legs)):
-            on = np.array([s == 'left_' + part for s in of]) & touch
-            moved = [_skin(dict(deg, **{'left_' + joint: deg['left_' + joint] + sign * math.degrees(NUDGE)}))[0][on]
+            on = np.array([s == 'left_' + limb for s in of]) & touch
+            moved = [skin(dict(deg, **{'left_' + joint: deg['left_' + joint] + sign * math.degrees(NUDGE)}))[0][on]
                      .mean(axis=0) for sign in (-1.0, 1.0)]
             torques[joint] = 0.5 * share * weight * float(u @ np.subtract(moved[1], moved[0])) / (2.0 * NUDGE)
         held = {j: heat.held('left_' + j)[0] for j in torques}
         report.check('%s: on her %s at %+.0f deg, pelvis %.0f mm up, arms %.1f deg off plumb, legs %.3f (told %.2f); '
                      'static N m (held) %s' % (
-                         name, ', '.join(sorted({_part(of[i]) for i in np.flatnonzero(touch)})), math.degrees(phi[k]),
+                         name, ', '.join(sorted({part(of[i]) for i in np.flatnonzero(touch)})), math.degrees(phi[k]),
                          1e3 * gap[k][names == 'pelvis'].min(), tilt, legs, told,
                          ', '.join('%s %.1f (%.1f)' % (j, abs(t), held[j]) for j, t in torques.items())),
                      worst.min() < TOUCH and abs(legs - told) < 0.01 and (abs(tilt) < 1.0 or sole == 'toes')
@@ -166,7 +173,8 @@ def test_a_sled_and_its_anchors(report):
     own frictions the scoot's and the stairs' anchors hold part of it, the hip drag's and the army crawl's none: an
     anchor carrying under mu_sled / (mu_anchor + mu_sled) of her drags no sled."""
     import numpy as np
-    from machine import crawl, dsp, kernel
+    from machine.moves import crawl
+    from machine.texts import dsp, kernel
     phase = np.linspace(0.0, np.pi, HALF)[1:-1]
     worst = max(abs(float(np.mean(crawl.slip(phase, g, a, s) <= 1.0)) - float(crawl.held(g, a, s)))
                 for g, a, s in ((0.75, 0.7, 0.55), (0.65, 0.7, 0.65), (0.95, 0.6, 0.6)))
@@ -190,8 +198,8 @@ def test_the_origins_on_her_figure(report):
     """The four origins as her movements: each joint hers or one she lacks, each angle against her stops; laid rigid
     on a hard floor (`groundwork.rest`, pitched), every rest her centre over what touches, the rest where its coupled
     patches bear best and the float of their worst part: the dog and the crab on their own."""
-    from machine import kernel
-    from machine.term_rows import ABSENT, TERMS
+    from machine.texts import kernel
+    from machine.body.term_rows import ABSENT, TERMS
     atlas = kernel.read()['terrestrial-1jet-posture-atlas']['postures']
     told = [(name, n, rad) for name, p in atlas.items() for n, rad in p['origin-q0'].items()]
     lacks = sorted({'%s %s' % (p[12:], n) for p, n, _r in told if MOVES[n] in ABSENT})
@@ -202,7 +210,7 @@ def test_the_origins_on_her_figure(report):
     rests, bears = [], {}
     for name, p in atlas.items():
         coupled = p['coupled-manifold']
-        phi, part, worst, margin, touching, every = _bearing(_laid(p['origin-q0']), _parts(coupled))
+        phi, part, worst, margin, touching, every = _bearing(laid(p['origin-q0']), _parts(coupled))
         rests += every
         bears[name] = worst < TOUCH
         report.check('%s: best at %+.0f deg on %s, its %s %.0f mm up' % (
@@ -215,7 +223,7 @@ def test_the_origins_on_her_figure(report):
 def test_the_supine_ratchet_on_her_drives(report):
     """Her back's stair climb: a riser's work, the legs' share the text gives them; her shoulder's held torque
     (`heat.held`) against the text's cap on its extension; the descent's skim height as a drop."""
-    from machine import figure, heat
+    from machine.body import figure, heat
     ratchet = _plan()[1][2]['grade-ratchet']
     rise = 1e-3 * ratchet['elevation-delta-mm']
     cap = ratchet['supine-ascent-law']['max-glenohumeral-extension-torque-nm']
@@ -234,7 +242,7 @@ BROKEN = (None, ':hind-left', None, ':hind-left')
 
 
 def _degraded():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-scoot-and-lowcrawl-suite-soa'])
 
 
@@ -242,7 +250,8 @@ def test_the_degraded_texts_read_whole(report):
     """The degraded scoot and crawl read with the kernel: two postures, each its origin and three columns; its frog
     piston on her shank; every manifold they name a patch; the stages; the schedule four segments of 8 bars, the
     second and fourth her left leg in High-Z."""
-    from machine import dsp, figure, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import figure, mechatronics
     got = kernel.read()
     atlas = got['scoot-and-lowcrawl-1jet-atlas']['postures']
     report.check('two postures, each its origin and three columns',
@@ -273,8 +282,8 @@ def test_the_degraded_texts_read_whole(report):
 def test_the_degraded_origins_on_her_figure(report):
     """The scoot's and the low crawl's origins as her movements: her shoulders' abduction she lacks, nothing past her
     stops - the frog's 75 deg turnout hers at her hip yaw's 25."""
-    from machine import kernel
-    from machine.term_rows import ABSENT, TERMS
+    from machine.texts import kernel
+    from machine.body.term_rows import ABSENT, TERMS
     atlas = kernel.read()['scoot-and-lowcrawl-1jet-atlas']['postures']
     told = [(name, n, rad) for name, p in atlas.items() for n, rad in p['origin-q0'].items()]
     lacks = sorted({'%s %s' % (p, n) for p, n, _r in told if MOVES[n] in ABSENT})
@@ -291,7 +300,11 @@ def test_a_dead_leg_and_her_sleds(report):
     held level; the escort's roll lifting her far hip; the arm her yaw asks; where her anchors hold each sled of the
     suite, on her patches' friction."""
     import numpy as np
-    from machine import crawl, drives, dsp, kernel, observer, wbc
+    from machine.moves import crawl
+    from machine.body import drives
+    from machine.texts import dsp, kernel
+    from machine.senses import observer
+    from machine.stack import wbc
     b = wbc.Body()
     b.mj.mj_forward(b.m, b.d)
     M = np.zeros((b.m.nv, b.m.nv))

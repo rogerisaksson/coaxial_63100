@@ -1,6 +1,6 @@
 # Findings: grip
 
-Her floor's friction as her soles feel it (`machine/grip.py`), told or
+Her floor's friction as her soles feel it (`machine/senses/grip.py`), told or
 estimated, and her law bounded by it; tests/test_floor.py holds it, `ice_told`
 and the patches in [scenarios](scenarios.md) walk it.
 
@@ -11,7 +11,7 @@ and the patches in [scenarios](scenarios.md) walk it.
   3.0-3.8 s and the slick patch (0.06) at 2.8-3.9; snow (0.35) and asphalt held.
   Ice is now a rubber sole's, 0.1; 0.02 is a skate blade's.
 - A bearing sole that slides uses the floor's friction, its push's share across
-  her IMU's up (`machine.grip`). Its slide is what the draw of her IMU-carried
+  her IMU's up (`machine.senses.grip`). Its slide is what the draw of her IMU-carried
   speed to her bearing soles has added up to while they bore (`estimate`'s
   slip): walking a level floor 0.071 m/s at most, turning 0.127, on ice 1.36 at
   the 90th percentile; a sole slides past 0.15. Read across a sole's own up, one

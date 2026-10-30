@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orthokinematics (`machine.ortho`) run on her latent loop as the page's gym runs it, traced.
+"""Orthokinematics (`machine.texts.ortho`) run on her latent loop as the page's gym runs it, traced.
 
     python tools/sim/ortho.py hop_asymmetric              # an entry of lisp/humanoid/gynoid_mesomorph_medium.lisp
     python tools/sim/ortho.py crouch -v                   # a row every 25 ms; -v 5, every 5
@@ -7,7 +7,7 @@
     python tools/sim/ortho.py --walk --to 40 --look              # her walk from rest (`sprung.WALK`): its look
     python tools/sim/ortho.py --file my.lisp hop --every 4       # a file's; the loop every 4th pass
 
-She stands AT_S at rest on the loop (`machine.sprung`: sensed, `machine.latent`, `machine.impedance`,
+She stands AT_S at rest on the loop (`machine.process.sprung`: sensed, `machine.law.latent`, `machine.law.impedance`,
 `wrench.step`); each entry named - a payload '#' and its id, a behaviour by its name - is begun at
 its second, AT_S and then 2 s apart where none is given; she is followed `--to` s past the last.
 A row: what she is doing, each mode as asked and as she is, her centre of mass's height and
@@ -42,7 +42,9 @@ def went(plan, to=TO_S, trace=0, every=None):
     the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none."""
     import time
     import numpy as np
-    from machine import latent, modal, ortho, sprung
+    from machine.law import latent, modal
+    from machine.texts import ortho
+    from machine.process import sprung
     from machine.errors import MachineError
     g = sprung.laid(every or sprung.STACK_EVERY)
     for at, label, wire, names in sorted(plan, key=lambda item: item[0]):
@@ -101,9 +103,11 @@ def looked(plan, to=TO_S, take=None, every=None):
     of `plan` blended in; written a take at `take`. Empty of measures where she walked under
     3 s."""
     import math
-    from machine import latent, ortho, sprung
+    from machine.law import latent
+    from machine.texts import ortho
+    from machine.process import sprung
     from machine.errors import MachineError
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     from terminal.views.humanoid_keys import HEADER, row
     from tools.sim import fbx, look, looks, normal, strides
     g = sprung.laid(every or sprung.STACK_EVERY)
@@ -149,7 +153,7 @@ def looked(plan, to=TO_S, take=None, every=None):
 def planned(asked, text=None):
     """[(s, label, wire, names)] of `asked` ['label' or 'label@seconds', ..] among `text`'s
     entries (lisp/humanoid/gynoid_mesomorph_medium.lisp's): AT_S, then 2 s apart, where no second is given."""
-    from machine import sprung
+    from machine.process import sprung
     gym = {entry[0]: entry for entry in sprung.entries(text)}
     plan, at = [], AT_S
     for word in asked:
@@ -180,7 +184,7 @@ def main(argv=None):
     if args.file:
         with open(args.file, encoding='utf-8') as f:
             text = f.read()
-    from machine import sprung
+    from machine.process import sprung
     asked = ['%s@%g' % entry for entry in sprung.WALK] * args.walk + args.what
     if not asked:
         parser.error('an entry, or --walk')

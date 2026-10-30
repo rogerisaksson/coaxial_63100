@@ -1378,7 +1378,7 @@ def test_the_gynoid(report):
     """The gynoid stands on the floor at her height, a stride shows, and her dots are the same
     cells on the GPU as splatted here - where a card answers."""
     from coaxial.graphics import card, gpu, gynoid
-    from machine import figure
+    from machine.body import figure
     body = gynoid.body()
     stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # her left leg ahead
     still, _normals = body.pose(figure.stand())

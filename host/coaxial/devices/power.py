@@ -3,7 +3,7 @@ from coaxial.comm import protocol
 from coaxial.comm.protocol import PowerOp
 from coaxial.comm.wire import Reader, label
 from coaxial.devices.subsystem import Device
-from machine.roles import Output
+from machine.rig.roles import Output
 
 #: Rails, in the order the board reports them.
 RAILS = ('afe',)

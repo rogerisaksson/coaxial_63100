@@ -1,5 +1,5 @@
 /** wbc_law.c - her latent loop's step and her upper body's coupling on the host (wbc_law.h):
-    machine.latent.step and machine.support.couple, numpy's arithmetic and numpy's own OpenBLAS
+    machine.law.latent.step and machine.law.support.couple, numpy's arithmetic and numpy's own OpenBLAS
     (wbc_blas.h) operation for operation. Portable C11, the host's alone. */
 #include "wbc_law.h"
 #include "wbc_np.h"
@@ -39,7 +39,7 @@ static double remainder_of(double a, double b)
   return mod;
 }
 
-/** machine.latent._shaped: the blend's shape's share of the way, its slope and its bend at `u`. */
+/** machine.law.latent._shaped: the blend's shape's share of the way, its slope and its bend at `u`. */
 static void shaped(const wbc_law_t *k, const double *st, double u, double got[3])
 {
   const double *c = st + k->shape;
@@ -49,7 +49,7 @@ static void shaped(const wbc_law_t *k, const double *st, double u, double got[3]
   got[2] = 2.0 * c[1] + u * (6.0 * c[2] + u * (12.0 * c[3] + u * (20.0 * c[4])));
 }
 
-/** machine.latent._rate: a blend's rate at `u` of its `span`: its shape's `slope` while it blends, a
+/** machine.law.latent._rate: a blend's rate at `u` of its `span`: its shape's `slope` while it blends, a
     contiguous curve's (CONTIG) the Hermite's. */
 static double rate_at(const wbc_law_t *k, const double *st, double u, double span, double slope, int j)
 {

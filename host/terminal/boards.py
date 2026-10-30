@@ -13,8 +13,9 @@ from coaxial import Coaxial63100
 from coaxial.errors import LINK_FAULTS, RigError
 from coaxial.node import arm_stage
 from coaxial.simulated.link import SIMULATED_BUSES
-from machine import drives, edge
-from machine.modes import EMULATED
+from machine.body import drives
+from machine.senses import edge
+from machine.rig.modes import EMULATED
 from tools.emu.protocol_emulator import BODIES
 
 

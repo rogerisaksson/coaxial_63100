@@ -1,16 +1,16 @@
-"""The board's loop behind `0x6E` device 12: machine.parts in C, rows streamed and held."""
+"""The board's loop behind `0x6E` device 12: machine.rig.parts in C, rows streamed and held."""
 import math
 
 from coaxial.comm import protocol
 from coaxial.comm.protocol import CtrlOp
 from coaxial.comm.wire import Reader, label, pack
 from coaxial.devices.subsystem import Device
-from machine.roles import Controller
+from machine.rig.roles import Controller
 
-#: Slots in pass order, as `machine.controller.Feedback` names them.
+#: Slots in pass order, as `machine.rig.controller.Feedback` names them.
 SLOTS = ('prefilter', 'measure', 'estimator', 'regulator')
 
-#: Kinds as ctrl.h numbers them: the machine.parts class names, 0 none.
+#: Kinds as ctrl.h numbers them: the machine.rig.parts class names, 0 none.
 KINDS = ('', 'Gain', 'Slew', 'Wrap', 'LowPass', 'SpeedKalman', 'PI', 'AngleHold', 'Direct',
          'SpeedPI')
 
@@ -66,7 +66,7 @@ def _rows(rows):
 
 class Ctrl(Device, Controller, device=protocol.DEVICE_CTRL):
 
-    """A feedback of machine.parts on the board, ticked in the drive's sample; rows in."""
+    """A feedback of machine.rig.parts on the board, ticked in the drive's sample; rows in."""
 
     def state(self):
         """The loop: running, what it measures and drives, the queue, its channels."""
@@ -87,7 +87,7 @@ class Ctrl(Device, Controller, device=protocol.DEVICE_CTRL):
         return self.state()
 
     def slot(self, slot, part=None):
-        """`part`, a machine.parts part or None, into `slot` (SLOTS); stopped only."""
+        """`part`, a machine.rig.parts part or None, into `slot` (SLOTS); stopped only."""
         index = _index(SLOTS, slot, 'slot')
         kind = _index(KINDS, type(part).__name__, 'kind') if part is not None else 0
         values = [getattr(part, name) for name in part.PARAMS] if part is not None else []
@@ -95,7 +95,7 @@ class Ctrl(Device, Controller, device=protocol.DEVICE_CTRL):
                          + b''.join(dec(v) for v in values))
 
     def load(self, feedback):
-        """A `machine.controller.Feedback`'s four slots; stopped only."""
+        """A `machine.rig.controller.Feedback`'s four slots; stopped only."""
         for name in SLOTS:
             self.slot(name, getattr(feedback, name))
         return True

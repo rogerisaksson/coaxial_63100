@@ -11,7 +11,7 @@ each of four headings; what F offers there (`gym.offered`) is said as F says it 
 with --said as a prompt says it, whatever she sees. A run: seconds to the goal borne and held REST_S
 (its rise's to up with --rise), her fall, what she bumped in which phase, the dock (along its normal,
 along its edge, her heading off it, s), and each joint group's fastest swing, widest sweep, when the
-fastest came and the seconds her master bus's passivity controller held it (`machine.supervisor`) - a
+fastest came and the seconds her master bus's passivity controller held it (`machine.law.supervisor`) - a
 spasm is a group swung faster than her own walk swings it (`walked`), a held one caught by that tank.
 """
 import argparse
@@ -51,8 +51,9 @@ class Watch:
     what of hers bumped the furniture in which."""
 
     def __init__(self, x, z, yaw):
-        from machine import physics, sprung, worker
-        from machine.figure import JOINTS
+        from machine.world import physics
+        from machine.process import sprung, worker
+        from machine.body.figure import JOINTS
         physics.ROOM, physics.SIGHT = 1.0, 0.0
         self.s = s = worker.session()
         sprung.relaid(s['g'], (x, z), yaw)
@@ -68,7 +69,7 @@ class Watch:
 
     def go(self, seconds, until=None):
         """`seconds` of passes, or to her fall or `until(self)`: whether `until` came."""
-        from machine import sprung, worker
+        from machine.process import sprung, worker
         g, t0 = self.g, self.g['t']
         while g['t'] - t0 < seconds and self.s['fallen_at'] is None:
             worker.stepped(self.s)
@@ -82,7 +83,7 @@ class Watch:
         return False
 
     def _read(self):
-        from machine import sprung, worker
+        from machine.process import sprung, worker
         g, d, m = self.g, self.world.data, self.world.model
         if g['t'] - self.read < EVERY_S:
             return
@@ -112,7 +113,7 @@ class Watch:
 
 def walked():
     """Each joint group's fastest swing and widest sweep over WALK_S of her walk: a spasm's bound."""
-    from machine import worker
+    from machine.process import worker
     w = Watch(0.0, -1.0, 0.0)
     worker.apply(w.s, {'twist': (0.69, 0.0, 0.0)})
     w.go(WALK_S)
@@ -122,7 +123,8 @@ def walked():
 def _goal(w, goal, rise, limit, t0):
     """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said - up held REST_S -, None
     unsaid) from `t0`. Counted up the moment she stood, 7 chair rises of 58 that fell within 3 s were risen."""
-    from machine import modal, sprung, worker
+    from machine.law import modal
+    from machine.process import sprung, worker
     g = w.g
     def borne(q):
         return sprung.doing(g) == goal and float(g['y'][modal.PROP]) > 0.45
@@ -143,7 +145,8 @@ def _goal(w, goal, rise, limit, t0):
 def one(x, z, yaw, verb, said=False, rise=False):
     """Her errand `verb` from (x, z, `yaw`), as F says it or `said` as a prompt does: a line's fields."""
     from types import SimpleNamespace as SN
-    from machine import edge, worker
+    from machine.senses import edge
+    from machine.process import worker
     from terminal.views import gym, scanner, viewpoint
     w = Watch(x, z, yaw)
     g = w.g
@@ -182,7 +185,8 @@ def one(x, z, yaw, verb, said=False, rise=False):
 def dock(dx, spar, dyaw):
     """The chair's sit laid at its dock `dx` along its edge, her root `spar` off it, `dyaw` turned off
     it; held, risen: a line's fields."""
-    from machine import room, worker
+    from machine.world import room
+    from machine.process import worker
     w = Watch(room.CHAIR_AT[0] + dx, room.CHAIR_AT[1] - room.SEAT[2] - spar, math.pi + dyaw)
     worker.apply(w.s, {'say': 'sit_chair'})
     reached, held, up = _goal(w, 'seated', 'rise_chair', 15.0, w.g['t'])
@@ -193,7 +197,8 @@ def dock(dx, spar, dyaw):
 
 def spots():
     """(x, z) on the lodge's free floor: a GRID_M grid CLEAR_M clear of every furniture box."""
-    from machine import physics, room, worker
+    from machine.world import physics, room
+    from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     world = worker.session()['g']['world']
     m, d = world.model, world.data

@@ -12,8 +12,8 @@ SECTIONS = [
         md('Four things, and the order is the program: the bus polled into memory, the steps in '
            'table order over it, memory written back, the period kept. A step sees numbers - '
            'never a port, a timeout or a board.'),
-        code('''from machine import ansi
-from machine.wiring import blocks
+        code('''from machine.rig import ansi
+from machine.rig.wiring import blocks
 
 ansi.image(blocks([([('Edge', 'poll', ['each board a row', 'a lost frame counted']),
                      ('Frame', 'the memory', ['a field a channel', 'laid once']),
@@ -29,7 +29,7 @@ ansi.image(blocks([([('Edge', 'poll', ['each board a row', 'a lost frame counted
            "drives at a fraction of real time; this loop's tempo is the wall's."),
         code('''from coaxial import ExecutionMode
 from coaxial.control.commission import Commissioning
-from machine.nodes import Nodes
+from machine.rig.nodes import Nodes
 
 LIMB = 'native://?nodes=4&world=humanoid_leg'      # four boards on one bus, in real time
 nodes = Nodes.discover(port=LIMB if MODE is ExecutionMode.EMULATED else PORT,
@@ -53,7 +53,7 @@ print('%d boards, each sensorless on its model' % len(legs))'''),
            'registers as the bus carries them, and what the steps make of them. The edge names '
            'what each row reads and writes; nothing else touches a board.'),
         code('''import numpy as np
-from machine import cyclic
+from machine.rig import cyclic
 
 f = cyclic.frame('w_target', 'omega_hat', 'w_ref', 'iq_ref', rows=len(legs))
 edge = cyclic.edge(legs, 'drive', ins=('omega_hat',), outs=('iq_ref',))
@@ -64,7 +64,7 @@ print(f['w_target'])'''),
     section(
         'The steps',
         md("`step(s, u) -> y`: `s` the step's own rows, `u` its inputs a row each; numbers in, "
-           "numbers out, every board in one call. The parts are machine.parts' step for step - "
+           "numbers out, every board in one call. The parts are machine.rig.parts' step for step - "
            'the PI, as it is:'),
         code('''import inspect
 
@@ -146,8 +146,8 @@ BENCH = ("The record commissioned first (`commissioning.ipynb`); `gates.on()` wi
          "the model off, `source='adc'`: the frame is then the shunts.")
 
 REFERENCES = [
-    ('host/machine/cyclic.py', '`frame`, `state`, the steps, `edge`, `poll`, `push`, `run`'),
-    ('host/tests/test_cyclic.py', "the steps against machine.parts, the cycle on a toy rotor"),
+    ('host/machine/rig/cyclic.py', '`frame`, `state`, the steps, `edge`, `poll`, `push`, `run`'),
+    ('host/tests/test_cyclic.py', "the steps against machine.rig.parts, the cycle on a toy rotor"),
     ('ctrl/src/ctrl.c', 'the same parts on the board, tables by kind'),
     ('docs/ARCHITECTURE.md', 'data-oriented design, target and host'),
 ]

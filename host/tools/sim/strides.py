@@ -9,7 +9,7 @@ def _p(r, seg):
 
 def _faces(r, seg):
     """How far `seg`'s forward points above level, deg: 90 lying on her back, -90 face down."""
-    from machine import figure
+    from machine.body import figure
     turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
     placed = figure.frames({j: float(r[j]) for j in figure.JOINTS}, _p(r, 'pelvis'), turn)
     return math.degrees(math.asin(max(-1.0, min(1.0, placed[seg][1][1][2]))))
@@ -23,7 +23,7 @@ def _out(r, joints):
     """How far the drives of `joints` reach past her skin as `r` poses her, mm: the worst of their
     drums' rims and faces (`drums`) outside every capsule of hers (`figure.BODY`)."""
     from coaxial.model.blocks import numpy as np
-    from machine import figure
+    from machine.body import figure
     placed = figure.frames({j: float(r[j]) for j in figure.JOINTS}, (0.0, 0.0, 0.0),
                            ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)))
     turn = {k: (np.array(R), np.array(p)) for k, (p, R) in placed.items()}
@@ -47,7 +47,7 @@ def _out(r, joints):
 @functools.lru_cache(None)
 def _skin():
     """[(segment, radius, end, end)]: her capsules (`figure.BODY`), each segment's, its frame."""
-    from machine import figure
+    from machine.body import figure
     out = []
     for seg in figure.SEGMENTS:
         bare = seg[0].split('_', 1)[1] if seg[0].startswith(('left_', 'right_')) else seg[0]
@@ -62,7 +62,7 @@ def _drum(joint):
     """(part, dots (n, 3) in its frame): `joint`'s drum as drawn, its rims and faces."""
     from coaxial.graphics import drums
     from coaxial.model.blocks import numpy as np
-    from machine import drives
+    from machine.body import drives
     parent, at = next((p, o) for n, p, o, *_m in drums.drums() if n == 'drive_' + joint)
     axis, half = (np.array(v, float) if i == 0 else v for i, v in enumerate(drums.AXES[joint]))
     w = np.array([1.0, 0.0, 0.0]) if abs(axis[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
@@ -98,7 +98,7 @@ def _thigh(dressed):
     m, crotch to knee: the crotch the pelvis's lowest point, or the jeans' seat's
     (`coaxial.graphics.gynoid`)."""
     from coaxial.graphics import gynoid
-    from machine.figure import HIP_DROP, THIGH
+    from machine.body.figure import HIP_DROP, THIGH
     meshes, parts = gynoid._meshes()
     worn = {part[0]: part[-1] for part in parts}
     thigh, seat = ((worn['cloth_left_thigh'], worn['cloth_seat']) if dressed
@@ -290,7 +290,7 @@ def _alone(rs):
 def _foot(r):
     """(toe-out, roll) of the left foot, degrees: its toes out of the walk's line, and its outer
     edge up off the floor (everted, pronation)."""
-    from machine import figure
+    from machine.body import figure
     turn = figure.quat(*(float(r['q' + k]) for k in 'wxyz'))
     _at, foot = figure.foot_of(1.0, (0.0, 0.0, 0.0), turn,
                                [math.radians(float(r['left' + k])) for k in figure.LEG])
@@ -301,7 +301,7 @@ def _foot(r):
 
 def _heel(r):
     """The left heel's rise, deg: the ankle's line to the toes' joint off where the sole is flat."""
-    from machine import figure
+    from machine.body import figure
     ankle, toes = _p(r, 'left_foot'), _p(r, 'left_toes')
     return math.degrees(math.asin(max(-1.0, min(1.0, (ankle[1] - toes[1]) / math.dist(ankle, toes))))
                         - math.atan2(figure.ANKLE_H - figure.TOE_RY, figure.BALL))

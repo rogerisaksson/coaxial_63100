@@ -169,13 +169,13 @@ layouts), taken up with later fields at defaults.
   stepping `UNCERTAIN` -> `CONVERGING` -> `STABLE` and scaling `margin`
   (`0.80`..`1.00`) by `doubt`.
 - **Executive, `hold_amps`, WEP & mounting (`thermal_run.c`, `thermal_app.c`,
-  `machine/heat.py`)**: the `100 ms` slice (`board_thermal.c`, sub-stepped to
+  `machine/body/heat.py`)**: the `100 ms` slice (`board_thermal.c`, sub-stepped to
   `<= 0.25 s`) binary-searches (`10` halvings) the balanced 3-phase current
   `hold_amps` that keeps `THERMAL_HOLD_S = 0.5 s` to throttle, applies WEP
   override (op `14`) and airspeed (op `16`), and configures mounting boundaries
   (`thermal_application`: `still`, `airstream`, `enclosure`, `fan_sink`,
   `cold_plate`, `immersion_pao`, `immersion_oil`, `joint`). In
-  `THERMAL_APP_JOINT` and `machine/heat.py`, the inverter disc mounts coaxially
+  `THERMAL_APP_JOINT` and `machine/body/heat.py`, the inverter disc mounts coaxially
   on the aluminium stator housing (`~250 J/K` body sink, `2.0 K/W` leg gap
   pads, `20 K/W` rim standoffs, `4.0 K/W` leg vias, rotor forced gain `0.3` and
   `0.5 / sqrt(krpm)`), while local clothing insulation (`mjcf.CLOTH`: denim

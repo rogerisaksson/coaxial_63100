@@ -1,5 +1,5 @@
 ;; ============================================================================
-;; SITUATIONS (lisp/humanoid/situations.lisp, machine/situation.py)
+;; SITUATIONS (lisp/humanoid/situations.lisp, machine/senses/situation.py)
 ;; Where she is, read from her sensors each pass: bounds on her readings - grip,
 ;; slope, borne, upright, pushed, raised - and what her law takes inside them,
 ;; whatever she is doing: her rhythm's amplitudes no more than the caps said,

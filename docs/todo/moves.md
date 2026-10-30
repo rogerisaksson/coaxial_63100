@@ -63,7 +63,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    the DC link, an NTC; IMU and A1335 on the buses). Hardware first.
 5. **On all fours** (asked; the kernel's `multimodal_*.lisp`): read whole;
    its clock, a morph's lags, the fifth limb, the truss and the equalizer in
-   `machine.fours` ([support](../findings/support.md); test_fours); her loop
+   `machine.moves.fours` ([support](../findings/support.md); test_fours); her loop
    runs none of it. Left: item 1 for a fore limb to swing; a limb's share
    from its clock (`MANIFOLDED` is a manifold's, `LET_GO` a leg's); the
    descent onto her hands (the floor scoot's); her centre 0.099 m back for
@@ -72,7 +72,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    than three bearing.
 6. **On the floor** (asked; the kernel's `floor_*.lisp`,
    `ground_rolling_and_transitions.lisp`): read whole; her rest on a floor,
-   the roll's ring and girdles and the trough's law in `machine.groundwork`
+   the roll's ring and girdles and the trough's law in `machine.world.groundwork`
    ([support](../findings/support.md); test_groundwork); her loop runs none
    of it. Left: her shins, front and forearms as what bears her
    (`ortho.MANIFOLDS` has plantar, ischial, trochanter, dorsal, palmar); the
@@ -85,7 +85,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    dwell held; the roll on the lodge bed too.
 7. **On soft ground** (asked; the kernel's `deformable_*.lisp`): read whole;
    the work loop, its regimes, a patch's area, a power law's stiffness and a
-   bed's phase and ring-down in `machine.substrate`
+   bed's phase and ring-down in `machine.world.substrate`
    ([support](../findings/support.md); test_substrate); her loop runs none
    of it. Left: item 6 first; a mattress, deep snow and a trampoline as
    simulated floors (her world has one rigid floor); a contact's surface
@@ -99,7 +99,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
    `substrate_overlay.lisp`, the overlay their patches use that no text
    defined, bridged to the deformable baseline): read whole; a twist's
    coronal index and turnout, a sled's share and its anchors' hold in
-   `machine.crawl` ([support](../findings/support.md); test_crawl); her loop
+   `machine.moves.crawl` ([support](../findings/support.md); test_crawl); her loop
    runs none of it. Left: items 5 and 6 first; a sled as a sliding contact in
    her step (each of its contacts now stands or is free); a drag with over
    0.44-0.48 of her on its anchors; the supine bridge's origin on her hands
@@ -111,7 +111,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 9. **At a seat's or a bed's edge** (asked; the kernel's `bedside_*.lisp`,
    fitted to her body): read whole; her skin's reach behind her, a rim's
    halt, a hung limb's swing, a roll's drift and the shrimp's escape in
-   `machine.bedside` ([support](../findings/support.md); test_bedside); her
+   `machine.moves.bedside` ([support](../findings/support.md); test_bedside); her
    loop runs none of it. Left: patches in her registry for her calves,
    shoulders and skull - the chairs' and the lodge bed's edges meet her
    calves, the escape plants her shoulders, the pillow takes her skull; her
@@ -124,7 +124,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 10. **Onto and off a stool over her hips** (asked; the kernel's
     `overheight_*.lisp`, fitted to her body): read whole; her thighs' share
     crossing the edge, its capstan drag and a stool's centre of pressure in
-    `machine.bedside` ([support](../findings/support.md); test_vault); her
+    `machine.moves.bedside` ([support](../findings/support.md); test_vault); her
     loop runs none of it. Left: item 9's stool; her hands bear on fists, so
     hung from them she leans back 40-76 deg - the texts' flat palms would
     hold her upright; her arms past what they hold for ever (shoulder 34.5,
@@ -135,7 +135,7 @@ the loop, 10 absent - the hands' and tools' and the saddle's.
 11. **Walk to run, a brake, a jump and a leap** (asked; the kernel's
     `ballistic_*.lisp`, fitted to her body): read whole; the regimes at the
     text's Froude numbers on her leg, a step's brake on a floor's friction and
-    her hips' launch from her drives in `machine.ballistic`
+    her hips' launch from her drives in `machine.moves.ballistic`
     ([leap](../findings/leap.md); test_ballistic); her loop runs none of it.
     Left: the atlas's split-leap posture its header names; a launch with her
     hips and ankles beside her knees. DOD:

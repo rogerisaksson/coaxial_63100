@@ -17,7 +17,7 @@ int wbc_invert6(double a[6][6], double inv[6][6]);
 /** The quaternion (w, x, y, z) of a frame's rotation, R by rows. */
 void wbc_quat_of(const double r[9], double q[4]);
 
-/** The world-frame rotation vector taking `have` to `want`, rad: machine.wbc.turn_error. */
+/** The world-frame rotation vector taking `have` to `want`, rad: machine.stack.wbc.turn_error. */
 void wbc_turn_error(const double want[4], const double have[4], double out[3]);
 
 /** A level's rows this tick, least squares in the null space so far under every bound (the

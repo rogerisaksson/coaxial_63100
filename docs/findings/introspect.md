@@ -1,10 +1,10 @@
 # Her layers live
 
-`machine.introspect` serves her loop's three layers each law pass - latent
+`machine.process.introspect` serves her loop's three layers each law pass - latent
 (her state's rows by mode, her latent out), impedance (the modal ask, the
 step's ask), wrench (the step's answer: tau, qacc, bears, cop, ..) - as JSON
 lines on 127.0.0.1 to every client attached (`show_humanoid --telemetry
-PORT`, `python -m machine.introspect --attach PORT`, `introspect.read`).
+PORT`, `python -m machine.process.introspect --attach PORT`, `introspect.read`).
 Every field named from her code's own constants (`introspect.layout`: the
 run of module-level slices ending at a vector's size, in rising offsets -
 the ask's 37 to `modal.ASK`, latent out's 14 to `latent.OUT`, a row's 12 to
@@ -19,7 +19,7 @@ under real time's 1 000. A slow client is dropped behind, never waited on
 
 ## Reduced for a reader with little room
 
-`machine.watch` runs her analyzers (`machine/analyzers`, a file each:
+`machine.process.watch` runs her analyzers (`machine/analyzers`, a file each:
 `laid(meta)`, `step(state, snap) -> events`) beside her loop over the
 snapshots - her law's layers named only as an analyzer reads them
 (`introspect.Snap`, 11 us where 134) - and hands on only their events;
@@ -44,7 +44,7 @@ mid-walk, her right hip 0.94 of its drive's rating walking (TODO).
 
 ## Gated
 
-`machine.gate` records her streams on their own clocks while a gate is
+`machine.rig.gate` records her streams on their own clocks while a gate is
 armed (`streams.STREAMS`): the commands heard; her edge's reads - IMU,
 encoders and drives' torques each pass, soles and skin each law pass; her
 things at her registry's refresh (9 ms); her law's latent, impedance and

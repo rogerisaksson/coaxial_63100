@@ -1,4 +1,4 @@
-/** wbc_step.h - her whole body's step on the host (wbc_step.c, wbc_rounds.c): machine.wrench.step,
+/** wbc_step.h - her whole body's step on the host (wbc_step.c, wbc_rounds.c): machine.stack.wrench.step,
     numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation - her law's
     step the same bit for bit, where wbc_wrench.c is the firmware's own. Portable C11, the
     host's alone. */
@@ -18,22 +18,22 @@
                        + WBC_STEP_U * WBC_STEP_C + 2 * WBC_STEP_C + 2 * WBC_STEP_D * WBC_STEP_U + 2 * WBC_STEP_U    \
                        + 3 * WBC_STEP_D + WBC_STEP_N)
 
-/** The step: her body and machine.wrench's constants laid once; what is sensed of her
-    (machine.wbc.sense) and what is asked (machine.wbc.step's ask) pointed at or copied each
+/** The step: her body and machine.stack.wrench's constants laid once; what is sensed of her
+    (machine.stack.wbc.sense) and what is asked (machine.stack.wbc.step's ask) pointed at or copied each
     call; what it answers. */
 typedef struct
 {
   /* her body, laid once: dofs, driven, unknowns before the contacts (NU), each driven joint's
      dof, each leg's six and each knee among the driven, her upper body's, the held dofs, the
-     passive and the active, the parallel pairs; the master insert's buffers (machine.wbc.Body's
+     passive and the active, the parallel pairs; the master insert's buffers (machine.stack.wbc.Body's
      buffers): each one's driven joint, stop rad and side, 1 a low end; their width rad,
      stiffness 1/s^2, damping 1/s and reach s */
   int           n, nd, nu0, nupper, nheld, npass, nact, npairs, nbuffers;
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
   int           rounds, past, buffer_at[2 * WBC_STEP_D];
-  int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.wrench.SIDES); her hands' first patch
-                                                (machine.borne.CARPAL), a side's CARPAL on */
+  int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.stack.wrench.SIDES); her hands' first patch
+                                                (machine.senses.borne.CARPAL), a side's CARPAL on */
   double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[4];
   double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2;
   double        w_com, w_turn, w_swing, w_knee, w_posture, w_height, w_moment, w_fold, w_stop, w_part, w_air;
@@ -47,14 +47,14 @@ typedef struct
   const double *tquat[2], *Jr[2], *dJr[2], *tw[2];
   int           nc;
   const double *cJ[WBC_STEP_C], *cp[WBC_STEP_C], *cdJv[WBC_STEP_C], *cf[WBC_STEP_C];
-  int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.borne) */
+  int           cpatch[WBC_STEP_C]; /**< each contact's patch, the segments one surface bears (machine.senses.borne) */
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep, let_go[2];
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, sat, mus[2], rests[2];
   double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
                                                           off her soles' cap, N; a sliding contact's, the slide's
                                                           governor's; each of her hands' contacts' */
-  double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.emancipation) */
+  double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.moves.emancipation) */
   double        let_hold[2], freed[2], open_kp, open_kd; /**< each let-go foot held still, each leg's share free on
                                                             its open chain's stiffness and damping (ask['open']) */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
@@ -72,17 +72,17 @@ typedef struct
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
 int wbc_step(wbc_step_t *p);
 
-/** machine.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad (wbc_maps.c). */
+/** machine.stack.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad (wbc_maps.c). */
 void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double have[4], double out[3]);
 
-/** machine.wrench._maps (wbc_maps.c): qdd = T base + E u + t0, each swinging sole's asked a6 and whether asked; 0
+/** machine.stack.wrench._maps (wbc_maps.c): qdd = T base + E u + t0, each swinging sole's asked a6 and whether asked; 0
     or 1 where numpy would raise. */
 int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E, double *t0, double *a6,
                   double asked[2], int nu, double *work);
 
-/** machine.wrench._rounds: the unknowns `at` (nu) for the rows' normal matrix H0 and right-hand
+/** machine.stack.wrench._rounds: the unknowns `at` (nu) for the rows' normal matrix H0 and right-hand
     side g0, the contacts' held rows (S (3, nu) and r (3) each, nc of them) pressing on what they
-    bear, her height's band lo to hi; geo and stride as machine.wrench lays them. 0 or 1 raised. */
+    bear, her height's band lo to hi; geo and stride as machine.stack.wrench lays them. 0 or 1 raised. */
 typedef struct
 {
   int           nu, k3;
@@ -90,7 +90,7 @@ typedef struct
   double        mass, grounded, strides, edges[2], mu[2];
 } wbc_geo_t;
 
-/** machine.wrench._patch: each contact's four rows (S, 4 a contact, r and r0): its point held still, along its
+/** machine.stack.wrench._patch: each contact's four rows (S, 4 a contact, r and r0): its point held still, along its
     up alone where it slides along the floor's plane past slide_m_s along the said slide, and its patch's normal
     force split as felt,
     its share pinned; what it feels along the patch's normal told (`felt`, N, nc) and its slip (`slips`, 3 a
@@ -98,7 +98,7 @@ typedef struct
 void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *full, const double *full0, double *S,
                     double *r, double *r0, double *felt, double *slips);
 
-/** machine.wrench._patches' caps: what bears her off her soles capped as asked (fz_cap), a sliding contact by
+/** machine.stack.wrench._patches' caps: what bears her off her soles capped as asked (fz_cap), a sliding contact by
     the slide's governor too (slid_cap), each contact at its share of it as felt (`felt`) over every patch; her
     hands' each at hand_cap, and each side whose hand bears told (`borne`, 3: left, right, none). */
 void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne);

@@ -1,4 +1,4 @@
-"""Her say catalog (`machine.says`): scanned from the sources, served as JSON, nothing registered by hand."""
+"""Her say catalog (`machine.texts.says`): scanned from the sources, served as JSON, nothing registered by hand."""
 import json
 import sys
 
@@ -11,7 +11,9 @@ def test_the_catalog_scans_her_sources(report):
     each row from its source, once; the whole serves as JSON; its counts are the sources' own, so a
     say added to a source appears with no hand on the catalog."""
     import numpy as np
-    from machine import dock, maneuver, says, sprung, takes
+    from machine.way import dock
+    from machine.texts import maneuver, says, takes
+    from machine.process import sprung
     rows = says.catalog()
     by = {}
     for r in rows:
@@ -38,7 +40,8 @@ def test_a_chosen_row_is_what_hears_it(report):
     chosen row's own command sent - a say, a gait's twist, a take's rows as the bench says them, the
     tour the page's -, null nothing."""
     from coaxial_ollama import client, gynoid
-    from machine import says, se2
+    from machine.texts import says
+    from machine.law import se2
     rows = says.catalog()
     answers = []
 

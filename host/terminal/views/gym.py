@@ -5,7 +5,7 @@
     gym.boxes(now)               # the side column's LATENT and SAY boxes
     gym.status(now)              # what she is doing, in a line
 
-She stands on the loop (`machine.sprung`); the keys that move her are a twist (`humanoid_keys`).
+She stands on the loop (`machine.process.sprung`); the keys that move her are a twist (`humanoid_keys`).
 A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers only what she
 has identified, a balloon on it: rising from the thing that bears her, else each thing and its
 verb; from the floor alone her rise, no thing and no balloon. A gym entry is said
@@ -21,7 +21,9 @@ from rich.text import Text
 
 from coaxial.draw import gauges
 from coaxial.graphics import balloons, gynoid
-from machine import errand, sight, sprung, tour
+from machine.way import errand, tour
+from machine.eyes import sight
+from machine.process import sprung
 from terminal.ui.stage import hud
 from terminal.ui.taskbar import HELP_S, slid
 from terminal.views import scanner, viewpoint
@@ -31,7 +33,7 @@ DIGITS = '1234567890'
 #: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
 #: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
 SHOVES_N = {'P': 80.0, 'N': 200.0}
-#: Each scene's objective (`machine.floor.SCENARIOS`).
+#: Each scene's objective (`machine.world.floor.SCENARIOS`).
 SCENARIO_DESC = {
     'flat': 'level ground // stand and go',
     'lodge': 'the lodge // its deck, stair and steps',
@@ -211,7 +213,7 @@ def ballooned(state, offer, width, height, travel, docked=()):
 
 
 def touring(state):
-    """Whether the tour (`machine.tour`) is commanding her."""
+    """Whether the tour (`machine.way.tour`) is commanding her."""
     tour = state.get('tour')
     return tour is not None and not tour.done
 
@@ -272,7 +274,7 @@ def next_text(state):
 
 def step_scenario(state, delta):
     """The scene `delta` on through `floor.SCENARIOS` laid, the one she is in with 0."""
-    from machine import floor
+    from machine.world import floor
     scens = floor.SCENARIOS
     cur = state.get('scenario', 'flat')
     run_scenario(state, scens[(scens.index(cur) + delta) % len(scens)] if cur in scens else scens[0])
@@ -286,7 +288,7 @@ def shoved(state, n):
 
 def toggle_tour(state):
     """The tour from its start, or ended."""
-    from machine.tour import HouseTour
+    from machine.way.tour import HouseTour
     if touring(state):
         cancel_tour(state)
         return

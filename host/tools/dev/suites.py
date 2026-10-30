@@ -38,7 +38,7 @@ BOOT_CORE = 'test_boot_core.py'
 BOOT_CLIENT = 'test_boot_client.py'
 
 #: machine/'s parts and feedback as the C a board will loop on, stepped beside
-#: host/machine/parts.py.
+#: host/machine/rig/parts.py.
 CTRL_CORE = 'test_ctrl_core.py'
 
 #: What the motors turn (world/): loads and bodies against closed forms.
@@ -109,9 +109,9 @@ CONTROLLER = 'test_controller.py'
 #: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes; her fake camera.
 GYNOID, WBC, SIGHT, CAMERA = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
-#: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.wrench`.
+#: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.stack.wrench`.
 WBC_CORE, LEAP, WRENCH = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py'
-#: Her body identified of her edge alone, on the stand (machine.sysid).
+#: Her body identified of her edge alone, on the stand (machine.identify.sysid).
 SYSID, SYSID_LIVE = 'test_sysid.py', 'test_sysid_live.py'
 #: Her numpy compiled to C beside numpy's own (tools.cores.trace, emit, held, bodied).
 COMPILED = 'test_compiled.py'
@@ -161,7 +161,7 @@ FLOOR = 'test_floor.py'
 SITUATION = 'test_situation.py'
 #: Her buses under faults: a burst inside her horizon ridden, one past it her drives off.
 BUSES = 'test_buses.py'
-#: Her drift from her build and a load in a hand read off her rows on-line (machine.wear).
+#: Her drift from her build and a load in a hand read off her rows on-line (machine.identify.wear).
 WEAR = 'test_wear.py'
 #: Her errands on her loop: a stop that settles, F heard, a scene laid anew and walked at once.
 ERRANDS = 'test_errands.py'
@@ -177,7 +177,7 @@ AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
 #: The plane's rollouts for its predictive control (mppi/, machine.aircraft.se3mpc).
 MPPI_CORE = 'test_mppi_core.py'
 
-#: The cyclic executive (machine.cyclic): its steps against machine.parts, a cycle on a toy rotor.
+#: The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
 
 #: The quad's suites; what a change reaches. Its action space (machine.aircraft.pull) against the

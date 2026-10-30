@@ -1,4 +1,4 @@
-"""Her step without an active set (`machine.wrench`) in the stack's place (`tools/sim/wbc.py
+"""Her step without an active set (`machine.stack.wrench`) in the stack's place (`tools/sim/wbc.py
 --wrench`): one step standing beside the stack's, a contact bearing her, her stand, a nudge
 held, a hop."""
 import os
@@ -15,7 +15,9 @@ APART_NM, APART_N = 0.5, 2.0
 
 def _standing():
     """(her model, its sense, the capture point's ask) at her stand's first pass."""
-    from machine import figure, physics, wbc
+    from machine.body import figure
+    from machine.world import physics
+    from machine.stack import wbc
     from tools.sim import wbc as sim
     world, body = physics.World(), wbc.Body()
     world.reset(figure.stand())
@@ -30,7 +32,7 @@ def test_a_step_standing_is_the_stacks(report):
     """Her stand's first pass, the capture point's law: the torques and the soles' loads of
     `wrench.step` beside `wbc.step`'s."""
     import numpy as np
-    from machine import wbc, wrench
+    from machine.stack import wbc, wrench
     body, s, ask = _standing()
     ours, theirs = wrench.step(body, s, ask), wbc.step(body, s, ask)
     torque = float(np.abs(ours['tau'] - theirs['tau']).max())
@@ -40,11 +42,11 @@ def test_a_step_standing_is_the_stacks(report):
 
 
 def test_a_contact_bears(report):
-    """A segment that bears her is a contact of her step (`machine.borne`): under her pelvis,
+    """A segment that bears her is a contact of her step (`machine.senses.borne`): under her pelvis,
     bearing half her weight now, it takes what her soles give up, no more than GROW_N over what
     it bore, in its friction's pyramid."""
     import numpy as np
-    from machine import rounds, wbc, wrench
+    from machine.stack import rounds, wbc, wrench
     body, s, ask = _standing()
     pelvis = body.m.body('pelvis').id
     p, jp = body.d.xpos[pelvis].copy(), np.zeros((3, body.m.nv))
@@ -68,7 +70,7 @@ def test_a_contact_slides(report):
     force under the cap; slipping less, or against the said slide, it sticks, its friction the step's within the
     cone."""
     import numpy as np
-    from machine import wbc, wrench
+    from machine.stack import wbc, wrench
     body, s, ask = _standing()
     pelvis = body.m.body('pelvis').id
     p, jp = body.d.xpos[pelvis].copy(), np.zeros((3, body.m.nv))
@@ -95,7 +97,7 @@ def test_a_patch_splits_as_felt(report):
     """Two contacts one surface bears (`borne`'s patch) split its normal load as it is felt (`wrench._patch`'s
     pin): asked a cap (`fz_cap`), the patch bears no more, each contact its share of it."""
     import numpy as np
-    from machine import wbc, wrench
+    from machine.stack import wbc, wrench
     body, s, ask = _standing()
     pelvis, jp = body.m.body('pelvis').id, np.zeros((3, body.m.nv))
     half, cap, apart = 0.5 * body.mass * wbc.G, 0.3 * body.mass * wbc.G, np.array([0.08, 0.0, 0.0])
@@ -120,7 +122,8 @@ def test_her_lean_hands_her_to_her_soles(report):
     """A rise's preload (`maneuver._panned`): what bears her panned to the plantar share its cross-fade waits
     for (the handover's liftoff, 0.82), her ZMP in her support, the kernel's egress slide forward, her legs'
     springs back from the seat's gain by that share (`maneuver._legs`); the fade onto her soles ends the slide."""
-    from machine import acts, maneuver, somatic
+    from machine.texts import acts, maneuver
+    from machine.law import somatic
     ps = maneuver.phases('rise_chair')
     lean = next(k for k, p in enumerate(ps) if p.stage == 'preload')
     p, then = ps[lean], ps[lean + 1]
@@ -142,7 +145,8 @@ def test_a_slide_said_rides_her_row(report):
     """A phase's slide (`ortho.SLIDE`, m/s along her way) is laid in its row and carried by her latent's
     output (`latent.SLID`) while the phase holds, her rest's none."""
     import numpy as np
-    from machine import latent, ortho
+    from machine.law import latent
+    from machine.texts import ortho
     rest = np.zeros(ortho.P)
     rest[latent.K], rest[latent.HZ] = 100.0, 1.0
     tables, _ = ortho.compiled('(defbehavior b (phase p (duration 1s) (blend_duration 100ms)'
@@ -161,11 +165,13 @@ def test_a_slide_said_rides_her_row(report):
 
 
 def test_her_reach_rolls_her_onto_the_ball(report):
-    """The kernel's reachability on her loop (`machine.somatic`): a leg's hip to its sole over her leg's length;
+    """The kernel's reachability on her loop (`machine.law.somatic`): a leg's hip to its sole over her leg's length;
     seated, from 0.86 of it her sole's centre of pressure goes onto its ball by the furniture's told share,
     whole at 0.98; standing, nothing borne, her soles stay as her stride has them."""
     import numpy as np
-    from machine import latent, modal, ortho, rounds, somatic, stride
+    from machine.law import latent, modal, somatic, stride
+    from machine.texts import ortho
+    from machine.stack import rounds
     g, told_by = {'fr': np.zeros(modal.FRAME), 'sat': 0.0}, np.eye(len(ortho.MANIFOLDS))
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0
@@ -241,7 +247,9 @@ def test_singular_fall_is_bounded(report):
     `step` scale the baseline into the drives' clamps without collapsing `scale` to 0 or flinging
     her driven joints at thousands of rad/s^2."""
     import numpy as np
-    from machine import figure, physics, wbc, wrench
+    from machine.body import figure
+    from machine.world import physics
+    from machine.stack import wbc, wrench
     world, body = physics.World(), wbc.Body()
     qpos = figure.stand()
     for j in ('left_knee', 'right_knee'):
@@ -267,7 +275,9 @@ def test_surety_contracts_authority_and_damps_fall(report):
     2D tuck-and-brace regime outside her upright envelope, absorbs at 0 on collapse so a bounce
     never re-fires torques, and damps her joints passively."""
     import numpy as np
-    from machine import edge, modal, motion, sprung
+    from machine.senses import edge
+    from machine.law import modal, motion
+    from machine.process import sprung
     g = sprung.laid()
     for _ in range(5):
         sprung.passed(g)
@@ -302,13 +312,15 @@ def test_surety_contracts_authority_and_damps_fall(report):
 
 
 def test_her_master_bus_and_buffers(report):
-    """Her master bus laid of the anti-spasm insert (`machine.supervisor`): each drive's slew its peak
+    """Her master bus laid of the anti-spasm insert (`machine.law.supervisor`): each drive's slew its peak
     through its board's current loop, its jerk that over its rotor's inertia; a buffer before each
     stop of the insert's boundary nodes' joints, critically damped."""
     import math
     from coaxial.model import inverter, sensorless
-    from machine import drives, supervisor, wbc
-    from machine.figure import JOINTS
+    from machine.body import drives
+    from machine.law import supervisor
+    from machine.stack import wbc
+    from machine.body.figure import JOINTS
     names = [j for j in JOINTS if drives.passive(j) is None]
     _k, _s, laid = supervisor.bus(names, 1000.0)
     loop = sensorless.current_loop(0.0, 0.0, inverter.FSW, 0.0, drives.PACK_V)['bw_hz']

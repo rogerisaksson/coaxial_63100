@@ -5,7 +5,7 @@ import os
 import re
 import struct
 from dataclasses import dataclass, field
-from machine import mechatronics
+from machine.body import mechatronics
 
 _BASE_DIR = mechatronics.AIRCRAFT
 _MODES = ('mode_collective_thrust mode_attitude_pitch mode_attitude_roll '

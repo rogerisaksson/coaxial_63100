@@ -39,7 +39,7 @@ LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
 
 def _held(world):
     """What her spine's drive and her hips' pitch drives give, N m."""
-    from machine.figure import JOINTS
+    from machine.body.figure import JOINTS
     tau = world.data.ctrl
     return {'spine_nm': float(tau[JOINTS.index('spine')]),
             'hips_nm': float(tau[JOINTS.index('left_hip')] + tau[JOINTS.index('right_hip')])}

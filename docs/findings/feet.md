@@ -61,4 +61,4 @@ Passive toes, the sole's give, and the heel's rise on the loop
 - On the stacks (`drives.md`, `stacks.md`), the ankles' and hip rolls' rotors
   reflect 0.103 and 0.173 kg m^2 through their rods and spur pairs, and the
   passive toes' rows sit in her dynamics under the rest (`wbc_wrench.c`,
-  `machine/wrench.py`).
+  `machine/stack/wrench.py`).

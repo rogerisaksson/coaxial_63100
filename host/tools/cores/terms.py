@@ -1,6 +1,6 @@
 """Her movements' orthopaedic terms as static arrays: which joint makes each, and which way.
 
-    python tools/cores/terms.py --write     # machine/term_rows.py
+    python tools/cores/terms.py --write     # machine/body/term_rows.py
     laid = terms.rows()                     # what the file holds, laid anew from her figure
 
 Anatomy names a movement by what it does: flexion of the hip brings the knee forward, abduction
@@ -10,7 +10,7 @@ and with which sign, is found: each joint of the segment is turned in her figure
 (`figure.frames`) and the one whose motion is the term's is kept. A movement no driven joint of
 hers makes is absent. A limb's terms are found on both limbs and must agree - a limb is an
 index, its joints' names data. Ranges, deg: the compiled figure's stops (`drives.TRAVEL`); nothing
-stopping it, None. `machine.terms` reads them, tests/test_terms.py holds them to MuJoCo.
+stopping it, None. `machine.body.terms` reads them, tests/test_terms.py holds them to MuJoCo.
 """
 import importlib
 import math
@@ -19,11 +19,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from machine import drives, figure
+from machine.body import drives, figure
 from tools import REPO
 from tools.cores import written
 
-PATH = os.path.join(REPO, 'host', 'machine', 'term_rows.py')
+PATH = os.path.join(REPO, 'host', 'machine', 'body', 'term_rows.py')
 NOTICE = "Her movements' terms as static arrays: written by host/tools/cores/terms.py, not by hand."
 
 #: A joint is turned TURN_DEG to see what it moves; it makes a movement where MAKES of the
@@ -108,7 +108,7 @@ def made(segment, kind, vector, way):
 def stops():
     """{joint: (low, high) deg} of every joint something stops: the compiled figure's stops."""
     mujoco = importlib.import_module('mujoco')
-    from machine import mjcf
+    from machine.body import mjcf
     m = mujoco.MjModel.from_xml_string(mjcf.mjcf())
     return {j: tuple(round(math.degrees(float(v)), 6) for v in m.joint(j).range)
             for j in figure.JOINTS if m.jnt_limited[m.joint(j).id]}
@@ -145,7 +145,7 @@ def _term(found, limits):
 
 
 def rows():
-    """What machine/term_rows.py holds, {name: value}."""
+    """What machine/body/term_rows.py holds, {name: value}."""
     limits, pair = stops(), limbs()
     terms, toward, absent, joints = {}, [], [], ({}, {})
     for part, stem, name, opposite, kind, vector, way in ANATOMY:

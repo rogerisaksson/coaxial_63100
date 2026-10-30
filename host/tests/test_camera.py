@@ -1,4 +1,4 @@
-"""Her fake camera (`machine.camera`): a look round on its frames - the renderer's parallax (`sight.Eyes.shot`) -
+"""Her fake camera (`machine.eyes.camera`): a look round on its frames - the renderer's parallax (`sight.Eyes.shot`) -
 telling the room's furniture where it stands; her map apart telling the very things her map here does, a look
 later; on her loop under `physics.SIGHT` her things its map's (`vision.LOOKS`)."""
 import math
@@ -14,7 +14,8 @@ from test_sight import LOOKS, _head, _nearest, _room, _stood
 def test_her_fake_camera_tells_the_room(report):
     """Looked round on her fake camera's frames: the chair a seat with a back, the table a seat and the bed a bed
     within 0.3 m of where they stand; her camera apart (`camera.Camera`) tells the things her map here does."""
-    from machine import camera, room, sight
+    from machine.eyes import camera, sight
+    from machine.world import room
     body, world = _room()
     cam = None
     try:
@@ -42,7 +43,9 @@ def test_her_fake_camera_tells_the_room(report):
 def test_her_loop_sees_through_it(report):
     """On her loop under `physics.SIGHT` her things are her fake camera's map's: two looks told LOOK_S past the
     second, things among them."""
-    from machine import camera, physics, sight, sprung
+    from machine.eyes import camera, sight
+    from machine.world import physics
+    from machine.process import sprung
     was, g = (physics.ROOM, physics.SIGHT), None
     physics.ROOM, physics.SIGHT = 1.0, 1.0
     try:
@@ -78,7 +81,9 @@ def test_her_page_keeps_its_pace(report):
     prompt and her vision's panel, takes under a quarter of a frame at FPS_CAP: named there, 59 things took 12 ms
     a scan and the page drew 7 frames a second."""
     import time
-    from machine import affordance, physics, worker
+    from machine.way import affordance
+    from machine.world import physics
+    from machine.process import worker
     from terminal.ui.screen import FPS_CAP
     from terminal.views import gym, scanner
     was = (physics.ROOM, physics.SIGHT)

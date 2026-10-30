@@ -8,15 +8,16 @@ it, Backspace takes a character back -; F's choice open takes a digit, F or a fu
 that acts on her closing it first, the view's leaving it, Esc shutting it. W A S D Q E - Shift
 sprints - are held into her pad, its twist told her each frame (`steered`); Space and P charge
 while held; the rest act once a press. An act takes the view's state, moves it and sends her body
-(`machine.sprung`) what it asks - what an agent sends, its verbs `terminal.views.gym`'s. R's
+(`machine.process.sprung`) what it asks - what an agent sends, its verbs `terminal.views.gym`'s. R's
 recordings and their rows (HEADER, `row`) are here with the key that writes them.
 """
 import json
 import math
 
-from machine import se2, sprung
-from machine.figure import JOINTS, SEGMENTS, frames, quat
-from machine.leap import hop_charge
+from machine.law import se2
+from machine.process import sprung
+from machine.body.figure import JOINTS, SEGMENTS, frames, quat
+from machine.moves.leap import hop_charge
 from terminal.ui import bindings, console, recorder
 from terminal.views import gym, viewpoint
 

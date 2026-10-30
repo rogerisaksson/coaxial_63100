@@ -1,11 +1,11 @@
-/** wbc_swing.c - a sole that does not stand (wbc_imp.h): machine.swing's free and rested, numpy's
+/** wbc_swing.c - a sole that does not stand (wbc_imp.h): machine.law.swing's free and rested, numpy's
     arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
 
 #include <math.h>
 
-/** machine.swing.free: a sole that does not stand on the limbs' own impedance - its
+/** machine.law.swing.free: a sole that does not stand on the limbs' own impedance - its
     acceleration in `frame`, the frame its place is read in. */
 void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const double v[3], double om,
                     const double shod[2][3], const double floors[2], double rise, const wbc_imp_said_t *s,
@@ -135,7 +135,7 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
   }
 }
 
-/** machine.swing.rested: a sole that neither stands nor strides while anything bears her - a seat,
+/** machine.law.swing.rested: a sole that neither stands nor strides while anything bears her - a seat,
     her other sole -, her ZMP let go to her text (`held` 0), rests where it is, still on the floor
     under it; `a`'s soles' accelerations and rests laid. */
 void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, double grounded, const double aloft[2],

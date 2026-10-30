@@ -324,14 +324,14 @@ cmake/stm32cubemx/, the HAL - is not counted.
 | test_thermal_core.py | The thermal envelope, run as the C that will run on the board. | 146 | 0 | 10 |
 | test_daq_core.py | The acquisition engine, run as the C that will run on the board. | 59 | 0 | 1 |
 | test_boot_core.py | The bootloader's state host as the C that will run, on byte-array flash and RAM. | 71 | 0 | 1 |
-| test_ctrl_core.py | The board's parts and feedback (ctrl/), stepped beside host/machine/parts.py. | 21 | 0 | 1 |
+| test_ctrl_core.py | The board's parts and feedback (ctrl/), stepped beside host/machine/rig/parts.py. | 21 | 0 | 1 |
 | test_world_core.py | The world core (world/): the loads a machine's motors turn and its body, against closed forms; a board's heat and its STO chain against their circuits. | 15 | 0 | 3 |
 | test_wire.py | The device clients through the firmware's own wire, on this host. | 9 | 0 | 13 |
 | test_sensorless.py | The sensorless design arithmetic, and the commissioning against the stand-in. | 138 | 0 | 137 |
 | test_broker.py | coaxial.comm.broker: one process owns the port, everything else asks it. | 33 | 0 | 28 |
 | test_daq_api.py | The acquisition front door: picking channels, reading them, shaping them. | 82 | 0 | 81 |
 | test_controller.py | The controller: feedback loops over float channels, its parts, its panel, its sequencer. | 130 | 0 | 132 |
-| test_cyclic.py | The cyclic executive (machine.cyclic): its steps against machine.parts, its cycle on a toy rotor. | 13 | 0 | 1 |
+| test_cyclic.py | The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, its cycle on a toy rotor. | 13 | 0 | 1 |
 | test_boot.py | The master's side of the bootloader against the stand-in (docs/BOOT.md). | 24 | 0 | 0 |
 | test_views.py | Every live view runs two frames against the stand-in, as a subprocess. | 274 | 0 | 118 |
 | test_render.py | The 3D engine, stage by stage, against exact expectations. | 146 | 0 | 20 |

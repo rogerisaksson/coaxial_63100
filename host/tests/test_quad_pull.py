@@ -13,7 +13,7 @@ CASES = ((63.0, 60.0), (63.0, 90.0), (57.3, 60.0), (48.0, 90.0))
 def armed():
     """(a stand-in board armed as the page's flight arms it, its rotor)."""
     from coaxial import Coaxial63100
-    from machine.modes import SIMULATED
+    from machine.rig.modes import SIMULATED
     from terminal.views.quad import flight as view
     rig = Coaxial63100(execution_mode=SIMULATED).open()
     return rig, view.arm(rig)

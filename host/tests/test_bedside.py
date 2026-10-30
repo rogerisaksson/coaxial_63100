@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""At a seat's or a bed's edge (`machine.bedside`; the kernel's bedside_*.lisp): the texts read whole, what meets a
+"""At a seat's or a bed's edge (`machine.moves.bedside`; the kernel's bedside_*.lisp): the texts read whole, what meets a
 fixture behind her, a stool without a back, the bed's pendulum on her body, her roll held on the bed's line."""
 import math
 import os
@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from test_groundwork import LANDMARKS, TOUCH, _laid, _part, _skin
+from ground_kit import LANDMARKS, TOUCH, dense, laid, part, skin
 
 #: The bedside texts, lisp/humanoid/kernel/.
 TEXTS = ('bedside_and_stool_core.lisp', 'bedside_maneuver_specializers.lisp', 'bedside_choreography_patches.lisp')
@@ -23,7 +23,7 @@ LATTICE, LEAN_STEP, FOLD_STEP = 7, 1e-3, 0.01
 
 
 def _plan():
-    from machine import dsp, kernel
+    from machine.texts import dsp, kernel
     return dsp.schedule(kernel.read()['compile-complete-stool-and-bed-lifecycle-soa'])
 
 
@@ -33,7 +33,7 @@ def _shots():
 
 
 def _patches():
-    from machine import kernel
+    from machine.texts import kernel
     got = kernel.read()
     return {**got['anatomical-manifold-registry'], **got['groundwork-manifold-extensions']}
 
@@ -47,7 +47,8 @@ def test_the_texts_read_whole(report):
     """The texts read with the kernel: their stages; every manifold they name a patch; every landmark they probe, prop
     or anchor on a segment of hers, those on no patch of her registry named; the stool, 3 s, the bed, 2 s, the roll;
     the pendulum a quarter turn each way."""
-    from machine import dsp, kernel, mechatronics
+    from machine.texts import dsp, kernel
+    from machine.body import mechatronics
     got, patches, plan, shots = kernel.read(), _patches(), _plan(), _shots()
     folder = os.path.join(mechatronics.LISP, 'humanoid', 'kernel')
     texts = []
@@ -85,31 +86,9 @@ def test_the_texts_read_whole(report):
                  turns == [(':ingress-to-longitudinal-supine', 1.570796), (':egress-to-transverse-seated', -1.570796)])
 
 
-def _dense(deg):
-    """(points, radii, parts) of her skin posed `deg`, her soles on the floor: a capsule of `figure.BODY` a sphere every
-    STEP_M along it, a sole's and toes' box a lattice at 0; her fingers left out."""
-    import itertools
-    import numpy as np
-    from machine import figure
-    segments = {s[0] for s in figure.SEGMENTS if not s[0].endswith('fingers')}
-    points, radii, of = [], [], []
-    for name, (at, here) in figure.frames(deg, (0.0, figure.standing(), 0.0), figure.IDENT).items():
-        for r, a, b in [(r, a, b) for p, r, a, b in figure.BODY if name in segments and p == _part(name)]:
-            for s in np.linspace(0.0, 1.0, int(math.ceil(math.dist(a, b) / STEP_M)) + 1):
-                points.append(np.add(at, figure.apply(here, tuple(np.add(a, s * np.subtract(b, a))))))
-                radii.append(r)
-                of.append(_part(name))
-        for size, c in [(size, c) for p, _s, size, c in figure.CONTACTS if name in segments and p == _part(name)]:
-            for s in itertools.product(np.linspace(-1.0, 1.0, LATTICE), repeat=3):
-                points.append(np.add(at, figure.apply(here, tuple(c[i] + s[i] * size[i] for i in range(3)))))
-                radii.append(0.0)
-                of.append(_part(name))
-    return np.array(points), np.array(radii), np.array(of)
-
-
 def _face(name):
     """(bottom, top) m of the lodge's box `name` as furnished (`room.furnish`)."""
-    from machine import room
+    from machine.world import room
     xml = next(b for b in room.furnish('') if b.startswith('<body name="%s"' % name))
     mid = float(re.findall(r'pos="\S+ (\S+) ', xml)[0]) + sum(float(y) for y in re.findall(r' pos="0 (\S+) 0"', xml))
     half = float(re.findall(r'size="\S+ (\S+) ', xml)[0])
@@ -121,8 +100,10 @@ def test_what_meets_a_fixture_behind_her(report):
     chairs' seat edges and the lodge bed's side meet her calves, on no patch of hers; an edge over her knee her thighs'
     backs, the stool's probe. From each turn's standoff the stool and the bed meet her within the text's seek."""
     import numpy as np
-    from machine import bedside, figure, floor
-    points, radii, of = _dense(figure.stand())
+    from machine.moves import bedside
+    from machine.body import figure
+    from machine.world import floor
+    points, radii, of = dense(figure.stand(), STEP_M, LATTICE)
     heights = np.arange(0.0, 1.0, RISE_M)
     reach = bedside.behind(points, radii, heights, heights + RISE_M)
     first = of[np.argmax(reach, axis=1)]
@@ -157,18 +138,18 @@ def test_what_meets_a_fixture_behind_her(report):
 def _seated(bias=0.0, spine=0.0):
     """Her figure on the kernel's canonical ischial origin, legs hung as the stool's hang sets them, her lumbar `bias`
     rad more, her spine `spine` deg more."""
-    from machine import kernel
+    from machine.texts import kernel
     seated = kernel.read()['canonical-posture-soa-atlas']['postures']['ischial-seated']['origin-q0']
     hang = kernel.node('xform-sit-on-chair-or-stool', 'limb-hang')['override-origin']
-    deg = _laid(dict(seated, **hang, **{'l4-l5-lumbar': seated['l4-l5-lumbar'] + bias}))
+    deg = laid(dict(seated, **hang, **{'l4-l5-lumbar': seated['l4-l5-lumbar'] + bias}))
     return dict(deg, spine=deg['spine'] + spine)
 
 
 def _seat(deg):
     """(her centre's z, her buttocks' z from .. to, m) of her figure posed `deg`: her pelvis's lowest skin."""
     import numpy as np
-    points, radii, of, centre = _skin(deg)
-    on = np.array([_part(s) == 'pelvis' for s in of])
+    points, radii, of, centre = skin(deg)
+    on = np.array([part(s) == 'pelvis' for s in of])
     low = points[:, 1] - radii
     touch = on & (low - low[on].min() < TOUCH)
     return centre[2], points[touch, 2].min(), points[touch, 2].max()
@@ -178,8 +159,8 @@ def _hung(talocrural):
     """(kg m, kg m^2): her shank, foot and toes as built hung from her knee, her ankle at `talocrural` rad - their mass
     times their centre's depth under it, their inertia about it."""
     import numpy as np
-    from machine import build, figure
-    placed, built = figure.frames(_laid({'talocrural': talocrural}), (0.0, 0.0, 0.0), figure.IDENT), build.segments()
+    from machine.body import build, figure
+    placed, built = figure.frames(laid({'talocrural': talocrural}), (0.0, 0.0, 0.0), figure.IDENT), build.segments()
     knee = np.array(placed['left_shank'][0])
     moment = inertia = 0.0
     for name in ('left_shank', 'left_foot', 'left_toes'):
@@ -196,8 +177,12 @@ def test_a_stool_without_a_back(report):
     Her centre over the patch's stool, her ischia keep its rim's margin as far as the text leans her. Her shank hangs
     at the text's frequency; on her toes she perches higher."""
     import numpy as np
-    from machine import barrier, bedside, drives, figure, kernel, observer
-    from machine.term_rows import TERMS
+    from machine.law import barrier
+    from machine.moves import bedside
+    from machine.body import drives, figure
+    from machine.texts import kernel
+    from machine.senses import observer
+    from machine.body.term_rows import TERMS
     shot = _shots()[0]
     speed = _keys(shot, 'xform-sit-on-chair-or-stool')['slide-speed-mps']
     seat = _keys(shot, 'specialize-with-stool-active-core-balance')['seat-diameter-mm']
@@ -233,10 +218,10 @@ def test_a_stool_without_a_back(report):
     swing, told = float(bedside.pendulum(moment, inertia)), hang['passive-pendulum-dynamics']['eigenfreq-hz']
     report.check('her shank hangs %.3f kg m, %.4f kg m^2 about her knee: %.3f Hz, the text %.2f' % (
         moment, inertia, swing, told), abs(swing - told) < 5e-3)
-    points, radii, of = _dense(figure.stand())
+    points, radii, of = dense(figure.stand(), STEP_M, LATTICE)
     toes = TERMS[('ankle', 'plantarflexion')]
-    raised = _dense(dict(figure.stand(), left_ankle=toes[1] * toes[3], right_ankle=toes[1] * toes[3],
-                         left_foot=-toes[3], right_foot=-toes[3]))
+    raised = dense(dict(figure.stand(), left_ankle=toes[1] * toes[3], right_ankle=toes[1] * toes[3],
+                         left_foot=-toes[3], right_foot=-toes[3]), STEP_M, LATTICE)
     up = (points[:, 1] - radii).min() - (raised[0][:, 1] - raised[1]).min()
     perch = (points[of == 'pelvis', 1] - radii[of == 'pelvis']).min()
     report.check('her buttocks %.3f m up, on her toes at her %g deg stop %.3f' % (perch, toes[3], perch + up), up > 0.0)
@@ -245,8 +230,8 @@ def test_a_stool_without_a_back(report):
 def _deep():
     """m: her hips in from a bed's edge sat her deepest, the edge at her calves."""
     import numpy as np
-    points, radii, of, _c = _skin(_seated())
-    shank = np.array([_part(x) == 'shank' for x in of])
+    points, radii, of, _c = skin(_seated())
+    shank = np.array([part(x) == 'shank' for x in of])
     return (points[shank, 2] - radii[shank]).min()
 
 
@@ -254,8 +239,8 @@ def _rolled(deg, side):
     """(her centre's height over a hard floor, rolled from her back onto `side`, round a turn; her skin across the
     floor from her centre at her back, side and front, (3, 2) m; the samples) of her figure posed `deg`."""
     import numpy as np
-    from machine import groundwork
-    points, radii, _of, centre = _skin(deg)
+    from machine.world import groundwork
+    points, radii, _of, centre = skin(deg)
     theta = np.linspace(0.0, 2.0 * np.pi, TURN + 1)
     up = groundwork.rolled(theta, side)
     across = np.cross(up[[0, TURN // 4, TURN // 2]], [0.0, 1.0, 0.0])
@@ -268,16 +253,16 @@ def _half(origin, fold=0.0):
     """m: her half width lying on her back posed as the groundwork atlas's `origin`, her elbows `fold` rad more, and
     on her side."""
     import numpy as np
-    from machine import kernel
+    from machine.texts import kernel
     posed = kernel.read()['groundwork-1jet-posture-atlas']['postures'][origin]['origin-q0']
-    spans = _rolled(_laid(dict(posed, cubital=posed['cubital'] + fold)), -1.0)[1]
+    spans = _rolled(laid(dict(posed, cubital=posed['cubital'] + fold)), -1.0)[1]
     return np.abs(spans[0]).max(), np.abs(spans[1]).max()
 
 
 def _stroke():
     """m: her pelvis across her planted shoulders (the text's glenohumeral anchors, their joints' middle) at her
     spine's lateral stop."""
-    from machine import figure, drives
+    from machine.body import figure, drives
     at = [figure.frames(dict(figure.stand(), spine_roll=r), (0.0, 0.0, 0.0), figure.IDENT) for r in (
         0.0, drives.TRAVEL['spine_roll'][1])]
     straight, bent = (0.5 * (a['left_upper_arm'][0][0] + a['right_upper_arm'][0][0]) for a in at)
@@ -289,8 +274,10 @@ def test_the_bed_pendulum_on_her_body(report):
     less her legs. Sat her deepest on its side the pendulum lays her there: within the bed, inside the roll's margins
     only on its line, one stroke of her escape away. Her hip holds a leg out straight."""
     import numpy as np
-    from machine import build, figure, heat, kernel, room
-    points, radii, _of, _c = _skin(_laid({}))
+    from machine.body import build, figure, heat
+    from machine.texts import kernel
+    from machine.world import room
+    points, radii, _of, _c = skin(laid({}))
     crown, soles = (points[:, 1] + radii).max(), -(points[:, 1] - radii).min()
     length, width = 2.0 * room.BED[2], 2.0 * room.BED[0]
     clear = kernel.node('specialize-with-bed-headboard-pillow-align', 'bed-datum')['headboard-wall-margin-m']
@@ -321,7 +308,9 @@ def test_her_roll_held_on_the_bed(report):
     her onto its line through that quarter in strokes of hers; the texts' strokes within hers at her shoulders; on the
     cot her elbows folded as little as fits her between its margins."""
     import numpy as np
-    from machine import bedside, kernel, room
+    from machine.moves import bedside
+    from machine.texts import kernel
+    from machine.world import room
     from test_groundwork import _roll_postures
     theta = np.linspace(0.0, 2.0, 2001)
     worst = np.abs(bedside.drift(np.full_like(theta, 0.2), theta) - 0.2 * theta).max()
