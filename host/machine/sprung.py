@@ -5,14 +5,13 @@
 """
 import math
 import os
-from machine import mechatronics, affordance, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, planner, se2, situation, supervisor, touch
+from machine import mechatronics, affordance, camera, edge, estimate, field, grip, inekf, leap, observer, ortho, planner, se2, situation, supervisor, touch, vision
 from machine.se2 import WEP_S, _dropped, doing, said
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
 #: Her registry's looks by `physics.SIGHT` off or on: her stand-in the world's boxes, the whole room's at a look;
 #: her fake camera's things (`camera.Camera`, under CAMERA or SIGHT: a look from her head as her invariant EKF
 #: places it LOOK_S apart into her map apart), told a look later, what its frustum shows.
-LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
@@ -134,7 +133,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'solve': solve_step, 'sensed': sensed, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
          'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
-         'planner': planner.Here()}
+         'planner': planner.Here(), 'vision': vision.Here()}
     motion.laid(g)
     world.clock = lambda: g['t']
     return g
@@ -220,25 +219,20 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
 
 def named(g):
     """Her things by what they afford her (`affordance.named`), named anew only when they change: the page names
-    none - named there each frame, 59 things took 12 ms a scan and the page drew 7 frames a second."""
-    key = tuple((t[0], t[4], round(t[1][0], 2), round(t[1][1], 2), round(t[1][2], 2), round(t[2][0], 2),
-                 round(t[2][2], 2)) for t in g['things'])
+    none - named there each frame, 59 things took 12 ms a scan and the page drew 7 frames a second; keyed by
+    `registry.keyed`."""
+    from machine import registry
+    key = registry.keyed(g['things'])
     if g.get('_named', (None,))[0] != key:
         g['_named'] = (key, affordance.named(g['things']))
     return g['_named'][1]
 
 
 def looked(g):
-    """A look (LOOKS): her eyes' map's things, or the world's boxes as their stand-in, into her registry
-    at `g['t']`, her things its boxes; the step's at the kernel's SDF refresh, an errand's when told."""
-    from machine import registry
-    head = {'pos': g['s']['head']['pos'], 'quat': g['s']['head']['quat']}
-    if g['keep'] is not None:
-        g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']))
-    looks = LOOKS[g['eyes']]
-    registry.passed(g['registry'], head, g['t'] - g.get('things_at', g['t']))
-    registry.seen(g['registry'], looks(g), head, g['t'], everywhere=not g['eyes'])
-    g['things'], g['things_at'] = registry.boxes(g['registry']), g['t']
+    """A look (`vision.LOOKS`): her eyes' map's things, or the world's boxes as their stand-in, into her registry
+    at `g['t']`, her things its boxes (`vision.looked`); the step's at the kernel's SDF refresh, an errand's when
+    told. Her vision apart, the step's joined in her law's pass instead (`passed`)."""
+    vision.looked(g)
 
 
 def passed(g, dt=0.001):
@@ -252,8 +246,11 @@ def passed(g, dt=0.001):
         observer.felt(g['observer'], y, dt)
         inekf.felt(g['inekf'], y, dt)
         if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
-            looked(g)
-        motion.control(g, dt)
+            (vision.look if g['vision'].apart else looked)(g)
+        try:
+            motion.control(g, dt)
+        finally:
+            vision.joined(g)
         edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
         bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
         if any(b and not n for b, n in zip(g.get('bore', (False, False)), bears)):

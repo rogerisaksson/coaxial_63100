@@ -23,7 +23,7 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
-from machine import apart
+from machine import apart, placed
 from machine.aircraft import aerobatics, aerokin, flightpack, gimbal, grounds, weather
 from machine.modes import EMULATED, SIMULATED
 from terminal.views.quad import flight as qflight
@@ -158,6 +158,7 @@ def run(commands, states, shown, craft, flown, count, setup=None, port=None):
     os.dup2(null, 1)
     os.dup2(null, 2)
     sys.stdout = sys.stderr = open(os.devnull, 'w', encoding='utf-8')
+    placed.placed()
     flight = None
     try:
         flown = importlib.import_module(flown)

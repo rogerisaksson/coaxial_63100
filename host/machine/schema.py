@@ -42,8 +42,10 @@ REFRESH_S = 1.0 / kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['refr
 def room(props):
     """{centre (P, 3), half (P, 3), R (P, 3, 3)} of the room's boxes `props` (`world.props()`'s: kind,
     centre, half sizes, rotation), laid once per list: her things change at REFRESH_S, her law passes
-    oftener."""
-    if _LAID.get('of') is not props:
+    oftener; her registry's things (`registry.Things`) laid off the arrays they keep."""
+    if _LAID.get('of') is not props and getattr(props, 'arrays', None) is not None:
+        _LAID.update(of=props, centre=props.arrays[0], half=props.arrays[1], R=props.arrays[2])
+    elif _LAID.get('of') is not props:
         boxes = [p for p in props if len(p) >= 4 and len(p[1]) == 3 and np.size(p[2]) == 3 and np.size(p[3]) == 9]
         _LAID.update(of=props, centre=np.array([p[1] for p in boxes], float).reshape(-1, 3),
                      half=np.array([p[2] for p in boxes], float).reshape(-1, 3),
@@ -77,13 +79,46 @@ def _evaded(M, J, act, free, short):
     return (np.zeros(f + k) if x is None else x), held
 
 
-def shielded(body, near, s, ask, volts):
+def shielded(body, near, s, ask, volts, shield_=None):
     """(her posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
     joints of the pairs within INFLUENCE of their floors (EVADES), least in her mass's metric, each
     joint within its drive's peak over its own inertia, so that each pair keeps h'' + KD h' + KP h >= 0
     - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2);
     `near` every pair's clearance and its Jacobian at `s` (`capsules.felt`); each pair's clearance,
-    the near ones' h, the pairs it held."""
+    the near ones' h, the pairs it held. Every pair's h and shortfall at once (`shield`, `shield_` its C,
+    `machine.motion.laid`); a near one short, the QP's (`_shielded`), else her posture as asked."""
+    act, posture = body.act, np.asarray(ask['posture'], float)
+    which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
+    h, short = (shield if shield_ is None else shield_)(near['d'], near['J'], s['M'], s['v'], s['q'], posture, volts,
+                                                         act)
+    if (short[which] > 0.0).any():
+        return _shielded(body, near, s, ask, volts)
+    f = int(EVADES[which].any(0).sum())
+    return posture + np.zeros(len(act)) / POSTURE_KD[0], {'d': near['d'], 'h': h[which], 'which': which,
+                                                          'spill': np.zeros(f + len(which))[f:], 'held': []}
+
+
+def shield(d, J, M, v, q, posture, volts, act):
+    """Each pair's h and its ECBF's shortfall (`_shielded`'s), of arrays alone: her drives' braking bounds
+    (`bemf.bounds`) through her mass matrix, the pair's closing speed, her posture's want on her joints `act`."""
+    back, peak = bemf.E * v[act], _PEAK
+    lo = np.maximum(-peak, np.minimum(0.0, bemf.K * (-(bemf.REACH * volts) - back)))
+    hi = np.minimum(peak, np.maximum(0.0, bemf.K * (bemf.REACH * volts - back)))
+    C = np.linalg.solve(M, J.T)[act].T
+    reach = np.maximum(C * lo, C * hi).sum(1)
+    rate = J @ v
+    closing = np.maximum(0.0, -rate)
+    h = d - FLOOR - np.minimum(closing ** 2 / (2.0 * np.maximum(reach, 1e-9)), closing * HORIZON)
+    want = POSTURE_KD[0] * (posture - q) - POSTURE_KD[1] * v[act]
+    return h, -KD * rate - KP * h - J[:, act] @ want
+
+
+#: Her drives' peaks, each (`bemf.PEAK`), as `bemf.bounds` takes them.
+_PEAK = np.asarray(bemf.PEAK, float)
+
+
+def _shielded(body, near, s, ask, volts):
+    """`shielded` where a near pair falls short: the QP on its evading joints (`_evaded`), every pair at once."""
     act, posture = body.act, np.asarray(ask['posture'], float)
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
     J = near['J'][which]

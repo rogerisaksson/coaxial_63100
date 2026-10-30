@@ -234,12 +234,17 @@ def rest(fr):
 def _legs(y, rot):
     """Each leg, its hip from its ankle in her way's frame (2, 3), its length and that's
     rate: her hips go as her centre of mass does, an ankle as its sole."""
+    leg = _leg(y, rot)
+    long = np.linalg.norm(leg, axis=1)
+    return leg, long, ((y[VCOM] - y[VSOLE].reshape(2, 3)) @ rot.T * leg).sum(axis=1) / long
+
+
+def _leg(y, rot):
+    """`_legs`'s first: each leg, its hip from its ankle in her way's frame (2, 3)."""
     tilt = y[TILT]
     spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
     inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
-    leg = (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + leap.MIDDLE * inward
-    long = np.linalg.norm(leg, axis=1)
-    return leg, long, ((y[VCOM] - y[VSOLE].reshape(2, 3)) @ rot.T * leg).sum(axis=1) / long
+    return (y[HIP].reshape(2, 3) - y[SOLE].reshape(2, 3)) @ rot.T - ANKLE_H * spoke + leap.MIDDLE * inward
 
 
 def under(y, fr, stance):

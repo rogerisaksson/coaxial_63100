@@ -1,11 +1,10 @@
 """The gynoid worker process on her latent loop: paced to the clock, commands heard, state said."""
 import ctypes
-import functools
 import math
 import os
 import queue
 import time
-from machine import apart, edge, figure, floor, modal, observer, ortho, physics, planner, se2, sprung, wear
+from machine import apart, edge, ortho, physics, placed, planner, referee, se2, sprung, vision, wear
 from machine.errors import BusFault, MachineError
 
 
@@ -238,38 +237,6 @@ def told_floor(g, profile):
     fr[modal.MAP_N] = float(len(pts))
 
 
-def _is_fallen(g, world):
-    """Fallen, the referee's: a part of her above her shins - thighs, pelvis, trunk, head, arms,
-    hands - touches her ground (`floor.grounds`) under her knees' height over her floor
-    (`modal.FLOOR`), unless her text tells it bears her (`observer.parts`): by her doing's name she was fallen
-    sat on her hands; a tilt past 45 deg on a bed was a fall, thrown back onto it she was down at 3.7 s;
-    touched at any height, her hand on the loft by the chair, 0.75 m up, felled 25 of 33 errands."""
-    m, d = world.model, world.data
-    paired, _averaged, address = _passing()
-    if g.get('_falls_by', (None,))[0] is not m:
-        np = world._np
-        down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
-        masks = (np.isin(m.geom_bodyid, list(down)), np.isin(m.geom_bodyid, list(floor.grounds(m))))
-        g['_falls_by'], g['_falls_down'] = (m, masks, [address(mask) for mask in masks]), down
-    told = observer.said(g['told'])
-    entry, was = g.get('active_entry'), g.get('_told_by', (object(), told))
-    g['_told_by'] = (entry, world._np.maximum(told, was[1]) if was[0] is entry else told)
-    on = tuple(g['_told_by'][1] > 0.0)
-    if g.get('_falls_of') != on:
-        g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, observer.unborne(m, on, g['_falls_down']))
-    geom, pos = d.contact.geom, d.contact.pos
-    below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
-    return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))
-
-
-@functools.cache
-def _passing():
-    """wbc_pass.c's referee and the page's averages, bound once; `tools.cores.wbc.address`."""
-    from tools.cores import wbc as cores
-    lib = cores.library()
-    return lib.wbh_pass_paired, lib.wbh_pass_averaged, cores.address
-
-
 #: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
 #: window's passes.
 DT = 1.0 / sprung.RATE_HZ
@@ -298,13 +265,14 @@ def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0
 
 def laid(s):
     """A new epoch: her world laid anew, standing (walking where the session `walks`); the last one's camera
-    ended, its planner kept."""
+    ended, its planner and its vision kept."""
     import numpy as np
     if s.get('g') is not None and s['g']['keep'] is not None:
         s['g']['keep'].close()
-    kept = s['g']['planner'] if s.get('g') is not None else None
+    was = s.get('g')
     g = s['g'] = sprung.laid(s['every'], texts=s['texts'], suite=s['suite'])
-    g['planner'] = kept or g['planner']
+    if was is not None:
+        g['planner'], g['vision'] = was['planner'], was['vision']
     if s['walks']:
         sprung.walked(g)
     edge.noise(g['world'], s['ber'], seed=s['epoch'] + 2)
@@ -386,10 +354,10 @@ def stepped(s):
         edge.off(world)
     except MachineError:
         s['fallen_at'] = g['t']
-    if s['fallen_at'] is None and _is_fallen(g, world):
+    if s['fallen_at'] is None and referee.fallen(g, world):
         s['fallen_at'] = g['t']
     s['passes'] += 1
-    _paired, averaged, address = _passing()
+    _paired, averaged, address = referee.passing()
     averaged(ctypes.byref(world.passing), K, address(s['torque']), address(s['power']))
     s['watts'] += K * (world.drawn() - s['watts'])
     for hook in s['each']:
@@ -437,11 +405,13 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
     unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
-    `shown`. Her fake camera shoots for her vision's panel (`physics.CAMERA`); her planner spawned warm."""
+    `shown`. Her fake camera shoots for her vision's panel (`physics.CAMERA`); her planner and her vision (`vision.Apart`) spawned warm; placed a core apart (`placed`)."""
+    placed.placed()
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
-    s['g']['planner'] = planner.Planner()
+    s['g']['planner'], s['g']['vision'] = planner.Planner(), vision.Apart()
     s['g']['planner'].start()
+    s['g']['vision'].start()
     if os.environ.get(TELEMETRY):
         from machine import introspect
         introspect.attach(s, int(os.environ[TELEMETRY]))

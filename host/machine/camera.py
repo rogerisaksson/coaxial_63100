@@ -2,8 +2,7 @@
 
 A look's frame (`sight.Eyes.shot`) her left eye's colour and the parallax her stereo would match, from the
 renderer's depth on the card; her map and its things (`sight.Keep`) off her loop's GIL, in `python -m
-machine.camera` - a subprocess, not multiprocessing's: her page's worker is daemonic and may have no
-children of those. A look's things reach her a look later, LOOK_S, whatever the wall's pace: her loop
+machine.camera` - a process beside hers (`machine.aside`). A look's things reach her a look later, LOOK_S, whatever the wall's pace: her loop
 waits on the camera only when it is slower than that.
 
     cam = Camera(world)                  # the renderer here, her map apart
@@ -12,34 +11,21 @@ waits on the camera only when it is slower than that.
     view = cam.view()                    # (thumbnail, hulls) of the last look told (`sight.Keep.view`)
     cam.close()
 """
-import os
-import pickle
 import queue
-import subprocess
-import sys
-import threading
 
-from machine import sight
+from machine import aside, sight
 from machine.errors import MachineError
 
 
 def main():
-    """Her map apart: said ready - no things yet -, then each frame off stdin into it (`sight.Keep.took`), its
-    things, its view and its looks said back on stdout, pickled; None, or stdin's end, ends it."""
-    out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
+    """Her map apart (`aside.serve`): said ready - no things yet -, then each frame into it (`sight.Keep.took`), its
+    things, its view and its looks said back."""
     keep = sight.Keep()
-    told = ([], None, 0)
-    while True:
-        pickle.dump(told, out, protocol=pickle.HIGHEST_PROTOCOL)
-        out.flush()
-        try:
-            frame = pickle.load(inp)
-        except EOFError:
-            return
-        if frame is None:
-            return
+
+    def took(frame):
         keep.took(*frame)
-        told = (sight.told(keep), keep.view(), keep.map.looks)
+        return sight.told(keep), keep.view(), keep.map.looks
+    aside.serve(took, ready=([], None, 0))
 
 
 class Camera:
@@ -49,20 +35,9 @@ class Camera:
 
     def __init__(self, world):
         self.eyes, self._told_q = sight.Eyes(world), queue.Queue()
-        p = subprocess.Popen([sys.executable, '-m', 'machine.camera'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        assert p.stdin is not None and p.stdout is not None
-        self._process, self._in, self._out = p, p.stdin, p.stdout
-        threading.Thread(target=self._heard, daemon=True).start()
+        self._aside = aside.Aside('machine.camera', "her camera's map apart").start()
+        self._aside.heard(self._told_q)
         self.looked_at, self.sent, self.things, self.seen, self.looks = None, True, [], None, 0
-
-    def _heard(self):
-        """Her map apart's tellings onto the queue as they come; None once it has ended."""
-        try:
-            while True:
-                self._told_q.put(pickle.load(self._out))
-        except (EOFError, OSError, pickle.UnpicklingError):
-            self._told_q.put(None)
 
     def look(self, world, now, head):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
@@ -81,15 +56,11 @@ class Camera:
         without them."""
         told = self._told_q.get()
         if told is None:
-            raise MachineError("her camera's map apart ended, exit code %s" % self._process.wait())
+            raise MachineError(self._aside.ended())
         return told
 
     def _said(self, frame):
-        try:
-            pickle.dump(frame, self._in, protocol=pickle.HIGHEST_PROTOCOL)
-            self._in.flush()
-        except OSError as e:
-            raise MachineError("her camera's map apart took no frame: %s" % e) from e
+        self._aside.send(frame)
 
     def told(self):
         return self.things
@@ -98,14 +69,8 @@ class Camera:
         return self.seen
 
     def close(self, wait=1.0):
-        """Her map apart ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
-        try:
-            pickle.dump(None, self._in)
-            self._in.close()
-            self._process.wait(timeout=wait)
-        except (OSError, subprocess.TimeoutExpired):
-            self._process.kill()
-            self._process.wait(timeout=wait)
+        """Her map apart ended (`aside.Aside.close`)."""
+        self._aside.close(wait)
 
 
 if __name__ == '__main__':

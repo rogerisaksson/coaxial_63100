@@ -36,10 +36,10 @@ def _scenario(name, wobble):
 
 
 def test_the_referee_judges_by_touch(report):
-    """Laid on her back onto a bed she lies, onto the floor she fell (`worker._is_fallen`): judged
+    """Laid on her back onto a bed she lies, onto the floor she fell (`referee.fallen`): judged
     by what she was doing, a tilt past 45 deg on a bed was a fall."""
     import math
-    from machine import floor, worker
+    from machine import floor, referee, worker
     s = worker.session()
     worker.apply(s, {'scenario': 'flat'})
     g, world = s['g'], s['g']['world']
@@ -51,8 +51,8 @@ def test_the_referee_judges_by_touch(report):
         while torso not in m.geom_bodyid[d.contact.geom1[:d.ncon]].tolist() + m.geom_bodyid[d.contact.geom2[:d.ncon]].tolist():
             d.qpos[1] -= 0.002
             world._mj.mj_forward(m, d)
-        return worker._is_fallen(g, world)
-    stood = worker._is_fallen(g, world)
+        return referee.fallen(g, world)
+    stood = referee.fallen(g, world)
     floor.mocap(world, 'prop_bed', (float(d.qpos[0]), 0.0, float(d.qpos[2])), 0.0)
     on_bed = laid()
     floor.take(world, 'prop_bed')

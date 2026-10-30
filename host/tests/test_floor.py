@@ -163,11 +163,11 @@ def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(r
     number holds it to exp(-(Fr/0.045)^2)."""
     import math
     import numpy as np
-    from machine import emancipation as em, latent, ortho
+    from machine import cascade, emancipation as em, latent, ortho
     weight, told, out = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36]), np.zeros(latent.OUT)
     report.check('her text asks her legs released where it tells her soles nothing and her seat and hands bear',
-                 (em.intent(told, out) == 1.0).all() and (em.intent(np.array([1.0, 0, 0, 0, 0]), out) == 0.0).all()
-                 and (em.intent(np.zeros(len(ortho.MANIFOLDS)), out) == 0.0).all(), str(em.intent(told, out)))
+                 (cascade.intent(told, out) == 1.0).all() and (cascade.intent(np.array([1.0, 0, 0, 0, 0]), out) == 0.0).all()
+                 and (cascade.intent(np.zeros(len(ortho.MANIFOLDS)), out) == 0.0).all(), str(cascade.intent(told, out)))
     square = np.array([(x, z) for x in (-0.2, 0.2) for z in (-0.2, 0.2)])
     soles = np.array([(0.1, 0.4), (-0.1, 0.4)])
     pts, room = np.concatenate([square, soles]), np.zeros(6)
@@ -177,13 +177,13 @@ def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(r
     outside, far = em.gate(np.array([0.3, 0.0]), pts, room, own, still, told, loads, weight)
     soled, _ = em.gate(np.zeros(2), pts, room, np.ones((2, 6)), still, told, loads, weight)
     walking, going = em.gate(np.zeros(2), pts, room, own, np.array([0.0, 0.0, 0.7]), told, loads, weight)
-    froude = 0.7 * 0.7 / (9.81 * em.LEG_M)
+    froude = 0.7 * 0.7 / (9.81 * cascade.LEG_M)
     report.check('0.2 m inside her seat and hands she may let her legs go; 0.1 m outside, or on her soles alone, not',
                  (inside == 1.0).all() and np.allclose(parts[3], 0.2 * weight, atol=1e-3 * weight)
                  and (outside == 0.0).all() and np.allclose(far[3], -0.1 * weight, atol=1e-3 * weight)
                  and (soled == 0.0).all(), '%s N m in, %s out' % (parts[3], far[3]))
     report.check("at her walk's 0.7 m/s her Froude number holds her gate to exp(-(Fr/0.045)^2)",
-                 abs(going[0] - math.exp(-(froude / em.FROUDE) ** 2)) < 2e-3 and (walking < 0.2).all(), '%.3f' % going[0])
+                 abs(going[0] - math.exp(-(froude / cascade.FROUDE) ** 2)) < 2e-3 and (walking < 0.2).all(), '%.3f' % going[0])
 
 
 def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(report):
@@ -191,7 +191,7 @@ def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(repo
     it, her step lets the leg go then sheds its foot's push to nothing by 0.75, the leg moves after - and back within
     the relock's 25 ms once the gate shuts."""
     import numpy as np
-    from machine import emancipation as em, modal
+    from machine import cascade as em, modal
     gammas = np.linspace(0.0, 1.0, 101)
     unanchored = 1.0 - em.window(gammas, em.UNANCHOR)
     shed = em.window(gammas, em.SHED)

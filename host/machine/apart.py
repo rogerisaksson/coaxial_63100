@@ -15,6 +15,7 @@ import math
 import multiprocessing
 import queue
 import time
+import weakref
 
 #: Behind the wall by more than SLICE_S, a world runs one slice and drops the rest of its debt;
 #: held to its page, it runs LEAD_S of its time past what that has shown at the most, s.
@@ -22,6 +23,9 @@ SLICE_S, LEAD_S = 0.05, 0.15
 
 #: The processes run apart are spawned: none inherits the page's threads.
 CONTEXT = multiprocessing.get_context('spawn')
+
+#: The worlds apart now running, each its newest (passes a wall second, ratio, headroom) or None.
+LIVE = weakref.WeakSet()
 
 #: Closing, a state is read off each queue every DRAIN_S s while the world ends.
 DRAIN_S = 0.01
@@ -40,6 +44,12 @@ def put(states, item):
         pass
 
 
+def rate():
+    """(passes a wall second, ratio to the wall, headroom) of the newest-told world apart, None none."""
+    told = [w.mj for w in list(LIVE) if w.mj is not None]
+    return max(told, key=lambda m: m[3])[:3] if told else None
+
+
 def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say_s=0.0,
           rest_s=0.0, slice_s=SLICE_S):
     """`world` stepped until a None command: paced to the clock (`realtime`, or flat out a slice
@@ -51,6 +61,7 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
     put(states, world.said(None))
     wall0 = wall_said = last_wall = time.perf_counter()
     sim0, said_at, spent, ran, ratio, headroom = world.t, 0.0, 0.0, 0.0, 1.0, 1.0
+    passes = 0
     while True:
         epoch = world.epoch
         try:
@@ -82,18 +93,21 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
                 wall_said += left_out
                 spent += max(0.0, (time.perf_counter() - t_step) - left_out)
                 ran += world.t - from_t
-                from_t = world.t
+                from_t, passes = world.t, passes + 1
                 if world.epoch == epoch and world.t - said_at >= say_s:
                     now_w = time.perf_counter()
                     wall_dt = now_w - wall_said
                     headroom = ran / spent if spent > 1e-6 else headroom
                     ratio = min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6) else headroom
-                    wall_said, spent, ran, said_at = now_w, 0.0, 0.0, world.t
-                    put(states, world.said(ratio, headroom))
+                    told = world.said(ratio, headroom)
+                    if isinstance(told, dict):
+                        told = dict(told, mj=(passes / wall_dt if wall_dt > 1e-6 else 0.0, ratio, headroom))
+                    wall_said, spent, ran, said_at, passes = now_w, 0.0, 0.0, world.t, 0
+                    put(states, told)
         last_wall = time.perf_counter()
         if world.epoch != epoch:
             wall0 = wall_said = last_wall
-            sim0, said_at, spent, ran = world.t, 0.0, 0.0, 0.0
+            sim0, said_at, spent, ran, passes = world.t, 0.0, 0.0, 0.0, 0
             put(states, world.said(None))
             continue
         if realtime:
@@ -118,7 +132,8 @@ class Apart:
         self._process = CONTEXT.Process(target=target, daemon=True,
                                         args=(self._commands, self._states, self._shown) + args)
         self._process.start()
-        self._last = None
+        self._last = self.mj = None
+        LIVE.add(self)
 
     def send(self, **command):
         """`command` to the world, applied before its next pass."""
@@ -130,6 +145,8 @@ class Apart:
         try:
             while True:
                 self._last = self._states.get_nowait()
+                if isinstance(self._last, dict) and 'mj' in self._last:
+                    self.mj = self._last.pop('mj') + (time.monotonic(),)
                 if into is not None:
                     into.append(self._last)
         except queue.Empty:
@@ -148,6 +165,7 @@ class Apart:
         """The world stopped: a None command, its queues drained while it ends - `wait` s at the
         most - or ended, and not read after: ended mid-write it leaves half a state on a POSIX
         pipe, and a read waits for the rest (her page hung so in close on CI's runner)."""
+        LIVE.discard(self)
         try:
             self._commands.put_nowait(None)
         except queue.Full:

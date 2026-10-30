@@ -38,6 +38,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from coaxial.comm import broker
+from machine import placed
 from terminal.ui import bindings
 from terminal.ui.chrome import KANA, Chrome, Crt, clock
 from terminal.ui.marquee import Marquee
@@ -89,9 +90,12 @@ def _vt_on():
 
 
 def stage():
-    """The console every view draws on. Plain and sequential when piped."""
+    """The console every view draws on. Plain and sequential when piped; on a terminal, the page's process
+    placed a core apart from her worker's and its drawing's (`machine.placed`)."""
     _vt_on()
     console = Console(highlight=False, theme=THEME)
+    if console.is_terminal:
+        placed.placed()
     if console.is_terminal and console.color_system != 'truecolor':
         # rich guesses the colour depth from the environment, and on a Windows
         # console with no COLORTERM it guesses 256 or 16 - the glow ramp's

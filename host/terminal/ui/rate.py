@@ -1,9 +1,11 @@
-"""The frame rate and one frame's cost, eased, and the corner that prints them."""
+"""The frame rate, a frame's cost and the physics apart's rate, eased, and the corner that prints them."""
 import time
 import weakref
 
 from rich.cells import cell_len
 from rich.segment import Segment
+
+from machine import apart
 
 
 #: The newest frame's weight in the drawing's rate: about five frames
@@ -34,7 +36,10 @@ class Rate:
         if self.ms is None:
             return ''
         fps = '%.1f fps  ' % self.fps if self.fps is not None else ''
-        return '%s%.0f ms' % (fps, self.ms)
+        mj = apart.rate()
+        # The physics apart: its passes a wall second, its pace to the wall, how fast it could go.
+        world = '  mj %.0f Hz x%.2f (x%.2f max)' % mj if mj is not None else ''
+        return '%s%.0f ms%s' % (fps, self.ms, world)
 
 
 def rate_of(console):

@@ -25,6 +25,7 @@ import threading
 import traceback
 import types
 
+from machine import placed
 from machine.apart import CONTEXT
 
 #: The longest a page waits for a drawing, s: the worker's first loads its meshes and its raster.
@@ -50,6 +51,7 @@ def serve(asks, drawn, module, function):
     os.dup2(null, 1)
     os.dup2(null, 2)
     sys.stdout = sys.stderr = open(os.devnull, 'w', encoding='utf-8')
+    placed.placed()
     try:
         from coaxial.graphics import card
         found, held = card.adapter(), {}

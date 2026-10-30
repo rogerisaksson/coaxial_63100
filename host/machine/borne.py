@@ -90,6 +90,15 @@ def _points(k, push, at, pivot=False):
     return ((left, at + to_left), (1.0 - left, at + to_right))
 
 
+#: (her skin above her soles and the let-go feet, which of it is no hand) by the feet let go: four at most.
+_SKINS: dict = {}
+
+
+def _skin(soled):
+    skin = np.concatenate([ABOVE, soled]).astype(int)
+    return skin, ~np.isin(skin, HANDS)
+
+
 def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands among them where her text tells them to bear (`hands`, their
@@ -105,8 +114,8 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
     soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]
     foot = {touch.SOLES[k][0]: k for k in (0, 1)}
-    skin = np.concatenate([ABOVE, soled]).astype(int)
-    pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | ~np.isin(skin, HANDS))]
+    skin, handless = _SKINS.get(tuple(soled)) or _SKINS.setdefault(tuple(soled), _skin(soled))
+    pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | handless)]
     pivot = bool(soled) and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N
     ischial = pivot or (hands > 0.0 and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N)
     jp, jr = b.jacs

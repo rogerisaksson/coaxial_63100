@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine import barrier, bemf, borne, brace, capsules, edge, emancipation, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, waits, wayfinder
+from machine import barrier, bemf, borne, brace, capsules, cascade, edge, emancipation, estimate, field, grip, inekf, latent, leap, melt, modal, observer, ortho, poise, schema, se2, situation, somatic, stride, supervisor, touch, vision, waits, wayfinder
 
 
 #: Her arms' modes, her hold's (`ask['hold']`).
@@ -193,6 +193,7 @@ def control(g, dt):
     dq, imp = _step_modal(g, s, y, y_in, out)
     w_back = float(g.get('_w_back', 0.0))
     imp[modal.HEADED][1] += w_back * (float(g.get('_backing_yaw', 0.0)) - imp[modal.HEADED][1])
+    vision.joined(g)  # her look's things, asked before this pass (`sprung.passed`): the gauge reads them
     gauge = wayfinder.gauged(g, s)
     imp[modal.HEADED][1] += gauge
     sr = surety(g, dt * ev)
@@ -224,7 +225,7 @@ def control(g, dt):
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'])
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
-                                                  float(y_in[edge.LINK][0]))
+                                                  float(y_in[edge.LINK][0]), g['shield'])
     ask['mu'] = g['held']
     ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
     cv, acv = g['_cv_sh'], g['_acv_sh']
@@ -298,6 +299,8 @@ def laid(g):
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
     g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))
+    g.update(cascade.compiled())
+    g['shield'] = bodied.on_args(schema.shield, 'shield', (0, 1, 2, 3, 4, 5, 6))
     k, ask = c_motion.laid()
     g['impedance'] = functools.partial(c_motion.asked, k, ask)
     g['surety_field'] = c_surety.laid(k, g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'])

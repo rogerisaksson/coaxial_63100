@@ -1,6 +1,6 @@
 """Her fake camera (`machine.camera`): a look round on its frames - the renderer's parallax (`sight.Eyes.shot`) -
 telling the room's furniture where it stands; her map apart telling the very things her map here does, a look
-later; on her loop under `physics.SIGHT` her things its map's (`sprung.LOOKS`)."""
+later; on her loop under `physics.SIGHT` her things its map's (`vision.LOOKS`)."""
 import math
 import sys
 

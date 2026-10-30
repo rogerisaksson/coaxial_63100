@@ -134,7 +134,9 @@ def _boxes(looks):
 def _w2(centre, half, at, halves, scale):
     """(n, m) the Wasserstein metric squared of each thing (`centre`, `half` (n, 3)) to each slot (`at`, `halves`
     (m, 3)), over the variances `scale` (m,)."""
-    return (((at - centre[:, None]) ** 2).sum(2) + ((halves - half[:, None]) ** 2).sum(2)) / scale
+    d, h = (at - centre[:, None]) ** 2, (halves - half[:, None]) ** 2
+    # a sum over 3 in order, as .sum(2) adds it, without its reduction's setup on a 3-long axis
+    return ((d[..., 0] + d[..., 1] + d[..., 2]) + (h[..., 0] + h[..., 1] + h[..., 2])) / scale
 
 
 def seen(slots, looks, head, t, everywhere=False):
@@ -161,6 +163,10 @@ def seen(slots, looks, head, t, everywhere=False):
     d2 = np.where(alike, _w2(centre, half, ahead, r['half'][live], scale), np.inf)
     known = (ids[:, None] > 0) & (ids[:, None] == r['id'][live])
     d2 = np.where(known.any(axis=1)[:, None], np.where(known, 0.0, np.inf), d2)
+    if len(live) and len(names):
+        best = d2.argmin(axis=1)
+        if (d2[np.arange(len(names)), best] <= GATE).all() and len(np.unique(best)) == len(best):
+            return _matched(slots, live, best, matched, known, centre, half, R, clear, t, eye, turn)
     free = iter(np.flatnonzero(on == 0.0))
     for k, name in enumerate(names):
         best = int(d2[k].argmin()) if len(live) else -1
@@ -186,6 +192,34 @@ def seen(slots, looks, head, t, everywhere=False):
                                      np.inf)
         r[i], kinds[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0, ids[k],
                           clear[k]), name
+    return _missed(slots, live, matched, t, eye, turn)
+
+
+def _matched(slots, live, best, matched, known, centre, half, R, clear, t, eye, turn):
+    """`seen`'s loop at once where each thing's nearest gated slot is no other's: the loop's greedy pick is
+    then each row's own, and its arithmetic run element by element - the same bits."""
+    r = slots['rows']
+    i = live[best]
+    gained = known[np.arange(len(best)), best].astype(float)
+    matched[best] = True
+    var, drift, last = r['var'], r['drift'], r['last']
+    dt, move = np.maximum(t - r['seen_at'][i], 1e-9), centre - r['centre'][i]
+    drift[i] += (move * move).sum(axis=1) / (var[i] + CELL2)   # move @ move a row: a 3-sum in order, its bits
+    moving = (drift[i] > MOVING).astype(float)
+    r['moving'][i], r['vel'][i] = moving, moving[:, None] * (centre - last[i]) / dt[:, None]
+    gain = np.maximum(moving + (1.0 - moving) * var[i] / (var[i] + CELL2), gained)
+    r['centre'][i] += gain[:, None] * move
+    r['half'][i] += gain[:, None] * (half - r['half'][i])
+    r['R'][i], var[i], r['clear'][i] = R, (1.0 - gain) * var[i] + moving * CELL2, clear
+    r['salience'][i] += HIT
+    last[i], r['seen_at'][i], r['swell'][i], r['shown'][i] = centre, t, 0.0, 1.0
+    return _missed(slots, live, matched, t, eye, turn)
+
+
+def _missed(slots, live, matched, t, eye, turn):
+    """The live slots no thing matched: shown as her frustum holds them, their salience moved; the pruned let go."""
+    r = slots['rows']
+    on, salience, seen_at = r['on'], r['salience'], r['seen_at']
     rest = live[~matched]
     if len(rest):
         inside = seen_of(r['centre'][rest], r['half'][rest], r['R'][rest], eye, turn)
@@ -218,12 +252,48 @@ def boxes(slots, least=TAKEN):
     (`sight.LOOK_S`), where it can be before she looks again. Beside the door's swinging panel a
     hairline corridor opened and closed with it: threading it she brushed the panel, stumbled out at
     1.12 m/s and fell at the deck's rail; waked, she pushes square till the panel stands still."""
+    return things(*boxed(slots, least))
+
+
+def boxed(slots, least=TAKEN):
+    """`boxes`' parts as arrays and lists - kinds, centres, half sizes, rotations, slots, clears, swells -: what
+    her vision's process sends hers (`machine.vision`), laid as things there (`things`)."""
     from machine import sight
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
     swell = r['swell'][taken] + sight.LOOK_S * np.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
-    return list(zip([kinds[i] for i in taken], _tuples(r['centre'][taken]), _tuples(r['half'][taken]),
-                    _tuples(r['R'][taken]), taken.tolist(), r['clear'][taken].tolist(), swell.tolist()))
+    return ([kinds[i] for i in taken], r['centre'][taken], r['half'][taken], r['R'][taken], taken.tolist(),
+            r['clear'][taken].tolist(), swell.tolist())
+
+
+def things(kinds, centre, half, R, taken, clear, swell):
+    """`boxed`'s parts as her things (`Things`): a tuple each, its arrays kept beside them."""
+    laid = Things(zip(kinds, _tuples(centre), _tuples(half), _tuples(R), taken, clear, swell))
+    laid.arrays = (centre, half, R)
+    return laid
+
+
+def keyed(things):
+    """`things`' key for what they afford (`sprung.named`): each one's kind, slot, centre and its half sizes across
+    the floor to the centimetre - a registry's (`Things`) off its arrays at once, numpy's rounding either way."""
+    if getattr(things, 'arrays', None) is None:
+        return tuple((t[0], t[4], round(t[1][0], 2), round(t[1][1], 2), round(t[1][2], 2), round(t[2][0], 2),
+                      round(t[2][2], 2)) for t in things)
+    centre, half, _R = things.arrays
+    rounded = np.round(np.concatenate([centre, half[:, [0, 2]]], axis=1), 2).tolist()
+    return tuple((t[0], t[4], *r) for t, r in zip(things, rounded))
+
+
+class Things(list):
+
+    """`boxes`'s things, their centres, half sizes and rotations kept as arrays beside them (`schema.room`); a
+    plain list pickled - her page is sent the things, not the arrays: their numbers Python's floats, the same values,
+    her state's pickle 1.35 -> 0.21 ms."""
+
+    def __reduce__(self):
+        centre, half, R = (a.tolist() for a in self.arrays)
+        return list, ([(t[0], tuple(c), tuple(h), tuple(map(tuple, r))) + tuple(t[4:])
+                       for t, c, h, r in zip(self, centre, half, R)],)
 
 
 def _tuples(a):

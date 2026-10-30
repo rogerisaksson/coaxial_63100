@@ -7,8 +7,8 @@ fell where she had walked on. An ask is a dock - the
 face of a thing she docks at and her stage before it (`dock.docked`), then her way there -, a plan - her way
 to a place from where she stands among her things (`route.planned` over `route.costs`) - or a watch: her way
 left checked against her things as she now holds them (`route.barred`), planned anew where they bar it, else
-nothing. A new ask lets the one in flight go. `python -m machine.planner`, a subprocess as her camera's map:
-her page's worker is daemonic and may have no children of multiprocessing's.
+nothing. A new ask lets the one in flight go. `python -m machine.planner`, a process beside hers
+(`machine.aside`), as her camera's map is.
 
     planner = Planner()                     # her page's: spawned at its first ask (`start` sooner)
     planner = Here()                        # a run's off her page, in its own process: as Planner answers
@@ -16,14 +16,9 @@ her page's worker is daemonic and may have no children of multiprocessing's.
     told = planner.answer(t)                # None till LATENCY_S after an ask, then {laid, stops, curve, held}, or {}
     planner.close()
 """
-import os
-import pickle
 import queue
-import subprocess
-import sys
-import threading
 
-from machine import obstacles
+from machine import aside, obstacles
 from machine.errors import MachineError
 
 _APART = obstacles.laws()['wayfinder-apart']
@@ -48,18 +43,9 @@ def answered(ask):
 
 
 def main():
-    """Her planner apart: each ask off stdin answered on stdout, pickled; None, or stdin's end, ends it."""
+    """Her planner apart: each ask answered (`aside.serve`)."""
     from machine import dock, route  # noqa: F401 - warm before the first ask
-    out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
-    while True:
-        try:
-            ask = pickle.load(inp)
-        except EOFError:
-            return
-        if ask is None:
-            return
-        pickle.dump(answered(ask), out, protocol=pickle.HIGHEST_PROTOCOL)
-        out.flush()
+    aside.serve(answered)
 
 
 class Planner:
@@ -67,28 +53,21 @@ class Planner:
     """Her planner on its process (`main`, this tree's own), spawned at its first ask or `start`."""
 
     def __init__(self):
-        self._process, self._told_q, self.asked_at, self._wait = None, queue.Queue(), None, 0.0
+        self._aside, self._told_q = aside.Aside('machine.planner', 'her planner'), queue.Queue()
+        self.asked_at, self._wait = None, 0.0
 
     def start(self):
         """Its process spawned, where it is not yet."""
-        if self._process is not None:
+        if self._aside.process is not None:
             return
-        p = subprocess.Popen([sys.executable, '-m', 'machine.planner'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        assert p.stdin is not None and p.stdout is not None
-        self._process, self._in, self._out = p, p.stdin, p.stdout
-        threading.Thread(target=_heard, args=(p.stdout, self._told_q), daemon=True).start()
+        self._aside.start().heard(self._told_q)
 
     def ask(self, now, ask):
         """`ask` sent at `now`, the one in flight let go (its answer read and dropped)."""
         self.start()
         if self.asked_at is not None:
             self._told()
-        try:
-            pickle.dump(ask, self._in, protocol=pickle.HIGHEST_PROTOCOL)
-            self._in.flush()
-        except OSError as e:
-            raise MachineError('her planner took no ask: %s' % e) from e
+        self._aside.send(ask)
         self.asked_at, self._wait = now, LATENCY_S * float(ask['kind'] == 'watch')
 
     def answer(self, now):
@@ -102,31 +81,13 @@ class Planner:
     def _told(self):
         told = self._told_q.get()
         if told is None:
-            raise MachineError('her planner ended, exit code %s' % (self._process.wait() if self._process else None))
+            raise MachineError(self._aside.ended())
         return told
 
     def close(self, wait=1.0):
-        """Its process ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
-        if self._process is None:
-            return
-        try:
-            pickle.dump(None, self._in)
-            self._in.close()
-            self._process.wait(timeout=wait)
-        except (OSError, subprocess.TimeoutExpired):
-            self._process.kill()
-            self._process.wait(timeout=wait)
-        self._process, self.asked_at = None, None
-
-
-def _heard(out, told_q):
-    """Its answers onto `told_q` as they come; None once it has ended. Not a Planner's method: a thread
-    holding its Planner kept its pipe open and its process alive, 105 of them beside 28 runs."""
-    try:
-        while True:
-            told_q.put(pickle.load(out))
-    except (EOFError, OSError, pickle.UnpicklingError):
-        told_q.put(None)
+        """Its process ended (`aside.Aside.close`)."""
+        self._aside.close(wait)
+        self.asked_at = None
 
 
 class Here:

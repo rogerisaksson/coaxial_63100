@@ -39,7 +39,7 @@ STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'r
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
                 'swing_out', 'kneel', 'tip', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',
                 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
-#: The doings that lie on the ground on purpose: the fall judge leaves them be (`worker._is_fallen`).
+#: The doings that lie on the ground on purpose: the fall judge leaves them be (`referee.fallen`).
 GROUNDED = frozenset({'kneel', 'tip', 'floor_rest'})
 #: The doings that rest limp: her drives' clamps at zero over the bus, the boards' damping all that
 #: holds (`motion.drives`) - sprung at the rest's own stiffness she churned on the floor, 200-1400
