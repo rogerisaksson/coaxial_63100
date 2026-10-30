@@ -13,50 +13,19 @@ it releases). `machine.voicing` plays a gait on her walk, `machine.maneuver` a m
 """
 import collections
 import copy
-import glob
 import math
 import operator
-import os
 import struct
 from typing import Any
 
-from machine import mechatronics, ortho, patch
+from machine import kept, ortho, patch
 from machine.kernel import KEYED, MECHANISMS, QUERIES
+from machine.packages import modules
 from machine.errors import MachineError
 
-
-def _ordered(paths):
-    """`paths`, each module after the modules its package uses (`defpackage`'s :use)."""
-    found, out = {}, []
-    for path in paths:
-        with open(path, encoding='utf-8') as f:
-            head = next(form for form in patch.forms(f.read()) if form[0] == 'defpackage')
-        found[head[1]] = (path, [u for clause in head[2:] if clause[0] == ':use' for u in clause[1:] if u not in LANGUAGE])
-
-    def after(name, seen=()):
-        if name in seen or name not in found:
-            raise MachineError('%s: %s' % (name, 'a package using itself' if name in seen else 'no module of the suite'))
-        path, uses = found[name]
-        for used in uses:
-            after(used, seen + (name,))
-        out.extend([path] * (path not in out))
-
-    for name in sorted(found):
-        after(name)
-    return out
-
-
-#: The packages of the language itself a module may use.
-LANGUAGE = (':cl',)
-
-
-def _modules(folder):
-    return _ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(mechatronics.HUMANOID, folder, '*.lisp'))))
-
-
 #: The suite's modules, read each after those it uses; the dual-domain kernel's (docs/todo/protocol.md).
-SUITE = _modules('suite')
-KERNEL = _modules('kernel')
+SUITE = modules('suite')
+KERNEL = modules('kernel')
 #: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound;
 #: scaled or added, it keeps the op for her own value.
 Op = collections.namedtuple('Op', 'name value')
@@ -496,13 +465,28 @@ DEFINE = {
 }
 
 
+#: The reads kept (`kept.loaded`): a session reads one suite five times over - a load of 59 texts'
+#: 6 ms, against 145 ms to evaluate them.
+_READ: dict = {}
+
+
 def read(paths, texts=None):
     """{name: what it defines} of lisp files `paths` in order, each `texts`' ({key: text}) where given
     (`ortho.source`): constants as {param: value}, states and patches as gaits, stages, transitions,
-    a schedule as compile-to-soa's keys, functions as Defuns."""
+    a schedule as compile-to-soa's keys, functions as Defuns. Each call its own copy, the same texts
+    evaluated once a process."""
+    try:
+        sources = tuple((path, ortho.source(path, texts)) for path in paths)
+    except (SyntaxError, OSError):  # a text missing: refused where the reading meets it, uncached
+        return _evaluated((path, ortho.source(path, texts)) for path in paths)
+    return kept.loaded(_READ, sources, _evaluated)
+
+
+def _evaluated(sources):
+    """The env of `sources` ((path, text) ..) in order: each form's definitions over the last's."""
     env: dict[str, Any] = dict(CONSTANTS)
-    for path in paths:
-        for form in patch.forms(ortho.source(path, texts)):
+    for _path, text in sources:
+        for form in patch.forms(text):
             if form[0] not in DEFINE:
                 raise MachineError('(%s ..): a patch file has %s' % (form[0], ', '.join(DEFINE)))
             env.update(DEFINE[form[0]](env, form))

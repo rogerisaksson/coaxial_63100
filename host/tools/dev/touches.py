@@ -104,6 +104,8 @@ TOUCHES = (
     ('host/lisp/humanoid/situations.lisp',           (SITUATION, FLOOR, ORTHO, SCENES)),
     ('host/machine/takes.npz',                 (SCENES, ERRANDS)),
     ('host/machine/dsp.py',                    (STRUCTURE, DSP, TUNE)),
+    ('host/machine/packages.py',               (STRUCTURE, DSP, TUNE)),
+    ('host/machine/kept.py',                   (STRUCTURE, DSP, TUNE)),
     ('host/machine/voicing.py',                (STRUCTURE, DSP, TUNE)),
     ('host/machine/patch.py',                  (STRUCTURE, DSP, TUNE)),
     ('host/machine/tune.py',                   (STRUCTURE, TUNE)),

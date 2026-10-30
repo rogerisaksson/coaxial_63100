@@ -30,18 +30,17 @@ _TOKEN = re.compile(r'\s*(?:(;[^\n]*)|([()\[\]])|(->)|("(?:[^"\\]|\\.)*")|([^\s(
 
 
 def spans(text):
-    """(token, start, end) of each of the text's tokens, its comments skipped."""
+    """(token, start, end) of each of the text's tokens, its comments skipped: the matches one
+    after the other, each its one group (`lastindex`); a gap between two is unreadable."""
     pos = 0
-    while pos < len(text):
-        m = _TOKEN.match(text, pos)
-        if not m or m.end() == pos:
-            if text[pos:].strip():
-                raise SyntaxError('unreadable at %r' % text[pos:pos + 30])
-            return
-        pos = m.end()
-        k = next((k for k in range(2, 6) if m.group(k) is not None), None)
-        if k:
+    for m in _TOKEN.finditer(text):
+        if m.start() != pos:
+            break
+        pos, k = m.end(), m.lastindex
+        if k > 1:
             yield m.group(k), m.start(k), m.end(k)
+    if text[pos:].strip():
+        raise SyntaxError('unreadable at %r' % text[pos:pos + 30])
 
 
 def _atom(tok):
