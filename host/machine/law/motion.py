@@ -223,6 +223,7 @@ def control(g, dt):
     held, rest = emancipation.held(g, s, bears, unfelt)
     g['support'] = held
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'])
+    barrier.ahead(g['ringed'], g['ringed_ahead'])
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
@@ -295,6 +296,7 @@ def laid(g):
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
+    g['ringed_ahead'] = list(barrier.HULLS)
     g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
@@ -350,6 +352,13 @@ def laid(g):
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
 
 
+@functools.cache
+def _sprung():
+    """`machine.process.sprung`, which lays this: imported at her first pass, not again each."""
+    from machine.process import sprung
+    return sprung
+
+
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
@@ -367,7 +376,5 @@ def drives(g, dt):
     # her clamps told as the step left them, zero where she rests limp (`se2.LIMP`), into a buffer laid
     # once: rebound to its own product a pass, the clamps froze at the first pass's and a rise from
     # the low chair fell at 31.9 s that stood
-    from machine.law import se2
-    from machine.process import sprung
-    np.multiply(_kept['limit'], 1.0 - float(sprung.doing(g) in se2.LIMP), out=g['cmd']['limit'])
+    np.multiply(_kept['limit'], 1.0 - float(_sprung().doing(g) in se2.LIMP), out=g['cmd']['limit'])
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

@@ -379,13 +379,13 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): her place in the dock's
     frame, her stop, her aim - her curve, her next stop, else its normal line -, what the phase looks
     for (`_SEEN`, `_GLIMPSE`), her planner's answer, the row (`_on_rows`), her way watched (`_watched`)."""
+    er = g.get('_errand')
+    if not er:
+        return
     from machine.way import dock, route
     from machine.senses import edge
     from machine.law import latent, modal, se2, stride
     from machine.eyes import voxels
-    er = g.get('_errand')
-    if not er:
-        return
     rows, meanwhile = _on_rows()[er['phase']]
     d = g['world'].data
     gx, gz = float(d.qpos[0]), float(d.qpos[2])

@@ -24,6 +24,9 @@ GAMMA = kernel.said('enforce-dcm-barrier-zcbf', 'barrier-gamma')
 MARGIN_M = 1e-3 * kernel.said('enforce-dcm-barrier-zcbf', 'min-capture-margin-mm')
 #: The projections onto the edges' half planes in turn: a hull's corner meets two.
 SWEEPS = 3
+#: The hulls her soles make, by their corners: two soles' eight at most. Each one's part of `ringed` traced
+#: ahead in her first passes (`ahead`), not in the pass such a hull first bears her - 8 ms a trace.
+HULLS = tuple(range(3, 9))
 
 
 def hull(points):
@@ -60,6 +63,20 @@ def ringed(acc, com, vcom, om, ring, rest):
     out = acc.copy()
     out[[0, 2]] += rest * (a - acc[[0, 2]])
     return out
+
+
+def ahead(law, left):
+    """`law` (`ringed`, a part a ring's length) on a regular ring of the first length `left`, its result
+    dropped, till that part is traced or stays numpy - then that length off `left`: a trace at a time, as
+    her parts pace them (`tools.cores.bodied`); `left` empty, nothing."""
+    if not left:
+        return
+    k = left[0]
+    angle = np.arange(k) * (2.0 * np.pi / k)
+    law(np.zeros(3), np.zeros(3), np.zeros(3), 3.0, 0.1 * np.stack([np.cos(angle), np.sin(angle)], axis=1), 0.0)
+    part = getattr(law, 'part', None)
+    if part is None or part.made is not None or part.why is not None:
+        left.pop(0)
 
 
 def barred(acc, com, vcom, om, corners, rest, law=ringed):

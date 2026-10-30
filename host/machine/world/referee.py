@@ -29,9 +29,14 @@ def fallen(g, world):
     if g.get('_said_of', (None,))[0] is not g['told']:
         g['_said_of'] = (g['told'], observer.said(g['told']))
     told = g['_said_of'][1]
-    entry, was = g.get('active_entry'), g.get('_told_by', (object(), told))
-    g['_told_by'] = (entry, world._np.maximum(told, was[1]) if was[0] is entry else told)
-    on = tuple(g['_told_by'][1] > 0.0)
+    # the most told her entry long, laid anew where her law tells anew or her entry changes: between, the
+    # same told's max over it is itself (nan's too), its numpy and its tuple 5 us a pass for nothing
+    entry, kept = g.get('active_entry'), g.get('_told_with')
+    if kept is None or kept[0] is not told or kept[1] is not entry:
+        was = g.get('_told_by', (object(), told))
+        g['_told_by'] = (entry, world._np.maximum(told, was[1]) if was[0] is entry else told)
+        g['_told_with'] = (told, entry, tuple(g['_told_by'][1] > 0.0))
+    on = g['_told_with'][2]
     if g.get('_falls_of') != on:
         g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, observer.unborne(m, on, g['_falls_down']))
     contact = d.contact

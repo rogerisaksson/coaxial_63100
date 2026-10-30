@@ -1,5 +1,6 @@
 """The gynoid worker process on her latent loop: paced to the clock, commands heard, state said."""
 import ctypes
+import functools
 import math
 import os
 import queue
@@ -323,6 +324,13 @@ def apply(s, command):
         s['refused'] = str(error)
 
 
+@functools.cache
+def _errand():
+    """`machine.way.errand`, imported at her first pass and not walked again each (a package's fromlist)."""
+    from machine.way import errand
+    return errand
+
+
 def stepped(s):
     """A pass of her world, judged: fallen, she lies RECOVER_S, then a new epoch is laid; shut down
     by a bus (`edge.held`), her drives stay off till a restart."""
@@ -336,8 +344,7 @@ def stepped(s):
         return laid(s)
     try:
         if s['fallen_at'] is None:
-            from machine.way import errand
-            errand.step_errand(g, s['gym'], heard, heard_say)
+            _errand().step_errand(g, s['gym'], heard, heard_say)
             sprung.passed(g, DT)
             ys, taus = s['ys'], s['taus']
             ys.append(g['sense'].copy())

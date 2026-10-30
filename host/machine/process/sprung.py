@@ -3,6 +3,7 @@
     body = sprung.Running(); body.send(say=2); now = body.latest(); body.close()
     g = sprung.laid(); s, loads, ask, out = sprung.passed(g)
 """
+import functools
 import math
 import os
 from machine.body import mechatronics
@@ -240,11 +241,18 @@ def looked(g):
     vision.looked(g)
 
 
+@functools.cache
+def _law():
+    """Her law's modules a pass reads, imported at her first: not by the page, nor again each pass."""
+    from machine.law import modal, motion, schema
+    return modal, motion, schema
+
+
 def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on:
     read through her edge, her motion pass (`machine.law.motion`), her drives told through her edge."""
     import numpy as np
-    from machine.law import modal, motion, schema
+    modal, motion, schema = _law()
     world, y, ev = g['world'], g['sense'], g['every']
     if g['n'] % ev == 0:
         edge.read(world, y)
