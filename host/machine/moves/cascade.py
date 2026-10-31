@@ -121,7 +121,11 @@ def released(was, iota, eta, kept, sat, told, a, y, com, loads, fr, held, out, d
     asked = iota * eta
     asked = asked + alike * np.clip(told[DORSAL] / 0.10, 0.0, 1.0) * (asked.max() - asked)
     gamma = was + np.minimum(np.maximum(asked - was, -dt / RELOCK_S), dt / SLEW_S)
-    let_go = np.maximum(window(gamma, (0.0, SHED[0])), np.maximum(nothing(told) * a[modal.PROPPED], sat))
+    # lain back, her soles told nothing and a leg already free: the other let go, its gate's leave or not. Held by it,
+    # her left leg stood alone under 0.06 of her told, pushed 368 N - her pelvis 0.2 m up off the bed, what bore her
+    # unlatched - and swung as a stride's as its sole lifted, -13.6 rad/s
+    lying = (observer.said(told)[PLANTAR] < TOLD_NOTHING) * np.clip(told[DORSAL] / 0.10, 0.0, 1.0) * (was.max() > 0.85)
+    let_go = np.maximum(window(gamma, (0.0, SHED[0])), np.maximum(np.maximum(nothing(told) * a[modal.PROPPED], lying), sat))
     leg = weight * (1.0 - 1.0 / fr[modal.HIPS_BY])
     freed = np.maximum(window(gamma, FREE) * np.minimum(np.maximum(1.0 - (loads - leg) / (FREED * weight), 0.0), 1.0),
                        kept)
