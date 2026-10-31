@@ -143,8 +143,10 @@ def borne_back(g, dt):
     soles' share releases (`ortho.SOLES`: a rise's cross-fade onto them) wait while the furniture
     bears more of her than the rest: crossed on the clock off a seat bearing half of her, her ZMP
     engaged asked a step and she fell. Rows her hands release (`ortho.PALMED`: a hitch's press) wait
-    till each bears (`modal.PALMS`): pressed on the clock, the first hand down took her and the other
-    hung 5 cm over the seat."""
+    till the pair bears (`modal.PALMS`): pressed on the clock, the first hand down took her and the other
+    hung 5 cm over the seat; waiting till each bore, the first fist down took the whole told share and was
+    held still, and the shared arm mode never brought the other the last 10 mm down - the wait ended at
+    the rise's word, 3.4 s stalled, and the wobbled rise fell."""
     shift, first = g['waits'].borne(g['tab'], g['t'], dt)
     g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
 
@@ -172,7 +174,7 @@ def latched_rows(tab, y, fr, a, st, t, dt):
 def borne_rows(tab, y, t, dt):
     """(shift, first) of `borne_back` on her table `tab` (its times shifted in place), modal's `y`,
     at `t`, `dt` on. In C bit for bit (`g['waits']`)."""
-    prop, palm, contact, at = float(y[modal.PROP]), float(y[modal.PALMS].min()), tab[:, latent.CONTACT], tab[:, latent.AT]
+    prop, palm, contact, at = float(y[modal.PROP]), float(y[modal.PALMS].sum()), tab[:, latent.CONTACT], tab[:, latent.AT]
     due = (contact != 0.0) & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     short = (((contact > 0.5) & (contact < 1.5) & (prop < impedance.PROP_ON)) | ((contact > 1.5) & (palm <= 0.0))
              | ((contact < 0.0) & (prop > 1.0 + contact)))

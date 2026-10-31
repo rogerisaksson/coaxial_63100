@@ -163,7 +163,7 @@ void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
 {
   unsigned char released[WBC_WAIT_ROWS] = {0}, short_[WBC_WAIT_ROWS] = {0};
   const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
-  const double  prop = y[k->y_prop], palm = npmin(y[k->y_palms], y[k->y_palms + 1]);
+  const double  prop = y[k->y_prop], palm = y[k->y_palms] + y[k->y_palms + 1];
   double        first, first_short, shift;
 
   for (int r = 0; r < rows; r++)
