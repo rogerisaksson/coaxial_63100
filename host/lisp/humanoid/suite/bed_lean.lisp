@@ -29,6 +29,7 @@
 ;; From its end (as lying/Lying Down from Sitting): lean back, both legs drawn up and stretched out,
 ;; supine along its length; no turn, no leg swung alone. Their stretch over 3.6 s: over the side's
 ;; 1.4 their swing threw her 0.25 m up and rolled her 33 deg, over 3.6 s 16 deg, her hips 1.04 legs back.
+;; Her trunk flat on it, -pi/2: at -1.35, 13 deg short, her legs stood 12.5 deg off the mattress.
 (defmaneuver specialize-recline-short-side [state]
   (-> state
       (stage-sequential-manifold
@@ -48,7 +49,7 @@
       (stage-sequential-manifold
         :duration-ms 3600.0
         :contact-chain [:occipital -> :scapular-dorsal]
-        :torso-pitch-ramp [-1.00 -> -1.35]
+        :torso-pitch-ramp [-1.00 -> -1.5708]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.15 -> 0.1047] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
@@ -74,7 +75,7 @@
       (stage-sequential-manifold
         :duration-ms 1400.0
         :contact-chain [:greater-trochanter-l -> :scapular-dorsal]
-        :torso-pitch-ramp [-1.00 -> -1.35]
+        :torso-pitch-ramp [-1.00 -> -1.5708]
         :axial-yaw-ramp [-0.52 -> -0.60]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.15 -> 0.1047] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
@@ -112,7 +113,7 @@
       (stage-sequential-manifold
         :duration-ms 1200.0
         :contact-chain [:scapular-dorsal -> :palmar-carpal-bilateral]
-        :torso-pitch-ramp [-1.35 -> -0.25]
+        :torso-pitch-ramp [-1.5708 -> -0.25]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [0.1047 -> 1.40] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.06) (:ischial-bilateral 0.54) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.10)))
@@ -130,7 +131,7 @@
       (stage-sequential-manifold
         :duration-ms 1200.0
         :contact-chain [:scapular-dorsal -> :greater-trochanter-r]
-        :torso-pitch-ramp [-1.35 -> -0.25]
+        :torso-pitch-ramp [-1.5708 -> -0.25]
         :axial-yaw-ramp [-0.60 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [0.1047 -> 1.40] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.06) (:ischial-bilateral 0.54) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.10)))
