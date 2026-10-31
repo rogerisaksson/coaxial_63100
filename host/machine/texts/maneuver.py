@@ -42,8 +42,9 @@ PLAYED = {
     'rise_floor': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
                                                  'contact': 'thrust', 'drive': 'stand'}),
 }
-#: The key a stunt's patch takes the seen furniture's height by, mm.
-SEEN = 'seat-z-mm'
+#: The key a stunt's patch takes the seen furniture's height by, mm; the key it takes the edge she sat on
+#: by (`side`): a bed's end lain along straight back, its side rolled -90 deg onto (bed_lean.lisp).
+SEEN, SIDE = 'seat-z-mm', 'bed-side'
 #: Her ischia's height over a seat bearing them, m (`figure`'s seat capsules).
 ISCHIA = -figure.SEAT_Y + figure.SEAT_R
 
@@ -74,13 +75,23 @@ def _manifest():
     return {m: (v['unit'], v['stiffness'], v['damping'], v['mass']) for m, v in r['modes'].items()}, r['body']
 
 
-def _played(name, got, seat):
+def side(seen):
+    """The edge of the furniture `seen` (`furniture.seen`) she backs onto: ':short' where that face is
+    narrower than the furniture is deep across it - a bed's end -, ':long' else; None with no depth seen
+    (the patch's own, `*bed-side*`)."""
+    if not seen or len(seen) < 6 or seen[4] is None or seen[5] is None:
+        return None
+    return ':short' if seen[5] < seen[4] else ':long'
+
+
+def _played(name, got, seat, edge=None):
     """(the gait the suite's patch for stunt `name` makes of the gait it rises from - the stunt's it
-    rises from, else the suite's nominal manifold -, a seat `seat` m up its key, how many of its acts
-    are that gait's)."""
+    rises from, else the suite's nominal manifold -, a seat `seat` m up its key, the edge `edge` she sat
+    on (`side`) its key, how many of its acts are that gait's)."""
     patch_name, under = PLAYED[name][:2]
-    base = _played(under, got, seat)[0] if under else got['nominal-biped-manifold']
+    base = _played(under, got, seat, edge)[0] if under else got['nominal-biped-manifold']
     keys = [':' + SEEN, 1e3 * seat] if seat is not None and SEEN in got[patch_name].keys else []
+    keys += [':' + SIDE, edge] if edge is not None and SIDE in got[patch_name].keys else []
     g = dsp.called(patch_name, [base] + [got['nominal-biped-manifold']] * (len(got[patch_name].params) - 1), keys, got)
     if not isinstance(g, dict):
         raise MachineError('%s: a patch of a gait, not of a transition' % patch_name)
@@ -97,7 +108,7 @@ def phases(name, seen=None, got=None):
     order - those of the stunt it rises from played first, her place and support theirs -, a phase a contact
     releases laid at the descent's start."""
     given, got = got, got if got is not None else dsp.read(dsp.SUITE)
-    (g, first), (modes, body) = _played(name, got, seen[0] if seen else None), _manifest()
+    (g, first), (modes, body) = _played(name, got, seen[0] if seen else None, side(seen)), _manifest()
     told = next((info[SEEN] for step, info in g['_trace'] if isinstance(info, dict) and SEEN in info), None)
     at = {'knee': math.radians(body['knee']), 'ankle': 0.5 * math.radians(body['knee']),
           'seat': None if told is None else 1e-3 * told,
@@ -213,10 +224,14 @@ def _suite():
     return dsp.read(dsp.SUITE)
 
 
-def _footprint(name, got):
+def _aligned(name, got):
     g = _played(name, got, None)[0]
-    return next((1e-3 * q['sagittal-standoff-mm'] for step, info in g['_trace'] if step == 'dock-terminal-stance'
-                 for op, q, _then in info.acts if op == 'align-terminal-footprint'), 0.0)
+    return next((q for step, info in g['_trace'] if step == 'dock-terminal-stance'
+                 for op, q, _then in info.acts if op == 'align-terminal-footprint'), {})
+
+
+def _footprint(name, got):
+    return 1e-3 * _aligned(name, got).get('sagittal-standoff-mm', 0.0)
 
 
 @functools.lru_cache(maxsize=None)
@@ -228,6 +243,14 @@ def standoff(name, got=None):
     """m, her heels off the edge of the furniture stunt `name` docks her at, of the suite `got` (else
     its files'): its patch's terminal footprint (`dock-terminal-stance`), 0 where it docks her at none."""
     return _standoff(name) if got is None else _footprint(name, got)
+
+
+@functools.lru_cache(maxsize=None)
+def face(name):
+    """The face of its furniture stunt `name` docks her at first where more than one is hers to reach,
+    its patch's terminal footprint's (`dock-terminal-stance`): ':short' a bed's end, ':long' its side,
+    ':any' whichever her walk reaches soonest; None where it docks her at none."""
+    return _aligned(name, _suite()).get('fixture-face')
 
 
 def entry(name, seen=None, got=None, texts=None):

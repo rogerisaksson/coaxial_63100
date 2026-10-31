@@ -14,7 +14,8 @@
 (deftransition dock-terminal-stance [source-gait &key (standoff-x-mm 80.0)
                                                       (target-yaw-rad 3.14159)
                                                       (stance-width-mm 210.0)
-                                                      (bars 2)]
+                                                      (bars 2)
+                                                      (fixture-face :any)]
   (sync-trigger
     :wait-for :double-support-zero-crossing
     :lock-zmp-margin-mm 22.0
@@ -27,13 +28,15 @@
     :duty-ramp [(get-duty source-gait) -> 1.00]
     :window-bars [0.0 -> bars])
 
-  ;; Align calcaneal nodes parallel to target fixture boundary
+  ;; Align calcaneal nodes parallel to target fixture boundary; its face she docks at first
+  ;; (:short a bed's end, :long its side, :any whichever her walk reaches soonest)
   (align-terminal-footprint
     :target-yaw-rad target-yaw-rad
     :sagittal-standoff-mm standoff-x-mm
     :coronal-track-mm (:set stance-width-mm)
     :swing-circumduction-mm (:set 0.0)
-    :lock-plantigrade true))
+    :lock-plantigrade true
+    :fixture-face fixture-face))
 
 ;; -----------------------------------------------------------------------------
 ;; 2. MASTER CLOCK RE-IGNITION (STATIC DOUBLE-SUPPORT -> CYCLIC LOCOMOTION)

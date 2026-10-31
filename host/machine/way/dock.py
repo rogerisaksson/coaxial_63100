@@ -14,8 +14,9 @@ that turn's spread (`footprint.spread`) and her stop's spread along her arrival 
 and her walk back from there onto the dock, its arms' swing with it, leaves them her skin: a hand met
 the loft beside the chair; no
 distance of its own: staged a stride past her back's end (0.52 m), she settled 0.3-1.2 m out and backed
-0.3-1.3 m. Turned, she backs the few cm left onto the dock. The face's
-middle first, then the face her walk reaches soonest. Staged her stopping distance and a stride out
+0.3-1.3 m. Turned, she backs the few cm left onto the dock. The faces her stunt's patch docks her at first
+(`furniture.first`: a bed's ends, its sides only where no end is hers to reach), the face's middle first,
+then the face her walk reaches soonest. Staged her stopping distance and a stride out
 (1.17 m), she backed 0.37-1.03 m after her turn, in 3.9-8.3 s.
 """
 import heapq
@@ -124,7 +125,8 @@ def docked(at, things, floor, sc, box, standoff):
         mid = np.array([float(box[1][0]), float(box[1][2])]) + edge * n
         steps = int(max(lat, 0.0) / voxels.CELL_M)
         offs = [0.0] * (lat >= 0.0) + [s * k * voxels.CELL_M for k in range(1, steps + 1) for s in (1.0, -1.0)]
-        rows += [(abs(t), hn, mid + t * tan, n, lat - abs(t)) for t in offs]
+        rank = furniture.first(sc, box, things, hn)
+        rows += [(abs(t), hn, mid + t * tan, n, lat - abs(t), rank) for t in offs]
 
     def gaps(poses, h):
         return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)
@@ -144,7 +146,7 @@ def docked(at, things, floor, sc, box, standoff):
         return np.array([bool(ok[b <= s + 1e-9].all()) for s in outs])
 
     def laid(row):
-        off, hn, edge, n, lat = row
+        off, hn, edge, n, lat, rank = row
         fits = np.ones(1, bool) if run_in is not None else backed(edge, hn, n) & np.all(
             [turned(edge, hn, n, a) for a in ARRIVALS], axis=0)
         s = float(outs[np.argmax(fits)]) if fits.any() else None
@@ -152,7 +154,7 @@ def docked(at, things, floor, sc, box, standoff):
         cell = route._cell(*stage)
         walk = far[cell] if s is not None and route._free(cells, cell) else math.inf
         return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'lat_tol': lat, 'd_stage': s, 'stage': tuple(stage),
-                'key': (walk == math.inf, off, walk)}
+                'key': (walk == math.inf, rank, off, walk)}
 
     # by their offsets along the face, the first her walk reaches ending it: none further out beats it
     best = None

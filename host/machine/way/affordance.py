@@ -164,6 +164,13 @@ def sides(box, _things):
     return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
 
 
+def ends(box, _things):
+    """The headings of a box's short sides' outward normals, rad: a bed's ends, sat on to lie along it."""
+    _c, axes, h = footprint(box)
+    a = axes[int(np.argmax(h))]
+    return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
+
+
 #: What a thing is to her by its look and what it affords her, the first that holds (`named`): a bed one of its
 #: kind she lies on - by what she lies on alone the lodge's deck, its terrace's steps and the bench were beds, and
 #: F's first bed the deck -, a chair a seat with a back, a seat, a door one of its kind.

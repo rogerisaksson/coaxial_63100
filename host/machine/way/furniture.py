@@ -9,12 +9,24 @@ import math
 from machine.way import affordance
 
 #: What `verb` goes to among her things: whether a box affords it, whether it is the thing itself, and
-#: the headings of the faces she docks at (`route.docked`).
+#: the headings of the faces she docks at (`route.docked`): a bed's ends and sides, her lie the edge's (`first`).
 GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.fronts),
-        'lie_bed': (affordance.lies, lambda _b, _t: True, affordance.sides),
+        'lie_bed': (affordance.lies, lambda _b, _t: True, affordance.faces),
         'lie_floor': (affordance.lies, lambda _b, _t: True, affordance.sides),
         'exit_door': (affordance.door, lambda _b, _t: True, affordance.sides)}
 _NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: ())
+#: A face's kind as a patch names the one it docks her at first (`maneuver.face`): a bed's ends, its sides.
+KINDS = {':short': affordance.ends, ':long': affordance.sides}
+
+
+def first(verb, box, things, heading):
+    """0 where `heading` (rad) is a face of `box` among `things` that `verb`'s patch docks her at first
+    (`maneuver.face`, KINDS) - any face where it names none -, 1 one she docks at only where none of those
+    is hers to reach."""
+    from machine.texts import maneuver
+    kind = KINDS.get(maneuver.face(verb)) if verb in maneuver.PLAYED else None
+    return int(kind is not None and all(abs(math.remainder(heading - h, 2.0 * math.pi)) > 1e-9
+                                        for h in kind(box, things)))
 
 
 def _things(g, things):
