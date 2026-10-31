@@ -21,7 +21,7 @@ W_STILL = 1e4
 _EYE3, _UP = np.eye(3), np.array([0.0, 1.0, 0.0])
 
 
-def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0)):
+def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0), still=W_STILL):
     """A bearing patch's rows, one (S, r, r0) a contact `cs` of it (its unknowns `idx` among the contacts): its
     point held still, up alone where it slides - its slip its velocity along the floor's plane (the force a patch
     feels leans into its push, 30 deg in a lean: no normal to measure across), past SLIDE_M_S and along the slide
@@ -32,7 +32,8 @@ def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0)
     as it is felt - each contact's, along the patch's normal, its share of the forces felt along it (returned,
     N) -, `pin` (W_PIN in shares of her weight) the row's, as a clipped force is held. Free, two thighs' split on
     one seat was the rounds' clips' to chatter over (63/65 -> 146/0 -> 4/4 N a pass): the step planned a roll
-    the seat never gave and threw her off a chair laid 2e-4 rad off. Returns (rows, felt, each contact's
+    the seat never gave and threw her off a chair laid 2e-4 rad off. Its point held at `still` (W_STILL, none
+    where what bears her carries her as felt: `wrench.step`). Returns (rows, felt, each contact's
     (sliding, its slip along the world's x and z) for `rounds.pushed`)."""
     n = sum(c['f'] for c in cs)
     n = n / max(float(np.sqrt(n @ n)), 1e-9)
@@ -51,14 +52,14 @@ def patch(cs, idx, nu, full, full0, v, slide, pin, palmed=False, hold=(0.0, 0.0)
         freed = max(sliding, float(let), float(body & palmed & (pin == 0.0) & (said @ said > 0.0)))
         mix = (1.0 - freed) * _EYE3 + freed * np.outer(_UP, _UP)
         left = -c['dJv'] - c['J'] @ full0
-        rows.append((np.vstack([W_STILL * (mix @ (c['J'] @ full)), pin * split[None, :]]),
-                     np.append(W_STILL * (mix @ (left - CONTACT_K * jv)), 0.0), np.append(W_STILL * (mix @ left), 0.0)))
+        rows.append((np.vstack([still * (mix @ (c['J'] @ full)), pin * split[None, :]]),
+                     np.append(still * (mix @ (left - CONTACT_K * jv)), 0.0), np.append(still * (mix @ left), 0.0)))
         to = sliding * way + (1.0 - sliding) * said
         slips.append((freed, freed * to[0], freed * to[1]))
     return rows, felt, slips
 
 
-def patches(contacts, nu, full, full0, v, ask, pin):
+def patches(contacts, nu, full, full0, v, ask, pin, still=W_STILL):
     """(each contact's rows, its cap, N - its felt share of `fz_cap` over every patch, of `slid_cap` where it
     slides -, its slip (k, 3)) in the contacts' order
     (`patch`), a patch the contacts one surface bears (`borne`); a cap none, none. Capped a patch at a time, a
@@ -74,7 +75,7 @@ def patches(contacts, nu, full, full0, v, ask, pin):
     palmed = any(CARPAL <= c.get('patch', 0) < LET for c in contacts)
     for idx in {c.get('patch', 0): [j for j, d in enumerate(contacts) if d.get('patch', 0) == c.get('patch', 0)] for c in contacts}.values():
         rows, felt, slips = patch([contacts[j] for j in idx], idx, nu, full, full0, v, slide, pin, palmed,
-                                  ask.get('let_hold', (0.0, 0.0)))
+                                  ask.get('let_hold', (0.0, 0.0)), still)
         held.update(zip(idx, zip(rows, felt, slips)))
     hands = np.array([float(CARPAL <= c.get('patch', 0) < LET) for c in contacts])
     lets = np.array([float(c.get('patch', 0) >= LET) for c in contacts])

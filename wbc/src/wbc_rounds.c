@@ -60,7 +60,7 @@ static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, do
 }
 
 /** machine.stack.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
-    its cap, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
+    its cap, of that geo->give her own to plan, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
     z) has its friction the kinetic one against its slip, given -; which parts moved. */
 static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, const double *bears, double *out,
                    double *kept)
@@ -74,7 +74,7 @@ static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, con
     const double sliding = g->slips[3 * i], speed = hypot(g->slips[3 * i + 1], g->slips[3 * i + 2]);
     const double den = pymax(speed, 1e-12), still = 1.0 - sliding;
 
-    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, g->caps[i]));
+    f[1] = clipped(f[1], 0.0, fmin(bears[i] + p->grow_n, g->caps[i]) * g->give);
     f[0] = still * clipped(f[0], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 1]) / den;
     f[2] = still * clipped(f[2], (-p->mu) * f[1], p->mu * f[1]) - (((sliding * p->mu) * f[1]) * g->slips[3 * i + 2]) / den;
   }

@@ -23,6 +23,8 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
   const wbc_blas_t *l = &p->blas;
   const int         nu0 = p->nu0;
   const double      pin = (p->w_pin * (double)(p->stance[0] || p->stance[1])) / (p->mass * p->g), up[3] = {0.0, 1.0, 0.0};
+  /* held still at w_still, none where what bears her carries her as felt (wbc_step) */
+  const double      still = p->w_still * (1.0 - p->felt * (1.0 - (double)(p->stance[0] || p->stance[1])));
   double            share[WBC_STEP_C], rows3[3 * WBC_STEP_U];
   int               patched[WBC_STEP_C], palmed = 0;
 
@@ -109,10 +111,10 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
       {
         for (int j = 0; j < nu; j++)
         {
-          S[4 * nu * m + nu * i + j] = p->w_still * S[4 * nu * m + nu * i + j];
+          S[4 * nu * m + nu * i + j] = still * S[4 * nu * m + nu * i + j];
         }
-        r[4 * m + i] = p->w_still * r[4 * m + i];
-        r0[4 * m + i] = p->w_still * r0[4 * m + i];
+        r[4 * m + i] = still * r[4 * m + i];
+        r0[4 * m + i] = still * r0[4 * m + i];
       }
       slips[3 * m] = freed;
       slips[3 * m + 1] = freed * (sliding * way[0] + (1.0 - sliding) * said[0]);

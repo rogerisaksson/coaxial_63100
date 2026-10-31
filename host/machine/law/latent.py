@@ -25,7 +25,8 @@ from machine.texts import curves, ortho
 N, P = ortho.N, ortho.P
 #: A row's parameters as slices (`ortho`'s layout): a mode each, then four numbers.
 Z, K, D, AMP, PHASE = (slice(at, at + N) for at in (ortho.Z, ortho.K, ortho.D, ortho.AMP, ortho.PHASE))
-GAIN, HZ, ZMP, YAW, DUCK, MANIFOLD, SLIDE = ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW, ortho.DUCK, ortho.MANIFOLD, ortho.SLIDE
+GAIN, HZ, ZMP, YAW, DUCK, MANIFOLD, SLIDE, FELT = (ortho.GAIN, ortho.HZ, ortho.ZMP, ortho.YAW, ortho.DUCK, ortho.MANIFOLD,
+                                                  ortho.SLIDE, ortho.FELT)
 #: Her state: her vector as it is, where it came from and where it goes; when it set out, how
 #: long it takes, her rhythm's angle.
 NOW, FROM, TO = (slice(i * P, (i + 1) * P) for i in range(3))

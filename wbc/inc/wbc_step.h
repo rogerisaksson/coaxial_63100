@@ -54,6 +54,7 @@ typedef struct
   double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
                                                           off her soles' cap, N; a sliding contact's, the slide's
                                                           governor's; each of her hands' contacts' */
+  double        felt; /**< how far what bears her carries her as felt, no sole standing (machine.texts.ortho.FELT) */
   double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.moves.emancipation) */
   double        let_hold[2], freed[2], open_kp, open_kd; /**< each let-go foot held still, each leg's share free on
                                                             its open chain's stiffness and damping (ask['open']) */
@@ -87,7 +88,7 @@ typedef struct
 {
   int           nu, k3;
   const double *moment, *part, *up, *lift, *stance, *kinetic, *caps, *slips, *frames[2];
-  double        mass, grounded, strides, edges[2], mu[2];
+  double        mass, grounded, strides, edges[2], mu[2], give; /**< give: the share of a contact's push hers to plan */
 } wbc_geo_t;
 
 /** machine.stack.wrench._patch: each contact's four rows (S, 4 a contact, r and r0): its point held still, along its

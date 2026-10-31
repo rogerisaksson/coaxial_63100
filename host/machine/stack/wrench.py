@@ -139,9 +139,9 @@ def _maps(b, s, ask, want):
 def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     """The unknowns for the rows' normal matrix `H0` and right-hand side `g0` (R^T c), the contacts'
     `held` rows (`bears`, N up), her height's band `lo` to `hi`: the rounds, then the stride. `geo`: (nu, k3,
-    moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips); `stride`: (strides, her
-    kinetic metric)."""
-    nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips = geo
+    moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips, give - the share of a contact's
+    push hers to plan); `stride`: (strides, her kinetic metric)."""
+    nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips, give = geo
     strides, kinetic = stride
     pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
     # a contact told to bear nothing is let go, as one the step would have pull
@@ -177,7 +177,7 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         band, edge = max(band, grounded * float(abs(past - G - ay) > 1e-9)), edge + (1.0 - band) * (past - edge)
         at, moved = bounded(u, frames, stance, edges, mu)
         if k3:
-            at, kept = pushed(at, bears, cap, slips)
+            at, kept = pushed(at, bears, cap, slips, give)
             pressed = pressed * (u[NU + 1:NU + k3:3] >= 0.0)
             pinned = np.maximum(pinned, np.maximum(moved, kept))
         else:
@@ -198,14 +198,28 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
     return at
 
 
+def _laid(s, contacts, felt, stance):
+    """(lain, `s` with her bias `h` bearing what bears her as felt): its push a load on her and her points riding it
+    as far as her text lays her back on it (`felt`, its row's `ortho.FELT`) and no sole of hers stands (`stance`).
+    Held still on the bed's foam her points rode its 1.9 Hz, her neck was asked 34 times its clamp, the ask shrank
+    to 0.001 and she dropped into it, 204 passes in 2735; held and felt blended a row's way, lying back from the
+    bed's side she rolled off its axis."""
+    lain, h = float(felt) * (1.0 - float(stance.max())), s['h']
+    for c in contacts:
+        J, f = c['J'], c['f']
+        h = h - lain * (J[0] * f[0] + J[1] * f[1] + J[2] * f[2])
+    return lain, dict(s, h=h)
+
+
 def step(b, s, ask):
     """{tau, qacc, bears, cop, over, slack, held, scale}: `ask` as `wbc.step` takes it; `strides` how far
     she strides (0 none), her balance then her landings', not her rows'; `scale` what her drives carry of it."""
-    n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
     contacts = s.get('contacts', ())
-    k3, nu = 3 * len(contacts), NU + 3 * len(contacts)
     stance = np.array([float(bool(k)) for k in ask['stance']])
-    each, grounded = np.repeat(stance, 6), max(float(stance.max()), float(k3 > 0))
+    lain, s = _laid(s, contacts, ask.get('felt', 0.0), stance)
+    n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
+    k3, nu = 3 * len(contacts), NU + 3 * len(contacts)
+    each, grounded = np.repeat(stance, 6), max(float(stance.max()), float(k3 > 0) * (1.0 - lain))
     turns = ask.get('turns', ())
     turned = float(len(turns) > 0)
     want = POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q']) - POSTURE_KD[1] * v[act]
@@ -241,7 +255,7 @@ def step(b, s, ask):
         r, at = c['p'] - s['com'], slice(NU + 3 * i, NU + 3 * i + 3)
         sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
-    still, caps, slips = patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G))
+    still, caps, slips = patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G), W_STILL * (1.0 - lain))
     a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], (W_COM + (W_TURN - W_COM) * float(ask.get('sat', 0.0))) * grounded)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)
@@ -281,7 +295,7 @@ def step(b, s, ask):
     frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
     keep = W_KEEP * np.concatenate([each, np.zeros(nu - 12)]) * part
     kinetic = (full.T @ M @ full + np.diag((W_SWING * swung + spare) ** 2 + keep ** 2)) if strides > 0.0 else None
-    geo, stride = (nu, k3, moment, part, up, sumf[1], mass, grounded, stance, frames, edges, mu, caps, slips), (strides, kinetic)
+    geo, stride = (nu, k3, moment, part, up, sumf[1], mass, grounded, stance, frames, edges, mu, caps, slips, 1.0 - lain), (strides, kinetic)
     felt = [c['f'][1] for c in contacts]
 
     def torques(u, alpha=1.0):

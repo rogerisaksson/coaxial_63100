@@ -67,10 +67,11 @@ def bounded(u, frames, stance, edge=(0.0, 0.0), mu=(MU, MU)):
     return out, (np.abs(out - u) > 1e-9).astype(float)
 
 
-def pushed(u, bears, cap=np.inf, slips=None):
+def pushed(u, bears, cap=np.inf, slips=None, give=1.0):
     """`u` with each contact's force (world, after the soles' and her upper body's unknowns)
     pressing, no more than GROW_N over what it `bears` now (N up, one a contact) nor `cap` (N, one a
-    contact or one for all), and in its friction's pyramid - a point sliding (`slips`: each one's
+    contact or one for all), of that `give` her own to plan (none where what bears her carries her as
+    felt, `wrench.step`), and in its friction's pyramid - a point sliding (`slips`: each one's
     (sliding, its slip along the world's x and z, m/s), `wrench._patch`) has its friction the
     kinetic one against its slip, given -, and which parts moved."""
     k = len(bears)
@@ -79,7 +80,7 @@ def pushed(u, bears, cap=np.inf, slips=None):
     out = u.copy()
     f = out[NU:NU + 3 * k].reshape(k, 3)
     held = np.asarray(bears, float)
-    f[:, 1] = np.clip(f[:, 1], 0.0, np.minimum(held + GROW_N, cap))
+    f[:, 1] = np.clip(f[:, 1], 0.0, np.minimum(held + GROW_N, cap) * give)
     slid = np.zeros((k, 3)) if slips is None else np.asarray(slips, float).reshape(k, 3)
     sliding, way = slid[:, :1], slid[:, 1:]
     speed = np.hypot(way[:, 0], way[:, 1])

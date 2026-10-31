@@ -115,7 +115,8 @@ static int lay(double *R0, double *rhs, double *rhs0, int at, int nu, wbc_view_t
   return at + rows;
 }
 
-int wbc_step(wbc_step_t *p)
+/** The step on her bias with what bears her as felt folded in by `lain` (wbc_step). */
+static int stepped(wbc_step_t *p, double lain)
 {
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd, nu0 = p->nu0, nc = p->nc, k3 = 3 * nc, nu = nu0 + k3;
@@ -141,7 +142,7 @@ int wbc_step(wbc_step_t *p)
   }
   stance[0] = (double)(p->stance[0] != 0);
   stance[1] = (double)(p->stance[1] != 0);
-  grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0));
+  grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0) * (1.0 - lain));
   turned = (double)(p->nturns > 0);
   for (int i = 0; i < nd; i++)
   {
@@ -407,6 +408,7 @@ int wbc_step(wbc_step_t *p)
   geo.frames[1] = p->R[1];
   geo.mass = mass;
   geo.grounded = grounded;
+  geo.give = 1.0 - lain;
   geo.strides = strides;
   geo.edges[0] = p->edge[0];
   geo.edges[1] = p->edge[1];
@@ -514,4 +516,28 @@ int wbc_step(wbc_step_t *p)
     memcpy(p->forces[q], u + nu0 + 3 * q, 3 * sizeof(double));
   }
   return 0;
+}
+
+int wbc_step(wbc_step_t *p)
+{
+  /* lain back on what bears her, no sole standing: its push a load on her as felt (machine.stack.wrench.step) */
+  const double  lain = p->felt * (1.0 - (double)(p->stance[0] || p->stance[1]));
+  const double *h = p->h;
+  double        felt_h[WBC_STEP_N];
+  int           raised;
+
+  memcpy(felt_h, h, (size_t)p->n * sizeof(double));
+  for (int q = 0; q < p->nc && q < WBC_STEP_C; q++)
+  {
+    const double *J = p->cJ[q], *f = p->cf[q];
+
+    for (int i = 0; i < p->n; i++)
+    {
+      felt_h[i] = felt_h[i] - lain * ((J[i] * f[0] + J[p->n + i] * f[1]) + J[2 * p->n + i] * f[2]);
+    }
+  }
+  p->h = felt_h;
+  raised = stepped(p, lain);
+  p->h = h;
+  return raised;
 }

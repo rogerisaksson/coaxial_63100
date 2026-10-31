@@ -61,8 +61,10 @@ MANIFOLDS = ('plantar', 'ischial', 'trochanter', 'dorsal', 'palmar')
 MANIFOLD = slice(5 * N + 7, 5 * N + 7 + len(MANIFOLDS))
 PALMAR = MANIFOLDS.index('palmar')
 FURNITURE = slice(1, PALMAR)
-#: Her slide over what bears her along her way, m/s, forward + (the kernel's Coulomb slide).
-SLIDE, P = MANIFOLD.stop, MANIFOLD.stop + 1
+#: Her slide over what bears her along her way, m/s, forward + (the kernel's Coulomb slide); how far
+#: what bears her carries her as felt, 0 to 1: lain back on it, its push hers to feel, not to plan
+#: (`machine.stack.wrench`).
+SLIDE, FELT, P = MANIFOLD.stop, MANIFOLD.stop + 1, MANIFOLD.stop + 2
 #: A row on the wire: id, at ms, blend ms, flags as u32; the parameters as f32.
 ROW = struct.Struct('<4I%df' % P)
 #: A row's flags: REST every parameter back to her rest (a behaviour's last row, blended REST_MS);
@@ -222,6 +224,7 @@ _PAYLOAD = {
     ('task_constraints', 'limit_yaw_momentum'): _one(YAW, 0.0),
     ('task_constraints', 'contact_manifolds', 'MODE'): _mode(MANIFOLD.start, 0.0, 1.0, {m: (i,) for i, m in enumerate(MANIFOLDS)}),
     ('task_constraints', 'slide'): _one(SLIDE),
+    ('task_constraints', 'felt'): _one(FELT, 0.0, 1.0),
     ('sidechain', 'duck'): _one(DUCK.start),
     ('sidechain', 'attack'): _one(DUCK.start + 1, 0.0, unit='s'),
     ('sidechain', 'release'): _one(DUCK.start + 2, 0.0, unit='s'),
