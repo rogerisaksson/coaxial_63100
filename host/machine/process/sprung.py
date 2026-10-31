@@ -7,8 +7,8 @@ import functools
 import math
 import os
 from machine.body import mechatronics
-from machine.way import affordance, planner
-from machine.eyes import camera, vision
+from machine.way import planner
+from machine.eyes import camera, classes, vision
 from machine.senses import edge, estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import leap
 from machine.texts import ortho
@@ -224,13 +224,13 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
 
 
 def named(g):
-    """Her things by what they afford her (`affordance.named`), named anew only when they change: the page names
+    """Her things by what each is (`classes.named`), named anew only when they change: the page names
     none - named there each frame, 59 things took 12 ms a scan and the page drew 7 frames a second; keyed by
     `registry.keyed`."""
     from machine.eyes import registry
     key = registry.keyed(g['things'])
     if g.get('_named', (None,))[0] != key:
-        g['_named'] = (key, affordance.named(g['things']))
+        g['_named'] = (key, classes.named(g['things']))
     return g['_named'][1]
 
 
@@ -330,7 +330,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
-            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], 'afforded': named(g),
+            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], 'named': named(g),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,

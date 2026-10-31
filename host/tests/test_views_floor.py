@@ -139,7 +139,7 @@ def test_balloons_on_what_she_sees(report):
     from terminal.views import gym, humanoid_keys, scanner, viewpoint
     up = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
     room = [('wood', (1.5, 0.45, 0.8), (0.22, 0.02, 0.22), up), ('bed', (-1.8, 0.35, 1.8), (0.5, 0.12, 1.0), up),
-            ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
+            ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up), ('wood', (1.5, 0.72, 1.02), (0.22, 0.25, 0.02), up)]
     sent = []
     st = {'body': SN(send=lambda **kw: sent.append(kw)), 'scanner': scanner.VisionScanner(), 'tour': None,
           **viewpoint.HOME, 'now': {'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room}}

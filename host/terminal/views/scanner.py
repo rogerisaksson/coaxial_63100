@@ -6,8 +6,8 @@
     cells = docked_vision(scanner, now, width, height)
     action = auto_action(detected)
 
-Identifies objects in her stereo visual field (chair, bed, stairs, slope, ice, obstacles)
-using local Ollama inference when available or deterministic spatial geometry, and compiles
+Names what her stereo visual field holds by its class (`machine.eyes.classes`: a wall, a window, a
+door, a chair, a table, a bed, stairs, a slope) using local Ollama inference when available or deterministic spatial geometry, and compiles
 affordance interaction shortcuts displayed beneath her picture-in-picture viewport inset.
 """
 import math
@@ -16,7 +16,7 @@ import threading
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
 from coaxial.graphics import inset
 from machine.world import room
-from machine.eyes import sight, stereo, voxels
+from machine.eyes import classes, sight, stereo, voxels
 
 
 #: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
@@ -32,9 +32,6 @@ UPRIGHT, SIGHT_M = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), 8.0
 ACROSS = math.atan(math.tan(math.radians(sight.FOVY_DEG / 2.0)) * stereo.W / stereo.H)
 
 _PROP_RULES = {
-    'wood': lambda py, sx, sz, _sc: (
-        'chair' if abs(py - room.SEAT_H) < room.SEAT[0] and 0.5 * room.SEAT[0] <= sx <= sz <= 2.0 * room.SEAT[0]
-        else ('table' if abs(py - room.TOP_H) < room.SEAT[0] and sz >= room.TOP[2] else None)),
     'bed': lambda py, _sx, _sz, sc: 'mattress' if (py < 0.5 * room.BED[1] or sc == 'mattress') else 'bed',
     'stairs': lambda py, _sx, _sz, sc: 'stairs_down' if (py < 0.0 or sc == 'stairs_down') else 'stairs',
     'slope': lambda py, _sx, _sz, sc: (sc if sc in ('slope_down', 'cross_slope', 'asphalt')
@@ -110,16 +107,17 @@ class VisionScanner:
                                       math.tau)) <= ACROSS]
 
     def scan(self, now, look=None, reach=None):
-        """Her things in her sight - her registry's, by what they afford her as her worker named them
-        (`now['afforded']`, `affordance.named`), else the props by their kinds' rules; a scenario's kinds
-        by theirs -: within 75 deg of her heading or the heading the view looks along
-        (`look`, rad), SIGHT_M, or with `reach` every one that near, nearest first; each box's half
-        sizes along the world's axes its `extent`, its slot - a prop's place in her state's - its
-        `index`."""
+        """Her things in her sight - her registry's, by what each is as her worker named them
+        (`now['named']`, `classes.named`), else the props by theirs, a scenario's variants by its rules
+        (`_PROP_RULES`), a piece of furniture's and what she cannot tell none -: within 75 deg of her heading
+        or the heading the view looks along (`look`, rad), SIGHT_M, or with `reach` every one that near,
+        nearest first; each box's half sizes along the world's axes its `extent`, its slot - a prop's place
+        in her state's - its `index`."""
         if not now:
             return []
-        things, afforded = list(now.get('things') or ()), now.get('afforded') or ()
+        things = list(now.get('things') or ())
         props = things or (now.get('props') or ())
+        named = (now.get('named') or ()) if things else classes.named(props)
         where = now.get('where', (0.0, 0.0, 0.0))
         scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
@@ -129,14 +127,12 @@ class VisionScanner:
         for index, prop in enumerate(props):
             if not isinstance(prop, (tuple, list)) or len(prop) < 3 or len(prop[1]) < 3:
                 continue
-            raw_kind = str(prop[0])
+            raw_kind = named[index] if index < len(named) else None
             px, py, pz = float(prop[1][0]), float(prop[1][1]), float(prop[1][2])
             sz = prop[2] if hasattr(prop[2], '__len__') and len(prop[2]) >= 3 else (0.0, 0.0, 0.0)
             sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
             turn = prop[3] if len(prop) > 3 else UPRIGHT
             if things:
-                raw_kind = (afforded[index] if index < len(afforded) and afforded[index] else
-                            raw_kind if raw_kind in _PROP_RULES and raw_kind != 'wood' else None)
                 index = prop[4] if len(prop) > 4 else index
             kind = (None if raw_kind is None else
                     _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind)

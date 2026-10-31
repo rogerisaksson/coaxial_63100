@@ -71,7 +71,9 @@
            :confirm-salience-thresh +2.20 :prune-salience-floor -3.50))))
 
 (defprimitive maintain-spatial-memory-decay
-  [state &key (movable-diffusion-mm2ps 0.45) (structural-lock-classes [:stair :door :wall :bed])]
+  [state &key (movable-diffusion-mm2ps 0.45)
+              (structural-lock-classes [:wall :window :post :door :railing :roof :ceiling :floor :stairs :step
+                                        :platform :bed])]
   (-> state
       (diffuse-unobserved-object-covariance
         :registry 'spatial-object-soa-registry :static-locked-classes structural-lock-classes

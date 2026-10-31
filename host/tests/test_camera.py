@@ -1,6 +1,7 @@
 """Her fake camera (`machine.eyes.camera`): a look round on its frames - the renderer's parallax (`sight.Eyes.shot`) -
 telling the room's furniture where it stands; her map apart telling the very things her map here does, a look
-later; on her loop under `physics.SIGHT` her things its map's (`vision.LOOKS`)."""
+later; on her loop under `physics.SIGHT` her things its map's (`vision.LOOKS`); and what her eyes take things for
+(`machine.eyes.classes`): a house's things by their boxes, her registry's slots keeping it, her picture past her map."""
 import math
 import sys
 
@@ -13,8 +14,9 @@ from test_sight import LOOKS, _head, _nearest, _room, _stood
 
 def test_her_fake_camera_tells_the_room(report):
     """Looked round on her fake camera's frames: the chair a seat with a back, the table a seat and the bed a bed
-    within 0.3 m of where they stand; her camera apart (`camera.Camera`) tells the things her map here does."""
-    from machine.eyes import camera, sight
+    within 0.3 m of where they stand; her camera apart (`camera.Camera`) tells the things her map here does; her
+    things told by class, none by material, her picture the floor under her map's (`classes`, `sight.Keep.hulls`)."""
+    from machine.eyes import camera, classes, sight
     from machine.world import room
     body, world = _room()
     cam = None
@@ -34,10 +36,32 @@ def test_her_fake_camera_tells_the_room(report):
         report.check('her camera apart tells the things her map here does, a look later',
                      cam.looks == keep.map.looks and laid(cam.told()) == laid(here),
                      '%d looks apart, %d here; %d things apart, %d here' % (cam.looks, keep.map.looks, len(cam.told()), len(here)))
+        materials = {look for look, told in classes.LOOKED.items() if told is None}
+        named, shown = {n for n in classes.named(here) if n}, {k for k, _i, _h in keep.hulls()}
+        report.check('her map tells her things by class, none by its material; her picture names the floor',
+                     bool(named) and not named & materials and 'floor' in shown and not shown & materials,
+                     '%s; picture %s' % (sorted(named), sorted(shown)))
     finally:
         if cam is not None:
             cam.close()
         body.close()
+
+
+def test_the_lodge_told_as_a_house(report):
+    """The lodge's own boxes (`world.props()`, her eyes' stand-in) told as a house is (`classes.of`): its walls,
+    windows, door, railing, roof, floor, stairs, platforms, chairs, table, bed, lamp and switch, none by material."""
+    from machine.eyes import classes
+    body, world = _room()
+    try:
+        world._mj.mj_forward(world.model, world.data)
+        told = set(classes.of(*classes.stacked(world.props()))[0])
+    finally:
+        body.close()
+    house = {'wall', 'window', 'door', 'railing', 'roof', 'floor', 'stairs', 'platform', 'chair', 'table', 'bed',
+             'lamp', 'switch'}
+    materials = {look for look, kind in classes.LOOKED.items() if kind is None}
+    report.check('the lodge told as a house, none of it by material', house <= told and not told & materials,
+                 ', '.join(sorted(told)))
 
 
 def test_her_loop_sees_through_it(report):
@@ -68,7 +92,8 @@ def test_her_vision_panel_holds_her_view(report):
     from terminal.views import scanner
     up = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
     props = [('wood', (0.2, 0.45, 1.5), (0.22, 0.02, 0.22), up), ('wood', (1.5, 0.45, 0.8), (0.22, 0.02, 0.22), up),
-             ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up)]
+             ('door', (0.75, 1.05, 3.5), (0.45, 1.05, 0.03), up),
+             ('wood', (0.2, 0.72, 1.72), (0.22, 0.25, 0.02), up), ('wood', (1.5, 0.72, 1.02), (0.22, 0.25, 0.02), up)]
     now, sc = {'where': (0.0, 0.9, 0.0), 'heading': 0.0, 'props': props}, scanner.VisionScanner()
     seen, offered = ([(d['kind'], round(d['pos'][0], 2)) for d in got] for got in (sc.seen(now), sc.scan(now)))
     report.check("her vision's panel names the chair ahead alone, the offers all three",
@@ -77,7 +102,7 @@ def test_her_vision_panel_holds_her_view(report):
 
 def test_her_page_keeps_its_pace(report):
     """Her page on her worker's state (the lodge, the stand-in's things): the page's process names none of her
-    things - her worker does (`now['afforded']`, `sprung.named`) - and a frame's scanner work, F's offers, the
+    things - her worker does (`now['named']`, `sprung.named`) - and a frame's scanner work, F's offers, the
     prompt and her vision's panel, takes under a quarter of a frame at FPS_CAP: named there, 59 things took 12 ms
     a scan and the page drew 7 frames a second."""
     import time
@@ -112,14 +137,119 @@ def test_her_page_keeps_its_pace(report):
         for name, f in kept.items():
             setattr(affordance, name, f)
     frame_ms = 1e3 * sorted(took)[len(took) // 2]
-    report.check('the page names none of her %d things, her worker has: %d named' % (len(now['things']), sum(map(bool, now['afforded']))),
-                 calls[0] == 0 and len(now['afforded']) == len(now['things']), '%d calls' % calls[0])
+    report.check('the page names none of her %d things, her worker has: %d named' % (len(now['things']), sum(map(bool, now['named']))),
+                 calls[0] == 0 and len(now['named']) == len(now['things']), '%d calls' % calls[0])
     report.check("a frame's scanner work under a quarter of a frame at %.0f a second" % FPS_CAP,
                  frame_ms < 250.0 / FPS_CAP, '%.2f ms, a quarter %.1f' % (frame_ms, 250.0 / FPS_CAP))
 
 
-ROSTER = [test_her_fake_camera_tells_the_room, test_her_loop_sees_through_it, test_her_vision_panel_holds_her_view,
-          test_her_page_keeps_its_pace]
+#: A box upright: (kind, centre, half sizes, turn, its slot or her eyes' id, whether the space over it is seen clear).
+UP = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+
+
+def _box(kind, centre, half, clear=1.0, slot=0):
+    return (kind, centre, half, UP, slot, clear)
+
+
+#: A house of boxes, each with what her eyes should take it for and the box it is a piece of (`classes.of`'s whole, None
+#: its own): the faces of what has no top seen clear over it (clear 0), the tops, a chair's back and leg.
+HOUSE = (('wall', _box('timber', (3.0, 1.2, 0.0), (0.05, 1.2, 2.0), 0.0), None),
+         ('window', _box('glass', (0.0, 1.2, 3.0), (1.0, 1.2, 0.01), 0.0), None),
+         ('window', _box('timber', (1.05, 1.2, 3.0), (0.05, 1.2, 0.05), 0.0), None),       # the post framing the pane
+         ('door', _box('door', (-1.5, 1.0, 3.0), (0.44, 1.0, 0.02), 0.0), None),
+         ('wall', _box('door', (2.95, 2.2, 1.0), (0.02, 0.15, 0.5), 0.0), None),          # a door's colour high on a wall
+         ('ceiling', _box('timber', (0.0, 2.6, 0.0), (1.0, 0.05, 1.0), 0.0), None),
+         ('railing', _box('glass', (0.0, 0.7, -4.0), (1.0, 0.2, 0.01), 0.0), None),
+         ('railing', _box('rail', (0.0, 1.0, -4.1), (1.0, 0.03, 0.03)), None),
+         ('post', _box('timber', (-3.0, 1.2, -3.0), (0.05, 1.2, 0.05), 0.0), None),
+         ('roof', _box('roof', (0.0, 3.5, 0.0), (3.0, 0.08, 3.0)), None),
+         ('stairs', _box('wood', (6.0, 0.075, 0.0), (0.5, 0.075, 0.15)), None),
+         ('stairs', _box('wood', (6.0, 0.15, -0.3), (0.5, 0.15, 0.15)), None),
+         ('stairs', _box('wood', (6.0, 0.225, -0.6), (0.5, 0.225, 0.15)), None),
+         ('platform', _box('wood', (6.0, 0.3, -1.25), (0.5, 0.3, 0.5)), None),               # the landing they reach
+         ('step', _box('stone', (9.0, 0.1, 0.0), (0.3, 0.1, 0.15)), None),
+         ('chair', _box('wood', (12.0, 0.45, 0.0), (0.22, 0.02, 0.22)), None),
+         ('chair', _box('wood', (12.0, 0.72, 0.22), (0.22, 0.25, 0.02)), 15),                  # its back
+         ('chair', _box('wood', (12.18, 0.215, -0.18), (0.02, 0.215, 0.02)), 15),              # a leg
+         ('sofa', _box('wood', (12.0, 0.45, 4.0), (0.9, 0.02, 0.4)), None),
+         ('sofa', _box('wood', (12.0, 0.72, 4.4), (0.9, 0.25, 0.02)), 18),
+         ('table', _box('wood', (16.0, 0.74, 0.0), (0.6, 0.015, 0.35)), None),
+         ('table', _box('wood', (16.55, 0.3625, 0.3), (0.02, 0.3625, 0.02)), 20),
+         ('table', _box('wood', (16.0, 0.42, 4.0), (0.6, 0.02, 0.3)), None),                   # a low one
+         ('bench', _box('wood', (20.0, 0.45, 0.0), (0.8, 0.02, 0.2)), None),
+         ('stool', _box('wood', (20.0, 0.45, 4.0), (0.18, 0.02, 0.18)), None),
+         ('cabinet', _box('wood', (24.0, 1.0, 0.0), (0.5, 1.0, 0.3)), None),
+         ('shelf', _box('wood', (24.0, 1.5, 4.0), (0.4, 0.02, 0.15)), None),
+         ('thing', _box('wood', (28.0, 0.26, 0.0), (0.3, 0.01, 0.3)), None),
+         ('bed', _box('bed', (28.0, 0.25, 4.0), (0.45, 0.2, 1.0)), None),
+         ('lamp', _box('lamp', (32.0, 0.75, 0.0), (0.02, 0.75, 0.02)), None),
+         ('lamp', _box('lit', (32.0, 1.6, 0.0), (0.15, 0.12, 0.15)), None),
+         ('switch', _box('switch', (34.0, 1.05, 0.0), (0.02, 0.04, 0.03)), None),
+         ('floor', _box('wood', (40.0, -0.03, 0.0), (1.0, 0.03, 1.0)), None),
+         ('rug', _box('rug', (44.0, 0.01, 0.0), (0.3, 0.01, 0.6)), None))
+
+
+def test_a_house_told_by_its_boxes(report):
+    """What her eyes take a house's things for (`classes.of`), each from its box (HOUSE): walls, a pane past her brace
+    and the post framing it a window, a door standing on the floor and its colour high on a wall none, a ceiling,
+    railings, a free post, a stair's treads and the landing they reach, a lone step, a chair, a sofa, a table high and
+    low, a bench, a stool, a cabinet, a shelf, a bed, a lamp lit or not, a switch, the floor, a scene's rug; a chair's
+    back and leg, a sofa's back and a table's leg the top's and unnamed (`classes.named`); her classes told again
+    stay."""
+    from machine.eyes import classes
+    told, boxes = [t for t, _b, _w in HOUSE], [b for _t, b, _w in HOUSE]
+    names, whole = classes.of(*classes.stacked(boxes))
+    pieces = [i if w is None else w for i, (_t, _b, w) in enumerate(HOUSE)]
+    wrong = ['%d %s: %s' % (i, t, n) for i, (t, n) in enumerate(zip(told, names)) if t != n]
+    report.check('a house told by its boxes, %d things, %d classes, each piece its whole\'s' % (len(boxes), len(set(told))),
+                 not wrong and whole.tolist() == pieces, '; '.join(wrong) or 'wholes %s' % whole.tolist())
+    named = classes.named(boxes)
+    unnamed = [i for i, n in enumerate(named) if n is None]
+    report.check('a piece of furniture other than its top and what she cannot tell unnamed, the rest named',
+                 unnamed == [16, 17, 19, 21, 27] and all(n == t for n, t in zip(named, told) if n is not None), str(unnamed))
+    again = classes.of(names, *classes.stacked(boxes)[1:])[0]
+    report.check('her classes told again stay', again == names, str([(a, b) for a, b in zip(names, again) if a != b]))
+
+
+def test_her_registry_keeps_what_each_is(report):
+    """Her registry's slots hold what each thing is (`registry.seen`, `classes.of`): a seat first seen bare a stool, its
+    slot a chair once its back shows - her eyes' id keeping the slot, its class its thing's last -; what stands is the
+    text's `structural-lock-classes`, what a house is built of."""
+    from machine.eyes import registry
+    head = {'pos': np.array([0.0, 1.6, 0.0]), 'quat': np.array([1.0, 0.0, 0.0, 0.0])}
+    seat = _box('wood', (0.0, 0.45, 2.0), (0.22, 0.02, 0.22), 1.0, 7)
+    back = _box('wood', (0.0, 0.72, 2.22), (0.22, 0.25, 0.02), 0.0, 8)
+    slots = registry.laid()
+    registry.seen(slots, [seat], head, 0.0)
+    bare = slots['kinds'][0]
+    registry.seen(slots, [seat, back], head, 0.1)
+    stands = {'wall', 'window', 'door', 'floor', 'stairs', 'platform', 'railing'}
+    report.check("a bare seat a stool, its slot a chair once its back shows; a house's classes stand, a chair not",
+                 bare == 'stool' and slots['kinds'][:2] == ['chair', 'chair'] and stands <= set(registry.STRUCTURAL)
+                 and 'chair' not in registry.STRUCTURAL, '%s -> %s; %s' % (bare, slots['kinds'][:2], registry.STRUCTURAL))
+
+
+def test_her_picture_tells_past_her_map(report):
+    """What her map takes none of her picture still tells (`sight.Keep.hulls`) - one look's points, her map empty -: the
+    floor under it, a pane past its reach a window; a door's colour high on that wall, standing on no floor, no door."""
+    from machine.eyes import sight
+    from machine.eyes.stereo import H, W
+    rows, cols = (a.ravel() for a in np.mgrid[0:H:2, 0:W:2])
+    u, v, low = cols / W - 0.5, rows / H, rows >= H // 2
+    xyz = np.where(low[:, None], np.column_stack([4.0 * u, 0.0 * u, 1.0 + 4.0 * (v - 0.5)]),
+                   np.column_stack([4.0 * u, 0.1 + 2.3 * (1.0 - 2.0 * v), 6.0 + 0.0 * u]))
+    pane = np.where((rows < H // 8)[:, None], sight.LOOKS['door'][0], sight.LOOKS['glass'][0])
+    keep = sight.Keep()
+    keep.last = sight.Look(sight.Seen(None, None, np.array([0.0, 1.5, 0.0]), np.eye(3)), rows, cols,
+                           np.full(len(rows), -1), xyz, np.where(low[:, None], sight.LOOKS['wood'][0], pane))
+    shown = sorted({k for k, _i, _h in keep.hulls()})
+    report.check("past her map her picture tells the floor and a window; a door's colour high on a wall no door",
+                 shown == ['floor', 'wall', 'window'], str(shown))
+
+
+ROSTER = [test_her_fake_camera_tells_the_room, test_the_lodge_told_as_a_house, test_a_house_told_by_its_boxes,
+          test_her_registry_keeps_what_each_is, test_her_picture_tells_past_her_map, test_her_loop_sees_through_it,
+          test_her_vision_panel_holds_her_view, test_her_page_keeps_its_pace]
 
 
 def main(argv=None):

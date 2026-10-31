@@ -67,7 +67,7 @@ def test_her_map_keeps_what_her_looks_told(report):
                  first == [3 * registry.HIT] * 3 and all(v >= registry.CONFIRM for v in first) and int(r['on'].sum()) == 3
                  and slots['kinds'].count('chair') == 1 and flagged is not None and r['moving'][0] == 1.0
                  and math.isclose(speed, 1.0, rel_tol=0.05) and float(r['drift'][0]) > registry.MOVING
-                 and slots['kinds'][:3] == ['chair', 'table', 'lamp'] and panes['kinds'].count('glass') == 2
+                 and slots['kinds'][:3] == ['chair', 'table', 'lamp'] and panes['kinds'].count('window') == 2
                  and panes['rows']['moving'][:2].sum() == 0.0, '%s %s %s' % (first, flagged, speed))
     looks, had, lamp = 0, float(r['salience'][1]), float(r['salience'][2])
     aside = {'pos': head['pos'], 'quat': np.array([math.cos(-0.3), 0.0, math.sin(-0.3), 0.0])}

@@ -124,9 +124,9 @@
         :clearance-decay-mm 400.0
         :unknown-weight 0.2)))
 
-;; Recognition's names widen a thing's reach where its kind needs it: glass her stereo sees by
-;; its frame and its specks, not its pane.
+;; Recognition's names widen a thing's reach where its kind needs it: a window, glass her stereo
+;; sees by its frame and its specks, not its pane.
 (defmodifier specialize-with-recognized-classes [nav-state]
   (-> nav-state
       (weigh-traversability-layers
-        :class-margins-mm (:glass 100.0))))
+        :class-margins-mm (:window 100.0))))

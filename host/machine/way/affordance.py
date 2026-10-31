@@ -169,15 +169,3 @@ def ends(box, _things):
     _c, axes, h = footprint(box)
     a = axes[int(np.argmax(h))]
     return (math.atan2(float(a[0]), float(a[1])), math.atan2(-float(a[0]), -float(a[1])))
-
-
-#: What a thing is to her by its look and what it affords her, the first that holds (`named`): a bed one of its
-#: kind she lies on - by what she lies on alone the lodge's deck, its terrace's steps and the bench were beds, and
-#: F's first bed the deck -, a chair a seat with a back, a seat, a door one of its kind.
-AFFORDED = (('bed', lambda t, ts: t[0] == 'bed' and lies(t, ts)), ('chair', lambda t, ts: sits(t, ts) and backed(t, ts)),
-            ('seat', sits), ('door', lambda t, _ts: t[0] == 'door'))
-
-
-def named(things):
-    """Each of `things` by what it affords her (AFFORDED), None where nothing."""
-    return [next((k for k, holds in AFFORDED if holds(t, things)), None) for t in things]

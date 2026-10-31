@@ -181,7 +181,7 @@ def furnish(contacts, textured=False):
     return out
 
 
-#: Each body's prop kind for the page, by its name's head.
+#: Each body's prop kind for the page, by its name's head, a number off it (the loft's `stair0`).
 KINDS = {'timber': 'timber', 'mullion': 'timber', 'pane': 'glass', 'lintel': 'glass', 'door': 'door',
          'roof': 'roof', 'deck': 'wood', 'rail': 'rail', 'stone': 'stone', 'stair': 'wood', 'loft': 'wood',
          'seat': 'wood', 'back': 'wood', 'chair': 'wood', 'bed': 'bed', 'table': 'wood', 'post': 'lamp',
@@ -210,7 +210,7 @@ def _laid_props(world):
         mj.mj_kinematics(m, still)
         laid = world._room_props = []
         for g in range(m.ngeom):
-            kind, body = KINDS.get(m.geom(g).name.split('_')[0]), m.geom_bodyid[g]
+            kind, body = KINDS.get(m.geom(g).name.split('_')[0].rstrip('0123456789')), m.geom_bodyid[g]
             box = _box_of(m, still, g) if m.body_weldid[body] == 0 else None
             if kind is not None and m.body_mocapid[body] < 0 and (box or m.body_weldid[body] != 0):
                 laid.append((g, kind, box))

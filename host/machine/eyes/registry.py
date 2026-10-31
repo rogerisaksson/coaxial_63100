@@ -5,7 +5,8 @@
     registry.passed(slots, head, dt)            # between looks: movables diffused, blind spots swollen
     props = registry.boxes(slots)               # the things her buses take, as boxes (kind, centre, half, R)
 
-A look's things are her eyes' or their stand-in (`world.props()`), each a box: a kind, a centre, half
+A look's things are her eyes' or their stand-in (`world.props()`), each a box: a kind - its class (`classes.of`, the
+text's `:semantic-class`), a matched slot taking the look's -, a centre, half
 sizes, a rotation, and her eyes' an id and whether the space over it is seen clear (`sight.told`: a thing's
 id the look before's where they share voxels; a surface's top clear, a structure's unknown, a prop's
 clear) - a look's thing with a live slot's id is its, the slot's box the look's; of them those her eyes'
@@ -20,7 +21,7 @@ centre where its velocity carries it - over the slot's and the look's variances,
 a match +0.85, a slot in the frustum and not matched -0.22 a look, out of it 0 while its blind
 spot is kept (45 s, `specialize-with-blindspot-memory-persistence`) and -0.22 past that; a thing with no
 slot within the gate takes a free slot, else the least salient's; a slot under -3.5 is pruned. A
-movable's variance (a kind not STRUCTURAL) grows 0.45 mm^2/s between looks; a slot out of her frustum
+movable's variance (a class not STRUCTURAL) grows 0.45 mm^2/s between looks; a slot out of her frustum
 swells 1.5 mm/s to 120 mm, a match resets it. A slot's drift is its looks' moves from its centre over
 the variances, summed - the still model's evidence against it -; past the text's chi2 (16.27,
 `specialize-with-dynamic-agent-bifurcation`) the thing is moving: its velocity its move from its last
@@ -35,6 +36,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.texts import kernel
+from machine.eyes import classes
 from machine.eyes.sight import DOWN_DEG, EYES, FOVY_DEG
 from machine.eyes.voxels import CELL_M, FAR_M, NEAR_M
 from machine.eyes.stereo import H, W
@@ -52,9 +54,11 @@ CONFIRM, PRUNE = _LAW['occupancy-bayes-law']['confirm-salience-thresh'], _LAW['o
 TAKEN = kernel.node('specialize-with-affordance-field-projection', 'affordance-routing')['min-salience-log-odds']
 #: A blind spot's keeping, s; its swell, m/s, and its most, m.
 KEPT_S, SWELL_MPS, SWELL_M = _BLIND['persistence-horizon-s'], _BLIND['blindspot-margin-inflation-rate-mps'], _BLIND['max-inflation-cap-m']
-#: A movable's diffusion, m^2/s; the kinds that stand (the text's structural classes as her things' kinds).
-DIFFUSE = 1e-6 * kernel.node('maintain-spatial-memory-decay', 'memory-decay')['semi-static-drift-rate']
-STRUCTURAL = ('door', 'bed', 'wall', 'stair', 'timber', 'glass', 'roof', 'stone', 'rail')
+#: A movable's diffusion, m^2/s; the classes that stand (`classes`), the text's `structural-lock-classes`: what a
+#: house is built of, and its beds.
+_DECAY = kernel.node('maintain-spatial-memory-decay', 'memory-decay')
+DIFFUSE = 1e-6 * _DECAY['semi-static-drift-rate']
+STRUCTURAL = tuple(c.lstrip(':') for c in _DECAY['static-locked-classes'])
 #: The move past which a thing is moving, chi2.
 MOVING = kernel.node('specialize-with-dynamic-agent-bifurcation', 'moving-objects')['static-violation-chi2']
 #: A slot's fields.
@@ -140,11 +144,12 @@ def _w2(centre, half, at, halves, scale):
 
 
 def seen(slots, looks, head, t, everywhere=False):
-    """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing into the slot it
-    matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`, the look
+    """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing by its class (`classes.of`)
+    into the slot it matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`, the look
     shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows."""
     r, kinds = slots['rows'], slots['kinds']
     names, centre, half, R, ids, clear = _boxes(looks)
+    names = classes.of(names, centre, half, R, clear)[0]
     on = r['on']
     live = np.flatnonzero(on)
     if not len(names) and not len(live):
@@ -166,12 +171,13 @@ def seen(slots, looks, head, t, everywhere=False):
     if len(live) and len(names):
         best = d2.argmin(axis=1)
         if (d2[np.arange(len(names)), best] <= GATE).all() and len(np.unique(best)) == len(best):
-            return _matched(slots, live, best, matched, known, centre, half, R, clear, t, eye, turn)
+            return _matched(slots, live, best, matched, known, names, centre, half, R, clear, t, eye, turn)
     free = iter(np.flatnonzero(on == 0.0))
     for k, name in enumerate(names):
         best = int(d2[k].argmin()) if len(live) else -1
         if best >= 0 and d2[k, best] <= GATE:
             i, matched[best], d2[:, best] = int(live[best]), True, np.inf
+            kinds[i] = name
             dt, move = max(t - seen_at[i], 1e-9), centre[k] - r['centre'][i]
             drift[i] += float(move @ move) / (var[i] + CELL2)
             moving = float(drift[i] > MOVING)
@@ -195,11 +201,13 @@ def seen(slots, looks, head, t, everywhere=False):
     return _missed(slots, live, matched, t, eye, turn)
 
 
-def _matched(slots, live, best, matched, known, centre, half, R, clear, t, eye, turn):
+def _matched(slots, live, best, matched, known, names, centre, half, R, clear, t, eye, turn):
     """`seen`'s loop at once where each thing's nearest gated slot is no other's: the loop's greedy pick is
-    then each row's own, and its arithmetic run element by element - the same bits."""
+    then each row's own, and its arithmetic run element by element - the same bits; each slot its thing's class."""
     r = slots['rows']
     i = live[best]
+    for k, name in zip(i.tolist(), names):
+        slots['kinds'][k] = name
     gained = known[np.arange(len(best)), best].astype(float)
     matched[best] = True
     var, drift, last = r['var'], r['drift'], r['last']

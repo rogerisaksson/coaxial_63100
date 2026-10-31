@@ -7,7 +7,7 @@ disparity by block matching, depth from it, the points into the map she keeps of
     keep.took(*eyes.shot(world, head))      # a look's parallax from the renderer's depth (`machine.eyes.camera`)
     things = told(keep)                     # [(kind, centre, half sizes, turn)] her registry's looks
     way = plan(keep.map.blocked(), at, to)  # [(x, z)] round what she knows
-    keep.hulls()                            # what the last look showed, hulled by thing
+    keep.hulls()                            # what the last look showed, hulled by what she tells of it
 
 Her keep reads nothing of the world: a look's frame - an eye's colour and parallax at her own pose - alone,
 rendered on the world's side (`physics.SIGHT`).
@@ -29,6 +29,9 @@ BASELINE_M, EYES, FOVY_DEG, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 15.0
 #: sees - held shut, a target unseen had no way and every first word a look round first, 14 s on 23
 #: steps.
 LOOK_S = 0.5
+#: How far a look's pixels are kept (`Eyes.shot`), across her map's floor (X_M, Z_M), m: her map takes those within
+#: FAR_M (`voxels.Map.add`), her picture tells the rest by their look (`Keep.hulls`).
+REACH_M = math.hypot(X_M[1] - X_M[0], Z_M[1] - Z_M[0])
 
 #: What the room's things are made to look like, for her eyes (`mjcf`): a kind's colour,
 #: speckled with a darker shade, the speckles a cube's on every face and one scale in space,
@@ -47,12 +50,18 @@ LOOKS = {'glass': ((0.55, 0.75, 1.0), (0.35, 0.5, 0.7)),
          'stone': ((0.58, 0.56, 0.52), (0.36, 0.35, 0.33)), 'rail': ((0.72, 0.75, 0.80), (0.45, 0.47, 0.50))}
 ALPHA = {'glass': 0.7}
 
-#: The page's picture of her view, pixels wide and high (`coaxial.graphics.inset`).
+#: The page's picture of her view, pixels wide and high (`coaxial.graphics.inset`); a lump of one look smaller than a
+#: cell of it - her points every second pixel each way - her picture leaves untold, points.
 VIEW = (32, 24)
-#: Each kind's ink for the page, (r, g, b).
-INK = {'wall': (120, 190, 255), 'door': (255, 120, 90), 'lamp': (255, 230, 90),
-       'bed': (110, 140, 255), 'table': (230, 170, 100), 'chair': (255, 190, 120),
-       'thing': (200, 200, 200)}
+LUMP = (W // VIEW[0]) * (H // VIEW[1]) // 4
+#: Each class's ink for the page, (r, g, b) (`classes`); the classes under and over all else, one region each.
+INK = {'wall': (120, 190, 255), 'window': (160, 235, 255), 'post': (140, 160, 210), 'door': (255, 120, 90),
+       'railing': (175, 185, 205), 'roof': (235, 240, 250), 'ceiling': (210, 215, 235), 'floor': (150, 120, 90),
+       'stairs': (215, 155, 95), 'step': (215, 155, 95), 'platform': (195, 145, 95), 'lamp': (255, 230, 90),
+       'switch': (240, 240, 240), 'bed': (110, 140, 255), 'sofa': (200, 120, 160), 'table': (230, 170, 100),
+       'chair': (255, 190, 120), 'bench': (245, 175, 115), 'stool': (255, 175, 140), 'cabinet': (180, 140, 110),
+       'shelf': (205, 165, 125), 'thing': (200, 200, 200)}
+SPREAD = ('floor', 'ceiling')
 
 
 def assets():
@@ -143,11 +152,11 @@ class Eyes:
     def shot(self, world, head):
         """A look's frame (seen, disparity, kept) as her fake camera gives it (`machine.eyes.camera`): the left
         eye's colour and the parallax her stereo would match from the renderer's own depth (`truth`), every
-        pixel within FAR_M kept, laid at her `head` {pos, quat} as her estimate has it."""
+        pixel within REACH_M kept, laid at her `head` {pos, quat} as her estimate has it."""
         np = _np()
         self.renderer.update_scene(world.data, camera=self.ids['left'])
         left, z = self.renderer.render().copy(), self.truth(world)
-        kept = z < voxels.FAR_M
+        kept = z < REACH_M
         return Seen(left, None, *eye_pose(head)), np.where(kept, focal() * BASELINE_M / np.maximum(z, 1e-6), 0.0), kept
 
     def truth(self, world):
@@ -182,10 +191,10 @@ def points(seen, disp, kept, every=2):
 
 class Look:
 
-    """What one look put into the map: the images and, of the points kept, their pixels and voxels."""
+    """What one look put into the map: the images and, of the points kept, their pixels, voxels, places and colours."""
 
-    def __init__(self, seen, rows, cols, at):
-        self.seen, self.rows, self.cols, self.at = seen, rows, cols, at
+    def __init__(self, seen, rows, cols, at, xyz, rgb):
+        self.seen, self.rows, self.cols, self.at, self.xyz, self.rgb = seen, rows, cols, at, xyz, rgb
 
 
 class Keep:
@@ -202,7 +211,7 @@ class Keep:
     def took(self, seen, disp, kept):
         """A look's frame (`Eyes.stereo`, `Eyes.shot`) into the map; the Look."""
         xyz, rgb, rows, cols = points(seen, disp, kept)
-        self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at))
+        self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at), xyz, rgb)
         return self.last
 
     def view(self):
@@ -212,23 +221,57 @@ class Keep:
         return thumbnail(self.last.seen.left, VIEW[0], VIEW[1]), self.hulls()
 
     def hulls(self):
-        """What the last look showed, by thing: [(kind, ink, [(col, row), ..] its hull in the
-        left eye's image)], the things she has told from her map."""
+        """What the last look showed by what she tells of it (`_told`): [(class, ink, [(col, row), ..] its hull in
+        the left eye's image)], a class's points joined in the picture each - SPREAD's all one -; what she cannot
+        tell none."""
         if self.last is None:
             return []
-        things, labels = self.map.things()
-        on = self.last.at >= 0
-        which = labels.reshape(-1)[self.last.at[on]]
-        by = {}
-        for row, col, k in zip(self.last.rows[on], self.last.cols[on], which):
-            if k >= 0:
-                by.setdefault(int(k), []).append((int(col), int(row)))
+        np, last = _np(), self.last
+        kinds, code = np.unique(self._told(last).astype(str), return_inverse=True)
+        grid = np.full((H // 2 + 1, W // 2 + 1), -1)
+        grid[last.rows // 2, last.cols // 2] = code
         out = []
-        for k, pts in by.items():
-            hull = convex(pts)
-            if len(hull) >= 3:
-                out.append((things[k][0], INK.get(things[k][0], INK['thing']), hull))
+        for i in np.flatnonzero(kinds != 'thing'):
+            kind = str(kinds[i])
+            for r, c in [np.nonzero(grid == i)] if kind in SPREAD else voxels._joined(grid == i, voxels._BESIDE):
+                hull = convex(list(zip((2 * c).tolist(), (2 * r).tolist())))
+                if len(hull) >= 3:
+                    out.append((kind, INK.get(kind, INK['thing']), hull))
         return out
+
+    def _told(self, last):
+        """(n,) what she tells of each of the points of `last`, her last look (`classes.of`), 'thing' what she cannot: a point of a
+        thing of her map its whole's class - a chair's back's and legs' its seat's -; one her map took none of, past her
+        own hands (`voxels.NEAR_M`), the floor's under her map's (`voxels.FLOOR_M`) or its lump's - its look's points
+        joined in the picture - told by the lump's box, a lump under LUMP points none; what rises past her map's
+        ceiling within its reach is the top of what it holds, none."""
+        from machine.eyes import classes
+        np = _np()
+        things, labels = self.map.things()
+        names, whole = classes.of(*classes.stacked(things))
+        k = np.full(len(last.at), -1)
+        k[last.at >= 0] = labels.reshape(-1)[last.at[last.at >= 0]]
+        told = np.array(names + ['thing'], object)[np.append(whole, len(names))[np.where(k >= 0, k, len(names))]]
+        away = np.linalg.norm(last.xyz - last.seen.at, axis=1)
+        off = np.flatnonzero((last.at < 0) & (away > voxels.NEAR_M)
+                             & ((last.xyz[:, 1] < voxels.CEIL_M) | (away >= voxels.FAR_M)))
+        xyz, floor = last.xyz[off], len(self.map.names)
+        look = np.where(xyz[:, 1] <= voxels.FLOOR_M, floor,
+                        np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1))
+        grid, index = np.full((H // 2 + 1, W // 2 + 1), -1), np.full((H // 2 + 1, W // 2 + 1), -1)
+        grid[last.rows[off] // 2, last.cols[off] // 2] = look
+        index[last.rows[off] // 2, last.cols[off] // 2] = np.arange(len(off))
+        lumps = [i for i in [np.flatnonzero(look == floor)] + [index[g] for j in np.unique(look[look != floor])
+                                                                 for g in voxels._joined(grid == j, voxels._BESIDE)]
+                 if len(i) >= LUMP]
+        kinds = ['floor' if look[i[0]] == floor else self.map.names[look[i[0]]] for i in lumps]
+        lo = np.array([xyz[i].min(axis=0) for i in lumps]).reshape(-1, 3)
+        hi = np.array([xyz[i].max(axis=0) for i in lumps]).reshape(-1, 3)
+        n = len(lumps)
+        lumped = classes.of(kinds, 0.5 * (lo + hi), 0.5 * (hi - lo), np.tile(np.eye(3), (n, 1, 1)), np.zeros(n))[0]
+        for name, i in zip(lumped, lumps):
+            told[off[i]] = name
+        return told
 
 
 def thumbnail(rgb, w, h):
