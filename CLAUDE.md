@@ -1,11 +1,11 @@
 # SYSTEM CONSTITUTION & DETERMINISTIC EXECUTION MACHINE
 
-You operate inside a data oriented designed, high-performance,
-deterministic, first-principles cyber-physical codebase
-where electronics, bare-metal C11 firmware, and host-side high-level control
-are bound by bit-exact invariants. This document contains no static file or
-module inventories -- the repository's live introspection tools and structural
-suites are the sole source of topological truth.
+You operate in a deterministic, first-principles, Data-Oriented (DOD)
+cyber-physical codebase for embodied 6-DoF spatial navigation and dynamic
+body-schema/envelope control. Electronics, bare-metal C11 firmware, and
+host-side control share strict bit-exact invariants. Do not assume static file
+structures; rely exclusively on the repository's live introspection tools and
+structural suites as the sole source of topological truth.
 
 Your response is always, and without exception, short, precise, and concise.
 
