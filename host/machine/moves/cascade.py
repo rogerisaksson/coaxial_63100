@@ -75,11 +75,16 @@ def nothing(told):
     return np.minimum(np.maximum(1.0 - observer.said(told)[PLANTAR] / TOLD_NOTHING, 0.0), 1.0)
 
 
+def lift(out):
+    """Her text's lift of a leg, a 0-d array: + the first of `impedance.LIMBS`, its rhythm aside (her stride's
+    clearance is no lift)."""
+    return out[latent.REF][modal.LIFT] - out[latent.SWAY][modal.LIFT] * np.sin(out[latent.PSI][modal.LIFT])
+
+
 def intent(told, out):
     """How far her text asks each leg released, 0 to 1 (2,): her soles told nothing (`told_nothing`), or the leg
-    lifted past her poise's lift (`impedance.LIMBS`, its rhythm aside: her stride's clearance is no lift)."""
-    ref = out[latent.REF][modal.LIFT] - out[latent.SWAY][modal.LIFT] * np.sin(out[latent.PSI][modal.LIFT])
-    return np.maximum(nothing(told), window(impedance.LIMBS * ref, (0.0, poise.LIFT_EPS)))
+    lifted past her poise's lift (`impedance.LIMBS`, `lift`)."""
+    return np.maximum(nothing(told), window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS)))
 
 
 def leave(xi, pts, room, soles, vcom, shares, loads, weight):
@@ -109,7 +114,13 @@ def released(was, iota, eta, kept, sat, told, a, y, com, loads, fr, held, out, d
     weight = fr[modal.WEIGHT]
     aloft = (1.0 - sat) * (y[modal.LOWEST] - com[1] > -0.38) * (was > SHED[0]) * (observer.said(told)[PLANTAR] < 0.10)
     eta = np.maximum(eta, np.maximum(kept, aloft))
-    gamma = was + np.minimum(np.maximum(iota * eta - was, -dt / RELOCK_S), dt / SLEW_S)
+    # lain back, her soles told nothing and neither leg lifted alone (the bed's side swings one, then the other),
+    # her legs leave as one: a leg at a time, the first's push came onto the other's sole (76 -> 214 N), its gate
+    # shut and relocked it, and the free leg threw her round 115 deg on the bed
+    alike = (observer.said(told)[PLANTAR] < 0.10) * (1.0 - window(np.abs(lift(out)), (0.0, poise.LIFT_EPS)))
+    asked = iota * eta
+    asked = asked + alike * np.clip(told[DORSAL] / 0.10, 0.0, 1.0) * (asked.max() - asked)
+    gamma = was + np.minimum(np.maximum(asked - was, -dt / RELOCK_S), dt / SLEW_S)
     let_go = np.maximum(window(gamma, (0.0, SHED[0])), np.maximum(nothing(told) * a[modal.PROPPED], sat))
     leg = weight * (1.0 - 1.0 / fr[modal.HIPS_BY])
     freed = np.maximum(window(gamma, FREE) * np.minimum(np.maximum(1.0 - (loads - leg) / (FREED * weight), 0.0), 1.0),
