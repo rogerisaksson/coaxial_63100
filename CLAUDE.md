@@ -106,3 +106,54 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
 - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
 - [INV-STYLE] <=100-char brief, token budget, ASCII English kept? [YES / NO]
+
+- **Transition Rule:**
+  - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
+  - If any check is `NO`, unmeasured, or ambiguous: **HALT** and report the
+    conflict to the user.
+  - Only if `INTENT = MUTATE` and all five `[INV-*]` checks are `YES` based on
+    prior turn outputs may you enter **STATE 3**.
+
+---
+
+### STATE 3 -- SURGICAL MUTATION & BLAST-RADIUS LOCK
+
+- **Permitted Actions:** `Edit`, `Write` (strictly on the proven target
+  files).
+- **Scope Lock:** Modify only the exact lines in the exact file(s) proven in
+  State 2. Never leave untracked temporary or backup files in the tree.
+- **Generator Rule:** Never hand-edit machine-generated files (manifests,
+  static reach/footprint tables, C figure arrays, generated SVGs, or executed
+  notebooks) -- edit their generator script and run it.
+- **Banned Actions:** Speculative refactoring, renaming unrelated symbols,
+  formatting untouched lines, or breaching the per-file token budget.
+- **Exit Gate (Emit immediately after mutation before verification):**
+  `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 or 2]]`
+- **Immediate Transition:** Proceed directly to **STATE 4**.
+
+---
+
+### STATE 4 -- NARROW FALSIFICATION & TWO-STRIKE CIRCUIT BREAKER
+
+- **Required Verification (Strictly via the repository's relay test runner):**
+  1. Run the narrowest targeted suite and keyword filter (`--file`) covering
+     the modified path. Never execute a test suite directly outside the relay,
+     and quote the runner's exact `PASS`/`FAIL` tally verbatim (never
+     paraphrase).
+  2. If structure, imports, wire opcodes, or docs were touched, run the
+     structural, layout, and mirror verification suites.
+  3. If a shared C11 core or traced/ported array function was touched, run its
+     bit-exact C-vs-host parity suite and verify zero `Untraced` fallbacks.
+  4. If terminal UI or 3D graphics were touched, dump a single-frame capture
+     to a PNG raster and visually inspect it at nominal and scaled sizes.
+  5. Run the repository linter (`--changed`) to verify zero Markdown or static
+     type faults, and zero compiler warnings on target C builds.
+- **Exit Gate (Emit after verification completes):**
+  `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
+- **TWO-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
+  If verification fails in State 4, you are permitted **at most one (1)**
+  return to State 2 to revise the diagnosis. If the second attempt fails
+  verification, you **MUST** restore only the exact lines you modified,
+  **HALT**, and report the exact falsification numbers to the user. Stacked
+  trial-and-error hacking is strictly forbidden.
+  
