@@ -1,4 +1,4 @@
-"""wbc_gmo.c through ctypes: her momentum observer's struct mirrored, its calls typed."""
+"""wbc_gmo.c through ctypes: her momentum observer's struct mirrored, its calls typed, its envelope."""
 import ctypes
 import os
 import re
@@ -22,6 +22,12 @@ GMO_P, GMO_E, GMO_PUSH, GMO_C, GMO_PAIRS, GMO_T, GMO_S, GMO_M = (_gmo_define(n) 
     'WBC_GMO_POINTS', 'WBC_GMO_EDGES', 'WBC_GMO_PUSHES', 'WBC_GMO_CAPSULES', 'WBC_GMO_PAIRS', 'WBC_GMO_TOUCH',
     'WBC_GMO_SHARES', 'WBC_GMO_MANIFOLDS'))
 GMO_F = GMO_PUSH + N - 6 + GMO_T
+
+
+def horizon():
+    """Her pairs' envelope, m (`horizon`): the preload distance of working_envelope_scoper.lisp."""
+    from machine.texts import kernel
+    return kernel.said('evaluate-operating-point-horizon', 'manifold-preload-distance-mm') * 1e-3
 _LINKS = _define('WBC_LINKS')
 BODY_DOUBLES = (2 * 12 * _LINKS + (N - 6) + 2 * 3 * _LINKS + N + 3 * 6 * _LINKS + 10 * _LINKS + 6 * _LINKS + _LINKS
                 + 3 * _LINKS + N * N + N)
@@ -31,16 +37,18 @@ class Gmo(ctypes.Structure):
 
     """wbc_gmo_t: her momentum observer (`machine.senses.observer`), laid and its state."""
 
-    _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('slide', _d * 3), ('loss', _d * N), ('driven_at', _i * DRIVEN),
+    _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('slide', _d * 3), ('horizon', _d), ('whole', _i), ('loss', _d * N), ('driven_at', _i * DRIVEN),
                 ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),
                 ('edge', ((_d * 3) * GMO_E) * GMO_P), ('edges', _i * GMO_P), ('col', _i * GMO_P), ('pushes', _i), ('gated', _i * GMO_P), ('world', _i * GMO_P), ('soled', _i * GMO_P),
                 ('stop_lo', _d * (N - 6)), ('stop_hi', _d * (N - 6)), ('stopped', _i * (N - 6)), ('capsules', _i),
                 ('capsule_link', _i * GMO_C), ('capsule_r', _d * GMO_C), ('capsule_a', (_d * 3) * GMO_C),
                 ('capsule_b', (_d * 3) * GMO_C), ('pairs', _i), ('pair', (_i * 2) * GMO_PAIRS),
+                ('listed', _i), ('list', _i * GMO_PAIRS), ('stagings', _i), ('staged', ((_d * 3) * 2) * GMO_C),
                 ('share_point', _i * GMO_S), ('share_manifold', _i * GMO_S),
                 ('share_link', _i * GMO_S), ('share_axis', (_d * 3) * GMO_S), ('tau', _d * DRIVEN), ('acc', _d * 3),
                 ('span', _d), ('primed', _d), ('u', _d * N), ('r', _d * N), ('f', _d * GMO_F), ('force', _d * GMO_M),
                 ('at', (_d * 3) * GMO_P), ('touched', _i * GMO_T), ('past', _i * (N - 6)), ('prior', _d * GMO_P), ('speed', _d * GMO_P), ('expected', _d * GMO_F), ('rounds', _i),
+                ('lives', _i), ('live', _i * GMO_F),
                 ('body', _d * BODY_DOUBLES), ('a', (_d * GMO_F) * N), ('h', (_d * GMO_F) * GMO_F),
                 ('k', (_d * GMO_F) * GMO_F)]
 

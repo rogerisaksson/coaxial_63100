@@ -4,7 +4,8 @@
     low-passed; split by least squares with every unknown pushing (Lawson-Hanson): her patches'
     points - a sole's four corners in her law's pyramid -, a joint on its stop pushed off it, her
     capsules touching each other pushed apart. Laid by machine.senses.observer from the kernel's registry
-    and her model. Portable C11. */
+    and her model. A pass works on its working set alone (working_envelope_scoper.lisp): the unknowns
+    that can push, the pairs staged within her envelope; the same bits as the whole. Portable C11. */
 #ifndef WBC_GMO_H
 #define WBC_GMO_H
 
@@ -35,6 +36,8 @@ typedef struct
   double      reach;                       /**< over her lowest point, m; a support's speed, m/s: */
   double      still;                       /**< past it a point does not stand on what bears her */
   double      slide[3];                    /**< her text's slide, world m/s: moving with it a point stands still */
+  double      horizon;                     /**< her envelope, m: a pair staged nearer is searched a pass */
+  int         whole;                       /**< 1: every unknown and every pair a pass, her set unscoped */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
   int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in her edge's */
   int         driven_joint[WBC_DRIVEN];
@@ -57,6 +60,10 @@ typedef struct
   double      capsule_b[WBC_GMO_CAPSULES][3];
   int         pairs;                       /**< the pairs of capsules that can touch */
   int         pair[WBC_GMO_PAIRS][2];
+  int         listed;                      /**< the pairs staged within her envelope, in their order */
+  int         list[WBC_GMO_PAIRS];
+  int         stagings;                    /**< out: her pairs staged so far; each capsule's ends, world, */
+  double      staged[WBC_GMO_CAPSULES][2][3]; /**< as last staged */
   int         share_point[WBC_GMO_SHARES]; /**< a share: its point, its manifold, the link whose */
   int         share_manifold[WBC_GMO_SHARES]; /**< frame holds the manifold's normal, that normal */
   int         share_link[WBC_GMO_SHARES];
@@ -77,6 +84,8 @@ typedef struct
   double      speed[WBC_GMO_POINTS];       /**< out: each point's speed in the world, m/s */
   double      expected[WBC_GMO_F];         /**< and each unknown's */
   int         rounds;                      /**< out: the band's rounds this pass */
+  int         lives;                       /**< out: the unknowns that can push this pass, in their order */
+  int         live[WBC_GMO_F];
   wbc_body_t  body;
   double      a[WBC_N][WBC_GMO_F];
   double      h[WBC_GMO_F][WBC_GMO_F];

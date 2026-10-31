@@ -269,8 +269,60 @@ def test_the_kernel_reads_whole(report):
                  and got['*abi-field-descriptors*'][0] == (':bpm', 0.0, 0.016666668, 0.0, 4.0), '%r' % ((b0, b1, b2, a1, a2),))
 
 
+def _both(c, step, outs, got):
+    """Her observer's `step` (wbc_gmo.c) on `c` scoped and on its copy whole (`whole`), in turns first, timed:
+    `got` counts the law passes, those whose `outs` were apart, her working set's sizes and each one's seconds."""
+    import ctypes
+    import time
+    from tools.cores.gmo import Gmo
+
+    def stepped(at, base, q, u, dt):
+        whole = Gmo.from_buffer_copy(c)
+        whole.whole = 1
+        runs = [(ctypes.byref(whole), 'whole'), (at, 'scoped')][::1 - 2 * (got['passes'] % 2)]
+        for arg, key in runs:
+            t = time.perf_counter()
+            step(arg, base, q, u, dt)
+            got[key] += time.perf_counter() - t
+        got['apart'] += any(bytes(getattr(whole, k)) != bytes(getattr(c, k)) for k in outs) or whole.rounds != c.rounds
+        got['passes'] += 1
+        got['lives'] += c.lives
+        got['listed'] += c.listed
+        got['touches'] += sum(t >= 0 for t in c.touched)
+    return stepped
+
+
+def test_her_observer_scoped_as_whole(report):
+    """Her observer's working set (working_envelope_scoper.lisp) at every law pass of her walk and her crouch -
+    hinges on their stops, capsules touching -: its step scoped and its step whole from the same state the same
+    bits; scoped, about half her unknowns split and a fraction of her pairs searched, within the text's envelope."""
+    from machine.texts import kernel
+    from tools.cores.gmo import GMO_F
+    from tools.sim import scenarios
+    outs = ('r', 'f', 'force', 'at', 'touched', 'past', 'prior', 'speed', 'expected')
+    envelope = kernel.said('evaluate-operating-point-horizon', 'manifold-preload-distance-mm') * 1e-3
+    for scene, touching in (('play_walk', False), ('crouching_down', True)):
+        got, held = dict.fromkeys(('passes', 'apart', 'lives', 'listed', 'touches', 'whole', 'scoped'), 0), {}
+
+        def laid(s, got=got, held=held):
+            obs = s['g']['observer']
+            if held.get('obs') is not obs:
+                held['obs'], held['c'] = obs, obs['c']
+                obs['step'] = _both(obs['c'], obs['step'], outs, got)
+
+        scenarios.ran(scene, laid=laid)
+        n, c = max(got['passes'], 1), held['c']
+        report.check('%s, %d law passes scoped as whole bit for bit: %.0f of %d unknowns, %.0f of %d pairs within '
+                     '%.2f m, %d touches; %.0f against %.0f us' % (
+                         scene, got['passes'], got['lives'] / n, GMO_F, got['listed'] / n, c.pairs, c.horizon,
+                         got['touches'], 1e6 * got['scoped'] / n, 1e6 * got['whole'] / n),
+                     got['apart'] == 0 and got['passes'] > 600 and c.horizon == envelope > 0.0
+                     and got['lives'] / n < 0.6 * GMO_F and got['listed'] / n < 0.4 * c.pairs
+                     and (got['touches'] > 0) == touching, '%d passes apart' % got['apart'])
+
+
 ROSTER = (test_the_invariant_ekf_drifts_less, test_the_field_seeks_a_seat_not_found, test_her_link_under_its_ceiling, test_the_barrier_holds_her_capture_point, test_a_pulled_chair_weighs_nothing, test_her_patches_observed_walking, test_her_patches_observed_seated, test_her_chest_yaw_leaks_nothing_standing,
-          test_what_bears_her_weighs_as_felt, test_the_kernel_reads_whole)
+          test_what_bears_her_weighs_as_felt, test_the_kernel_reads_whole, test_her_observer_scoped_as_whole)
 
 
 def main(argv=None):

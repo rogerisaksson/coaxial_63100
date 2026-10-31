@@ -141,28 +141,74 @@ static void own(const wbc_body_t *b, int link, const double x[3], double out[3])
   }
 }
 
+/** Her pairs staged (`list`, `listed`) in their order: those whose capsules' spheres - about each axis's
+    middle, half its length and its radius - come within her envelope, every one where `whole` says so;
+    her capsules' ends `ends` kept as staged. A sphere holds its capsule: a pair left out is an envelope
+    apart. */
+static void stage(wbc_gmo_t *o, double ends[][2][3])
+{
+  double mid[WBC_GMO_CAPSULES][3], reach[WBC_GMO_CAPSULES];
+
+  for (int c = 0; c < o->capsules; c++)
+  {
+    double d[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+      mid[c][i] = 0.5 * (ends[c][0][i] + ends[c][1][i]);
+      d[i] = ends[c][1][i] - ends[c][0][i];
+    }
+    reach[c] = 0.5 * sqrt(dot(d, d)) + o->capsule_r[c];
+  }
+  o->listed = 0;
+  for (int k = 0; k < o->pairs; k++)
+  {
+    const int    c1 = o->pair[k][0], c2 = o->pair[k][1];
+    const double d[3] = {mid[c2][0] - mid[c1][0], mid[c2][1] - mid[c1][1], mid[c2][2] - mid[c1][2]};
+
+    o->list[o->listed] = k;
+    o->listed += o->whole | (sqrt(dot(d, d)) - reach[c1] - reach[c2] < o->horizon);
+  }
+  memcpy(o->staged, ends, sizeof o->staged);
+  o->stagings++;
+}
+
 /** Her capsules touching, the deepest WBC_GMO_TOUCH: each one's column, pushed apart along the line
-    between their axes' closest points at the middle of their overlap. */
+    between their axes' closest points at the middle of their overlap. Searched among the pairs staged
+    (`stage`), restaged once any capsule's end has moved a quarter of her envelope: a pair left out stays
+    half of it apart, so the touches are every pair's. */
 static void touches(wbc_gmo_t *o)
 {
-  static double j[6][WBC_N];
-  double        depth[WBC_GMO_TOUCH];
+  static double j[6][WBC_N], ends[WBC_GMO_CAPSULES][2][3];
+  double        depth[WBC_GMO_TOUCH], moved = 0.0;
 
+  for (int c = 0; c < o->capsules; c++)
+  {
+    wbc_body_point(&o->body, o->capsule_link[c], o->capsule_a[c], ends[c][0]);
+    wbc_body_point(&o->body, o->capsule_link[c], o->capsule_b[c], ends[c][1]);
+    for (int e = 0; e < 2; e++)
+    {
+      const double d[3] = {ends[c][e][0] - o->staged[c][e][0], ends[c][e][1] - o->staged[c][e][1],
+                           ends[c][e][2] - o->staged[c][e][2]};
+
+      moved = fmax(moved, dot(d, d));
+    }
+  }
+  if (o->whole || o->stagings == 0 || moved >= 0.0625 * o->horizon * o->horizon)
+  {
+    stage(o, ends);
+  }
   for (int t = 0; t < WBC_GMO_TOUCH; t++)
   {
     o->touched[t] = -1;
     depth[t] = 0.0;
   }
-  for (int k = 0; k < o->pairs; k++)
+  for (int x = 0; x < o->listed; x++)
   {
-    const int c1 = o->pair[k][0], c2 = o->pair[k][1];
-    double    p1[3], q1[3], p2[3], q2[3], s1[3], s2[3], d[3];
+    const int k = o->list[x], c1 = o->pair[k][0], c2 = o->pair[k][1];
+    double    s1[3], s2[3], d[3];
 
-    wbc_body_point(&o->body, o->capsule_link[c1], o->capsule_a[c1], p1);
-    wbc_body_point(&o->body, o->capsule_link[c1], o->capsule_b[c1], q1);
-    wbc_body_point(&o->body, o->capsule_link[c2], o->capsule_a[c2], p2);
-    wbc_body_point(&o->body, o->capsule_link[c2], o->capsule_b[c2], q2);
-    closest(p1, q1, p2, q2, s1, s2);
+    closest(ends[c1][0], ends[c1][1], ends[c2][0], ends[c2][1], s1, s2);
     for (int i = 0; i < 3; i++)
     {
       d[i] = s2[i] - s1[i];
@@ -189,13 +235,9 @@ static void touches(wbc_gmo_t *o)
       continue;
     }
     const int c1 = o->pair[k][0], c2 = o->pair[k][1];
-    double    p1[3], q1[3], p2[3], q2[3], s1[3], s2[3], n[3], x[3], local[3];
+    double    s1[3], s2[3], n[3], x[3], local[3];
 
-    wbc_body_point(&o->body, o->capsule_link[c1], o->capsule_a[c1], p1);
-    wbc_body_point(&o->body, o->capsule_link[c1], o->capsule_b[c1], q1);
-    wbc_body_point(&o->body, o->capsule_link[c2], o->capsule_a[c2], p2);
-    wbc_body_point(&o->body, o->capsule_link[c2], o->capsule_b[c2], q2);
-    closest(p1, q1, p2, q2, s1, s2);
+    closest(ends[c1][0], ends[c1][1], ends[c2][0], ends[c2][1], s1, s2);
     for (int i = 0; i < 3; i++)
     {
       n[i] = s2[i] - s1[i];
@@ -265,6 +307,25 @@ static void expect(wbc_gmo_t *o)
   }
 }
 
+/** Her working set this pass (`live`, `lives`), the unknowns that can push in their order: every
+    point's, a hinge's on its stop, a touch found; all of them where `whole` says so. A column of zeros
+    never joins the split nor moves a sum: the rest left out, the same bits. */
+static void scoped(wbc_gmo_t *o)
+{
+  int n = 0;
+
+  for (int c = 0; c < NF; c++)
+  {
+    const int h = c - o->pushes, t = h - NH;
+    const int stop = (h >= 0) && (h < NH) && (o->a[6 + h][c] != 0.0);
+    const int touch = (t >= 0) && (t < WBC_GMO_TOUCH) && (o->touched[t] >= 0);
+
+    o->live[n] = c;
+    n += o->whole | (c < o->pushes) | stop | touch;
+  }
+  o->lives = n;
+}
+
 /** Each unknown's column of J': a point's edges along their directions; a hinge on its stop pushed
     off it; her capsules touching. */
 static void columns(wbc_gmo_t *o, const double q[NH])
@@ -301,14 +362,15 @@ static void columns(wbc_gmo_t *o, const double q[NH])
     o->a[6 + h][o->pushes + h] = o->stopped[h] * ((q[h] <= o->stop_lo[h]) - (q[h] >= o->stop_hi[h]));
   }
   touches(o);
+  scoped(o);
 }
 
-/** The least squares of A f = r over the rows `weight` keeps, each shifted by `shift`, every unknown
-    pushing (Lawson-Hanson on the normal equations, the tie-break toward `expected` on their
-    diagonal: what the rows cannot tell, her soles' last pass and gravity elsewhere do): a push joins
-    the set where it lowers the residual past rounding, one not felt (`gated`) or moving past
-    `still` only where none else would, the set solved, a push it would pull stepped back to none
-    and out. */
+/** The least squares of A f = r over the rows `weight` keeps, each shifted by `shift`, every unknown of
+    her working set (`scoped`) pushing, in its order (Lawson-Hanson on the normal equations over it alone,
+    the tie-break toward `expected` on their diagonal: what the rows cannot tell, her soles' last pass and
+    gravity elsewhere do): a push joins the set where it lowers the residual past rounding, one not felt
+    (`gated`) or moving past `still` only where none else would, the set solved, a push it would pull
+    stepped back to none and out. */
 /** Push `b` joined to the `n` pushing `at` (in the order they joined): `o->k`'s factor L of K = H over them
     grown a row by forward substitution, the rows before it as they were, its new diagonal's square no less
     than `least` - eps top lies on K's diagonal, so no Schur complement of it is smaller. 53 factorizations
@@ -359,8 +421,9 @@ static int left(wbc_gmo_t *o, int at[NF], int n, int p)
 
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
-  static double g[NF], w[NF], z[NF], sub[NF];
-  static int    set[NF], at[NF], gate[NF], live[NF];
+  static double g[NF], w[NF], z[NF], sub[NF], f[NF], ag[WBC_N][NF];
+  static int    set[NF], at[NF], gate[NF], gated[NF], on[NF];
+  const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
   double        top = 0.0, most = 0.0;
 
@@ -370,47 +433,60 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     rows[weighed] = i;
     weighed += weight[i] != 0.0;
   }
-  memset(gate, 0, sizeof gate);
+  memset(gated, 0, sizeof gated);
   for (int p = 0; p < WBC_GMO_POINTS; p++)
   {
     for (int e = 0; e < o->edges[p]; e++)
     {
-      gate[o->col[p] + e] = o->gated[p] || (o->speed[p] > o->still);
+      gated[o->col[p] + e] = o->gated[p] || (o->speed[p] > o->still);
     }
   }
-  for (int a = 0; a < NF; a++)
+  /* her working set gathered, x an unknown's place in it, f[x] its push: its weighed rows along memory */
+  for (int x = 0; x < m; x++)
   {
-    g[a] = 0.0;
+    gate[x] = gated[o->live[x]];
+    for (int k = 0; k < weighed; k++)
+    {
+      ag[k][x] = o->a[rows[k]][o->live[x]];
+    }
+  }
+  for (int x = 0; x < m; x++)
+  {
+    g[x] = 0.0;
     for (int k = 0; k < weighed; k++)
     {
       const int i = rows[k];
 
-      g[a] += weight[i] * o->a[i][a] * (o->r[i] - shift[i]);
+      g[x] += weight[i] * ag[k][x] * (o->r[i] - shift[i]);
     }
-    /* each h[a][b] summed over the weighed rows in their order, the row's b innermost along its memory */
-    for (int b = 0; b < NF; b++)
+    /* each h[x][y] summed over the weighed rows in their order, the row's y innermost along its memory; a
+       weighed row's weight is 1, so (1 a) b is b a bit for bit: h symmetric, its lower half mirrored */
+    for (int y = x; y < m; y++)
     {
-      o->h[a][b] = 0.0;
+      o->h[x][y] = 0.0;
     }
     for (int k = 0; k < weighed; k++)
     {
-      const int    i = rows[k];
-      const double wa = weight[i] * o->a[i][a];
+      const double wa = weight[rows[k]] * ag[k][x];
 
-      for (int b = 0; b < NF; b++)
+      for (int y = x; y < m; y++)
       {
-        o->h[a][b] += wa * o->a[i][b];
+        o->h[x][y] += wa * ag[k][y];
       }
     }
-    top = fmax(top, o->h[a][a]);
-    o->f[a] = 0.0;
-    set[a] = 0;
+    for (int y = 0; y < x; y++)
+    {
+      o->h[x][y] = o->h[y][x];
+    }
+    top = fmax(top, o->h[x][x]);
+    f[x] = 0.0;
+    set[x] = 0;
   }
-  for (int a = 0; a < NF; a++)
+  for (int x = 0; x < m; x++)
   {
-    o->h[a][a] += o->eps * top;
-    g[a] += o->eps * top * o->expected[a];
-    most = fmax(most, fabs(g[a]));
+    o->h[x][x] += o->eps * top;
+    g[x] += o->eps * top * o->expected[o->live[x]];
+    most = fmax(most, fabs(g[x]));
   }
   int n = 0;
 
@@ -418,24 +494,24 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
   {
     int free_ = -1, held = -1, pushing = 0;
 
-    for (int b = 0; b < NF; b++)
+    for (int y = 0; y < m; y++)
     {
-      live[pushing] = b;
-      pushing += o->f[b] != 0.0;
+      on[pushing] = y;
+      pushing += f[y] != 0.0;
     }
-    for (int a = 0; a < NF; a++)
+    for (int x = 0; x < m; x++)
     {
-      const int sums = set[a] ? 0 : pushing; /* a push in the set is never picked: its w unread */
+      const int sums = set[x] ? 0 : pushing; /* a push in the set is never picked: its w unread */
 
-      w[a] = g[a];
+      w[x] = g[x];
       for (int k = 0; k < sums; k++)
       {
-        w[a] -= o->h[a][live[k]] * o->f[live[k]];
+        w[x] -= o->h[x][on[k]] * f[on[k]];
       }
-      const int fits = !set[a] && w[a] > DBL_EPSILON * NF * most;
+      const int fits = !set[x] && w[x] > DBL_EPSILON * NF * most;
 
-      free_ = (fits && !gate[a] && (free_ < 0 || w[a] > w[free_])) ? a : free_;
-      held = (fits && gate[a] && (held < 0 || w[a] > w[held])) ? a : held;
+      free_ = (fits && !gate[x] && (free_ < 0 || w[x] > w[free_])) ? x : free_;
+      held = (fits && gate[x] && (held < 0 || w[x] > w[held])) ? x : held;
     }
     const int best = (free_ >= 0) ? free_ : held;
 
@@ -457,14 +533,14 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       wbc_chol_solve(n, NF, &o->k[0][0], sub, z);
       for (int x = 0; x < n; x++)
       {
-        const double was = o->f[at[x]], ratio = (z[x] <= 0.0) ? was / (was - z[x]) : 1.0;
+        const double was = f[at[x]], ratio = (z[x] <= 0.0) ? was / (was - z[x]) : 1.0;
 
         out = (ratio < step) ? x : out;
         step = (ratio < step) ? ratio : step;
       }
       for (int x = 0; x < n; x++)
       {
-        o->f[at[x]] += step * (z[x] - o->f[at[x]]);
+        f[at[x]] += step * (z[x] - f[at[x]]);
       }
       if (out < 0)
       {
@@ -472,13 +548,18 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       }
       for (int x = n - 1; x >= 0; x--)
       {
-        const int drop = (x == out) || (o->f[at[x]] <= 0.0);
+        const int drop = (x == out) || (f[at[x]] <= 0.0);
 
-        o->f[at[x]] = drop ? 0.0 : o->f[at[x]];
+        f[at[x]] = drop ? 0.0 : f[at[x]];
         set[at[x]] = !drop;
         n = drop ? left(o, at, n, x) : n;
       }
     }
+  }
+  memset(o->f, 0, sizeof o->f);
+  for (int x = 0; x < m; x++)
+  {
+    o->f[o->live[x]] = f[x];
   }
 }
 
@@ -512,9 +593,9 @@ static void split(wbc_gmo_t *o)
     {
       double e = o->r[6 + h];
 
-      for (int a = 0; a < NF; a++)
+      for (int x = 0; x < o->lives; x++)
       {
-        e -= o->a[6 + h][a] * o->f[a];
+        e -= o->a[6 + h][o->live[x]] * o->f[o->live[x]];
       }
       const int past = (e > band[h]) - (e < -band[h]);
 

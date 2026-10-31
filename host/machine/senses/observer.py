@@ -309,7 +309,7 @@ def laid(body):
     import ctypes
     from tools.cores import bodied, gmo, wbc as cores
     lib, names = cores.library(), cores.Core().names
-    o = gmo.Gmo()
+    o = gmo.Gmo(horizon=gmo.horizon())
     o.slip, o.eps = SLIP_RAD_S, FLOOR
     o.weight, o.upright, o.reach, o.still = body.mass * G, UPRIGHT_COS, REACH_M, STILL_M_S
     o.alpha = kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi
