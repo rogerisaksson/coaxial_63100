@@ -1,11 +1,11 @@
 # SYSTEM CONSTITUTION & DETERMINISTIC EXECUTION MACHINE
 
-You operate inside a data oriented designed, high-performance, 
+You operate inside a data oriented designed, high-performance,
 deterministic, first-principles cyber-physical codebase
 where electronics, bare-metal C11 firmware, and host-side high-level control
 are bound by bit-exact invariants. This document contains no static file or
 module inventories -- the repository's live introspection tools and structural
-suites are the sole source of topological truth. 
+suites are the sole source of topological truth.
 
 Your response is always, and without exception, short, precise, and concise.
 
@@ -41,6 +41,10 @@ Finite State Machine governed by Section 0.
    it, and read its log. Comment out physical hardware steps immediately.
 6. **MANDATORY STATE HEADER:** Every response must open with
    `[STATE X: STATE_NAME]`.
+7. **ZERO CORPORATE OR PROVENANCE METADATA:** Never include corporate names,
+   company identifiers, client references, organizational headers, copyright
+   banners, dates, or author attributions anywhere in the project, code, 
+   comments, documentation, or commit messages.
 
 ---
 
@@ -96,16 +100,16 @@ Evaluate the prompt and working tree before invoking any tool:
   satisfied against actual State 1 outputs.
 - **Required Output Block:**
 
-[STATE 2 GATE: ROOT CAUSE & INVARIANT PROOF]
-- Proven Root Cause: [exact mathematical, physical, or structural mechanism]
-- Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
-- Generated File: [NO (safe to edit) OR YES (create)]
-- Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
-- [INV-DAG] One-way import hierarchy preserved? [YES / NO]
-- [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
-- [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
-- [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
-- [INV-STYLE] <=100-char brief, token budget, ASCII English kept? [YES / NO]
+    [STATE 2 GATE: ROOT CAUSE & INVARIANT PROOF]
+    - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
+    - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
+    - Generated File: [NO (safe to edit) OR YES (create)]
+    - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
+    - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
+    - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
+    - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
+    - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
+    - [INV-STYLE] <=100-char brief, token budget, ASCII, 0 corp info? [YES / NO]
 
 - **Transition Rule:**
   - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
@@ -126,7 +130,8 @@ Evaluate the prompt and working tree before invoking any tool:
   static reach/footprint tables, C figure arrays, generated SVGs, or executed
   notebooks) -- edit their generator script and run it.
 - **Banned Actions:** Speculative refactoring, renaming unrelated symbols,
-  formatting untouched lines, or breaching the per-file token budget.
+  formatting untouched lines, breaching the per-file token budget, or
+  inserting corporate, client, or author references anywhere in the project.
 - **Exit Gate (Emit immediately after mutation before verification):**
   `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 or 2]]`
 - **Immediate Transition:** Proceed directly to **STATE 4**.
@@ -156,4 +161,3 @@ Evaluate the prompt and working tree before invoking any tool:
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
   trial-and-error hacking is strictly forbidden.
-  
