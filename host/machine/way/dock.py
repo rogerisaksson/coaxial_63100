@@ -34,10 +34,11 @@ ARRIVALS = tuple(k * 0.25 * math.pi for k in (0, 1, -1, 2, -2))
 
 
 def docks():
-    """How each errand docks, kind -> (her half across that lands within the face - her hips on a seat
-    or a bed, her hanging hands in the doorway -, m; her run in through the door, m, None where she turns
-    onto a dock)."""
-    return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.HIP_HALF, None),
+    """How each errand docks, kind -> (her half across that lands within the face - her hips on a seat,
+    her hanging hands on a bed she lies along and in the doorway -, m; her run in through the door, m, None
+    where she turns onto a dock). Her hips within its end, she landed 0.25 m off its middle and lay over
+    its corner, 16 deg off its axis."""
+    return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.ASIDE, None),
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
 
 
