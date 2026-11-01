@@ -60,8 +60,9 @@ INK = {'wall': (120, 190, 255), 'window': (160, 235, 255), 'post': (140, 160, 21
        'stairs': (215, 155, 95), 'step': (215, 155, 95), 'platform': (195, 145, 95), 'lamp': (255, 230, 90),
        'switch': (240, 240, 240), 'bed': (110, 140, 255), 'sofa': (200, 120, 160), 'table': (230, 170, 100),
        'chair': (255, 190, 120), 'bench': (245, 175, 115), 'stool': (255, 175, 140), 'cabinet': (180, 140, 110),
-       'shelf': (205, 165, 125), 'thing': (200, 200, 200)}
-SPREAD = ('floor', 'ceiling')
+       'shelf': (205, 165, 125), 'veranda': (205, 160, 110), 'terrace': (185, 175, 160), 'ground': (125, 140, 115),
+       'cabin': (255, 215, 170), 'house': (255, 215, 170), 'thing': (200, 200, 200)}
+SPREAD = ('floor', 'ceiling', 'ground')
 
 
 def assets():
@@ -222,12 +223,13 @@ class Keep:
 
     def hulls(self):
         """What the last look showed by what she tells of it (`_told`): [(class, ink, [(col, row), ..] its hull in
-        the left eye's image)], a class's points joined in the picture each - SPREAD's all one -; what she cannot
-        tell none."""
+        the left eye's image)], a class's points joined in the picture each - SPREAD's all one, a region under LUMP
+        points none -, a building seen from outside it round all its own; what she cannot tell none."""
         if self.last is None:
             return []
         np, last = _np(), self.last
-        kinds, code = np.unique(self._told(last).astype(str), return_inverse=True)
+        told, housed, built = self._told(last)
+        kinds, code = np.unique(told.astype(str), return_inverse=True)
         grid = np.full((H // 2 + 1, W // 2 + 1), -1)
         grid[last.rows // 2, last.cols // 2] = code
         out = []
@@ -235,43 +237,58 @@ class Keep:
             kind = str(kinds[i])
             for r, c in [np.nonzero(grid == i)] if kind in SPREAD else voxels._joined(grid == i, voxels._BESIDE):
                 hull = convex(list(zip((2 * c).tolist(), (2 * r).tolist())))
-                if len(hull) >= 3:
+                if len(hull) >= 3 and len(r) >= LUMP:
                     out.append((kind, INK.get(kind, INK['thing']), hull))
+        for b, kind in enumerate(built):
+            at = np.flatnonzero(housed == b)
+            hull = convex(list(zip(last.cols[at].tolist(), last.rows[at].tolist())))
+            if len(hull) >= 3:
+                out.append((kind, INK.get(kind, INK['thing']), hull))
         return out
 
     def _told(self, last):
-        """(n,) what she tells of each of the points of `last`, her last look (`classes.of`), 'thing' what she cannot: a point of a
-        thing of her map its whole's class - a chair's back's and legs' its seat's -; one her map took none of, past her
-        own hands (`voxels.NEAR_M`), the floor's under her map's (`voxels.FLOOR_M`) or its lump's - its look's points
-        joined in the picture - told by the lump's box, a lump under LUMP points none; what rises past her map's
-        ceiling within its reach is the top of what it holds, none."""
+        """((n,) what she tells of each of the points of `last`, her last look - 'thing' what she cannot -, (n,) the
+        building each is of seen from outside it - -1 none -, [each building's class]) of her map's things and the lumps
+        of what it took none of past her own hands (`voxels.NEAR_M`), told at once (`classes.of`, `classes.houses`): a
+        point of her map's its thing's whole's class - a chair's back's and legs' its seat's -; a lump one look's points
+        joined in the picture, those under her map's floor (`voxels.FLOOR_M`) in bands a cell apart and seen clear over,
+        each told by its box - one at her floor running on to her picture's reach the ground -, one under LUMP points
+        none; what rises past her map's ceiling within its reach is the top of what it holds, none."""
         from machine.eyes import classes
         np = _np()
         things, labels = self.map.things()
-        names, whole = classes.of(*classes.stacked(things))
-        k = np.full(len(last.at), -1)
-        k[last.at >= 0] = labels.reshape(-1)[last.at[last.at >= 0]]
-        told = np.array(names + ['thing'], object)[np.append(whole, len(names))[np.where(k >= 0, k, len(names))]]
+        kinds, centre, half, R, clear = classes.stacked(things)
         away = np.linalg.norm(last.xyz - last.seen.at, axis=1)
         off = np.flatnonzero((last.at < 0) & (away > voxels.NEAR_M)
                              & ((last.xyz[:, 1] < voxels.CEIL_M) | (away >= voxels.FAR_M)))
-        xyz, floor = last.xyz[off], len(self.map.names)
-        look = np.where(xyz[:, 1] <= voxels.FLOOR_M, floor,
-                        np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1))
+        xyz, low = last.xyz[off], last.xyz[off, 1] <= voxels.FLOOR_M
+        look = np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1)
+        band = np.where(low, np.round(xyz[:, 1] / voxels.CELL_M), 1.0)
+        code = np.unique(np.column_stack([look, low, band]), axis=0, return_inverse=True)[1].reshape(-1)
         grid, index = np.full((H // 2 + 1, W // 2 + 1), -1), np.full((H // 2 + 1, W // 2 + 1), -1)
-        grid[last.rows[off] // 2, last.cols[off] // 2] = look
+        grid[last.rows[off] // 2, last.cols[off] // 2] = code
         index[last.rows[off] // 2, last.cols[off] // 2] = np.arange(len(off))
-        lumps = [i for i in [np.flatnonzero(look == floor)] + [index[g] for j in np.unique(look[look != floor])
-                                                                 for g in voxels._joined(grid == j, voxels._BESIDE)]
+        lumps = [i for j in np.unique(code) for g in voxels._joined(grid == j, voxels._BESIDE) for i in [index[g]]
                  if len(i) >= LUMP]
-        kinds = ['floor' if look[i[0]] == floor else self.map.names[look[i[0]]] for i in lumps]
+        level = np.array([bool(low[i[0]]) for i in lumps], bool)
+        ground = level & np.array([away[off[i]].max() >= REACH_M - voxels.CELL_M for i in lumps], bool)
         lo = np.array([xyz[i].min(axis=0) for i in lumps]).reshape(-1, 3)
         hi = np.array([xyz[i].max(axis=0) for i in lumps]).reshape(-1, 3)
-        n = len(lumps)
-        lumped = classes.of(kinds, 0.5 * (lo + hi), 0.5 * (hi - lo), np.tile(np.eye(3), (n, 1, 1)), np.zeros(n))[0]
-        for name, i in zip(lumped, lumps):
-            told[off[i]] = name
-        return told
+        n, m = len(kinds), len(lumps)
+        boxes = (np.vstack([centre, 0.5 * (lo + hi)]), np.vstack([half, 0.5 * (hi - lo)]),
+                 np.concatenate([R, np.tile(np.eye(3), (m, 1, 1))]))
+        names = classes.of(kinds + ['ground' if g else self.map.names[look[i[0]]] for g, i in zip(ground, lumps)],
+                           *boxes, np.concatenate([clear, level.astype(float)]))[0]
+        thing = np.full(len(last.at), n + m)
+        thing[last.at >= 0] = labels.reshape(-1)[last.at[last.at >= 0]]
+        thing = np.where(thing < 0, n + m, thing)
+        for j, i in enumerate(lumps):
+            thing[off[i]] = n + j
+        housed, built = np.full(len(last.at), -1), classes.houses(names, *boxes)
+        for b, (_name, c, h, members) in enumerate(built):
+            seen_out = bool((np.abs(np.asarray(last.seen.at)[::2] - c[::2]) > h[::2]).any())
+            housed = np.where(seen_out & np.isin(thing, members), b, housed)
+        return np.array(names + ['thing'], object)[thing], housed, [b[0] for b in built]
 
 
 def thumbnail(rgb, w, h):

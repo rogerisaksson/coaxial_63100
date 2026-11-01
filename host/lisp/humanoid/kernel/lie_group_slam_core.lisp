@@ -73,7 +73,7 @@
 (defprimitive maintain-spatial-memory-decay
   [state &key (movable-diffusion-mm2ps 0.45)
               (structural-lock-classes [:wall :window :post :door :railing :roof :ceiling :floor :stairs :step
-                                        :platform :bed])]
+                                        :platform :veranda :terrace :ground :bed])]
   (-> state
       (diffuse-unobserved-object-covariance
         :registry 'spatial-object-soa-registry :static-locked-classes structural-lock-classes

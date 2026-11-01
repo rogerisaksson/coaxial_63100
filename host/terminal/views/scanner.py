@@ -109,10 +109,10 @@ class VisionScanner:
     def scan(self, now, look=None, reach=None):
         """Her things in her sight - her registry's, by what each is as her worker named them
         (`now['named']`, `classes.named`), else the props by theirs, a scenario's variants by its rules
-        (`_PROP_RULES`), a piece of furniture's and what she cannot tell none -: within 75 deg of her heading
-        or the heading the view looks along (`look`, rad), SIGHT_M, or with `reach` every one that near,
-        nearest first; each box's half sizes along the world's axes its `extent`, its slot - a prop's place
-        in her state's - its `index`."""
+        (`_PROP_RULES`), a piece of furniture's and what she cannot tell none; and each building she is outside
+        of, its index from -1 down -: within 75 deg of her heading or the heading the view looks along (`look`,
+        rad), SIGHT_M, or with `reach` every one that near, nearest first; each box's half sizes along the
+        world's axes its `extent`, its slot - a prop's place in her state's - its `index`."""
         if not now:
             return []
         things = list(now.get('things') or ())
@@ -149,6 +149,15 @@ class VisionScanner:
                 'label': '%s (%.1fm)' % (kind, dist),
                 'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
             })
+
+        # a building she is outside of (`now['buildings']`, `classes.buildings`): its distance its shell's
+        for k, (kind, centre, half) in enumerate((now.get('buildings') or ()) if things else classes.buildings(props)):
+            dx, dz = float(centre[0]) - gx, float(centre[2]) - gz
+            dist = math.hypot(max(abs(dx) - float(half[0]), 0.0), max(abs(dz) - float(half[2]), 0.0))
+            if dist <= 0.0 or dist > (reach or SIGHT_M) or not _in_cone(dx, dz, dist, kind, reach, cones):
+                continue
+            found.append({'kind': kind, 'index': -1 - k, 'dist': dist, 'pos': tuple(centre), 'extent': tuple(half),
+                          'label': '%s (%.1fm)' % (kind, dist), 'affordances': []})
 
         found.sort(key=lambda item: (not bool(item['affordances'] and item['dist'] < 3.4), item['dist']))
         return found

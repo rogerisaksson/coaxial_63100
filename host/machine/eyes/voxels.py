@@ -18,7 +18,9 @@ up -, each wall one, a chair's seat a surface, its back and its legs structures;
 structure whose colour differs from
 the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of its own - the door
 in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
-layer nor under a surface, a stray left out. A thing's kind its pooled colour's; its box its
+layer nor under a surface, a stray left out. A surface's kind its pooled colour's, a structure's the kind
+most of its voxels have, its test read on those - a glass gable seen from both sides pooled to neither glass
+nor its door's, and kept the door in it -; a thing's box its
 footprint's principal axes (its turn), its extents along them a voxel wide, its height its voxels', a
 structure in pieces till no box claims floor further than a voxel from its cells (`_pieces`); its
 id the one of the thing it shares most voxels with at the look before, else new (`machine.eyes.registry`);
@@ -211,8 +213,9 @@ class Map:
             run = np.where(grown(top[:, j, :], 1), j, run)
         for level in np.unique(over[occ & ~top]):
             for group in _joined(occ & ~top & (over == level), _AROUND):
-                parent, _d = self._kind(group)
-                pixel, own = self._pixel(group, parent), np.ones(len(group[0]), bool)
+                parent = int(np.bincount(kind[group]).argmax())
+                pixel = self._pixel(tuple(a[kind[group] == parent] for a in group), parent)
+                own = np.ones(len(group[0]), bool)
                 other = np.zeros_like(occ)
                 other[group] = kind[group] != parent
                 for part in _joined(other, _AROUND):
@@ -255,8 +258,8 @@ class Map:
         return out
 
     def _pixel(self, group, parent):
-        """A structure `group`'s (index arrays) of kind `parent` pixels' spread from the kind's lit line: its
-        voxels' chroma distance's deviation over the root of a voxel's points."""
+        """A structure's voxels `group` (index arrays) of kind `parent` - its own -: their pixels' spread from the
+        kind's lit line, their chroma distance's deviation over the root of a voxel's points."""
         voxel = lit(chroma(self.colour[group] / np.maximum(self.hits[group], 1)[:, None]), self.means[parent:parent + 1])[:, 0]
         return float(voxel.std() * math.sqrt(max(1.0, float(np.median(self.hits[group])))))
 

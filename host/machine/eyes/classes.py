@@ -2,6 +2,7 @@
 
     names, whole = classes.of(kinds, centre, half, R, clear)   # each one's class, the thing each is a piece of
     names = classes.named(things)                               # each box's class, None a piece or untold
+    built = classes.buildings(things)                           # [(cabin or house, centre, half sizes)]
 
 A thing is a box with a kind (`registry`'s): her eyes' look - the palette's nearest colour (`sight.LOOKS`) -, the
 stand-in's (`world.props()`), or a class already - a scene's chair, her registry's slot -, which stays. A look that
@@ -13,6 +14,11 @@ step, a platform, a sofa, a chair, a table, a bench, a stool, a cabinet, a shelf
 window and the posts framing it, a railing, a ceiling, a wall, a post); a piece of a raised top of its look - a
 chair's back on its edge, a leg or a face under it - the top's class, the top its whole. What none tells is a
 thing, named none.
+
+Of what she tells, a building (`houses`): its shell - walls, windows and doors, joined across what her eyes may not
+have seen of it - with an opening in it, enclosing a floor, and what roofs it over; a cabin of one storey, else a
+house. Outside it what lies by it is its
+veranda - a floor - or its terrace - a platform -; a floor apart from it or a top sunk under her floor the ground.
 """
 import os
 
@@ -22,7 +28,7 @@ import numpy as np
 
 from machine.body import figure
 from machine.eyes.sight import ALPHA
-from machine.eyes.voxels import CELL_M
+from machine.eyes.voxels import CELL_M, FAR_M
 from machine.texts import kernel
 
 #: The text's elevation windows over the floor by affordance (`evaluate-situational-affordances`), and its slabs' tops
@@ -33,9 +39,7 @@ _WINDOWS = {k['affordance']: tuple(1e-3 * z for z in k['elevation-window-z-mm'])
 _SLAB_TOPS = [1e-3 * s.args['z-window-mm'][1] for s in kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['slabs']]
 
 #: What a look tells alone (`sight.LOOKS`; the stand-in's lamp lit): its class, None a material many things are made
-#: of, told by their boxes; a kind no look is stays, a class already. A door's tells a door where its box bears one
-#: out - from the lowest slab past her brace -, else it is told as a material's: shaded timber reads as it, pixel by
-#: pixel.
+#: of, told by their boxes; a kind no look is stays, a class already - one of BORNE's where its box bears it out.
 LOOKED = {'glass': None, 'wood': None, 'timber': None, 'stone': None, 'bed': 'bed', 'door': 'door', 'lamp': 'lamp',
           'lit': 'lamp', 'switch': 'switch', 'roof': 'roof', 'rail': 'railing'}
 #: A face seen from one side fills a voxel across, from both two: a wall, a pane, a chair's back or a leg is no
@@ -56,13 +60,18 @@ LUMBAR = (next(s for s in figure.SEGMENTS if s[0] == 'torso')[3][1]
 #: Two of her soles (heel, ball and toes, 24 cm), m: a top shallower takes one foot - a stair's tread -, one as deep
 #: she stands on whole - a platform -, a seat as deep seats none alone - a low table's.
 STANCE = 2.0 * (figure.HEEL + figure.BALL + figure.TOE_M)
+#: A look that tells its class only where its box (top, bottom) bears it out, and the material it is taken for where
+#: not: a door's standing from the lowest slab past her brace - shaded timber reads as one, pixel by pixel -; a bed's
+#: lying under her brace - a glass gable reads as one against the room behind it.
+BORNE = {'door': (lambda top, bottom: bottom <= STEP and top > BRACE, 'timber'),
+         'bed': (lambda top, bottom: top <= BRACE, 'glass')}
 
 #: A top's class by its features (`of`), the first that holds: flush with the floor; a shallow top she steps onto, a
 #: rise off another - a stair's tread - or alone; one she stands on whole, or as deep and solid under it within her
 #: brace - its body, or a face under it along half its length; a seat with a back, twice as long as deep for more
 #: than her; a top over her lap she braces on, or one at a seat's height too deep to sit on alone; a seat twice as
 #: long as deep; a seat; past her brace a solid top, else one held up.
-TOPS = (('floor', lambda f: f['top'] <= FLUSH),
+TOPS = (('floor', lambda f: np.abs(f['top']) <= FLUSH),
         ('stairs', lambda f: f['steps'] & (f['short'] < STANCE) & f['flight']),
         ('step', lambda f: f['steps'] & (f['short'] < STANCE)),
         ('platform', lambda f: f['steps'] | (f['solid'] & (f['short'] >= STANCE) & (f['top'] <= BRACE))),
@@ -76,7 +85,8 @@ TOPS = (('floor', lambda f: f['top'] <= FLUSH),
         ('shelf', lambda f: f['wide'] & (f['top'] > BRACE)))
 #: The class of a thing no top by its faces, the first that holds: seen through past her brace, or a post thin both
 #: ways framing such a pane; seen through under it; overhead and wider than THIN; past her brace, longer than THIN
-#: or a sliver beside a wall of its look, else as thin both ways.
+#: or a sliver beside an opaque one standing through her brace - a wall's fragment of another colour -, else as thin
+#: both ways.
 FACES = (('window', lambda f: (f['see'] | (f['framed'] & (f['long'] <= THIN + 1e-9))) & (f['top'] > BRACE)),
          ('railing', lambda f: f['see']),
          ('ceiling', lambda f: (f['bottom'] > OVERHEAD) & (f['short'] > THIN + 1e-9)),
@@ -84,6 +94,44 @@ FACES = (('window', lambda f: (f['see'] | (f['framed'] & (f['long'] <= THIN + 1e
          ('post', lambda f: f['top'] > BRACE))
 #: The tops that are furniture: a piece of one other than its top - a chair's back, a leg - is no thing of its own.
 FURNITURE = ('sofa', 'chair', 'table', 'bench', 'stool', 'cabinet', 'shelf')
+#: A building's shell, joined where its things meet; an opening in it makes it one - a garden's wall has none -; what
+#: roofs it over beside it its too; what stands it a storey high, a cabin's walls and doors under two of her.
+SHELL, OPENINGS, ROOFS, STOREY = ('wall', 'window', 'door'), ('window', 'door'), ('roof', 'ceiling'), ('wall', 'door')
+
+
+def _beside(centre, e):
+    """(n, n) whether boxes' footprints - centres and half extents along the room's axes (n, 3) - meet a cell apart."""
+    gap, reach = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2] + e[None, :, ::2]
+    return (gap <= reach + CELL_M + 1e-9).all(axis=2) & ~np.eye(len(centre), dtype=bool)
+
+
+def _houses(names, beside, lo, hi):
+    """[(class, low corner (3,), high corner (3,), members (k,))] of the buildings things told `names` make - `beside`
+    (n, n) which meet, `lo`, `hi` (n, 3) their boxes' corners -: each its SHELL's things joined across what her eyes may
+    not have seen of it, her map's reach (`voxels.FAR_M`: a door's gap, a wall's far end), or in one wall's plane, an
+    opening among them and more - an opening alone, a lone door, is in nothing -, enclosing a floor - its box deeper
+    than THIN both ways: a facade alone has no inside -, what roofs them over (ROOFS beside them) its too; a cabin where
+    its STOREY stands under two of her (OVERHEAD twice), else a house; its box its shell's."""
+    n = len(names)
+    shell, opening, roof, storey = (np.array([k in kinds for k in names], bool) for kinds in (SHELL, OPENINGS, ROOFS, STOREY))
+    middle, half = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2]
+    near = (np.abs(middle[:, None] - middle[None, :]) - half[:, None] - half[None, :] <= FAR_M + 1e-9).all(axis=2)
+    flat = half <= 0.5 * THIN + 1e-9
+    plane = (flat[:, None] & flat[None, :] & (np.abs(middle[:, None] - middle[None, :]) <= CELL_M + 1e-9)).any(axis=2)
+    label = np.where(shell, np.arange(n), n)
+    while True:
+        low = np.where(shell, np.minimum(label, np.where((near | plane) & shell[None, :], label[None, :], n).min(axis=1)), n)
+        if (low == label).all():
+            break
+        label = low
+    out = []
+    for k in np.unique(label[opening]):
+        part = label == k
+        if part.sum() < 2 or ((hi[part].max(axis=0) - lo[part].min(axis=0))[::2] <= THIN + 1e-9).any():
+            continue
+        out.append(('cabin' if hi[part & storey, 1].max(initial=0.0) <= 2.0 * OVERHEAD else 'house', lo[part].min(axis=0),
+                    hi[part].max(axis=0), np.flatnonzero(part | (roof & (beside & part[None, :]).any(axis=1)))))
+    return out
 
 
 def _first(table, f, n):
@@ -100,18 +148,16 @@ def of(kinds, centre, half, R, clear):
     n = len(kinds)
     if not n:
         return [], np.zeros(0, int)
-    told = [LOOKED.get(k, k) for k in kinds]
     e = np.einsum('nij,nj->ni', np.abs(R), half)               # half extents along the room's axes
     top, bottom = centre[:, 1] + e[:, 1], centre[:, 1] - e[:, 1]
-    raw = (np.array([t is None for t in told])
-           | (np.array([t == 'door' for t in told]) & ((bottom > STEP) | (top <= BRACE))))
-    see = np.array([ALPHA.get(k, 1.0) < 1.0 for k in kinds])
+    kinds = [BORNE[k][1] if k in BORNE and not BORNE[k][0](t, b) else k for k, t, b in zip(kinds, top, bottom)]
+    told = [LOOKED.get(k, k) for k in kinds]
+    raw, see = np.array([t is None for t in told]), np.array([ALPHA.get(k, 1.0) < 1.0 for k in kinds])
     look = np.unique(np.array(kinds, str), return_inverse=True)[1]
     long, short = 2.0 * half[:, ::2].max(axis=1), 2.0 * half[:, ::2].min(axis=1)
     surface, wide = raw & (clear > 0.0), short > THIN + 1e-9
-    gap, reach, alone = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2], ~np.eye(n, dtype=bool)
-    beside = (gap <= reach + e[None, :, ::2] + CELL_M + 1e-9).all(axis=2) & alone
-    within = (gap + reach <= e[None, :, ::2] + CELL_M + 1e-9).all(axis=2) & alone
+    gap, reach, beside = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2], _beside(centre, e)
+    within = (gap + reach <= e[None, :, ::2] + CELL_M + 1e-9).all(axis=2) & ~np.eye(n, dtype=bool)
     # a piece of a raised top of its look: on its edge, its foot from the top's surface into the slab over it - a
     # chair's back -, or under it within its footprint - a leg, a face of what holds it up
     pair = ((raw & ~see & ~(surface & wide))[:, None] & (surface & wide & (top > FLUSH))[None, :]
@@ -132,13 +178,23 @@ def of(kinds, centre, half, R, clear):
          'flight': (rise & steps[None, :] & (np.abs(top[:, None] - top[None, :]) > FLUSH)).any(axis=1),
          'solid': (bottom <= FLUSH) | (np.where(under & ~surface[:, None], long[:, None], 0.0).max(axis=0) >= 0.5 * long),
          'seat': (top >= SEAT[0]) & (top <= SEAT[1]), 'framed': (beside & see[None, :]).any(axis=1),
-         'walled': (beside & (look[:, None] == look[None, :]) & ((long > THIN + 1e-9) & (top > BRACE))[None, :]).any(axis=1),
+         'walled': (beside & (~see & (long > THIN + 1e-9) & (bottom <= BRACE) & (top > BRACE))[None, :]).any(axis=1),
          'backed': (on & (top[:, None] >= top[None, :] + LUMBAR)).any(axis=0)}
     names, tops = np.array(told, object), _first(TOPS, f, n)
     face = raw & ~(surface & (tops != 'thing'))
     names[surface], names[face] = tops[surface], _first(FACES, f, n)[face]
     whole = np.where(held.any(axis=1), held.argmax(axis=1), np.arange(n))
-    return names[whole].tolist(), whole
+    names, built = names[whole], _houses(names[whole], beside, centre - e, centre + e)
+    if built:
+        # outside a building by it a floor its veranda, a platform its terrace; a floor apart, a platform sunk, the ground
+        flo, fhi = (np.array([b[j] for b in built])[:, ::2] for j in (1, 2))
+        xz, exz = centre[:, None, ::2], e[:, None, ::2]
+        out = ~((xz >= flo[None]) & (xz <= fhi[None])).all(axis=2).any(axis=1)
+        by = out & ((xz + exz >= flo[None] - CELL_M - 1e-9) & (xz - exz <= fhi[None] + CELL_M + 1e-9)).all(axis=2).any(axis=1)
+        floor, platform = names == 'floor', names == 'platform'
+        names = np.where(by & floor, 'veranda', np.where(by & platform & (top >= -FLUSH), 'terrace', np.where(
+            out & ((floor & ~by) | (platform & (top < -FLUSH))), 'ground', names)))
+    return names.tolist(), whole
 
 
 def stacked(things):
@@ -148,6 +204,24 @@ def stacked(things):
             np.array([t[2] for t in things], float).reshape(-1, 3),
             np.array([t[3] if len(t) > 3 else np.eye(3) for t in things], float).reshape(-1, 3, 3),
             np.array([float(t[5]) if len(t) > 5 else 1.0 for t in things]))
+
+
+def houses(names, centre, half, R):
+    """[(class, centre (3,), half sizes (3,), members (k,))] of the buildings `n` things told `names` make (`_houses`) -
+    centres and half sizes (n, 3), turns (n, 3, 3) -: a cabin or a house, its box its shell's."""
+    if not len(names):
+        return []
+    e = np.einsum('nij,nj->ni', np.abs(R), half)
+    return [(name, 0.5 * (lo + hi), 0.5 * (hi - lo), members)
+            for name, lo, hi, members in _houses(names, _beside(centre, e), centre - e, centre + e)]
+
+
+def buildings(things):
+    """[(class, centre, half sizes)] of the buildings boxes `things` make - `registry.boxes`' or `world.props()` -, told
+    by `of` and `houses`."""
+    kinds, centre, half, R, clear = stacked(things)
+    return [(name, tuple(c.tolist()), tuple(h.tolist()))
+            for name, c, h, _m in houses(of(kinds, centre, half, R, clear)[0], centre, half, R)]
 
 
 def named(things):
