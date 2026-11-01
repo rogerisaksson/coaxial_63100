@@ -48,8 +48,9 @@ def _step_typed():
     fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work),
-               ('chain_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_sweeps', i), ('cbody', i * c),
-               ('chain_w_stick', f), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f)]
+               ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f), ('chain_sweeps', i), ('chain_rounds', i),
+               ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
+               ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -125,8 +126,11 @@ def chain_laid(b, sensed=None, twin=False):
     if twin:
         return functools.partial(chain.step, regime=said)
     k, views = _laid(b, sensed)
-    k.chain_lam, k.chain_soft, k.chain_bleed, k.chain_mu, k.chain_sweeps = said.lam, said.soft, said.bleed, said.mu, said.sweeps
-    k.chain_w_stick, k.chain_w_turn, k.chain_w_swing, k.chain_w_posture = said.stick, said.turn, said.swing, said.posture
+    k.chain_lam, k.chain_task_lam, k.chain_soft, k.chain_bleed, k.chain_mu = said.lam, said.task, said.soft, said.bleed, said.mu
+    k.chain_hold_n = said.hold
+    k.chain_sweeps, k.chain_rounds = said.sweeps, said.rounds
+    k.chain_w_turn, k.chain_w_swing, k.chain_w_posture, k.chain_w_force = said.turn, said.swing, said.posture, said.force
+    k.chain_turn_kp, k.chain_turn_kd, k.chain_posture_kp, k.chain_posture_kd = said.tkp, said.tkd, said.pkp, said.pkd
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 

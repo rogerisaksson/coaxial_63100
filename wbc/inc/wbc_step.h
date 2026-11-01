@@ -71,10 +71,11 @@ typedef struct
   /* the closed chains' step's regime (wbc_chain.c), after the workspace so its offset keeps numpy's alignment: its
      null space's damping m, a contact's softness m/s^2 a N, a sticking contact's slip bled 1/s, its friction; its
      Gauss-Seidel's sweeps a pass */
-  double        chain_lam, chain_soft, chain_bleed, chain_mu;
-  int           chain_sweeps;
-  int           cbody[WBC_STEP_C]; /**< each contact's body of hers: a body's contacts one patch (machine.senses.borne) */
-  double        chain_w_stick, chain_w_turn, chain_w_swing, chain_w_posture; /**< its tasks' weights */
+  double        chain_lam, chain_task_lam, chain_soft, chain_bleed, chain_mu, chain_hold_n; /**< its damping, the tasks' own, a contact held */
+  int           chain_sweeps, chain_rounds; /**< its Gauss-Seidel's sweeps a pass, its plan's rounds */
+  int           cbody[WBC_STEP_C]; /**< each contact's body of hers (machine.senses.borne) */
+  double        chain_w_turn, chain_w_swing, chain_w_posture, chain_w_force; /**< its tasks' weights */
+  double        chain_turn_kp, chain_turn_kd, chain_posture_kp, chain_posture_kd; /**< its own gains */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */

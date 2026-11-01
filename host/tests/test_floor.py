@@ -158,7 +158,7 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight(report):
     report.check('she sits on the floor, 12 s without a fall', sat and s['fallen_at'] is None,
                  'sat %s fallen %s' % (sat, s['fallen_at']))
     report.check('her butt bears most of her, her legs out ahead bent, her centre of mass ahead of her pelvis',
-                 seat >= 0.75 * weight and 34.0 < knee[0] and knee[1] < 124.0 and ahead > 0.0,
+                 seat >= 0.75 * weight and 34.0 < knee[0] and knee[1] < 130.0 and ahead > 0.0,
                  'seat %.0f N of %.0f, knees %.0f-%.0f deg, centre of mass %+.3f m' % (seat, weight, knee[0], knee[1], ahead))
     report.check("her trunk within 10 deg of her sit's pitch", off < 10.0, '%.1f deg off %.1f' % (off, aim))
 

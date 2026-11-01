@@ -20,13 +20,15 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 # np.clip's own ufunc, its Python layers left out: the same bits, 3.7 -> 1.3 us a call, 14 a law pass here
-from numpy._core.umath import clip as CLIP
+from numpy._core.umath import clip as CLIP  # pyright: ignore[reportAttributeAccessIssue]
 
 from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
 from machine.law import latent, modal
 from machine.moves import leap
-from machine.moves.cascade import _U, asked, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening, PLANTAR, reached, released, SHED
+from machine.moves.cascade import (_U, asked, LEG_JOINTS, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening, PLANTAR, reached,
+                                   released, SHED)
+from machine.stack.wbc import turn_error
 
 #: Her seat's manifolds facing up (`observer.UPRIGHT`): her rows, the segment their points lie on, the kernel's CoP box
 #: for each (`anatomical-manifold-registry`'s cop-bounds, m: along her way, across).
@@ -197,6 +199,24 @@ def opened(g, s, ask, dt):
     ask['posture'][...] = posture
     ask['open'] = (OPEN['kp'], OPEN['kd'], opening_)
     ask['let_hold'] = let_hold
+    hipped(g, s, ask)
+
+
+def hipped(g, s, ask):
+    """Each let-go leg turned at its hip's yaw toward the heading her pelvis is asked (`ask['turns']`, the error about
+    her pelvis's up, within the joint's range): swung up, her legs turn with her trunk's turn to lie along the bed, the
+    pelvis between them following; her right hip's axis is her left's mirrored."""
+    turns, let = ask.get('turns', ()), g['a'][modal.LET_GO]
+    if not len(turns) or not (let > 0.5).any():
+        return
+    have = np.asarray(s['turns'][0]['quat'], float)
+    w0, x0, y0, z0 = have
+    up = np.array([2.0 * (x0 * y0 - w0 * z0), 1.0 - 2.0 * (x0 * x0 + z0 * z0), 2.0 * (y0 * z0 + w0 * x0)])
+    yaw = float(turn_error(np.asarray(turns[0], float), have) @ up)
+    for k, sign in ((0, 1.0), (1, -1.0)):
+        if let[k] > 0.5:
+            j = LEG_JOINTS[k][0]
+            ask['posture'][j] = min(max(sign * yaw, float(g['q_lo'][j])), float(g['q_hi'][j]))
 
 
 def seated(g, s):

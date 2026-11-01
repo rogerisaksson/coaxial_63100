@@ -54,31 +54,39 @@
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.15 -> 0.1047] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
 
-;; From its side: swing up right leg then left leg, rotate -90 deg and stretch out supine along the
-;; long side of the bed.
+;; From its side, in her own frame counter-clockwise (a negative yaw): her trunk turned a little on her hands first,
+;; leant back; then her right leg swung up and turned at the hip, then her left, each toward the heading she is told
+;; (machine.moves.emancipation); her hands bear till her back does; stretched out supine along the long side.
 (defmaneuver specialize-recline-long-side [state]
   (-> state
       (stage-sequential-manifold
+        :duration-ms 600.0
+        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
+        :torso-pitch-ramp [-0.40 -> -0.50]
+        :axial-yaw-ramp [0.0 -> -0.35]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.45] :limb-lift 0.0)
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.55) (:palmar-carpal-bilateral 0.30)))
+      (stage-sequential-manifold
         :duration-ms 1200.0
-        :contact-chain [:palmar-carpal-bilateral -> :greater-trochanter-r]
-        :torso-pitch-ramp [-0.40 -> -0.75]
-        :axial-yaw-ramp [0.0 -> -0.25]
+        :contact-chain [:ischial-bilateral -> :greater-trochanter-r]
+        :torso-pitch-ramp [-0.50 -> -0.75]
+        :axial-yaw-ramp [-0.35 -> -0.50]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.35] :limb-lift -2.5)
-        :manifold-pan '((:plantar-bilateral 0.08) (:ischial-bilateral 0.62) (:scapular-dorsal 0.15) (:palmar-carpal-bilateral 0.15)))
+        :manifold-pan '((:plantar-bilateral 0.08) (:ischial-bilateral 0.52) (:scapular-dorsal 0.15) (:palmar-carpal-bilateral 0.25)))
       (stage-sequential-manifold
         :duration-ms 1300.0
         :contact-chain [:greater-trochanter-r -> :greater-trochanter-l]
         :torso-pitch-ramp [-0.75 -> -1.00]
-        :axial-yaw-ramp [-0.25 -> -0.52]
+        :axial-yaw-ramp [-0.50 -> -0.60]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.35 -> 1.15] :limb-lift 2.5)
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.58) (:scapular-dorsal 0.42) (:palmar-carpal-bilateral 0.0)))
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.25)))
       (stage-sequential-manifold
         :duration-ms 1400.0
         :contact-chain [:greater-trochanter-l -> :scapular-dorsal]
         :torso-pitch-ramp [-1.00 -> -1.5708]
-        :axial-yaw-ramp [-0.52 -> -0.60]
+        :axial-yaw-ramp [-0.60 -> -0.60]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.15 -> 0.1047] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.40) (:scapular-dorsal 0.50) (:palmar-carpal-bilateral 0.10)))))
 
 ;; Sat on the mattress's edge: lean back onto hands, then lie down as the edge she sat on lets her.
 (defmaneuver transfer-carpal-recline

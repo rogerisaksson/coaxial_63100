@@ -220,3 +220,55 @@ loses its last 1.5 s unless the gate's writer is drained before the process
 ends (its piping thread is a daemon). The house's chair spot (0.32, 1.01,
 1.37) falls on HEAD as here (14.2 s there, 13.4 here); the errands' four red
 rows are HEAD's.
+
+## The plan through her dynamics
+
+The chain's task stage is now the plan the twin proved (`chain.planned`,
+wbc_chain.c, closed_chain_plan.lisp): the dofs no drive holds affine in her
+driven accelerations through the contacts held and her dynamics, so a turn
+or a swing is answered by her drives; her posture in their damped null
+space. Three things the twin had not shown came out in the port, each by
+its numbers:
+
+- Two contacts on one prescribed chain hold her in any split of her weight:
+  the damped map planned a pull of 280 N on her pelvis against 630 N on her
+  sole where she bore 200 and 100, then let the pelvis go. Penalising all
+  force change either kept the pull (weight 0.005 and under) or forbade
+  every lift (0.02); the fight is the forces with no effect on her free
+  dofs, null(Ja_P^T), and only that component is now kept at the felt split
+  (`force-weight` 0.02).
+- The Gauss-Seidel warm from what is felt, lagged by the mattress constant,
+  never carried the planned push to her drives: the base turn she realised
+  was nil while the plan foresaw -3 to -6 rad/s^2. Warm from the plan's own
+  forces, foreseen and realised agree to the decimal.
+- Her gains were the gait's (100, 20): a hip yaw told 0.44 rad asked 44
+  rad/s^2 and the plan pulled her off the seat. Her own are 4 / 4 for a turn
+  and 14 / 7.5 for the posture; at 16 and 20 her hands' arrival threw her
+  elbow 374-428 deg/s, at 12 her floor sit's trunk sat 10.7 deg off its
+  pitch. A contact felt under 30 N starts free (`hold-n`): at 10 the
+  fingers' arrival at 2-4 N, held, still whipped her elbow 324 deg/s, at 20
+  her floor sit fell, at 60 she fell off the bed. The task damping is 0.3:
+  at 0.5 and 1.0 her floor sit fell over at 7.1 s. Her pelvis is two ischial
+  points always: the pivot's single point let the plan spin her for free.
+
+Measured on the lodge lie (C step): every joint under 93 deg/s through the
+lie - the lifts 63 and 47 deg/s, no clamp shrink -, the house's fields arms
+107 (bound 128), trunk 97 (her sit's spine, 13.9 s), neck 69 (walk_back,
+8.8 s). The parity suite runs eight contacts: a five-contact one missed the
+C plan's row compaction overwriting unread rows whenever more than half the
+rows stayed held, the bug that threw her elbow 449 deg/s in the loop alone.
+
+What the lie still lacks is leverage, not calm: she sits through it (lean
+16-17 deg, feet 0.09-0.12 m, yaw error -68 deg, across the bed). Her hands
+never reach the mattress - the carpal seek leaves them 0.25-0.30 m above it
+and the upright step does not recline her the -0.40 rad the carpal stage
+asks (lean 3-5 deg) -, so the chain has no lever for the recline or the
+turn; on her pelvis's two points alone no plan can spin her, the friction
+pins them. With the fingers held at 10 N her hip yaw turned her 50 deg
+during the second lift before the arrival whipped her. The text's long side
+now turns her trunk a little first (an ischial stage, 600 ms, -0.35 rad),
+keeps her hands told to bear through the lifts (0.30, 0.25, 0.25, 0.10),
+and a let-go leg turns at its hip toward the told heading
+(`emancipation.hipped`). Next is the hands' seek onto the mattress behind
+her; the floor sit's knee bound moved 124 to 130 deg (127 under the calmer
+posture gain).

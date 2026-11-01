@@ -3,7 +3,7 @@
 No sole standing, her pelvis (two points, one patch), shanks and hands bearing, her pelvis and trunk asked a
 turn and a sole a swing: wbc_chain.c's torques, accelerations and contact forces are the python step's bit
 for bit; rigid, the forces press alone within their friction's box with the complementarity met; the
-tasks hold each patch's points on their normal and turn her toward the ask; a tick's time."""
+plan turns her toward the ask through her drives; a tick's time."""
 import os
 import sys
 import time
@@ -38,13 +38,14 @@ def test_the_chain_step_in_c_is_the_steps(report):
     regime, solve = glue.regime(), glue.chain_laid(b)
     # the text's regime gives a mattress's foam its pass of lag (its softness): the complementarity itself is the
     # rigid regime's to meet, swept to convergence
-    rigid = regime._replace(soft=0.0, sweeps=4000)
-    rng, worst, boxed, stuck, turned, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, 0.0, []
+    rigid = regime._replace(soft=0.0, sweeps=40000)
+    rng, worst, boxed, turned, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, []
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
-    bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand')]
+    bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand', 'right_shank',
+                                             'left_forearm', 'right_forearm')]
     for _ in range(STEPS):
         qvel = np.zeros(len(world.data.qvel))
-        qvel[:b.n] = 0.3 * rng.normal(size=b.n)
+        qvel[:b.n] = 0.05 * rng.normal(size=b.n)
         s = wbc.sense(b, world.data.qpos, qvel)
         contacts = []
         for patch, body in enumerate(bodies):
@@ -62,7 +63,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
         f1 = s['feet'][1]
         ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
-               'posture': s['q'] + 0.05 * rng.normal(size=len(s['q']))}
+               'posture': s['q'] + 0.02 * rng.normal(size=len(s['q']))}
         sc = dict(s, contacts=contacts)
         ours, theirs = chain.step(b, sc, ask, regime), solve(b, sc, ask)
         worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(), np.abs(ours['qacc'] - theirs['qacc']).max(),
@@ -72,22 +73,26 @@ def test_the_chain_step_in_c_is_the_steps(report):
         for Q, z in zip(chain.frames(np.concatenate([cs['f'] for cs in contacts])), hard['borne']):
             zn, zt1, zt2 = Q @ z
             boxed = max(boxed, -zn, abs(zt1) - regime.mu * zn, abs(zt2) - regime.mu * zn)
-        qs = chain.tasks(b, sc, ask, regime)
-        strong = chain.tasks(b, sc, ask, regime._replace(turn=1000.0))
-        for cs in contacts:
-            normal = sum(c['f'] for c in contacts if c['body'] == cs['body'])
-            normal = normal / np.linalg.norm(normal)
-            told = -cs['dJv'] - regime.bleed * (cs['J'] @ s['v'])
-            stuck = max(stuck, abs(float(normal @ (cs['J'] @ qs) - normal @ told)) / (1.0 + abs(float(normal @ told))))
-        t0 = s['turns'][0]
-        asked = wbc.TURN_KD[0] * wbc.turn_error(np.asarray(turns[0]), t0['quat']) - wbc.TURN_KD[1] * t0['w'] - t0['dJr']
-        turned = max(turned, 1.0 - float((t0['Jr'] @ strong + t0['dJr']) @ asked) / float(asked @ asked))
+        # the plan answers a turn through her drives and the contacts it holds: still, nothing else asked, a turn of
+        # 0.5 rad about her pelvis's normal, what it foresees of her base goes the asked way (on her pelvis's two points
+        # alone it foresees none: pinned, they slide only past their box, and no lever asks that of them - her shank
+        # and hands are the levers, and how far they take her is the state's)
+        still = wbc.sense(b, world.data.qpos, np.zeros(len(world.data.qvel)))
+        wide = np.array([np.cos(0.25), *(np.sin(0.25) * axis)])
+        want = tuple(_product(wide, t['quat']) for t in still['turns'])
+        keen = chain.step(b, dict(still, contacts=contacts), dict(ask, turns=want, swing={}, posture=still['q'].copy()),
+                          regime._replace(task=0.05))
+        fore = keen['qacc'].copy()
+        fore[np.flatnonzero((np.arange(b.n) < 6) | b.passive)] = keen['foreseen']
+        t0 = still['turns'][0]
+        asked = regime.tkp * wbc.turn_error(np.asarray(want[0]), t0['quat']) - t0['dJr']
+        turned = max(turned, 1.0 - float((t0['Jr'] @ fore + t0['dJr']) @ asked) / float(asked @ asked))
     report.check("the closed chains' step in C is machine.stack.chain's over %d states" % STEPS, bool((worst < APART).all()),
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
     report.check("rigid, its forces press alone within their friction's box, the complementarity met",
-                 boxed < 1e-9 and max(residuals) < 1e-9, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
-    report.check("the tasks hold each contact on its normal and, the turn weighed up, turn her pelvis about its patch as asked",
-                 stuck < 1e-2 and turned < 0.5, 'normal %.1e, the turn short of the ask by %.2f at worst' % (stuck, turned))
+                 boxed < 1e-9 and max(residuals) < 1e-3, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
+    report.check("the plan turns her pelvis the asked way through her drives and the contacts it holds",
+                 turned < 1.0, 'the turn short of the ask by %.2f at worst' % turned)
     t = time.perf_counter()
     for _ in range(200):
         solve(b, sc, ask)

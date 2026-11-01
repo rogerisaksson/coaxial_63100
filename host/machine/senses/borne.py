@@ -81,10 +81,11 @@ CARPAL = 6
 LET = 3 * CARPAL
 
 
-def _points(k, push, at, pivot=False):
+def _points(k, push, at):
     """((share, point in the segment's frame), ..) of skin segment `k`'s touch `push` at `at`: one, her pelvis's
-    two ischia's (PELVIS) unless pivoting on the bed (`pivot`)."""
-    if k != PELVIS or pivot:
+    two ischia's (PELVIS) - a pivot's single point let the chain's plan spin her for free and it pushed too little
+    against the mattress's friction; two points slide at their box as she turns."""
+    if k != PELVIS:
         return ((1.0, at),)
     sat = float(np.clip(push[1] / max(float(np.linalg.norm(push)), 1e-9), 0.0, 1.0))
     left = float(np.clip((at[0] + figure.SEAT_X) / (2.0 * figure.SEAT_X), 0.0, 1.0))
@@ -137,7 +138,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         palms[side] += f[1] * carpal
         axis = int(np.argmax(np.abs(f)))
         patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
-        for share, local in _points(k, pushes[k], at[k], pivot):
+        for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
             if ischial and k in THIGHS:
