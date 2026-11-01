@@ -1,7 +1,11 @@
-"""Her whole-body step in C through ctypes (wbc_step.c), `machine.stack.wrench.step`'s bit for bit.
+"""Her whole-body steps in C through ctypes (wbc_step.c, wbc_chain.c), their python twins' bit for bit.
+
+`machine.stack.wrench.step`'s and `machine.stack.chain.step`'s:
 
     solve = step.wrench_laid(body)
     out = solve(body, s, ask)               # wrench.step(body, s, ask)
+    chained = step.chain_laid(body, None, regime)
+    out = chained(body, s, ask)             # chain.step(body, s, ask, regime)
 """
 import ctypes
 import functools
@@ -37,28 +41,28 @@ def _step_typed():
     fields += [('stance', i * 2), ('nturns', i), ('kdot_given', i), ('swing', i * 2), ('fold', i * 2), ('wep', i), ('let_go', i * 2),
                ('com_acc', f * 3), ('turn', (f * 4) * 2), ('kdot', f * 3), ('settle', (f * 6) * 2), ('edge', f * 2),
                ('strides', f), ('borne', f), ('hold', f), ('sat', f), ('mus', f * 2), ('rests', f * 2), ('slide', f * 3), ('fz_cap', f),
-               ('slid_cap', f), ('hand_cap', f), ('felt', f), ('let_cap', f * 2), ('let_hold', f * 2), ('freed', f * 2), ('open_kp', f), ('open_kd', f), ('swing_at', (f * 3) * 2),
+               ('slid_cap', f), ('hand_cap', f), ('residual', f), ('let_cap', f * 2), ('let_hold', f * 2), ('freed', f * 2), ('open_kp', f), ('open_kd', f), ('swing_at', (f * 3) * 2),
                ('swing_speed', (f * 3) * 2),
                ('swing_acc', (f * 3) * 2), ('swing_quat', (f * 4) * 2), ('fold_knee', f * 2), ('fold_rate', f * 2),
                ('fold_acc', f * 2), ('knee_rate', f * 2)]
     fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
-               ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work)]
+               ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work),
+               ('chain_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_sweeps', i)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
-    lib.wbh_step.argtypes = [ctypes.POINTER(Step)]
-    lib.wbh_step.restype = ctypes.c_int
-    return Step, lib.wbh_step, (n, d, c)
+    lib.wbh_step.argtypes = lib.wbh_chain.argtypes = [ctypes.POINTER(Step)]
+    lib.wbh_step.restype = lib.wbh_chain.restype = ctypes.c_int
+    return Step, (lib.wbh_step, lib.wbh_chain), (n, d, c)
 
 
-def wrench_laid(b, sensed=None):
-    """`machine.stack.wrench.step` in C on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
-    set; her body's indices and the step's constants laid once, her mass, clamps and WEP read at
-    each - her model's masses move as her wear finds a load. `s` her compiled sensing's last
-    (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
+def _laid(b, sensed):
+    """(the step laid for her law's body `b`, its fields' views): her body's indices and the step's constants laid
+    once, her mass, clamps and WEP read at each call - her model's masses move as her wear finds a load. `s` her
+    compiled sensing's last (`sensed`, `bodied.on_body`), the step pointed at its block in one write (POINTED)."""
     from machine.stack import rounds, wbc as law, wrench
-    Step, step, (most_n, most_d, most_c) = _step_typed()
+    Step, _steps, (most_n, most_d, most_c) = _step_typed()
     passive, active = np.flatnonzero(b.passive), np.flatnonzero(b.active_dof)
     if b.n > most_n or len(b.act) > most_d or rounds.NU > most_d:
         raise ValueError('wbc_step.c lays %d dofs and %d drives at most' % (most_n, most_d))
@@ -95,7 +99,33 @@ def wrench_laid(b, sensed=None):
     k.pointed = slice(first // 8, first // 8 + len(POINTED))
     if [getattr(Step, f).offset + 8 * i for f, i, _p in POINTED] != list(range(first, first + 8 * len(POINTED), 8)):
         k.sensed = None
-    return functools.partial(_stepped, k, step, views)
+    return k, views
+
+
+def wrench_laid(b, sensed=None):
+    """`machine.stack.wrench.step` in C (wbc_step.c) on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
+    set (`_laid`)."""
+    k, views = _laid(b, sensed)
+    return functools.partial(_stepped, k, _step_typed()[1][0], views)
+
+
+def regime():
+    """The closed chains' regime as the kernel's text says it (`closed-chain-regime`, `machine.stack.chain.Regime`)."""
+    from machine.stack import chain
+    from machine.texts import kernel
+    return chain.regime(kernel.read()['closed-chain-regime'])
+
+
+def chain_laid(b, sensed=None, twin=False):
+    """`machine.stack.chain.step` in C (wbc_chain.c) on her law's body `b`, laid as `wrench_laid` lays the step, the
+    closed chains' `regime` laid once: a solve (b, s, ask) -> its dict; its python twin itself where `twin`."""
+    from machine.stack import chain
+    said = regime()
+    if twin:
+        return functools.partial(chain.step, regime=said)
+    k, views = _laid(b, sensed)
+    k.chain_lam, k.chain_soft, k.chain_bleed, k.chain_mu, k.chain_sweeps = said.lam, said.soft, said.bleed, said.mu, said.sweeps
+    return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 
 #: The step's pointers at what her sensing returns, in the struct's order: (field, index, path).
@@ -170,7 +200,7 @@ def _stepped(k, step, v, b, s, ask):
     v['rests'][:] = ask.get('rests', (0.0, 0.0))
     v['slide'][:] = ask.get('slide', (0.0, 0.0, 0.0))
     k.fz_cap, k.slid_cap = float(ask.get('fz_cap', np.inf)), float(ask.get('slid_cap', np.inf))
-    k.hand_cap, k.felt = float(ask.get('hand_cap', 0.0)), float(ask.get('felt', 0.0))
+    k.hand_cap = float(ask.get('hand_cap', 0.0))
     v['let_cap'][:] = ask.get('let_cap', (np.inf, np.inf))
     v['let_hold'][:] = ask.get('let_hold', (0.0, 0.0))
     k.open_kp, k.open_kd, v['freed'][:] = ask.get('open', (0.0, 0.0, (0.0, 0.0)))
@@ -196,4 +226,4 @@ def _stepped(k, step, v, b, s, ask):
     b.load = v['load'][:nd].copy()
     return {'tau': v['tau'][:nd].copy(), 'qacc': v['qacc'][:k.n].copy(), 'bears': v['bears'].tolist(), 'cop': cop,
             'over': v['over'][:nd].astype(bool), 'slack': [], 'held': (),
-            'borne': v['forces'][:k.nc].reshape(-1, 3).copy(), 'scale': k.scale}
+            'borne': v['forces'][:k.nc].reshape(-1, 3).copy(), 'scale': k.scale, 'residual': k.residual}

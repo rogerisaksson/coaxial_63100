@@ -276,7 +276,7 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
     from tools.cores.wbc import wrench_step
     g = sprung.laid(sprung.STACK_EVERY)
     sprung.walked(g)
-    python, worst, count = g['solve'], {1: 0.0, 2: 0.0}, {1: 0, 2: 0}
+    python, worst, count = g['solves'][0], {1: 0.0, 2: 0.0}, {1: 0, 2: 0}
 
     def both(body, s, ask):
         ours, theirs = python(body, s, ask), wrench_step(body, s, ask, c)
@@ -292,7 +292,7 @@ def test_the_step_in_c_strides_as_the_steps(report, c, b, rows):
                                max(abs(x - y) for x, y in zip(ours['bears'], theirs['bears'])))
         return ours
 
-    g['solve'] = both
+    g['solves'] = (both, g['solves'][1])
     while g['t'] < WALK_S:
         sprung.passed(g)
     report.check("striding on one sole the step in C is machine.stack.wrench's within %.0e" % APART,
@@ -314,8 +314,8 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
     from machine.process import worker
     from tools.cores import motion, step
     from tools.sim import scenarios
-    from machine.stack import wrench
-    kept, tally = (motion.asked, motion.stepped, motion.coupled, step._stepped), {}
+    from machine.stack import chain, wrench
+    kept, tally, chained = (motion.asked, motion.stepped, motion.coupled, step._stepped), {}, step._step_typed()[1][1]
 
     def check(name, got, want):
         n, bad, apart = tally.get(name, (0, 0, 0))
@@ -342,10 +342,10 @@ def test_her_law_in_c_is_her_python_s(report, c, b, rows):
         dq = kept[2](laid_, q, qd, ref_q, ref_v, eso_z, out)
         check('coupling', (dq, eso_z, out), (dq_w, eso_w, out_w))
         return dq
-    def solved(k, step, v, b, s, ask):
-        want = wrench.step(b, s, ask)
+    def solved(k, fn, v, b, s, ask):
+        want = chain.step(b, s, ask, step.regime()) if fn is chained else wrench.step(b, s, ask)
         load = b.load.copy()
-        got = kept[3](k, step, v, b, s, ask)
+        got = kept[3](k, fn, v, b, s, ask)
         fields = ('tau', 'qacc', 'bears', 'over', 'borne', 'scale')
         cops = [(x, y) for x, y in zip(got['cop'], want['cop']) if x is not None and y is not None]
         nones = [np.array([x is None for x in cop], float) for cop in (got['cop'], want['cop'])]

@@ -8,10 +8,10 @@
     target, stiffness, damping, amplitude and phase (rad), then her rhythm's gain and Hz, her
     ZMP's polygon and her yaw momentum's limit, her sidechain's duck, attack and release, her
     contact manifolds' weights (machine.texts.ortho.MANIFOLDS), her slide over what bears her, m/s
-    (machine.texts.ortho.SLIDE), how far it carries her as felt (machine.texts.ortho.FELT). */
+    (machine.texts.ortho.SLIDE). */
 #define ORTHO_MODES 13
 #define ORTHO_MANIFOLDS 5
-#define ORTHO_P (5 * 13 + 14)
+#define ORTHO_P (5 * 13 + 13)
 #define ORTHO_Z 0
 #define ORTHO_K 13
 #define ORTHO_D 26
@@ -24,7 +24,6 @@
 #define ORTHO_DUCK 69
 #define ORTHO_MANIFOLD 72
 #define ORTHO_SLIDE 77
-#define ORTHO_FELT 78
 
 /** A row's flag: every parameter back to her rest, blended ORTHO_REST_MS (machine.texts.ortho). */
 #define ORTHO_REST 1U
@@ -42,6 +41,6 @@ typedef struct
   float    p[ORTHO_P];
 } ortho_row_t;
 
-_Static_assert(sizeof(ortho_row_t) == 332U, "ortho_row_t is 332 bytes");
+_Static_assert(sizeof(ortho_row_t) == 328U, "ortho_row_t is 328 bytes");
 
 #endif

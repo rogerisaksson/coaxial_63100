@@ -48,12 +48,9 @@ NONE, SUPPORT = 0.0, 1.0
 GRAIN_MS = 1
 #: A phase of her text: its stage, what it does, ms, blend ms, {mode: target}, {mode: (stiffness,
 #: damping)}, ZMP or None, the event it waits for or None, whether it latches her where she is, its
-#: blend's shape (`ortho.SHAPES`), what bears her panned (`ortho.MANIFOLDS`), her slide over it m/s, its
-#: share felt (`ortho.FELT`).
-Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape weighs slide felt',
-                               defaults=(False, 'linear', None, None, None))
-#: Her back, the frames a recline lays her onto: what bears her there is felt (`ortho.FELT`).
-SUPINE = (':scapular-dorsal', ':occipital')
+#: blend's shape (`ortho.SHAPES`), what bears her panned (`ortho.MANIFOLDS`), her slide over it m/s.
+Phase = collections.namedtuple('Phase', 'stage what ms blend targets springs zmp waits latch shape weighs slide',
+                               defaults=(False, 'linear', None, None))
 #: A support bus's contact manifold (`ortho.MANIFOLDS`).
 BUSES = {':plantar-bilateral': 0, ':ischial-bilateral': 1, ':trochanter-lateral': 2, ':scapular-dorsal': 3,
          ':occipital': 3, ':palmar-carpal-bilateral': 4}
@@ -239,8 +236,7 @@ def _recline(p, then, at, modes, body):
                   if weighs is not None else {})}
     chain = p.get('contact-chain', ('recline',))
     what = str(chain[-1]) if len(chain) > 1 else 'recline'
-    return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs,
-                  felt=float(what in SUPINE))]
+    return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
 
 
 def _sought(p, then, at, modes, body):

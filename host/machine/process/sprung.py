@@ -117,13 +117,14 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     sit, gym = situation.text(), entries(texts=texts, suite=suite)
     from tools.cores import bodied
     sensing = bodied.on_body(wbc.sense, 'sense')
-    if (solver or SOLVER) == 'c':
+    from tools.cores import step as c_step
+    picked = solver or SOLVER
+    if picked == 'c':
         from tools.cores.wbc import wrench_step as solve_step
-    elif (solver or SOLVER) == 'wrench':
-        from tools.cores import step as c_step
+    elif picked == 'wrench':
         solve_step = c_step.wrench_laid(body, sensing)
     else:
-        solve_step = {'stack': wbc.step}[solver or SOLVER]
+        solve_step = {'stack': wbc.step}[picked]
     g = {'world': world, 'body': body, 'y': y, 'fr': fr, 'rest': rest, 'rest_y': rest_y, 'st': st, 'out': out, 'a': a, 'tab': tab,
          'labels': [], 'posture': s['q'].copy(), 'limbs': limbs, 'bend': bends.crouch(names), 'arms': bends.swing(names),
          'reaches': bends.reach(names), 'folds': bends.fold(names),
@@ -143,7 +144,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solve': solve_step, 'sensed': sensing, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
+         'solves': (solve_step, c_step.chain_laid(body, sensing, picked == 'stack')), 'sensed': sensing, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
          'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
          'planner': planner.Here(), 'vision': vision.Here()}

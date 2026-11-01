@@ -488,6 +488,12 @@ API int wbh_step(wbc_step_t *p)
   return wbc_step(p);
 }
 
+/** machine.stack.chain.step in C (wbc_chain.c) on the same laid step. */
+API int wbh_chain(wbc_step_t *p)
+{
+  return wbc_chain(p);
+}
+
 /** wbc_step_t's sizes: the most dofs, driven, contacts, unknowns, rows, its workspace, its bytes. */
 API void wbh_step_sizes(int *out)
 {

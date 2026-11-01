@@ -20,6 +20,7 @@ from machine.law import barrier, brace, latent, melt, modal, poise, schema, se2,
 from machine.body import bemf, capsules
 from machine.senses import borne, estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import cascade, emancipation, leap
+from machine.stack import chain
 from machine.senses import edge
 from machine.texts import ortho
 from machine.eyes import vision
@@ -227,7 +228,7 @@ def control(g, dt):
     ask['posture'][g['head_idx']] -= gauge
     ask['posture'], g['schema'] = schema.shielded(body, g['clear'](g['schema_body'], s, g['schema_at']), s, ask,
                                                   float(y_in[edge.LINK][0]), g['shield'])
-    ask['mu'], ask['felt'] = g['held'], float(g['st'][latent.TO][ortho.FELT])
+    ask['mu'] = g['held']
     ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
     cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
@@ -247,8 +248,8 @@ def control(g, dt):
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))
-    g['got'] = g['solve'](body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'],
-                                                    lo=lo, hi=hi))
+    g['got'] = g['solves'][chain.chained(ask, s)](
+        body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
     got = g['got']
     g['seat_f'][:] = 0.0
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):

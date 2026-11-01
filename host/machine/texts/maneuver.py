@@ -195,7 +195,7 @@ def _form(name, p, last):
                                           for m, (k, d) in p.springs.items())] if p.springs else []
     held = (['(maintain_zmp (polygon %g))' % p.zmp] if p.zmp is not None else []) + (
         ['(contact_manifolds %s)' % ' '.join('(%s %g)' % kv for kv in zip(ortho.MANIFOLDS, p.weighs))] if p.weighs else []) + (
-        ['(slide %g)' % p.slide] if p.slide is not None else []) + (['(felt %g)' % p.felt] if p.felt is not None else [])
+        ['(slide %g)' % p.slide] if p.slide is not None else [])
     lines += ['(task_constraints %s)' % ' '.join(held)] if held else []
     return '  (phase %s\n    %s)' % (name, '\n    '.join(lines))
 

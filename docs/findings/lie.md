@@ -86,3 +86,47 @@ rise from the low chair - sat 22.4 s, stood - sat at 25.5 and fell at 31.9;
 found by the live gynoid suite, bisected to the commit. The cmd's limit a
 buffer laid once, the live clamps multiplied into it: sat 22.4, stood, the
 floor lie as before (pelvis 0.200), her walk to the digit.
+
+## The closed chains' step
+
+Lying on the bed she spasmed at the foam's 1.9 Hz and rolled 19.2 deg on
+the long side (`tools.sim.scenarios bed`: lay not met, jerk pelvis 461,
+head 609, hands 1573 / 999, feet 1346 / 1814): one solver ran every
+regime. The upright step (`machine.stack.wrench`) pins every bearing point
+at W_STILL and plans the support's push through its balance rows; on a
+yielding multi-point support both are asks it cannot meet. The told row
+parameter `felt` that folded the bed's push into her bias (a SUPINE list
+of chain ends in acts) was a per-text special case and is gone.
+
+Her second step, `machine.stack.chain` with `wbc_chain.c` bit for bit
+(test_chain.py, 1e-9 over 12 states), is picked by her stance alone: no
+sole standing and what is not her soles bearing her. Her driven joints
+follow her posture in the damped null space of the contacts' Jacobian
+(Levenberg-Marquardt, Cholesky); the contacts' forces come from a
+box-projected Gauss-Seidel over her Delassus matrix on the dofs no drive
+holds - pressing alone, within their friction's box, warm from what is
+felt, a mattress's give as a pass of lag -; her torques follow, shrunk to
+her clamps. The regime's constants are the kernel's
+(closed_chain_complementarity.lisp, `closed-chain-regime`), the solvers
+written out there on flat double-float vectors.
+
+| scene | before | after |
+| --- | --- | --- |
+| bed | lay not met, rolled 19.2, jerk 461 / 609 / 1573 / 999 / 1346 / 1814 | met, rolled 0.1, 392 / 599 / 829 / 999 / 775 / 1277 |
+| mattress | jerk pelvis 1068, head 1682 | 740 / 972 |
+| turning_in_bed | 373 / 501 | 281 / 431 |
+| crawl_backwards | fell at 8.5 s | stands, floor borne 15.3 s, 377 / 615 |
+| chair, kneel, crouch, falls, walks | | bit for bit the same |
+
+Selectors measured on the bed (rolled, jerk pelvis / head / right foot):
+stance alone 0.1, 392 / 599 / 1277; two bearing bodies or more 1.1, 570 /
+896 / 2034 (the regime flickered as her pelvis bore alone); latched on the
+prop comparator's impact blanking 0.6, 526 / 816 / 2074 (the leg swap's
+hop ran on the upright step and slammed her foot). A chair-edge bounce in
+the broken rise from the chair now runs three passes on the chains' step;
+the errands suite's four red rows are HEAD's own.
+
+Two gotchas: `wbc_step_t`'s new regime fields sit after its workspace -
+in front of it they shifted the workspace by 40 bytes and numpy's BLAS
+kernels answered 47 of 12 668 solves a few bits apart from the python
+step; and a test module parameter named `step` shadowed the glue module.

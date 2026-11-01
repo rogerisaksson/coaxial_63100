@@ -81,7 +81,7 @@ static void torques(const wbc_step_t *p, const double *full, const double *full0
 }
 
 /** machine.stack.wrench.shrunk: how far from tau0 toward tau every drive stays within its limit. */
-static double shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
+double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi)
 {
   double least = 0.0;
 
@@ -115,8 +115,8 @@ static int lay(double *R0, double *rhs, double *rhs0, int at, int nu, wbc_view_t
   return at + rows;
 }
 
-/** The step on her bias with what bears her as felt folded in by `lain` (wbc_step). */
-static int stepped(wbc_step_t *p, double lain)
+/** The step on `p`'s laid, sensed and asked (wbc_step). */
+static int stepped(wbc_step_t *p)
 {
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd, nu0 = p->nu0, nc = p->nc, k3 = 3 * nc, nu = nu0 + k3;
@@ -142,7 +142,7 @@ static int stepped(wbc_step_t *p, double lain)
   }
   stance[0] = (double)(p->stance[0] != 0);
   stance[1] = (double)(p->stance[1] != 0);
-  grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0) * (1.0 - lain));
+  grounded = pymax(npmax(stance[0], stance[1]), (double)(k3 > 0));
   turned = (double)(p->nturns > 0);
   for (int i = 0; i < nd; i++)
   {
@@ -408,7 +408,7 @@ static int stepped(wbc_step_t *p, double lain)
   geo.frames[1] = p->R[1];
   geo.mass = mass;
   geo.grounded = grounded;
-  geo.give = 1.0 - lain;
+  geo.give = 1.0;
   geo.strides = strides;
   geo.edges[0] = p->edge[0];
   geo.edges[1] = p->edge[1];
@@ -448,7 +448,7 @@ static int stepped(wbc_step_t *p, double lain)
       return 1;
     }
     torques(p, full, full0, stance, stood, 1.0, nu, tau0, qdd, rest);
-    scale = shrunk(nd, tau, tau0, nlimit, limit);
+    scale = wbc_step_shrunk(nd, tau, tau0, nlimit, limit);
     for (int j = 0; j < nu; j++)
     {
       u[j] = whole[j] + (scale - 1.0) * (whole[j] - stood[j]);
@@ -460,7 +460,7 @@ static int stepped(wbc_step_t *p, double lain)
     }
     if (over0)
     {
-      s0 = shrunk(nd, carried, zeros, nlimit, limit);
+      s0 = wbc_step_shrunk(nd, carried, zeros, nlimit, limit);
     }
     if (s0 < 1.0)
     {
@@ -520,24 +520,5 @@ static int stepped(wbc_step_t *p, double lain)
 
 int wbc_step(wbc_step_t *p)
 {
-  /* lain back on what bears her, no sole standing: its push a load on her as felt (machine.stack.wrench.step) */
-  const double  lain = p->felt * (1.0 - (double)(p->stance[0] || p->stance[1]));
-  const double *h = p->h;
-  double        felt_h[WBC_STEP_N];
-  int           raised;
-
-  memcpy(felt_h, h, (size_t)p->n * sizeof(double));
-  for (int q = 0; q < p->nc && q < WBC_STEP_C; q++)
-  {
-    const double *J = p->cJ[q], *f = p->cf[q];
-
-    for (int i = 0; i < p->n; i++)
-    {
-      felt_h[i] = felt_h[i] - lain * ((J[i] * f[0] + J[p->n + i] * f[1]) + J[2 * p->n + i] * f[2]);
-    }
-  }
-  p->h = felt_h;
-  raised = stepped(p, lain);
-  p->h = h;
-  return raised;
+  return stepped(p);
 }

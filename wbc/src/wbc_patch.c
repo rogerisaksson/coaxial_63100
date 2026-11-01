@@ -23,8 +23,7 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
   const wbc_blas_t *l = &p->blas;
   const int         nu0 = p->nu0;
   const double      pin = (p->w_pin * (double)(p->stance[0] || p->stance[1])) / (p->mass * p->g), up[3] = {0.0, 1.0, 0.0};
-  /* held still at w_still, none where what bears her carries her as felt (wbc_step) */
-  const double      still = p->w_still * (1.0 - p->felt * (1.0 - (double)(p->stance[0] || p->stance[1])));
+  const double      still = p->w_still; /* each point held still (machine.stack.pressed.W_STILL) */
   double            share[WBC_STEP_C], rows3[3 * WBC_STEP_U];
   int               patched[WBC_STEP_C], palmed = 0;
 

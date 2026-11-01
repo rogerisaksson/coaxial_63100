@@ -54,7 +54,7 @@ typedef struct
   double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
                                                           off her soles' cap, N; a sliding contact's, the slide's
                                                           governor's; each of her hands' contacts' */
-  double        felt; /**< how far what bears her carries her as felt, no sole standing (machine.texts.ortho.FELT) */
+  double        residual; /**< the closed chains' step's complementarity residual answered (wbc_chain.c) */
   double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.moves.emancipation) */
   double        let_hold[2], freed[2], open_kp, open_kd; /**< each let-go foot held still, each leg's share free on
                                                             its open chain's stiffness and damping (ask['open']) */
@@ -68,10 +68,22 @@ typedef struct
   double        load[WBC_STEP_D];
   int           cop_n, cop_none[2], over[WBC_STEP_D];
   double        work[WBC_STEP_WORK];
+  /* the closed chains' step's regime (wbc_chain.c), after the workspace so its offset keeps numpy's alignment: its
+     null space's damping m, a contact's softness m/s^2 a N, a sticking contact's slip bled 1/s, its friction; its
+     Gauss-Seidel's sweeps a pass */
+  double        chain_lam, chain_soft, chain_bleed, chain_mu;
+  int           chain_sweeps;
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
 int wbc_step(wbc_step_t *p);
+
+/** machine.stack.chain.step (wbc_chain.c): her step in closed chains on `p`'s laid, sensed and asked - no sole
+    standing, what bears her by complementarity, her posture in its null space: 0, or 1 where numpy would raise. */
+int wbc_chain(wbc_step_t *p);
+
+/** machine.stack.shrunk.shrunk (wbc_step.c): how far from tau0 toward tau every drive stays within [lo, hi]. */
+double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi);
 
 /** machine.stack.wbc.turn_error: the world-frame rotation vector taking `have` to `want`, rad (wbc_maps.c). */
 void wbc_step_turn_error(const wbc_blas_t *l, const double want[4], const double have[4], double out[3]);
