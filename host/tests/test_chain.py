@@ -1,8 +1,9 @@
 """Her step in closed chains (`machine.stack.chain`) in C beside its python, the forces in their friction's box.
 
-No sole standing, her pelvis, shanks and hands bearing: wbc_chain.c's torques, accelerations and contact
-forces are the python step's bit for bit; the forces press alone within their friction's box with the
-complementarity met; her posture's ask moves the contacts' points next to nothing; a tick's time."""
+No sole standing, her pelvis (two points, one patch), shanks and hands bearing, her pelvis and trunk asked a
+turn and a sole a swing: wbc_chain.c's torques, accelerations and contact forces are the python step's bit
+for bit; rigid, the forces press alone within their friction's box with the complementarity met; the
+tasks hold each patch's points on their normal and turn her toward the ask; a tick's time."""
 import os
 import sys
 import time
@@ -16,8 +17,17 @@ from gynoid_kit import Report
 STEPS, APART = 12, 1e-9
 
 
+def _product(a, b):
+    """The quaternion a b (w, x, y, z): b turned by a."""
+    import numpy as np
+    return np.array([a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+                     a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+                     a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+                     a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]])
+
+
 def test_the_chain_step_in_c_is_the_steps(report):
-    """wbc_chain.c beside `machine.stack.chain.step` on her stand's pose under random velocities, five contacts felt."""
+    """wbc_chain.c beside `machine.stack.chain.step` on her stand's pose under random velocities, six contacts felt."""
     import numpy as np
     from machine.body import figure
     from machine.stack import chain, wbc
@@ -28,10 +38,10 @@ def test_the_chain_step_in_c_is_the_steps(report):
     regime, solve = glue.regime(), glue.chain_laid(b)
     # the text's regime gives a mattress's foam its pass of lag (its softness): the complementarity itself is the
     # rigid regime's to meet, swept to convergence
-    rigid = regime._replace(soft=0.0, sweeps=800)
-    rng, worst, boxed, moved, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, []
+    rigid = regime._replace(soft=0.0, sweeps=4000)
+    rng, worst, boxed, stuck, turned, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, 0.0, []
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
-    bodies = [b.m.body(name).id for name in ('pelvis', 'left_shank', 'right_shank', 'left_hand', 'right_hand')]
+    bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand')]
     for _ in range(STEPS):
         qvel = np.zeros(len(world.data.qvel))
         qvel[:b.n] = 0.3 * rng.normal(size=b.n)
@@ -43,8 +53,15 @@ def test_the_chain_step_in_c_is_the_steps(report):
             J = jp[:, :b.n].copy()
             b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
             f = np.array([0.3, 1.0, 0.2]) * (60.0 + 80.0 * rng.random()) + 10.0 * rng.normal(size=3)
-            contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch, 'side': 0})
-        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': (), 'wep': False,
+            contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch, 'side': 0, 'body': body})
+        # a turn of 0.2 rad about her pelvis's patch normal, the torsion its points leave free
+        axis = contacts[0]['f'] + contacts[1]['f']
+        axis = axis / np.linalg.norm(axis)
+        spin = np.array([np.cos(0.1), *(np.sin(0.1) * axis)])
+        turns = tuple(_product(spin, t['quat']) for t in s['turns'])
+        f1 = s['feet'][1]
+        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
+               'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
                'posture': s['q'] + 0.05 * rng.normal(size=len(s['q']))}
         sc = dict(s, contacts=contacts)
         ours, theirs = chain.step(b, sc, ask, regime), solve(b, sc, ask)
@@ -55,14 +72,22 @@ def test_the_chain_step_in_c_is_the_steps(report):
         for Q, z in zip(chain.frames(np.concatenate([cs['f'] for cs in contacts])), hard['borne']):
             zn, zt1, zt2 = Q @ z
             boxed = max(boxed, -zn, abs(zt1) - regime.mu * zn, abs(zt2) - regime.mu * zn)
-        Ja = np.vstack([cs['J'] for cs in contacts])[:, b.act]
-        want = wbc.POSTURE_KD[0] * (ask['posture'] - s['q']) - wbc.POSTURE_KD[1] * s['v'][b.act]
-        moved = max(moved, float(np.abs(Ja @ ours['qacc'][b.act]).max() / (ours['scale'] * np.abs(Ja @ want).max())))
+        qs = chain.tasks(b, sc, ask, regime)
+        strong = chain.tasks(b, sc, ask, regime._replace(turn=1000.0))
+        for cs in contacts:
+            normal = sum(c['f'] for c in contacts if c['body'] == cs['body'])
+            normal = normal / np.linalg.norm(normal)
+            told = -cs['dJv'] - regime.bleed * (cs['J'] @ s['v'])
+            stuck = max(stuck, abs(float(normal @ (cs['J'] @ qs) - normal @ told)) / (1.0 + abs(float(normal @ told))))
+        t0 = s['turns'][0]
+        asked = wbc.TURN_KD[0] * wbc.turn_error(np.asarray(turns[0]), t0['quat']) - wbc.TURN_KD[1] * t0['w'] - t0['dJr']
+        turned = max(turned, 1.0 - float((t0['Jr'] @ strong + t0['dJr']) @ asked) / float(asked @ asked))
     report.check("the closed chains' step in C is machine.stack.chain's over %d states" % STEPS, bool((worst < APART).all()),
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
     report.check("rigid, its forces press alone within their friction's box, the complementarity met",
                  boxed < 1e-9 and max(residuals) < 1e-9, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
-    report.check("her posture's ask moves the contacts' points next to nothing", moved < 0.2, 'ratio %.3f' % moved)
+    report.check("the tasks hold each contact on its normal and, the turn weighed up, turn her pelvis about its patch as asked",
+                 stuck < 1e-2 and turned < 0.5, 'normal %.1e, the turn short of the ask by %.2f at worst' % (stuck, turned))
     t = time.perf_counter()
     for _ in range(200):
         solve(b, sc, ask)
@@ -70,7 +95,26 @@ def test_the_chain_step_in_c_is_the_steps(report):
     report.check('a tick of it on this host', us < 1000.0, '%.1f us' % us)
 
 
-ROSTER = (test_the_chain_step_in_c_is_the_steps,)
+def test_the_step_is_hers_by_her_release(report):
+    """`chain.chained`: a leg let go or no sole standing, and no sole asked to land; a sit or a rise on both soles and a
+    bounce asked to land stay the upright step's. `chain.bearing` hands the chain a standing sole as a patch."""
+    import numpy as np
+    from machine.stack import chain
+    picks = [chain.chained({'stance': st, 'let_go': lg, 'swing': sw}) for st, lg, sw in (
+        ((True, False), (False, True), {}), ((False, False), (False, False), {}), ((False, False), (True, True), {}),
+        ((True, True), (False, False), {}), ((False, False), (False, False), {0: None, 1: None}), ((True, False), (False, False), {1: None}))]
+    report.check("hers with a leg let go, none standing or both let go; the upright step's on both soles or a landing asked",
+                 picks == [1, 1, 1, 0, 0, 0], str(picks))
+    n = 20
+    feet = [{'sole': np.zeros(3), 'J6': np.arange(6.0 * n).reshape(6, n), 'dJv': np.arange(6.0)} for _k in range(2)]
+    got = chain.bearing({'feet': feet, 'contacts': [{'body': 7}]}, (120.0, 0.0), (True, False), 1)
+    report.check("a standing sole a patch of its own: its load up, its Jacobian's translation, a body below 0",
+                 len(got) == 2 and got[1]['body'] == -1 and got[1]['f'][1] == 120.0 and got[1]['J'].shape == (3, n)
+                 and np.array_equal(got[1]['J'], feet[0]['J6'][3:]) and len(chain.bearing({'feet': feet, 'contacts': []}, (120.0, 0.0), (True, False), 0)) == 0,
+                 str([(c.get('body'), c['f'][1] if 'f' in c else None) for c in got]))
+
+
+ROSTER = (test_the_chain_step_in_c_is_the_steps, test_the_step_is_hers_by_her_release)
 
 
 def main(argv=None):

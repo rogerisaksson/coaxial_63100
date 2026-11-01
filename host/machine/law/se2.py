@@ -45,6 +45,8 @@ GROUNDED = frozenset({'kneel', 'tip', 'floor_rest'})
 #: holds (`motion.drives`) - sprung at the rest's own stiffness she churned on the floor, 200-1400
 #: deg/s, pitch rolling full circle.
 LIMP = frozenset({'floor_rest'})
+#: Her back among what bears her (`ortho.MANIFOLDS`): lain on it, her row blended, she rests limp (`limp`).
+DORSAL = ortho.MANIFOLDS.index('dorsal')
 _FWD_GAITS = ('walk', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
               'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'spin_left', 'spin_right', 'circle_walk')
 _BACK_GAITS = ('walk_back', 'turn_back_left', 'turn_back_right')
@@ -114,6 +116,18 @@ def doing(g):
     pass, 596 flips in a stop."""
     come = [(w, n) for w, n in g['labels'] if w <= g.get('t_law', g['t']) + 1e-9]
     return max(come)[1] if come else 'rest'
+
+
+def limp(g):
+    """How far she rests limp, 0 to 1: a doing in LIMP, or her back told to bear her and her row's blend done - lain
+    flat on a bed or the floor and still -, easing to 1 over as long as that row blended; her clamps go to zero by it
+    over the bus (`motion.drives`), what bears her holds her. Measured on the bed: told at bed_rest's start her clamps
+    dropped mid-blend; dropped in a pass at its blend's end (1.4 s in) her neck fell 64 deg at 138 deg/s, her spine 52
+    at 153, her arms 109 at 142 - a flop, not a rest."""
+    from machine.law import latent
+    blend = max(float(g['st'][latent.BLEND]), 1e-3)
+    eased = min(1.0, max(0.0, (g.get('t_law', g['t']) - float(g['st'][latent.T0]) - blend) / blend))
+    return max(float(doing(g) in LIMP), eased * float(float(g['told'][DORSAL]) >= 0.5))
 
 
 def closing(vx, vz, dx, dz):

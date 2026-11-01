@@ -73,6 +73,8 @@ typedef struct
      Gauss-Seidel's sweeps a pass */
   double        chain_lam, chain_soft, chain_bleed, chain_mu;
   int           chain_sweeps;
+  int           cbody[WBC_STEP_C]; /**< each contact's body of hers: a body's contacts one patch (machine.senses.borne) */
+  double        chain_w_stick, chain_w_turn, chain_w_swing, chain_w_posture; /**< its tasks' weights */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */

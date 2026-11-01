@@ -4,15 +4,16 @@
 ;;         Friction Complementarity: the Step that Takes Over when the Pendulum is Gone
 ;; REQUIRES: core_biomechanics.lisp
 ;; Hers: `machine.stack.chain` runs it on her law and `wbc_chain.c` bit for bit; `motion.control` picks it by her
-;; stance alone - no sole standing and what is not her soles bearing her -, never by a text's name. The solvers
-;; below are the ones they run, written out on flat row-major double-float vectors.
+;; release alone - a leg let go or no sole standing, and none asked to land -, never by a text's name; a sole still
+;; standing is one more patch of the chain, held by its friction's box, never planned as a push.
+;; The solvers below are the ones they run, written out on flat row-major double-float vectors.
 ;; =============================================================================
 (defpackage :ortho-dsp.closed-chain
   (:use :ortho-dsp.core)
   (:export #:closed-chain-regime
            #:cholesky-banachiewicz
            #:cholesky-solve
-           #:dls-nullspace-posture
+           #:dls-closed-chain-tasks
            #:contact-frame
            #:pgs-box-mlcp
            #:closed-chain-step))
@@ -23,24 +24,33 @@
 ;; (|f_t| < mu f_n, v_t = 0) or slide (|f_t| = mu f_n against v_t). The upright step's convex least squares (soles
 ;; never sliding, her centre of mass's acceleration error minimised, every bearing point pinned at W_STILL) is the
 ;; wrong tool there: on a mattress it asked pushes the foam never gave and she spasmed at the foam's 1.9 Hz.
-;; The regime: her driven joints follow her posture in the damped null space of the contacts' Jacobian
-;; (Levenberg-Marquardt, P_null = I - J^+ J with J^+ = J^T (J J^T + lambda^2 I)^-1, Cholesky); the contacts'
-;; forces solve the box-constrained mixed linear complementarity problem over her Delassus matrix on the dofs no
-;; drive holds, M_c = J_P M_PP^-1 J_P^T: w = M_c z + b, 0 <= w_n, 0 <= z_n, one of them 0, |z_t|_inf <= mu z_n, by
-;; projected Gauss-Seidel warm from what is felt; her torques follow with them, shrunk to her clamps.
+;; The regime: one damped least squares (Levenberg-Marquardt, Cholesky on A^T A + lambda^2 I) over every
+;; acceleration takes the chain's tasks - each patch's points held on its normal and its centroid on its tangents,
+;; torsion free as a pivot on the buttocks or a fist is; her pelvis's and trunk's turns; a sole asked to swing; her
+;; posture and her base at rest in what is left -; the contacts' forces solve the box-constrained mixed linear
+;; complementarity problem over her Delassus matrix on the dofs no drive holds, M_c = J_P M_PP^-1 J_P^T:
+;; w = M_c z + b, 0 <= w_n, 0 <= z_n, one of them 0, |z_t|_inf <= mu z_n, by projected Gauss-Seidel warm from what
+;; is felt; her torques follow with them, shrunk to her clamps. Lain on her back at her text's last row she rests
+;; limp: her clamps zero, what bears her holds her (machine.law.se2.limp).
 (defconstants closed-chain-regime
-  :dls-damping-m                0.02   ; lambda: the null space's damping, m - a chain near singular still answers
+  :dls-damping-m                0.02   ; lambda: the least squares' damping, m - a chain near singular still answers
   :pgs-sweeps                   24     ; Gauss-Seidel sweeps a pass: 36 unknowns at most settle well within
   :contact-softness-m-s2-per-n  27.9   ; a contact's give over a pass, 1 / (k h^2): the viscoelastic mattress's k, her
                                        ; 31 kg at its 1.8 Hz (3 977 N/m), h her law's 3 ms pass - the force an
                                        ; acceleration asks of the foam comes a pass late; a rigid floor's would be 0,
                                        ; so the softest support she lies on sets it and what is felt leads
   :stick-bleed-per-s            20.0   ; a sticking contact's slip bled, 1/s (the upright step's CONTACT_K)
-  :friction-mu                  0.6)   ; the box's friction (the upright step's MU)
+  :friction-mu                  0.6    ; the box's friction (the upright step's MU)
+  :stick-weight                 10000.0 ; the tasks' weights: a patch's points on its normal, its centroid on its
+  :turn-weight                  0.0     ; tangents (the upright step's W_STILL); her pelvis's and trunk's turns, swept:
+  :swing-weight                 1.0     ; at 30 she turned by force (bed shrunk 171, lodge trunk 909 deg/s, off the
+  :posture-weight               1.0)    ; bed), at 1 her end lay on a knife edge (one spot 28 deg off the bed's axis,
+                                        ; another 88), at 0.3 she pumped against her feet sat on the floor (her seat
+                                        ; 223-324 N of 328, the weight read 328 for 306) - two-joint arms on pinned
+                                        ; fists turn her little and the third stage's foot push undoes it; off till the
+                                        ; chain gives her a lever; a sole's swing and her posture and base at rest alike
 
-;; -----------------------------------------------------------------------------
 ;; 1. CHOLESKY (BANACHIEWICZ, ROW BY ROW) ON A FLAT ROW-MAJOR (M x M) DOUBLE-FLOAT VECTOR
-;; -----------------------------------------------------------------------------
 (defun cholesky-banachiewicz (g l m)
   "L, lower, with L L^T = G: G and L flat row-major (m x m); NIL where G is not positive."
   (declare (type (simple-array double-float (*)) g l)
@@ -78,43 +88,7 @@
       (setf (aref x i) (/ s (aref l (+ (* i m) i))))))
   x)
 
-;; -----------------------------------------------------------------------------
-;; 2. LEVENBERG-MARQUARDT NULL-SPACE POSTURE ON HER DRIVEN JOINTS
-;; a_des = (I - J^+ J) want, J^+ = J^T (J J^T + lambda^2 I)^-1: the contacts' rows J (rows x nd) hold their points
-;; to the chain, the posture's acceleration goes where it moves them nothing.
-;; -----------------------------------------------------------------------------
-(defun dls-nullspace-posture (j want a-des rows nd damping g l r y x)
-  "a-des (nd) of want (nd) in the damped null space of J (rows x nd), G, L (rows x rows), r, y, x (rows) scratch."
-  (declare (type (simple-array double-float (*)) j want a-des g l r y x)
-           (type fixnum rows nd)
-           (type double-float damping)
-           (optimize (speed 3) (safety 0)))
-  (loop for i of-type fixnum from 0 below rows do
-    (loop for c of-type fixnum from 0 below rows do
-      (let ((s 0.0d0))
-        (declare (type double-float s))
-        (loop for k of-type fixnum from 0 below nd do
-          (setf s (+ s (* (aref j (+ (* i nd) k)) (aref j (+ (* c nd) k))))))
-        (setf (aref g (+ (* i rows) c)) s)))
-    (setf (aref g (+ (* i rows) i)) (+ (aref g (+ (* i rows) i)) (* damping damping)))
-    (let ((s 0.0d0))
-      (declare (type double-float s))
-      (loop for k of-type fixnum from 0 below nd do
-        (setf s (+ s (* (aref j (+ (* i nd) k)) (aref want k)))))
-      (setf (aref r i) s)))
-  (cholesky-banachiewicz g l rows)
-  (cholesky-solve l r y x rows)
-  (loop for k of-type fixnum from 0 below nd do
-    (let ((s 0.0d0))
-      (declare (type double-float s))
-      (loop for i of-type fixnum from 0 below rows do
-        (setf s (+ s (* (aref j (+ (* i nd) k)) (aref x i)))))
-      (setf (aref a-des k) (- (aref want k) s))))
-  a-des)
-
-;; -----------------------------------------------------------------------------
-;; 3. A CONTACT'S FRAME: its normal the felt force's direction (up where it feels none), two tangents
-;; -----------------------------------------------------------------------------
+;; 2. A CONTACT'S FRAME: its normal the felt force's direction (up where it feels none), two tangents
 (defun contact-frame (f q at)
   "q's 9 from at on: the frame's rows (normal, tangent, tangent) of the felt force f (3)."
   (declare (type (simple-array double-float (*)) f q)
@@ -139,9 +113,35 @@
           (aref q (+ at 8)) (- (* n0 t1) (* n1 t0)))
     q))
 
-;; -----------------------------------------------------------------------------
+;; 3. THE CHAIN'S TASKS BY DAMPED LEAST SQUARES: rows R (m x n) and r (m) laid weighed - each patch's points on its
+;; normal and its centroid on its tangents at w-still, each turn's Jr q'' = kp e - kd w - dJr at w-turn, each swing's
+;; J6 q'' = a6 - dJv at w-swing, each driven joint on its posture and the base at rest at w-posture, each held joint
+;; damped at w-still -, then (R^T R + lambda^2 I) q'' = R^T r by Cholesky. The caller lays the rows (the step below
+;; names them); this solves them.
+(defun dls-closed-chain-tasks (r-rows r m n damping h l g y qdd)
+  "qdd (n) of the weighed rows r-rows (m x n) and r (m): the normal equations damped, Cholesky, solved."
+  (declare (type (simple-array double-float (*)) r-rows r h l g y qdd)
+           (type fixnum m n)
+           (type double-float damping)
+           (optimize (speed 3) (safety 0)))
+  (loop for i of-type fixnum from 0 below n do
+    (loop for c of-type fixnum from 0 below n do
+      (let ((s 0.0d0))
+        (declare (type double-float s))
+        (loop for k of-type fixnum from 0 below m do
+          (setf s (+ s (* (aref r-rows (+ (* k n) i)) (aref r-rows (+ (* k n) c))))))
+        (setf (aref h (+ (* i n) c)) s)))
+    (setf (aref h (+ (* i n) i)) (+ (aref h (+ (* i n) i)) (* damping damping)))
+    (let ((s 0.0d0))
+      (declare (type double-float s))
+      (loop for k of-type fixnum from 0 below m do
+        (setf s (+ s (* (aref r-rows (+ (* k n) i)) (aref r k)))))
+      (setf (aref g i) s)))
+  (cholesky-banachiewicz h l n)
+  (cholesky-solve l g y qdd n)
+  qdd)
+
 ;; 4. BOX-PROJECTED GAUSS-SEIDEL MLCP OVER THE DELASSUS MATRIX IN THE CONTACTS' FRAMES
-;; -----------------------------------------------------------------------------
 (defun pgs-box-mlcp (delassus b z rows mu softness sweeps)
   "w = Delassus z + b, 3 rows a contact (normal, two tangents): each normal pressing alone (0 <= w_n, 0 <= z_n,
    one of them 0), each tangent within the box |z_t| <= mu z_n, sweeps over, z in place - warm from what is
@@ -178,11 +178,6 @@
           (when (> gap residual) (setf residual gap)))))
     residual))
 
-;; -----------------------------------------------------------------------------
-;; 5. THE STEP: her posture in the chains' null space, the forces by complementarity, her torques with them
-;; M (n x n) her mass matrix, h (n) her bias, v (n) her velocity, jc (3k x n) the contacts' Jacobians, jdv (3k) their
-;; drift, f (3k) what they feel; P the dofs no drive holds (her base, her passive joints), A her driven, H her held.
-;; -----------------------------------------------------------------------------
 (defun shrunk-toward (tau tau0 lo hi na)
   "machine.stack.shrunk: the largest s in [0, 1] with every tau0 + s (tau - tau0) within [lo, hi] (0 within), each
    drive's in closed form, the least of them; 0 where none is."
@@ -204,16 +199,21 @@
         (setf least (if (= i 0) s (min least s)))))
     (max 0.0d0 (min 1.0d0 least))))
 
-(defun closed-chain-step (m h v jc jdv f want clamp n np na nh p a hh damping softness bleed mu sweeps tau qdd z work)
+;; 5. THE STEP: the tasks' accelerations on her driven joints, the forces by complementarity, her torques with them.
+;; M (n x n) her mass matrix, h (n) her bias, v (n) her velocity, jc (3k x n) the contacts' Jacobians, jdv (3k) their
+;; drift, f (3k) what they feel; P the dofs no drive holds (her base, her passive joints), A her driven, HH her held;
+;; r-rows (m x n) and r (m) the tasks' weighed rows as named under 3, laid by the caller from the asks.
+(defun closed-chain-step (m h v jc jdv f r-rows r mrows clamp n np na nh p a hh damping softness bleed mu sweeps tau qdd z work)
   "tau (na) her drives' torques, qdd (n) every acceleration, z (3k) the contacts' forces, world; (values tau qdd z
-   residual scale). M (n x n), h, v (n); jc (3k x n) the contacts' Jacobians, jdv (3k) their drift, f (3k) what they
-   feel; want (na) her posture's acceleration on her driven joints A, clamp (na) their bounds; P (np) the dofs no drive
-   holds, HH (nh) her held joints; the regime's damping, softness, bleed, mu, sweeps (closed-chain-regime); work a flat
-   scratch, carved. The twins spell every product in this order (machine.stack.chain, wbc_chain.c), the host's
-   bounds its back-EMF's and WEP's too."
-  (declare (type (simple-array double-float (*)) m h v jc jdv f want clamp tau qdd z work)
+   residual scale). 1. qdd* = dls-closed-chain-tasks, her driven joints take qdd*[A]; 2. M_PP X = J_P^T by Cholesky,
+   the Delassus matrix M_c = J_P X, its offset b = J_P M_PP^-1 (-h_P - M_PA qdd_A - M_PH qdd_H) + J_A qdd_A + J_H qdd_H
+   + jdv + bleed J v, both turned into the contacts' frames, z warm from f, the Gauss-Seidel, z back in the world;
+   3. qdd_P = M_PP^-1 (J_P^T z + rhs), tau = (M qdd + h - J^T z)_A, shrunk toward the same with nothing asked of A,
+   then toward 0 (machine.stack.shrunk). The twins spell every product in this order (machine.stack.chain, wbc_chain.c);
+   the host's bounds are its back-EMF's and WEP's too."
+  (declare (type (simple-array double-float (*)) m h v jc jdv f r-rows r clamp tau qdd z work)
            (type (simple-array fixnum (*)) p a hh)
-           (type fixnum n np na nh sweeps)
+           (type fixnum mrows n np na nh sweeps)
            (type double-float damping softness bleed mu)
            (optimize (speed 3) (safety 0)))
   (let* ((rows (length f))
@@ -226,8 +226,7 @@
              (let ((out (make-array count :element-type 'double-float :displaced-to work :displaced-index-offset at)))
                (setf at (+ at count))
                out)))
-      (let* ((ja (carve (* rows na))) (g (carve (* rows rows))) (l (carve (* rows rows)))
-             (r (carve rows)) (y (carve rows)) (x (carve rows)) (a-des (carve na))
+      (let* ((hh-m (carve (* n n))) (l-m (carve (* n n))) (g (carve n)) (y (carve n)) (qs (carve n))
              (qg (carve ng)) (qg0 (carve ng)) (mpp (carve (* np np))) (lpp (carve (* np np)))
              (col (carve np)) (xcol (carve np)) (ycol (carve np)) (xs (carve (* rows np)))
              (dl (carve (* rows rows))) (rhs (carve np)) (rhs0 (carve np)) (yp (carve np))
@@ -236,13 +235,10 @@
              (lo (carve na)) (hi (carve na)) (zeros (carve na))
              (residual 0.0d0) (scale 1.0d0))
         (declare (type double-float residual scale))
-        ;; 1. her posture in the contacts' damped null space on A
-        (loop for i of-type fixnum from 0 below rows do
-          (loop for c of-type fixnum from 0 below na do
-            (setf (aref ja (+ (* i na) c)) (aref jc (+ (* i n) (aref a c))))))
-        (dls-nullspace-posture ja want a-des rows na damping g l r y x)
+        ;; 1. the tasks: her driven joints take their accelerations, her held joints are damped
+        (dls-closed-chain-tasks r-rows r mrows n damping hh-m l-m g y qs)
         (loop for c of-type fixnum from 0 below na do
-          (setf (aref qg c) (aref a-des c) (aref qg0 c) 0.0d0))
+          (setf (aref qg c) (aref qs (aref a c)) (aref qg0 c) 0.0d0))
         (loop for i of-type fixnum from 0 below nh do
           (setf (aref qg (+ na i)) (* (- held-k) (aref v (aref hh i)))
                 (aref qg0 (+ na i)) (aref qg (+ na i))))
@@ -264,7 +260,6 @@
               (loop for c of-type fixnum from 0 below np do
                 (setf s (+ s (* (aref jc (+ (* i n) (aref p c))) (aref xs (+ (* j np) c))))))
               (setf (aref dl (+ (* i rows) j)) s))))
-        ;; its offset: what the dofs no drive holds do with no force, rhs = -h_P - M_PA a-des - M_PH qdd_H
         (flet ((offset (qgiven rhs-out)
                  (loop for i of-type fixnum from 0 below np do
                    (let ((s (- (aref h (aref p i)))))
@@ -289,7 +284,6 @@
             (loop for c of-type fixnum from 0 below n do
               (setf sv (+ sv (* (aref jc (+ (* i n) c)) (aref v c)))))
             (setf (aref b i) (+ s (aref jdv i) (* bleed sv)))))
-        ;; into the contacts' frames, z warm from what is felt, the Gauss-Seidel, z back in the world
         (loop for i of-type fixnum from 0 below k do
           (setf (aref fi 0) (aref f (* 3 i)) (aref fi 1) (aref f (+ (* 3 i) 1)) (aref fi 2) (aref f (+ (* 3 i) 2)))
           (contact-frame fi q (* 9 i)))
@@ -318,7 +312,7 @@
               (loop for aa of-type fixnum from 0 below 3 do
                 (setf s (+ s (* (aref q (+ (* 9 i) (* 3 aa) c)) (aref zl (+ (* 3 i) aa))))))
               (setf (aref z (+ (* 3 i) c)) s))))
-        ;; 3. every acceleration and her torques with the forces: qdd_P = M_PP^-1 (J_P^T z + rhs), tau = (M qdd + h - J^T z)_A
+        ;; 3. every acceleration and her torques with the forces, shrunk to her clamps
         (flet ((answered (qgiven rhs-in qdd-out tau-out)
                  (loop for c of-type fixnum from 0 below np do
                    (let ((s (aref rhs-in c)))
@@ -341,7 +335,6 @@
                      (setf (aref tau-out i) (- s jt))))))
           (answered qg rhs qdd tau1)
           (answered qg0 rhs0 qdd0 tau0))
-        ;; shrunk to her clamps toward nothing asked of her joints, then toward 0
         (loop for i of-type fixnum from 0 below na do
           (setf (aref lo i) (- (aref clamp i)) (aref hi i) (aref clamp i) (aref zeros i) 0.0d0))
         (when (loop for i of-type fixnum from 0 below na thereis (> (abs (aref tau1 i)) (aref clamp i)))

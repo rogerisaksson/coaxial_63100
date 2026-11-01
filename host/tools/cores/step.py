@@ -48,7 +48,8 @@ def _step_typed():
     fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work),
-               ('chain_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_sweeps', i)]
+               ('chain_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_sweeps', i), ('cbody', i * c),
+               ('chain_w_stick', f), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -125,6 +126,7 @@ def chain_laid(b, sensed=None, twin=False):
         return functools.partial(chain.step, regime=said)
     k, views = _laid(b, sensed)
     k.chain_lam, k.chain_soft, k.chain_bleed, k.chain_mu, k.chain_sweeps = said.lam, said.soft, said.bleed, said.mu, said.sweeps
+    k.chain_w_stick, k.chain_w_turn, k.chain_w_swing, k.chain_w_posture = said.stick, said.turn, said.swing, said.posture
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 
@@ -182,7 +184,7 @@ def _stepped(k, step, v, b, s, ask):
     k.nc = len(contacts)
     for at_, c in enumerate(contacts):
         k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
-        k.cpatch[at_] = int(c.get('patch', 0))
+        k.cpatch[at_], k.cbody[at_] = int(c.get('patch', 0)), int(c.get('body', 0))
     v['stance'][:] = [bool(x) for x in ask['stance']]
     v['let_go'][:] = [bool(x) for x in ask.get('let_go', (False, False))]
     v['com_acc'][:] = ask['com_acc']

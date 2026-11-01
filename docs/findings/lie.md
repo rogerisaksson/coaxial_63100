@@ -130,3 +130,93 @@ Two gotchas: `wbc_step_t`'s new regime fields sit after its workspace -
 in front of it they shifted the workspace by 40 bytes and numpy's BLAS
 kernels answered 47 of 12 668 solves a few bits apart from the python
 step; and a test module parameter named `step` shadowed the glue module.
+
+## The release, the turn and the rest
+
+A page recording of the lodge's lie (build/recordings/humanoid_20261101_130722.csv)
+showed three faults after the closed chains' step came: a spasm as the gait
+"released" her, a lie across the bed instead of along it, and a body held
+rigid on the mattress. Its replay walks her into the bed (the recording's
+commands all predate it; the errand's say is internal), so the headless twin
+is `tools.sim.house --one -1.0 1.8 3.14 lie_bed --said`.
+
+- The spasm was the regime flipping on a bouncing sole or a vanishing
+  mattress contact: 5 flips in 0.9 s, 87-108 N m a flip. `chain.chained`
+  now reads her own release - no sole standing and none asked to land, her
+  legs let go - instead of her stance: 1 flip, the bed's lie the same, the
+  chair's rise the upright step's throughout.
+- The chain step ignored her pelvis's and trunk's turn asks; the error grew
+  to 3 rad and she turned by leg momentum alone. Its first stage is now one
+  damped least squares over every acceleration (`chain.tasks`): each
+  patch's points held on its normal and its centroid on its tangents,
+  torsion free, the turns, a swing, her posture and base at rest, the held
+  joints. The turn's weight swept against the posture's 1 (bed: off the
+  axis / rolled; lodge: off / trunk deg/s): 30 gave 88 / 7.1 and a fall off
+  the lodge bed at 909; 2 gave 85 / 1.6 and 79 / 633; 1 gave 88 / 17.9 and
+  28 / 151 at one spot but 88 at another; 0.5 gave 81 / 25.4; 0.3 gave 67 /
+  0.6 and 62-66 / 163 with the calmest jerks of every variant (pelvis 338,
+  head 561) but pumped against her feet sat on the floor (test_floor: her
+  seat 223-324 N of a weight read 328 for 306); 0.1 and 0 gave 65 / 32 and
+  56 / 155. The text's is 0: two-joint arms on pinned fists turn her little
+  and the third stage's foot push undoes it; the rows stay, unit-tested
+  weighed up, till the chain gives her a lever.
+- The rest: `se2.limp` lets her go limp by state - her back told to bear her
+  and her row's blend done (bed_rest's ends 1.4 s in) - where only the name
+  floor_rest did. Her clamps read 0 at the end of the lodge's lie.
+
+Still across: in the bed scene she turns from 90 to 35 deg off the axis
+through the trochanter stages, then the third stage's leg stretch lifts her
+off the bed on her right foot alone for 0.5 s (prop 0, right_foot the one
+body bearing) and she lands across again; the lodge ends 62-66 deg off.
+The standing-foot push at the leg swap is the next thing to take away.
+Relaxed across the bed she rolls 20-30 deg under her overhanging legs, so
+the bed scene's `lay` judge (rolled within LIST_RAD) reads red while
+she held flat across it rigid; the judge wants her along the bed first.
+
+## The lift's push and the rest's drop
+
+Her own loop recording (`watch.recorded`, recordings/lodge_lie_eased2.jsonl;
+`tools/sim/recording.py --overview 0.25`) and a per-pass lift trace showed
+the spasm the page recording caught: with one leg let go and one sole on
+the bed the upright step's balance rows planned 278-316 N on the standing
+sole, the prop latch let go, her joints went 255 to 566 deg/s, her pelvis
+rose 0.15 m, she was airborne and tumbled onto her stomach. `chain.chained`
+now reads a leg let go too, and `chain.bearing` hands a standing sole to the
+chain as one more patch, held in its friction's box, never planned as a
+push: both lifts run on the chain, no sole push planned, her hips at most
+70 deg/s, her pelvis 0.57-0.59 m, no airborne pass, held on her back.
+
+The rest dropped her clamps in one pass at the row's blend end: her neck
+fell 64 deg at 138 deg/s, her spine 52 at 153, her arms 109 at 142 (her
+walk's bound 57 / 41 / 128). `se2.limp` now eases 0 to 1 over as long as
+the row blended: 110 / 97 / 111, the 97 her sit's spine at 13.9 s. What
+drops is her lying down itself: through the three stages her trunk stays
+25-30 deg from upright and her feet on the floor, and gravity lays her back
+when the clamps go, her head 0.6 m.
+
+Why the chain's step does not lay her down, measured on a python twin
+(session scratchpad, lie_chain2.py): `chain.tasks` meets her pelvis's and
+trunk's turn rows with the base's own accelerations, which the force stage
+discards, so a turn asked of her base reaches no drive; weighed 1, 3 and 10
+it only adds violence at the rest (102, 198, 268 deg/s). A task stage made
+dynamics-consistent - her base's and passive joints' accelerations what the
+held contacts and her dynamics make of her driven ones, a contact the plan
+would pull on freed, one dragged past its box sliding with its friction
+known - answers a turn through her drives: with her hands told to bear
+(palmar 0.2 through the lie) she lifts her pelvis onto them, scoots 0.3 m in
+0.7 s and reclines braked at 15-20 deg/s on hands bearing 35-48 N. It still
+pushes on the let-go foot at the second lift (289-377 N, her knee 161-171
+deg/s, the clamps shrunk to 0.04-0.35), turns her not at all (yaw error -31
+to -113 deg: 27 N of friction a hand, the ischial patch's two points), lays
+her legs straight up (feet 1.15 m: the seated chain pose at the ischial
+share 0.45 keeps her hips flexed) and the limp still drops her legs
+(168-209 deg/s). Not ported: on these measures it does not beat the step
+above. The next lever is the text's: hands that bear through the lie, legs
+told along the bed, a turn her hands let through.
+
+Two measuring faults: `recording.py` numbered its windows with `list.index`
+over blocks holding arrays and threw on the second; a scripted recording
+loses its last 1.5 s unless the gate's writer is drained before the process
+ends (its piping thread is a daemon). The house's chair spot (0.32, 1.01,
+1.37) falls on HEAD as here (14.2 s there, 13.4 here); the errands' four red
+rows are HEAD's.

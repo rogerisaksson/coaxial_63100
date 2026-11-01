@@ -250,8 +250,9 @@ def control(g, dt):
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))
-    g['got'] = g['solves'][chain.chained(ask, s)](
-        body, dict(s, M=M), dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
+    chained = chain.chained(ask)
+    g['got'] = g['solves'][chained](body, dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained)),
+                                   dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
     got = g['got']
     g['seat_f'][:] = 0.0
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):
@@ -355,13 +356,6 @@ def laid(g):
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
 
 
-@functools.cache
-def _sprung():
-    """`machine.process.sprung`, which lays this: imported at her first pass, not again each."""
-    from machine.process import sprung
-    return sprung
-
-
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
@@ -379,5 +373,5 @@ def drives(g, dt):
     # her clamps told as the step left them, zero where she rests limp (`se2.LIMP`), into a buffer laid
     # once: rebound to its own product a pass, the clamps froze at the first pass's and a rise from
     # the low chair fell at 31.9 s that stood
-    np.multiply(_kept['limit'], 1.0 - float(_sprung().doing(g) in se2.LIMP), out=g['cmd']['limit'])
+    np.multiply(_kept['limit'], 1.0 - se2.limp(g), out=g['cmd']['limit'])
     g['left'] = min(se2.WEP_S, max(0.0, g['left'] + dt * (se2.WEP_FILL * (1.0 - held) - held)))

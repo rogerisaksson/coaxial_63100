@@ -116,13 +116,14 @@ def told(path, window=None, overview=None):
     series, lay = joined(gates)
     events = sorted(series.get('events', ((), []))[1], key=lambda e: e['t'])
     wins = [g for g in gates if g['meta']['name'] != 'every']
+    numbered = {id(g): k + 1 for k, g in enumerate(wins)}  # list.index would compare the blocks' arrays
     span = [min(g['meta']['window'][0] for g in gates), max(g['meta']['window'][1] for g in gates)]
     out = ['%s: %.2f..%.2f s of her, %d blocks: %d windows, the rest 60 Hz' % (
         os.path.basename(path), span[0], span[1], len(gates), len(wins))]
     for g in gates:
         m, tr = g['meta'], g['trailer'] or {}
         what = '60 Hz' if m['name'] == 'every' else 'window %d  %s%s' % (
-            wins.index(g) + 1, m['name'], ' (%s)' % tr['cut'] if tr.get('cut') else '')
+            numbered[id(g)], m['name'], ' (%s)' % tr['cut'] if tr.get('cut') else '')
         out.append('  %8.3f..%8.3f  %s' % (m['window'][0], m['window'][1], what))
     out.append('events:')
     out.extend('  %8.3f  %s.%s  %s' % (e['t'], e['analyzer'], e['event'], {k: v for k, v in e.items()
