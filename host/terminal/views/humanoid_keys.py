@@ -111,13 +111,19 @@ def rows_of(state, said):
 
 
 def _recorded(state):
-    """R: recording from now, her epoch's commands so far its first row's; again: written to
-    RECORDINGS, its name on the page."""
+    """R: recording from now, her epoch's commands so far its first row's, her loop recording its
+    layers beside it (`watch.recorded`, the same name's .jsonl); again: written to RECORDINGS,
+    its name on the page."""
+    body = state.get('body')
     if state['recording'] is None:
         state['recording'], state['recorded'] = recorder.started('humanoid', HEADER), None
         state['pending'], state['keyed'] = list(state.get('log', ())), []
+        if body is not None:
+            body.send(record=state['recording']['stamp'])
         return
     rec, state['recording'] = state['recording'], None
+    if body is not None:
+        body.send(record=None)
     state['recorded'] = recorder.saved(rec, RECORDINGS)
 
 

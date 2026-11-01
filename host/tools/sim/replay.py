@@ -2,7 +2,7 @@
 """A HUMANOID recording replayed headless: every command it heard at the pass it came at.
 
     python tools/sim/replay.py --last                 # the newest recording (R on the page)
-    python tools/sim/replay.py build/recordings/x.csv
+    python tools/sim/replay.py recordings/x.csv
     python tools/sim/replay.py --last --keep tests/replays/name.csv    # kept as a regression
 
 The page's worker logs each command with its epoch (a world laid anew each: a restart, a fall
@@ -21,7 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO
+from machine.process.introspect import RECORDINGS
 
 #: What a kept replay holds of a recording, column by column.
 KEPT = ('t', 'epoch', 'stage', 'x', 'y', 'z', 'keys', 'commands')
@@ -101,7 +101,7 @@ def main(argv=None):
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--keep', help='its commands and her pelvis track written here')
     args = parser.parse_args(argv)
-    found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
+    found = glob.glob(os.path.join(RECORDINGS, '*.csv')) if args.last else []
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
         parser.error('a recording, or --last')

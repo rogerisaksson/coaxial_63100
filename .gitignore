@@ -2,6 +2,8 @@
 # cube-cmake writes per-preset trees here; everything in it is regenerated.
 build/
 out/
+# her recordings (`introspect.RECORDINGS`): a page's R, a gate's windows.
+recordings/
 cmake-build-*/
 
 # ---- CubeMX scratch --------------------------------------------------------

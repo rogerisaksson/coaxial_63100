@@ -34,6 +34,8 @@ ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: (N/m) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
 HOP_K = 15000.0
+#: Her surety her brace takes her over below (`bw`): a stumble.
+BRACE_SURETY = 0.58
 #: A joint none of what bears her needs, of its clamp: the suite's passive cone (-32 dB). Her ankles
 #: and knees are her soles' (`ortho.MANIFOLDS`), the rest of her let go as she lies (dorsal) or on
 #: her side (trochanter): lying back on the bed, her law held to her soles, her legs swung 483 deg/s.
@@ -198,7 +200,7 @@ def control(g, dt):
     gauge = wayfinder.gauged(g, s)
     imp[modal.HEADED][1] += gauge
     sr = surety(g, dt * ev)
-    bw = max(0.0, 1.0 - (sr / 0.58) ** 4) ** 2
+    bw = max(0.0, 1.0 - (sr / BRACE_SURETY) ** 4) ** 2
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
     w_hop = float((axial_k(g['st']) > HOP_K) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))

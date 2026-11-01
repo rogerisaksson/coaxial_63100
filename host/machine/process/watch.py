@@ -4,6 +4,7 @@
     events = w.step(snap)                   # a snapshot (`introspect.Tap`) in, its events out
     python -m machine.process.introspect --attach PORT --events    # a page's events, a JSON line each
     python -m machine.process.introspect --attach PORT --gate      # a gate armed on those marked capture
+    watch.recorded(s, 'humanoid_<time>')    # introspect.RECORDINGS/<name>.jsonl: 60 Hz, captures whole
 
 An analyzer is a file of its folder: `laid(meta) -> state` and `step(state, snap) -> [event, ..]`,
 most passes none; `meta` her code's own numbers (`meta`): her joints, each drive's rated speed, her
@@ -29,13 +30,15 @@ RESCAN_S = 1.0
 
 def meta():
     """Her code's own numbers an analyzer weighs by: her joints (`figure.JOINTS`), each drive's rated
-    speed, deg/s (her manifest's), her weight, N, her natural time, s (`takes.TICK_S`: sqrt(leg/g))."""
+    speed, deg/s (her manifest's), her weight, N, her natural time, s (`takes.TICK_S`: sqrt(leg/g)),
+    the surety her brace takes her over below (`motion.BRACE_SURETY`)."""
     from machine.body import defrobot
+    from machine.law import motion
     from machine.texts import takes
     from machine.body.figure import JOINTS
     r = defrobot.read() or {'drives': {}, 'body': {'weight': float('nan')}}
     return {'joints': list(JOINTS), 'rated': {j: float(r['drives'][j]['speed']) for j in JOINTS if j in r['drives']},
-            'weight': float(r['body']['weight']), 'natural_s': float(takes.TICK_S)}
+            'weight': float(r['body']['weight']), 'natural_s': float(takes.TICK_S), 'brace': motion.BRACE_SURETY}
 
 
 class Watch:
@@ -99,3 +102,38 @@ class Watch:
                 on['failed'] = True
                 fired.append({'t': t, 'analyzer': name, 'event': 'error', 'error': '%s: %s' % (type(exc).__name__, exc)})
         return out + fired
+
+
+def recorded(s, name):
+    """Her session `s` recorded to `introspect.RECORDINGS`/`name`.jsonl (`gate.Scope`, `every_s`):
+    every stream a sample each of her page's frames (`sprung.SAY_S`), and whole at its own clock over
+    each window a capture her analyzers mark opens - a transition, a hand-over to what bears her, a
+    stumble, a fall -; a hook on her passes, on her snapshots (`introspect.Tap`). None, the recording
+    under way ended, its last written."""
+    from machine.process import introspect, sprung
+    from machine.rig import gate
+    was = s.pop('recording', None)
+    if was is not None:
+        was['on'] = False
+        was['scope'].disarm(s, was['key'])
+    if not name:
+        return None
+    scope, tap, w = gate.Scope(), introspect.Tap(), Watch()
+    r = {'scope': scope, 'on': True, 'key': scope.arm(s, {'tag': 'record', 'file': name, 'every_s': sprung.SAY_S},
+                                                      lambda notice: None)}
+
+    def hook(s):
+        if not r['on']:
+            return
+        try:
+            scope.passed(s)
+            snap = tap.passed(s)
+            if snap is not None:
+                scope.fired(r['key'], w.step(snap))
+            scope.closed(s)
+        except Exception as exc:
+            r['on'], s['refused'] = False, 'recording %s: %s: %s' % (name, type(exc).__name__, exc)
+            scope.dropped(s)
+    s['each'].append(hook)
+    s['recording'] = r
+    return r

@@ -148,9 +148,81 @@ def test_the_analyzers_reload_as_she_runs(report):
                  (events(told, 'fire'), events(later, 'fire'), events(gone, 'fire')))
 
 
+def test_a_spasm_is_past_her_own_walk(report):
+    """`motion.WALK_DEG_S` is her own flat walk's fastest driven joint, measured: 8 s of it every pass none
+    past it and within 5 % of it - a spasm the analyzer tells is no gait of hers."""
+    import os
+    import numpy as np
+    from machine.process import watch, worker
+    from machine.body.figure import JOINTS
+    motion, _state = watch.Watch()._load(os.path.join(watch.FOLDER, 'motion.py'))
+    s = worker.session()
+    for _ in range(300):
+        worker.stepped(s)
+    worker.apply(s, {'twist': (0.69, 0.0, 0.0)})
+    world, top = s['g']['world'], 0.0
+    driven = np.array([j in watch.meta()['rated'] for j in JOINTS])
+    for _ in range(int(8.0 / worker.DT)):
+        worker.stepped(s)
+        top = max(top, float(np.degrees(np.abs(world.data.qvel[world.vadr]))[driven].max()))
+    report.check("her walk's fastest driven joint within 5 % under WALK_DEG_S", 0.95 * motion.WALK_DEG_S <= top <= motion.WALK_DEG_S,
+                 '%.1f deg/s against %.1f' % (top, motion.WALK_DEG_S))
+
+
+def test_a_recording_is_60_hz_and_whole_about_her_stumble(report):
+    """R's recording (`watch.recorded`) of her slip: 60 Hz between its windows, its blocks one after
+    another, a spasm told before her stumble and both whole in a window, told
+    (`tools/sim/recording.py`)."""
+    import math
+    import os
+    import numpy as np
+    from machine.process import introspect, sprung, watch, worker
+    from machine.rig import gate
+    from tools.sim import recording
+    s, name = worker.session(), 'test_introspect_%d' % os.getpid()
+    worker.apply(s, {'scenario': 'slip'})
+    for _ in range(300):
+        worker.stepped(s)
+    watch.recorded(s, name)
+    worker.apply(s, {'say': 'walk'})
+    while s['fallen_at'] is None or s['g']['t'] < s['fallen_at'] + 1.5:
+        worker.stepped(s)
+    scope = s['recording']['scope']
+    watch.recorded(s, None)
+    path = os.path.join(introspect.RECORDINGS, name + '.jsonl')
+    for _ in range(200):
+        if not scope.pending:
+            break
+        time.sleep(0.1)
+    try:
+        gates = gate.read(path)
+        spans = sorted(g['meta']['window'] for g in gates)
+        dts = np.concatenate([np.diff(g['streams']['world'][0]) for g in gates
+                              if g['meta']['name'] == 'every' and len(g['streams'].get('world', ((),))[0]) > 1])
+        events = [e for g in gates for e in g['streams'].get('events', ((), []))[1]]
+        at = lambda name_: min((e['t'] for e in events if e['event'] == name_), default=math.inf)
+        inside = lambda t: any(g['meta']['window'][0] <= t <= g['meta']['window'][1]
+                                                 for g in gates if g['meta']['name'] != 'every')
+        report.check('60 Hz between its windows, its blocks one after another',
+                     len(dts) and abs(dts.mean() - sprung.SAY_S) < 1e-3 and dts.max() <= sprung.SAY_S + 1.5e-3
+                     and all(b[0] > a[1] for a, b in zip(spans, spans[1:])),
+                     'dt %.4f..%.4f s, %d blocks' % (dts.min(), dts.max(), len(spans)))
+        report.check('a spasm told before her stumble, both in a window',
+                     at('spasm') < at('stumble') < math.inf
+                     and inside(at('spasm')) and inside(at('stumble')),
+                     'spasm %s, stumble %s' % (at('spasm'), at('stumble')))
+        text = recording.told(path)
+        report.check('told: its windows, its stumble a row', 'support.stumble' in text and '|tau| N m' in text,
+                     text[:300])
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
 ROSTER = (test_the_layouts_are_her_codes_own, test_a_client_reads_her_layers_live,
           test_a_traced_pass_names_her_calls_and_her_observer, test_her_analyzers_reduce_as_the_probes_do,
-          test_the_analyzers_reload_as_she_runs)
+          test_the_analyzers_reload_as_she_runs, test_a_spasm_is_past_her_own_walk,
+          test_a_recording_is_60_hz_and_whole_about_her_stumble)
 
 
 def main(argv=None):

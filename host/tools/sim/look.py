@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """The gynoid as the eye sees her, measured a stage a row: a HUMANOID recording.
 
-A recording (R on the page, build/recordings/*.csv) - the rows the page hears from her loop
+A recording (R on the page, recordings/*.csv) - the rows the page hears from her loop
 (`humanoid_keys.row`); her walk simulated is `tools/sim/ortho.py --look`'s, the same rows.
 
     python tools/sim/look.py --last                 # the newest recording
-    python tools/sim/look.py --csv build/recordings/humanoid_20260928_070724.csv
+    python tools/sim/look.py --csv recordings/humanoid_20260928_070724.csv
     python tools/sim/look.py --last --brief         # the stages in a line, the walk's measures
     python tools/sim/look.py --last --fbx build/walk.fbx   # her steady walk written a take (mocap.py)
 
@@ -24,7 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools import REPO
+from machine.process.introspect import RECORDINGS
 from tools.sim.strides import _faces, _gap, _lean, _mid, _out, _p, _roll, walked
 
 #: The head's rest pitch in the neck's offset (`figure.SEGMENTS`: 0.09 up, 0.012 on), deg.
@@ -125,7 +125,7 @@ def main(argv=None):
                         help="the stages in a line and the walk's measures: no tables")
     parser.add_argument('--fbx', help='her steady walk written a take here (`fbx.wrote`)')
     args = parser.parse_args(argv)
-    found = glob.glob(os.path.join(REPO, 'build', 'recordings', '*.csv')) if args.last else []
+    found = glob.glob(os.path.join(RECORDINGS, '*.csv')) if args.last else []
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
         print('no recording: R on the HUMANOID page records one, --last or --csv measures it; '

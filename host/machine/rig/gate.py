@@ -16,7 +16,11 @@ gate: a metadata line {'gate': its trigger's name, tag, event and time, the wind
 expected - what makes it and its words, its kind, period, the most it fits and fields -}; its records {'t',
 's', 'v'} in time, the streams interleaved - one instant's in her pass's order -, an aperiodic
 stream's last before the window first: the value it held; a trailer {'gated': each stream's count, the
-triggers held off, a cut}. A vector's 'v' holds its fields at their offsets ('at', 'n'; 'of' the
+triggers held off, a cut}. A gate of `every_s` records between its windows too: its streams a
+sample each `every_s` (her page's 60 Hz), written a block a `post_s` behind her by `pre_s` - its
+metadata named 'every', the span written its window -, a trigger's window whole at full rate
+between them, drawn on a `post_s` past each trigger it holds off (cut 'continued' where it outlasts
+its rings, opened on); `file` names its file. A vector's 'v' holds its fields at their offsets ('at', 'n'; 'of' the
 names its entries are, 'each' their components, names-major); a record's is the record. Her loop
 copies a window's samples and hands them on; a process of the scope's, fed through a pipe, encodes
 and writes them - encoded beside her loop, a gate's JSON held her passes 0.4 s; handed on, 36 ms -
@@ -36,8 +40,10 @@ import threading
 import time
 import typing
 
-#: Where gates are written, a file an arming.
-CAPTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'build', 'telemetry')
+from machine.process import introspect
+
+#: Where gates are written, a file an arming (`introspect.RECORDINGS`).
+CAPTURES = introspect.RECORDINGS
 
 
 def _ring(row, lay, span, s):
@@ -67,17 +73,33 @@ def _put(ring, t, row, s):
     ring['t'][k], ring['k'] = t, ring['k'] + 1
 
 
-def _window(ring, lo, hi):
+def _window(ring, lo, hi, held=True):
     """(times, samples) of `ring` within [lo, hi] in time: a vector's rows copied; a record's
-    records, an aperiodic one's last before `lo` first - the value it held."""
+    records, an aperiodic one's last before `lo` first where `held` - the value it held."""
     import numpy as np
     if ring['lay'] is not None:
         idx = np.flatnonzero((ring['t'] >= lo) & (ring['t'] <= hi))
         idx = idx[np.argsort(ring['t'][idx], kind='stable')]
         return ring['t'][idx].tolist(), ring['v'][idx]
-    held = [x for x in ring['d'] if x[0] < lo][-1:] if ring['period'] is None else []
+    held = [x for x in ring['d'] if x[0] < lo][-1:] if held and ring['period'] is None else []
     got = held + [x for x in ring['d'] if lo <= x[0] <= hi]
     return [t for t, _r in got], [r for _t, r in got]
+
+
+def _thinned(ring, lo, hi, shut, every, last):
+    """(times, samples) of `ring` in (lo, hi] - (lo, hi) where not `shut` -, a periodic stream's
+    first each `every` s past the bucket `last[0]` it last gave, which it moves on; a record's whole."""
+    import numpy as np
+    t = ring['t'] if ring['lay'] is not None else np.array([x[0] for x in ring['d']], float)
+    idx = np.flatnonzero((t > lo) & ((t <= hi) if shut else (t < hi)))
+    idx = idx[np.argsort(t[idx], kind='stable')]
+    if ring['period'] is not None and len(idx):
+        b = np.floor(t[idx] / every)
+        keep = np.r_[True, b[1:] != b[:-1]] & (b > last[0])
+        idx, last[0] = idx[keep], float(b[keep][-1]) if keep.any() else last[0]
+    if ring['lay'] is not None:
+        return t[idx].tolist(), ring['v'][idx]
+    return [float(t[i]) for i in idx], [ring['d'][i][1] for i in idx]
 
 
 def _described(row, lay, s):
@@ -107,24 +129,27 @@ class Scope:
         self.keys, self.writer, self.pending = itertools.count(), None, {}
 
     def arm(self, s, spec, told):
-        """A gate of `spec` - {triggers, tag, pre_s, post_s, count, streams}, each optional - armed in
+        """A gate of `spec` - {triggers, tag, pre_s, post_s, count, streams, every_s, file}, each optional - armed in
         her session `s`; `told(notice)` hears it armed and each gate written. Its key."""
         from machine.rig import streams
         from machine.texts import takes
         from machine.errors import MachineError
         half = float(takes.ENTER_S)
         spec = typing.cast(typing.Any, dict({'triggers': None, 'tag': None, 'pre_s': half, 'post_s': half, 'count': None,
-                                             'streams': None}, **{k: v for k, v in (spec or {}).items() if v is not None}))
+                                             'streams': None, 'every_s': None, 'file': None},
+                                            **{k: v for k, v in (spec or {}).items() if v is not None}))
         unknown = sorted(set(spec['streams'] or ()) - set(streams.NAMES))
         if unknown:
             raise MachineError('no stream %s; her streams: %s' % (', '.join(unknown), ', '.join(streams.NAMES)))
         key = next(self.keys)
         os.makedirs(CAPTURES, exist_ok=True)
-        path = os.path.join(CAPTURES, '%s_%s.jsonl' % (time.strftime('%Y%m%d_%H%M%S'), re.sub(r'\W+', '_', spec['tag'] or 'gate')))
+        path = os.path.join(CAPTURES, (spec['file'] or '%s_%s' % (time.strftime('%Y%m%d_%H%M%S'),
+                                                                   re.sub(r'\W+', '_', spec['tag'] or 'gate'))) + '.jsonl')
         names = [n for n in streams.NAMES if spec['streams'] is None or n in spec['streams']]
-        self.gates[key] = {'spec': spec, 'streams': names, 'told': told, 'path': path, 'armed': True, 'open': None, 'n': 0}
+        self.gates[key] = {'spec': spec, 'streams': names, 'told': told, 'path': path, 'armed': True, 'open': None, 'n': 0,
+                           'from': float(s['g']['t']), 'buckets': {}}
         self._laid(s)
-        told({'t': float(s['g']['t']), 'analyzer': 'gate', 'event': 'armed', 'file': path, 'streams': names, **spec})
+        told({'t': float(s['g']['t']), 'analyzer': 'gate', 'event': 'armed', 'streams': names, **spec, 'file': path})
         return key
 
     def disarm(self, s, key):
@@ -134,6 +159,8 @@ class Scope:
             return
         if g['open'] is not None:
             self._gated(s, key, 'disarmed')
+        if g['spec']['every_s']:
+            self._every(key, math.inf, True)
         del self.gates[key]
         if not self.gates:
             s['heard'], self.was, self.rings, self.polled, self.last = self.was, None, {}, [], None
@@ -177,9 +204,12 @@ class Scope:
         """A new epoch, her time from its start: each open window written as it stands; the rings anew."""
         for key in [k for k, g in self.gates.items() if g['open'] is not None]:
             self._gated(s, key, 'epoch')
+        for key in [k for k, g in self.gates.items() if g['spec']['every_s'] and 'events' in g]:
+            self._every(key, math.inf, True)
         self.rings, self.last = {}, None
         for g in self.gates.values():
             g.pop('events', None)
+            g['from'], g['buckets'] = -math.inf, {}
         self._laid(s)
 
     def passed(self, s):
@@ -210,28 +240,69 @@ class Scope:
             name, triggers = '%s.%s' % (e.get('analyzer'), e.get('event')), g['spec']['triggers']
             if not (name in triggers if triggers else bool(e.get('capture'))):
                 continue
+            t, sp = float(e['t']), g['spec']
             if g['open'] is not None:
-                g['open']['held_off'].append({'name': name, 't': float(e['t'])})
-            g['open'] = g['open'] or ({'t': float(e['t']), 'name': name, 'event': e, 'held_off': []} if g['armed'] else None)
+                g['open']['held_off'].append({'name': name, 't': t})
+                g['open']['last'] = {'t': t, 'name': name, 'event': e}
+                g['open']['until'] = max(g['open']['until'], t + sp['post_s']) if sp['every_s'] else g['open']['until']
+            opened = g['open'] is None and g['armed']
+            g['open'] = g['open'] or ({'t': t, 'name': name, 'event': e, 'held_off': [], 'lo': t - sp['pre_s'],
+                                       'until': t + sp['post_s']} if g['armed'] else None)
             g['armed'] = g['armed'] and g['open'] is None
+            if opened and sp['every_s']:
+                self._every(key, t - sp['pre_s'], False)
 
     def closed(self, s):
-        """Each window its post has passed - this pass begun at or after its end - written."""
+        """Each window its post has passed - this pass begun at or after its end - written; a gate of
+        `every_s` with none open, what lies `pre_s` behind her once a `post_s` of it is unwritten; its
+        window a trigger held off has drawn on past what its rings hold, written so far and opened on."""
         if self.clock is None:
             return
         t0 = float(self.clock['t0'])
         for key, g in list(self.gates.items()):
-            if g['open'] is not None and t0 >= g['open']['t'] + g['spec']['post_s']:
+            sp, o = g['spec'], g['open']
+            if o is not None and t0 >= o['until']:
                 self._gated(s, key, None)
+            elif o is not None and sp['every_s'] and t0 - o['lo'] >= sp['pre_s'] + sp['post_s']:
+                self._gated(s, key, 'continued')
+                g['open'], g['armed'] = dict(o, **o.pop('last', {}), held_off=[], lo=math.nextafter(g['from'], math.inf)), False
+            elif g['open'] is None and sp['every_s'] and t0 - sp['pre_s'] - g['from'] >= sp['post_s']:
+                self._every(key, t0 - sp['pre_s'], True)
+
+    def _every(self, key, hi, shut):
+        """The gate `key`'s streams since what it last wrote up to `hi` - `shut`, `hi` with them -, a
+        sample each `every_s`, to the writer as a block named 'every'; none there, nothing."""
+        g = self.gates[key]
+        sp, lo = g['spec'], g['from']
+        if hi <= lo:
+            return
+        rings = dict(self.rings, events=g['events'])
+        taken = {n: _thinned(rings[n], lo, hi, shut, sp['every_s'], g['buckets'].setdefault(n, [-math.inf]))
+                 for n in g['streams']}
+        times = [t for ts, _v in taken.values() for t in ts]
+        g['from'] = hi if math.isfinite(hi) else max(times, default=lo)
+        if not times:
+            return
+        window = [min(times), max(times)]
+        meta = {'n': g['n'], 'name': 'every', 'tag': sp['tag'], 't': window[0], 'event': None, 'window': window,
+                'every_s': sp['every_s'], 'pre_s': sp['pre_s'], 'post_s': sp['post_s'], 'epoch': self.epoch,
+                'streams': {n: dict(rings[n]['meta'], expected=None) for n in g['streams']}}
+        trailer = {'n': g['n'], 'name': 'every', 'tag': sp['tag'], 'held_off': [], 'cut': None, 'to': window[1],
+                   'armed': g['armed']}
+        job = next(self.keys)
+        self.pending[job] = (g['told'], {'t': window[1], 'analyzer': 'gate', 'event': 'every', 'tag': sp['tag'],
+                                         'window': window, 'file': g['path']})
+        self._writer().put((job, g['path'], meta, taken, trailer))
 
     def _gated(self, s, key, cut):
         """The gate `key`'s window as the rings hold it to the writer, the gate armed again while its
         count allows; `cut` why it ends before its post, None where it does not."""
         g = self.gates[key]
         o, sp = g['open'], g['spec']
-        lo, hi = o['t'] - sp['pre_s'], o['t'] + sp['post_s']
+        lo, hi = o['lo'], min(o['until'], float(self.clock['t0'])) if cut and self.clock else o['until']
+        lo = max(lo, math.nextafter(g['from'], math.inf)) if sp['every_s'] else lo
         rings = dict(self.rings, events=g['events'])
-        taken = {n: _window(rings[n], lo, hi) for n in g['streams']}
+        taken = {n: _window(rings[n], lo, hi, not sp['every_s']) for n in g['streams']}
         g['n'], g['open'] = g['n'] + 1, None
         g['armed'] = sp['count'] is None or g['n'] < sp['count']
         most = lambda p: None if p is None else int(math.floor((hi - lo) / p)) + 1
@@ -240,6 +311,9 @@ class Scope:
                 'pre_s': sp['pre_s'], 'post_s': sp['post_s'], 'epoch': self.epoch, 'streams': streams_meta}
         trailer = {'n': g['n'], 'name': o['name'], 'tag': sp['tag'], 'held_off': o['held_off'], 'cut': cut,
                    'to': self.clock['t0'] if cut and self.clock else hi, 'armed': g['armed']}
+        g['from'] = trailer['to']
+        if sp['every_s']:
+            g['buckets'] = {n: [math.floor(g['from'] / sp['every_s'])] for n in g['streams']}
         job = next(self.keys)
         self.pending[job] = (g['told'], {'t': trailer['to'], 'analyzer': 'gate', 'event': 'gated', 'n': meta['n'],
                                          'name': meta['name'], 'tag': meta['tag'], 'at': meta['t'], 'file': g['path'],
@@ -329,6 +403,9 @@ def told(g, fields=()):
                                                        for n, d in m['streams'].items()}}
     for name in fields:
         stream, field = name.split('.', 1)
+        if not len(g['streams'].get(stream, ((), ()))[0]):
+            out[name] = None
+            continue
         d, (ts, vs) = m['streams'][stream], g['streams'][stream]
         f = d['fields'][field]
         block = vs[:, f['at']:f['at'] + f['n']]
@@ -342,7 +419,7 @@ def told(g, fields=()):
 def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('file', nargs='?', help='a gate file (build/telemetry/*.jsonl)')
+    parser.add_argument('file', nargs='?', help='a gate file (recordings/*.jsonl)')
     parser.add_argument('--field', action='append', default=[], help="'stream.FIELD': its largest entry each gate")
     parser.add_argument('--writes', action='store_true', help="a scope's writer: gates piped in, written")
     args = parser.parse_args(argv)

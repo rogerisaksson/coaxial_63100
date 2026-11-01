@@ -4,8 +4,7 @@
     server = introspect.attach(s, port)            # serve them on 127.0.0.1:port, a JSON line a pass
     rows = introspect.read(port, n=10)             # a client: the next n snapshots
     told = introspect.events(port, seconds=8)       # her analyzers' events over 8 s (`watch`)
-    notices = introspect.gated(port, {'tag': 'lie', 'count': 2}, 30)   # a gate armed on them (`gate`)
-    python -m machine.process.introspect --attach 8765     # the same from a shell, a JSON line each
+    notices = introspect.gated(port, {'tag': 'lie', 'count': 2}, 30)   # a gate armed on them (`gate`)    python -m machine.process.introspect --attach 8765     # the same from a shell, a JSON line each
     python -m machine.process.introspect --attach 8765 --events   # her analyzers' events alone, a line each
     python -m machine.process.introspect --attach 8765 --gate support.fall --tag fall   # a gate's notices
 
@@ -29,6 +28,7 @@ import functools
 import importlib
 import inspect
 import json
+import os
 import queue
 import socket
 import socketserver
@@ -39,6 +39,9 @@ import typing
 
 #: A client's queue of snapshots; past it the oldest is dropped - the loop never waits on a reader.
 QUEUED = 64
+#: Where every recording of her goes - a page's R, a gate's windows: the repo's own folder.
+RECORDINGS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+                          'recordings')
 
 
 @functools.lru_cache(maxsize=None)
@@ -175,7 +178,7 @@ def body(s, peaks=None):
     """Her body as her page shows it, a pass of her session `s`: her joints' angles (deg) and speeds
     (deg/s) by name (`figure.JOINTS`, the world's addresses), their fastest since the last snapshot
     where `peaks` (deg/s) says, else their speeds; her soles' loads (N), her pelvis's place (m), what
-    she does, fallen, a say refused, her epoch, her errand's phase."""
+    she does, her surety (`motion.surety`), fallen, a say refused, her epoch, her errand's phase."""
     import numpy as np
     from machine.process import sprung
     from machine.body.figure import JOINTS
@@ -187,7 +190,7 @@ def body(s, peaks=None):
             'speeds': dict(zip(JOINTS, speeds.tolist())),
             'peaks': dict(zip(JOINTS, (np.abs(speeds) if peaks is None else peaks).tolist())),
             'loads': [float(v) for v in g['loads']], 'where': d.qpos[0:3].tolist(), 'doing': sprung.doing(g),
-            'fallen': s.get('fallen_at') is not None, 'refused': s.get('refused'), 'epoch': int(s.get('epoch', 0)),
+            'surety': float(g['surety']), 'fallen': s.get('fallen_at') is not None, 'refused': s.get('refused'), 'epoch': int(s.get('epoch', 0)),
             'errand': {'kind': er.get('kind'), 'phase': er.get('phase')} if er else None}
 
 

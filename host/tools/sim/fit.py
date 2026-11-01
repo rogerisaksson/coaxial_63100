@@ -417,7 +417,7 @@ def drawn(dressed):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--worst', type=int, default=12, help='the closest pairs shown')
-    parser.add_argument('--csv', help='poses from a recording (R, build/recordings/*.csv)')
+    parser.add_argument('--csv', help='poses from a recording (R, recordings/*.csv)')
     args = parser.parse_args(argv)
     from machine.body import drives, figure
     from tools.sim.strides import _out

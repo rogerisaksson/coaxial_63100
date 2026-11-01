@@ -302,7 +302,12 @@ def laid(s):
 
 def apply(s, command):
     """`command` heard at this pass, logged before it is done; a restart lays a new epoch, a link a
-    tuner's hook on each pass (`tap.attached`)."""
+    tuner's hook on each pass (`tap.attached`). A recording begun or ended (`watch.recorded`)
+    is not hers: never logged, never replayed."""
+    if 'record' in command:
+        from machine.process import watch
+        watch.recorded(s, command['record'])
+        return
     s['heard']((s['epoch'], s['passes'], s['g']['t'], command))
     if command.get('restart'):
         laid(s)
@@ -455,7 +460,8 @@ class Running(apart.Apart):
         """{'say': the gym's entry by its place, in place of what was to come} | {'walk': True}:
         her walk from rest | {'entries': [(label, wire, names)]} | {'gym': one of GYMS} |
         {'text': orthokinematics, begun now} | {'push': (x, y, z) N, 'seconds': s} |
-        {'restart': True}: laid anew. Any other key is refused, said with her state."""
+        {'restart': True}: laid anew | {'record': a file's name, or None}: recorded (`watch.recorded`).
+        Any other key is refused, said with her state."""
         super().send(**command)
 
     def heard(self):

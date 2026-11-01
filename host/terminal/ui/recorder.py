@@ -4,25 +4,27 @@
     recorder.added(rec, rows)                        # a frame's rows
     recorder.badge(rec)                              # '● REC ⠹ 1 234' while it records
     recorder.corner(rec, width)                      # the same in a drawing's top-right corner
-    path = recorder.saved(rec)                       # R again: build/recordings/humanoid_<time>.csv
+    path = recorder.saved(rec)                       # R again: recordings/humanoid_<time>.csv
 """
 import csv
 import os
 import time
 
 from coaxial.graphics.callouts import packed
-from tools import REPO
+from machine.process import introspect
 
-#: Where a page's recordings go, a CSV from a press to the next.
-RECORDINGS = os.path.join(REPO, 'build', 'recordings')
+#: Where a page's recordings go, a CSV from a press to the next (`introspect.RECORDINGS`).
+RECORDINGS = introspect.RECORDINGS
 #: The counter's wheel: a cell on per row written; its inks in a drawing.
 SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 INK, GROUND = (255, 96, 96), (10, 22, 35)
 
 
 def started(name, header):
-    """A recording of rows under `header`, its file named after `name`."""
-    return {'name': name, 'header': list(header), 'rows': [], 'began': time.monotonic()}
+    """A recording of rows under `header`, its file named after `name` and when it began (`stamp`:
+    her loop's own recording of the same, `watch.recorded`, is named so)."""
+    return {'name': name, 'header': list(header), 'rows': [], 'began': time.monotonic(),
+            'stamp': time.strftime(name + '_%Y%m%d_%H%M%S')}
 
 
 def added(rec, rows):
@@ -49,7 +51,7 @@ def saved(rec, folder=None):
     """`rec` written to a CSV in `folder` (RECORDINGS): its path."""
     folder = folder or RECORDINGS
     os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, time.strftime(rec['name'] + '_%Y%m%d_%H%M%S.csv'))
+    path = os.path.join(folder, rec['stamp'] + '.csv')
     with open(path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(rec['header'])
