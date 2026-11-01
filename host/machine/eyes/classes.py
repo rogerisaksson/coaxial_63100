@@ -1,8 +1,7 @@
 """What her eyes take a thing for: its class by its look and its box (the text's semantic classifier).
 
     names, whole = classes.of(kinds, centre, half, R, clear)   # each one's class, the thing each is a piece of
-    names = classes.named(things)                               # each box's class, None a piece or untold
-    built = classes.buildings(things)                           # [(cabin or house, centre, half sizes)]
+    names, ones, built = classes.read(things)                   # each box's class, the one thing it is of, buildings
 
 A thing is a box with a kind (`registry`'s): her eyes' look - the palette's nearest colour (`sight.LOOKS`) -, the
 stand-in's (`world.props()`), or a class already - a scene's chair, her registry's slot -, which stays. A look that
@@ -19,6 +18,10 @@ Of what she tells, a building (`houses`): its shell - walls, windows and doors, 
 have seen of it - with an opening in it, enclosing a floor, and what roofs it over; a cabin of one storey, else a
 house. Outside it what lies by it is its
 veranda - a floor - or its terrace - a platform -; a floor apart from it or a top sunk under her floor the ground.
+
+What is one thing, many to one (`grouped`): what of one class touches, slabs across each other apart - a window's
+panes and the posts between them, a stair's treads, not two walls at a corner -; a building's walls on one side one
+wall; a piece of furniture its top's, two chairs side by side two.
 """
 import os
 
@@ -97,12 +100,64 @@ FURNITURE = ('sofa', 'chair', 'table', 'bench', 'stool', 'cabinet', 'shelf')
 #: A building's shell, joined where its things meet; an opening in it makes it one - a garden's wall has none -; what
 #: roofs it over beside it its too; what stands it a storey high, a cabin's walls and doors under two of her.
 SHELL, OPENINGS, ROOFS, STOREY = ('wall', 'window', 'door'), ('window', 'door'), ('roof', 'ceiling'), ('wall', 'door')
+#: What she sees through, in her map in pieces where her eyes met its glass: one in one plane where no wall stands between.
+THROUGH = ('window', 'railing')
 
 
 def _beside(centre, e):
     """(n, n) whether boxes' footprints - centres and half extents along the room's axes (n, 3) - meet a cell apart."""
     gap, reach = np.abs(centre[:, None, ::2] - centre[None, :, ::2]), e[:, None, ::2] + e[None, :, ::2]
     return (gap <= reach + CELL_M + 1e-9).all(axis=2) & ~np.eye(len(centre), dtype=bool)
+
+
+def _plane(lo, hi):
+    """(n, n) whether boxes - corners `lo`, `hi` (n, 3) - lie in one wall's plane: each THIN across one floor axis, the
+    two a cell apart across it."""
+    middle, flat = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2] <= 0.5 * THIN + 1e-9
+    return (flat[:, None] & flat[None, :] & (np.abs(middle[:, None] - middle[None, :]) <= CELL_M + 1e-9)).any(axis=2)
+
+
+def _instances(names, whole, beside, lo, hi, built):
+    """(n,) the one thing each of `n` things told `names` is of, many to one - their `whole`s, which meet (`beside`),
+    their boxes' corners `lo`, `hi` (n, 3), the buildings `built` (`_houses`') -: its lowest index. A piece of
+    furniture its top's, two chairs side by side two; a building's walls on one side, its openings between them, one
+    wall; what she sees through (THROUGH) in one plane within her map's reach, no wall wider than THIN standing from her
+    floor between - a glass wall's panes, a door set in it, a rail either side of a stair -, one, two windows a wall
+    apart two; the rest what of one class touches - a window's panes and the posts between them, a stair's treads a
+    rise (STEP) apart, a lamp's post and shade, a rail along a side -, slabs across each other apart, as two walls at a
+    corner."""
+    n = len(names)
+    names = np.asarray(names, object)
+    middle, half, slack = 0.5 * (lo + hi), 0.5 * (hi - lo), np.where(names == 'stairs', STEP, CELL_M)
+    level = (np.abs(middle[:, None, 1] - middle[None, :, 1]) - half[:, None, 1] - half[None, :, 1]
+             <= np.maximum(slack[:, None], slack[None, :]) + 1e-9)
+    flat = half[:, ::2] <= 0.5 * THIN + 1e-9
+    slab = flat & ~flat[:, ::-1]
+    across = (slab[:, None, 0] & slab[None, :, 1]) | (slab[:, None, 1] & slab[None, :, 0])
+    one = np.array([k not in FURNITURE and k != 'thing' for k in names], bool)
+    link = (names[:, None] == names[None, :]) & beside & level & ~across & one[:, None] & one[None, :]
+    plane = _plane(lo, hi)
+    # what she sees through in one plane within her map's reach, no wall wider than THIN standing from her floor between
+    u = np.where(flat[:, 1], 0, 2)
+    a_lo, a_hi = lo[np.arange(n), u], hi[np.arange(n), u]
+    start, end = np.minimum(a_hi[:, None], a_hi[None, :]), np.maximum(a_lo[:, None], a_lo[None, :])
+    pier = np.flatnonzero((names == 'wall') & (lo[:, 1] <= STEP))
+    stood = ((np.minimum(a_hi[pier], end[:, :, None]) - np.maximum(a_lo[pier], start[:, :, None]) > THIN + 1e-9)
+             & plane[:, None, pier] & level[:, None, pier] & level[None, :, pier]).any(axis=2)
+    through = np.isin(names, THROUGH)
+    link |= (names[:, None] == names[None, :]) & through[:, None] & plane & level & ~stood & (end - start <= FAR_M + 1e-9)
+    for _name, _lo, _hi, members in built:
+        wall = np.zeros(n, bool)
+        wall[members] = names[members] == 'wall'
+        link |= wall[:, None] & wall[None, :] & plane
+    label = np.asarray(whole, int).copy()
+    while True:
+        low = np.minimum(label, np.where(link, label[None, :], n).min(axis=1))
+        low = low[low]
+        if (low == label).all():
+            break
+        label = low
+    return label
 
 
 def _houses(names, beside, lo, hi):
@@ -116,8 +171,7 @@ def _houses(names, beside, lo, hi):
     shell, opening, roof, storey = (np.array([k in kinds for k in names], bool) for kinds in (SHELL, OPENINGS, ROOFS, STOREY))
     middle, half = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2]
     near = (np.abs(middle[:, None] - middle[None, :]) - half[:, None] - half[None, :] <= FAR_M + 1e-9).all(axis=2)
-    flat = half <= 0.5 * THIN + 1e-9
-    plane = (flat[:, None] & flat[None, :] & (np.abs(middle[:, None] - middle[None, :]) <= CELL_M + 1e-9)).any(axis=2)
+    plane = _plane(lo, hi)
     label = np.where(shell, np.arange(n), n)
     while True:
         low = np.where(shell, np.minimum(label, np.where((near | plane) & shell[None, :], label[None, :], n).min(axis=1)), n)
@@ -206,29 +260,37 @@ def stacked(things):
             np.array([float(t[5]) if len(t) > 5 else 1.0 for t in things]))
 
 
-def houses(names, centre, half, R):
-    """[(class, centre (3,), half sizes (3,), members (k,))] of the buildings `n` things told `names` make (`_houses`) -
-    centres and half sizes (n, 3), turns (n, 3, 3) -: a cabin or a house, its box its shell's."""
+def grouped(names, whole, centre, half, R):
+    """((n,) the one thing each of `n` things told `names` - `of`'s, with their `whole`s - is of (`_instances`), the
+    buildings they make [(class, centre (3,), half sizes (3,), members (k,))] (`_houses`)), of their centres and half
+    sizes (n, 3) and turns (n, 3, 3)."""
     if not len(names):
-        return []
+        return np.zeros(0, int), []
     e = np.einsum('nij,nj->ni', np.abs(R), half)
-    return [(name, 0.5 * (lo + hi), 0.5 * (hi - lo), members)
-            for name, lo, hi, members in _houses(names, _beside(centre, e), centre - e, centre + e)]
+    lo, hi, beside = centre - e, centre + e, _beside(centre, e)
+    built = _houses(names, beside, lo, hi)
+    return (_instances(names, whole, beside, lo, hi, built),
+            [(name, 0.5 * (a + b), 0.5 * (b - a), members) for name, a, b, members in built])
 
 
-def buildings(things):
-    """[(class, centre, half sizes)] of the buildings boxes `things` make - `registry.boxes`' or `world.props()` -, told
-    by `of` and `houses`."""
+def read(things):
+    """What her eyes read of boxes `things` - `registry.boxes`' or `world.props()` -, at once: (each one's class, None
+    for what she cannot tell and for a piece of furniture other than its top - one of FURNITURE's not seen clear over
+    it or THIN across, a chair's back or legs -; the one thing each is of, its lowest index (`grouped`); the buildings
+    they make [(class, centre, half sizes)])."""
     kinds, centre, half, R, clear = stacked(things)
-    return [(name, tuple(c.tolist()), tuple(h.tolist()))
-            for name, c, h, _m in houses(of(kinds, centre, half, R, clear)[0], centre, half, R)]
+    names, whole = of(kinds, centre, half, R, clear)
+    ones, built = grouped(names, whole, centre, half, R)
+    top = (clear > 0.0) & (2.0 * half[:, ::2].min(axis=1) > THIN + 1e-9)
+    return ([None if name == 'thing' or (name in FURNITURE and not t) else name for name, t in zip(names, top)],
+            ones.tolist(), [(name, tuple(c.tolist()), tuple(h.tolist())) for name, c, h, _m in built])
 
 
 def named(things):
-    """Each of `things` - boxes, `registry.boxes`' or `world.props()` - by its class (`of`); None for a thing she cannot
-    tell, and for a piece of furniture other than its top - a chair's back or legs, a table's legs -: one of
-    FURNITURE's not seen clear over it or THIN across."""
-    kinds, centre, half, R, clear = stacked(things)
-    names = of(kinds, centre, half, R, clear)[0]
-    top = (clear > 0.0) & (2.0 * half[:, ::2].min(axis=1) > THIN + 1e-9)
-    return [None if name == 'thing' or (name in FURNITURE and not t) else name for name, t in zip(names, top)]
+    """Each of boxes `things` by its class, None for what she cannot tell and a piece of furniture (`read`)."""
+    return read(things)[0]
+
+
+def buildings(things):
+    """[(class, centre, half sizes)] of the buildings boxes `things` make (`read`)."""
+    return read(things)[2]

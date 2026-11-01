@@ -224,12 +224,12 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
 
 
 def named(g):
-    """Her things by what each is and the buildings they make (`classes`), told anew only as they change: the page
-    names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
+    """Her things by what each is, the one thing each is of and the buildings they make (`classes.read`), told anew only
+    as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
     from machine.eyes import registry
     key = registry.keyed(g['things'])
     if g.get('_named', (None,))[0] != key:
-        g['_named'] = (key, classes.named(g['things']), classes.buildings(g['things']))
+        g['_named'] = (key,) + classes.read(g['things'])
     return g['_named'][1:]
 
 
@@ -329,7 +329,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
             'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
-            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], **dict(zip(('named', 'buildings'), named(g))),
+            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], **dict(zip(('named', 'groups', 'buildings'), named(g))),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
             'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,

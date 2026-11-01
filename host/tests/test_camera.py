@@ -97,7 +97,9 @@ CABIN = (('wall', _box('timber', (0.0, 1.2, 0.0), (3.0, 1.2, 0.05), 0.0)),
 def test_a_cabin_told_from_outside(report):
     """A cabin and what lies about it, each from its box (CABIN, `classes.of`): its walls, window, door, roof and floor,
     outside it its veranda, terrace, rail, a stair down and the ground; the lot one cabin (`classes.buildings`); her
-    vision's panel names it from its veranda, not from inside it (`scanner.seen`)."""
+    vision's panel names it from its veranda, not from inside it (`scanner.seen`), and each thing about her once - the
+    front's wall either side of its window and door one, the stair's treads one stair (`scanner.scan`)."""
+    import collections
     from machine.eyes import classes
     from terminal.views import scanner
     told, boxes = [t for t, _b in CABIN], [b for _t, b in CABIN]
@@ -110,13 +112,17 @@ def test_a_cabin_told_from_outside(report):
     out, within = ({d['kind'] for d in scanner.VisionScanner().seen(now)} for now in (outside, inside))
     report.check("her panel names the cabin, its door and window from its veranda, the cabin not from inside it",
                  {'cabin', 'door', 'window'} <= out and 'cabin' not in within, '%s; %s' % (sorted(out), sorted(within)))
+    about = collections.Counter(d['kind'] for d in scanner.VisionScanner().scan(outside, reach=8.0))
+    report.check('her panel names each thing about her once, the cabin its four walls',
+                 about['wall'] == 4 and all(n == 1 for k, n in about.items() if k != 'wall'), str(dict(about)))
 
 
 def test_the_lodge_from_its_deck(report):
     """Out on the lodge's deck (`floor.scenario` 'lodge') after a look round inside, two looks each way - back, along the
     deck, back again, its facade and a corner seen -: her picture tells the cabin, its door and its windows looking back,
     the veranda, the ground and the rail looking along the deck, no material (`sight.Keep.hulls`); the stand-in's panel
-    names the cabin and its door there (`scanner.seen`)."""
+    names the cabin and its door there (`scanner.seen`); her picture back one door and one window - the glass gable's
+    panes -, the stand-in's panel within 8 m one window, door, stair down, roof, lamp and rail (`scanner.scan`)."""
     import collections
     from machine.body import figure
     from machine.eyes import classes, sight
@@ -147,6 +153,12 @@ def test_the_lodge_from_its_deck(report):
                                                                'props': props})}
     report.check("the stand-in's panel on the deck names the cabin and its door", {'cabin', 'door'} <= panel,
                  str(sorted(panel)))
+    about = collections.Counter(d['kind'] for d in scanner.VisionScanner().scan(
+        {'where': (room.STAIR_X, 0.9, 5.2), 'heading': math.pi, 'props': props}, reach=8.0))
+    report.check('one thing one: back one door and one window; within 8 m one window, door, stair down, roof, lamp, rail',
+                 shown['back']['door'] == shown['back']['window'] == 1
+                 and all(about[k] == 1 for k in ('window', 'door', 'stairs_down', 'roof', 'lamp', 'railing')),
+                 '%s; %s' % (dict(shown['back']), dict(about)))
 
 
 def test_her_loop_sees_through_it(report):
@@ -223,7 +235,7 @@ def test_her_page_keeps_its_pace(report):
             setattr(affordance, name, f)
     frame_ms = 1e3 * sorted(took)[len(took) // 2]
     report.check('the page names none of her %d things, her worker has: %d named' % (len(now['things']), sum(map(bool, now['named']))),
-                 calls[0] == 0 and len(now['named']) == len(now['things']), '%d calls' % calls[0])
+                 calls[0] == 0 and len(now['named']) == len(now['groups']) == len(now['things']), '%d calls' % calls[0])
     report.check("a frame's scanner work under a quarter of a frame at %.0f a second" % FPS_CAP,
                  frame_ms < 250.0 / FPS_CAP, '%.2f ms, a quarter %.1f' % (frame_ms, 250.0 / FPS_CAP))
 
@@ -275,7 +287,8 @@ def test_a_house_told_by_its_boxes(report):
     facade and its wall make, a scene's rug, a sliver
     of another colour on a wall the wall's; a chair's
     back and leg, a sofa's back and a table's leg the top's and unnamed (`classes.named`); her classes told again
-    stay."""
+    stay; what is of one thing one - a pane and its post, a wall and what lies on it, a stair's treads, a chair's
+    pieces -, a door, a landing, a second table and two windows a wall apart apart (`classes.read`)."""
     from machine.eyes import classes
     told, boxes = [t for t, _b, _w in HOUSE], [b for _t, b, _w in HOUSE]
     names, whole = classes.of(*classes.stacked(boxes))
@@ -289,6 +302,14 @@ def test_a_house_told_by_its_boxes(report):
                  unnamed == [16, 17, 19, 21, 27] and all(n == t for n, t in zip(named, told) if n is not None), str(unnamed))
     again = classes.of(names, *classes.stacked(boxes)[1:])[0]
     report.check('her classes told again stay', again == names, str([(a, b) for a, b in zip(names, again) if a != b]))
+    ones = classes.read(boxes)[1]
+    one = lambda *at: len({ones[i] for i in at}) == 1
+    joined = ((1, 2), (0, 4, 34), (6, 7), (10, 11, 12), (15, 16, 17), (18, 19), (20, 21), (29, 30))
+    apart = classes.read([_box('timber', (0.0, 1.2, 9.0), (0.5, 1.2, 0.05), 0.0)]
+                         + [_box('glass', (x, 1.2, 9.0), (0.5, 0.6, 0.01), 0.0) for x in (-1.0, 1.0)])[1]
+    report.check('what is of one thing one; a door, a landing, a second table, two windows a wall apart apart',
+                 all(one(*at) for at in joined) and not any(one(*at) for at in ((1, 3), (12, 13), (20, 22)))
+                 and apart[1] != apart[2], '%s; %s' % (ones, apart))
 
 
 def test_her_registry_keeps_what_each_is(report):
