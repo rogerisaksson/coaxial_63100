@@ -161,7 +161,7 @@ def one(x, z, yaw, verb, said=False, rise=False):
         worker.apply(w.s, {'say': verb})
     else:
         out['key'] = offers[pick[0]][0]
-        gym.chose(st, pick[0])
+        gym.chose(st, gym.DIGITS.index(offers[pick[0]][0][1:]))
     t0, dock = g['t'], []
     goal, rise_verb, limit = GOALS[verb]
 

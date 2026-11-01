@@ -1,5 +1,6 @@
 """Her wayfinder apart: her dock and way planned in a process of their own, as her camera's map is.
 
+A peek - a thing's dock foreseen (`machine.way.peek`) - is taken when it is ready, never waited for.
 A watch asked at t is answered at t + LATENCY_S (`run-wayfinder-apart`), a dock or a plan she stands for at
 once, whatever the wall's pace: her loop waits on one only where the planner is slower than that, and a run
 is the same at any pace - a dock told 0.25 s on shifted her walk's onset after her turn in place and she
@@ -32,6 +33,8 @@ def answered(ask):
     face fits her; a plan's {stops, curve, held}; a watch's that where her way left is barred, else {}."""
     import numpy as np
     from machine.way import dock, route
+    if ask['kind'] == 'peek':
+        return {'laid': dock.docked(ask['at'], ask['things'], ask['floor'], *ask['dock'])}
     laid = dock.docked(ask['at'], ask['things'], ask['floor'], *ask['dock']) if ask['kind'] == 'dock' else {}
     if laid is None:
         return {'laid': None}
@@ -79,6 +82,13 @@ class Planner:
         self.asked_at = None
         return self._told()
 
+    def ready(self):
+        """The ask in flight's answer where its process has given it, None else: never waited for."""
+        if self.asked_at is None or self._told_q.empty():
+            return None
+        self.asked_at = None
+        return self._told()
+
     def _told(self):
         told = self._told_q.get()
         if told is None:
@@ -107,6 +117,10 @@ class Here:
             return None
         self.asked_at = None
         return self._told
+
+    def ready(self):
+        told, self.asked_at = (self._told if self.asked_at is not None else None), None
+        return told
 
 
 if __name__ == '__main__':

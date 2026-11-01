@@ -208,12 +208,14 @@ def prompt(state):
 def ballooned(state, offer, width, height, travel, docked=()):
     """The viewport's balloons: each of `offer` (`offered`'s) at a thing its key and word on it, on
     a drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
-    cells; framed lit while F's choice is open (`coaxial.graphics.balloons`)."""
+    cells; framed lit while F's choice is open; her errand's between its docks (`dock.shown`, `spokes`)."""
     on = [o for o in offer if o[3] is not None]
-    places = gynoid.cells([at for _k, _v, _w, at, _t in on], width, height, yaw=state['yaw'],
+    docks = (state.get('now') or {}).get('docks') or []
+    places = gynoid.cells([o[3] for o in on] + [at for d in docks for at in d['at']], width, height, yaw=state['yaw'],
                           pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
-    return balloons.laid([(p, key, word) for p, (key, _v, word, _a, _t) in zip(places, on) if p],
-                         width, height, lit=state.get('choosing') is not None, shut=frozenset(docked))
+    return balloons.docked(places, [o[:3] for o in on], docks, width, height, state.get('choosing') is not None,
+                           frozenset(docked))
+
 
 def touring(state):
     """Whether the tour (`machine.way.tour`) is commanding her."""
@@ -249,8 +251,7 @@ def hopped(state):
 
 
 def chose(state, k=None):
-    """The offer keyed F and `k`'s digit said - the first shown with `k` None -: its verb at its thing
-    (`at`, x z), the floor's at none."""
+    """The offer keyed F and `k`'s digit said, the first with None: its verb at its thing (`at`, x z)."""
     for _key, verb, _word, at, _thing in [o for o in offered(state) if k is None or o[0] == 'F' + DIGITS[k]][:1]:
         said(state, verb, **({} if at is None else {'at': (at[0], at[2])}))
 

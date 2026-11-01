@@ -49,7 +49,8 @@ def shown(er):
         return None
     hn = math.atan2(er['nx'], er['nz'])
     off = [abs(math.remainder(h - hn, math.tau)) for h, _x, _z in er['docks']]
-    return {'at': [(x, er['top'], z) for _h, x, z in er['docks']], 'chosen': min(range(len(off)), key=off.__getitem__)}
+    return {'at': [(x, er['top'], z) for _h, x, z in er['docks']], 'chosen': min(range(len(off)), key=off.__getitem__),
+            'kind': er['kind'], 'slot': er.get('slot')}
 
 
 def _floor(g):

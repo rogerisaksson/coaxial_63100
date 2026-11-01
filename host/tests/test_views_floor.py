@@ -200,9 +200,15 @@ def test_balloons_on_what_she_sees(report):
     text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))
     report.check('a balloon on the viewport over each', all(w in text for w in ('F1 go out', 'F2 lie down', 'F3 sit')),
                  text)
-    st['now'] = dict(st['now'], dock={'at': [(-1.8, 0.47, 0.8), (-1.8, 0.47, 2.8)], 'chosen': 1})
-    rung = sorted(chr(code) for code, _ink in scanner.ringed(st, 110, 36, (0.0, 0.0)).values())
-    report.check("her errand's docks a ring each on the viewport, the one laid filled", rung == sorted('○◉'), rung)
+    st['now'] = dict(st['now'], docks=[{'at': [(-1.8, 0.47, 0.8), (-1.8, 0.47, 2.8)], 'chosen': 1, 'kind': 'lie_bed'}])
+    drawn = gym.ballooned(st, gym.offered(st), 110, 36, (0.0, 0.0))
+    rings = {chr(code): at for at, (code, _ink) in drawn.items() if chr(code) in '○◉'}
+    mid = tuple(round(sum(c) / len(rings)) for c in zip(*rings.values()))
+    tip = chr(drawn.get(mid, (32, 0))[0])
+    spoked = sum(0x2800 < code < 0x2900 for _at, (code, _ink) in drawn.items())
+    report.check("her errand's docks a ring each on the viewport, the one laid filled, the bed's balloon's "
+                 'tip between them, a line of dots to each', sorted(rings) == sorted('○◉') and tip in '▾◂▸'
+                 and spoked > 0, (rings, mid, tip, spoked))
 
 
 ROSTER = (test_her_horizon, test_surface_arrows_setpoint_actual_and_landing_zones, test_balloons_on_what_she_sees)

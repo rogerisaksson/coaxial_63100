@@ -83,11 +83,11 @@ def _laid(g, sc, found, at):
     door in one motion without the stage she slammed the panel to its 1.92 rad stop in 0.5 s and its
     rebound felled her outside; settled at the stage first she grinds it open over 3 s and walks out."""
     from machine.texts import maneuver
-    from machine.way import affordance
+    from machine.way import peek
     standoff = maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0
     box = found[6]
     er = dict(_looking(g, sc, at), phase='plan', through=sc in _FACES, thing=found[4], standoff=standoff,
-              slot=int(box[4]) if len(box) > 4 else -1, top=float(affordance.top(box)))
+              slot=int(box[4]) if len(box) > 4 else -1, top=peek.level(sc, box))
     _asked(g, er, 'dock', dock=(sc, box, standoff))
     return er
 

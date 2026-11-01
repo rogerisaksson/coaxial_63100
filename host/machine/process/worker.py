@@ -9,7 +9,7 @@ from machine.process import apart, placed, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
 from machine.texts import ortho
-from machine.way import dock, planner
+from machine.way import peek, planner
 from machine.law import se2
 from machine.eyes import vision
 from machine.identify import wear
@@ -389,11 +389,11 @@ def stepped(s):
 
 
 def told(s):
-    """Her state as the page hears it (`sprung.state`), her epoch, her wear and her errand's docks
-    (`dock.shown`) beside it, as its last window left it."""
+    """Her state as the page hears it (`sprung.state`), her epoch, her wear and her docks foreseen
+    (`peek.told`) beside it, as its last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],
                              s['says'], s['refused'], s['headroom']), epoch=s['epoch'], wear=s['wear_told'],
-                shutdown=s['shutdown'], dock=dock.shown(s['g'].get('_errand')))
+                shutdown=s['shutdown'], docks=peek.told(s))
 
 
 class Her:
@@ -417,6 +417,7 @@ class Her:
 
     def step(self):
         stepped(self.s)
+        peek.peeked(self.s)
         return self.s.pop('_wear_s', 0.0)
 
     def said(self, ratio, headroom=1.0):
@@ -433,8 +434,9 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     placed.placed()
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 0.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
-    s['g']['planner'], s['g']['vision'] = planner.Planner(), vision.Apart()
+    s['g']['planner'], s['g']['vision'], s['peeker'] = planner.Planner(), vision.Apart(), planner.Planner()
     s['g']['planner'].start()
+    s['peeker'].start()
     s['g']['vision'].start()
     s['worn'] = worn.Apart(DT).start()
     s['worn'].laid(s['wear'])
