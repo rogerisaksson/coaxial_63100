@@ -22,7 +22,7 @@ deterministic and truthful Finite State Machine governed by Section 0.
    invoking any file-mutation tool (`Edit`, `Write`, `MultiEdit`,
    `NotebookEdit`, or file-writing shell redirections) in your first response
    turn to a prompt. Turn 1 is strictly limited to **STATE 0** and **STATE 1**,
-   with the exception of trivial implements and bugfixes.
+   with the exception of trivial and/or limited implements and bugfixes.
 2. **NO BATCHING `STATE 2` AND `STATE 3` ON UNPROVEN CAUSES:** You may not
    emit a `[STATE 2 GATE]` and invoke `Edit` or `Write` in the same turn
    unless the root cause is already empirically proven by tool output present
