@@ -155,9 +155,7 @@ Evaluate the prompt and working tree before invoking any tool:
   5. Run the repository linter (`--changed`) to verify zero Markdown or static
      type faults, and zero compiler warnings on target C builds.
   6. Run the targeted live debugger/introspection covering the modifications.
-     Never execute a state and dynamic introspection directly outside the relay,
-     and quote the runner's exact `PASS`/`FAIL` tally verbatim (never
-     paraphrase).
+     Never execute a state and dynamic introspection directly outside the tool.
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **TWO-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
