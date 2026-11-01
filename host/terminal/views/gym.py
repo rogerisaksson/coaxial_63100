@@ -26,7 +26,7 @@ from machine.eyes import sight
 from machine.process import sprung
 from terminal.ui.stage import hud
 from terminal.ui.taskbar import HELP_S, slid
-from terminal.views import scanner, viewpoint
+from terminal.views import fkeys, scanner, viewpoint
 
 #: A digit says the gym's entry of its place: 1 the first, 0 the tenth.
 DIGITS = '1234567890'
@@ -156,12 +156,12 @@ def _middle(lo, hi):
 
 
 def offers(now, seen):
-    """[(verb, word, at (x, y, z) or None, thing)] F offers now, each a thing she has identified
-    (`seen`, `scanner.identified`'s), never one she has not: on a thing, its rise alone, at that
-    thing (`_BEARS`) within REACH_M; on the floor alone, its rise at none - no thing, no balloon -;
-    on her feet, each thing with a verb - one she walks to (`errand.errands`) wherever it stands, one
-    she does where she stands within REACH_M -, at its middle, the one she faces most nearly first,
-    the nearer of two in line."""
+    """[(verb, word, at (x, y, z) or None, thing, its footprint (lo, hi) or None)] F offers now, each a
+    thing she has identified (`seen`, `scanner.identified`'s), never one she has not: on a thing, its
+    rise alone, at that thing (`_BEARS`) within REACH_M; on the floor alone, its rise at none - no
+    thing, no balloon -; on her feet, each thing with a verb - one she walks to (`errand.errands`)
+    wherever it stands, one she does where she stands within REACH_M -, at its middle, the one she
+    faces most nearly first, the nearer of two in line."""
     if not now:
         return []
     things = [(kind, dist, lo, hi) for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES]
@@ -169,14 +169,14 @@ def offers(now, seen):
     if propped:
         bearing = sorted((dist, kind, lo, hi) for kind, dist, lo, hi in things
                          if scanner.AFFORDANCES[kind][0] == _BEARS[propped] and dist < REACH_M)
-        return [(propped, NAMED.get(propped, propped), _middle(lo, hi), '%s %.1fm' % (kind, dist))
+        return [(propped, NAMED.get(propped, propped), _middle(lo, hi), '%s %.1fm' % (kind, dist), None)
                 for dist, kind, lo, hi in bearing[:1]]
     if floored:
-        return [(floored, NAMED.get(floored, floored), None, 'her')]
+        return [(floored, NAMED.get(floored, floored), None, 'her', None)]
     walked = errand.errands()
-    got = [(verb, word, _middle(lo, hi), '%s %.1fm' % (kind, dist), dist) for kind, dist, lo, hi in things
+    got = [(verb, word, _middle(lo, hi), '%s %.1fm' % (kind, dist), (lo, hi), dist) for kind, dist, lo, hi in things
            for verb, word in (scanner.AFFORDANCES[kind],) if verb in walked or dist < REACH_M]
-    return [offer[:4] for offer in sorted(got, key=lambda o: (_turn(now, o[2]), o[4]))][:len(DIGITS)]
+    return [offer[:5] for offer in sorted(got, key=lambda o: (_turn(now, o[2]), o[5]))]
 
 
 def keyed(n):
@@ -186,10 +186,14 @@ def keyed(n):
 
 def offered(state):
     """[(key, verb, word, at, thing)] F offers as the page shows them: what she has identified
-    (`offers`, `keyed`)."""
+    (`offers`), a rise F1, a thing at its own key while she keeps it (`fkeys.slotted`)."""
     now, sc = state.get('now'), state.get('scanner')
     got = offers(now, sc.identified(now) if sc is not None and now else [])
-    return [(key,) + offer for key, offer in zip(keyed(len(got)), got)]
+    if not got:
+        state.pop('slots', None)
+    if not got or got[0][4] is None:
+        return [(key,) + offer[:4] for key, offer in zip(keyed(len(got)), got)]
+    return [('F' + DIGITS[s],) + offer[:4] for s, offer in fkeys.slotted(state, now, got, _turn)]
 
 
 def prompt(state):
@@ -210,7 +214,6 @@ def ballooned(state, offer, width, height, travel, docked=()):
                           pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
     return balloons.laid([(p, key, word) for p, (key, _v, word, _a, _t) in zip(places, on) if p],
                          width, height, lit=state.get('choosing') is not None, shut=frozenset(docked))
-
 
 def touring(state):
     """Whether the tour (`machine.way.tour`) is commanding her."""
@@ -245,9 +248,10 @@ def hopped(state):
     return verb
 
 
-def chose(state, k):
-    """F's `k`th offer said: its verb at its thing (`at`, x z), the floor's at none."""
-    for _key, verb, _word, at, _thing in offered(state)[k:k + 1]:
+def chose(state, k=None):
+    """The offer keyed F and `k`'s digit said - the first shown with `k` None -: its verb at its thing
+    (`at`, x z), the floor's at none."""
+    for _key, verb, _word, at, _thing in [o for o in offered(state) if k is None or o[0] == 'F' + DIGITS[k]][:1]:
         said(state, verb, **({} if at is None else {'at': (at[0], at[2])}))
 
 

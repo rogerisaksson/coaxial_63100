@@ -42,6 +42,16 @@ def docks():
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
 
 
+def shown(er):
+    """Errand `er`'s docks as the page draws them - {'at': [(x, y, z)] each face her wayfinder reached
+    (`docked`'s 'reach') on its top, 'chosen' the one her planner laid} -, None before its answer."""
+    if not er or not er.get('docks'):
+        return None
+    hn = math.atan2(er['nx'], er['nz'])
+    off = [abs(math.remainder(h - hn, math.tau)) for h, _x, _z in er['docks']]
+    return {'at': [(x, er['top'], z) for _h, x, z in er['docks']], 'chosen': min(range(len(off)), key=off.__getitem__)}
+
+
 def _floor(g):
     return min(float(f['sole'][1]) for f in g['s']['feet'])
 
@@ -158,10 +168,13 @@ def docked(at, things, floor, sc, box, standoff):
                 'key': (walk == math.inf, rank, off, walk)}
 
     # by their offsets along the face, the first her walk reaches ending it: none further out beats it
-    best = None
+    best, reach = None, {}
     for _off, level in itertools.groupby(sorted(rows, key=lambda r: r[0]), key=lambda r: r[0]):
-        found = [laid(r) for r in level] + ([best] if best is not None else [])
-        best = min(found, key=lambda r: r['key'])
+        found = [laid(r) for r in level]
+        for r in [r for r in found if not r['key'][0]]:
+            reach[r['hn']] = min(reach.get(r['hn'], r), r, key=lambda q: q['key'])
+        best = min(found + ([best] if best is not None else []), key=lambda r: r['key'])
         if not best['key'][0]:
             break
-    return None if best is None or best['key'][0] else best
+    reached = tuple((hn, r['edge']) for hn, r in reach.items())
+    return None if best is None or best['key'][0] else dict(best, reach=reached)

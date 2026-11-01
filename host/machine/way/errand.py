@@ -83,10 +83,11 @@ def _laid(g, sc, found, at):
     door in one motion without the stage she slammed the panel to its 1.92 rad stop in 0.5 s and its
     rebound felled her outside; settled at the stage first she grinds it open over 3 s and walks out."""
     from machine.texts import maneuver
+    from machine.way import affordance
     standoff = maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0
     box = found[6]
     er = dict(_looking(g, sc, at), phase='plan', through=sc in _FACES, thing=found[4], standoff=standoff,
-              slot=int(box[4]) if len(box) > 4 else -1)
+              slot=int(box[4]) if len(box) > 4 else -1, top=float(affordance.top(box)))
     _asked(g, er, 'dock', dock=(sc, box, standoff))
     return er
 
@@ -96,7 +97,8 @@ def _docked(sc, laid):
     from machine.law import se2
     hn, (x_dock, z_dock), stage = laid['hn'], laid['edge'], laid['stage']
     nx, nz = math.sin(hn), math.cos(hn)
-    return {'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx, 'face': laid['face'],
+    return {'docks': tuple((float(h), float(x), float(z)) for h, (x, z) in laid.get('reach', ())),
+            'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx, 'face': laid['face'],
             'xd': stage[0], 'zd': stage[1], 'hdd': se2.wrap_angle(hn + _FACES.get(sc, 0.0)), 'lat_tol': laid['lat_tol'],
             'd_stage': laid['d_stage'], 'd_most': laid['d_stage']}
 
@@ -110,7 +112,7 @@ def _looking(g, sc, at):
             'x_dock': float(d.qpos[0]), 'z_dock': float(d.qpos[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
             'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(d.qpos[0]), 'zd': float(d.qpos[2]), 'hdd': yaw,
             'lat_tol': 0.0, 'd_stage': 0.0, 'd_most': 0.0, 'turn_dir': 0.0, 'standoff': 0.0, 'retreats': 0,
-            'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None}
+            'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': ()}
 
 
 def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):

@@ -14,7 +14,7 @@ import math
 import threading
 
 from coaxial.graphics.callouts import FRAME_CORNERS, FRAME_INK, packed
-from coaxial.graphics import inset
+from coaxial.graphics import balloons, gynoid, inset
 from machine.world import room
 from machine.eyes import classes, sight, stereo, voxels
 
@@ -303,6 +303,18 @@ def _fallback_seen(now, detected):
         by = max(2, min(vh - 6, int(vh / 2 - (item['pos'][2] - where[2]) * 4)))
         hulls.append((k, sight.INK.get(k, sight.INK['thing']), [(bx, by), (bx + 5, by), (bx + 5, by + 4), (bx, by + 4)]))
     return thumb, hulls
+
+
+def ringed(state, width, height, travel):
+    """The viewport's rings on her errand's docks (`dock.shown`): a ring at each face she may dock
+    at, the one her planner laid filled (`balloons.rings`)."""
+    from terminal.views import viewpoint
+    dock = (state.get('now') or {}).get('dock')
+    if not dock:
+        return {}
+    places = gynoid.cells(list(dock['at']), width, height, yaw=state['yaw'], pitch=state['pitch'],
+                          zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
+    return balloons.rings(places, dock['chosen'], width, height)
 
 
 def docked_vision(scanner, now, width, height, offered=()):

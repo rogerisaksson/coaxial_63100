@@ -164,10 +164,10 @@ def test_balloons_on_what_she_sees(report):
                  opened and said == [('sit_chair', (1.5, 0.8)), door, ('lie_bed', (-1.8, 1.8)), door, (1, ())],
                  said)
     st['now'] = dict(st['now'], heading=math.pi)
-    behind = [o[1] for o in gym.offered(st)]
+    behind = [(key, verb) for key, verb, *_rest in gym.offered(st)]
     st['now'] = dict(st['now'], epoch=1)
-    report.check('turned away, what she has seen still offered; laid anew, none of it',
-                 sorted(behind) == ['exit_door', 'lie_bed', 'sit_chair'] and gym.offered(st) == [], behind)
+    report.check('turned away, what she has seen still offered, each at its key; laid anew, none of it',
+                 behind == shown and gym.offered(st) == [], behind)
     st['now'] = {'where': (0.0, 0.9, 0.2), 'heading': 0.0, 'props': room + [
         ('chair', (0.0, 0.43, 0.88), (0.22, 0.02, 0.22), up), ('chair', (0.0, 0.65, 1.10), (0.22, 0.2, 0.02), up)]}
     looked_round(st['scanner'], st['now'])
@@ -200,6 +200,9 @@ def test_balloons_on_what_she_sees(report):
     text = ''.join(chr(code) for _at, (code, _key) in sorted(drawn.items()))
     report.check('a balloon on the viewport over each', all(w in text for w in ('F1 go out', 'F2 lie down', 'F3 sit')),
                  text)
+    st['now'] = dict(st['now'], dock={'at': [(-1.8, 0.47, 0.8), (-1.8, 0.47, 2.8)], 'chosen': 1})
+    rung = sorted(chr(code) for code, _ink in scanner.ringed(st, 110, 36, (0.0, 0.0)).values())
+    report.check("her errand's docks a ring each on the viewport, the one laid filled", rung == sorted('○◉'), rung)
 
 
 ROSTER = (test_her_horizon, test_surface_arrows_setpoint_actual_and_landing_zones, test_balloons_on_what_she_sees)

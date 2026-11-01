@@ -22,7 +22,7 @@ from terminal.loader import answer
 from terminal.views import gym, viewpoint
 from terminal.views.humanoid_keys import CHARGE_MAX_N, PAD, charging, clicked, frame, heard, pad, rows_of
 from terminal.views.playback import Playback
-from terminal.views.scanner import VisionScanner, docked_vision
+from terminal.views.scanner import VisionScanner, docked_vision, ringed
 from terminal.ui import bindings, recorder, screen as _screen
 from terminal.ui.ahead import Ahead
 from terminal.ui.screen import PORT, FPS_CAP, closing, run_view, say
@@ -387,7 +387,8 @@ def _draw_viewport(state, now, width, height, terminal):
     x, y, z = now['where']
     camera, offer = state['follow']((x, z), now['velocity'], now['t']), gym.offered(state)
     docked = docked_vision(state['scanner'], now, width, height, offer)
-    inset = {**gym.ballooned(state, offer, width, height, camera, docked), **docked, **badge(width, height, state),
+    inset = {**ringed(state, width, height, camera), **gym.ballooned(state, offer, width, height, camera, docked),
+             **docked, **badge(width, height, state),
              **recorder.corner(state.get('recording'), width)}
     return '\n'.join(state['ahead'].drawn(
         now['angles'], width, height, yaw=state['yaw'], pitch=state['pitch'], pan=viewpoint.panned(state),

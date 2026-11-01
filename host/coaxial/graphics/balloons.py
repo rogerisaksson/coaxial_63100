@@ -14,6 +14,16 @@ from coaxial.graphics.inset import NOTE_INK, PLATE
 #: A balloon's word's ink (the instruments' label); its tail, the notch it leaves the frame by,
 #: its tip on the thing, and by the side the thing is on where it is out of sight.
 WORD_INK, TAIL, NOTCH, TIP, TIPS = (214, 220, 228), '│', '┬', '▾', {-1: '◂', 1: '▸'}
+#: A dock's ring, one she may take and the one taken.
+RING, TAKEN = '○', '◉'
+
+
+def rings(places, chosen, width, height):
+    """{(row, col): (codepoint, key)}: a ring on each of `places` [(row, col) or None] on the drawing,
+    the `chosen`th filled in the key's ink, the rest in the word's - the frame's was lost in a bed's dots."""
+    inks = (packed(WORD_INK), packed(NOTE_INK))
+    return {p: (ord(TAKEN if i == chosen else RING), inks[i == chosen]) for i, p in enumerate(places)
+            if p and 0 <= p[0] < height and 0 <= p[1] < width}
 
 
 def _seen_at(row, col, width, height, shut):

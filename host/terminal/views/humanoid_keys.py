@@ -242,8 +242,8 @@ def released(state, now):
     return n
 
 
-def _chosen(state, k):
-    """F's `k`th offer said (`gym.chose`), its choice closed."""
+def _chosen(state, k=None):
+    """The offer F and `k`'s digit key said - the first shown with None - (`gym.chose`), its choice closed."""
     state['choosing'] = None
     gym.chose(state, k)
 
@@ -256,7 +256,7 @@ def _interact(state, _key, now):
     if state.get('choosing') is None and len(gym.offered(state)) > 1:
         state['choosing'] = now
         return
-    _chosen(state, 0)
+    _chosen(state)
 
 
 def _digit(state, key, now):
@@ -420,14 +420,14 @@ def clicked(state):
     """A left click on the viewport while F's choice is open: its first offer said, the choice closed. With none open
     a click says nothing - said F's first offer, a click to turn the view walked her off to it."""
     if state.get('choosing') is not None:
-        _chosen(state, 0)
+        _chosen(state)
 
 
 def lapsed(state, now):
     """F's choice open past `console.HOLD_WINDOW_S`: the first offer said, its choice closed."""
     opened = state.get('choosing')
     if opened is not None and now - opened > console.HOLD_WINDOW_S:
-        _chosen(state, 0)
+        _chosen(state)
 
 
 def frame(state, now, heading):
