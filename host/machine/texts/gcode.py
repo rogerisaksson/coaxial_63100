@@ -6,7 +6,8 @@
     beats = gcode.program(path)                     # her program's beats as `joints` plays them
 
 The dialect: lines of `; key value` head a program; a move is `G1 T<s> <WORD><value> ...`, a word letters and
-underscores, its value a number; the general rig's words (WORDS) are the pelvis's place and turn (X Y Z m, A B C
+underscores, its value a number, or `nan` where the move does not ask that word (held where the move finds it);
+the general rig's words (WORDS) are the pelvis's place and turn (X Y Z m, A B C
 roll pitch yaw deg), the spine's flexion, lateral bend and yaw (SPF SPL SPY), the neck's (NKF NKL) and a side's
 (L or R) hip flexion, abduction and rotation (HF HA HR), knee (KF), ankle dorsiflexion and roll (AF AR), shoulder
 flexion, abduction and rotation (SF SA SR), elbow (EF) and wrist (WF), all degrees, 0 the anatomical neutral,
@@ -169,8 +170,9 @@ def text(header, times, words, values):
 
 
 def _word(token):
-    """(word, value) of a move's token: its letters and underscores, then its number."""
-    k = len(token.rstrip('-0123456789.'))
+    """(word, value) of a move's token: its letters and underscores, then its number, or `nan` for a word the
+    move does not ask (`beats`)."""
+    k = len(token.rstrip('-0123456789.')) - 3 * token.endswith('nan')
     return token[:k], float(token[k:])
 
 
@@ -263,10 +265,11 @@ def hers(header, times, values):
 
 def beats(times, joints, degrees):
     """[(name, s, {joint: deg})] a move a beat, as `machine.process.joints` plays them: the first over its own
-    time from wherever she is."""
+    time from wherever she is; a word `nan` is not asked by its move, the joint held where the move finds it (a
+    program's joint first named by a later beat, `tools/sim/gcode.py`)."""
     out, last = [], 0.0
     for k, (t, row) in enumerate(zip(times, degrees)):
-        out.append(('g%d' % k, max(float(t) - last, 1e-3), {j: float(v) for j, v in zip(joints, row)}))
+        out.append(('g%d' % k, max(float(t) - last, 1e-3), {j: float(v) for j, v in zip(joints, row) if v == v}))
         last = float(t)
     return out
 

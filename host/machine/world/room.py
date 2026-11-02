@@ -52,7 +52,9 @@ GROUND = ('deck', 'stone_step', 'stone_terrace', 'loft') + tuple('stair%d' % k f
 #: 10 errands failed; against the back wall she walked into it at 0.9 m/s.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), CHAIR_SEAT, 0.45, (CHAIR_SEAT[0], 0.25, 0.02)
 CHAIR_LOW_AT = (-(WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2]), 0.0)
-#: The bed: its middle, its half sizes (the mattress's top at twice the second).
+#: The bed: its middle, its half sizes (the mattress's top at twice the second). Its head 0.55 m off the gable fits
+#: no dock at that end; 0.20 m further out it fitted none either (from the east she still rounded the foot's
+#: corner and fell at 11.1 s) and the south spot's dock came 0.219 rad askew for 0.137, so it stays.
 BED_AT, BED = (-1.8, 1.8), (0.585, 0.22, 1.1)
 #: The table: its middle, the top's half sizes and height.
 TABLE_AT, TOP, TOP_H = (1.5, -0.8), (0.6, 0.015, 0.35), 0.74

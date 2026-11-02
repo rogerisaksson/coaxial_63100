@@ -70,7 +70,7 @@ SCENARIOS = {
     'chair': ('chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'chair_low': ('chair_low_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
-    'bed_foot': ('bed_foot_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
+    'bed_foot': ('bed_foot_behind', [(1.0, {'say': 'lie_bed'})], 20.0, 'lay', 'bed'),
     'bed_rise': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (16.0, {'say': 'rise_bed'})], 24.0, 'sat', 'bed'),
     'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'})], 16.0, 'sank', 0.5),
     'hop_down': ('on_chair', [(1.0, {'say': 'hop_down_chair'})], 6.0, 'sank', 0.40),
@@ -98,7 +98,7 @@ _BACK_PATTERN = lambda key: [(1.0, {'say': 'walk_back'}), (PATTERN_S, {'pattern'
 #: (its tempo, drive and lean over the walk) hopped her onto the first tread and toppled her
 #: backward at 4.0 s where the walk climbs the flight (sequencer.md).
 _FLIGHT = [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})]
-#: s a joint program said on her text's phase may wait for it: her sit and her plant at the bed's edge.
+#: s a joint program her text binds to a phase may wait for it: her sit and her plant at the bed's edge.
 PLAYED_S = 8.0
 STUNTS = {
     'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'take': 'hip_hop'})], 1.0, ('travel', 'drop', 'arms')),
@@ -123,9 +123,8 @@ STUNTS = {
     'kneeling_down': ('kneel/Kneeling Down', 'flat', [(1.0, {'take': 'kneeling_down'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
     'kneeling_up': ('kneel/Kneeling Up', 'flat', [(1.0, {'take': 'kneeling_down'}), (6.0, {'take': 'kneeling_up'})], 6.0,
                     ('ended', 'lasted')),
-    'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_foot_behind',
-                                [(1.0, {'say': 'lie_bed'}), (1.0, {'joints': 'bed_pull', 'when': 'bed_rest_ischial_bilateral'})],
-                                None, ('upright', 'hips back', 'ended', 'lasted')),
+    'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_foot_behind', [(1.0, {'say': 'lie_bed'})], None,
+                                ('upright', 'hips back', 'ended', 'lasted')),
     'sitting_on_bed': ('lying/Sitting on Bed', 'bed_foot_behind', [(1.0, {'say': 'lie_bed'})], 0.5,
                        ('drop', 'hips back', 'upright', 'knee', 'lifted', 'lasted')),
     'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'take': 'standing_yawn'})], 1.0, ('arms', 'back', 'travel')),
@@ -244,7 +243,7 @@ def ran(name, wobble=0.0, laid=None, texts=None):
     from machine.stack import rounds
     leg_cols = [s['g']['body'].act[leg] for leg in rounds.LEGS]
     track, fell, hit, k, bore, most = [], None, None, 0, {}, {}
-    rows, told_at = [], -math.inf
+    rows, told_at, began = [], -math.inf, None
     sigma_min, scale_min, shrunk_n, qacc_max = math.inf, 1.0, 0, 0.0
     plan = sorted(((at, stunts.told(c)) for at, c in plan), key=lambda c: c[0])
     while s['g']['t'] < seconds and s['epoch'] == 0:
@@ -255,6 +254,7 @@ def ran(name, wobble=0.0, laid=None, texts=None):
         if laid is not None:
             laid(s)
         g = s['g']
+        began = (g.get('played') or {}).get('at') if began is None else began
         if g['n'] % g['every'] == 1 and 'got' in g and 's' in g:
             got, gs = g['got'], g['s']
             sc = float(got['scale'])
@@ -302,7 +302,10 @@ def ran(name, wobble=0.0, laid=None, texts=None):
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max),
            'refused': s.get('refused')}
     if goal == 'stunt':
-        out['moved'] = stunts.moved(rows, *stunt_window(aim, (s['g'].get('played') or {}).get('at') or math.inf))
+        # a told stunt judged to where a program of her joints began after it (`began`, kept past the program's
+        # end), the next move's: the bed's sit, then its pull from the landed stage
+        rows = rows if STUNTS[str(aim)][3] is None or began is None else [r for r in rows if float(r['t']) <= began]
+        out['moved'] = stunts.moved(rows, *stunt_window(aim, began or math.inf))
     out['met'] = judged(out)
     return out
 

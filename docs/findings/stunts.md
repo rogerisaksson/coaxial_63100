@@ -10,8 +10,14 @@ rows measured as the take is (`tools/sim/stunts.py`, MOVES: lengths in legs,
 times in sqrt(leg/g), speeds in sqrt(g leg)) over the take's seconds from the
 telling, judged within a sole's length (0.22 legs), her list (8.6 deg), her
 arm's cone (20 deg) and one natural time (0.28 s); her head over the whole
-run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
-0.89 m, a tick 0.30 s), kept in tests/takes/stunts.json:
+run no lower than the human's, a fall's head under 1 m/s - a told take whose
+text goes on into a program of her joints (the bed's sit, then its pull from
+the landed stage) judged to where the program begins. How such a program is
+found is a tool of its own (`tools/sim/puppet.py`): poses solved from her
+figure's lengths, a regime of sensed phases played on the servos in memory, the
+gain a stroke measured over a grid, the lazy crab up the bed regulated (the
+trunk held by the anchored hips) where every open-loop crab fell. The takes
+(a leg 0.89 m, a tick 0.30 s), kept in tests/takes/stunts.json:
 
 | take | the move |
 | --- | --- |
@@ -293,3 +299,34 @@ run no lower than the human's, a fall's head under 1 m/s. The takes (a leg
   means, times by similarity): the jog 10.9 rad/s, the run 17.5, the running
   jump 20.5, the standing jump 13.1; her knees' no-load 16.8 at 48 V, their
   peak torque to 14.7.
+
+## From a take to her text: the puppet
+
+A take becomes a move of hers in three steps, each a command:
+
+    python tools/sim/gcode.py "lying/Lying Down from Sitting"
+    python tools/sim/puppet.py take lying_down_from_sitting --trunk 55 --slow 1.5 --gcode danced_lie
+    :joint-program :danced-lie                      ; on a stage of her text
+
+The first writes the take as humanoid G-code, the general rig's and hers
+(`gcode/<take>.gcode`, `machine.texts.gcode`). The second plays her program
+in a situation the take was not recorded in - placed in a scene, told an
+act, the program on the boards' servos from the pass her text's program
+ends - as a regime: phases ended by what she senses (loads by body, places
+along the furniture's axis, the trunk's elevation) with regulators over the
+program's own targets (`tools/sim/puppet.py`). The third binds what she was
+told back, written as G-code, to a stage of her text (`maneuver._program`,
+`machine.process.joints`). What the puppet found on the bed: the heel
+stroke (poses solved from her figure's lengths: the heels planted 0.22 m
+from the hips, the pelvis bridged 0.10, the heels pushed to 0.45, 0.14-0.16
+m a stroke supine), the lazy crab (the trunk held 55-60 deg by the anchored
+hips while the fists bear behind, a leg at a time over the edge, the heels
+set by their felt load, a push sized to the mark, the lie with the heels
+lifted: flat within 8 deg, no fall, +-0.15 m of the mark) where every
+open-loop crab fell, and the take itself danced: recorded on the bed's side
+it rolls her off the side at its foot end raw, slides her off the end held
+at full pace, and held at 55 deg at two thirds pace lays her flat on the
+bed at the pull and lie's own landing. In her law the lean needs
+`:trunk-hold 4.0` on its stage (`maneuver._held`); the leg over the edge
+onto the furniture has no act yet (`:limb-lift` raises the hanging foot
+0.19 m, under the top).

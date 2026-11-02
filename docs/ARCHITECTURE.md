@@ -30,7 +30,12 @@ The target: `core/` (CubeMX) -> `board/` (this hardware) -> `comms/` (the
 wire) -> the portable C11 cores. The host: `coaxial` -> `machine`, `motor`,
 imports one way, `terminal` and `tools` over them. Each module's brief:
 `python tools/dev/host_map.py` from host/, each target file's
-`python host/tools/dev/target_map.py`.
+`python host/tools/dev/target_map.py`. From there: her moves are found as
+puppets, sensed phases on the servos played in a scene in memory and a
+take's G-code danced there (`tools/sim/puppet.py`, `tools/sim/gcode.py`,
+[findings/stunts.md](findings/stunts.md)); her loop's layers are read live
+(`machine.process.introspect`, [findings/introspect.md](findings/introspect.md))
+and traced a pass at a time (`tools/sim/trace.py`, `tools/sim/told.py`).
 
 ## Subjects
 

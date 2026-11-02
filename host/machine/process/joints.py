@@ -1,23 +1,38 @@
 """Her joints driven as said: a program of poses on the drives' own servos, her law's torques aside.
 
-    worker.apply(s, {'joints': 'bed_pull', 'when': 'bed_rest_ischial_bilateral'})
+    worker.apply(s, {'joints': 'bed_pull', 'when': 'bed_rest_ischial_bilateral', 'strokes': 5})
     worker.apply(s, {'joints': 'standing_yawn', 'keep': 'legs'})    # her law keeps her legs: she stands through it
 
 A program (PROGRAMS, or `<name>.gcode` in her programs' home, `texts.gcode`) is beats of (name, seconds,
 {joint: degrees}): each beat blends every joint it names from
-where the beat before left it to its degrees over its seconds, the rest held where the program found them, and
-its last pose is held after. Said with `when` it waits for her text's phase of that name (`se2.doing`) and plays
-from the pose she has then; said without, from the next pass. Played, her boards are told the setpoints, no feed,
+where the beat before left it to its degrees over its seconds, the rest held where the program found them; its
+last beat over, her law drives again (`ended`, the boards' gains as the session laid them). Said with `when` it
+waits for her text's phase of that name (`se2.doing`) and plays
+from the pose she has then; said without, from the next pass; bound to a phase by her text (a stage's
+`:joint-program`, laid on her run by `maneuver.said` as `g['programs']` {phase: program}) it plays from that
+phase's first tick, so `lie_bed` at the bed's end pulls her up on its own. Played, her boards are told the
+setpoints, no feed,
 the servo table's stiffness and her drives' clamps (`edge.drive`), the SIL boards' damping set back to the
 table's (the session zeroed both for her law's own PD, `sprung.SERVO_SHARE`); a say, entries or scenario heard
 ends it and her law drives again. Said with `keep`, the groups named (KEPT: legs, arms, trunk) stay her law's and
-the program drives the rest, so a take's upper body plays on her own balance. `bed_pull`, up the bed from its end,
-is what a puppet of her found (her joints
+the program drives the rest, so a take's upper body plays on her own balance. Said with `strokes`, the beats STROKES
+names (first to last) play that many times over: `bed_pull`'s stroke up the bed, 0.12 m each (her text counts them
+from the bed's depth her eyes saw, `maneuver`). `bed_pull`, up the bed from its end, is what a puppet of her found
+(her joints
 driven from her text's sit at the bed's edge, fists planted): the shoulders flexed against the fists as the hips
 lift the thighs and the knees open, 0.20 m in; the trunk down over 1.3 s, 0.14 m more; the legs raised straight,
 the knees folded and the thighs lowered so the heels set down on the foam 0.22 m in at 65 N; one stroke of the
-heels 0.23 m, the stretch 0.16 more: 0.86 m in, supine, the legs along the bed. The knees opened while the soles
-still bore stood her up (301 N), the heels dropped from the air hit the edge (725 N) and pushed her off.
+heels 0.23 m, the stretch 0.16 more with her trunk straightened: 0.86 m in, supine, the legs along the bed. The
+knees opened while the soles still bore stood her up (301 N), the heels dropped from the air hit the edge (725 N)
+and pushed her off. Held after its last beat on the peak clamps she lay still but rigid (90 N m, the trunk 18 deg
+off flat): over, her text's flat rest limps her on the foam (`se2.limp`). The stroke (poses solved from her figure's
+thigh 0.39 and shank 0.38 m, her hip 0.11 m over the foam): the heels planted 0.22 m from the hips, the pelvis
+bridged 0.10 m, the heels pushed to a 0.45 m reach, the pelvis set down: 0.14-0.16 m up the bed a stroke on the
+heels' grip, none lost, lying square (bridged 0.06 m she gained 0.07 a stroke square, 0.13 yawed 17 deg on her
+side; the push to a 0.50 m reach 0.08); the legs planted with their hips' roll and yaw at zero push even: splayed
+as the lie left them she slid 0.04 m aside a stroke at no yaw. The elbows pressed beside her dragged the pelvis back
+0.10 m at each bridge, and the heels planted 0.43 m out landed on the foot edge and slipped off it. She lies still 1.2 s before the strokes, as the
+take ends: begun inside its window they drew her feet in (hips back 0.66 of its 1.07) and the bench refused the lie.
 """
 import os
 
@@ -34,8 +49,9 @@ def _both(**deg):
     return {side + j: v for j, v in deg.items() for side in ('left_', 'right_')}
 
 
-#: What the loop hears of a program (`worker.heard`): its name, the phase it waits for, what her law keeps.
-HEARD = ('joints', 'when', 'keep')
+#: What the loop hears of a program (`worker.heard`): its name, the phase it waits for, what her law keeps, how many
+#: strokes.
+HEARD = ('joints', 'when', 'keep', 'strokes')
 #: Her joints by group, what `keep` names.
 KEPT = {'legs': tuple(j for j in figure.JOINTS if any(k in j for k in ('hip', 'knee', 'ankle', 'foot'))),
         'arms': tuple(j for j in figure.JOINTS if any(k in j for k in ('shoulder', 'elbow', 'wrist', 'gripper'))),
@@ -48,8 +64,16 @@ PROGRAMS = {
                  ('fold', 0.5, _both(knee=150.0)),
                  ('lower', 0.3, _both(hip=-60.0)),
                  ('shove', 0.6, _both(hip=-35.0, knee=100.0)),
-                 ('stretch', 0.3, _both(knee=6.0, hip=-3.0))),
+                 ('stretch', 0.3, {'spine': 0.0, 'waist': 0.0, 'neck': 0.0, **_both(knee=6.0, hip=-3.0)}),
+                 ('still', 1.2, {}),
+                 ('plant', 0.4, _both(hip=-56.0, knee=146.0, hip_roll=0.0, hip_yaw=0.0)),
+                 ('bridge', 0.25, _both(hip=-34.0, knee=134.0)),
+                 ('push', 0.3, _both(hip=-32.0, knee=104.0)),
+                 ('set', 0.2, _both(hip=-46.0, knee=108.0)),
+                 ('straight', 0.4, {'spine': 0.0, 'waist': 0.0, 'neck': 0.0, **_both(knee=6.0, hip=-3.0)})),
 }
+#: A program's stroke: the beats from the first named to the last, played over as many times as said (`strokes`).
+STROKES = {'bed_pull': ('plant', 'set')}
 #: Each joint's index (`figure.JOINTS`); the servo table's stiffness and damping a joint, N m/rad and N m s/rad.
 INDEX = {j: i for i, j in enumerate(figure.JOINTS)}
 KP = tuple(float(SERVO[drives.kind(j)][1]) for j in figure.JOINTS)
@@ -67,15 +91,23 @@ def program(name):
 
 
 def said(g, command):
-    """`command`'s program ({'joints': name, 'when': phase or None}) kept on `g` to play till it ends."""
+    """`command`'s program ({'joints': name, 'when': phase or None, 'strokes': n}) kept on `g` to play till it ends,
+    its stroke (STROKES) `strokes` times over where said."""
     kept = {j for group in str(command.get('keep', '')).split() for j in KEPT[group]}
-    g['played'] = {'name': command['joints'], 'beats': program(command['joints']), 'when': command.get('when'),
-                   'at': None, 'pose': None, 'mine': [i for i, j in enumerate(figure.JOINTS) if j not in kept]}
+    beats = program(command['joints'])
+    first, last = STROKES.get(command['joints'], (None, None))
+    if first is not None and 'strokes' in command:
+        i = next(k for k, b in enumerate(beats) if b[0] == first)
+        j = next(k for k, b in enumerate(beats) if b[0] == last) + 1
+        beats = tuple(beats[:i]) + tuple(beats[i:j]) * int(command['strokes']) + tuple(beats[j:])
+    g['played'] = {'name': command['joints'], 'beats': beats, 'when': command.get('when'), 'at': None, 'pose': None,
+                   'length': sum(seconds for _beat, seconds, _goals in beats), 'gains': None,
+                   'mine': [i for i, j in enumerate(figure.JOINTS) if j not in kept]}
 
 
 def ended(g):
-    """The program on `g` over: her law drives again."""
-    g['played'] = None
+    """The program on `g` over, her text's bindings dropped (`g['programs']`): her law drives again."""
+    g['played'], g['programs'] = None, {}
 
 
 def pose(beats, start, elapsed):
@@ -100,16 +132,26 @@ def drive(g, world):
 
 
 def played(g, world):
-    """The program on `g`, if any, this pass: its pose to her boards (`edge.drive`) over the law's."""
+    """The program on `g`, if any, this pass: its pose to her boards (`edge.drive`) over the law's; none, the one
+    her text binds to the phase she is doing (`g['programs']`) begun from this pass."""
     import numpy as np
     p = g.get('played')
+    if p is None and g.get('programs'):
+        command = g['programs'].get(doing(g))
+        if command is not None:
+            said(g, command)
+            p = g['played']
     if p is None:
         return
     if p['at'] is None:
         if p['when'] is not None and doing(g) != p['when']:
             return
-        p['at'], p['pose'] = g['t'], np.degrees(g['sense'][edge.Q])
+        p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
         world.gains[:, 1] = KD
+    if g['t'] - p['at'] >= p['length']:
+        world.gains[:] = p['gains']
+        ended(g)
+        return
     joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
     edge.drive(world, joints, target=np.radians(pose(p['beats'], p['pose'], g['t'] - p['at']))[joints],
                feed=np.zeros(len(joints)), kp=np.asarray(KP)[joints], limit=g['clamp'][joints])
