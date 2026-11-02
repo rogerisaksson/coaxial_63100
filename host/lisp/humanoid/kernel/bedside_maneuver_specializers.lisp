@@ -127,7 +127,7 @@
 ;; hip-escapes ("shrimps") toward the bed centerline during each rotation and NEVER
 ;; drifts over the mattress edge!
 (defmodifier xform-bed-in-place-roll-sequence
-  [supine-in-bed-state &key (roll-direction :clockwise-right) (bed-width-mm 900.0)]
+  [supine-in-bed-state &key (roll-direction :clockwise-right) (bed-width-mm 1170.0)]
   (-> supine-in-bed-state
       (wake-inverter-closed-loop)
       (xform-deformable-groundwork-base)

@@ -19,7 +19,7 @@ import numpy as np
 from machine.law import barrier, brace, latent, melt, modal, poise, schema, se2, somatic, stride, supervisor, waits
 from machine.body import bemf, capsules
 from machine.senses import borne, estimate, field, grip, inekf, observer, situation, touch
-from machine.moves import cascade, emancipation, leap
+from machine.moves import cascade, emancipation, leap, seated
 from machine.stack import chain
 from machine.senses import edge
 from machine.texts import ortho
@@ -306,6 +306,7 @@ def laid(g):
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
     g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))
     g.update(cascade.compiled())
+    g['kept'] = bodied.on_args(seated.kept, 'kept', (0, 1, 2, 3, 4, 5))
     g['shield'] = bodied.on_args(schema.shield, 'shield', (0, 1, 2, 3, 4, 5, 6))
     k, ask = c_motion.laid()
     g['impedance'] = functools.partial(c_motion.asked, k, ask)

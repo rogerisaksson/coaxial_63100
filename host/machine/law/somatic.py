@@ -24,6 +24,7 @@ from numpy._core.umath import clip as CLIP
 
 from machine.texts import kernel, ortho
 from machine.law import latent, modal, stride
+from machine.moves import seated
 from machine.senses.observer import TINY
 from machine.stack.rounds import ROOM
 from machine.body.figure import ANKLE_H, SHANK, THIGH
@@ -48,7 +49,8 @@ def asked(g, s, out, told, ask):
     (said, the cap stepped 260 -> 214 N on a seat feeling 190-270 and the lean struck), `hand_cap` what her hands
     bear's, their told share - folded on the floor all of her, sat there (`g['sat']`) no more than her balance needs
     of them (`propped`) or their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
-    her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`)."""
+    her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`); and her
+    fists kept on the seat they are told to bear on (`seated.kept`, `g['fists']` their latch)."""
     rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
     equinus = float(told[ortho.FURNITURE].sum()) * CLIP((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
     ask['edge'] = tuple(CLIP(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
@@ -64,6 +66,8 @@ def asked(g, s, out, told, ask):
     ask['hand_cap'] = np.where(rho.mean() < THIGH / LEG_M,
                                g['sat'] * braced + (1.0 - g['sat']) * weight * float(told[ortho.PALMAR] > 0.0), told_hand)
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
+    ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
+                                                        g.setdefault('fists', np.zeros(14)))
     return ask
 
 

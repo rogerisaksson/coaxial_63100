@@ -114,7 +114,7 @@
 (defprimitive drive-centerline-pinned-mattress-roll
   [state &key (target-roll-state :lateral-side) ; :lateral-side | :prone-stomach | :supine-back
               (roll-chirality :clockwise-right)
-              (bed-width-mm 900.0)
+              (bed-width-mm 1170.0)
               (edge-safety-margin-mm 140.0)]
   (-> state
       (execute-zero-translation-bed-roll

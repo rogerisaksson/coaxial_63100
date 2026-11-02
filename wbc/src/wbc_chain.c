@@ -62,60 +62,6 @@ static void frame(const double f[3], double Q[9])
   Q[8] = n0 * t1 - n1 * t0;
 }
 
-/** `row` weighed into R, c into r. */
-static void laid(double *R, double *r, int *m, int n, const double *row, double c, double weight)
-{
-  for (int i = 0; i < n; i++)
-  {
-    R[*m * n + i] = weight * row[i];
-  }
-  r[*m] = weight * c;
-  *m = *m + 1;
-}
-
-/** machine.stack.chain.tasks: the rows above posture into R (m x n) and r (m), m returned; the posture's want (nd). */
-static int tasks(const wbc_step_t *p, double *R, double *r, double *want, double *jv)
-{
-  const wbc_blas_t *l = &p->blas;
-  const int         n = p->n;
-  int               m = 0;
-  double            err[3], a6[6];
-
-  for (int t = 0; t < p->nturns; t++)
-  {
-    wbc_step_turn_error(l, p->turn[t], p->tquat[t], err);
-    for (int a = 0; a < 3; a++)
-    {
-      laid(R, r, &m, n, p->Jr[t] + a * n, (p->chain_turn_kp * err[a] - p->chain_turn_kd * p->tw[t][a]) - p->dJr[t][a],
-           p->chain_w_turn);
-    }
-  }
-  for (int k = 0; k < 2; k++)
-  {
-    if (!p->swing[k])
-    {
-      continue;
-    }
-    wbc_matmul(l, VIEW(p->J6[k], n, 1), VIEW(p->v, 1, 0), jv, 1, 0, 6, n, 1);
-    wbc_step_turn_error(l, p->swing_quat[k], p->quat[k], err);
-    for (int a = 0; a < 3; a++)
-    {
-      a6[a] = p->chain_turn_kp * err[a] - p->chain_turn_kd * jv[a];
-      a6[3 + a] = (p->swing_acc[k][a] + p->swing_kd[0] * (p->swing_at[k][a] - p->sole[k][a]))
-                  + p->swing_kd[1] * (p->swing_speed[k][a] - jv[3 + a]);
-    }
-    for (int a = 0; a < 6; a++)
-    {
-      laid(R, r, &m, n, p->J6[k] + a * n, a6[a] - p->dJv[k][a], p->chain_w_swing);
-    }
-  }
-  for (int i = 0; i < p->nd; i++)
-  {
-    want[i] = p->chain_posture_kp * (p->posture[i] - p->q[i]) - p->chain_posture_kd * p->v[p->act[i]];
-  }
-  return m;
-}
-
 /** machine.stack.chain.planned: x (nd) as its python says; carved from `*w` on. */
 static int planned(const wbc_step_t *p, int np_, int ng, int k3, const double *held, const double *Minv, const double *Mpg,
                    const double *rhs0, const double *Jp, const double *JpT, const double *Jg, const double *Jv,
@@ -143,10 +89,16 @@ static int planned(const wbc_step_t *p, int np_, int ng, int k3, const double *h
 
   for (int i = 0; i < nc; i++)
   {
-    const double *cf = p->cf[i];
-    const int     on = sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]) >= p->chain_hold_n;
+    /* held by what its patch feels - the segments one surface bears, cpatch - not by its own point's share */
+    double by = 0.0;
 
-    rows3[3 * i] = rows3[3 * i + 1] = rows3[3 * i + 2] = on;
+    for (int j = 0; j < nc; j++)
+    {
+      const double *cf = p->cf[j];
+
+      by = by + (double) (p->cpatch[j] == p->cpatch[i]) * sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]);
+    }
+    rows3[3 * i] = rows3[3 * i + 1] = rows3[3 * i + 2] = by >= p->chain_hold_n;
     Fk[3 * i] = Fk[3 * i + 1] = Fk[3 * i + 2] = 0.0;
   }
   wbc_matmul(l, VIEW(Minv, np_, 1), VIEW(Mpg, ng, 1), MM, ng, 1, np_, np_, ng);
@@ -615,7 +567,7 @@ int wbc_chain(wbc_step_t *p)
     return 1;
   }
   /* 1. the plan */
-  m1 = tasks(p, R, r, want, jv6);
+  m1 = wbc_chain_tasks(p, R, r, want, jv6);
   for (int i = 0; i < m1; i++)
   {
     for (int a = 0; a < np_; a++)

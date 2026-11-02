@@ -70,6 +70,7 @@ SCENARIOS = {
     'chair': ('chair_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'chair_low': ('chair_low_behind', [(1.0, {'say': 'sit_chair'}), (8.0, {'say': 'rise_chair'})], 14.0, 'sat', 'chair'),
     'bed': ('bed_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
+    'bed_foot': ('bed_foot_behind', [(1.0, {'say': 'lie_bed'})], 16.0, 'lay', 'bed'),
     'bed_rise': ('bed_behind', [(1.0, {'say': 'lie_bed'}), (16.0, {'say': 'rise_bed'})], 24.0, 'sat', 'bed'),
     'mattress': ('mattress_under', [(1.0, {'say': 'lie_floor'})], 16.0, 'sank', 0.5),
     'hop_down': ('on_chair', [(1.0, {'say': 'hop_down_chair'})], 6.0, 'sank', 0.40),

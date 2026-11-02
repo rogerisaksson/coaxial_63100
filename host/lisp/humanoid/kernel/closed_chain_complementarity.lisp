@@ -43,7 +43,7 @@
                                        ; so the softest support she lies on sets it and what is felt leads
   :stick-bleed-per-s            20.0   ; a sticking contact's slip bled, 1/s (the upright step's CONTACT_K)
   :friction-mu                  0.6    ; the box's friction (the upright step's MU)
-  :hold-n                       30.0   ; a contact the plan holds bears this much; her fingers' arrival at 2-4 N, held,
+  :hold-n                       30.0   ; a patch the plan holds bears this much, its points together; her fingers' arrival at 2-4 N, held,
                                        ; fought her arms' pose and threw her elbow 449 deg/s at the second lift (at 10
                                        ; still 324 in the rest, at 30 her whole lie stays under 113, at 60 she fell off)
   :plan-rounds                  3       ; the plan's rounds (closed_chain_plan.lisp): a contact pulled on freed, one

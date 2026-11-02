@@ -21,19 +21,24 @@
 ;; the damped map alone pulled 280 N on her pelvis against 630 on her sole. Those rows by damped least squares
 ;; (task-damping), her posture in their null space (dls-damping-m); then the plan's own forces: a contact pulled on
 ;; goes free, one dragged past its box |z_t| <= mu z_n slides, its friction the box's; planned again, plan-rounds over.
-;; A contact felt under hold-n starts free (her fingers' arrival at 2-4 N, held, threw her elbow).
+;; A patch felt under hold-n - the segments one surface bears, a fist's hand and fingers - starts free, its points with
+;; it (her fingers' arrival at 2-4 N, held, threw her elbow; her fists' 93 N split over hand and fingers, each under
+;; 30, left them out of the chain's support at the bed). Her pelvis's turn is asked about its own up and way alone,
+;; its error the turn taking its left to the asked left (the log map's up and way parts carried 0.04-0.09 rad of a
+;; 35 deg pitch mismatch): its pitch is her posture's, rolling on its ischia as a scoot leaves it, the text's pitch
+;; her trunk's.
 ;; The Gauss-Seidel of the step is warm from these forces: warm from what is felt, the mattress's lag kept them there
 ;; and the push the plan counted on never reached her drives. Her own gains (turn-kp, posture-kp): lying down is slow.
-(defun closed-chain-plan (m h v jc jdv f q rp rg r m1 want held mm-p mm-g a n np na nh
+(defun closed-chain-plan (m h v jc jdv f patch q rp rg r m1 want held mm-p mm-g a n np na nh
                           damping task-damping rounds bleed mu hold-n w-force w-posture x qdd-p z work)
   "x (na) her driven accelerations, qdd-p (np) her base's and passive joints' the plan foresees, z (3k) the forces
    it counts on, world; m (n x n), h (n), v (n) hers, jc (3k x n) the contacts' Jacobians, jdv their drift, f (3k)
-   what they feel, q (9k) their frames (contact-frame), rp (m1 x np) and rg (m1 x ng) the tasks' rows on the dofs no
+   what they feel, patch (k) each one's patch, q (9k) their frames (contact-frame), rp (m1 x np) and rg (m1 x ng) the tasks' rows on the dofs no
    drive holds and on the given (driven then held), r (m1) their right-hand sides, want (na) the posture's
    acceleration, held (nh) the held joints' accelerations; mm-p (np) and mm-g (ng) the dofs' indices; a (na) the
    driven dofs. Every product in the order machine.stack.chain.planned and wbc_chain.c spell it."
   (declare (type (simple-array double-float (*)) m h v jc jdv f q rp rg r want held x qdd-p z work)
-           (type (simple-array fixnum (*)) mm-p mm-g a)
+           (type (simple-array fixnum (*)) patch mm-p mm-g a)
            (type fixnum m1 n np na nh rounds)
            (type double-float damping task-damping bleed mu hold-n w-force w-posture)
            (optimize (speed 3) (safety 0)))
@@ -90,11 +95,17 @@
           (loop for c of-type fixnum from 0 below np do (setf (aref jp (+ (* rw np) c)) (aref jc (+ (* rw n) (aref mm-p c)))))
           (loop for g of-type fixnum from 0 below ng do (setf (aref jg (+ (* rw ng) g)) (aref jc (+ (* rw n) (aref mm-g g)))))
           (setf (aref fk rw) 0.0d0 (aref zfull rw) 0.0d0))
+        ;; held by what its patch feels - the segments one surface bears - not by its own point's share
         (loop for i of-type fixnum from 0 below (floor k3 3) do
-          (let ((on (if (>= (sqrt (+ (* (aref f (* 3 i)) (aref f (* 3 i))) (* (aref f (+ (* 3 i) 1)) (aref f (+ (* 3 i) 1)))
-                                  (* (aref f (+ (* 3 i) 2)) (aref f (+ (* 3 i) 2))))) hold-n) 1 0)))
-            (declare (type fixnum on))
-            (setf (aref rows3 (* 3 i)) on (aref rows3 (+ (* 3 i) 1)) on (aref rows3 (+ (* 3 i) 2)) on)))
+          (let ((by 0.0d0))
+            (declare (type double-float by))
+            (loop for j of-type fixnum from 0 below (floor k3 3) do
+              (setf by (+ by (* (if (= (aref patch j) (aref patch i)) 1.0d0 0.0d0)
+                                (sqrt (+ (* (aref f (* 3 j)) (aref f (* 3 j))) (* (aref f (+ (* 3 j) 1)) (aref f (+ (* 3 j) 1)))
+                                         (* (aref f (+ (* 3 j) 2)) (aref f (+ (* 3 j) 2)))))))))
+            (let ((on (if (>= by hold-n) 1 0)))
+              (declare (type fixnum on))
+              (setf (aref rows3 (* 3 i)) on (aref rows3 (+ (* 3 i) 1)) on (aref rows3 (+ (* 3 i) 2)) on))))
         (loop for rnd of-type fixnum from 0 below rounds do
           (let ((nk 0) (changed nil))
             (declare (type fixnum nk))

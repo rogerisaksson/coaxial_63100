@@ -272,7 +272,8 @@ def _stroke():
 def test_the_bed_pendulum_on_her_body(report):
     """Lying straight, on the lodge bed her pelvis lies between the pillow's clearance past her crown and its foot
     less her legs. Sat her deepest on its side the pendulum lays her there: within the bed, inside the roll's margins
-    only on its line, one stroke of her escape away. Her hip holds a leg out straight."""
+    only on its line, within two strokes of her escape (one on a 0.9 m bed; the ratchet re-anchors). Her hip holds a
+    leg out straight."""
     import numpy as np
     from machine.body import build, figure, heat
     from machine.texts import kernel
@@ -286,11 +287,12 @@ def test_the_bed_pendulum_on_her_body(report):
                  crown + clear < length - soles)
     deep, half = _deep(), _half('floor-supine-flat')[0]
     margin = _shots()[1]['bed-roll']['mattress-drop-off-barrier']['min-capsule-to-edge-margin-m']
+    strokes = math.ceil((0.5 * width - deep) / _stroke())
     report.check('sat her deepest her hips %.3f m in, %.3f off its line; on her back %.3f m wide, %.0f mm inside the '
-                 'edge, inside its %.0f mm margins within %.1f mm of the line; her stroke %.3f' % (
+                 'edge, inside its %.0f mm margins within %.1f mm of the line; her stroke %.3f, %d to the line' % (
                      deep, 0.5 * width - deep, 2.0 * half, 1e3 * (deep - half), 1e3 * margin,
-                     1e3 * (0.5 * width - margin - half), _stroke()),
-                 deep > half and 0.5 * width - margin - half >= 0.0 and 0.5 * width - deep < _stroke())
+                     1e3 * (0.5 * width - margin - half), _stroke(), strokes),
+                 deep > half and 0.5 * width - margin - half >= 0.0 and strokes <= 2)
     built, held, out = build.segments(), heat.held('left_hip')[0], []
     for knee in (0.0, -kernel.node('xform-sit-on-chair-or-stool', 'limb-hang')['override-origin']['tibiofemoral']):
         placed = figure.frames(dict(figure.stand(), left_hip=-90.0, left_knee=-math.degrees(knee), left_ankle=0.0),

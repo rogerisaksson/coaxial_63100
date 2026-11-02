@@ -27,7 +27,7 @@ BOARD_K, BOARD_C = 3000.0, 20.0
 #: The low chair's seat at her popliteal height, her knee less her thigh's radius there: a human's deep sit,
 #: soles flat; the lodge's is 5.3 cm over it.
 CHAIR_LOW_H = figure.ANKLE_H + figure.SHANK - [c for c in figure.BODY if c[0] == 'thigh'][-1][1]
-BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.50, 0.12, 1.0), 0.45, (0.52, 0.08, 1.02)
+BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.65, 0.12, 1.0), 0.45, (0.67, 0.08, 1.02)
 #: What lies on the floor and bears her soles alone.
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
 #: A ramp's grade, deg, and half sizes: 10, a steep street's.

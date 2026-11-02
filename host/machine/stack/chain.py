@@ -76,17 +76,33 @@ def frames(f):
     return np.array([frame(float(f[3 * i]), float(f[3 * i + 1]), float(f[3 * i + 2])) for i in range(len(f) // 3)]).reshape(-1, 3, 3)
 
 
+def ways(q):
+    """Her pelvis's left, its up and its way, world (3, 3), of its quaternion `q` (w, x, y, z): its turn's rows about
+    its up and its way, without its pitch about its left; its error the turn taking its left to the asked left."""
+    w, x, y, z = (float(v) for v in q)
+    return np.array([[1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y + w * z), 2.0 * (x * z - w * y)],
+                     [2.0 * (x * y - w * z), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z + w * x)],
+                     [2.0 * (x * z + w * y), 2.0 * (y * z - w * x), 1.0 - 2.0 * (x * x + y * y)]])
+
+
 def tasks(b, s, ask, regime):
-    """(R (m, n), r (m), want (nd)): the tasks above her posture, weighed - her pelvis's and trunk's turns as asked
-    (`regime.turn`), a sole asked to swing (`regime.swing`) -, and her driven joints' posture acceleration, at the
-    regime's own gains."""
+    """(R (m, n), r (m), want (nd)): the tasks above her posture, weighed - her pelvis's turn about its own up and
+    way, its error the turn taking its left to the asked left (`ways`: the log map's way and up parts carried
+    0.04-0.09 rad of a 35 deg pitch mismatch, and the way part left her 17 deg off the bed's line), her trunk's whole
+    as asked (`regime.turn`; the text's pitch is her trunk's, her pelvis's is her posture's to make, rolling on its
+    ischia as a scoot leaves it: asked of the pelvis it hauled her forward 37 deg at the bed's handover), a sole
+    asked to swing (`regime.swing`) -, and her driven joints' posture acceleration, at the regime's own gains."""
     n, v, act = b.n, s['v'], np.asarray(b.act, int)
     rows, rhs = [], []
-    for t, turn in zip(s['turns'], ask.get('turns', ())):
-        err = turn_error(np.asarray(turn, float), t['quat'])
-        for a in range(3):
-            rows.append(regime.turn * np.asarray(t['Jr'][a], float))
-            rhs.append(regime.turn * (regime.tkp * float(err[a]) - regime.tkd * float(t['w'][a]) - float(t['dJr'][a])))
+    for j, (t, turn) in enumerate(zip(s['turns'], ask.get('turns', ()))):
+        have = ways(t['quat'])
+        err = np.cross(have[0], ways(np.asarray(turn, float))[0]) if j == 0 else turn_error(np.asarray(turn, float), t['quat'])
+        Jr, w, dJr = (np.asarray(t[k], float) for k in ('Jr', 'w', 'dJr'))
+        for ax in (np.eye(3) if j else have[1:]):
+            rows.append(regime.turn * (ax[0] * Jr[0] + ax[1] * Jr[1] + ax[2] * Jr[2]))
+            rhs.append(regime.turn * (ax[0] * (regime.tkp * float(err[0]) - regime.tkd * float(w[0]) - float(dJr[0]))
+                                      + ax[1] * (regime.tkp * float(err[1]) - regime.tkd * float(w[1]) - float(dJr[1]))
+                                      + ax[2] * (regime.tkp * float(err[2]) - regime.tkd * float(w[2]) - float(dJr[2]))))
     for k, (at, speed, acc, quat) in ask.get('swing', {}).items():
         f = s['feet'][k]
         twist = f['J6'] @ v
@@ -101,7 +117,7 @@ def tasks(b, s, ask, regime):
     return (np.vstack(rows) if rows else np.zeros((0, n))), np.array(rhs, float), want
 
 
-def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, Q, RP, RG, r, want):
+def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, RP, RG, r, want):
     """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
     foresees, the contacts' forces it counts on (world; a freed contact's 0).
     Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
@@ -113,12 +129,15 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, Q, RP, RG, r,
     her sole, a fight her drives alone would pay for; a force that moves her base is free); those rows by damped
     least squares (`regime.task`), her posture in their null space; then the plan's own
     forces: a contact pulled on goes free, one dragged past its box |z_t| <= mu z_n slides, its friction the box's.
-    A contact felt under `regime.hold` N starts free: her fingers' arrival at 2-4 N, held, fought her arms' pose and
-    threw her elbow. The C twin spells every product in this order."""
+    A patch felt under `regime.hold` N - the segments one surface bears, `patch` (k): a fist's hand and fingers, the
+    pelvis's two ischia - starts free, its points with it: her fingers' arrival at 2-4 N, held, fought her arms' pose
+    and threw her elbow; her fists' 93 N split over hand and fingers, each under 30, left them out of the chain's
+    support at the bed. The C twin spells every product in this order."""
     k3, m1, lam2, task2 = 3 * len(Q), len(r), regime.lam * regime.lam, regime.task * regime.task
     rows3, Fk, eye, zfull = np.ones(k3, bool), np.zeros(k3), np.eye(nd), np.zeros(k3)
+    felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(len(Q))]
     for i in range(len(Q)):
-        rows3[3 * i:3 * i + 3] = math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) >= regime.hold
+        rows3[3 * i:3 * i + 3] = sum(float(patch[j] == patch[i]) * felt[j] for j in range(len(Q))) >= regime.hold
     x, p0, Pg, qg = np.zeros(nd), np.zeros(len(rhs0)), np.zeros((len(rhs0), nd + len(held))), np.concatenate([np.zeros(nd), held])
     for _ in range(regime.rounds):
         Ja_p, Ja_g, na = Jp[rows3], Jg[rows3], int(rows3.sum())
@@ -267,6 +286,7 @@ def step(b, s, ask, regime):
     J = np.vstack([c['J'] for c in contacts]) if k else np.zeros((0, n))
     dJv = np.concatenate([np.asarray(c['dJv'], float) for c in contacts]) if k else np.zeros(0)
     f = np.concatenate([np.asarray(c['f'], float) for c in contacts]) if k else np.zeros(0)
+    patch = np.array([int(c.get('patch', 0)) for c in contacts], int)
     Mpp, Mpg = np.ascontiguousarray(M[np.ix_(P, P)]), np.ascontiguousarray(M[np.ix_(P, given)])
     Minv = np.linalg.inv(Mpp)
     rhs0 = -h[P]
@@ -274,7 +294,7 @@ def step(b, s, ask, regime):
     Jv, Q = (J @ v if k else np.zeros(0)), frames(f)
     # 1. her driven joints as the chain's plan asks them, the tasks answered through the contacts and her dynamics
     R, r, want = tasks(b, s, ask, regime)
-    x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, Q, np.ascontiguousarray(R[:, P]),
+    x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, np.ascontiguousarray(R[:, P]),
                                  np.ascontiguousarray(R[:, given]), r, want)
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0

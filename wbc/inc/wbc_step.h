@@ -84,6 +84,9 @@ int wbc_step(wbc_step_t *p);
 /** machine.stack.chain.step (wbc_chain.c): her step in closed chains on `p`'s laid, sensed and asked - no sole
     standing, what bears her by complementarity, her posture in its null space: 0, or 1 where numpy would raise. */
 int wbc_chain(wbc_step_t *p);
+/** machine.stack.chain.tasks (wbc_chain_tasks.c): the rows above posture into R (m x n) and r (m), m returned - her
+    pelvis's turn about its own way and up, her trunk's whole, a sole's swing -; the posture's want (nd); jv a 6 scratch. */
+int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, double *jv);
 
 /** machine.stack.shrunk.shrunk (wbc_step.c): how far from tau0 toward tau every drive stays within [lo, hi]. */
 double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi);

@@ -158,7 +158,16 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     behind = np.sqrt(np.maximum(modal.SHANK ** 2 + modal.THIGH ** 2 + 2.0 * modal.SHANK * modal.THIGH * np.cos(knee)
                                 - high ** 2, 0.0))
     lean = np.arctan2(-behind, high) + np.arctan2(modal.THIGH * np.sin(knee), modal.SHANK + modal.THIGH * np.cos(knee))
-    aim = fr[modal.PITCH0][0] + modal.PITCH_RAD * out[latent.REF][modal.PITCH]
+    # her pelvis's pitch as asked while her legs are to stand or rest - their weight, out ahead of her, holds her
+    # pelvis there, the floor sit's - and as sensed (`modal.pitched`'s first, spelled out) as her back is told to
+    # bear, her legs to lift: asked then, their weight hauled her pelvis to the ask, 37 deg forward at the bed's
+    # handover where the scoot had rolled it back, and her trunk with it off her fists; by the legs' lift share the
+    # haul reloaded her soles and the ask came back, round and round
+    told_up = (1.0 - rising) * np.clip(told[DORSAL] / 0.10, 0.0, 1.0)
+    qw, qx, qj, qk = y[modal.QUAT][0], y[modal.QUAT][1], y[modal.QUAT][2], y[modal.QUAT][3]
+    up0, up1, up2 = 2.0 * (qx * qj - qw * qk), 1.0 - 2.0 * (qx * qx + qk * qk), 2.0 * (qj * qk + qw * qx)
+    sensed = np.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
+    aim = (1.0 - told_up) * (fr[modal.PITCH0][0] + modal.PITCH_RAD * out[latent.REF][modal.PITCH]) + told_up * sensed
     chain = np.stack([modal.FLEX[0] * (knee - lean + aim), modal.FLEX[1] * knee,
                       (1.0 - bed) * modal.FLEX[2] * lean + bed * laid[modal.CHAIN[:, 2]]], axis=1)
     # both legs at once, each element's ops as a leg's alone (their joints apart): 20 numpy calls where 10

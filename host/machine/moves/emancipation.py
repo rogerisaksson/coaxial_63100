@@ -182,10 +182,11 @@ def opened(g, s, ask, dt):
     """`ask`'s posture of each let-go leg its open chain's (`open-chain`): its reference on its joints as they are
     while it bears; let go, its knee drawn to her text's over the cascade's slew, its hip and ankle where that
     knee puts its sole on the floor from its hip's height over its ankle as it was let go (`modal.seat`'s chain, that
-    height held) and her pelvis on her pitch's aim (`impedance._poses`) - her legs' weight, out ahead of her, holds it
-    there; on her pelvis as it was, her legs let it roll back 48 -> 61 deg and her trunk -5 -> -31 deg, on her pitch's
-    want, a blend of that and the aim, her pelvis stayed at -50 deg and her spine's posture took her trunk down to
-    it, -97 deg -, its yaw, roll and
+    height held) and her pelvis on her pitch's aim (`impedance._poses`) while the leg's sole is down - its weight, out
+    ahead of her, holds it there; on her pelvis as it was her legs let it roll back 48 -> 61 deg and her trunk -5 -> -31
+    deg, the floor sit fell at 7.1 s - and on her pelvis's pitch as sensed as the leg is lifted - on the aim her lifted
+    legs' weight hauled her pelvis to the ask, 37 deg forward at the bed's handover where the scoot had rolled it back,
+    and her trunk with it off her fists -, its yaw, roll and
     ankle's roll where they were; `ask['open']` the text's stiffness and damping. On her
     posture's own - her chair's legs on her pelvis's height as sensed, her crouch's - a let-go leg pressed its foot
     down as she rose and lifted her 0.16 -> 0.26 m; yielding to all its sole bore, its hip wound to -200 deg; drawn to

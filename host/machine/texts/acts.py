@@ -203,14 +203,14 @@ def _equilibrium(p, then, at, modes, body):
 
 
 def _recline(p, then, at, modes, body):
-    """A recline: her trunk's ramp to its end, her centre of mass where she lies then (`seated.com`; left
-    where she sat her law slid her hips to the edge), her pelvis's turn's, her legs' sweep's knee; what bears
-    her panned as it says (`manifold-pan`), her fists on the seat behind her where it pans her hands
-    (`seated.braced`), held there as a pressing contact's point is (`wrench.W_STILL`), hanging where it pans them
-    none; her centre of mass on her
-    rest's spring: on the seat's -24 dB her trunk came back upright from -13 deg as her pelvis rolled under it."""
+    """A recline: her trunk's ramp to its end, her centre of mass where she lies then (`seated.com`; left where
+    she sat her law slid her hips to the edge; `talocrural-rad` her shin), her pelvis's turn's, her legs' sweep's
+    knee; what bears her panned as it says (`manifold-pan`), her fists on the seat behind her where it pans her
+    hands (`seated.braced`; `seated.planted` to `carpal-ahead-m`), held there as a pressing contact's point is
+    (`wrench.W_STILL`), hanging where it pans them none; her centre of mass on her rest's spring: on the seat's
+    -24 dB her trunk came back upright from -13 deg as her pelvis rolled under it."""
     sweep = p.get('counterweight-limb-sweep', {})
-    at['knee'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1]
+    at['knee'], at['ankle'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1], p.get('talocrural-rad', at['ankle'])
     trunk, weighs = p['torso-pitch-ramp'][-1], _weighs(p.get('manifold-pan'))
     spine = max(trunk, math.radians(drives.TRAVEL['spine'][0]))
     supine = weighs is not None and weighs[0] < 0.12
@@ -225,6 +225,7 @@ def _recline(p, then, at, modes, body):
     targets.update({'mode_arm_reach': seated.braced(spine) * palmed / modes['mode_arm_reach'][0],
                     'mode_arm_fold': 0.2 * palmed,
                     'mode_arm_swing': 0.0} if weighs is not None else {})
+    targets.update(zip(ARMS, seated.planted(p['carpal-ahead-m'], modes)) if 'carpal-ahead-m' in p else ())
     sag = (0.0, modes['mode_sagittal_shift'][2]) if supine else sprung('mode_sagittal_shift', 1.0, 1.0, modes)
     springs = {'mode_sagittal_shift': sag,
                'mode_pitch_attitude': sprung('mode_pitch_attitude', 1.0, 1.0, modes),

@@ -272,3 +272,113 @@ and a let-go leg turns at its hip toward the told heading
 (`emancipation.hipped`). Next is the hands' seek onto the mattress behind
 her; the floor sit's knee bound moved 124 to 130 deg (127 under the calmer
 posture gain).
+
+## The pull onto the bed
+
+The take (lying/Lying Down from Sitting, 0.866 of her leg): fists planted
+0.2 m behind, upright, by 0.9 s; the pelvis drawn 0.45 m up the bed in 1.3 s
+at 0.58 m/s at most, its height unchanged, both feet up 0.5 m as one; the
+trunk down in 1.4 s; the legs stretched last. The bed scenario's `bed_behind`
+is the bed's long side; `bed_foot_behind` its end, now `bed_foot`. At HEAD
+the end-lie sat: lean 6-19 deg, fists 3-6 N on the foam, pelvis 0.06 m in,
+feet on the floor, and the rest's limp folded her forward (head 0.52 m);
+the lay judge called it met. Four mechanisms, each measured in memory before
+it was written:
+
+- Her fists hung 0.17 m over the mattress: `_recline` set them for the
+  stage's end pitch (`seated.braced` at -0.40) while her trunk stayed at
+  -0.07 (the sit's pelvis 0.68 rad forward, its spine at -30). Planted
+  upright 0.14 m behind (`carpal-ahead-m`) they touch; pressed 2-5 cm into
+  the foam by position they bore 50-150 N and shrank the solve to 0.00-0.05
+  (an infeasible fight of arm and contact rows): no press. They bear once
+  the lean needs them.
+- The scoot is her feet: told plantar 0.45, ischial 0.15, palmar 0.40, knee
+  1.45 to 1.25, her shin back 0.05 (`talocrural-rad`), the sagittal ask past
+  her heels so `risen_back` does not hold the row, she moves 0.16 m in 1.2 s
+  calm (scale 1.0), her pelvis rolling back to -0.6 rad on its ischia. A knee
+  extension with the ask over her heels is a rise and waits for ever on the
+  bed; a pelvis-lift scoot (ischial 0) falls backward.
+- The lean on the fists is stable to the feet's unloading (-0.35 asked, -31
+  deg met, hands 93 N, feet 9 N) only with the arms a shade too straight
+  (`FOLD_MARGIN` 0.15 on `seated.planted`): folded to the reach ahead of her
+  pitch they drew her back into a fall, 853-1128 deg/s at the elbow. A fist
+  0.20 m behind is hers to pitch -0.3; at -0.6 within 0.06 m, at -1.2 beside
+  her, flat 0.05 m ahead: the pull is the arms' reach, as the take's hands
+  pass from 0.17 m behind to 0.07 ahead.
+- At the chain's handover she was hauled forward 37 deg and sat up: a let-go
+  leg's hip reference carried the ASKED pelvis pitch (`cascade.opening`'s
+  aim, -20 deg) against the -57 the scoot had left, and the chain's turn
+  task asked the pelvis the text's torso pitch. The aim follows the pelvis's
+  sensed pitch as her back is told to bear (`told[DORSAL]`, the word that
+  her legs are to lift) and the ask while her legs rest or stand: on the
+  sensed pitch alone the floor sit fell at 7.1 s, by the legs' lift share
+  the haul reloaded her soles and the ask came back, and let go with the
+  back half told she hauled herself up - the lean stage tells it first. The
+  pelvis's turn rows are about its own way and up (`chain.ways`,
+  wbc_chain_tasks.c), its pitch her posture's; a patch is held by what its
+  segments feel together (hand and fingers 23 N each were free under
+  `hold-n` 30 with 93 N on the fists). With all three she lies down on the
+  fists at 62 deg/s (the take 64), 0.35 m up the bed (the take 0.39, the
+  scenario's `went` -0.52), head 0.52 m, feet 0.36-0.61 along the mattress,
+  soles 0.00; the handover still spikes her elbow 193 and waist 264 deg/s
+  (the lodge's fields from the bed's foot: arms 271, neck 90, trunk 290 in
+  the scoot), the next polish.
+
+The long side keeps its stages on the new plant: her legs lift now and she
+sits up on them (met, soles 0.57, no fall); its own pull is open. The dock
+is `:short`: from the long side's doorstep the walk round the bed's corners
+falls as before (the corner brake, not the lie: csv_rec at 19.8 s,
+south_face at 12.6 s). Lying 0.35 m up the bed, `rise_bed` sticks at its
+lean - its sit-up leaves her feet on the mattress, the thrust wants the
+floor - so the errands' F for bed fails on the rise; its chair rows and the
+rise leads (1.881, 3.781, 3.781) are red at HEAD alike.
+
+## Both fists down
+
+The lodge's end-lie failed where the scenario lay. Measured, the bed (top
+0.44 m to 0.45, one box to mattress and frame), the room's physics, the
+dock's 0.137 rad yaw and the turn ask zeroed changed nothing; one fist bore
+alone. `seated.planted` set the fists for the stage's told torso pitch; sat,
+her pelvis is 0.68 rad forward of it, so they hung 0.11-0.15 m over the foam,
+the first down bore alone (58-73 N against 0-10) while the other hung 4-13
+cm up, she rolled and yawed 10-13 deg onto it, the lean stalled 8-10 deg
+short of its -20 ask (feet 70 N) and the handover hauled her forward.
+Three mechanisms, each measured first:
+
+- `seated.kept`, per tick (`somatic.asked`): a fist told to bear is sought to
+  the point the text planted (read back off the compiled ask by a two-link
+  reach in her sagittal plane, within 1.6 cm of `figure`) under her pelvis's
+  pitch as sensed, her spine's bend and trunk's roll; one that has borne
+  keeps that point, fixed along her way as her hips scoot past it. Held at
+  its joints instead the arm went limp and the release dropped her at 75
+  deg/s; sought to the stage's own point, an unlatched fist swung beside her
+  hip at the scoot's first tick and the scoot stood her up: the text keeps
+  one point, 0.14 m behind.
+- The press is sought, the seat identified. Set on the foam the fists bore
+  3 N, no contact to the step, and the scoot's told soles stood her up; a
+  fixed centimetre bore 50 N there and fought the rigid floor (the floor
+  scoot fell back). Measured, the mattress
+  gives 0 N for its first centimetre, 30-50 N over 2-7 cm (a tangent near
+  400 N/m) and creeps 1-3 cm/s at steady force. `kept` identifies
+  the seat per hand (felt force over sink since the touch, a secant) and
+  presses by the kernel's admittance (seek 0.25 m/s, yield 45 N s/m) at a
+  gain bounded by that stiffness: dead-beat on a floor, a sink on foam,
+  the press a seek step ahead of the fist at most (led by the reach's 1.6 cm
+  error it pressed her off the lean, both scenes fell). The point is fixed in
+  the world in height too, off
+  her pelvis's middle (pelvis-relative, the chair's rise lifted the fists off
+  its seat; her hips' midpoint moves 3-4 cm against the middle as the pelvis
+  rolls back); a point pressed under the seat (the hitch's) is never taken
+  up, one taken up is kept; one fist still hovers over the foam.
+- The chain's pelvis rows take the turn of her left axis to the asked left
+  (`chain.ways`, wbc_chain_tasks.c): the log map's way and up parts carried
+  0.04-0.09 rad of a 35 deg pitch mismatch, its way part the 17 deg she
+  ended off the bed's line.
+
+Now the lodge lies 0.33 m up the bed (the take 0.39), lean -91, 7 deg off
+its line, and the scenario 0.13 m, -97, 6 deg, each by a drop onto the
+forearms at the lean's end (0.38 m with the fixed press). Open:
+yawed to the bed her thighs meet its edge unevenly (23/54 N) and one fist
+takes the lean, so it ends in a drop onto the forearms and her elbows prop
+the recline at -63 to -76 till the rest lays her flat; the straightening is
+the chain's heading row at turn-kp 4, slow; the shrimp needs two strokes.
