@@ -385,11 +385,6 @@ def told(w):
             'residual': w['residual'].tolist(), 'read': w['read'].tolist()}
 
 
-def serviced(w):
-    """A service done: the drifts' trends start anew from here."""
-    w['serviced_at'] = w['hours']
-
-
 def torso_load(w, ys, dt):
     """(mass kg, (hx, hy, hz) m) of a load riding her torso, read off her insoles' rows
     (`sysid.borne`) against her build's prediction on the samples her insoles bear her."""

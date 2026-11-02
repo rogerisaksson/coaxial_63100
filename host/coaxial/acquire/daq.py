@@ -31,9 +31,6 @@ FLAGS = ('running', 'done', 'lost_power')
 #: resolution three orders inside what a float holds anyway.
 COEFF_SCALE = 1 << 28
 
-#: A biquad section is five coefficients.
-SECTION = 5
-
 #: Bytes of records one read answers (`DAQ_REPLY_ROOM`, cmd_daq.c).
 REPLY_ROOM = 240
 

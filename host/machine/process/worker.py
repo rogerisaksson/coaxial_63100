@@ -263,7 +263,6 @@ DT = 1.0 / sprung.RATE_HZ
 #: The environment's port her loop's layers are served on (`introspect.attach`), unset none.
 TELEMETRY = 'COAXIAL_TELEMETRY'
 K = DT / sprung.AVERAGE_S
-WINDOW_STEPS = int(round(wear.WINDOW_S / DT))
 
 
 def session(every=sprung.STACK_EVERY, walks=False, heard=None, texts=None, ber=0.0):

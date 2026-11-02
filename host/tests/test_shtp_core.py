@@ -14,7 +14,6 @@ SHTP = os.path.join(REPO, 'shtp')
 SOURCES = [os.path.join(SHTP, 'src', 'shtp.c')]
 
 CH_CONTROL = 2
-CH_INPUT = 3
 
 
 class Header(ctypes.Structure):

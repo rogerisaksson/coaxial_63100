@@ -29,17 +29,6 @@ LINE_SHARE_PERCENT = 75
 SOURCES = {'phases': 0, 'angle': 1, 'imu': 2}
 
 
-def _source_mask(sources):
-    """A source mask from names, or the mask itself when given one."""
-    if isinstance(sources, int):
-        return sources
-    unknown = [s for s in sources if s not in SOURCES]
-    if unknown:
-        raise ValueError('no such source: %s - have %s'
-                         % (', '.join(unknown), ', '.join(SOURCES)))
-    return sum(1 << SOURCES[s] for s in set(sources))
-
-
 class SimulatedDaq(Acquisition):
     """One acquisition task, backed by DaqCore (`daq.c` and `filter.c`)."""
 

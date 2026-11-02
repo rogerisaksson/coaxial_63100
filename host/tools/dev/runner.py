@@ -10,7 +10,6 @@ import re
 import signal
 import subprocess
 import sys
-import time
 
 from tools.dev import counts
 from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
@@ -109,15 +108,6 @@ def _parse(out, code, elapsed, timeout):
         return (None, code, failing, elapsed,
                 '\n'.join(filter(None, [header, (out or '').strip()[-CRASH_TAIL:]])), groups)
     return tally, code, failing, elapsed, None, groups
-
-
-def run_one(path, timeout=300, extra=()):
-    """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None)."""
-    started = time.monotonic()
-    done = run_captured([sys.executable, str(path)] + list(extra), timeout,
-                        cwd=str(ROOT))
-    return _parse((done.stdout or '') + (done.stderr or ''), done.returncode,
-                  time.monotonic() - started, timeout)
 
 
 def _extra_for(name, args, tags, live_sections):

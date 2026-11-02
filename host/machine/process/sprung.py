@@ -341,11 +341,6 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
                        float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}
 
 
-def _heard_say(g, gym, entry):
-    from machine.process import worker
-    return worker.heard_say(g, gym, entry)
-
-
 def _heard(g, gym, command):
     from machine.process import worker
     return worker.heard(g, gym, command)

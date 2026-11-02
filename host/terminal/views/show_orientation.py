@@ -92,24 +92,6 @@ def canvas(args):
     return (args.width or max(40, width), args.height or max(16, height))
 
 
-def silent_part(record):
-    """What to draw when the IMU has produced nothing at all."""
-    return [
-        '  The IMU has reported %d rotation vectors.' % record['updates'],
-        '',
-        '  loop %s, %d errors, last error %s.'
-        % (record['loop'], record['errors'], record['error']),
-        '',
-        '  Nothing is drawn because there is nothing to draw: the model at',
-        '  identity is a board lying exactly level, which is a plausible',
-        '  attitude and would look like a part that works.',
-        '',
-        '  imu.pins() and imu.product_id() need the loop HELD - call them',
-        '  inside board.imu.configuring(), or they answer SERVER DEVICE',
-        '  FAILURE and look like a dead part. See FINDINGS.',
-    ]
-
-
 def start_reporting(board, interval_us):
     """Ask the part for a rotation vector, and say whether it took."""
     board.imu.settled()          # anything before 'running' is startup

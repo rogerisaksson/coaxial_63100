@@ -249,8 +249,3 @@ def touched(world, dt):
     world.switched = since
     return getattr(world, 'lamp', False)
 
-
-def door_open(world):
-    """How far the door stands open, deg."""
-    m = world.model
-    return math.degrees(float(world.data.qpos[m.jnt_qposadr[m.joint('door').id]]))

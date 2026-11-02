@@ -9,7 +9,7 @@ host/
   coaxial_ollama/   the local-model runner, and what dbg.py drives
   board_chat.ps1    preflight + prompt loop; board_chat/ holds its parts
   dbg.py            the prompt loop one layer down: /py and /sh cost no tokens
-  testline/         production line: plans, instruments, and the limits
+  testline/         production line: plans and their limits
   examples/         read_board.py (measure, judge nothing),
                     pytest_production_line.py (where limits belong)
   tests/            twenty-five suites; run_tests.ps1 is the interface

@@ -99,10 +99,6 @@ DRIVER_SWITCH_WATT = 2.40 / 3
 LEG_CAPACITY_DRIVERS = 0.35
 LEG_CAPACITY_PHASES = 1.20
 
-#: Silva's gamma, for the other end of the band. Not applied: a factor on an
-#: unattributed number is not a measurement.
-CAPACITY_GAMMA = 1.0 / 3.0
-
 #: The drivers node over the board while switching, K: the product of the two
 #: above, not a constant of its own.
 DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD

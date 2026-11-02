@@ -19,7 +19,6 @@ Every style is named here in the Theme and nowhere else - a view says
 """
 import ctypes
 import io
-import re
 import threading
 import time
 import weakref
@@ -343,9 +342,6 @@ def hud(title, rows):
     return Panel(body, title=Text(title, style='name'), title_align='left',
                  box=box.ROUNDED, border_style='frame.hud',
                  padding=(0, 1), expand=True)
-
-
-_ESCAPE = re.compile(r'\x1b')
 
 
 def viewport(title, art, corner='', page=None):

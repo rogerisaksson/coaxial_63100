@@ -28,7 +28,6 @@ MASS_DEFAULT = figure.MASS_KG
 MAX_TOLERANCE_DEG = 15.0
 MAX_TOLERANCE_RAD = math.radians(MAX_TOLERANCE_DEG)
 EVAL_JOINTS = ('Hips', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot')
-ALL_JOINTS = tuple(fbx.bone(seg[0]) for seg in figure.SEGMENTS)
 GATE_BOUNDS = {
     'gps_deg': (0.0, MAX_TOLERANCE_DEG),
     'step_star': (0.45, 0.95),
