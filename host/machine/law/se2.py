@@ -34,7 +34,7 @@ NOMINAL_TWIST = {
     'turn_back_left': (-BACK_SPEED, 0.0, YAW_RATE), 'turn_back_right': (-BACK_SPEED, 0.0, -YAW_RATE),
 }
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_S, WEP_FILL, KNEE_SOFT, KNEE_NM = 0.2, 0.1, 1.0, 8.0, 0.8, 0.1, 40.0
-STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
+STUNT_MODES = {'sit_chair', 'rise_chair', 'lie_bed', 'leg_bed', 'rise_bed', 'lie_floor', 'rise_floor', 'hop_down_chair',
                'hop_up_chair', 'stairs_down', 'parry_shove', 'controlled_fall'}
 STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_edge', 'recline', 'bed_rest', 'sit_up',
                 'swing_out', 'kneel', 'tip', 'floor_rest', 'push_arms', 'half_kneel', 'cushion', 'land', 'step_off', 'drop',

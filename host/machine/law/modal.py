@@ -5,7 +5,7 @@
     rest = modal.rest(fr)                               # her rest vector (`latent.state`)
     z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
     posed = modal.poses(a, y, fr, posture, bend, arms, reaches, folds, knees)  # the stack's ask's arithmetic
-    ask = modal.given(a, y, posed, knees, bend)         # the stack's ask (`wbc.step`) of `a`
+    ask = modal.given(a, y, posed, knees, bend, fr)     # the stack's ask (`wbc.step`) of `a`
 
 Flat arrays and arithmetic on them; a choice is a mask, a limit a minimum or a maximum, a
 change a blend. A limb's place is its sole's from her centre of mass, along her way, to her
@@ -355,10 +355,17 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     return sw_at, pose, turns, tips
 
 
-def given(a, y, posed, knees, bend):
+#: Borne, her trunk sensed this far back, rad, is a recline: the chain's step holds her (`chain.chained`). On the
+#: walking step the bed's long side slid her off its edge onto the floor at 4.8 s; on the chain, its hands' and
+#: soles' push capped, the bed bore her through the run, 12.5 s, and she lay square on it.
+RECLINED_RAD = 0.35
+
+
+def given(a, y, posed, knees, bend, fr):
     """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
     that does not stand is asked its acceleration where it is; no turn is asked with none standing;
-    each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate."""
+    each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate; `reclined`
+    borne with her trunk sensed past RECLINED_RAD back along her way (`fr`)."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
     free = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5))
     folded = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5) & (a[FOLDS] > 0.5))
@@ -367,5 +374,6 @@ def given(a, y, posed, knees, bend):
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
             'borne': float(a[BORNE]), 'rests': tuple(a[RESTS]),
+            'reclined': float(a[BORNE] * (pitched(y, fr[ROT].reshape(3, 3))[1] < -RECLINED_RAD)),
             'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}

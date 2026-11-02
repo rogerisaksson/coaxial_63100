@@ -38,7 +38,7 @@ def docks():
     her hanging hands on a bed she lies along and in the doorway -, m; her run in through the door, m, None
     where she turns onto a dock). Her hips within its end, she landed 0.25 m off its middle and lay over
     its corner, 16 deg off its axis."""
-    return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.ASIDE, None),
+    return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.ASIDE, None), 'leg_bed': (figure.ASIDE, None),
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
 
 

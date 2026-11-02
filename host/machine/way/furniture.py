@@ -12,6 +12,7 @@ from machine.way import affordance
 #: the headings of the faces she docks at (`route.docked`): a bed's ends and sides, her lie the edge's (`first`).
 GOES = {'sit_chair': (affordance.sits, affordance.backed, affordance.fronts),
         'lie_bed': (affordance.lies, lambda _b, _t: True, affordance.faces),
+        'leg_bed': (affordance.lies, lambda _b, _t: True, affordance.faces),
         'lie_floor': (affordance.lies, lambda _b, _t: True, affordance.sides),
         'exit_door': (affordance.door, lambda _b, _t: True, affordance.sides)}
 _NONE = (lambda _b, _t: False, lambda _b, _t: False, lambda _b, _t: ())

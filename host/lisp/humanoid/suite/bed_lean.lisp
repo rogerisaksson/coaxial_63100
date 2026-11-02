@@ -18,6 +18,8 @@
            #:specialize-sit-up-short-side
            #:specialize-sit-up-long-side
            #:patch-bed-lean
+           #:specialize-leg-over-edge
+           #:patch-leg-bed
            #:patch-rise-bed))
 (in-package :ortho-dsp.bed-lean)
 
@@ -145,6 +147,75 @@
         :descent-duration-ms 1400.0
         :seat-z-mm seat-z-mm)
       (transfer-carpal-recline :bed-side bed-side)
+      (master-anti-spasm-insert)))
+
+;; From its end, her left leg over the edge onto the bed in her law (no program): leant back onto her fists
+;; (-0.60 rad, her hips holding her pelvis at its wanted pitch, `modal.seat`), the leg lifted its full reach
+;; (6 units, 4 cm each over the hip, `cascade.opening`) and folded over 2 s, drawn 0.55 m back of where its knee
+;; had its ankle (`:limb-back-m`, `maneuver._placed`), set down on the foam; the other leg hangs. The puppet's
+;; crab (tools/sim/puppet.py) lifts, folds and sets one leg at a time this way, the trunk regulated.
+(defmaneuver specialize-leg-over-edge [state]
+  (-> state
+      (stage-sequential-manifold                       ; the lean onto the fists behind her
+        :duration-ms 600.0
+        :contact-chain [:ischial-sacral -> :occipital]
+        :torso-pitch-ramp [0.0 -> -0.60]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 1.25] :limb-lift 0.0)
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.22
+        :trunk-hold 4.0
+        :manifold-pan '((:plantar-bilateral 0.30) (:ischial-bilateral 0.40) (:palmar-carpal-bilateral 0.30)))
+      (stage-sequential-manifold                       ; lifted and folded
+        :duration-ms 2000.0
+        :contact-chain [:occipital -> :greater-trochanter-r]
+        :torso-pitch-ramp [-0.60 -> -0.60]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 2.79] :limb-lift 6.0)
+        :limb-back-m 0.01
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.22
+        :trunk-hold 4.0
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.50) (:palmar-carpal-bilateral 0.35)))
+      (stage-sequential-manifold                       ; drawn back over the bed
+        :duration-ms 1000.0
+        :contact-chain [:greater-trochanter-r -> :greater-trochanter-l]
+        :torso-pitch-ramp [-0.60 -> -0.60]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [2.79 -> 2.79] :limb-lift 6.0)
+        :limb-back-m 0.55
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.22
+        :trunk-hold 4.0
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.50) (:palmar-carpal-bilateral 0.35)))
+      (stage-sequential-manifold                       ; set down on the foam
+        :duration-ms 300.0
+        :contact-chain [:greater-trochanter-l -> :ischial-bilateral]
+        :torso-pitch-ramp [-0.60 -> -0.60]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [2.79 -> 2.79] :limb-lift 0.0)
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.22
+        :trunk-hold 4.0
+        :manifold-pan '((:plantar-bilateral 0.25) (:ischial-bilateral 0.45) (:palmar-carpal-bilateral 0.30)))))
+
+(defpatch patch-leg-bed [approach-gait &key (seat-z-mm 450.0)]
+  (-> approach-gait
+      (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159 :fixture-face :short)
+      (substrate-rigid-fixture)
+      (transfer-eccentric-handover
+        :source-manifold :plantar-bilateral
+        :target-manifold :ischial-bilateral
+        :descent-duration-ms 1400.0
+        :seat-z-mm seat-z-mm)
+      (stage-sequential-manifold                       ; onto her fists behind her, as the lie's lean
+        :duration-ms 900.0
+        :contact-chain [:ischial-bilateral -> :palmar-carpal-bilateral]
+        :torso-pitch-ramp [0.0 -> 0.0]
+        :carpal-ahead-m -0.14
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.60) (:palmar-carpal-bilateral 0.25)))
+      (specialize-leg-over-edge)
       (master-anti-spasm-insert)))
 
 ;; From supine along it from its end: sit up straight, no turn

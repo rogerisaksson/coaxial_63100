@@ -26,6 +26,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.senses.borne import CARPAL, LET
+from machine.stack.rounds import GROW_N
 from machine.stack.shrunk import box, shrunk
 from machine.stack.wbc import HELD_K, SWING_KD, turn_error
 
@@ -38,14 +40,19 @@ Regime = collections.namedtuple('Regime', 'lam task sweeps rounds soft bleed mu 
 
 
 def chained(ask):
-    """1 where the step is hers: a leg let go, or no sole standing, and no sole asked to land (`motion.control`)."""
-    return int(not ask.get('swing') and (any(ask.get('let_go', ())) or not any(ask['stance'])))
+    """1 where the step is hers: a leg let go, no sole standing, or borne reclined (`modal.given`), and no sole asked
+    to land (`motion.control`)."""
+    return int(not ask.get('swing') and (any(ask.get('let_go', ())) or not any(ask['stance'])
+                                         or ask.get('reclined', 0.0) > 0.5))
 
 
-def bearing(s, loads, stance, chained):
-    """Her contacts with each standing sole one more patch where the step is hers (`chained`): its load up (felt), its
-    Jacobian's translation, a body below 0 - held in its friction's box, never planned as a push."""
-    soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]), 0.0]), 'J': np.ascontiguousarray(f['J6'][3:6]),
+def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
+    """Her contacts with each standing sole one more patch where the step is hers (`chained`): its load up (felt) as far
+    as her text keeps its leg (`shed`, the release `emancipation` asks of each), its Jacobian's translation, a body
+    below 0 - held in its friction's box, never planned as a push. Felt whole, the leg her text lifted took 82 -> 112 N
+    as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s."""
+    soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]) * (1.0 - float(shed[k])), 0.0]),
+              'J': np.ascontiguousarray(f['J6'][3:6]),
               'dJv': np.asarray(f['dJv'][3:6], float), 'patch': 0, 'side': k, 'body': -1 - k}
              for k, f in enumerate(s['feet']) if chained and stance[k]]
     return list(s.get('contacts', ())) + soles
@@ -117,7 +124,7 @@ def tasks(b, s, ask, regime):
     return (np.vstack(rows) if rows else np.zeros((0, n))), np.array(rhs, float), want
 
 
-def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, RP, RG, r, want):
+def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, RP, RG, r, want):
     """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
     foresees, the contacts' forces it counts on (world; a freed contact's 0).
     Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
@@ -132,7 +139,11 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, RP,
     A patch felt under `regime.hold` N - the segments one surface bears, `patch` (k): a fist's hand and fingers, the
     pelvis's two ischia - starts free, its points with it: her fingers' arrival at 2-4 N, held, fought her arms' pose
     and threw her elbow; her fists' 93 N split over hand and fingers, each under 30, left them out of the chain's
-    support at the bed. The C twin spells every product in this order."""
+    support at the bed. A hand's patch or a sole patch (`borne.CARPAL`'s, `body` below 0) asked past what it feels
+    by GROW_N (`rounds`, the upright step's own cap) is held at that cap, its friction boxed by it - what she sits or
+    lies on is not: uncapped, on the bed's long side the plan asked her arms 250-554 N on 15-70 felt and her standing
+    sole 273 N on 181, unloaded her pelvis, and she slid off the bed onto that sole; her seat capped too, it took 12 N
+    of her 329 as she sat on the floor and she lay back. The C twin spells every product in this order."""
     k3, m1, lam2, task2 = 3 * len(Q), len(r), regime.lam * regime.lam, regime.task * regime.task
     rows3, Fk, eye, zfull = np.ones(k3, bool), np.zeros(k3), np.eye(nd), np.zeros(k3)
     felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(len(Q))]
@@ -200,6 +211,13 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, RP,
             zn, zt1, zt2 = float(loc[0]), float(loc[1]), float(loc[2])
             if zn < 0.0:
                 rows3[3 * i:3 * i + 3], Fk[3 * i:3 * i + 3], changed = False, 0.0, True
+            elif (int(body[i]) < 0 or CARPAL <= int(patch[i]) < LET) and zn > felt[i] + GROW_N:
+                cap = felt[i] + GROW_N
+                lim = regime.mu * cap
+                tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
+                for c in range(3):
+                    Fk[3 * i + c] = float(Q[i, 0, c]) * cap + float(Q[i, 1, c]) * tb1 + float(Q[i, 2, c]) * tb2
+                rows3[3 * i:3 * i + 3], changed = False, True
             elif rows3[3 * i + 1] and max(abs(zt1), abs(zt2)) > regime.mu * zn:
                 lim = regime.mu * zn
                 tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
@@ -287,6 +305,7 @@ def step(b, s, ask, regime):
     dJv = np.concatenate([np.asarray(c['dJv'], float) for c in contacts]) if k else np.zeros(0)
     f = np.concatenate([np.asarray(c['f'], float) for c in contacts]) if k else np.zeros(0)
     patch = np.array([int(c.get('patch', 0)) for c in contacts], int)
+    body = np.array([int(c.get('body', 0)) for c in contacts], int)
     Mpp, Mpg = np.ascontiguousarray(M[np.ix_(P, P)]), np.ascontiguousarray(M[np.ix_(P, given)])
     Minv = np.linalg.inv(Mpp)
     rhs0 = -h[P]
@@ -294,7 +313,7 @@ def step(b, s, ask, regime):
     Jv, Q = (J @ v if k else np.zeros(0)), frames(f)
     # 1. her driven joints as the chain's plan asks them, the tasks answered through the contacts and her dynamics
     R, r, want = tasks(b, s, ask, regime)
-    x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, Q, np.ascontiguousarray(R[:, P]),
+    x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
                                  np.ascontiguousarray(R[:, given]), r, want)
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0

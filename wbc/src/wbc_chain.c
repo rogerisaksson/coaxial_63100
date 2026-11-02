@@ -358,7 +358,10 @@ static int planned(const wbc_step_t *p, int np_, int ng, int k3, const double *h
     }
     for (int i = 0; i < nc; i++)
     {
-      double loc[3];
+      const double *cf = p->cf[i];
+      const double  felt = sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]);
+      const int     pushes = p->cbody[i] < 0 || (p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal);
+      double        loc[3];
 
       if (!rows3[3 * i])
       {
@@ -372,6 +375,19 @@ static int planned(const wbc_step_t *p, int np_, int ng, int k3, const double *h
       {
         rows3[3 * i] = rows3[3 * i + 1] = rows3[3 * i + 2] = 0;
         Fk[3 * i] = Fk[3 * i + 1] = Fk[3 * i + 2] = 0.0;
+        changed = 1;
+      }
+      else if (pushes && loc[0] > felt + p->grow_n)
+      {
+        /* a hand's or a sole's patch asked past what it feels by grow_n (machine.stack.rounds.GROW_N): held at that
+           cap, its friction boxed by it; what she sits or lies on is not */
+        const double cap = felt + p->grow_n, lim = mu * cap, tb1 = npclip(loc[1], -lim, lim), tb2 = npclip(loc[2], -lim, lim);
+
+        for (int c = 0; c < 3; c++)
+        {
+          Fk[3 * i + c] = (Q[9 * i + c] * cap + Q[9 * i + 3 + c] * tb1) + Q[9 * i + 6 + c] * tb2;
+        }
+        rows3[3 * i] = rows3[3 * i + 1] = rows3[3 * i + 2] = 0;
         changed = 1;
       }
       else if (rows3[3 * i + 1] && npmax(fabs(loc[1]), fabs(loc[2])) > mu * loc[0])

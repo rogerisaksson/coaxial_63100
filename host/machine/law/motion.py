@@ -216,7 +216,7 @@ def control(g, dt):
     # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
-    ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'])
+    ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'], g['fr'])
     ask['let_cap'], ask['sat'] = g['let_cap'], max(g['sat'], float(g['a'][modal.BORNE]) * float(g['a'][modal.LET_GO].max()))
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
@@ -251,7 +251,7 @@ def control(g, dt):
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))
     chained = chain.chained(ask)
-    g['got'] = g['solves'][chained](body, dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained)),
+    g['got'] = g['solves'][chained](body, dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'])),
                                    dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
     got = g['got']
     g['seat_f'][:] = 0.0

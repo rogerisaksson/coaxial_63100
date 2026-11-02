@@ -40,6 +40,7 @@ PLAYED = {
     'rise_chair': ('patch-rise-chair', 'sit_chair', {'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
                                                      'drive': 'stand'}),
     'lie_bed': ('patch-bed-lean', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
+    'leg_bed': ('patch-leg-bed', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
     'rise_bed': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
                                               'drive': 'stand'}),
     'rise_floor': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean',
@@ -130,7 +131,8 @@ def _phases(name, seen=None, got=None):
     for k, (op, p, then) in enumerate(g['_events']):
         if op not in ACTS:
             raise MachineError('refused: %s, no phase of hers for it' % op)
-        made = [_paced(_armed(_held(phase, p), modes), modes) for phase in ACTS[op](p, then, at, modes, body)]
+        made = [_paced(_armed(_placed(_held(phase, p), p, modes), modes), modes)
+                for phase in ACTS[op](p, then, at, modes, body)]
         out, own = out + made, own + [k >= first] * len(made)
         bound += [_program(p, at) if i == 0 else None for i in range(len(made))]
     out = _supported([p._replace(ms=GRAIN_MS) if k + 1 < len(out) and out[k + 1].waits and p.stage == 'descent' else p
@@ -151,6 +153,18 @@ def _held(p, stage):
 
 #: The modes `:trunk-hold` stiffens.
 TRUNK_MODES = ('mode_pitch_attitude', 'mode_sagittal_shift')
+
+
+def _placed(p, stage, modes):
+    """`p`, the stage's `:limb-back-m` as its drive's target with its lift's sign, the drive sprung: the leg
+    the lift lets go placed on the bed, its ankle that far behind where its knee had it (`cascade.opening`)."""
+    back = stage.get('limb-back-m') if hasattr(stage, 'get') else None
+    if back is None:
+        return p
+    lift = float(stage.get('counterweight-limb-sweep', {}).get('limb-lift', 0.0))
+    drive = (1.0 if lift >= 0.0 else -1.0) * float(back) / modes['mode_sagittal_drive'][0]
+    return p._replace(targets={**p.targets, 'mode_sagittal_drive': drive},
+                      springs={'mode_sagittal_drive': sprung('mode_sagittal_drive', 1.0, 1.0, modes), **p.springs})
 
 
 def _armed(p, modes):

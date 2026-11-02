@@ -43,13 +43,13 @@ int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, dou
       {
         err[b] = (p->chain_turn_kp * err[b] - p->chain_turn_kd * p->tw[0][b]) - p->dJr[0][b];
       }
-      for (int a = 0; a < 2; a++, m++)
+      for (int ax = 0; ax < 2; ax++, m++)
       {
         for (int i = 0; i < n; i++)
         {
-          R[m * n + i] = p->chain_w_turn * (ways[a][0] * J[i] + ways[a][1] * J[n + i] + ways[a][2] * J[2 * n + i]);
+          R[m * n + i] = p->chain_w_turn * (ways[ax][0] * J[i] + ways[ax][1] * J[n + i] + ways[ax][2] * J[2 * n + i]);
         }
-        r[m] = p->chain_w_turn * (ways[a][0] * err[0] + ways[a][1] * err[1] + ways[a][2] * err[2]);
+        r[m] = p->chain_w_turn * (ways[ax][0] * err[0] + ways[ax][1] * err[1] + ways[ax][2] * err[2]);
       }
       continue;
     }

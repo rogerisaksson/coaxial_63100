@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.law import impedance, latent, melt, modal, poise
+from machine.law.stride import STRIDE_M
 from machine.texts import kernel, maneuver, ortho
 from machine.senses import observer
 from machine.stack import rounds
@@ -142,7 +143,12 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     `laid` her session's."""
     rot = fr[modal.ROT].reshape(3, 3)
     leg = modal._leg(y, rot)
+    # a leg her text lifts AND drives (`:limb-back-m`) is placed: raised 4 cm a lift unit to the text's reach,
+    # its ankle `back` nearer her than its knee had it; undriven, as before to the bit
+    back = impedance.LIMBS * STRIDE_M * out[latent.REF][modal.DRIVE]
+    driven = (back != 0.0) * 1.0
     up = np.clip(impedance.LIMBS * out[latent.REF][modal.LIFT], 0.0, 1.0)
+    up = up + driven * (np.clip(impedance.LIMBS * out[latent.REF][modal.LIFT], 0.0, ortho.REACH) - up)
     rising = np.logical_and(out[latent.RATE][modal.PITCH] > 0.05, out[latent.RATE][modal.AXIAL] > 0.0) * 1.0
     lifted = (1.0 - rising) * np.maximum(iota, freed * np.clip(told[DORSAL] / 0.10, 0.0, 1.0))
     bed = let * (1.0 - sat)
@@ -152,6 +158,14 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     cosine = np.cos(0.5 * fr[modal.KNEE]) - modal.AXIAL_M * out[latent.REF][modal.AXIAL] * fr[modal.HIPS_BY] / modal.LEG_M
     bent = (1.0 - bed * (1.0 - rising)) * (2.0 * np.arccos(np.clip(cosine, -1.0, 1.0)) - fr[modal.KNEE] - a[modal.BEND]) + 0.15 * bed * up
     said = posture[modal.CHAIN[:, 1]] + bend[modal.CHAIN[:, 1]] * bent
+    # the placed knee solved from the text's knee `said` (the slewed reference carries dq and ran away straight):
+    # the ankle as far ahead of the hip as that knee puts it at this height, less `back`, under the hip at most
+    flexed = modal.FLEX[1] * said
+    was = np.maximum(np.sqrt(np.maximum(modal.SHANK ** 2 + modal.THIGH ** 2 + 2.0 * modal.SHANK * modal.THIGH * np.cos(flexed)
+                                        - high ** 2, 0.0)) - back, 0.0)
+    placed = np.arccos(np.clip((was ** 2 + high ** 2 - modal.SHANK ** 2 - modal.THIGH ** 2)
+                               / (2.0 * modal.SHANK * modal.THIGH), -1.0, 1.0)) / modal.FLEX[1]
+    said = said + driven * (placed - said)
     ref = q_open.copy()
     ref[modal.CHAIN[:, 1]] += dt * let * (said - ref[modal.CHAIN[:, 1]]) / SLEW_S
     knee = modal.FLEX[1] * ref[modal.CHAIN[:, 1]]
