@@ -144,7 +144,9 @@
         (:long (specialize-recline-long-side))
         (otherwise (specialize-recline-short-side)))))
 
-;; Dock at the bed's edge, her back to it; sit on the mattress's edge; lean back onto her hands
+;; Dock at the bed's edge, her back to it; sit on the mattress's edge over 1 400 ms as the take sits (lying/Sitting on
+;; Bed, 3.2 natural times from 10 to 90 % of the way, measured from 0.5 s after the telling: at 1 050 the drop is
+;; over before the window, at 1 750 her fists hang over the foam); lean back onto her hands
 (defpatch patch-bed-lean [approach-gait &key (seat-z-mm 450.0) (bed-side *bed-side*)] ; the bed her eyes see
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159 :fixture-face *bed-side*)
@@ -152,7 +154,7 @@
       (transfer-eccentric-handover
         :source-manifold :plantar-bilateral
         :target-manifold :ischial-bilateral
-        :descent-duration-ms 1050.0
+        :descent-duration-ms 1400.0
         :seat-z-mm seat-z-mm)
       (transfer-carpal-recline :bed-side bed-side)
       (master-anti-spasm-insert)))

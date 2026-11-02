@@ -198,9 +198,10 @@ def _apply_say(g, gym, by, command, errand_step):
 def heard(g, gym, command):
     from machine.law import latent, modal, se2, stride
     from machine.moves import leap
+    from machine.process import joints
     from machine.stack import wbc
     errand_step = bool(command.get('_errand_cmd'))
-    unknown = sorted(set(command) - set(sprung.HEARD) - {'_errand_cmd'})
+    unknown = sorted(set(command) - set(sprung.HEARD) - set(joints.HEARD) - {'_errand_cmd'})
     if unknown:
         raise MachineError('the loop hears %s: not %s' % (', '.join(sprung.HEARD), ', '.join(unknown)))
     if not errand_step and any(k in command for k in ('scenario', 'twist', 'say', 'walk', 'entries')):
@@ -211,6 +212,10 @@ def heard(g, gym, command):
         sprung.reset_for_scenario(g, command['scenario'])
     if ('say' in command or command.get('walk') or command.get('entries')) and g['st'][latent.NOW][latent.GAIN] < 1e-6 and g.get('_jump_until', -9.0) + 0.03 <= g['t']:
         g['st'][latent.THETA] = 0.0
+    if 'joints' in command:
+        joints.said(g, command)
+    elif not errand_step and any(k in command for k in ('say', 'entries', 'scenario')):
+        joints.ended(g)
     if 'twist' in command:
         se2.heard_twist(g, gym, command['twist'], 'say' in command, heard_say)
     by = {e[0]: e for e in gym}

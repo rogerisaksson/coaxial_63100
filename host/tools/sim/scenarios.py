@@ -98,6 +98,8 @@ _BACK_PATTERN = lambda key: [(1.0, {'say': 'walk_back'}), (PATTERN_S, {'pattern'
 #: (its tempo, drive and lean over the walk) hopped her onto the first tread and toppled her
 #: backward at 4.0 s where the walk climbs the flight (sequencer.md).
 _FLIGHT = [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})]
+#: s a joint program said on her text's phase may wait for it: her sit and her plant at the bed's edge.
+PLAYED_S = 8.0
 STUNTS = {
     'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'take': 'hip_hop'})], 1.0, ('travel', 'drop', 'arms')),
     'moonwalk': ('dance/Moonwalk', 'flat', _BACK_PATTERN('moonwalk'), PATTERN_S, ('travel', 'speed', 'flight', 'upright')),
@@ -121,10 +123,10 @@ STUNTS = {
     'kneeling_down': ('kneel/Kneeling Down', 'flat', [(1.0, {'take': 'kneeling_down'})], 1.0, ('drop', 'ended', 'knee', 'lasted')),
     'kneeling_up': ('kneel/Kneeling Up', 'flat', [(1.0, {'take': 'kneeling_down'}), (6.0, {'take': 'kneeling_up'})], 6.0,
                     ('ended', 'lasted')),
-    'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_behind',
-                                [(1.0, {'take': 'sitting_on_bed'}), (7.0, {'take': 'lying_down_from_sitting'})], 7.0,
-                                ('upright', 'hips back', 'ended', 'lasted')),
-    'sitting_on_bed': ('lying/Sitting on Bed', 'bed_behind', [(1.0, {'take': 'sitting_on_bed'})], 1.0,
+    'lying_down_from_sitting': ('lying/Lying Down from Sitting', 'bed_foot_behind',
+                                [(1.0, {'say': 'lie_bed'}), (1.0, {'joints': 'bed_pull', 'when': 'bed_rest_ischial_bilateral'})],
+                                None, ('upright', 'hips back', 'ended', 'lasted')),
+    'sitting_on_bed': ('lying/Sitting on Bed', 'bed_foot_behind', [(1.0, {'say': 'lie_bed'})], 0.5,
                        ('drop', 'hips back', 'upright', 'knee', 'lifted', 'lasted')),
     'standing_yawn': ('lying/Standing Yawn', 'flat', [(1.0, {'take': 'standing_yawn'})], 1.0, ('arms', 'back', 'travel')),
     'turning_in_bed': ('lying/Turning in Bed', 'mattress_under',
@@ -148,7 +150,7 @@ STUNTS = {
     'crawl_backwards': ('crawl/Crawl Backwards', 'flat', [(1.0, {'say': 'scoot_back'})], 1.0 + stunts.sat_s('scoot_back'),
                         ('travel', 'back', 'knee', 'hips back')),
 }
-SCENARIOS.update({key: (scene, plan, start + ref['seconds'] + STILL_S, 'stunt', key)
+SCENARIOS.update({key: (scene, plan, (PLAYED_S if start is None else start) + ref['seconds'] + STILL_S, 'stunt', key)
                   for key, (_take, scene, plan, start, _signature) in STUNTS.items()
                   for ref in [stunts.reference().get(key, {'seconds': 0.0})]})
 
@@ -171,10 +173,12 @@ def _row(g, world):
     return dict(zip(HEADER, row(now, 0.0)))
 
 
-def stunt_window(key):
+def stunt_window(key, played=None):
     """(from, to) s of a stunt's measured rows: from its telling and the take's entering
-    (`takes.ENTER_S`), for its take's seconds at her size (`stunts.similar`)."""
-    ref, start = stunts.reference()[key], STUNTS[key][3] + takes.ENTER_S
+    (`takes.ENTER_S`) - told None, from the s `played` its joint program began -, for its take's seconds at her
+    size (`stunts.similar`)."""
+    ref, told = stunts.reference()[key], STUNTS[key][3]
+    start = played if told is None else told + takes.ENTER_S
     return start, start + ref['seconds'] * stunts.similar(ref['leg'], 'time')
 
 
@@ -298,7 +302,7 @@ def ran(name, wobble=0.0, laid=None, texts=None):
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max),
            'refused': s.get('refused')}
     if goal == 'stunt':
-        out['moved'] = stunts.moved(rows, *stunt_window(aim))
+        out['moved'] = stunts.moved(rows, *stunt_window(aim, (s['g'].get('played') or {}).get('at') or math.inf))
     out['met'] = judged(out)
     return out
 

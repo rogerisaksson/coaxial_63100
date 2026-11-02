@@ -14,6 +14,7 @@ from machine.moves import leap
 from machine.texts import ortho
 from machine.law import se2, supervisor
 from machine.law.se2 import WEP_S, _dropped, doing, said
+from machine.process import joints
 from machine.process.sensed import sensed
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -275,7 +276,7 @@ def passed(g, dt=0.001):
         observer.felt(g['observer'], edge.felt(world, y), dt)
         inekf.felt(g['inekf'], y, dt)
     motion.drives(g, dt)
-    edge.drive(world, g['joints'], **g['cmd'])
+    joints.drive(g, world)
     # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
     edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1
