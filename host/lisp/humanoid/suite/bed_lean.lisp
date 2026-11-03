@@ -25,9 +25,10 @@
 
 ;; The bed's edge she docks at first where both are hers to reach: :short its end - lain along it as the take is
 ;; (lying/Lying Down from Sitting) -, :long its side, :any the one her walk reaches soonest (of 25 lodge errands
-;; the end first fell 6 on her way round the bed, :any 1: the corners are her wayfinder's). The edge she sat on
-;; picks the recline and the sit-up (`:bed-side`, read off the face she docked at).
-(defparameter *bed-side* :short)
+;; the end first fell 6 on her way round the bed, :any 1: the corners are her wayfinder's). :any since her side's
+;; lie is the take's own (below: the bed bore her at the end of 9 of 12 starts across her builds, her law's own
+;; stages 1). The edge she sat on picks the recline and the sit-up (`:bed-side`, read off the face she docked at).
+(defparameter *bed-side* :any)
 
 ;; From its end, as the take (lying/Lying Down from Sitting: fists planted 0.2 m behind, upright; the pelvis drawn
 ;; 0.45 m up the bed in 1.3 s as both legs come up; the trunk down in 1.4 s; the legs stretched last). Hers: her
@@ -82,39 +83,32 @@
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 0.1047] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
 
-;; From its side, in her own frame counter-clockwise (a negative yaw): her trunk turned a little on her hands first,
-;; leant back; then her right leg swung up and turned at the hip, then her left, each toward the heading she is told
-;; (machine.moves.emancipation); her hands bear till her back does; stretched out supine along the long side.
+;; From its side, the take's own lie (lying/Lying Down from Sitting, recorded on a bed's side; gcode/
+;; lying_down_from_sitting.gcode) on her joints from its landed stage's first tick, as the end plays its pull: her
+;; trunk turned a little on her hands, leant back, her right leg swung up and turned at the hip, then her left,
+;; supine along the long side; then flat, her back told to bear, so her rest limps her on the foam as the program
+;; ends. Over 4 starts each (turned +-4 and +-8 mrad) at 0.95, 1 and 1.05 of her size the bed bore her at the end of
+;; 9 of 12; her law's own stages (the trunk asked back to -1.57 over 4.5 s, yawed -0.6, the legs swept up) 1 of 12,
+;; and her own size's unturned start only through a jolt off the seat (her soles 285 N at 5.25 s): her chain answers
+;; her posture, not the turn asked of it. The take's misses: lain 6-12 cm off the edge, a leg over it (1.05); rolled
+;; off (0.95).
 (defmaneuver specialize-recline-long-side [state]
   (-> state
-      (stage-sequential-manifold
-        :duration-ms 600.0
+      (stage-sequential-manifold                       ; landed: the take's lie from its first tick
+        :duration-ms 500.0
         :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
-        :torso-pitch-ramp [0.0 -> -0.50]
-        :axial-yaw-ramp [0.0 -> -0.35]
+        :joint-program :lying-down-from-sitting
+        :torso-pitch-ramp [0.0 -> -0.10]
+        :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.45] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.55) (:palmar-carpal-bilateral 0.30)))
-      (stage-sequential-manifold
-        :duration-ms 1200.0
-        :contact-chain [:ischial-bilateral -> :greater-trochanter-r]
-        :torso-pitch-ramp [-0.50 -> -0.75]
-        :axial-yaw-ramp [-0.35 -> -0.50]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.35] :limb-lift -2.5)
-        :manifold-pan '((:plantar-bilateral 0.08) (:ischial-bilateral 0.52) (:scapular-dorsal 0.15) (:palmar-carpal-bilateral 0.25)))
-      (stage-sequential-manifold
-        :duration-ms 1300.0
-        :contact-chain [:greater-trochanter-r -> :greater-trochanter-l]
-        :torso-pitch-ramp [-0.75 -> -1.00]
-        :axial-yaw-ramp [-0.50 -> -0.60]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.35 -> 1.15] :limb-lift 2.5)
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.25)))
-      (stage-sequential-manifold
-        :duration-ms 1400.0
-        :contact-chain [:greater-trochanter-l -> :scapular-dorsal]
-        :torso-pitch-ramp [-1.00 -> -1.5708]
-        :axial-yaw-ramp [-0.60 -> -0.60]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.15 -> 0.1047] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.40) (:scapular-dorsal 0.50) (:palmar-carpal-bilateral 0.10)))))
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.55) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.30)))
+      (stage-sequential-manifold                       ; flat under the program: her back told to bear, her rest
+        :duration-ms 2000.0                            ; limps her as the program ends
+        :contact-chain [:ischial-bilateral -> :scapular-dorsal]
+        :torso-pitch-ramp [-0.10 -> -1.5708]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 0.1047] :limb-lift 0.0)
+        :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.45) (:scapular-dorsal 0.55) (:palmar-carpal-bilateral 0.0)))))
 
 ;; Sat on the mattress's edge: her fists planted on it 0.14 m behind her, upright - placed for a recline she had not
 ;; made (-0.40) they hung 0.17 m over the foam; for the stage's pitch, 0.11 (her pelvis sat 0.68 rad forward of

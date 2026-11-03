@@ -1,12 +1,11 @@
 """The ornithopter's airframe: its numbers (`ornithopter.lisp`), its wings' strokes, its MuJoCo XML."""
 import math
-import os
 
-from machine.aircraft import aerolisp, quad
+from machine.aircraft import aerolisp, quad, text
 from machine.aircraft.aerobatics import HOVER
 from machine.aircraft.quad import inflow
 
-LISP_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'lisp', 'aircraft', 'ornithopter.lisp')
+LISP_PATH = text('ornithopter')
 with open(LISP_PATH, encoding='utf-8') as _f:
     MANIFEST = aerolisp.compile_manifest(_f.read())
 

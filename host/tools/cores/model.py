@@ -263,6 +263,51 @@ def write(b=None):
     return rows
 
 
+#: The builds' models laid in this process, a build's None while its render lays her stand (`standing`'s world).
+_LAID = {}
+
+
+def compiled():
+    """wbc_model.c as this process's build compiles it: the committed one for her own build (`mechatronics.HERS`,
+    tests/test_wbc_core.py holds it her render), another build's render laid in the build directory. Its render's
+    world (`standing`) is the committed one's: her stand there is MuJoCo's, no drive of it. Every build shares
+    wbc_model.h: a build laying another one, of other sizes, is refused."""
+    from machine.body import mechatronics
+    robot = mechatronics.ROBOT
+    if robot == mechatronics.HERS or (robot in _LAID and _LAID[robot] is None):
+        return SOURCE
+    if robot in _LAID:
+        return _LAID[robot]
+    from machine.stack import wbc
+    from tools.cores.build import OUT
+    _LAID[robot] = None
+    try:
+        b = wbc.Body()
+        header, source = render(links(b), b)
+    finally:
+        _LAID.pop(robot)
+    with open(HEADER, encoding='utf-8', newline='') as f:
+        if f.read() != header:
+            raise RuntimeError('%s lays another wbc_model.h than wbc/inc holds' % mechatronics.ROBOT)
+    path, laid = os.path.join(OUT, 'wbc_model_%s.c' % mechatronics.ROBOT), None
+    if os.path.isfile(path):
+        with open(path, encoding='utf-8', newline='') as f:
+            laid = f.read()
+    if laid != source:
+        os.makedirs(OUT, exist_ok=True)
+        with open('%s.%d' % (path, os.getpid()), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(source)
+        os.replace('%s.%d' % (path, os.getpid()), path)
+    _LAID[robot] = path
+    return path
+
+
+def built(paths):
+    """`paths`, a C build's sources, wbc_model.c among them as this process's build compiles it (`compiled`)."""
+    model = os.path.normcase(SOURCE)
+    return [compiled() if os.path.normcase(p) == model else p for p in paths]
+
+
 if __name__ == '__main__':
     if '--write' not in sys.argv[1:]:
         sys.exit(__doc__)

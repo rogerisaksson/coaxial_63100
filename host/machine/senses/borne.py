@@ -105,8 +105,8 @@ def _skin(soled):
 
 def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
-    left it for `s`, `weight` hers, N; her hands among them where her text tells them to bear (`hands`, their
-    share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it -, a let-go leg's
+    left it for `s`, `weight` hers, N; her hands' contacts where her text tells them to bear (`hands`, their
+    share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it, its push its palms' -, a let-go leg's
     foot too, not its toes (`let_go`, `machine.moves.emancipation`): no contact, the step took that leg for hanging on the
     floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing."""
     m, d, n = b.m, b.d, b.n
@@ -119,7 +119,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]
     foot = {touch.SOLES[k][0]: k for k in (0, 1)}
     skin, handless = _SKINS.get(tuple(soled)) or _SKINS.setdefault(tuple(soled), _skin(soled))
-    pushed = skin[pushes[skin].any(axis=1) & ((hands > 0.0) | handless)]
+    pushed, untold = skin[pushes[skin].any(axis=1)], set() if hands > 0.0 else set(skin[~handless].tolist())
     pivot = bool(soled) and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N
     ischial = pivot or (hands > 0.0 and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N)
     jp, jr = b.jacs
@@ -136,6 +136,10 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         side = int(k in HANDS[len(touch.ARMS[0]):]) + let * foot.get(k, 0)
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
+        # an untold hand bears what it bears - her support's share (`latched`) -, held still by nothing: dropped, her
+        # hands' 150-210 N off a chair's seat let her support go mid-rise and her capture point stepped her in place
+        if k in untold:
+            continue
         axis = int(np.argmax(np.abs(f)))
         patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
         for share, local in _points(k, pushes[k], at[k]):

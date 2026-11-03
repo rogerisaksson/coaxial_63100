@@ -13,7 +13,7 @@ from tools import REPO
 from tools.cores.build import cached
 from machine.texts import ortho
 from machine.stack.wbc import MU
-from tools.cores.model import HEADER, rotation
+from tools.cores.model import HEADER, built, rotation
 from tools.cores.arrays import data_at
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
@@ -278,8 +278,8 @@ def typed(lib):
 
 @functools.lru_cache(maxsize=None)
 def library():
-    """The core built once a process for its sources' bytes."""
-    return typed(ctypes.CDLL(cached(SOURCES, INCLUDES, 'wbc', FLAGS)[0]))
+    """The core built once a process for its sources' bytes, its model her build's (`model.built`)."""
+    return typed(ctypes.CDLL(cached(built(SOURCES), INCLUDES, 'wbc', FLAGS)[0]))
 
 
 def _arr(a):

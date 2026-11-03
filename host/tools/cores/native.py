@@ -34,6 +34,7 @@ from coaxial.simulated.sto import PILOT_HZ
 from tools import REPO
 from tools.cores import fakeboard
 from tools.cores.build import FAST, OUT, cached, find_cc
+from tools.cores.model import built
 from tools.emu import world as worlds
 from tools.emu.protocol_emulator import BODIES
 
@@ -108,7 +109,7 @@ def _libraries():
                     os.remove(stale)
                 except OSError:
                     pass                 # a live process holds it
-            board = cached(SOURCES, INCLUDES, 'native_board', EXTRA + tuple(FAST))[0]
+            board = cached(built(SOURCES), INCLUDES, 'native_board', EXTRA + tuple(FAST))[0]
             world = cached(worlds.SOURCES, worlds.INCLUDES, 'native_world', FAST)[0]
             _BUILT['board'], _BUILT['world'] = board, world
         return _BUILT['board'], _BUILT['world']

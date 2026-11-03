@@ -162,7 +162,7 @@ def _placed(p, stage, modes):
     if back is None:
         return p
     lift = float(stage.get('counterweight-limb-sweep', {}).get('limb-lift', 0.0))
-    drive = (1.0 if lift >= 0.0 else -1.0) * float(back) / modes['mode_sagittal_drive'][0]
+    drive = (1.0 if lift >= 0.0 else -1.0) * figure.SCALE * float(back) / modes['mode_sagittal_drive'][0]
     return p._replace(targets={**p.targets, 'mode_sagittal_drive': drive},
                       springs={'mode_sagittal_drive': sprung('mode_sagittal_drive', 1.0, 1.0, modes), **p.springs})
 
@@ -248,7 +248,7 @@ def _program(p, at):
     name = p.get('joint-program')
     if name is None:
         return None
-    strokes = (max(0, math.floor((0.5 * at['deep'] - p.get('landed-m', 0.0)) / p['stroke-m'] + 0.5))
+    strokes = (max(0, math.floor((0.5 * at['deep'] / figure.SCALE - p.get('landed-m', 0.0)) / p['stroke-m'] + 0.5))
                if 'stroke-m' in p and at['deep'] is not None else None)
     return {'joints': str(name).lstrip(':').replace('-', '_'), **({} if strokes is None else {'strokes': strokes})}
 
@@ -305,7 +305,7 @@ def _aligned(name, got):
 
 
 def _footprint(name, got):
-    return 1e-3 * _aligned(name, got).get('sagittal-standoff-mm', 0.0)
+    return 1e-3 * figure.SCALE * _aligned(name, got).get('sagittal-standoff-mm', 0.0)
 
 
 @functools.lru_cache(maxsize=None)

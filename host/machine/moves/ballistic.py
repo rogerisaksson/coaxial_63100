@@ -109,7 +109,7 @@ def crouch(fr):
     leant 55 deg she fell 36 ms free into it, 343 mm deep, onto one sole, and left 74 mm under her standing height."""
     from machine.texts import kernel
     from machine.law import modal
-    return 1e-3 * kernel.said('xform-standing-bilateral-jump', 'countermovement-crouch-mm') / (
+    return 1e-3 * figure.SCALE * kernel.said('xform-standing-bilateral-jump', 'countermovement-crouch-mm') / (
         modal.AXIAL_M * fr[modal.HIPS_BY])
 
 
@@ -131,7 +131,7 @@ def bound(fr, ch, turns, now, label, speed=0.69):
     per = modal.AXIAL_M * fr[modal.HIPS_BY]
     # dipped by the leap's countermovement, a hold thrown further ahead (the stride leap's sagittal throw): half the
     # countermovement flew a walk's tap 0.13 s, the standing jump's felled a hold on landing
-    told = kernel.node('xform-in-stride-unilateral-leap', 'ssc-launch')['phase-1-countermovement']['crouch-depth-m']
+    told = figure.SCALE * kernel.node('xform-in-stride-unilateral-leap', 'ssc-launch')['phase-1-countermovement']['crouch-depth-m']
     dip = float(now[z]) + told / per
     v, push_s, _w = launch((dip - leap.STRAIGHT) * per, legs=1.0)
     leaves = math.pi / max(float(turns), 1e-9)

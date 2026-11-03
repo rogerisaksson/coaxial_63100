@@ -11,37 +11,30 @@ A shell is a laminate WALL_M thick over her capsules (`figure.BODY`) and her sol
 """
 import math
 
-from machine.body import drives
-from machine.body.figure import BODY, SEGMENTS, STAGES, contacts as undersides
+from machine.body import drives, mechatronics
+from machine.body.figure import BODY, SCALE, SEGMENTS, STAGES, contacts as undersides
 
 #: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
 SHELLS = 1.0
 
-#: The laminate: carbon in epoxy, its wall, m, and density, kg/m^3.
-WALL_M, CF_KG_M3 = 0.002, 1600.0
+#: Her build's (`mechatronics.robot`): its shells, what its segments hold, its limbs' quick-releases.
+_BUILT = mechatronics.robot()
 
-#: What a segment holds besides its shell and its drives, (kg, where in its frame, m) - estimated:
-#: in the torso two 15S2P packs of 21700 cells, 48-63 V, 540 Wh each with its BMS and case, one in
-#: each flank of her lower ribs, and the computer and the harness; the
-#: pelvis's power distribution; the head's cameras and IMU; the ankle's rod down the shin
-#: (`linkage`); her clothes and her sneakers.
-HOLDS = {'torso': ((2.4, (0.065, 0.17, -0.005)), (2.4, (-0.065, 0.17, -0.005)),
-                   (1.2, (0.0, 0.26, 0.02)), (0.1, (0.0, 0.2, 0.0))),
-         'pelvis': ((0.5, (0.0, 0.0, 0.0)), (0.2, (0.0, -0.02, 0.0))),
-         'head': ((0.4, (0.0, 0.09, 0.03)),),
-         'upper_arm': ((0.05, (0.0, -0.14, 0.0)),),
-         'thigh': ((0.15, (0.0, -0.2, 0.0)),),
-         'shank': ((0.06, (0.0, -0.2, -0.03)), (0.05, (0.0, -0.1, 0.0))),
-         'foot': ((0.25, (0.0, -0.03, 0.03)),)}
+#: The laminate (its `[shell]`): its wall, m, and density, kg/m^3.
+WALL_M, CF_KG_M3 = float(_BUILT['shell']['wall_m']), float(_BUILT['shell']['kg_m3'])
+
+#: What a segment holds besides its shell and its drives (its `[holds]`), (kg, where in its frame, m): each
+#: where at her figure's SCALE, its kg as it is.
+HOLDS = {segment: tuple((float(kg), tuple(SCALE * float(m) for m in at)) for kg, *at in held)
+         for segment, held in _BUILT['holds'].items()}
 
 #: Walking she drew 691 W at 0.76 m/s (work 197, copper 424, her boards 70) and 439 at 0.48 (96,
 #: 273, 70): 253 Wh a km either way - on the two packs' 972 Wh used (90 %) 3.8 km, on one 1.9;
 #: lying limp her 25 boards' 35 W, 28 h (the build before the gimbal hip).
 
-#: Each limb's quick-release, by its segment: a printed-polymer collar with pogo pins for its power
-#: and its bus at its root, clear of the drive above it - the arm's under the shoulder's 70 mm, the
-#: leg's under the hip's 100 - (its centre down the segment m, radius, length, kg).
-RELEASES = {'upper_arm': (-0.05, 0.03, 0.02, 0.12), 'thigh': (-0.065, 0.04, 0.015, 0.2)}
+#: Each limb's quick-release by its segment (its `[releases]`): its centre down the segment m, radius, length,
+#: kg.
+RELEASES = {segment: (SCALE * c, SCALE * r, SCALE * n, float(kg)) for segment, (c, r, n, kg) in _BUILT['releases'].items()}
 
 
 def _part(name):

@@ -76,12 +76,29 @@ def names():
 
 
 def load(name):
-    """A world by name, or a refusal naming them."""
+    """A world by name, or a refusal naming them; a craft's (its `craft`) that craft's as this process flies it
+    (`crafted`)."""
     path = os.path.join(WORLDS, name + '.json')
     if not os.path.exists(path):
         raise ValueError('no world %r - there are %s' % (name, ', '.join(names())))
     with open(path, encoding='utf-8') as f:
-        return json.load(f)
+        world = json.load(f)
+    return crafted(world) if 'craft' in world else world
+
+
+def crafted(world) -> dict:
+    """`world` its craft's (machine.aircraft.<craft>, its text COAXIAL_<CRAFT>'s): the body's mass its frame's, each
+    rotor's thrust and drag its rotors', its inertia the file's at `inertia_r` by the fourth power of the craft's
+    disc radius over it."""
+    import importlib
+    craft = importlib.import_module('machine.aircraft.' + world['craft'])
+
+    def rotor(load):
+        return dict(load, k_thrust=craft.K_THRUST, k_drag=craft.K_DRAG,
+                    inertia=load['inertia'] * (craft.DISC_R / load['inertia_r']) ** 4)
+    return dict(world, body=dict(world['body'], mass=craft.MASS_KG),
+                nodes=[dict(n, load=rotor(n['load'])) if n.get('load', {}).get('kind') == 'rotor' else n
+                       for n in world['nodes']])
 
 
 def library():

@@ -69,14 +69,19 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
     """(shift, first, prop_until) of `risen_back` on her table `tab` (its times shifted in place),
     modal's `y`, `fr` and `a`, her latent `st`, at `t`, `dt` on, `prop_until` when a prop last
     bore her. In C bit for bit (`g['waits']`, `laid`)."""
-    has_prop = float(y[modal.PROP] > 0.0)
+    # what bears her off her soles, her hands' share with it (`borne.latched`): risen off a chair's seat on her hands
+    # alone, her capture point off her soles, she was thrust off one sole at 500 N
+    bears = float(y[modal.PROP] + y[modal.PALMS].sum())
+    has_prop = float(bears > 0.0)
     until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until
-    propped = float((y[modal.PROP] > 0.0) | (t <= until))
+    propped = float((bears > 0.0) | (t <= until))
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
     xi = c[:2] + v[:2] / math.sqrt(modal.G / max(float(c[2] - fr[modal.FLOOR]), 0.3))
+    # over the soles that stand (`modal.STANCE`): a sole being placed, in the air, holds her capture point up nowhere
+    off = poise.BIG * (1.0 - a[modal.STANCE])[:, None]
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
-    outside = float(np.any((xi < lo.min(axis=0)) | (xi > hi.max(axis=0))))
+    outside = float(np.any((xi < (lo + off).min(axis=0)) | (xi > (hi - off).max(axis=0))))
     at, axial, sag = tab[:, latent.AT], modal.AXIAL, modal.SAGITTAL
     vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
     # a row raises her over her soles with its centre of mass told from her heels' edge on (the

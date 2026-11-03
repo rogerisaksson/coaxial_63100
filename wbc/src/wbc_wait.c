@@ -69,9 +69,11 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   unsigned char rises[WBC_WAIT_ROWS] = {0};
   const double *rot = fr + k->f_rot;
   const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
-  const double  has_prop = (double)(y[k->y_prop] > 0.0);
+  /* what bears her off her soles, her hands' share with it (wbc_imp.c's latch) */
+  const double  bears = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]);
+  const double  has_prop = (double)(bears > 0.0);
   const double  until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until;
-  const double  propped = (double)((y[k->y_prop] > 0.0) || (t <= until));
+  const double  propped = (double)((bears > 0.0) || (t <= until));
   const double  to_ax = st[w->st_to_z + k->axial], to_sag = st[w->st_to_z + k->sagittal];
   double        c[3], v[3], om, xi[2], sr[2][3], flat[2][2], edge[2], tilt[2], lo[2][2], hi[2][2], lmin[2], hmax[2];
   double        first, outside, shift;
@@ -92,10 +94,15 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
     tilt[b] = y[k->y_tilt + b];
   }
   wbc_imp_boxes(k, flat, edge, tilt, lo, hi);
-  for (int j = 0; j < 2; j++)
+  /* over the soles that stand: a sole being placed, in the air, holds her capture point up nowhere */
   {
-    lmin[j] = npminimum(lo[0][j], lo[1][j]);
-    hmax[j] = npmaximum(hi[0][j], hi[1][j]);
+    const double off[2] = {k->big * (1.0 - a[k->a_stance]), k->big * (1.0 - a[k->a_stance + 1])};
+
+    for (int j = 0; j < 2; j++)
+    {
+      lmin[j] = npminimum(lo[0][j] + off[0], lo[1][j] + off[1]);
+      hmax[j] = npmaximum(hi[0][j] - off[0], hi[1][j] - off[1]);
+    }
   }
   outside = (double)((xi[0] < lmin[0]) || (xi[1] < lmin[1]) || (xi[0] > hmax[0]) || (xi[1] > hmax[1]));
   /* a row raises her over her soles with its centre of mass told from her heels' edge on */

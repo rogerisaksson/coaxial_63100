@@ -172,15 +172,17 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     from machine.law import latent, modal, somatic, stride
     from machine.texts import ortho
     from machine.stack import rounds
-    g, told_by = {'fr': np.zeros(modal.FRAME), 'sat': 0.0}, np.eye(len(ortho.MANIFOLDS))
+    # Her fists kept as they are (`seated.kept` is its suites'): the reach's caps alone are this check's.
+    g, told_by = ({'fr': np.zeros(modal.FRAME), 'sat': 0.0, 'y': None,
+                   'kept': lambda y, fr, palmar, posture, q, fists: (posture, fists)}, np.eye(len(ortho.MANIFOLDS)))
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0
     out = np.zeros(latent.OUT)
 
     def asked(rho, told, edge=(0.0, 0.0)):
         s = {'hips': [np.array([0.0, rho[0] * somatic.LEG_M, 0.0]), np.array([0.2, rho[1] * somatic.LEG_M, 0.0])],
-             'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}]}
-        ask: dict = {'edge': edge}
+             'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}], 'q': None}
+        ask: dict = {'edge': edge, 'posture': None}
         told = np.asarray(told, float)
         return somatic.asked(g, s, out, told if told.ndim else (1.0 - told) * told_by[0] + told * told_by[1], ask)
     seated, deep, stood = asked((0.75, 0.70), 0.85), asked((0.92, 0.98), 0.85), asked((0.998, 0.998), 0.0)
@@ -204,8 +206,9 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     way = np.eye(3)[stride.ALONG]
     seat = {'hips': [np.array([0.0, 0.7 * somatic.LEG_M, 0.0]), np.array([0.2, 0.7 * somatic.LEG_M, 0.0])],
             'feet': [{'sole': np.zeros(3)}, {'sole': np.array([0.2, 0.0, 0.0])}],
-            'contacts': [{'p': np.array([0.1, 0.45, 0.0]) - 0.3 * way}], 'com': np.array([0.1, 0.8, 0.0]) - (0.1 + rounds.ROOM[1]) * way}
-    lever, ask = float(somatic.lever(seat, way, 300.0)), {'edge': (0.0, 0.0)}
+            'contacts': [{'p': np.array([0.1, 0.45, 0.0]) - 0.3 * way}], 'com': np.array([0.1, 0.8, 0.0]) - (0.1 + rounds.ROOM[1]) * way,
+            'q': None}
+    lever, ask = float(somatic.lever(seat, way, 300.0)), {'edge': (0.0, 0.0), 'posture': None}
     behind: dict = somatic.asked(g, seat, out, 0.82 * told_by[0] + 0.18 * told_by[1], ask)
     report.check('her centre of mass 0.1 m behind her heels, the seat 0.3 m behind her soles\' middle: the seat must bear'
                  ' %.2f of her by the lever\'s rule, and is capped no lower though told 0.18' % lever,

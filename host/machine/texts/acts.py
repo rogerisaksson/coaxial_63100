@@ -301,7 +301,7 @@ def _pendulum(p, then, at, modes, body):
     bore all of her beside the bed, her neck swung 1 363 deg/s."""
     lever = p['coupled-lever-dynamics']
     side = -1.0 if str(p['fulcrum-node']).endswith('-r') else 1.0
-    at['knee'] = seated.knee(1e-3 * p['fulcrum-touchdown-z-mm'] + LAIN, at['ankle'])
+    at['knee'] = seated.knee(1e-3 * figure.SCALE * p['fulcrum-touchdown-z-mm'] + LAIN, at['ankle'])
     turned = {'mode_pelvis_list': lever['torso-list-slew-rad'][-1], 'mode_pelvis_turn': lever['pelvic-yaw-slew-rad'][-1]}
     for m, v in turned.items():
         if abs(v) > ortho.REACH * modes[m][0]:

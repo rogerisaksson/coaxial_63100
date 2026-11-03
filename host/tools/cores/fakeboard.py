@@ -18,7 +18,9 @@ import serial
 from serial.serialutil import SerialBase
 
 from tools import REPO
+from machine.body import mechatronics
 from tools.cores.build import build, find_cc
+from tools.cores.model import built
 
 #: comms/ less what touches the HAL - the console, the test rig, the UARTs - and the
 #: portable cores under it; board/fake and the record for the board.
@@ -40,8 +42,8 @@ INCLUDES = [os.path.join(REPO, part) for part in (
 ANSWER = 4096
 
 #: The library a parent process built, loaded by its children as it is: Windows refuses to
-#: overwrite a DLL a live process holds.
-BUILT = 'COAXIAL_FAKEBOARD'
+#: overwrite a DLL a live process holds. A build of its own (COAXIAL_ROBOT) under its own name: its model.
+BUILT = 'COAXIAL_FAKEBOARD' + ('' if mechatronics.ROBOT == mechatronics.HERS else '_' + mechatronics.ROBOT.upper())
 
 _LIB = []
 
@@ -54,7 +56,7 @@ def library():
             cc = find_cc()
             if cc is None:
                 raise RuntimeError('no C compiler for the fake board')
-            path, _warnings = build(cc, SOURCES, INCLUDES, 'fakeboard')
+            path, _warnings = build(cc, built(SOURCES), INCLUDES, 'fakeboard')
             os.environ[BUILT] = path
         lib = ctypes.CDLL(path)
         lib.fake_exchange.restype = ctypes.c_uint16

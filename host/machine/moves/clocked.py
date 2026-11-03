@@ -99,7 +99,7 @@ def turns(name):
     clock = g['axial-torus-clock']
     turn = 60.0 / clock['bpm']
     return (int(round((b1 - b0) * BAR)), turn, turn * clock['limb-duty'],
-            g['stick-slip']['stroke-amplitude-m'])
+            figure.SCALE * g['stick-slip']['stroke-amplitude-m'])
 
 
 def posed(q0, columns, m):

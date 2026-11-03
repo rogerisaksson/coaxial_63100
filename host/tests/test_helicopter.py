@@ -246,7 +246,8 @@ def test_lisp_manifests_and_validation(report):
     report.check('shared Lisp files compile and puzzle into helicopter, quadcopter, ornithopter, and aerobat',
                  shared[0]['name'] == 'shared' and shared[1]['name'] == 'shared'
                  and shared[2]['kinematics']['name'] == 'shared' and len(shared[2]['stunts']) == 11
-                 and all(m['includes'] == shared_files for m in (hm, qm, om, am))
+                 and all(m['includes'] == shared_files + (own + '.lisp',)
+                         for m, own in zip((hm, qm, om, am), ('helicopter', 'quadcopter', 'ornithopter', 'aerobat')))
                  and (hm['vehicle'], qm['vehicle'], om['vehicle'], am['vehicle']) == (
                      'helicopter_3d', 'quadcopter', 'ornithopter_dune', 'aerobat_3d')
                  and [s.sequence_id for s in hm['streams']] == [301, 302, 303, 304, 305, 306]

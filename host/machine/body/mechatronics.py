@@ -42,8 +42,10 @@ HUMANOID, AIRCRAFT = os.path.join(LISP, 'humanoid'), os.path.join(LISP, 'aircraf
 #: - gynoid_skeletal_ultralight: Hollowed truss or exoskeleton chassis stripped of synthetic soft
 #:   tissue; reduces feminine cues strictly to pelvic geometry, Q-angle, and lumbar lordosis to
 #:   minimize total system mass.
-#: The robot this process builds: COAXIAL_ROBOT names one of `robots()`, else her.
-ROBOT = os.environ.get('COAXIAL_ROBOT', 'gynoid_mesomorph_medium')
+#: Her own build - the committed C model's (tools/cores/model.py) -, and the robot this process builds:
+#: COAXIAL_ROBOT names one of `robots()`, else hers.
+HERS = 'gynoid_mesomorph_medium'
+ROBOT = os.environ.get('COAXIAL_ROBOT', HERS)
 #: Each part's file in the library, and what a stack names of it in turn.
 PARTS = ('motors', 'gearboxes', 'inverters')
 

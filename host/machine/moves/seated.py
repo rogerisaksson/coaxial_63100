@@ -202,11 +202,11 @@ FOLD_MARGIN = 0.15
 
 def planted(ahead, modes=None):
     """(shoulder flexion, elbow fold past standing), rad - in her arm modes' units given `modes` -, that set her fist
-    on the seat she sits on, `ahead` m ahead of her pelvis's middle (behind negative), her pelvis upright and her
+    on the seat she sits on, `ahead` m of hers (at her SCALE) ahead of her pelvis's middle (behind negative), her pelvis upright and her
     spine straight (`fisted`): the point her text plants it at, read back off the ask and kept there, pressed to its
     told share, as her pelvis pitches by `kept`. Planted for the stage's told pitch instead, hers sat 0.68 rad forward
     of it, they hung 0.11-0.15 m over the foam and the first fist down bore alone."""
-    shoulder, elbow = fisted(ON, ahead, 0.0)
+    shoulder, elbow = fisted(ON, figure.SCALE * ahead, 0.0)
     arm, fold = (1.0, 1.0) if modes is None else (modes['mode_arm_reach'][0], modes['mode_arm_fold'][0])
     return shoulder / arm, (elbow - STAND_ELBOW) / fold
 
@@ -332,7 +332,7 @@ def placed(up, trunk):
     flexed = fisted(up, shoulder[2], trunk)
     deg['left_shoulder'], deg['left_elbow'] = (math.degrees(v) for v in flexed)
     at, elbow = figure.fist(deg), figure.frames(deg, (0.0, 0.0, 0.0), figure.IDENT)['left_forearm'][0]
-    return flexed + (abs(at[0]), (abs(at[2] - shoulder[2]), abs(at[2] - elbow[2])))
+    return flexed[0], flexed[1], abs(at[0]), (abs(at[2] - shoulder[2]), abs(at[2] - elbow[2]))
 
 
 def reaches(top):

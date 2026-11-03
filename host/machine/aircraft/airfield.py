@@ -14,12 +14,11 @@ while it is flown (`quad.Sky.stand`); what stands always is clear of every line 
 the course fly.
 """
 import math
-import os
 
-from machine.aircraft import aerolisp, grounds
+from machine.aircraft import aerolisp, grounds, text
 from machine.aircraft.aerobatics import DOWN, HOVER, PRESSED
 
-with open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'aircraft', 'aerobat.lisp'), encoding='utf-8') as _f:
+with open(text('aerobat'), encoding='utf-8') as _f:
     _STUNTS = aerolisp.compile_manifest(_f.read())['stunts']
 KNIFE_PASS, ROLLING_HARRIER = _STUNTS['knife_pass'], _STUNTS['rolling_harrier']
 

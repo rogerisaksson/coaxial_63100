@@ -1,11 +1,12 @@
 {
   "name": "quad",
-  "note": "A scenario, not a measurement: 2 kg on four direct-drive rotors, 16x14s for the pack's 63 V (machine.quad's K_THRUST and K_DRAG: CT 0.133, CP 0.077 on the 0.406 m disc, the APC20x10E's scaled to its pitch); the prop's inertia is an assumption, the 20x10's 8e-4 by the fourth power of its diameter.",
-  "body": {"kind": "lift", "mass": 2.0},
+  "craft": "quad",
+  "note": "A scenario, not a measurement: the quad as machine.aircraft.quad flies it - its frame's mass, its rotors' thrust and drag its text's (COAXIAL_QUAD, tools/emu/world.py crafted) - on four direct-drive rotors; a prop's inertia an assumption, the 20x10's 8e-4 by the fourth power of its diameter: 3.3e-4 at the 16x14's 0.2032 m radius, the craft's disc by the same power.",
+  "body": {"kind": "lift"},
   "nodes": [
-    {"name": "rotor_fl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "k_drag": 4.136e-6, "k_thrust": 1.0995e-4}},
-    {"name": "rotor_fr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "k_drag": 4.136e-6, "k_thrust": 1.0995e-4}},
-    {"name": "rotor_rl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "k_drag": 4.136e-6, "k_thrust": 1.0995e-4}},
-    {"name": "rotor_rr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "k_drag": 4.136e-6, "k_thrust": 1.0995e-4}}
+    {"name": "rotor_fl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "inertia_r": 0.2032}},
+    {"name": "rotor_fr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "inertia_r": 0.2032}},
+    {"name": "rotor_rl", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "inertia_r": 0.2032}},
+    {"name": "rotor_rr", "motor": "outrunner_63100_14p", "load": {"kind": "rotor", "inertia": 3.3e-4, "inertia_r": 0.2032}}
   ]
 }

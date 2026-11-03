@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The push's smoke: every `machine` module imported, her first seconds run headless.
+"""The push's smoke: every `machine` module imported, her first seconds headless, her C model hers.
 
     python tools/dev/smoke.py       # .githooks/pre-push; a fault stops the push
 
@@ -47,6 +47,17 @@ def ran():
     return None
 
 
+def modelled():
+    """None, or how her C core's model is not her build's: its whole mass against her body's (`model.built`)."""
+    import numpy as np
+    from machine.stack import wbc
+    from tools.cores import wbc as cores
+    core = cores.Core()
+    core.pose([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], np.zeros(core.n - 6))
+    held, hers = float(core.mass()[3, 3]), float(wbc.Body().mass)
+    return None if held == hers else 'her C core holds %.4f kg, her build %.4f' % (held, hers)
+
+
 def main():
     from tools.dev import token_budget
     began = time.perf_counter()
@@ -59,8 +70,12 @@ def main():
     fault = None if (bad or non_en) else ran()
     if fault:
         print('smoke: her first %.1f s on the loop: %s' % (SECONDS, fault))
-    print('smoke: %s (%.1f s)' % ('FAILED' if (bad or fault or non_en) else 'clean', time.perf_counter() - began))
-    return 1 if (bad or fault or non_en) else 0
+    held = None if (bad or non_en or fault) else modelled()
+    if held:
+        print('smoke: %s' % held)
+    failed = bad or fault or non_en or held
+    print('smoke: %s (%.1f s)' % ('FAILED' if failed else 'clean', time.perf_counter() - began))
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':

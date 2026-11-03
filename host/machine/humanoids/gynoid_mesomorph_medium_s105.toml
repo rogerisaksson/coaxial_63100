@@ -1,0 +1,9 @@
+# The gynoid mesomorph medium at 1.05 of her size: her build (`extends`) - her parts, her servos, her structure -
+# on her figure scaled (`[figure] scale`, machine.body.figure): every length of hers that many times hers, 173 cm,
+# her shells' masses with her capsules (machine.body.build), her drives and what she holds hers; her text
+# (lisp/humanoid/gynoid_mesomorph_medium_s105.lisp extends hers). COAXIAL_ROBOT names it
+# (machine.body.mechatronics); host/tools/cores/manifest.py writes its manifest.
+extends = "gynoid_mesomorph_medium"
+
+[figure]
+scale = 1.05

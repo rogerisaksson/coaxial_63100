@@ -12,11 +12,11 @@ import importlib
 import math
 import os
 
-from machine.aircraft import aerolisp
+from machine.aircraft import aerolisp, text
 from machine.aircraft.weather import wind_at
 from tools.cores import bodied
 
-QUAD_LISP_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'aircraft', 'quadcopter.lisp')
+QUAD_LISP_PATH = text('quad')
 with open(QUAD_LISP_PATH, encoding='utf-8') as _qf:
     MANIFEST = aerolisp.compile_manifest(_qf.read())
 AERO = MANIFEST['aerodynamics']

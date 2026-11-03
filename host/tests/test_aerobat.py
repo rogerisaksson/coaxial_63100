@@ -1,4 +1,4 @@
-"""The aerobat on its airfield: its routine among what stands there, its gate course in wind."""
+"""The aerobat on its airfield, its routine and its gate course in wind; every craft's variants flown."""
 import math
 import sys
 
@@ -161,9 +161,29 @@ def test_aerobat_airfield_laps(report):
                      sky.hit, route['lap']['laps'], crossed, misses, stages[-2:], ahead))
 
 
+def test_every_craft_flies_as_built(report):
+    """Each craft's variants (`machine.aircraft.variants`: their own bodies, props and masses on its flights, its law
+    tuned to none of them) fly its card to its landing, a process a text (tools/sim/flights.py); its own text its
+    suite's to fly."""
+    import importlib
+    from machine import aircraft
+    from tools.sim import flights
+    got = flights.rows(variants_only=True)
+    named = [(kind, text) for kind in aircraft.CRAFTS for text in aircraft.variants(kind)[1:]]
+    own = {kind: importlib.import_module('machine.aircraft.' + ('quad' if kind == 'quad' else kind + '.airframe'))
+           .MANIFEST['vehicle'] for kind in aircraft.CRAFTS}
+    report.check('every craft variant flies its card to its landing, its own vehicle: %s' % ', '.join(t for _k, t in named),
+                 len(named) > 0 and [(r['kind'], r['text']) for r in got] == named
+                 and all(r['landed'] and r['vehicle'] != own[r['kind']] for r in got),
+                 '; '.join('%s %s' % (r['text'], r.get('error') or '%s %.2f kg, %d stages in %.1f s%s' % (
+                     r['vehicle'], r['mass'], r['stages'], r['seconds'], '' if r['landed'] else ', not landed'))
+                     for r in got))
+
+
 ROSTER = (
     test_aerobat_routine,
     test_aerobat_airfield_laps,
+    test_every_craft_flies_as_built,
 )
 
 
