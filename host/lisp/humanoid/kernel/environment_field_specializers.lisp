@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.2: environment_field_specializers
+;; SYNOPSIS: Wayfinding by setting: interiors, streets, countryside, forest; foliage, a payload's clearance, a shove.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.nav-envs
   (:use :ortho-dsp.core

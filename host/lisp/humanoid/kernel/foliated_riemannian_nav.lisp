@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.1: foliated_riemannian_nav (COUPLED CAPSULE-SCHEMA WAYFINDER)
+;; SYNOPSIS: Navigation on a metric: banded SDFs, terrain and social costs, curl around movers, footholds, apertures.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.nav-core
   (:use :ortho-dsp.core

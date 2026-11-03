@@ -76,7 +76,11 @@ Evaluate the prompt and working tree before invoking any tool:
   spawning unmapped `Task` sub-agents, invoking `Grep`/`Glob` or shell
   `grep`/`find` across unmapped trees, or running suites outside the relay.
 - **Bootstrap Introspection ISA (Use these instead of blind search):**
-  - If developer tool entry points are not yet in context, read the host
+  - First run `python -X utf8 docs/structure.py` and scan it before any
+    search: every source folder's purpose, read from its files' synopses
+    (Python, C, Lisp); a folder as its argument lists each file's synopsis.
+    A new file opens with its own (a docstring, a C brief, `;; SYNOPSIS:`).
+    If developer tool entry points are not yet in context, read the host
     directory `README.md` or the architecture test documentation once to
     locate the mapping, simulation, and relay runners.
   - Query the host architecture mapper (`--api`, `--layers`, `--deps`) to

@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.2: articulated_body_dynamics
+;; SYNOPSIS: Whole-body dynamics: screw mass matrix, back-EMF torque bounds, consistent null space, torque allocation.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.aba-dynamics
   (:use :ortho-dsp.core)

@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.5: kinematic_regimes
+;; SYNOPSIS: Gait regimes as DSP: the coronal catwalk, the ballistic slip, the stair step quantizer.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.regimes
   (:use :ortho-dsp.core)

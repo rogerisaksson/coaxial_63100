@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.13: somatic_interaction_core
+;; SYNOPSIS: Contact primitives: the legs' reach, a Coulomb slide on a patch, the step cycle up a rise, a shove.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.somatic-core
   (:use :ortho-dsp.core

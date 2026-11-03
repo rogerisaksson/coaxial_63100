@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.14: somatic_interaction_specializers
+;; SYNOPSIS: Furniture and stairs: sit, rise, a high seat, the carpal boost, into and out of bed, stairs, a banister.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.somatic-xforms
   (:use :ortho-dsp.core

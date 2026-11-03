@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.7: ast_to_soa_lowering
+;; SYNOPSIS: Lowers a composed text to the flat SoA ABI: field descriptors, Tustin biquads, bumpless filter seeds.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.lowering
   (:use :cl :ortho-dsp.core)

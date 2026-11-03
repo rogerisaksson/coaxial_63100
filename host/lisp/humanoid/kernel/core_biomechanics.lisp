@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.1: core_biomechanics
+;; SYNOPSIS: Her base: physical invariants, the anatomical contact manifolds, her collision capsules, the biped gait.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.core
   (:export #:physical-invariants

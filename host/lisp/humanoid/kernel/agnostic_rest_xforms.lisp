@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.12: agnostic_rest_xforms
+;; SYNOPSIS: Blind rests: onto an unseen seat, down to lie; a capture step, an arm sweep, a deep squat, a soft sink.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.agnostic-xforms
   (:use :ortho-dsp.core

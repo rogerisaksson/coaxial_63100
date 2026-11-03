@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.4: plantar_transducers
+;; SYNOPSIS: Footwear as the plantar boundary: barefoot, a 32 mm soft flat sole, a 105 mm plantarflexed heel.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.transducers
   (:use :ortho-dsp.core)

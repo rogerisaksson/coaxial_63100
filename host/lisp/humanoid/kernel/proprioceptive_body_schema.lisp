@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.3: proprioceptive_body_schema
+;; SYNOPSIS: Her body schema's shield: capsule clearance, a braking cocoon, an ECBF, contact permeability, payloads.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.body-schema
   (:use :ortho-dsp.core

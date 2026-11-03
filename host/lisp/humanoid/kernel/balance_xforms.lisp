@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.9: balance_xforms
+;; SYNOPSIS: Balance: biped ZMP, biped to seated to supine to biped; armrests, a wall brace, kneeling, a leg cross.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.balance-xforms
   (:use :ortho-dsp.core

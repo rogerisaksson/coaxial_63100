@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.4: semantic_scene_specializers
+;; SYNOPSIS: Perception: the SLAM base; touch written back, saccadic gaze, moving agents, the registry on the buses.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.perception-xforms
   (:use :ortho-dsp.core

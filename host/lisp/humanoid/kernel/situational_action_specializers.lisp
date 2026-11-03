@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.6: situational_action_specializers
+;; SYNOPSIS: Acting on the scene: affordances, obstacles moved, furniture aligned, funnels chained, egress braced.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.affordance-xforms
   (:use :ortho-dsp.core

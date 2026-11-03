@@ -1,3 +1,5 @@
+;; SYNOPSIS: The runway walk as a DSP patch: the dry gait, the sneaker sidechain, their phase-locked morph, the stream.
+
 ;; =============================================================================
 ;; 1. DRY SIGNAL: NOMINAL BIOMECHANICAL BASELINE (DRYWALK)
 ;; =============================================================================

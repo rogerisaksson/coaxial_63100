@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.7: surface_limiters
+;; SYNOPSIS: Friction limits: the wrench cone on a grippy plane and on a slippery one.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.surfaces
   (:use :ortho-dsp.core)

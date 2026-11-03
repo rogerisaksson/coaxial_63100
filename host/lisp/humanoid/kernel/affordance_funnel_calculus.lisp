@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.5: affordance_funnel_calculus
+;; SYNOPSIS: Postural funnels over the scene: affordances scored, their graph, the least-action chain, a held object.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.affordance-core
   (:use :ortho-dsp.core

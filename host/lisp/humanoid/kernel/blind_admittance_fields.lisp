@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.11: blind_admittance_fields
+;; SYNOPSIS: Moving by touch: a momentum observer of felt wrenches, wrench-driven homotopies, admittance, DCM barrier.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.blind-fields
   (:use :ortho-dsp.core

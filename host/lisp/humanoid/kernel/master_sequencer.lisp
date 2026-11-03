@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.9: master_sequencer
+;; SYNOPSIS: The top: a phase-locked morph between gaits, the whole humanoid composed and lowered to SoA.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.sequencer
   (:use :ortho-dsp.core

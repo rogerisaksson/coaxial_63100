@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.6: autonomic_idle_physiology
+;; SYNOPSIS: Idle life: a breath's swell through spine and shoulders, 1/f postural sway, a dither below a speed.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.autonomics
   (:use :ortho-dsp.core)

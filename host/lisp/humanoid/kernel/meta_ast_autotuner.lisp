@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.8: meta_ast_autotuner
+;; SYNOPSIS: The autotune daemon: the live text rewritten by adjoint deltas, recompiled to SoA, its invariants checked.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.autotuner
   (:use :ortho-dsp.core

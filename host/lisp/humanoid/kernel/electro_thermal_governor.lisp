@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.16: electro_thermal_governor
+;; SYNOPSIS: Drive protection: a winding's heat derates its inertia metric, regenerated energy shunted off the bus.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.power-thermal
   (:use :ortho-dsp.core

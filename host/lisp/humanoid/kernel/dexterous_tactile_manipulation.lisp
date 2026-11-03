@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.15: dexterous_tactile_manipulation
+;; SYNOPSIS: Grasping by touch: the grasp's wrench between a squeeze floor and a crush ceiling, a slip reflex.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.manipulation
   (:use :ortho-dsp.core

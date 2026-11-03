@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 2.3: lie_group_slam_core
+;; SYNOPSIS: SLAM on SE(3): object registry, step-gated stereo, invariant EKF, semantic quadrics, unseen objects' decay.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.perception-core
   (:use :ortho-dsp.core

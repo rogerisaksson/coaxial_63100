@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.8: centroidal_wrench_bus
+;; SYNOPSIS: The contact-wrench bus: her weight panned between contact manifolds, an auxiliary contact spliced in.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.balance-core
   (:use :ortho-dsp.core

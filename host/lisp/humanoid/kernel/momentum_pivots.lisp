@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.10: momentum_pivots
+;; SYNOPSIS: Turns and starts: level gaze, pivots on one anchor or crossed under, the gait clock lit, inverters woken.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.pivots
   (:use :ortho-dsp.core)

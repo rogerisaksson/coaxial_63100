@@ -1,5 +1,6 @@
 ;; -----------------------------------------------------------------------------
 ;; MODULE 1.17: anti_spasm_supervisor
+;; SYNOPSIS: The anti-spasm insert: chatter, singularities, contact latches, backlash, an energy tank, phase margin.
 ;; -----------------------------------------------------------------------------
 (defpackage :ortho-dsp.supervisor
   (:use :ortho-dsp.core
