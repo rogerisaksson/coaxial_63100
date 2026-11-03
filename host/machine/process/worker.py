@@ -392,7 +392,7 @@ def stepped(s):
         hook(s)
 
 
-def told(s):
+def told(s) -> dict:
     """Her state as the page hears it (`sprung.state`), her epoch, her wear and her docks foreseen
     (`peek.told`) beside it, as its last window left it."""
     return dict(sprung.state(s['g'], s['torque'], s['power'], s['watts'], s['ratio'], s['fallen_at'],

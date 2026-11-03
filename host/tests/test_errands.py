@@ -36,6 +36,13 @@ def _run(s, seconds, until=None, after=0.0):
     return flips, got
 
 
+def _forwarded(s):
+    """Her world forwarded after a prop placed between its steps, as `World.scenario` does: unforwarded, her
+    look at the say read the chair parked and turned her, and the brake after that 10 ms turn sat her 1 s late."""
+    world = s['g']['world']
+    world._mj.mj_forward(world.model, world.data)
+
+
 def _speed(s):
     v = s['g']['est']['vel']
     return math.hypot(float(v[0]), float(v[2]))
@@ -63,6 +70,7 @@ def test_a_stop_settles_and_f_is_heard(report):
     x, _, z = s['g']['y'][modal.SOLE].reshape(2, 3).mean(axis=0)
     floor.mocap(s['g']['world'], 'chair', (float(x), 0.0, float(z) - leap.MIDDLE + floor.behind('sit_chair', floor.CHAIR_SEAT[2])),
                 math.pi)
+    _forwarded(s)
     worker.apply(s, {'say': 'sit_chair'})
     _flips, seated = _run(s, 5.0, until='seated')
     worker.apply(s, {'say': 'rise_chair'})
@@ -115,6 +123,7 @@ def test_a_chair_a_hair_off_is_sat_on_and_risen_from(report):
     x, _, z = s['g']['y'][modal.SOLE].reshape(2, 3).mean(axis=0)
     floor.mocap(s['g']['world'], 'chair',
                 (float(x) + 4e-7, 0.0, float(z) - leap.MIDDLE + floor.behind('sit_chair', floor.CHAIR_SEAT[2])), math.pi)
+    _forwarded(s)
     worker.apply(s, {'say': 'sit_chair'})
     _flips, seated = _run(s, 5.0, until='seated')
     height = float(s['g']['world'].data.qpos[1])
@@ -235,7 +244,10 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                 break
             if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1 and sprung.doing(g) in ('stand', 'rest'):
                 break
-            if label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.45 and g['t'] > 9.0:
+            # lain once her joints' program is over too (`joints`): told the rise at bed_rest's first tick, the pull
+            # was cut mid-program and she rose from where it left her
+            if (label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.45 and g['t'] > 9.0
+                    and g.get('played') is None):
                 break
         gx, gy, gz = (float(g['world'].data.qpos[i]) for i in range(3))
         if label == 'door':
@@ -251,7 +263,7 @@ def test_viewport_f_errands_chair_bed_and_door(report):
                 st['now'] = worker.told(s)
                 rise_prompt, rise_on = gym.prompt(st), (gym.offered(st) or [('',) * 5])[0][4]
                 _first(st, typed, humanoid_keys.PAD)
-                _flips, stood_t = _run(s, 6.0, until='stand')
+                _flips, stood_t = _run(s, 30.0, until='stand')
                 _run(s, 0.5)
                 ok = (ok and rise_prompt == '[F1] rise bed' and rise_on.startswith('bed ') and stood_t is not None
                       and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)

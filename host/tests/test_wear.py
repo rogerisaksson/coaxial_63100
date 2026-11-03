@@ -31,11 +31,12 @@ def _laid():
     """Her session on the gym's floor with her jeans on (`mjcf.HEM_KG`), and the filter in her
     worker (`s['wear']`)."""
     from machine.process import worker
+    was = mjcf.STAND
     physics.ROOM, physics.SIGHT, mjcf.STAND = 0.0, 0.0, 0.0
     try:
         s = worker.session()
     finally:
-        mjcf.STAND = 1.0
+        mjcf.STAND = was  # set back to 1.0, every session after it stood her on the gym's stand
     return s, s['wear']
 
 
@@ -135,6 +136,7 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
     from machine.identify import campaign, wear
     from machine.stack import wbc
     from machine.body.figure import JOINTS
+    was = mjcf.STAND, physics.BOXED
     mjcf.STAND, physics.BOXED = 1.0, 1.0
     try:
         world = physics.World()
@@ -143,7 +145,7 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
         world.boxes.zero[JOINTS.index('right_hip')] = ZERO_RAD
         ys, taus, touched = campaign.excite(world, campaign.setpoints(world, CAMPAIGN_S, np.random.default_rng(1)))
     finally:
-        physics.BOXED = 0.0
+        mjcf.STAND, physics.BOXED = was
     w = wear.laid(wbc.Body(identified=False))
     wear.boxed(w, ys, taus, physics.STEP_S)
     told = wear.told(w)

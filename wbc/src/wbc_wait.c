@@ -1,5 +1,6 @@
 /** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
-    machine.law.waits.held_rows, risen_rows, borne_rows, latched_rows and woken_rows on her law's arrays, numpy's and Python's
+    machine.law.waits.held_rows, risen_rows, borne_rows, played_rows, latched_rows and woken_rows on her law's arrays, numpy's
+    and Python's
     arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
@@ -186,6 +187,20 @@ void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   first = first - w->edge_s;
   shifted(w, tab, rows, shift, first);
   got[0] = shift;
+  got[1] = first;
+}
+
+void wbc_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double got[3])
+{
+  const double first = t + w->edge_s;
+
+  for (int r = 0; r < n; r++)
+  {
+    double *at = tab + r * w->table + w->at;
+
+    *at = *at + dt * (double)(*at > first);
+  }
+  got[0] = dt;
   got[1] = first;
 }
 

@@ -2,7 +2,8 @@
 """Her law's parts ported to C by hand beside their python (`tools.cores.surety`, `touch`, `twist`,
 `wait`, `brace`): each at every pass of her law over PASSES of her walk, on copies of her arrays,
 bit for bit - her surety field, her touch's filter, her twist's step, her table's waits, her
-surety's brace on the solve - and each step's time beside its python's; her parts' leaves laid in
+surety's brace on the solve - and each step's time beside its python's; her table's wait while a move plays
+on her bed's rise as said; her way out of a bed on senses drawn at random; her parts' leaves laid in
 C as Python lays them (`tools.cores.quick`). Where numpy's arithmetic is not this C's
 (`motion.exact_host`), within the last bits. The tracer's parts: test_compiled."""
 import os
@@ -237,6 +238,55 @@ def test_her_waits_in_c_as_she_walks(report, c):
                      n >= 3 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check("a wait in C on this host", us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
+
+
+def test_her_played_wait_in_c_as_said(report, c):
+    """Her table's wait while a move of hers plays in C (`c_wait`'s `played`, wbc_wait.c) beside its python
+    (`waits.played_rows`) on copies of her bed's rise as said (`maneuver.entry`), a pass's wait every two passes
+    of her clock over its own length and a second, its rows coming due one by one: the table's times, the shift
+    and the time after which rows wait bit for bit."""
+    from machine.law import latent, se2, waits as py_waits
+    from machine.process import worker
+    from machine.texts import maneuver
+    from tools.cores.orders import same
+    s = worker.session()
+    g = s['g']
+    wire = maneuver.entry('rise_bed')[1]
+    tab, dt, bad, n = latent.table(wire, 0.0, g['rest']), 1e-3, 0, 0
+    for k in range(int((se2.rise_lead(wire) + 1.0) / dt)):
+        mine = tab.copy()
+        want = py_waits.played_rows(mine, 2.0 * k * dt, dt)
+        got = g['waits'].played(tab, 2.0 * k * dt, dt)
+        n, bad = n + 1, bad + (not (same(tab, mine) and same(got, want)))
+    report.check("her table's wait while a move plays in C is her python's bit for bit at %d passes" % n,
+                 n > 1000 and not bad, '%d apart' % bad)
+
+
+def test_her_bed_exit_in_c_as_in_python(report, c):
+    """Her way out of a bed in C (`tools.cores.bedexit`, wbc_bedexit.c) beside its python (`machine.moves.bedexit`)
+    from poses and senses drawn at random - her pose, her soles' and shanks' shares, her trunk's pitch - through every
+    phase to its seat: the move's state, her joints' command and its end bit for bit at every pass."""
+    from machine.moves import bedexit as py
+    from tools.cores import bedexit as c_exit
+    from tools.cores.orders import same
+    rng = np.random.default_rng(17)
+    passes, bad, phases = 0, 0, set()
+    for _ in range(12):
+        q, t = rng.uniform(-60.0, 60.0, len(py.JOINTS)), 0.0
+        mine, theirs, cmd_py, cmd_c = py.laid(q, t), c_exit.laid(q, t), q.copy(), q.copy()
+        bad += not same(mine, theirs)
+        for n in range(40000):
+            t += 1e-3 * (1 + (n % 3 == 0))
+            sensed, soles, shins, pitch = (rng.uniform(40.0, 160.0, len(py.JOINTS)), rng.uniform(0.0, 1.0),
+                                           rng.uniform(0.0, 0.05), rng.uniform(-40.0, 10.0))
+            want = py.step(mine, cmd_py, sensed, t, 1e-3, soles, shins, pitch)
+            got = c_exit.step(theirs, cmd_c, sensed, t, 1e-3, soles, shins, pitch)
+            passes, bad = passes + 1, bad + (not (same(mine, theirs) and same(cmd_py, cmd_c) and got == want))
+            phases.add(int(mine[py.PHASE]))
+            if want:
+                break
+    report.check("her bed exit in C is her python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
+                 not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
 
 
 def test_her_brace_in_c_as_she_walks(report, c):

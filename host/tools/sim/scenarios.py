@@ -43,7 +43,8 @@ def _walk(seconds, then=STILL_S):
 #: name: (scene, commands, seconds, goal, its number). A goal: 'met' (the obstacle touched and
 #: her stopped at it), 'past' m (her pelvis that far on), 'rose'/'sank' m (her pelvis that much
 #: higher or lower at the end), 'lay' (a bed bearing more of her than her soles do for HELD_S,
-#: by the world's contacts), 'sat' (so, and her soles bearing her at the end: risen), 'stands'
+#: by the world's contacts, and at the end more than the floor and her soles: a flat fall off it
+#: or a stand passed), 'sat' (so, and her soles bearing her at the end: risen), 'stands'
 #: (on her soles, a chair's seat or not), 'refused' (the say refused, naming its aim, her standing).
 #: The bed and the chair by their texts (stunts.md).
 #: A stairs take's window opens as her first sole lands on the first tread, its first frame's.
@@ -203,8 +204,8 @@ def borne(world, hers, kinds, force):
 
 def ran(name, wobble=0.0, laid=None, texts=None):
     """{name, stood, fell_at, goal, met, went m, rose m, rolled deg (her pelvis about her way at
-    the end), speed m/s, bore {kind: share held}, jerk}: laid turned `wobble` rad about up, of her
-    texts `texts` where given (`worker.session`); `laid(s)` each pass after."""
+    the end), speed m/s, bore {kind: share held}, ended {kind: N up at the end}, jerk}: laid turned
+    `wobble` rad about up, of her texts `texts` where given (`worker.session`); `laid(s)` each pass after."""
     import numpy as np
     from tools.sim import look
     from machine.world import physics
@@ -295,7 +296,7 @@ def ran(name, wobble=0.0, laid=None, texts=None):
            'rolled': round(abs(math.degrees(math.atan2(2.0 * (qw * qz + qx * qy),
                                                        math.hypot(1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qz - qw * qy))))), 1),
            'speed': round(float(np.linalg.norm(t[-1, 1:4] - t[-51, 1:4]) / 0.05), 3),
-           'bore': {kd: round(v, 2) for kd, v in bore.items()},
+           'bore': {kd: round(v, 2) for kd, v in bore.items()}, 'ended': {kd: round(v) for kd, v in end.items()},
            'touched': {kd: round(v) for kd, v in most.items() if kd not in ('floor', 'soles')},
            'on_soles': round(sum(s['g']['loads']) / weight, 2), 'head_hit': hit,
            'sigma_min': round(sigma_min, 4), 'scale_min': round(scale_min, 3),
@@ -331,7 +332,9 @@ def judged(out):
         return out['rose'] <= -aim
     if goal == 'lay':
         from machine.law import modal
-        return out['bore'].get(aim, 0.0) >= HELD_S and out['rolled'] <= math.degrees(modal.LIST_RAD)
+        last = out['ended']
+        return (out['bore'].get(aim, 0.0) >= HELD_S and out['rolled'] <= math.degrees(modal.LIST_RAD)
+                and last.get(aim, 0) > max(last.get('floor', 0), last.get('soles', 0)))
     if goal == 'refused':
         return out['stood'] and aim in (out['refused'] or '')
     if goal == 'sat':

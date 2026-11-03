@@ -3,6 +3,7 @@
 #include "wbc.h"
 #include "wbc_imp.h"
 #include "wbc_law.h"
+#include "wbc_move.h"
 #include "wbc_np.h"
 #include "wbc_step.h"
 #include "wbc_pass.h"
@@ -360,6 +361,11 @@ API void wbh_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, in
   wbc_wait_borne(k, w, tab, n, y, t, dt, got);
 }
 
+API void wbh_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double *got)
+{
+  wbc_wait_played(w, tab, n, t, dt, got);
+}
+
 API void wbh_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
                           const double *fr, const double *a, double *st, double t, double dt)
 {
@@ -380,6 +386,22 @@ API void wbh_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *t
 API int wbh_wait_rows(void)
 {
   return WBC_WAIT_ROWS;
+}
+
+API int wbh_bedexit_size(void)
+{
+  return (int)sizeof(wbc_bedexit_t);
+}
+
+API void wbh_bedexit_laid(const wbc_bedexit_t *b, const double *q_deg, double t, double *state)
+{
+  wbc_bedexit_laid(b, q_deg, t, state);
+}
+
+API double wbh_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, const double *q_deg, double t,
+                            double dt, double soles, double shins, double pitch)
+{
+  return wbc_bedexit_step(b, state, cmd, q_deg, t, dt, soles, shins, pitch);
 }
 
 API void wbh_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms)

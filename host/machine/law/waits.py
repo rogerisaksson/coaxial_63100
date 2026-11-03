@@ -5,10 +5,11 @@
     waits.landed_back(g, dt)   # rows that lower her wait while nothing bears her
     waits.borne_back(g, dt)    # rows a contact releases wait till a seat or a bed bears her
     waits.sunk_back(g, dt)     # rows that raise her out of a dip wait while she still sinks
+    waits.played_back(g, dt)   # rows not yet due wait while a move of hers plays (`joints.MOVES`)
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
-`risen_rows`, `landed_rows` and `woken_rows` are its python, the reference.
+`risen_rows`, `landed_rows`, `played_rows` and `woken_rows` are its python, the reference.
 """
 import math
 import os
@@ -156,6 +157,14 @@ def borne_back(g, dt):
     g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
 
 
+def played_back(g, dt):
+    """Her text's rows not yet due wait a pass, every one, while a move of hers plays (`joints.MOVES`, what her
+    senses phase, not the clock): the bed's rise laid its plant, lean and thrust on the clock under the move that
+    scoots her to the edge, and at the move's end her law asked her standing at rest and she slid off the edge."""
+    shift, first = g['waits'].played(g['tab'], g['t'], dt)
+    g['labels'] = [(w + shift * (w > first), n) for w, n in g['labels']]
+
+
 def latched_back(g, dt):
     """A row that latches her (`ortho.LATCH`: a wake's) sets her vector where she is read at its
     time (`modal.read`), going nowhere: her gains come back on no error - woken with her trunk 0.7
@@ -187,6 +196,14 @@ def borne_rows(tab, y, t, dt):
     first = float(np.min(at, where=due, initial=math.inf)) - latent.EDGE_S
     at += shift * (at >= first)
     return shift, first
+
+
+def played_rows(tab, t, dt):
+    """(shift, first) of `played_back` on her table `tab` (its times shifted in place) at `t`, `dt` on: the rows
+    after `t` (`latent.EDGE_S` on) later by `dt`. In C bit for bit (`g['waits']`)."""
+    at, first = tab[:, latent.AT], t + latent.EDGE_S
+    at += dt * (at > first)
+    return dt, first
 
 
 def woken_rows(tab, st, t, dt):

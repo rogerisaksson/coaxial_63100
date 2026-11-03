@@ -74,9 +74,15 @@ PROGRAMS = {
 }
 #: A program's stroke: the beats from the first named to the last, played over as many times as said (`strokes`).
 STROKES = {'bed_pull': ('plant', 'set')}
+#: Her moves: programs whose phases her senses tell (a module's `laid` and `step`), not beats, her text's rows not
+#: yet due waiting while one plays (`waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her
+#: law sits her (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`).
+MOVES = {'bed_exit': 'tools.cores.bedexit'}
 #: Each joint's index (`figure.JOINTS`); the servo table's stiffness and damping a joint, N m/rad and N m s/rad.
 INDEX = {j: i for i, j in enumerate(figure.JOINTS)}
 KP = tuple(float(SERVO[drives.kind(j)][1]) for j in figure.JOINTS)
+#: Her shanks in her skin (`edge.SKIN`): a move feels the edge it scoots over by them.
+SHANKS = [i for i, segment in enumerate(edge.SKIN) if segment.endswith('_shank')]
 KD = tuple(float(SERVO[drives.kind(j)][2]) for j in figure.JOINTS)
 
 
@@ -94,6 +100,11 @@ def said(g, command):
     """`command`'s program ({'joints': name, 'when': phase or None, 'strokes': n}) kept on `g` to play till it ends,
     its stroke (STROKES) `strokes` times over where said."""
     kept = {j for group in str(command.get('keep', '')).split() for j in KEPT[group]}
+    if command['joints'] in MOVES:
+        g['played'] = {'name': command['joints'], 'move': MOVES[command['joints']], 'when': command.get('when'),
+                       'at': None, 'pose': None, 'gains': None,
+                       'mine': [i for i, j in enumerate(figure.JOINTS) if j not in kept]}
+        return
     beats = program(command['joints'])
     first, last = STROKES.get(command['joints'], (None, None))
     if first is not None and 'strokes' in command:
@@ -148,6 +159,27 @@ def played(g, world):
             return
         p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
         world.gains[:, 1] = KD
+        if 'move' in p:
+            import importlib
+            p['move'] = importlib.import_module(p['move'])
+            p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
+    if 'move' in p:
+        from machine.law import modal, waits
+        weight, dt = float(g['fr'][modal.WEIGHT]), g['t'] - p['last']
+        touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
+        done = p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), g['t'], dt,
+                              float(np.sum(g['loads'])) / weight, float(np.sum(touch[SHANKS])) / weight,
+                              float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1])))
+        p['last'] = g['t']
+        if done:
+            world.gains[:] = p['gains']
+            ended(g)
+            return
+        waits.played_back(g, dt)
+        joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
+        edge.drive(world, joints, target=np.radians(p['cmd'])[joints], feed=np.zeros(len(joints)),
+                   kp=np.asarray(KP)[joints], limit=g['clamp'][joints])
+        return
     if g['t'] - p['at'] >= p['length']:
         world.gains[:] = p['gains']
         ended(g)

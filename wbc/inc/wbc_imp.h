@@ -255,6 +255,10 @@ void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, 
 void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
                     double got[3]);
 
+/** Her text's rows after `t` wait a pass, `dt`, while a move of hers plays (machine.law.waits.played_rows): `got`
+    the shift, the time after which rows wait. */
+void wbc_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double got[3]);
+
 /** A row due this pass that latches her (machine.law.waits.latched_rows) sets her latent `st`'s targets
     now, from and to where she is read (wbc_imp_reading, the ask's stance in `a`), its rates 0. */
 void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,

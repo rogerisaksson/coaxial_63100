@@ -212,23 +212,30 @@
       (specialize-leg-over-edge)
       (master-anti-spasm-insert)))
 
-;; From supine along it from its end: sit up straight, no turn
+;; From supine along it from its end: her bed_exit move (machine.moves.bedexit) sits her up on her arms and scoots
+;; her onto the edge, her text's rows waiting while it plays (`waits.played_back`); both stages ask the seat it leaves
+;; her on - knees 1.78, shins 0.45, trunk upright, the edge bearing what her law's own sit leaves it - so her law,
+;; driving again, holds her there: asked the sit-up's knees (1.40 -> 1.45) it pushed her 0.07 m back up the bed and
+;; her lean stood on soles 0.52, short of the thrust's 0.82
 (defmaneuver specialize-sit-up-short-side [state]
   (-> state
       (stage-sequential-manifold
         :duration-ms 1200.0
         :contact-chain [:scapular-dorsal -> :palmar-carpal-bilateral]
-        :torso-pitch-ramp [-1.5708 -> -0.25]
+        :joint-program :bed-exit
+        :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [0.1047 -> 1.40] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.06) (:ischial-bilateral 0.54) (:scapular-dorsal 0.30) (:palmar-carpal-bilateral 0.10)))
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.78 -> 1.78] :limb-lift 0.0)
+        :talocrural-rad 0.45
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.85) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))
       (stage-sequential-manifold
         :duration-ms 700.0
         :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
-        :torso-pitch-ramp [-0.25 -> 0.0]
+        :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.40 -> 1.45] :limb-lift 0.0)
-        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.70) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.15)))))
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.78 -> 1.78] :limb-lift 0.0)
+        :talocrural-rad 0.45
+        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.85) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
 ;; From supine along it from its side: rotate back to the edge, plant feet, sit up
 (defmaneuver specialize-sit-up-long-side [state]
