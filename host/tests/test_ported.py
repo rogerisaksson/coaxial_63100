@@ -389,6 +389,8 @@ ROSTER = (test_her_surety_in_c_as_she_walks,
           test_her_touch_in_c_as_she_walks,
           test_her_twist_in_c_as_she_walks,
           test_her_waits_in_c_as_she_walks,
+          test_her_played_wait_in_c_as_said,
+          test_her_bed_exit_in_c_as_in_python,
           test_her_brace_in_c_as_she_walks,
           test_her_leaves_laid_in_c_as_in_python)
 
