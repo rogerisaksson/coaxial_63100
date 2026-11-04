@@ -76,11 +76,14 @@ Evaluate the prompt and working tree before invoking any tool:
   spawning unmapped `Task` sub-agents, invoking `Grep`/`Glob` or shell
   `grep`/`find` across unmapped trees, or running suites outside the relay.
 - **Bootstrap Introspection ISA (Use these instead of blind search):**
-  - Query the host file structure (docs/structure.py) and scan it before any
-    search
-  - Query the host architecture mapper (`--api`, `--layers`, `--deps`) to
+  - Query the host file structure:
+    (`python -X utf8 docs/structure.py` `--files`) discover the source code
+    files
+  - Query the host architecture mapper: 
+    (`host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`) to
     discover host packages, module briefs, and public signatures.
-  - Query the target firmware mapper (`--api`, `--layers`, `--deps`, `--ops`)
+  - Query the target firmware mapper:
+    (`host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`, `--ops`)
     to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
   - Empirical baseline (mandatory when dynamics, locomotion, flight, thermals,
