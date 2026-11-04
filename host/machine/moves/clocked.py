@@ -1,16 +1,15 @@
-"""The kernel's clocked sled gaits on her loop: a segment's posture, clock and ratchet as her phases.
+"""The kernel's scoot segment on her loop: her descent to the floor and her seat, legs out ahead.
 
-    text = clocked.text('scoot_floor')      # (defbehavior scoot_floor (extends scoot_floor) ..): her descent, its strokes
-    texts = clocked.texts()                 # every gait of hers the kernel's clock plays (CLOCKED), for her gym
+    text = clocked.text('scoot_floor')      # (defbehavior scoot_floor (extends scoot_floor) ..): her descent, her seat
+    texts = clocked.texts()                 # every gait of hers the kernel's segment sits (CLOCKED), for her gym
 
 A segment (`dsp.schedule`) says its posture - `blend-manifold-posture-jet`'s atlas, the posture there its sled bears,
 `reconstruct-modal-pose`'s vector over that posture's modal columns -, its clock (`drive-5torus-ehresmann-clock`: its bpm,
 its limbs' and its sled's duties, its twist) and its ratchet (`modulate-stick-slip-sled-ratchet`: anchors, sleds, the
-vault's share, the stroke). A turn of the clock is her anchors' stance - her weight on them the vault's share, her
-posture rowed its stroke along its sagittal column the way her twist goes, her sled sliding as far - then her sled's,
-all of her on it, her posture rowed back as her anchors are carried. A posture is hers as `acts` reads a joint's
-target: her knee her height (`seated.axial`), her trunk her pitch, her shoulders and elbows her arms' reach and fold. A bar is BAR turns. What her body has not - a
-bearing patch she has no manifold for, a joint in High-Z - is refused by name.
+vault's share, the stroke): her seat holds her legs where a stroke would start, her anchors' modes there. Her strokes
+are her twist's (`machine.moves.scoot`), not the clock's. A posture is hers as `acts` reads a joint's target: her knee
+her height (`seated.axial`), her trunk her pitch, her shoulders and elbows her arms' reach and fold. A bar is BAR turns.
+What her body has not - a bearing patch she has no manifold for, a joint in High-Z - is refused by name.
 """
 import math
 import os
@@ -20,10 +19,14 @@ from machine.body import figure, mechatronics
 from machine.moves import seated
 from machine.errors import MachineError
 
-#: Each gait of hers the kernel's clock plays: its patch, the segment of its schedule, her own text it extends,
-#: that text's phases it follows and the one its strokes use.
-CLOCKED = {name: ('compile-scoot-and-lowcrawl-suite-soa', at, 'scoot_floor', ('kneel', 'squat', 'tip', 'catch', 'sit'),
-                  'sit') for name, at in (('scoot_floor', 0), ('scoot_back', 1))}
+#: Each gait of hers the kernel's segment sits: its patch, the segment of its schedule, her own text it extends, that
+#: text's phases it follows and the one it sits her in. The backward scoot's segment is her twist's way now, S (`scoot`).
+CLOCKED = {'scoot_floor': ('compile-scoot-and-lowcrawl-suite-soa', 0, 'scoot_floor', ('kneel', 'squat', 'tip', 'catch',
+                                                                                      'sit'), 'sit')}
+#: The programs each binds to its phases ({phase: the loop's word}, laid as it is said: `g['programs']`): her scoot
+#: from her rest, sat on her fists till her twist (her law's own rest crept on elbows bent 45 deg under her fists,
+#: their 25 N m, and laid her down 4.6 s on).
+BOUND = {'scoot_floor': {'floor_rest': {'joints': 'scoot'}}}
 #: A bar's turns of the clock.
 BAR = 4
 #: Her told manifold for each of the kernel's patches, by the body that bears.
@@ -72,10 +75,6 @@ def _told(patches, share):
             raise MachineError('refused: %s bears her nowhere she has a manifold for' % p)
         out[TOLD[p]] = out.get(TOLD[p], 0.0) + share / len(patches)
     return out
-
-
-def _manifolds(told):
-    return ' '.join('(%s %.3f)' % (m, told.get(m, 0.0)) for m in ('plantar', 'ischial', 'palmar', 'dorsal'))
 
 
 def _segment(name):
@@ -147,27 +146,17 @@ def _impedance(springs):
     return ' '.join('(stiffness %s %g) (damping %s %g)' % (mode, k, mode, d) for mode, (k, d) in sorted(springs.items()))
 
 
-def _phase(name, use, ms, targets, springs, slide, told, wait=''):
-    lt, imp = _targets(targets), _impedance(springs)
-    return ('  (phase %s (use %s)%s\n    (duration %dms) (blend_duration %dms)\n    (latent_targets %s)\n'
-            '    (impedance %s)\n    (task_constraints (maintain_zmp (polygon 0)) (slide %.3f) (contact_manifolds %s)))'
-            % (name, use, wait and ' (wait %s)' % wait, ms, ms, lt, imp, slide, _manifolds(told)))
-
-
 def text(name):
-    """(defbehavior NAME (extends BASE) ..) of gait `name` as the kernel's clock plays it (CLOCKED): her own phases,
+    """(defbehavior NAME (extends BASE) ..) of gait `name` as the kernel's segment sits her (CLOCKED): her own phases,
     sat with her legs carried out ahead to the stroke's start, bent - their weight her counterweight (stunts/crawl:
     knees 34-124 deg, the centre of mass 2-5 cm off the hips; folded at 165 deg, hers went 5.5 cm behind her pelvis and
-    she tipped back as her hands lifted) -, then each turn her sled's - her anchors carried to the stroke's start, her legs while her hands bear their stroke's
-    share, then her hands while her legs stay let go; her soles holding where it never bears alone (LIMBED), their
-    modes at the stroke's end - and its stroke, then her rest on her sled. Sat, her knees are past the stroke's fold
-    (146 deg): stroked first, they opened and rowed her back 4 cm; her hands carried with her legs before they were
-    let go, her seat alone held her capture point 0.22 m outside it and she went over backward; her soles told to bear
-    again as her hands went, her legs stood half stretched and threw her back."""
-    patch, at, base, own, used = CLOCKED[name]
+    she tipped back as her hands lifted) -, then her rest on her seat. Her strokes are her twist's, not the clock's
+    (`joints.scooted`, `machine.moves.scoot`): the segment's 32 clocked strokes waited on fists that never bore from
+    the third, her trunk upright, and she sat still (backward 0.05 m in 9 s, the crawl take's 5.4)."""
+    _patch, _at, base, own, used = CLOCKED[name]
     g, q0, columns, anchors = _segment(name)
     sled = g['stick-slip']
-    n, turn, stroke, metres = turns(name)
+    _n, _turn, _stroke, metres = turns(name)
     modes, body = maneuver._manifest()
     m = g['modal-pose']['modal-vector-m3']
     way = math.copysign(1.0, g['axial-torus-clock']['desired-se2-twist'][0])
@@ -179,29 +168,16 @@ def text(name):
         anchored[k] = anchored.get(k, 0.0) + v
     alone = g['axial-torus-clock']['axial-duty'] > 0.0
     held = {} if alone else {m: v for m, v in anchored.items() if m == LIMBED[':hind']}
-    borne = dict(held, **_told(sled['sleds'], 1.0 - sum(held.values())))
     held_back = {mode: (ahead if LIMB[mode] in held else behind)[mode] for mode in behind}
-    cone = g['centroidal-balance']['nullspace-projector']
-    released = 10.0 ** (cone['passive-cone-atten-db'] / 20.0) if cone['auto-release-unloaded-limbs'] else 1.0
     legs = {mode: target for mode, target in held_back.items() if LIMB[mode] == LIMBED[':hind']}
     sat = '  (phase %s (latent_targets %s) (impedance %s))' % (used, _targets(legs), _impedance(_springs(legs, {}, 1.0, modes)))
-    rows, last = [sat if p == used else '  (phase %s)' % p for p in own], used
-    for t in range(1, n + 1):
-        for limb, other, phase in ((LIMBED[':hind'], LIMBED[':fore'], 'sled'), (LIMBED[':fore'], LIMBED[':hind'], 'reach')):
-            carried = {mode: target for mode, target in held_back.items() if LIMB[mode] == limb}
-            bearing = dict(borne, **{other: anchored.get(other, 0.0)})
-            rows.append(_phase('%s_%d' % (phase, t), last, 1e3 * (turn - stroke), carried,
-                               _springs(carried, bearing, 1.0, modes), 0.0, bearing))
-            last = '%s_%d' % (phase, t)
-        rows.append(_phase('stroke_%d' % t, last, 1e3 * stroke, ahead, _springs(ahead, anchored, released, modes),
-                           way * metres / stroke, anchored, 'palmar'))
-        last = 'stroke_%d' % t
-    rows.append('  (phase floor_rest (use %s) (duration 60s) (blend_duration 1000ms))' % last)
+    rows = [sat if p == used else '  (phase %s)' % p for p in own]
+    rows.append('  (phase floor_rest (use %s) (duration 60s) (blend_duration 1000ms))' % used)
     return '(defbehavior %s (extends %s)\n%s)\n' % (name, base, '\n'.join(rows))
 
 
 def texts():
-    """Every gait of hers the kernel's clock plays (CLOCKED) and her body can, as one text for her gym."""
+    """Every gait of hers the kernel's segment sits (CLOCKED) and her body can, as one text for her gym."""
     out = []
     for name in CLOCKED:
         try:

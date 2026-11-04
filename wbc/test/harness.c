@@ -404,6 +404,22 @@ API double wbh_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, 
   return wbc_bedexit_step(b, state, cmd, q_deg, t, dt, soles, shins, pitch);
 }
 
+API int wbh_scoot_size(void)
+{
+  return (int)sizeof(wbc_scoot_t);
+}
+
+API void wbh_scoot_laid(double *state)
+{
+  wbc_scoot_laid(state);
+}
+
+API double wbh_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double dt, double pitch, double hands,
+                          double left, double right, double back, double turn, double heading)
+{
+  return wbc_scoot_step(s, state, cmd, dt, pitch, hands, left, right, back, turn, heading);
+}
+
 API void wbh_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms)
 {
   wbc_brace_scaled(b, M, w_up, Ms);

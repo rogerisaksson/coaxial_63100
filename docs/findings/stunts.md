@@ -292,9 +292,11 @@ trunk held by the anchored hips) where every open-loop crab fell. The takes
 - A take said at its beats, the squats and the dance on the legs and the
   trunk alone, the jogs, the runs and the moonwalk by their patterns over
   her walk: 5 of 31 met, 185.3 widths off ([sequencer](sequencer.md)).
-- The crawl take as her scoot_back from her sit (`stunts.sat_s`): 35.3
-  widths off, travel +0.14 where -7.03, back 29.8 where 68.8, knees 159
-  where 126.
+- The crawl take as her scoot: `scoot_floor` sat, then S held - her
+  twist's move (`machine.moves.scoot`), sat on her fists, her heels
+  stroking her: 32.3 widths off, travel -0.27 where -7.03, back 34.0 where
+  68.8, knees 133 where 126, hips back 0.74 where 0.78. Her clocked
+  strokes before it, 35.3 off, stalled on fists that never bore.
 - The takes' knees at her size (hip, knee and ankle from the fbx, 30 ms
   means, times by similarity): the jog 10.9 rad/s, the run 17.5, the running
   jump 20.5, the standing jump 13.1; her knees' no-load 16.8 at 48 V, their

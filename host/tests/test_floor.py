@@ -120,47 +120,50 @@ def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
                      d.qpos[1], sprung.doing(g), math.degrees(worst_v), worst_f, s.get('epoch', 0)))
 
 
-def test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight(report):
-    """Said scoot_floor on the flat floor: she sits (pelvis under 0.25 m), her butt bearing most of her, her legs out
-    ahead bent (the crawl take's knees, 34-124 deg) and her centre of mass ahead of her pelvis - their counterweight -,
-    her trunk within 10 deg of her sit's pitch over its last 3 s, 12 s without a fall."""
+def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her(report):
+    """Said scoot_floor on the flat floor: she sits (pelvis under 0.25 m) and her scoot (`machine.moves.scoot`, bound to
+    her floor rest) holds her on her fists, her trunk within its band of the crawl take's lean and her pelvis within
+    2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots her back and W held 8 s forward, 0.2 m each
+    at least, without a fall (her law's own rest crept on bent elbows and laid her down 4.6 s on)."""
     import numpy as np
-    from machine.moves import clocked
-    from machine.texts import maneuver
     from machine.law import modal
+    from machine.moves import scoot
     from machine.world import physics
     from machine.process import worker
+    from terminal.views import humanoid_keys
     physics.ROOM, physics.SIGHT = 0.0, 0.0
     s = worker.session()
     g, d = s['g'], s['g']['world'].data
-    m, pel = g['world'].model, g['world'].model.body('pelvis').id
-    torso, knees = m.body('torso').id, [m.jnt_qposadr[m.joint(k).id] for k in ('left_knee', 'right_knee')]
     worker.apply(s, {'scenario': 'flat'})
     for _ in range(int(round(0.5 / worker.DT))):
         worker.stepped(s)
     worker.apply(s, {'say': 'scoot_floor'})
-    yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
-    way = np.array([math.sin(yaw), 0.0, math.cos(yaw)])
-    aim = math.degrees(clocked.SAT_PITCH * maneuver._manifest()[0]['mode_pitch_attitude'][0])
-    t0, sat, seat, knee, ahead, off = g['t'], False, math.inf, [math.inf, -math.inf], math.inf, 0.0
+    t0, sat, still, lean = g['t'], False, None, 0.0
     while g['t'] < t0 + 12.0 and s['fallen_at'] is None:
         worker.stepped(s)
         sat = sat or float(d.qpos[1]) < 0.25
-        if g['t'] < t0 + 9.0:
-            continue
-        up = d.xmat[torso].reshape(3, 3)[:, 1]
-        bent = [math.degrees(float(d.qpos[k])) for k in knees]
-        seat = min(seat, sum(float(c['f'][1]) for c in g['s']['contacts'] if c.get('body') == pel))
-        knee = [min(knee[0], *bent), max(knee[1], *bent)]
-        ahead = min(ahead, float((d.subtree_com[pel] - d.xpos[pel]) @ way))
-        off = max(off, abs(math.degrees(math.atan2(float(up @ way), float(up[1]))) - aim))
-    weight = float(g['fr'][modal.WEIGHT])
-    report.check('she sits on the floor, 12 s without a fall', sat and s['fallen_at'] is None,
-                 'sat %s fallen %s' % (sat, s['fallen_at']))
-    report.check('her butt bears most of her, her legs out ahead bent, her centre of mass ahead of her pelvis',
-                 seat >= 0.75 * weight and 34.0 < knee[0] and knee[1] < 130.0 and ahead > 0.0,
-                 'seat %.0f N of %.0f, knees %.0f-%.0f deg, centre of mass %+.3f m' % (seat, weight, knee[0], knee[1], ahead))
-    report.check("her trunk within 10 deg of her sit's pitch", off < 10.0, '%.1f deg off %.1f' % (off, aim))
+        if g['t'] >= t0 + 9.0:
+            still = d.qpos[[0, 2]].copy() if still is None else still
+            pitch = float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1]))
+            lean = max(lean, abs(pitch - scoot.TRUNK))
+    played = (g.get('played') or {}).get('name')
+    drift = float(np.hypot(*(d.qpos[[0, 2]] - still))) if still is not None else math.nan
+    report.check('she sits on the floor, held on her fists by her scoot, still and at its lean, 12 s without a fall',
+                 sat and s['fallen_at'] is None and played == 'scoot' and drift < 0.02 and lean <= scoot.LEANT,
+                 'sat %s fallen %s playing %s drift %.3f m lean off %.1f deg' % (sat, s['fallen_at'], played, drift, lean))
+    yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
+    way, went = np.array([math.sin(yaw), 0.0, math.cos(yaw)]), {}
+    for key in ('s', 'w'):
+        keys = dict.fromkeys(('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
+        keys[key] = True
+        at, t1 = d.qpos[0:3].copy(), g['t']
+        worker.apply(s, {'twist': humanoid_keys.twist(keys)})
+        while g['t'] < t1 + 8.0 and s['fallen_at'] is None:
+            worker.stepped(s)
+        went[key] = float((d.qpos[0:3] - at) @ way)
+    report.check('S held scoots her back and W forward, 0.2 m each at least, without a fall',
+                 went['s'] <= -0.2 and went['w'] >= 0.2 and s['fallen_at'] is None,
+                 'S %+.2f m W %+.2f m fallen %s' % (went['s'], went['w'], s['fallen_at']))
 
 
 def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(report):
@@ -218,7 +221,7 @@ def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(repo
 
 ROSTER = [test_the_floor_runs_on_under_her_soles, test_a_grown_prop_bears_where_it_has_grown,
           test_her_grip_bounds_her_rhythm, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
-          test_told_to_scoot_on_the_floor_she_sits_on_her_legs_counterweight,
+          test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her,
           test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her,
           test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg]
 

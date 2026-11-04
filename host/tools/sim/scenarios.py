@@ -148,7 +148,7 @@ STUNTS = {
     'ascending_stairs': ('stairs/Ascending Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
     'walking_up_the_stairs': ('stairs/Walking Up The Stairs', 'stairs_take', _FLIGHT, STAIRS_TAKE_S, ('ended', 'travel')),
     'standing_jump': ('standing/Standing Jump', 'flat', [(1.0, {'charge': 1.0, 'say': 'hop'})], 1.0, ('rise', 'flight', 'travel')),
-    'crawl_backwards': ('crawl/Crawl Backwards', 'flat', [(1.0, {'say': 'scoot_back'})], 1.0 + stunts.sat_s('scoot_back'),
+    'crawl_backwards': ('crawl/Crawl Backwards', 'flat', [(1.0, {'say': 'scoot_floor'}), (8.0, {'twist': _BACK})], 8.0,
                         ('travel', 'back', 'knee', 'hips back')),
 }
 SCENARIOS.update({key: (scene, plan, (PLAYED_S if start is None else start) + ref['seconds'] + STILL_S, 'stunt', key)
@@ -304,9 +304,10 @@ def ran(name, wobble=0.0, laid=None, texts=None):
            'jerk': cut(lambda j: np.percentile(j, 99)), 'jerk_peak': cut(np.max),
            'refused': s.get('refused')}
     if goal == 'stunt':
-        # a told stunt judged to where a program of her joints began after it (`began`, kept past the program's
-        # end), the next move's: the bed's sit, then its pull from the landed stage
-        rows = rows if STUNTS[str(aim)][3] is None or began is None else [r for r in rows if float(r['t']) <= began]
+        # a told stunt judged to where a program of her joints began after its window opened (`began`, kept past the
+        # program's end), the next move's: the bed's sit, then its pull from the landed stage; the scoot's, its own
+        cut = began or 0.0
+        rows = rows if STUNTS[str(aim)][3] is None or cut < float(stunt_window(aim)[0] or 0.0) else [r for r in rows if float(r['t']) <= cut]
         out['moved'] = stunts.moved(rows, *stunt_window(aim, began or math.inf))
     out['met'] = judged(out)
     return out

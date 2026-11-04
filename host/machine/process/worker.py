@@ -192,6 +192,8 @@ def _apply_say(g, gym, by, command, errand_step):
         g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
     if 'heading' not in command and entry[0] in _TURN_ALL:
         g['target_heading'], g['has_heading'] = 0.0, 0.0
+    from machine.moves import clocked
+    g['programs'] = dict(clocked.BOUND[entry[0]]) if entry[0] in clocked.BOUND else g['programs']
     heard_say(g, gym, maneuver.said(g, entry))
 
 
@@ -216,7 +218,7 @@ def heard(g, gym, command):
         joints.said(g, command)
     elif not errand_step and any(k in command for k in ('say', 'entries', 'scenario')):
         joints.ended(g)
-    if 'twist' in command:
+    if 'twist' in command and ('say' in command or not joints.scooted(g, command['twist'])):
         se2.heard_twist(g, gym, command['twist'], 'say' in command, heard_say)
     by = {e[0]: e for e in gym}
     if 'charge' in command:

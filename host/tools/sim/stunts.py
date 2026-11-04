@@ -329,19 +329,6 @@ def told(command):
     return {'entries': [(pattern, takes.pattern(pattern), (pattern,))]} if pattern else rows
 
 
-def sat_s(name):
-    """s her clocked scoot `name` takes down onto the floor, a take sat throughout measured from there: her text's
-    descent phases' durations end to end (`clocked.CLOCKED`, lisp/humanoid/motion.lisp)."""
-    from machine.moves import clocked
-    from machine.body import mechatronics
-    from machine.texts import ortho
-    _patch, _at, base, own, _used = clocked.CLOCKED[name]
-    forms = ortho.read(ortho.source(os.path.join(mechatronics.HUMANOID, 'motion.lisp')))
-    body = next(f for f in forms if isinstance(f, list) and f[:2] == ['defbehavior', base])
-    return sum(c[1][1] for p in body if isinstance(p, list) and p[:1] == ['phase'] and p[1] in own
-               for c in p if isinstance(c, list) and c[:1] == ['duration'])
-
-
 def reference():
     """{take: its measures} as kept (REFERENCE); {} before the takes were measured."""
     if not os.path.exists(REFERENCE):

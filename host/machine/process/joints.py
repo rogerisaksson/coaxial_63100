@@ -39,7 +39,7 @@ import os
 from machine.body import drives, figure
 from machine.body.servos import SERVO
 from machine.errors import MachineError
-from machine.law.se2 import doing
+from machine.law.se2 import BACK_SPEED, WALK_SPEED, YAW_RATE, doing
 from machine.senses import edge
 from machine.texts import gcode
 
@@ -76,13 +76,19 @@ PROGRAMS = {
 STROKES = {'bed_pull': ('plant', 'set')}
 #: Her moves: programs whose phases her senses tell (a module's `laid` and `step`), not beats, her text's rows not
 #: yet due waiting while one plays (`waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her
-#: law sits her (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`).
-MOVES = {'bed_exit': 'tools.cores.bedexit'}
+#: law sits her (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`); `scoot`, along the floor as her twist
+#: tells her once she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`). A move's `SENSED`
+#: names what a pass gives it beyond her pose (`_felt`), her bed exit's soles, shanks and pitch where it names none.
+MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot'}
+SENSED = ('soles', 'shins', 'pitch')
 #: Each joint's index (`figure.JOINTS`); the servo table's stiffness and damping a joint, N m/rad and N m s/rad.
 INDEX = {j: i for i, j in enumerate(figure.JOINTS)}
 KP = tuple(float(SERVO[drives.kind(j)][1]) for j in figure.JOINTS)
-#: Her shanks in her skin (`edge.SKIN`): a move feels the edge it scoots over by them.
+#: Her shanks in her skin (`edge.SKIN`): a move feels the edge it scoots over by them; her fists (hands and fingers)
+#: and each foot (foot and toes) the floor she scoots on.
 SHANKS = [i for i, segment in enumerate(edge.SKIN) if segment.endswith('_shank')]
+FISTS = [i for i, segment in enumerate(edge.SKIN) if segment.endswith(('_hand', '_fingers'))]
+FEET = tuple([edge.SKIN.index(side + part) for part in ('_foot', '_toes')] for side in ('left', 'right'))
 KD = tuple(float(SERVO[drives.kind(j)][2]) for j in figure.JOINTS)
 
 
@@ -119,6 +125,42 @@ def said(g, command):
 def ended(g):
     """The program on `g` over, her text's bindings dropped (`g['programs']`): her law drives again."""
     g['played'], g['programs'] = None, {}
+
+
+def scooted(g, twist):
+    """Whether her `twist` is her scoot's (`worker.heard`): sat on the floor (`g['sat']`, her seat on it) or scooting,
+    it drives her scoot (MOVES), begun as it asks one, her gaits untold (told one there, she stood off her seat into a
+    walk and fell at 9.9 s); playing another program, or not sat on the floor, it is her gaits'."""
+    from machine.senses import touch
+    p = g.get('played') or {}
+    if p.get('name', 'scoot') != 'scoot' or (not p and g.get('sat', 0.0) <= 0.5):
+        return False
+    g['asked'] = (0.0, 0.0, 0.0) if twist is None else tuple(float(v) for v in twist)
+    vx, _vy, wz = g['twist'] = touch.against(g, g['asked'])
+    if not p and (vx != 0.0 or wz != 0.0):
+        said(g, {'joints': 'scoot'})
+    return True
+
+
+def _felt(g):
+    """{sense: value} a move's pass may name (its `SENSED`): her soles', shanks', fists' and each foot's share of her
+    weight, her trunk's pitch (deg), her twist back and turning left as shares of her keys' (`se2`) as asked - not as
+    `touch.against` cuts it: her fists behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, and her
+    pelvis's heading (deg, left +) as her estimate turns it."""
+    import math
+    import numpy as np
+    from machine.law import modal
+    weight = float(g['fr'][modal.WEIGHT])
+    touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
+    vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
+    w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
+    return {'soles': float(np.sum(g['loads'])) / weight, 'shins': float(np.sum(touch[SHANKS])) / weight,
+            'pitch': float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1])),
+            'hands': float(np.sum(touch[FISTS])) / weight, 'left_foot': float(np.sum(touch[FEET[0]])) / weight,
+            'right_foot': float(np.sum(touch[FEET[1]])) / weight,
+            'back': min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0),
+            'turn': min(max(wz / YAW_RATE, -1.0), 1.0),
+            'heading': math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))}
 
 
 def pose(beats, start, elapsed):
@@ -164,12 +206,10 @@ def played(g, world):
             p['move'] = importlib.import_module(p['move'])
             p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
     if 'move' in p:
-        from machine.law import modal, waits
-        weight, dt = float(g['fr'][modal.WEIGHT]), g['t'] - p['last']
-        touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
+        from machine.law import waits
+        dt, felt = g['t'] - p['last'], _felt(g)
         done = p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), g['t'], dt,
-                              float(np.sum(g['loads'])) / weight, float(np.sum(touch[SHANKS])) / weight,
-                              float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1])))
+                              *[felt[name] for name in getattr(p['move'], 'SENSED', SENSED)])
         p['last'] = g['t']
         if done:
             world.gains[:] = p['gains']

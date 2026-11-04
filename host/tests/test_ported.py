@@ -289,6 +289,33 @@ def test_her_bed_exit_in_c_as_in_python(report, c):
                  not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
 
 
+def test_her_scoot_in_c_as_in_python(report, c):
+    """Her scoot on the floor in C (`tools.cores.scoot`, wbc_scoot.c) beside its python (`machine.moves.scoot`) from
+    poses and senses drawn at random - her trunk's pitch, her fists' and feet's shares, her heading across its wrap,
+    her twist held, turned and let go every 2 s -: the move's state and her joints' command bit for bit at every pass,
+    through every phase."""
+    from machine.moves import scoot as py
+    from tools.cores import scoot as c_scoot
+    from tools.cores.orders import same
+    rng = np.random.default_rng(23)
+    passes, bad, phases, keys = 0, 0, set(), (-1.0, 0.0, 1.0)
+    for _ in range(8):
+        q = rng.uniform(-60.0, 60.0, len(py.JOINTS))
+        mine, theirs, cmd_py, cmd_c = py.laid(q, 0.0), c_scoot.laid(q, 0.0), q.copy(), q.copy()
+        bad, back, turn = bad + (not same(mine, theirs)), 0.0, 0.0
+        for n in range(20000):
+            back, turn = (rng.choice(keys), rng.choice(keys)) if n % 2000 == 0 else (back, turn)
+            hands, left, right = rng.uniform(0.0, 0.3, 3)
+            sensed = (rng.uniform(-40.0, -16.0), hands, left, right, back, turn, rng.uniform(-180.0, 180.0))
+            dt = 1e-3 * (1 + (n % 3 == 0))
+            want = py.step(mine, cmd_py, q, 0.0, dt, *sensed)
+            got = c_scoot.step(theirs, cmd_c, q, 0.0, dt, *sensed)
+            passes, bad = passes + 1, bad + (not (same(mine, theirs) and same(cmd_py, cmd_c) and got == want))
+            phases.add(int(mine[py.PHASE]))
+    report.check("her scoot in C is her python's bit for bit at %d passes through its %d phases" % (passes, len(phases)),
+                 not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
+
+
 def test_her_brace_in_c_as_she_walks(report, c):
     """Her surety's brace on the solve in C (`c_brace.laid`, wbc_brace.c) beside its python
     (`brace.scaled`, `braced`) on copies at every pass of her law over PASSES of her walk - the
@@ -391,6 +418,7 @@ ROSTER = (test_her_surety_in_c_as_she_walks,
           test_her_waits_in_c_as_she_walks,
           test_her_played_wait_in_c_as_said,
           test_her_bed_exit_in_c_as_in_python,
+          test_her_scoot_in_c_as_in_python,
           test_her_brace_in_c_as_she_walks,
           test_her_leaves_laid_in_c_as_in_python)
 
