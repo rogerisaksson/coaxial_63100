@@ -355,6 +355,56 @@ rest_1_s = 2.0
 limb_1_s2 = 400.0
 limb_1_s = 40.0
 
+# Her poise (machine.law.poise).
+[gait.poise]
+# Her ZMP kept this far inside a sole's edge, and her capture point let toward an edge no faster than
+# its room there over `capture_s`: on the ZMP's polygon alone a spring of 3 000 N/m took her centre of
+# mass a quarter of the way past her sole's middle and she fell over it; 5 mm in, the edge was past
+# where the loop's own margin lets her soles press.
+margin_m = 0.018
+capture_s = 0.2
+# A sole stands by `leap.standing`, unless it is asked up: over `lift_eps` of the lift's unit, it
+# leaves the floor once her ZMP as her springs ask it lies in the other sole's box, `gate_m` past its
+# edge at most. Let go by its own load, it never went: the loop keeps a third of her weight on a sole
+# her ZMP is 0.6 of the way off, a twelfth at its furthest.
+lift_eps = 0.02
+gate_m = 0.005
+# A sole this of its sweep ahead of her that bears is down, wherever its swing is.
+early = 0.3
+
+# Her upper body's support (machine.law.support): its velocity lead; its disturbance observer's
+# floor and scale; its shrinkage knee; its bleed, 1/rad^2.
+[gait.support]
+tau_s = 0.08
+eso_rad_s2 = 12.0
+eso_scale_rad_s2 = 25.0
+sigma_rad = 0.38
+bleed = 35.0
+
+# Her springs on her body (machine.law.impedance).
+[gait.impedance]
+# A sole asked up leaves only while she sways as asked, within this of her lateral shift and of its
+# rate: a sway asked past what her soles' width gives (0.35 at 1.1 Hz: her ZMP 1.9 of the way to a
+# sole) crossed the other's box off its beat, a sole left and she went over its side in 3 s.
+on_shift = 0.1
+on_shift_1_s = 1.0
+# Her going: her soles' speed along her way, meaned over this.
+going_s = 0.28
+# Her posture's knees are bent no more than this ahead of her height, of the axial unit.
+ahead = 0.15
+# Her yaw momentum past its limit is bled this fast.
+yaw_1_s = 50.0
+# Her centre of mass is asked up no harder than this (`tools/sim/hop.py`: thrown at 10 to 18 she flew
+# and stood): the stiffest spring said asked 630, the loop gave 33 with every drive it has, and her
+# trunk went back 0.22 rad in the 45 ms of it.
+throw_m_s2 = 14.0
+# Her height no lower than this for omega; a hip no lower over its ankle than this of its leg.
+low_m = 0.3
+low_leg = 0.5
+# Borne off her soles this share of her weight, she is supported there wholly: her support region
+# spans where, her centre of mass asked of her springs, not let fall.
+prop_on = 0.15
+
 # Her whole-body loop (machine.stack.wbc).
 [gait.loop]
 # The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a standing

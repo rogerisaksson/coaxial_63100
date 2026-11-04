@@ -17,6 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, stride, swing
 from machine.moves import leap
@@ -26,29 +27,27 @@ from machine.law.stride import ALONG, LEFT, LIMBS, UP
 from machine.law.swing import BETWEEN, FREE_BY, HOT3
 from machine.stack.wbc import MOMENTUM_K, POSTURE_KD, TURN_KD
 
+#: Her springs' numbers, her build's (`[gait.impedance]`: each with what it was found at, `machine.body.gait`).
+_G = gait.table('impedance')
 #: A sole asked up leaves only while she sways as asked, within ON of her lateral shift and
-#: of its rate: a sway asked past what her soles' width gives (0.35 at 1.1 Hz: her ZMP 1.9
-#: of the way to a sole) crossed the other's box off its beat, a sole left and she went over
-#: its side in 3 s.
-ON = (0.1, 1.0)
+#: of its rate.
+ON = (_G['on_shift'], _G['on_shift_1_s'])
 #: Her going: her soles' speed along her way, meaned over GOING_S.
-GOING_S = 0.28
+GOING_S = _G['going_s']
 #: Her posture's knees are bent no more than this ahead of her height, of the axial unit.
-AHEAD = 0.15
+AHEAD = _G['ahead']
 #: Her yaw momentum past its limit is bled this fast, 1/s.
-YAW_K = 50.0
-#: Her centre of mass is asked up no harder than this, m/s^2 (`tools/sim/hop.py`: thrown at
-#: 10 to 18 she flew and stood): the stiffest spring said asked 630, the loop gave 33 with
-#: every drive it has, and her trunk went back 0.22 rad in the 45 ms of it.
-THROW_M_S2 = 14.0
+YAW_K = _G['yaw_1_s']
+#: Her centre of mass is asked up no harder than this, m/s^2.
+THROW_M_S2 = _G['throw_m_s2']
 #: Her height no lower than this for omega; a hip no lower over its ankle than this of its leg.
-LOW_M, LOW_LEG = 0.3, 0.5
+LOW_M, LOW_LEG = _G['low_m'], _G['low_leg']
 FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 
 
 #: Borne off her soles this share of her weight, she is supported there wholly: her support
 #: region spans where, her centre of mass asked of her springs, not let fall.
-PROP_ON = 0.15
+PROP_ON = _G['prop_on']
 #: Her pelvis's axes a seat holds once it bears her - its list on her two ischia -, its pitch and turn
 #: hers: let go with the list, sat 3 deg askew she turned 0.05 rad in 0.1 s and lifted a sole; its
 #: pitch let go, it stayed 29 deg forward of her settled trunk, her spine at -25 deg.

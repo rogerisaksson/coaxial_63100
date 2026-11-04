@@ -16,9 +16,10 @@ _G = mechatronics.robot()['gait']
 #: This build's leg over the leg her numbers are stated at: 1 on her.
 SIMILAR = (THIGH + SHANK) / float(_G['leg_m'])
 #: A unit's dimension as a power of the leg, by its name's ending: m/s and s as its root, rad/s, Hz and
-#: 1/s as its inverse root, 1/s^2 as its inverse, m as it; anything else - rad, deg, a share, N - as it is.
-POWERS = (('_m_s', 0.5), ('_rad_s', -0.5), ('_hz', -0.5), ('_1_s2', -1.0), ('_1_s', -0.5), ('_m', 1.0),
-          ('_s', 0.5))
+#: 1/s as its inverse root, 1/s^2 and rad/s^2 as its inverse, m as it; anything else - rad, deg, a share,
+#: m/s^2, N - as it is.
+POWERS = (('_m_s', 0.5), ('_rad_s', -0.5), ('_hz', -0.5), ('_1_s2', -1.0), ('_rad_s2', -1.0), ('_1_s', -0.5),
+          ('_m', 1.0), ('_s', 0.5))
 
 
 def power(name):

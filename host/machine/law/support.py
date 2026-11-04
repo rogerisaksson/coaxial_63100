@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import gait
 from machine.law import latent
 from machine.law.modal import LATERAL, N, TURN
 
@@ -22,8 +23,9 @@ from machine.law.modal import LATERAL, N, TURN
 UPPER = np.array([2, 5, 6, 13, 14])
 DRIVEN = 21
 
-#: Velocity lead, s; ESO disturbance floor and scale, rad/s^2; shrinkage knee, rad; ESO bleed, 1/rad^2.
-TAU_V, ESO_0, ESO_S, SIGMA, BLEED = 0.08, 12.0, 25.0, 0.38, 35.0
+#: Velocity lead, s; ESO disturbance floor and scale, rad/s^2; shrinkage knee, rad; ESO bleed, 1/rad^2
+#: (`[gait.support]`, `machine.body.gait`).
+TAU_V, ESO_0, ESO_S, SIGMA, BLEED = (gait.table('support')[k] for k in ('tau_s', 'eso_rad_s2', 'eso_scale_rad_s2', 'sigma_rad', 'bleed'))
 
 #: Upper-body posture admittance per driven joint (0 on weight-bearing legs and spine pitch/roll).
 GAMMA = np.zeros(DRIVEN)

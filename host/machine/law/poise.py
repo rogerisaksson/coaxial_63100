@@ -15,6 +15,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import gait
 from machine.moves import leap
 from machine.body.figure import BALL, HEEL, SOLE_HALF
 
@@ -22,19 +23,18 @@ from machine.body.figure import BALL, HEEL, SOLE_HALF
 BIG, TINY = 1e3, 1e-9
 #: Her soles' half length, her figure's.
 HALF_M = (BALL + HEEL) / 2.0
+#: Her poise's numbers, her build's (`[gait.poise]`, `machine.body.gait`).
+_G = gait.table('poise')
 #: Her ZMP kept this far inside a sole's edge, m, and her capture point let toward an edge no
-#: faster than its room there over CAPTURE_S: on the ZMP's polygon alone a spring of 3 000 N/m
-#: took her centre of mass a quarter of the way past her sole's middle and she fell over it; 5
-#: mm in, the edge was past where the loop's own margin lets her soles press.
-MARGIN_M, CAPTURE_S = 0.018, 0.2
+#: faster than its room there over CAPTURE_S.
+MARGIN_M, CAPTURE_S = _G['margin_m'], _G['capture_s']
 EXTENT = np.array([HALF_M - MARGIN_M, SOLE_HALF - MARGIN_M])
 #: A sole stands by `leap.standing`, unless it is asked up: over LIFT_EPS of the lift's
 #: unit, it leaves the floor once her ZMP as her springs ask it lies in the other sole's
-#: box, GATE_M past its edge at most. Let go by its own load, it never went: the loop keeps
-#: a third of her weight on a sole her ZMP is 0.6 of the way off, a twelfth at its furthest.
-LIFT_EPS, GATE_M = 0.02, 0.005
+#: box, GATE_M past its edge at most.
+LIFT_EPS, GATE_M = _G['lift_eps'], _G['gate_m']
 #: A sole EARLY of its sweep ahead of her that bears is down, wherever its swing is.
-EARLY = 0.3
+EARLY = _G['early']
 #: Along her way, of along and across.
 ON = np.array([1.0, 0.0])
 
