@@ -216,14 +216,26 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
                a[k->a_need], a + k->a_lead, a + k->a_split, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
-  a[k->a_swings] = off[0];
-  a[k->a_swings + 1] = off[1];
   {
     const double held = 1.0 - npclip(out[k->o_held], 0.0, 1.0);
     const double gap = a[k->a_split] - a[k->a_split + 1];
     const double half = 0.5 * (gap - (2.0 * PI) * rint(gap / (2.0 * PI)));
     const double relax = npmin(1.0, (turns * fr[k->f_dt]) / (2.0 * PI));
+    const double settled = 1.0 - npclip(sqrt(npdot(out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0);
+    double       key[2], pick[2], start;
 
+    for (int b = 0; b < 2; b++)
+    {
+      key[b] = k->limbs[b] * beyond[1] - k->tiny * y[k->y_load + b];
+    }
+    for (int b = 0; b < 2; b++)
+    {
+      pick[b] = (double)(key[b] > key[1 - b]) + (double)(key[b] == key[1 - b]) * (double)(k->limbs[b] > 0.0);
+    }
+    /* a fresh need at rest - no sway, her modes' rates none, no swing under way - steps a sole at once, her rhythm
+       turned to its swing's start (stride.first) */
+    start = (((still * settled) * (double)(a[k->a_need] > 0.5)) * (double)(npmax(a[k->a_swings], a[k->a_swings + 1]) < 0.5))
+            * (pick[0] * npmod(-k->phi_w - phi[0], 2.0 * PI) + pick[1] * npmod(-k->phi_w - phi[1], 2.0 * PI));
     for (int b = 0; b < 2; b++)
     {
       const double ahead = way * (flat[b][0] - c[0]);
@@ -231,12 +243,15 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       const double free_ = (double)(y[k->y_load + b] < k->touch_n);
       const double ends = (double)(u[b] <= 0.0) + (double)(u[b] >= 1.0);
 
-      a[k->a_split + b] += ((((stepping * held) * free_)
-                             * ((((double)(ahead <= 0.0) * ends) * to_swing)
-                                - ((((double)(ahead > 0.0) * (double)(u[b] >= 1.0)) * turns) * fr[k->f_dt])))
-                            - (((1.0 - held) * (half * k->limbs[b])) * relax));
+      a[k->a_split + b] = (a[k->a_split + b] + start)
+                          + ((((stepping * held) * free_)
+                              * ((((double)(ahead <= 0.0) * ends) * to_swing)
+                                 - ((((double)(ahead > 0.0) * (double)(u[b] >= 1.0)) * turns) * fr[k->f_dt])))
+                             - (((1.0 - held) * (half * k->limbs[b])) * relax));
     }
   }
+  a[k->a_swings] = off[0];
+  a[k->a_swings + 1] = off[1];
   for (int m = 0; m < n; m++)
   {
     s.kp[m] = out[k->o_ks + m] / fr[k->f_mass + m];

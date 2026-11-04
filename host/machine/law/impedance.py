@@ -85,7 +85,7 @@ def ask(out, y, fr, a):
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD], a[SPLIT])
-    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT])
+    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi))
     kp, kd = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS]
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
     # across past the soles that stood, its own side of them - along her way too while her rhythm
