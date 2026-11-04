@@ -108,7 +108,7 @@ Evaluate the prompt and working tree before invoking any tool:
     - Generated File: [NO (safe to edit) OR YES (create)]
     - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
     - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
-    - [INV-CONTROL] No scripted playback, feedback control of motion? [YES / NO]
+    - [INV-CONTROL] No scripted playback, dynamic control of motion? [YES / NO]
     - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
     - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
     - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
