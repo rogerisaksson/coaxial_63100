@@ -62,10 +62,6 @@ WOUND = 1.0
 #: ROOM her lodge (`machine.world.room`); CAMERA her fake camera; SIGHT her registry on it (`machine.eyes.camera`).
 BOXED, ROOM, CAMERA, SIGHT = 0.0, 0.0, 0.0, 0.0
 
-#: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
-#: turning with the leg's yaw and roll, or the segment that stage hangs from: 0.7 kg, 8 % more yaw.
-STAGED = 1.0
-
 #: The boards' envelopes: 1 as built, derating and tripping them; 0 boards whose SOA never binds,
 #: the heat counted (`tests/test_gynoid.py`).
 ENVELOPE = 1.0
@@ -82,6 +78,13 @@ HANG = (4000.0, 500.0, 400.0, 50.0)
 class World:
 
     """The body in MuJoCo, advanced to `clock()` on the drives' setpoints (radians)."""
+
+    #: Her pass's C calls and their fixed arguments, laid on her by `machine.world.passing`.
+    _ctrl: Any
+    _motor: Any
+    _metered: Any
+    _drawn: Any
+    _drawn_of: Any
 
     def __init__(self):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')

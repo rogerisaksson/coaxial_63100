@@ -298,10 +298,11 @@ def test_every_build_runs_her(report):
 
 
 def test_her_gait_is_stated_on_her(report):
-    """Her build's `[gait]` states her law's numbers at her own leg (`machine.body.gait`): on her each
-    is as stated, to the last digit - a leg changed restates them."""
+    """Her build's `[gait]` states her law's numbers at her own leg and mass as built (`machine.body.gait`):
+    on her each is as stated, to the last digit - a body changed restates them."""
     from machine.body import gait
-    report.check('her leg is the one her gait is stated at', gait.SIMILAR == 1.0, 'leg %r of hers' % gait.SIMILAR)
+    report.check('her leg and her mass are those her gait is stated at', gait.SIMILAR == 1.0 and gait.MASSY == 1.0,
+                 'leg %r, mass %r of hers' % (gait.SIMILAR, gait.MASSY))
 
 
 def test_her_tiers_by_the_machine(report):

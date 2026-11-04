@@ -16,6 +16,9 @@ from machine.body.figure import BODY, SCALE, SEGMENTS, STAGES, contacts as under
 
 #: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
 SHELLS = 1.0
+#: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
+#: turning with the leg's yaw and roll, or the segment that stage hangs from: 0.7 kg, 8 % more yaw.
+STAGED = 1.0
 
 #: Her build's (`mechatronics.robot`): its shells, what its segments hold, its limbs' quick-releases.
 _BUILT = mechatronics.robot()
@@ -46,7 +49,7 @@ def riders():
     where it sits - mounted where `drives.mount` says, else on its joint's axis, a segment's first
     joint's on the parent at the segment's place, a later one's at the segment's own - a cylinder
     of its size's diameter and length about that axis -, and its board (`drives.board`), a disc,
-    with it or apart; one on a stage on what that hangs from unless `physics.STAGED`."""
+    with it or apart; one on a stage on what that hangs from unless STAGED."""
     out = {}
     for name, parent, joints, offset, *_ in SEGMENTS:
         for k, (joint, axis, _sign) in enumerate(joints):
@@ -55,7 +58,7 @@ def riders():
             size, where = drives.of(joint)[1], drives.mount(joint)
             if where is not None:
                 rides, at = where[0], tuple(where[1])
-                if rides in STAGES and not _staged():
+                if rides in STAGES and not STAGED:
                     hung = next(s for s in SEGMENTS if rides in [j for j, *_ in s[2]])
                     rides, at = hung[1], tuple(a + o for a, o in zip(at, hung[3]))
             elif k == 0 and parent is not None:
@@ -73,11 +76,6 @@ def riders():
             out.setdefault(board, []).append((joint + '_board', b_kg, place, tuple(
                 2.0 * flat if a == faces else flat for a in 'xyz')))
     return out
-
-
-def _staged():
-    from machine.world.physics import STAGED
-    return STAGED
 
 
 def _shells(part):
@@ -114,7 +112,7 @@ def segments():
     a drives' layout
     (`figure.com` asks every pass)."""
     key = (WALL_M, CF_KG_M3, tuple(sorted(drives.WAYS.items())), tuple(drives.JOINTS.items()),
-           _staged())
+           STAGED)
     if key not in _LAID:
         _LAID[key] = _segments()
     return _LAID[key]
