@@ -82,7 +82,14 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
     # over the soles that stand (`modal.STANCE`): a sole being placed, in the air, holds her capture point up nowhere
     off = poise.BIG * (1.0 - a[modal.STANCE])[:, None]
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
-    outside = float(np.any((xi < (lo + off).min(axis=0)) | (xi > (hi - off).max(axis=0))))
+    # along her way over her standing soles' middle - their boxes meaned by how each stands -, across over either:
+    # over the rearmost heel, a sole slid back 3-10 cm let her thrust off a bed's end with her capture point 7.5-10 cm
+    # behind her soles' middle and she fell back onto it (7 that rose: -0.042 to +0.047 m)
+    stood = a[modal.STANCE]
+    total = max(float(stood[0] + stood[1]), poise.TINY)
+    w0, w1 = float(stood[0]) / total, float(stood[1]) / total
+    outside = float((xi[0] < w0 * lo[0, 0] + w1 * lo[1, 0]) | (xi[0] > w0 * hi[0, 0] + w1 * hi[1, 0])
+                    | (xi[1] < (lo[:, 1] + off[:, 0]).min()) | (xi[1] > (hi[:, 1] - off[:, 0]).max()))
     at, axial, sag = tab[:, latent.AT], modal.AXIAL, modal.SAGITTAL
     vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
     # a row raises her over her soles with its centre of mass told from her heels' edge on (the

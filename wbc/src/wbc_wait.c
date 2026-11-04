@@ -95,15 +95,17 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
     tilt[b] = y[k->y_tilt + b];
   }
   wbc_imp_boxes(k, flat, edge, tilt, lo, hi);
-  /* over the soles that stand: a sole being placed, in the air, holds her capture point up nowhere */
+  /* over the soles that stand: a sole being placed, in the air, holds her capture point up nowhere; along her way over
+     their middle (their boxes meaned by how each stands), across over either */
   {
     const double off[2] = {k->big * (1.0 - a[k->a_stance]), k->big * (1.0 - a[k->a_stance + 1])};
+    const double total = npmax(a[k->a_stance] + a[k->a_stance + 1], k->tiny);
+    const double w0 = a[k->a_stance] / total, w1 = a[k->a_stance + 1] / total;
 
-    for (int j = 0; j < 2; j++)
-    {
-      lmin[j] = npminimum(lo[0][j] + off[0], lo[1][j] + off[1]);
-      hmax[j] = npmaximum(hi[0][j] - off[0], hi[1][j] - off[1]);
-    }
+    lmin[0] = w0 * lo[0][0] + w1 * lo[1][0];
+    hmax[0] = w0 * hi[0][0] + w1 * hi[1][0];
+    lmin[1] = npminimum(lo[0][1] + off[0], lo[1][1] + off[1]);
+    hmax[1] = npmaximum(hi[0][1] - off[0], hi[1][1] - off[1]);
   }
   outside = (double)((xi[0] < lmin[0]) || (xi[1] < lmin[1]) || (xi[0] > hmax[0]) || (xi[1] > hmax[1]));
   /* a row raises her over her soles with its centre of mass told from her heels' edge on */
