@@ -355,6 +355,60 @@ rest_1_s = 2.0
 limb_1_s2 = 400.0
 limb_1_s = 40.0
 
+# Her whole-body loop (machine.stack.wbc).
+[gait.loop]
+# The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a standing
+# corner presses at least `f_min_n`.
+mu = 0.6
+f_min_n = 0.0
+# A contact slides past this slip: a sole's grip reads it so (`grip`), a pressing contact's point its
+# regime (`rounds.pushed`) - on the ice a sole pushing off slid back 0.3 m in 0.05 s before her law
+# asked less.
+slide_m_s = 0.15
+# A sole's centre of pressure `margin_m` inside its edge, softly (weight `slack` against the centre of
+# mass's m/s^2).
+margin_m = 0.015
+slack = 1e3
+# Her vertical acceleration within this of her height's ask on the balance's level, her height itself
+# under the turns and a swing.
+height_band_m_s2 = 3.0
+# A stop met no nearer than `stop_rad`, `limit_s` ahead at the acceleration asked.
+limit_s = 0.05
+stop_rad = 0.01
+# A standing sole's slip bled at `contact_1_s`; a held joint's (`drives.passive` None) at `held_1_s`.
+contact_1_s = 20.0
+held_1_s = 50.0
+# A drive asked no more than `clamp_share` of its clamp as its board derates it - past it, to the
+# stack's own peak at its board's amps (`drives.peak`), only granted war emergency power (the board's
+# derate held off, `thermal.wep`) and only where the centre of mass asks it; the soft rows laid for
+# the drives that bore more than `near` of their clamps the step before.
+clamp_share = 0.95
+near = 0.6
+# The turns', the posture's and a swinging sole's springs and dampers, 1/s^2 and 1/s (a swinging
+# sole's at 400 and 40 a 0.2 s step lagged its path 11 cm, 100 N); the angular momentum bled at
+# `momentum_1_s` - at 10 on the level under the centre of mass it pinned both soles' centres of
+# pressure to their edges, flipping each 50 ms (a 60 N shove); her centre of mass's height held by
+# its own.
+turn_1_s2 = 100.0
+turn_1_s = 20.0
+posture_1_s2 = 100.0
+posture_1_s = 20.0
+swing_1_s2 = 1600.0
+swing_1_s = 80.0
+momentum_1_s = 3.0
+height_1_s2 = 100.0
+height_1_s = 20.0
+# The turns' weight against a swinging sole's m/s^2; her form's against the posture's rad/s^2: the
+# angular momentum's N m, the torques' (a clamp's share), the corners' forces (her weight's share),
+# her height's m/s^2; a swinging knee's fold's against its sole's m/s^2.
+turn_w = 3.0
+momentum_w = 0.3
+posture_w = 1.0
+torque_w = 3.0
+force_w = 1.0
+height_w = 1.0
+fold_w = 0.3
+
 # Her touch and her leaps (machine.moves.leap).
 [gait.leap]
 # A sole bears at `touch_n`, lies on the floor within `touch_m`; she rests under `rest_m_s`. Kept

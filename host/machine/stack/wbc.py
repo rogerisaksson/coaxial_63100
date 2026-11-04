@@ -25,57 +25,57 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.body import drives, linkage
+from machine.body import drives, gait, linkage
 from machine.stack import qp
 from machine.body.drives import kind
 from machine.errors import MachineError
 from machine.body.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF
 
 G = 9.81
+#: Her loop's numbers, her build's (`[gait.loop]`: each with what it was found at, `machine.body.gait`).
+_G = gait.table('loop')
 
 #: The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a
 #: standing corner presses at least F_MIN_N.
-MU, F_MIN_N = 0.6, 0.0
+MU, F_MIN_N = _G['mu'], _G['f_min_n']
 #: A sole's corners in its foot's frame: its heel's two, then its ball's.
 CORNERS = np.array([(x, -ANKLE_H, z) for z in (-HEEL, BALL) for x in (-SOLE_HALF, SOLE_HALF)])
 #: A contact slides past this slip, m/s: a sole's grip reads it so (`grip`), a pressing contact's point its
-#: regime (`rounds.pushed`) - on the ice a sole pushing off slid back 0.3 m in 0.05 s before her law asked less.
-SLIDE_M_S = 0.15
+#: regime (`rounds.pushed`).
+SLIDE_M_S = _G['slide_m_s']
 
 #: A sole's centre of pressure MARGIN_M inside its edge, softly (weight SLACK_W against the
 #: centre of mass's m/s^2).
-MARGIN_M, SLACK_W = 0.015, 1e3
+MARGIN_M, SLACK_W = _G['margin_m'], _G['slack']
 
 #: Her vertical acceleration within HEIGHT_BAND m/s^2 of her height's ask on the balance's
 #: level, her height itself under the turns and a swing.
-HEIGHT_BAND = 3.0
+HEIGHT_BAND = _G['height_band_m_s2']
 
 #: A stop met no nearer than STOP_RAD, LIMIT_S ahead at the acceleration asked.
-LIMIT_S, STOP_RAD = 0.05, 0.01
+LIMIT_S, STOP_RAD = _G['limit_s'], _G['stop_rad']
 
 #: A standing sole's slip bled at CONTACT_K 1/s; a held joint's (`drives.passive` None) at HELD_K.
-CONTACT_K, HELD_K = 20.0, 50.0
+CONTACT_K, HELD_K = _G['contact_1_s'], _G['held_1_s']
 
-#: A drive asked no more than CLAMP_SHARE of its clamp as its board derates it - past it, to the
-#: stack's own peak at its board's amps (`drives.peak`), only granted war emergency power (the
-#: board's derate held off, `thermal.wep`) and only where the centre of mass asks it; the soft
-#: rows laid for the drives that bore more than NEAR of their clamps the step before.
-CLAMP_SHARE, NEAR = 0.95, 0.6
+#: A drive asked no more than CLAMP_SHARE of its clamp as its board derates it; the soft rows laid
+#: for the drives that bore more than NEAR of their clamps the step before.
+CLAMP_SHARE, NEAR = _G['clamp_share'], _G['near']
 
-#: (kp 1/s^2, kd 1/s): the turns', the posture's and a swinging sole's (at 400 and 40 a 0.2 s
-#: step lagged its path 11 cm, 100 N); the angular momentum bled at MOMENTUM_K 1/s - at 10 on the level under the centre of mass it pinned both soles'
-#: centres of pressure to their edges, flipping each 50 ms (a 60 N shove).
-TURN_KD, POSTURE_KD, SWING_KD, MOMENTUM_K = (100.0, 20.0), (100.0, 20.0), (1600.0, 80.0), 3.0
+#: (kp 1/s^2, kd 1/s): the turns', the posture's and a swinging sole's; the angular momentum bled
+#: at MOMENTUM_K 1/s.
+TURN_KD, POSTURE_KD, SWING_KD = ((_G[k + '_1_s2'], _G[k + '_1_s']) for k in ('turn', 'posture', 'swing'))
+MOMENTUM_K = _G['momentum_1_s']
 #: Her centre of mass's height held by (kp 1/s^2, kd 1/s).
-HEIGHT_KD = (100.0, 20.0)
+HEIGHT_KD = (_G['height_1_s2'], _G['height_1_s'])
 
 #: The turns' weight against a swinging sole's m/s^2; her form's against the posture's
 #: rad/s^2: the angular momentum's N m, the torques' (a clamp's share), the corners' forces
 #: (her weight's share), her height's m/s^2.
-TURN_W, MOMENTUM_W, POSTURE_W, TORQUE_W, FORCE_W, HEIGHT_W = 3.0, 0.3, 1.0, 3.0, 1.0, 1.0
+TURN_W, MOMENTUM_W, POSTURE_W, TORQUE_W, FORCE_W, HEIGHT_W = (_G[k + '_w'] for k in ('turn', 'momentum', 'posture', 'torque', 'force', 'height'))
 
 #: A swinging knee's fold's weight against its sole's m/s^2.
-FOLD_W = 0.3
+FOLD_W = _G['fold_w']
 
 
 def _currents(b, T, t0):
