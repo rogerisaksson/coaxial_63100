@@ -8,8 +8,8 @@
 
 A spot is a cell of a GRID_M grid on the lodge's free floor, CLEAR_M clear of every furniture box, at
 each of four headings; what F offers there (`gym.offered`) is said as F says it (`gym.chose`), or
-with --said as a prompt says it, whatever she sees. A run: seconds to the goal borne and held REST_S
-(its rise's to up with --rise), her fall, what she bumped in which phase, the dock (along its normal,
+with --said as a prompt says it, whatever she sees. A run: seconds to the goal borne, held REST_S and
+her joints' program over (its rise's to up with --rise), her fall, what she bumped in which phase, the dock (along its normal,
 along its edge, her heading off it, s), and each joint group's fastest swing, widest sweep, when the
 fastest came and the seconds her master bus's passivity controller held it (`machine.law.supervisor`) - a
 spasm is a group swung faster than her own walk swings it (`walked`), a held one caught by that tank.
@@ -22,8 +22,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Each verb's goal, the rise said after it held REST_S, the seconds it may take.
-GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0), 'lie_bed': ('bed_rest', 'rise_bed', 45.0)}
+#: Each verb's goal, the rise said after it held REST_S, the seconds it may take and its rise may (from the bed's
+#: end she stands 18-22 s after it is said; F's errand test gives it 30).
+GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0, 12.0), 'lie_bed': ('bed_rest', 'rise_bed', 45.0, 30.0)}
 #: The furniture her bumps are counted on, and the lodge's own boxes that are not.
 FURNITURE = ('seat', 'back', 'chair_leg', 'bed', 'table', 'lamp', 'loft', 'stair')
 SCENERY = ('floor', 'wall', 'roof', 'deck', 'door', 'pane', 'mullion', 'rail', 'post', 'stone', 'switch', 'shade')
@@ -120,9 +121,11 @@ def walked():
     return w.spasm()
 
 
-def _goal(w, goal, rise, limit, t0):
-    """(seconds to `goal` borne, held REST_S, seconds to up once `rise` is said - up held REST_S -, None
-    unsaid) from `t0`. Counted up the moment she stood, 7 chair rises of 58 that fell within 3 s were risen."""
+def _goal(w, goal, rise, limit, rise_s, t0):
+    """(seconds to `goal` borne, held REST_S and her joints' program over, seconds to up within `rise_s` once `rise`
+    is said - up held REST_S -, None unsaid) from `t0`. Counted up the moment she stood, 7 chair rises of 58 that
+    fell within 3 s were risen; said as her pull up the bed still played, it was cut and she rose from 0.49 m in, not
+    1.11, her knees past its end (F's errand test waits for it too)."""
     from machine.law import modal
     from machine.process import sprung, worker
     g = w.g
@@ -131,12 +134,13 @@ def _goal(w, goal, rise, limit, t0):
     reached = round(g['t'] - t0, 2) if w.go(limit - (g['t'] - t0), borne) else None
     if reached is not None:
         w.go(REST_S)
+        w.go(limit, lambda q: g.get('played') is None)
     held = reached is not None and w.s['fallen_at'] is None and sprung.doing(g) == goal
     up = None
     if held and rise:
         worker.apply(w.s, {'say': rise})
         t2 = g['t']
-        if w.go(12.0, lambda q: sprung.doing(g) in ('stand', 'rest') and float(g['y'][modal.PROP]) < 0.05):
+        if w.go(rise_s, lambda q: sprung.doing(g) in ('stand', 'rest') and float(g['y'][modal.PROP]) < 0.05):
             up = round(g['t'] - t2, 2)
             w.go(REST_S)
     return reached, held, up
@@ -163,7 +167,7 @@ def one(x, z, yaw, verb, said=False, rise=False):
         out['key'] = offers[pick[0]][0]
         gym.chose(st, gym.DIGITS.index(offers[pick[0]][0][1:]))
     t0, dock = g['t'], []
-    goal, rise_verb, limit = GOALS[verb]
+    goal, rise_verb, limit, rise_s = GOALS[verb]
 
     def docked(q):
         er = g.get('_errand') or {}
@@ -175,7 +179,7 @@ def one(x, z, yaw, verb, said=False, rise=False):
                          round(g['t'] - t0, 2)))
         return not g.get('_errand')
     w.go(limit, docked)
-    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, t0)
+    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, rise_s, t0)
     fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'] - t0, 2)
     ok = held and fell is None and (up is not None or not rise)
     return dict(out, dock=dock or None, reached=reached, held=held, up=up, fell=fell, spasm=w.spasm(), bumps=w.bumps,
@@ -189,7 +193,7 @@ def dock(dx, spar, dyaw):
     from machine.process import worker
     w = Watch(room.CHAIR_AT[0] + dx, room.CHAIR_AT[1] - room.SEAT[2] - spar, math.pi + dyaw)
     worker.apply(w.s, {'say': 'sit_chair'})
-    reached, held, up = _goal(w, 'seated', 'rise_chair', 15.0, w.g['t'])
+    reached, held, up = _goal(w, 'seated', 'rise_chair', 15.0, GOALS['sit_chair'][3], w.g['t'])
     fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'], 2)
     return {'dx': dx, 'spar': spar, 'dyaw': dyaw, 'reached': reached, 'held': held, 'up': up, 'fell': fell,
             'spasm': w.spasm(), 'result': 'ok' if up is not None and fell is None else ('fell' if fell is not None else 'short')}

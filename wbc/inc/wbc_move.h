@@ -19,7 +19,7 @@ enum
 };
 
 /** machine.moves.bedexit's tables, filled once from it: the joints it moves (figure.JOINTS) and each one's part
-    (the knees part 1), her joints, the push's phase (it counts the strokes and tells her seated), the stretch's
+    (the knees part 1), her joints, the push's phase (it counts the strokes, ending once she sits), the stretch's
     (it tells her past the edge), the settle's (where she goes seated), the last; each phase's length (s), the phase after it, the trunk's
     pitch her hips hold (deg) and whether they do; each part's goal (deg), how it is reached (0 held, 1 blended over
     the phase from where it began, 2 at its rate, deg/s, 3 her sensed angle and the goal past it, 4 drawn toward from

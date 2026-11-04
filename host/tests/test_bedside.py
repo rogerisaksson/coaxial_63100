@@ -87,18 +87,20 @@ def test_the_texts_read_whole(report):
 
 
 def _face(name):
-    """(bottom, top) m of the lodge's box `name` as furnished (`room.furnish`)."""
+    """(bottom, top) m of the lodge's box `name` as furnished (`room.furnish`): its body's height, its own geom's."""
     from machine.world import room
     xml = next(b for b in room.furnish('') if b.startswith('<body name="%s"' % name))
-    mid = float(re.findall(r'pos="\S+ (\S+) ', xml)[0]) + sum(float(y) for y in re.findall(r' pos="0 (\S+) 0"', xml))
-    half = float(re.findall(r'size="\S+ (\S+) ', xml)[0])
+    geom = re.findall(r'<geom name="%s" [^>]*' % name, xml)[0]
+    mid = float(re.findall(r'pos="\S+ (\S+) ', xml)[0]) + sum(float(y) for y in re.findall(r' pos="0 (\S+) 0"', geom))
+    half = float(re.findall(r'size="\S+ (\S+) ', geom)[0])
     return mid - half, mid + half
 
 
 def test_what_meets_a_fixture_behind_her(report):
     """Standing, her skin's reach behind her hips by height (`bedside.behind`): heels, calves, thighs, buttocks. The
-    chairs' seat edges and the lodge bed's side meet her calves, on no patch of hers; an edge over her knee her thighs'
-    backs, the stool's probe. From each turn's standoff the stool and the bed meet her within the text's seek."""
+    chairs' seat edges and the lodge bed's mattress over its frame meet her calves, on no patch of hers; an edge over
+    her knee her thighs' backs, the stool's probe. From each turn's standoff the stool and the bed meet her within the
+    text's seek."""
     import numpy as np
     from machine.moves import bedside
     from machine.body import figure

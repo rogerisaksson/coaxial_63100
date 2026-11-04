@@ -20,9 +20,9 @@ double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, cons
 {
   const int    k = (int)state[WBC_BEDEXIT_PHASE];
   const double el = t - state[WBC_BEDEXIT_AT], a = npminimum(el / b->length[k], 1.0);
-  const int    over = state[WBC_BEDEXIT_OVER] > 0.5, due = el >= b->length[k];
-  const int    pushed = due && k == b->pushed, stretched = due && k == b->stretched;
-  double       knees = 0.0, folded = 0.0, seated;
+  const int    over = state[WBC_BEDEXIT_OVER] > 0.5;
+  int          due, pushed, stretched;
+  double       knees = 0.0, folded = 0.0, sat, seated;
 
   for (int i = 0; i < WBC_BEDEXIT_MOVED; i++)
   {
@@ -42,10 +42,13 @@ double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, cons
     knees = knees + (p == 1 ? q : 0.0);
     folded = folded + (double)(p == 1);
   }
+  sat = state[WBC_BEDEXIT_OVER] * (double)(soles >= b->sole_share) * (double)(knees / folded >= b->knee_seat);
+  due = el >= b->length[k] || (k == b->pushed && sat > 0.0);
+  pushed = due && k == b->pushed;
+  stretched = due && k == b->stretched;
   state[WBC_BEDEXIT_COUNT] = state[WBC_BEDEXIT_COUNT] + (double)pushed;
   state[WBC_BEDEXIT_OVER] = npmaximum(state[WBC_BEDEXIT_OVER], (double)(stretched && shins < b->shin_share));
-  seated = state[WBC_BEDEXIT_OVER] * (double)(soles >= b->sole_share) * (double)(knees / folded >= b->knee_seat)
-           + (double)(state[WBC_BEDEXIT_COUNT] >= b->strokes);
+  seated = sat + (double)(state[WBC_BEDEXIT_COUNT] >= b->strokes);
   state[WBC_BEDEXIT_PHASE] = due ? ((pushed && seated > 0.0) ? (double)b->seated : b->next[k]) : (double)k;
   state[WBC_BEDEXIT_AT] = due ? t : state[WBC_BEDEXIT_AT];
   for (int j = 0; j < b->joints; j++)
