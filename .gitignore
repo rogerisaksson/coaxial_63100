@@ -22,6 +22,7 @@ mx.scratch
 .vscode/*.log
 .vscode/ipch/
 .idea/
+.agents/
 *.code-workspace
 .cache/
 compile_commands.json
