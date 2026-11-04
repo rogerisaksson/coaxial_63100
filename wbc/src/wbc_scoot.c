@@ -16,6 +16,7 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
 {
   const int k = (int)state[WBC_SCOOT_PHASE];
   const int asked = fabs(back) + fabs(turn) > s->ask, turning = fabs(turn) > s->ask;
+  const int    spin = state[WBC_SCOOT_WAY] * state[WBC_SCOOT_WAY + 1] < 0.0;
   const double lean = s->trunk + (s->upright - s->trunk) *
                                      (double)(k == s->stroking && state[WBC_SCOOT_WAY] > 0.0 && state[WBC_SCOOT_WAY + 1] > 0.0);
   int       reached = 1, stroked = 1, kinds[5], over;
@@ -36,7 +37,7 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
                         : how == 4.0               ? (stretched ? npmaximum(x, s->stretch + s->settle) : x)
                                                    : x;
     const double rate = how == 2.0                 ? s->stroke_rate * fabs(way)
-                        : (hip && how == 3.0)      ? s->rate[k][p] * (double)(stretched || foot >= s->skim)
+                        : (hip && how == 3.0)      ? s->rate[k][p] * (double)(stretched || foot >= s->skim || spin)
                         : how == 5.0               ? s->rate[k][p] * (double)(foot < s->bear)
                                                    : s->rate[k][p];
     const double reach = rate * dt;
@@ -67,7 +68,8 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
   {
     const double side = w == 0 ? 1.0 : -1.0;
 
-    state[WBC_SCOOT_WAY + w] = (over && nxt == (double)s->cycle) ? npclip(back + side * share, -1.0, 1.0)
+    state[WBC_SCOOT_WAY + w] = (over && nxt == (double)s->cycle)
+                                   ? npclip(back + side * share * (1.0 - 2.0 * (double)(fabs(back) <= s->ask)), -1.0, 1.0)
                                                                  : state[WBC_SCOOT_WAY + w];
   }
   state[WBC_SCOOT_PHASE] = over ? nxt : (double)k;
