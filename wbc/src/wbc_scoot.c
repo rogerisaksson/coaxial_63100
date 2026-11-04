@@ -69,7 +69,7 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
     const double side = w == 0 ? 1.0 : -1.0;
 
     state[WBC_SCOOT_WAY + w] = (over && nxt == (double)s->cycle)
-                                   ? npclip(back + side * share * (1.0 - 2.0 * (double)(fabs(back) <= s->ask)), -1.0, 1.0)
+                                   ? npclip(back + side * share * (1.0 - 2.0 * (double)(turning && back > -s->ask)), -1.0, 1.0)
                                                                  : state[WBC_SCOOT_WAY + w];
   }
   state[WBC_SCOOT_PHASE] = over ? nxt : (double)k;

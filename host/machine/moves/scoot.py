@@ -63,9 +63,11 @@ STROKE_RATE, AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE, SETTLE_RATE, SQUARE_RATE
 BEAR, SKIM, ASK, TOL = 0.1, 0.02, 0.01, 1e-6
 #: A turn, deg, a whole stroke's differential turned her (STROKE_TURN, in 0.5 s, and threw her off her fists); a stroke
 #: takes at most TURN of it, her aim a stroke's turn ahead as she turns. Turning where she sits, the leg reaching
-#: forward lifts clear (skimmed, its heel pushed each stroke's 3.6 deg back out) and her differential is reversed: her
-#: lifted legs' reaction turns her, not her stroke (unreversed, 6 of 6 the wrong way); a key's 8 s then turned her 8-23
-#: deg, D 6 of 6 and A 5 of 6 the right way (a quarter, 7-11).
+#: forward lifts clear (skimmed, its heel pushed each stroke's 3.6 deg back out); told a turn as she lifts her legs -
+#: where she sits or going back - her differential is reversed: her lifted legs' reaction turns her, not her stroke
+#: (unreversed, 6 of 6 the wrong way each); a key's 8 s then turned her 8-36 deg, 20 of 20 the right way (a quarter,
+#: 7-11). Going forward her legs skim and her stroke turns her as it pulls; holding her heading straight, unreversed
+#: (reversed, her back strokes stalled, 0.01 m, and she fell in the W after).
 STROKE_TURN, TURN = 37.0, 0.5
 LEAD = STROKE_TURN * TURN
 #: How a part reaches its goal: 0 held, 1 its phase's goal at its rate, 2 the stroke's end at her twist's rate, 3 the
@@ -141,7 +143,7 @@ def step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, headin
             (left >= BEAR and right >= BEAR) or reached, bool(np.all(near | (rate == 0.0) | ~KNEE)) or not asked,
             asked)[OVER[k]]
     nxt = ASKED[k] if asked else IDLE[k]
-    shares = np.clip(back + np.array([1.0, -1.0]) * share * (1.0 - 2.0 * float(abs(back) <= ASK)), -1.0, 1.0)
+    shares = np.clip(back + np.array([1.0, -1.0]) * share * (1.0 - 2.0 * float(turning and back > -ASK)), -1.0, 1.0)
     state[WAY:WAY + 2] = shares if over and nxt == CYCLE else state[WAY:WAY + 2]
     state[PHASE] = nxt if over else k
     return 0.0
