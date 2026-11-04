@@ -9,6 +9,7 @@ import functools
 
 import numpy as np
 
+from machine.law import rhythm
 from tools.cores import wbc
 
 
@@ -22,7 +23,7 @@ class Twist(ctypes.Structure):
                                                    'w_heading', 'w_target', 'w_has', 'w_twist', 'w_actual', 'w_active',
                                                    'w_stop', 'w_t', 'w_back', 'w_backing', 'w_clear')]
                 + [(name, ctypes.c_double) for name in ('walk_m_s', 'back_m_s', 'strafe_m_s', 'yaw_rate', 'floor_hz',
-                                                        'touch_n', 'stirs')]
+                                                        'touch_n', 'stirs') + rhythm.NAMES]
                 + [(name, ctypes.c_void_p) for name in ('y_in', 'y', 'a', 'fr', 'st', 'out', 'posture', 'state',
                                                         'words')])
 
@@ -56,7 +57,7 @@ def laid(k, y_in, y, fr, a, st, out, posture, state, words, waist, head):
               w_actual=se2.W_ACTUAL.start, w_active=se2.W_ACTIVE, w_stop=se2.W_STOP, w_t=se2.W_T, w_back=se2.W_BACK,
               w_backing=se2.W_BACKING, w_clear=se2.W_CLEAR,
               walk_m_s=se2.WALK_SPEED, back_m_s=se2.BACK_SPEED, strafe_m_s=se2.STRAFE_SPEED, yaw_rate=se2.YAW_RATE,
-              floor_hz=se2.FLOOR_HZ, touch_n=leap.TOUCH_N, stirs=stride.STIRS)
+              floor_hz=se2.FLOOR_HZ, touch_n=leap.TOUCH_N, stirs=stride.STIRS, **rhythm.R)
     t.kept = (y_in, y, a, fr, st, out, posture, state, words)
     for name, arr in zip(('y_in', 'y', 'a', 'fr', 'st', 'out', 'posture', 'state', 'words'), t.kept):
         setattr(t, name, wbc.pointer(arr))

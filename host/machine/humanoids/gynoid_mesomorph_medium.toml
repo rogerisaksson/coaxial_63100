@@ -355,6 +355,67 @@ rest_1_s = 2.0
 limb_1_s2 = 400.0
 limb_1_s = 40.0
 
+# Her rhythm under a twist told (machine.law.rhythm): her twist's blends from one gait to the next.
+[gait.rhythm]
+# Her rhythm on while her drive's amplitude, her sidestep or her turn tells past `moving` (blended in
+# over `moving_edge`) and her rhythm's gain past `gain_on` (over `gain_edge`); at rest with her drive
+# between `rest_lo` and `rest_hi`, a walk told faster than hers raises it to `rest_drive`.
+moving = 0.02
+moving_edge = 0.02
+gain_on = 0.02
+gain_edge = 0.03
+rest_lo = 0.05
+rest_hi = 0.30
+rest_drive = 0.60
+# A twist's speed and turn blended in over these.
+edge_m_s = 0.01
+edge_rad_s = 0.01
+# Told no turn under `still_rad_s` and no sidestep under `edge_m_s`, a walk told faster than hers runs
+# her; a sidestep told past `side_m_s`; a turn past `turn_rad_s` (over `turn_edge_rad_s`); a spin on
+# the spot past `spin_rad_s` while told on slower than `spin_still_m_s`; backing past `backing_m_s`.
+still_rad_s = 0.05
+side_m_s = 0.04
+turn_rad_s = 0.025
+turn_edge_rad_s = 0.005
+spin_rad_s = 0.04
+spin_still_m_s = 0.05
+backing_m_s = 0.05
+# A turn told at her turn's rate holds her pelvis's turn `turn_dc` of its unit ahead, `turn_dc_side`
+# less sidestepping, blended in at `turn_blend` a pass; her turn's mode on past `turning` (over
+# `turning_edge`), its sway `turn_sway` of its unit, her sidestep's own turn sidestepping.
+turn_dc = 0.40
+turn_dc_side = 0.12
+turn_blend = 0.18
+turning = 0.008
+turning_edge = 0.004
+turn_sway = 0.14
+# Spun on the spot her drive's amplitude `spin_drive`, from `spin_fast_m_s` of her own speed (over
+# `spin_fast_edge_m_s`) `spin_drive_s_m` of it past `spin_drive_from_m_s`; her lift's sway `spin_lift`.
+spin_fast_m_s = 0.75
+spin_fast_edge_m_s = 0.05
+spin_drive = 0.035
+spin_drive_s_m = 0.35
+spin_drive_from_m_s = 0.15
+spin_lift = 0.95
+# Her soles' grip under `slip_grip` where she knew it more (over `slip_grip_edge`), told on past
+# `slip_m_s`: she slips, her rhythm at `slip_hz`; spun, turned past her turn's rate or told faster
+# than her walk at `brisk_hz`; any gait past hers at `quick_hz`.
+slip_grip = 0.25
+slip_grip_edge = 0.02
+slip_m_s = 0.04
+slip_hz = 1.05
+brisk_hz = 0.98
+quick_hz = 0.95
+# Run: her drive's sway `run_boost` times on to `run_drive`, her arms' to `run_arms`; backed faster than
+# her walk back, her drive's `back_boost` times on to `back_drive`; sidestepped faster than hers, her
+# lateral shift `side_shift` of its unit her sidestep's way.
+run_drive = 0.68
+run_boost = 1.08
+run_arms = 1.00
+back_drive = 0.28
+back_boost = 1.25
+side_shift = 0.105
+
 # Her poise (machine.law.poise).
 [gait.poise]
 # Her ZMP kept this far inside a sole's edge, and her capture point let toward an edge no faster than

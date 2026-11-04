@@ -2,6 +2,7 @@
 import math
 
 from machine.body import gait
+from machine.law import rhythm
 from machine.texts import ortho
 
 _G = gait.table('twist')
@@ -187,60 +188,6 @@ def words_laid():
     return np.zeros(WORDS)
 
 
-def _modulate_cpg(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
-    from machine.law import latent, modal
-    gain = float(st[latent.NOW][latent.GAIN])
-    amp_d = abs(float(st[latent.TO][latent.AMP][modal.DRIVE]))
-    w_gait = min(1.0, max(0.0, (max(amp_d, abs(vy), abs(wz)) - 0.02) / 0.02))
-    w_on = tw_on * min(1.0, max(0.0, (gain - 0.02) / 0.03)) * w_gait
-    w_rest = tw_on * (1.0 - min(1.0, max(0.0, (gain - 0.02) / 0.03))) * float(0.05 < amp_d < 0.30)
-    w_fast_fwd = (min(1.0, max(0.0, (vx - WALK_SPEED) / 0.01))
-                  * min(1.0, max(0.0, (0.05 - abs(wz)) / 0.01))
-                  * min(1.0, max(0.0, (0.01 - abs(vy)) / 0.01)))
-    st[latent.TO][latent.AMP][modal.DRIVE] += w_rest * w_fast_fwd * max(
-        0.0, 0.60 - float(st[latent.TO][latent.AMP][modal.DRIVE]))
-    w_vy = min(1.0, max(0.0, (abs(vy) - 0.04) / 0.01))
-    w_wz = min(1.0, max(0.0, (abs(wz) - 0.025) / 0.005))
-    w_wz5 = min(1.0, max(0.0, (abs(wz) - 0.04) / 0.01))
-    w_spin = w_on * w_wz5 * min(1.0, max(0.0, (0.05 - abs(vx)) / 0.01)) * (1.0 - w_vy)
-    wz_way = (1.0 - 2.0 * float(vx < -0.05)) * wz
-    ts_raw = w_on * w_wz * (0.40 - 0.12 * w_vy) * max(-1.0, min(1.0, wz_way / YAW_RATE))
-    ts = state[TURN_DC] = float(state[TURN_DC]) + 0.18 * (ts_raw - float(state[TURN_DC]))
-    w_turn = w_on * max(w_wz, min(1.0, max(0.0, (abs(ts) - 0.008) / 0.004)))
-    bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
-    w_vxp = min(1.0, max(0.0, (abs(vxp) - 0.75) / 0.05))
-    drv = (1.0 - w_vxp) * 0.035 + w_vxp * max(0.035, 0.35 * (abs(vxp) - 0.15))
-    out[latent.SWAY][modal.DRIVE] += w_spin * (drv - float(out[latent.SWAY][modal.DRIVE]))
-    out[latent.REF][modal.DRIVE] += w_spin * (drv * math.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
-    out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * math.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))
-    out[latent.ACC][modal.DRIVE] += w_spin * (-drv * w * w * math.sin(bt_d) - float(out[latent.ACC][modal.DRIVE]))
-    out[latent.SWAY][modal.LIFT] += w_spin * max(0.0, 0.95 - float(out[latent.SWAY][modal.LIFT]))
-    amp_t = w_vy * abs(ts) + (1.0 - w_vy) * 0.14
-    bt = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.TURN])
-    out[latent.SWAY][modal.TURN] += w_turn * (amp_t - float(out[latent.SWAY][modal.TURN]))
-    out[latent.REF][modal.TURN] += w_turn * (ts + amp_t * math.sin(bt) - float(out[latent.REF][modal.TURN]))
-    out[latent.RATE][modal.TURN] += w_turn * (amp_t * w * math.cos(bt) - float(out[latent.RATE][modal.TURN]))
-    out[latent.ACC][modal.TURN] += w_turn * (-amp_t * w * w * math.sin(bt) - float(out[latent.ACC][modal.TURN]))
-    w_slip = (min(1.0, max(0.0, (0.25 - min(held)) / 0.02))
-              * min(1.0, max(0.0, (min(prior) - 0.25) / 0.02))
-              * min(1.0, max(0.0, (abs(vx) - 0.04) / 0.01)))
-    w_vx_hi = min(1.0, max(0.0, (abs(vx) - WALK_SPEED) / 0.01))
-    w_vy_hi = min(1.0, max(0.0, (abs(vy) - STRAFE_SPEED) / 0.01))
-    w_back_hi = min(1.0, max(0.0, (-vx - BACK_SPEED) / 0.01)) * min(1.0, max(0.0, (0.01 - abs(vy)) / 0.01))
-    w_wz_hi = min(1.0, max(0.0, (abs(wz) - YAW_RATE) / 0.01))
-    w_hz = w_on * max(w_slip, w_vx_hi, w_vy_hi, w_back_hi, w_wz5)
-    hz_m = w_on * max(1.05 * w_slip, 0.98 * max(w_spin, w_wz_hi, w_vx_hi), 0.95 * w_hz)
-    st[latent.TO][latent.HZ] = max(float(st[latent.TO][latent.HZ]), hz_m)
-    st[latent.NOW][latent.HZ] = max(float(st[latent.NOW][latent.HZ]), hz_m)
-    out[latent.TURNS] += w_hz * (math.tau * float(st[latent.NOW][latent.HZ]) - float(out[latent.TURNS]))
-    w_boost_fwd = w_hz * w_fast_fwd
-    out[latent.SWAY][modal.DRIVE] += w_boost_fwd * (min(0.68, float(out[latent.SWAY][modal.DRIVE]) * 1.08) - float(out[latent.SWAY][modal.DRIVE]))
-    out[latent.SWAY][modal.ARMS] += w_boost_fwd * (min(1.00, float(out[latent.SWAY][modal.ARMS]) * 1.08) - float(out[latent.SWAY][modal.ARMS]))
-    w_boost_back = w_hz * w_back_hi * (1.0 - w_boost_fwd)
-    out[latent.SWAY][modal.DRIVE] += w_boost_back * (min(0.28, float(out[latent.SWAY][modal.DRIVE]) * 1.25) - float(out[latent.SWAY][modal.DRIVE]))
-    out[latent.REF][modal.LATERAL] += (w_hz * w_vy_hi) * (math.copysign(0.105, vy) - float(out[latent.REF][modal.LATERAL]))
-
-
 def floored(y, fr, dt):
     """The floor under her where her bearing soles' lowest corners stand, in her estimate's own
     height - held where she was laid it read her soles 22 mm over it as her estimate drifted up -,
@@ -284,7 +231,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     `y`, `fr` and `a`, her latent `st` and its `out`, her `posture` (her `waist` and `head` in it),
     her soles' grip `held` and her `prior` of it: the floor under her (`floored`), her heading
     turned by the twist told and by her pelvis, her rhythm flipped where her sway leads the other
-    way, her gait modulated (`_modulate_cpg`), her look into a turn; `state` (`twist_laid`) and
+    way, her gait modulated (`rhythm.modulated`), her look into a turn; `state` (`twist_laid`) and
     `words` (`words_laid`) stepped in place. In C bit for bit (`step_physical_twist`)."""
     import numpy as np
     from machine.senses import edge
@@ -336,7 +283,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     out[latent.RATE] += (-2.0 * w_flip * turns * sway) * [math.cos(float(p)) for p in old_psi]
     out[latent.ACC] *= 1.0 - 2.0 * w_flip
     state[LAST_WAY] = cw
-    _modulate_cpg(st, out, held, prior, state, float(words[W_ACTIVE]), vx, vy, wz, vxp)
+    rhythm.modulated(st, out, held, prior, state, float(words[W_ACTIVE]), vx, vy, wz, vxp)
     drive_sway = abs(float(out[latent.SWAY][modal.DRIVE]))
     active = min(1.0, max(0.0, (drive_sway - stride.STIRS) / 0.04)) * unborne
     w_back = float(active > 0.1) * max(float(cw < 0.0), float(vx < -0.05))

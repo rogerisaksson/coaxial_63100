@@ -75,64 +75,67 @@ static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
   }
 }
 
-/** machine.law.se2._modulate_cpg: her gait's rhythm, drive, turn and arms under a twist told. */
+/** machine.law.rhythm.modulated: her gait's rhythm, drive, turn and arms under a twist told. */
 static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double vy, double wz, double vxp,
                      const double *held, const double *prior)
 {
   double       *st = t->st, *out = t->out, *state = t->state;
   const double  tw_on = t->words[t->w_active];
   const double  gain = st[t->st_now_gain], amp_d = fabs(st[t->st_to_amp + k->drive]);
-  const double  w_gait = npmin(1.0, npmax(0.0, (npmax(npmax(amp_d, fabs(vy)), fabs(wz)) - 0.02) / 0.02));
-  const double  w_on = (tw_on * npmin(1.0, npmax(0.0, (gain - 0.02) / 0.03))) * w_gait;
-  const double  w_rest = (tw_on * (1.0 - npmin(1.0, npmax(0.0, (gain - 0.02) / 0.03)))) * (double)(0.05 < amp_d && amp_d < 0.30);
-  const double  w_fast_fwd = (npmin(1.0, npmax(0.0, (vx - t->walk_m_s) / 0.01)) * npmin(1.0, npmax(0.0, (0.05 - fabs(wz)) / 0.01)))
-                             * npmin(1.0, npmax(0.0, (0.01 - fabs(vy)) / 0.01));
+  const double  w_gait = npmin(1.0, npmax(0.0, (npmax(npmax(amp_d, fabs(vy)), fabs(wz)) - t->moving) / t->moving_edge));
+  const double  w_on = (tw_on * npmin(1.0, npmax(0.0, (gain - t->gain_on) / t->gain_edge))) * w_gait;
+  const double  w_rest = (tw_on * (1.0 - npmin(1.0, npmax(0.0, (gain - t->gain_on) / t->gain_edge))))
+                         * (double)(t->rest_lo < amp_d && amp_d < t->rest_hi);
+  const double  w_fast_fwd = (npmin(1.0, npmax(0.0, (vx - t->walk_m_s) / t->edge_m_s))
+                              * npmin(1.0, npmax(0.0, (t->still_rad_s - fabs(wz)) / t->edge_rad_s)))
+                             * npmin(1.0, npmax(0.0, (t->edge_m_s - fabs(vy)) / t->edge_m_s));
   double        w_vy, w_wz, w_wz5, w_spin, wz_way, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
   double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back;
 
-  st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, 0.60 - st[t->st_to_amp + k->drive]);
-  w_vy = npmin(1.0, npmax(0.0, (fabs(vy) - 0.04) / 0.01));
-  w_wz = npmin(1.0, npmax(0.0, (fabs(wz) - 0.025) / 0.005));
-  w_wz5 = npmin(1.0, npmax(0.0, (fabs(wz) - 0.04) / 0.01));
-  w_spin = ((w_on * w_wz5) * npmin(1.0, npmax(0.0, (0.05 - fabs(vx)) / 0.01))) * (1.0 - w_vy);
-  wz_way = (1.0 - 2.0 * (double)(vx < -0.05)) * wz;
-  ts_raw = ((w_on * w_wz) * (0.40 - 0.12 * w_vy)) * npmax(-1.0, npmin(1.0, wz_way / t->yaw_rate));
-  ts = state[t->s_turn_dc] + 0.18 * (ts_raw - state[t->s_turn_dc]);
+  st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, t->rest_drive - st[t->st_to_amp + k->drive]);
+  w_vy = npmin(1.0, npmax(0.0, (fabs(vy) - t->side_m_s) / t->edge_m_s));
+  w_wz = npmin(1.0, npmax(0.0, (fabs(wz) - t->turn_rad_s) / t->turn_edge_rad_s));
+  w_wz5 = npmin(1.0, npmax(0.0, (fabs(wz) - t->spin_rad_s) / t->edge_rad_s));
+  w_spin = ((w_on * w_wz5) * npmin(1.0, npmax(0.0, (t->spin_still_m_s - fabs(vx)) / t->edge_m_s))) * (1.0 - w_vy);
+  wz_way = (1.0 - 2.0 * (double)(vx < -t->backing_m_s)) * wz;
+  ts_raw = ((w_on * w_wz) * (t->turn_dc - t->turn_dc_side * w_vy)) * npmax(-1.0, npmin(1.0, wz_way / t->yaw_rate));
+  ts = state[t->s_turn_dc] + t->turn_blend * (ts_raw - state[t->s_turn_dc]);
   state[t->s_turn_dc] = ts;
-  w_turn = w_on * npmax(w_wz, npmin(1.0, npmax(0.0, (fabs(ts) - 0.008) / 0.004)));
+  w_turn = w_on * npmax(w_wz, npmin(1.0, npmax(0.0, (fabs(ts) - t->turning) / t->turning_edge)));
   bt_d = st[t->st_theta] + st[t->st_now_phase + k->drive];
   w = out[k->o_turns];
-  w_vxp = npmin(1.0, npmax(0.0, (fabs(vxp) - 0.75) / 0.05));
-  drv = (1.0 - w_vxp) * 0.035 + w_vxp * npmax(0.035, 0.35 * (fabs(vxp) - 0.15));
+  w_vxp = npmin(1.0, npmax(0.0, (fabs(vxp) - t->spin_fast_m_s) / t->spin_fast_edge_m_s));
+  drv = (1.0 - w_vxp) * t->spin_drive + w_vxp * npmax(t->spin_drive, t->spin_drive_s_m * (fabs(vxp) - t->spin_drive_from_m_s));
   out[k->o_sway + k->drive] += w_spin * (drv - out[k->o_sway + k->drive]);
   out[k->o_ref + k->drive] += w_spin * (drv * sin(bt_d) - out[k->o_ref + k->drive]);
   out[k->o_rate + k->drive] += w_spin * ((drv * w) * cos(bt_d) - out[k->o_rate + k->drive]);
   out[k->o_acc + k->drive] += w_spin * ((((-drv) * w) * w) * sin(bt_d) - out[k->o_acc + k->drive]);
-  out[k->o_sway + k->lift] += w_spin * npmax(0.0, 0.95 - out[k->o_sway + k->lift]);
-  amp_t = w_vy * fabs(ts) + (1.0 - w_vy) * 0.14;
+  out[k->o_sway + k->lift] += w_spin * npmax(0.0, t->spin_lift - out[k->o_sway + k->lift]);
+  amp_t = w_vy * fabs(ts) + (1.0 - w_vy) * t->turn_sway;
   bt = st[t->st_theta] + st[t->st_now_phase + k->turn];
   out[k->o_sway + k->turn] += w_turn * (amp_t - out[k->o_sway + k->turn]);
   out[k->o_ref + k->turn] += w_turn * ((ts + amp_t * sin(bt)) - out[k->o_ref + k->turn]);
   out[k->o_rate + k->turn] += w_turn * ((amp_t * w) * cos(bt) - out[k->o_rate + k->turn]);
   out[k->o_acc + k->turn] += w_turn * ((((-amp_t) * w) * w) * sin(bt) - out[k->o_acc + k->turn]);
-  w_slip = (npmin(1.0, npmax(0.0, (0.25 - npmin(held[0], held[1])) / 0.02))
-            * npmin(1.0, npmax(0.0, (npmin(prior[0], prior[1]) - 0.25) / 0.02)))
-           * npmin(1.0, npmax(0.0, (fabs(vx) - 0.04) / 0.01));
-  w_vx_hi = npmin(1.0, npmax(0.0, (fabs(vx) - t->walk_m_s) / 0.01));
-  w_vy_hi = npmin(1.0, npmax(0.0, (fabs(vy) - t->strafe_m_s) / 0.01));
-  w_back_hi = npmin(1.0, npmax(0.0, ((-vx) - t->back_m_s) / 0.01)) * npmin(1.0, npmax(0.0, (0.01 - fabs(vy)) / 0.01));
-  w_wz_hi = npmin(1.0, npmax(0.0, (fabs(wz) - t->yaw_rate) / 0.01));
+  w_slip = (npmin(1.0, npmax(0.0, (t->slip_grip - npmin(held[0], held[1])) / t->slip_grip_edge))
+            * npmin(1.0, npmax(0.0, (npmin(prior[0], prior[1]) - t->slip_grip) / t->slip_grip_edge)))
+           * npmin(1.0, npmax(0.0, (fabs(vx) - t->slip_m_s) / t->edge_m_s));
+  w_vx_hi = npmin(1.0, npmax(0.0, (fabs(vx) - t->walk_m_s) / t->edge_m_s));
+  w_vy_hi = npmin(1.0, npmax(0.0, (fabs(vy) - t->strafe_m_s) / t->edge_m_s));
+  w_back_hi = npmin(1.0, npmax(0.0, ((-vx) - t->back_m_s) / t->edge_m_s))
+              * npmin(1.0, npmax(0.0, (t->edge_m_s - fabs(vy)) / t->edge_m_s));
+  w_wz_hi = npmin(1.0, npmax(0.0, (fabs(wz) - t->yaw_rate) / t->edge_rad_s));
   w_hz = w_on * npmax(npmax(npmax(npmax(w_slip, w_vx_hi), w_vy_hi), w_back_hi), w_wz5);
-  hz_m = w_on * npmax(npmax(1.05 * w_slip, 0.98 * npmax(npmax(w_spin, w_wz_hi), w_vx_hi)), 0.95 * w_hz);
+  hz_m = w_on * npmax(npmax(t->slip_hz * w_slip, t->brisk_hz * npmax(npmax(w_spin, w_wz_hi), w_vx_hi)), t->quick_hz * w_hz);
   st[t->st_to_hz] = npmax(st[t->st_to_hz], hz_m);
   st[t->st_now_hz] = npmax(st[t->st_now_hz], hz_m);
   out[k->o_turns] += w_hz * (TAU * st[t->st_now_hz] - out[k->o_turns]);
   w_boost_fwd = w_hz * w_fast_fwd;
-  out[k->o_sway + k->drive] += w_boost_fwd * (npmin(0.68, out[k->o_sway + k->drive] * 1.08) - out[k->o_sway + k->drive]);
-  out[k->o_sway + k->arms] += w_boost_fwd * (npmin(1.00, out[k->o_sway + k->arms] * 1.08) - out[k->o_sway + k->arms]);
+  out[k->o_sway + k->drive] += w_boost_fwd * (npmin(t->run_drive, out[k->o_sway + k->drive] * t->run_boost) - out[k->o_sway + k->drive]);
+  out[k->o_sway + k->arms] += w_boost_fwd * (npmin(t->run_arms, out[k->o_sway + k->arms] * t->run_boost) - out[k->o_sway + k->arms]);
   w_boost_back = (w_hz * w_back_hi) * (1.0 - w_boost_fwd);
-  out[k->o_sway + k->drive] += w_boost_back * (npmin(0.28, out[k->o_sway + k->drive] * 1.25) - out[k->o_sway + k->drive]);
-  out[k->o_ref + k->lateral] += (w_hz * w_vy_hi) * (copysign(0.105, vy) - out[k->o_ref + k->lateral]);
+  out[k->o_sway + k->drive] += w_boost_back * (npmin(t->back_drive, out[k->o_sway + k->drive] * t->back_boost) - out[k->o_sway + k->drive]);
+  out[k->o_ref + k->lateral] += (w_hz * w_vy_hi) * (copysign(t->side_shift, vy) - out[k->o_ref + k->lateral]);
 }
 
 void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,

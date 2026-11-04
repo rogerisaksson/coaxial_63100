@@ -206,6 +206,13 @@ typedef struct
   int           s_last_way, s_look_yaw, s_turn_dc;
   int           w_heading, w_target, w_has, w_twist, w_actual, w_active, w_stop, w_t, w_back, w_backing, w_clear;
   double        walk_m_s, back_m_s, strafe_m_s, yaw_rate, floor_hz, touch_n, stirs;
+  /** machine.law.rhythm.NAMES: her rhythm's numbers under a twist (`[gait.rhythm]`), in its order. */
+  double        moving, moving_edge, gain_on, gain_edge, rest_lo, rest_hi, edge_m_s, still_rad_s, edge_rad_s;
+  double        rest_drive, side_m_s, turn_rad_s, turn_edge_rad_s, spin_rad_s, spin_still_m_s, backing_m_s;
+  double        turn_dc, turn_dc_side, turn_blend, turning, turning_edge, spin_fast_m_s, spin_fast_edge_m_s;
+  double        spin_drive, spin_drive_s_m, spin_drive_from_m_s, spin_lift, turn_sway, slip_grip, slip_grip_edge;
+  double        slip_m_s, slip_hz, brisk_hz, quick_hz, run_drive, run_boost, run_arms, back_drive, back_boost;
+  double        side_shift;
   const double *y_in, *y, *a;
   double       *fr, *st, *out, *posture, *state, *words;
 } wbc_twist_t;
