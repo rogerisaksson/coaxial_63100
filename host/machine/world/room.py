@@ -52,10 +52,14 @@ GROUND = ('deck', 'stone_step', 'stone_terrace', 'loft') + tuple('stair%d' % k f
 #: 10 errands failed; against the back wall she walked into it at 0.9 m/s.
 CHAIR_AT, SEAT, SEAT_H, BACK = (1.5, 0.8), CHAIR_SEAT, 0.45, (CHAIR_SEAT[0], 0.25, 0.02)
 CHAIR_LOW_AT = (-(WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2]), 0.0)
-#: The bed: its middle, its half sizes (the mattress's top at twice the second). Its head 0.55 m off the gable fits
-#: no dock at that end; 0.20 m further out it fitted none either (from the east she still rounded the foot's
-#: corner and fell at 11.1 s) and the south spot's dock came 0.219 rad askew for 0.137, so it stays.
-BED_AT, BED = (-1.8, 1.8), (0.585, 0.22, 1.1)
+#: The bed: its middle, its half sizes (the mattress's top at twice the second), its frame's height under the
+#: mattress and how far it stands out of it, m. Its head 0.55 m off the gable fits no dock at that end; 0.20 m
+#: further out it fitted none either (from the east she still rounded the foot's corner and fell at 11.1 s) and the
+#: south spot's dock came 0.219 rad askew for 0.137, so it stays. The frame fills the slot under the mattress, no
+#: slot left (`floor`'s bed): through it her feet came down off its end under the mattress, wedged at 9.7 of her
+#: weight, and sat on its edge her soles bore nothing and her thrust waited. The mattress as it was: cut to 0.16 m
+#: up over a frame that high, her lie at its end from F's walk, her hips 0.06 m in, slid off it.
+BED_AT, BED, BED_FRAME_H, BED_PROUD = (-1.8, 1.8), (0.585, 0.22, 1.1), 0.10, 0.02
 #: The table: its middle, the top's half sizes and height.
 TABLE_AT, TOP, TOP_H = (1.5, -0.8), (0.6, 0.015, 0.35), 0.74
 #: The lamp: its foot (x, z), the post's half height, the shade's half sizes; its switch on the
@@ -155,8 +159,11 @@ def furnish(contacts, textured=False):
         _box('back', (CHAIR_AT[0], SEAT_H + BACK[1] + 0.02, CHAIR_AT[1] + SEAT[2]), BACK, contacts),
         _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts),
         _box('back_low', (CHAIR_LOW_AT[0] - SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
-        _box('bed', (BED_AT[0], BED[1], BED_AT[1]), (BED[0], BED[1] - 0.05, BED[2]), contacts,
-             ' pos="0 0.05 0" priority="2" condim="4" solref="0.08 1" solimp="0.8 0.95 0.10"'),
+        '<body name="bed" pos="%g %g %g"><geom name="bed" type="box" size="%g %g %g" pos="0 %g 0" priority="2"'
+        ' condim="4" solref="0.08 1" solimp="0.8 0.95 0.10"%s/><geom name="bedframe" type="box" size="%g %g %g"'
+        ' pos="0 %g 0"%s/></body>' % (
+            BED_AT[0], BED[1], BED_AT[1], BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2], BED_FRAME_H / 2.0, contacts,
+            BED[0] + BED_PROUD, BED_FRAME_H / 2.0, BED[2] + BED_PROUD, BED_FRAME_H / 2.0 - BED[1], contacts),
         _box('table', (TABLE_AT[0], TOP_H, TABLE_AT[1]), TOP, contacts),
         _box('post', (LAMP_AT[0], POST_H, LAMP_AT[1]), (0.02, POST_H, 0.02), contacts),
         _box('shade', (LAMP_AT[0], 2.0 * POST_H + SHADE[1], LAMP_AT[1]), SHADE, contacts),
