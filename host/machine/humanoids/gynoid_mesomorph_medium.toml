@@ -324,3 +324,86 @@ thigh = {share = 0.1478, com_along = -0.36, gyration = [0.144, 0.065, 0.144]}
 shank = {share = 0.0481, com_along = -0.44, gyration = [0.103, 0.035, 0.103]}
 foot = {share = 0.011, com = [0.0, -0.045, 0.03], gyration = [0.055, 0.03, 0.055]}
 toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01, 0.02]}
+
+# Her gait (machine.body.gait): her law's numbers as they work on her, each with what it was found
+# at, stated at her leg `leg_m` (thigh and shank, m). A build of another leg has each Froude-similar
+# by its unit - a length as the leg, a time or a speed as its root, a rate as its inverse root, per
+# s^2 as its inverse, an angle or a share as it is -, nothing of them tuned to it.
+[gait]
+leg_m = 0.77
+
+# Her stride (machine.law.stride).
+[gait.stride]
+# A unit of her drive, a limb's place from her centre of mass along her way, m; of her soles' rock,
+# a sole's pitch, rad.
+stride_m = 0.3
+rock_rad = 0.5
+# Her drive's amplitude over `stirs`, she strides: a limb swings `swing` of a turn, a woman's 38 to
+# 40 %. Let go only with her ZMP in the other sole, a step was no longer than a sole - 0.23 legs at
+# 0.28 m/s, a shuffle by name (`tools.sim.normal`).
+stirs = 0.02
+swing = 0.4
+# Her sway a quarter turn behind her drive, past `back` of it, she goes the other way.
+back = 0.5
+# Her centre of mass asked no more than this faster or slower than her soles have made of late, m/s.
+ahead_m_s = 0.36
+# A striding sole lands no further than `reach_m` from her along her way, `apart_m` and more its own
+# side of the other; its spring stiffens till `soon_s` before it is there. It is up over the first
+# `rise_u` of its swing, comes down over the last `fall_u` and is over its landing `arrive_u` through it.
+reach_m = 0.35
+apart_m = 0.1
+soon_s = 0.02
+rise_u = 0.2
+fall_u = 0.25
+arrive_u = 0.9
+# A landing further on by this of her speed past her cruise, over omega. A step's push - her centre
+# of mass past the standing sole's ball till the next lands - is 0.14 m/s more than its landing's
+# brake at any speed, and the landing's blow took that: on a step that lands softer she was down at
+# 19 s with no lead, at 36 s with 0.25. With 0.5 a step leaves 0.42 of its speed's error to the
+# next, with 1 it turns it -0.09.
+leads = 0.5
+# Past its swing a sole not down reaches on down at `reach_m_s`, for `reach_s` at most.
+reach_m_s = 0.45
+reach_s = 0.25
+# A standing sole is turned about the edge it stands on, 1/s^2: flat, or over its ball as its stride
+# has it. The loop's own hold on a standing sole damps its turn at 20 /s: stood on with its heel 4
+# deg up, it stayed on its ball for 3 s. At 100 /s^2 and her ZMP let anywhere under it, a heel asked
+# 6 deg up under all of her stayed down till the other sole landed.
+flat_1_s2 = 400.0
+# A standing sole's heel rises no further than `heel_deg`, a woman's as her toes leave (the
+# reference take's heel at lift, `tools/sim/mocap.py tests/takes/walk.fbx`) - at 0.6 rad, a swung
+# leg damped as the master insert has it, she walked on stilts; at the band's 62 deg her sprint,
+# stutter, rug and snow fell -, no faster than `heel_rad_s`, as her hip goes ahead of it: her hip
+# let `dip_m` down from where it stood over a sole first. It is on its edge in full from `edge_rad`
+# of pitch. Striding only: her soles stand 0.5 deg toes up, and held on their heels for that she
+# went over them 0.7 s after a hop's landing; let 1.1 deg before an edge counts, her walk was down
+# in 17 s.
+heel_deg = 36.2
+heel_rad_s = 6.0
+dip_m = 0.006
+edge_rad = 0.03
+# A standing sole its stride has off folds its knee as its load leaves it, this with none on it,
+# rad - its leg that much shorter for its heel's rise, her knees' row told. Asked by nothing, the leg
+# stayed at its length till its toes left, 18 deg where a woman's is 30: on stilts by name. At 0.17
+# stiff 0.41; at 0.35 her head nods 7 deg and she strikes 489 N; at 0.52 down at 14 s. Its heel
+# alone asked up, down within 32 s.
+fold_rad = 0.26
+# A swinging sole's pitch is its rock's: its heel this further up behind her, its toes as much less
+# up ahead.
+heel_up = 0.5
+
+# Her twist (machine.law.se2).
+[gait.twist]
+# Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
+walk_m_s = 0.69
+run_m_s = 1.40
+back_m_s = 0.35
+strafe_m_s = 0.50
+yaw_rad_s = 0.70
+# Her walk's stopping distance: told to stand she goes on 0.81-0.93 m, under 0.02 m/s 1.7-2.0 s
+# later (eight phases of her stride) - she has the one walk; her walk back's 0.05 m on, her
+# sidestep's 0.11-0.15; half her walk's stop's spread.
+stop_m = 0.87
+back_stop_m = 0.05
+side_stop_m = 0.15
+stop_spread_m = 0.06

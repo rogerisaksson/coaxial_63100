@@ -1,14 +1,15 @@
 """Her twist on the loop: the gait it walks her by, her heading turned by it, her rhythm by it."""
 import math
 
+from machine.body import gait
 from machine.texts import ortho
 
-#: Her twists' speeds: a walk, a sprint, a walk back, a sidestep, m/s; a turn, rad/s.
-WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = 0.69, 1.40, 0.35, 0.50, 0.70
-#: Her walk's stopping distance, m: told to stand she goes on 0.81-0.93 m, under 0.02 m/s 1.7-2.0 s
-#: later (eight phases of her stride) - she has the one walk; her walk back's 0.05 m on, her
-#: sidestep's 0.11-0.15; half her walk's stop's spread.
-STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = 0.87, 0.05, 0.15, 0.06
+_G = gait.table('twist')
+#: Her twists' speeds (her build's, `machine.body.gait`): a walk, a sprint, a walk back, a sidestep,
+#: m/s; a turn, rad/s.
+WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('walk_m_s', 'run_m_s', 'back_m_s', 'strafe_m_s', 'yaw_rad_s'))
+#: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
+STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
 #: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride, both soles
 #: braking her - over 0.5 s her plan stopped before a sole could, she walked on at 0.6-0.85 m/s and
 #: one landing took 0.85 to 0.10 m/s in 0.2 s, her trunk 13 deg ahead and her arms at 344 deg/s.

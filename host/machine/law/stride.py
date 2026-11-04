@@ -25,64 +25,51 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import gait
 from machine.body.figure import ANKLE_H, BALL, SHANK, THIGH, TOE_M
 from machine.law.poise import BIG, HALF_M, MARGIN_M, TINY, clip
 from machine.stack.wbc import CONTACT_K
 
+#: Her stride's numbers, her build's (`[gait.stride]`: each with what it was found at, Froude-similar
+#: on another leg, `machine.body.gait`).
+_G = gait.table('stride')
 #: A limb's place, her way's frame: along, to her left, up. Her limbs' mirrors, the first her left.
 ALONG, LEFT, UP = 0, 1, 2
 LIMBS = np.array([1.0, -1.0])
 #: A unit of her drive, a limb's place from her centre of mass along her way, m; of her
 #: soles' rock, a sole's pitch, rad.
-STRIDE_M, ROCK_RAD = 0.3, 0.5
-#: Her drive's amplitude over STIRS, she strides: a limb swings SWING of a turn, a woman's 38
-#: to 40 %. Let go only with her ZMP in the other sole, a step was no longer than a sole -
-#: 0.23 legs at 0.28 m/s, a shuffle by name (`tools.sim.normal`).
-STIRS, SWING = 0.02, 0.4
+STRIDE_M, ROCK_RAD = _G['stride_m'], _G['rock_rad']
+#: Her drive's amplitude over STIRS, she strides: a limb swings SWING of a turn.
+STIRS, SWING = _G['stirs'], _G['swing']
 PHI_W = np.pi * SWING
 #: Her sway a quarter turn behind her drive, past BACK of it, she goes the other way.
-BACK = 0.5
+BACK = _G['back']
 #: Her going: her centre of mass asked no more than AHEAD_M_S faster or slower than her
 #: soles have made of late.
-AHEAD_M_S = 0.36
+AHEAD_M_S = _G['ahead_m_s']
 #: A striding sole lands no further than REACH_M from her along her way, APART_M and more
 #: its own side of the other; its spring stiffens till SOON_S before it is there. It is up
 #: over the first RISE_U of its swing, comes down over the last FALL_U and is over its
 #: landing ARRIVE_U through it.
-REACH_M, APART_M, SOON_S = 0.35, 0.1, 0.02
-RISE_U, FALL_U, ARRIVE_U = 0.2, 0.25, 0.9
-#: And further on by LEADS of her speed past her cruise, over omega. A step's push - her
-#: centre of mass past the standing sole's ball till the next lands - is 0.14 m/s more than
-#: its landing's brake at any speed, and the landing's blow took that: on a step that lands
-#: softer she was down at 19 s with no lead, at 36 s with 0.25. With 0.5 a step leaves 0.42
-#: of its speed's error to the next, with 1 it turns it -0.09.
-LEADS = 0.5
+REACH_M, APART_M, SOON_S = _G['reach_m'], _G['apart_m'], _G['soon_s']
+RISE_U, FALL_U, ARRIVE_U = _G['rise_u'], _G['fall_u'], _G['arrive_u']
+#: And further on by LEADS of her speed past her cruise, over omega.
+LEADS = _G['leads']
 #: Past its swing a sole not down reaches on down at REACH_M_S, for REACH_S at most.
-REACH_M_S, REACH_S = 0.45, 0.25
+REACH_M_S, REACH_S = _G['reach_m_s'], _G['reach_s']
 #: A standing sole is turned about the edge it stands on, 1/s^2: flat, or over its ball as
-#: its stride has it. The loop's own hold on a standing sole damps its turn at 20 /s: stood
-#: on with its heel 4 deg up, it stayed on its ball for 3 s. At 100 /s^2 and her ZMP let
-#: anywhere under it, a heel asked 6 deg up under all of her stayed down till the other
-#: sole landed.
-FLAT_K = 400.0
-#: A standing sole's heel rises no further than HEEL_RAD, a woman's as her toes leave (the
-#: reference take's heel at lift, `tools/sim/mocap.py tests/takes/walk.fbx`) - at 0.6 rad, a swung
-#: leg damped as the master insert has it, she walked on stilts; at the band's 62 deg her sprint,
-#: stutter, rug and snow fell -, no faster than HEEL_RAD_S, as her hip goes ahead of it: her hip
-#: let DIP_M down from where it stood over a sole first. It is on its edge in full from EDGE_RAD
-#: of pitch. Striding only: her soles stand 0.5 deg toes up, and held on their heels for that she
-#: went over them 0.7 s after a hop's landing; let 1.1 deg before an edge counts, her walk was
-#: down in 17 s.
-HEEL_RAD, HEEL_RAD_S, DIP_M, EDGE_RAD = np.radians(36.2), 6.0, 0.006, 0.03
+#: its stride has it.
+FLAT_K = _G['flat_1_s2']
+#: A standing sole's heel rises no further than HEEL_RAD, no faster than HEEL_RAD_S, as her hip
+#: goes ahead of it: her hip let DIP_M down from where it stood over a sole first. It is on its
+#: edge in full from EDGE_RAD of pitch.
+HEEL_RAD, HEEL_RAD_S, DIP_M, EDGE_RAD = np.radians(_G['heel_deg']), _G['heel_rad_s'], _G['dip_m'], _G['edge_rad']
 #: A standing sole its stride has off folds its knee as its load leaves it, FOLD_RAD with
-#: none on it - its leg that much shorter for its heel's rise, her knees' row told. Asked by
-#: nothing, the leg stayed at its length till its toes left, 18 deg where a woman's is 30:
-#: on stilts by name. At 0.17 stiff 0.41; at 0.35 her head nods 7 deg and she strikes 489 N;
-#: at 0.52 down at 14 s. Its heel alone asked up, down within 32 s.
-FOLD_RAD = 0.26
+#: none on it - its leg that much shorter for its heel's rise, her knees' row told.
+FOLD_RAD = _G['fold_rad']
 #: A swinging sole's pitch is its rock's: its heel HEEL_UP further up behind her, its toes
 #: as much less up ahead.
-HEEL_UP = 0.5
+HEEL_UP = _G['heel_up']
 
 
 def beat(drive, psi, sway, lateral, turns, was, need, lead, split):
