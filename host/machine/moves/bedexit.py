@@ -10,8 +10,10 @@ her shanks bear nothing as her legs stretch her knees are past the edge (on the 
 yield, hanging, and swing down as her arms push - her knees drawn toward TUCK by PULL deg past where they are at most,
 her ankles where they are - her buttocks after her feet (told to tuck to 110 deg against her planted feet her knees
 stalled at 85-94, her soles and the bed squeezing 1.5 and 1.7 of her; drawn freely her feet slid under the mattress
-onto the bed's frame, which bore 300 N on a foot as she stood); seated once her knees fold past KNEE_SEAT on her soles
-(her soles' share told nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding 0.24 back), her heels on the
+onto the bed's frame, which bore 300 N on a foot as she stood); seated once her knees fold past KNEE_SEAT on her
+soles, the push ending there (told at its end alone, a push dragged her 0.21 m on, her hips 0.06 m in off the lodge
+bed's end and 0.15 behind her ankles, and her thrust threw her forward off her feet; her soles' share alone told
+nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding 0.24 back), her heels on the
 frame's face. There her legs yield SETTLE_S s, her heels sliding down its face to the floor (left 4 cm up it, her
 ankles 0.13 m up, not 0.10, her scoot stood her on her toes, her hips 0.00-0.08 m behind her ankles, and her seat's
 upright trunk threw her back up the bed). Then she scoots: her trunk SCOOT_TRUNK deg forward off her buttocks, her
@@ -121,12 +123,12 @@ def step(state, cmd, q_deg, t, dt, soles, shins, pitch):
                           np.where(how == 3.0, q + goal, np.where(how == 4.0, q + np.clip(goal - q, 0.0, rate), x))))
     held = np.clip(x + TRUNK_GAIN * (pitch - TRUNKS[k]) * dt, HIP_LO, HIP_HI)
     cmd[JOINT] = np.where((PART == 0) & (HOLDS[k] > 0.5), held, x)
-    due = el >= LENGTH[k]
+    sat = state[OVER] * float(soles >= SOLE_SHARE) * float(np.mean(q_deg[KNEES]) >= KNEE_SEAT)
+    due = el >= LENGTH[k] or (k == PUSHED and sat > 0.0)
     pushed, stretched = due and k == PUSHED, due and k == STRETCHED_AT
     state[COUNT] += float(pushed)
     state[OVER] = max(state[OVER], float(stretched and shins < SHIN_SHARE))
-    seated = (state[OVER] * float(soles >= SOLE_SHARE) * float(np.mean(q_deg[KNEES]) >= KNEE_SEAT)
-              + float(state[COUNT] >= STROKES))
+    seated = sat + float(state[COUNT] >= STROKES)
     state[PHASE], state[AT] = (SEATED if pushed and seated > 0.0 else NEXT[k], t) if due else (k, state[AT])
     state[FROM:] = cmd if due else state[FROM:]
     return float(state[PHASE] >= DONE)
