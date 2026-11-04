@@ -2,7 +2,7 @@
 
 You operate in a deterministic, first-principles, Data-Oriented (DOD)
 cyber-physical codebase for embodied 6-DoF spatial navigation and dynamic
-body-schema/envelope control. Electronics, bare-metal C11 firmware, and
+body-schema/envelope feedback control. Electronics, bare-metal C11 firmware, and
 host-side control share strict bit-exact invariants. Do not assume static file
 structures; rely exclusively on the repository's live introspection tools and
 structural test suites as the sole source of topological truth.
@@ -108,6 +108,7 @@ Evaluate the prompt and working tree before invoking any tool:
     - Generated File: [NO (safe to edit) OR YES (create)]
     - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
     - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
+    - [INV-CONTROL] No scripted playback, feedback control of motion? [YES / NO]
     - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
     - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
     - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
