@@ -11,10 +11,16 @@ yield, hanging, and swing down as her arms push - her knees drawn toward TUCK by
 her ankles where they are - her buttocks after her feet (told to tuck to 110 deg against her planted feet her knees
 stalled at 85-94, her soles and the bed squeezing 1.5 and 1.7 of her; drawn freely her feet slid under the mattress
 onto the bed's frame, which bore 300 N on a foot as she stood); seated once her knees fold past KNEE_SEAT on her soles
-(her soles' share told nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding 0.24 back), her trunk upright,
-her arms forward, her feet set out ahead of the bed's frame (SEATED_KNEE, SEATED_ANKLE): her law's seat, whose
-handover stands her up. Its phases are a table (PHASES), every branch a select; its arithmetic is wbc_bedexit.c's,
-bit for bit (`tools.cores.bedexit`, what her loop plays).
+(her soles' share told nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding 0.24 back), her heels on the
+frame's face. There her legs yield SETTLE_S s, her heels sliding down its face to the floor (left 4 cm up it, her
+ankles 0.13 m up, not 0.10, her scoot stood her on her toes, her hips 0.00-0.08 m behind her ankles, and her seat's
+upright trunk threw her back up the bed). Then she scoots: her trunk SCOOT_TRUNK deg forward off her buttocks, her
+arms planted where the push left them, her knees and ankles blended to her seat (SEATED_KNEE, SEATED_ANKLE), her feet
+flattening about her heels drag her hips toward them (set out ahead of the frame at 95 and -20 her hips sat
+0.32-0.34 m behind her ankles, where no lean of her trunk, 70 deg, put her over her soles and her thrust waited;
+scooted from her heels on the floor, 0.21-0.23). Then seated, her trunk upright, her arms forward: her law's seat,
+whose handover stands her up. Its phases are a table (PHASES), every branch a select; its arithmetic is
+wbc_bedexit.c's, bit for bit (`tools.cores.bedexit`, what her loop plays).
 
     state = bedexit.laid(q_deg, t)                                     # from where she lies, at t s
     done = bedexit.step(state, cmd, q_deg, t, dt, soles, shins, pitch)  # cmd (deg, figure.JOINTS) laid over
@@ -39,21 +45,22 @@ KNEES = JOINT[PART == PARTS.index('knee')]
 BLEND, FOLLOW, TOWARD = 0.0, -1.0, -2.0
 #: A stroke: the shoulders from SET to PUSH (deg) as the knees pull from STRETCHED to PULLED; its phases' lengths, s.
 SET, PUSH, STRETCHED, PULLED, PUSH_S, STRETCH_S, SLIDE_S = -10.0, -40.0, 10.0, 60.0, 0.8, 0.4, 0.6
-#: Her trunk's pitch her hips hold stroking and seated, deg (forward +, her law's `modal.pitched`); their gain, deg/s
-#: a deg, and range, deg.
-TRUNK, SEATED_TRUNK, TRUNK_GAIN, HIP_LO, HIP_HI = -20.0, -5.0, 4.0, -100.0, -40.0
+#: Her trunk's pitch her hips hold stroking, scooting and seated, deg (forward +, her law's `modal.pitched`); their
+#: gain, deg/s a deg, and range, deg (scooting they fold past 100: held there she rose and fell back).
+TRUNK, SCOOT_TRUNK, SEATED_TRUNK, TRUNK_GAIN, HIP_LO, HIP_HI = -20.0, 15.0, -5.0, 4.0, -130.0, -40.0
 #: Past the edge: her shanks' share of her weight under which they hang; her knees drawing her buttocks to her feet
 #: (TUCK, deg), PULL deg past where they are at most; seated: her soles' share and her knees' fold, deg; the strokes
 #: at most.
 SHIN_SHARE, TUCK, PULL, SOLE_SHARE, KNEE_SEAT, STROKES = 0.02, 105.0, 8.0, 0.25, 100.0, 30.0
-#: Seated, her knees and ankles, deg: her feet set out ahead of the bed's frame (tucked to it, her heels pressed its
-#: face 300-490 N as she stood and it threw her off her feet; her law's own seat's 102 and -26, driven against her
-#: soles, threw her back onto the bed).
-SEATED_KNEE, SEATED_ANKLE = 95.0, -20.0
+#: Seated, her knees and ankles, deg, scooted to on her heels at the frame's face (the low chair's seat, 104 and -20,
+#: sits her hips 0.26 m behind her ankles); her legs yielding and the scoot, s. Her trunk 20 deg forward stood her on
+#: her toes and threw her back onto the bed, 25 slid her off its end; her arms brought forward as she scooted, 3 of 7
+#: starts fell.
+SEATED_KNEE, SEATED_ANKLE, SETTLE_S, SCOOT_S = 108.0, -28.0, 0.5, 1.5
 #: The phases: (name, s, the next, {part: (deg, how)}, past the edge {part: (deg, how)}, the trunk her hips hold or
 #: None). The sit-up: the elbows under the shoulders, legs straight; the arms lifting her as the hips fold. Her hands
-#: set by her hips. A stroke: the push (to the seat once she is seated, `step`), the legs stretched, the arms forward
-#: again. Her law's seat.
+#: set by her hips. A stroke: the push (to the settle once she is seated, `step`), the legs stretched, the arms
+#: forward again. Her legs yielding, her heels down the frame's face; the scoot. Her law's seat.
 _YIELD = {'knee': (0.0, FOLLOW), 'ankle': (0.0, FOLLOW)}
 PHASES = (('under', 1.5, 'up', {'hip': (0.0, BLEND), 'knee': (5.0, BLEND), 'shoulder': (-90.0, BLEND),
                                 'elbow': (90.0, BLEND)}, {}, None),
@@ -64,12 +71,15 @@ PHASES = (('under', 1.5, 'up', {'hip': (0.0, BLEND), 'knee': (5.0, BLEND), 'shou
            {'knee': (TUCK, TOWARD), 'ankle': (0.0, FOLLOW)}, TRUNK),
           ('stretch', STRETCH_S, 'slide', {'knee': (STRETCHED, 150.0), 'ankle': (0.0, 80.0)}, _YIELD, TRUNK),
           ('slide', SLIDE_S, 'push', {'shoulder': (SET, abs(PUSH - SET) / (SLIDE_S - 0.1))}, _YIELD, TRUNK),
+          ('settle', SETTLE_S, 'scoot', _YIELD, {}, TRUNK),
+          ('scoot', SCOOT_S, 'seat', {'knee': (SEATED_KNEE, BLEND), 'ankle': (SEATED_ANKLE, BLEND)}, {}, SCOOT_TRUNK),
           ('seat', 1.0, 'done', {'knee': (SEATED_KNEE, BLEND), 'ankle': (SEATED_ANKLE, BLEND), 'shoulder': (25.0, BLEND),
                                  'elbow': (19.0, BLEND), 'spine': (-30.0, BLEND)}, {}, SEATED_TRUNK),
           ('done', math.inf, 'done', {}, {}, None))
 NAMES = tuple(phase[0] for phase in PHASES)
-#: The push (it counts the strokes and tells her seated), the stretch (it tells her past the edge), the seat, the end.
-PUSHED, STRETCHED_AT, SEATED, DONE = (NAMES.index(name) for name in ('push', 'stretch', 'seat', 'done'))
+#: The push (it counts the strokes and tells her seated), the stretch (it tells her past the edge), the settle (where
+#: she goes seated), the end.
+PUSHED, STRETCHED_AT, SEATED, DONE = (NAMES.index(name) for name in ('push', 'stretch', 'settle', 'done'))
 #: PHASES as flat tables: each phase's length, the next, the trunk her hips hold and whether they do; each part's
 #: goal, how it is reached (0 held, 1 blended, 2 at its rate, 3 followed, 4 drawn toward) and its rate or pull, on
 #: the bed and past its edge.
