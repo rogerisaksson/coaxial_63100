@@ -172,6 +172,14 @@ def gait_for_twist(vx, vy, wz):
 LAST_WAY, LOOK_YAW, TURN_DC, TWISTED = 0, 1, 2, 3
 W_HEADING, W_TARGET, W_HAS, W_TWIST, W_ACTUAL, W_ACTIVE, W_STOP, W_T = 0, 1, 2, slice(3, 6), slice(6, 9), 9, 10, 11
 W_BACK, W_BACKING, W_CLEAR, WORDS = 12, 13, 14, 15
+#: Her heading's and her look's numbers under a twist, her build's (`[gait.steer]`), in the order her
+#: step's C twin lays them (wbc_twist_t).
+STEER_NAMES = ('slew_rad_s', 'side_told_m_s', 'turn_told_rad_s', 'along_s', 'across_s', 'told_s', 'stance_turn',
+               'stance_turn_load', 'stance_turn_k', 'lag_rad', 'lead_1_s', 'align_m_s', 'align_side_m_s',
+               'align_speed_m_s', 'align_own_m_s', 'align_rad', 'align_1_s', 'slack_rad', 'flip_gain', 'flip_drive',
+               'look_drive', 'look_on', 'look_back_rad_s', 'look_turn_rad_s', 'look_rad', 'look_1_s', 'look_back_1_s',
+               'waist_share', 'head_share', 'clear_m')
+STEER = gait.table('steer')
 #: The floor under her follows her bearing soles at FLOOR_HZ.
 FLOOR_HZ = 15.0
 
@@ -237,34 +245,38 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     from machine.senses import edge
     from machine.law import latent, modal, stride
     from machine.moves import leap
+    s, back = STEER, rhythm.R['backing_m_s']
     has_thd = float(words[W_HAS])
-    heading = wrap_angle(float(words[W_HEADING]) + has_thd * max(-1.6 * dt, min(1.6 * dt, wrap_angle(float(words[W_TARGET]) - float(words[W_HEADING])))))
+    heading = wrap_angle(float(words[W_HEADING]) + has_thd * max(-s['slew_rad_s'] * dt, min(s['slew_rad_s'] * dt, wrap_angle(float(words[W_TARGET]) - float(words[W_HEADING])))))
     sh, ch = math.sin(heading), math.cos(heading)
     floored(y, fr, dt)
     vx, vy, wz = (float(v) for v in words[W_TWIST])
     vxp, vyp, wzp = float(vel[0]) * sh + float(vel[2]) * ch, float(vel[0]) * ch - float(vel[2]) * sh, float(y_in[edge.GYRO][1])
     ax, ay, az = (float(v) for v in words[W_ACTUAL])
-    w_ty, w_tz = min(1.0, max(0.0, (abs(vy) - 0.005) / 0.005)), min(1.0, max(0.0, (abs(wz) - 0.005) / 0.005))
-    kv, ky, kz = min(1.0, dt / 0.06), min(1.0, dt / (0.10 - 0.03 * w_ty)), min(1.0, dt / (0.10 - 0.03 * w_tz))
+    w_ty = min(1.0, max(0.0, (abs(vy) - s['side_told_m_s']) / s['side_told_m_s']))
+    w_tz = min(1.0, max(0.0, (abs(wz) - s['turn_told_rad_s']) / s['turn_told_rad_s']))
+    kv, ky = min(1.0, dt / s['along_s']), min(1.0, dt / (s['across_s'] - s['told_s'] * w_ty))
+    kz = min(1.0, dt / (s['across_s'] - s['told_s'] * w_tz))
     words[W_ACTUAL] = (ax + kv * (vxp - ax), ay + ky * (w_ty * vyp - ay), az + kz * (w_tz * wzp - az))
     pelvis_yaw = edge.yaw(y_in)
     unborne = 1.0 - float(a[modal.BORNE])
     w_yaw = min(1.0, abs(wz) / 1e-4) * (1.0 - has_thd) * unborne
     l0, l1 = float(y[modal.LOAD][0]), float(y[modal.LOAD][1])
-    wz_way = (1.0 - 2.0 * float(vx < -0.05)) * wz
+    wz_way = (1.0 - 2.0 * float(vx < -back)) * wz
     tz_sgn = math.copysign(1.0, wz_way)
-    out_st = 0.75 - 0.30 * math.tanh(3.0 * (l0 - l1) * tz_sgn / max(l0 + l1, leap.TOUCH_N))
+    out_st = s['stance_turn'] - s['stance_turn_load'] * math.tanh(s['stance_turn_k'] * (l0 - l1) * tz_sgn / max(l0 + l1, leap.TOUCH_N))
     d_yaw = wrap_angle(pelvis_yaw - heading)
-    w_step_yaw = float(d_yaw * tz_sgn >= -0.10)
+    w_step_yaw = float(d_yaw * tz_sgn >= -s['lag_rad'])
     w_lead_yaw = float(d_yaw * wz_way > 0.0)
-    heading = wrap_angle(heading + w_yaw * (w_step_yaw * out_st * wz_way + w_lead_yaw * 10.0 * d_yaw) * dt)
+    heading = wrap_angle(heading + w_yaw * (w_step_yaw * out_st * wz_way + w_lead_yaw * s['lead_1_s'] * d_yaw) * dt)
     v_horz = math.hypot(float(y[modal.VCOM][0]), float(y[modal.VCOM][2]))
-    w_align = (w_yaw * float(vx >= 0.05) * float(abs(vy) < 0.05) * float(v_horz > 0.32) * float(vxp > 0.15))
+    w_align = (w_yaw * float(vx >= s['align_m_s']) * float(abs(vy) < s['align_side_m_s']) * float(v_horz > s['align_speed_m_s'])
+               * float(vxp > s['align_own_m_s']))
     err_v = wrap_angle(math.atan2(float(y[modal.VCOM][0]), float(y[modal.VCOM][2])) - heading)
-    err_v_ex = math.copysign(max(0.0, abs(err_v) - 0.32), err_v)
-    heading = wrap_angle(heading + w_align * 12.0 * err_v_ex * dt)
+    err_v_ex = math.copysign(max(0.0, abs(err_v) - s['align_rad']), err_v)
+    heading = wrap_angle(heading + w_align * s['align_1_s'] * err_v_ex * dt)
     err_yaw = wrap_angle(pelvis_yaw - heading)
-    err_yaw_ex = math.copysign(max(0.0, abs(err_yaw) - 0.10), err_yaw)
+    err_yaw_ex = math.copysign(max(0.0, abs(err_yaw) - s['slack_rad']), err_yaw)
     heading = wrap_angle(heading + w_yaw * err_yaw_ex)
     sh_n, ch_n = math.sin(heading), math.cos(heading)
     fr[modal.HEADING] = heading
@@ -273,8 +285,8 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     l_sgn = math.copysign(1.0, float(out[latent.SWAY][modal.LATERAL]))
     cw = math.copysign(1.0, math.sin(l_psi - d_psi) * l_sgn + 0.5)
     last_way = float(np.nan_to_num(state[LAST_WAY], nan=cw))
-    w_flip = float(cw * last_way < 0.0) * max(float(st[latent.NOW][latent.GAIN] > 0.05),
-                                              float(abs(float(out[latent.SWAY][modal.DRIVE])) > 0.02))
+    w_flip = float(cw * last_way < 0.0) * max(float(st[latent.NOW][latent.GAIN] > s['flip_gain']),
+                                              float(abs(float(out[latent.SWAY][modal.DRIVE])) > s['flip_drive']))
     old_psi = out[latent.PSI].copy()
     st[latent.THETA] = (float(st[latent.THETA]) + w_flip * math.pi) % math.tau
     out[latent.PSI] = st[latent.THETA] + st[latent.NOW][latent.PHASE]
@@ -285,19 +297,19 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     state[LAST_WAY] = cw
     rhythm.modulated(st, out, held, prior, state, float(words[W_ACTIVE]), vx, vy, wz, vxp)
     drive_sway = abs(float(out[latent.SWAY][modal.DRIVE]))
-    active = min(1.0, max(0.0, (drive_sway - stride.STIRS) / 0.04)) * unborne
-    w_back = float(active > 0.1) * max(float(cw < 0.0), float(vx < -0.05))
-    tl_back = math.copysign(1.0, wz + 0.05)
-    tl_fwd = float(abs(wz) > 0.03) * max(-0.35, min(0.35, 0.35 * wz / YAW_RATE))
+    active = min(1.0, max(0.0, (drive_sway - stride.STIRS) / s['look_drive'])) * unborne
+    w_back = float(active > s['look_on']) * max(float(cw < 0.0), float(vx < -back))
+    tl_back = math.copysign(1.0, wz + s['look_back_rad_s'])
+    tl_fwd = float(abs(wz) > s['look_turn_rad_s']) * max(-s['look_rad'], min(s['look_rad'], s['look_rad'] * wz / YAW_RATE))
     tl = active * (w_back * tl_back + (1.0 - w_back) * tl_fwd)
-    look = state[LOOK_YAW] = float(state[LOOK_YAW]) + min(1.0, (5.0 - 0.5 * w_back) * dt) * (tl - float(state[LOOK_YAW]))
-    posture[waist] = 0.38 * look * unborne
-    posture[head] = 0.72 * look * unborne
+    look = state[LOOK_YAW] = float(state[LOOK_YAW]) + min(1.0, (s['look_1_s'] - s['look_back_1_s'] * w_back) * dt) * (tl - float(state[LOOK_YAW]))
+    posture[waist] = s['waist_share'] * look * unborne
+    posture[head] = s['head_share'] * look * unborne
     words[W_HEADING] = heading
     words[W_BACK] = w_back * float(abs(look) > 1e-3)
     words[W_BACKING] = posture[waist]
     tw_on = max(float(words[W_ACTIVE]), float(words[W_STOP] > words[W_T]))
-    words[W_CLEAR] = 0.115 * tw_on * unborne * float(out[latent.HELD] > 0.5)
+    words[W_CLEAR] = s['clear_m'] * tw_on * unborne * float(out[latent.HELD] > 0.5)
 
 
 def heard_twist(g, gym, tw, has_say, heard_say_fn):

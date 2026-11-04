@@ -416,6 +416,54 @@ back_drive = 0.28
 back_boost = 1.25
 side_shift = 0.105
 
+# Her heading and her look under a twist told (machine.law.se2.twisted).
+[gait.steer]
+# A heading told turned to at `slew_rad_s` at most; a sidestep and a turn told from `side_told_m_s` and
+# `turn_told_rad_s` (over as much again); her actual twist meaned over `along_s` along, `across_s`
+# across and turning, `told_s` less while told.
+slew_rad_s = 1.6
+side_told_m_s = 0.005
+turn_told_rad_s = 0.005
+along_s = 0.06
+across_s = 0.10
+told_s = 0.03
+# Her heading turned as told, `stance_turn` of the turn while her soles bear alike, `stance_turn_load`
+# less or more as the sole on the turn's side bears more (by tanh of `stance_turn_k` times the share);
+# not while her pelvis lags it past `lag_rad`, and led on to her pelvis ahead of it at `lead_1_s`.
+stance_turn = 0.75
+stance_turn_load = 0.30
+stance_turn_k = 3.0
+lag_rad = 0.10
+lead_1_s = 10.0
+# Told on past `align_m_s` with no sidestep past `align_side_m_s`, going past `align_speed_m_s` and on
+# past `align_own_m_s` of her own, her heading turned to her path past `align_rad` of it at `align_1_s`;
+# her heading kept within `slack_rad` of her pelvis.
+align_m_s = 0.05
+align_side_m_s = 0.05
+align_speed_m_s = 0.32
+align_own_m_s = 0.15
+align_rad = 0.32
+align_1_s = 12.0
+slack_rad = 0.10
+# Her rhythm flipped half a turn where her sway leads the other way while her rhythm's gain is past
+# `flip_gain` or her drive's sway past `flip_drive`.
+flip_gain = 0.05
+flip_drive = 0.02
+# Her look into a turn: on as her drive's sway passes her stride's own by `look_drive`, from `look_on`
+# of it; backing, round to the turn's side past `look_back_rad_s`; turning past `look_turn_rad_s`,
+# `look_rad` at her turn's rate and no more; at `look_1_s`, `look_back_1_s` less backing; her waist
+# `waist_share` of it, her head `head_share`. A twist's sole swung clear of the other by `clear_m`.
+look_drive = 0.04
+look_on = 0.1
+look_back_rad_s = 0.05
+look_turn_rad_s = 0.03
+look_rad = 0.35
+look_1_s = 5.0
+look_back_1_s = 0.5
+waist_share = 0.38
+head_share = 0.72
+clear_m = 0.115
+
 # Her poise (machine.law.poise).
 [gait.poise]
 # Her ZMP kept this far inside a sole's edge, and her capture point let toward an edge no faster than

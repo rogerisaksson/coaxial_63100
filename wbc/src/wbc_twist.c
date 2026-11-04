@@ -151,18 +151,18 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   double        l_psi, d_psi, l_sgn, cw, last_way, w_flip, old_psi[WBC_IMP_N], turns, drive_sway, active, w_back;
   double        tl_back, tl_fwd, tl, look, tw_on;
 
-  heading = wrap(w[t->w_heading] + has_thd * npmax(-1.6 * dt, npmin(1.6 * dt, wrap(w[t->w_target] - w[t->w_heading]))));
+  heading = wrap(w[t->w_heading] + has_thd * npmax(-t->slew_rad_s * dt, npmin(t->slew_rad_s * dt, wrap(w[t->w_target] - w[t->w_heading]))));
   sh = sin(heading);
   ch = cos(heading);
   floored(k, t, dt);
   vxp = vel[0] * sh + vel[2] * ch;
   vyp = vel[0] * ch - vel[2] * sh;
   wzp = y_in[t->gyro_at + 1];
-  w_ty = npmin(1.0, npmax(0.0, (fabs(vy) - 0.005) / 0.005));
-  w_tz = npmin(1.0, npmax(0.0, (fabs(wz) - 0.005) / 0.005));
-  kv = npmin(1.0, dt / 0.06);
-  ky = npmin(1.0, dt / (0.10 - 0.03 * w_ty));
-  kz = npmin(1.0, dt / (0.10 - 0.03 * w_tz));
+  w_ty = npmin(1.0, npmax(0.0, (fabs(vy) - t->side_told_m_s) / t->side_told_m_s));
+  w_tz = npmin(1.0, npmax(0.0, (fabs(wz) - t->turn_told_rad_s) / t->turn_told_rad_s));
+  kv = npmin(1.0, dt / t->along_s);
+  ky = npmin(1.0, dt / (t->across_s - t->told_s * w_ty));
+  kz = npmin(1.0, dt / (t->across_s - t->told_s * w_tz));
   w[t->w_actual] = act[0] + kv * (vxp - act[0]);
   w[t->w_actual + 1] = act[1] + ky * (w_ty * vyp - act[1]);
   w[t->w_actual + 2] = act[2] + kz * (w_tz * wzp - act[2]);
@@ -171,20 +171,21 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   w_yaw = (npmin(1.0, fabs(wz) / 1e-4) * (1.0 - has_thd)) * unborne;
   l0 = y[k->y_load];
   l1 = y[k->y_load + 1];
-  wz_way = (1.0 - 2.0 * (double)(vx < -0.05)) * wz;
+  wz_way = (1.0 - 2.0 * (double)(vx < -t->backing_m_s)) * wz;
   tz_sgn = copysign(1.0, wz_way);
-  out_st = 0.75 - 0.30 * tanh(((3.0 * (l0 - l1)) * tz_sgn) / npmax(l0 + l1, t->touch_n));
+  out_st = t->stance_turn - t->stance_turn_load * tanh(((t->stance_turn_k * (l0 - l1)) * tz_sgn) / npmax(l0 + l1, t->touch_n));
   d_yaw = wrap(pelvis_yaw - heading);
-  w_step_yaw = (double)(d_yaw * tz_sgn >= -0.10);
+  w_step_yaw = (double)(d_yaw * tz_sgn >= -t->lag_rad);
   w_lead_yaw = (double)(d_yaw * wz_way > 0.0);
-  heading = wrap(heading + (w_yaw * (((w_step_yaw * out_st) * wz_way) + ((w_lead_yaw * 10.0) * d_yaw))) * dt);
+  heading = wrap(heading + (w_yaw * (((w_step_yaw * out_st) * wz_way) + ((w_lead_yaw * t->lead_1_s) * d_yaw))) * dt);
   v_horz = hypot2(y[k->y_vcom], y[k->y_vcom + 2]);
-  w_align = (((w_yaw * (double)(vx >= 0.05)) * (double)(fabs(vy) < 0.05)) * (double)(v_horz > 0.32)) * (double)(vxp > 0.15);
+  w_align = (((w_yaw * (double)(vx >= t->align_m_s)) * (double)(fabs(vy) < t->align_side_m_s)) * (double)(v_horz > t->align_speed_m_s))
+            * (double)(vxp > t->align_own_m_s);
   err_v = wrap(atan2(y[k->y_vcom], y[k->y_vcom + 2]) - heading);
-  err_v_ex = copysign(npmax(0.0, fabs(err_v) - 0.32), err_v);
-  heading = wrap(heading + ((w_align * 12.0) * err_v_ex) * dt);
+  err_v_ex = copysign(npmax(0.0, fabs(err_v) - t->align_rad), err_v);
+  heading = wrap(heading + ((w_align * t->align_1_s) * err_v_ex) * dt);
   err_yaw = wrap(pelvis_yaw - heading);
-  err_yaw_ex = copysign(npmax(0.0, fabs(err_yaw) - 0.10), err_yaw);
+  err_yaw_ex = copysign(npmax(0.0, fabs(err_yaw) - t->slack_rad), err_yaw);
   heading = wrap(heading + w_yaw * err_yaw_ex);
   sh_n = sin(heading);
   ch_n = cos(heading);
@@ -204,7 +205,8 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   l_sgn = copysign(1.0, out[k->o_sway + k->lateral]);
   cw = copysign(1.0, sin(l_psi - d_psi) * l_sgn + 0.5);
   last_way = isnan(state[t->s_last_way]) ? cw : state[t->s_last_way];
-  w_flip = (double)(cw * last_way < 0.0) * npmax((double)(st[t->st_now_gain] > 0.05), (double)(fabs(out[k->o_sway + k->drive]) > 0.02));
+  w_flip = (double)(cw * last_way < 0.0)
+           * npmax((double)(st[t->st_now_gain] > t->flip_gain), (double)(fabs(out[k->o_sway + k->drive]) > t->flip_drive));
   for (int m = 0; m < n; m++)
   {
     old_psi[m] = out[k->o_psi + m];
@@ -222,18 +224,18 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   modulate(k, t, vx, vy, wz, vxp, held, prior);
   /* her look into a turn, her waist and her head with it */
   drive_sway = fabs(out[k->o_sway + k->drive]);
-  active = npmin(1.0, npmax(0.0, (drive_sway - t->stirs) / 0.04)) * unborne;
-  w_back = (double)(active > 0.1) * npmax((double)(cw < 0.0), (double)(vx < -0.05));
-  tl_back = copysign(1.0, wz + 0.05);
-  tl_fwd = (double)(fabs(wz) > 0.03) * npmax(-0.35, npmin(0.35, (0.35 * wz) / t->yaw_rate));
+  active = npmin(1.0, npmax(0.0, (drive_sway - t->stirs) / t->look_drive)) * unborne;
+  w_back = (double)(active > t->look_on) * npmax((double)(cw < 0.0), (double)(vx < -t->backing_m_s));
+  tl_back = copysign(1.0, wz + t->look_back_rad_s);
+  tl_fwd = (double)(fabs(wz) > t->look_turn_rad_s) * npmax(-t->look_rad, npmin(t->look_rad, (t->look_rad * wz) / t->yaw_rate));
   tl = active * (w_back * tl_back + (1.0 - w_back) * tl_fwd);
-  look = state[t->s_look_yaw] + npmin(1.0, (5.0 - 0.5 * w_back) * dt) * (tl - state[t->s_look_yaw]);
+  look = state[t->s_look_yaw] + npmin(1.0, (t->look_1_s - t->look_back_1_s * w_back) * dt) * (tl - state[t->s_look_yaw]);
   state[t->s_look_yaw] = look;
-  t->posture[t->waist] = (0.38 * look) * unborne;
-  t->posture[t->head] = (0.72 * look) * unborne;
+  t->posture[t->waist] = (t->waist_share * look) * unborne;
+  t->posture[t->head] = (t->head_share * look) * unborne;
   w[t->w_heading] = heading;
   w[t->w_back] = w_back * (double)(fabs(look) > 1e-3);
   w[t->w_backing] = t->posture[t->waist];
   tw_on = npmax(w[t->w_active], (double)(w[t->w_stop] > w[t->w_t]));
-  w[t->w_clear] = ((0.115 * tw_on) * unborne) * (double)(out[k->o_held] > 0.5);
+  w[t->w_clear] = ((t->clear_m * tw_on) * unborne) * (double)(out[k->o_held] > 0.5);
 }

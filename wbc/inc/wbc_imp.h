@@ -213,6 +213,11 @@ typedef struct
   double        spin_drive, spin_drive_s_m, spin_drive_from_m_s, spin_lift, turn_sway, slip_grip, slip_grip_edge;
   double        slip_m_s, slip_hz, brisk_hz, quick_hz, run_drive, run_boost, run_arms, back_drive, back_boost;
   double        side_shift;
+  /** machine.law.se2.STEER_NAMES: her heading's and her look's numbers under a twist (`[gait.steer]`). */
+  double        slew_rad_s, side_told_m_s, turn_told_rad_s, along_s, across_s, told_s, stance_turn, stance_turn_load;
+  double        stance_turn_k, lag_rad, lead_1_s, align_m_s, align_side_m_s, align_speed_m_s, align_own_m_s, align_rad;
+  double        align_1_s, slack_rad, flip_gain, flip_drive, look_drive, look_on, look_back_rad_s, look_turn_rad_s;
+  double        look_rad, look_1_s, look_back_1_s, waist_share, head_share, clear_m;
   const double *y_in, *y, *a;
   double       *fr, *st, *out, *posture, *state, *words;
 } wbc_twist_t;
