@@ -77,9 +77,11 @@ STROKES = {'bed_pull': ('plant', 'set')}
 #: Her moves: programs whose phases her senses tell (a module's `laid` and `step`), not beats, her text's rows not
 #: yet due waiting while one plays (`waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her
 #: law sits her (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`); `scoot`, along the floor as her twist
-#: tells her once she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`). A move's `SENSED`
-#: names what a pass gives it beyond her pose (`_felt`), her bed exit's soles, shanks and pitch where it names none.
-MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot'}
+#: tells her once she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`); `bed_entry`, into a
+#: bed over its end to its middle as where she lies tells her (`machine.moves.bedentry`, in C: `tools.cores.bedentry`),
+#: her text going on under it (its `HOLDS`). A move's `SENSED` names what a pass gives it beyond her pose (`_felt`),
+#: her bed exit's soles, shanks and pitch where it names none.
+MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot', 'bed_entry': 'tools.cores.bedentry'}
 SENSED = ('soles', 'shins', 'pitch')
 #: Each joint's index (`figure.JOINTS`); the servo table's stiffness and damping a joint, N m/rad and N m s/rad.
 INDEX = {j: i for i, j in enumerate(figure.JOINTS)}
@@ -145,11 +147,14 @@ def scooted(g, twist):
 def _felt(g):
     """{sense: value} a move's pass may name (its `SENSED`): her soles', shanks', fists' and each foot's share of her
     weight, her trunk's pitch (deg), her twist back and turning left as shares of her keys' (`se2`) as asked - not as
-    `touch.against` cuts it: her fists behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, and her
-    pelvis's heading (deg, left +) as her estimate turns it."""
+    `touch.against` cuts it: her fists behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, her
+    pelvis's heading (deg, left +) as her estimate turns it, and her pelvis from the middle of the bed she lies on
+    along its length, that half length (m) and her pelvis's speed (m/s) as a look takes her (`furniture.lain`)."""
     import math
     import numpy as np
     from machine.law import modal
+    from machine.way import furniture
+    along, half, speed = furniture.lain(g)
     weight = float(g['fr'][modal.WEIGHT])
     touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
     vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
@@ -160,7 +165,8 @@ def _felt(g):
             'right_foot': float(np.sum(touch[FEET[1]])) / weight,
             'back': min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0),
             'turn': min(max(wz / YAW_RATE, -1.0), 1.0),
-            'heading': math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))}
+            'heading': math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x))),
+            'along': along, 'half': half, 'speed': speed}
 
 
 def pose(beats, start, elapsed):
@@ -215,7 +221,8 @@ def played(g, world):
             world.gains[:] = p['gains']
             ended(g)
             return
-        waits.played_back(g, dt)
+        if getattr(p['move'], 'HOLDS', True):
+            waits.played_back(g, dt)
         joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
         edge.drive(world, joints, target=np.radians(p['cmd'])[joints], feed=np.zeros(len(joints)),
                    kp=np.asarray(KP)[joints], limit=g['clamp'][joints])

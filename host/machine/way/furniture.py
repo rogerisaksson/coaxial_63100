@@ -25,7 +25,7 @@ def first(verb, box, things, heading):
     (`maneuver.face`, KINDS) - any face where it names none -, 1 one she docks at only where none of those
     is hers to reach."""
     from machine.texts import maneuver
-    kind = KINDS.get(maneuver.face(verb)) if verb in maneuver.PLAYED else None
+    kind = KINDS.get(maneuver.face(verb) or '') if verb in maneuver.PLAYED else None
     return int(kind is not None and all(abs(math.remainder(heading - h, 2.0 * math.pi)) > 1e-9
                                         for h in kind(box, things)))
 
@@ -62,6 +62,22 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
     edge, p = hit[1], hit[2]
     return (edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None),
             GOES.get(verb, _NONE)[2](p, _things(g, things)), p)
+
+
+def lain(g, verb='lie_bed'):
+    """(her root from the middle of the thing `verb` goes to nearest her along its length, m - its sign the box's -,
+    that half length, m; her root's speed, m/s) of her things, (0.0, 0.0, speed) with none seen: her root where a
+    look takes it (`_found`), her place in the room as her eyes tell it - not her dead reckoning, whose estimate drifted
+    0.28 m along a bed as she lay down on it and stroked up it."""
+    data = g['world'].data
+    speed = float(math.sqrt(sum(float(v) ** 2 for v in data.qvel[:3])))
+    hit = _found(g, verb)
+    if hit is None:
+        return 0.0, 0.0, speed
+    _kind, (px, _py, pz), half, turn = hit[2][:4]
+    j = 0 if half[0] > half[2] else 2
+    along = (float(data.qpos[0]) - px) * turn[0][j] + (float(data.qpos[2]) - pz) * turn[2][j]
+    return float(along), float(half[j]), speed
 
 
 def seen(g, stunt, at=None, thing=None):

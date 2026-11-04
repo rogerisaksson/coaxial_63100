@@ -37,14 +37,13 @@
 ;; 0.30, her pelvis bearing 0.35 and her fists 0.35 through it: the feet told 0.45 it unloaded, hung on her left
 ;; thigh and landed 15 deg turned, the whole lie and its strokes yawed with it; the fists told 0.20 she lay square
 ;; but the pull drew her pelvis 0.01 m where it draws 0.13 on fists told 0.35-0.40, and told 0.40 the lodge's lie
-;; landed 0.43 m in, short of its first stroke's grip); landed, her joints
-;; play the pull's program (`:joint-program`, machine.process.joints: the puppet's bed_pull, gcode/bed_pull.gcode)
-;; from that stage's first tick - the shoulders flexed against the fists as the hips lift, the trunk down, the legs
-;; raised, folded and lowered, the heels' stroke and the stretch with her trunk straightened, 0.47 m in, supine -
-;; then its stroke up the bed as many times as bring her middle to the bed's middle (`:stroke-m` a stroke's gain,
-;; `:landed-m` where the program lands her middle, the bed's depth as her eyes saw it): the heels planted on the foam
-;; 0.22 m from her hips, the pelvis bridged 0.10 m, the heels pushed to a 0.45 m reach, the pelvis set down, 0.16 m
-;; each (bridged 0.06 m 0.07 each, the push to 0.50 m 0.08);
+;; landed 0.43 m in, short of its first stroke's grip). From the scoot's first tick her joints play her way in
+;; (`:joint-program`, machine.moves.bedentry), told by where she lies on the bed her eyes saw, not by a count: her
+;; feet planted, the shoulders flexed against the fists as the hips lift till her pelvis is 0.30 m in, the trunk
+;; down, the legs raised, folded, lowered and stretched, then strokes up the bed - the heels planted 0.22 m from her
+;; hips, the pelvis bridged, the heels pushed, the pelvis set down - while she is more than half a stroke short of
+;; its middle (her text counted the puppet's bed_pull's strokes from the bed's depth, 0.16 m each, and she lay
+;; wherever they took her; begun from the landed stage, after the law's scoot, she lay diagonal);
 ;; her text goes flat under it: her trunk told down and her back to bear, so her rest limps her on the foam as the
 ;; program ends and her law drives again. The chain's own lean, release and recline (lie.md) stood under the
 ;; program with asks it could not meet (705 shrunk passes) and would take her back with the knees asked 86 deg.
@@ -57,18 +56,16 @@
                                                      ; trunk rolled 13-18 deg and the scoot stood her up)
         :duration-ms 1200.0
         :contact-chain [:palmar-carpal-bilateral -> :ischial-sacral]
+        :joint-program :bed-entry
         :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.25] :limb-lift 0.0)
         :talocrural-rad -0.05
         :carpal-ahead-m -0.14
         :manifold-pan '((:plantar-bilateral 0.30) (:ischial-bilateral 0.35) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.35)))
-      (stage-sequential-manifold                       ; landed: the pull's program from its first tick, its strokes
-        :duration-ms 500.0                             ; up the bed to its middle
+      (stage-sequential-manifold                       ; landed, under her way in
+        :duration-ms 500.0
         :contact-chain [:ischial-sacral -> :ischial-bilateral]
-        :joint-program :bed-pull
-        :stroke-m 0.16
-        :landed-m 0.42
         :torso-pitch-ramp [0.0 -> -0.10]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 1.25] :limb-lift 0.0)

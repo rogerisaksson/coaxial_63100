@@ -420,6 +420,22 @@ API double wbh_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, doub
   return wbc_scoot_step(s, state, cmd, dt, pitch, hands, left, right, back, turn, heading);
 }
 
+API int wbh_bedentry_size(void)
+{
+  return (int)sizeof(wbc_bedentry_t);
+}
+
+API void wbh_bedentry_laid(double *state)
+{
+  wbc_bedentry_laid(state);
+}
+
+API double wbh_bedentry_step(const wbc_bedentry_t *b, double *state, double *cmd, double dt, double soles,
+                             double along, double half, double pitch, double speed)
+{
+  return wbc_bedentry_step(b, state, cmd, dt, soles, along, half, pitch, speed);
+}
+
 API void wbh_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms)
 {
   wbc_brace_scaled(b, M, w_up, Ms);
