@@ -61,21 +61,21 @@ enum
 };
 
 /** machine.moves.scoot's tables, filled once from it: the joints it moves (figure.JOINTS), each one's part (hips 0,
-    knees 1) and side (left 1, right -1, the trunk 0), the phase a stroke begins at; when each phase is over (0 its goals
+    knees 1) and side (left 1, right -1, the trunk 0), the phase a stroke begins at and its stroke's; when each phase is over (0 its goals
     reached, 1 braced, 2 set, 3 stroked, 4 asked); each part's how (0 held, 1 its goal at its rate, 2 the stroke's end
     at the twist's rate, 3 the stroke's start, 4 a stretched knee settled, 5 its goal while its foot bears none), goal
     (deg) and rate (deg/s) a phase, the next phase asked and idle; the knees' fold, stretch and settle and the hips'
     lift (deg), her trunk's lean (deg), its hold's gain (deg/s a deg), range and band (deg), a stroke's rate (deg/s),
     the shares a limb bears and touches at, a twist asks past, a goal is reached within, a stroke's share of a turn,
-    a whole stroke's turn (deg) and the aim's lead turning (deg). */
+    a whole stroke's turn (deg), the aim's lead turning (deg) and her trunk's pitch over a stroke back (deg). */
 typedef struct
 {
-  int    joint[WBC_SCOOT_MOVED], part[WBC_SCOOT_MOVED], cycle, over[WBC_SCOOT_PHASES];
+  int    joint[WBC_SCOOT_MOVED], part[WBC_SCOOT_MOVED], cycle, stroking, over[WBC_SCOOT_PHASES];
   double side[WBC_SCOOT_MOVED];
   double how[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS], goal[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS];
   double rate[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS], asked[WBC_SCOOT_PHASES], idle[WBC_SCOOT_PHASES];
   double fold, stretch, settle, folded, trunk, gain, hip_lo, hip_hi, leant, stroke_rate, bear, skim, ask, tol, turn;
-  double stroke_turn, lead;
+  double stroke_turn, lead, upright;
 } wbc_scoot_t;
 
 /** The move's `state` as it begins: bracing, no stroke and no aim yet. */

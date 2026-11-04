@@ -44,10 +44,17 @@ HIP, KNEE = PART == 0, PART == 1
 #: holding her trunk once it skims (lifted to -100, it threw her back; held, her heels pushed her 0.23-0.27 m back). A
 #: hip sets its foot toward DOWN till it bears, then holds her trunk; her trunk within LEANT of its lean as she braces.
 FOLD, STRETCH, SETTLE, HANDS, FOLDED, DOWN, LEANT = 126.0, 40.0, 15.0, -45.0, -112.0, -40.0, 6.0
+#: Her elbows braced at their stop, deg (their range's -5): locked past straight, a load along her arm presses them into
+#: it (straight at 0, they gave 17-73 deg as she went back over her fists, one fist ended by her hip and she spun on the
+#: other, 92 deg, and fell after W then S).
+LOCKED = -5.0
 #: Her trunk's pitch her hips hold, deg (forward +): the crawl take's lean, 47 deg off the floor (-40, 35 off it, laid
 #: her down as her legs lifted); their gain, deg/s a deg, and range, deg (her bed exit's, -130: at -115 her hips could
 #: flex no further and she fell back).
 TRUNK, GAIN, HIP_LO, HIP_HI = -28.0, 30.0, -130.0, -35.0
+#: Her trunk's pitch over a stroke back, deg: up off her fists so they slide with her (at her lean her locked arms braked
+#: her, S at 8 s went 0.00 m; of six starts each, back 0.78 m a key's 8 s for 0.32, no fall in either).
+UPRIGHT = -20.0
 #: Rates, deg/s: a stroke's knees at a key held, her limbs in the air, her bracing shoulders, her hips lifting and
 #: setting her feet, a stretched knee settling, her squared joints.
 STROKE_RATE, AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE, SETTLE_RATE, SQUARE_RATE = 100.0, 300.0, 90.0, 120.0, 60.0, 150.0, 120.0
@@ -68,7 +75,7 @@ REACHED, BRACED, SET, STROKED, ASKING = range(5)
 #: Her legs' rolls and yaws and her trunk's roll and twist, squared in every phase.
 _SQUARE = {part: (RATE, 0.0, SQUARE_RATE) for part in ('hip_roll', 'hip_yaw', 'ankle_roll', 'spine_roll', 'waist')}
 #: The phases: (name, {part: (how, goal, rate)}, over when, the next asked, idle); a hip not moving holds her trunk.
-PHASES = (('brace', {'shoulder': (RATE, HANDS, BRACE_RATE), 'elbow': (RATE, 0.0, AIR_RATE), **_SQUARE}, BRACED, 'lift',
+PHASES = (('brace', {'shoulder': (RATE, HANDS, BRACE_RATE), 'elbow': (RATE, LOCKED, AIR_RATE), **_SQUARE}, BRACED, 'lift',
            'hold'),
           ('lift', {'hip': (START, 0.0, LIFT_RATE), 'knee': (START, 0.0, AIR_RATE), **_SQUARE}, REACHED, 'set', 'set'),
           ('set', {'hip': (SETTING, DOWN, SET_RATE), **_SQUARE}, SET, 'stroke', 'stroke'),
@@ -76,7 +83,7 @@ PHASES = (('brace', {'shoulder': (RATE, HANDS, BRACE_RATE), 'elbow': (RATE, 0.0,
           ('settle', {'knee': (SETTLED, 0.0, SETTLE_RATE), **_SQUARE}, REACHED, 'lift', 'hold'),
           ('hold', dict(_SQUARE), ASKING, 'lift', 'hold'))
 NAMED = tuple(phase[0] for phase in PHASES)
-CYCLE = NAMED.index('lift')
+CYCLE, STROKING = NAMED.index('lift'), NAMED.index('stroke')
 #: PHASES as flat tables: each part's how, goal and rate a phase; when it is over; the next asked and idle.
 HOW, GOAL, RATES = (np.zeros((len(PHASES), len(PARTS))) for _table in range(3))
 for _k, _phase in enumerate(PHASES):
@@ -113,7 +120,8 @@ def step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, headin
         stretched | (foot >= SKIM)), np.where(how == SETTING, rate * (foot < BEAR), rate)))
     reach = rate * dt
     moved = np.where(how == HELD, x, x + np.clip(goal - x, -reach, reach))
-    held = np.clip(moved + GAIN * (pitch - TRUNK) * dt, HIP_LO, HIP_HI)
+    lean = TRUNK + (UPRIGHT - TRUNK) * float(k == STROKING and state[WAY] > 0.0 and state[WAY + 1] > 0.0)
+    held = np.clip(moved + GAIN * (pitch - lean) * dt, HIP_LO, HIP_HI)
     cmd[JOINT] = np.where(HIP & ((how == HELD) | (rate == 0.0)), held, moved)
     near = np.abs(goal - cmd[JOINT]) <= TOL
     reached = bool(np.all(near | (how == HELD) | (HIP & (rate == 0.0))))

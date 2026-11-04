@@ -16,6 +16,8 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
 {
   const int k = (int)state[WBC_SCOOT_PHASE];
   const int asked = fabs(back) + fabs(turn) > s->ask, turning = fabs(turn) > s->ask;
+  const double lean = s->trunk + (s->upright - s->trunk) *
+                                     (double)(k == s->stroking && state[WBC_SCOOT_WAY] > 0.0 && state[WBC_SCOOT_WAY + 1] > 0.0);
   int       reached = 1, stroked = 1, kinds[5], over;
   double    nxt, aim, off, share;
 
@@ -39,7 +41,7 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
                                                    : s->rate[k][p];
     const double reach = rate * dt;
     const double moved = how == 0.0 ? x : x + npclip(goal - x, -reach, reach);
-    const double held = npclip(moved + s->gain * (pitch - s->trunk) * dt, s->hip_lo, s->hip_hi);
+    const double held = npclip(moved + s->gain * (pitch - lean) * dt, s->hip_lo, s->hip_hi);
     int          near;
 
     cmd[j] = (hip && (how == 0.0 || rate == 0.0)) ? held : moved;

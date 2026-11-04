@@ -22,13 +22,13 @@ class Scoot(ctypes.Structure):
 
     """wbc_scoot_t: the move's tables (wbc_move.h)."""
 
-    _fields_ = ([('joint', ctypes.c_int * M), ('part', ctypes.c_int * M), ('cycle', ctypes.c_int),
+    _fields_ = ([('joint', ctypes.c_int * M), ('part', ctypes.c_int * M), ('cycle', ctypes.c_int), ('stroking', ctypes.c_int),
                  ('over', ctypes.c_int * P), ('side', ctypes.c_double * M)]
                 + [(name, (ctypes.c_double * Q) * P) for name in ('how', 'goal', 'rate')]
                 + [(name, ctypes.c_double * P) for name in ('asked', 'idle')]
                 + [(name, ctypes.c_double) for name in ('fold', 'stretch', 'settle', 'folded', 'trunk', 'gain', 'hip_lo',
                                                         'hip_hi', 'leant', 'stroke_rate', 'bear', 'skim', 'ask', 'tol',
-                                                        'turn', 'stroke_turn', 'lead')])
+                                                        'turn', 'stroke_turn', 'lead', 'upright')])
 
 
 def _table(table):
@@ -53,12 +53,12 @@ def _laid():
     lib.wbh_scoot_laid.argtypes, lib.wbh_scoot_laid.restype = [ctypes.c_void_p], None
     lib.wbh_scoot_step.argtypes = [ctypes.POINTER(Scoot)] + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 8
     lib.wbh_scoot_step.restype = ctypes.c_double
-    tables = Scoot(joint=_ints(py.JOINT), part=_ints(py.PART), cycle=py.CYCLE,
+    tables = Scoot(joint=_ints(py.JOINT), part=_ints(py.PART), cycle=py.CYCLE, stroking=py.STROKING,
                    over=_ints(py.OVER), side=_cells(py.SIDE), how=_table(py.HOW), goal=_table(py.GOAL),
                    rate=_table(py.RATES), asked=_cells(py.ASKED), idle=_cells(py.IDLE), fold=py.FOLD, stretch=py.STRETCH,
                    settle=py.SETTLE, folded=py.FOLDED, trunk=py.TRUNK, gain=py.GAIN, hip_lo=py.HIP_LO, hip_hi=py.HIP_HI,
                    leant=py.LEANT, stroke_rate=py.STROKE_RATE, bear=py.BEAR, skim=py.SKIM, ask=py.ASK, tol=py.TOL,
-                   turn=py.TURN, stroke_turn=py.STROKE_TURN, lead=py.LEAD)
+                   turn=py.TURN, stroke_turn=py.STROKE_TURN, lead=py.LEAD, upright=py.UPRIGHT)
     return lib, tables
 
 
