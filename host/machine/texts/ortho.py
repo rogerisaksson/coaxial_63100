@@ -33,7 +33,7 @@ import math
 import os
 import re
 import struct
-from machine.body import mechatronics
+from machine.body import gait, mechatronics
 from machine.texts.curves import QUINTICS
 
 _FILE = os.path.join(mechatronics.HUMANOID, mechatronics.ROBOT + '.lisp')
@@ -85,6 +85,8 @@ SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0
 
 _UNIT = re.compile(r'(-?\d+(?:\.\d+)?)(ms|s|Hz|deg)')
 _SCALE = {'ms': ('s', 1e-3), 's': ('s', 1.0), 'Hz': ('Hz', 1.0), 'deg': ('rad', math.pi / 180.0)}
+#: A text's time goes as the root of her build's leg, its rate as its inverse root (`machine.body.gait`).
+_SIMILAR = {'s': gait.SIMILAR ** 0.5, 'Hz': gait.SIMILAR ** -0.5, 'rad': 1.0}
 _WANTS = {'s': 'ms or s', 'Hz': 'Hz', 'rad': 'deg'}
 _MODE = {'mode_' + m: (i,) for i, m in enumerate(MODES)}
 _SPRUNG = {**_MODE, 'global': tuple(range(N))}
@@ -123,7 +125,7 @@ def _atom(token):
     unit = _UNIT.fullmatch(token)
     if unit:
         kind, scale = _SCALE[unit.group(2)]
-        return (kind, float(unit.group(1)) * scale)
+        return (kind, float(unit.group(1)) * scale * _SIMILAR[kind])
     if token in SYMBOLS:
         return SYMBOLS[token]
     try:

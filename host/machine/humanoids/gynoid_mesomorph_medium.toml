@@ -400,6 +400,14 @@ run_m_s = 1.40
 back_m_s = 0.35
 strafe_m_s = 0.50
 yaw_rad_s = 0.70
+# Her gym's other walks: on stairs, on ice, up a slope, the ballistic walk, m/s; round a circle, m/s
+# and rad/s.
+stairs_m_s = 0.50
+ice_m_s = 0.35
+slope_m_s = 0.55
+ballistic_m_s = 0.75
+circle_m_s = 0.55
+circle_rad_s = 0.45
 # Her walk's stopping distance: told to stand she goes on 0.81-0.93 m, under 0.02 m/s 1.7-2.0 s
 # later (eight phases of her stride) - she has the one walk; her walk back's 0.05 m on, her
 # sidestep's 0.11-0.15; half her walk's stop's spread.
@@ -407,3 +415,10 @@ stop_m = 0.87
 back_stop_m = 0.05
 side_stop_m = 0.15
 stop_spread_m = 0.06
+# Her walk's rhythm (gait_base.lisp's sway), and her brake's blend one stride of it, both soles
+# braking her - over 0.5 s her plan stopped before a sole could, she walked on at 0.6-0.85 m/s and
+# one landing took 0.85 to 0.10 m/s in 0.2 s, her trunk 13 deg ahead and her arms at 344 deg/s.
+walk_hz = 0.9
+# Her stand's blend (gait_base.lisp's stand): no brake shorter - braked over a stride, her turns on
+# the spot fell in 41 more errands of 336, her chair's settle and turn.
+stand_s = 0.5

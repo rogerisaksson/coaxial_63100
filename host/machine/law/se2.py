@@ -10,28 +10,25 @@ _G = gait.table('twist')
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('walk_m_s', 'run_m_s', 'back_m_s', 'strafe_m_s', 'yaw_rad_s'))
 #: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
 STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
-#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride, both soles
-#: braking her - over 0.5 s her plan stopped before a sole could, she walked on at 0.6-0.85 m/s and
-#: one landing took 0.85 to 0.10 m/s in 0.2 s, her trunk 13 deg ahead and her arms at 344 deg/s.
-WALK_HZ = 0.9
+#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride.
+WALK_HZ = _G['walk_hz']
 BRAKE_S = 1.0 / WALK_HZ
-#: Her stand's blend, s (gait_base.lisp's stand): no brake shorter - braked over a stride, her turns on
-#: the spot fell in 41 more errands of 336, her chair's settle and turn.
-STAND_S = 0.5
+#: Her stand's blend, s (gait_base.lisp's stand).
+STAND_S = _G['stand_s']
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
 
 NOMINAL_TWIST = {
     'walk': (WALK_SPEED, 0.0, 0.0), 'init_walk': (WALK_SPEED, 0.0, 0.0), 'trip': (WALK_SPEED, 0.0, 0.0),
-    'stairs_walk': (0.50, 0.0, 0.0), 'stairs_down': (0.50, 0.0, 0.0),
-    'ice_walk': (0.35, 0.0, 0.0), 'slope_walk': (0.55, 0.0, 0.0),
-    'ballistic_walk': (0.75, 0.0, 0.0), 'jog': (RUN_SPEED, 0.0, 0.0),
+    'stairs_walk': (_G['stairs_m_s'], 0.0, 0.0), 'stairs_down': (_G['stairs_m_s'], 0.0, 0.0),
+    'ice_walk': (_G['ice_m_s'], 0.0, 0.0), 'slope_walk': (_G['slope_m_s'], 0.0, 0.0),
+    'ballistic_walk': (_G['ballistic_m_s'], 0.0, 0.0), 'jog': (RUN_SPEED, 0.0, 0.0),
     'walk_back': (-BACK_SPEED, 0.0, 0.0),
     'strafe_left': (0.0, STRAFE_SPEED, 0.0), 'strafe_right': (0.0, -STRAFE_SPEED, 0.0),
     'turn_left': (WALK_SPEED, 0.0, YAW_RATE), 'turn_right': (WALK_SPEED, 0.0, -YAW_RATE),
     'spin_left': (0.0, 0.0, YAW_RATE), 'spin_right': (0.0, 0.0, -YAW_RATE),
-    'circle_walk': (0.55, 0.0, 0.45),
+    'circle_walk': (_G['circle_m_s'], 0.0, _G['circle_rad_s']),
     'turn_back_left': (-BACK_SPEED, 0.0, YAW_RATE), 'turn_back_right': (-BACK_SPEED, 0.0, -YAW_RATE),
 }
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_S, WEP_FILL, KNEE_SOFT, KNEE_NM = 0.2, 0.1, 1.0, 8.0, 0.8, 0.1, 40.0
