@@ -27,7 +27,7 @@ from machine.law import latent, stride
 from machine.moves import leap
 from machine.texts import ortho
 from machine.stack import rounds
-from machine.body import terms
+from machine.body import gait, terms
 from machine.body.figure import ANKLE_H, SHANK, THIGH
 from machine.law.poise import HALF_M, TINY, clip
 from machine.law.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
@@ -124,14 +124,14 @@ LET_GO = slice(75, 77)
 SPLIT = slice(77, 79)
 ASK = 79
 
-#: A unit of each mode on her: her centre of mass down, m - to her ankles' stroke, her trunk
-#: upright over her soles: asked 0.15 m she came down 0.117 and stood there; her trunk's
-#: pitch, rad; a sole clear of the floor - at 3 cm her walk fell within 20 s in 10 of 12
-#: settings, at 2 cm in 5 of 12 (45 s each). Her legs' length is her figure's.
-AXIAL_M, PITCH_RAD, CLEAR_M = 0.115, 0.5, 0.02
+#: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
+_G = gait.table('modes')
+#: A unit of each mode on her: her centre of mass down, m; her trunk's pitch, rad; a sole clear of
+#: the floor, m. Her legs' length is her figure's.
+AXIAL_M, PITCH_RAD, CLEAR_M = _G['axial_m'], _G['pitch_rad'], _G['clear_m']
 #: And of her turns, rad: her pelvis's list, a hip up, and its turn, a hip forward; a
 #: shoulder's reach, the other as far back, and an elbow's bend.
-LIST_RAD, TURN_RAD, ARM_RAD = 0.15, 0.2, 0.35
+LIST_RAD, TURN_RAD, ARM_RAD = _G['list_rad'], _G['turn_rad'], _G['arm_rad']
 LEG_M = THIGH + SHANK
 #: Each mode's hand on a limb's place: place = HANDS . (unit x mode), mode = HANDS . place / 2.
 HANDS = np.zeros((N, 2, 3))
@@ -145,13 +145,9 @@ HOT = np.eye(N)
 #: At rest: along the floor the capture point's law, its ZMP REST_K / omega past her capture
 #: point from where it is asked - a spring REST_K omega and a damper omega + REST_K over her
 #: mass; her height's, her turns' and a swinging sole's as the loop has them, 1/s^2 and 1/s.
-REST_K = 2.0
-#: A limb in the air at rest, 1/s^2 and 1/s. One sole bears what moves it: her weight on a
-#: sole 9 cm wide turns her 13 N m at most, a limb thrown across at 4 m/s^2 or lifted at 8.
-#: Held at the loop's own 1 600 and 80, a sole 6 cm off its width asked 163 m/s^2 across,
-#: the loop planned -10 - the lift's 23 m/s^2 took the moment - and threw her neck at three
-#: times its clamp for the rest.
-LIMB_KD = (400.0, 40.0)
+REST_K = _G['rest_1_s']
+#: A limb in the air at rest, 1/s^2 and 1/s.
+LIMB_KD = (_G['limb_1_s2'], _G['limb_1_s'])
 #: Her ZMP's polygon: none, her support's, the dynamic footprint. No limit on her yaw momentum.
 NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
 #: Each leg's hip's yaw, roll and pitch among her driven joints (`rounds.LEGS`); its sagittal chain, the

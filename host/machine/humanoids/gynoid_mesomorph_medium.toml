@@ -328,9 +328,56 @@ toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01, 0.02]}
 # Her gait (machine.body.gait): her law's numbers as they work on her, each with what it was found
 # at, stated at her leg `leg_m` (thigh and shank, m). A build of another leg has each Froude-similar
 # by its unit - a length as the leg, a time or a speed as its root, a rate as its inverse root, per
-# s^2 as its inverse, an angle or a share as it is -, nothing of them tuned to it.
+# s^2 as its inverse, an angle, a share or a force as it is -, nothing of them tuned to it.
 [gait]
 leg_m = 0.77
+
+# Her modes' units and her limbs' rest (machine.law.modal).
+[gait.modes]
+# A unit of her centre of mass down, m - to her ankles' stroke, her trunk upright over her soles: asked
+# 0.15 m she came down 0.117 and stood there; of her trunk's pitch, rad; of a sole clear of the floor, m
+# - at 3 cm her walk fell within 20 s in 10 of 12 settings, at 2 cm in 5 of 12 (45 s each).
+axial_m = 0.115
+pitch_rad = 0.5
+clear_m = 0.02
+# And of her turns, rad: her pelvis's list, a hip up, and its turn, a hip forward; a shoulder's reach,
+# the other as far back, and an elbow's bend.
+list_rad = 0.15
+turn_rad = 0.2
+arm_rad = 0.35
+# At rest: along the floor the capture point's law, its ZMP this over omega past her capture point
+# from where it is asked - a spring this times omega and a damper omega and this over her mass, 1/s.
+rest_1_s = 2.0
+# A limb in the air at rest, 1/s^2 and 1/s. One sole bears what moves it: her weight on a sole 9 cm
+# wide turns her 13 N m at most, a limb thrown across at 4 m/s^2 or lifted at 8. Held at the loop's
+# own 1 600 and 80, a sole 6 cm off its width asked 163 m/s^2 across, the loop planned -10 - the
+# lift's 23 m/s^2 took the moment - and threw her neck at three times its clamp for the rest.
+limb_1_s2 = 400.0
+limb_1_s = 40.0
+
+# Her touch and her leaps (machine.moves.leap).
+[gait.leap]
+# A sole bears at `touch_n`, lies on the floor within `touch_m`; she rests under `rest_m_s`. Kept
+# standing within its sole's give instead (5 mm, a sole that stood only too) the run's leap fell 0.69
+# -> 0.30 m and the seats went: a sole 2 mm up has left. Near alone, the stack pressed a sole 1 mm over
+# the floor onto it as she left: 648 N on it, 23 deg over. All or none while she rises flickered on
+# one sole: 21 deg over three hops.
+touch_n = 15.0
+touch_m = 0.002
+rest_m_s = 0.1
+# A sole in the air waits for the floor with its hip `land_drop_m` under the leg's length over it -
+# the knee 25 deg -, no straighter than `land_short_m` short of that length where drawn.
+land_drop_m = 0.018
+land_short_m = 0.004
+# Her standing jump as the human's (`takes.jump`, test_leap holds them to it): the s his crouch takes
+# and his take-off comes at; the crouch he pushes from and his trunk's lean there, axial and pitch;
+# his stand at take-off, axial, and his legs' lengthening there, axial/s.
+crouch_s = 0.465
+takeoff_s = 0.745
+crouch = 2.18
+lean = 1.70
+straight = 0.11
+leaves_1_s = 11.7
 
 # Her stride (machine.law.stride).
 [gait.stride]

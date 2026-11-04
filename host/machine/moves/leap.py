@@ -14,21 +14,19 @@ next.
 """
 import math
 
-from machine.body import reach
+from machine.body import gait, reach
 from machine.body.figure import ANKLE_H, BALL, HEEL
 
 G = 9.81
+#: Her touch's and her leaps' numbers, her build's (`[gait.leap]`, `machine.body.gait`).
+_G = gait.table('leap')
 
-#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; she rests under REST_M_S. Kept
-#: standing within its sole's give instead (5 mm, a sole that stood only too) the run's leap
-#: fell 0.69 -> 0.30 m and the seats went: a sole 2 mm up has left.
-#: Near alone, the stack pressed a sole 1 mm over the floor onto it as she left: 648 N on it,
-#: 23 deg over. All or none while she rises flickered on one sole: 21 deg over three hops.
-TOUCH_N, TOUCH_M, REST_M_S = 15.0, 0.002, 0.1
+#: A sole bears at TOUCH_N, lies on the floor within TOUCH_M; she rests under REST_M_S.
+TOUCH_N, TOUCH_M, REST_M_S = _G['touch_n'], _G['touch_m'], _G['rest_m_s']
 
 #: A sole in the air waits for the floor with its hip LAND_DROP_M under the leg's length over
 #: it - the knee 25 deg -, no straighter than LAND_SHORT_M short of that length where drawn.
-LAND_DROP_M, LAND_SHORT_M = 0.018, 0.004
+LAND_DROP_M, LAND_SHORT_M = _G['land_drop_m'], _G['land_short_m']
 
 #: The sole's middle ahead of its ankle, m.
 MIDDLE = (BALL - HEEL) / 2.0
@@ -97,8 +95,8 @@ def hop_charge(dt_s):
 #: takes and his take-off comes at; the crouch he pushes from and his trunk's lean there, axial
 #: and pitch; his stand at take-off, axial, and his legs' lengthening there, axial/s.
 JUMP = 'standing_jump'
-CROUCH_S, TAKEOFF_S = 0.465, 0.745
-CROUCH, LEAN, STRAIGHT, LEAVES = 2.18, 1.70, 0.11, 11.7
+CROUCH_S, TAKEOFF_S = _G['crouch_s'], _G['takeoff_s']
+CROUCH, LEAN, STRAIGHT, LEAVES = _G['crouch'], _G['lean'], _G['straight'], _G['leaves_1_s']
 #: What a push asks of the knees' clamp, as `tools.sim.demand.PAST`: at the limit no margin.
 PUSH = 2.0 / 3.0
 #: A push's rows this far apart, ms, a sample of its curve each.

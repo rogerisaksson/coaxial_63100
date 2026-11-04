@@ -297,6 +297,13 @@ def test_every_build_runs_her(report):
                      run.returncode == 0 and 'smoke: clean' in run.stdout, (run.stdout + run.stderr)[-300:])
 
 
+def test_her_gait_is_stated_on_her(report):
+    """Her build's `[gait]` states her law's numbers at her own leg (`machine.body.gait`): on her each
+    is as stated, to the last digit - a leg changed restates them."""
+    from machine.body import gait
+    report.check('her leg is the one her gait is stated at', gait.SIMILAR == 1.0, 'leg %r of hers' % gait.SIMILAR)
+
+
 def test_her_tiers_by_the_machine(report):
     """`modes.afforded`, `chosen` and `told`: on 16 cores her 20 boards fit in-process and native,
     not on Renode; her body wired to in-process alone, that is chosen; on 2 cores in-process alone
@@ -352,7 +359,7 @@ def test_the_referee_and_her_averages_in_c(report):
     g['world'].close()
 
 
-ROSTER = (test_her_tiers_by_the_machine, test_the_referee_and_her_averages_in_c, test_every_build_runs_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+ROSTER = (test_her_tiers_by_the_machine, test_the_referee_and_her_averages_in_c, test_every_build_runs_her, test_her_gait_is_stated_on_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
           test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
           test_a_gearbox_has_play, test_her_kinematics_as_motors)

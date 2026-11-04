@@ -3,13 +3,13 @@
 ;; N s/m of that mass; a drive's peak N m at its joint, speed deg/s, its travel deg where it stops.
 (defrobot gynoid_mesomorph_medium_s105
   (body (mass 31.87) (weight 312.7) (com_height 0.9602) (omega 3.196) (leg 0.8085) (stance_width 0.1995) (knee 6))
-  (mode mode_axial_compression (unit 0.115) (mass 31.87) (stiffness 8000) (damping 1000))
+  (mode mode_axial_compression (unit 0.1208) (mass 31.87) (stiffness 8000) (damping 1000))
   (mode mode_lateral_shift (unit 0.09975) (mass 31.87) (stiffness 4500) (damping 500))
-  (mode mode_sagittal_drive (unit 0.315) (mass 6.095) (stiffness 2438) (damping 243.8))
+  (mode mode_sagittal_drive (unit 0.315) (mass 6.095) (stiffness 2322) (damping 237.9))
   (mode mode_pitch_attitude (unit 0.5) (mass 14.89) (stiffness 1489) (damping 297.7))
   (mode mode_sagittal_shift (unit 0.0903) (mass 31.87) (stiffness 1500) (damping 350))
-  (mode mode_limb_lift (unit 0.01) (mass 6.095) (stiffness 2438) (damping 243.8))
-  (mode mode_stance_width (unit 0.09975) (mass 6.095) (stiffness 2438) (damping 243.8))
+  (mode mode_limb_lift (unit 0.0105) (mass 6.095) (stiffness 2322) (damping 237.9))
+  (mode mode_stance_width (unit 0.09975) (mass 6.095) (stiffness 2322) (damping 237.9))
   (mode mode_pelvis_list (unit 0.15) (mass 14.89) (stiffness 1489) (damping 297.7))
   (mode mode_pelvis_turn (unit 0.2) (mass 14.89) (stiffness 1489) (damping 297.7))
   (mode mode_arm_swing (unit 0.35) (mass 1.239) (stiffness 123.9) (damping 24.77))
