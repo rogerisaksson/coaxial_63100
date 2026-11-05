@@ -10,6 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
+#: Her trunk's pitch this far off her scoot's lean, deg, has tipped her over (her fall goes unflagged on the floor).
+TIPPED = 50.0
+
 
 def test_the_floor_runs_on_under_her_soles(report):
     """Level, the floor under each sole is the floor's height to the bit; pitched as her standing
@@ -124,7 +127,8 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her
     """Said scoot_floor on the flat floor: she sits (pelvis under 0.25 m) and her scoot (`machine.moves.scoot`, bound to
     her floor rest) holds her on her fists, her trunk within its band of the crawl take's lean and her pelvis within
     2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots her back and W held 8 s forward, 0.2 m each
-    at least, without a fall (her law's own rest crept on bent elbows and laid her down 4.6 s on)."""
+    at least, and A held 8 s turns her left and D right, 2 deg each at least, her trunk never TIPPED off its lean (her
+    law's own rest crept on bent elbows and laid her down 4.6 s on; on the floor her fall goes unflagged)."""
     import numpy as np
     from machine.law import modal
     from machine.moves import scoot
@@ -152,18 +156,25 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her
                  sat and s['fallen_at'] is None and played == 'scoot' and drift < 0.02 and lean <= scoot.LEANT,
                  'sat %s fallen %s playing %s drift %.3f m lean off %.1f deg' % (sat, s['fallen_at'], played, drift, lean))
     yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
-    way, went = np.array([math.sin(yaw), 0.0, math.cos(yaw)]), {}
-    for key in ('s', 'w'):
+    way, went, turned, off = np.array([math.sin(yaw), 0.0, math.cos(yaw)]), {}, {}, 0.0
+    for key in ('s', 'w', 'a', 'd'):
         keys = dict.fromkeys(('w', 's', 'a', 'd', 'q', 'e', 'shift'), False)
         keys[key] = True
-        at, t1 = d.qpos[0:3].copy(), g['t']
+        at, was, t1 = d.qpos[0:3].copy(), 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3])), g['t']
         worker.apply(s, {'twist': humanoid_keys.twist(keys)})
         while g['t'] < t1 + 8.0 and s['fallen_at'] is None:
             worker.stepped(s)
+            pitch = float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1]))
+            off = max(off, abs(pitch - scoot.TRUNK))
         went[key] = float((d.qpos[0:3] - at) @ way)
-    report.check('S held scoots her back and W forward, 0.2 m each at least, without a fall',
-                 went['s'] <= -0.2 and went['w'] >= 0.2 and s['fallen_at'] is None,
-                 'S %+.2f m W %+.2f m fallen %s' % (went['s'], went['w'], s['fallen_at']))
+        now = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
+        turned[key] = math.degrees((now - was + math.pi) % (2.0 * math.pi) - math.pi)
+    report.check('S held scoots her back and W forward, 0.2 m each at least, her trunk never tipped',
+                 went['s'] <= -0.2 and went['w'] >= 0.2 and off < TIPPED and s['fallen_at'] is None,
+                 'S %+.2f m W %+.2f m trunk off its lean %.1f deg at most' % (went['s'], went['w'], off))
+    report.check('A held turns her left and D right, 2 deg each at least, her trunk never tipped',
+                 turned['a'] >= 2.0 and turned['d'] <= -2.0 and off < TIPPED and s['fallen_at'] is None,
+                 'A %+.1f deg D %+.1f deg trunk off its lean %.1f deg at most' % (turned['a'], turned['d'], off))
 
 
 def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(report):

@@ -44,7 +44,8 @@
 (defmodifier xform-locomotion-seated-butt-scoot
   [state &key (velocity-vx-vy-wz [0.25 0.0 0.0]) ; +vx = Forward scoot, -vx = Backward push-scoot!
               (bpm 76.0)
-              (buttock-unweight-ratio 0.65)]     ; 0.30 = heavy continuous butt-drag; 0.85 = high vault
+              (buttock-unweight-ratio 0.65)      ; 0.30 = heavy continuous butt-drag; 0.85 = high vault
+              (phase-5vec [0.00 0.00 0.00 0.00 0.50])] ; [LH LF RH RF Axial]: active limbs row at 0.0, buttocks anchor at 0.50
   (-> state
       (xform-prior-regularized-observer)
       (partition-fault-tolerant-dynamics :health-mask 'actuator-health-soa-mask)
@@ -53,7 +54,7 @@
         :master-bpm bpm
         :appendage-duty-pwm 0.56
         :axial-sled-duty-pwm 0.48
-        :phase-5vec [0.00 0.00 0.00 0.00 0.50]   ; Active limbs row at 0.0, buttocks anchor at 0.50
+        :phase-5vec phase-5vec
         :velocity-twist-vx-vy-wz velocity-vx-vy-wz)
       (modulate-stick-slip-sled-ratchet
         :anchor-patches [:ulnar-carpal-shove-bilateral :plantar-bilateral]

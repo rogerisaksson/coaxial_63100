@@ -45,16 +45,18 @@ void wbc_bedexit_laid(const wbc_bedexit_t *b, const double *q_deg, double t, dou
 double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, const double *q_deg, double t, double dt,
                         double soles, double shins, double pitch);
 
-/** The floor scoot's phases, the parts it moves (hips, knees, shoulders, elbows, the legs' rolls and yaws a side each,
-    the trunk's roll and twist) and their joints. */
-#define WBC_SCOOT_PHASES 6
-#define WBC_SCOOT_PARTS  9
-#define WBC_SCOOT_MOVED  16
+/** The floor scoot's phases, the parts it moves (hips, knees, shoulders, elbows, the legs' rolls and yaws and the
+    ankles a side each, the trunk's roll and twist), their joints and its heels' steps. */
+#define WBC_SCOOT_PHASES 9
+#define WBC_SCOOT_PARTS  10
+#define WBC_SCOOT_MOVED  18
+#define WBC_SCOOT_STEPS  2
 
-/** Its state's slots: the phase, each side's share of the stroke (left, right), the heading aimed at, whether aimed. */
+/** Its state's slots: the phase, the step, each side's way this cycle, the heading aimed at, whether aimed. */
 enum
 {
   WBC_SCOOT_PHASE,
+  WBC_SCOOT_STEP,
   WBC_SCOOT_WAY,
   WBC_SCOOT_AIM = WBC_SCOOT_WAY + 2,
   WBC_SCOOT_AIMED,
@@ -62,24 +64,30 @@ enum
 };
 
 /** machine.moves.scoot's tables, filled once from it: the joints it moves (figure.JOINTS), each one's part (hips 0,
-    knees 1) and side (left 1, right -1, the trunk 0), the phase a stroke begins at and its stroke's; when each phase is over (0 its goals
-    reached, 1 braced, 2 set, 3 stroked, 4 asked); each part's how (0 held, 1 its goal at its rate, 2 the stroke's end
-    at the twist's rate, 3 the stroke's start, 4 a stretched knee settled, 5 its goal while its foot bears none), goal
-    (deg) and rate (deg/s) a phase, the next phase asked and idle; the knees' fold, stretch and settle and the hips'
-    lift (deg), her trunk's lean (deg), its hold's gain (deg/s a deg), range and band (deg), a stroke's rate (deg/s),
-    the shares a limb bears and touches at, a twist asks past, a goal is reached within, a stroke's share of a turn,
-    a whole stroke's turn (deg), the aim's lead turning (deg) and her trunk's pitch over a stroke back (deg). */
+    knees 1), side (0 left and the trunk, 1 right) and pair (its other side's, the trunk's its own); each step's side;
+    when each phase is over (0 its goals reached, 1 braced, 2 its heel touching, 3 stroked, 4 asked, 5 vaulted, 6
+    leant); the phases she sits, sets a heel, reaches, pushes and holds in; each step's joints (1 its heel's); each
+    part's how (0 held, 1 its goal at its rate, 2 the stroke's end at the way's rate, 3 the stroke's start, 4 its goal
+    while its foot touches none, 5 its pair's mean, a hip holding the trunk as well, 6 its goal while the trunk is short
+    of its vault), goal (deg) and rate (deg/s) a phase, the next phase asked and idle, whether a step's heel alone moves,
+    whether the twist's ways are taken as it ends and whether the hips hold the trunk; the knees' fold and stretch and
+    the hips' lift (deg), her trunk's lean (deg), its hold's gain (deg/s a deg), range and band (deg), a stroke's rate
+    (deg/s), the shares a foot bears and touches at, a twist asks past, a goal is reached within, a side's share of a
+    turn, a heading's error a whole share (deg), the aim's lead turning (deg), the inner side's least share back. */
 typedef struct
 {
-  int    joint[WBC_SCOOT_MOVED], part[WBC_SCOOT_MOVED], cycle, stroking, over[WBC_SCOOT_PHASES];
-  double side[WBC_SCOOT_MOVED];
+  int    joint[WBC_SCOOT_MOVED], part[WBC_SCOOT_MOVED], sided[WBC_SCOOT_MOVED], partner[WBC_SCOOT_MOVED];
+  int    order[WBC_SCOOT_STEPS], over[WBC_SCOOT_PHASES];
+  int    sitting, setting_down, reaching, pushing, holding;
+  double steps[WBC_SCOOT_STEPS][WBC_SCOOT_MOVED];
   double how[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS], goal[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS];
   double rate[WBC_SCOOT_PHASES][WBC_SCOOT_PARTS], asked[WBC_SCOOT_PHASES], idle[WBC_SCOOT_PHASES];
-  double fold, stretch, settle, folded, trunk, gain, hip_lo, hip_hi, leant, stroke_rate, bear, skim, ask, tol, turn;
-  double stroke_turn, lead, upright;
+  double masked[WBC_SCOOT_PHASES], cycles[WBC_SCOOT_PHASES], trunked[WBC_SCOOT_PHASES];
+  double fold, stretch, folded, trunk, gain, hip_lo, hip_hi, leant, stroke_rate, bear, skim, ask, tol, turn;
+  double stroke_turn, lead, half;
 } wbc_scoot_t;
 
-/** The move's `state` as it begins: bracing, no stroke and no aim yet. */
+/** The move's `state` as it begins: bracing, the first step next, no way and no aim yet. */
 void wbc_scoot_laid(double *state);
 
 /** A pass of the move `dt` s on: `cmd` (deg, her joints) laid over from `state`, her trunk's pitch (deg), her fists'

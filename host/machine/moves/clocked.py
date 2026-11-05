@@ -101,6 +101,12 @@ def turns(name):
             figure.SCALE * g['stick-slip']['stroke-amplitude-m'])
 
 
+def phases(name):
+    """Her limbs' phases on the clock of gait `name`'s segment (CLOCKED), of a turn: [LH LF RH RF axial]."""
+    patch, at = CLOCKED[name][:2]
+    return tuple(float(p) for p in dsp.schedule(kernel.read()[patch])[at][2]['axial-torus-clock']['nominal-phases'])
+
+
 def posed(q0, columns, m):
     """{joint: rad} of a posture's origin `q0` its modal vector `m` along its `columns` on."""
     return {j: v + sum(m[k] * columns[c].get(j, 0.0) for k, c in enumerate(COLUMNS)) for j, v in q0.items()}

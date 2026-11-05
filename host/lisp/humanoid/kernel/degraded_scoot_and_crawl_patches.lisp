@@ -18,13 +18,15 @@
 
 (defpatch compile-scoot-and-lowcrawl-suite-soa
   (let [;; 1. Healthy Seated Butt-Scoot (All 4 limbs working: arms + both heels row on buttocks)
+        ;;    Heels set in turn on the buttocks, both fists reach together after, then all four row.
         healthy-butt-scoot (-> nominal-biped-gait
                                (transducer-unshod)
                                (xform-to-floor-buttocks-seated :with-hands-and-arms-support true)
                                (xform-locomotion-seated-butt-scoot
                                  :velocity-vx-vy-wz [0.28 0.0 0.0]
                                  :bpm 80.0
-                                 :buttock-unweight-ratio 0.72)
+                                 :buttock-unweight-ratio 0.72
+                                 :phase-5vec [0.00 0.75 0.50 0.75 0.50])
                                (specialize-butt-scoot-propulsion-mode :technique :anterograde-hamstring-row)
                                (apply-universal-deformable-overlay)
                                (limiter-high-mu-planar)
