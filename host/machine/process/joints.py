@@ -125,7 +125,11 @@ def said(g, command):
 
 
 def ended(g):
-    """The program on `g` over, her text's bindings dropped (`g['programs']`): her law drives again."""
+    """The program on `g` over, the gains it set on her boards hers again (cut by a say and kept by the move after it as
+    hers, her law drove at their stiffness: her spine 943 deg/s), her text's bindings dropped (`g['programs']`): her
+    law drives again."""
+    kept = (g.get('played') or {}).get('gains')
+    g['world'].gains[:] = g['world'].gains if kept is None else kept
     g['played'], g['programs'] = None, {}
 
 
@@ -218,7 +222,6 @@ def played(g, world):
                               *[felt[name] for name in getattr(p['move'], 'SENSED', SENSED)])
         p['last'] = g['t']
         if done:
-            world.gains[:] = p['gains']
             ended(g)
             return
         if getattr(p['move'], 'HOLDS', True):
@@ -228,7 +231,6 @@ def played(g, world):
                    kp=np.asarray(KP)[joints], limit=g['clamp'][joints])
         return
     if g['t'] - p['at'] >= p['length']:
-        world.gains[:] = p['gains']
         ended(g)
         return
     joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
