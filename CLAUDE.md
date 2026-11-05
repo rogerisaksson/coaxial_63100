@@ -112,7 +112,7 @@ Evaluate the prompt and working tree before invoking any tool:
     - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
     - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
     - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
-    - [INV-STYLE] <=100-char brief, token budget, ASCII, 0 corp info? [YES / NO]
+    - [INV-STYLE] <=100-char brief/synopsis, token budget, ASCII, 0 corp info? [YES / NO]
 
 - **Transition Rule:**
   - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
