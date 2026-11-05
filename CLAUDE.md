@@ -86,6 +86,8 @@ Evaluate the prompt and working tree before invoking any tool:
     (`host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`, `--ops`)
     to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
+  - Query the kinematic and motion introspection example:
+    (`host/tests/test_introspect.py`) discover the internal dynamics of the system.
   - Empirical baseline (mandatory when dynamics, locomotion, flight, thermals,
     or UI are involved): execute the relevant simulation, trace, or live
     introspection tool to capture quantitative baseline metrics before reading
@@ -107,6 +109,8 @@ Evaluate the prompt and working tree before invoking any tool:
     - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
     - Generated File: [NO (safe to edit) OR YES (create)]
     - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
+    - [INV-SYSTEM] Understood the software system, mechanics and dynamics? [YES / NO]
+    - [INV-CODE] No quck hacks, no tuning, tweaks and tricks? [YES / NO]
     - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
     - [INV-CONTROL] No scripted playback, dynamic control of motion? [YES / NO]
     - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
