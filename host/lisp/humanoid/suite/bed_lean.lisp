@@ -253,9 +253,9 @@
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.40 -> 1.45] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.70) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.15)))))
 
-;; Sat up as the edge she lay down from lets her, then up as from a chair; from its end her trunk leans 1.00 rad, not
-;; a chair's 0.74: its foam held her hips 0.22 m behind her ankles as she leaned, and leaned 0.74 her thrust began
-;; with her centre of mass 0.06-0.09 m behind them: 5 of 8 starts fell or sat back (0.90: 2 of 8; 1.00: 0 of 18)
+;; Sat up as the edge she lay down from lets her, then up as from a chair, her trunk leaned a chair's 0.74 rad: from
+;; its end, seated on its foam over its firm core, 1.00 threw her off her feet at all 4 of 7 docks that thrust; 0.74
+;; stood all 7
 (defpatch patch-rise-bed [seated-state &key (bed-side *bed-side*)]
   (-> seated-state
       (case bed-side
@@ -265,6 +265,5 @@
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
-        :ascent-duration-ms 950.0
-        :pre-pitch-thorax-rad (case bed-side (:long 0.74) (otherwise 1.00)))
+        :ascent-duration-ms 950.0)
       (master-anti-spasm-insert)))

@@ -31,6 +31,11 @@ CHAIR_LOW_H = figure.ANKLE_H + figure.SHANK - [c for c in figure.BODY if c[0] ==
 #: knee (0.43-0.48 m), her soles on the floor sat on its edge; the mattress on the frame, no slot under it (at 0.45
 #: m a 5 cm one caught her feet as they came down off its end).
 BED_MATTRESS, BED_MATTRESS_H, BED_FRAME = (0.65, 0.12, 1.0), 0.40, (0.67, 0.08, 1.02)
+#: A mattress's foam (priority 2): its cover's grip, sliding, over hers; its give, m (solimp's width: she lies 7.5 cm
+#: in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there), a firm `core` under it (all foam, her heels sank into
+#: its side and wedged on its frame, 8 kN).
+BED_GRIP, BED_GIVE = 0.6, 0.10
+FOAM = ' priority="2" condim="4" friction="%g 0.005 0.0001" solref="0.08 1" solimp="0.8 0.95 %g"' % (BED_GRIP, BED_GIVE)
 #: What lies on the floor and bears her soles alone.
 TERRAIN = ('sill', 'slip', 'brick_left', 'brick_right', 'board_base', 'slope_ramp', 'slope_top', 'ice', 'snow', 'rug')
 #: A ramp's grade, deg, and half sizes: 10, a steep street's.
@@ -105,6 +110,12 @@ def _base(world, y):
     world.model.geom_pos[world.model.geom('floor').id][1] = y
 
 
+def core(name, half, mid, contacts):
+    """A mattress's firm core `name`: its box (`half`, middle `mid` m up) under its foam's give."""
+    return '<geom name="%s" type="box" size="%g %g %g" pos="0 %g 0"%s/>' % (
+        name, half[0], half[1] - BED_GIVE / 2.0, half[2], mid - BED_GIVE / 2.0, contacts)
+
+
 def ground(contacts, give, torsion):
     """The worldbody's floor before her figure: the plane, the slabs, the mocap props."""
     return [
@@ -133,13 +144,12 @@ def ground(contacts, give, torsion):
         'quat="0.7071068 -0.7071068 0 0"%s/></body>' % (contacts,),
         chair('chair', CHAIR_SEAT_H, contacts), chair('chair_low', CHAIR_LOW_H, contacts),
         '<body name="prop_bed" mocap="true" pos="0 -5 0">'
-        # a foam's give: she lies 7.5 cm in, 5.5 at 0.04 s and 5 cm, and a quicker lie fell there
-        '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0" priority="2" condim="4"'
-        ' solref="0.08 1" solimp="0.8 0.95 0.10"%s/>'
+        '<geom name="bed_mattress" type="box" size="%g %g %g" pos="0 %g 0"%s%s/>%s'
         '<geom name="bed_frame" type="box" size="%g %g %g" pos="0 %g 0"%s/>'
         '<geom name="bed_headboard" type="box" size="%g 0.25 0.03" pos="0 %g %g"%s/>'
         '</body>' % (
-            BED_MATTRESS + (BED_MATTRESS_H - BED_MATTRESS[1], contacts)
+            BED_MATTRESS + (BED_MATTRESS_H - BED_MATTRESS[1], FOAM, contacts,
+                            core('bed_core', BED_MATTRESS, BED_MATTRESS_H - BED_MATTRESS[1], contacts))
             + BED_FRAME + (BED_FRAME[1], contacts)
             + (BED_FRAME[0], BED_MATTRESS_H + 0.25, BED_MATTRESS[2] + 0.03, contacts)),
         '<body name="slope_ramp" mocap="true" pos="0 -5 0">'

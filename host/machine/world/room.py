@@ -16,7 +16,7 @@ and swings out as she pushes it; the lamp's switch sits on the wall by it.
 import math
 
 from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT
-from machine.world.floor import CHAIR_LOW_H, RISE_M, RUN_M, STEPS
+from machine.world.floor import CHAIR_LOW_H, FOAM, RISE_M, RUN_M, STEPS, core
 
 #: The room, m: x half width, z from .. to, the walls' height at the eaves and thickness.
 WIDE, FROM, TO, HIGH, THICK = 3.0, -1.5, 3.5, 2.4, 0.05
@@ -159,10 +159,10 @@ def furnish(contacts, textured=False):
         _box('back', (CHAIR_AT[0], SEAT_H + BACK[1] + 0.02, CHAIR_AT[1] + SEAT[2]), BACK, contacts),
         _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts),
         _box('back_low', (CHAIR_LOW_AT[0] - SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
-        '<body name="bed" pos="%g %g %g"><geom name="bed" type="box" size="%g %g %g" pos="0 %g 0" priority="2"'
-        ' condim="4" solref="0.08 1" solimp="0.8 0.95 0.10"%s/><geom name="bedframe" type="box" size="%g %g %g"'
-        ' pos="0 %g 0"%s/></body>' % (
-            BED_AT[0], BED[1], BED_AT[1], BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2], BED_FRAME_H / 2.0, contacts,
+        '<body name="bed" pos="%g %g %g"><geom name="bed" type="box" size="%g %g %g" pos="0 %g 0"%s%s/>%s'
+        '<geom name="bedframe" type="box" size="%g %g %g" pos="0 %g 0"%s/></body>' % (
+            BED_AT[0], BED[1], BED_AT[1], BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2], BED_FRAME_H / 2.0, FOAM, contacts,
+            core('bedcore', (BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2]), BED_FRAME_H / 2.0, contacts),
             BED[0] + BED_PROUD, BED_FRAME_H / 2.0, BED[2] + BED_PROUD, BED_FRAME_H / 2.0 - BED[1], contacts),
         _box('table', (TABLE_AT[0], TOP_H, TABLE_AT[1]), TOP, contacts),
         _box('post', (LAMP_AT[0], POST_H, LAMP_AT[1]), (0.02, POST_H, 0.02), contacts),
