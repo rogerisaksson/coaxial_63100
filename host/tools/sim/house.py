@@ -5,9 +5,12 @@
     python tools/sim/house.py lie_bed --said       # said as the prompt says it, seen or not
     python tools/sim/house.py --one 0.32 1.01 1.37 sit_chair [--said] [--rise] [--trace]   # one spot, here
     python tools/sim/house.py --docks              # the chair's sit and rise laid at its dock, off by a grid
+    python tools/sim/house.py lie_bed --docked --said --rise   # at her dock on each face, her back to it
 
 A spot is a cell of a GRID_M grid on the lodge's free floor, CLEAR_M clear of every furniture box, at
-each of four headings; what F offers there (`gym.offered`) is said as F says it (`gym.chose`), or
+each of four headings, or with --docked her dock at each face a verb docks her at, of each thing it
+goes to that her walk reaches (`dock.docked`), her back to it; what F offers there (`gym.offered`) is
+said as F says it (`gym.chose`), or
 with --said as a prompt says it, whatever she sees. A run: seconds to the goal borne, held REST_S and
 her joints' program over (its rise's to up with --rise), her fall, what she bumped in which phase, the dock (along its normal,
 along its edge, her heading off it, s), and each joint group's fastest swing, widest sweep, when the
@@ -37,8 +40,8 @@ SPASM = ('arms', 'neck')
 #: Her spots: a grid this fine, this clear of the furniture, four headings; a goal held this long; her
 #: joints read this often, s.
 GRID_M, CLEAR_M, REST_S, EVERY_S = 0.6, 0.45, 3.0, 0.01
-#: A rise's doings traced with --trace, a row this often, s (`_row`).
-TRACED, TRACE_S = ('plant', 'lean', 'thrust', 'stand', 'rest'), 0.1
+#: A rise's doings traced with --trace (those they begin), a row this often, s (`_row`).
+TRACED, TRACE_S = ('sit_edge', 'bed_rest', 'sit_up', 'plant', 'lean', 'thrust', 'stand', 'rest'), 0.1
 HEADINGS = tuple(0.5 * math.pi * k for k in range(4))
 #: The chair's dock sweep: off along its edge, her root off it, her heading off it.
 DOCK_GRID = ((-0.06, -0.03, 0.0, 0.03, 0.06), (0.14, 0.19), (-0.1, -0.05, 0.0, 0.05, 0.1))
@@ -103,7 +106,8 @@ class Watch:
         for name, joints in GROUPS.items():
             self.held[name] = self.held.get(name, 0.0) + dt * float(max((held.get(j, 0.0) for j in joints), default=0.0) > 0.0)
         self.last, self.read = {j: float(angles.get(j, 0.0)) for js in GROUPS.values() for j in js}, g['t']
-        if self.trace is not None and sprung.doing(g) in TRACED and (not self.trace or g['t'] - self.trace[-1][0] >= TRACE_S):
+        if self.trace is not None and str(sprung.doing(g)).startswith(TRACED) and (
+                not self.trace or g['t'] - self.trace[-1][0] >= TRACE_S):
             self.trace.append(_row(g, d, m))
         phase = (g.get('_errand') or {}).get('phase')
         for k in range(d.ncon):
@@ -119,15 +123,22 @@ class Watch:
 
 def _row(g, d, m):
     """Her rise traced (`TRACED`): t, her doing, her centre of mass (x, z, height) and its speed (x, z), each sole's
-    place (x, z, height) and load (N), the line of her hips off square (deg) - her law's state, her thighs the world's."""
+    place (x, z, height) and load (N), the line of her hips off square (deg) - her law's state, her thighs the world's -,
+    the move she plays and its phase, what her moves sense (her pitch, deg, her fists' and feet's shares, her pelvis off
+    the bed's middle, m), her pelvis's, fists' and left foot's heights (m) and her left knee, hip and shoulder (deg)."""
     from machine.law import modal
-    from machine.process import sprung
+    from machine.process import joints, sprung
     y = g['y']
     c, v, so = y[modal.COM], y[modal.VCOM], y[modal.SOLE].reshape(2, 3)
     lt, rt = d.xpos[m.body('left_thigh').id], d.xpos[m.body('right_thigh').id]
+    p, felt = g.get('played') or {}, joints._felt(g)
+    played = None if p.get('state') is None else [p['name'], int(p['state'][0])]
     return (round(g['t'], 2), sprung.doing(g), [round(float(c[i]), 2) for i in (0, 2, 1)],
             [round(float(v[i]), 2) for i in (0, 2)], [[round(float(so[k, i]), 3) for i in (0, 2, 1)] for k in (0, 1)],
-            [round(float(n)) for n in y[modal.LOAD]], round(math.degrees(math.atan2(float(lt[2] - rt[2]), float(lt[0] - rt[0]))), 1))
+            [round(float(n)) for n in y[modal.LOAD]], round(math.degrees(math.atan2(float(lt[2] - rt[2]), float(lt[0] - rt[0]))), 1),
+            played, [round(felt[k], 3) for k in ('pitch', 'hands', 'left_foot', 'right_foot', 'along')],
+            [round(float(d.xpos[m.body(b).id][1]), 3) for b in ('pelvis', 'left_hand', 'right_hand', 'left_foot')],
+            [round(math.degrees(float(d.qpos[m.joint(k).qposadr[0]]))) for k in ('left_knee', 'left_hip', 'left_shoulder')])
 
 
 def walked():
@@ -252,6 +263,30 @@ def spots():
             if all(abs(x - bx) > hx + CLEAR_M or abs(z - bz) > hz + CLEAR_M for bx, bz, hx, hz in boxes)]
 
 
+def docked(verb):
+    """(x, z, heading) of her dock on each face `verb` docks her at (`furniture.GOES`), of each thing of the
+    lodge it goes to, that her walk reaches (`dock.docked`'s reach): her heels its stunt's standoff off the
+    face's edge - her soles' middle `poise.HALF_M` and the standoff out of it as she stands on them, the sit's
+    own reading (`furniture.seen`), not where she is laid 3 cm behind them: so laid, the bed's sit rocked her off her
+    heels and she perched on its end -, her back to it: a bed's end and its sides, a seat's front."""
+    from machine.law import modal, poise
+    from machine.texts import maneuver
+    from machine.process import sprung
+    from machine.way import dock, furniture
+    at = (0.0, -1.0)
+    w = Watch(at[0], at[1], 0.0)
+    sprung.looked(w.g)
+    things, standoff = list(w.g['things']), maneuver.standoff(verb, w.g['suite'])
+    floor = min(float(f['sole'][1]) for f in w.g['s']['feet'])
+    laid = [dock.docked(at, things, floor, verb, box, standoff) for box in things
+            if len(box) >= 4 and furniture.GOES[verb][0](box, things)]
+    # her soles' middle as the sit reads it ahead of where she was laid, facing +z
+    ahead = float(w.g['y'][modal.SOLE].reshape(2, 3)[:, 2].mean() + w.world.data.qpos[2] - w.g['est']['pos'][2]) - at[1]
+    out = poise.HALF_M + standoff - ahead
+    return [(round(x + out * math.sin(h), 3), round(z + out * math.cos(h), 3), round(h % math.tau, 3))
+            for d in laid if d is not None for h, (x, z) in d['reach']]
+
+
 def _relayed(argvs):
     """Each run its own process on the relay's batons (`focus.relay`): their lines' fields."""
     from tools.dev import focus
@@ -267,13 +302,14 @@ def main(argv=None):
     p.add_argument('--one', nargs=4, metavar=('X', 'Z', 'YAW', 'VERB'), help='one spot, here')
     p.add_argument('--dock', nargs=3, type=float, metavar=('DX', 'SPAR', 'DYAW'), help='one dock, here')
     p.add_argument('--docks', action='store_true', help='the chair at its dock, off by DOCK_GRID, on the relay')
+    p.add_argument('--docked', action='store_true', help='from her dock at each face each verb docks her at')
     p.add_argument('--said', action='store_true', help='said as a prompt says it, seen or not')
     p.add_argument('--rise', action='store_true', help='its rise said once it held')
     p.add_argument('--walked', action='store_true', help='her walk\'s fastest swings, here')
     p.add_argument('--every', action='store_true', help='every run\'s line, not only the short, fallen or spasmed')
-    p.add_argument('--trace', action='store_true', help='with --one: her rise traced (TRACED, each TRACE_S)')
+    p.add_argument('--trace', action='store_true', help='her rise traced (TRACED, each TRACE_S)')
     args = p.parse_args(argv)
-    flags = ['--said'] * args.said + ['--rise'] * args.rise
+    flags = ['--said'] * args.said + ['--rise'] * args.rise + ['--trace'] * args.trace
     if args.walked:
         print(json.dumps(walked()), flush=True)
         return 0
@@ -285,8 +321,9 @@ def main(argv=None):
         print(json.dumps(dock(*args.dock)), flush=True)
         return 0
     runs = ([['--dock', str(a), str(b), str(c)] for a in DOCK_GRID[0] for b in DOCK_GRID[1] for c in DOCK_GRID[2]]
-            if args.docks else [['--one', str(x), str(z), str(h), v] + flags for x, z in spots() for h in HEADINGS
-                                for v in (args.verbs or ['sit_chair'])])
+            if args.docks else [['--one', str(x), str(z), str(h), v] + flags for x, z, h, v in (
+                [(x, z, h, v) for v in args.verbs or ['sit_chair'] for x, z, h in docked(v)] if args.docked
+                else [(x, z, h, v) for x, z in spots() for h in HEADINGS for v in args.verbs or ['sit_chair']])])
     bound = _relayed([['--walked']])[0]
     rows = _relayed(runs)
     counts = {}
