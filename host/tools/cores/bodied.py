@@ -170,6 +170,13 @@ class Compiled:
                 held.alike(want_body, dict(enumerate(c.kept)), self.name + "'s body", on)
 
 
+def _lined(n):
+    """`n` doubles laid once, their first on a 64-byte line: no load of them split over two lines."""
+    raw = np.empty(n + 8)
+    skip = (-raw.ctypes.data % 64) // 8
+    return raw[skip:skip + n]
+
+
 def _tree_in(prog, k, path, v, specs, top):
     """Argument `k`'s `v` at `path` as traced: an array or a float (or at the top a number) an extern
     over a copy of it in C's order, as `Bound.leaf` lays every array its C reads - traced in its own order, an
@@ -327,7 +334,9 @@ class Bound:
 
     """A build's C on her memory: its workspace laid once; her body's externs, her model's, her data's
     and MuJoCo's addresses where bound; its arguments' addressed at each call; fn's result laid back
-    of a fresh output block a call - called and read through `quick` where it is built."""
+    of its output blocks, two laid once on 64-byte lines and written in turn - a result read a call on, or
+    handed back as the next call's argument, is never written under - called and read through `quick` where
+    it is built. A fresh block a call was 36.8 KB of new memory each law pass, written cold."""
 
     def __init__(self, lib, cfn, prog, info, specs=(), body=None, sources=None):
         self.lib, self.cfn, self.prog, self.at, self.sources = lib, cfn, prog, body, sources or {}
@@ -345,6 +354,8 @@ class Bound:
         self.words = np.frombuffer(self.table, dtype=np.uint64)
         spans, self.total = info['outs']
         self.spans = [a for a, _b in spans]
+        self.blocks = tuple(_lined(self.total) for _ in range(2)) if self.total else ()
+        self.block_ats, self.turn = tuple(address(b) for b in self.blocks), 0
         whole = {s[4].buffer.id: s[1:3] for s in specs if s[0] == 'array'}
         self.made = glue.maker(prog.shape, [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if glue.whole(r) else None)
                                             for (a, b), r in zip(spans, prog.outs)])
@@ -470,8 +481,8 @@ class Bound:
                 raise np.linalg.LinAlgError('Singular matrix')
             self.last = (None, None)
             return None
-        flat = np.empty(self.total)
-        at = self.block_at(flat)
+        turn = self.turn
+        flat, at, self.turn = self.blocks[turn], self.block_ats[turn], 1 - turn
         if self.call(None, at, *self.fixed):
             raise np.linalg.LinAlgError('Singular matrix')
         got = self.made(flat, args)
