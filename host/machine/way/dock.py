@@ -81,14 +81,19 @@ def even(g, e=None):
     her stride's period (`se2.BRAKE_S`) where an errand `e` keeps the time: still after a walk's stop her
     weight swings sole to sole 1.0-1.5 s (349/4 N to 94/211 to 153/153), crossing alike on the way;
     turned mid-swing she pivoted anywhere from 0.44 m behind her to 0.28 ahead, alike on the balls of her
-    soles turning left (0.10 m ahead) and on their middle turning right (within 0.01)."""
+    soles turning left (0.10 m ahead) and on their middle turning right (within 0.01). Or her weight's
+    split held within a sole's touch as long - her swing over where it ended: stood still at 164/141 N,
+    still her soles never crossed alike and she waited at the door's stage 30 s and more."""
     from machine.moves import leap
     from machine.law import se2
-    alike = abs(float(g['loads'][0]) - float(g['loads'][1])) <= leap.TOUCH_N
+    split = float(g['loads'][0]) - float(g['loads'][1])
+    alike = abs(split) <= leap.TOUCH_N
     if e is None:
         return alike
     e['alike_at'] = min(e.get('alike_at', math.inf), g['t']) if alike else math.inf
-    return g['t'] - e['alike_at'] >= 0.5 * se2.BRAKE_S
+    if abs(split - e.get('split_was', math.inf)) > leap.TOUCH_N:
+        e['split_was'], e['split_at'] = split, g['t']
+    return g['t'] - min(e['alike_at'], e['split_at']) >= 0.5 * se2.BRAKE_S
 
 
 def walked(at, cells):

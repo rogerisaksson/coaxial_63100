@@ -1,10 +1,10 @@
-"""Her way round her things: A* over their cells' costs (`machine.way.obstacles`), a curve on corners.
+"""Her way round her things: A* over their cells' costs (`machine.way.obstacles`), arcs at corners.
 
     cost = route.costs(things, floor, seen, slot, face)   # (nx, nz) a metre's cost through each cell, inf blocked
     cells = route.blocked(things, floor)             # her map's cells she may not stand in
     corners = route.way((x, z), to, cost)            # [(x, z)] from her place round them, `to` last
     stops, curve, held = route.planned((x, z), yaw, still, to, cost, held)   # her stops, the curve to the first
-    k, aim, along, there = route.ahead(curve, k, (x, z))     # her place, aim, its heading at each
+    k, aim, along, there, pace, bend = route.ahead(curve, k, (x, z))   # her place, aim, headings, speed, bend
     barred = route.barred(cells, [(x, z), ..])       # whether her way left is blocked past its first free cell
     d = route.staged((x, z), out, most, cells)       # m out along a dock's normal she stands free at
 
@@ -13,30 +13,28 @@ Her planner runs these apart (`machine.way.planner`).
 import math
 
 from machine.way import obstacles
-from machine.law import se2, stride
+from machine.law import rhythm, se2
 from machine.eyes import sight, voxels
 #: Setting off she walks while her heading is CONE off her leg at most, her walk's arc (WALK_SPEED /
 #: YAW_RATE round) a cell off it at most.
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
-#: Her way walked through its corners: a convex corridor round each segment, her walk's arc ARC_M
-#: about it at most; a cubic B-spline held in them, a knot a stride at her walk; her aim AIM_M on
-#: along it, where pure pursuit on her arc runs a cell inside it (ARC_M - sqrt(ARC_M^2 - AIM_M^2) =
-#: CELL_M); its last STRAIGHT_M on the last segment's line - her aim on it, then told to stand a
-#: cell before it she goes on STOP_M: told it mid-turn on (0.42, 0.03) she went on 0.5 rad off her
-#: heading, 0.82 m into the chair's margin.
+#: Her walk's arc told, ARC_M round; her aim AIM_M on along her way, where pure pursuit on that arc
+#: runs a cell inside it (ARC_M - sqrt(ARC_M^2 - AIM_M^2) = CELL_M); a stage STRAIGHT_M out: her aim,
+#: her run-out STOP_M and a cell - told to stand mid-turn on (0.42, 0.03) she went on 0.5 rad off
+#: her heading, 0.82 m into the chair's margin.
 ARC_M = se2.WALK_SPEED / se2.YAW_RATE
 AIM_M = ARC_M * math.sin(CONE)
 STRAIGHT_M = AIM_M + se2.STOP_M + voxels.CELL_M
-#: Where her heading is ARCED or more off her curve's at her aim she walks on her arc, its twist -
-#: the nearer of a walk and her arc, half her arc's turn over her aim -, else by her heading: held
-#: by her heading a 0.5 rad turn left her path on its line 2 s; arced on the curve's bend alone
-#: her heading ran 0.3 rad past it; arced on her straight ways too, the chair held 25 of 58 where
-#: 21 and the bed 16 of 52 where 17, 7 down where 4 (findings/errands.md).
-ARCED = 0.5 * AIM_M / ARC_M
-#: Her arc's acceleration, WALK_SPEED * YAW_RATE, as the polygon of SIDES inscribed in it: her arc
-#: held a cell wider at most (cos(pi / SIDES) >= cos(CONE)).
-SIDES = math.ceil(math.pi / CONE)
+#: Her walking turn as she makes it, rad/s: told YAW_RATE, her heading turns her stance's share of it
+#: (`[gait.steer]` stance_turn) - told 0.7 rad/s she turned 0.46-0.50 at 0.25-0.68 m/s, her stride
+#: her speed told (`rhythm.modulated`), so her arc is her speed over TURN: her walk's 1.41 m round,
+#: wider than the lodge's ways - a B-spline at it fitted none of 56 plans and she stood at each corner.
+TURN = se2.YAW_RATE * se2.STEER['stance_turn']
+#: Her braking, m/s^2 - her walk's speed run out over STOP_M - and her run-out's time, s; her slowest
+#: walk, m/s: told slower she turns on the spot (`[gait.rhythm]` spin_still_m_s).
+BRAKE, RUN_OUT_S = se2.WALK_SPEED ** 2 / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
+SLOWEST = rhythm.R['spin_still_m_s']
 
 
 def _cell(x, z):
@@ -123,236 +121,134 @@ def staged(dock, out, most, cells):
     return min(most, max(steps[k0], min(steps[k1], most)))
 
 
-def centres(cells):
-    """(N, 2) the centres (x, z) of `cells`' blocked ones."""
+def _aim(v):
+    """m her aim runs on ahead of her at `v` m/s: where pure pursuit on her arc at that speed (v /
+    YAW_RATE round) runs a cell inside it, a cell at least - AIM_M at her walk."""
+    return math.sqrt(max(2.0 * voxels.CELL_M * v / se2.YAW_RATE - voxels.CELL_M ** 2, voxels.CELL_M ** 2))
+
+
+def _arc(p, a, b, r):
+    """[(x, z)] her arc of radius `r` round the corner `p` from its leg in along `a` to its leg out
+    along `b` (units), a half cell apart, from its tangent on the one to its tangent on the other."""
+    turn = math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
+    tau, side = r * math.tan(0.5 * abs(turn)), math.copysign(1.0, turn)
+    t0 = (p[0] - tau * a[0], p[1] - tau * a[1])
+    c = (t0[0] - side * r * a[1], t0[1] + side * r * a[0])
+    ox, oz = t0[0] - c[0], t0[1] - c[1]
+    n = int(math.ceil(2.0 * r * abs(turn) / voxels.CELL_M)) + 1
+    phis = [turn * k / max(n - 1, 1) for k in range(n)]
+    return [(c[0] + ox * math.cos(f) - oz * math.sin(f), c[1] + ox * math.sin(f) + oz * math.cos(f)) for f in phis]
+
+
+def _line(a, b):
+    """[(x, z)] from `a` to `b` a half cell apart, both ends."""
+    n = max(1, int(math.ceil(2.0 * math.dist(a, b) / voxels.CELL_M)))
+    return [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(n + 1)]
+
+
+def _widest(cells, p, a, b, lo, hi):
+    """The widest radius from `lo` to `hi` whose arc round `p` (`_arc`) lies in free `cells`, to half a
+    cell; 0 where none does."""
+    def free(r):
+        return all(_free(cells, _cell(x, z)) for x, z in _arc(p, a, b, r))
+    if hi < lo or free(hi):
+        return hi
+    if not free(lo):
+        return 0.0
+    while hi - lo > 0.5 * voxels.CELL_M:
+        lo, hi = (0.5 * (lo + hi), hi) if free(0.5 * (lo + hi)) else (lo, 0.5 * (lo + hi))
+    return lo
+
+
+def _room(ell, tan, out, stop):
+    """Her arc's widest radius its legs give a corner turning by 2 atan(`tan`): its leg in `ell`
+    (`out` its share of it), its leg out `out` - to a `stop`, her run-out (RUN_OUT_S at TURN times the
+    radius) kept before it."""
+    return min(se2.WALK_SPEED / TURN, ell / tan, out / (tan + RUN_OUT_S * TURN * float(stop)))
+
+
+def rounded(cells, pts):
+    """(curve, last): her way through `pts` [(x, z)] - her place, `way`'s corners, its end - round each
+    corner on the widest arc her map's free `cells` and its legs give (`_widest`, `_room`), her walk's
+    (WALK_SPEED / TURN round) at most, walked at TURN times its radius. The curve (N, 5): x, z, its
+    length, her speed and its bend (1/m) a half cell apart, braked into each arc and out of it at
+    BRAKE, into its end - where she stands - to her SLOWEST walk; `last` the index in `pts` of the
+    first corner no arc of her SLOWEST walk rounds - a stop,
+    the curve's end, her run-out kept before it."""
     np = sight._np()
-    ij = np.argwhere(cells)
-    return np.column_stack([sight.X_M[0] + (ij[:, 0] + 0.5) * sight.CELL_M, sight.Z_M[0] + (ij[:, 1] + 0.5) * sight.CELL_M])
-
-
-def corridor(at, a, b):
-    """(A, b): A p <= b the convex polygon round the segment `a` -> `b` holding no blocked cell, `at`
-    their centres ((N, 2) x, z): the segment inflated till it meets the nearest centre, a half-plane
-    there, again for the nearest centre left till none is left (DecompUtil's, its ellipse the
-    inflated segment); the half-plane the cell's face toward the segment where the whole segment
-    lies beyond it, else the inflated segment's tangent moved half a cell in - the cell's square
-    out, not its centre - but never past the segment, which A* grazing a cell's corner may cross;
-    within ARC_M of the segment, on her map. DecompUtil's ellipse, shrunk on a centre 5 cm off a
-    way's middle, came out 20 times longer than wide, and its tangents at the cells behind her
-    start held the corridor a cell wide all along (the bed from (-1.9, -1.0)); tangents alone, a
-    segment 9 deg up the chair's slot cut the slot to a wedge (the chair from (-1.3, -1.0))."""
-    np = sight._np()
-    a, b = np.asarray(a, float), np.asarray(b, float)
-    half = max(0.5 * math.dist(a, b), 1e-9)
-    u = (b - a) / (2.0 * half)
-    w, mid = np.array([-u[1], u[0]]), 0.5 * (a + b)
-    x, y = (at - mid) @ u, (at - mid) @ w
-    near = (np.abs(x) <= half + ARC_M + sight.CELL_M) & (np.abs(y) <= ARC_M + sight.CELL_M)
-    pts, x = at[near], x[near]
-    off = pts - (mid + np.clip(x, -half, half)[:, None] * u)
-    gap = np.hypot(off[:, 0], off[:, 1])
-    rows, offs, left = [], [], np.ones(len(pts), bool)
-    while left.any():
-        k = np.flatnonzero(left)[np.argmin(gap[left])]
-        tangent = off[k] / max(float(gap[k]), 1e-12)
-        face = np.where(np.arange(2) == np.argmax(np.abs(tangent)), np.sign(tangent), 0.0)
-        fits = max(float(face @ a), float(face @ b)) <= float(face @ pts[k]) - 0.5 * sight.CELL_M
-        n = (tangent, face)[int(fits)]
-        side = pts @ n
-        rows.append(n)
-        offs.append(float(side[k]) - min(0.5 * sight.CELL_M * (abs(n[0]) + abs(n[1])),
-                                         max(float(side[k]) - max(float(n @ a), float(n @ b)), 0.0)))
-        # its own side, one product: n @ pts[k] rounded apart from (pts @ n)[k] and kept it for ever
-        left &= side < side[k]
-    box = np.array([u, -u, w, -w, (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)])
-    reach = [u @ mid + half + ARC_M, -(u @ mid) + half + ARC_M, w @ mid + ARC_M, -(w @ mid) + ARC_M,
-             sight.X_M[1], -sight.X_M[0], sight.Z_M[1], -sight.Z_M[0]]
-    return np.vstack([np.reshape(rows, (-1, 2)), box]), np.r_[offs, reach]
-
-
-def _basis(knots, p, ts):
-    """(len(ts), len(knots) - p - 1): the degree-`p` B-spline basis on `knots` at `ts` (Cox-de Boor),
-    the last knot in the last span."""
-    np = sight._np()
-    t, ts = np.asarray(knots, float), np.asarray(ts, float)
-    nb = len(t) - 1
-    span = np.minimum(np.searchsorted(t, ts, side='right') - 1, int(np.flatnonzero(t[:-1] < t[1:])[-1]))
-    out = (np.arange(nb)[None, :] == span[:, None]).astype(float)
-    for q in range(1, p + 1):
-        lo, hi, lo1, hi1 = t[:nb - q], t[q:nb], t[1:nb - q + 1], t[q + 1:]
-        left = np.divide(ts[:, None] - lo, hi - lo, out=np.zeros((len(ts), nb - q)), where=hi > lo)
-        right = np.divide(hi1 - ts[:, None], hi1 - lo1, out=np.zeros((len(ts), nb - q)), where=hi1 > lo1)
-        out = left * out[:, :nb - q] + right * out[:, 1:]
-    return out
-
-
-def _derived(knots, p):
-    """(N - 1, N): a degree-`p` B-spline's derivative's control points on `knots` from its N own."""
-    np = sight._np()
-    t = np.asarray(knots, float)
-    n = len(t) - p - 1
-    k = p / (t[p + 1:p + n] - t[1:n])
-    out = np.zeros((n - 1, n))
-    out[np.arange(n - 1), np.arange(n - 1)], out[np.arange(n - 1), np.arange(1, n)] = -k, k
-    return out
-
-
-def spline(points, polygons, heading=None, warm=()):
-    """(curve, held): a clamped uniform cubic B-spline from points[0] to points[-1] in `polygons`,
-    one round each segment between them - (N, 3) x, z and arc length a half cell apart, None where
-    none fits or it bends past her arc (1 / ARC_M) -, and the rows its QP (`laid`, `qp.solve` from
-    `warm`) held. She walks it by its shape, not its time: its speed held at WALK_SPEED cos(a
-    stride of her arc) as well, each span along the way's or a first solve's own direction, none
-    fitted beside the table's corner (the chair from (-1.3, -1.0)) where the first bent 0.89/m at
-    most, its speed 0.52 to 1.18 m/s."""
-    np = sight._np()
-    from machine.stack import qp
-    p = laid(points, polygons, heading)
-    y, held, _u = qp.solve(p['H'], p['g'], p['A'], p['b'], warm)
-    if y is None:
-        return None, held
-    ctrl, knots = (p['M'] @ y + p['x0']).reshape(-1, 2), p['knots']
-    ts = np.linspace(0.0, knots[-1], math.ceil(2.0 * p['way_m'] / sight.CELL_M) + 1)
-    on = _basis(knots, 3, ts) @ ctrl
-    d1 = _derived(knots, 3) @ ctrl
-    v, a = _basis(knots[1:-1], 2, ts) @ d1, _basis(knots[2:-2], 1, ts) @ (_derived(knots[1:-1], 2) @ d1)
-    bent = float(np.max(np.abs(v[:, 0] * a[:, 1] - v[:, 1] * a[:, 0]) / np.maximum(np.hypot(*v.T), 1e-12) ** 3))
-    curve = np.column_stack([on, np.r_[0.0, np.cumsum(np.hypot(*np.diff(on, axis=0).T))]])
-    return (curve, None)[int(bent > 1.0 / ARC_M)], held
-
-
-def laid(points, polygons, heading=None):
-    """`spline`'s QP, min 1/2 y'Hy + g'y with A y <= b, X = M y + x0 its control points: {'H', 'g', 'A',
-    'b', 'M', 'x0', 'knots', 'way_m', 'groups' (its rows' counts: corridors, arc, straight)}. Timed
-    at her walk a knot a stride, each span's four control points in one polygon - by the way's arc
-    length, her arc swapped in at each corner - so by the convex hull it is in them; its
-    acceleration within her arc's WALK_SPEED * YAW_RATE; it leaves along `heading` where one is
-    given and ends STRAIGHT_M on the last segment's line. Least squared speed (its length) and
-    jerk, each over her walk's (WALK_SPEED, WALK_SPEED * YAW_RATE^2)."""
-    np = sight._np()
-    pts = np.asarray(points, float)
-    ell = np.hypot(*np.diff(pts, axis=0).T)
-    u = np.diff(pts, axis=0) / ell[:, None]
-    turn = np.arctan2(u[:-1, 0] * u[1:, 1] - u[:-1, 1] * u[1:, 0], (u[:-1] * u[1:]).sum(axis=1))
-    c = np.arange(len(turn))
-    room_in = np.where(c == 0, ell[:-1], 0.5 * ell[:-1])
-    room_out = np.where(c == len(turn) - 1, np.maximum(ell[1:] - STRAIGHT_M, 0.0), 0.5 * ell[1:])
-    half = 0.5 * np.abs(turn)
-    tau = np.minimum(ARC_M * np.tan(half), np.minimum(room_in, room_out))
-    straight = ell - np.r_[0.0, tau] - np.r_[tau, 0.0]
-    bend = 2.0 * tau * half / np.maximum(np.tan(half), 1e-12)
-    lengths = np.r_[np.column_stack([straight[:-1], bend]).ravel(), straight[-1]]
-    way_m = float(lengths.sum())
-    last = math.ceil(STRAIGHT_M / stride.STRIDE_M)
-    m = max(math.ceil(way_m / stride.STRIDE_M), last + 3)
-    dt = way_m / (m * se2.WALK_SPEED)
-    knots = np.r_[np.zeros(3), np.arange(m + 1) * dt, np.full(3, m * dt)]
-    n1 = m + 3
-    # each span's polygon by the way's arc length at its middle, a bend's first half the segment's before it
-    mids = (np.arange(m) + 0.5) * way_m / m
-    piece = np.minimum(np.searchsorted(np.cumsum(lengths), mids, side='right'), len(lengths) - 1)
-    f = (mids - (np.cumsum(lengths) - lengths)[piece]) / np.maximum(lengths[piece], 1e-12)
-    poly = piece // 2 + piece % 2 * (f >= 0.5)
-    lead = np.asarray(heading if heading is not None else u[0], float)
-    # the control points X = M y + x0: hers and its end fixed, her heading's where given, the last
-    # spans' on the last segment's line
-    free, line = np.arange(1 + int(heading is not None), m - last), np.arange(m - last, m + 2)
-    M = np.zeros((2 * n1, 2 * len(free) + len(line)))
-    M[2 * free, 2 * np.arange(len(free))], M[2 * free + 1, 2 * np.arange(len(free)) + 1] = 1.0, 1.0
-    M[2 * line, 2 * len(free) + np.arange(len(line))] = -u[-1, 0]
-    M[2 * line + 1, 2 * len(free) + np.arange(len(line))] = -u[-1, 1]
-    x0 = np.tile(pts[0], n1)
-    x0[[2, 3]] = pts[0] + lead * se2.WALK_SPEED * dt / 3.0
-    x0[2 * line], x0[2 * line + 1], x0[-2:] = pts[-1, 0], pts[-1, 1], pts[-1]
-    # least squared speed and jerk, each over her walk's
-    d1, d2 = _derived(knots, 3), _derived(knots[1:-1], 2)
-    jerk = _derived(knots[2:-2], 1) @ d2 @ d1
-    nodes, weights = np.polynomial.legendre.leggauss(3)
-    b2 = _basis(knots[1:-1], 2, ((np.arange(m)[:, None] + 0.5 + 0.5 * nodes) * dt).ravel())
-    gram = (b2.T * np.tile(0.5 * dt * weights, m)) @ b2
-    cost = np.kron(d1.T @ gram @ d1 / se2.WALK_SPEED ** 2
-                   + dt * jerk.T @ jerk / (se2.WALK_SPEED * se2.YAW_RATE ** 2) ** 2, np.eye(2))
-    # rows on X: corridors, her arc, the straight's length
-    pairs = sorted({(i, int(poly[s])) for i in range(n1) for s in range(max(0, i - 3), min(i, m - 1) + 1)})
-    walls = [np.kron(np.eye(n1)[i], polygons[k][0]) for i, k in pairs]
-    reach = [polygons[k][1] for _i, k in pairs]
-    sides = 2.0 * np.pi * np.arange(SIDES) / SIDES
-    arc = ((d2 @ d1)[:, None, :, None] * np.column_stack([np.cos(sides), np.sin(sides)])[None, :, None, :]).reshape(-1, 2 * n1)
-    end = np.kron(_basis(knots, 3, [(m - last) * dt])[0], u[-1])
-    A = np.vstack(walls + [arc, end[None, :]])
-    b = np.r_[np.concatenate(reach), np.full(len(arc), se2.WALK_SPEED * se2.YAW_RATE * math.cos(math.pi / SIDES)),
-              u[-1] @ pts[-1] - STRAIGHT_M]
-    return {'H': M.T @ cost @ M, 'g': M.T @ cost @ x0, 'A': A @ M, 'b': b - A @ x0, 'M': M, 'x0': x0,
-            'knots': knots, 'way_m': way_m, 'groups': (sum(len(r) for r in reach), len(arc), 1)}
-
-
-def _sharpest(points):
-    """The index in `points` of its sharpest inner corner."""
-    np = sight._np()
-    u = np.diff(np.asarray(points, float), axis=0)
-    u = u / np.hypot(*u.T)[:, None]
-    return 1 + int(np.argmin((u[:-1] * u[1:]).sum(axis=1)))
-
-
-def _run(cells, p, d, most):
-    """m from `p` along `d` its cells run free, `most` at most, a half cell a step."""
-    steps = [min(k * 0.5 * sight.CELL_M, most) for k in range(1, math.ceil(2.0 * most / sight.CELL_M) + 1)]
-    return next((s0 for s0, s in zip([0.0] + steps, steps) if not _free(cells, _cell(p[0] + s * d[0], p[1] + s * d[1]))),
-                steps[-1] if steps else 0.0)
-
-
-def carried(cells, points):
-    """[(a, b)] each segment of `points` carried past its corners by her arc's tangent there, ARC_M
-    tan(turn / 2) and ARC_M at most, and a stride - the three control points a change of corridor
-    shares reach a stride either side -, the last back STRAIGHT_M from its end at least, as far as
-    their cells run free: the corridors' segments. Grown round the segment alone, the corridors met
-    at the corner and no more - the tangent there caps them -, and no three control points fitted
-    between (the chair's way from (-0.7, -1.0))."""
-    np = sight._np()
-    pts = np.asarray(points, float)
-    ell = np.hypot(*np.diff(pts, axis=0).T)
-    u = np.diff(pts, axis=0) / ell[:, None]
-    turn = np.arctan2(u[:-1, 0] * u[1:, 1] - u[:-1, 1] * u[1:, 0], (u[:-1] * u[1:]).sum(axis=1))
-    ext = ARC_M * np.minimum(np.tan(0.5 * np.abs(turn)), 1.0) + stride.STRIDE_M
-    back, ahead = np.r_[0.0, ext], np.r_[ext, 0.0]
-    back[-1] = max(back[-1], (STRAIGHT_M - ell[-1]) * float(len(ell) > 1))
-    return [(pts[q] - _run(cells, pts[q], -u[q], back[q]) * u[q], pts[q + 1] + _run(cells, pts[q + 1], u[q], ahead[q]) * u[q])
-            for q in range(len(u))]
+    p = np.asarray(pts, float)
+    ell = np.hypot(*np.diff(p, axis=0).T)
+    u = np.diff(p, axis=0) / np.maximum(ell, 1e-12)[:, None]
+    tans = [max(math.tan(0.5 * abs(math.atan2(a[0] * b[1] - a[1] * b[0], a @ b))), 1e-12) for a, b in zip(u, u[1:])]
+    tight, n, radii = SLOWEST / TURN, len(p) - 1, []
+    for i in range(1, n):
+        r = _room(ell[i - 1] * (0.5 + 0.5 * float(i == 1)), tans[i - 1], ell[i] * (0.5 + 0.5 * float(i == n - 1)), i == n - 1)
+        r = _widest(cells, p[i], u[i - 1], u[i], tight, r)
+        if r < tight:
+            break
+        radii.append(r)
+    last = len(radii) + 1
+    while radii and last < n:
+        i = len(radii)
+        r = _room(ell[i - 1] * (0.5 + 0.5 * float(i == 1)), tans[i - 1], ell[i], True)
+        radii[-1] = _widest(cells, p[i], u[i - 1], u[i], tight, min(r, radii[-1]))
+        if radii[-1] >= tight:
+            break
+        radii.pop()
+        last -= 1
+    pieces, at = [], tuple(p[0])
+    for i, r in enumerate(radii, start=1):
+        arc = _arc(p[i], u[i - 1], u[i], r)
+        pieces += [(_line(at, arc[0]), se2.WALK_SPEED, 0.0), (arc, min(se2.WALK_SPEED, TURN * r), 1.0 / r)]
+        at = arc[-1]
+    pieces.append((_line(at, tuple(p[last])), se2.WALK_SPEED, 0.0))
+    rows = []
+    for samples, cap, bend in pieces:
+        for x, z in samples:
+            if rows and math.hypot(x - rows[-1][0], z - rows[-1][1]) < 1e-9:
+                rows[-1][2], rows[-1][3] = min(rows[-1][2], cap), max(rows[-1][3], bend)
+            else:
+                rows.append([x, z, cap, bend])
+    q = np.asarray(rows, float)
+    ds = np.hypot(*np.diff(q[:, :2], axis=0).T)
+    v = q[:, 2].copy()
+    v[-1] = min(v[-1], SLOWEST)
+    for k in range(1, len(v)):
+        v[k] = min(v[k], math.sqrt(v[k - 1] ** 2 + 2.0 * BRAKE * ds[k - 1]))
+    for k in range(len(v) - 2, -1, -1):
+        v[k] = min(v[k], math.sqrt(v[k + 1] ** 2 + 2.0 * BRAKE * ds[k]))
+    return np.column_stack([q[:, :2], np.r_[0.0, np.cumsum(ds)], v, q[:, 3]]), last
 
 
 def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
     """(stops, curve, held): where she stands still on her way from `at` (x, z) to `to` through `cost`
-    (`costs`) - `way`'s corners no curve fits through, `to` last, its leading corners within `passed`
-    of her dropped -, the curve she walks to the first (`spline`; (0, 3) where she walks straight at
-    it), the rows its QP held. Where none fits leaving along her heading `yaw`, it is let go - she
-    turns standing first, as she does at a stop; `still` her rhythm at rest, let go at once -, then the
-    way is cut at its sharpest corner, a stop: with none anywhere, `way`'s corners."""
+    (`costs`) - `way`'s corners from the first no arc rounds (`rounded`), `to` last, its leading corners
+    within `passed` of her dropped -, the curve she walks to the first ((0, 5) where she walks straight
+    at it: one leg, no corner rounded, or a blocked sample past a free one, `barred`'s - her own run
+    inside a grown thing's hers, as she rises off a chair she stood a corner at a time); none held. `yaw`, `still` and `warm` her planner's ask's: she turns standing where she is off her
+    way, as at a stop (`steer`)."""
     np = sight._np()
     cells = np.isinf(cost)
     here = tuple(at)
     corners = way(here, to, cost)
     corners = [p for k, p in enumerate(corners) if any(math.dist(here, q) > passed for q in corners[:k + 1])]
-    tries = ((math.sin(yaw), math.cos(yaw)), None)[int(still):]
     pts = [here] + corners
-    at_ = centres(cells)
-    last, curve, held = len(pts) - 1, None, tuple(warm)
-    while curve is None and last > 1:
-        walls = [corridor(at_, a, b) for a, b in carried(cells, pts[:last + 1])]
-        for lead in tries:
-            curve, held = (curve, held) if curve is not None else spline(pts[:last + 1], walls, lead, held)
-        last = last if curve is not None else _sharpest(pts[:last + 1])
-    return pts[last:] if len(pts) > 1 else [], np.zeros((0, 3)) if curve is None else curve, held
+    curve, last = rounded(cells, pts) if len(pts) > 2 else (np.zeros((0, 5)), len(pts) - 1)
+    if last <= 1 or barred(cells, [tuple(q) for q in curve[:, :2]]):
+        curve, last = np.zeros((0, 5)), min(last, 1)
+    return pts[last:] if len(pts) > 1 else [], curve, ()
 
 
 def ahead(curve, k, at):
-    """(k, (x, z), along, there): her place on `curve` ((N, 3) x, z, arc length) - its sample
-    nearest `at` from the k-th on, AIM_M along it at most -, her aim AIM_M on from there, its end at
-    most, the curve's heading at her place and at her aim, rad."""
+    """(k, (x, z), along, there, pace, bend): her place on `curve` ((N, 5) `rounded`'s) - its sample
+    nearest `at` from the k-th on, AIM_M along it at most -, her aim on from there as far as her speed
+    there runs it (`_aim`), its end at most, the curve's heading at her place and at her aim, rad, her
+    speed at her place, m/s, and its bend at her aim, 1/m."""
     np = sight._np()
     s = curve[:, 2]
     near = slice(k, int(np.searchsorted(s, s[k] + AIM_M, side='right')))
     k = k + int(np.argmin(np.hypot(curve[near, 0] - at[0], curve[near, 1] - at[1])))
-    j = min(int(np.searchsorted(s, s[k] + AIM_M)), len(s) - 1)
+    j = min(int(np.searchsorted(s, s[k] + _aim(float(curve[k, 3])))), len(s) - 1)
     on = [curve[min(i + 1, len(s) - 1)] - curve[min(i, len(s) - 2)] for i in (k, j)]
     along, there = (math.atan2(float(d[0]), float(d[1])) for d in on)
-    return k, (float(curve[j, 0]), float(curve[j, 1])), along, there
+    return k, (float(curve[j, 0]), float(curve[j, 1])), along, there, float(curve[k, 3]), float(curve[j, 4])

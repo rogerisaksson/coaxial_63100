@@ -8,18 +8,23 @@ def tell(g, gym, heard_fn, cmd):
         heard_fn(g, gym, dict(cmd, _errand_cmd=True))
 
 
-def steer(g, gym, heard_fn, err, wz_dir, speed, off, lag):
+def steer(g, gym, heard_fn, err, wz_dir, speed, off, bend=0.0, aim_m=1.0):
     """Turn in place toward `err` rad while she is `off` her way past her list, standing, or past
-    `route.CONE` as far as her rhythm runs (`latent.GAIN`) toward `speed`; within it, walk `speed`,
-    on her arc while she `lag`s `route.ARCED` or more, else by `err`."""
+    `route.CONE` as far as her rhythm runs (`latent.GAIN`) toward `speed`; within it, walk `speed`:
+    where her way bends at her aim (`bend`, 1/m) on her turn told, pure pursuit's to her aim `aim_m`
+    on - 2 sin(err) / aim_m her bend, from her heading - over her stance's share of a turn, YAW_RATE at
+    most; else by `err` her heading. Held by her heading round a bend her frame turned and her gait
+    not: told 25-40 deg/s so she crabbed 26-46 deg and fell; told the turn, 2-5 deg."""
     from machine.senses import edge
     from machine.law import latent, modal, se2
     from machine.way import route
     w = min(1.0, float(g['st'][latent.NOW][latent.GAIN])) * float(speed > 0.0)
     turn = abs(off) > (1.0 - w) * modal.LIST_RAD + w * route.CONE
-    arc = not turn and abs(lag) >= route.ARCED
+    arc = not turn and bend > 0.0 and speed > 0.0
+    err_f = se2.wrap_angle(float(edge.yaw(g['sense'])) + err - float(g['heading']))
+    wz = max(-se2.YAW_RATE, min(se2.YAW_RATE, speed * 2.0 * math.sin(err_f) / max(aim_m, 1e-6) / se2.STEER['stance_turn']))
     steer = float(not turn) * float(not arc)
     g['has_heading'] = steer * float(speed > 0.0)
     g['target_heading'] = se2.wrap_angle(edge.yaw(g['sense']) + err) * steer + float(g.get('target_heading', 0.0)) * (1.0 - steer)
-    twists = ((turn, (0.0, 0.0, se2.YAW_RATE * wz_dir)), (arc, (speed, 0.0, math.copysign(se2.YAW_RATE, lag))), (True, (speed, 0.0, 0.0)))
+    twists = ((turn, (0.0, 0.0, se2.YAW_RATE * wz_dir)), (arc, (speed, 0.0, wz)), (True, (speed, 0.0, 0.0)))
     tell(g, gym, heard_fn, {'twist': next(t for on, t in twists if on)})

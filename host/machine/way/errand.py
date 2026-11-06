@@ -239,11 +239,12 @@ def _passed(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _to_aim(g, gym, er, c, heard_fn, _say_fn):
-    """Walking to her aim (`step_errand`'s); her turn's way held while it is all but behind her."""
-    from machine.law import modal, se2
+    """Walking to her aim (`step_errand`'s) at her way's pace there (`route.rounded`'s, her walk's
+    without a curve); her turn's way held while it is all but behind her."""
+    from machine.law import modal
     err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
     er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
-    steer(g, gym, heard_fn, err_w, er['turn_dir'], se2.WALK_SPEED, c['off_w'], c['lag'])
+    steer(g, gym, heard_fn, err_w, er['turn_dir'], c['pace'], c['off_w'], c['bend'], c['aim_m'])
 
 
 def _to_face(g, gym, er, c, heard_fn, _say_fn):
@@ -402,9 +403,13 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
-    e['k'], (ax, az), along, there = (route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
-                                      else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw))
+    e['k'], (ax, az), along, _there, pace, bend = (route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
+                                                   else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw, se2.WALK_SPEED, 0.0))
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
+    # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
+    # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell
+    gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
+                     max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
     ctx = {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -s_perp * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
@@ -416,7 +421,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         'corner': bool(e['way']) and gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
         + voxels.CELL_M * float(len(e['way']) > 1),
         'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
-        'lag': se2.wrap_angle(there - pyaw),
+        'bend': bend, 'aim_m': math.hypot(ax - gx, az - gz), 'pace': pace,
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),
         'off': abs(se2.wrap_angle(e['hdd'] - pyaw)) > modal.LIST_RAD,
         'facing': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) < -math.cos(dock.ARRIVALS[1]),
