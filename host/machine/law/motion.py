@@ -59,9 +59,9 @@ def seen(g, dt):
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
+    # what bears her and, sat, her seat's cone in C on her contacts before any is a dict (`emancipation.seated`)
     s['prop'], s['contacts'], s['palms'] = g['borne'](body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
-                                                      g['a'][modal.LET_GO], dt)
-    emancipation.seated(g, s)
+                                                      g['a'][modal.LET_GO], dt, g)
     return s
 
 

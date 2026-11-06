@@ -45,6 +45,12 @@ typedef struct
   double                 carpal_of[WBC_BORNE_CONTACTS], room[WBC_BORNE_CONTACTS], give[WBC_BORNE_CONTACTS];
   int                    side[WBC_BORNE_CONTACTS], patch[WBC_BORNE_CONTACTS], body[WBC_BORNE_CONTACTS];
   double                 jp[3 * WBC_BORNE_DOF], jr[3 * WBC_BORNE_DOF];
+  int                    seat_skin, seat_body, pelvis_body;  /* the seat's segment (emancipation.SEAT_SEG), its body;
+                                                               her pelvis's body */
+  double                 seat_dx[2], seat_dz[2];    /* its CoP box's corners along her way and across (SEAT_BOX) */
+  double                 touch_m, reach_m, shed0;   /* leap.TOUCH_M, observer.REACH_M, cascade.SHED[0] */
+  int                    corner[WBC_BORNE_CONTACTS];  /* a contact's corner of the seat's cone, -1 none */
+  double                 seat_on, seat_near;        /* emancipation.seated's g['seat_on'], g['seat_near'] */
 } wbc_borne_t;
 
 /** A read (machine.senses.borne.read) of her edge's array `y` at her law's velocity `v`, her `weight`, her hands
@@ -52,5 +58,14 @@ typedef struct
     (`low`, `high`, infinite where nothing bears her), her palms and her contacts. 0, or -1 past WBC_BORNE_CONTACTS. */
 int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands, const double *let_go,
                    double dt);
+
+/** machine.moves.emancipation.seated on a read's contacts: the seat her text tells bears her (`told` its row's share,
+    the observer's `points` of its `row` among `rows`, `npoints`) lying within reach of the `floor` - `seat_on` and
+    `seat_near` -, and while she sits (`sat` past a half) its contacts out and its CoP box's four corners in, each
+    bearing what her step put on it the pass before (`seat_f`) or a quarter of what her skin felt of it, its
+    Jacobian and drift at her law's velocity `v`; `emancipated` her legs' release, the larger. 0, or -1 past
+    WBC_BORNE_CONTACTS. */
+int wbc_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, int npoints, int row, double told,
+                     double floor, double emancipated, double sat, const double *seat_f, const double *v);
 
 #endif

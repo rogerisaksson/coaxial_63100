@@ -333,6 +333,12 @@ API int wbh_borne_size(void)
   return (int)sizeof(wbc_borne_t);
 }
 
+API int wbh_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, int npoints, int row, double told,
+                         double floor, double emancipated, double sat, const double *seat_f, const double *v)
+{
+  return wbc_borne_seated(b, points, rows, npoints, row, told, floor, emancipated, sat, seat_f, v);
+}
+
 API void wbh_registry_passed(wbc_registry_t *r, const int64_t *live, int nl, const double *movable, const double *pos,
                              const double *quat, double dt)
 {

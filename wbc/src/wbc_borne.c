@@ -5,6 +5,7 @@
 #include "wbc_np.h"
 
 #include <math.h>
+#include <string.h>
 
 /** numpy's `a @ x` of a C-ordered (3, 3) and a (3,): into o. */
 static void mv3(const wbc_blas_t *l, const double *a, const double *x, double o[3])
@@ -203,7 +204,173 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
       b->room[c] = room[0];
       b->body[c] = b->ids[k];
       b->give[c] = give;
+      b->corner[c] = -1;
     }
+  }
+  return 0;
+}
+
+/** Contact `from` laid at `to`: its point, push, drift, Jacobian and the rest. */
+static void moved(wbc_borne_t *b, int from, int to)
+{
+  memcpy(b->p[to], b->p[from], sizeof b->p[to]);
+  memcpy(b->f[to], b->f[from], sizeof b->f[to]);
+  memcpy(b->dJv[to], b->dJv[from], sizeof b->dJv[to]);
+  memcpy(b->J[to], b->J[from], sizeof b->J[to]);
+  b->carpal_of[to] = b->carpal_of[from];
+  b->room[to]      = b->room[from];
+  b->give[to]      = b->give[from];
+  b->side[to]      = b->side[from];
+  b->patch[to]     = b->patch[from];
+  b->body[to]      = b->body[from];
+  b->corner[to]    = b->corner[from];
+}
+
+/** The seat's lowest end over the floor (its capsules' ends turned, less their radii, Python's min of them in their
+    order), m. */
+static double lowest(const wbc_borne_t *b, double floor)
+{
+  const int     k = b->seat_skin;
+  const double *R = b->xmat + 9 * b->seat_body, *x = b->xpos + 3 * b->seat_body;
+  double        low = 0.0;
+
+  for (int c = 0; c < b->caps[k]; c++)
+  {
+    for (int e = 0; e < 2; e++)
+    {
+      double turned[3];
+
+      mv3(b->blas, R, e ? b->cap_b[k][c] : b->cap_a[k][c], turned);
+      const double y = (x[1] + turned[1]) - b->cap_r[k][c];
+
+      low = (c == 0 && e == 0) || y < low ? y : low;
+    }
+  }
+  return low - floor;
+}
+
+int wbc_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, int npoints, int row, double told,
+                     double floor, double emancipated, double sat, const double *seat_f, const double *v)
+{
+  const wbc_blas_t *l = b->blas;
+  const int         at = b->seat_body;
+  double            on = 0.0, near = 0.0;
+
+  if (told > 0.0)
+  {
+    const double low = lowest(b, floor);
+    int          felt = 0;
+
+    for (int c = 0; c < b->nc; c++)
+    {
+      felt |= b->body[c] == at;
+    }
+    const double touching = (double)(low <= b->touch_m), reached = (double)felt * (double)(low <= b->reach_m);
+
+    on   = (touching > on ? touching : on);
+    on   = (reached > on ? reached : on) * (double)(emancipated <= b->shed0);
+    near = (double)(low <= b->reach_m) > near ? (double)(low <= b->reach_m) : near;
+  }
+  b->seat_on   = on;
+  b->seat_near = near;
+  if (sat <= 0.5 || !(told > 0.0))
+  {
+    return 0;
+  }
+  const double *P = b->xmat + 9 * b->pelvis_body;
+  double        ahead[3] = {P[2] * 1.0, P[5] * 0.0, P[8] * 1.0}, across[3], mid[3] = {0.0, 0.0, 0.0};
+  double        felt = 0.0, give = 0.0;
+  int           kept = 0, gave = 0, count = 0;
+  const double  norm = sqrt(wbc_dot(l, ahead, 1, ahead, 1, 3));
+
+  for (int i = 0; i < 3; i++)
+  {
+    ahead[i] = ahead[i] / norm;
+  }
+  across[0] = 1.0 * ahead[2] - 0.0 * ahead[1];
+  across[1] = 0.0 * ahead[0] - 0.0 * ahead[2];
+  across[2] = 0.0 * ahead[1] - 1.0 * ahead[0];
+  for (int c = 0; c < b->nc; c++)
+  {
+    if (b->body[c] != at)
+    {
+      continue;
+    }
+    felt = felt + b->f[c][1];
+    give = !gave || b->give[c] > give ? b->give[c] : give;
+    gave = 1;
+  }
+  give = !gave || 0.0 > give ? 0.0 : give;
+  for (int c = 0; c < b->nc; c++)
+  {
+    if (b->body[c] != at)
+    {
+      if (kept != c)
+      {
+        moved(b, c, kept);
+      }
+      kept++;
+    }
+  }
+  b->nc = kept;
+  for (int q = 0; q < npoints; q++)
+  {
+    if (rows[q] != row)
+    {
+      continue;
+    }
+    for (int i = 0; i < 3; i++)
+    {
+      mid[i] = count ? mid[i] + points[3 * q + i] : points[3 * q + i];
+    }
+    count++;
+  }
+  for (int i = 0; i < 3; i++)
+  {
+    mid[i] = mid[i] / (double)count;
+  }
+  mid[1] = floor;
+  for (int corner = 0; corner < 4; corner++)
+  {
+    const double     dx = b->seat_dx[corner / 2], dz = b->seat_dz[corner % 2], quarter = 0.25 * felt;
+    const double     bears = seat_f[corner] > quarter ? seat_f[corner] : quarter;
+    const wbc_view_t jrows = {b->jp, b->nv, 1}, vel = {v, 1, 1};
+    double           p[3];
+
+    if (b->nc >= WBC_BORNE_CONTACTS)
+    {
+      return -1;
+    }
+    const int c = b->nc++;
+
+    for (int i = 0; i < 3; i++)
+    {
+      p[i] = (mid[i] + dx * ahead[i]) + dz * across[i];
+    }
+    b->jac(b->m, b->d, b->jp, b->jr, p, at);
+    for (int r = 0; r < 3; r++)
+    {
+      for (int j = 0; j < b->n; j++)
+      {
+        b->J[c][r][j] = b->jp[r * b->nv + j];
+      }
+    }
+    b->jac_dot(b->m, b->d, b->jp, b->jr, p, at);
+    wbc_matmul(l, jrows, vel, b->dJv[c], 1, 1, 3, b->n, 1);
+    for (int i = 0; i < 3; i++)
+    {
+      b->p[c][i] = p[i];
+    }
+    b->f[c][0] = 0.0;
+    b->f[c][1] = bears;
+    b->f[c][2] = 0.0;
+    b->carpal_of[c] = 0.0;
+    b->side[c]      = 0;
+    b->patch[c]     = 2;
+    b->room[c]      = 0.0;
+    b->body[c]      = at;
+    b->give[c]      = give;
+    b->corner[c]    = corner;
   }
   return 0;
 }
