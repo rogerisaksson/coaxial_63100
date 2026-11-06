@@ -90,8 +90,61 @@ def unframed(zfull, z1, za, za1, rows3, Fk, Q, framed):
         at += int(rows3[3 * i]) + int(rows3[3 * i + 1]) + int(rows3[3 * i + 2])
 
 
+def within(H, g, A, b, x, S, s, w):
+    """x minimising 1/2 x'Hx + g'x + w/2 |slack|^2 under A x <= b and S x <= s + slack, slack >= 0 (the stack's dual
+    active set, `qp.solve`) where the unconstrained `x` is over a row; `x` as it came where none is (bit for bit) or no
+    x meets A. A primal active set's KKT by solve took dependent rows and answered 1e7-1e9 past them; S held hard, no
+    x met it on 40% of her passes over the bed's edge (her leg must slide) and her plan flipped back and forth."""
+    import numpy as np
+    from machine.stack import qp
+    n, ns = len(x), len(s)
+    if float(np.max(np.concatenate([A @ x - b, S @ x - s, [-1.0]]))) <= qp.TOL:
+        return x
+    Hs, gs = np.zeros((n + ns, n + ns)), np.concatenate([g, np.zeros(ns)])
+    Hs[:n, :n], Hs[n:, n:] = H, w * np.eye(ns)
+    As = np.vstack([np.hstack([A, np.zeros((len(b), ns))]), np.hstack([S, -np.eye(ns)]), np.hstack([np.zeros((ns, n)), -np.eye(ns)])])
+    got, _held, _u = qp.solve(Hs, gs, As, np.concatenate([b, s, np.zeros(ns)]))
+    return x if got is None else got[:n]
+
+
+def torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, mu):
+    """(A, b): her drives' clamps on the plan, |tau(x)| <= limit as rows A x <= b, tau(x) = T x + t her driven
+    joints' torques as the plan has her move (`torque`: M[act, given], M[act, P], h[act], J[:, act], limit), its
+    held contacts' forces with her - the step shrank every torque toward none past a clamp (to 0.00-0.21 of the ask
+    with her leg over the bed's edge, and she fell); and each contact all held within its friction's box,
+    |t z| <= mu n z: the step's torques come of the Gauss-Seidel's forces, and planned outside the box it moved them,
+    her torques with them past the clamps the plan had met (0.05-0.10 of the ask)."""
+    import numpy as np
+    MAG, MAP, hA, JA, limit = torque
+    T = MAG[:, :nd] + MAP @ Pg[:, :nd]
+    t = MAG[:, nd:] @ held + MAP @ (p0 + Pg[:, nd:] @ held) + hA - JA.T @ Fk
+    rows, bounds = [], []
+    if na:
+        S, col = np.zeros((len(Fk), na)), 0
+        for i in range(len(Q)):
+            for e in range(3):
+                if rows3[3 * i + e]:
+                    if framed[i]:
+                        S[3 * i:3 * i + 3, col] = Q[i, e]
+                    else:
+                        S[3 * i + e, col] = 1.0
+                    col += 1
+        Sx, s0 = S @ (Dinv @ Bg[:, :nd]), S @ (Dinv @ (c0 - Bg[:, nd:] @ held))
+        T = T + JA.T @ Sx
+        t = t - JA.T @ s0
+        # z_i(x) = Fk_i + s0_i - Sx_i x; its box: (+-t_e - mu n) z_i(x) <= 0
+        for i in np.flatnonzero(rows3[0::3] & rows3[1::3] & rows3[2::3] & ~np.asarray(framed, bool)):
+            for e in (1, 2):
+                for side in (1.0, -1.0):
+                    edge = side * Q[i, e] - mu * Q[i, 0]
+                    rows.append(-(edge @ Sx[3 * i:3 * i + 3]))
+                    bounds.append(-float(edge @ (Fk[3 * i:3 * i + 3] + s0[3 * i:3 * i + 3])))
+    return (np.vstack([T, -T]), np.concatenate([limit - t, limit + t]),
+            np.array(rows).reshape(-1, nd), np.array(bounds, float))
+
+
 def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, RP, RG, r, want, slide=(0.0, 0.0, 0.0),
-            free=(False, False)):
+            free=(False, False), torque=None, released=True):
     """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
     foresees, the contacts' forces it counts on (world; a freed contact's 0).
     Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
@@ -170,10 +223,18 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
             N = eye - np.linalg.solve(H1, G1)
         else:
             x1, N = np.zeros(nd), eye
+        # her drives' clamps on both levels (`torqued`, `within`): none past them, the plan as it was
+        bounds = torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, regime.mu) if torque is not None else None
+        if bounds is not None:
+            x1 = within(H1 if m1 + na else task2 * eye, -(R1xT @ r1x) if m1 + na else np.zeros(nd), bounds[0], bounds[1], x1,
+                        bounds[2], bounds[3], regime.force * regime.force)
         R2n = regime.posture * N
         R2nT = np.ascontiguousarray(R2n.T)
         H2 = R2nT @ R2n + lam2 * eye
         x2 = np.linalg.solve(H2, R2nT @ (regime.posture * (want - x1)))
+        if bounds is not None:
+            x2 = within(H2, -(R2nT @ (regime.posture * (want - x1))), bounds[0] @ N, bounds[1] - bounds[0] @ x1, x2,
+                        bounds[2] @ N, bounds[3] - bounds[2] @ x1, regime.force * regime.force)
         x = x1 + N @ x2
         qg = np.concatenate([x, held])
         if not na:
@@ -202,7 +263,8 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
                 for c in range(3):
                     Fk[3 * i + c] = float(Q[i, 0, c]) * cap + float(Q[i, 1, c]) * tb1 + float(Q[i, 2, c]) * tb2
                 rows3[3 * i:3 * i + 3], changed = False, True
-            elif rows3[3 * i + 1] and max(abs(zt1), abs(zt2)) > regime.mu * zn:
+            elif released and rows3[3 * i + 1] and max(abs(zt1), abs(zt2)) > regime.mu * zn:
+                # not `released`, one past its box stays held, its slip the step's Gauss-Seidel's
                 lim = regime.mu * zn
                 tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
                 for c in range(3):

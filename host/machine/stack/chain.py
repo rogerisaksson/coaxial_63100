@@ -42,9 +42,11 @@ Regime = collections.namedtuple('Regime', 'lam task sweeps rounds soft bleed mu 
 
 def chained(ask):
     """1 where the step is hers: a leg let go, no sole standing, or borne reclined (`modal.given`), and no sole asked
-    to land (`motion.control`)."""
-    return int(not ask.get('swing') and (any(ask.get('let_go', ())) or not any(ask['stance'])
-                                         or ask.get('reclined', 0.0) > 0.5))
+    to land unless she lies on no sole (`motion.control`): lying on her side, her leg swung over the bed's edge, the
+    upright step took her, shrank her torques to 0.01-0.09 of its ask and whipped her elbow 731 deg/s; this step swings
+    it. A sole standing keeps a swing the upright step's: taken here, her rise off the chair never stood."""
+    lying, standing = ask.get('reclined', 0.0) > 0.5, any(ask['stance'])
+    return int((not ask.get('swing') or (lying and not standing)) and (any(ask.get('let_go', ())) or not standing or lying))
 
 
 def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
@@ -196,7 +198,7 @@ def pgs(Dl, b, z, mu, soft, sweeps):
     return residual
 
 
-def step(b, s, ask, regime):
+def step(b, s, ask, regime, bounded=False, released=True):
     """{tau, qacc, bears, cop, over, slack, held, borne, scale, residual, foreseen}: `ask` as `wrench.step` takes it, no
     sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask; `residual` the
     complementarity's; `foreseen` the base's and passive joints' accelerations the plan counted on. Her driven joints go as the chain's plan asks (`planned`), her held joints damped (HELD_K), her
@@ -223,8 +225,12 @@ def step(b, s, ask, regime):
     hx, hz = float(way[0]), float(way[2])
     nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
     slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
+    # `bounded`: her plan held within her drives' clamps (chain_plan.torqued); not `released`: one past its box held
+    # (the python twin's alone as yet)
+    torque = ((M[np.ix_(A, given)], M[np.ix_(A, P)], h[A], J[:, A], box(b, ask)[0]) if bounded else None)
     x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
-                                 np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)))
+                                 np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)), torque,
+                                 released)
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0
     # 2. the contacts' forces by complementarity over her Delassus matrix on the dofs no drive holds
