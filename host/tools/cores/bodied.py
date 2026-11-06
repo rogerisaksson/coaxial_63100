@@ -61,6 +61,10 @@ class Compiled:
 
     def __call__(self, *args, paced=True):
         c = self.c
+        if c is not None and c.runner is not None:
+            got = c.runner(args)
+            if got is not quick.MISS and got is not quick.SLOW:
+                return got
         kept = None if c is None else c.fits(args)
         if kept is None and self.why is None:
             try:
@@ -355,10 +359,12 @@ class Bound:
         spans, self.total = info['outs']
         self.spans = [a for a, _b in spans]
         self.blocks = tuple(_lined(self.total) for _ in range(2)) if self.total else ()
-        self.block_ats, self.turn = tuple(address(b) for b in self.blocks), 0
+        # its turn shared with its runner's C (`quick.runner`): either way a result is not written under a call on
+        self.block_ats, self.turns = tuple(address(b) for b in self.blocks), np.zeros(1, np.int64)
         whole = {s[4].buffer.id: s[1:3] for s in specs if s[0] == 'array'}
-        self.made = glue.maker(prog.shape, [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if glue.whole(r) else None)
-                                            for (a, b), r in zip(spans, prog.outs)])
+        self.outs = [(a, b, r.shape, r.buffer.dtype, whole.get(r.buffer.id) if glue.whole(r) else None)
+                     for (a, b), r in zip(spans, prog.outs)]
+        self.made = glue.maker(prog.shape, self.outs)
         self.work = np.empty(max(1, info['doubles']))
         self.lapack = ctypes.addressof(held.blas()) if held.matmuls(prog) else None
         self.funcs = (ctypes.c_void_p * max(1, len(prog.calls)))(*trace_mj.functions(prog))
@@ -378,6 +384,7 @@ class Bound:
                       ctypes.addressof(self.funcs))
         self.head, self.walks = glue.head(self), {}
         self.walk = glue.walk(self, self.all_args)
+        self.runner = quick.runner(self, np.linalg.LinAlgError)
 
     def bind(self, b):
         """Her body `b` addressed - its externs, her model, her data."""
@@ -386,6 +393,7 @@ class Bound:
             self.words[i] = arr.ctypes.data
         self.kept, self.body = [arr for _i, arr in arrays], b
         self.fixed = self.fixed[:3] + (self.model, self.data) + self.fixed[5:]
+        self.runner = quick.runner(self, np.linalg.LinAlgError)
 
     def fits(self, args):
         """The arrays converted for this call, its arguments' externs addressed; None where `args` are
@@ -481,8 +489,9 @@ class Bound:
                 raise np.linalg.LinAlgError('Singular matrix')
             self.last = (None, None)
             return None
-        turn = self.turn
-        flat, at, self.turn = self.blocks[turn], self.block_ats[turn], 1 - turn
+        turn = int(self.turns[0])
+        flat, at = self.blocks[turn], self.block_ats[turn]
+        self.turns[0] = 1 - turn
         if self.call(None, at, *self.fixed):
             raise np.linalg.LinAlgError('Singular matrix')
         got = self.made(flat, args)

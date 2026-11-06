@@ -1,44 +1,14 @@
 /** quick.c - her compiled parts' glue as an extension of this interpreter (tools.cores.quick): a part's
  * leaves walked and laid in its table, its C called, an array's data read - a call each. The host's
  * alone, against CPython's and numpy's headers: an array's layout read, none of numpy's arithmetic. */
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-#define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
-#include <numpy/ndarraytypes.h>
+#include "quick.h"
 
-#include <stdint.h>
 #include <string.h>
 
-/* A leaf's row (quick.py's WIDTH): the argument it is in, its first key and their count in the walk's
- * keys, its extern's slot, its place among the part's leaves, whether a float is its own scalar, its
- * dimensions' count (-1: Python's always) and each one's length. */
-enum
-{
-  ARG,
-  KEY,
-  DEPTH,
-  SLOT,
-  PLACE,
-  SCALAR,
-  ND,
-  DIMS,
-  MAXD = 8,
-  WIDTH = DIMS + MAXD
-};
-
-/* A walk laid once (`context`): its leaves' rows and keys, the table, scalars and own blocks it lays. */
-typedef struct
-{
-  Py_ssize_t      n;
-  int64_t        *rows;
-  PyObject       *keys;
-  uint64_t       *words;
-  double         *scalars;
-  const uint64_t *own_at;
-} walk_t;
-
-static PyTypeObject  *ndarray;
-static PyArray_Descr *f64;
+PyTypeObject  *quick_ndarray;
+PyArray_Descr *quick_f64;
+#define ndarray quick_ndarray
+#define f64 quick_f64
 
 static PyObject *laid(PyObject *self, PyObject *const *args, Py_ssize_t n)
 {
@@ -156,13 +126,17 @@ static PyObject *walk(PyObject *self, PyObject *const *args, Py_ssize_t n)
   const Py_ssize_t start = PyLong_AsSsize_t(args[2]);
   if (w == NULL || (start == -1 && PyErr_Occurred()))
     return NULL;
-  PyObject *given = args[0];
+  return PyLong_FromSsize_t(quick_walked(w, args[0], start));
+}
+
+Py_ssize_t quick_walked(const walk_t *w, PyObject *given, Py_ssize_t start)
+{
   const int listed = PyList_Check(given);
   for (Py_ssize_t r = start; r < w->n; r++)
   {
     const int64_t *row = w->rows + r * WIDTH;
     if (row[ARG] >= (listed ? PyList_GET_SIZE(given) : PyTuple_GET_SIZE(given)))
-      return PyLong_FromLong(-1);
+      return -1;
     PyObject *a = Py_NewRef(listed ? PyList_GET_ITEM(given, row[ARG]) : PyTuple_GET_ITEM(given, row[ARG]));
     for (int64_t p = 0; p < row[DEPTH]; p++)
     {
@@ -173,20 +147,17 @@ static PyObject *walk(PyObject *self, PyObject *const *args, Py_ssize_t n)
         const int missing = PyErr_ExceptionMatches(PyExc_KeyError) || PyErr_ExceptionMatches(PyExc_IndexError)
                             || PyErr_ExceptionMatches(PyExc_TypeError);
         PyErr_Clear();
-        return PyLong_FromLong(missing ? -1 : -2);
+        return missing ? -1 : -2;
       }
       a = x;
     }
     const int done = laid_leaf(w, row, a);
     Py_DECREF(a);
     if (!done)
-      return PyLong_FromSsize_t(r);
+      return r;
   }
-  return PyLong_FromSsize_t(w->n);
+  return w->n;
 }
-
-typedef int (*part_i)(void *, void *, void *, void *, void *, void *, void *, void *);
-typedef void (*part_v)(void *, void *, void *, void *, void *, void *, void *, void *);
 
 static PyObject *call(PyObject *self, PyObject *const *args, Py_ssize_t n)
 {
@@ -225,6 +196,10 @@ static PyMethodDef methods[] = {
    "walk(args, context, start): n all laid, -1 a path not there, -2 another error, else the leaf Python lays."},
   {"call", (PyCFunction)(void (*)(void))call, METH_FASTCALL,
    "call(fn, solves, eight pointers): fn's int - 0 where it returns none -, the interpreter let go."},
+  {"runner", (PyCFunction)(void (*)(void))quick_runner, METH_FASTCALL,
+   "runner(...): a part's call laid once - its head, walk, C and result (quick_run.c)."},
+  {"run", (PyCFunction)(void (*)(void))quick_run, METH_FASTCALL,
+   "run(runner, args): the part's result, or its miss or slow where args are not as traced."},
   {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compiled parts' glue (tools.cores.quick).", -1,
@@ -232,5 +207,6 @@ static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compile
 
 PyMODINIT_FUNC PyInit__quick(void)
 {
+  import_array();
   return PyModule_Create(&quick);
 }
