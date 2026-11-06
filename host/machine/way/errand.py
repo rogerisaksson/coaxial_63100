@@ -6,113 +6,25 @@
 The phases a table (`_on_rows`): look (still while a glimpse of the kind firms up to hers, turning in
 place till a thing affords the verb, a full turn at most), plan (her planner's answer awaited), walk
 (her way round her things to the stage), corner, settle, turn, side, then back and done at a seat or a
-bed, out and door out of the door (`_FACES`); the thing hers by what it affords (`machine.way.furniture`),
-her dock and way her planner's (`machine.way.planner`), the stunt on it (`machine.texts.maneuver`).
+bed, out and door out of the door (`words._FACES`); the thing hers by what it affords (`machine.way.furniture`),
+her dock and way her planner's (`machine.way.planner`), the stunt on it (`machine.texts.maneuver`); the
+words its rows say, the thing it goes to and what her planner is asked `machine.way.words`'.
 """
+import functools
 import math
 
 from machine.way.tour import STOP
-from machine.way.steer import steer, tell
+from machine.way.words import (
+    _asked, _at_hand, _begun, _cornered, _ended, _faced, _glimpsed, _halted, _held, _laid, _looking, _near,
+    _nothing, _out, _passed, _ran, _retreat, _seen, _stood, _stunt, _to_aim, _to_edge, _to_face, _to_line,
+    _to_look, _told, _took, _turning, _within,
+)
 
 
 def errands():
     """The verbs she walks to a thing for (`start_errand`)."""
     from machine.way import dock
     return tuple(dock.docks())
-
-
-def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None, thing=None):
-    from machine.texts import maneuver
-    g['_errand'] = None
-    g['_twist_active'], g['_twist_stop_until'], g['_halt_at'], g['has_heading'] = False, 0.0, None, 0.0
-    g['twist'] = g['asked'] = STOP
-    by = {e[0]: e for e in gym}
-    if kind in by:
-        heard_say_fn(g, gym, maneuver.said(g, by[kind], at, thing))
-
-
-def _seen(g, sc, at):
-    """What `sc` goes to nearest `at` among her things, None with nothing of the kind among them."""
-    from machine.way import furniture
-    hit = furniture.nearest(g, sc, at)
-    return None if hit[4] is None else hit
-
-
-def _within(sc, hit):
-    """Whether a thing found is within her reach: past a stride, within three rooms' widths; the door anywhere."""
-    from machine.world import room
-    from machine.law import stride
-    return sc == 'exit_door' or stride.STRIDE_M < hit[0] < 3.0 * room.WIDE
-
-
-def _near(hit):
-    """Whether a thing found is at hand: within a stride."""
-    from machine.law import stride
-    return hit[0] <= stride.STRIDE_M
-
-
-def _glimpsed(g, sc, at):
-    """Whether `sc` goes to a thing among her registry's live slots at any salience: a sighting not yet
-    hers (`registry.TAKEN`), her look held still while it firms up."""
-    from machine.way import furniture
-    return furniture.nearest(g, sc, at, things=g['vision'].boxes(g, -math.inf))[4] is not None
-
-
-#: Her heading docked off the dock's normal, by errand: through the door; her back to a seat, the rest.
-_FACES = {'exit_door': math.pi}
-
-
-def _asked(g, e, kind, to=None, passed=0.0, way=(), dock=None):
-    """Her planner asked a `kind` (`machine.way.planner`: a dock of `dock` (verb, box, standoff), a plan to
-    `to`, a watch of her `way` left) from where she will be at its answer, a watch's LATENCY_S on at her
-    velocity and turn rate: from where she stood, a replan walking began 0.2 m behind her and she fell."""
-    from machine.senses import edge
-    from machine.law import latent
-    from machine.way import planner
-    d, v, on = g['world'].data, g['est']['vel'], planner.LATENCY_S * float(kind == 'watch')
-    g['planner'].ask(g['t'], {
-        'kind': kind, 'at': (float(d.qpos[0]) + float(v[0]) * on, float(d.qpos[2]) + float(v[2]) * on),
-        'yaw': edge.yaw(g['sense']) + float(g['sense'][edge.GYRO][1]) * on,
-        'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6, 'things': list(g['things']),
-        'floor': min(float(f['sole'][1]) for f in g['s']['feet']), 'seen': None, 'slot': e['slot'], 'face': e['face'],
-        'to': to, 'dock': dock, 'warm': e['held'], 'passed': passed, 'way': way})
-
-
-def _laid(g, sc, found, at):
-    """The errand `sc` on the thing `found` (`_seen`'s), its dock and way asked of her planner. Run at the
-    door in one motion without the stage she slammed the panel to its 1.92 rad stop in 0.5 s and its
-    rebound felled her outside; settled at the stage first she grinds it open over 3 s and walks out."""
-    from machine.texts import maneuver
-    from machine.way import peek
-    standoff = maneuver.standoff(sc, g['suite']) if sc in maneuver.PLAYED else 0.0
-    box = found[6]
-    er = dict(_looking(g, sc, at), phase='plan', through=sc in _FACES, thing=found[4], standoff=standoff,
-              slot=int(box[4]) if len(box) > 4 else -1, top=peek.level(sc, box))
-    _asked(g, er, 'dock', dock=(sc, box, standoff))
-    return er
-
-
-def _docked(sc, laid):
-    """The errand's fields of its dock `laid` (`dock.docked`), her heading docked (`_FACES`)."""
-    from machine.law import se2
-    hn, (x_dock, z_dock), stage = laid['hn'], laid['edge'], laid['stage']
-    nx, nz = math.sin(hn), math.cos(hn)
-    return {'docks': tuple((float(h), float(x), float(z)) for h, (x, z) in laid.get('reach', ())),
-            'x_dock': x_dock, 'z_dock': z_dock, 'nx': nx, 'nz': nz, 'tx': nz, 'tz': -nx, 'face': laid['face'],
-            'xd': stage[0], 'zd': stage[1], 'hdd': se2.wrap_angle(hn + _FACES.get(sc, 0.0)), 'lat_tol': laid['lat_tol'],
-            'd_stage': laid['d_stage'], 'd_most': laid['d_stage']}
-
-
-def _looking(g, sc, at):
-    """The errand `sc` looking round for its thing: its dock where she stands, nothing planned, her yaw
-    swept from none."""
-    from machine.senses import edge
-    d, yaw = g['world'].data, edge.yaw(g['sense'])
-    return {'kind': sc, 'phase': 'look', 'thing': None, 'at': at, 'swept': 0.0, 'yaw_was': yaw,
-            'x_dock': float(d.qpos[0]), 'z_dock': float(d.qpos[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
-            'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(d.qpos[0]), 'zd': float(d.qpos[2]), 'hdd': yaw,
-            'lat_tol': 0.0, 'd_stage': 0.0, 'd_most': 0.0, 'turn_dir': 0.0, 'standoff': 0.0, 'retreats': 0,
-            'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': ()}
 
 
 def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
@@ -137,153 +49,11 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
     return True
 
 
-def _told(twist):
-    """A row's word: `twist`, her heading the dock's."""
-    return lambda g, gym, er, c, heard_fn, _say_fn: tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': twist})
-
-
-def _begun(g, gym, er, c, heard_fn, _say_fn):
-    """A thing found looking round, within reach: the errand on it (`_laid`), stood."""
-    er.update(_laid(g, er['kind'], c['seen'], er.get('at')), phase=er['phase'])
-    g['has_heading'] = 0.0
-    tell(g, gym, heard_fn, {'twist': STOP})
-
-
-def _took(g, gym, er, c, heard_fn, _say_fn):
-    """Her planner's answer: her dock where it laid one, her way."""
-    a = c['answer']
-    er.update(_docked(er['kind'], a['laid']) if a.get('laid') else {})
-    er.update(way=a['stops'], curve=a['curve'], held=a['held'], k=0, turn_dir=0.0)
-
-
-def _ran(g, gym, er, c, heard_fn, _say_fn):
-    """Her planner's run out taken, no curve: the door's push is contact (`_out`)."""
-    a = c['answer']
-    er.update(way=a['stops'], curve=(), held=a['held'], k=0, turn_dir=0.0)
-
-
-def _held(g, gym, er, c, heard_fn, _say_fn):
-    """A glimpse of the kind not yet hers: stood still while it firms up."""
-    tell(g, gym, heard_fn, {'twist': STOP})
-
-
-def _at_hand(g, gym, er, c, heard_fn, heard_say_fn):
-    """A thing found looking round within a stride: no errand, the stunt on it where she stands, as a
-    say's with one at hand (`start_errand` refused, `worker._apply_say`)."""
-    _fire_errand_stunt(g, gym, er['kind'], heard_say_fn, er.get('at'), c['seen'][4])
-
-
-def _to_look(g, gym, er, c, heard_fn, _say_fn):
-    """Turning in place for a thing the verb goes to, her yaw's sweep summed."""
-    from machine.law import se2
-    er['swept'] += abs(se2.wrap_angle(c['pyaw'] - er['yaw_was']))
-    er['yaw_was'] = c['pyaw']
-    tell(g, gym, heard_fn, {'twist': (0.0, 0.0, se2.YAW_RATE)})
-
-
-def _stood(g, gym, er, c, heard_fn, _say_fn):
-    """Walked to the box: stood, her heading released."""
-    er['turn_dir'], g['has_heading'] = 0.0, 0.0
-    tell(g, gym, heard_fn, {'twist': STOP})
-
-
-def _cornered(g, gym, er, c, heard_fn, _say_fn):
-    """Stood still on her way: the rest asked of her planner, her stage last - laid inside her map's
-    grown cells by its turn's own clearance (`dock.docked`), not moved for them."""
-    from machine.law import stride
-    _asked(g, er, 'plan', (er['xd'], er['zd']), stride.STRIDE_M)
-    er['turn_dir'] = 0.0
-
-
-def _halted(g, gym, er, c, heard_fn, _say_fn):
-    """Settling: told to stand, once - laid within her run-out of her stage she may have been walking."""
-    tell(g, gym, heard_fn, {'twist': STOP})
-
-
-def _faced(g, gym, er, c, heard_fn, _say_fn):
-    """Faced away from the prop with the dock's heading."""
-    er['turn_dir'] = 0.0
-    tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': STOP})
-
-
-def _ended(g, gym, er, c, heard_fn, _say_fn):
-    """Out of the door, or a look round with nothing in reach found: the errand over, stood."""
-    g['_errand'], g['has_heading'] = None, 0.0
-    tell(g, gym, heard_fn, {'twist': STOP})
-
-
-def _stunt(g, gym, er, c, heard_fn, heard_say_fn):
-    """Docked and still: the stunt begins on the thing as she sees it, the errand over."""
-    _fire_errand_stunt(g, gym, er['kind'], heard_say_fn, (er['x_dock'], er['z_dock']), er.get('thing'))
-
-
-def _nothing(g, gym, er, c, heard_fn, heard_say_fn):
-    return None
-
-
-def _out(g, gym, er, c, heard_fn, _say_fn):
-    """Settled at the stage facing out: the run out laid on her way's corners round her things
-    through the doorway to the dock's far side (`route.planned`; hand-aimed from a stage reached
-    aslant she jammed on the wall at x 1.33 for the opening's 0.3-1.2, 24 s). No curve: the push
-    through the yielding door is contact, aimed at the next corner far ahead - the curve's near
-    tracking fought the opening panel's shove and wedged her on the hinge-side post at 0.92 rad."""
-    goal = (er['x_dock'] - er['d_most'] * er['nx'], er['z_dock'] - er['d_most'] * er['nz'])
-    er['xd'], er['zd'] = goal
-    _asked(g, er, 'plan', goal)
-    er['turn_dir'] = 0.0
-
-
-def _passed(g, gym, er, c, heard_fn, _say_fn):
-    """A corner of the run out reached: the next is the aim."""
-    er['way'].pop(0)
-
-
-def _to_aim(g, gym, er, c, heard_fn, _say_fn):
-    """Walking to her aim (`step_errand`'s) at her way's pace there (`route.rounded`'s, her walk's
-    without a curve); her turn's way held while it is all but behind her."""
-    from machine.law import modal
-    err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
-    er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
-    steer(g, gym, heard_fn, err_w, er['turn_dir'], c['pace'], c['off_w'], c['bend'], c['aim_m'])
-
-
-def _to_face(g, gym, er, c, heard_fn, _say_fn):
-    """Turning in place to face away from the prop, the way that clears her things, held once begun."""
-    er['turn_dir'] = er['turn_dir'] or math.copysign(1.0, c['err_yaw'])
-    steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'], 0.0)
-
-
-def _turning(g, gym, er, c, heard_fn, _say_fn):
-    """Still, her turn clear of her things: turning the way that clears them (`dock.turns`)."""
-    er['turn_dir'] = c['turns']
-
-
-def _retreat(g, gym, er, c, heard_fn, _say_fn):
-    """Still facing the face where no turn onto the dock clears her things: backing off it, her heading
-    as it is - her walk back stops in BACK_STOP_M."""
-    from machine.law import se2
-    er['retreats'] += 1
-    g['has_heading'] = 0.0
-    tell(g, gym, heard_fn, {'twist': (-se2.BACK_SPEED, 0.0, 0.0)})
-
-
-def _to_line(g, gym, er, c, heard_fn, _say_fn):
-    """Sidestepping toward the dock's line, facing away from the prop."""
-    from machine.law import se2
-    g['has_heading'], g['target_heading'] = 1.0, er['hdd']
-    tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': (0.0, math.copysign(se2.STRAFE_SPEED, c['way_left']), 0.0)})
-
-
-def _to_edge(g, gym, er, c, heard_fn, _say_fn):
-    """Backing onto the edge, her heading bent toward the dock's line as it bears from her stage:
-    bent as the dock bears from her she came to it 0.5 rad askew and sat on its edge."""
-    g['has_heading'] = 1.0
-    g['target_heading'] = er['hdd'] + math.atan2(c['s_perp'], er['d_stage'])
-
-
+@functools.cache
 def _on_rows():
     """The errand's phases, a row each: (on what -> the phase next, told what) in order, the first
-    true row taken; and what she is told while none is. Read: looking, she stands while a glimpse
+    true row taken; and what she is told while none is - laid once, its tests and words functions of a
+    pass's context, the table of none of it (laid each pass, 6.6 us of her 1 kHz). Read: looking, she stands while a glimpse
     of the kind firms up to hers, else turns in place till a thing in reach affords the verb - one
     at hand, its stunt where she stands -, a full turn at most; walking, she stands where her
     stopping point
@@ -378,6 +148,23 @@ def _settled(g):
     return min(inside - swayed, figure.SOLE_HALF - math.hypot(*drift)) * float(a[modal.STANCE].prod())
 
 
+class _Context(dict):
+
+    """A pass's context for her errand's rows, `idle` (`_settled`, pure numpy on her law's arrays) told as a row
+    first reads it - before any word of the pass, the same bits: walking, at her door and turning no row reads it,
+    told each pass it was 47 of her errand's 100-194 us."""
+
+    def __init__(self, g, fields):
+        super().__init__(fields)
+        self.g = g
+
+    def __missing__(self, key):
+        if key != 'idle':
+            raise KeyError(key)
+        idle = self['idle'] = _settled(self.g) > 0.0
+        return idle
+
+
 def step_errand(g, gym, heard_fn, heard_say_fn):
     """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): her place in the dock's
     frame, her stop, her aim - her curve, her next stop, else its normal line -, what the phase looks
@@ -410,7 +197,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
                      max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
-    ctx = {
+    ctx = _Context(g, {
         'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
         'way_left': -s_perp * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
@@ -426,13 +213,12 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         'off': abs(se2.wrap_angle(e['hdd'] - pyaw)) > modal.LIST_RAD,
         'facing': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) < -math.cos(dock.ARRIVALS[1]),
         'away': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) > math.cos(dock.ARRIVALS[1]),
-        'idle': _settled(g) > 0.0,
         'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6,
         'even': dock.even(g, e),
         'answer': g['planner'].answer(g['t']),
         'seen': _SEEN.get(e['phase'], lambda _g, _e: None)(g, e),
         'glimpse': _GLIMPSE.get(e['phase'], lambda _g, _e: False)(g, e),
-    }
+    })
     ctx['turns'] = _TURNS.get(e['phase'], lambda _g, _e, _c: 0.0)(g, e, ctx)
     nxt, say = next(((phase, say) for on, phase, say in rows if on(ctx, e)), (e['phase'], meanwhile))
     e['phase'] = nxt
