@@ -1,7 +1,7 @@
 """What a change to machine/ reaches: its folders' modules, a prefix each, and their suites."""
 from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMPILED, CONTROLLER, CRAWL,
                               CTRL_CORE, CYCLIC, DSP, ERRANDS, FLOOR, FOURS, GATE, GROUNDWORK,
-                              GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE,
+                              GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
                               TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH)
@@ -52,7 +52,7 @@ MACHINE = (
     ('host/machine/body/capsules.py',               (STRUCTURE, SHIELD, WAYFINDER, ORTHO, SCENES, ERRANDS)),
     ('host/machine/law/schema.py',                 (STRUCTURE, SHIELD, WAYFINDER, ORTHO, SCENES, ERRANDS)),
     ('host/machine/way/wayfinder.py',              (STRUCTURE, WAYFINDER, ORTHO, SCENES, ERRANDS)),
-    ('host/machine/eyes/registry.py',               (STRUCTURE, WAYFINDER, SCENES, ERRANDS)),
+    ('host/machine/eyes/registry.py',               (STRUCTURE, WAYFINDER, SCENES, ERRANDS, REGISTRY)),
     ('host/machine/texts/says.py',                   (STRUCTURE, SAYS)),
     ('host/machine/process/introspect.py',             (STRUCTURE, INTROSPECT, GATE)),
     ('host/machine/texts/calls.py',                  (STRUCTURE, INTROSPECT)),

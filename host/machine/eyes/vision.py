@@ -129,8 +129,9 @@ def _laid(g):
 
 def main():
     """Her vision apart (`aside.serve`): her registry as laid, each look - its changes on the last - passed into
-    it, its boxes said."""
+    it, its boxes said; its C warmed first (`registry.warm`)."""
     kept = {'looks': []}
+    registry.warm()
 
     def answered(ask):
         if ask[1] is not None:

@@ -77,9 +77,10 @@ AXIS, UP = np.array([0.0, -math.sin(DOWN), math.cos(DOWN)]), np.array([0.0, math
 BOX = ((3,), (3,), (3, 3))
 
 
-def laid():
-    """{rows (`Rows`), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`)."""
-    return {'rows': _rows({}), 'kinds': [''] * SLOTS, 'classed': None}
+def laid(twin=False):
+    """{rows (`Rows`), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`); its looks in C
+    (`tools.cores.registry`), numpy's own where `twin`."""
+    return {'rows': _rows({}, twin), 'kinds': [''] * SLOTS, 'classed': None}
 
 
 class Rows(dict):
@@ -87,17 +88,20 @@ class Rows(dict):
     """The slots' fields (SLOT), as the text lays them: each an array of its own in one block, on ALIGN-byte lines
     of its own - a field read over the live slots reads its own lines alone. A packed record a slot (252 bytes) left
     each double past its kind off its 8 bytes: a field a view 252 bytes a step, numpy's loops copying it through a
-    buffer. Pickled as its fields, laid anew where it lands (`_rows`)."""
+    buffer. Pickled as its fields, laid anew where it lands (`_rows`); its look in C (`core`) laid at its first."""
+
+    twin, core = False, None
 
     def __reduce__(self):
-        return _rows, (dict(self),)
+        return _rows, (dict(self), self.twin)
 
 
-def _rows(values):
-    """`Rows` laid in one block, each field `values`' where given, else zeros."""
+def _rows(values, twin=False):
+    """`Rows` laid in one block, each field `values`' where given, else zeros; a numpy twin's where `twin`."""
     sizes = [(name, dtype, shape, SLOTS * math.prod(shape) * np.dtype(dtype).itemsize) for name, dtype, shape in SLOT]
     raw = np.zeros(sum(-(-n // ALIGN) * ALIGN for *_f, n in sizes) + ALIGN, np.uint8)
     at, rows = -raw.ctypes.data % ALIGN, Rows()
+    rows.twin = twin
     for name, dtype, shape, n in sizes:
         rows[name] = raw[at:at + n].view(dtype).reshape((SLOTS,) + shape)
         if name in values:
@@ -134,7 +138,7 @@ def shown(points, eye, R):
 
 
 #: A box's corners, in its half sizes.
-_CORNERS = np.array([[sx, sy, sz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)])
+CORNERS = np.array([[sx, sy, sz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)])
 
 
 def seen_of(centre, half, R, eye, turn):
@@ -142,7 +146,7 @@ def seen_of(centre, half, R, eye, turn):
     her eye in it - a table top's near edge under her view, its far edge in it."""
     if not len(centre):
         return np.zeros(0, bool)
-    corners = centre[:, None, :] + np.einsum('nij,ncj->nci', R, _CORNERS * half[:, None, :])
+    corners = centre[:, None, :] + np.einsum('nij,ncj->nci', R, CORNERS * half[:, None, :])
     points = np.concatenate([corners, centre[:, None, :], nearest(centre, half, R, eye)[:, None, :]], axis=1)
     return shown(points.reshape(-1, 3), eye, turn).reshape(len(centre), -1).any(axis=1)
 
@@ -182,10 +186,27 @@ def _classed(slots, kinds, centre, half, R, clear):
     return names
 
 
+def _core(r):
+    """`r`'s look in C (`tools.cores.registry`), laid at its first; None for a numpy twin's."""
+    if r.twin:
+        return None
+    if r.core is None:
+        from tools.cores import registry as c_registry
+        r.core = c_registry.laid(r)
+    return r.core
+
+
+def warm():
+    """Its C built and loaded, numpy's sums read (`tools.cores.registry`): a process's first look not kept waiting."""
+    from tools.cores import registry as c_registry
+    c_registry.laid(_rows({}))
+
+
 def seen(slots, looks, head, t, everywhere=False):
     """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing by its class (`classes.of`,
     `_classed`) into the slot it matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`,
-    the look shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows."""
+    the look shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows. In C past
+    its classes (`_seen_c`), numpy's own below for a twin."""
     r, kinds = slots['rows'], slots['kinds']
     names, centre, half, R, ids, clear = _boxes(looks)
     names = _classed(slots, names, centre, half, R, clear)
@@ -193,6 +214,9 @@ def seen(slots, looks, head, t, everywhere=False):
     live = np.flatnonzero(on)
     if not len(names) and not len(live):
         return slots
+    core = _core(r)
+    if core is not None:
+        return _seen_c(core, slots, names, centre, half, R, ids, clear, live, head, t, everywhere)
     eye, turn = _eye(head)
     looked = np.ones(len(names), bool) if everywhere else seen_of(centre, half, R, eye, turn)
     names, centre, half, R, ids, clear = (list(compress(names, looked)), centre[looked], half[looked], R[looked], ids[looked],
@@ -242,6 +266,19 @@ def seen(slots, looks, head, t, everywhere=False):
     return _missed(slots, live, matched, t, eye, turn)
 
 
+def _seen_c(core, slots, names, centre, half, R, ids, clear, live, head, t, everywhere):
+    """`seen` past its things' classes in C (`tools.cores.registry`): its things' classes and its live slots' coded
+    alike - a slot of none of them -1 -, each slot taken its thing's class as numpy's loop names it, in turn."""
+    kinds, code = slots['kinds'], {}
+    codes = np.array([code.setdefault(n, len(code)) for n in names], np.int64)
+    slot_codes = np.array([code.get(kinds[i], -1) for i in live], np.int64)
+    n = core.seen(centre, half, R, ids, clear, codes, live, slot_codes, t, everywhere, head['pos'], head['quat'])
+    looked = names if everywhere else list(compress(names, core.looked[:len(names)]))
+    for i, name in zip(core.slot_of[:n].tolist(), looked):
+        kinds[i] = name
+    return slots
+
+
 def _matched(slots, live, best, matched, known, names, centre, half, R, clear, t, eye, turn):
     """`seen`'s loop at once where each thing's nearest gated slot is no other's: the loop's greedy pick is
     then each row's own, and its arithmetic run element by element - the same bits; each slot its thing's class."""
@@ -281,12 +318,16 @@ def _missed(slots, live, matched, t, eye, turn):
 
 def passed(slots, head, dt):
     """`slots` `dt` s on between looks, her `head` {pos, quat}: a movable's variance diffused, a slot
-    out of her frustum swollen toward SWELL_M."""
+    out of her frustum swollen toward SWELL_M - in C (`tools.cores.registry`), numpy's own below for a twin."""
     r, kinds = slots['rows'], slots['kinds']
     live = np.flatnonzero(r['on'])
     if not len(live):
         return slots
     movable = np.array([kinds[i] not in STRUCTURAL for i in live], float)
+    core = _core(r)
+    if core is not None:
+        core.passed(live, movable, head['pos'], head['quat'], dt)
+        return slots
     r['var'][live] += DIFFUSE * dt * movable
     eye, turn = _eye(head)
     out = 1.0 - seen_of(r['centre'][live], r['half'][live], r['R'][live], eye, turn)

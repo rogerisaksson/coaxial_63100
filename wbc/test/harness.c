@@ -2,6 +2,7 @@
     through ctypes beside MuJoCo. */
 #include "wbc.h"
 #include "wbc_borne.h"
+#include "wbc_registry.h"
 #include "wbc_imp.h"
 #include "wbc_law.h"
 #include "wbc_move.h"
@@ -330,6 +331,24 @@ API int wbh_borne_read(wbc_borne_t *b, const double *y, const double *v, double 
 API int wbh_borne_size(void)
 {
   return (int)sizeof(wbc_borne_t);
+}
+
+API void wbh_registry_passed(wbc_registry_t *r, const int64_t *live, int nl, const double *movable, const double *pos,
+                             const double *quat, double dt)
+{
+  wbc_registry_passed(r, live, nl, movable, pos, quat, dt);
+}
+
+API int wbh_registry_seen(wbc_registry_t *r, int n, const double *centre, const double *half, const double *R,
+                          const int64_t *ids, const double *clear, const int64_t *codes, const int64_t *live, int nl,
+                          const int64_t *slot_codes, double t, int everywhere, const double *pos, const double *quat)
+{
+  return wbc_registry_seen(r, n, centre, half, R, ids, clear, codes, live, nl, slot_codes, t, everywhere, pos, quat);
+}
+
+API int wbh_registry_size(void)
+{
+  return (int)sizeof(wbc_registry_t);
 }
 
 API void wbh_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,

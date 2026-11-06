@@ -1,6 +1,6 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
-                              BROKER, COMPILED, CONFORMANCE, PORTED, BORNE, CONTROLLER, CORE, CTRL_CORE, DAQ_API,
+                              BROKER, COMPILED, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE, DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
                               EMULATOR, ERRANDS, FILTER, GVS, GYNOID, GROUND, HEATED, LEAP,
                               NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS, GROUNDWORK,
@@ -127,6 +127,7 @@ TOUCHES = (
     ('host/tools/cores/wait.py',               (STRUCTURE, PORTED)),
     ('host/tools/cores/brace.py',              (STRUCTURE, PORTED)),
     ('host/tools/cores/borne.py',              (STRUCTURE, BORNE)),
+    ('host/tools/cores/registry.py',           (STRUCTURE, REGISTRY)),
     ('host/tools/cores/trace.py',              (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
     ('host/tools/cores/trace_mj.py',           (STRUCTURE, COMPILED, ORTHO)),
     ('host/tools/cores/trace_np.py',           (STRUCTURE, COMPILED, SYSID, WEAR, ORTHO)),
@@ -174,7 +175,7 @@ TOUCHES = (
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
     ('aero/',                                  QUADS + (AERO_CORE, STREAMS, WIRE, NATIVE, EMULATOR)),
-    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE)),
+    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer; its suite closes
