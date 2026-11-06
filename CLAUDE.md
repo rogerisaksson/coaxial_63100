@@ -110,7 +110,7 @@ Evaluate the prompt and working tree before invoking any tool:
     - Generated File: [NO (safe to edit) OR YES (create)]
     - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
     - [INV-SYSTEM] Understood the software system, mechanics and dynamics? [YES / NO]
-    - [INV-CODE] No quck hacks, no tuning, tweaks and tricks? [YES / NO]
+    - [INV-CODE] No quick `hacks`, no overfitting, data massage and `tweaks`? [YES / NO]
     - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
     - [INV-CONTROL] No scripted playback, dynamic control of motion? [YES / NO]
     - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
