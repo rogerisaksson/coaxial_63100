@@ -257,6 +257,7 @@ def seated(g, s):
         seg = SEAT_SEG[r]
         at = b.m.body(seg).id
         felt = sum(float(c['f'][1]) for c in s['contacts'] if c.get('body') == at)
+        give = max([float(c.get('give', 0.0)) for c in s['contacts'] if c.get('body') == at] + [0.0])
         s['contacts'] = [c for c in s['contacts'] if c.get('body') != at]
         mid = obs['points'][obs['row'] == r].mean(axis=0)
         mid[1] = floor
@@ -267,5 +268,6 @@ def seated(g, s):
                 J = jp[:, :b.n].copy()
                 b.mj.mj_jacDot(b.m, b.d, jp, jr, p, at)
                 s['contacts'].append({'p': p, 'f': np.array([0.0, bears, 0.0]), 'J': J, 'dJv': jp[:, :b.n] @ s['v'],
-                                      'carpal': 0.0, 'side': 0, 'patch': 2, 'room': 0.0, 'body': at, 'corner': corner})
+                                      'carpal': 0.0, 'side': 0, 'patch': 2, 'room': 0.0, 'body': at, 'corner': corner,
+                                      'give': give})
     return s

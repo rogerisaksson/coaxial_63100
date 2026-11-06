@@ -51,7 +51,7 @@ def _step_typed():
                ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f), ('chain_sweeps', i), ('chain_rounds', i),
                ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
                ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
-               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2)]
+               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2), ('cgive', f * c)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -191,7 +191,7 @@ def _stepped(k, step, v, b, s, ask):
     k.nc = len(contacts)
     for at_, c in enumerate(contacts):
         k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
-        k.cpatch[at_], k.cbody[at_] = int(c.get('patch', 0)), int(c.get('body', 0))
+        k.cpatch[at_], k.cbody[at_], k.cgive[at_] = int(c.get('patch', 0)), int(c.get('body', 0)), float(c.get('give', 0.0))
     v['stance'][:] = [bool(x) for x in ask['stance']]
     v['let_go'][:] = [bool(x) for x in ask.get('let_go', (False, False))]
     v['com_acc'][:] = ask['com_acc']

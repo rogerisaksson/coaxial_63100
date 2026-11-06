@@ -23,7 +23,7 @@ import numpy as np
 from numpy._core.umath import clip as CLIP
 
 from machine.texts import kernel, ortho
-from machine.law import latent, modal, stride
+from machine.law import impedance, latent, modal, stride
 from machine.moves import seated
 from machine.senses.observer import TINY
 from machine.stack.rounds import ROOM
@@ -70,6 +70,9 @@ def asked(g, s, out, told, ask):
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
                                                         g.setdefault('fists', np.zeros(14)))
+    # something bearing her now off her soles (`borne`'s prop at impedance.PROP_ON), not her support's latch: the way
+    # chosen takes a swing to her closed chains only lying on it (`chain.chained`)
+    ask['propped'] = float(s.get('prop', (0.0,))[0]) >= impedance.PROP_ON
     # the twist told her (WASD) where no program plays: the closed chains' step carries her pelvis along it, her heels
     # stepping in turn - the crawl take's knees alternate (r -0.63) - at the seated butt-scoot's clock, the one in its
     # swing free for her posture to set back (held, one stroke stalled at 0.235 m, its limbs at their range)

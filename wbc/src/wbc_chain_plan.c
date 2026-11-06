@@ -44,6 +44,37 @@ static void frame_rows(const double *q9, int i, int np_, int ng, const double *J
   }
 }
 
+/** Each contact's push cap, N: what it feels by grow_n, a hand's patch no more than its share as felt of hand_cap,
+    what her text tells her hands to bear - none where not finite (machine.stack.chain_plan.capped). */
+static void capped(const wbc_step_t *p, int nc, double *caps)
+{
+  double palm = 0.0;
+  int    hands = 0;
+
+  for (int i = 0; i < nc; i++)
+  {
+    const double *cf = p->cf[i];
+    const int     hand = p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal;
+
+    palm = palm + sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]) * (double)hand;
+    hands = hands + hand;
+  }
+  for (int i = 0; i < nc; i++)
+  {
+    const double *cf = p->cf[i];
+    const double  felt = sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]);
+    double        cap = felt + p->grow_n;
+
+    if (p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal && isfinite(p->hand_cap))
+    {
+      const double told = p->hand_cap * (palm > 0.0 ? felt / palm : 1.0 / (double)(hands > 1 ? hands : 1));
+
+      cap = told < cap ? told : cap;
+    }
+    caps[i] = cap;
+  }
+}
+
 int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double *held, const double *Minv,
                       const double *Mpg, const double *rhs0, const double *Jp, const double *JpT, const double *Jg,
                       const double *Jv, const double *dJv, const double *Q, const double *RP, const double *RG,
@@ -54,7 +85,8 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
   const int         nd = p->nd, nh = ng - nd, nc = k3 / 3, mr = m1 + k3 + nc;
   const double      lam2 = p->chain_lam * p->chain_lam, task2 = p->chain_task_lam * p->chain_task_lam;
   const double      bleed = p->chain_bleed, mu = p->chain_mu, wf = p->chain_w_force;
-  int               rows3[3 * WBC_STEP_C], yields[WBC_STEP_C], framed[WBC_STEP_C];
+  int               rows3[3 * WBC_STEP_C], yields[WBC_STEP_C], framed[WBC_STEP_C], rowof[3 * WBC_STEP_C];
+  double            caps[WBC_STEP_C];
   double           *Fk = carve(w, k3), *Jap = carve(w, k3 * np_), *JapT = carve(w, np_ * k3), *Jag = carve(w, k3 * ng);
   double           *Jav = carve(w, k3), *Jad = carve(w, k3), *fa = carve(w, k3), *rhsk = carve(w, np_), *t = carve(w, np_);
   double           *MM = carve(w, np_ * ng), *W1 = carve(w, k3 * np_), *Dl = carve(w, k3 * k3), *Dinv = carve(w, k3 * k3);
@@ -155,6 +187,7 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
       }
     }
   }
+  capped(p, nc, caps);
   wbc_matmul(l, VIEW(Minv, np_, 1), VIEW(Mpg, ng, 1), MM, ng, 1, np_, np_, ng);
   for (int rnd = 0; rnd < p->chain_rounds; rnd++)
   {
@@ -182,6 +215,7 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
       Jav[j] = JvF[rw];
       Jad[j] = dJvF[rw];
       fa[j] = fsF[rw];
+      rowof[j] = rw / 3;
       j++;
     }
     if (k3)
@@ -200,10 +234,17 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
     {
       wbc_matmul(l, VIEW(Jap, np_, 1), VIEW(Minv, np_, 1), W1, np_, 1, na, np_, np_);
       wbc_matmul(l, VIEW(W1, np_, 1), VIEW(JapT, na, 1), Dl, na, 1, na, np_, na);
+      /* a row whose support gives more than her floor gives as it gives over what it feels, a firm row at lam2 over it
+         as far as what gives bears her (machine.stack.chain_plan.held_map) */
+      double on = 0.0, whole = 0.0, soft;
+
       for (int i = 0; i < na; i++)
       {
-        Dl[i * na + i] = Dl[i * na + i] + lam2;
+        Dl[i * na + i] = Dl[i * na + i] + (p->cgive[rowof[i]] > 0.0 ? p->cgive[rowof[i]] : lam2);
+        whole = whole + fabs(fa[i]);
+        on = on + fabs(fa[i]) * (p->cgive[rowof[i]] > 0.0 ? 1.0 : 0.0);
       }
+      soft = whole > 0.0 ? on / whole : 0.0;
       wbc_matmul(l, VIEW(W1, np_, 1), VIEW(rhsk, 1, 0), bb0, 1, 0, na, np_, 1);
       for (int i = 0; i < na; i++)
       {
@@ -217,6 +258,7 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
       for (int i = 0; i < na; i++)
       {
         c0[i] = (-bleed) * Jav[i] - bb0[i];
+        c0[i] = c0[i] + (p->cgive[rowof[i]] > 0.0 ? p->cgive[rowof[i]] : soft * lam2) * fa[i];
       }
       if (wbc_inv(l, VIEW(Dl, na, 1), na, Dinv, rest))
       {
@@ -472,8 +514,6 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
     }
     for (int i = 0; i < nc; i++)
     {
-      const double *cf = p->cf[i];
-      const double  felt = sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]);
       const int     pushes = p->cbody[i] < 0 || (p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal);
       double        loc[3];
 
@@ -496,11 +536,11 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
         Fk[3 * i] = Fk[3 * i + 1] = Fk[3 * i + 2] = 0.0;
         changed = 1;
       }
-      else if (pushes && loc[0] > felt + p->grow_n)
+      else if (pushes && loc[0] > caps[i])
       {
-        /* a hand's or a sole's patch asked past what it feels by grow_n (machine.stack.rounds.GROW_N): held at that
-           cap, its friction boxed by it; what she sits or lies on is not */
-        const double cap = felt + p->grow_n, lim = mu * cap, tb1 = npclip(loc[1], -lim, lim), tb2 = npclip(loc[2], -lim, lim);
+        /* a hand's or a sole's patch asked past what it feels by grow_n (machine.stack.rounds.GROW_N), a hand's past
+           what her text tells them (capped): held at that cap, its friction boxed by it; what she sits or lies on is not */
+        const double cap = caps[i], lim = mu * cap, tb1 = npclip(loc[1], -lim, lim), tb2 = npclip(loc[2], -lim, lim);
 
         for (int c = 0; c < 3; c++)
         {

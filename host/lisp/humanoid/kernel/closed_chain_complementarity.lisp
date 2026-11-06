@@ -194,17 +194,18 @@
 ;; drift, f (3k) what they feel, q (9k) their frames; P the dofs no drive holds (her base, her passive joints), A her
 ;; driven, HH her held; rp (m1 x np), rg (m1 x ng) and r (m1) the tasks' rows above posture on P and on the given
 ;; dofs (A then HH) and their right-hand sides, want (na) her posture's acceleration, laid by the caller from the asks.
-(defun closed-chain-step (m h v jc jdv f q rp rg r m1 want clamp n np na nh p a hh damping task-damping rounds softness
-                          bleed mu hold-n w-force w-posture sweeps tau qdd z work)
+(defun closed-chain-step (m h v jc jdv f patch give q rp rg r m1 want clamp n np na nh p a hh damping task-damping rounds
+                          softness bleed mu hold-n w-force w-posture sweeps tau qdd z work)
   "tau (na) her drives' torques, qdd (n) every acceleration, z (3k) the contacts' forces, world; (values tau qdd z
-   residual scale). 1. closed-chain-plan: her driven joints take its x, z its forces; 2. M_PP X = J_P^T by Cholesky,
+   residual scale); patch (k) each contact's patch, give (k) its give as her skin feels what bears it (borne).
+   1. closed-chain-plan: her driven joints take its x, z its forces; 2. M_PP X = J_P^T by Cholesky,
    the Delassus matrix M_c = J_P X, its offset b = J_P M_PP^-1 (-h_P - M_PA qdd_A - M_PH qdd_H) + J_A qdd_A + J_H qdd_H
    + jdv + bleed J v, both turned into the contacts' frames, z warm from the plan's, the Gauss-Seidel, z back in the world;
    3. qdd_P = M_PP^-1 (J_P^T z + rhs), tau = (M qdd + h - J^T z)_A, shrunk toward the same with nothing asked of A,
    then toward 0 (machine.stack.shrunk). The twins spell every product in this order (machine.stack.chain, wbc_chain.c);
    the host's bounds are its back-EMF's and WEP's too."
-  (declare (type (simple-array double-float (*)) m h v jc jdv f q rp rg r want clamp tau qdd z work)
-           (type (simple-array fixnum (*)) p a hh)
+  (declare (type (simple-array double-float (*)) m h v jc jdv f give q rp rg r want clamp tau qdd z work)
+           (type (simple-array fixnum (*)) patch p a hh)
            (type fixnum m1 n np na nh rounds sweeps)
            (type double-float damping task-damping softness bleed mu hold-n w-force w-posture)
            (optimize (speed 3) (safety 0)))
@@ -231,7 +232,7 @@
         (loop for c of-type fixnum from 0 below na do (setf (aref given c) (aref a c)))
         (loop for i of-type fixnum from 0 below nh do
           (setf (aref given (+ na i)) (aref hh i) (aref held i) (* (- held-k) (aref v (aref hh i)))))
-        (ortho-dsp.closed-chain-plan:closed-chain-plan m h v jc jdv f q rp rg r m1 want held p given a n np na nh
+        (ortho-dsp.closed-chain-plan:closed-chain-plan m h v jc jdv f patch give q rp rg r m1 want held p given a n np na nh
                                                        damping task-damping rounds bleed mu hold-n w-force w-posture qs qdd-p z
                                                        (make-array (- (length work) at) :element-type 'double-float
                                                                    :displaced-to work :displaced-index-offset at))

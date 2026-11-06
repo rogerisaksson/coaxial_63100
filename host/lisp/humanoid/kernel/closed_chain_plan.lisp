@@ -35,15 +35,16 @@
 ;; her trunk's.
 ;; The Gauss-Seidel of the step is warm from these forces: warm from what is felt, the mattress's lag kept them there
 ;; and the push the plan counted on never reached her drives. Her own gains (turn-kp, posture-kp): lying down is slow.
-(defun closed-chain-plan (m h v jc jdv f patch q rp rg r m1 want held mm-p mm-g a n np na nh
+(defun closed-chain-plan (m h v jc jdv f patch give q rp rg r m1 want held mm-p mm-g a n np na nh
                           damping task-damping rounds bleed mu hold-n w-force w-posture x qdd-p z work)
   "x (na) her driven accelerations, qdd-p (np) her base's and passive joints' the plan foresees, z (3k) the forces
    it counts on, world; m (n x n), h (n), v (n) hers, jc (3k x n) the contacts' Jacobians, jdv their drift, f (3k)
-   what they feel, patch (k) each one's patch, q (9k) their frames (contact-frame), rp (m1 x np) and rg (m1 x ng) the tasks' rows on the dofs no
+   what they feel, patch (k) each one's patch, give (k) its give past her floor (firm: lam^2 by the soft share),
+   q (9k) their frames (contact-frame), rp (m1 x np) and rg (m1 x ng) the tasks' rows on the dofs no
    drive holds and on the given (driven then held), r (m1) their right-hand sides, want (na) the posture's
    acceleration, held (nh) the held joints' accelerations; mm-p (np) and mm-g (ng) the dofs' indices; a (na) the
    driven dofs. Every product in the order machine.stack.chain.planned and wbc_chain_plan.c spell it."
-  (declare (type (simple-array double-float (*)) m h v jc jdv f q rp rg r want held x qdd-p z work)
+  (declare (type (simple-array double-float (*)) m h v jc jdv f give q rp rg r want held x qdd-p z work)
            (type (simple-array fixnum (*)) patch mm-p mm-g a)
            (type fixnum m1 n np na nh rounds)
            (type double-float damping task-damping bleed mu hold-n w-force w-posture)
@@ -72,7 +73,8 @@
              (fk (carve k3)) (mpp (carve (* np np))) (lpp (carve (* np np))) (minv (carve (* np np)))
              (col (carve np)) (ycol (carve np)) (xcol (carve np)) (mpg (carve (* np ng))) (mmg (carve (* np ng)))
              (jp (carve (* k3 np))) (jg (carve (* k3 ng))) (jap (carve (* k3 np))) (japt (carve (* np k3)))
-             (jag (carve (* k3 ng))) (jav (carve k3)) (jad (carve k3)) (fa (carve k3)) (rhs0 (carve np)) (rhsk (carve np))
+             (jag (carve (* k3 ng))) (jav (carve k3)) (jad (carve k3)) (fa (carve k3)) (ga (carve k3))
+             (rhs0 (carve np)) (rhsk (carve np))
              (w1 (carve (* k3 np))) (dl (carve (* k3 k3))) (ldl (carve (* k3 k3))) (dinv (carve (* k3 k3)))
              (bb0 (carve k3)) (wm (carve (* k3 ng))) (bg (carve (* k3 ng))) (c0 (carve k3)) (xk (carve (* np k3)))
              (kk (carve (* np k3))) (p0 (carve np)) (kb (carve (* np ng))) (pg (carve (* np ng)))
@@ -129,7 +131,8 @@
                   (loop for c of-type fixnum from 0 below n do
                     (setf sv (+ sv (* (aref jc (+ (* rw n) c)) (aref v c)))))
                   (setf (aref jav nk) sv))
-                (setf (aref jad nk) (aref jdv rw) (aref fa nk) (aref f rw))
+                (setf (aref jad nk) (aref jdv rw) (aref fa nk) (aref f rw)
+                      (aref ga nk) (aref give (floor rw 3)))
                 (incf nk)))
             (loop for c of-type fixnum from 0 below np do
               (loop for i of-type fixnum from 0 below nk do
@@ -143,12 +146,12 @@
                 (setf (aref rhsk c) s)))
             (cond
               ((> nk 0)
-               ;; the map: W = Ja_P M_PP^-1, Dl = W Ja_P^T + lam^2 I, bb0 = W rhsk + jdv, Bg = Ja_G - W M_PG,
-               ;; c0 = -bleed Ja v - bb0, K = M_PP^-1 Ja_P^T Dl^-1, p0 = K c0 + M_PP^-1 rhsk, Pg = -(K Bg + M_PP^-1 M_PG)
+               ;; the map: W = Ja_P M_PP^-1, Dl = W Ja_P^T + diag(ga), bb0 = W rhsk + jdv, Bg = Ja_G - W M_PG,
+               ;; c0 = -bleed Ja v - bb0 + ga fa, K = M_PP^-1 Ja_P^T Dl^-1, p0 = K c0 + M_PP^-1 rhsk, Pg = -(K Bg + M_PP^-1 M_PG)
                (mm w1 nk np np jap minv)
                (mm dl nk np nk w1 japt)
                (loop for i of-type fixnum from 0 below nk do
-                 (setf (aref dl (+ (* i nk) i)) (+ (aref dl (+ (* i nk) i)) lam2)))
+                 (setf (aref dl (+ (* i nk) i)) (+ (aref dl (+ (* i nk) i)) (if (> (aref ga i) 0) (aref ga i) lam2))))
                (mm bb0 nk np 1 w1 rhsk)
                (loop for i of-type fixnum from 0 below nk do
                  (setf (aref bb0 i) (+ (aref bb0 i) (aref jad i))))
@@ -156,7 +159,10 @@
                (loop for i of-type fixnum from 0 below (* nk ng) do
                  (setf (aref bg i) (- (aref jag i) (aref wm i))))
                (loop for i of-type fixnum from 0 below nk do
-                 (setf (aref c0 i) (- (* (- bleed) (aref jav i)) (aref bb0 i))))
+                 (let ((s (/ (loop for j below nk when (> (aref ga j) 0) sum (abs (aref fa j)))
+                             (max 1d-300 (loop for j below nk sum (abs (aref fa j)))))))
+                   (setf (aref c0 i) (+ (- (* (- bleed) (aref jav i)) (aref bb0 i))
+                                        (* (if (> (aref ga i) 0) (aref ga i) (* s lam2)) (aref fa i))))))
                (cholesky-banachiewicz dl ldl nk)
                (loop for j of-type fixnum from 0 below nk do
                  (fill kcol 0.0d0)

@@ -40,6 +40,9 @@ def test_the_chain_step_in_c_is_the_steps(report):
     # rigid regime's to meet, swept to convergence
     rigid = regime._replace(soft=0.0, sweeps=40000)
     rng, worst, boxed, turned, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, []
+    # her pelvis and right shank on a foam as her skin feels it (borne's give: 21 m/s^2 a N), her hands and forearms on
+    # what is firm (none): the C the same
+    gives, apart_g, apart_h, eased = (21.0, 21.0, 0.0, 0.0, 0.0, 21.0, 0.0, 0.0), 0.0, 0.0, np.inf
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
     bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand', 'right_shank',
                                              'left_forearm', 'right_forearm')]
@@ -63,12 +66,23 @@ def test_the_chain_step_in_c_is_the_steps(report):
         spin = np.array([np.cos(0.1), *(np.sin(0.1) * axis)])
         turns = tuple(_product(spin, t['quat']) for t in s['turns'])
         f1 = s['feet'][1]
-        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
+        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False, 'hand_cap': np.inf,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
                'posture': s['q'] + 0.02 * rng.normal(size=len(s['q'])), 'twist': (0.3 * (nth % 3 - 1), 0.0, 0.0),
                'free': (nth % 2 == 1, False)}
         sc = dict(s, contacts=contacts)
         ours, theirs = chain.step(b, sc, ask, regime), solve(b, sc, ask)
+        soft = dict(s, contacts=[dict(c, give=g) for c, g in zip(contacts, gives)])
+        ours_g, theirs_g = chain.step(b, soft, ask, regime), solve(b, soft, ask)
+        apart_g = max(apart_g, float(np.abs(ours_g['tau'] - theirs_g['tau']).max()),
+                      float(np.abs(ours_g['borne'] - theirs_g['borne']).max()))
+        # her hands' patches told 40 N between them (`ask['hand_cap']`), each held at its share as felt: the C the same
+        told = dict(ask, hand_cap=40.0)
+        ours_h, theirs_h = chain.step(b, soft, told, regime), solve(b, soft, told)
+        apart_h = max(apart_h, float(np.abs(ours_h['tau'] - theirs_h['tau']).max()),
+                      float(np.abs(ours_h['borne'] - theirs_h['borne']).max()))
+        pushed = [sum(float(z[1]) for c, z in zip(contacts, got['borne']) if 6 <= c['patch'] < 18) for got in (ours_g, ours_h)]
+        eased = min(eased, pushed[0] - pushed[1])
         worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(), np.abs(ours['qacc'] - theirs['qacc']).max(),
                                    np.abs(ours['borne'] - theirs['borne']).max()])
         hard = chain.step(b, sc, ask, rigid)
@@ -93,6 +107,10 @@ def test_the_chain_step_in_c_is_the_steps(report):
         turned = max(turned, 1.0 - float((t0['Jr'] @ fore + t0['dJr']) @ asked) / float(asked @ asked))
     report.check("the closed chains' step in C is machine.stack.chain's over %d states" % STEPS, bool((worst < APART).all()),
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
+    report.check("what bears her giving as her skin feels it, the C the same", apart_g < APART,
+                 '%.1e apart at most' % apart_g)
+    report.check("her hands bearing no more than her text tells them, the C the same", apart_h < APART and eased >= 0.0,
+                 '%.1e apart at most, her hands eased %.1f N at least' % (apart_h, eased))
     report.check("rigid, its forces press alone within their friction's box, the complementarity met",
                  boxed < 1e-9 and max(residuals) < 1e-3, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
     report.check("the plan turns her pelvis the asked way through her drives and the contacts it holds",

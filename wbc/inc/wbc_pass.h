@@ -155,6 +155,10 @@ typedef struct
   double              *cells;
   double              *felt_n;
   double              *felt_at;
+  const double        *geom_solref; /**< each geom's solref (2) and solimp (5), MuJoCo's: what bears her its own */
+  const double        *geom_solimp;
+  double               floor_give; /**< her floor's soft compliance, dmax^2 timeconst^2 dampratio^2, s^2 */
+  double              *felt_give;  /**< the bin: how much more each segment's support gives than her floor, its touch's size times */
 } wbc_contacts_t;
 
 /** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`. */
@@ -168,9 +172,9 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
                     const double *efc_vel, const int *at, int width, int cap, double *out);
 
 /** The bins into `y` at its offsets: the loads, the touch, the insoles' loads and centres of pressure,
-    the cells, where each segment's touch is. */
+    the cells, where each segment's touch is, how much more what bears each gives than her floor. */
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
-                     int cells_at, int at_at);
+                     int cells_at, int at_at, int give_at);
 
 /** Her drives' heat as their boards keep it (machine.body.heat.Heat): four nodes a drive - the switches,
     the laminate, the stator, the winding - on their losses, the envelope's derate and trip on them. */

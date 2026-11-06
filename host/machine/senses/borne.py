@@ -103,12 +103,15 @@ def _skin(soled):
     return skin, ~np.isin(skin, HANDS)
 
 
-def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
+def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands' contacts where her text tells them to bear (`hands`, their
     share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it, its push its palms' -, a let-go leg's
     foot too, not its toes (`let_go`, `machine.moves.emancipation`): no contact, the step took that leg for hanging on the
-    floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing."""
+    floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing.
+    Each contact its segment's give over her law's pass `dt`, m/s^2 a N: how much more what bears it gives than her
+    floor as her skin feels it (`edge.GIVE`, s^2) under her mass, over dt^2 - her bed's foam 19, a floor or a chair
+    none -, the closed chains' plan holding it giving so (`chain.gives_of`); her regime's own foam 27.9."""
     m, d, n = b.m, b.d, b.n
     ids = getattr(b, 'skin', None)
     if ids is None:
@@ -128,6 +131,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         f = R @ pushes[k]
         if f[1] <= BEARS_N:
             continue
+        give = float(y[edge.GIVE][k]) / (weight / -edge.G[1] * dt * dt) if dt > 0.0 else 0.0
         # a let-go foot is a contact, not what bears her off her soles: in her props' box her centre was asked out over
         # her feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
         prop = float(k not in soled)
@@ -151,7 +155,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
             contacts.append({'p': p, 'f': share * f, 'J': J, 'dJv': jp[:, :n] @ s['v'], 'carpal': carpal,
-                             'side': side, 'patch': patch, 'room': float(room[0]), 'body': int(ids[k])})
+                             'side': side, 'patch': patch, 'room': float(room[0]), 'body': int(ids[k]), 'give': give})
     held = np.isfinite(low[0])
     return (up / weight, np.where(held, low, 0.0), np.where(held, high, 0.0)), contacts, palms / weight
 

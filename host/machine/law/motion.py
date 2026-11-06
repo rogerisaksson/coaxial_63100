@@ -60,7 +60,7 @@ def seen(g, dt):
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     s['prop'], s['contacts'], s['palms'] = borne.read(body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
-                                                      g['a'][modal.LET_GO])
+                                                      g['a'][modal.LET_GO], dt)
     emancipation.seated(g, s)
     return s
 

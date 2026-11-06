@@ -107,14 +107,18 @@ def within(H, g, A, b, x, S, s, w):
     return x if got is None else got[:n]
 
 
-def torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, mu):
-    """(A, b): her drives' clamps on the plan, |tau(x)| <= limit as rows A x <= b, tau(x) = T x + t her driven
+def torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, mu, stops=None):
+    """(A, b, S, s): her drives' clamps on the plan, |tau(x)| <= limit as rows A x <= b, tau(x) = T x + t her driven
     joints' torques as the plan has her move (`torque`: M[act, given], M[act, P], h[act], J[:, act], limit), its
     held contacts' forces with her - the step shrank every torque toward none past a clamp (to 0.00-0.21 of the ask
     with her leg over the bed's edge, and she fell); and each contact all held within its friction's box,
     |t z| <= mu n z: the step's torques come of the Gauss-Seidel's forces, and planned outside the box it moved them,
-    her torques with them past the clamps the plan had met (0.05-0.10 of the ask)."""
+    her torques with them past the clamps the plan had met (0.05-0.10 of the ask). `stops` (rows, bounds) her joints'
+    stops on her driven accelerations (`chain.stop_rows`), rows of A beside the clamps' or alone; None with neither:
+    her spine lay on its -30 deg stop as her sit-up asked it +400 deg/s^2 with 45-75 N m into the stop."""
     import numpy as np
+    if torque is None:
+        return None if stops is None else (stops[0], stops[1], np.zeros((0, nd)), np.zeros(0))
     MAG, MAP, hA, JA, limit = torque
     T = MAG[:, :nd] + MAP @ Pg[:, :nd]
     t = MAG[:, nd:] @ held + MAP @ (p0 + Pg[:, nd:] @ held) + hA - JA.T @ Fk
@@ -139,12 +143,59 @@ def torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, mu
                     edge = side * Q[i, e] - mu * Q[i, 0]
                     rows.append(-(edge @ Sx[3 * i:3 * i + 3]))
                     bounds.append(-float(edge @ (Fk[3 * i:3 * i + 3] + s0[3 * i:3 * i + 3])))
-    return (np.vstack([T, -T]), np.concatenate([limit - t, limit + t]),
-            np.array(rows).reshape(-1, nd), np.array(bounds, float))
+    A, b = np.vstack([T, -T]), np.concatenate([limit - t, limit + t])
+    if stops is not None:
+        A, b = np.vstack([A, stops[0]]), np.concatenate([b, stops[1]])
+    return A, b, np.array(rows).reshape(-1, nd), np.array(bounds, float)
+
+
+def held_map(Ja_p, Ja_g, Minv, Mpg, rhsk, dJva, Jva, fsa, lam2, bleed, gives=None):
+    """(Ja_p^T, the map's Delassus matrix, its driven part Bg, its offset c0) of the rows held (`planned`'s): each
+    row's acceleration bled of its slip at `bleed`, the matrix damped by `lam2` - or a row whose support gives more than
+    her floor giving as it gives (`gives`, m/s^2 a N, its row's) over what it feels (`fsa`), a firm row at lam2 over it
+    as far as what gives bears her (its rows' share of what the rows held feel): held rigid on her bed's foam, her
+    points sinking 0.16-0.47 m/s into it, the plan asked it 1.2-8.3 kN at her pelvis, freed her torso and thighs while
+    they bore 200-350 N; the floor giving too her scoot's sit fell, held at what it felt her rise off a chair never
+    stood, and held at none beside the foam her rise off the bed fell to the floor."""
+    import numpy as np
+    Ja_pT = np.ascontiguousarray(Ja_p.T)
+    W = Ja_p @ Minv
+    Dl = W @ Ja_pT
+    for i in range(len(Dl)):
+        Dl[i, i] = Dl[i, i] + (float(gives[i]) if gives is not None and gives[i] > 0.0 else lam2)
+    bb0, Bg = W @ rhsk + dJva, Ja_g - W @ Mpg
+    c0 = (-bleed) * Jva - bb0
+    if gives is None:
+        return Ja_pT, Dl, Bg, c0
+    on, whole = 0.0, 0.0
+    for i in range(len(fsa)):
+        whole = whole + abs(float(fsa[i]))
+        on = on + abs(float(fsa[i])) * float(gives[i] > 0.0)
+    soft = on / whole if whole > 0.0 else 0.0
+    for i in range(len(c0)):
+        c0[i] = c0[i] + (float(gives[i]) if gives[i] > 0.0 else soft * lam2) * float(fsa[i])
+    return Ja_pT, Dl, Bg, c0
+
+
+def capped(felt, patch, hands):
+    """Each contact's push cap, N: what it feels (`felt`, k) by GROW_N, a hand's patch (`borne.CARPAL`'s) no more than
+    its share as felt of `hands`, what her text tells her hands to bear (`ask['hand_cap']`, `pressed.patches`' rule;
+    none where not finite). Held as felt, lifting a leg onto the bed her hands bore 240-299 N of her told 89-102, her
+    pelvis 0 N: her release's gate shut and the leg fell to the floor."""
+    palm, nh, caps = 0.0, 0, []
+    for i in range(len(felt)):
+        palm, nh = palm + felt[i] * float(CARPAL <= int(patch[i]) < LET), nh + int(CARPAL <= int(patch[i]) < LET)
+    for i in range(len(felt)):
+        cap = felt[i] + GROW_N
+        if CARPAL <= int(patch[i]) < LET and math.isfinite(hands):
+            told = hands * (felt[i] / palm if palm > 0.0 else 1.0 / float(nh if nh > 1 else 1))
+            cap = told if told < cap else cap
+        caps.append(cap)
+    return caps
 
 
 def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, RP, RG, r, want, slide=(0.0, 0.0, 0.0),
-            free=(False, False), torque=None, released=True):
+            free=(False, False), torque=None, released=True, stops=None, gives=None, hands=math.inf):
     """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
     foresees, the contacts' forces it counts on (world; a freed contact's 0).
     Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
@@ -162,7 +213,8 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
     pelvis's two ischia - starts free, its points with it: her fingers' arrival at 2-4 N, held, fought her arms' pose
     and threw her elbow; her fists' 93 N split over hand and fingers, each under 30, left them out of the chain's
     support at the bed. A hand's patch or a sole patch (`borne.CARPAL`'s, `body` below 0) asked past what it feels
-    by GROW_N (`rounds`, the upright step's own cap) is held at that cap, its friction boxed by it - what she sits or
+    by GROW_N (`rounds`, the upright step's own cap), a hand's past what her text tells them (`capped`), is held at
+    that cap, its friction boxed by it - what she sits or
     lies on is not: uncapped, on the bed's long side the plan asked her arms 250-554 N on 15-70 felt and her standing
     sole 273 N on 181, unloaded her pelvis, and she slid off the bed onto that sole; her seat capped too, it took 12 N
     of her 329 as she sat on the floor and she lay back. Told a twist (`slide`), her sled - no hand or foot - slides
@@ -173,6 +225,7 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
     k3, m1, lam2, task2 = 3 * len(Q), len(r), regime.lam * regime.lam, regime.task * regime.task
     eye, zfull, yields = np.eye(nd), np.zeros(k3), np.zeros(len(Q), bool)
     felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(len(Q))]
+    caps = capped(felt, patch, hands)
     fs = said(f, patch, body, regime.unweight) if slide[0] != 0.0 or slide[2] != 0.0 else f
     srcs = (Jp, Jg, Jv, dJv, fs)
     rows3, Fk, framed, (JpF, JgF, JvF, dJvF, fsF) = started(regime, felt, fs, patch, body, Q, slide, free, srcs)
@@ -183,14 +236,8 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
         MM = Minv @ Mpg
         Dinv, Bg, c0 = np.zeros((0, 0)), np.zeros((0, len(MM[0]))), np.zeros(0)
         if na:
-            Ja_pT = np.ascontiguousarray(Ja_p.T)
-            W = Ja_p @ Minv
-            Dl = W @ Ja_pT
-            for i in range(na):
-                Dl[i, i] = Dl[i, i] + lam2
-            bb0 = W @ rhsk + dJvF[rows3]
-            Bg = Ja_g - W @ Mpg
-            c0 = (-regime.bleed) * JvF[rows3] - bb0
+            Ja_pT, Dl, Bg, c0 = held_map(Ja_p, Ja_g, Minv, Mpg, rhsk, dJvF[rows3], JvF[rows3], fsF[rows3], lam2, regime.bleed,
+                                         None if gives is None else np.repeat(np.asarray(gives, float), 3)[rows3])
             Dinv = np.linalg.inv(Dl)
             K = (Minv @ Ja_pT) @ Dinv
             p0 = K @ c0 + Minv @ rhsk
@@ -223,8 +270,8 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
             N = eye - np.linalg.solve(H1, G1)
         else:
             x1, N = np.zeros(nd), eye
-        # her drives' clamps on both levels (`torqued`, `within`): none past them, the plan as it was
-        bounds = torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, regime.mu) if torque is not None else None
+        # her drives' clamps and her joints' stops on both levels (`torqued`, `within`): none past them, the plan as it was
+        bounds = torqued(torque, rows3, framed, Q, Fk, held, p0, Pg, Dinv, Bg, c0, nd, na, regime.mu, stops)
         if bounds is not None:
             x1 = within(H1 if m1 + na else task2 * eye, -(R1xT @ r1x) if m1 + na else np.zeros(nd), bounds[0], bounds[1], x1,
                         bounds[2], bounds[3], regime.force * regime.force)
@@ -256,8 +303,8 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
                 yields[i], changed = True, True
             elif zn < 0.0:
                 rows3[3 * i:3 * i + 3], Fk[3 * i:3 * i + 3], changed = False, 0.0, True
-            elif (int(body[i]) < 0 or CARPAL <= int(patch[i]) < LET) and zn > felt[i] + GROW_N:
-                cap = felt[i] + GROW_N
+            elif (int(body[i]) < 0 or CARPAL <= int(patch[i]) < LET) and zn > caps[i]:
+                cap = caps[i]
                 lim = regime.mu * cap
                 tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
                 for c in range(3):

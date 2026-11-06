@@ -28,7 +28,7 @@ import numpy as np
 
 from machine.stack.chain_plan import planned
 from machine.stack.shrunk import box, shrunk
-from machine.stack.wbc import HELD_K, SWING_KD, turn_error
+from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
 #: The regime as its text says it (`closed-chain-regime`): the least squares' damping, the tasks' above posture their
 #: own, the Gauss-Seidel's sweeps, the plan's rounds, a contact's softness m/s^2 a N, a sticking contact's slip bled
@@ -44,9 +44,12 @@ def chained(ask):
     """1 where the step is hers: a leg let go, no sole standing, or borne reclined (`modal.given`), and no sole asked
     to land unless she lies on no sole (`motion.control`): lying on her side, her leg swung over the bed's edge, the
     upright step took her, shrank her torques to 0.01-0.09 of its ask and whipped her elbow 731 deg/s; this step swings
-    it. A sole standing keeps a swing the upright step's: taken here, her rise off the chair never stood."""
-    lying, standing = ask.get('reclined', 0.0) > 0.5, any(ask['stance'])
-    return int((not ask.get('swing') or (lying and not standing)) and (any(ask.get('let_go', ())) or not standing or lying))
+    it. A sole standing keeps a swing the upright step's: taken here, her rise off the chair never stood; and lying is
+    something bearing her now (`propped`, `somatic.asked`), not her support's latch: tipping onto the floor's mattress
+    she was reclined in the air with both soles asked to land, and taken here for 3 passes she landed beside it."""
+    reclined, standing = ask.get('reclined', 0.0) > 0.5, any(ask['stance'])
+    lying = reclined and bool(ask.get('propped', True))
+    return int((not ask.get('swing') or (lying and not standing)) and (any(ask.get('let_go', ())) or not standing or reclined))
 
 
 def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
@@ -198,7 +201,39 @@ def pgs(Dl, b, z, mu, soft, sweeps):
     return residual
 
 
-def step(b, s, ask, regime, bounded=False, released=True):
+def stop_rows(b, s, nd):
+    """(rows (2j, nd), bounds (2j)): her driven joints' stops on her plan's accelerations as her upright QP bounds them
+    (`wbc`): each met no nearer than STOP_RAD, LIMIT_S ahead at the acceleration asked."""
+    k = np.asarray(b.stops, int)
+    rows = np.zeros((2 * len(k), nd))
+    rows[np.arange(len(k)), k], rows[len(k) + np.arange(len(k)), k] = 1.0, -1.0
+    ahead = s['q'][k] + s['v'][np.asarray(b.act, int)[k]] * LIMIT_S
+    return rows, np.concatenate([2.0 * (b.stop_hi - STOP_RAD - ahead) / LIMIT_S ** 2,
+                                 -2.0 * (b.stop_lo + STOP_RAD - ahead) / LIMIT_S ** 2])
+
+
+def gives_of(b, contacts, regime, compliant, tc=None):
+    """Each contact's give for her plan (`chain_plan.held_map`): None, all held rigid, unless `compliant` - True each at
+    the foam's `regime.soft`, 'sensed' each as her skin has her in what bears it (`borne.read`'s give), 'material' each
+    as her world has what bears it, the python twin's measure alone (`tc` {her body's name: the time constant of what
+    it touches}, read off her world: over the foam's, squared, of `regime.soft`; MuJoCo's default rigid)."""
+    if not compliant:
+        return None
+    if compliant is True:
+        return np.full(len(contacts), regime.soft)
+    if compliant == 'sensed':
+        # as much more as what bears her gives than her floor, as her skin feels it (`borne.read`'s give); a floor none
+        return np.array([float(c.get('give', 0.0)) for c in contacts])
+    from machine.world.floor import FOAM
+    foam, out = float(FOAM.split('solref="')[1].split()[0]), []
+    for c in contacts:
+        k = int(c.get('body', 0))
+        t = (tc or {}).get(b.m.body(k).name if k >= 0 else ('left', 'right')[-1 - k] + '_foot', 0.0)
+        out.append(regime.soft * (t / foam) ** 2 if t > 0.02 + 1e-9 else regime.lam * regime.lam)
+    return np.array(out)
+
+
+def step(b, s, ask, regime, bounded=False, released=True, stopped=False, compliant='sensed'):
     """{tau, qacc, bears, cop, over, slack, held, borne, scale, residual, foreseen}: `ask` as `wrench.step` takes it, no
     sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask; `residual` the
     complementarity's; `foreseen` the base's and passive joints' accelerations the plan counted on. Her driven joints go as the chain's plan asks (`planned`), her held joints damped (HELD_K), her
@@ -225,12 +260,14 @@ def step(b, s, ask, regime, bounded=False, released=True):
     hx, hz = float(way[0]), float(way[2])
     nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
     slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
-    # `bounded`: her plan held within her drives' clamps (chain_plan.torqued); not `released`: one past its box held
-    # (the python twin's alone as yet)
+    # what she holds gives as what bears it gives, over what she feels (`gives_of`, her skin's `sensed`, wbc_chain_plan.c
+    # the same); `bounded`: her plan held within her drives' clamps (chain_plan.torqued); not `released`: one past its
+    # box held; `stopped`: her driven joints' stops on it (`stop_rows`) - those the python twin's alone as yet
     torque = ((M[np.ix_(A, given)], M[np.ix_(A, P)], h[A], J[:, A], box(b, ask)[0]) if bounded else None)
     x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
                                  np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)), torque,
-                                 released)
+                                 released, stop_rows(b, s, nd) if stopped else None,
+                                 gives_of(b, contacts, regime, compliant, ask.get('_tc')), float(ask.get('hand_cap', 0.0)))
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0
     # 2. the contacts' forces by complementarity over her Delassus matrix on the dofs no drive holds

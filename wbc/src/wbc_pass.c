@@ -281,7 +281,7 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
   }
   for (int k = 0; k < c->nskin; k++)
   {
-    c->felt_n[k] = 0.0;
+    c->felt_n[k] = c->felt_give[k] = 0.0;
   }
   for (int k = 0; k < 3 * c->ninsoles; k++)
   {
@@ -346,7 +346,9 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
     k = c->skin[mine];
     if (k >= 0)
     {
-      double push[3];
+      const int     other = h0 ? geom[1] : geom[0];
+      const double *ref = c->geom_solref + 2 * other, *imp = c->geom_solimp + 5 * other;
+      double        push[3];
 
       for (int j = 0; j < 3; j++)
       {
@@ -358,6 +360,13 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
         c->felt_at[3 * k + j] += ((af0 * r[j]) * rel[0] + (af0 * r[3 + j]) * rel[1]) + (af0 * r[6 + j]) * rel[2];
       }
       c->felt_n[k] += af0;
+      /* how much more what bears her gives than her floor: its own soft compliance, dmax^2 timeconst^2 dampratio^2
+         (its geom's, not her skin's), past the floor's, its force's share - a floor's and a chair's none */
+      {
+        const double give = ((imp[1] * imp[1]) * (ref[0] * ref[0])) * (ref[1] * ref[1]);
+
+        c->felt_give[k] += af0 * (give > c->floor_give ? give - c->floor_give : 0.0);
+      }
     }
   }
 }
@@ -400,7 +409,7 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
 }
 
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
-                     int cells_at, int at_at)
+                     int cells_at, int at_at, int give_at)
 {
   for (int s = 0; s < 2; s++)
   {
@@ -413,6 +422,7 @@ void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_
       y[touch_at + 3 * k + j] = c->touch[3 * k + j];
       y[at_at + 3 * k + j] = c->felt_at[3 * k + j] / npmax(c->felt_n[k], 1e-9);
     }
+    y[give_at + k] = c->felt_give[k] / npmax(c->felt_n[k], 1e-9);
   }
   for (int k = 0; k < c->ninsoles; k++)
   {

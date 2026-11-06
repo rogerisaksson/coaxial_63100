@@ -261,9 +261,9 @@ API int wbh_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, cons
 }
 
 API void wbh_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
-                         int cells_at, int at_at)
+                         int cells_at, int at_at, int give_at)
 {
-  wbc_pass_sensed(c, y, load_at, touch_at, press_at, cop_at, cells_at, at_at);
+  wbc_pass_sensed(c, y, load_at, touch_at, press_at, cop_at, cells_at, at_at, give_at);
 }
 
 API void wbh_pass_heat_load(wbc_heat_t *h, const double *torques, const double *qd)

@@ -38,7 +38,9 @@ FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
 #: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
 #: load (N); where on each segment its touch is, its centre (m, its frame); each joint's drive's
-#: torque as its current says it (N m, kt i through its box); her boards' DC link (V).
+#: torque as its current says it (N m, kt i through its box); her boards' DC link (V); how much more
+#: what bears each segment gives than her floor (s^2, its contacts' soft compliance by their force past
+#: the floor's: a foam's 5.4e-3, a floor's and a chair's none).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
 LOAD = slice(10 + 3 * J, 12 + 3 * J)
@@ -49,7 +51,8 @@ CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
 AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 TAU = slice(AT.stop, AT.stop + J)
 LINK = slice(TAU.stop, TAU.stop + 1)
-SENSED = LINK.stop
+GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
+SENSED = GIVE.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -78,15 +81,21 @@ def laid(world):
             'skin': np.ascontiguousarray(world.skin, dtype=np.int32),
             'loads': np.zeros(2), 'touch': np.zeros((len(SKIN), 3)), 'pressed': np.zeros(len(INSOLES)),
             'at': np.zeros((len(INSOLES), 3)), 'cells': np.zeros(2 * len(FEET)), 'felt_n': np.zeros(len(SKIN)),
-            'felt_at': np.zeros((len(SKIN), 3))}
-    c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M)
+            'felt_at': np.zeros((len(SKIN), 3)), 'felt_give': np.zeros(len(SKIN))}
+    # her floor's soft compliance (MuJoCo's dmax^2 timeconst^2 dampratio^2, its geom's), the one her skin's give is past
+    ref, imp = m.geom_solref[m.geom('floor').id], m.geom_solimp[m.geom('floor').id]
+    c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M,
+                       floor_give=((imp[1] * imp[1]) * (ref[0] * ref[0])) * (ref[1] * ref[1]))
     for name in ('gb', 'sole_side', 'insole', 'foot', 'skin'):
         setattr(c, name, cores.pointer(kept[name], np.int32))
     c.hers = cores.pointer(kept['hers'], np.bool_)
     for name, a in (('xmat', world.data.xmat), ('xpos', world.data.xpos)):
         setattr(c, name, cores.pointer(a))
-    for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at'):
+    for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give'):
         setattr(c, name, cores.pointer(kept[name]))
+    # what bears her its own give, each geom's solref and solimp (her skin's own left out)
+    kept['solref'], kept['solimp'] = np.ascontiguousarray(m.geom_solref), np.ascontiguousarray(m.geom_solimp)
+    c.geom_solref, c.geom_solimp = cores.pointer(kept['solref']), cores.pointer(kept['solimp'])
     #: The contacts' bins and the C that fills them (wbc_pass.c), the contacts' layout laid at
     #: the first contact.
     lib = cores.library()
@@ -155,7 +164,8 @@ def read(world, y):
                 touch[k] += rm_t @ hand
                 felt_n[k] += hn
                 felt_at[k] += hn * rm_t @ (d.xipos[body] - d.xpos[body])
-    sensed(ctypes.byref(c), y.ctypes.data, LOAD.start, TOUCH.start, PRESS.start, COP.start, CELLS.start, AT.start)
+    sensed(ctypes.byref(c), y.ctypes.data, LOAD.start, TOUCH.start, PRESS.start, COP.start, CELLS.start, AT.start,
+           GIVE.start)
     return y
 
 
