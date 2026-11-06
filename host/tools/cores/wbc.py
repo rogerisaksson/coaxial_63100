@@ -14,7 +14,7 @@ from tools.cores.build import cached
 from machine.texts import ortho
 from machine.stack.wbc import MU
 from tools.cores.model import HEADER, built, rotation
-from tools.cores.arrays import data_at
+from tools.cores import quick
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
@@ -126,8 +126,6 @@ class Heat(ctypes.Structure):
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
 
 
-#: Where an ndarray's data pointer lies in its object (`address`).
-_AT = data_at()
 _DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
 
 
@@ -137,9 +135,10 @@ def plain(a):
     return a.view(np.dtype(a.dtype.char))
 
 
-def address(a):
-    """The address of an ndarray's first element, read off its object."""
-    return ctypes.c_void_p.from_address(id(a) + _AT).value or 0
+#: The address of an ndarray's first element: read by the quick extension where it is built (`quick.data`, one C
+#: call), else off its object through ctypes (`arrays.address`) - the same pointer. Through ctypes, a ctypes object
+#: made each, her pointers' 27 reads a pass of her world were 2.4% of it.
+address = quick.addressing()
 
 
 def pointer(a, dtype: type = np.float64):
