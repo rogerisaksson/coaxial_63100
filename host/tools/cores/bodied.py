@@ -172,8 +172,10 @@ class Compiled:
 
 def _tree_in(prog, k, path, v, specs, top):
     """Argument `k`'s `v` at `path` as traced: an array or a float (or at the top a number) an extern
-    over a copy of it; a dict lazy (`Lazy`), a list of arrays its own of each, its length pinned;
-    anything else itself, pinned (`specs`)."""
+    over a copy of it in C's order, as `Bound.leaf` lays every array its C reads - traced in its own order, an
+    F-ordered array's views were baked transposed and read wrong, held apart and left numpy's (her gate's leave, ten
+    or eleven points under her as she lay, 93 us a law pass); a dict lazy (`Lazy`), a list of arrays its own of
+    each, its length pinned; anything else itself, pinned (`specs`)."""
     if isinstance(v, dict):
         return Lazy(prog, k, path, v, specs)
     if isinstance(v, (list, tuple)) and any(isinstance(x, (dict, list, tuple, np.ndarray)) for x in v):
@@ -182,7 +184,7 @@ def _tree_in(prog, k, path, v, specs, top):
     if ((isinstance(v, np.ndarray) and v.dtype.kind in 'fb') or isinstance(v, (float, np.floating))
             or (top and np.asarray(v).dtype.kind in 'fbiu')):
         name = 'a%d%s' % (k, ''.join('/%s' % p for p in path))
-        traced = prog.extern(name, np.array(v, dtype=float))
+        traced = prog.extern(name, np.array(v, dtype=float, order='C'))
         specs.append(('array', k, path, name, traced))
         return traced
     specs.append(('pin', k, path, v))
