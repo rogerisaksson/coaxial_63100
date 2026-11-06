@@ -1,7 +1,7 @@
 """What a change to machine/ reaches: its folders' modules, a prefix each, and their suites."""
 from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMPILED, CONTROLLER, CRAWL,
                               CTRL_CORE, CYCLIC, DSP, ERRANDS, FLOOR, FOURS, GATE, GROUNDWORK,
-                              GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED,
+                              GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
                               TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH)
@@ -66,7 +66,7 @@ MACHINE = (
     ('host/machine/senses/edge.py',                   (STRUCTURE, BUSES, ORTHO, ERRANDS, SCENES)),
     ('host/machine/rig/layouts.py',                (STRUCTURE,)),
     ('host/machine/senses/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
-    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED,
+    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),

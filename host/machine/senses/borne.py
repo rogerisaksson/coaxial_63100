@@ -103,6 +103,15 @@ def _skin(soled):
     return skin, ~np.isin(skin, HANDS)
 
 
+def laid(b):
+    """Her skin's bodies in her law's model `b` and a point's Jacobian rows each way (3, nv), laid on `b` once (`b.skin`,
+    `b.jacs`): what `read` walks, in python or in C (`tools.cores.borne`), and `emancipation.seated`'s rows."""
+    if getattr(b, 'skin', None) is None:
+        b.skin = np.array([b.m.body(name).id for name in edge.SKIN])
+        b.jacs = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
+    return b.skin
+
+
 def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands' contacts where her text tells them to bear (`hands`, their
@@ -113,10 +122,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     floor as her skin feels it (`edge.GIVE`, s^2) under her mass, over dt^2 - her bed's foam 19, a floor or a chair
     none -, the closed chains' plan holding it giving so (`chain.gives_of`); her regime's own foam 27.9."""
     m, d, n = b.m, b.d, b.n
-    ids = getattr(b, 'skin', None)
-    if ids is None:
-        ids = b.skin = np.array([m.body(name).id for name in edge.SKIN])
-        b.jacs = np.zeros((3, m.nv)), np.zeros((3, m.nv))
+    ids = laid(b)
     pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
     soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]

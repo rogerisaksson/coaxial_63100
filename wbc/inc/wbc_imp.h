@@ -145,7 +145,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
 double wbc_imp_floor_at(const double *along, const double *rise, int told, double s);
 double wbc_imp_floor_mean(const wbc_imp_t *k, const double *along, const double *rise, int told, double s0, double s1);
 
-/** machine.law.motion.surety_field's reading of her law's arrays, laid once: machine.senses.edge's offsets in
+/** machine.law.surety.field's reading of her law's arrays, laid once: machine.senses.edge's offsets in
     y_in, machine.law.latent's in st and out, the arrays themselves. */
 typedef struct
 {
@@ -166,7 +166,7 @@ typedef struct
   const double *out;
 } wbc_surety_t;
 
-/** Her directional surety field `dt` s on from `prev` (machine.law.motion.surety_field, wbc_surety.c):
+/** Her directional surety field `dt` s on from `prev` (machine.law.surety.field, wbc_surety.c):
     her tilt `ct` deg where given, nan her IMU's; `t` her time; `vec` out: her surety along and
     across, its direction, its probe. */
 double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,

@@ -1,4 +1,4 @@
-/** wbc_surety.c - her directional surety field (wbc_imp.h): machine.law.motion.surety_field on her law's
+/** wbc_surety.c - her directional surety field (wbc_imp.h): machine.law.surety.field on her law's
     arrays, numpy's and Python's arithmetic operation for operation (wbc_np.h). Portable C11, the
     host's alone. */
 #include "wbc_imp.h"

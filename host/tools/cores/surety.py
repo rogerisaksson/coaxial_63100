@@ -1,7 +1,7 @@
 """Her surety field in C through ctypes (wbc_surety.c), her python's bit for bit.
 
     k, ask = motion.laid()
-    field = surety.laid(k, y_in, y, fr, a, st, out)    # motion.surety_field of them, laid once
+    field = surety.laid(k, y_in, y, fr, a, st, out)    # surety.field of them, laid once
     cur, vec = field(prev, dt, ct, t)                  # the field dt s on from prev; vec its (5,)
 """
 import ctypes
@@ -34,7 +34,7 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out):
-    """Her surety field in C on her law's arrays, pointed at once - `machine.law.motion.surety_field` of
+    """Her surety field in C on her law's arrays, pointed at once - `machine.law.surety.field` of
     her edge's `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its `out` -: a step (prev, dt,
     ct, t) -> (cur, vec), `vec` its (5,) laid once; `k` the ask's (`tools.cores.motion.laid`)."""
     from machine.senses import edge

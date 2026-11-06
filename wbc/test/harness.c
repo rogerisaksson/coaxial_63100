@@ -1,6 +1,7 @@
 /** harness.c - A flat C API over wbc/, so test_wbc_core.py can run the real chain on the host
     through ctypes beside MuJoCo. */
 #include "wbc.h"
+#include "wbc_borne.h"
 #include "wbc_imp.h"
 #include "wbc_law.h"
 #include "wbc_move.h"
@@ -318,6 +319,17 @@ API void wbh_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double *
 API int wbh_touch_size(void)
 {
   return (int)sizeof(wbc_touch_t);
+}
+
+API int wbh_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands,
+                       const double *let_go, double dt)
+{
+  return wbc_borne_read(b, y, v, weight, hands, let_go, dt);
+}
+
+API int wbh_borne_size(void)
+{
+  return (int)sizeof(wbc_borne_t);
 }
 
 API void wbh_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,

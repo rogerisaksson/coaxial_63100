@@ -23,9 +23,9 @@ PASSES = 3000
 
 def test_her_surety_in_c_as_she_walks(report, c):
     """Her surety field in C (`c_motion.surety_laid`, wbc_surety.c) beside its python
-    (`motion.surety_field`) on her arrays at every call of her law over PASSES of her walk - her
+    (`surety.field`) on her arrays at every call of her law over PASSES of her walk - her
     surety, its vector and its probe bit for bit -, and a step's time beside its python's."""
-    from machine.law import motion
+    from machine.law import surety
     from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
@@ -35,7 +35,7 @@ def test_her_surety_in_c_as_she_walks(report, c):
 
     def beside(prev, dt, ct, t):
         t0 = time.perf_counter()
-        want, want_vec = motion.surety_field(g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], prev, dt, ct, t)
+        want, want_vec = surety.field(g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], prev, dt, ct, t)
         t1 = time.perf_counter()
         cur, vec = real(prev, dt, ct, t)
         spent[0].append(time.perf_counter() - t1)
