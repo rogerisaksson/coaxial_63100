@@ -43,8 +43,9 @@ from machine.eyes.stereo import H, W
 
 _LAW = kernel.node('assimilate-semantic-quadrics', 'quadric-registry')
 _BLIND = kernel.node('specialize-with-blindspot-memory-persistence', 'blindspot-memory')
-#: The slots, the text's; a look's cell squared, m^2, a measurement's variance.
-SLOTS = int(kernel.read()['spatial-object-soa-registry']['memory-layout']['max-tracked-objects'])
+#: The slots and the bytes each field's lines align to, the text's; a look's cell squared, m^2, a measurement's variance.
+_LAYOUT = kernel.read()['spatial-object-soa-registry']['memory-layout']
+SLOTS, ALIGN = int(_LAYOUT['max-tracked-objects']), int(_LAYOUT['align-bytes'])
 CELL2 = CELL_M * CELL_M
 #: The association's gate, chi2; a match's, a miss's and a frustum-empty miss's log-odds; the salience
 #: a thing is confirmed at, pruned under, taken by her buses from.
@@ -61,10 +62,11 @@ DIFFUSE = 1e-6 * _DECAY['semi-static-drift-rate']
 STRUCTURAL = tuple(c.lstrip(':') for c in _DECAY['static-locked-classes'])
 #: The move past which a thing is moving, chi2.
 MOVING = kernel.node('specialize-with-dynamic-agent-bifurcation', 'moving-objects')['static-violation-chi2']
-#: A slot's fields.
-SLOT = np.dtype([('on', 'f8'), ('kind', 'i4'), ('centre', 'f8', 3), ('half', 'f8', 3), ('R', 'f8', (3, 3)),
-                 ('var', 'f8'), ('salience', 'f8'), ('vel', 'f8', 3), ('last', 'f8', 3), ('seen_at', 'f8'),
-                 ('swell', 'f8'), ('drift', 'f8'), ('moving', 'f8'), ('shown', 'f8'), ('id', 'i8'), ('clear', 'f8')])
+#: A slot's fields (name, type, shape a slot): each an array over the slots of its own (`Rows`).
+SLOT = (('on', 'f8', ()), ('kind', 'i4', ()), ('centre', 'f8', (3,)), ('half', 'f8', (3,)), ('R', 'f8', (3, 3)),
+        ('var', 'f8', ()), ('salience', 'f8', ()), ('vel', 'f8', (3,)), ('last', 'f8', (3,)), ('seen_at', 'f8', ()),
+        ('swell', 'f8', ()), ('drift', 'f8', ()), ('moving', 'f8', ()), ('shown', 'f8', ()), ('id', 'i8', ()),
+        ('clear', 'f8', ()))
 #: Her eyes' half angles' tangents, up and across; their look down her head's z, rad; their axis and
 #: their up in her head's frame.
 TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
@@ -76,8 +78,32 @@ BOX = ((3,), (3,), (3, 3))
 
 
 def laid():
-    """{rows (SLOTS, SLOT), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`)."""
-    return {'rows': np.zeros(SLOTS, SLOT), 'kinds': [''] * SLOTS, 'classed': None}
+    """{rows (`Rows`), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`)."""
+    return {'rows': _rows({}), 'kinds': [''] * SLOTS, 'classed': None}
+
+
+class Rows(dict):
+
+    """The slots' fields (SLOT), as the text lays them: each an array of its own in one block, on ALIGN-byte lines
+    of its own - a field read over the live slots reads its own lines alone. A packed record a slot (252 bytes) left
+    each double past its kind off its 8 bytes: a field a view 252 bytes a step, numpy's loops copying it through a
+    buffer. Pickled as its fields, laid anew where it lands (`_rows`)."""
+
+    def __reduce__(self):
+        return _rows, (dict(self),)
+
+
+def _rows(values):
+    """`Rows` laid in one block, each field `values`' where given, else zeros."""
+    sizes = [(name, dtype, shape, SLOTS * math.prod(shape) * np.dtype(dtype).itemsize) for name, dtype, shape in SLOT]
+    raw = np.zeros(sum(-(-n // ALIGN) * ALIGN for *_f, n in sizes) + ALIGN, np.uint8)
+    at, rows = -raw.ctypes.data % ALIGN, Rows()
+    for name, dtype, shape, n in sizes:
+        rows[name] = raw[at:at + n].view(dtype).reshape((SLOTS,) + shape)
+        if name in values:
+            rows[name][...] = values[name]
+        at += -(-n // ALIGN) * ALIGN
+    return rows
 
 
 def _frame(q):
@@ -209,8 +235,10 @@ def seen(slots, looks, head, t, everywhere=False):
             j = np.flatnonzero((live == i) & ~matched)
             d2[k + 1:, j] = np.where(alike[k + 1:, j], _w2(centre[k + 1:], half[k + 1:], ahead[j], half[k:k + 1], scale[j]),
                                      np.inf)
-        r[i], kinds[i] = (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, np.zeros(3), centre[k], t, 0.0, 0.0, 0.0, 1.0, ids[k],
-                          clear[k]), name
+        for (field, _type, _shape), v in zip(SLOT, (1.0, 0, centre[k], half[k], R[k], CELL2, HIT, 0.0, centre[k], t, 0.0,
+                                                    0.0, 0.0, 1.0, ids[k], clear[k])):
+            r[field][i] = v
+        kinds[i] = name
     return _missed(slots, live, matched, t, eye, turn)
 
 
