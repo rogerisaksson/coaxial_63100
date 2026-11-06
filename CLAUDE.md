@@ -165,7 +165,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **TWO-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
-  If verification fails in State 4, you are permitted **at most one (1)**
+  If verification fails in State 4, you are permitted **at most four (4)**
   return to State 2 to revise the diagnosis. If the second attempt fails
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
