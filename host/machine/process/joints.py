@@ -34,6 +34,7 @@ as the lie left them she slid 0.04 m aside a stroke at no yaw. The elbows presse
 0.10 m at each bridge, and the heels planted 0.43 m out landed on the foot edge and slipped off it. She lies still 1.2 s before the strokes, as the
 take ends: begun inside its window they drew her feet in (hips back 0.66 of its 1.07) and the bench refused the lie.
 """
+import functools
 import os
 
 from machine.body import drives, figure
@@ -160,39 +161,74 @@ class _Felt(dict):
     behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, her pelvis's heading (deg, left +) as her
     estimate turns it, and her pelvis from the middle of the bed she lies on along its length, that half length (m)
     and her pelvis's speed (m/s) as a look takes her (`furniture.lain`). Each told at its first read, those read
-    together at once - the same expressions, the same bits: a bed's entry reads five of the thirteen, its exit three."""
+    together at once - the same expressions, the same bits: a bed's entry reads five of the thirteen, its exit three.
+    Her skin's shares and her pitch read arrays her law's pass writes: told anew only as their bits change (`_kept`) -
+    a move's pass between her law's told them again, 41 us of its 145."""
 
     def __init__(self, g):
         super().__init__()
         self.g = g
 
     def __missing__(self, name):
-        import math
-        import numpy as np
-        from machine.law import modal
-        from machine.way import furniture
-        g = self.g
+        g, modal = self.g, _modal()
         if name in ('along', 'half', 'speed'):
-            self['along'], self['half'], self['speed'] = furniture.lain(g)
+            self['along'], self['half'], self['speed'] = _furniture().lain(g)
         elif name == 'soles':
+            import numpy as np
             self['soles'] = float(np.sum(g['loads'])) / float(g['fr'][modal.WEIGHT])
         elif name in ('shins', 'hands', 'left_foot', 'right_foot'):
-            weight = float(g['fr'][modal.WEIGHT])
-            touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
-            self['shins'], self['hands'] = float(np.sum(touch[SHANKS])) / weight, float(np.sum(touch[FISTS])) / weight
-            self['left_foot'], self['right_foot'] = float(np.sum(touch[FEET[0]])) / weight, float(np.sum(touch[FEET[1]])) / weight
+            skin = g['sense'][edge.TOUCH]
+            self.update(_kept(g, 'skin', (skin.tobytes(), g['fr'][modal.WEIGHT].tobytes()), lambda: _skin(skin, g)))
         elif name == 'pitch':
-            self['pitch'] = float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1]))
+            y, rot = g['y'], g['fr'][modal.ROT]
+            self['pitch'] = _kept(g, 'pitch', (y[modal.QUAT].tobytes(), rot.tobytes()), lambda: _pitch(y, rot))
         elif name in ('back', 'turn'):
             vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
             self['back'] = min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0)
             self['turn'] = min(max(wz / YAW_RATE, -1.0), 1.0)
         elif name == 'heading':
+            import math
             w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
             self['heading'] = math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))
         else:
             raise KeyError(name)
         return self[name]
+
+
+@functools.cache
+def _modal():
+    """`machine.law.modal`, imported at a move's first sense and not walked again each (a package's fromlist)."""
+    from machine.law import modal
+    return modal
+
+
+@functools.cache
+def _furniture():
+    from machine.way import furniture
+    return furniture
+
+
+def _pitch(y, rot):
+    import numpy as np
+    return float(np.degrees(_modal().pitched(y, rot.reshape(3, 3))[1]))
+
+
+def _kept(g, name, key, told):
+    """`told()` - a pure function of the bytes `key` - kept on `g` while they hold."""
+    kept = g.setdefault('_felt', {})
+    was = kept.get(name)
+    if was is None or was[0] != key:
+        was = kept[name] = (key, told())
+    return was[1]
+
+
+def _skin(skin, g):
+    """{shins, hands, left_foot, right_foot}: her shanks', fists' and each foot's share of her weight off her skin."""
+    import numpy as np
+    weight = float(g['fr'][_modal().WEIGHT])
+    touch = np.linalg.norm(skin.reshape(-1, 3), axis=1)
+    return {'shins': float(np.sum(touch[SHANKS])) / weight, 'hands': float(np.sum(touch[FISTS])) / weight,
+            'left_foot': float(np.sum(touch[FEET[0]])) / weight, 'right_foot': float(np.sum(touch[FEET[1]])) / weight}
 
 
 def pose(beats, start, elapsed):
@@ -259,9 +295,13 @@ def paced(beats, start):
 
 
 def drive(g, world):
-    """Her boards told this pass (`sprung.passed`): her law's setpoints, feed and clamps (`g['cmd']`), then the
-    program's over them where one plays."""
-    edge.drive(world, g['joints'], **g['cmd'])
+    """Her boards told this pass (`sprung.passed`): her law's setpoints, feed and clamps (`g['cmd']`, laid once and
+    bound to her edge with them, `edge.bound`), then the program's over them where one plays."""
+    told = g.get('_driven')
+    if told is None:
+        told = g['_driven'] = (edge.bound(world, g['joints'], **g['cmd'])
+                               or functools.partial(edge.drive, world, g['joints'], **g['cmd']))
+    told()
     played(g, world)
 
 
@@ -285,6 +325,9 @@ def played(g, world):
         # its joints, their stiffness and no feed laid once, its joints int32 so her edge's index cache keeps them
         p['joints'] = np.array([i for i in g['joints'] if i in p['mine']], np.int32)
         p['kp'], p['feed'] = np.asarray(KP)[p['joints']], np.zeros(len(p['joints']))
+        # its setpoints and clamps written into buffers of its own each pass, its drive bound to them once
+        p['target'], p['limit'] = np.zeros(len(p['joints'])), np.zeros(len(p['joints']))
+        p['drive'] = edge.bound(world, p['joints'], target=p['target'], feed=p['feed'], kp=p['kp'], limit=p['limit'])
         if 'beats' in p:
             p['beats'] = paced(p['beats'], p['pose'])
             p['length'] = sum(seconds for _beat, seconds, _goals in p['beats'])
@@ -304,13 +347,22 @@ def played(g, world):
             return
         if getattr(p['move'], 'HOLDS', True):
             waits.played_back(g, dt)
-        joints = p['joints']
-        edge.drive(world, joints, target=np.radians(p['cmd'])[joints], feed=p['feed'], kp=p['kp'],
-                   limit=g['clamp'][joints])
+        _told(g, world, p, p['cmd'])
         return
     if g['t'] - p['at'] >= p['length']:
         ended(g)
         return
+    _told(g, world, p, posed(p['score'], g['t'] - p['at']))
+
+
+def _told(g, world, p, deg):
+    """Her boards told the program's pose `deg` (every joint's) on its joints: in radians, its clamps her law's, into
+    its buffers and its bound drive (`edge.bound`) - numpy's arithmetic on each joint as on all of them taken after."""
+    import numpy as np
     joints = p['joints']
-    edge.drive(world, joints, target=np.radians(posed(p['score'], g['t'] - p['at']))[joints], feed=p['feed'],
-               kp=p['kp'], limit=g['clamp'][joints])
+    np.radians(np.take(deg, joints, out=p['target']), out=p['target'])
+    np.take(g['clamp'], joints, out=p['limit'])
+    if p['drive'] is not None:
+        p['drive']()
+    else:
+        edge.drive(world, joints, target=p['target'], feed=p['feed'], kp=p['kp'], limit=p['limit'])

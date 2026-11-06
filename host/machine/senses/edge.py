@@ -315,6 +315,25 @@ def drive(world, joints, target=None, feed=None, kp=None, limit=None):
     world._sil_drive(ctypes.byref(world.passing), len(idx), _cores().address(idx), t_p, f_p, k_p, l_p)
 
 
+def bound(world, joints, target=None, feed=None, kp=None, limit=None):
+    """`drive` laid once on these arrays - each contiguous float64, written in place pass to pass -: a call of no
+    arguments, her buses' pointers and the joints' indices laid with it; None where one is not so laid (its pointer
+    would be a copy's). Found and checked each pass by `drive`, her boards' told setpoints took 14 us of its 32."""
+    _buses_of(world)
+    arrays = (target, feed, kp, limit)
+    if any(a is not None and not (isinstance(a, np.ndarray) and a.dtype == np.float64 and a.flags.c_contiguous)
+           for a in arrays):
+        return None
+    idx = np.ascontiguousarray(joints, dtype=np.int32)
+    drive_ = functools.partial(world._sil_drive, ctypes.byref(world.passing), len(idx), _cores().address(idx),
+                               *(None if a is None else _cores().address(a) for a in arrays))
+
+    def told():
+        drive_()
+    told.kept = (idx,) + arrays     # what its pointers point at, alive while it is
+    return told
+
+
 def noise(world, ber, seed=1):
     """Her buses' line flipping a bit at `ber` (LINE_BER on a run), drawn from `seed`."""
     _buses_of(world)
