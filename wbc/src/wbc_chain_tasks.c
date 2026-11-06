@@ -79,6 +79,21 @@ int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, dou
       laid(R, r, &m, n, p->J6[k] + a * n, a6[a] - p->dJv[k][a], p->chain_w_swing);
     }
   }
+  if (p->chain_vx != 0.0)
+  {
+    /* the twist told her: her pelvis along its way, level, at the twist's speed (machine.stack.chain.tasks) */
+    const double *q = p->tquat[0];
+    const double  hx = 2.0 * (q[1] * q[3] + q[0] * q[2]), hz = 1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]);
+    const double  nh = sqrt(hx * hx + hz * hz);
+    double        row[WBC_STEP_N] = {0.0};
+
+    if (nh > 0.0)
+    {
+      row[0] = hx / nh;
+      row[2] = hz / nh;
+      laid(R, r, &m, n, row, p->chain_twist_kd * (p->chain_vx - (row[0] * p->v[0] + row[2] * p->v[2])), p->chain_w_twist);
+    }
+  }
   for (int i = 0; i < p->nd; i++)
   {
     want[i] = p->chain_posture_kp * (p->posture[i] - p->q[i]) - p->chain_posture_kd * p->v[p->act[i]];

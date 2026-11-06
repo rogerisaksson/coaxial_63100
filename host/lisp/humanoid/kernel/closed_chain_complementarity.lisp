@@ -59,8 +59,10 @@
   :turn-kp                      4.0    ; its own gains, rad/s^2 a rad and a rad/s, near critical: lying down is slow;
   :turn-kd                      4.0    ; on the gait's (100, 20) a hip's yaw told 0.44 rad asked 44 rad/s^2, the plan
   :posture-kp                   14.0   ; pulled her pelvis off the seat to answer and let it go, her hands never came
-  :posture-kd                   7.5)   ; down and nothing of the lie came; at 16 and 20 her hands' arrival at the second
+  :posture-kd                   7.5    ; down and nothing of the lie came; at 16 and 20 her hands' arrival at the second
                                        ; lift threw her elbow 374-428 deg/s; at 12 her floor sit's trunk sat 10.7 deg off
+  :twist-weight                 1.0    ; the twist told her (WASD) where no program plays: her pelvis along its level
+  :twist-kd                     4.0)   ; way at its speed, 1/s - the sled sliding along the ratchet's se(2) vector
 
 ;; 1. CHOLESKY (BANACHIEWICZ, ROW BY ROW) ON A FLAT ROW-MAJOR (M x M) DOUBLE-FLOAT VECTOR
 (defun cholesky-banachiewicz (g l m)

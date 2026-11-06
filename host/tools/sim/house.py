@@ -167,8 +167,30 @@ def _lain(w):
             round(math.degrees(math.atan2(bx * uz - bz * ux, s * (bx * ux + bz * uz))), 1)]
 
 
-def _goal(w, goal, rise, limit, rise_s, t0):
-    """(seconds to `goal` borne, held REST_S and her joints' program over, seconds to up within `rise_s` once `rise`
+def _on(w):
+    """Whether the bed bears all of her as the world has it: her pelvis, head and feet over its mattress (the room's
+    `bed` box, its top's footprint) and the lodge's scenery - its floor - bearing none of her. Judged by her prop
+    alone, a lie from the long side was held with her pelvis 0.18 m past the edge and her feet on the floor."""
+    import numpy as np
+    m, d = w.world.model, w.world.data
+    bed = m.geom('bed').id
+    turn, half = d.geom_xmat[bed].reshape(3, 3), m.geom_size[bed]
+    ends = [d.qpos[0:3]] + [d.xpos[m.body(n).id] for n in ('head', 'left_foot', 'right_foot')]
+    over = all(abs(float(a)) <= float(h) for p in ends
+               for a, h in zip((turn.T @ (np.asarray(p, float) - d.geom_xpos[bed]))[0::2], half[0::2]))
+    # hers by her body's root (a rug under the bed on its own body, on the floor, read as the floor bearing her)
+    mine, force, floor = m.body_rootid[m.geom_bodyid] == m.body_rootid[w.world.pelvis], np.zeros(6), 0.0
+    for k in range(d.ncon):
+        a, b = int(d.contact[k].geom1), int(d.contact[k].geom2)
+        if mine[a] != mine[b] and a not in w.furn and b not in w.furn:
+            w.world._mj.mj_contactForce(m, d, k, force)
+            floor += abs(float(force[0]))
+    return bool(over and floor == 0.0)
+
+
+def _goal(w, goal, rise, limit, rise_s, t0, judged=None):
+    """(seconds to `goal` borne, held REST_S and her joints' program over - and where `judged`, where she ended as it
+    judges her (`_on`) -, seconds to up within `rise_s` once `rise`
     is said - up held REST_S -, None unsaid) from `t0`. Counted up the moment she stood, 7 chair rises of 58 that
     fell within 3 s were risen; said as her pull up the bed still played, it was cut and she rose from 0.49 m in, not
     1.11, her knees past its end (F's errand test waits for it too)."""
@@ -181,8 +203,8 @@ def _goal(w, goal, rise, limit, rise_s, t0):
     if reached is not None:
         w.go(REST_S)
         w.go(limit, lambda q: g.get('played') is None)
-        w.lain = _lain(w)
-    held = reached is not None and w.s['fallen_at'] is None and sprung.doing(g) == goal
+        w.lain, w.on = _lain(w), (judged(w) if judged is not None else True)
+    held = reached is not None and w.s['fallen_at'] is None and sprung.doing(g) == goal and getattr(w, 'on', True)
     up = None
     if held and rise:
         worker.apply(w.s, {'say': rise})
@@ -227,11 +249,12 @@ def one(x, z, yaw, verb, said=False, rise=False, trace=False):
                          round(g['t'] - t0, 2)))
         return not g.get('_errand')
     w.go(limit, docked)
-    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, rise_s, t0)
+    lies = verb.startswith('lie')
+    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, rise_s, t0, _on if lies else None)
     fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'] - t0, 2)
     ok = held and fell is None and (up is not None or not rise)
     return dict(out, dock=dock or None, reached=reached, held=held, up=up, fell=fell, spasm=w.spasm(), bumps=w.bumps,
-                phases=w.phases[-12:], lain=getattr(w, 'lain', None) if verb.startswith('lie') else None,
+                phases=w.phases[-12:], lain=getattr(w, 'lain', None) if lies else None, on=getattr(w, 'on', None) if lies else None,
                 result='ok' if ok else ('fell' if fell is not None else 'short'), **({'trace': w.trace} if trace else {}))
 
 

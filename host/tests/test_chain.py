@@ -43,7 +43,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
     bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand', 'right_shank',
                                              'left_forearm', 'right_forearm')]
-    for _ in range(STEPS):
+    for nth in range(STEPS):
         qvel = np.zeros(len(world.data.qvel))
         qvel[:b.n] = 0.05 * rng.normal(size=b.n)
         s = wbc.sense(b, world.data.qpos, qvel)
@@ -54,7 +54,9 @@ def test_the_chain_step_in_c_is_the_steps(report):
             J = jp[:, :b.n].copy()
             b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
             f = np.array([0.3, 1.0, 0.2]) * (60.0 + 80.0 * rng.random()) + 10.0 * rng.normal(size=3)
-            contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch, 'side': 0, 'body': body})
+            # her left shank's patch a let-go left foot's (borne.LET's), told free every other state
+            contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch if patch != 2 else 20, 'side': 0,
+                             'body': body})
         # a turn of 0.2 rad about her pelvis's patch normal, the torsion its points leave free
         axis = contacts[0]['f'] + contacts[1]['f']
         axis = axis / np.linalg.norm(axis)
@@ -63,7 +65,8 @@ def test_the_chain_step_in_c_is_the_steps(report):
         f1 = s['feet'][1]
         ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
-               'posture': s['q'] + 0.02 * rng.normal(size=len(s['q']))}
+               'posture': s['q'] + 0.02 * rng.normal(size=len(s['q'])), 'twist': (0.3 * (nth % 3 - 1), 0.0, 0.0),
+               'free': (nth % 2 == 1, False)}
         sc = dict(s, contacts=contacts)
         ours, theirs = chain.step(b, sc, ask, regime), solve(b, sc, ask)
         worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(), np.abs(ours['qacc'] - theirs['qacc']).max(),
@@ -80,7 +83,8 @@ def test_the_chain_step_in_c_is_the_steps(report):
         still = wbc.sense(b, world.data.qpos, np.zeros(len(world.data.qvel)))
         wide = np.array([np.cos(0.25), *(np.sin(0.25) * axis)])
         want = tuple(_product(wide, t['quat']) for t in still['turns'])
-        keen = chain.step(b, dict(still, contacts=contacts), dict(ask, turns=want, swing={}, posture=still['q'].copy()),
+        keen = chain.step(b, dict(still, contacts=contacts), dict(ask, turns=want, swing={}, posture=still['q'].copy(), twist=(0.0, 0.0, 0.0),
+                                                                    free=(False, False)),
                           regime._replace(task=0.05))
         fore = keen['qacc'].copy()
         fore[np.flatnonzero((np.arange(b.n) < 6) | b.passive)] = keen['foreseen']
@@ -93,6 +97,27 @@ def test_the_chain_step_in_c_is_the_steps(report):
                  boxed < 1e-9 and max(residuals) < 1e-3, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
     report.check("the plan turns her pelvis the asked way through her drives and the contacts it holds",
                  turned < 1.0, 'the turn short of the ask by %.2f at worst' % turned)
+    # told a twist, her seat slides on its normal and bears her as held, her hands beside it (laid by her world's rows,
+    # its slide let go of world y, her seat's normal: it bore 10 N of the 183 it bears held, her base fell 5.3 m/s^2)
+    left, up, way = chain.ways(still['turns'][0]['quat'])
+    weight, sled = float(b.m.body_subtreemass[b.m.body('pelvis').id]) * 9.81, []
+    for name, off, share, patch in ([('pelvis', s * 0.07 * left - 0.08 * up - 0.03 * way, 0.40, 0) for s in (1.0, -1.0)]
+                                    + [(n, np.zeros(3), 0.10, 6 + 3 * k) for k, n in enumerate(('left_hand', 'right_hand'))]):
+        body = b.m.body(name).id
+        p = b.d.xpos[body] + off
+        b.mj.mj_jac(b.m, b.d, jp, jr, p, body)
+        J = jp[:, :b.n].copy()
+        b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
+        sled.append({'p': p, 'f': share * weight * up, 'J': J, 'dJv': jp[:, :b.n] @ still['v'], 'patch': patch, 'side': 0, 'body': body})
+    seats, apart = [], 0.0
+    for vx in (0.0, 0.3):
+        sc, sat = dict(still, contacts=sled), dict(ask, turns=tuple(t['quat'] for t in still['turns']), swing={}, posture=still['q'].copy(),
+                                                    twist=(vx, 0.0, 0.0), free=(False, False))
+        ours, theirs = chain.step(b, sc, sat, regime), solve(b, sc, sat)
+        apart = max(apart, float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(ours['borne'] - theirs['borne']).max()))
+        seats.append(sum(float(up @ z) for z in ours['borne'][:2]))
+    report.check("told a twist, her seat slides on its normal, bearing her as held, the C the same",
+                 seats[1] >= 0.5 * seats[0] and apart < APART, 'held %.0f N, sliding %.0f N; C %.1e apart' % (seats[0], seats[1], apart))
     t = time.perf_counter()
     for _ in range(200):
         solve(b, sc, ask)

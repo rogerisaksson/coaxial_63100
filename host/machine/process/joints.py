@@ -187,6 +187,21 @@ def pose(beats, start, elapsed):
     return out
 
 
+def paced(beats, start):
+    """`beats` with the first over no less time than the program's own pace asks of each joint from the pose `start`
+    (deg, every joint) she begins it at: no joint faster than the program moves it from beat to beat. Over its own
+    time - a take's first frame its T0, 1 ms - her trunk swung 734 deg/s, her arms 702 and her ankles 784 into the
+    take's sit on the bed's side, and threw her 0.30 m in."""
+    name, seconds, goals = beats[0]
+    held, pace = dict(goals), {}
+    for _beat, s, now in beats[1:]:
+        for j, v in now.items():
+            pace[j] = max(pace.get(j, 0.0), abs(v - held[j]) / s) if j in held else pace.get(j, 0.0)
+            held[j] = v
+    need = max((abs(v - float(start[INDEX[j]])) / pace[j] for j, v in goals.items() if pace.get(j, 0.0) > 0.0), default=0.0)
+    return ((name, max(seconds, need), goals),) + tuple(beats[1:])
+
+
 def drive(g, world):
     """Her boards told this pass (`sprung.passed`): her law's setpoints, feed and clamps (`g['cmd']`), then the
     program's over them where one plays."""
@@ -211,6 +226,9 @@ def played(g, world):
             return
         p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
         world.gains[:, 1] = KD
+        if 'beats' in p:
+            p['beats'] = paced(p['beats'], p['pose'])
+            p['length'] = sum(seconds for _beat, seconds, _goals in p['beats'])
         if 'move' in p:
             import importlib
             p['move'] = importlib.import_module(p['move'])

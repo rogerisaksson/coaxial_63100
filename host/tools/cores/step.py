@@ -50,7 +50,8 @@ def _step_typed():
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work),
                ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f), ('chain_sweeps', i), ('chain_rounds', i),
                ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
-               ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f)]
+               ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
+               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -115,7 +116,8 @@ def regime():
     """The closed chains' regime as the kernel's text says it (`closed-chain-regime`, `machine.stack.chain.Regime`)."""
     from machine.stack import chain
     from machine.texts import kernel
-    return chain.regime(kernel.read()['closed-chain-regime'])
+    return chain.regime(kernel.read()['closed-chain-regime'],
+                        kernel.said('xform-locomotion-seated-butt-scoot', 'buttock-unweight-ratio'))
 
 
 def chain_laid(b, sensed=None, twin=False):
@@ -131,6 +133,7 @@ def chain_laid(b, sensed=None, twin=False):
     k.chain_sweeps, k.chain_rounds = said.sweeps, said.rounds
     k.chain_w_turn, k.chain_w_swing, k.chain_w_posture, k.chain_w_force = said.turn, said.swing, said.posture, said.force
     k.chain_turn_kp, k.chain_turn_kd, k.chain_posture_kp, k.chain_posture_kd = said.tkp, said.tkd, said.pkp, said.pkd
+    k.chain_w_twist, k.chain_twist_kd, k.chain_unweight = said.twist, said.vkd, said.unweight
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 
@@ -211,7 +214,8 @@ def _stepped(k, step, v, b, s, ask):
     v['let_hold'][:] = ask.get('let_hold', (0.0, 0.0))
     k.open_kp, k.open_kd, v['freed'][:] = ask.get('open', (0.0, 0.0, (0.0, 0.0)))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
-    k.sat = float(ask.get('sat', 0.0))
+    k.sat, k.chain_vx = float(ask.get('sat', 0.0)), float(ask.get('twist', (0.0,))[0])
+    k.chain_free[0], k.chain_free[1] = (int(bool(x)) for x in ask.get('free', (False, False)))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):
         v['swing'][side] = side in swing

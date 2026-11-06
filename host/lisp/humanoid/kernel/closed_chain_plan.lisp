@@ -1,13 +1,14 @@
 ;; =============================================================================
 ;; FILE: closed_chain_plan.lisp
 ;; DOMAIN: The Closed Chains' Plan - Tasks Answered Through Her Dynamics, the Contacts Held Round by Round
-;; REQUIRES: closed_chain_complementarity.lisp
-;; Hers: `machine.stack.chain.planned` runs it on her law and `wbc_chain.c` bit for bit; the regime's constants are
+;; REQUIRES: closed_chain_complementarity.lisp, closed_chain_release.lisp
+;; Hers: `machine.stack.chain_plan.planned` runs it on her law and `wbc_chain_plan.c` bit for bit; the regime's constants are
 ;; `closed-chain-regime`'s (closed_chain_complementarity.lisp). Written out on flat row-major double-float vectors.
 ;; =============================================================================
 (defpackage :ortho-dsp.closed-chain-plan
   (:use :ortho-dsp.core
-        :ortho-dsp.closed-chain)
+        :ortho-dsp.closed-chain
+        :ortho-dsp.closed-chain-release)
   (:export #:closed-chain-plan))
 (in-package :ortho-dsp.closed-chain-plan)
 
@@ -19,8 +20,13 @@
 ;; internal forces - those with no effect on the dofs no drive holds, null(Ja_P^T), her drives alone would fight
 ;; them - are kept at the felt split: two contacts on one prescribed chain hold her in any split of her weight, and
 ;; the damped map alone pulled 280 N on her pelvis against 630 on her sole. Those rows by damped least squares
-;; (task-damping), her posture in their null space (dls-damping-m); then the plan's own forces: a contact pulled on
-;; goes free, one dragged past its box |z_t| <= mu z_n slides, its friction the box's; planned again, plan-rounds over.
+;; (task-damping), her posture in their null space (dls-damping-m); then the plan's own forces (closed-chain-release):
+;; a contact pulled on goes free, one her posture alone pulls on yields, bearing what it feels as a row beside the
+;; tasks, one dragged past its box |z_t| <= mu z_n slides, its friction the box's; planned again, plan-rounds over.
+;; Told a twist, her sled (no hand or foot) slides along it from the first round and the force rows aim at the
+;; stick-slip ratchet's split: her anchors bear the seated butt-scoot's buttock-unweight-ratio of what she feels.
+;; Its rows lie in its frame (normal, two tangents), its normal held: laid by her world's rows, its slide let go of
+;; world y - her seat's normal - and her plan counted 0 N on her seat, 150 N on each hand.
 ;; A patch felt under hold-n - the segments one surface bears, a fist's hand and fingers - starts free, its points with
 ;; it (her fingers' arrival at 2-4 N, held, threw her elbow; her fists' 93 N split over hand and fingers, each under
 ;; 30, left them out of the chain's support at the bed). Her pelvis's turn is asked about its own up and way alone,
@@ -36,7 +42,7 @@
    what they feel, patch (k) each one's patch, q (9k) their frames (contact-frame), rp (m1 x np) and rg (m1 x ng) the tasks' rows on the dofs no
    drive holds and on the given (driven then held), r (m1) their right-hand sides, want (na) the posture's
    acceleration, held (nh) the held joints' accelerations; mm-p (np) and mm-g (ng) the dofs' indices; a (na) the
-   driven dofs. Every product in the order machine.stack.chain.planned and wbc_chain.c spell it."
+   driven dofs. Every product in the order machine.stack.chain.planned and wbc_chain_plan.c spell it."
   (declare (type (simple-array double-float (*)) m h v jc jdv f q rp rg r want held x qdd-p z work)
            (type (simple-array fixnum (*)) patch mm-p mm-g a)
            (type fixnum m1 n np na nh rounds)
@@ -62,6 +68,7 @@
                      (setf s (+ s (* (aref aa (+ (* i an) c)) (aref bb (+ (* c bn) j))))))
                    (setf (aref out (+ (* i bn) j)) s))))))
       (let* ((rows3 (make-array k3 :element-type 'fixnum :initial-element 1))
+             (yields (make-array (floor k3 3) :element-type 'fixnum :initial-element 0))
              (fk (carve k3)) (mpp (carve (* np np))) (lpp (carve (* np np))) (minv (carve (* np np)))
              (col (carve np)) (ycol (carve np)) (xcol (carve np)) (mpg (carve (* np ng))) (mmg (carve (* np ng)))
              (jp (carve (* k3 np))) (jg (carve (* k3 ng))) (jap (carve (* k3 np))) (japt (carve (* np k3)))
@@ -71,11 +78,12 @@
              (kk (carve (* np k3))) (p0 (carve np)) (kb (carve (* np ng))) (pg (carve (* np ng)))
              (g0 (carve (* np np))) (lg0 (carve (* np np))) (yi (carve (* np k3))) (nint (carve (* k3 k3)))
              (zd (carve (* k3 na))) (zx (carve (* k3 na))) (d2 (carve k3)) (zc0 (carve k3)) (zc (carve k3))
-             (mr (+ m1 k3)) (r1x (carve (* mr na))) (r1 (carve mr)) (t1 (carve m1)) (tt (carve (* m1 nh))) (u (carve m1))
+             (mr (+ m1 k3 (floor k3 3))) (r1x (carve (* mr na))) (r1 (carve mr)) (t1 (carve m1)) (tt (carve (* m1 nh))) (u (carve m1))
              (r1xt (carve (* na mr))) (gg1 (carve (* na na))) (h1 (carve (* na na))) (l1 (carve (* na na)))
              (g1 (carve na)) (y1 (carve na)) (x1 (carve na)) (ycol2 (carve na)) (nn (carve (* na na)))
              (r2n (carve (* na na))) (h2 (carve (* na na))) (l2 (carve (* na na))) (dd (carve na)) (g2 (carve na))
-             (x2 (carve na)) (qg (carve ng)) (bq (carve k3)) (za (carve k3)) (zfull (carve k3)) (kcol (carve k3)))
+             (x2 (carve na)) (qg (carve ng)) (bq (carve k3)) (za (carve k3)) (zfull (carve k3)) (kcol (carve k3))
+             (bq1 (carve k3)) (za1 (carve k3)) (z1 (carve k3)))
         (declare (type fixnum mr))
         ;; her dynamics on the dofs no drive holds: M_PP by Cholesky, its inverse column by column (numpy's inv)
         (loop for i of-type fixnum from 0 below np do
@@ -107,8 +115,8 @@
               (declare (type fixnum on))
               (setf (aref rows3 (* 3 i)) on (aref rows3 (+ (* 3 i) 1)) on (aref rows3 (+ (* 3 i) 2)) on))))
         (loop for rnd of-type fixnum from 0 below rounds do
-          (let ((nk 0) (changed nil))
-            (declare (type fixnum nk))
+          (let ((nk 0) (ny 0) (changed nil))
+            (declare (type fixnum nk ny))
             ;; the contacts held this round, their rows gathered
             (loop for rw of-type fixnum from 0 below k3 do
               (when (= (aref rows3 rw) 1)
@@ -227,7 +235,26 @@
               (loop for c of-type fixnum from 0 below na do
                 (setf (aref r1x (+ (* (+ m1 i) na) c)) (* w-force (aref zx (+ (* i na) c)))))
               (setf (aref r1 (+ m1 i)) (* w-force (aref zc i))))
-            (let ((mt (+ m1 nk)))
+            ;; one her posture alone pulled bears what it feels: n Dl^-1_i Bg[:, driven] x = n (Fk_i + Dl^-1_i d2 - f_i)
+            (loop with at of-type fixnum = 0 for i of-type fixnum from 0 below (floor k3 3) do
+              (when (and (= (aref yields i) 1) (= (aref rows3 (+ (* 3 i) 1)) 1))
+                (let ((row (+ m1 nk ny)))
+                  (declare (type fixnum row))
+                  (loop for c of-type fixnum from 0 below na do
+                    (setf (aref r1x (+ (* row na) c))
+                          (loop for e of-type fixnum from 0 below 3
+                                sum (* (aref q (+ (* 9 i) e)) (aref zd (+ (* (+ at e) na) c))) of-type double-float)))
+                  (setf (aref r1 row)
+                        (loop for e of-type fixnum from 0 below 3
+                              sum (* (aref q (+ (* 9 i) e))
+                                     (- (+ (aref fk (+ (* 3 i) e))
+                                           (loop for c of-type fixnum from 0 below nk
+                                                 sum (* (aref dinv (+ (* (+ at e) nk) c)) (aref d2 c)) of-type double-float))
+                                        (aref f (+ (* 3 i) e))))
+                              of-type double-float))
+                  (incf ny)))
+              (incf at (+ (aref rows3 (* 3 i)) (aref rows3 (+ (* 3 i) 1)) (aref rows3 (+ (* 3 i) 2)))))
+            (let ((mt (+ m1 nk ny)))
               (declare (type fixnum mt))
               (cond
                 ((> mt 0)
@@ -279,8 +306,8 @@
                   (setf s (+ s (* (aref nn (+ (* i na) c)) (aref x2 c)))))
                 (setf (aref x i) s (aref qg i) s)))
             (loop for i of-type fixnum from 0 below nh do (setf (aref qg (+ na i)) (aref held i)))
-            ;; what the plan foresees of her base, and its own forces: a pull frees a contact, a drag past its box
-            ;; sets it sliding with its friction known
+            ;; what the plan foresees of her base, and its own forces (closed-chain-release): a pull frees a contact or,
+            ;; her posture's alone, yields it, a drag past its box sets it sliding with its friction known
             (loop for i of-type fixnum from 0 below np do
               (let ((s (aref p0 i)))
                 (declare (type double-float s))
@@ -297,34 +324,22 @@
                   (setf s (- s (* (aref bg (+ (* i ng) g)) (aref qg g)))))
                 (setf (aref bq i) s)))
             (mm za nk nk 1 dinv bq)
+            ;; the forces her tasks alone ask (x1, her posture apart)
+            (loop for i of-type fixnum from 0 below nk do
+              (let ((s (aref c0 i)))
+                (declare (type double-float s))
+                (loop for g of-type fixnum from 0 below ng do
+                  (setf s (- s (* (aref bg (+ (* i ng) g)) (if (< g na) (aref x1 g) (aref held (- g na)))))))
+                (setf (aref bq1 i) s)))
+            (mm za1 nk nk 1 dinv bq1)
             (let ((j 0))
               (declare (type fixnum j))
               (loop for rw of-type fixnum from 0 below k3 do
-                (setf (aref zfull rw) (aref fk rw))
+                (setf (aref zfull rw) (aref fk rw) (aref z1 rw) (aref fk rw))
                 (when (= (aref rows3 rw) 1)
-                  (setf (aref zfull rw) (+ (aref fk rw) (aref za j)))
+                  (setf (aref zfull rw) (+ (aref fk rw) (aref za j)) (aref z1 rw) (+ (aref fk rw) (aref za1 j)))
                   (incf j))))
-            (loop for i of-type fixnum from 0 below (floor k3 3) do
-              (when (= (aref rows3 (* 3 i)) 1)
-                (let ((zn 0.0d0) (zt1 0.0d0) (zt2 0.0d0))
-                  (declare (type double-float zn zt1 zt2))
-                  (loop for c of-type fixnum from 0 below 3 do
-                    (setf zn (+ zn (* (aref q (+ (* 9 i) c)) (aref zfull (+ (* 3 i) c))))
-                          zt1 (+ zt1 (* (aref q (+ (* 9 i) 3 c)) (aref zfull (+ (* 3 i) c))))
-                          zt2 (+ zt2 (* (aref q (+ (* 9 i) 6 c)) (aref zfull (+ (* 3 i) c))))))
-                  (cond
-                    ((< zn 0.0d0)
-                     (loop for c of-type fixnum from 0 below 3 do
-                       (setf (aref rows3 (+ (* 3 i) c)) 0 (aref fk (+ (* 3 i) c)) 0.0d0))
-                     (setf changed t))
-                    ((and (= (aref rows3 (+ (* 3 i) 1)) 1) (> (max (abs zt1) (abs zt2)) (* mu zn)))
-                     (let* ((lim (* mu zn))
-                            (tb1 (max (- lim) (min lim zt1)))
-                            (tb2 (max (- lim) (min lim zt2))))
-                       (declare (type double-float lim tb1 tb2))
-                       (loop for c of-type fixnum from 0 below 3 do
-                         (setf (aref fk (+ (* 3 i) c)) (+ (* (aref q (+ (* 9 i) 3 c)) tb1) (* (aref q (+ (* 9 i) 6 c)) tb2))))
-                       (setf (aref rows3 (+ (* 3 i) 1)) 0 (aref rows3 (+ (* 3 i) 2)) 0 changed t)))))))
+            (setf changed (closed-chain-release q zfull z1 rows3 fk yields mu k3))
             (unless changed (return))))
         (loop for rw of-type fixnum from 0 below k3 do (setf (aref z rw) (aref zfull rw)))
         (values x qdd-p z)))))

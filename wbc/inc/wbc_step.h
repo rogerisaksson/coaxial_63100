@@ -76,6 +76,9 @@ typedef struct
   int           cbody[WBC_STEP_C]; /**< each contact's body of hers (machine.senses.borne) */
   double        chain_w_turn, chain_w_swing, chain_w_posture, chain_w_force; /**< its tasks' weights */
   double        chain_turn_kp, chain_turn_kd, chain_posture_kp, chain_posture_kd; /**< its own gains */
+  double        chain_w_twist, chain_twist_kd, chain_vx; /**< the twist told her: its weight, its gain 1/s, its speed m/s */
+  double        chain_unweight; /**< the share her anchors bear told a twist (machine.stack.chain_plan.said) */
+  int           chain_free[2]; /**< her feet told free, her heels stepping in turn (machine.law.somatic) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
@@ -87,6 +90,14 @@ int wbc_chain(wbc_step_t *p);
 /** machine.stack.chain.tasks (wbc_chain_tasks.c): the rows above posture into R (m x n) and r (m), m returned - her
     pelvis's turn about its own way and up, her trunk's whole, a sole's swing -; the posture's want (nd); jv a 6 scratch. */
 int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, double *jv);
+/** machine.stack.chain.planned (wbc_chain_plan.c): her driven accelerations x (nd) the plan asks, the forces it counts
+    on into zwarm (3k), her sled sliding along `slide` (3, her level way told, or 0), carved from *w on: 0, or 1 where
+    numpy would raise. */
+int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double *held, const double *Minv,
+                      const double *Mpg, const double *rhs0, const double *Jp, const double *JpT, const double *Jg,
+                      const double *Jv, const double *dJv, const double *Q, const double *RP, const double *RG,
+                      const double *r, int m1, const double *want, const double *slide, double *x, double *zwarm,
+                      double **w);
 
 /** machine.stack.shrunk.shrunk (wbc_step.c): how far from tau0 toward tau every drive stays within [lo, hi]. */
 double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi);

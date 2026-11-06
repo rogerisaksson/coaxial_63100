@@ -122,11 +122,19 @@ def limp(g):
     flat on a bed or the floor and still -, easing to 1 over as long as that row blended; her clamps go to zero by it
     over the bus (`motion.drives`), what bears her holds her. Measured on the bed: told at bed_rest's start her clamps
     dropped mid-blend; dropped in a pass at its blend's end (1.4 s in) her neck fell 64 deg at 138 deg/s, her spine 52
-    at 153, her arms 109 at 142 - a flop, not a rest."""
+    at 153, her arms 109 at 142 - a flop, not a rest. A twist told her where no program plays wakes her: her law
+    carries her pelvis along it (limp, her law's 1.4 m/s^2 back moved her 0.000 m), woken and let rest again as
+    the limp eases (`g['_wake']`: its way, when it turned, from where) - woken in a pass her right elbow swung
+    309 deg/s, her walk's arms 128."""
     from machine.law import latent
-    blend = max(float(g['st'][latent.BLEND]), 1e-3)
-    eased = min(1.0, max(0.0, (g.get('t_law', g['t']) - float(g['st'][latent.T0]) - blend) / blend))
-    return max(float(doing(g) in LIMP), eased * float(float(g['told'][DORSAL]) >= 0.5))
+    blend, now = max(float(g['st'][latent.BLEND]), 1e-3), g.get('t_law', g['t'])
+    eased = min(1.0, max(0.0, (now - float(g['st'][latent.T0]) - blend) / blend))
+    told = float(g.get('played') is None and any(float(v) != 0.0 for v in g.get('twist', ())))
+    way, at, was = g.get('_wake', (0.0, now, 0.0))
+    woken = was + (way - was) * min(1.0, max(0.0, (now - at) / blend))
+    if told != way:
+        g['_wake'] = (told, now, woken)
+    return max(float(doing(g) in LIMP), eased * float(float(g['told'][DORSAL]) >= 0.5)) * (1.0 - woken)
 
 
 def closing(vx, vz, dx, dz):

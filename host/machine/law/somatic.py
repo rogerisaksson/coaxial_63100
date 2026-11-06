@@ -40,6 +40,8 @@ INGRESS, EGRESS = (kernel.transition(a, b, 'coulomb-slide')
 CAPS = np.array([INGRESS['normal-load-governor']['cap-fz-ratio'], EGRESS['normal-load-governor']['cap-fz-ratio']])
 #: The egress slide along her way, m/s: forward off the seat through a rise's lean (`acts`).
 EGRESS_M_S = float(EGRESS['tangent-velocity-attractor'][0])
+#: The seated butt-scoot's clock, turns a minute (`xform-locomotion-seated-butt-scoot`): her heels step in turn at it.
+ROW_BPM = float(kernel.said('xform-locomotion-seated-butt-scoot', 'bpm'))
 
 
 def asked(g, s, out, told, ask):
@@ -68,6 +70,16 @@ def asked(g, s, out, told, ask):
     ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
     ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
                                                         g.setdefault('fists', np.zeros(14)))
+    # the twist told her (WASD) where no program plays: the closed chains' step carries her pelvis along it, her heels
+    # stepping in turn - the crawl take's knees alternate (r -0.63) - at the seated butt-scoot's clock, the one in its
+    # swing free for her posture to set back (held, one stroke stalled at 0.235 m, its limbs at their range)
+    told = g.get('played') is None and any(float(v) != 0.0 for v in g.get('twist', ()))
+    now = g.get('t', 0.0)
+    phase, last = g.get('_row', (0.0, now))
+    phase = (phase + (now - last) * ROW_BPM / 60.0) % 1.0 if told else 0.0
+    g['_row'] = (phase, now)
+    ask['twist'] = tuple(g['twist']) if told else (0.0, 0.0, 0.0)
+    ask['free'] = (told and phase >= 0.5, told and phase < 0.5)
     return ask
 
 

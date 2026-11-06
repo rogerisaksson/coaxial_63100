@@ -26,8 +26,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.senses.borne import CARPAL, LET
-from machine.stack.rounds import GROW_N
+from machine.stack.chain_plan import planned
 from machine.stack.shrunk import box, shrunk
 from machine.stack.wbc import HELD_K, SWING_KD, turn_error
 
@@ -35,8 +34,10 @@ from machine.stack.wbc import HELD_K, SWING_KD, turn_error
 #: own, the Gauss-Seidel's sweeps, the plan's rounds, a contact's softness m/s^2 a N, a sticking contact's slip bled
 #: 1/s, its friction; the tasks' weights - a turn, a swing, the posture in their null space, the contacts' forces near
 #: what is felt (rad/s^2 a N) -; its own gains, a turn's
-#: and the posture's (kp, kd): lying down is slow, the gait's asked tens of rad/s^2 and the plan pulled her off the seat.
-Regime = collections.namedtuple('Regime', 'lam task sweeps rounds soft bleed mu hold turn swing posture force tkp tkd pkp pkd')
+#: and the posture's (kp, kd): lying down is slow, the gait's asked tens of rad/s^2 and the plan pulled her off the seat;
+#: a twist's weight and gain; the share her anchors bear told a twist (`chain_plan.said`).
+Regime = collections.namedtuple('Regime', 'lam task sweeps rounds soft bleed mu hold turn swing posture force tkp tkd pkp pkd '
+                                          'twist vkd unweight')
 
 
 def chained(ask):
@@ -58,13 +59,14 @@ def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
     return list(s.get('contacts', ())) + soles
 
 
-def regime(said):
-    """The `Regime` of the kernel's `closed-chain-regime` as evaluated."""
+def regime(said, unweight):
+    """The `Regime` of the kernel's `closed-chain-regime` as evaluated, `unweight` the ratchet's (`chain_plan.said`)."""
     return Regime(float(said['dls-damping-m']), float(said['task-damping']), int(round(said['pgs-sweeps'])), int(round(said['plan-rounds'])),
                   float(said['contact-softness-m-s2-per-n']), float(said['stick-bleed-per-s']), float(said['friction-mu']),
                   float(said['hold-n']),
                   float(said['turn-weight']), float(said['swing-weight']), float(said['posture-weight']), float(said['force-weight']),
-                  float(said['turn-kp']), float(said['turn-kd']), float(said['posture-kp']), float(said['posture-kd']))
+                  float(said['turn-kp']), float(said['turn-kd']), float(said['posture-kp']), float(said['posture-kd']),
+                  float(said['twist-weight']), float(said['twist-kd']), float(unweight))
 
 
 def frame(f0, f1, f2):
@@ -98,7 +100,8 @@ def tasks(b, s, ask, regime):
     0.04-0.09 rad of a 35 deg pitch mismatch, and the way part left her 17 deg off the bed's line), her trunk's whole
     as asked (`regime.turn`; the text's pitch is her trunk's, her pelvis's is her posture's to make, rolling on its
     ischia as a scoot leaves it: asked of the pelvis it hauled her forward 37 deg at the bed's handover), a sole
-    asked to swing (`regime.swing`) -, and her driven joints' posture acceleration, at the regime's own gains."""
+    asked to swing (`regime.swing`), her pelvis along its level way at the twist told her (`regime.twist`) -, and her
+    driven joints' posture acceleration, at the regime's own gains."""
     n, v, act = b.n, s['v'], np.asarray(b.act, int)
     rows, rhs = [], []
     for j, (t, turn) in enumerate(zip(s['turns'], ask.get('turns', ()))):
@@ -120,113 +123,16 @@ def tasks(b, s, ask, regime):
         for a in range(6):
             rows.append(regime.swing * np.asarray(f['J6'][a], float))
             rhs.append(regime.swing * (float(a6[a]) - float(f['dJv'][a])))
+    vx, way = float(ask.get('twist', (0.0,))[0]), ways(s['turns'][0]['quat'])[2]
+    hx, hz = float(way[0]), float(way[2])
+    nh = math.sqrt(hx * hx + hz * hz)
+    if vx != 0.0 and nh > 0.0:
+        row = np.zeros(n)
+        row[0], row[2] = hx / nh, hz / nh
+        rows.append(regime.twist * row)
+        rhs.append(regime.twist * (regime.vkd * (vx - (float(row[0]) * float(v[0]) + float(row[2]) * float(v[2])))))
     want = regime.pkp * (np.asarray(ask['posture'], float) - s['q']) - regime.pkd * v[act]
     return (np.vstack(rows) if rows else np.zeros((0, n))), np.array(rhs, float), want
-
-
-def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, RP, RG, r, want):
-    """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
-    foresees, the contacts' forces it counts on (world; a freed contact's 0).
-    Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
-    holds affine in her driven ones, qdd_P = p0 + Pg qg, with the forces known (`Fk`, a sliding contact's friction),
-    the map's Delassus matrix damped by `regime.lam` squared as the least squares are; the tasks' rows in the driven
-    accelerations alone, the held joints fixed, and beside them the contacts' internal forces - those with no effect
-    on the dofs no drive holds, null(Ja_p^T) - kept at the felt split (`regime.force`: two contacts on one prescribed
-    chain hold her in any split of her weight, and the damped map picked a pull of 280 N on her pelvis against 630 on
-    her sole, a fight her drives alone would pay for; a force that moves her base is free); those rows by damped
-    least squares (`regime.task`), her posture in their null space; then the plan's own
-    forces: a contact pulled on goes free, one dragged past its box |z_t| <= mu z_n slides, its friction the box's.
-    A patch felt under `regime.hold` N - the segments one surface bears, `patch` (k): a fist's hand and fingers, the
-    pelvis's two ischia - starts free, its points with it: her fingers' arrival at 2-4 N, held, fought her arms' pose
-    and threw her elbow; her fists' 93 N split over hand and fingers, each under 30, left them out of the chain's
-    support at the bed. A hand's patch or a sole patch (`borne.CARPAL`'s, `body` below 0) asked past what it feels
-    by GROW_N (`rounds`, the upright step's own cap) is held at that cap, its friction boxed by it - what she sits or
-    lies on is not: uncapped, on the bed's long side the plan asked her arms 250-554 N on 15-70 felt and her standing
-    sole 273 N on 181, unloaded her pelvis, and she slid off the bed onto that sole; her seat capped too, it took 12 N
-    of her 329 as she sat on the floor and she lay back. The C twin spells every product in this order."""
-    k3, m1, lam2, task2 = 3 * len(Q), len(r), regime.lam * regime.lam, regime.task * regime.task
-    rows3, Fk, eye, zfull = np.ones(k3, bool), np.zeros(k3), np.eye(nd), np.zeros(k3)
-    felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(len(Q))]
-    for i in range(len(Q)):
-        rows3[3 * i:3 * i + 3] = sum(float(patch[j] == patch[i]) * felt[j] for j in range(len(Q))) >= regime.hold
-    x, p0, Pg, qg = np.zeros(nd), np.zeros(len(rhs0)), np.zeros((len(rhs0), nd + len(held))), np.concatenate([np.zeros(nd), held])
-    for _ in range(regime.rounds):
-        Ja_p, Ja_g, na = Jp[rows3], Jg[rows3], int(rows3.sum())
-        rhsk = rhs0 + np.ascontiguousarray(Jp.T) @ Fk if k3 else rhs0
-        MM = Minv @ Mpg
-        Dinv, Bg, c0 = np.zeros((0, 0)), np.zeros((0, len(MM[0]))), np.zeros(0)
-        if na:
-            Ja_pT = np.ascontiguousarray(Ja_p.T)
-            W = Ja_p @ Minv
-            Dl = W @ Ja_pT
-            for i in range(na):
-                Dl[i, i] = Dl[i, i] + lam2
-            bb0 = W @ rhsk + dJv[rows3]
-            Bg = Ja_g - W @ Mpg
-            c0 = (-regime.bleed) * Jv[rows3] - bb0
-            Dinv = np.linalg.inv(Dl)
-            K = (Minv @ Ja_pT) @ Dinv
-            p0 = K @ c0 + Minv @ rhsk
-            Pg = -(K @ Bg + MM)
-            # the internal forces, with no effect on the dofs no drive holds: null(Ja_p^T), the drives alone fight them
-            G0 = Ja_pT @ Ja_p
-            for i in range(len(G0)):
-                G0[i, i] = G0[i, i] + lam2
-            Nint = np.eye(na) - Ja_p @ np.linalg.solve(G0, Ja_pT)
-            Zx = Nint @ (Dinv @ np.ascontiguousarray(Bg[:, :nd]))
-            zc = Nint @ (Dinv @ (c0 - np.ascontiguousarray(Bg[:, nd:]) @ held) - f[rows3])
-        else:
-            p0, Pg = Minv @ rhsk, -MM
-        PgD, PgH = np.ascontiguousarray(Pg[:, :nd]), np.ascontiguousarray(Pg[:, nd:])
-        R1x = RP @ PgD + np.ascontiguousarray(RG[:, :nd])
-        r1x = (r - RP @ p0) - (RP @ PgH + np.ascontiguousarray(RG[:, nd:])) @ held
-        if na:
-            R1x = np.vstack([R1x, regime.force * Zx])
-            r1x = np.concatenate([r1x, regime.force * zc])
-        if m1 + na:
-            R1xT = np.ascontiguousarray(R1x.T)
-            G1 = R1xT @ R1x
-            H1 = G1 + task2 * eye
-            x1 = np.linalg.solve(H1, R1xT @ r1x)
-            N = eye - np.linalg.solve(H1, G1)
-        else:
-            x1, N = np.zeros(nd), eye
-        R2n = regime.posture * N
-        R2nT = np.ascontiguousarray(R2n.T)
-        H2 = R2nT @ R2n + lam2 * eye
-        x2 = np.linalg.solve(H2, R2nT @ (regime.posture * (want - x1)))
-        x = x1 + N @ x2
-        qg = np.concatenate([x, held])
-        if not na:
-            zfull = Fk.copy()
-            break
-        za = Dinv @ (c0 - Bg @ qg)
-        zfull = Fk.copy()
-        zfull[rows3] = zfull[rows3] + za
-        changed = False
-        for i in range(len(Q)):
-            if not rows3[3 * i]:
-                continue
-            loc = Q[i] @ zfull[3 * i:3 * i + 3]
-            zn, zt1, zt2 = float(loc[0]), float(loc[1]), float(loc[2])
-            if zn < 0.0:
-                rows3[3 * i:3 * i + 3], Fk[3 * i:3 * i + 3], changed = False, 0.0, True
-            elif (int(body[i]) < 0 or CARPAL <= int(patch[i]) < LET) and zn > felt[i] + GROW_N:
-                cap = felt[i] + GROW_N
-                lim = regime.mu * cap
-                tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
-                for c in range(3):
-                    Fk[3 * i + c] = float(Q[i, 0, c]) * cap + float(Q[i, 1, c]) * tb1 + float(Q[i, 2, c]) * tb2
-                rows3[3 * i:3 * i + 3], changed = False, True
-            elif rows3[3 * i + 1] and max(abs(zt1), abs(zt2)) > regime.mu * zn:
-                lim = regime.mu * zn
-                tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))
-                for c in range(3):
-                    Fk[3 * i + c] = float(Q[i, 1, c]) * tb1 + float(Q[i, 2, c]) * tb2
-                rows3[3 * i + 1:3 * i + 3], changed = False, True
-        if not changed:
-            break
-    return x, p0 + Pg @ qg, zfull
 
 
 def framed(Dl, bb, f, Q):
@@ -313,8 +219,12 @@ def step(b, s, ask, regime):
     Jv, Q = (J @ v if k else np.zeros(0)), frames(f)
     # 1. her driven joints as the chain's plan asks them, the tasks answered through the contacts and her dynamics
     R, r, want = tasks(b, s, ask, regime)
+    vx, way = float(ask.get('twist', (0.0,))[0]), ways(s['turns'][0]['quat'])[2]
+    hx, hz = float(way[0]), float(way[2])
+    nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
+    slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
     x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
-                                 np.ascontiguousarray(R[:, given]), r, want)
+                                 np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)))
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0
     # 2. the contacts' forces by complementarity over her Delassus matrix on the dofs no drive holds
