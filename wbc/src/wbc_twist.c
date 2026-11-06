@@ -90,7 +90,7 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
                               * npmin(1.0, npmax(0.0, (t->still_rad_s - fabs(wz)) / t->edge_rad_s)))
                              * npmin(1.0, npmax(0.0, (t->edge_m_s - fabs(vy)) / t->edge_m_s));
   double        w_vy, w_wz, w_wz5, w_spin, wz_way, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
-  double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back;
+  double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back, w_short, sw;
 
   st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, t->rest_drive - st[t->st_to_amp + k->drive]);
   w_vy = npmin(1.0, npmax(0.0, (fabs(vy) - t->side_m_s) / t->edge_m_s));
@@ -106,6 +106,13 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
   w = out[k->o_turns];
   w_vxp = npmin(1.0, npmax(0.0, (fabs(vxp) - t->spin_fast_m_s) / t->spin_fast_edge_m_s));
   drv = (1.0 - w_vxp) * t->spin_drive + w_vxp * npmax(t->spin_drive, t->spin_drive_s_m * (fabs(vxp) - t->spin_drive_from_m_s));
+  /* told on slower than her walk, past the spot's stillness: her stride her speed's share of her walk's */
+  w_short = (w_on * (1.0 - npmin(1.0, npmax(0.0, (t->spin_still_m_s - vx) / t->edge_m_s)))) * npmax(0.0, 1.0 - vx / t->walk_m_s);
+  sw = out[k->o_sway + k->drive];
+  out[k->o_ref + k->drive] -= (w_short * sw) * sin(bt_d);
+  out[k->o_rate + k->drive] -= ((w_short * sw) * w) * cos(bt_d);
+  out[k->o_acc + k->drive] += (((w_short * sw) * w) * w) * sin(bt_d);
+  out[k->o_sway + k->drive] -= w_short * sw;
   out[k->o_sway + k->drive] += w_spin * (drv - out[k->o_sway + k->drive]);
   out[k->o_ref + k->drive] += w_spin * (drv * sin(bt_d) - out[k->o_ref + k->drive]);
   out[k->o_rate + k->drive] += w_spin * ((drv * w) * cos(bt_d) - out[k->o_rate + k->drive]);

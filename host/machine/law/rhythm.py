@@ -46,6 +46,15 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
     w_vxp = min(1.0, max(0.0, (abs(vxp) - r['spin_fast_m_s']) / r['spin_fast_edge_m_s']))
     drv = (1.0 - w_vxp) * r['spin_drive'] + w_vxp * max(r['spin_drive'], r['spin_drive_s_m'] * (abs(vxp) - r['spin_drive_from_m_s']))
+    # told on slower than her walk, past the spot's stillness, her stride is her speed's share of her walk's at her
+    # cadence, her drive's sway cut so: kept, told 0.2-0.5 m/s she walked 0.68-0.73 and turned 1.41 m round - her
+    # arc is her speed over her turn
+    w_short = w_on * (1.0 - min(1.0, max(0.0, (r['spin_still_m_s'] - vx) / r['edge_m_s']))) * max(0.0, 1.0 - vx / se2.WALK_SPEED)
+    sw = float(out[latent.SWAY][modal.DRIVE])
+    out[latent.REF][modal.DRIVE] -= w_short * sw * math.sin(bt_d)
+    out[latent.RATE][modal.DRIVE] -= w_short * sw * w * math.cos(bt_d)
+    out[latent.ACC][modal.DRIVE] += w_short * sw * w * w * math.sin(bt_d)
+    out[latent.SWAY][modal.DRIVE] -= w_short * sw
     out[latent.SWAY][modal.DRIVE] += w_spin * (drv - float(out[latent.SWAY][modal.DRIVE]))
     out[latent.REF][modal.DRIVE] += w_spin * (drv * math.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
     out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * math.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))

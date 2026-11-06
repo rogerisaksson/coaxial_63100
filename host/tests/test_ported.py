@@ -104,13 +104,14 @@ def test_her_touch_in_c_as_she_walks(report, c):
 
 def test_her_twist_in_c_as_she_walks(report, c):
     """Her twist's step in C (`c_twist.laid`, wbc_twist.c) beside its python (`se2.twisted`) on
-    copies of her arrays at every pass of her law over PASSES of her walk - fr, st, the latent
-    out, her posture, the state and the words bit for bit -, and a step's time beside its python's."""
+    copies of her arrays at every pass of her law over PASSES of her walk told slower and turning, each
+    bit for bit, and a step's time beside its python's."""
     from machine.law import se2
     from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.cores.orders import same
     s = worker.session(walks=True)
+    worker.apply(s, {'twist': (0.35, 0.0, 0.3)})
     g = s['g']
     real, tally, spent = g['twist_step'], [0, 0, 0.0], [[], []]
 
