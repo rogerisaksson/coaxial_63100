@@ -22,7 +22,7 @@ import threading
 import numpy as np
 
 from tools.cores import build
-from tools.cores.wbc import address
+from tools.cores.arrays import address
 
 #: The extension's source, beside this.
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quick.c')
@@ -68,7 +68,7 @@ def _loaded():
 
 
 def addressing():
-    """An ndarray's first element's address: the extension's read, else `tools.cores.wbc.address`."""
+    """An ndarray's first element's address: the extension's read, else `tools.cores.arrays.address`."""
     q = module()
     return address if q is None else q.data
 
