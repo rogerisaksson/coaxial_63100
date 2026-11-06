@@ -53,6 +53,7 @@ MACHINE = (
     ('host/machine/law/schema.py',                 (STRUCTURE, SHIELD, WAYFINDER, ORTHO, SCENES, ERRANDS)),
     ('host/machine/way/wayfinder.py',              (STRUCTURE, WAYFINDER, ORTHO, SCENES, ERRANDS)),
     ('host/machine/eyes/registry.py',               (STRUCTURE, WAYFINDER, SCENES, ERRANDS, REGISTRY)),
+    ('host/machine/eyes/stacked.py',                (STRUCTURE, WAYFINDER, SCENES, ERRANDS, REGISTRY)),
     ('host/machine/texts/says.py',                   (STRUCTURE, SAYS)),
     ('host/machine/process/introspect.py',             (STRUCTURE, INTROSPECT, GATE)),
     ('host/machine/texts/calls.py',                  (STRUCTURE, INTROSPECT)),

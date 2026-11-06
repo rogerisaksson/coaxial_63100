@@ -2,7 +2,8 @@
 """Her map's look in C (`tools.cores.registry`, wbc_registry.c) beside its numpy twin (`registry.laid(twin=True)`):
 looks drawn to take every path - each thing its own slot at once, the loop where two meet one, a full registry's
 least salient taken, things moving, unseen, pruned, her eyes' frustum or the whole room - and her lodge's own looks
-walking out of its door, every slot's every field and class bit for bit after each; a look's time beside numpy's."""
+walking out of its door, as her process passes them and as her vision apart does (its changed rows restacked
+alone), every slot's every field and class bit for bit after each; a look's time beside numpy's."""
 import math
 import os
 import sys
@@ -90,29 +91,39 @@ def test_her_map_looks_in_c_as_in_numpy(report, c):
 
 
 def test_her_lodge_looks_in_c_as_in_numpy(report, c):
-    """Her lodge's looks as she walks out of its door (`told`), her registry's C and a numpy twin fed each: every field
-    and class bit for bit after each look; a look's time beside numpy's."""
+    """Her lodge's looks as she walks out of its door (`told`), her registry's C and a numpy twin fed each, and a third
+    fed as her vision apart is (`vision.main`: the rows not the same objects as the last look's, kept and restacked
+    alone): every field and class bit for bit after each look; a look's time beside numpy's."""
     from machine.eyes import registry, vision
     from machine.world import room
     from tools.sim import told
     twins, spent, worst = {}, ([], []), []
     start = vision.Here.start
+    changer = vision.Apart.__new__(vision.Apart)
+    changer._looks = []
 
     def beside(self, g, looks, head, dt, everywhere):
-        twin = twins.get(id(g['registry']))
+        twin, apart_ = twins.get(id(g['registry']), (None, None))
         if twin is None:
-            twin = twins[id(g['registry'])] = registry.laid(twin=True)
+            twin, apart_ = twins[id(g['registry'])] = registry.laid(twin=True), (registry.laid(), {'looks': []})
         t0 = time.perf_counter()
         start(self, g, looks, head, dt, everywhere)
         t1 = time.perf_counter()
         registry.passed(twin, head, dt)
         registry.seen(twin, looks, head, g['t'], everywhere=everywhere)
         t2 = time.perf_counter()
+        changed, (slots, kept) = changer._changed(looks), apart_
+        kept['looks'] = kept['looks'] if len(kept['looks']) == len(looks) else [None] * len(looks)
+        for k, look in changed.items():
+            kept['looks'][k] = look
+        registry.passed(slots, head, dt)
+        registry.seen(slots, kept['looks'], head, g['t'], everywhere=everywhere, kept=kept, changed=changed)
         spent[0].append(t1 - t0)
         spent[1].append(t2 - t1)
         apart, alike = _same(g['registry'], twin)
-        if apart or not alike:
-            worst.append((round(g['t'], 3), apart, alike))
+        restacked, kinds = _same(slots, twin)
+        if apart or not alike or restacked or not kinds:
+            worst.append((round(g['t'], 3), apart, alike, restacked, kinds))
     vision.Here.start = beside
     try:
         r = told.Run(room=True)
@@ -120,7 +131,8 @@ def test_her_lodge_looks_in_c_as_in_numpy(report, c):
         r.go(DOOR_S, lambda q: float(q.s['g']['world'].data.qpos[2]) > room.TO)
     finally:
         vision.Here.start = start
-    report.check("her lodge's looks in C as in numpy walking out of its door, every field and class bit for bit",
+    report.check("her lodge's looks in C as in numpy walking out of its door, passed whole and restacked as her vision "
+                 "apart's, every field and class bit for bit",
                  len(spent[0]) > 500 and not worst, '%d looks, apart %s' % (len(spent[0]), worst[:3]))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check("a look of her lodge in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))

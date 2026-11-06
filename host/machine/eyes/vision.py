@@ -129,7 +129,7 @@ def _laid(g):
 
 def main():
     """Her vision apart (`aside.serve`): her registry as laid, each look - its changes on the last - passed into
-    it, its boxes said; its C warmed first (`registry.warm`)."""
+    it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first (`registry.warm`)."""
     kept = {'looks': []}
     registry.warm()
 
@@ -145,7 +145,7 @@ def main():
             looks[k] = look_
         kept['looks'] = looks
         registry.passed(slots, head, dt)
-        registry.seen(slots, looks, head, t, everywhere=everywhere)
+        registry.seen(slots, looks, head, t, everywhere=everywhere, kept=kept, changed=changed)
         return registry.boxed(slots)
     aside.serve(answered)
 

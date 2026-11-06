@@ -36,7 +36,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.texts import kernel
-from machine.eyes import classes
+from machine.eyes import stacked
 from machine.eyes.sight import DOWN_DEG, EYES, FOVY_DEG
 from machine.eyes.voxels import CELL_M, FAR_M, NEAR_M
 from machine.eyes.stereo import H, W
@@ -73,13 +73,11 @@ TAN_UP = math.tan(math.radians(FOVY_DEG) / 2.0)
 TAN_ACROSS = TAN_UP * W / H
 DOWN = math.radians(DOWN_DEG)
 AXIS, UP = np.array([0.0, -math.sin(DOWN), math.cos(DOWN)]), np.array([0.0, math.cos(DOWN), math.sin(DOWN)])
-#: A box's centre, half sizes and rotation: their shapes.
-BOX = ((3,), (3,), (3, 3))
 
 
 def laid(twin=False):
-    """{rows (`Rows`), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`); its looks in C
-    (`tools.cores.registry`), numpy's own where `twin`."""
+    """{rows (`Rows`), kinds [str], classed}: the text's slots, none on, no look classed (`stacked.classed`); its
+    looks in C (`tools.cores.registry`), numpy's own where `twin`."""
     return {'rows': _rows({}, twin), 'kinds': [''] * SLOTS, 'classed': None}
 
 
@@ -151,39 +149,12 @@ def seen_of(centre, half, R, eye, turn):
     return shown(points.reshape(-1, 3), eye, turn).reshape(len(centre), -1).any(axis=1)
 
 
-def _boxes(looks):
-    """(kinds, centres (n, 3), halves (n, 3), rotations (n, 3, 3), ids (n,) 0 none, clear (n,) 1.0 where the space
-    over a thing is seen clear, a box's without a word) of a look's things, those that are boxes: its things
-    of four fields stacked at once, sized one by one where they do not stack as boxes."""
-    rows = [p for p in looks if len(p) >= 4]
-    try:
-        stacked = [np.array([p[j] for p in rows], float).reshape((len(rows),) + s) for j, s in enumerate(BOX, 1)]
-    except (TypeError, ValueError):
-        rows = [p for p in rows if all(np.size(p[j]) == math.prod(s) for j, s in enumerate(BOX, 1))]
-        stacked = [np.array([p[j] for p in rows], float).reshape((-1,) + s) for j, s in enumerate(BOX, 1)]
-    return ([str(p[0]) for p in rows], *stacked, np.array([int(p[4]) if len(p) > 4 else 0 for p in rows], np.int64),
-            np.array([float(p[5]) if len(p) > 5 else 1.0 for p in rows]))
-
-
 def _w2(centre, half, at, halves, scale):
     """(n, m) the Wasserstein metric squared of each thing (`centre`, `half` (n, 3)) to each slot (`at`, `halves`
     (m, 3)), over the variances `scale` (m,)."""
     d, h = (at - centre[:, None]) ** 2, (halves - half[:, None]) ** 2
     # a sum over 3 in order, as .sum(2) adds it, without its reduction's setup on a 3-long axis
     return ((d[..., 0] + d[..., 1] + d[..., 2]) + (h[..., 0] + h[..., 1] + h[..., 2])) / scale
-
-
-def _classed(slots, kinds, centre, half, R, clear):
-    """A look's things' classes (`classes.of`), kept on `slots` with the look they are of and told anew only as it
-    changes value: `of` is a pure function of the look, compares its numbers and never their zeros' signs, so the
-    same bits. Told each look, the lodge's 64 things took 1.1 ms of its 1.64 - every 9 ms, joined by her law -, its
-    door at rest the same values look after look."""
-    was = slots.get('classed')
-    if was is not None and was[0] == kinds and all(np.array_equal(a, b) for a, b in zip(was[1:5], (centre, half, R, clear))):
-        return was[5]
-    names = classes.of(kinds, centre, half, R, clear)[0]
-    slots['classed'] = (kinds, centre, half, R, clear, names)
-    return names
 
 
 def _core(r):
@@ -202,14 +173,16 @@ def warm():
     c_registry.laid(_rows({}))
 
 
-def seen(slots, looks, head, t, everywhere=False):
+def seen(slots, looks, head, t, everywhere=False, kept=None, changed=None):
     """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing by its class (`classes.of`,
-    `_classed`) into the slot it matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`,
-    the look shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows. In C past
-    its classes (`_seen_c`), numpy's own below for a twin."""
+    `stacked.classed`) into the slot it matches or a new one, every live slot's salience moved, the pruned let go;
+    `everywhere`, the look shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum
+    shows. In C past its classes (`_seen_c`), numpy's own below for a twin; its boxes kept on `kept` and restacked where
+    `changed` (the rows not the same objects as the last look's, her vision apart's), else stacked whole."""
     r, kinds = slots['rows'], slots['kinds']
-    names, centre, half, R, ids, clear = _boxes(looks)
-    names = _classed(slots, names, centre, half, R, clear)
+    boxes, dirty = (stacked.stack(looks), True) if changed is None else stacked.restacked(kept, looks, changed)
+    names, centre, half, R, ids, clear = boxes
+    names = stacked.classed(slots, names, centre, half, R, clear, dirty)
     on = r['on']
     live = np.flatnonzero(on)
     if not len(names) and not len(live):
