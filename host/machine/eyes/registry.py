@@ -76,8 +76,8 @@ BOX = ((3,), (3,), (3, 3))
 
 
 def laid():
-    """{rows (SLOTS, SLOT), kinds [str]}: the text's slots, none on."""
-    return {'rows': np.zeros(SLOTS, SLOT), 'kinds': [''] * SLOTS}
+    """{rows (SLOTS, SLOT), kinds [str], classed}: the text's slots, none on, no look classed (`_classed`)."""
+    return {'rows': np.zeros(SLOTS, SLOT), 'kinds': [''] * SLOTS, 'classed': None}
 
 
 def _frame(q):
@@ -143,13 +143,26 @@ def _w2(centre, half, at, halves, scale):
     return ((d[..., 0] + d[..., 1] + d[..., 2]) + (h[..., 0] + h[..., 1] + h[..., 2])) / scale
 
 
+def _classed(slots, kinds, centre, half, R, clear):
+    """A look's things' classes (`classes.of`), kept on `slots` with the look they are of and told anew only as it
+    changes value: `of` is a pure function of the look, compares its numbers and never their zeros' signs, so the
+    same bits. Told each look, the lodge's 64 things took 1.1 ms of its 1.64 - every 9 ms, joined by her law -, its
+    door at rest the same values look after look."""
+    was = slots.get('classed')
+    if was is not None and was[0] == kinds and all(np.array_equal(a, b) for a, b in zip(was[1:5], (centre, half, R, clear))):
+        return was[5]
+    names = classes.of(kinds, centre, half, R, clear)[0]
+    slots['classed'] = (kinds, centre, half, R, clear, names)
+    return names
+
+
 def seen(slots, looks, head, t, everywhere=False):
-    """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing by its class (`classes.of`)
-    into the slot it matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`, the look
-    shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows."""
+    """`slots` by a look's things `looks` at `t` s, her `head` {pos, quat}: each thing by its class (`classes.of`,
+    `_classed`) into the slot it matches or a new one, every live slot's salience moved, the pruned let go; `everywhere`,
+    the look shows the whole room (the stand-in's, the world's own boxes), else what her eyes' frustum shows."""
     r, kinds = slots['rows'], slots['kinds']
     names, centre, half, R, ids, clear = _boxes(looks)
-    names = classes.of(names, centre, half, R, clear)[0]
+    names = _classed(slots, names, centre, half, R, clear)
     on = r['on']
     live = np.flatnonzero(on)
     if not len(names) and not len(live):

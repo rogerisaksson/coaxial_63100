@@ -187,6 +187,40 @@ def pose(beats, start, elapsed):
     return out
 
 
+def scored(beats, start):
+    """`beats` from the pose `start` (deg, every joint) as the score `posed` plays: each beat's seconds, its joints'
+    indices and degrees end to end (`at` each beat's first), the pose the beats passed leave and how many have."""
+    import numpy as np
+    seconds = [float(s) for _beat, s, _goals in beats]
+    return {'seconds': seconds, 'secs': np.array(seconds), 'k': 0, 'base': np.array(start, float),
+            'at': np.cumsum([0] + [len(goals) for _beat, _s, goals in beats]),
+            'joint': np.array([INDEX[j] for _beat, _s, goals in beats for j in goals], np.intp),
+            'deg': np.array([v for _beat, _s, goals in beats for v in goals.values()], float)}
+
+
+def posed(score, elapsed):
+    """`pose` `elapsed` s into a program by its score (`scored`), `elapsed` never less than at the call before - the
+    same bits, a pass a beat's goals: the beats passed kept as the pose they leave (each at a = 1, as `pose` blends a
+    beat its `elapsed` is past), `elapsed` brought to the first not passed by `pose`'s own subtractions in its order
+    (numpy's subtract.reduce, sequential). Replayed from its first beat each pass a program's pose took 0.14-1.2 ms over
+    the bed's lie (173 beats) and 2.6-18 ms over turning in bed (2550), her world 0.05 of the wall."""
+    import numpy as np
+    k, seconds = score['k'], score['seconds']
+    if k:
+        elapsed = float(np.subtract.reduce(score['secs'][:k], initial=elapsed))
+    out, at, joint, deg = score['base'].copy(), score['at'], score['joint'], score['deg']
+    while k < len(seconds):
+        a = min(max(elapsed / seconds[k], 0.0), 1.0)
+        j = joint[at[k]:at[k + 1]]
+        out[j] += a * (deg[at[k]:at[k + 1]] - out[j])
+        elapsed -= seconds[k]
+        if elapsed <= 0.0:
+            break
+        k += 1
+        score['k'], score['base'] = k, out.copy()
+    return out
+
+
 def paced(beats, start):
     """`beats` with the first over no less time than the program's own pace asks of each joint from the pose `start`
     (deg, every joint) she begins it at: no joint faster than the program moves it from beat to beat. Over its own
@@ -226,9 +260,13 @@ def played(g, world):
             return
         p['at'], p['pose'], p['gains'] = g['t'], np.degrees(g['sense'][edge.Q]), world.gains.copy()
         world.gains[:, 1] = KD
+        # its joints, their stiffness and no feed laid once, its joints int32 so her edge's index cache keeps them
+        p['joints'] = np.array([i for i in g['joints'] if i in p['mine']], np.int32)
+        p['kp'], p['feed'] = np.asarray(KP)[p['joints']], np.zeros(len(p['joints']))
         if 'beats' in p:
             p['beats'] = paced(p['beats'], p['pose'])
             p['length'] = sum(seconds for _beat, seconds, _goals in p['beats'])
+            p['score'] = scored(p['beats'], p['pose'])
         if 'move' in p:
             import importlib
             p['move'] = importlib.import_module(p['move'])
@@ -244,13 +282,13 @@ def played(g, world):
             return
         if getattr(p['move'], 'HOLDS', True):
             waits.played_back(g, dt)
-        joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
-        edge.drive(world, joints, target=np.radians(p['cmd'])[joints], feed=np.zeros(len(joints)),
-                   kp=np.asarray(KP)[joints], limit=g['clamp'][joints])
+        joints = p['joints']
+        edge.drive(world, joints, target=np.radians(p['cmd'])[joints], feed=p['feed'], kp=p['kp'],
+                   limit=g['clamp'][joints])
         return
     if g['t'] - p['at'] >= p['length']:
         ended(g)
         return
-    joints = np.asarray([i for i in g['joints'] if i in p['mine']], int)
-    edge.drive(world, joints, target=np.radians(pose(p['beats'], p['pose'], g['t'] - p['at']))[joints],
-               feed=np.zeros(len(joints)), kp=np.asarray(KP)[joints], limit=g['clamp'][joints])
+    joints = p['joints']
+    edge.drive(world, joints, target=np.radians(posed(p['score'], g['t'] - p['at']))[joints], feed=p['feed'],
+               kp=p['kp'], limit=g['clamp'][joints])
