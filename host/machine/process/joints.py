@@ -149,28 +149,50 @@ def scooted(g, twist):
 
 
 def _felt(g):
-    """{sense: value} a move's pass may name (its `SENSED`): her soles', shanks', fists' and each foot's share of her
-    weight, her trunk's pitch (deg), her twist back and turning left as shares of her keys' (`se2`) as asked - not as
-    `touch.against` cuts it: her fists behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, her
-    pelvis's heading (deg, left +) as her estimate turns it, and her pelvis from the middle of the bed she lies on
-    along its length, that half length (m) and her pelvis's speed (m/s) as a look takes her (`furniture.lain`)."""
-    import math
-    import numpy as np
-    from machine.law import modal
-    from machine.way import furniture
-    along, half, speed = furniture.lain(g)
-    weight = float(g['fr'][modal.WEIGHT])
-    touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
-    vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
-    w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
-    return {'soles': float(np.sum(g['loads'])) / weight, 'shins': float(np.sum(touch[SHANKS])) / weight,
-            'pitch': float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1])),
-            'hands': float(np.sum(touch[FISTS])) / weight, 'left_foot': float(np.sum(touch[FEET[0]])) / weight,
-            'right_foot': float(np.sum(touch[FEET[1]])) / weight,
-            'back': min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0),
-            'turn': min(max(wz / YAW_RATE, -1.0), 1.0),
-            'heading': math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x))),
-            'along': along, 'half': half, 'speed': speed}
+    """{sense: value} a move's pass may name (its `SENSED`), each told as the pass first reads it (`_Felt`)."""
+    return _Felt(g)
+
+
+class _Felt(dict):
+
+    """A move's senses: her soles', shanks', fists' and each foot's share of her weight, her trunk's pitch (deg), her
+    twist back and turning left as shares of her keys' (`se2`) as asked - not as `touch.against` cuts it: her fists
+    behind her were felt as a wall, and S held 8 s scooted her 0.00 m -, her pelvis's heading (deg, left +) as her
+    estimate turns it, and her pelvis from the middle of the bed she lies on along its length, that half length (m)
+    and her pelvis's speed (m/s) as a look takes her (`furniture.lain`). Each told at its first read, those read
+    together at once - the same expressions, the same bits: a bed's entry reads five of the thirteen, its exit three."""
+
+    def __init__(self, g):
+        super().__init__()
+        self.g = g
+
+    def __missing__(self, name):
+        import math
+        import numpy as np
+        from machine.law import modal
+        from machine.way import furniture
+        g = self.g
+        if name in ('along', 'half', 'speed'):
+            self['along'], self['half'], self['speed'] = furniture.lain(g)
+        elif name == 'soles':
+            self['soles'] = float(np.sum(g['loads'])) / float(g['fr'][modal.WEIGHT])
+        elif name in ('shins', 'hands', 'left_foot', 'right_foot'):
+            weight = float(g['fr'][modal.WEIGHT])
+            touch = np.linalg.norm(g['sense'][edge.TOUCH].reshape(-1, 3), axis=1)
+            self['shins'], self['hands'] = float(np.sum(touch[SHANKS])) / weight, float(np.sum(touch[FISTS])) / weight
+            self['left_foot'], self['right_foot'] = float(np.sum(touch[FEET[0]])) / weight, float(np.sum(touch[FEET[1]])) / weight
+        elif name == 'pitch':
+            self['pitch'] = float(np.degrees(modal.pitched(g['y'], g['fr'][modal.ROT].reshape(3, 3))[1]))
+        elif name in ('back', 'turn'):
+            vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
+            self['back'] = min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0)
+            self['turn'] = min(max(wz / YAW_RATE, -1.0), 1.0)
+        elif name == 'heading':
+            w, x, j, k = (float(v) for v in g['y'][modal.QUAT][:4])
+            self['heading'] = math.degrees(math.atan2(2.0 * (w * j + x * k), 1.0 - 2.0 * (j * j + x * x)))
+        else:
+            raise KeyError(name)
+        return self[name]
 
 
 def pose(beats, start, elapsed):

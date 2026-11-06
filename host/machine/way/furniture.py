@@ -5,6 +5,7 @@ the world's props standing in for them without), what each affords her the text'
 a chair a seat with a back, the nearest seat without one; a bed what she can lie on; the door its kind.
 """
 import math
+import operator
 
 from machine.way import affordance
 
@@ -32,23 +33,64 @@ def first(verb, box, things, heading):
 
 def _things(g, things):
     """`things` (hers, `g['things']`, without) as boxes: kind, centre, half sizes, turn at the least."""
-    return [p for p in (g['things'] if things is None else things)
-            if len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3]
+    return [p for p in (g['things'] if things is None else things) if _boxlike(p)]
+
+
+def _boxlike(p):
+    return len(p) >= 4 and len(p[1]) >= 3 and hasattr(p[2], '__len__') and len(p[2]) >= 3
+
+
+def _afforded(g, verb, things=None):
+    """(her boxes of `things` - hers, `g['things']`, without -, [(box, whether it is the thing itself)] of those
+    `verb` goes to, in their order): told anew only as her things change - the very ones last told, or a look's of the
+    same bits (`_alike`): the last told in its places -, kept on `g` till then. Each pass of a bed's move found the bed
+    again among the lodge's 64 things (a box `affordance.lies` reads every other thing over it), 0.86 ms of her 1 kHz
+    pass while it played: lying down on the bed and rising from it she ran at half her pace; told anew each look, a
+    third of it."""
+    source = g['things'] if things is None else things
+    kept = g.setdefault('_afforded', {}).get(verb)
+    if kept is None or not (kept[0] is source and len(kept[1]) == len(source) and all(map(operator.is_, kept[1], source))):
+        if kept is not None and _alike(kept[0], source):
+            index, chosen = kept[2], kept[3]
+        else:
+            affords, itself, _faces = GOES.get(verb, _NONE)
+            index = [k for k, p in enumerate(source) if _boxlike(p)]
+            boxes = [source[k] for k in index]
+            chosen = [(j, itself(p, boxes)) for j, p in enumerate(boxes) if affords(p, boxes)]
+        boxes = [source[k] for k in index]
+        kept = g['_afforded'][verb] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen])
+    return kept[4], kept[5]
+
+
+def _alike(was, things):
+    """Whether `things` - a look's (`registry.Things`) - are `was`'s of the same bits: their boxes' arrays byte for
+    byte, each one's kind, slot, clear and swell equal; False for any other kind of things."""
+    arrays, before = getattr(things, 'arrays', None), getattr(was, 'arrays', None)
+    if arrays is None or before is None or len(was) != len(things):
+        return False
+    return (all(a.tobytes() == b.tobytes() for a, b in zip(arrays, before))
+            and all(p[0] == q[0] and p[4:] == q[4:] for p, q in zip(things, was)))
 
 
 def _found(g, verb, at=None, thing=None, things=None):
     """(its distance from `at`, its edge's from her, the thing - kind, centre, half sizes, turn, slot) of
     what `verb` goes to nearest `at` (x, z) - her without one - among `things` (hers, `g['things']`,
     without), the thing itself before what else affords it; the thing of slot `thing` where she holds
-    one still (an errand's, chosen when it was seen whole); None with none seen."""
-    affords, itself, _faces = GOES.get(verb, _NONE)
+    one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as her things
+    change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's, and those
+    as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
     gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
     ax, az = at if at is not None else (gx, gz)
-    things = _things(g, things)
+    things, afforded = _afforded(g, verb, things)
     held = [p for p in things if thing is not None and len(p) > 4 and p[4] == thing]
-    hits = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az), affordance.distance(p, (gx, gz)), p, itself(p, things))
-            for p in (held or [p for p in things if affords(p, things)])]
-    return min(hits, default=None, key=lambda h: (not h[3], h[0], h[1]))
+    itself = GOES.get(verb, _NONE)[1]
+    near = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az), p, own)
+            for p, own in ([(p, itself(p, things)) for p in held] if held else afforded)]
+    if not near:
+        return None
+    least = min((not own, d) for d, _p, own in near)
+    hits = [(d, affordance.distance(p, (gx, gz)), p, own) for d, p, own in near if (not own, d) == least]
+    return min(hits, key=lambda h: (not h[3], h[0], h[1]))
 
 
 def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
