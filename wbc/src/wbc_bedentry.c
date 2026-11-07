@@ -23,11 +23,10 @@ double wbc_bedentry_step(const wbc_bedentry_t *b, double *state, double *cmd, do
   for (int i = 0; i < WBC_BEDENTRY_MOVED; i++)
   {
     const int    j = b->joint[i], p = b->part[i];
-    const double how = b->how[k][p], x = cmd[j], reach = b->rate[k][p] * dt;
-    const double goal = how == 2.0 ? npmaximum(x, b->goal[k][p]) : b->goal[k][p];
+    const double how = b->how[k][p], x = cmd[j], goal = wbc_anatomy_aimed(how, b->goal[k][p], x);
 
-    cmd[j] = how == 0.0 ? x : x + npclip(goal - x, -reach, reach);
-    reached = reached && (fabs(goal - cmd[j]) <= b->tol || how == 0.0);
+    cmd[j] = wbc_anatomy_driven(how, goal, b->rate[k][p], x, x, x, 0.0, dt);
+    reached = reached && (fabs(goal - cmd[j]) <= b->tol || how == WBC_ANATOMY_HELD);
   }
   kinds[0] = reached;
   kinds[1] = reached || soles >= b->plant;

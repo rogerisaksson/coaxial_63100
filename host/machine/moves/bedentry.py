@@ -24,6 +24,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body.figure import JOINTS
+from machine.moves import anatomy
 
 #: What `machine.process.joints` gives a pass beyond her pose: her soles' share of her weight, her pelvis from the
 #: middle of the bed she lies on along its length (m) and that half length (m), her trunk's pitch (deg, forward +),
@@ -43,9 +44,9 @@ PART = np.repeat(np.arange(len(PARTS)), [2] * SIDED + [1] * (len(PARTS) - SIDED)
 PLANT, PULL_IN, STILL, LAIN, NEAR, STROKES, TOL = 0.05, 0.30, 0.01, -90.0, 0.03, 12.0, 1e-6
 #: How a phase ends: its pose reached; her feet planted or its pose reached; her pelvis pulled in, or its pose reached
 #: and she still; its pose reached and she lying; its pose reached and she still; at the middle or its pose reached.
-#: How a part goes: held, to its goal at its rate, to its goal at its rate but no straighter than it is.
+#: How a part goes (`anatomy`'s): held, to its goal at its rate, to its goal at its rate but no straighter than it is.
 REACHED, FEET, PULLED, LYING, STILLED, MIDDLE = range(6)
-HELD, RATE, LEAST = 0.0, 1.0, 2.0
+HELD, RATE, LEAST = anatomy.HELD, anatomy.RATE, anatomy.LEAST
 _TRUNK = {'spine': (0.0, 20.0), 'waist': (0.0, 20.0), 'neck': (0.0, 20.0)}
 _SQUARE = {'hip_roll': (0.0, 15.0), 'hip_yaw': (0.0, 15.0)}
 #: The phases: (name, how it ends, the next, the next while a stroke is due, {part: (deg, deg/s[, how])}) - the
@@ -96,9 +97,8 @@ def step(state, cmd, q_deg, t, dt, soles, along, half, pitch, speed):
     way = state[WAY] if state[WAY] != 0.0 else (-1.0 if along < 0.0 else 1.0)
     remaining = way * along
     x, how = cmd[JOINT], HOW[k, PART]
-    goal = np.where(how == LEAST, np.maximum(x, GOAL[k, PART]), GOAL[k, PART])
-    reach = RATES[k, PART] * dt
-    cmd[JOINT] = np.where(how == HELD, x, x + np.clip(goal - x, -reach, reach))
+    goal = anatomy.aimed(how, GOAL[k, PART], x)
+    cmd[JOINT] = anatomy.driven(how, goal, RATES[k, PART], x, x, x, 0.0, dt)
     reached = bool(np.all((np.abs(goal - cmd[JOINT]) <= TOL) | (how == HELD)))
     still = speed <= STILL
     due = (reached, reached or soles >= PLANT, half - remaining >= PULL_IN or (reached and still),

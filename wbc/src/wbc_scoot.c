@@ -49,9 +49,8 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
                         : how == 4.0          ? s->rate[k][p] * (double)(foot < s->skim)
                         : how == 6.0          ? s->rate[k][p] * (double)(!up)
                                               : s->rate[k][p];
-    const double reach = rate * dt;
-    const double moved = how == 0.0 ? x : x + npclip(goal - x, -reach, reach);
-    const double held = npclip(moved + s->gain * (pitch - s->trunk) * dt, s->hip_lo, s->hip_hi);
+    const double moved = wbc_anatomy_driven(how == 0.0 ? WBC_ANATOMY_HELD : WBC_ANATOMY_RATE, goal, rate, x, x, x, 0.0, dt);
+    const double held = wbc_anatomy_held(moved, s->gain, pitch, s->trunk, dt, s->hip_lo, s->hip_hi);
     int          near;
 
     cmd[j] = (hip && (how == 0.0 || how == 5.0 || rate == 0.0) && trunked) ? held : moved;

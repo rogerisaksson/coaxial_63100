@@ -28,7 +28,7 @@ import numpy as np
 from machine.body import figure
 from machine.body.figure import JOINTS
 from machine.errors import MachineError
-from machine.moves import clocked, seated
+from machine.moves import anatomy, clocked, seated
 
 #: What `machine.process.joints` gives a pass beyond her pose: her trunk's pitch (deg, forward +), her fists' and each
 #: foot's share of her weight, her twist back and turning left as shares of her keys' (1 a key held, -1 its opposite),
@@ -180,9 +180,8 @@ def step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, headin
     rate = np.where(how == END, STROKE_RATE * np.abs(way), np.where(HIP & (how == START), rate * (
         stretched | (foot >= SKIM)), np.where(how == SETTING, rate * (foot < SKIM), np.where(
             how == UNSEAT, rate * float(not up), rate))))
-    reach = rate * dt
-    moved = np.where(how == HELD, x, x + np.clip(goal - x, -reach, reach))
-    held = np.clip(moved + GAIN * (pitch - TRUNK) * dt, HIP_LO, HIP_HI)
+    moved = anatomy.driven(np.where(how == HELD, anatomy.HELD, anatomy.RATE), goal, rate, x, x, x, 0.0, dt)
+    held = anatomy.held(moved, GAIN, pitch, TRUNK, dt, HIP_LO, HIP_HI)
     trunked = TRUNKED[k] > 0.5 and (pushed or k != PUSHING) and (left >= BEAR or right >= BEAR)
     cmd[JOINT] = np.where(HIP & ((how == HELD) | (how == EVEN) | (rate == 0.0)) & trunked, held, moved)
     near = np.abs(goal - cmd[JOINT]) <= TOL

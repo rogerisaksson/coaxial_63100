@@ -6,15 +6,20 @@
 
 /** Her moves' anatomy (wbc_anatomy.c, machine.moves.anatomy): how a part goes - held where it is, blended over its
     phase from where it began, to its goal at its rate (deg/s), her sensed angle and its goal past it, drawn toward
-    its goal from her sensed angle by its rate (deg) at most, yielding past it. */
+    its goal from her sensed angle by its rate (deg) at most, yielding past it, to its goal at its rate but no
+    straighter than it is. */
 enum
 {
   WBC_ANATOMY_HELD,
   WBC_ANATOMY_BLEND,
   WBC_ANATOMY_RATE,
   WBC_ANATOMY_FOLLOW,
-  WBC_ANATOMY_TOWARD
+  WBC_ANATOMY_TOWARD,
+  WBC_ANATOMY_LEAST
 };
+
+/** A joint's goal (deg) as `how` it goes: WBC_ANATOMY_LEAST's no straighter than its command `x`, the larger. */
+double wbc_anatomy_aimed(double how, double goal, double x);
 
 /** A joint's command (deg) a pass `dt` s on, as `how` it goes (WBC_ANATOMY_*): its `goal` and `rate`, its command
     `x`, her sensed angle `q`, where its phase began `start`, `a` of its phase's way. */
@@ -133,8 +138,8 @@ enum
 /** machine.moves.bedentry's tables, filled once from it: the joints it moves (figure.JOINTS) and each one's part, how
     each phase ends (0 its pose reached, 1 her feet planted or that, 2 her pelvis pulled in or that and she still, 3
     that and she lying, 4 that and she still, 5 at the middle or that), the last phase; each phase's next, its next
-    while a stroke is due and whether it counts a stroke; each part's goal (deg), how it goes (0 held, 1 to its goal at
-    its rate, 2 that but no straighter than it is) and its rate (deg/s); her feet's share planted, her pelvis's pull
+    while a stroke is due and whether it counts a stroke; each part's goal (deg), how it goes (WBC_ANATOMY_HELD, _RATE,
+    _LEAST) and its rate (deg/s); her feet's share planted, her pelvis's pull
     in (m), still under her speed (m/s), lying past her pitch (deg), a stroke again while this short of the middle
     (m), the strokes at most and a goal reached within (deg). */
 typedef struct
