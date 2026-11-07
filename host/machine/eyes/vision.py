@@ -17,6 +17,8 @@ from machine.errors import MachineError
 
 #: A look's things: the world's boxes as her eyes' stand-in, or her eyes' map's (`g['keep']`, `physics.SIGHT`).
 LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
+#: What her vision apart says for a look whose boxes are the last one's to the bit (`main`): her things as they were.
+SAME = 'her things as the look before'
 
 
 def look(g):
@@ -77,8 +79,9 @@ class Apart:
 
     def __init__(self):
         self._aside, self.pending, self._looks = aside.Aside('machine.eyes.vision', 'her vision'), False, []
+        self._things = None
 
-    def start(self, g=None, looks=None, head=None, dt=0.0, everywhere=True):
+    def start(self, g=None, looks=(), head=None, dt=0.0, everywhere=True):
         """`Here.start` asked of its process - the look in flight before it dropped -; `g` None, its process spawned."""
         self._aside.start()
         if g is None:
@@ -98,9 +101,13 @@ class Apart:
                 if len(p) != len(q) or p[0] != q[0] or any(a is not b for a, b in zip(p[1:], q[1:]))}
 
     def join(self):
-        """The look in flight's things, waited for."""
+        """The look in flight's things, waited for: those it last laid where its boxes are theirs to the bit (SAME) -
+        seated, every look's; built anew each, 105 us of numpy floats in tuples a look."""
         self.pending = False
-        return registry.things(*self._aside.recv())
+        got = self._aside.recv()
+        if not isinstance(got, str):
+            self._things = registry.things(*got)
+        return self._things
 
     def boxes(self, g, least):
         joined(g)
@@ -130,7 +137,8 @@ def _laid(g):
 def main():
     """Her vision apart (`aside.serve`): her registry as laid, each look - its changes on the last - passed into
     it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first (`registry.warm`)."""
-    kept = {'looks': []}
+    import numpy as np
+    kept: dict = {'looks': []}
     registry.warm()
 
     def answered(ask):
@@ -146,7 +154,12 @@ def main():
         kept['looks'] = looks
         registry.passed(slots, head, dt)
         registry.seen(slots, looks, head, t, everywhere=everywhere, kept=kept, changed=changed)
-        return registry.boxed(slots)
+        boxes = registry.boxed(slots)
+        bits = (boxes[0], boxes[4], *(np.asarray(a, dtype=float).tobytes() for a in (*boxes[1:4], *boxes[5:])))
+        if bits == kept.get('said'):
+            return SAME
+        kept['said'] = bits
+        return boxes
     aside.serve(answered)
 
 
