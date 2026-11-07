@@ -462,6 +462,8 @@ DEFINE = {
     'define-residual-grammar': lambda env, f: {f[1]: tuple(_plist(c, env) for c in f[2:])},
     'defdaemon': lambda env, f: {f[1]: dict(_pairs(f[3:]), params=f[2])},
     'defparameter': lambda env, f: {f[1]: value(f[2], env)}, 'defun': lambda env, f: {f[1]: Defun(f[1], f[2], f[3:])},
+    # a move: a function of her body's numbers to its table (`machine.moves.anatomy.move`)
+    'defmove': lambda env, f: {f[1]: Defun(f[1], f[2], f[3:])},
 }
 
 

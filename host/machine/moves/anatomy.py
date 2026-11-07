@@ -37,6 +37,13 @@ def driven(how, goal, rate, x, q, start, a, dt):
                                       np.where(how == TOWARD, q + np.clip(goal - q, 0.0, rate), x))))
 
 
+def move(name, *numbers):
+    """Move `name`'s table as the suite's lisp says it (`defmove`, moves.lisp), given her body's `numbers`: {'constants':
+    {name: value}, 'phases': ({'name', 'seconds', 'next', 'goals', 'over', 'trunk', ..} ..)}, its keywords ':'-led."""
+    from machine.texts import dsp
+    return dsp.value([name] + list(numbers), dsp.read(dsp.SUITE))
+
+
 def held(x, gain, pitch, trunk, dt, lo, hi):
     """`x` (deg), her hips holding her trunk's `pitch` at `trunk` (deg): moved `gain` deg/s a deg of its error, within
     [`lo`, `hi`]."""

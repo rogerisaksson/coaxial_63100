@@ -46,40 +46,21 @@ KNEES = JOINT[PART == PARTS.index('knee')]
 #: How a goal is reached: blended in over its phase from where the phase began, her sensed angle and the goal past
 #: it, or drawn toward from her sensed angle by PULL deg at most, yielding past it; else a rate, deg/s.
 BLEND, FOLLOW, TOWARD = 0.0, -1.0, -2.0
-#: A stroke: the shoulders from SET to PUSH (deg) as the knees pull from STRETCHED to PULLED; its phases' lengths, s.
-SET, PUSH, STRETCHED, PULLED, PUSH_S, STRETCH_S, SLIDE_S = -10.0, -40.0, 10.0, 60.0, 0.8, 0.4, 0.6
-#: Her trunk's pitch her hips hold stroking, scooting and seated, deg (forward +, her law's `modal.pitched`); their
-#: gain, deg/s a deg, and range, deg (scooting they fold past 100: held there she rose and fell back).
-TRUNK, SCOOT_TRUNK, SEATED_TRUNK, TRUNK_GAIN, HIP_LO, HIP_HI = -20.0, 15.0, -5.0, 4.0, -130.0, -40.0
-#: Past the edge: her shanks' share of her weight under which they hang; her knees drawing her buttocks to her feet
-#: (TUCK, deg); a pull's most past where they are (TOWARD), deg; seated: her soles' share and her knees' fold, deg;
-#: the strokes at most.
-SHIN_SHARE, TUCK, PULL, SOLE_SHARE, KNEE_SEAT, STROKES = 0.02, 105.0, 8.0, 0.25, 100.0, 30.0
-#: Seated, her knees and ankles, deg, scooted to on her heels at the frame's face (the low chair's seat, 104 and -20,
-#: sits her hips 0.26 m behind her ankles); her legs settling and the scoot, s. Her trunk 20 deg forward stood her on
-#: her toes and threw her back onto the bed, 25 slid her off its end; her arms brought forward as she scooted, 3 of 7
-#: starts fell.
-SEATED_KNEE, SEATED_ANKLE, SETTLE_S, SCOOT_S = 108.0, -28.0, 0.5, 1.5
+#: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove bed-exit`, moves.lisp): her
+#: hips' gain on her trunk (deg/s a deg) and range (deg); past the edge her shanks' share under which they hang, a
+#: pull's most past where they are (TOWARD, deg); seated, her soles' share and her knees' fold (deg); the strokes.
+_MOVE = anatomy.move('bed-exit')
+TRUNK_GAIN, HIP_LO, HIP_HI, SHIN_SHARE, PULL, SOLE_SHARE, KNEE_SEAT, STROKES = (_MOVE['constants'][k] for k in (
+    'trunk-gain', 'hip-lo', 'hip-hi', 'shin-share', 'pull', 'sole-share', 'knee-seat', 'strokes'))
+#: How the lisp says a goal is reached: BLEND .. TOWARD, a number its rate.
+_BY = {':blend': BLEND, ':follow': FOLLOW, ':toward': TOWARD}
 #: The phases: (name, s, the next, {part: (deg, how)}, past the edge {part: (deg, how)}, the trunk her hips hold or
-#: None). The sit-up: the elbows under the shoulders, legs straight; the arms lifting her as the hips fold. Her hands
-#: set by her hips. A stroke: the push (to the settle once she is seated, `step`), the legs stretched, the arms
-#: forward again. Her legs settling, her heels down the frame's face; the scoot. Her law's seat. Past the edge her
-#: knees fold to TUCK and her ankles to 0 at the push's rates.
-_TUCKED = {'knee': (TUCK, 120.0), 'ankle': (0.0, 60.0)}
-PHASES = (('under', 1.5, 'up', {'hip': (0.0, BLEND), 'knee': (5.0, BLEND), 'shoulder': (-90.0, BLEND),
-                                'elbow': (90.0, BLEND)}, {}, None),
-          ('up', 1.5, 'place', {'hip': (-75.0, BLEND), 'shoulder': (-120.0, BLEND), 'elbow': (30.0, BLEND)}, {}, None),
-          ('place', 1.0, 'push', {'shoulder': (SET, BLEND), 'elbow': (0.0, BLEND)}, {}, TRUNK),
-          ('push', PUSH_S, 'stretch', {'shoulder': (PUSH, abs(PUSH - SET) / (PUSH_S - 0.1)), 'knee': (PULLED, 120.0),
-                                       'elbow': (0.0, 200.0), 'ankle': (0.0, 60.0)},
-           _TUCKED, TRUNK),
-          ('stretch', STRETCH_S, 'slide', {'knee': (STRETCHED, 150.0), 'ankle': (0.0, 80.0)}, _TUCKED, TRUNK),
-          ('slide', SLIDE_S, 'push', {'shoulder': (SET, abs(PUSH - SET) / (SLIDE_S - 0.1))}, _TUCKED, TRUNK),
-          ('settle', SETTLE_S, 'scoot', _TUCKED, {}, TRUNK),
-          ('scoot', SCOOT_S, 'seat', {'knee': (SEATED_KNEE, BLEND), 'ankle': (SEATED_ANKLE, BLEND)}, {}, SCOOT_TRUNK),
-          ('seat', 1.0, 'done', {'knee': (SEATED_KNEE, BLEND), 'ankle': (SEATED_ANKLE, BLEND), 'shoulder': (25.0, BLEND),
-                                 'elbow': (19.0, BLEND), 'spine': (-30.0, BLEND)}, {}, SEATED_TRUNK),
-          ('done', math.inf, 'done', {}, {}, None))
+#: None); no seconds, never by the clock.
+PHASES = tuple((p['name'].lstrip(':'), p.get('seconds', math.inf), p['next'].lstrip(':'),
+                {part: (deg, _BY[by] if isinstance(by, str) else by) for part, (deg, by) in p.get('goals', {}).items()},
+                {part: (deg, _BY[by] if isinstance(by, str) else by) for part, (deg, by) in p.get('over', {}).items()},
+                p.get('trunk'))
+               for p in _MOVE['phases'])
 NAMES = tuple(phase[0] for phase in PHASES)
 #: The push (it counts the strokes and tells her seated), the stretch (it tells her past the edge), the settle (where
 #: she goes seated), the end.
