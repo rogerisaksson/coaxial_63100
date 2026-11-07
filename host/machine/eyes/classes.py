@@ -219,6 +219,10 @@ def of(kinds, centre, half, R, clear):
     on = pair & beside & (bottom[:, None] >= top[None, :] - CELL_M - 1e-9) & (bottom[:, None] <= top[None, :] + OVER)
     under = pair & within & (top[:, None] <= bottom[None, :] + CELL_M + 1e-9)
     held = on | under
+    # her backrest at a seat's edge, the text's (`:verify-high-thoracic-slab-occupancy`, `affordance.back_of`'s): a
+    # piece of its look beside it from no more than a cell over its top past her lumbar, its foot anywhere under - a
+    # chair's back is one with its rear legs, a low chair's with the wall it stands against
+    backs = pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9) & (top[:, None] >= top[None, :] + LUMBAR)
     # what she steps onto: a top no piece in the lowest slab, then each beside one she does a rise of it off it
     free = surface & ~held.any(axis=1)
     rise = beside & free[:, None] & free[None, :] & (np.abs(top[:, None] - top[None, :]) <= STEP)
@@ -233,7 +237,7 @@ def of(kinds, centre, half, R, clear):
          'solid': (bottom <= FLUSH) | (np.where(under & ~surface[:, None], long[:, None], 0.0).max(axis=0) >= 0.5 * long),
          'seat': (top >= SEAT[0]) & (top <= SEAT[1]), 'framed': (beside & see[None, :]).any(axis=1),
          'walled': (beside & (~see & (long > THIN + 1e-9) & (bottom <= BRACE) & (top > BRACE))[None, :]).any(axis=1),
-         'backed': (on & (top[:, None] >= top[None, :] + LUMBAR)).any(axis=0)}
+         'backed': backs.any(axis=0)}
     names, tops = np.array(told, object), _first(TOPS, f, n)
     face = raw & ~(surface & (tops != 'thing'))
     names[surface], names[face] = tops[surface], _first(FACES, f, n)[face]
