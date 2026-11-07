@@ -20,9 +20,12 @@ def named(g):
     """Her things by what each is, the one thing each is of and the buildings they make (`classes.read`), told anew only
     as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
     from machine.eyes import registry
-    key = registry.keyed(g['things'])
-    if g.get('_named', (None,))[0] != key:
-        g['_named'] = (key,) + classes.read(g['things'])
+    things = g['things']
+    if g.get('_named_of') is not things:     # the same list her things are as last keyed: nothing writes into them
+        key = registry.keyed(things)
+        if g.get('_named', (None,))[0] != key:
+            g['_named'] = (key,) + classes.read(things)
+        g['_named_of'] = things
     return g['_named'][1:]
 
 
@@ -49,21 +52,26 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
     """Her state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
     her law's horizon - her centre of mass, her capture point, her soles, which stand (world),
     her shoulders' range; `ratio` her pace to the wall, `headroom` her process's flat out."""
+    import numpy as np
     from machine.law import latent, modal
     from machine.body.figure import JOINTS
     world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
     # her modes compiled (`motion.laid`'s g['modes']): numpy's read was 204 us of the 607 a state is said in
     z = g.get('modes', modal.read)(g['y'], g['fr'], g['a'][modal.STANCE])[0]
-    angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
+    # her angles at once: numpy's degrees math.degrees' product by 180/pi, each joint's read and turned were 17 us
+    angles = dict(zip(JOINTS, np.degrees(d.qpos[world.qadr[:len(JOINTS)]]).tolist()))
+    shoulder = g.get('_shoulder_at')
+    if shoulder is None:
+        shoulder = g['_shoulder_at'] = [j for j, dv in zip(JOINTS, g['body'].driven) if dv].index('left_shoulder')
+    k = len(ortho.MODES)
     vxz = (float(d.qvel[0]), float(d.qvel[2]))
     y, om = g['y'], float(g['fr'][modal.OMEGA])
     horizon = {'com': tuple(y[modal.COM].tolist()), 'xi': (float(y[modal.COM][0] + y[modal.VCOM][0] / om),
                                                            float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
                'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
                 'stance': tuple(g['a'][modal.STANCE].tolist()),
-                'shoulder': tuple(min(max(float(v), -math.pi), math.pi)
-                                  for v in g['rng'][[j for j, d in zip(JOINTS, g['body'].driven) if d].index('left_shoulder')])}
-    buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes, b.stale) for b in (getattr(world, 'limb_buses', None) or ())}
+                'shoulder': tuple(min(max(float(v), -math.pi), math.pi) for v in g['rng'][shoulder])}
+    buses = {b.name: b.stats() for b in (getattr(world, 'limb_buses', None) or ())}
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),
@@ -80,5 +88,5 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,
             'buses': buses,
             'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
-            'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
-                       float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}
+            'modes': list(zip(ortho.MODES, out[latent.REF][:k].tolist(), np.asarray(z)[:k].tolist(),
+                              out[latent.KS][:k].tolist(), out[latent.DS][:k].tolist()))}

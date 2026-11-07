@@ -225,6 +225,12 @@ class LimbBus:
         self._lib.wbh_sil_stats(self.link, _cores().address(self._counts), ctypes.byref(self._wire),
                                 ctypes.byref(self._buf), ctypes.byref(self._len))
 
+    def stats(self):
+        """(frames, comm_errors, tx_bytes, stale) at once: one read of its counts (her page's state, `page.state`)."""
+        self._pull()
+        c = self._counts
+        return int(c[1]), int(c[2]), int(c[0]), int(c[4])
+
     @property
     def tx_bytes(self):
         self._pull()

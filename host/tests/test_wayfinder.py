@@ -146,7 +146,53 @@ def test_her_wayfinder_apart(report):
                  and math.isclose(c['dkappa-max'], 1.0 / route.ARC_M / (0.5 * se2.BRAKE_S), abs_tol=0.01), str(c))
 
 
-ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart)
+def test_her_gaps_as_numpys_einsums(report):
+    """Her gaps to her things (`footprint.gaps`, its sums over pairs written out, her things' arrays laid once a list)
+    as numpy's einsums give them (`footprint.gaps_twin`), bit for bit at every gap her planner reads docking at the
+    lodge's chair, its bed and its door."""
+    import numpy as np
+    from machine.body import footprint
+    from machine.way import furniture, planner
+    from machine.texts import maneuver
+    from machine.world import physics
+    from machine.process import worker
+    was, tally = (physics.ROOM, physics.SIGHT), {'calls': 0, 'apart': 0, 'cells': 0}
+    physics.ROOM, physics.SIGHT = 1.0, 0.0
+    real = footprint.gaps
+
+    def beside(poses, h, things, floor):
+        got, twin = real(poses, h, things, floor), footprint.gaps_twin(poses, h, things, floor)
+        tally['apart'] += got.shape != twin.shape or not np.array_equal(got.view(np.int64), twin.view(np.int64))
+        tally['calls'] += 1
+        tally['cells'] += got.size
+        return got
+    footprint.gaps = beside
+    try:
+        s = worker.session()
+        g = s['g']
+        while g['t'] < 0.1:
+            worker.stepped(s)
+        floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+        for verb in ('sit_chair', 'lie_bed', 'exit_door'):
+            box = furniture.nearest(g, verb)[6]
+            if box is None:
+                tally['apart'] += 1
+                continue
+            standoff = maneuver.standoff(verb) if verb in maneuver.PLAYED else 0.0
+            for at in ((0.0, 0.0), (1.0, 1.5), (-1.0, 2.5), (1.5, -0.5)):
+                planner.answered({'kind': 'dock', 'at': at, 'yaw': 0.0, 'still': True, 'things': list(g['things']),
+                                  'floor': floor, 'seen': None, 'slot': int(box[4]) if len(box) > 4 else -1,
+                                  'face': None, 'to': None, 'warm': (), 'dock': (verb, box, standoff), 'passed': 0.0,
+                                  'way': ()})
+    finally:
+        footprint.gaps = real
+        physics.ROOM, physics.SIGHT = was
+    report.check('her gaps as numpy\'s einsums docking at the chair, the bed and the door: %(calls)d reads, %(cells)d '
+                 'gaps' % tally, tally['calls'] > 100 and not tally['apart'], '%(apart)d apart' % tally)
+
+
+ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart,
+          test_her_gaps_as_numpys_einsums)
 
 
 def main(argv=None):
