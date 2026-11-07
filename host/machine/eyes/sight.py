@@ -17,7 +17,7 @@ import heapq
 import math
 import weakref
 
-from machine.eyes.stereo import H, W, _np, disparity
+from machine.eyes.stereo import H, W, _np, card, disparity
 from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import instances, voxels
 
@@ -161,8 +161,11 @@ class Eyes:
                     d.cam_xmat[i].reshape(3, 3).copy())
 
     def stereo(self, world, head):
-        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`), laid at her `head`
-        {pos, quat} as her estimate has it."""
+        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`) on a card, laid at her `head`
+        {pos, quat} as her estimate has it; without a card her geometry the renderer's own depth (`shot`), as before
+        her stereo - the CPU's match is 0.66 s a look, past LOOK_S, and CI has no card."""
+        if not card():
+            return self.shot(world, head)
         seen = self.see(world)
         seen.at, seen.turn = eye_pose(head)
         return (seen,) + tuple(disparity(seen.left, seen.right))

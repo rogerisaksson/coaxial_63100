@@ -218,6 +218,11 @@ def _gpu_solver():
     return solver
 
 
+def card():
+    """Whether her stereo matches on a card (`_gpu_solver`)."""
+    return _gpu_solver() is not None
+
+
 def disparity(left, right):
     """(disparity px, kept) of the left image against the right (`_array_disparity`), on the card where one
     answers."""
