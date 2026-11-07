@@ -50,7 +50,7 @@ class Gmo(ctypes.Structure):
                 ('at', (_d * 3) * GMO_P), ('touched', _i * GMO_T), ('past', _i * (N - 6)), ('prior', _d * GMO_P), ('speed', _d * GMO_P), ('expected', _d * GMO_F), ('rounds', _i),
                 ('lives', _i), ('live', _i * GMO_F),
                 ('body', _d * BODY_DOUBLES), ('a', (_d * GMO_F) * N), ('h', (_d * GMO_F) * GMO_F),
-                ('k', (_d * GMO_F) * GMO_F)]
+                ('k', (_d * GMO_F) * GMO_F), ('w', _d * GMO_F), ('ag', (_d * GMO_F) * N)]
 
 
 def typed(lib):

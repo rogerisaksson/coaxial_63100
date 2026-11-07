@@ -113,21 +113,21 @@ void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
 {
   wbc_drives_t *p = t->drives;
   const int     n = p->n;
-  int           any = 0;
+  double        held = 0.0;
 
-  /* her holds read before the step spends them */
+  /* her holds read before the step spends them: 1 where any is not none (`hold.any()`) */
   for (int i = 0; i < n; i++)
   {
-    any |= p->hold[i] != 0.0;
+    held = (p->hold[i] != 0.0) ? 1.0 : held;
   }
-  const double held = (double)any, ys = wbc_imp_surety(t->imp, t->field, t->surety, dt, NAN, now, t->vec);
+  const double ys = wbc_imp_surety(t->imp, t->field, t->surety, dt, NAN, now, t->vec);
   const double drv = 1.0 - pow(1.0 - ys, 3.0), wo_s = wo * drv, rest = 1.0 - limp;
   const double k_to = t->field->st[t->field->k_to], k_from = t->field->st[t->field->k_from];
   const double k = (k_from > k_to) ? k_from : k_to;
   double       left;
 
   t->surety = ys;
-  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, k > t->hop_k, 1);
+  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, (k > t->hop_k) ? 1 : 0, 1);
   for (int i = 0; i < n; i++)
   {
     p->ref_q[i] = npminimum(npmaximum(p->ref_q[i], t->rng[2 * i]), t->rng[2 * i + 1]);

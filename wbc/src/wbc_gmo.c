@@ -424,27 +424,28 @@ static int left(wbc_gmo_t *o, int at[NF], int n, int p)
   return n - 1;
 }
 
-/** Each of `h`'s `n` its `a`'s times `c` more, each of `w`'s `n` its `h`'s times `c` less: one product and one sum an
-    element, each element apart - its lanes independent, along memory. */
-static void added(int n, double *restrict h, const double *restrict a, double c)
+/** Row `x` of `h` from `x` to `m` its gathered row `k`'s times `c` more; the gradient to `m` row `c` of `h` times `fc`
+    less: one product and one sum an element, each element apart - its lanes independent, along memory, the fields
+    apart in her observer's struct. */
+static void added(wbc_gmo_t *o, int x, int m, int k, double c)
 {
-  for (int y = 0; y < n; y++)
+  for (int y = x; y < m; y++)
   {
-    h[y] += c * a[y];
+    o->h[x][y] += c * o->ag[k][y];
   }
 }
 
-static void lessened(int n, double *restrict w, const double *restrict h, double c)
+static void lessened(wbc_gmo_t *o, int m, int c, double fc)
 {
-  for (int x = 0; x < n; x++)
+  for (int x = 0; x < m; x++)
   {
-    w[x] -= h[x] * c;
+    o->w[x] -= o->h[c][x] * fc;
   }
 }
 
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
 {
-  static double g[NF], w[NF], z[NF], sub[NF], f[NF], ag[WBC_N][NF];
+  static double g[NF], z[NF], sub[NF], f[NF];
   static int    set[NF], at[NF], gate[NF], gated[NF], on[NF];
   const int     m = o->lives;
   int           rows[WBC_N], weighed = 0;
@@ -470,7 +471,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     gate[x] = gated[o->live[x]];
     for (int k = 0; k < weighed; k++)
     {
-      ag[k][x] = o->a[rows[k]][o->live[x]];
+      o->ag[k][x] = o->a[rows[k]][o->live[x]];
     }
   }
   for (int x = 0; x < m; x++)
@@ -480,7 +481,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     {
       const int i = rows[k];
 
-      g[x] += weight[i] * ag[k][x] * (o->r[i] - shift[i]);
+      g[x] += weight[i] * o->ag[k][x] * (o->r[i] - shift[i]);
     }
     /* each h[x][y] summed over the weighed rows in their order, the row's y innermost along its memory; a
        weighed row's weight is 1, so (1 a) b is b a bit for bit: h symmetric, its lower half mirrored */
@@ -490,7 +491,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     }
     for (int k = 0; k < weighed; k++)
     {
-      added(m - x, o->h[x] + x, ag[k] + x, weight[rows[k]] * ag[k][x]);
+      added(o, x, m, k, weight[rows[k]] * o->ag[k][x]);
     }
     for (int y = 0; y < x; y++)
     {
@@ -521,18 +522,18 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
        at once - h mirrored, h[c][x] is h[x][c] bit for bit; a push in the set is never picked: its w unread */
     for (int x = 0; x < m; x++)
     {
-      w[x] = g[x];
+      o->w[x] = g[x];
     }
     for (int k = 0; k < pushing; k++)
     {
-      lessened(m, w, o->h[on[k]], f[on[k]]);
+      lessened(o, m, on[k], f[on[k]]);
     }
     for (int x = 0; x < m; x++)
     {
-      const int fits = !set[x] && w[x] > DBL_EPSILON * NF * most;
+      const int fits = !set[x] && o->w[x] > DBL_EPSILON * NF * most;
 
-      free_ = (fits && !gate[x] && (free_ < 0 || w[x] > w[free_])) ? x : free_;
-      held = (fits && gate[x] && (held < 0 || w[x] > w[held])) ? x : held;
+      free_ = (fits && !gate[x] && (free_ < 0 || o->w[x] > o->w[free_])) ? x : free_;
+      held = (fits && gate[x] && (held < 0 || o->w[x] > o->w[held])) ? x : held;
     }
     const int best = (free_ >= 0) ? free_ : held;
 

@@ -90,6 +90,8 @@ typedef struct
   double      a[WBC_N][WBC_GMO_F];
   double      h[WBC_GMO_F][WBC_GMO_F];
   double      k[WBC_GMO_F][WBC_GMO_F];
+  double      w[WBC_GMO_F];                /**< the split's gradient over her working set, and its weighed */
+  double      ag[WBC_N][WBC_GMO_F];        /**< rows gathered: fields of their own, apart from h's */
 } wbc_gmo_t;
 
 /** A drive pass of `dt` s into the sums, of her edge's array: the drives' torques (`tau`, every
