@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Her compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue: each part
-of her law walking given twins of its arguments made alike, both ways' results the same trees, types, views and
-bits at every call."""
+"""Her compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
+of her law walking given twins of its arguments made alike -, and her step asked in C (quick_step.c) beside its Python
+from the same struct: both ways' results the same trees, types, views and bits at every call."""
 import os
 import sys
 
@@ -12,8 +12,8 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: Her walk's passes.
-PASSES = 3000
+#: Her walk's passes; her lie into a bed and her rise off it, s.
+PASSES, LIE_S, RISE_S = 3000, 12.0, 8.0
 
 
 def _copied(v):
@@ -73,7 +73,67 @@ def test_a_part_called_whole_in_c_as_by_its_glue(report, c):
                  tally['calls'] > 100 and len(tally['parts']) >= 15 and not tally['apart'], '%d apart' % tally['apart'])
 
 
-ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue,)
+def _numbers(k):
+    """The step's struct `k` but its pointers: each field's bytes not a pointer's, in its order."""
+    import ctypes
+
+    def pointer(t):
+        return t is ctypes.c_void_p or (hasattr(t, '_length_') and pointer(t._type_))
+    at = ctypes.addressof(k)
+    return b''.join(ctypes.string_at(at + getattr(type(k), name).offset, ctypes.sizeof(t))
+                    for name, t in type(k)._fields_ if not pointer(t))
+
+
+def test_her_step_asked_in_c_as_by_python(report, c):
+    """Her step's ask and senses laid into its struct, its C called and its answer made in one C call (quick_step.c)
+    beside `_stepped`'s Python from the same struct - lying into a bed, rising off it and walking -: every answer the
+    same trees, types, views and bits, `b.load` too, and the struct but its pointers the same after."""
+    import ctypes
+    from machine.process import worker
+    from tools.cores import quick, step as cs
+    from tools.sim import told
+    if quick.module() is None:
+        report.check('her step asked in C, where the extension is built', True, 'not built here')
+        return
+    tally, real = {'calls': 0, 'apart': 0, 'miss': 0, 'contacts': 0}, cs._stepped
+
+    def beside(k, step, v, b, s, ask):
+        q = k.quick
+        if q is None:
+            return real(k, step, v, b, s, ask)
+        snap, load = ctypes.string_at(ctypes.addressof(k), ctypes.sizeof(k)), getattr(b, 'load', None)
+        got = q[0](q[1], k, b, s, ask)
+        if got is q[2]:
+            tally['miss'] += 1
+            return real(k, step, v, b, s, ask)
+        after, load_c = _numbers(k), b.load
+        ctypes.memmove(ctypes.addressof(k), snap, len(snap))
+        b.load, k.quick = load, None
+        try:
+            mine = real(k, step, v, b, s, ask)
+        finally:
+            k.quick = q
+        tally['apart'] += _apart(got, mine) or _apart(load_c, b.load) or after != _numbers(k)
+        tally['calls'] += 1
+        tally['contacts'] += len(s.get('contacts', ()))
+        return mine
+    cs._stepped = beside
+    try:
+        r = told.Run('bed_behind')
+        r.tell(say='lie_bed')
+        r.go(LIE_S)
+        r.tell(say='rise_bed')
+        r.go(RISE_S)
+        s = worker.session(walks=True)
+        for _ in range(PASSES):
+            worker.stepped(s)
+    finally:
+        cs._stepped = real
+    report.check('her step asked in C as by Python, %(calls)d calls over %(contacts)d contacts (%(miss)d missed)' % tally,
+                 tally['calls'] > 3000 and tally['contacts'] > 1000 and not tally['apart'], '%(apart)d apart' % tally)
+
+
+ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_her_step_asked_in_c_as_by_python)
 
 
 def main(argv=None):

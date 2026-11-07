@@ -98,7 +98,7 @@ def _laid(b, sensed):
     k.blas = numpy_blas()
     views = {name: wbc.plain(np.ctypeslib.as_array(getattr(k, name))) for name in VIEWED}
     first = getattr(Step, POINTED[0][0]).offset
-    k.sensed, k.placed, views['words'] = sensed, None, np.frombuffer(k, dtype=np.uint64)
+    k.sensed, k.placed, k.quick, views['words'] = sensed, None, None, np.frombuffer(k, dtype=np.uint64)
     k.pointed = slice(first // 8, first // 8 + len(POINTED))
     if [getattr(Step, f).offset + 8 * i for f, i, _p in POINTED] != list(range(first, first + 8 * len(POINTED), 8)):
         k.sensed = None
@@ -109,7 +109,23 @@ def wrench_laid(b, sensed=None):
     """`machine.stack.wrench.step` in C (wbc_step.c) on her law's body `b`: a solve (b, s, ask) -> its dict, `b.load`
     set (`_laid`)."""
     k, views = _laid(b, sensed)
+    k.quick = _quick(k, _step_typed()[1][0])
     return functools.partial(_stepped, k, _step_typed()[1][0], views)
+
+
+def _quick(k, step):
+    """(quick's step, `k`'s stepper, MISS): `_stepped` in one C call (quick_step.c) where the extension is built and
+    her sensing pointed at - its struct's FIELDS, `step`'s C, her law's friction -; else None."""
+    from machine.stack import wbc as law
+    from tools.cores import quick
+    mod = quick.module()
+    if mod is None or k.sensed is None:
+        return None
+    Step = type(k)
+    laid = mod.stepper(ctypes.addressof(k), ctypes.cast(step, ctypes.c_void_p).value,
+                       tuple(getattr(Step, name).offset for name in FIELDS), len(k.cJ), k.pointed.start, len(POINTED),
+                       float(law.MU), SENSED, quick.MISS, np.linalg.LinAlgError)
+    return mod.step, laid, quick.MISS
 
 
 def regime():
@@ -134,6 +150,7 @@ def chain_laid(b, sensed=None, twin=False):
     k.chain_w_turn, k.chain_w_swing, k.chain_w_posture, k.chain_w_force = said.turn, said.swing, said.posture, said.force
     k.chain_turn_kp, k.chain_turn_kd, k.chain_posture_kp, k.chain_posture_kd = said.tkp, said.tkd, said.pkp, said.pkd
     k.chain_w_twist, k.chain_twist_kd, k.chain_unweight = said.twist, said.vkd, said.unweight
+    k.quick = _quick(k, _step_typed()[1][1])
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
 
@@ -146,6 +163,12 @@ POINTED = ([(name, 0, (name,)) for name in ('M', 'h', 'v', 'q', 'com', 'k')]
 
 #: What of her sensing the pointed write takes as her compiled sensing's: the same objects, M apart.
 SENSED = ('h', 'v', 'q', 'com', 'k', 'feet', 'turns')
+#: The struct's fields `_stepped` writes and reads in C, their offsets laid in this order (quick_step.c's enum).
+FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc nturns turn kdot_given kdot settle edge mus '
+          'rests slide fz_cap slid_cap hand_cap let_cap let_hold open_kp open_kd freed strides borne hold sat chain_vx '
+          'chain_free swing swing_at swing_speed swing_acc swing_quat fold fold_knee fold_rate fold_acc knee_rate wep '
+          'posture derate clamp wep_nm mass lo hi tau qacc bears cop cop_n cop_none over forces load scale '
+          'residual').split()
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
@@ -163,7 +186,13 @@ def _spread(a, n):
 
 def _stepped(k, step, v, b, s, ask):
     """wrench.step(b, s, ask) on the laid `k`: what `s` senses pointed at - her compiled sensing's
-    last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views."""
+    last in one write, its M as `s` has it -, what `ask` asks copied through `v`, its fields' views; in one C call
+    where `k.quick` is laid and all of it is as laid (quick_step.c: in Python 27 us a law pass about its C)."""
+    q = k.quick
+    if q is not None:
+        got = q[0](q[1], k, b, s, ask)
+        if got is not q[2]:
+            return got
     from machine.stack import wbc as law
     kept = []
 

@@ -55,4 +55,8 @@ Py_ssize_t quick_walked(const walk_t *w, PyObject *given, Py_ssize_t start);
 PyObject *quick_runner(PyObject *self, PyObject *const *args, Py_ssize_t n);
 PyObject *quick_run(PyObject *self, PyObject *const *args, Py_ssize_t n);
 
+/* stepper(...) and step(stepper, k, b, s, ask) (quick_step.c). */
+PyObject *quick_stepper(PyObject *self, PyObject *const *args, Py_ssize_t n);
+PyObject *quick_step(PyObject *self, PyObject *const *args, Py_ssize_t n);
+
 #endif
