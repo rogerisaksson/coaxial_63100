@@ -111,19 +111,22 @@ def back_of(box, things):
     """The back of a seat `box` among `things`: one of its kind reaching LUMBAR_M over the seat's top, its
     bottom no more than a cell (`voxels.CELL_M`) over that top - held within a cell of it, a chair painted
     whole had none: its back and rear legs one structure off the floor -, at its edge within a cell of its
-    footprint, no longer than the seat's side it stands along, a cell over; none: None."""
+    footprint: the text's backrest, the slab over its edge occupied (`:verify-high-thoracic-slab-occupancy`), its
+    length none of it - a chair's back is one structure with its rear legs, 0.80 m on a 0.50 m seat, a low chair's
+    with the wall it stands against, 1.02 m -; of such the nearest its edge, what stands at it - the loft's block a
+    cell off the chair's seat was one too; none: None."""
     from machine.eyes.voxels import CELL_M
     _c, _axes, h = footprint(box)
     lumbar = top(box) + LUMBAR_M
+    best = None
     for t in things:
         if t is box or t[0] != box[0] or not (top(t) >= lumbar and bottom(t) <= top(box) + CELL_M + 1e-9):
             continue
         reach = _within(box, t)
-        gap = np.maximum(reach[:, 0] - h, 0.0) + np.maximum(-h - reach[:, 1], 0.0)
-        along = int(np.argmax(reach[:, 1] - reach[:, 0]))
-        if math.hypot(*gap) <= CELL_M + 1e-9 and 2.0 * max(float(t[2][0]), float(t[2][2])) <= 2.0 * h[along] + 2.0 * CELL_M + 1e-9:
-            return t
-    return None
+        gap = math.hypot(*(np.maximum(reach[:, 0] - h, 0.0) + np.maximum(-h - reach[:, 1], 0.0)))
+        if gap <= CELL_M + 1e-9 and (best is None or gap < best[0]):
+            best = (gap, t)
+    return None if best is None else best[1]
 
 
 def backed(box, things):
@@ -137,12 +140,18 @@ def door(box, _things):
 
 
 def faced(box, things):
-    """The heading a seat `box` faces among `things`, rad (`se2`'s, (sin, cos) along x, z): from its
-    back's centre through its own; None without a back."""
+    """The heading a seat `box` faces among `things`, rad (`se2`'s, (sin, cos) along x, z): the outward normal of
+    its side away from its back (`back_of`) - the side its back's footprint lies furthest out past, as `faces`
+    tells each -, whatever the back's length: a back one with a wall puts its centre metres along it; None without
+    a back."""
     back = back_of(box, things)
     if back is None:
         return None
-    return math.atan2(float(box[1][0]) - float(back[1][0]), float(box[1][2]) - float(back[1][2]))
+    _c, axes, h = footprint(box)
+    mid = _within(box, back).mean(axis=1)
+    k = int(np.argmax(np.abs(mid) / np.maximum(h, 1e-9)))
+    s = -math.copysign(1.0, float(mid[k]))
+    return math.atan2(s * float(axes[k][0]), s * float(axes[k][1]))
 
 
 def faces(box, _things):
