@@ -67,40 +67,22 @@ def _bent(chord):
     return math.degrees(math.acos(min(max(c, -1.0), 1.0)))
 
 
-#: A stroke's knees, deg: folded as the crawl take's most (126), stretched to STRETCH, where her hips have gone the
-#: stroke's length (her text's 0.25 m: 78 deg). A hip lifts its foot to FOLDED as its knee folds to a stroke back
-#: (folded on the floor, her heels dragged her 0.12-0.21 m forward); stretching to a stroke forward it lifts only while
-#: its foot touches (lifted to -100, it threw her back); a still side's foot stays down. A hip sets its foot toward DOWN
-#: till it touches; her trunk within LEANT of its lean as she braces and once a stroke is over.
-FOLD, FOLDED, DOWN, LEANT = 126.0, -112.0, -40.0, 6.0
+#: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove scoot`, moves.lisp): a stroke's
+#: knees folded (deg), a hip's lift and set, her trunk within LEANT of its lean, her braced elbows, the trunk her hips
+#: hold with their gain and range, her vaulted shoulders, the rates (deg/s), what bears and touches, a twist's ask and
+#: a turn's shares.
+_MOVE = anatomy.move('scoot')
+(FOLD, FOLDED, DOWN, LEANT, LOCKED, TRUNK, GAIN, HIP_LO, HIP_HI, VAULTED, AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE,
+ SQUARE_RATE, EVEN_RATE, BEAR, SKIM, ASK, TOL, STROKE_TURN, TURN, HALF) = (_MOVE['constants'][k] for k in (
+    'fold', 'folded', 'down', 'leant', 'locked', 'trunk', 'gain', 'hip-lo', 'hip-hi', 'vaulted', 'air-rate',
+    'brace-rate', 'lift-rate', 'set-rate', 'square-rate', 'even-rate', 'bear', 'skim', 'ask', 'tol', 'stroke-turn',
+    'turn', 'half'))
+#: What her body sets: a stroke's knees stretched where her hips have gone the stroke's length; her shoulders sat, her
+#: fists behind her braced at her lean (`seated.braced`); a stroke's knees' rate at a key held, its sweep in her text's
+#: stance; her aim a turn's LEAD ahead as she turns.
 STRETCH = _bent(clocked.chord(math.radians(FOLD)) + STROKE_M)
-#: Her elbows braced at their stop, deg (their range's -5): locked past straight, a load along her arm presses them into
-#: it (straight at 0, they gave 17-73 deg as she went back over her fists and she fell; bent 75 deg to sit her, they
-#: folded under her as a heel lifted and she fell back).
-LOCKED = -5.0
-#: Her trunk's pitch her hips hold, deg (forward +): the crawl take's lean, 47 deg off the floor (-40, 35 off it, laid
-#: her down as her legs lifted); their gain, deg/s a deg, and range, deg (her bed exit's, -130: at -115 her hips could
-#: flex no further and she fell back). A hip holds her trunk only while a foot bears: sat, it lifts her legs instead (a
-#: set foot rose off the floor again, -84 to -103 deg, and W pulled on one heel; pulling, W went 0.03-0.27 m in 8 s).
-TRUNK, GAIN, HIP_LO, HIP_HI = -28.0, 30.0, -130.0, -35.0
-#: Her shoulders sat, deg: her fists on the floor behind her on straight arms as she sits at her lean (`seated.braced`,
-#: as her text's sit braces her: her seat bore 0.85 of her); vaulted, her straight arms her struts as her hips open her
-#: off her seat till her trunk leans LEANT back of its lean (her pelvis 0.23 m up, as HEAD's set rose her: her shoulders
-#: alone, at their 40 N m, held -56 to -67 deg and her seat bore 0.39-0.90 of her; opened till her arms stood up, her
-#: trunk went back to -46 deg and her pelvis to 0.31 m, her arms never).
-SEAT, VAULTED = math.degrees(seated.braced(math.radians(TRUNK))), -45.0
-#: Rates, deg/s: a stroke's knees at a key held, its sweep in her text's stance; her limbs in the air, her shoulders, her
-#: hips lifting and setting her feet, her squared joints, her legs evened.
+SEAT = math.degrees(seated.braced(math.radians(TRUNK)))
 STROKE_RATE = (FOLD - STRETCH) / STANCE_S
-AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE, SQUARE_RATE, EVEN_RATE = 300.0, 90.0, 120.0, 60.0, 120.0, 30.0
-#: A foot bears once it takes BEAR of her weight and touches at SKIM; a twist asks past ASK; a goal is reached within
-#: TOL deg.
-BEAR, SKIM, ASK, TOL = 0.1, 0.02, 0.01, 1e-6
-#: A heading's error, deg, a whole way's share of a side (W's pulls turned her 10-12 deg each); a side's share of a turn
-#: at most TURN of its way, her aim a turn's LEAD ahead as she turns. Ahead or where she sits a side only pulls, the
-#: inner one still (a part pull turns her as a whole one: at a share of 0.57 W drifted 22 deg); going back the inner
-#: side keeps HALF her back (still, its leg anchored her: S+A 0.03 m in 8 s).
-STROKE_TURN, TURN, HALF = 10.0, 1.0, 0.5
 LEAD = STROKE_TURN * TURN
 #: How a part reaches its goal: 0 held, 1 its phase's goal at its rate, 2 the stroke's end at her way's rate, 3 the
 #: stroke's start (a hip by its knee's way), 4 its phase's goal while its foot touches none, 5 its pair's mean at its
@@ -111,26 +93,23 @@ HELD, RATE, END, START, SETTING, EVEN, UNSEAT = range(7)
 #: touching or its goals reached; her knees at their ends or her twist let go; her twist asking; her trunk LEANT back
 #: of its lean; her trunk within LEANT of it.
 REACHED, BRACED, SET, STROKED, ASKING, OFF, LEANED = range(7)
-#: Her legs' rolls and yaws and her trunk's roll and twist, squared in every phase.
-_SQUARE = {part: (RATE, 0.0, SQUARE_RATE) for part in ('hip_roll', 'hip_yaw', 'ankle_roll', 'spine_roll', 'waist')}
-_EVEN = {'hip': (EVEN, 0.0, EVEN_RATE), 'knee': (RATE, FOLD, EVEN_RATE), 'ankle': (EVEN, 0.0, EVEN_RATE)}
-_SAT = {'shoulder': (RATE, SEAT, BRACE_RATE), 'elbow': (RATE, LOCKED, AIR_RATE)}
-_LIFT = {'hip': (START, 0.0, LIFT_RATE), 'knee': (START, 0.0, AIR_RATE)}
-#: The phases: (name, {part: (how, goal, rate)}, over when, the next asked, idle); a hip not moving holds her trunk.
-#: She sits as both her feet lift (as HEAD's lift sat her: none tipped in 10, her shoulders swung back as her feet
-#: lifted, 1 of 2); a step (lift, set) moves its heel only, every step taken once she sits; past the last her arms
-#: reach back to her seat's brace (dragged round over her fists, A tipped her at 43 deg), or she holds where her twist
-#: let go; her vault where both heels push.
-PHASES = (('brace', {**_SAT, **_EVEN, **_SQUARE}, BRACED, 'sit', 'hold'),
-          ('hold', {**_SAT, **_EVEN, **_SQUARE}, ASKING, 'sit', 'hold'),
-          ('sit', {**_LIFT, **_SQUARE}, REACHED, 'lift', 'lift'),
-          ('lift', {**_LIFT, **_SQUARE}, REACHED, 'set', 'set'),
-          ('set', {'hip': (SETTING, DOWN, SET_RATE), **_SQUARE}, SET, 'lift', 'lift'),
-          ('reach', {**_SAT, **_SQUARE}, REACHED, 'vault', 'hold'),
-          ('vault', {'hip': (UNSEAT, HIP_HI, SET_RATE), 'shoulder': (RATE, VAULTED, BRACE_RATE),
-                     'elbow': (RATE, LOCKED, AIR_RATE), **_SQUARE}, OFF, 'push', 'hold'),
-          ('push', {'knee': (END, 0.0, 0.0), **_SQUARE}, STROKED, 'lean', 'lean'),
-          ('lean', dict(_SQUARE), LEANED, 'sit', 'sit'))
+#: How the lisp says a part goes, a phase ends, and the goal her body sets.
+_HOWS = {':rate': RATE, ':end': END, ':start': START, ':setting': SETTING, ':even': EVEN, ':unseat': UNSEAT}
+_ENDED = {':reached': REACHED, ':braced': BRACED, ':set': SET, ':stroked': STROKED, ':asking': ASKING, ':off': OFF,
+          ':leaned': LEANED}
+_BODY = {':seat': SEAT}
+
+
+def _goals_of(p):
+    """A phase's {part: (how, goal, rate)}: its shared goals (`:with`) then its own, the lisp's hyphens underscores."""
+    goals = {part: goal for shared in p.get('with', ()) for part, goal in shared.items()} | p.get('goals', {})
+    return {part.replace('-', '_'): (_HOWS[how], _BODY[goal] if isinstance(goal, str) else goal, rate)
+            for part, (how, goal, rate) in goals.items()}
+
+
+#: The phases: (name, {part: (how, goal, rate)}, over when, the next asked, idle).
+PHASES = tuple((p['name'].lstrip(':'), _goals_of(p), _ENDED[p['ends']], p['asked'].lstrip(':'), p['idle'].lstrip(':'))
+               for p in _MOVE['phases'])
 NAMED = tuple(phase[0] for phase in PHASES)
 SITTING, SETTING_DOWN, REACHING, PUSHING, HOLDING = (NAMED.index(n) for n in ('sit', 'set', 'reach', 'push', 'hold'))
 #: PHASES as flat tables: each part's how, goal and rate a phase; when it is over; the next asked and idle; whether a

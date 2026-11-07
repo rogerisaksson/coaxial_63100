@@ -38,36 +38,31 @@ PARTS, SIDED = ('shoulder', 'elbow', 'hip', 'knee', 'ankle', 'hip_roll', 'hip_ya
 JOINT = np.array([JOINTS.index(side + p) for p in PARTS[:SIDED] for side in ('left_', 'right_')]
                  + [JOINTS.index(p) for p in PARTS[SIDED:]])
 PART = np.repeat(np.arange(len(PARTS)), [2] * SIDED + [1] * (len(PARTS) - SIDED))
-#: Her feet's share of her weight planted; her pelvis pulled in from the bed's end (m); still under her speed (m/s:
-#: lying still 0.000-0.003, her pull 0.3-0.6); lying past her pitch (deg: flat -97 to -102); a stroke
-#: again while this short of the middle (m), at most STROKES; a goal reached within TOL deg.
-PLANT, PULL_IN, STILL, LAIN, NEAR, STROKES, TOL = 0.05, 0.30, 0.01, -90.0, 0.03, 12.0, 1e-6
 #: How a phase ends: its pose reached; her feet planted or its pose reached; her pelvis pulled in, or its pose reached
 #: and she still; its pose reached and she lying; its pose reached and she still; at the middle or its pose reached.
 #: How a part goes (`anatomy`'s): held, to its goal at its rate, to its goal at its rate but no straighter than it is.
 REACHED, FEET, PULLED, LYING, STILLED, MIDDLE = range(6)
 HELD, RATE, LEAST = anatomy.HELD, anatomy.RATE, anatomy.LEAST
-_TRUNK = {'spine': (0.0, 20.0), 'waist': (0.0, 20.0), 'neck': (0.0, 20.0)}
-_SQUARE = {'hip_roll': (0.0, 15.0), 'hip_yaw': (0.0, 15.0)}
-#: The phases: (name, how it ends, the next, the next while a stroke is due, {part: (deg, deg/s[, how])}) - the
-#: puppet's program's poses (`joints.PROGRAMS`), its heels drawn in from her stretch at its first stroke's pace.
-PHASES = (('feet', FEET, 'pull', 'pull', {'knee': (95.0, 9.0), 'ankle': (0.0, 30.0)}),
-          ('pull', PULLED, 'lie', 'lie', {'shoulder': (30.0, 83.0), 'elbow': (0.0, 30.0), 'hip': (-75.0, 22.0),
-                                          'knee': (30.0, 114.0), 'ankle': (0.0, 46.0)}),
-          ('lie', LYING, 'up', 'up', {'shoulder': (0.0, 23.0), 'elbow': (5.0, 4.0), 'hip': (-10.0, 50.0),
-                                      'knee': (15.0, 12.0)}),
-          ('up', REACHED, 'fold', 'fold', {'hip': (-75.0, 108.0), 'knee': (6.0, 15.0)}),
-          ('fold', REACHED, 'lower', 'lower', {'knee': (150.0, 288.0)}),
-          ('lower', REACHED, 'shove', 'shove', {'hip': (-60.0, 50.0)}),
-          ('shove', REACHED, 'stretch', 'stretch', {'hip': (-35.0, 42.0), 'knee': (100.0, 83.0)}),
-          ('stretch', STILLED, 'straight', 'draw', {**_TRUNK, 'knee': (6.0, 313.0), 'hip': (-3.0, 107.0)}),
-          ('draw', REACHED, 'bridge', 'bridge', {**_SQUARE, 'hip': (-56.0, 133.0), 'knee': (146.0, 350.0)}),
-          ('plant', REACHED, 'bridge', 'bridge', {**_SQUARE, 'hip': (-56.0, 25.0), 'knee': (146.0, 95.0)}),
-          ('bridge', REACHED, 'push', 'push', {'hip': (-34.0, 88.0), 'knee': (134.0, 48.0)}),
-          ('push', MIDDLE, 'set', 'set', {'hip': (-32.0, 7.0), 'knee': (104.0, 100.0)}),
-          ('set', STILLED, 'straight', 'plant', {'hip': (-46.0, 70.0), 'knee': (108.0, 20.0, LEAST)}),
-          ('straight', REACHED, 'done', 'done', {**_TRUNK, **_SQUARE, 'knee': (6.0, 255.0), 'hip': (-3.0, 108.0)}),
-          ('done', REACHED, 'done', 'done', {}))
+#: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove bed-entry`, moves.lisp): her
+#: feet's share planted; her pelvis pulled in (m); still under her speed (m/s); lying past her pitch (deg); a stroke
+#: again while this short of the middle (m), at most STROKES; a goal reached within TOL deg.
+_MOVE = anatomy.move('bed-entry')
+PLANT, PULL_IN, STILL, LAIN, NEAR, STROKES, TOL = (_MOVE['constants'][k] for k in (
+    'plant', 'pull-in', 'still', 'lain', 'near', 'strokes', 'tol'))
+#: How the lisp says a phase ends, a part goes.
+_ENDED = {':reached': REACHED, ':feet': FEET, ':pulled': PULLED, ':lying': LYING, ':stilled': STILLED,
+          ':middle': MIDDLE}
+
+
+def _goals_of(p):
+    """A phase's {part: (deg, deg/s[, how])}: its shared goals (`:with`) then its own, the lisp's hyphens underscores."""
+    goals = {part: goal for shared in p.get('with', ()) for part, goal in shared.items()} | p.get('goals', {})
+    return {part.replace('-', '_'): tuple(LEAST if v == ':least' else v for v in goal) for part, goal in goals.items()}
+
+
+#: The phases: (name, how it ends, the next, the next while a stroke is due, {part: (deg, deg/s[, how])}).
+PHASES = tuple((p['name'].lstrip(':'), _ENDED[p['ends']], p['next'].lstrip(':'), p['again'].lstrip(':'), _goals_of(p))
+               for p in _MOVE['phases'])
 #: PHASES as flat tables: each phase's name, how it ends, the next and the next while a stroke is due, whether it
 #: counts a stroke; each part's goal, rate and how it goes; the end.
 NAMES, _ENDS, _NEXTS, _AGAINS, _GOALS = zip(*PHASES)
