@@ -131,28 +131,39 @@ def _watched(g, e):
     _asked(g, e, 'watch', (e['xd'], e['zd']), way=pts)
 
 
-def _settled(g):
+def settled(y, fr, a, sway):
     """m, positive where her latent loop stands her still enough for a stunt to begin: both soles
     stand, her capture point `xi = c + v / omega` inside their hull by more than her rhythm sways
-    her, her drift `v / omega` within a sole's half-length."""
+    her, her drift `v / omega` within a sole's half-length - numpy's alone on her law's arrays
+    (modal's `y`, `fr`, `a`; her latent's `sway`), so compiled (`_settled`)."""
+    import numpy as np
     from machine.body import figure
-    from machine.law import latent, modal, poise
-    y, fr, a, sway = g['y'], g['fr'], g['a'], g['out'][latent.SWAY]
+    from machine.law import modal, poise
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
-    drift = v[:2] / float(fr[modal.OMEGA])
+    drift = v[:2] / fr[modal.OMEGA]
     xi = c[:2] + drift
     lo, hi = poise.boxes((y[modal.SOLE].reshape(2, 3) @ rot.T)[:, :2], a[modal.EDGE], y[modal.TILT])
-    inside = min(float((xi - lo.min(axis=0)).min()), float((hi.max(axis=0) - xi).min()))
-    swayed = math.hypot(float(sway[modal.DRIVE]), float(sway[modal.LATERAL]))
-    return min(inside - swayed, figure.SOLE_HALF - math.hypot(*drift)) * float(a[modal.STANCE].prod())
+    inside = np.minimum((xi - lo.min(axis=0)).min(), (hi.max(axis=0) - xi).min())
+    swayed = np.hypot(sway[modal.DRIVE], sway[modal.LATERAL])
+    return np.minimum(inside - swayed, figure.SOLE_HALF - np.hypot(drift[0], drift[1])) * a[modal.STANCE].prod()
+
+
+def _settled(g):
+    """`settled` on `g`'s arrays, compiled at its first read (`bodied.on_args`, `g['settled']`): numpy's
+    took 50 us a read, read each pass walking (19-22 us of her errand's 84-97) and seated or lying (5-10)."""
+    from machine.law import latent
+    if g.get('settled') is None:
+        from tools.cores import bodied
+        g['settled'] = bodied.on_args(settled, 'settled', (0, 1, 2, 3))
+    return g['settled'](g['y'], g['fr'], g['a'], g['out'][latent.SWAY])
 
 
 class _Context(dict):
 
-    """A pass's context for her errand's rows, `idle` (`_settled`, pure numpy on her law's arrays) told as a row
-    first reads it - before any word of the pass, the same bits: walking, at her door and turning no row reads it,
-    told each pass it was 47 of her errand's 100-194 us."""
+    """A pass's context for her errand's rows, `idle` (`_settled`) told as a row first reads it - before any word of
+    the pass, the same bits: walking, at her door and turning no row reads it, told each pass it was 47 of her
+    errand's 100-194 us."""
 
     def __init__(self, g, fields):
         super().__init__(fields)
@@ -161,7 +172,7 @@ class _Context(dict):
     def __missing__(self, key):
         if key != 'idle':
             raise KeyError(key)
-        idle = self['idle'] = _settled(self.g) > 0.0
+        idle = self['idle'] = bool(_settled(self.g) > 0.0)
         return idle
 
 
