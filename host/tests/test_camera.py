@@ -20,7 +20,7 @@ def _box(kind, centre, half, clear=1.0, slot=0):
 
 
 def test_her_fake_camera_tells_the_room(report):
-    """Looked round on her fake camera's frames: the chair a seat with a back, the table a seat and the bed a bed
+    """Looked round on her stereo's frames: the chair a seat with a back, the table a seat and the bed a bed
     within 0.3 m of where they stand; her camera apart (`camera.Camera`) tells the things her map here does; her
     things told by class, none by material, her picture the floor under her map's (`classes`, `sight.Keep.hulls`)."""
     from machine.eyes import camera, classes, sight
@@ -32,7 +32,7 @@ def test_her_fake_camera_tells_the_room(report):
         for k in range(LOOKS + 1):
             _stood(world, math.tau * min(k, LOOKS - 1) / LOOKS)
             if k < LOOKS:
-                keep.took(*eyes.shot(world, _head(world)))
+                keep.took(*eyes.stereo(world, _head(world)))
             cam.look(world, k * sight.LOOK_S, _head(world))
         here = sight.told(keep)
         for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):

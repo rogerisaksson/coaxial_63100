@@ -1,7 +1,7 @@
 """Her fake camera: her eye's frames shot and her map kept in a process of its own.
 
-A look's frame (`sight.Eyes.shot`) her left eye's colour and the parallax her stereo would match, from the
-renderer's depth on the card; her map and its things (`sight.Keep`); both off her loop, in `python -m
+A look's frame (`sight.Eyes.stereo`) her two eyes drawn and matched on the card - her stereo's disparity, not
+the renderer's depth (`sight.Eyes.shot`'s) -; her map and its things (`sight.Keep`); both off her loop, in `python -m
 machine.eyes.camera` - a process beside hers (`machine.process.aside`) -, on her model as her world holds it (MuJoCo's
 binary, sent at the first look) posed as her world's last step left it (POSES) and laid as her scene lays it
 (PLACED): the same pixels, its renderer drawing the same looks in turn. Shot in her loop, a look's two renders were
@@ -41,12 +41,13 @@ class _Posed:
         self.eyes = sight.Eyes(self)
 
     def shot(self, poses, placed, head):
-        """A look's frame (`sight.Eyes.shot`) of her world posed and laid so."""
+        """A look's frame of her world posed and laid so: her two eyes drawn and matched on the card
+        (`sight.Eyes.stereo`) - her stereo's own disparity, the renderer's depth never hers (`truth`)."""
         for name, a in poses.items():
             getattr(self.data, name)[...] = a
         for name, a in placed.items():
             getattr(self.model, name)[...] = a
-        return self.eyes.shot(self, head)
+        return self.eyes.stereo(self, head)
 
 
 def main():

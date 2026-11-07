@@ -91,6 +91,7 @@ class Map:
         shape = (self.nx, self.ny, self.nz)
         self.hits, self.told, self.free = (np.zeros(shape, dtype=np.int32) for _ in range(3))
         self.colour = np.zeros(shape + (3,), dtype=np.float32)
+        self.top = np.full(shape, -np.inf)              # each voxel's highest point told, m
         self.looks, self._made = 0, None
         self._labels, self._ids, self._next = None, [], 1
 
@@ -120,6 +121,7 @@ class Map:
         flat = np.where(on, (i * self.ny + j) * self.nz + k, -1)
         at = flat[on]
         np.add.at(self.hits.reshape(-1), at, 1)
+        np.maximum.at(self.top.reshape(-1), at, xyz[on, 1])
         self.told.reshape(-1)[:] += np.bincount(at, minlength=self.hits.size) >= HITS
         np.add.at(self.colour.reshape(-1, 3), at, rgb[on])
         self.looks, self._made = self.looks + 1, None
@@ -128,7 +130,9 @@ class Map:
     def _seen_through(self, eye, xyz, step=0.8):
         """The voxels each ray from `eye` crossed short of its point by a voxel, `step` voxels a sample, up to
         the first her map holds occupied - a ray grazing along a wall she has seen stops at it -, counted
-        free once a look."""
+        free once a look; a sample over the highest point a voxel was told (`top`) not through it: a ray over a
+        seat's top in its voxel's air passes what the seat is - a chair's seat 4 cm thick low in its 0.1 m layer,
+        seen from 2.7 m, read as seen through and its seat gone from her map."""
         step, d = step * self.voxel, xyz - eye
         far = np.linalg.norm(d, axis=1)
         n = int(np.ceil(far.max() / step)) if len(far) else 0
@@ -136,11 +140,14 @@ class Map:
             return
         t = (np.arange(n) * step)[None, :]
         k = t / np.maximum(far[:, None], 1e-6)
-        i, j, kk, inside = self._index((eye + d[:, None, :] * k[:, :, None]).reshape(-1, 3))
+        at = (eye + d[:, None, :] * k[:, :, None]).reshape(-1, 3)
+        i, j, kk, inside = self._index(at)
         flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0).reshape(len(far), n)
         solid = (inside & self.occupied().reshape(-1)[flat.reshape(-1)]).reshape(len(far), n)
         stop = np.where(solid.any(axis=1), solid.argmax(axis=1), n)
-        on = (t < (far[:, None] - self.voxel)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
+        under = (at[:, 1] <= self.top.reshape(-1)[flat.reshape(-1)]) | ~np.isfinite(self.top.reshape(-1)[flat.reshape(-1)])
+        on = ((t < (far[:, None] - self.voxel)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
+              & under.reshape(len(far), n))
         self.free.reshape(-1)[np.unique(flat[on])] += 1
 
     def occupied(self):

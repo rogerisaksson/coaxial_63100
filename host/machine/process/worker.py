@@ -436,9 +436,11 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     """The worker: she stands on the loop, paced to the clock (`realtime`, or flat out without it);
     commands heard - each put on `heard` at its pass -, her state said. Laid, she stands at rest
     unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
-    `shown`. Her fake camera shoots for her vision's panel (`physics.CAMERA`); her planner and her vision (`vision.Apart`) spawned warm; placed a core apart (`placed`)."""
+    `shown`. Her registry's things are her eyes' (`physics.SIGHT`: her stereo pair drawn and matched, its map
+    classified), her vision's panel their view - the world's boxes are her page's drawing alone; her planner and
+    her vision (`vision.Apart`) spawned warm; placed a core apart (`placed`)."""
     placed.placed()
-    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 0.0
+    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
     s['g']['planner'], s['g']['vision'], s['peeker'] = planner.Planner(), vision.Apart(), planner.Planner()
     s['g']['planner'].start()
