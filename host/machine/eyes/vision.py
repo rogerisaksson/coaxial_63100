@@ -96,12 +96,13 @@ class Apart:
 
     def _changed(self, looks):
         """{place: look} of `looks` not as last sent - a part not the same object, its tuples and floats the same
-        values where it is: 58 of her room's 59 are, its door's not -; all of them where their count changed."""
+        values where it is: 63 of her room's 64 are, its door's not -; all of them where their count changed. A look
+        the same object is passed at once (her room's still boxes, `room.props`): part by part, 50 us a look."""
         was, self._looks = self._looks, looks
         if len(was) != len(looks):
             return dict(enumerate(looks))
-        return {k: p for k, (p, q) in enumerate(zip(looks, was))
-                if len(p) != len(q) or p[0] != q[0] or any(a is not b for a, b in zip(p[1:], q[1:]))}
+        return {k: p for k, (p, q) in enumerate(zip(looks, was)) if p is not q and (
+            len(p) != len(q) or p[0] != q[0] or any(a is not b for a, b in zip(p[1:], q[1:])))}
 
     def join(self):
         """The look in flight's things, waited for: those it last laid where its boxes are theirs to the bit (SAME) -

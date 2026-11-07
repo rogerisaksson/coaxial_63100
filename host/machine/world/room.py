@@ -199,14 +199,36 @@ KINDS = {'timber': 'timber', 'mullion': 'timber', 'pane': 'glass', 'lintel': 'gl
 
 def props(world):
     """The lodge's boxes for the page: [(kind, centre, half sizes, turn 3x3)], the door where it
-    swings, the lamp 'lit' while it is on; a still box laid once (`_laid_props`)."""
-    d, lit = world.data, getattr(world, 'lamp', False)
+    swings, the lamp 'lit' while it is on; a still box told by the same tuple each call (`_told_props`),
+    the door's read anew - each built anew, 35.8 us a call."""
+    d, lit = world.data, bool(getattr(world, 'lamp', False))
     out = []
-    for g, kind, box in _laid_props(world):
-        box = box or _box_of(world.model, d, g)
+    for still, g, kinds in _told_props(world):
+        out += still[lit]
+        box = _box_of(world.model, d, g) if g >= 0 else None
         if box:
-            out.append(('lit' if kind == 'lamp' and lit else kind,) + box)
+            out.append((kinds[lit],) + box)
     return out
+
+
+def _told_props(world):
+    """[(the still boxes before it as told, unlit and lit; a geom read each call, -1 past the last; its kind
+    unlit and lit)] in `_laid_props`' order, laid once off it: her vision apart is sent a look's changed
+    things alone (`vision.Apart._changed`), each still one the same object."""
+    laid = _laid_props(world)
+    told = getattr(world, '_room_told', None)
+    if told is None or told[0] is not laid:
+        runs, still = [], ([], [])
+        for g, kind, box in laid:
+            kinds = (kind, 'lit' if kind == 'lamp' else kind)
+            if box:
+                still[0].append((kinds[0],) + box)
+                still[1].append((kinds[1],) + box)
+            else:
+                runs.append((still, g, kinds))
+                still = ([], [])
+        told = world._room_told = (laid, runs + [(still, -1, None)])
+    return told[1]
 
 
 def _laid_props(world):
