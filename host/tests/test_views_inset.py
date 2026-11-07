@@ -16,10 +16,13 @@ def test_her_eyes_picture_is_framed(report):
     from machine.eyes import sight
     wide, rows = sight.VIEW
     thumb = np.full((rows, wide, 3), 90, np.uint8)
-    box = [(40, 60), (200, 60), (200, 200), (40, 200)]
-    hulls = [('wall', sight.INK['wall'], [(0, 0), (319, 0), (319, 239), (0, 239)]),
+    # her picture's pixels (`stereo.W` x `stereo.H`): the hulls laid on a 320 x 240 one, scaled to hers
+    s = sight.W / 320.0
+    px = lambda pts: [(round(x * s), round(y * s)) for x, y in pts]
+    box = px([(40, 60), (200, 60), (200, 200), (40, 200)])
+    hulls = [('wall', sight.INK['wall'], [(0, 0), (sight.W - 1, 0), (sight.W - 1, sight.H - 1), (0, sight.H - 1)]),
              ('chair', sight.INK['chair'], box), ('table', sight.INK['table'], box),
-             ('lamp', sight.INK['lamp'], [(42, 62), (120, 62), (120, 120), (42, 120)])]
+             ('lamp', sight.INK['lamp'], px([(42, 62), (120, 62), (120, 120), (42, 120)]))]
     cells = inset.eyes((thumb, hulls), 120, 40)
     text = {at: chr(code) for at, (code, _key) in cells.items()}
     top, left = min(r for r, _c in cells), min(c for _r, c in cells)

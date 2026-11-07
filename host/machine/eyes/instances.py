@@ -29,8 +29,8 @@ from machine.eyes.stereo import ENV, H, W, _np
 SEGMENT = 'COAXIAL_SEGMENT'
 #: A mask kept where the segmenter holds it more likely than not.
 SCORE = 0.5
-#: Her picture at the segmenter's least size, twice hers: the backbone's one input, px (rows, columns).
-IN = (2 * H, 2 * W)
+#: Her picture at the segmenter's least size (480 rows): the backbone's one input, px (rows, columns).
+IN = (max(H, 480), max(H, 480) * W // H)
 #: A box: its points' percentiles along each axis, the outlying 2 % each end cut.
 PERCENT = (2.0, 98.0)
 #: The backbone's maps as the model names them.

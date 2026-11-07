@@ -17,7 +17,7 @@ import heapq
 import math
 import weakref
 
-from machine.eyes.stereo import H, W, _np, card, disparity
+from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, disparity
 from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import instances, voxels
 
@@ -25,7 +25,10 @@ from machine.eyes import instances, voxels
 #: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
 #: down, a table's top was out of it nearer than 1.4 m and a chair's seat nearer than 1.9;
 #: FOVY_DEG high, W x H pixels (`machine.eyes.stereo`).
-BASELINE_M, EYES, FOVY_DEG, DOWN_DEG = 0.1, (0.05, 0.10, 0.09), 60.0, 15.0
+EYES, DOWN_DEG = (0.05, 0.10, 0.09), 15.0
+#: A look's points every EVERY'th pixel each way: at 640 x 480 her map's 19 200 points a look as at 320 x 240
+#: every second - its cost theirs, 45 ms a look against 161 every second -, each point's depth twice as fine.
+EVERY = 4
 
 #: A look LOOK_S apart. What she has not seen is open: her way is planned through it and again as she
 #: sees - held shut, a target unseen had no way and every first word a look round first, 14 s on 23
@@ -53,9 +56,9 @@ LOOKS = {'glass': ((0.55, 0.75, 1.0), (0.35, 0.5, 0.7)),
 ALPHA = {'glass': 0.7}
 
 #: The page's picture of her view, pixels wide and high (`coaxial.graphics.inset`); a lump of one look smaller than a
-#: cell of it - her points every second pixel each way - her picture leaves untold, points.
+#: cell of it - her points every EVERY'th pixel each way - her picture leaves untold, points.
 VIEW = (32, 24)
-LUMP = (W // VIEW[0]) * (H // VIEW[1]) // 4
+LUMP = (W // VIEW[0]) * (H // VIEW[1]) // EVERY ** 2
 #: Each class's ink for the page, (r, g, b) (`classes`); the classes under and over all else, one region each.
 INK = {'wall': (120, 190, 255), 'window': (160, 235, 255), 'post': (140, 160, 210), 'door': (255, 120, 90),
        'railing': (175, 185, 205), 'roof': (235, 240, 250), 'ceiling': (210, 215, 235), 'floor': (150, 120, 90),
@@ -161,11 +164,9 @@ class Eyes:
                     d.cam_xmat[i].reshape(3, 3).copy())
 
     def stereo(self, world, head):
-        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`) on a card, laid at her `head`
-        {pos, quat} as her estimate has it; without a card her geometry the renderer's own depth (`shot`), as before
-        her stereo - the CPU's match is 0.66 s a look, past LOOK_S, and CI has no card."""
-        if not card():
-            return self.shot(world, head)
+        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`), laid at her `head`
+        {pos, quat} as her estimate has it - on the CPU too: CI's runner (Mesa's frames) told no chair from the
+        renderer's own depth (`shot`), 4.13 m off, and one from her match."""
         seen = self.see(world)
         seen.at, seen.turn = eye_pose(head)
         return (seen,) + tuple(disparity(seen.left, seen.right))
@@ -196,7 +197,7 @@ def depth(disp):
     return focal() * BASELINE_M / _np().maximum(disp, 1e-3)
 
 
-def points(seen, disp, kept, every=2):
+def points(seen, disp, kept, every=EVERY):
     """World (x, y, z), colours (r, g, b) and pixels (row, col) of the kept pixels, every
     `every`th row and column."""
     np = _np()
@@ -287,9 +288,9 @@ class Keep:
         look = np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1)
         band = np.where(low, np.round(xyz[:, 1] / voxels.CELL_M), 1.0)
         code = np.unique(np.column_stack([look, low, band]), axis=0, return_inverse=True)[1].reshape(-1)
-        grid, index = np.full((H // 2 + 1, W // 2 + 1), -1), np.full((H // 2 + 1, W // 2 + 1), -1)
-        grid[last.rows[off] // 2, last.cols[off] // 2] = code
-        index[last.rows[off] // 2, last.cols[off] // 2] = np.arange(len(off))
+        grid, index = np.full((H // EVERY + 1, W // EVERY + 1), -1), np.full((H // EVERY + 1, W // EVERY + 1), -1)
+        grid[last.rows[off] // EVERY, last.cols[off] // EVERY] = code
+        index[last.rows[off] // EVERY, last.cols[off] // EVERY] = np.arange(len(off))
         lumps = [i for j in np.unique(code) for g in voxels._joined(grid == j, voxels._BESIDE) for i in [index[g]]
                  if len(i) >= LUMP]
         level = np.array([bool(low[i[0]]) for i in lumps], bool)

@@ -7,18 +7,27 @@ path's last pixel's at that disparity, one off for P1 or any for P2, less that p
 sum a pixel's disparity, placed within a pixel by the parabola through its window's own costs about it (WINDOW),
 kept where textured, the best UNIQUE times under the next, the right eye's own match agreeing and no depth's edge
 within half a window. Greys in fixed point, sums in integers, the paths' arithmetic float32 on whole numbers under
-2^24: the card's kernel (`_KERNEL`) and numpy's in one order, bit for bit alike - a grey in float32 rounded was
-not (the dot product's order: 2 of 76 800 pixels a level apart, a subpixel 0.99 px). Against the renderer's depth
-(five looks at the furniture): 1.13 % of the kept pixels matched a pixel or more off, the block match alone 3.61 %
-(two thirds by depth edges, its windows over both sides); within a pixel 0.121 px, the block match's 0.122.
-`COAXIAL_GPU=0` keeps it on the CPU.
+2^24: the card's kernel (`_KERNEL`, a block a path's chain - each independent of the others, its pixels in turn -,
+a thread a disparity) and numpy's (a path's front at a time) in one order, bit for bit alike - a grey in float32
+rounded was not (the dot product's order: 2 of 76 800 pixels a level apart, a subpixel 0.99 px). Against the
+renderer's depth (five looks at the furniture, 320 x 240): 1.13 % of the kept pixels matched a pixel or more off,
+the block match alone 3.61 % (two thirds by depth edges, its windows over both sides); within a pixel 0.121 px, the
+block match's 0.122. `COAXIAL_GPU=0` keeps it on the CPU.
 """
+import math
 import os
 
-#: Image dimensions, px, and the match's bounds (`machine.eyes.sight`): disparities, the window placing a match within
-#: a pixel and telling its texture, that texture's least spread, the best's margin under the next.
-W, H = 320, 240
-DISPARITIES, WINDOW, TEXTURE, UNIQUE = 48, 9, 1.5, 1.15
+from machine.eyes.voxels import NEAR_M
+
+#: Her eyes (`machine.eyes.sight`): W x H pixels, FOVY_DEG high, BASELINE_M apart - the text's 120 mm
+#: (`configure-phase-gated-stereo`); at 320 x 240 and 100 mm her map told a seat's depth 0.20-0.30 m of 0.44, at
+#: 640 x 480 and 120 mm, its points' footprints read (`voxels.Map._box`), 0.34-0.43.
+W, H, FOVY_DEG, BASELINE_M = 640, 480, 60.0, 0.12
+#: The match's bounds: its disparities, those of whatever stands NEAR_M off her eye or further and two over for the
+#: parabola about the best; the window placing a match within a pixel and telling its texture, that texture's least
+#: spread, the best's margin under the next.
+DISPARITIES = int(math.ceil((H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
+WINDOW, TEXTURE, UNIQUE = 9, 1.5, 1.15
 #: A pixel's census, px (columns, rows): a bit a neighbour darker than it, 62 of them. The aggregation's penalties,
 #: a step of one disparity along a path and of more, the customary ones on such a census.
 CENSUS, P1, P2 = (9, 7), 10, 120
@@ -30,42 +39,50 @@ LUMA = (299, 587, 114)
 #: The switch: 0 keeps stereo matching on the CPU.
 ENV = 'COAXIAL_GPU'
 
-#: One path's aggregation, one block: a thread a pixel across the path's front, stepping along it; the last step's
-#: L in `buf` (two fronts, D x across), the sum in `S` (D, H, W).
+#: One path's aggregation: a block a chain of it - from where its pixel before leaves the picture, a pixel along it at
+#: a time -, a thread a disparity; the costs and the sums laid (H, W, D), a pixel's disparities side by side; the
+#: chain's last L and this one in shared memory. A block a path's front over all its pixels, a thread one across it,
+#: ran a 640 x 480 picture's paths on one of the card's multiprocessors, 413 ms a look.
 _KERNEL = r"""
-extern "C" __global__ void sgm_path(const float* C, float* S, float* buf, int H, int W, int D,
-                                    int dx, int dy, float p1, float p2) {
+extern "C" __global__ void sgm_chains(const float* C, float* S, int H, int W, int D, int dx, int dy,
+                                      float p1, float p2) {
+    extern __shared__ float fronts[];
     const float inf = __int_as_float(0x7f800000);
-    int t = threadIdx.x;
-    int across = dx != 0 ? H : W, along = dx != 0 ? W : H;
-    float* prev = buf;
-    float* cur = buf + D * across;
-    for (int s = 0; s < along; ++s) {
-        if (t < across) {
-            int a = (dx != 0 ? dx : dy) > 0 ? s : along - 1 - s;
-            int x = dx != 0 ? a : t, y = dx != 0 ? t : a;
-            int px = x - dx, py = y - dy;
-            bool first = s == 0 || px < 0 || px >= W || py < 0 || py >= H;
-            int q = dx != 0 ? py : px;
-            float least = inf;
-            if (!first) for (int d = 0; d < D; ++d) least = fminf(least, prev[d * across + q]);
-            for (int d = 0; d < D; ++d) {
-                float c = C[(d * H + y) * W + x], l = c;
-                if (!first) {
-                    float p = prev[d * across + q];
-                    p = fminf(p, (d > 0 ? prev[(d - 1) * across + q] : inf) + p1);
-                    p = fminf(p, (d < D - 1 ? prev[(d + 1) * across + q] : inf) + p1);
-                    p = fminf(p, least + p2);
-                    l = c + p - least;
-                }
-                cur[d * across + t] = l;
-                S[(d * H + y) * W + x] += l;
+    int b = blockIdx.x, d = threadIdx.x, rows = dx != 0 ? H : 0, x, y;
+    if (b < rows) {
+        x = dx > 0 ? 0 : W - 1;
+        y = b;
+    } else {
+        int t = b - rows;
+        x = dx == 0 ? t : (dx > 0 ? t + 1 : t);
+        y = dy > 0 ? 0 : H - 1;
+    }
+    float* prev = fronts;
+    float* cur = fronts + D;
+    bool first = true;
+    while (x >= 0 && x < W && y >= 0 && y < H) {
+        if (d < D) {
+            size_t at = ((size_t)y * W + x) * D + d;
+            float c = C[at], l = c;
+            if (!first) {
+                float least = inf;
+                for (int e = 0; e < D; ++e) least = fminf(least, prev[e]);
+                float p = prev[d];
+                p = fminf(p, (d > 0 ? prev[d - 1] : inf) + p1);
+                p = fminf(p, (d < D - 1 ? prev[d + 1] : inf) + p1);
+                p = fminf(p, least + p2);
+                l = c + p - least;
             }
+            cur[d] = l;
+            S[at] += l;
         }
         __syncthreads();
         float* swap = prev;
         prev = cur;
         cur = swap;
+        first = false;
+        x += dx;
+        y += dy;
     }
 }
 """
@@ -135,17 +152,18 @@ def _aggregated(cost, xp):
 
 
 def _card_aggregated(cost, cp):
-    """(D, H, W) the cost's sums along PATHS on the card (`_KERNEL`), a launch a path."""
+    """(D, H, W) the cost's sums along PATHS on the card (`_KERNEL`), a launch a path, a block each of its chains."""
     kernel = _SOLVER.get('kernel')
     if kernel is None:
-        kernel = _SOLVER['kernel'] = cp.RawKernel(_KERNEL, 'sgm_path')
+        kernel = _SOLVER['kernel'] = cp.RawKernel(_KERNEL, 'sgm_chains')
     D = cost.shape[0]
-    total, buf = cp.zeros_like(cost), cp.empty(2 * D * max(H, W), dtype=cp.float32)
-    cost = cp.ascontiguousarray(cost)
+    laid = cp.ascontiguousarray(cost.transpose(1, 2, 0))
+    total = cp.zeros_like(laid)
     for dx, dy in PATHS:
-        kernel((1,), (max(H, W),), (cost, total, buf, cp.int32(H), cp.int32(W), cp.int32(D), cp.int32(dx), cp.int32(dy),
-                                     cp.float32(P1), cp.float32(P2)))
-    return total
+        chains = (H if dx else 0) + ((W - 1 if dx else W) if dy else 0)
+        kernel((chains,), (D,), (laid, total, cp.int32(H), cp.int32(W), cp.int32(D), cp.int32(dx), cp.int32(dy),
+                                 cp.float32(P1), cp.float32(P2)), shared_mem=2 * D * 4)
+    return total.transpose(2, 0, 1)
 
 
 def _array_disparity(left, right, xp, card=False):
@@ -216,11 +234,6 @@ def _gpu_solver():
         solver = None
     _SOLVER['solver'] = solver
     return solver
-
-
-def card():
-    """Whether her stereo matches on a card (`_gpu_solver`)."""
-    return _gpu_solver() is not None
 
 
 def disparity(left, right):

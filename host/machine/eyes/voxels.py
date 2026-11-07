@@ -11,7 +11,8 @@ A voxel is a thing from TOLD looks with HITS points in it, hit more often than s
 the `palette`'s whose body colour its chromaticity lies nearest, the light's white added (the
 dichromatic model: a highlight lies on the line from a kind's chroma to grey, so a lit timber wall
 stays timber and a grey patch its neighbours'). A top is an occupied voxel seen through above with
-nothing standing in the layer above round it - its normal up, a hole in a wall's face none -; a
+nothing standing in the layer above round it - its normal up, a hole in a wall's face none -, or by one
+with nothing over it and its points level (sharpened, `_segmented`); a
 surface the 4-connected tops of one level, a structure the 26-connected rest - joined apart over
 and under a surface within its footprint a voxel round: what stands on a seat is not what holds it
 up -, each wall one, a chair's seat a surface, its back and its legs structures; a part of a
@@ -20,8 +21,8 @@ the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of
 in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
 layer nor under a surface, a stray left out. A surface's kind its pooled colour's, a structure's the kind
 most of its voxels have, its test read on those - a glass gable seen from both sides pooled to neither glass
-nor its door's, and kept the door in it -; a thing's box its
-footprint's principal axes (its turn), its extents along them a voxel wide, its height its voxels', a
+nor its door's, and kept the door in it -; a thing's box the floor its voxels' points cover, its axes
+(its turn) and extents those corners', its height its voxels', a surface's top its points' (`_box`), a
 structure in pieces till no box claims floor further than a voxel from its cells (`_pieces`); its
 id the one of the thing it shares most voxels with at the look before, else new (`machine.eyes.registry`);
 `clear` 1.0 where the space over its top is seen through - a surface's -, 0.0 a structure's, its top
@@ -92,6 +93,7 @@ class Map:
         self.hits, self.told, self.free = (np.zeros(shape, dtype=np.int32) for _ in range(3))
         self.colour = np.zeros(shape + (3,), dtype=np.float32)
         self.top = np.full(shape, -np.inf)              # each voxel's highest point told, m
+        self.moments = np.zeros(shape + (7,))           # each voxel's points' count and sums: x, x^2, z, z^2, y, y^2
         self.looks, self._made = 0, None
         self._labels, self._ids, self._next = None, [], 1
 
@@ -122,6 +124,9 @@ class Map:
         at = flat[on]
         np.add.at(self.hits.reshape(-1), at, 1)
         np.maximum.at(self.top.reshape(-1), at, xyz[on, 1])
+        p = xyz[on]
+        np.add.at(self.moments.reshape(-1, 7), at, np.column_stack([np.ones(len(p)), p[:, 0], p[:, 0] ** 2, p[:, 2],
+                                                                    p[:, 2] ** 2, p[:, 1], p[:, 1] ** 2]))
         self.told.reshape(-1)[:] += np.bincount(at, minlength=self.hits.size) >= HITS
         np.add.at(self.colour.reshape(-1, 3), at, rgb[on])
         self.looks, self._made = self.looks + 1, None
@@ -206,6 +211,26 @@ class Map:
         above = np.zeros_like(occ)
         above[:, :-1] = self.free[:, 1:] > 0
         top = occ & ~stood & above
+        # sharpened: a voxel the cells round it held from a top though nothing stands over it, seen through above and
+        # its points level - their heights spread under a face's filling the voxel (a cell over root 12) - a top by
+        # one: a seat's rows by its back, a tread's by the next riser (the low chair's seat 0.20 m deep of 0.44 so);
+        # held to what stands over it alone, every voxel of a face under a ledge came a top, 275 things a look
+        n = np.maximum(self.moments[..., 0], 1.0)
+        level = (self.moments[..., 0] > 0) & (np.sqrt(np.maximum(self.moments[..., 6] / n - (self.moments[..., 5] / n) ** 2, 0.0))
+                                              < self.voxel / math.sqrt(12.0))
+        capped = np.zeros_like(occ)
+        capped[:, :-1] = occ[:, 1:]
+        grows = occ & ~top & ~capped & above & level
+        while True:
+            by = np.zeros_like(top)
+            by[1:] |= top[:-1]
+            by[:-1] |= top[1:]
+            by[:, :, 1:] |= top[:, :, :-1]
+            by[:, :, :-1] |= top[:, :, 1:]
+            more = top | (grows & by)
+            if (more == top).all():
+                break
+            top = more
         labels, out = np.full(occ.shape, -1), []
         for j in range(self.ny):
             for i, k in _joined(top[:, j], _BESIDE):
@@ -241,7 +266,7 @@ class Map:
         for piece in self._pieces(at):
             labels[piece] = len(out)
             out.append(self._box(piece[0], piece[2], int(piece[1].min()), int(piece[1].max()),
-                                 self._kind(piece)[0] if kind is None else kind))
+                                 self._kind(piece)[0] if kind is None else kind, piece[1]))
 
     def _pieces(self, at):
         """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at
@@ -277,19 +302,29 @@ class Map:
         _k, d = self._kind(part)
         return d[parent] * math.sqrt(float(self.hits[part].sum())) > SIGMA * max(pixel, 1e-9)
 
-    def _box(self, i, k, j_lo, j_hi, kind):
-        """A thing's box of the cells (i, k) its voxels stand in, levels j_lo to j_hi: its footprint's
-        axes by the text's fit (`fitted`) its turn, its extents along them a voxel wide, its height its
-        levels'."""
-        at = np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel])
-        mean = at.mean(axis=0)
-        a, b = fitted(at, self.voxel)
-        along, across = (at - mean) @ a, (at - mean) @ b
-        c = mean + 0.5 * (along.max() + along.min()) * a + 0.5 * (across.max() + across.min()) * b
-        half = (0.5 * (along.max() - along.min()) + 0.5 * self.voxel, 0.5 * (across.max() - across.min()) + 0.5 * self.voxel)
+    def _box(self, i, k, j_lo, j_hi, kind, j=None):
+        """A thing's box of its voxels - in the cells (i, k), levels j_lo to j_hi, each's `j` (j_lo all without) -:
+        its footprint the floor its voxels' points cover, each's mean -+ root 3 sd along x and z (a uniform cover's)
+        held to its cell - voxels told without points their cells' middles a voxel wide -, its axes the text's fit
+        (`fitted`); its height its levels', a surface's top its points' mean. Held to its cells a seat came a voxel
+        coarse: the chair's 0.70 x 0.50 m 0.48 up for 0.61 x 0.44 at 0.47, so 0.58 x 0.43 at 0.467."""
+        sums = self.moments[i, np.full(len(i), j_lo) if j is None else j, k]
+        n, at, pad = sums[:, 0], np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel]), self.voxel
         lo, hi = FLOOR_M + j_lo * self.voxel, FLOOR_M + (j_hi + 1) * self.voxel
+        if n.sum():
+            m, cell = sums[n > 0] / n[n > 0, None], at[n > 0]
+            spread = math.sqrt(3.0) * np.sqrt(np.maximum(m[:, [2, 4]] - m[:, [1, 3]] ** 2, 0.0))
+            ends = [np.clip(m[:, [1, 3]] + s * spread, cell - 0.5 * pad, cell + 0.5 * pad) for s in (-1.0, 1.0)]
+            at, pad = np.concatenate([np.column_stack([e[:, 0], f[:, 1]]) for e in ends for f in ends]), 0.0
+            if j_lo == j_hi:
+                hi = float(sums[:, 5].sum() / n.sum())
+                lo = hi - self.voxel
+        a, b = fitted(at, pad)
+        along, across = (at - at.mean(axis=0)) @ a, (at - at.mean(axis=0)) @ b
+        c = at.mean(axis=0) + 0.5 * (along.max() + along.min()) * a + 0.5 * (across.max() + across.min()) * b
+        extent = (0.5 * float(np.ptp(along) + pad), 0.5 * float(np.ptp(across) + pad))
         R = np.array([[a[0], 0.0, b[0]], [0.0, 1.0, 0.0], [a[1], 0.0, b[1]]])
-        return (self.names[kind], (float(c[0]), 0.5 * (lo + hi), float(c[1])), (half[0], 0.5 * (hi - lo), half[1]), R)
+        return (self.names[kind], (float(c[0]), 0.5 * (lo + hi), float(c[1])), (extent[0], 0.5 * (hi - lo), extent[1]), R)
 
     def blocked(self):
         """The floor's cells she may not stand in: a voxel of a thing within STAND_M over the floor, a
