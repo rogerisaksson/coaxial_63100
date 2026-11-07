@@ -71,15 +71,21 @@ def gate(xi, pts, room, soles, vcom, shares, loads, weight, left=None):
     return eta, (by_froude, by_anchors, by_margin, nm, _U[reach.argmin(axis=1)])
 
 
-def told_on(obs, told, floor):
+def told_on(obs, told, floor, on=None):
     """Which of her observer's points (`observer.POINTS`) are of what her text tells bears her besides her soles
     (`told`, `latent.MANIFOLDED`, her rows' order; her toes are her soles') within the prior's reach of the `floor`
-    (`observer.REACH_M`)."""
-    return (~obs['soled'] & (obs['row'] != PLANTAR) & (obs['latch_of'][:, 1:] @ told[1:] > 0.0)
-            & (obs['points'][:, 1] - floor <= observer.REACH_M))
+    (`observer.REACH_M`); `on` its arithmetic's C (`machine.law.motion.laid`), else numpy's (`on_floor`)."""
+    return (on_floor if on is None else on)(obs['soled'], obs['row'], obs['latch_of'], obs['points'], told, floor)
 
 
-def supports(s, obs, told, floor, legs, loads):
+def on_floor(soled, row, latch_of, points, told, floor):
+    """`told_on`'s arithmetic of her observer's arrays alone, numpy's, so compiled (g['told_on']): 14 us a call in
+    numpy, twice a law pass."""
+    return np.logical_and(np.logical_and(np.logical_and(np.logical_not(soled), row != PLANTAR),
+                                         latch_of[:, 1:] @ told[1:] > 0.0), points[:, 1] - floor <= observer.REACH_M)
+
+
+def supports(s, obs, told, floor, legs, loads, on=None):
     """(her floor points (n, 2), their radii (n,), each leg's own (2, n)): what bears her besides her soles as her
     text tells it (`told`, `latent.MANIFOLDED`) - her observer's points of each manifold told (`momentum.laid`) within
     its prior's reach of the `floor` - and as her skin feels it - each contact but a let-go foot (`borne.LET`), its
@@ -89,7 +95,7 @@ def supports(s, obs, told, floor, legs, loads):
     from machine.senses.borne import LET
     held = [c for c in s.get('contacts', ()) if c['patch'] < LET]
     top = max(floor, float(s.get('prop', (0.0, 0.0, (0.0, 0.0, 0.0)))[2][1]), float(s['com'][1]) - 0.35)
-    said = told_on(obs, told, top)
+    said = told_on(obs, told, top, on)
     corners = [f['pts'] for f in s['feet']]
     pts = np.concatenate([np.array([c['p'][[0, 2]] for c in held]).reshape(-1, 2), obs['points'][said][:, [0, 2]]]
                          + [p[:, [0, 2]] for p in corners])
@@ -120,7 +126,7 @@ def step(g, s, out, told, dt):
     g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
     kept, iota, om, xi = g.get('em_asked', asked)(was, g['sat'], told, out, c, v, floor)
-    pts, room, soles = supports(s, g['observer'], told, floor, iota, loads)
+    pts, room, soles = supports(s, g['observer'], told, floor, iota, loads, g.get('told_on'))
     eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight, g.get('leave'))
     eta, gamma, let_go, unanchored, let_cap, freed, held, rate, acc = g.get('em_released', released)(
         was, iota, eta, kept, g['sat'], told, g['a'], g['y'], c, loads, g['fr'], g['held_ref'], out, dt)
@@ -138,15 +144,21 @@ def settled(acc, g, s):
     and bears less of her than told (`s['prop']`, felt): onto it, that its load goes where her legs' and hands' is shed
     to; in free air only, till it touches (`g['sat']`). Held where she was, she sat on her hands and feet a millimetre
     over a seat told 0.92 of her and never felt; sinking on with her seat on the floor, her step lowered her centre of
-    mass the one way left, her trunk back -10 -> -70 deg."""
-    told, obs, floor = g['told'], g['observer'], float(g['fr'][modal.FLOOR])
-    body = obs['row'] != ortho.PALMAR
-    near = float((told_on(obs, told, floor) & body).any())
+    mass the one way left, her trunk back -10 -> -70 deg. Its arithmetic `settling`'s, compiled where her law laid it."""
+    obs = g['observer']
+    return g.get('settling', settling)(acc, obs['soled'], obs['row'], obs['latch_of'], obs['points'], g['told'],
+                                       float(g['fr'][modal.FLOOR]), g['sat'], float(s['prop'][0]), s['vcom'])
+
+
+def settling(acc, soled, row, latch_of, points, told, floor, sat, prop0, vcom):
+    """`settled`'s arithmetic of her law's arrays alone - her observer's, what her text tells bears her, her centre of
+    mass's ask `acc` and speed `vcom`, the share of her what bears her felt `prop0` -, numpy's, so compiled
+    (g['settling']): 26 us a law pass in numpy."""
+    near = np.logical_and(on_floor(soled, row, latch_of, points, told, floor), row != ortho.PALMAR).any()
     said = observer.said(told)
-    unfelt = CLIP(float(said.sum() - said[PLANTAR] - said[ortho.PALMAR]) - float(s['prop'][0]), 0.0, 1.0)
-    out = np.array(acc, float)
-    out[1] += near * (1.0 - g['sat']) * unfelt * field.RATE * (field.SEEK_M_S - float(s['vcom'][1]))
-    return out
+    unfelt = np.clip(said.sum() - said[PLANTAR] - said[ortho.PALMAR] - prop0, 0.0, 1.0)
+    rise = near * (1.0 - sat) * unfelt * field.RATE * (field.SEEK_M_S - vcom[1])
+    return np.stack([acc[0], acc[1] + rise, acc[2]])
 
 
 def counterweighted(acc, g):

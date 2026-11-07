@@ -242,6 +242,9 @@ def laid(g):
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['modes'] = bodied.on_args(modal.read, 'modes', (0, 1, 2))     # her modes said to her page (`sprung.state`)
     g['pitched'] = bodied.on_args(modal.pitched, 'pitched', (0, 1))     # her trunk reclined (`modal.given`)
+    g['capped'] = bodied.on_args(somatic.capped, 'capped', tuple(range(11)))     # her ask's caps (`somatic.asked`)
+    g['told_on'] = bodied.on_args(emancipation.on_floor, 'told_on', tuple(range(6)))     # `emancipation.told_on`
+    g['settling'] = bodied.on_args(emancipation.settling, 'settling', tuple(range(10)))     # `emancipation.settled`
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))

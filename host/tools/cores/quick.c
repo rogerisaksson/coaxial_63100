@@ -200,6 +200,10 @@ static PyMethodDef methods[] = {
    "runner(...): a part's call laid once - its head, walk, C and result (quick_run.c)."},
   {"run", (PyCFunction)(void (*)(void))quick_run, METH_FASTCALL,
    "run(runner, args): the part's result, or its miss or slow where args are not as traced."},
+  {"stepper", (PyCFunction)(void (*)(void))quick_stepper, METH_FASTCALL,
+   "stepper(k, step, offsets, most, pointed, npointed, mu, keys, miss, singular): a step's call laid once."},
+  {"step", (PyCFunction)(void (*)(void))quick_step, METH_FASTCALL,
+   "step(stepper, k, b, s, ask): the step's answer (quick_step.c), or its miss."},
   {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compiled parts' glue (tools.cores.quick).", -1,

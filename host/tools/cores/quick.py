@@ -27,9 +27,9 @@ import numpy as np
 from tools.cores import build
 from tools.cores.arrays import address
 
-#: The extension's sources, beside this: its walk and calls, its runner.
+#: The extension's sources, beside this: its walk and calls, its runner, her step's call (`tools.cores.step`).
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quick.c')
-SOURCES = (SOURCE, os.path.join(os.path.dirname(SOURCE), 'quick_run.c'))
+SOURCES = tuple(os.path.join(os.path.dirname(SOURCE), name) for name in ('quick.c', 'quick_run.c', 'quick_step.c'))
 #: What a runner gives back where a call's arguments are not as traced, and where Python's walk must say why.
 MISS, SLOW = object(), object()
 #: A check's kind and a result's leaf and node (quick_run.c's enums).
@@ -68,7 +68,10 @@ def _loaded():
         extra = ('-O2', '-DQUICK_NUMPY=%s' % np.__version__, *_interpreter())
         path = build.cached(list(SOURCES), [sysconfig.get_paths()['include'], np.get_include()], 'quick', extra)[0]
         loader = importlib.machinery.ExtensionFileLoader('_quick', path)
-        made = importlib.util.module_from_spec(importlib.util.spec_from_loader('_quick', loader))
+        spec = importlib.util.spec_from_loader('_quick', loader)
+        if spec is None:
+            raise ImportError('no spec for its build')
+        made = importlib.util.module_from_spec(spec)
         loader.exec_module(made)
         made.laid(np.ndarray, np.dtype(np.float64))
         return made
