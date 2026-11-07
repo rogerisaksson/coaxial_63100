@@ -54,15 +54,20 @@ int wbc_cholesky(int n, int ld, double *a)
 
 void wbc_chol_solve(int n, int ld, const double *l, const double *b, double *x)
 {
+  /* forward: each b[i] less l[i][k] x[k] in k's order as each x[k] is had - the rows' subtractions independent */
   for (int i = 0; i < n; i++)
   {
-    double s = b[i];
+    x[i] = b[i];
+  }
+  for (int k = 0; k < n; k++)
+  {
+    const double xk = x[k] / l[k * ld + k];
 
-    for (int k = 0; k < i; k++)
+    x[k] = xk;
+    for (int i = k + 1; i < n; i++)
     {
-      s -= l[i * ld + k] * x[k];
+      x[i] -= l[i * ld + k] * xk;
     }
-    x[i] = s / l[i * ld + i];
   }
   for (int i = n - 1; i >= 0; i--)
   {

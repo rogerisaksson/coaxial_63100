@@ -379,16 +379,21 @@ static int joined(wbc_gmo_t *o, int at[NF], int n, int b, double least)
 {
   double d = o->h[b][b];
 
+  /* each of the row's entries less its terms in their order, as each before it is had: the rows independent */
   for (int x = 0; x < n; x++)
   {
-    double s = o->h[b][at[x]];
+    o->k[n][x] = o->h[b][at[x]];
+  }
+  for (int x = 0; x < n; x++)
+  {
+    const double kx = o->k[n][x] / o->k[x][x];
 
-    for (int k = 0; k < x; k++)
+    o->k[n][x] = kx;
+    d -= kx * kx;
+    for (int y = x + 1; y < n; y++)
     {
-      s -= o->k[n][k] * o->k[x][k];
+      o->k[n][y] -= kx * o->k[y][x];
     }
-    o->k[n][x] = s / o->k[x][x];
-    d -= o->k[n][x] * o->k[n][x];
   }
   at[n] = b;
   o->k[n][n] = sqrt(fmax(d, least));
@@ -417,6 +422,24 @@ static int left(wbc_gmo_t *o, int at[NF], int n, int p)
     }
   }
   return n - 1;
+}
+
+/** Each of `h`'s `n` its `a`'s times `c` more, each of `w`'s `n` its `h`'s times `c` less: one product and one sum an
+    element, each element apart - its lanes independent, along memory. */
+static void added(int n, double *restrict h, const double *restrict a, double c)
+{
+  for (int y = 0; y < n; y++)
+  {
+    h[y] += c * a[y];
+  }
+}
+
+static void lessened(int n, double *restrict w, const double *restrict h, double c)
+{
+  for (int x = 0; x < n; x++)
+  {
+    w[x] -= h[x] * c;
+  }
 }
 
 static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[WBC_N])
@@ -467,12 +490,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
     }
     for (int k = 0; k < weighed; k++)
     {
-      const double wa = weight[rows[k]] * ag[k][x];
-
-      for (int y = x; y < m; y++)
-      {
-        o->h[x][y] += wa * ag[k][y];
-      }
+      added(m - x, o->h[x] + x, ag[k] + x, weight[rows[k]] * ag[k][x]);
     }
     for (int y = 0; y < x; y++)
     {
@@ -499,15 +517,18 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       on[pushing] = y;
       pushing += f[y] != 0.0;
     }
+    /* each w[x] less h[x][c] f[c] over the pushing c in their order, h[c] streamed along memory for every x
+       at once - h mirrored, h[c][x] is h[x][c] bit for bit; a push in the set is never picked: its w unread */
     for (int x = 0; x < m; x++)
     {
-      const int sums = set[x] ? 0 : pushing; /* a push in the set is never picked: its w unread */
-
       w[x] = g[x];
-      for (int k = 0; k < sums; k++)
-      {
-        w[x] -= o->h[x][on[k]] * f[on[k]];
-      }
+    }
+    for (int k = 0; k < pushing; k++)
+    {
+      lessened(m, w, o->h[on[k]], f[on[k]]);
+    }
+    for (int x = 0; x < m; x++)
+    {
       const int fits = !set[x] && w[x] > DBL_EPSILON * NF * most;
 
       free_ = (fits && !gate[x] && (free_ < 0 || w[x] > w[free_])) ? x : free_;
