@@ -20,7 +20,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 # np.clip's own ufunc, its Python layers left out: the same bits, 3.7 -> 1.3 us a call
-from numpy._core.umath import clip as CLIP
+from numpy._core.umath import clip as CLIP  # pyright: ignore[reportAttributeAccessIssue]
 
 from machine.texts import kernel, ortho
 from machine.law import impedance, latent, modal, stride
@@ -53,21 +53,12 @@ def asked(g, s, out, told, ask):
     of them (`propped`) or their told share: `s` her sensed state (hips, feet, com, contacts), `out` her latent's, `told` what bears
     her as told (`latent.MANIFOLDED`), the furniture's its shares between her soles' and her hands' (`ortho`); and her
     fists kept on the seat they are told to bear on (`seated.kept`, `g['fists']` their latch)."""
-    rho = np.linalg.norm(np.asarray(s['hips']) - np.array([f['sole'] for f in s['feet']]), axis=1) / LEG_M
-    equinus = float(told[ortho.FURNITURE].sum()) * CLIP((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
-    ask['edge'] = tuple(CLIP(np.asarray(ask['edge'], float) + equinus, -1.0, 1.0))
-    rot = g['fr'][modal.ROT].reshape(3, 3)
-    along, weight, said = out[latent.SLID], g['fr'][modal.WEIGHT], told.sum()
-    local = np.zeros(3)
-    local[stride.ALONG] = along
-    ask['slide'] = rot.T @ local
-    told_cap = np.where(said > 0.0, weight * told[ortho.FURNITURE].sum() / np.maximum(said, TINY), np.inf)
-    ask['fz_cap'] = np.maximum(told_cap, lever(s, rot[stride.ALONG], weight) * weight)
-    told_hand = np.where(said > 0.0, weight * told[ortho.PALMAR] / np.maximum(said, TINY), 0.0)
-    braced = np.maximum(told_hand, propped(s, rot[stride.ALONG]) * weight)
-    ask['hand_cap'] = np.where(rho.mean() < THIGH / LEG_M,
-                               g['sat'] * braced + (1.0 - g['sat']) * weight * float(told[ortho.PALMAR] > 0.0), told_hand)
-    ask['slid_cap'] = np.where(abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf)
+    fr = g['fr']
+    way, weight = fr[modal.ROT].reshape(3, 3)[stride.ALONG], fr[modal.WEIGHT]
+    edge, ask['slide'], ask['fz_cap'], ask['hand_cap'], ask['slid_cap'] = g.get('capped', capped)(
+        s['hips'], s['feet'][0]['sole'], s['feet'][1]['sole'], told, np.asarray(ask['edge'], float), fr[modal.ROT],
+        out[latent.SLID], weight, g['sat'], lever(s, way, weight), propped(s, way))
+    ask['edge'] = tuple(edge)
     ask['posture'], g['fists'] = g.get('kept', seated.kept)(g['y'], g['fr'], float(told[ortho.PALMAR]), ask['posture'], s['q'],
                                                         g.setdefault('fists', np.zeros(14)))
     # something bearing her now off her soles (`borne`'s prop at impedance.PROP_ON), not her support's latch: the way
@@ -84,6 +75,23 @@ def asked(g, s, out, told, ask):
     ask['twist'] = tuple(g['twist']) if told else (0.0, 0.0, 0.0)
     ask['free'] = (told and phase >= 0.5, told and phase < 0.5)
     return ask
+
+
+def capped(hips, sole0, sole1, told, edge, rot, along, weight, sat, lever_, propped_):
+    """(each sole's edge (2,), the slide her contacts may take (world), fz_cap, hand_cap, slid_cap): `asked`'s arithmetic
+    of her law's arrays alone - `lever_` and `propped_` what bears her must take of her weight -, numpy's, so compiled
+    (`motion.laid`'s g['capped']): in numpy her ask's caps took 70 of `asked`'s 100 us."""
+    rho = np.linalg.norm(hips - np.stack([sole0, sole1]), axis=1) / LEG_M
+    equinus = told[ortho.FURNITURE].sum() * np.clip((rho - RHO[0]) / (RHO[1] - RHO[0]), 0.0, 1.0)
+    local, said = np.zeros(3), told.sum()
+    local[stride.ALONG] = along
+    told_cap = np.where(said > 0.0, weight * told[ortho.FURNITURE].sum() / np.maximum(said, TINY), np.inf)
+    told_hand = np.where(said > 0.0, weight * told[ortho.PALMAR] / np.maximum(said, TINY), 0.0)
+    braced = np.maximum(told_hand, propped_ * weight)
+    return (np.clip(edge + equinus, -1.0, 1.0), rot.reshape(3, 3).T @ local, np.maximum(told_cap, lever_ * weight),
+            np.where(rho.mean() < THIGH / LEG_M, sat * braced + (1.0 - sat) * weight * (told[ortho.PALMAR] > 0.0),
+                     told_hand),
+            np.where(np.abs(along) > 0.0, np.where(along > 0.0, CAPS[1], CAPS[0]) * weight, np.inf))
 
 
 def propped(s, way):
