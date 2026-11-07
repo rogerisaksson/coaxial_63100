@@ -67,6 +67,7 @@ MACHINE = (
     ('host/machine/senses/edge.py',                   (STRUCTURE, BUSES, ORTHO, ERRANDS, SCENES)),
     ('host/machine/rig/layouts.py',                (STRUCTURE,)),
     ('host/machine/senses/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
+    ('host/machine/senses/momentum.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
     ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',

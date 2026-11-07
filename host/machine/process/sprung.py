@@ -8,13 +8,13 @@ import math
 import os
 from machine.body import mechatronics
 from machine.way import planner
-from machine.eyes import camera, classes, vision
-from machine.senses import edge, estimate, field, grip, inekf, observer, situation, touch
+from machine.eyes import camera, vision
+from machine.senses import edge, estimate, field, grip, inekf, momentum, observer, situation, touch
 from machine.moves import leap
 from machine.texts import ortho
 from machine.law import se2, supervisor
 from machine.law.se2 import WEP_S, _dropped, doing, said
-from machine.process import joints
+from machine.process import joints, page
 from machine.process.sensed import sensed
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
@@ -24,10 +24,11 @@ LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
-RATE_HZ, SLICE_S, SAY_S, AVERAGE_S, RECOVER_S = 1000.0, 0.05, 1.0 / 60.0, 0.05, 3.0
+RATE_HZ, SLICE_S, SAY_S, AVERAGE_S = 1000.0, 0.05, 1.0 / 60.0, 0.05
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
-#: Her stage (`staged`): walking past WALK_M_S, or with a sole off the floor within STEP_S.
-WALK_M_S, STEP_S = 0.1, 1.0
+#: Her state as her page hears it (`page`): her stage, her tilt, her things named.
+named, tilt, staged, state = page.named, page.tilt, page.staged, page.state
+WALK_M_S, STEP_S, RECOVER_S = page.WALK_M_S, page.STEP_S, page.RECOVER_S
 HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
          'grip', 'charge', 'floor', 'link')
 STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
@@ -145,7 +146,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
-         'solves': (solve_step, c_step.chain_laid(body, sensing, picked == 'stack')), 'sensed': sensing, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': observer.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
+         'solves': (solve_step, c_step.chain_laid(body, sensing, picked == 'stack')), 'sensed': sensing, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': momentum.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
          'things': (), 'things_at': -math.inf,
          'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
          'planner': planner.Here(), 'vision': vision.Here()}
@@ -225,16 +226,6 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     _dropped(g)
 
 
-def named(g):
-    """Her things by what each is, the one thing each is of and the buildings they make (`classes.read`), told anew only
-    as they change: the page names none - 59 things took 12 ms a scan there; keyed by `registry.keyed`."""
-    from machine.eyes import registry
-    key = registry.keyed(g['things'])
-    if g.get('_named', (None,))[0] != key:
-        g['_named'] = (key,) + classes.read(g['things'])
-    return g['_named'][1:]
-
-
 def looked(g):
     """A look (`vision.LOOKS`): her eyes' map's things, or the world's boxes as their stand-in, into her registry
     at `g['t']`, her things its boxes (`vision.looked`); the step's at the kernel's SDF refresh, an errand's when
@@ -282,63 +273,6 @@ def passed(g, dt=0.001):
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1
     world.advance()
     return g['s'], g['loads'], g['ask'], g['out']
-
-
-def tilt(g):
-    """Her pelvis's tilt from upright, deg, as the world has it: the referee's, not her law's."""
-    q = g['world'].data.qpos
-    return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[4] ** 2 + q[6] ** 2)))))
-
-
-def staged(g, fallen_at):
-    """Her stage as measured: fallen; in the air, neither sole bearing `leap.TOUCH_N`; walking,
-    her pelvis faster than WALK_M_S or a sole off the floor within STEP_S; else standing. Read off
-    her gait's amplitude it said stand at 0.9 m/s."""
-    if fallen_at is not None:
-        return 'fallen'
-    if max(g['loads']) < leap.TOUCH_N:
-        return 'air'
-    d = g['world'].data
-    going = math.hypot(float(d.qvel[0]), float(d.qvel[2])) > WALK_M_S
-    return 'walk' if going or g['t'] - g.get('lifted', -math.inf) < STEP_S else 'stand'
-
-
-def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, headroom=1.0):
-    """Her state as the page hears it: stage, modes, joint torque/power/temp, physical velocity, and
-    her law's horizon - her centre of mass, her capture point, her soles, which stand (world),
-    her shoulders' range; `ratio` her pace to the wall, `headroom` her process's flat out."""
-    from machine.law import latent, modal
-    from machine.body.figure import JOINTS
-    world, out, d, hd = g['world'], g['out'], g['world'].data, float(g['heading'])
-    z = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])[0]
-    angles = {j: math.degrees(float(d.qpos[world.qadr[i]])) for i, j in enumerate(JOINTS)}
-    vxz = (float(d.qvel[0]), float(d.qvel[2]))
-    y, om = g['y'], float(g['fr'][modal.OMEGA])
-    horizon = {'com': tuple(y[modal.COM].tolist()), 'xi': (float(y[modal.COM][0] + y[modal.VCOM][0] / om),
-                                                           float(y[modal.COM][2] + y[modal.VCOM][2] / om)),
-               'soles': tuple(tuple(s) for s in y[modal.SOLE].reshape(2, 3).tolist()),
-                'stance': tuple(g['a'][modal.STANCE].tolist()),
-                'shoulder': tuple(min(max(float(v), -math.pi), math.pi)
-                                  for v in g['rng'][[j for j, d in zip(JOINTS, g['body'].driven) if d].index('left_shoulder')])}
-    buses = {b.name: (b.frames, b.comm_errors, b.tx_bytes, b.stale) for b in (getattr(world, 'limb_buses', None) or ())}
-    return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
-            'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
-            'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),
-            'watts': float(watts), 'where': tuple(d.qpos[0:3].tolist()), 'turn': tuple(d.qpos[3:7].tolist()),
-            'heading': hd, 'twist': tuple(g.get('twist', (0.0, 0.0, 0.0))),
-            'twist_actual': tuple(g.get('twist_actual', (0.0, 0.0, 0.0))),
-            'speed': float(vxz[0] * math.sin(hd) + vxz[1] * math.cos(hd)), 'velocity': vxz,
-            'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
-            'stage': staged(g, fallen_at),
-            'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
-            'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], **dict(zip(('named', 'groups', 'buildings'), named(g))),
-            'doing': doing(g), 'entry': g.get('active_entry'),
-            'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),
-            'ratio': min(ratio, 99.0), 'headroom': min(headroom, 99.0), 'says': tuple(says), 'refused': refused,
-            'buses': buses,
-            'scenario': g.get('scenario', 'flat'), 'situation': situation.told(g['situations'], g['into']), 'horizon': horizon,
-            'modes': [(n, float(out[latent.REF][i]), float(z[i]), float(out[latent.KS][i]),
-                       float(out[latent.DS][i])) for i, n in enumerate(ortho.MODES)]}
 
 
 def _heard(g, gym, command):

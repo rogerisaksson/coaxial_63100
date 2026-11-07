@@ -240,6 +240,7 @@ def laid(g):
     g['outside'] = bodied.on_args(grip.outside, 'outside', (0, 1))
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
+    g['modes'] = bodied.on_args(modal.read, 'modes', (0, 1, 2))     # her modes said to her page (`sprung.state`)
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))

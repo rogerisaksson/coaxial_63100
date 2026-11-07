@@ -81,7 +81,7 @@ def told_on(obs, told, floor):
 
 def supports(s, obs, told, floor, legs, loads):
     """(her floor points (n, 2), their radii (n,), each leg's own (2, n)): what bears her besides her soles as her
-    text tells it (`told`, `latent.MANIFOLDED`) - her observer's points of each manifold told (`observer.laid`) within
+    text tells it (`told`, `latent.MANIFOLDED`) - her observer's points of each manifold told (`momentum.laid`) within
     its prior's reach of the `floor` - and as her skin feels it - each contact but a let-go foot (`borne.LET`), its
     capsule's room round it -, and each sole's corners where it bears her (`leap.TOUCH_N`), as far as its leg is not
     asked released (`legs`, 2). Her skin's alone, her seat unloaded as she leant back left it, and her counterweight
