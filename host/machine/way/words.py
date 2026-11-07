@@ -5,6 +5,7 @@ its words are here - each a function of her world `g`, her gym, the errand, the 
 hears her -, beside the thing an errand goes to among her things (`_seen`, `_within`, `_near`, `_glimpsed`),
 the errand laid on it and her planner asked its dock and way (`_laid`, `_asked`, `_docked`, `_looking`).
 """
+import functools
 import math
 
 from machine.way.tour import STOP
@@ -206,10 +207,17 @@ def _passed(g, gym, er, c, heard_fn, _say_fn):
     er['way'].pop(0)
 
 
+@functools.cache
+def _modal():
+    """machine.law.modal, imported at a first aim and not looked up again each pass."""
+    from machine.law import modal
+    return modal
+
+
 def _to_aim(g, gym, er, c, heard_fn, _say_fn):
     """Walking to her aim (`step_errand`'s) at her way's pace there (`route.rounded`'s, her walk's
     without a curve); her turn's way held while it is all but behind her."""
-    from machine.law import modal
+    modal = _modal()
     err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
     er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
     steer(g, gym, heard_fn, err_w, er['turn_dir'], c['pace'], c['off_w'], c['bend'], c['aim_m'])

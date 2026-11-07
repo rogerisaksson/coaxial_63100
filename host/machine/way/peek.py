@@ -9,6 +9,7 @@ them (`balloons.docked`).
 `dock.docked` took 43-157 ms a thing she reaches and up to 3.6 s one she does not (her page's room, 12
 things): a round of them some seconds, the loop never waiting on one (`planner.Planner.ready`).
 """
+import functools
 
 
 def _goes(g):
@@ -41,11 +42,18 @@ def _shown(verb, box, laid):
             'chosen': min(range(len(off)), key=off.__getitem__)}
 
 
+@functools.cache
+def _maneuver():
+    """machine.texts.maneuver, imported at a first peek and not looked up again each pass."""
+    from machine.texts import maneuver
+    return maneuver
+
+
 def peeked(s):
     """A pass of her peeks (`s['peeker']`, a planner of their own): its answer taken where ready - a thing
     she reaches none of dropped -, the next thing asked; a round over, things gone dropped; a new epoch
     all of them."""
-    from machine.texts import maneuver
+    maneuver = _maneuver()
     g, planner = s['g'], s.get('peeker')
     if planner is None:
         return

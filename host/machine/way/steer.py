@@ -1,4 +1,5 @@
 """Her errand's words to her: a word told once, a turn in place toward her way while off it."""
+import functools
 import math
 
 
@@ -8,6 +9,15 @@ def tell(g, gym, heard_fn, cmd):
         heard_fn(g, gym, dict(cmd, _errand_cmd=True))
 
 
+@functools.cache
+def _mods():
+    """What `steer` reads, imported at its first call and not looked up again each pass."""
+    from machine.senses import edge
+    from machine.law import latent, modal, se2
+    from machine.way import route
+    return edge, latent, modal, se2, route
+
+
 def steer(g, gym, heard_fn, err, wz_dir, speed, off, bend=0.0, aim_m=1.0):
     """Turn in place toward `err` rad while she is `off` her way past her list, standing, or past
     `route.CONE` as far as her rhythm runs (`latent.GAIN`) toward `speed`; within it, walk `speed`:
@@ -15,9 +25,7 @@ def steer(g, gym, heard_fn, err, wz_dir, speed, off, bend=0.0, aim_m=1.0):
     on - 2 sin(err) / aim_m her bend, from her heading - over her stance's share of a turn, YAW_RATE at
     most; else by `err` her heading. Held by her heading round a bend her frame turned and her gait
     not: told 25-40 deg/s so she crabbed 26-46 deg and fell; told the turn, 2-5 deg."""
-    from machine.senses import edge
-    from machine.law import latent, modal, se2
-    from machine.way import route
+    edge, latent, modal, se2, route = _mods()
     w = min(1.0, float(g['st'][latent.NOW][latent.GAIN])) * float(speed > 0.0)
     turn = abs(off) > (1.0 - w) * modal.LIST_RAD + w * route.CONE
     arc = not turn and bend > 0.0 and speed > 0.0

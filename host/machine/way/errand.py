@@ -117,10 +117,20 @@ def _turn_way(g, e, c):
 _TURNS = {'settle': lambda g, e, c: float(c['idle'] and c['still'] and c['even']) and _turn_way(g, e, c), 'clear': _turn_way}
 
 
+@functools.cache
+def _parts():
+    """What a pass of her errand reads, imported at her first errand's pass and not looked up again each."""
+    from machine.way import dock, planner, route
+    from machine.senses import edge
+    from machine.law import latent, modal, se2, stride
+    from machine.eyes import voxels
+    return dock, route, edge, latent, modal, se2, stride, voxels, planner
+
+
 def _watched(g, e):
     """Her way left watched by her planner (`_asked`) once WATCH_S walking, none in flight: replanned
     where her things bar it (`route.barred`) - a new way only where the old stops existing."""
-    from machine.way import planner
+    planner = _parts()[8]
     due = e['phase'] in ('walk', 'door') and g['planner'].asked_at is None
     if not due or g['t'] - e.get('checked_at', -math.inf) < planner.WATCH_S:
         return
@@ -152,7 +162,7 @@ def settled(y, fr, a, sway):
 def _settled(g):
     """`settled` on `g`'s arrays, compiled at its first read (`bodied.on_args`, `g['settled']`): numpy's
     took 50 us a read, read each pass walking (19-22 us of her errand's 84-97) and seated or lying (5-10)."""
-    from machine.law import latent
+    latent = _parts()[3]
     if g.get('settled') is None:
         from tools.cores import bodied
         g['settled'] = bodied.on_args(settled, 'settled', (0, 1, 2, 3))
@@ -183,10 +193,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     er = g.get('_errand')
     if not er:
         return
-    from machine.way import dock, route
-    from machine.senses import edge
-    from machine.law import latent, modal, se2, stride
-    from machine.eyes import voxels
+    dock, route, edge, latent, modal, se2, stride, voxels, _planner = _parts()
     rows, meanwhile = _on_rows()[er['phase']]
     d = g['world'].data
     gx, gz = float(d.qpos[0]), float(d.qpos[2])

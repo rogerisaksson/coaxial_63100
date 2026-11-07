@@ -10,6 +10,7 @@ across her way the text's 0.6 s ahead among what her high band meets, and the tr
 her chest through it, on a route's twist (an errand's), not a word's. Its backward coupling - her
 flow bent by the rows a shield holds against the room - waits on such rows (`machine.law.schema`).
 """
+import functools
 import math
 
 from machine.texts import kernel
@@ -79,11 +80,18 @@ def ahead(boxes, at, heading, speed, floor, margin, gap=gap):
     return sliced(width - 2.0 * margin, NOMINAL, DEPTH)
 
 
+@functools.cache
+def _schema():
+    """machine.law.schema, imported at a first gauge and not looked up again each pass."""
+    from machine.law import schema
+    return schema
+
+
 def gauged(g, s):
     """Her trunk's twist this pass of her session `g`: the gauge's for the gap her route meets among
     her things' boxes (`schema.room`) - none on a word's twist -, her gaze to be kept against it; the
     gap in C (`g['gap']`, `machine.law.motion.laid`)."""
-    from machine.law import schema
+    schema = _schema()
     floor = min(float(f['sole'][1]) for f in s['feet'])
     at = (float(g['est']['pos'][0]), float(g['est']['pos'][2]))
     return float(g.get('_errand') is not None) * ahead(schema.room(g.get('things', ())), at, g['heading'],

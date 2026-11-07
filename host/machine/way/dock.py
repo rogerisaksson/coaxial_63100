@@ -19,6 +19,7 @@ distance of its own: staged a stride past her back's end (0.52 m), she settled 0
 then the face her walk reaches soonest. Staged her stopping distance and a stride out
 (1.17 m), she backed 0.37-1.03 m after her turn, in 3.9-8.3 s.
 """
+import functools
 import heapq
 import itertools
 import math
@@ -76,6 +77,13 @@ def turns(g, at, heading, to, first):
     return next((w for w in (first, -first) if fits.get(w, False)), 0.0)
 
 
+@functools.cache
+def _leap():
+    """machine.moves.leap for `even`, imported at its first call and not looked up again each pass."""
+    from machine.moves import leap
+    return leap
+
+
 def even(g, e=None):
     """Whether her soles bear her alike, within a sole's touch (`leap.TOUCH_N`) of each other, held half
     her stride's period (`se2.BRAKE_S`) where an errand `e` keeps the time: still after a walk's stop her
@@ -84,8 +92,7 @@ def even(g, e=None):
     soles turning left (0.10 m ahead) and on their middle turning right (within 0.01). Or her weight's
     split held within a sole's touch as long - her swing over where it ended: stood still at 164/141 N,
     still her soles never crossed alike and she waited at the door's stage 30 s and more."""
-    from machine.moves import leap
-    from machine.law import se2
+    leap = _leap()
     split = float(g['loads'][0]) - float(g['loads'][1])
     alike = abs(split) <= leap.TOUCH_N
     if e is None:

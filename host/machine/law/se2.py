@@ -1,4 +1,5 @@
 """Her twist on the loop: the gait it walks her by, her heading turned by it, her rhythm by it."""
+import functools
 import math
 
 from machine.body import gait
@@ -117,6 +118,13 @@ def doing(g):
     return max(come)[1] if come else 'rest'
 
 
+@functools.cache
+def _mods():
+    """machine.law's latent and modal, imported at a first pass and not looked up again each."""
+    from machine.law import latent, modal
+    return latent, modal
+
+
 def limp(g):
     """How far she rests limp, 0 to 1: a doing in LIMP, or her back told to bear her and her row's blend done - lain
     flat on a bed or the floor and still -, easing to 1 over as long as that row blended; her clamps go to zero by it
@@ -126,7 +134,7 @@ def limp(g):
     carries her pelvis along it (limp, her law's 1.4 m/s^2 back moved her 0.000 m), woken and let rest again as
     the limp eases (`g['_wake']`: its way, when it turned, from where) - woken in a pass her right elbow swung
     309 deg/s, her walk's arms 128."""
-    from machine.law import latent
+    latent = _mods()[0]
     blend, now = max(float(g['st'][latent.BLEND]), 1e-3), g.get('t_law', g['t'])
     eased = min(1.0, max(0.0, (now - float(g['st'][latent.T0]) - blend) / blend))
     told = float(g.get('played') is None and any(float(v) != 0.0 for v in g.get('twist', ())))
@@ -231,7 +239,7 @@ def floored(y, fr, dt):
 def step_physical_twist(g, dt, out):
     """A pass of her twist on the loop: `twisted` in C on her arrays (`g['twist_step']`,
     `machine.law.motion.laid`), its words from and to `g`."""
-    from machine.law import modal
+    modal = _mods()[1]
     g.setdefault('floor0', float(g['fr'][modal.FLOOR]))
     w = g['words']
     w[W_HEADING], w[W_TARGET], w[W_HAS] = g['heading'], g.get('target_heading', 0.0), g.get('has_heading', 0.0)
