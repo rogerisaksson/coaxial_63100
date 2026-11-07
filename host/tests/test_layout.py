@@ -169,26 +169,29 @@ def _reached(path, headers, seen):
 
 
 def test_null_has_its_header(r):
-    """A target source naming NULL reaches a header ISO C defines it in. MinGW's and newlib's
-    <math.h> and <stdint.h> bring it and glibc's do not: ctrl_loop.c built here and for the
-    part, and on CI's host no core did - 29 suites crashed, the emulator's among them."""
+    """A source naming NULL, or offsetof, reaches a header ISO C defines it in. MinGW's and newlib's
+    <math.h> and <stdint.h> bring them and glibc's do not: ctrl_loop.c built here and for the
+    part, and on CI's host no core did - 29 suites crashed, the emulator's among them -; her
+    glue's offsetof (quick_part.c) built here, and on CI's host her glue stayed python."""
     from tools.dev import target_map
     dirs = target_map.DIRS + ('wbc', 'aero')
+    glue = dirs + (os.path.join('host', 'tools', 'cores'),)
     headers = {}
-    for d in dirs:
+    for d in glue:
         for path in glob.glob(os.path.join(REPO, d, '**', '*.h'), recursive=True):
             headers.setdefault(os.path.basename(path), []).append(path.replace(os.sep, '/'))
     bare = []
-    for d in dirs:
-        for path in glob.glob(os.path.join(REPO, d, '**', '*.[ch]'), recursive=True):
-            path = path.replace(os.sep, '/')
-            text = io.open(path, encoding='utf-8', errors='replace').read()
-            if '/test/' in path or not re.search(r'\bNULL\b', NOT_CODE.sub('', text)):
-                continue
-            std, lost = _reached(path, headers, {path})
-            if not lost and not any(h in std for h in NULL_HEADERS):
-                bare.append(os.path.relpath(path, REPO).replace(os.sep, '/'))
-    r.check('a target source naming NULL includes a header that defines it', not bare,
+    for name, defining, within in (('NULL', NULL_HEADERS, dirs), ('offsetof', ('stddef.h',), glue)):
+        for d in within:
+            for path in glob.glob(os.path.join(REPO, d, '**', '*.[ch]'), recursive=True):
+                path = path.replace(os.sep, '/')
+                text = io.open(path, encoding='utf-8', errors='replace').read()
+                if '/test/' in path or not re.search(r'\b%s\b' % name, NOT_CODE.sub('', text)):
+                    continue
+                std, lost = _reached(path, headers, {path})
+                if not lost and not any(h in std for h in defining):
+                    bare.append('%s %s' % (name, os.path.relpath(path, REPO).replace(os.sep, '/')))
+    r.check('a source naming NULL or offsetof includes a header that defines it', not bare,
             '; '.join(bare[:4]))
 
 

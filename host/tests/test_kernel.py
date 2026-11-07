@@ -271,13 +271,15 @@ def test_the_kernel_reads_whole(report):
 
 def _both(c, step, outs, got):
     """Her observer's `step` (wbc_gmo.c) on `c` scoped and on its copy whole (`whole`), in turns first, timed:
-    `got` counts the law passes, those whose `outs` were apart, her working set's sizes and each one's seconds."""
+    `got` counts the law passes, those whose `outs` were apart, her working set's sizes and each one's seconds.
+    The copy on a 64-byte line as wbc_gmo_t is (`gmo.made`): ctypes' own copy keeps 16 bytes', on CI's host a crash."""
     import ctypes
     import time
-    from tools.cores.gmo import Gmo
+    from tools.cores.gmo import Gmo, made
 
     def stepped(at, base, q, u, dt):
-        whole = Gmo.from_buffer_copy(c)
+        whole = made()
+        ctypes.memmove(ctypes.addressof(whole), ctypes.addressof(c), ctypes.sizeof(Gmo))
         whole.whole = 1
         runs = [(ctypes.byref(whole), 'whole'), (at, 'scoped')][::1 - 2 * (got['passes'] % 2)]
         for arg, key in runs:

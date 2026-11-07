@@ -4,6 +4,8 @@
 #define NO_IMPORT_ARRAY
 #include "quick.h"
 
+#include <stddef.h>
+
 /* A part: its Bound, None before its C (`c`). */
 typedef struct
 {
