@@ -89,7 +89,7 @@ def _fields(name, size, end=None, base=0, prefix=''):
 
 
 def _edge(fn):
-    """A read of her edge's array (`edge.felt`, `edge.read`): the layout's fields its definition in
+    """A read of her edge's array (`edge.felt`, `edge.contacted`): the layout's fields its definition in
     her edge's source names - not whatever stands in its place at the time -, packed."""
     def laid(s):
         import numpy as np
@@ -184,7 +184,7 @@ def _world_take(s, lay, row):
 STREAMS = (
     Stream('heard', 'machine.process.worker:apply', _pushed, None, None, None),
     Stream('felt', 'machine.senses.edge:felt', _at('felt'), _edge('felt'), _sensed, _pass),
-    Stream('read', 'machine.senses.edge:read', _at('law'), _edge('read'), _sensed, _law),
+    Stream('read', 'machine.senses.edge:contacted', _at('law'), _edge('contacted'), _sensed, _law),
     Stream('things', 'machine.eyes.registry:boxes', _things, None, lambda s, lay, row: list(s['g']['things']), _refresh),
     Stream('latent', 'machine.law.latent:step', _at('law'), _latent, _latent_take, _law),
     Stream('impedance', 'machine.law.impedance:ask', _at('law'), _impedance, _impedance_take, _law),

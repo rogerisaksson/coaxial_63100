@@ -294,19 +294,9 @@ def paced(beats, start):
     return ((name, max(seconds, need), goals),) + tuple(beats[1:])
 
 
-def drive(g, world):
-    """Her boards told this pass (`sprung.passed`): her law's setpoints, feed and clamps (`g['cmd']`, laid once and
-    bound to her edge with them, `edge.bound`), then the program's over them where one plays."""
-    told = g.get('_driven')
-    if told is None:
-        told = g['_driven'] = (edge.bound(world, g['joints'], **g['cmd'])
-                               or functools.partial(edge.drive, world, g['joints'], **g['cmd']))
-    told()
-    played(g, world)
-
-
 def played(g, world):
-    """The program on `g`, if any, this pass: its pose to her boards (`edge.drive`) over the law's; none, the one
+    """The program on `g`, if any, this pass (`sprung.passed`, after her law's joints told, `tools.cores.beat`): its
+    pose to her boards (`edge.drive`) over the law's; none, the one
     her text binds to the phase she is doing (`g['programs']`) begun from this pass."""
     import numpy as np
     p = g.get('played')

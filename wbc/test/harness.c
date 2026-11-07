@@ -1,6 +1,7 @@
 /** harness.c - A flat C API over wbc/, so test_wbc_core.py can run the real chain on the host
     through ctypes beside MuJoCo. */
 #include "wbc.h"
+#include "wbc_beat.h"
 #include "wbc_borne.h"
 #include "wbc_registry.h"
 #include "wbc_imp.h"
@@ -222,6 +223,26 @@ API void wbh_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double l
 API int wbh_tick_size(void)
 {
   return (int)sizeof(wbc_tick_t);
+}
+
+API int wbh_beat_size(void)
+{
+  return (int)sizeof(wbc_beat_t);
+}
+
+API void wbh_beat_felt(wbc_beat_t *b, double dt)
+{
+  wbc_beat_felt(b, dt);
+}
+
+API void wbh_beat_drive(wbc_beat_t *b, double dt, double now, double wo, double limp)
+{
+  wbc_beat_drive(b, dt, now, wo, limp);
+}
+
+API void wbh_beat_passed(wbc_beat_t *b, double dt, double now, double wo, double limp)
+{
+  wbc_beat_passed(b, dt, now, wo, limp);
 }
 
 API void wbh_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)

@@ -151,6 +151,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'eyes': int(physics.SIGHT > 0.0), 'keep': camera.Camera(world) if physics.CAMERA or physics.SIGHT else None,
          'planner': planner.Here(), 'vision': vision.Here()}
     motion.laid(g)
+    g['beat'] = _beat().laid(g)
     world.clock = lambda: g['t']
     return g
 
@@ -190,6 +191,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
     from machine.eyes import registry
     g['inekf'], g['registry'], g['things'], g['things_at'] = inekf.laid(d.qpos[0:3], d.qpos[3:7]), registry.laid(), (), -math.inf
+    g['beat'] = _beat().laid(g)     # her world's link and her filter laid anew
     g['grip_seen'][:] = 0.0
     s = g['s'] = sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
     hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
@@ -240,16 +242,24 @@ def _law():
     return modal, motion, schema
 
 
+@functools.cache
+def _beat():
+    """Her pass's C (`tools.cores.beat`), imported at her first lay."""
+    from tools.cores import beat
+    return beat
+
+
 def passed(g, dt=0.001):
-    """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on:
-    read through her edge, her motion pass (`machine.law.motion`), her drives told through her edge."""
+    """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on: felt through
+    her edge, her motion pass at her law's (`machine.law.motion`), her drives' pass and her law's joints told her
+    boards in one C call, her felt in it between her law's passes (`tools.cores.beat`), a program over them."""
     import numpy as np
     modal, motion, schema = _law()
     world, y, ev = g['world'], g['sense'], g['every']
+    felt, step, both, _b, _kept = g['beat']
     if g['n'] % ev == 0:
-        edge.read(world, y)
-        observer.felt(g['observer'], y, dt)
-        inekf.felt(g['inekf'], y, dt)
+        felt(dt)
+        edge.contacted(world, y)
         if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
             (vision.look if g['vision'].apart else looked)(g)
         try:
@@ -264,10 +274,9 @@ def passed(g, dt=0.001):
         if g['n'] > 0:
             g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
     else:
-        observer.felt(g['observer'], edge.felt(world, y), dt)
-        inekf.felt(g['inekf'], y, dt)
-    motion.drives(g, dt)
-    joints.drive(g, world)
+        step = both
+    motion.drives(g, dt, step)
+    joints.played(g, world)
     # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
     edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
     g['t'], g['n'] = g['t'] + dt, g['n'] + 1

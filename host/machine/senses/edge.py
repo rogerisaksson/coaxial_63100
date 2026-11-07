@@ -2,7 +2,7 @@
 
     y = edge.laid(world)                 # (SENSED,), its layout once
     edge.felt(world, y)                  # her pelvis's IMU and her joints' encoders, every pass
-    edge.read(world, y)                  # and her soles' loads and her segments' contacts
+    edge.read(world, y)                  # and her soles' loads and her segments' contacts (`contacted`)
     edge.drive(world, joints, target=, feed=, kp=, limit=)    # her boards told, the next pass
     edge.noise(world, LINE_BER); edge.burst(world, 'left_leg', 8)   # her buses' line, a test's burst
     edge.held(world, passes)             # BusFault past `passes` setpoints refused in a row
@@ -137,8 +137,13 @@ def layout(c, con):
 
 def read(world, y):
     """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch and
-    where on each it is."""
+    where on each it is (`contacted`)."""
     felt(world, y)
+    return contacted(world, y)
+
+
+def contacted(world, y):
+    """`y`'s soles' loads, her segments' touch and where on each it is, as the world stands now."""
     d = world.data
     c, kept, contacts, sensed = world.contacts
     ncon = d.ncon
@@ -277,17 +282,18 @@ def _cores():
     return wbc
 
 
-def _buses_of(world):
-    buses = getattr(world, 'limb_buses', None)
-    if buses is None:
+def buses(world):
+    """Her world's extremity buses (`LIMBS`), their SIL boards laid at the first ask."""
+    laid = getattr(world, 'limb_buses', None)
+    if laid is None:
         lib = _cores().library()
         counts = np.array([len(jnts) for _, jnts in LIMBS], dtype=np.int32)
         flat = np.array([JOINTS.index(j) for _, jnts in LIMBS for j in jnts], dtype=np.int32)
         lib.wbh_sil_init(ctypes.byref(world.passing), len(LIMBS), counts.ctypes.data, flat.ctypes.data)
-        buses = world.limb_buses = tuple(LimbBus(k, name, jnts, lib) for k, (name, jnts) in enumerate(LIMBS))
+        laid = world.limb_buses = tuple(LimbBus(k, name, jnts, lib) for k, (name, jnts) in enumerate(LIMBS))
         world._sil_drive = lib.wbh_sil_drive
         world._idx_cache = {}
-    return buses
+    return laid
 
 
 def _c_arr(arr):
@@ -302,7 +308,7 @@ def drive(world, joints, target=None, feed=None, kp=None, limit=None):
     """Her SIL boards told for the next pass over each extremity's 10 Mbit/s RS485 Modbus RTU bus
     (`LIMBS`), each at `joints` (indices of JOINTS): their setpoints (rad), torques fed forward
     (N m), stiffness (N m/rad) and clamps (N m)."""
-    _buses_of(world)
+    buses(world)
     cache = world._idx_cache
     key = id(joints) if isinstance(joints, np.ndarray) else tuple(joints)
     idx = cache.get(key)
@@ -319,7 +325,7 @@ def bound(world, joints, target=None, feed=None, kp=None, limit=None):
     """`drive` laid once on these arrays - each contiguous float64, written in place pass to pass -: a call of no
     arguments, her buses' pointers and the joints' indices laid with it; None where one is not so laid (its pointer
     would be a copy's). Found and checked each pass by `drive`, her boards' told setpoints took 14 us of its 32."""
-    _buses_of(world)
+    buses(world)
     arrays = (target, feed, kp, limit)
     if any(a is not None and not (isinstance(a, np.ndarray) and a.dtype == np.float64 and a.flags.c_contiguous)
            for a in arrays):
@@ -336,27 +342,35 @@ def bound(world, joints, target=None, feed=None, kp=None, limit=None):
 
 def noise(world, ber, seed=1):
     """Her buses' line flipping a bit at `ber` (LINE_BER on a run), drawn from `seed`."""
-    _buses_of(world)
+    buses(world)
     _cores().library().wbh_sil_noise(float(ber), int(seed))
 
 
 def burst(world, bus, frames):
     """The next `frames` frames on `bus` (a LIMBS name) corrupted: a test's fault."""
-    _buses_of(world)
+    buses(world)
     _cores().library().wbh_sil_burst([name for name, _j in LIMBS].index(bus), int(frames))
 
 
 def held(world, passes):
     """Her buses still steering her: BusFault where one's setpoints were refused more than
     `passes` in a row - a fault no longer sporadic."""
-    from machine.errors import BusFault
-    at = ctypes.c_int(-1)
-    run = int(_cores().library().wbh_sil_stalest(ctypes.byref(at)))
+    stalest, at = _stalest()
+    run = stalest()
     if run > passes:
+        from machine.errors import BusFault
         raise BusFault('%s: %d setpoints refused in a row, past her horizon: drives off' % (LIMBS[at.value][0], run))
+
+
+@functools.cache
+def _stalest():
+    """Her buses' longest run refused read (wbc_sil_stalest), bound once to the int its bus goes in: built and
+    imported each pass, her check was 3.9 us of it."""
+    at = ctypes.c_int(-1)
+    return functools.partial(_cores().library().wbh_sil_stalest, ctypes.byref(at)), at
 
 
 def off(world):
     """Her drives off: every board's clamp at zero."""
-    _buses_of(world)
+    buses(world)
     _cores().library().wbh_sil_off(ctypes.byref(world.passing))

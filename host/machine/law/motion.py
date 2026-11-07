@@ -3,7 +3,7 @@
 The world is never seen: her array is `machine.senses.edge`'s.
 
     motion.control(g, dt)    # a pass of the loop, every `g['every']`: her ask solved, her legs' stiffness
-    motion.drives(g, dt)     # every pass: each drive's setpoint, feed and clamp, `g['cmd']`
+    motion.drives(g, dt, step)    # every pass: each drive's setpoint, feed and clamp, `g['cmd']`; `step` her pass's C
 
 `g` is `sprung.laid`'s; its `sense` the edge's array, its `est` her estimate (`machine.senses.estimate`).
 """
@@ -310,12 +310,14 @@ def laid(g):
     g['tick'] = tick.laid(g, HOP_K, se2.WEP_S, se2.WEP_FILL)
 
 
-def drives(g, dt):
+def drives(g, dt, step=None):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder - her surety as she tilts or slips, a hop, which WEP
-    limit is hers - in one C call (`g['tick']`, `tools.cores.tick`), how far she rests limp told it
-    (`se2.limp`); `drives_twin` its python."""
+    limit is hers - in one C call (`g['tick']`, `tools.cores.tick`) or `step`'s (its address and call on the tick's
+    arguments: her pass's, `tools.cores.beat`, her law's joints told her boards after it, her felt before it where it
+    is both), how far she rests limp told it (`se2.limp`); `drives_twin` its python."""
     at, tick, t, vec = g['tick']
+    at, tick = step or (at, tick)
     t.surety, t.left = g['surety'], g['left']
     tick(at, dt, g['t'], g['wo'], se2.limp(g))
     s_ax, s_lat, d_ax, d_lat, g['surety_probe'] = vec.tolist()

@@ -18,7 +18,7 @@ from tools.cores import quick
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass bus imp stride swing floor surety touch twist wait anatomy bedexit scoot bedentry brace blas law step maps rounds patch sil rcu gmo soa chain chain_plan chain_tasks borne registry').split()]
+               'body stack solve wrench cone shrunk model pass beat bus imp stride swing floor surety touch twist wait anatomy bedexit scoot bedentry brace blas law step maps rounds patch sil rcu gmo soa chain chain_plan chain_tasks borne registry').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls

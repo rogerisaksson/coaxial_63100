@@ -17,9 +17,9 @@ MARKS = (1.0, 1.3, 2.5, 3.9)
 
 def _harnessed(s):
     """Her subsystems recorded where they run, apart from the gate: {name: [(t, sample)]} - her edge's
-    array after each read, her law's layers after each control, her drives after each drives pass,
-    the world after each step, her things after each look, her wear told, the commands heard -; and
-    the undo."""
+    array after each felt (in her drives' pass's C call, `tools.cores.beat`, or python's where it runs) and each
+    contacts' read, her law's layers after each control, her drives after each drives pass, the world after each
+    step, her things after each look, her wear told, the commands heard -; and the undo."""
     import numpy as np
     from machine.world import physics
     from machine.senses import edge
@@ -30,7 +30,7 @@ def _harnessed(s):
     def copied(v):   # this pass's: arrays copied in its tuples, lists and dicts too (her turns are a compiled block's)
         return (v.copy() if isinstance(v, np.ndarray) else {k: copied(x) for k, x in v.items()} if isinstance(v, dict)
                 else type(v)(copied(x) for x in v) if isinstance(v, (tuple, list)) else v)
-    was = {(edge, 'felt'): edge.felt, (edge, 'read'): edge.read, (motion, 'control'): motion.control,
+    was = {(edge, 'felt'): edge.felt, (edge, 'contacted'): edge.contacted, (motion, 'control'): motion.control,
            (motion, 'drives'): motion.drives, (sprung, 'looked'): sprung.looked, (wear, 'told'): wear.told,
            (physics.World, 'advance'): physics.World.advance}
     t = lambda: float(s['g']['t'])
@@ -41,7 +41,7 @@ def _harnessed(s):
         return out
 
     def read(world, y):
-        out = was[edge, 'read'](world, y)
+        out = was[edge, 'contacted'](world, y)
         got['read'].append((t(), y.copy()))
         return out
 
@@ -51,8 +51,9 @@ def _harnessed(s):
                                  'ask': copied(g.get('ask') or {}), 'got': copied(g.get('got') or {})}))
         return out
 
-    def drives(g, dt):
-        out = was[motion, 'drives'](g, dt)
+    def drives(g, dt, step=None):
+        out = was[motion, 'drives'](g, dt, step)
+        got['felt'].append((t(), g['sense'].copy()))      # her felt this pass, in C before her drives' tick
         got['drives'].append((t(), {k: v.copy() for k, v in g['cmd'].items()}))
         return out
 
