@@ -53,7 +53,7 @@ enum
     knees' fold (deg) seated, the strokes at most. */
 typedef struct
 {
-  int    joint[WBC_BEDEXIT_MOVED], part[WBC_BEDEXIT_MOVED], joints, pushed, stretched, seated, done;
+  int    joint[WBC_BEDEXIT_MOVED], part[WBC_BEDEXIT_MOVED], joints, pushed, stretched, seated, done, spare;
   double length[WBC_BEDEXIT_PHASES], next[WBC_BEDEXIT_PHASES], trunk[WBC_BEDEXIT_PHASES], holds[WBC_BEDEXIT_PHASES];
   double goal[WBC_BEDEXIT_PHASES][WBC_BEDEXIT_PARTS], how[WBC_BEDEXIT_PHASES][WBC_BEDEXIT_PARTS];
   double rate[WBC_BEDEXIT_PHASES][WBC_BEDEXIT_PARTS], over[WBC_BEDEXIT_PHASES][WBC_BEDEXIT_PARTS];

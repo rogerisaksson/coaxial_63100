@@ -127,13 +127,16 @@ typedef struct
   int    passes;
   int    guarded[5];              /**< at their edge, by kind: a load, a corner pressing, its cone, a centre of pressure, a stop */
   int    ids[WBC_EXTRA];          /**< which */
+  int    spare_ids;               /**< explicit: its ints a whole number of doubles */
   double alpha[3];                /**< 1: every level whole */
   double residual;                /**< the most a bound is over, unit rows */
   int    over[WBC_DRIVEN];
+  int    spare_over;              /**< explicit: its ints a whole number of doubles */
   double load[WBC_DRIVEN];
   double jeff[WBC_DRIVEN];
   double force[2][WBC_F];
   int    stuck;
+  int    spare_stuck;             /**< explicit: its ints a whole number of doubles */
   double clipped[2];              /**< 1: a swing's ask whole */
 } wbc_out_t;
 

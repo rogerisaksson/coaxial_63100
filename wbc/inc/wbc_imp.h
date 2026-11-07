@@ -158,6 +158,7 @@ typedef struct
   int           gain_now;
   int           zmp_out;
   int           held_out;
+  int           spare;     /**< explicit: its ints a whole number of doubles */
   const double *y_in;      /**< her edge's array; modal's y, fr and a; her latent state and its out */
   const double *y;
   const double *fr;

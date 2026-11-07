@@ -17,7 +17,7 @@ class Surety(ctypes.Structure):
     """wbc_surety_t: her surety field's reading of her law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('quat_at', 'gyro_at', 'accel_at', 'load_at', 'k_to', 'k_from',
-                                                   'gain_now', 'zmp_out', 'held_out')]
+                                                   'gain_now', 'zmp_out', 'held_out', 'spare')]
                 + [(name, ctypes.c_void_p) for name in ('y_in', 'y', 'fr', 'a', 'st', 'out')])
 
 

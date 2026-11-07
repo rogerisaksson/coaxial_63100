@@ -58,9 +58,9 @@ class Out(ctypes.Structure):
 
     _fields_ = [('tau', _d * DRIVEN), ('udot', _d * N), ('wrench', (_d * 6) * 2),
                 ('bears', _d * 2), ('held', _i), ('passes', _i), ('guarded', _i * 5),
-                ('ids', _i * 32), ('alpha', _d * 3), ('residual', _d), ('over', _i * DRIVEN),
+                ('ids', _i * 32), ('spare_ids', _i), ('alpha', _d * 3), ('residual', _d), ('over', _i * DRIVEN), ('spare_over', _i),
                 ('load', _d * DRIVEN), ('jeff', _d * DRIVEN), ('force', (_d * 12) * 2),
-                ('stuck', _i), ('clipped', _d * 2)]
+                ('stuck', _i), ('spare_stuck', _i), ('clipped', _d * 2)]
 
 
 class OrthoRow(ctypes.Structure):
@@ -90,7 +90,7 @@ class World(ctypes.Structure):
 
     """wbc_world_t: her world's pass, pointing at the world's arrays and MuJoCo's (`physics.World`)."""
 
-    _fields_ = [('n', _i), ('npairs', _i), ('pelvis', _i), ('wound', _d),
+    _fields_ = [('n', _i), ('npairs', _i), ('pelvis', _i), ('spare', _i), ('wound', _d),
                 ('qadr', _vp), ('vadr', _vp), ('pairs', _vp), ('qpos', _vp), ('qvel', _vp), ('qacc', _vp),
                 ('xmat', _vp), ('ctrl', _vp), ('target', _vp), ('rate', _vp), ('feed', _vp), ('gains', _vp),
                 ('limit', _vp), ('kt', _vp), ('shorted', _vp), ('cut', _vp), ('delta', _vp), ('zero', _vp),
@@ -115,7 +115,7 @@ class Heat(ctypes.Structure):
 
     """wbc_heat_t: her drives' heat, pointing at `machine.body.heat.Heat`'s arrays."""
 
-    _fields_ = [('n', _i), ('at', _d), ('haste', _d), ('ambient_c', _d), ('rds_ohm', _d), ('rds_alpha', _d),
+    _fields_ = [('n', _i), ('spare', _i), ('at', _d), ('haste', _d), ('ambient_c', _d), ('rds_ohm', _d), ('rds_alpha', _d),
                 ('rds_beta', _d), ('shunt_ohm', _d), ('switching_w', _d), ('into_k_w', _d), ('rth_jc', _d),
                 ('lookahead_s', _d), ('throttle_at', _d), ('recover_per_s', _d), ('trip_margin', _d),
                 ('trip_recover_per_s', _d), ('tj_max_c', _d),

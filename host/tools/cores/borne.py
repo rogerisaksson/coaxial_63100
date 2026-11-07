@@ -32,12 +32,12 @@ class Borne(ctypes.Structure):
                 + [('cap_r', (_d * CAPS) * SKIN), ('cap_a', ((_d * 3) * CAPS) * SKIN), ('cap_b', ((_d * 3) * CAPS) * SKIN)]
                 + [(name, _d) for name in ('bears_n', 'seat_x', 'g_down')]
                 + [(name, _vp) for name in ('xmat', 'xpos', 'm', 'd', 'jac', 'jac_dot', 'blas')]
-                + [('nc', _i), ('up', _d), ('low', _d * 3), ('high', _d * 3), ('palms', _d * 2)]
+                + [('nc', _i), ('spare', _i), ('up', _d), ('low', _d * 3), ('high', _d * 3), ('palms', _d * 2)]
                 + [(name, (_d * 3) * CONTACTS) for name in ('p', 'f', 'dJv')] + [('J', ((_d * DOF) * 3) * CONTACTS)]
                 + [(name, _d * CONTACTS) for name in ('carpal_of', 'room', 'give')]
                 + [(name, _i * CONTACTS) for name in ('side', 'patch', 'body')]
                 + [(name, _d * (3 * DOF)) for name in ('jp', 'jr')]
-                + [(name, _i) for name in ('seat_skin', 'seat_body', 'pelvis_body')]
+                + [(name, _i) for name in ('seat_skin', 'seat_body', 'pelvis_body', 'seat_spare')]
                 + [(name, _d * 2) for name in ('seat_dx', 'seat_dz')] + [(name, _d) for name in ('touch_m', 'reach_m', 'shed0')]
                 + [('corner', _i * CONTACTS)] + [(name, _d) for name in ('seat_on', 'seat_near')])
 

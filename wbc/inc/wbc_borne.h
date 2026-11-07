@@ -39,13 +39,14 @@ typedef struct
   wbc_borne_jac_t        jac, jac_dot;              /* mj_jac, mj_jacDot */
   const wbc_blas_t      *blas;                      /* numpy's OpenBLAS */
   int                    nc;                        /* a read's contacts */
+  int                    spare;                     /* explicit: its ints a whole number of doubles */
   double                 up, low[3], high[3], palms[2];
   double                 p[WBC_BORNE_CONTACTS][3], f[WBC_BORNE_CONTACTS][3], dJv[WBC_BORNE_CONTACTS][3];
   double                 J[WBC_BORNE_CONTACTS][3][WBC_BORNE_DOF];
   double                 carpal_of[WBC_BORNE_CONTACTS], room[WBC_BORNE_CONTACTS], give[WBC_BORNE_CONTACTS];
   int                    side[WBC_BORNE_CONTACTS], patch[WBC_BORNE_CONTACTS], body[WBC_BORNE_CONTACTS];
   double                 jp[3 * WBC_BORNE_DOF], jr[3 * WBC_BORNE_DOF];
-  int                    seat_skin, seat_body, pelvis_body;  /* the seat's segment (emancipation.SEAT_SEG), its body;
+  int                    seat_skin, seat_body, pelvis_body, seat_spare;  /* the seat's segment (emancipation.SEAT_SEG), its body;
                                                                her pelvis's body */
   double                 seat_dx[2], seat_dz[2];    /* its CoP box's corners along her way and across (SEAT_BOX) */
   double                 touch_m, reach_m, shed0;   /* leap.TOUCH_M, observer.REACH_M, cascade.SHED[0] */

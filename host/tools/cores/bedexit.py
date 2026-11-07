@@ -21,7 +21,7 @@ class Exit(ctypes.Structure):
     """wbc_bedexit_t: the move's tables (wbc_move.h)."""
 
     _fields_ = ([('joint', ctypes.c_int * M), ('part', ctypes.c_int * M)]
-                + [(name, ctypes.c_int) for name in ('joints', 'pushed', 'stretched', 'seated', 'done')]
+                + [(name, ctypes.c_int) for name in ('joints', 'pushed', 'stretched', 'seated', 'done', 'spare')]
                 + [(name, ctypes.c_double * P) for name in ('length', 'next', 'trunk', 'holds')]
                 + [(name, (ctypes.c_double * Q) * P) for name in ('goal', 'how', 'rate', 'over', 'how_over', 'rate_over')]
                 + [(name, ctypes.c_double) for name in ('trunk_gain', 'hip_lo', 'hip_hi', 'shin_share', 'sole_share',

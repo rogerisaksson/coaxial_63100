@@ -90,6 +90,7 @@ typedef struct
   int                  n;          /**< the joints */
   int                  npairs;     /**< the parallel pairs, (joint, its roll) each */
   int                  pelvis;     /**< her pelvis's body */
+  int                  spare;      /**< explicit: its ints a whole number of doubles */
   double               wound;      /**< where a drive reads its angle: 1 the motor's encoder, 0 the joint's */
   const int           *qadr;       /**< each joint's address in qpos, in qvel */
   const int           *vadr;
@@ -205,6 +206,7 @@ void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_
 typedef struct
 {
   int                  n;
+  int                  spare;      /**< explicit: its ints a whole number of doubles */
   double               at;         /**< heat seconds since the start */
   double               haste;      /**< heat's seconds a second of the clock; the room, C */
   double               ambient_c;
@@ -299,6 +301,7 @@ typedef struct
   int                   q_at;
   int                   nq;
   int                   n;                 /**< the move's joints, each one's index among hers */
+  int                   spare;             /**< explicit: its ints a whole number of doubles */
   const int            *idx;
   const double         *clamp;             /**< her clamps, every joint's; its feed and stiffness, its joints' */
   const double         *feed;

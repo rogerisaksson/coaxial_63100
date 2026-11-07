@@ -25,7 +25,7 @@ class Played(ctypes.Structure):
     """wbc_played_t: a move playing on her boards, pointing at her edge, her clamps and the move's own arrays."""
 
     _fields_ = [('exit', _vp), ('scoot', _vp), ('entry', _vp), ('state', _vp), ('cmd', _vp), ('y', _vp), ('q_at', _i),
-                ('nq', _i), ('n', _i), ('idx', _vp), ('clamp', _vp), ('feed', _vp), ('kp', _vp), ('target', _vp),
+                ('nq', _i), ('n', _i), ('spare', _i), ('idx', _vp), ('clamp', _vp), ('feed', _vp), ('kp', _vp), ('target', _vp),
                 ('limit', _vp), ('world', _vp), ('q_deg', _d * 64)]
 
 

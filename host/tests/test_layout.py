@@ -330,9 +330,35 @@ def test_docs_name_only_the_tree(r):
             not gone, '; '.join(gone[:4]))
 
 
+def test_her_structs_carry_no_padding(r):
+    """Each C struct her python mirrors through ctypes carries no implicit padding - its fields' sizes sum to its size,
+    an int left over an explicit `spare`, a tail past whole cache lines a named field -, each mirror held to its C's
+    size as its library lays it."""
+    import ctypes
+    import importlib
+    from tools.cores.build import find_cc
+    if find_cc() is None:
+        r.check('her structs carry no padding, where a host compiler builds them', True, 'no compiler here')
+        return
+    from tools.cores import bedentry, bedexit, played, scoot, surety, tick, wbc
+    wbc.library()
+    for laid in (tick._typed, played.typed, surety._typed, bedexit._laid, scoot._laid, bedentry._laid):
+        laid()
+    mirrors = ([('wbc', n) for n in ('Ask', 'Out', 'Drives', 'World', 'Contacts', 'Heat', 'OrthoRow')]
+               + [('surety', 'Surety'), ('tick', 'Tick'), ('played', 'Played'), ('gmo', 'Gmo'), ('borne', 'Borne'),
+                  ('bedexit', 'Exit'), ('scoot', 'Scoot'), ('bedentry', 'Entry')])
+    padded = []
+    for mod, name in mirrors:
+        struct = getattr(importlib.import_module('tools.cores.' + mod), name)
+        gap = ctypes.sizeof(struct) - sum(ctypes.sizeof(t) for _n, t in struct._fields_)
+        padded += ['%s.%s %d B' % (mod, name, gap)] if gap else []
+    r.check('her %d mirrored C structs carry no implicit padding' % len(mirrors), not padded, ', '.join(padded) or 'none')
+
+
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
           test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree,
-          test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree)
+          test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree,
+          test_her_structs_carry_no_padding)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""
