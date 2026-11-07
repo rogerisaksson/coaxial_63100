@@ -10,6 +10,7 @@
 
 Her planner runs these apart (`machine.way.planner`).
 """
+import bisect
 import math
 
 from machine.way import obstacles
@@ -243,12 +244,26 @@ def ahead(curve, k, at):
     """(k, (x, z), along, there, pace, bend): her place on `curve` ((N, 5) `rounded`'s) - its sample
     nearest `at` from the k-th on, AIM_M along it at most -, her aim on from there as far as her speed
     there runs it (`_aim`), its end at most, the curve's heading at her place and at her aim, rad, her
-    speed at her place, m/s, and its bend at her aim, 1/m."""
+    speed at her place, m/s, and its bend at her aim, 1/m. Its columns read as lists once a curve (`_columns`):
+    bisect's insertions searchsorted's on its arclength, sorted; numpy's hypot and argmin for her place."""
     np = sight._np()
-    s = curve[:, 2]
-    near = slice(k, int(np.searchsorted(s, s[k] + AIM_M, side='right')))
+    x, z, s, pace, bend = _columns(curve)
+    near = slice(k, bisect.bisect_right(s, s[k] + AIM_M))
     k = k + int(np.argmin(np.hypot(curve[near, 0] - at[0], curve[near, 1] - at[1])))
-    j = min(int(np.searchsorted(s, s[k] + _aim(float(curve[k, 3])))), len(s) - 1)
-    on = [curve[min(i + 1, len(s) - 1)] - curve[min(i, len(s) - 2)] for i in (k, j)]
-    along, there = (math.atan2(float(d[0]), float(d[1])) for d in on)
-    return k, (float(curve[j, 0]), float(curve[j, 1])), along, there, float(curve[k, 3]), float(curve[j, 4])
+    n = len(s)
+    j = min(bisect.bisect_left(s, s[k] + _aim(pace[k])), n - 1)
+    (k1, k0), (j1, j0) = ((min(i + 1, n - 1), min(i, n - 2)) for i in (k, j))
+    along, there = math.atan2(x[k1] - x[k0], z[k1] - z[k0]), math.atan2(x[j1] - x[j0], z[j1] - z[j0])
+    return k, (x[j], z[j]), along, there, pace[k], bend[j]
+
+
+def _columns(curve):
+    """`curve`'s columns as lists of floats, kept while it is the same curve - each a planner's answer, never written
+    in place: searched in numpy each pass, its column copied out of its rows for it, it took 29 us of her walk."""
+    if _COLUMNS[0] is not curve:
+        _COLUMNS[:] = curve, curve.T.tolist()
+    return _COLUMNS[1]
+
+
+#: The last curve and its columns (`_columns`).
+_COLUMNS: list = [None, None]
