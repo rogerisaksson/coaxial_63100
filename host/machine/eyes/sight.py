@@ -12,8 +12,10 @@ disparity by block matching, depth from it, the points into the map she keeps of
 Her keep reads nothing of the world: a look's frame - an eye's colour and parallax at her own pose - alone,
 rendered on the world's side (`physics.SIGHT`).
 """
+import atexit
 import heapq
 import math
+import weakref
 
 from machine.eyes.stereo import H, W, _np, disparity
 from machine.eyes.voxels import CELL_M, X_M, Z_M
@@ -124,14 +126,29 @@ class Seen:
         self.left, self.right, self.at, self.turn = left, right, at, turn
 
 
+def _closed(eyes):
+    """At the process's exit, eyes still alive closed (`Eyes.close`), before EGL's own end: registered after it, a
+    weak reference - one closed as it went held nothing."""
+    alive = eyes()
+    if alive is not None:
+        alive.close()
+
+
 class Eyes:
 
-    """The renderer on a world's model, both cameras."""
+    """The renderer on a world's model, both cameras; closed at its process's exit (`close`)."""
 
     def __init__(self, world):
         import mujoco
         self.renderer = mujoco.Renderer(world.model, H, W)
         self.ids = {side: world.model.camera('eye_%s' % side).id for side in ('left', 'right')}
+        atexit.register(_closed, weakref.ref(self))
+
+    def close(self):
+        """Its renderer's GL context let go while GL is there: left to its deallocator, it was freed after EGL had
+        ended and raised an EGLError at the interpreter's end (CI's runner, MUJOCO_GL=egl, Python 3.14). Its own close
+        frees what is there once, so its deallocator after it frees nothing."""
+        self.renderer.close()
 
     def see(self, world):
         d = world.data
