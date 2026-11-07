@@ -126,7 +126,7 @@ def step(g, s, out, told, dt):
     g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
     kept, iota, om, xi = g.get('em_asked', asked)(was, g['sat'], told, out, c, v, floor)
-    pts, room, soles = supports(s, g['observer'], told, floor, iota, loads, g.get('told_on'))
+    pts, room, soles = g.get('em_supports', supports)(s, g['observer'], told, floor, iota, loads, g.get('told_on'))
     eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight, g.get('leave'))
     eta, gamma, let_go, unanchored, let_cap, freed, held, rate, acc = g.get('em_released', released)(
         was, iota, eta, kept, g['sat'], told, g['a'], g['y'], c, loads, g['fr'], g['held_ref'], out, dt)

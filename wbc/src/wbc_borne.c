@@ -374,3 +374,78 @@ int wbc_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, 
   }
   return 0;
 }
+
+int wbc_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said, const double *points,
+                       const double *rooms, const double *corners0, int nc0, const double *corners1, int nc1,
+                       const double *loads, const double *legs, double touch_n, int cap, double *pts, double *room,
+                       double *soles)
+{
+  const double *corners[2] = {corners0, corners1};
+  const int     ncs[2] = {nc0, nc1};
+  int           felt = 0;
+  int           kept = 0;
+  int           n;
+  int           at = 0;
+
+  for (int c = 0; c < b->nc; c++)
+  {
+    felt += (b->patch[c] < b->let) ? 1 : 0;
+  }
+  for (int p = 0; p < np_; p++)
+  {
+    kept += (said[p] != 0U) ? 1 : 0;
+  }
+  n = ((felt + kept) + nc0) + nc1;
+  if (n > cap)
+  {
+    return -1;
+  }
+  /* her skin's contacts, her observer's points told, her soles' corners: numpy's concatenation's order */
+  for (int c = 0; c < b->nc; c++)
+  {
+    if (b->patch[c] < b->let)
+    {
+      pts[2 * at]     = b->p[c][0];
+      pts[2 * at + 1] = b->p[c][2];
+      room[at]        = b->room[c];
+      at++;
+    }
+  }
+  for (int p = 0; p < np_; p++)
+  {
+    if (said[p] != 0U)
+    {
+      pts[2 * at]     = points[3 * p];
+      pts[2 * at + 1] = points[3 * p + 2];
+      room[at]        = rooms[p];
+      at++;
+    }
+  }
+  for (int k = 0; k < 2; k++)
+  {
+    for (int j = 0; j < ncs[k]; j++)
+    {
+      pts[2 * at]     = corners[k][3 * j];
+      pts[2 * at + 1] = corners[k][3 * j + 2];
+      room[at]        = 0.0;
+      at++;
+    }
+  }
+  for (int i = 0; i < 2 * n; i++)
+  {
+    soles[i] = 0.0;
+  }
+  at = felt + kept;
+  for (int k = 0; k < 2; k++)
+  {
+    const double stood = ((loads[k] >= touch_n) && (legs[k] < 1.0)) ? 1.0 : 0.0;
+
+    for (int j = 0; j < ncs[k]; j++)
+    {
+      soles[k * n + at + j]       = 1.0;
+      soles[(1 - k) * n + at + j] = 1.0 - stood;
+    }
+    at += ncs[k];
+  }
+  return n;
+}

@@ -265,6 +265,7 @@ def laid(g):
     body, joints = g['body'], g['joints']
     from tools.cores import borne as c_borne
     g['borne'] = c_borne.laid(body)
+    g['em_supports'] = c_borne.supported(g['borne'])     # `emancipation.supports` on its contacts, in C
     g['_skin_ids'] = np.array([body.m.body(n).id for n in edge.SKIN])
     g['schema_at'], g['schema_body'] = capsules.ids(body.m), capsules.Own(body)
     g['_tips'] = np.array(touch.TIPS)

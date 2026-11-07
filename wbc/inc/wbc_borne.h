@@ -69,4 +69,14 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
 int wbc_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, int npoints, int row, double told,
                      double floor, double emancipated, double sat, const double *seat_f, const double *v);
 
+/** machine.moves.emancipation.supports on a read's contacts: what bears her besides her soles - each contact but a
+    let-go foot's (`patch` under `let`), its point's x and z and its capsule's room; her observer's `points` (np, 3)
+    that `said` keeps, their `rooms`; each sole's corners (`corners0`, `corners1`: nc0, nc1 of 3), room 0 - into `pts`
+    (n, 2) and `room` (n), and each leg's own in `soles` (2, n): its sole's corners 1, the other sole's 1 less
+    whether that leg stands (`loads` past `touch_n`, its `legs` release under 1). Its n, or -1 past `cap`. */
+int wbc_borne_supports(const wbc_borne_t *b, int np_, const unsigned char *said, const double *points,
+                       const double *rooms, const double *corners0, int nc0, const double *corners1, int nc1,
+                       const double *loads, const double *legs, double touch_n, int cap, double *pts, double *room,
+                       double *soles);
+
 #endif

@@ -83,7 +83,44 @@ def test_what_bears_her_in_c_as_in_python(report, c):
     report.check('a read of what bears her in C on this host', us[0] < us[1], '%.1f us, its python %.1f' % tuple(us))
 
 
-ROSTER = (test_what_bears_her_in_c_as_in_python,)
+def test_her_supports_in_c_as_in_python(report, c):
+    """Her supports besides her soles in C on borne's contacts as read (`tools.cores.borne.supported`) and
+    `emancipation.supports` on their dicts at every pass of her law lying into a bed, rising off it and walking: her
+    points, their rooms and each leg's own the same shapes and bits."""
+    from machine.moves import emancipation
+    from machine.process import worker
+    from tools.sim import told
+    tally = {'calls': 0, 'apart': 0, 'most': 0, 'felt': 0}
+
+    def held(g):
+        real = g['em_supports']
+
+        def beside(s, obs, told_, floor, legs, loads, on=None):
+            got = real(s, obs, told_, floor, legs, loads, on)
+            twin = emancipation.supports(s, obs, told_, floor, legs, loads, on)
+            tally['apart'] += any(a.shape != b.shape or a.dtype != b.dtype or a.tobytes() != b.tobytes()
+                                  for a, b in zip(got, twin))
+            tally['calls'] += 1
+            tally['most'] = max(tally['most'], len(got[0]))
+            tally['felt'] += int(len(got[0]) > sum(len(f['pts']) for f in s['feet']))
+            return got
+        g['em_supports'] = beside
+    r = told.Run('bed_behind')
+    held(r.s['g'])
+    r.tell(say='lie_bed')
+    r.go(LIE_S)
+    r.tell(say='rise_bed')
+    r.go(RISE_S)
+    s = worker.session(walks=True)
+    held(s['g'])
+    for _ in range(WALK_PASSES // 3):
+        worker.stepped(s)
+    report.check('her supports in C as in python lying, rising and walking: %(calls)d law passes (%(felt)d with more than '
+                 'her soles, %(most)d points at most)' % tally,
+                 tally['calls'] > 1000 and tally['felt'] > 100 and not tally['apart'], '%(apart)d apart' % tally)
+
+
+ROSTER = (test_what_bears_her_in_c_as_in_python, test_her_supports_in_c_as_in_python)
 
 
 def main(argv=None):

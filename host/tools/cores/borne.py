@@ -3,6 +3,7 @@
     read = borne.laid(b)                                     # her law's body, laid once
     prop, contacts, palms = read(b, s, y, weight, hands, let_go, dt)    # as borne.read gives them
     prop, contacts, palms = read(b, s, y, weight, hands, let_go, dt, g) # and her seat's (`emancipation.seated`)
+    supports = borne.supported(read)                         # emancipation.supports on its contacts as last read
 
 Her skin's bearing points walked in C - each one's push turned to the world, its room along the floor from its
 capsules, MuJoCo's own Jacobian and its drift at it (mj_jac, mj_jacDot by their pointers), numpy's OpenBLAS for
@@ -119,3 +120,39 @@ def laid(b):
         return (t.up / weight, np.where(held_, low, 0.0), np.where(held_, high, 0.0)), contacts, w['palms'] / weight
     read.kept = (t, b, blas)     # what its pointers point at, alive while it is
     return read
+
+
+@functools.lru_cache(maxsize=None)
+def _supporting():
+    """Her supports' C typed (wbc_borne_supports)."""
+    lib = wbc.library()
+    lib.wbh_borne_supports.argtypes = [ctypes.POINTER(Borne), _i, _vp, _vp, _vp, _vp, _i, _vp, _i, _vp, _vp, _d, _i, _vp,
+                                       _vp, _vp]
+    lib.wbh_borne_supports.restype = _i
+    return lib.wbh_borne_supports
+
+
+def supported(read):
+    """`emancipation.supports` in C (wbc_borne_supports) on the contacts `read` (`laid`'s) last read - her law reads
+    them each pass before her legs' release, its seat's cone among them -: her observer's points told her python's
+    (`emancipation.told_on`, its C where laid), the rest copied out in numpy's order into arrays of their own a call.
+    Its arrays built in numpy, her legs' release took 47 us a law pass seated of it."""
+    from machine.errors import MachineError
+    from machine.moves import emancipation, leap
+    t, fn, rooms = read.kept[0], _supporting(), np.ascontiguousarray(emancipation.ROOMS, dtype=np.float64)
+    at, cap = ctypes.byref(t), CONTACTS + len(rooms) + 64
+
+    def supports(s, obs, told, floor, legs, loads, on=None):
+        top = max(floor, float(s.get('prop', (0.0, 0.0, (0.0, 0.0, 0.0)))[2][1]), float(s['com'][1]) - 0.35)
+        said = np.ascontiguousarray(emancipation.told_on(obs, told, top, on), dtype=np.bool_)
+        (c0, c1) = (np.ascontiguousarray(f['pts'], dtype=np.float64) for f in s['feet'])
+        pts, room, soles = np.empty((cap, 2)), np.empty(cap), np.empty(2 * cap)
+        loads_, legs_ = np.ascontiguousarray(loads, dtype=np.float64), np.ascontiguousarray(legs, dtype=np.float64)
+        n = fn(at, len(said), wbc.pointer(said, np.bool_), wbc.pointer(obs['points']), wbc.pointer(rooms),
+               wbc.pointer(c0), len(c0), wbc.pointer(c1), len(c1), wbc.pointer(loads_), wbc.pointer(legs_),
+               leap.TOUCH_N, cap, wbc.pointer(pts), wbc.pointer(room), wbc.pointer(soles))
+        if n < 0:
+            raise MachineError('her supports past %d points (tools.cores.borne.supported)' % cap)
+        return pts[:n], room[:n], soles[:2 * n].reshape(2, n)
+    supports.kept = (read, rooms)
+    return supports
