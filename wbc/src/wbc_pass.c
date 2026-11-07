@@ -109,6 +109,35 @@ void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double y
   wbc_bus_pass(p->bus_k, p->bus, dt);
 }
 
+void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
+{
+  wbc_drives_t *p = t->drives;
+  const int     n = p->n;
+  int           any = 0;
+
+  /* her holds read before the step spends them */
+  for (int i = 0; i < n; i++)
+  {
+    any |= p->hold[i] != 0.0;
+  }
+  const double held = (double)any, ys = wbc_imp_surety(t->imp, t->field, t->surety, dt, NAN, now, t->vec);
+  const double drv = 1.0 - pow(1.0 - ys, 3.0), wo_s = wo * drv, rest = 1.0 - limp;
+  const double k_to = t->field->st[t->field->k_to], k_from = t->field->st[t->field->k_from];
+  const double k = (k_from > k_to) ? k_from : k_to;
+  double       left;
+
+  t->surety = ys;
+  wbc_pass_drives(p, dt, wo_s, pow(wo_s, 3.0), drv, k > t->hop_k, 1);
+  for (int i = 0; i < n; i++)
+  {
+    p->ref_q[i] = npminimum(npmaximum(p->ref_q[i], t->rng[2 * i]), t->rng[2 * i + 1]);
+    t->limit[i] = t->kept[i] * rest;
+  }
+  left = t->left + dt * (t->wep_fill * (1.0 - held) - held);
+  left = (left > 0.0) ? left : 0.0;
+  t->left = (left < t->wep_s) ? left : t->wep_s;
+}
+
 void wbc_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)
 {
   const int n = w->n < WBC_PASS_MAX ? w->n : WBC_PASS_MAX;

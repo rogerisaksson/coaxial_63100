@@ -50,10 +50,10 @@ def test_her_surety_in_c_as_she_walks(report, c):
     n, bad, apart = tally
     if c_motion.exact_host():
         report.check("her surety field in C is her python's bit for bit at %d calls of her law walking" % n,
-                     n >= 4 * PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
+                     n >= PASSES and not bad, '%d apart, %.3g at most' % (bad, apart))
     else:
         report.check("her surety field in C is her python's within its last bits where numpy dispatches elsewhere",
-                     n >= 4 * PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
+                     n >= PASSES and apart <= 1e-9, '%d of %d not bit for bit, %.3g apart at most' % (bad, n, apart))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check('a step of her surety field in C on this host', us[0] < 20.0, '%.1f us, its python %.0f' % tuple(us))
 

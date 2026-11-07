@@ -214,6 +214,16 @@ API void wbh_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, doub
   wbc_pass_drives(p, dt, wo, wo3, ys, in_hop, wb);
 }
 
+API void wbh_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp)
+{
+  wbc_pass_tick(t, dt, now, wo, limp);
+}
+
+API int wbh_tick_size(void)
+{
+  return (int)sizeof(wbc_tick_t);
+}
+
 API void wbh_pass_ctrl(wbc_world_t *w, double span, const double *ahead, const double *wrate)
 {
   wbc_pass_ctrl(w, span, ahead, wrate);

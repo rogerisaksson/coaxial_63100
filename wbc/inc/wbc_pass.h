@@ -7,6 +7,7 @@
 #include "wbc.h"
 #include "wbc_blas.h"
 #include "wbc_bus.h"
+#include "wbc_imp.h"
 
 /** A pass of her world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
     numpy's arithmetic operation for operation. The most joints a world has. */
@@ -57,6 +58,28 @@ typedef struct
 /** The step, `dt` s on: `wo` the observers' bandwidth and `wo3` its cube, `ys` her law's yield as
     she tilts (1 upright), `in_hop` whether she is in a hop, `wb` whether the raised WEP limit is hers. */
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb);
+
+/** Her drives' pass whole (machine.law.motion.drives): her surety field stepped, her observers' bandwidth
+    eased by it, a hop by her axial stiffness asked, the step, each setpoint within its range, each clamp
+    her rest's share of the step's, her WEP's reserve - Python's arithmetic operation for operation. */
+typedef struct
+{
+  wbc_drives_t        *drives;     /**< the step's */
+  const wbc_imp_t     *imp;        /**< her surety field's (wbc_imp_surety), her axial stiffness asked its */
+  const wbc_surety_t  *field;
+  const double        *rng;        /**< each setpoint's range (n, 2) */
+  const double        *kept;       /**< each clamp as the step left it, and as told (n) */
+  double              *limit;
+  double               hop_k;      /**< the stiffness past which she hops, N/m */
+  double               wep_s;      /**< her WEP's reserve, s, and its refill */
+  double               wep_fill;
+  double               surety;     /**< in and out: her surety, her WEP's reserve left */
+  double               left;
+  double               vec[5];     /**< out: her surety along and across, its direction, its probe */
+} wbc_tick_t;
+
+/** The pass `dt` s on at `now`: `wo` her observers' bandwidth, `limp` how far she rests limp (se2.limp). */
+void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp);
 
 /** Her world's drives on their setpoints (machine.world.physics.World.advance): each joint's PD at the
     world's step, a parallel pair's shared, the motors' torques and their meters; her IMU and

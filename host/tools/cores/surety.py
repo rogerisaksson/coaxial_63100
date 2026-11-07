@@ -51,4 +51,5 @@ def laid(k, y_in, y, fr, a, st, out):
 
     def field(prev, dt, ct, t):
         return step(at, sp, prev, dt, ct, t, vp), vec
+    field.laid = (at, ctypes.addressof(s), s)     # its ask's and its own, for her drives' pass in C (`tick`)
     return field

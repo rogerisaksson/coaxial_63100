@@ -301,12 +301,24 @@ def laid(g):
     p.over = cores.address(kept['over'])
     g['cmd'] = {'target': g['ref_q'], 'feed': kept['feed'], 'limit': kept['limit'].copy()}
     g['drives'] = (p, kept, cores.library().wbh_pass_drives)
+    from tools.cores import tick
+    g['tick'] = tick.laid(g, HOP_K, se2.WEP_S, se2.WEP_FILL)
 
 
 def drives(g, dt):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
-    observer stepped on its motor's encoder: the step in C (`laid`), told here what of her it
-    reads whole - her surety as she tilts or slips, a hop, which WEP limit is hers."""
+    observer stepped on its motor's encoder - her surety as she tilts or slips, a hop, which WEP
+    limit is hers - in one C call (`g['tick']`, `tools.cores.tick`), how far she rests limp told it
+    (`se2.limp`); `drives_twin` its python."""
+    at, tick, t, vec = g['tick']
+    t.surety, t.left = g['surety'], g['left']
+    tick(at, dt, g['t'], g['wo'], se2.limp(g))
+    s_ax, s_lat, d_ax, d_lat, g['surety_probe'] = vec.tolist()
+    g['surety'], g['surety_vec'], g['left'] = t.surety, (s_ax, s_lat, d_ax, d_lat), t.left
+
+
+def drives_twin(g, dt):
+    """`drives` in python: the step in C (`laid`), told here what of her it reads whole."""
     p, _kept, step = g['drives']
     held, wo = float(g['hold'].any()), g['wo']
     ys = surety(g, dt)

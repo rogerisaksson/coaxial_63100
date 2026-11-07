@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMP
                               GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
-                              TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH)
+                              TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK)
 
 #: machine/'s rows of the path map (`touches.TOUCHES`) in its order: a module's before its folder's.
 MACHINE = (
@@ -68,7 +68,7 @@ MACHINE = (
     ('host/machine/rig/layouts.py',                (STRUCTURE,)),
     ('host/machine/senses/observer.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
     ('host/machine/senses/momentum.py',               (STRUCTURE, KERNEL, WBC, ERRANDS, SCENES)),
-    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE,
+    ('host/machine/',                          (CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, WBC, WBC_CORE, COMPILED, PORTED, BORNE, TICK,
                                                 LEAP, WRENCH, SYSID, SYSID_LIVE, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, SITUATION, BUSES, ERRANDS, CYCLIC, REPLAYS, SCENES,
                                                 TUNE, KERNEL, 'test_simulated.py', 'test_mcp.py',
                                                 'test_views_humanoid.py', 'test_views_floor.py')),
