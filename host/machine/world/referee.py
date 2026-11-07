@@ -5,7 +5,7 @@
 """
 import functools
 
-from machine.world import floor
+from machine.world import floor, steps
 from machine.senses import edge
 from machine.body import figure
 from machine.law import modal
@@ -18,8 +18,8 @@ def fallen(g, world):
     (`modal.FLOOR`), unless her text tells it bears her (`observer.parts`): by her doing's name she was fallen
     sat on her hands; a tilt past 45 deg on a bed was a fall, thrown back onto it she was down at 3.7 s;
     touched at any height, her hand on the loft by the chair, 0.75 m up, felled 25 of 33 errands."""
-    m, d = world.model, world.data
-    paired, _averaged, address = passing()
+    m = world.model
+    _paired, _averaged, address = passing()
     if g.get('_falls_by', (None,))[0] is not m:
         np = world._np
         down = {m.body(n).id for n in edge.SKIN if not n.endswith(('_shank', '_foot', '_toes'))}
@@ -39,10 +39,10 @@ def fallen(g, world):
     on = g['_told_with'][2]
     if g.get('_falls_of') != on:
         g['_falls_of'], g['_falls_by'][1][0][:] = on, world._np.isin(m.geom_bodyid, observer.unborne(m, on, g['_falls_down']))
-    contact = d.contact
-    geom, pos = contact.geom, contact.pos
+    # MuJoCo's contacts read off its data in C (`steps.paired`): its contacts' views made a pass were 4 us of 12
     below = float(g['fr'][modal.FLOOR]) + figure.ANKLE_H + figure.SHANK
-    return bool(paired(address(geom), address(pos), geom.strides[0], d.ncon, *g['_falls_by'][2], below))
+    down, grounds = g['_falls_by'][2]
+    return steps.paired(world, down, grounds, below)
 
 
 @functools.cache

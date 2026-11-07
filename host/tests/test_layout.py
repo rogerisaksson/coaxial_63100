@@ -343,13 +343,14 @@ def test_her_structs_carry_no_padding(r):
     if find_cc() is None:
         r.check('her structs carry no padding, where a host compiler builds them', True, 'no compiler here')
         return
-    from tools.cores import beat, bedentry, bedexit, played, scoot, surety, tick, wbc
+    from tools.cores import beat, bedentry, bedexit, played, scoot, surety, tick, wbc, world
     wbc.library()
-    for laid in (tick._typed, beat.typed, played.typed, surety._typed, bedexit._laid, scoot._laid, bedentry._laid):
+    for laid in (tick._typed, beat.typed, world.typed, played.typed, surety._typed, bedexit._laid, scoot._laid,
+                 bedentry._laid):
         laid()
     mirrors = ([('wbc', n) for n in ('Ask', 'Out', 'Drives', 'World', 'Contacts', 'Heat', 'OrthoRow')]
-               + [('surety', 'Surety'), ('tick', 'Tick'), ('beat', 'Beat'), ('played', 'Played'), ('gmo', 'Gmo'),
-                  ('borne', 'Borne'), ('bedexit', 'Exit'), ('scoot', 'Scoot'), ('bedentry', 'Entry')])
+               + [('surety', 'Surety'), ('tick', 'Tick'), ('beat', 'Beat'), ('world', 'Steps'), ('played', 'Played'),
+                  ('gmo', 'Gmo'), ('borne', 'Borne'), ('bedexit', 'Exit'), ('scoot', 'Scoot'), ('bedentry', 'Entry')])
     padded = []
     for mod, name in mirrors:
         struct = getattr(importlib.import_module('tools.cores.' + mod), name)

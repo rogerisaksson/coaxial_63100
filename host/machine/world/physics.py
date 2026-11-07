@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import dclink, drives, gearbox, heat, linkage
-from machine.world import floor, passing, room
+from machine.world import floor, passing, room, steps
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -184,6 +184,9 @@ class World:
         #: The pass in C (wbc_pass.c, `tools.cores.wbc.World`): its struct pointing at the
         #: arrays above and MuJoCo's once, its calls bound.
         self.passing = passing.laid(self, WOUND)
+        #: Her steps between MuJoCo's in C where nothing else is asked of them (`steps`), laid at the first; False
+        #: in `in_c` keeps them here (test_tick's twin).
+        self._steps, self.in_c = None, True
         self._park()
 
 
@@ -247,7 +250,7 @@ class World:
         self.geared[:] = 0.0
         self.boxes.reset(d.qpos[self.qadr])
         self.motor[:] = 0.0
-        self.link = dclink.laid()
+        self.link, self._steps = dclink.laid(), None
         self.borne_at = None
         self.stamp, self.at, self.glitch_at, self.pending = d.time, d.time, None, {}
         self.push_until, self.pushed, self.laced = -1.0, False, False
@@ -270,11 +273,15 @@ class World:
 
     def advance(self):
         """On to the clock, a step at a time: the pass's setpoints broadcast on each bus and
-        every board polled, the boards' loops a lockstep, the world stepped on their torques."""
+        every board polled, the boards' loops a lockstep, the world stepped on their torques;
+        where nothing else is asked of the steps, between MuJoCo's in C (`steps.advanced`)."""
         now = self.clock()
         if now <= self.at + 1e-9:
             return
         d = self.data
+        if (self.in_c and self.buses is None and not BOXED and self.hung is None and not self.laced
+                and not self.pushed and d.time >= self.push_until):
+            return steps.advanced(self, now, ROOM)
         np = self._np
         if self.buses is not None:
             for bus in self.buses.each:

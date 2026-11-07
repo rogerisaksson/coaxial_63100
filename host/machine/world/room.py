@@ -238,16 +238,8 @@ def touched(world, dt):
     """The lamp toggled where a hand of hers touches its switch, not twice within SWITCH_S - the
     switch's geom against a hand's, MuJoCo's contacts paired in C (`wbc_pass_paired`); whether it
     is on."""
-    m, d = world.model, world.data
-    laid = getattr(world, '_room_switch', None)
-    if laid is None:
-        import numpy as np
-        from tools.cores import wbc as cores
-        hands = [m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')]
-        masks = (np.arange(m.ngeom) == m.geom('switch').id, np.isin(m.geom_bodyid, hands))
-        laid = world._room_switch = (masks, [cores.address(k) for k in masks], cores.library().wbh_pass_paired,
-                                     cores.address)
-    _masks, at, paired, address = laid
+    d = world.data
+    _masks, at, paired, address = _switch_laid(world)
     since = getattr(world, 'switched', SWITCH_S) + dt
     if since >= SWITCH_S and d.ncon:
         geom, pos = d.contact.geom, d.contact.pos
@@ -255,4 +247,24 @@ def touched(world, dt):
             world.lamp, since = not getattr(world, 'lamp', False), 0.0
     world.switched = since
     return getattr(world, 'lamp', False)
+
+
+def switch(world):
+    """(her room's switch's geom, her hands' geoms): a bool a geom each, laid once on `world` (`touched`'s, and her
+    world's steps in C, `machine.world.steps`)."""
+    return _switch_laid(world)[0]
+
+
+def _switch_laid(world):
+    """(the masks, their addresses, wbc_pass_paired, an array's address) on `world`, laid at the first ask."""
+    laid = getattr(world, '_room_switch', None)
+    if laid is None:
+        import numpy as np
+        from tools.cores import wbc as cores
+        m = world.model
+        hands = [m.body(side + part).id for side in ('left', 'right') for part in ('_hand', '_fingers')]
+        masks = (np.arange(m.ngeom) == m.geom('switch').id, np.isin(m.geom_bodyid, hands))
+        laid = world._room_switch = (masks, [cores.address(k) for k in masks], cores.library().wbh_pass_paired,
+                                     cores.address)
+    return laid
 

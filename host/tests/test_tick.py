@@ -154,7 +154,59 @@ def test_a_moves_pass_in_c_as_in_python(report, _c):
                  '%(apart)d apart' % tally)
 
 
-ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python)
+#: Her twin worlds' passes; their setpoints swung this far, rad, this often, Hz.
+WORLD_PASSES, SWING_RAD, SWING_HZ = 2500, 0.08, 1.3
+
+
+def test_her_world_steps_in_c_as_in_python(report, _c):
+    """Two of her worlds laid alike in her room, their setpoints swung alike a pass at a time - one's steps between
+    MuJoCo's in C (`machine.world.steps`), the other's in python (`in_c` False) -: MuJoCo's state, ctrl, her motors,
+    gearboxes' peaks, meters, DC link, rates and stamps the same bits at every pass; MuJoCo's contacts paired in C
+    off its data (`steps.paired`) as python's views pair them."""
+    import math
+    from machine.body import figure
+    from machine.world import physics, steps
+    from tools.cores import wbc as cores
+    was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'pairs': 0, 'paired': 0}
+    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 0.0, 0.0
+    try:
+        clock, worlds = [0.0], [physics.World(), physics.World()]
+        for w in worlds:
+            w.reset(figure.stand(), where=(0.0, figure.standing(), 0.0))
+            w.clock = lambda: clock[0]
+        a, b = worlds
+        b.in_c, base = False, a.target.copy()
+        m = a.model
+        hers, ground = (m.geom_bodyid > 0).astype(np.bool_), (m.geom_bodyid == 0).astype(np.bool_)
+        masks, paired = (cores.address(hers), cores.address(ground)), cores.library().wbh_pass_paired
+        for k in range(WORLD_PASSES):
+            clock[0] = (k + 1) * physics.STEP_S
+            for w in worlds:
+                w.target[:] = base + SWING_RAD * math.sin(2.0 * math.pi * SWING_HZ * clock[0])
+                w.advance()
+            held = [(w.data.qpos, w.data.qvel, w.data.qacc, w.data.ctrl, w.motor, w.geared, w.rate, w.was,
+                     *(w.link[n] for n in ('v', 'peak', 'bled', 'id')),
+                     repr((w.effort, w.work, w.brake, w.heat, w.stamp, w.at))) for w in worlds]
+            tally['apart'] += any(_apart(x, y) if isinstance(x, str) else x.tobytes() != y.tobytes()
+                                  for x, y in zip(*held))
+            d = a.data
+            for below in (math.inf, 0.05):
+                c = steps.paired(a, *masks, below)
+                geom, pos = d.contact.geom, d.contact.pos
+                tally['apart'] += c != bool(paired(cores.address(geom), cores.address(pos), geom.strides[0], d.ncon,
+                                                   *masks, below))
+                tally['pairs'] += 1
+                tally['paired'] += c
+            tally['passes'] += 1
+    finally:
+        physics.ROOM, physics.CAMERA, physics.SIGHT = was
+    report.check("her world's steps in C as in python, %(passes)d passes, her contacts paired %(paired)d of %(pairs)d"
+                 % tally, tally['passes'] == WORLD_PASSES and tally['paired'] > 100 and not tally['apart'],
+                 '%(apart)d apart' % tally)
+
+
+ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
+          test_her_world_steps_in_c_as_in_python)
 
 
 def main(argv=None):

@@ -10,20 +10,21 @@ import re
 import numpy as np
 
 from tools import REPO
+from tools.cores import build
 from tools.cores.build import cached
 from machine.texts import ortho
 from machine.stack.wbc import MU
 from tools.cores.model import HEADER, built, rotation
 from tools.cores import quick
 
-SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness.c')]
+SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '_world')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass beat bus imp stride swing floor surety touch twist wait anatomy bedexit scoot bedentry brace blas law step maps rounds patch sil rcu gmo soa chain chain_plan chain_tasks borne registry').split()]
+               'body stack solve wrench cone shrunk model pass beat world bus imp stride swing floor surety touch twist wait anatomy bedexit scoot bedentry brace blas law step maps rounds patch sil rcu gmo soa chain chain_plan chain_tasks borne registry').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
 #: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's.
-FLAGS = ('-O2', '-fno-builtin-sin', '-fno-builtin-cos')
+FLAGS = ('-O2', '-fno-builtin-sin', '-fno-builtin-cos') + build.mujoco_headers()
 
 
 def _define(name):

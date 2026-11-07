@@ -42,6 +42,16 @@ def find_cc():
     return None
 
 
+def mujoco_headers():
+    """('-isystem', the directory MuJoCo's headers are included from), beside its package - wbc_world.c reads its data
+    through them -, found without importing it; () where it is not installed."""
+    import importlib.util
+    spec = importlib.util.find_spec('mujoco')
+    roots = list(spec.submodule_search_locations or ()) if spec is not None else []
+    found = sorted(h for r in roots for h in glob.glob(os.path.join(r, 'include', '**', 'mujoco.h'), recursive=True))
+    return ('-isystem', os.path.dirname(os.path.dirname(found[0]))) if found else ()
+
+
 def build(cc, sources, includes, name, extra=()):
     """(path, warnings) for a shared library, built fresh every run; `extra` flags after the
     firmware's."""
