@@ -242,7 +242,7 @@ def stepped(laid_, st, tab, now, dt, out):
     if len(k.hit) < len(tab):
         k.hit = np.zeros(2 * len(tab))
     step(ctypes.byref(k), wbc.pointer(st), wbc.pointer(tab), len(tab), float(now), float(dt), wbc.pointer(out),
-         k.hit.ctypes.data)
+         wbc.address(k.hit))
     return out
 
 
@@ -251,5 +251,5 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
     k, _step, couple = laid_
     dq = np.empty(len(q))
     couple(ctypes.byref(k), wbc.pointer(q), wbc.pointer(qd), wbc.pointer(ref_q), wbc.pointer(ref_v),
-           wbc.pointer(eso_z), wbc.pointer(out), dq.ctypes.data)
+           wbc.pointer(eso_z), wbc.pointer(out), wbc.address(dq))
     return dq

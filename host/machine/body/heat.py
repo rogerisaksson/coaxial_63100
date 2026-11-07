@@ -126,6 +126,7 @@ class Heat:
             setattr(h, name, cores.pointer(a, np.bool_))
         lib = cores.library()
         self._load, self._step, self._hottest = lib.wbh_pass_heat_load, lib.wbh_pass_heat, lib.wbh_pass_heat_peak
+        self._address = cores.address
 
     @property
     def at(self):
@@ -196,7 +197,7 @@ class Heat:
             return []
         np, ctypes = self._np, self._ctypes
         torques, qd = np.ascontiguousarray(torques, dtype=np.float64), np.ascontiguousarray(qd, dtype=np.float64)
-        self._load(ctypes.byref(self._h), torques.ctypes.data, qd.ctypes.data)
+        self._load(ctypes.byref(self._h), self._address(torques), self._address(qd))
         self.step(float(dt) / HASTE)
         self._hottest(ctypes.byref(self._h), self._peak.ctypes.data)
         return self._peak

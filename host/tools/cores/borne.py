@@ -103,7 +103,7 @@ def laid(b):
             if rows is None:
                 kept.clear()
                 rows = kept[id(obs['row'])] = (obs['row'], np.ascontiguousarray(obs['row'], dtype=np.int64))
-            if sat(at, wbc.address(obs['points']), rows[1].ctypes.data, len(rows[1]), row, float(g['told'][row]),
+            if sat(at, wbc.address(obs['points']), wbc.address(rows[1]), len(rows[1]), row, float(g['told'][row]),
                    float(g['fr'][modal.FLOOR]), float(g.get('emancipated', np.zeros(2)).max()), float(g['sat']),
                    wbc.address(g['seat_f']), wbc.address(v)) < 0:
                 raise MachineError('her skin and her seat bear her at more than %d points (wbc_borne.h)' % CONTACTS)

@@ -92,20 +92,70 @@ static PyObject *context(PyObject *self, PyObject *const *args, Py_ssize_t n)
   return capsule;
 }
 
-/* Leaf `row`'s `a` laid where it is a float of its own, or a float64 array of its shape in C's order;
- * else 0, the leaf Python's (`Bound.leaf`). */
+/* Leaf `row`'s flat `n` own doubles at its own block (`Bound.own`), a list of floats or a 1-d bool or integer array
+ * cast in as numpy's `own[...] = a` casts it; 0 where it has none or `a` is not one of them. */
+static int owned(const walk_t *w, const int64_t *row, PyObject *a)
+{
+  double *own = (double *)(uintptr_t)w->own_at[row[PLACE]];
+  if (own == NULL || row[ND] != 1)
+    return 0;
+  if (PyList_CheckExact(a))
+  {
+    if (PyList_GET_SIZE(a) != row[DIMS])
+      return 0;
+    for (Py_ssize_t i = 0; i < row[DIMS]; i++)
+      if (!PyFloat_Check(PyList_GET_ITEM(a, i)))
+        return 0;
+    for (Py_ssize_t i = 0; i < row[DIMS]; i++)
+      own[i] = PyFloat_AS_DOUBLE(PyList_GET_ITEM(a, i));
+    return 1;
+  }
+  const PyArrayObject_fields *f = (const PyArrayObject_fields *)a;
+  if (Py_TYPE(a) != ndarray || f->nd != 1 || f->dimensions[0] != row[DIMS] || !(f->flags & NPY_ARRAY_C_CONTIGUOUS)
+      || !(f->flags & NPY_ARRAY_ALIGNED) || !PyArray_ISNBO(f->descr->byteorder))
+    return 0;
+  switch (f->descr->type_num)
+  {
+    case NPY_BOOL:
+      for (npy_intp i = 0; i < row[DIMS]; i++)
+        own[i] = ((const npy_bool *)f->data)[i] ? 1.0 : 0.0;
+      return 1;
+    case NPY_INT64:
+      for (npy_intp i = 0; i < row[DIMS]; i++)
+        own[i] = (double)((const npy_int64 *)f->data)[i];
+      return 1;
+    case NPY_INT32:
+      for (npy_intp i = 0; i < row[DIMS]; i++)
+        own[i] = (double)((const npy_int32 *)f->data)[i];
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+/* Leaf `row`'s `a` laid where it is a float of its own (Python's or numpy's), a float64 array of its shape in C's order
+ * - numpy's float64 or an equal descriptor of its own, as an unpickled or a ctypes view's array has -, or what its own
+ * block takes (`owned`); else 0, the leaf Python's (`Bound.leaf`). */
 static int laid_leaf(const walk_t *w, const int64_t *row, PyObject *a)
 {
-  if (row[SCALAR] && PyFloat_CheckExact(a))
+  if (row[SCALAR] && PyFloat_Check(a))
   {
     w->scalars[row[PLACE]] = PyFloat_AS_DOUBLE(a);
     w->words[row[SLOT]] = w->own_at[row[PLACE]];
     return 1;
   }
-  if (Py_TYPE(a) != ndarray || row[ND] < 0)
+  if (row[ND] < 0)
     return 0;
   const PyArrayObject_fields *f = (const PyArrayObject_fields *)a;
-  if (f->descr != f64 || f->nd != row[ND] || !(f->flags & NPY_ARRAY_C_CONTIGUOUS))
+  if (Py_TYPE(a) != ndarray || (f->descr != f64 && !(f->descr->type_num == NPY_DOUBLE
+                                                    && PyArray_ISNBO(f->descr->byteorder))))
+  {
+    if (!owned(w, row, a))
+      return 0;
+    w->words[row[SLOT]] = w->own_at[row[PLACE]];
+    return 1;
+  }
+  if (f->nd != row[ND] || !(f->flags & NPY_ARRAY_C_CONTIGUOUS))
     return 0;
   for (int d = 0; d < f->nd; d++)
     if (f->dimensions[d] != row[DIMS + d])

@@ -147,7 +147,7 @@ def read(world, y):
     if ncon:
         con = d.contact
         layout(c, con)
-        contacts(ctypes.byref(c), ncon, con.pos.ctypes.data, d.efc_force.ctypes.data)
+        contacts(ctypes.byref(c), ncon, _cores().address(con.pos), _cores().address(d.efc_force))
     else:
         contacts(ctypes.byref(c), 0, None, None)
     # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
@@ -164,7 +164,7 @@ def read(world, y):
                 touch[k] += rm_t @ hand
                 felt_n[k] += hn
                 felt_at[k] += hn * rm_t @ (d.xipos[body] - d.xpos[body])
-    sensed(ctypes.byref(c), y.ctypes.data, LOAD.start, TOUCH.start, PRESS.start, COP.start, CELLS.start, AT.start,
+    sensed(ctypes.byref(c), _cores().address(y), LOAD.start, TOUCH.start, PRESS.start, COP.start, CELLS.start, AT.start,
            GIVE.start)
     return y
 
@@ -217,7 +217,7 @@ class LimbBus:
         self._len = ctypes.c_int(0)
 
     def _pull(self):
-        self._lib.wbh_sil_stats(self.link, self._counts.ctypes.data, ctypes.byref(self._wire),
+        self._lib.wbh_sil_stats(self.link, _cores().address(self._counts), ctypes.byref(self._wire),
                                 ctypes.byref(self._buf), ctypes.byref(self._len))
 
     @property
