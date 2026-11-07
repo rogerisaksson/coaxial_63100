@@ -18,6 +18,7 @@ numpy's own, said once on stderr.
 import ctypes
 import sys
 import time
+from typing import Any
 
 import numpy as np
 
@@ -42,9 +43,14 @@ def on_args(fn, name, inputs, fresh=2, seed=1, sources=None):
     return Compiled(fn, name, inputs, None, fresh, seed, sources)
 
 
-class Compiled:
+#: A compiled part's base: its call in C, its runner's result or its `slow` (`quick.based`).
+_PART: Any = quick.based()
 
-    """`fn` compiled on her memory: numpy's own until its C is held, then the C."""
+
+class Compiled(_PART):
+
+    """`fn` compiled on her memory: numpy's own until its C is held, then the C - called through its base's call (its
+    Bound's runner where it fits, `slow` else)."""
 
     def __init__(self, fn, name, inputs, body, fresh, seed, sources=None):
         self.fn, self.name, self.inputs, self.body, self.fresh, self.seed = fn, name, list(inputs), body, fresh, seed
@@ -59,12 +65,10 @@ class Compiled:
         """(its C's last result, the address of the block it lies in), None before the C."""
         return None if self.c is None else self.c.last
 
-    def __call__(self, *args, paced=True):
+    def slow(self, *args, paced=True):
+        """Its call where its runner has nothing for it (none, or `args` not as traced): its glue on its C where `args`
+        fit, numpy's else - traced, built and held as it goes."""
         c = self.c
-        if c is not None and c.runner is not None:
-            got = c.runner(args)
-            if got is not quick.MISS and got is not quick.SLOW:
-                return got
         kept = None if c is None else c.fits(args)
         if kept is None and self.why is None:
             try:

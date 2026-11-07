@@ -148,6 +148,7 @@ TOUCHES = (
     ('host/tools/cores/quick.py',              (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/quick.c',               (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/quick_run.c',           (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
+    ('host/tools/cores/quick_part.c',          (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/quick_step.c',          (STRUCTURE, QUICK, WBC_CORE, PORTED)),
     ('host/tools/cores/quick.h',               (STRUCTURE, COMPILED, QUICK, PORTED, ORTHO)),
     ('host/tools/cores/aero.py',               QUADS + (AERO_CORE, STREAMS)),

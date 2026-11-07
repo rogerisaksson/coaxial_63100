@@ -4,6 +4,7 @@
     call = quick.caller(cfn)             # call(*cfn's eight pointers): its int, the interpreter let go
     data = quick.addressing()            # an ndarray's first element's address, read the quickest way here
     run = quick.runner(b)                # run(args): Bound b's whole call in C, MISS or SLOW where it is not
+    class Compiled(quick.based()): ...   # a part called in C: its Bound's runner, its `slow` where that misses
 
 Her law's parts are handed fresh arrays every pass, 207 leaves a law pass: walked in Python each was
 0.8 us of the 12 us a part's glue took, its C 7 us; ctypes' call 1 us over its eight pointers. A part's
@@ -29,7 +30,8 @@ from tools.cores.arrays import address
 
 #: The extension's sources, beside this: its walk and calls, its runner, her step's call (`tools.cores.step`).
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quick.c')
-SOURCES = tuple(os.path.join(os.path.dirname(SOURCE), name) for name in ('quick.c', 'quick_run.c', 'quick_step.c'))
+SOURCES = tuple(os.path.join(os.path.dirname(SOURCE), name)
+                for name in ('quick.c', 'quick_run.c', 'quick_step.c', 'quick_part.c'))
 #: What a runner gives back where a call's arguments are not as traced, and where Python's walk must say why.
 MISS, SLOW = object(), object()
 #: A check's kind and a result's leaf and node (quick_run.c's enums).
@@ -74,6 +76,7 @@ def _loaded():
         made = importlib.util.module_from_spec(spec)
         loader.exec_module(made)
         made.laid(np.ndarray, np.dtype(np.float64))
+        made.missing(MISS, SLOW)
         return made
     except (RuntimeError, OSError, ImportError, AttributeError) as e:
         print('quick stays python: %s' % str(e)[:300], file=sys.stderr)
@@ -194,6 +197,35 @@ def runner(b, singular):
                    b.seen, b.leaf, walk.places, ctypes.cast(b.cfn, ctypes.c_void_p).value, b.cfn.restype is not None,
                    tuple(b.fixed), blocks, b.turns, b.total, tuple(leaves), _node(b.prog.shape), singular, MISS, SLOW)
     return functools.partial(q.run, ctx)
+
+
+class Called:
+
+    """A compiled part's call where the extension is not built (quick_part.c's Part, in Python): its Bound's runner's
+    result, its `slow` where it has none or misses."""
+
+    c = None
+
+    def __call__(self, *args, **kw):
+        c = self.c
+        run = None if c is None else c.runner
+        if run is not None:
+            got = run(args)
+            if got is not MISS and got is not SLOW:
+                return got
+        return self.slow(*args, **kw)
+
+    def slow(self, *args, **kw):
+        """Its call where its runner has nothing for it: its class's."""
+        raise NotImplementedError
+
+
+def based():
+    """The base a compiled part's class takes (`tools.cores.bodied.Compiled`): the extension's Part - its call in C, no
+    frame of Python between it and its runner (in the walking law 2-5 us a call of 263 thousand) - where it is built,
+    `Called` else."""
+    q = module()
+    return Called if q is None else q.Part
 
 
 def _node(node):

@@ -277,6 +277,8 @@ static PyMethodDef methods[] = {
    "stepper(k, step, offsets, most, pointed, npointed, mu, keys, miss, singular): a step's call laid once."},
   {"step", (PyCFunction)(void (*)(void))quick_step, METH_FASTCALL,
    "step(stepper, k, b, s, ask): the step's answer (quick_step.c), or its miss."},
+  {"missing", (PyCFunction)(void (*)(void))quick_missing, METH_FASTCALL,
+   "missing(miss, slow): what a part's runner gives back where it misses, held for Part's calls (quick_part.c)."},
   {NULL, NULL, 0, NULL}};
 
 static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compiled parts' glue (tools.cores.quick).", -1,
@@ -285,5 +287,8 @@ static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compile
 PyMODINIT_FUNC PyInit__quick(void)
 {
   import_array();
-  return PyModule_Create(&quick);
+  PyObject *m = PyModule_Create(&quick);
+  if (m != NULL && quick_part_ready(m) < 0)
+    Py_CLEAR(m);
+  return m;
 }

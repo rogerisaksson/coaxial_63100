@@ -59,4 +59,8 @@ PyObject *quick_run(PyObject *self, PyObject *const *args, Py_ssize_t n);
 PyObject *quick_stepper(PyObject *self, PyObject *const *args, Py_ssize_t n);
 PyObject *quick_step(PyObject *self, PyObject *const *args, Py_ssize_t n);
 
+/* Part, a compiled part called from C, readied on the module; missing(miss, slow): its runner's misses (quick_part.c). */
+int       quick_part_ready(PyObject *module);
+PyObject *quick_missing(PyObject *self, PyObject *const *args, Py_ssize_t n);
+
 #endif
