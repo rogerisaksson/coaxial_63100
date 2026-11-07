@@ -9,7 +9,7 @@ import numpy as np
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
-from test_sight import LOOKS, _head, _nearest, _room, _stood
+from test_sight import LOOKS, _head, _nearest, _room, _stood, _told_as
 
 #: A box upright: (kind, centre, half sizes, turn, its slot or her eyes' id, whether the space over it is seen clear).
 UP = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
@@ -38,7 +38,8 @@ def test_her_fake_camera_tells_the_room(report):
         for name, affords, at in (('chair', 'chair', room.CHAIR_AT), ('table', 'seat', room.TABLE_AT), ('bed', 'bed', room.BED_AT)):
             found = _nearest(here, affords, at)
             report.check('the %s is told a %s within 0.3 m of where it stands' % (name, affords),
-                         found is not None and found[0] < 0.3, '%.2f m off' % found[0] if found else 'not told')
+                         found is not None and found[0] < 0.3,
+                         '%.2f m off' % found[0] if found else 'not told; ' + _told_as(here, at))
         laid = lambda things: [(t[0], np.round(t[1], 9).tolist(), np.round(t[2], 9).tolist()) for t in things]
         report.check('her camera apart tells the things her map here does, a look later',
                      cam.looks == keep.map.looks and laid(cam.told()) == laid(here),

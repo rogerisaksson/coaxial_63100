@@ -60,6 +60,17 @@ def _nearest(things, affords, at):
     return min(near, default=None, key=lambda n: n[0])
 
 
+def _told_as(things, at):
+    """What her map told where a thing stands, nearest first - its distance, height, half sizes, a seat, backed -:
+    a chair not told a chair on CI's runner (Mesa's renderer) said no more than that, never seen here."""
+    import numpy as np
+    from machine.way import affordance
+    near = sorted(((math.hypot(t[1][0] - at[0], t[1][2] - at[1]), t) for t in things), key=lambda n: n[0])[:3]
+    return '; '.join('%.2f m: up %.2f, half %s, sits %s, backed %s' % (d, t[1][1], np.round(t[2], 2).tolist(),
+                                                                     affordance.sits(t, things), affordance.backed(t, things))
+                     for d, t in near if d < 0.6) or 'nothing within 0.6 m'
+
+
 def test_the_stereo_holds_to_the_depth(report):
     """One look from her stand: the depth from the two eyes' disparity against the renderer's
     own, on the pixels kept."""
