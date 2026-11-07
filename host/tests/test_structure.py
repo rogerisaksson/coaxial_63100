@@ -275,11 +275,11 @@ def test_motor_imports_no_board(r):
 
 #: Her motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
 LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/impedance', 'law/modal', 'law/poise',
-       'law/stride', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
+       'law/stride', 'law/treads', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
        'senses/borne', 'senses/grip')
 #: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'bedexit', 'scoot', 'brace'))
-LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'stride', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
+LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'poses', 'stride', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
                                                  'brace', 'law', 'blas'))
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.
