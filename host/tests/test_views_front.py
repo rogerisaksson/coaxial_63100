@@ -7,16 +7,28 @@ from tools.dev.focus import chosen
 from views_kit import HOST, Report, VIEW_TIMEOUT, run_view, views
 
 
+def _raised(text):
+    """A view's first traceback in one line - the line before it, its last frame, what it raised -: CI's log keeps
+    a check's line alone, and a view's last line was its processes' last warning, not what raised."""
+    at = text.find('Traceback')
+    lines = text[at:].splitlines()[1:]
+    before = text[:at].rstrip().splitlines()[-1:]
+    frames = [line.strip() for line in lines if line.startswith('  File ')]
+    said = next((line for line in lines if line.strip() and not line.startswith(' ')), '')
+    return ' | '.join(before + frames[-1:] + [said])[:400]
+
+
 def test_each_view_draws_two_frames(report):
     for name in views():
         done = run_view(name)
-        tail = (done.stdout + done.stderr).strip().splitlines()
+        text = done.stdout + done.stderr
+        tail = text.strip().splitlines()
         last = tail[-1][:70] if tail else 'no output at all'
         report.check('%s exits 0 simulated' % name,
                      done.returncode == 0,
                      'exit %d: %s' % (done.returncode, last))
         report.check('%s raised nothing' % name,
-                     'Traceback' not in done.stdout + done.stderr, last)
+                     'Traceback' not in text, _raised(text) if 'Traceback' in text else last)
 
 
 def test_the_loader_reads_the_pages(report):
