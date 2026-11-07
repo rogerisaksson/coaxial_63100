@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Her drives' pass in one C call (`tools.cores.tick`, wbc_pass_tick) beside its python (`motion.drives_twin`): from the
+"""Her drives' pass in one C call (`tools.cores.tick`, wbc_pass_tick) beside its python (`motion.drives_twin`) - from the
 same state at every STRIDE-th pass lying into a bed, resting limp there, rising and walking, every array, her master
-bus and the numbers it writes the same bits."""
+bus and the numbers it writes the same bits -, and a move's pass (`tools.cores.played`) beside its python's."""
 import ctypes
 import os
 import sys
@@ -15,6 +15,8 @@ from gynoid_kit import Report
 
 #: Her lie into the bed and her rise off it, s; her walk after, passes; a pass compared each STRIDE.
 LIE_S, RISE_S, WALK_PASSES, STRIDE = 24.0, 8.0, 6000, 7
+#: Each move played, s.
+MOVE_S = 2.0
 #: Her numbers the pass writes on `g`.
 NUMBERS = ('surety', 'surety_vec', 'surety_probe', 'left', '_wake')
 
@@ -85,7 +87,58 @@ def test_her_drives_pass_in_c_as_in_python(report, _c):
                  tally['passes'] > 3000 and tally['limp'] > 100 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_her_drives_pass_in_c_as_in_python,)
+def test_a_moves_pass_in_c_as_in_python(report, _c):
+    """Each of her C moves played lying in a bed - her bed's exit, her scoot, her bed's entry, MOVE_S each -, its step
+    and its joints' setpoints and clamps in one C call (`tools.cores.played`, wbc_played_step) beside its python's from
+    the same state, the C's pass with its drive kept: the move's state, command, setpoints and clamps the same bits,
+    its done the same."""
+    from machine.process import joints, worker
+    from machine.senses import edge
+    from tools.cores import played
+    from tools.sim import told
+    tally, real = {'passes': 0, 'apart': 0, 'moves': set()}, played.laid
+
+    def laid(g, world, p):
+        made = real(g, world, p)
+        if made is None:
+            return None
+        lib, arrays = played.typed(), (p['state'], p['cmd'], p['target'], p['limit'])
+
+        def both(at, t, dt, buf_at):
+            senses, held = [float(x) for x in made[3][:len(p['sensed'])]], [a.copy() for a in arrays]
+            done = lib.wbh_played_step(at, t, dt, buf_at)
+            got = [a.copy() for a in arrays]
+            for a, h in zip(arrays, held):
+                a[...] = h
+            mine = p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), t, dt, *senses)
+            if not mine:
+                np.radians(np.take(p['cmd'], p['joints'], out=p['target']), out=p['target'])
+                np.take(g['clamp'], p['joints'], out=p['limit'])
+            tally['apart'] += mine != done or any(a.tobytes() != b.tobytes() for a, b in zip(arrays, got))
+            tally['passes'] += 1
+            tally['moves'].add(p['move'].__name__.rsplit('.', 1)[-1])
+            for a, h in zip(arrays, held):
+                a[...] = h
+            return made[1](at, t, dt, buf_at)
+        return (made[0], both) + made[2:]
+    played.laid = laid
+    try:
+        r = told.Run('bed_behind')
+        r.tell(say='lie_bed')
+        r.go(12.0)
+        for move in joints.MOVES:
+            worker.apply(r.s, {'joints': move})
+            r.go(MOVE_S)
+            if r.s['g'].get('played') is not None:
+                joints.ended(r.s['g'])
+    finally:
+        played.laid = real
+    report.check("a move's pass in C as in python, %d passes of %s" % (tally['passes'], ', '.join(sorted(tally['moves']))),
+                 tally['passes'] > 1000 and len(tally['moves']) == len(joints.MOVES) and not tally['apart'],
+                 '%(apart)d apart' % tally)
+
+
+ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python)
 
 
 def main(argv=None):

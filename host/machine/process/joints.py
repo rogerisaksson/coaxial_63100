@@ -202,6 +202,18 @@ def _modal():
 
 
 @functools.cache
+def _waits():
+    from machine.law import waits
+    return waits
+
+
+@functools.cache
+def _played():
+    from tools.cores import played
+    return played
+
+
+@functools.cache
 def _furniture():
     from machine.way import furniture
     return furniture
@@ -324,18 +336,22 @@ def played(g, world):
             import importlib
             p['move'] = importlib.import_module(p['move'])
             p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
+            p['sensed'], p['holds'] = getattr(p['move'], 'SENSED', SENSED), getattr(p['move'], 'HOLDS', True)
+            # its step and its joints told in one C call where it is one of her C moves (`tools.cores.played`)
+            p['pass'] = _played().laid(g, world, p)
     if 'move' in p:
-        from machine.law import waits
         dt, felt = g['t'] - p['last'], _felt(g)
-        done = p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), g['t'], dt,
-                              *[felt[name] for name in getattr(p['move'], 'SENSED', SENSED)])
+        senses, q = [felt[name] for name in p['sensed']], p['pass']
+        done = (_played().passed(q, g['t'], dt, senses) if q is not None
+                else p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), g['t'], dt, *senses))
         p['last'] = g['t']
         if done:
             ended(g)
             return
-        if getattr(p['move'], 'HOLDS', True):
-            waits.played_back(g, dt)
-        _told(g, world, p, p['cmd'])
+        if p['holds']:
+            _waits().played_back(g, dt)
+        if q is None:
+            _told(g, world, p, p['cmd'])
         return
     if g['t'] - p['at'] >= p['length']:
         ended(g)

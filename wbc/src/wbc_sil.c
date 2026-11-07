@@ -345,6 +345,50 @@ void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *targ
   }
 }
 
+double wbc_played_step(wbc_played_t *p, double t, double dt, const double *senses)
+{
+  double done;
+
+  /* numpy's degrees and radians: x times 180 / pi, x times pi / 180, pi the double numpy's NPY_PI is */
+  for (int i = 0; i < p->nq; i++)
+  {
+    p->q_deg[i] = p->y[p->q_at + i] * (180.0 / 3.141592653589793);
+  }
+  if (p->exit != NULL)
+  {
+    done = wbc_bedexit_step(p->exit, p->state, p->cmd, p->q_deg, t, dt, senses[0], senses[1], senses[2]);
+  }
+  else if (p->scoot != NULL)
+  {
+    done = wbc_scoot_step(p->scoot, p->state, p->cmd, dt, senses[0], senses[1], senses[2], senses[3], senses[4],
+                          senses[5], senses[6]);
+  }
+  else
+  {
+    done = wbc_bedentry_step(p->entry, p->state, p->cmd, dt, senses[0], senses[1], senses[2], senses[3], senses[4]);
+  }
+  if (done == 0.0)
+  {
+    for (int i = 0; i < p->n; i++)
+    {
+      p->target[i] = p->cmd[p->idx[i]] * (3.141592653589793 / 180.0);
+      p->limit[i] = p->clamp[p->idx[i]];
+    }
+  }
+  return done;
+}
+
+double wbc_sil_played(wbc_played_t *p, double t, double dt, const double *senses)
+{
+  const double done = wbc_played_step(p, t, dt, senses);
+
+  if (done == 0.0)
+  {
+    wbc_sil_drive(p->world, p->n, p->idx, p->target, p->feed, p->kp, p->limit);
+  }
+  return done;
+}
+
 void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                    unsigned char *last_frame, int *last_len)
 {

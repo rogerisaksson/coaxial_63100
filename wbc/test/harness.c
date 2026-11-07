@@ -628,6 +628,21 @@ API void wbh_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *
   wbc_sil_drive(w, n_idx, idx, target, feed, kp, limit);
 }
 
+API double wbh_played_step(wbc_played_t *p, double t, double dt, const double *senses)
+{
+  return wbc_played_step(p, t, dt, senses);
+}
+
+API double wbh_sil_played(wbc_played_t *p, double t, double dt, const double *senses)
+{
+  return wbc_sil_played(p, t, dt, senses);
+}
+
+API int wbh_played_size(void)
+{
+  return (int)sizeof(wbc_played_t);
+}
+
 API void wbh_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                        unsigned char *last_frame, int *last_len)
 {

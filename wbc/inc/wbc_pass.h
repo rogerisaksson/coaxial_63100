@@ -8,6 +8,7 @@
 #include "wbc_blas.h"
 #include "wbc_bus.h"
 #include "wbc_imp.h"
+#include "wbc_move.h"
 
 /** A pass of her world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
     numpy's arithmetic operation for operation. The most joints a world has. */
@@ -283,6 +284,35 @@ void wbc_sil_init(wbc_world_t *w, int nbuses, const int *counts, const int *join
 int  wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, int len);
 void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
                    const double *feed, const double *kp, const double *limit);
+
+/** A move of hers playing on her boards (machine.process.joints.played): her bed's exit, her scoot or her bed's
+    entry - the one whose tables are given -, its state and command (deg, every joint), her edge's angles read in
+    degrees, and its joints told - in radians, her clamps, its feed and stiffness - through wbc_sil_drive. */
+typedef struct
+{
+  const wbc_bedexit_t  *exit;              /**< the move's tables: one of the three, the others NULL */
+  const wbc_scoot_t    *scoot;
+  const wbc_bedentry_t *entry;
+  double               *state;             /**< the move's state and command */
+  double               *cmd;
+  const double         *y;                 /**< her edge's array: every joint's angle from `q_at`, `nq` of them */
+  int                   q_at;
+  int                   nq;
+  int                   n;                 /**< the move's joints, each one's index among hers */
+  const int            *idx;
+  const double         *clamp;             /**< her clamps, every joint's; its feed and stiffness, its joints' */
+  const double         *feed;
+  const double         *kp;
+  double               *target;            /**< out: its joints' setpoints (rad) and clamps */
+  double               *limit;
+  wbc_world_t          *world;
+  double                q_deg[WBC_PASS_MAX]; /**< her angles in degrees, as its step reads them */
+} wbc_played_t;
+
+/** The move `dt` s on at `t` on her senses (its SENSED's, in order): its done; where it is not, its joints'
+    setpoints and clamps laid (wbc_played_step) and, in wbc_sil_played, told. */
+double wbc_played_step(wbc_played_t *p, double t, double dt, const double *senses);
+double wbc_sil_played(wbc_played_t *p, double t, double dt, const double *senses);
 void wbc_sil_stats(int bus_id, unsigned long long *counts, double *wire_s,
                    unsigned char *last_frame, int *last_len);
 /** The line's noise: each frame on the wire a bit flipped with the chance `ber` gives its 10
