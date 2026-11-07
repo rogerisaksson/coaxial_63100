@@ -28,16 +28,11 @@ double wbc_bedexit_step(const wbc_bedexit_t *b, double *state, double *cmd, cons
   {
     const int    j = b->joint[i], p = b->part[i];
     const double how = over ? b->how_over[k][p] : b->how[k][p], goal = over ? b->over[k][p] : b->goal[k][p];
-    const double rate = over ? b->rate_over[k][p] : b->rate[k][p], reach = rate * dt;
-    const double start = state[WBC_BEDEXIT_FROM + j], x = cmd[j], q = q_deg[j];
-    const double moved = how == 1.0   ? start + a * (goal - start)
-                         : how == 2.0 ? x + npclip(goal - x, -reach, reach)
-                         : how == 3.0 ? q + goal
-                         : how == 4.0 ? q + npclip(goal - q, 0.0, rate)
-                                      : x;
+    const double rate = over ? b->rate_over[k][p] : b->rate[k][p], q = q_deg[j];
+    const double moved = wbc_anatomy_driven(how, goal, rate, cmd[j], q, state[WBC_BEDEXIT_FROM + j], a, dt);
 
     cmd[j] = (p == 0 && b->holds[k] > 0.5)
-                 ? npclip(moved + b->trunk_gain * (pitch - b->trunk[k]) * dt, b->hip_lo, b->hip_hi)
+                 ? wbc_anatomy_held(moved, b->trunk_gain, pitch, b->trunk[k], dt, b->hip_lo, b->hip_hi)
                  : moved;
     knees = knees + (p == 1 ? q : 0.0);
     folded = folded + (double)(p == 1);

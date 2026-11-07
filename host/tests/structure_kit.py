@@ -25,7 +25,7 @@ NUMPY_AT_IMPORT = tuple(os.path.join('machine', *m.split('/')) + '.py' for m in 
     'senses/situation senses/touch law/waits law/supervisor senses/observer law/barrier senses/field '
     'senses/inekf texts/lowering law/schema stack/shrunk body/capsules eyes/registry eyes/classes law/somatic body/bemf '
     'law/brace way/affordance eyes/voxels way/obstacles moves/fours body/bends stack/pressed world/groundwork '
-    'world/substrate moves/crawl moves/bedside moves/emancipation moves/cascade moves/seated moves/bedexit '
+    'world/substrate moves/crawl moves/bedside moves/emancipation moves/cascade moves/seated moves/anatomy moves/bedexit '
     'moves/scoot moves/bedentry law/surety eyes/stacked senses/momentum').split())
 
 

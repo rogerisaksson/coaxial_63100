@@ -35,6 +35,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body.figure import JOINTS
+from machine.moves import anatomy
 
 J = {j: i for i, j in enumerate(JOINTS)}
 #: The parts it moves; each joint of theirs (both sides, the spine alone) and its part.
@@ -84,8 +85,7 @@ NAMES = tuple(phase[0] for phase in PHASES)
 #: she goes seated), the end.
 PUSHED, STRETCHED_AT, SEATED, DONE = (NAMES.index(name) for name in ('push', 'stretch', 'settle', 'done'))
 #: PHASES as flat tables: each phase's length, the next, the trunk her hips hold and whether they do; each part's
-#: goal, how it is reached (0 held, 1 blended, 2 at its rate, 3 followed, 4 drawn toward) and its rate or pull, on
-#: the bed and past its edge.
+#: goal, how it is reached (`anatomy`'s HELD .. TOWARD) and its rate or pull, on the bed and past its edge.
 LENGTH = np.array([phase[1] for phase in PHASES])
 NEXT = np.array([NAMES.index(phase[2]) for phase in PHASES], float)
 TRUNKS = np.array([0.0 if phase[5] is None else phase[5] for phase in PHASES])
@@ -97,7 +97,8 @@ for _k, _phase in enumerate(PHASES):
         for _part, (_deg, _by) in _goals.items():
             _i = PARTS.index(_part)
             _goal[_k, _i] = _deg
-            _how[_k, _i], _rate[_k, _i] = {BLEND: (1.0, 0.0), FOLLOW: (3.0, 0.0), TOWARD: (4.0, PULL)}.get(_by, (2.0, _by))
+            _how[_k, _i], _rate[_k, _i] = {BLEND: (anatomy.BLEND, 0.0), FOLLOW: (anatomy.FOLLOW, 0.0),
+                                           TOWARD: (anatomy.TOWARD, PULL)}.get(_by, (anatomy.RATE, _by))
 #: The state's slots: phase, its time, the strokes, past the edge (0/1), and the pose the phase began from.
 PHASE, AT, COUNT, OVER, FROM = 0, 1, 2, 3, 4
 
@@ -118,11 +119,8 @@ def step(state, cmd, q_deg, t, dt, soles, shins, pitch):
     how = np.where(over, HOW_OVER[k, PART], HOW[k, PART])
     goal = np.where(over, GOAL_OVER[k, PART], GOAL[k, PART])
     rate, q = np.where(over, RATE_OVER[k, PART], RATE[k, PART]), q_deg[JOINT]
-    reach = rate * dt
-    x = np.where(how == 1.0, start + a * (goal - start),
-                 np.where(how == 2.0, x + np.clip(goal - x, -reach, reach),
-                          np.where(how == 3.0, q + goal, np.where(how == 4.0, q + np.clip(goal - q, 0.0, rate), x))))
-    held = np.clip(x + TRUNK_GAIN * (pitch - TRUNKS[k]) * dt, HIP_LO, HIP_HI)
+    x = anatomy.driven(how, goal, rate, x, q, start, a, dt)
+    held = anatomy.held(x, TRUNK_GAIN, pitch, TRUNKS[k], dt, HIP_LO, HIP_HI)
     cmd[JOINT] = np.where((PART == 0) & (HOLDS[k] > 0.5), held, x)
     sat = state[OVER] * float(soles >= SOLE_SHARE) * float(np.mean(q_deg[KNEES]) >= KNEE_SEAT)
     due = el >= LENGTH[k] or (k == PUSHED and sat > 0.0)

@@ -4,6 +4,26 @@
 #ifndef WBC_MOVE_H
 #define WBC_MOVE_H
 
+/** Her moves' anatomy (wbc_anatomy.c, machine.moves.anatomy): how a part goes - held where it is, blended over its
+    phase from where it began, to its goal at its rate (deg/s), her sensed angle and its goal past it, drawn toward
+    its goal from her sensed angle by its rate (deg) at most, yielding past it. */
+enum
+{
+  WBC_ANATOMY_HELD,
+  WBC_ANATOMY_BLEND,
+  WBC_ANATOMY_RATE,
+  WBC_ANATOMY_FOLLOW,
+  WBC_ANATOMY_TOWARD
+};
+
+/** A joint's command (deg) a pass `dt` s on, as `how` it goes (WBC_ANATOMY_*): its `goal` and `rate`, its command
+    `x`, her sensed angle `q`, where its phase began `start`, `a` of its phase's way. */
+double wbc_anatomy_driven(double how, double goal, double rate, double x, double q, double start, double a, double dt);
+
+/** `x` (deg), her hips holding her trunk's `pitch` at `trunk` (deg): moved `gain` deg/s a deg of its error, within
+    [`lo`, `hi`]. */
+double wbc_anatomy_held(double x, double gain, double pitch, double trunk, double dt, double lo, double hi);
+
 /** The bed exit's phases, the parts it moves (hips, knees, ankles, shoulders, elbows, spine) and their joints. */
 #define WBC_BEDEXIT_PHASES 10
 #define WBC_BEDEXIT_PARTS  6
@@ -22,9 +42,8 @@ enum
 /** machine.moves.bedexit's tables, filled once from it: the joints it moves (figure.JOINTS) and each one's part
     (the knees part 1), her joints, the push's phase (it counts the strokes, ending once she sits), the stretch's
     (it tells her past the edge), the settle's (where she goes seated), the last; each phase's length (s), the phase after it, the trunk's
-    pitch her hips hold (deg) and whether they do; each part's goal (deg), how it is reached (0 held, 1 blended over
-    the phase from where it began, 2 at its rate, deg/s, 3 her sensed angle and the goal past it, 4 drawn toward from
-    her sensed angle by its rate, deg, at most, yielding past it) and its rate, on the bed and past its edge; her
+    pitch her hips hold (deg) and whether they do; each part's goal (deg), how it is reached (WBC_ANATOMY_*) and its
+    rate, on the bed and past its edge; her
     hips' gain on her trunk (deg/s a deg) and range (deg); her shanks' share past the edge, her soles' share and her
     knees' fold (deg) seated, the strokes at most. */
 typedef struct
