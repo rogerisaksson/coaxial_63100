@@ -23,11 +23,13 @@ from tools.cores.build import build, find_cc
 from tools.cores.model import built
 
 #: comms/ less what touches the HAL - the console, the test rig, the UARTs - and the
-#: portable cores under it; board/fake and the record for the board.
+#: portable cores under it, less the host's world on MuJoCo's (`wbc_world.c`, its headers the
+#: host's: in the board its build failed, and the terminal's leave waited on it to Ctrl-C);
+#: board/fake and the record for the board.
 SOURCES = sorted(p for p in glob.glob(os.path.join(REPO, 'comms', 'src', '*.c'))
                  if os.path.basename(p) not in ('console.c', 'testrig.c', 'dev_uart.c')) + [
     p for core in ('modbus', 'drive', 'thermal', 'daq', 'ctrl', 'filter', 'shtp', 'wbc', 'aero')
-    for p in sorted(glob.glob(os.path.join(REPO, core, 'src', '*.c')))] + sorted(
+    for p in sorted(glob.glob(os.path.join(REPO, core, 'src', '*.c'))) if os.path.basename(p) != 'wbc_world.c'] + sorted(
     glob.glob(os.path.join(REPO, 'board', 'fake', '*.c'))) + [
     os.path.join(REPO, 'board', 'src', name) for name in ('board_cal.c', 'board_thermal.c', 'board_daq.c')]
 
