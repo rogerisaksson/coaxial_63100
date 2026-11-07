@@ -84,6 +84,8 @@ STROKES = {'bed_pull': ('plant', 'set')}
 #: her bed exit's soles, shanks and pitch where it names none.
 MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot', 'bed_entry': 'tools.cores.bedentry'}
 SENSED = ('soles', 'shins', 'pitch')
+#: The senses `bodily` tells at once: her soles', shanks', fists' and each foot's share of her weight, her pitch.
+BODILY = ('soles', 'shins', 'hands', 'left_foot', 'right_foot', 'pitch')
 #: Each joint's index (`figure.JOINTS`); the servo table's stiffness and damping a joint, N m/rad and N m s/rad.
 INDEX = {j: i for i, j in enumerate(figure.JOINTS)}
 KP = tuple(float(SERVO[drives.kind(j)][1]) for j in figure.JOINTS)
@@ -162,8 +164,7 @@ class _Felt(dict):
     estimate turns it, and her pelvis from the middle of the bed she lies on along its length, that half length (m)
     and her pelvis's speed (m/s) as a look takes her (`furniture.lain`). Each told at its first read, those read
     together at once - the same expressions, the same bits: a bed's entry reads five of the thirteen, its exit three.
-    Her skin's shares and her pitch read arrays her law's pass writes: told anew only as their bits change (`_kept`) -
-    a move's pass between her law's told them again, 41 us of its 145."""
+    Her soles', her skin's shares and her pitch told by one compiled part at their first read (`bodily`)."""
 
     def __init__(self, g):
         super().__init__()
@@ -173,15 +174,13 @@ class _Felt(dict):
         g, modal = self.g, _modal()
         if name in ('along', 'half', 'speed'):
             self['along'], self['half'], self['speed'] = _furniture().lain(g)
-        elif name == 'soles':
-            import numpy as np
-            self['soles'] = float(np.sum(g['loads'])) / float(g['fr'][modal.WEIGHT])
-        elif name in ('shins', 'hands', 'left_foot', 'right_foot'):
-            skin = g['sense'][edge.TOUCH]
-            self.update(_kept(g, 'skin', (skin.tobytes(), g['fr'][modal.WEIGHT].tobytes()), lambda: _skin(skin, g)))
-        elif name == 'pitch':
-            y, rot = g['y'], g['fr'][modal.ROT]
-            self['pitch'] = _kept(g, 'pitch', (y[modal.QUAT].tobytes(), rot.tobytes()), lambda: _pitch(y, rot))
+        elif name in BODILY:
+            if g.get('bodily') is None:
+                from tools.cores import bodied
+                g['bodily'] = bodied.on_args(bodily, 'bodily', (0, 1, 2, 3, 4, 5))
+            fr = g['fr']
+            told = g['bodily'](g['loads'][0], g['loads'][1], fr[modal.WEIGHT], g['sense'][edge.TOUCH], g['y'], fr[modal.ROT])
+            self.update(zip(BODILY, (float(v) for v in told)))
         elif name in ('back', 'turn'):
             vx, _vy, wz = (float(v) for v in g.get('asked', (0.0, 0.0, 0.0)))
             self['back'] = min(max(-vx / (BACK_SPEED if vx < 0.0 else WALK_SPEED), -1.0), 1.0)
@@ -208,27 +207,16 @@ def _furniture():
     return furniture
 
 
-def _pitch(y, rot):
+def bodily(load0, load1, weight, skin, y, rot):
+    """(her soles', shanks', fists' and each foot's share of her weight off her skin, her trunk's pitch along her way,
+    deg) of her law's arrays (her soles' loads, her `weight`, her edge's skin, modal's `y` and her frame's `rot`) -
+    numpy's alone, so compiled (`bodied.on_args`, g['bodily']): told through numpy and byte-keyed memos her bed's
+    exit read them in 39 us of its 109 a pass."""
     import numpy as np
-    return float(np.degrees(_modal().pitched(y, rot.reshape(3, 3))[1]))
-
-
-def _kept(g, name, key, told):
-    """`told()` - a pure function of the bytes `key` - kept on `g` while they hold."""
-    kept = g.setdefault('_felt', {})
-    was = kept.get(name)
-    if was is None or was[0] != key:
-        was = kept[name] = (key, told())
-    return was[1]
-
-
-def _skin(skin, g):
-    """{shins, hands, left_foot, right_foot}: her shanks', fists' and each foot's share of her weight off her skin."""
-    import numpy as np
-    weight = float(g['fr'][_modal().WEIGHT])
     touch = np.linalg.norm(skin.reshape(-1, 3), axis=1)
-    return {'shins': float(np.sum(touch[SHANKS])) / weight, 'hands': float(np.sum(touch[FISTS])) / weight,
-            'left_foot': float(np.sum(touch[FEET[0]])) / weight, 'right_foot': float(np.sum(touch[FEET[1]])) / weight}
+    return ((load0 + load1) / weight, np.sum(touch[SHANKS]) / weight, np.sum(touch[FISTS]) / weight,
+            np.sum(touch[FEET[0]]) / weight, np.sum(touch[FEET[1]]) / weight,
+            _modal().pitched(y, rot.reshape(3, 3))[1] * (180.0 / np.pi))
 
 
 def pose(beats, start, elapsed):
