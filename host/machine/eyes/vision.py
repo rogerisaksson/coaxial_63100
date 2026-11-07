@@ -88,7 +88,10 @@ class Apart:
             return
         if self.pending:
             self.join()
-        self._aside.send(('look', _laid(g), self._changed(looks), len(looks), head, g['t'], dt, everywhere))
+        assert head is not None, 'a look is asked from her head'
+        # her head as floats, its arrays laid anew there (`main`): two arrays pickled were most of an ask's 37 us
+        self._aside.send(('look', _laid(g), self._changed(looks), len(looks),
+                          (tuple(head['pos'].tolist()), tuple(head['quat'].tolist())), g['t'], dt, everywhere))
         self.pending = True
 
     def _changed(self, looks):
@@ -147,7 +150,8 @@ def main():
         slots = kept['slots']
         if ask[0] == 'boxes':
             return registry.boxed(slots, ask[2])
-        _kind, _laid_now, changed, n, head, t, dt, everywhere = ask
+        _kind, _laid_now, changed, n, (pos, quat), t, dt, everywhere = ask
+        head = {'pos': np.array(pos), 'quat': np.array(quat)}
         looks = kept['looks'] if len(kept['looks']) == n else [None] * n
         for k, look_ in changed.items():
             looks[k] = look_

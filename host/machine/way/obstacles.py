@@ -54,7 +54,21 @@ def boxes(things):
 
 
 def apart(points, things):
-    """(N, M) m from each floor point (N, 2) x, z to each of `things`' footprints, 0 within one."""
+    """(N, M) m from each floor point (N, 2) x, z to each of `things`' footprints, 0 within one: each point's offset
+    turned into a footprint's axes numpy's einsum's sum written out - its two products added into a zero, the same
+    bits (`apart_twin` the einsum) -, its loop 11 ms of a plan's 33."""
+    prints = [affordance.footprint(t) for t in things]
+    c = np.array([p[0] for p in prints], float).reshape(-1, 2)
+    axes = np.array([p[1] for p in prints], float).reshape(-1, 2, 2)
+    half = np.array([p[2] for p in prints], float).reshape(-1, 2)
+    off = np.asarray(points, float)[:, None, :] - c[None]
+    turned = (0.0 + axes[None, :, :, 0] * off[:, :, None, 0]) + axes[None, :, :, 1] * off[:, :, None, 1]
+    out = np.maximum(np.abs(turned) - half[None], 0.0)
+    return np.hypot(out[..., 0], out[..., 1])
+
+
+def apart_twin(points, things):
+    """`apart` in numpy's einsum, as it was (test_wayfinder holds the two to the bit)."""
     prints = [affordance.footprint(t) for t in things]
     c = np.array([p[0] for p in prints], float).reshape(-1, 2)
     axes = np.array([p[1] for p in prints], float).reshape(-1, 2, 2)
