@@ -191,7 +191,7 @@ def control(g, dt):
     w_neck = sw * max(w_hop, max(rest, brake))
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
-    lo, hi = bemf.bounds(s['v'][body.act], float(y_in[edge.LINK][0]))
+    lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     chained = chain.chained(ask)
     g['got'] = g['solves'][chained](body, dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'])),
                                    dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
@@ -245,11 +245,12 @@ def laid(g):
     g['capped'] = bodied.on_args(somatic.capped, 'capped', tuple(range(11)))     # her ask's caps (`somatic.asked`)
     g['told_on'] = bodied.on_args(emancipation.on_floor, 'told_on', tuple(range(6)))     # `emancipation.told_on`
     g['settling'] = bodied.on_args(emancipation.settling, 'settling', tuple(range(10)))     # `emancipation.settled`
+    g['bounds'] = bodied.on_args(bemf.bounds, 'bounds', (0, 1))     # her drives' torque bounds at their speeds
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['ringed_ahead'] = list(barrier.HULLS)
-    g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2), sources={0: g['sensed']})
+    g['modal_sensed'] = bodied.on_args(modal.sensed, 'modal_sensed', (0, 1, 2))     # her sensing's arrays walked in C
     g['inekf_points'] = bodied.on_body(inekf.points, 'inekf_points', (2, 3))
     g['inekf_step'] = bodied.on_args(inekf.step, 'inekf', (0, 2, 3, 4))
     g['seek'] = bodied.on_args(field.seek, 'seek', (0, 1, 2, 3, 4, 6))
