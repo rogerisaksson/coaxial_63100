@@ -33,24 +33,48 @@ BODY_DOUBLES = (2 * 12 * _LINKS + (N - 6) + 2 * 3 * _LINKS + N + 3 * 6 * _LINKS 
                 + 3 * _LINKS + N * N + N)
 
 
+#: A row of the split's matrices, padded to whole 64-byte lines (WBC_GMO_LD).
+GMO_LD = (GMO_F + 7) // 8 * 8
+_FIELDS = [('a', (_d * GMO_LD) * N), ('h', (_d * GMO_LD) * GMO_F), ('k', (_d * GMO_LD) * GMO_F), ('ag', (_d * GMO_LD) * N),
+           ('w', _d * GMO_LD), ('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d),
+           ('still', _d), ('slide', _d * 3), ('horizon', _d), ('loss', _d * N), ('driven_at', _i * DRIVEN),
+           ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),
+           ('edge', ((_d * 3) * GMO_E) * GMO_P), ('edges', _i * GMO_P), ('col', _i * GMO_P), ('whole', _i), ('pushes', _i),
+           ('gated', _i * GMO_P), ('world', _i * GMO_P), ('soled', _i * GMO_P), ('stop_lo', _d * (N - 6)),
+           ('stop_hi', _d * (N - 6)), ('stopped', _i * (N - 6)), ('capsules', _i), ('capsule_link', _i * GMO_C),
+           ('capsule_r', _d * GMO_C), ('capsule_a', (_d * 3) * GMO_C), ('capsule_b', (_d * 3) * GMO_C), ('pairs', _i),
+           ('pair', (_i * 2) * GMO_PAIRS), ('listed', _i), ('list', _i * GMO_PAIRS), ('staged', ((_d * 3) * 2) * GMO_C),
+           ('share_point', _i * GMO_S), ('share_manifold', _i * GMO_S), ('share_link', _i * GMO_S),
+           ('share_axis', (_d * 3) * GMO_S), ('tau', _d * DRIVEN), ('acc', _d * 3), ('span', _d), ('primed', _d),
+           ('u', _d * N), ('r', _d * N), ('f', _d * GMO_F), ('force', _d * GMO_M), ('at', (_d * 3) * GMO_P),
+           ('touched', _i * GMO_T), ('past', _i * (N - 6)), ('stagings', _i), ('prior', _d * GMO_P),
+           ('speed', _d * GMO_P), ('expected', _d * GMO_F), ('rounds', _i), ('lives', _i), ('live', _i * GMO_F),
+           ('spare', _i), ('body', _d * BODY_DOUBLES)]
+#: The members whose offsets the C says (wbh_gmo_offsets), in its order.
+OFFSETS = ('a h k ag w alpha loss driven_at local edges whole pushes soled stop_lo stopped capsule_r pairs list staged '
+           'share_point share_axis f at touched stagings prior rounds live spare body').split()
+
+
+class _Laid(ctypes.Structure):
+    _fields_ = _FIELDS
+
+
 class Gmo(ctypes.Structure):
 
-    """wbc_gmo_t: her momentum observer (`machine.senses.observer`), laid and its state."""
+    """wbc_gmo_t: her momentum observer (`machine.senses.observer`), laid and its state - its hot block first, the
+    struct on whole 64-byte lines (alignas(64)): the tail C pads it to (`made` lays it on a line)."""
 
-    _fields_ = [('alpha', _d), ('slip', _d), ('eps', _d), ('weight', _d), ('upright', _d), ('reach', _d), ('still', _d), ('slide', _d * 3), ('horizon', _d), ('whole', _i), ('loss', _d * N), ('driven_at', _i * DRIVEN),
-                ('driven_joint', _i * DRIVEN), ('link', _i * GMO_P), ('local', (_d * 3) * GMO_P),
-                ('edge', ((_d * 3) * GMO_E) * GMO_P), ('edges', _i * GMO_P), ('col', _i * GMO_P), ('pushes', _i), ('gated', _i * GMO_P), ('world', _i * GMO_P), ('soled', _i * GMO_P),
-                ('stop_lo', _d * (N - 6)), ('stop_hi', _d * (N - 6)), ('stopped', _i * (N - 6)), ('capsules', _i),
-                ('capsule_link', _i * GMO_C), ('capsule_r', _d * GMO_C), ('capsule_a', (_d * 3) * GMO_C),
-                ('capsule_b', (_d * 3) * GMO_C), ('pairs', _i), ('pair', (_i * 2) * GMO_PAIRS),
-                ('listed', _i), ('list', _i * GMO_PAIRS), ('stagings', _i), ('staged', ((_d * 3) * 2) * GMO_C),
-                ('share_point', _i * GMO_S), ('share_manifold', _i * GMO_S),
-                ('share_link', _i * GMO_S), ('share_axis', (_d * 3) * GMO_S), ('tau', _d * DRIVEN), ('acc', _d * 3),
-                ('span', _d), ('primed', _d), ('u', _d * N), ('r', _d * N), ('f', _d * GMO_F), ('force', _d * GMO_M),
-                ('at', (_d * 3) * GMO_P), ('touched', _i * GMO_T), ('past', _i * (N - 6)), ('prior', _d * GMO_P), ('speed', _d * GMO_P), ('expected', _d * GMO_F), ('rounds', _i),
-                ('lives', _i), ('live', _i * GMO_F),
-                ('body', _d * BODY_DOUBLES), ('a', (_d * GMO_F) * N), ('h', (_d * GMO_F) * GMO_F),
-                ('k', (_d * GMO_F) * GMO_F), ('w', _d * GMO_F), ('ag', (_d * GMO_F) * N)]
+    _fields_ = _FIELDS + [('tail', ctypes.c_char * (-ctypes.sizeof(_Laid) % 64))]
+
+
+def made(**fields):
+    """A Gmo on a 64-byte line, `fields` set: ctypes' own allocation keeps 16 bytes' alignment, not 64."""
+    room = bytearray(ctypes.sizeof(Gmo) + 64)
+    at = ctypes.addressof(ctypes.c_char.from_buffer(room))
+    o = Gmo.from_buffer(room, -at % 64)
+    for name, value in fields.items():
+        setattr(o, name, value)
+    return o
 
 
 def typed(lib):
@@ -58,5 +82,10 @@ def typed(lib):
     lib.wbh_gmo_size.restype = _i
     if lib.wbh_gmo_size() != ctypes.sizeof(Gmo):
         raise ValueError('wbc_gmo_t is %d bytes, its mirror %d' % (lib.wbh_gmo_size(), ctypes.sizeof(Gmo)))
+    said = (ctypes.c_longlong * len(OFFSETS))()
+    lib.wbh_gmo_offsets(said)
+    apart = [name for name, at in zip(OFFSETS, said) if getattr(Gmo, name).offset != at]
+    if apart:
+        raise ValueError('wbc_gmo_t lays %s elsewhere than its mirror' % ', '.join(apart))
     lib.wbh_gmo_felt.argtypes, lib.wbh_gmo_felt.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None
     lib.wbh_gmo_step.argtypes, lib.wbh_gmo_step.restype = [ctypes.POINTER(Gmo), _vp, _vp, _vp, _d], None

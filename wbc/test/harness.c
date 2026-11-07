@@ -695,6 +695,25 @@ API int wbh_gmo_size(void)
   return (int)sizeof(wbc_gmo_t);
 }
 
+/* wbc_gmo_t's members' offsets in its order (tools.cores.gmo.OFFSETS), its mirror held to them. */
+API void wbh_gmo_offsets(long long *out)
+{
+  const size_t at[] = {offsetof(wbc_gmo_t, a), offsetof(wbc_gmo_t, h), offsetof(wbc_gmo_t, k), offsetof(wbc_gmo_t, ag),
+                       offsetof(wbc_gmo_t, w), offsetof(wbc_gmo_t, alpha), offsetof(wbc_gmo_t, loss),
+                       offsetof(wbc_gmo_t, driven_at), offsetof(wbc_gmo_t, local), offsetof(wbc_gmo_t, edges),
+                       offsetof(wbc_gmo_t, whole), offsetof(wbc_gmo_t, pushes), offsetof(wbc_gmo_t, soled),
+                       offsetof(wbc_gmo_t, stop_lo), offsetof(wbc_gmo_t, stopped), offsetof(wbc_gmo_t, capsule_r),
+                       offsetof(wbc_gmo_t, pairs), offsetof(wbc_gmo_t, list), offsetof(wbc_gmo_t, staged),
+                       offsetof(wbc_gmo_t, share_point), offsetof(wbc_gmo_t, share_axis), offsetof(wbc_gmo_t, f),
+                       offsetof(wbc_gmo_t, at), offsetof(wbc_gmo_t, touched), offsetof(wbc_gmo_t, stagings),
+                       offsetof(wbc_gmo_t, prior), offsetof(wbc_gmo_t, rounds), offsetof(wbc_gmo_t, live),
+                       offsetof(wbc_gmo_t, spare), offsetof(wbc_gmo_t, body)};
+  for (size_t i = 0; i < sizeof at / sizeof at[0]; i++)
+  {
+    out[i] = (long long)at[i];
+  }
+}
+
 API void wbh_gmo_felt(wbc_gmo_t *o, const double *r, const double *accel, const double *tau, double dt)
 {
   wbc_gmo_felt(o, r, accel, tau, dt);

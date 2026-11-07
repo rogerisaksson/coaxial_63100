@@ -4,9 +4,17 @@
 
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
 #include <string.h>
 
 #define NF WBC_GMO_F
+
+/* Her observer's hot block first and on whole 64-byte lines, each of its rows too (wbc_gmo.h). */
+_Static_assert(offsetof(wbc_gmo_t, a) == 0U, "the split's matrices first");
+_Static_assert(((size_t)WBC_GMO_LD * sizeof(double)) % 64U == 0U, "a row of them whole 64-byte lines");
+_Static_assert((offsetof(wbc_gmo_t, h) % 64U == 0U) && (offsetof(wbc_gmo_t, k) % 64U == 0U), "h and k on lines");
+_Static_assert((offsetof(wbc_gmo_t, ag) % 64U == 0U) && (offsetof(wbc_gmo_t, w) % 64U == 0U), "ag and w on lines");
+_Static_assert(_Alignof(wbc_gmo_t) == 64U, "the struct on a line");
 #define NH (WBC_N - 6)
 
 static const double gravity[3] = {0.0, -9.81, 0.0};
@@ -552,7 +560,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       {
         sub[x] = g[at[x]];
       }
-      wbc_chol_solve(n, NF, &o->k[0][0], sub, z);
+      wbc_chol_solve(n, WBC_GMO_LD, &o->k[0][0], sub, z);
       for (int x = 0; x < n; x++)
       {
         const double was = f[at[x]], ratio = (z[x] <= 0.0) ? was / (was - z[x]) : 1.0;

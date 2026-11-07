@@ -11,6 +11,8 @@
 
 #include "wbc.h"
 
+#include <stdalign.h>
+
 /** Her patches' points; a point's pushes at most (a pyramid's edges), all of them at most; her
     joints' stops' pushes, one a hinge; her capsules, the pairs of them that can touch, the touches
     a pass at most; the unknowns; each point's shares of the manifolds; the manifolds. */
@@ -25,9 +27,16 @@
 /** The friction band's rounds at most a pass. */
 #define WBC_GMO_ROUNDS    8
 #define WBC_GMO_MANIFOLDS 8
+/** A row of the split's matrices padded to whole 64-byte lines: its unknowns' columns, none past them read. */
+#define WBC_GMO_LD        (((WBC_GMO_F) + 7) / 8 * 8)
 
 typedef struct
 {
+  alignas(64) double a[WBC_N][WBC_GMO_LD]; /**< hot, first, each row whole 64-byte lines: J' (her velocities' rows), */
+  double      h[WBC_GMO_F][WBC_GMO_LD];    /**< the split's normal equations and their factor, its weighed rows */
+  double      k[WBC_GMO_F][WBC_GMO_LD];    /**< gathered and its gradient over her working set */
+  double      ag[WBC_N][WBC_GMO_LD];
+  double      w[WBC_GMO_LD];
   double      alpha;                       /**< the low-pass's bandwidth, rad/s */
   double      slip;                        /**< her drives' friction tanh(u / slip), rad/s */
   double      eps;                         /**< the split's tie-break, of its largest curvature */
@@ -37,7 +46,6 @@ typedef struct
   double      still;                       /**< past it a point does not stand on what bears her */
   double      slide[3];                    /**< her text's slide, world m/s: moving with it a point stands still */
   double      horizon;                     /**< her envelope, m: a pair staged nearer is searched a pass */
-  int         whole;                       /**< 1: every unknown and every pair a pass, her set unscoped */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
   int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in her edge's */
   int         driven_joint[WBC_DRIVEN];
@@ -46,6 +54,7 @@ typedef struct
   double      edge[WBC_GMO_POINTS][WBC_GMO_EDGES][3];
   int         edges[WBC_GMO_POINTS];
   int         col[WBC_GMO_POINTS];
+  int         whole;                       /**< 1: every unknown and every pair a pass, her set unscoped */
   int         pushes;                      /**< the points' pushes, the stops' first column */
   int         gated[WBC_GMO_POINTS];       /**< 1 a point not felt: off her soles, unlatched (a pass's) */
   int         world[WBC_GMO_POINTS];       /**< 1 a point's pushes laid in the world, not its link */
@@ -62,8 +71,7 @@ typedef struct
   int         pair[WBC_GMO_PAIRS][2];
   int         listed;                      /**< the pairs staged within her envelope, in their order */
   int         list[WBC_GMO_PAIRS];
-  int         stagings;                    /**< out: her pairs staged so far; each capsule's ends, world, */
-  double      staged[WBC_GMO_CAPSULES][2][3]; /**< as last staged */
+  double      staged[WBC_GMO_CAPSULES][2][3]; /**< each capsule's ends, world, as last staged */
   int         share_point[WBC_GMO_SHARES]; /**< a share: its point, its manifold, the link whose */
   int         share_manifold[WBC_GMO_SHARES]; /**< frame holds the manifold's normal, that normal */
   int         share_link[WBC_GMO_SHARES];
@@ -80,18 +88,15 @@ typedef struct
   double      at[WBC_GMO_POINTS][3];       /**< out: each point in the world */
   int         touched[WBC_GMO_TOUCH];      /**< out: each touch's pair, -1 none */
   int         past[WBC_N - 6];             /**< each hinge's row past its band: 1 over, -1 under */
+  int         stagings;                    /**< out: her pairs staged so far */
   double      prior[WBC_GMO_POINTS];       /**< out: each point's push as gravity would have it, N */
   double      speed[WBC_GMO_POINTS];       /**< out: each point's speed in the world, m/s */
   double      expected[WBC_GMO_F];         /**< and each unknown's */
   int         rounds;                      /**< out: the band's rounds this pass */
   int         lives;                       /**< out: the unknowns that can push this pass, in their order */
   int         live[WBC_GMO_F];
+  int         spare;                       /**< explicit: her ints a whole number of doubles */
   wbc_body_t  body;
-  double      a[WBC_N][WBC_GMO_F];
-  double      h[WBC_GMO_F][WBC_GMO_F];
-  double      k[WBC_GMO_F][WBC_GMO_F];
-  double      w[WBC_GMO_F];                /**< the split's gradient over her working set, and its weighed */
-  double      ag[WBC_N][WBC_GMO_F];        /**< rows gathered: fields of their own, apart from h's */
 } wbc_gmo_t;
 
 /** A drive pass of `dt` s into the sums, of her edge's array: the drives' torques (`tau`, every

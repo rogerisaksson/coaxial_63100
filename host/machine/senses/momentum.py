@@ -63,7 +63,7 @@ def laid(body):
     from machine.senses import observer as ob
     from tools.cores import bodied, gmo, wbc as cores
     lib, names = cores.library(), cores.Core().names
-    o = gmo.Gmo(horizon=gmo.horizon())
+    o = gmo.made(horizon=gmo.horizon())
     o.slip, o.eps = ob.SLIP_RAD_S, ob.FLOOR
     o.weight, o.upright, o.reach, o.still = body.mass * G, ob.UPRIGHT_COS, ob.REACH_M, ob.STILL_M_S
     o.alpha = kernel.said('configure-momentum-observer', 'observer-bandwidth-hz') * 2.0 * math.pi
