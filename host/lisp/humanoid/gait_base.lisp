@@ -101,14 +101,16 @@
 
 ;; walk on: 1.16 m/s, a woman's normal pace at her leg (1.26 m/s at 0.85 m). Her soles rock heel to
 ;; toe, her pelvis lists and turns, her arms swing. Her pace from her rhythm, 2.3 steps a second: a
-;; step past 0.6 m lands her knee bent 40-48 deg (her drive 0.95 at 1 Hz) and spends it
+;; step past 0.6 m lands her knee bent 40-48 deg (her drive 0.95 at 1 Hz) and spends it. Her legs
+;; 0.03 shorter than standing (0.065 landed her knee at 26 deg, this 23 and 11 after, her hip held
+;; through the handover on her trailing heel: `stride.vaults`); her drive 0.85 for 1.2 m/s there
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
-  (latent_targets (mode_pitch_attitude 0.0))
+  (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.0))
   (cpg_config
     (frequency 1.15Hz)
-    (amplitude mode_sagittal_drive 0.8)
+    (amplitude mode_sagittal_drive 0.85)
     (amplitude mode_foot_rock 0.6)
     (amplitude mode_pelvis_list 0.4)
     (amplitude mode_pelvis_turn 0.4)

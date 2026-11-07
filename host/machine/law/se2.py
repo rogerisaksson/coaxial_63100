@@ -351,14 +351,14 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
         heard_say_fn(g, gym, by[target])
 
 
-WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.065)'
+WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.03)'
            ' (mode_pitch_attitude 0.01) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
            ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
            ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
            ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
            ' (cpg_config (enable true) (frequency 1.15Hz) (amplitude mode_lateral_shift 0.28)'
-           ' (amplitude mode_sagittal_drive 0.8) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.62)'
-           ' (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.88)'
+           ' (amplitude mode_sagittal_drive 0.85) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.6)'
+           ' (amplitude mode_pelvis_list 0.4) (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.8)'
            ' (amplitude mode_stance_width 0.0) (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
            ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg) (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'
            ' (phase_offset mode_arm_swing mode_sagittal_drive 0deg) (phase_offset mode_foot_rock mode_sagittal_drive 0deg))'

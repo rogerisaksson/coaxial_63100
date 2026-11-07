@@ -274,7 +274,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
 
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  double *stepping, double *way,
+                  const double stood[2], double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
@@ -289,8 +289,15 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
 
     sweep[b] = side * s;
     phi[b] = atan2(side * s, side * c);
-    on[b] = (double)((phi[b] > k->phi_w - PI) && (phi[b] < k->phi_w));
     u[b] = npclip((0.5 * (phi[b] / k->phi_w + 1.0) - begun[b]) / (1.0 - begun[b]) + lead[b], 0.0, 1.0);
+  }
+  for (int b = 0; b < 2; b++)
+  {
+    /* or from where the other came down, standing in the last FALL_U of its swing (stride.beat) */
+    const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
+                        * (double)(u[b] <= 0.0);
+
+    on[b] = npmax((double)((phi[b] > k->phi_w - PI) && (phi[b] < k->phi_w)), came);
     off[b] = (npmax(*stepping, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
     flying[b] = off[b] * (double)(u[b] > 0.0);
   }
@@ -400,7 +407,7 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
                    const double hips[2], const double floors[2], double leg, const double shorter[2],
                    const double off[2], const double tip[2], const double stance[2], double stepping,
                    const double was[2], double dt, const double ground[2], double rocked[2], double flatten[2],
-                   double edge[2], double rounds[2][3])
+                   double edge[2], double rounds[2][3], double reach_h[2])
 {
   double pitched[2];
 
@@ -431,6 +438,35 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
     {
       rounds[b][j] = (sign * k->half_m) * (flatten[b] * spoke[j] + (tilting[b] * tilting[b]) * inward[j]);
     }
+    /* the hip's height over the floor the leg reaches with its heel up as its length needs (stride.heels) */
+    {
+      const double ankle_x = (hip + k->ball * cos(need)) - k->ankle_h * sin(need);
+
+      reach_h[b] = (((ball1 - floors[b]) + k->ball * sin(need)) + k->ankle_h * cos(need))
+                   + sqrt(npmax(reach * reach - ankle_x * ankle_x, 0.0));
+    }
+  }
+}
+
+void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
+                    const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
+                    double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
+                    const double heeled[2], const double striding[2], double kp, double kd, double risen[2])
+{
+  for (int b = 0; b < 2; b++)
+  {
+    const double la = npmv2(leg[b], along);
+    double       sq[3], arc, held;
+
+    for (int j = 0; j < 3; j++)
+    {
+      sq[j] = (v[j] - shod[b][j]) * (v[j] - shod[b][j]);
+    }
+    arc = (((lrate[b] * lrate[b] - (0.0 + npsum(sq, 3))) - npmax(la, (1.0 - propped) * la))
+           - ((len[b] * k->axial_m) * hips_by) * pressed)
+          / npmax(leg[b][2], low);
+    held = kp * ((reach_h[b] + duck[0] * hips_by) - high[b]) + kd * (duck[1] * hips_by - hips_by * v[2]);
+    risen[b] = arc + (striding[b] * npclip(heeled[b] / k->edge_rad, 0.0, 1.0)) * (held - arc);
   }
 }
 
@@ -447,16 +483,18 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
     const double e11 = ((((-30.0 * by) * by) * (1.0 - by)) * (1.0 - by)) / k->fall_u;
     const double e20 = (((60.0 * on) * (1.0 - on)) * (1.0 - 2.0 * on)) / k->rise_u2;
     const double e21 = (((60.0 * by) * (1.0 - by)) * (1.0 - 2.0 * by)) / k->fall_u2;
-    const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m;
+    const double down = npmax(tip[b], tilt[b]), toes = k->half_m + k->toe_m * e00;
 
     clear[0][b] = (((((high[b] * flying[b]) * e00) * e01) - k->reach_m_s * late[b]) + (land[b] * flying[b]) * (1.0 - e01))
                   + flying[b] * (k->half_m * npmax(-sin(tip[b]), 0.0) + toes * npmax(sin(down), 0.0));
     clear[1][b] = (((((high[b] * flying[b]) * (e10 * e01 + e00 * e11)) * swung[b]) - k->reach_m_s * (double)(late[b] > 0.0))
                    - ((land[b] * flying[b]) * e11) * swung[b])
                   + ((flying[b] * ((-k->half_m) * (double)(tip[b] < 0.0) + toes * (double)(tip[b] > 0.0))) * cos(tip[b]))
-                    * tipping[b];
-    clear[2][b] = (((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
-                  - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]);
+                    * tipping[b]
+                  + (((flying[b] * k->toe_m) * e10) * swung[b]) * npmax(sin(down), 0.0);
+    clear[2][b] = ((((high[b] * flying[b]) * (e20 * e01 + e00 * e21)) * (swung[b] * swung[b]))
+                   - ((land[b] * flying[b]) * e21) * (swung[b] * swung[b]))
+                  + (((flying[b] * k->toe_m) * e20) * (swung[b] * swung[b])) * npmax(sin(down), 0.0);
   }
 }
 
@@ -469,17 +507,20 @@ void wbc_imp_lates(const wbc_imp_t *k, const double phi[2], double turns, double
 }
 
 void wbc_imp_goes(const wbc_imp_t *k, const double meet[2][2], const double flat[2][2], const double shod[2][3],
-                  const double v[3], const double u[2], const double turns[2], const double kp[2],
-                  const double kd[2], double acc[2][2])
+                  const double v[3], const double u[2], const double off[2], const double turns[2],
+                  const double kp[2], const double kd[2], double acc[2][2])
 {
   for (int b = 0; b < 2; b++)
   {
     const double to_go = npmax((((k->arrive_u - u[b]) * 2.0) * k->phi_w) / npmax(turns[b], k->tiny), k->soon_s);
+    /* and on over a swing's rise, a sole in the air that is no swing whole (stride.eased) */
+    const double on = npclip(u[b] / k->rise_u, 0.0, 1.0);
+    const double rise = (1.0 - off[b]) + off[b] * (((on * on) * on) * (10.0 + on * (6.0 * on - 15.0)));
 
     for (int j = 0; j < 2; j++)
     {
-      acc[b][j] = npmin(6.0 / (to_go * to_go), kp[j]) * (meet[b][j] - flat[b][j])
-                  - npmin(4.0 / to_go, kd[j]) * (shod[b][j] - v[j]);
+      acc[b][j] = rise * (npmin(6.0 / (to_go * to_go), kp[j]) * (meet[b][j] - flat[b][j])
+                          - npmin(4.0 / to_go, kd[j]) * (shod[b][j] - v[j]));
     }
   }
 }

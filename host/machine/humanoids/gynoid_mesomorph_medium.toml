@@ -340,7 +340,7 @@ toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01, 0.02]}
 # per s^2 as its inverse, a force as the mass, an angle or a share as it is -, nothing of them tuned to it.
 [gait]
 leg_m = 0.77
-mass_kg = 30.842862262971106
+mass_kg = 31.382862262971106
 
 # Her modes' units and her limbs' rest (machine.law.modal).
 [gait.modes]

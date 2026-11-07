@@ -100,7 +100,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
 /** machine.law.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  double *stepping, double *way,
+                  const double stood[2], double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2]);
 
@@ -122,8 +122,8 @@ void   wbc_imp_folds(const wbc_imp_t *k, const double off[2], const double loads
                      double shorter[2]);
 void   wbc_imp_lates(const wbc_imp_t *k, const double phi[2], double turns, double stepping, double late[2]);
 void   wbc_imp_goes(const wbc_imp_t *k, const double meet[2][2], const double flat[2][2], const double shod[2][3],
-                    const double v[3], const double u[2], const double turns[2], const double kp[2],
-                    const double kd[2], double acc[2][2]);
+                    const double v[3], const double u[2], const double off[2], const double turns[2],
+                    const double kp[2], const double kd[2], double acc[2][2]);
 
 /** machine.law.stride.pitched, of each sole's floor. */
 void wbc_imp_pitched(const wbc_imp_t *k, const double ground[2], double pitched[2]);
@@ -134,7 +134,15 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
                    const double hips[2], const double floors[2], double leg, const double shorter[2],
                    const double off[2], const double tip[2], const double stance[2], double stepping,
                    const double was[2], double dt, const double ground[2], double rocked[2], double flatten[2],
-                   double edge[2], double rounds[2][3]);
+                   double edge[2], double rounds[2][3], double reach_h[2]);
+/** machine.law.stride.vaults: each standing leg's hip's acceleration up, m/s^2: over a flat sole the arc about
+    the ankle at the length the axial spring asks (`pressed`); its heel asked up (`heeled`), the hip held at the
+    height the heel rises for (`reach_h`, heels'), on that spring (`kp`, `kd`). `leg` hip from ankle, `len`,
+    `lrate`; `high` the hips over the floor. */
+void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
+                    const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
+                    double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
+                    const double heeled[2], const double striding[2], double kp, double kd, double risen[2]);
 
 /** machine.law.stride.clears: a swinging sole's middle over the floor, its rate, its acceleration. */
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],

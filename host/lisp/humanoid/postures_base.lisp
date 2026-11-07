@@ -86,7 +86,7 @@
 (defbehavior init_walk
   (phase init (use stride_spring)
     (duration 700ms) (blend_duration 350ms)
-    (latent_targets (mode_axial_compression 0.065) (mode_pitch_attitude 0.02))
+    (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.02))
     (impedance (stiffness mode_axial_compression 3200))
     (cpg_config
       (enable true) (frequency 0.92Hz)
@@ -97,23 +97,24 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 
-;; her march, the jog's slot: a power walk's cadence on her walk's step, her pelvis turned twice a
-;; walk's (9 deg, a power walk's 8-12) for its length: 1.35 m/s; turned as her walk's, 1.65 of her
-;; weight landing for 1.55 and more of the stack's shrinks; at 1.35 Hz, 1.40 m/s and twice those
+;; her march, the jog's slot: a brisk walk at 1.1 Hz on her walk's step, her drive 1.2 for 1.16 m/s,
+;; her pelvis turned 0.6 (7 deg): the swing's spring whole from its first pass swung her legs at
+;; 130-170 N m at 1.3 Hz (her hip's clamp 108) and eased on over its rise it landed them under her
+;; centre there; at 1.1 Hz with it eased her hip passes its clamp 0 times for 1.16 m/s (1.37 at 1.3 Hz)
 (defbehavior jog (extends jog)
   (phase apa
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 1.3Hz)
-      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.85)
+      (frequency 1.1Hz)
+      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 1.2)
       (amplitude mode_limb_lift 1.04) (amplitude mode_foot_rock 0.60)
-      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.8)
+      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.6)
       (amplitude mode_arm_swing 0.90)))
   (phase run
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 1.3Hz)
-      (amplitude mode_sagittal_drive 0.85) (amplitude mode_limb_lift 1.06)
+      (frequency 1.1Hz)
+      (amplitude mode_sagittal_drive 1.2) (amplitude mode_limb_lift 1.06)
       (amplitude mode_foot_rock 0.64) (amplitude mode_pelvis_list 0.36)
-      (amplitude mode_pelvis_turn 0.8) (amplitude mode_arm_swing 0.95))))
+      (amplitude mode_pelvis_turn 0.6) (amplitude mode_arm_swing 0.95))))
 

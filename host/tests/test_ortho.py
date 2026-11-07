@@ -125,7 +125,7 @@ def test_the_core_and_the_renderer_branch_nowhere(report):
     """latent.py, impedance.py, swing.py, stride.py, treads.py, poise.py, fours.py, groundwork.py, substrate.py, crawl.py, bedside.py, modal.py, touch.py, motion.py and grip.py: branchless AST verification."""
     branches = (ast.If, ast.IfExp, ast.While, ast.Match, ast.Try, ast.BoolOp, ast.ClassDef, ast.Lambda, ast.With)
     found = {}
-    pure = ('law/latent', 'law/impedance', 'law/swing', 'law/stride', 'law/treads', 'law/poise', 'law/support', 'moves/fours',
+    pure = ('law/latent', 'law/impedance', 'law/swing', 'law/stride', 'law/treads', 'law/vault', 'law/poise', 'law/support', 'moves/fours',
             'world/groundwork', 'world/substrate', 'moves/crawl', 'moves/bedside')
     inner = ('senses/touch', 'law/motion', 'senses/grip')
     for name in pure + ('law/modal',) + inner:
