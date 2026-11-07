@@ -310,14 +310,14 @@ def laid(g):
     g['tick'] = tick.laid(g, HOP_K, se2.WEP_S, se2.WEP_FILL)
 
 
-def drives(g, dt, step=None):
+def drives(g, dt, step):
     """Each driven joint's setpoint (`g['ref_q']`), feed and clamp (`g['cmd']`) this pass, its
     observer stepped on its motor's encoder - her surety as she tilts or slips, a hop, which WEP
-    limit is hers - in one C call (`g['tick']`, `tools.cores.tick`) or `step`'s (its address and call on the tick's
-    arguments: her pass's, `tools.cores.beat`, her law's joints told her boards after it, her felt before it where it
-    is both), how far she rests limp told it (`se2.limp`); `drives_twin` its python."""
-    at, tick, t, vec = g['tick']
-    at, tick = step or (at, tick)
+    limit is hers - in one C call, `step`'s (its address and call on the tick's arguments: `g['tick'][:2]` the tick
+    alone, `tools.cores.tick`; her pass's, `tools.cores.beat`, her law's joints told her boards after it, her felt
+    before it where it is both), how far she rests limp told it (`se2.limp`); `drives_twin` its python."""
+    _at, _tick, t, vec = g['tick']
+    at, tick = step
     t.surety, t.left = g['surety'], g['left']
     tick(at, dt, g['t'], g['wo'], se2.limp(g))
     s_ax, s_lat, d_ax, d_lat, g['surety_probe'] = vec.tolist()

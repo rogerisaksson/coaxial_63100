@@ -1,7 +1,7 @@
 """Her drives' pass whole in C (wbc_pass_tick): her surety, the step, its clamps, her WEP in one call.
 
     g['tick'] = tick.laid(g, hop_k, wep_s, wep_fill)    # on her law's laid g: its drives and surety field
-    motion.drives(g, dt)                                # a pass, her rest told it (`se2.limp`)
+    motion.drives(g, dt, g['tick'][:2])                 # a pass, her rest told it (`se2.limp`)
 
 `machine.law.motion.drives_twin`'s arithmetic, Python's floats and numpy's arrays operation for operation (test_tick):
 its python was 32 us a 1 kHz pass, 24 of them around its two C calls.

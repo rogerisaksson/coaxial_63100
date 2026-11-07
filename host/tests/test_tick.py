@@ -68,7 +68,7 @@ def test_her_drives_pass_in_c_as_in_python(report, _c):
     from tools.sim import told
     tally, real = {'n': 0, 'passes': 0, 'apart': 0, 'limp': 0, 'held': 0, 'felt': 0}, motion.drives
 
-    def beside(g, dt, step=None):
+    def beside(g, dt, step):
         tally['n'] += 1
         if tally['n'] % STRIDE:
             return real(g, dt, step)

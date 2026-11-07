@@ -51,7 +51,7 @@ def _harnessed(s):
                                  'ask': copied(g.get('ask') or {}), 'got': copied(g.get('got') or {})}))
         return out
 
-    def drives(g, dt, step=None):
+    def drives(g, dt, step):
         out = was[motion, 'drives'](g, dt, step)
         got['felt'].append((t(), g['sense'].copy()))      # her felt this pass, in C before her drives' tick
         got['drives'].append((t(), {k: v.copy() for k, v in g['cmd'].items()}))
