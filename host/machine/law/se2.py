@@ -113,9 +113,14 @@ def _dropped(g):
 def doing(g):
     """What she is doing: the name of her table's row that last came by her law's last pass, 'rest'
     with none. Read at the world's own passes between, a row her law holds came and went every
-    pass, 596 flips in a stop."""
-    come = [(w, n) for w, n in g['labels'] if w <= g.get('t_law', g['t']) + 1e-9]
-    return max(come)[1] if come else 'rest'
+    pass, 596 flips in a stop. Kept while her labels are the same list and her law's time the same (`g['_doing']`):
+    each writer of her labels lays a new list."""
+    labels, now = g['labels'], g.get('t_law', g['t'])
+    kept = g.get('_doing')
+    if kept is None or kept[0] is not labels or kept[1] != now:
+        come = [(w, n) for w, n in labels if w <= now + 1e-9]
+        kept = g['_doing'] = (labels, now, max(come)[1] if come else 'rest')
+    return kept[2]
 
 
 @functools.cache
