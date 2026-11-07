@@ -134,10 +134,17 @@ def _impedance_take(s, lay, row):
     row[:] = s['g']['a']
 
 
-def _copied(d):
-    """`d` with its arrays copied: this pass's, as the next leaves it."""
+def _copied(v):
+    """`v` with its arrays copied, in its tuples, lists and dicts too: this pass's, as the next leaves it - her
+    turns are a compiled part's block's, written anew passes on (`bodied`)."""
     import numpy as np
-    return {k: v.copy() if isinstance(v, np.ndarray) else v for k, v in d.items()}
+    if isinstance(v, np.ndarray):
+        return v.copy()
+    if isinstance(v, dict):
+        return {k: _copied(x) for k, x in v.items()}
+    if isinstance(v, (tuple, list)):
+        return type(v)(_copied(x) for x in v)
+    return v
 
 
 def _wrench_take(s, lay, row):

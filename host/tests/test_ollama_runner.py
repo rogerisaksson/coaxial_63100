@@ -438,7 +438,7 @@ def test_smart_selection(report):
                table.LEAP,
                table.ORTHO, table.POSTURES, table.FOURS, table.GROUNDWORK, table.SUBSTRATE, table.CRAWL, table.BEDSIDE, table.VAULT, table.BALLISTIC, table.DSP, table.KERNEL, table.SHIELD, table.WAYFINDER, table.SAYS, table.INTROSPECT,
                table.GATE, table.TUNE, table.FLOOR, table.SITUATION, table.BUSES, table.WRENCH, table.SYSID, table.SYSID_LIVE, table.WEAR, table.ERRANDS, table.CYCLIC, table.QUAD, table.QUAD_PULL,
-               table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.AERO_CORE, table.MPPI_CORE, table.STREAMS,
+               table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.QUICK, table.TICK, table.BORNE, table.REGISTRY, table.AERO_CORE, table.MPPI_CORE, table.STREAMS,
                table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),
                             (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR, table.PORTED,

@@ -11,6 +11,7 @@ its last part ran: the same pass here and apart, so the same bits.
     if worn.put(y, tau): worn.shut(at)      # a pass's edge array and drives' torques; a window whole at `at`
     told = worn.due(at, g)                  # a part a pass; at its landing her load laid: `wear.told`, else None
 """
+import os
 import queue
 import sys
 
@@ -42,9 +43,11 @@ class Ring:
         import numpy as np
         self.steps, self.cap, self.block, self.name = steps, 2 * (steps + 1), None, None
         if shared or name is not None:
-            from multiprocessing import shared_memory
+            from multiprocessing import resource_tracker, shared_memory
             kept = {'track': False} if name is not None and sys.version_info >= (3, 13) else {}
             self.block = shared_memory.SharedMemory(name=name, create=name is None, size=self.cap * WIDTH * 8, **kept)
+            if name is not None and sys.version_info < (3, 13) and os.name != 'nt':
+                resource_tracker.unregister(self.block._name, 'shared_memory')   # else its process's tracker unlinks it
             self.name, self.made = self.block.name, name is None
             self.rows = np.ndarray((self.cap, WIDTH), dtype=np.float64, buffer=self.block.buf)
         else:

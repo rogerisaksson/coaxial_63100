@@ -90,21 +90,33 @@ def _heard(out, answers):
         answers.put(None)
 
 
+def _said(out, answer):
+    """`answer` pickled onto `out`: whether it was heard. Its asker gone - her worker ended with an ask in flight,
+    its pipe's reader closed - the write is refused: what is left unsaid goes to the null device, not into a
+    traceback at this process's end."""
+    try:
+        pickle.dump(answer, out, protocol=pickle.HIGHEST_PROTOCOL)
+        out.flush()
+        return True
+    except OSError:
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, out.fileno())
+        os.close(null)
+        return False
+
+
 def serve(answer, ready=SILENT):
     """This process a module served: `ready` said first where given, then each ask off stdin answered on stdout,
-    pickled; None, or stdin's end, ends it. Its prints go to stderr: its stdout is its answers'. Placed a core
-    apart from her others (`placed`)."""
+    pickled; None, stdin's end or its asker gone (`_said`) ends it. Its prints go to stderr: its stdout is its
+    answers'. Placed a core apart from her others (`placed`)."""
     placed.placed()
     out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
-    if ready is not SILENT:
-        pickle.dump(ready, out, protocol=pickle.HIGHEST_PROTOCOL)
-        out.flush()
+    if ready is not SILENT and not _said(out, ready):
+        return
     while True:
         try:
             ask = pickle.load(inp)
         except EOFError:
             return
-        if ask is None:
+        if ask is None or not _said(out, answer(ask)):
             return
-        pickle.dump(answer(ask), out, protocol=pickle.HIGHEST_PROTOCOL)
-        out.flush()

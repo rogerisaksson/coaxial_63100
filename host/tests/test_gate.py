@@ -27,7 +27,9 @@ def _harnessed(s):
     from machine.process import sprung
     from machine.identify import wear
     got = {k: [] for k in ('felt', 'read', 'law', 'drives', 'world', 'things', 'wear', 'heard')}
-    copied = lambda d: {k: v.copy() if isinstance(v, np.ndarray) else v for k, v in d.items()}
+    def copied(v):   # this pass's: arrays copied in its tuples, lists and dicts too (her turns are a compiled block's)
+        return (v.copy() if isinstance(v, np.ndarray) else {k: copied(x) for k, x in v.items()} if isinstance(v, dict)
+                else type(v)(copied(x) for x in v) if isinstance(v, (tuple, list)) else v)
     was = {(edge, 'felt'): edge.felt, (edge, 'read'): edge.read, (motion, 'control'): motion.control,
            (motion, 'drives'): motion.drives, (sprung, 'looked'): sprung.looked, (wear, 'told'): wear.told,
            (physics.World, 'advance'): physics.World.advance}

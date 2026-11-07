@@ -323,7 +323,8 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
         Pg[i] = -MM[i];
       }
     }
-    if (m1)
+    /* m1 a count another unit tells: > 0 bounds the memset below, != 0 let GCC 13 read it negative there */
+    if (m1 > 0)
     {
       wbc_matmul(l, VIEW(RP, np_, 1), VIEW(Pg, ng, 1), R1x, nd, 1, m1, np_, nd);
       for (int i = 0; i < m1; i++)
