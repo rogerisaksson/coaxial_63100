@@ -237,9 +237,32 @@ static PyObject *call(PyObject *self, PyObject *const *args, Py_ssize_t n)
   return PyLong_FromLong(r);
 }
 
+/* pointed(a, type_num): `a`'s first element's address where it is an ndarray in C's order, native, of that type
+ * number - a laid struct's pointer, `tools.cores.wbc.pointer`'s check and read at once -; else None. */
+static PyObject *pointed(PyObject *self, PyObject *const *args, Py_ssize_t n)
+{
+  (void)self;
+  if (n != 2)
+  {
+    PyErr_SetString(PyExc_TypeError, "pointed(a, type_num)");
+    return NULL;
+  }
+  const long num = PyLong_AsLong(args[1]);
+  if (num == -1 && PyErr_Occurred())
+    return NULL;
+  if (!PyArray_Check(args[0]))
+    Py_RETURN_NONE;
+  PyArrayObject *a = (PyArrayObject *)args[0];
+  if (!PyArray_IS_C_CONTIGUOUS(a) || !PyArray_ISNOTSWAPPED(a) || PyArray_DESCR(a)->type_num != num)
+    Py_RETURN_NONE;
+  return PyLong_FromVoidPtr(PyArray_DATA(a));
+}
+
 static PyMethodDef methods[] = {
   {"laid", (PyCFunction)(void (*)(void))laid, METH_FASTCALL, "laid(numpy.ndarray, its float64): what a leaf is."},
   {"data", data, METH_O, "data(a): an ndarray's first element's address."},
+  {"pointed", (PyCFunction)(void (*)(void))pointed, METH_FASTCALL,
+   "pointed(a, type_num): its address where it is a native C-ordered ndarray of that type, else None."},
   {"context", (PyCFunction)(void (*)(void))context, METH_FASTCALL,
    "context(rows, n, keys, words, scalars, own_at): a walk laid once."},
   {"walk", (PyCFunction)(void (*)(void))walk, METH_FASTCALL,

@@ -80,6 +80,36 @@ def _loaded():
         return None
 
 
+#: The descriptors a struct's pointer lays arrays of (`pointer`).
+_DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
+
+
+def _pointer(a, dtype: type = np.float64):
+    """`a`'s address for a struct's pointer, `a` contiguous and of `dtype` - a copy would be pointed at and written
+    in vain -, checked here: why it is not said."""
+    want = _DTYPES.get(dtype) or np.dtype(dtype)
+    if not a.flags.c_contiguous or (a.dtype is not want and a.dtype != want):
+        raise ValueError('a laid array is contiguous %s, not %s %s' % (want.name, a.dtype.name,
+                                                                        'contiguous' if a.flags.c_contiguous
+                                                                        else 'strided'))
+    return addressing()(a)
+
+
+def pointing():
+    """`tools.cores.wbc.pointer`: an array's address for a struct's pointer, checked and read in one C call where the
+    extension is built (`pointed`; 12 checks a pass in Python were 10 us of it), Python's check (`_pointer`) else
+    and where it is not as asked - to say why."""
+    q = module()
+    if q is None:
+        return _pointer
+    pointed = q.pointed
+
+    def pointer(a, dtype: type = np.float64):
+        at = pointed(a, (_DTYPES.get(dtype) or np.dtype(dtype)).num)
+        return _pointer(a, dtype) if at is None else at
+    return pointer
+
+
 def addressing():
     """An ndarray's first element's address: the extension's read, else `tools.cores.arrays.address`."""
     q = module()

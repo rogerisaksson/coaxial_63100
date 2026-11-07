@@ -126,9 +126,6 @@ class Heat(ctypes.Structure):
                 ('worst', _vp), ('trips', _vp), ('gates', _vp), ('shorted', _vp)]
 
 
-_DTYPES = {np.float64: np.dtype(np.float64), np.int32: np.dtype(np.int32), np.bool_: np.dtype(np.bool_)}
-
-
 def plain(a):
     """`a`, a ctypes field's numpy view, in numpy's own dtype: as_array's is equal but another
     instance, and numpy copies an array of it where one of its own is asked."""
@@ -141,15 +138,8 @@ def plain(a):
 address = quick.addressing()
 
 
-def pointer(a, dtype: type = np.float64):
-    """`a`'s address for a struct's pointer, `a` contiguous and of `dtype` - a copy would be
-    pointed at and written in vain."""
-    want = _DTYPES.get(dtype) or np.dtype(dtype)
-    if not a.flags.c_contiguous or (a.dtype is not want and a.dtype != want):
-        raise ValueError('a laid array is contiguous %s, not %s %s' % (want.name, a.dtype.name,
-                                                                        'contiguous' if a.flags.c_contiguous
-                                                                        else 'strided'))
-    return address(a)
+#: `a`'s address for a struct's pointer, `a` contiguous and of `dtype` (`quick.pointing`: checked and read at once).
+pointer = quick.pointing()
 
 
 def ask_of(ask, a=None):
