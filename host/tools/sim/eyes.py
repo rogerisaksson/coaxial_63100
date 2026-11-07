@@ -6,6 +6,8 @@ against the props'.
 
     python -X utf8 tools/sim/eyes.py [--looks 25]       # a look round standing, her things against the props
     python -X utf8 tools/sim/eyes.py --camera           # her fake camera's frames (`sight.Eyes.shot`), not her stereo's
+    python -X utf8 tools/sim/eyes.py --at 0 0 --at 1.5 0.3 --column 0.55 -0.8   # round from where she walks
+    python -X utf8 tools/sim/eyes.py --objects --near 1.5 0.8                    # her segmenter's objects in her things
     python -X utf8 tools/sim/eyes.py --errand           # her loop: a turn in place, then told to sit, then to lie
 """
 import argparse
@@ -29,9 +31,9 @@ def _room():
     return body, world
 
 
-def _stood(world, heading):
+def _stood(world, heading, at=(0.0, 0.0)):
     from machine.body import figure
-    world.reset(figure.stand(), where=(0.0, figure.standing(), 0.0),
+    world.reset(figure.stand(), where=(at[0], figure.standing(), at[1]),
                 turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
 
@@ -54,6 +56,34 @@ def visible(props, eye, floor_m, ceil_m, far_m):
         if c[1] + h[1] > floor_m and c[1] - h[1] < ceil_m and np.linalg.norm(near - eye) <= far_m:
             out.append((kind, c, h, R))
     return out
+
+
+def column(chart, x, z, r=0.2):
+    """Her map's evidence over the floor within `r` m of (x, z), a layer a row up to a metre: the points in its
+    voxels, the looks that told them and that saw through them, how many are occupied - where a thing is lost."""
+    from machine.eyes import voxels
+    cx = voxels.X_M[0] + (np.arange(chart.nx) + 0.5) * chart.voxel
+    cz = voxels.Z_M[0] + (np.arange(chart.nz) + 0.5) * chart.voxel
+    disc, occ = np.hypot(cx[:, None] - x, cz[None, :] - z) <= r, chart.occupied()
+    for j in range(chart.ny):
+        lo = voxels.FLOOR_M + j * chart.voxel
+        if lo < 1.0:
+            print('  %.2f-%.2f m: points %5d, told %3d, free %3d, occupied %d of %d' % (
+                lo, lo + chart.voxel, chart.hits[:, j][disc].sum(), chart.told[:, j][disc].sum(),
+                chart.free[:, j][disc].sum(), occ[:, j][disc].sum(), disc.sum()))
+
+
+def near(things, x, z, r=0.6):
+    """Her things whose footprint lies within `r` m of (x, z): each one's kind, class (`classes.named`), box, top and
+    bottom, whether it is seen clear over, seats her, has a back (`affordance`)."""
+    from machine.eyes import classes
+    from machine.way import affordance
+    names = classes.named(things)
+    for t, name in zip(things, names):
+        if affordance.distance(t, (x, z)) <= r:
+            print('  %-7s %-9s c(%5.2f %4.2f %5.2f) half(%.2f %.2f %.2f) top %.2f bottom %.2f clear %.0f sits %d backed %d' % (
+                t[0], name, *t[1], *t[2], affordance.top(t), affordance.bottom(t), float(t[5]) if len(t) > 5 else 1.0,
+                affordance.sits(t, things), affordance.backed(t, things)))
 
 
 def matched(props, told):
@@ -138,7 +168,17 @@ def main(argv=None):
     ap.add_argument('--looks', type=int, default=25)
     ap.add_argument('--errand', action='store_true')
     ap.add_argument('--camera', action='store_true')
+    ap.add_argument('--column', type=float, nargs=2, metavar=('X', 'Z'), help="her map's evidence over (x, z)")
+    ap.add_argument('--objects', action='store_true', help="her looks' objects boxed by her segmenter (`instances`)")
+    ap.add_argument('--near', type=float, nargs=2, action='append', metavar=('X', 'Z'),
+                    help='her things round (x, z), her map\'s and her buses\'')
+    ap.add_argument('--at', type=float, nargs=2, action='append', metavar=('X', 'Z'),
+                    help='a place she looks round from, where she walks (the room\'s middle without)')
     a = ap.parse_args(argv)
+    if a.objects:
+        import os
+        from machine.eyes import instances
+        os.environ[instances.SEGMENT] = '1'
     if a.errand:
         errand()
         return 0
@@ -149,8 +189,8 @@ def main(argv=None):
         sights, keep, slots = sight.Eyes(world), sight.Keep(), registry.laid()
         hb = world.model.body('head').id
         took, eyes = [], []
-        for k in range(a.looks):
-            _stood(world, math.tau * k / a.looks)
+        for k in range(a.looks * len(a.at or [None])):
+            _stood(world, math.tau * k / a.looks, (a.at or [(0.0, 0.0)])[k // a.looks])
             head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
             t0 = time.perf_counter()
             keep.took(*(sights.shot if a.camera else sights.stereo)(world, head))
@@ -158,8 +198,15 @@ def main(argv=None):
             eyes.append(sight.eye_pose(head)[0])
             registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)
         props = visible(world.props(), np.mean(eyes, axis=0), voxels.FLOOR_M, voxels.CEIL_M, voxels.FAR_M)
+        if a.column:
+            print('her eyes %.2f m up; her map over (%.2f, %.2f):' % (float(np.mean(eyes, axis=0)[1]), *a.column))
+            column(keep.map, *a.column)
         told = sight.told(keep)
         boxes = registry.boxes(slots)
+        for x, z in a.near or ():
+            for label, things in (('her map', told), ('her buses', boxes)):
+                print('%s round (%.2f, %.2f):' % (label, x, z))
+                near(things, x, z)
         print('%d looks, %.1f ms each; %d props her eyes could take in, %d things told, %d slots taken by her buses (%d live)'
               % (a.looks, 1e3 * float(np.median(took)), len(props), len(told), len(boxes),
                  int((slots['rows']['on'] > 0.0).sum())))

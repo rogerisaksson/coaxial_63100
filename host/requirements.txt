@@ -38,6 +38,8 @@ rich>=13.0
 pandas>=2.0
 openpyxl>=3.1       # a sequence from .xlsx (coaxial.control.sequencer)
 matplotlib>=3.7
+pillow>=10.0        # a frame as a PNG (machine.rig.ansi): Pillow's raster, the console font's glyphs by
+fonttools>=4.40     # fontTools - both arrived with matplotlib and are imported where called, so written
 
 # Only for tools/dev/cover.py: the line coverage of the hand-written code, the
 # Python followed into every suite's process (`patch = subprocess`, 7.10).
@@ -54,6 +56,13 @@ pytest>=8.0
 nbconvert>=7.0
 ipykernel>=6.0
 ipywidgets>=8.0      # the controller panel: a dropdown per port
+nbformat>=5.9        # tools/notebooks/make_notebooks.py runs each notebook through nbclient on a kernel
+nbclient>=0.9        # jupyter_client names; they arrived with nbconvert and ipykernel, and are imported
+jupyter_client>=8.0  # there, so written
+
+# Only for tools/dev/focus.py: the machine's physical cores, which the relay's parallel sessions are
+# sized by (os.cpu_count() counts threads); without it Windows' own count.
+psutil>=5.9
 
 # Only for the 3D pages' raster on a GPU, any backend (Vulkan, D3D12, Metal):
 # py3-none wheels for CPython 3.11 on. Imported where it is called: without it, or
@@ -66,3 +75,6 @@ wgpu>=0.32
 # margins are the engine's - on 3.16.0 CI felled a hole and left a tree still moving that
 # 3.14.0 here held at every wobble.
 mujoco==3.14.0
+
+# Her eyes on a CUDA card - CuPy, torch, TensorRT - are requirements-gpu.txt: gigabytes a bench PC
+# or CI never uses. `pip install -r host/requirements-gpu.txt` after this file, where a card is.

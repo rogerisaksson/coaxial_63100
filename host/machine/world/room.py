@@ -14,6 +14,7 @@ step up. Inside, along the right wall, a stair up to a loft. The door hangs on a
 and swings out as she pushes it; the lamp's switch sits on the wall by it.
 """
 import math
+import re
 
 from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT, SEAT_GRIP
 from machine.world.floor import CHAIR_LOW_H, FOAM, RISE_M, RUN_M, STEPS, core
@@ -62,6 +63,11 @@ CHAIR_LOW_AT = (-(WIDE - THICK - 2.0 * BACK[2] - CHAIR_SEAT[2]), 0.0)
 BED_AT, BED, BED_FRAME_H, BED_PROUD = (-1.8, 1.8), (0.585, 0.22, 1.1), 0.10, 0.02
 #: The table: its middle, the top's half sizes and height.
 TABLE_AT, TOP, TOP_H = (1.5, -0.8), (0.6, 0.015, 0.35), 0.74
+#: The stool: round, 340 mm across (the text's stool, `enforce-backless-stool-rim-zcbf`), no back, at the table's short
+#: side to the room's middle, its rim STOOL_GAP off the table's edge; its seat the chairs' at her popliteal height
+#: (`floor.CHAIR_LOW_H`), sat on as the low chair is, no mount on her arms; four round legs the chairs' in from its rim.
+STOOL_R, STOOL_GAP, STOOL_LEG = 0.17, 0.18, 0.015
+STOOL_AT = (TABLE_AT[0] - TOP[0] - STOOL_GAP - STOOL_R, TABLE_AT[1])
 #: The lamp: its foot (x, z), the post's half height, the shade's half sizes; its switch on the
 #: left wall, (y, z), its half sizes.
 LAMP_AT, POST_H, SHADE = (-2.5, -1.0), 0.75, (0.15, 0.12, 0.15)
@@ -73,6 +79,21 @@ SWITCH_S = 0.6
 def _box(name, at, half, contacts, extra=''):
     return '<body name="%s" pos="%g %g %g"><geom name="%s" type="box" size="%g %g %g"%s%s/></body>' % (
         (name,) + tuple(at) + (name,) + tuple(half) + (contacts, extra))
+
+
+def _round(name, at, radius, half, contacts, extra=''):
+    """An upright cylinder's body: its axis along y, `half` its half height."""
+    return '<body name="%s" pos="%g %g %g"><geom name="%s" type="cylinder" size="%g %g" zaxis="0 1 0"%s%s/></body>' % (
+        (name,) + tuple(at) + (name, radius, half, contacts, extra))
+
+
+def _stool(contacts):
+    """The stool's round seat, its top at her popliteal height, the chairs' grip on it, on four round legs."""
+    leg, reach = (CHAIR_LOW_H - 2.0 * CHAIR_SEAT[1]) / 2.0, (STOOL_R - CHAIR_LEG_IN) / math.sqrt(2.0)
+    return [_round('stool_seat', (STOOL_AT[0], CHAIR_LOW_H - CHAIR_SEAT[1], STOOL_AT[1]), STOOL_R, CHAIR_SEAT[1],
+                   contacts, SEAT_GRIP)] + [
+        _round('stool_leg_%d' % k, (STOOL_AT[0] + dx * reach, leg, STOOL_AT[1] + dz * reach), STOOL_LEG, leg, contacts)
+        for k, (dx, dz) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1)))]
 
 
 def roof_y(x):
@@ -184,9 +205,10 @@ def furnish(contacts, textured=False):
             out.append(_box('table_leg_%d_%d' % (dx > 0, dz > 0),
                             (TABLE_AT[0] + dx * 0.55, TOP_H / 2.0, TABLE_AT[1] + dz * 0.3),
                             (0.02, TOP_H / 2.0, 0.02), contacts))
+    out += _stool(contacts)
     if textured:
-        out = [s.replace('type="box"', 'type="box" material="%s"' % next(
-            (k for head, k in KINDS.items() if s.split('name="')[1].startswith(head)), 'wood'))
+        out = [re.sub(r'type="(box|cylinder)"', r'type="\1" material="%s"' % next(
+            (k for head, k in KINDS.items() if s.split('name="')[1].startswith(head)), 'wood'), s)
                for s in out]
     return out
 
@@ -195,7 +217,7 @@ def furnish(contacts, textured=False):
 KINDS = {'timber': 'timber', 'mullion': 'timber', 'pane': 'glass', 'lintel': 'glass', 'door': 'door',
          'roof': 'roof', 'deck': 'wood', 'rail': 'rail', 'stone': 'stone', 'stair': 'wood', 'loft': 'wood',
          'seat': 'wood', 'back': 'wood', 'chair': 'wood', 'bed': 'bed', 'table': 'wood', 'post': 'lamp',
-         'shade': 'lamp', 'switch': 'switch'}
+         'shade': 'lamp', 'switch': 'switch', 'stool': 'wood'}
 
 
 def props(world):
@@ -220,7 +242,7 @@ def _told_props(world):
     told = getattr(world, '_room_told', None)
     if told is None or told[0] is not laid:
         runs, still = [], ([], [])
-        for g, kind, box in laid:
+        for g, kind, box, _round in laid:
             kinds = (kind, 'lit' if kind == 'lamp' else kind)
             if box:
                 still[0].append((kinds[0],) + box)
@@ -233,8 +255,8 @@ def _told_props(world):
 
 
 def _laid_props(world):
-    """(geom, kind, its box if it is still) of each lodge geom the page draws, in the model's order:
-    a box welded to the world laid once off the model's own kinematics, the door's read each call."""
+    """(geom, kind, its box if it is still, whether it is round) of each lodge geom the page draws, in the model's
+    order: a box welded to the world laid once off the model's own kinematics, the door's read each call."""
     laid = getattr(world, '_room_props', None)
     if laid is None:
         m, mj = world.model, world._mj
@@ -243,18 +265,32 @@ def _laid_props(world):
         laid = world._room_props = []
         for g in range(m.ngeom):
             kind, body = KINDS.get(m.geom(g).name.split('_')[0].rstrip('0123456789')), m.geom_bodyid[g]
-            box = _box_of(m, still, g) if m.body_weldid[body] == 0 else None
+            boxed = m.geom_type[g] == mj.mjtGeom.mjGEOM_BOX
+            box = _box_of(m, still, g, boxed) if m.body_weldid[body] == 0 else None
             if kind is not None and m.body_mocapid[body] < 0 and (box or m.body_weldid[body] != 0):
-                laid.append((g, kind, box))
+                laid.append((g, kind, box, not boxed))
     return laid
 
 
-def _box_of(m, d, g):
-    """(centre, half sizes, turn 3x3) of geom `g` posed on `d`, None below the page's floor."""
+def rounds(world):
+    """Whether each of `props`' boxes is a round geom's - the stool's -, in its order: the page draws it round."""
+    d = world.data
+    return [rnd for g, _kind, box, rnd in _laid_props(world) if box or _box_of(world.model, d, g) is not None]
+
+
+#: A box along the room's axes.
+UPRIGHT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+
+
+def _box_of(m, d, g, boxed=True):
+    """(centre, half sizes, turn 3x3) of geom `g` posed on `d` - a round one's (not `boxed`) the box round it along
+    the room's axes, MuJoCo's own (`geom_aabb`) turned -, None below the page's floor."""
     if d.geom_xpos[g][1] < -0.5:
         return None
-    return (tuple(d.geom_xpos[g].tolist()), tuple(m.geom_size[g].tolist()),
-            tuple(map(tuple, d.geom_xmat[g].reshape(3, 3).tolist())))
+    turn = d.geom_xmat[g].reshape(3, 3)
+    if not boxed:
+        return tuple(d.geom_xpos[g].tolist()), tuple((abs(turn) @ m.geom_aabb[g][3:]).tolist()), UPRIGHT
+    return tuple(d.geom_xpos[g].tolist()), tuple(m.geom_size[g].tolist()), tuple(map(tuple, turn.tolist()))
 
 
 def touched(world, dt):

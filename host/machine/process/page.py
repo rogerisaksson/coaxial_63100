@@ -72,6 +72,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
                 'stance': tuple(g['a'][modal.STANCE].tolist()),
                 'shoulder': tuple(min(max(float(v), -math.pi), math.pi) for v in g['rng'][shoulder])}
     buses = {b.name: b.stats() for b in (getattr(world, 'limb_buses', None) or ())}
+    props = world.props()
     return {'t': g['t'], 'angles': dict(angles, **world.loose()), 'set': angles,
             'torque': dict(zip(JOINTS, torque.tolist())), 'power': dict(zip(JOINTS, power.tolist())),
             'temp': dict(zip(JOINTS, g['temp'].tolist())), 'peak': dict(zip(JOINTS, world.peak.tolist())),
@@ -81,7 +82,7 @@ def state(g, torque, power, watts, ratio, fallen_at, says=(), refused=None, head
             'speed': float(vxz[0] * math.sin(hd) + vxz[1] * math.cos(hd)), 'velocity': vxz,
             'phase': float(g['st'][latent.THETA]) / math.tau, 'cadence': float(out[latent.TURNS]) / math.tau,
             'stage': staged(g, fallen_at),
-            'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': world.props(), 'dents': world.dents(),
+            'fallen': fallen_at is not None, 'loads': tuple(g['loads']), 'props': props, 'rounds': world.rounds(props), 'dents': world.dents(),
             'seen': g['keep'].view() if g['keep'] is not None else None, 'things': g['things'], **dict(zip(('named', 'groups', 'buildings'), named(g))),
             'doing': doing(g), 'entry': g.get('active_entry'),
             'recover': None if fallen_at is None else RECOVER_S - (g['t'] - fallen_at),

@@ -394,7 +394,7 @@ def _draw_viewport(state, now, width, height, terminal):
         zoom=state['zoom'], colour=terminal, travel=camera, lit=True,
         root=((x - camera[0], y, z - camera[1]), quat(*now['turn'])),
         labels=labels(now, state['called'], state['shown']), props=now.get('props'), dents=now.get('dents'),
-        mark=marked(state, now, time.monotonic()),
+        rounds=now.get('rounds'), mark=marked(state, now, time.monotonic()),
         legend=legend(state['shown'], width) if state['called'] != 'none' else None,
         dressed=state['skin'] == 'dressed', see=_seen(state), inset=inset, arrows=(now, state.get('pad')),
         horizon=horizon.segments(now, now.get('props') or (), state.get('horizon') or 'off') or None))

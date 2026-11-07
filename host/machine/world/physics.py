@@ -373,6 +373,11 @@ class World:
                         tuple(d.site_xpos[m.site('lace_right').id])))
         return out
 
+    def rounds(self, props):
+        """Whether each of `props` (`props()`') is round - the lodge's (`room.rounds`) -, the page drawing it so."""
+        lodge, laced = (room.rounds(self) if ROOM else []), int(bool(self.laced))
+        return [False] * (len(props) - len(lodge) - laced) + lodge + [False] * laced
+
     def lace(self):
         """Her left shoe's lace snagged on her right shoe: LACE_M of it between them, or as far
         apart as they are now."""

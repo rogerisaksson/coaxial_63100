@@ -1,10 +1,12 @@
 """Her world's props drawn as lines over her.
 
-A box each - a sill, a chair, a wall -, a lace from shoe to shoe, a bed's mattress a grid sagging
-where she presses it.
+A box each - a sill, a chair, a wall -, a round one a wire cylinder in its box - a stool -, a lace from shoe
+to shoe, a bed's mattress a grid sagging where she presses it.
 
-    layers = props.lines(props, m, cam, centre, travel, dents)   # [(dots, ink)] for `lit.braille`
+    layers = props.lines(props, m, cam, centre, travel, dents, rounds)   # [(dots, ink)] for `lit.braille`
 """
+import itertools
+
 from coaxial.graphics import callouts
 from coaxial.graphics.lit import project
 
@@ -22,6 +24,19 @@ _BOX_SIGNS = tuple((float(i), float(j), float(k)) for i in (-1, 1) for j in (-1,
 _BOX_EDGES = tuple((a, b) for a in range(8) for b in range(a + 1, 8) if bin(a ^ b).count('1') == 1)
 #: A mattress's top drawn GRID lines each way, its give spread SAG_M about each press: a foam's.
 GRID, SAG_M = 9, 0.12
+#: A round prop's two rims RIM points round, four sides between them.
+RIM = 16
+
+
+def _round(pos, half, turn, shift):
+    """(corners, edges) of the upright wire cylinder in a box: its rims at its top and bottom, four sides."""
+    from coaxial.model.blocks import numpy as np
+    a = np.linspace(0.0, 2.0 * np.pi, RIM, endpoint=False)
+    rim = np.stack([half[0] * np.cos(a), np.zeros(RIM), half[2] * np.sin(a)], axis=1)
+    local = np.vstack([rim - (0.0, half[1], 0.0), rim + (0.0, half[1], 0.0)])
+    corners = local @ np.asarray(turn, float).T + np.asarray(pos, float) - shift
+    return corners, ([(k, (k + 1) % RIM) for k in range(RIM)] + [(RIM + k, RIM + (k + 1) % RIM) for k in range(RIM)]
+                     + [(k, RIM + k) for k in range(0, RIM, RIM // 4)])
 
 
 def _sagged(pos, half, turn, dents, shift):
@@ -46,16 +61,20 @@ def _sagged(pos, half, turn, dents, shift):
     return corners, edges
 
 
-def lines(props, m, cam, centre, travel, dents=None):
-    """[(dots, ink)] of `props` (`floor.props`) seen by `cam`, a bed's top sagging over `dents`:
-    their edges in view gathered by ink, an ink's drawn in one call (`callouts.lines`)."""
+def lines(props, m, cam, centre, travel, dents=None, rounds=None):
+    """[(dots, ink)] of `props` (`floor.props`) seen by `cam`, a bed's top sagging over `dents`, each one
+    `rounds` says round a wire cylinder: their edges in view gathered by ink, an ink's drawn in one call
+    (`callouts.lines`)."""
     if not props:
         return []
     from coaxial.model.blocks import numpy as np
     signs, by_ink, shift = np.asarray(_BOX_SIGNS), {}, (travel[0], 0.0, travel[1])
-    for kind, *shape in props:
+    for (kind, *shape), round_ in zip(props, itertools.chain(rounds or (), itertools.repeat(False))):
         if kind == 'lace':
             corners, edges = np.array(shape, float) - shift, ((0, 1),)
+        elif round_:
+            pos, half, turn = shape
+            corners, edges = _round(pos, half, turn, np.asarray(shift))
         elif kind == 'bed' and min(shape[1][0], shape[1][2]) > 0.1:
             corners, edges = _sagged(shape[0], shape[1], shape[2], dents or (), np.asarray(shift))
         else:

@@ -19,7 +19,7 @@ import weakref
 
 from machine.eyes.stereo import H, W, _np, disparity
 from machine.eyes.voxels import CELL_M, X_M, Z_M
-from machine.eyes import voxels
+from machine.eyes import instances, voxels
 
 #: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's,
 #: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
@@ -220,16 +220,19 @@ class Keep:
     """The map she keeps (`voxels.Map` of LOOKS' colours) and her last look into it, kept for the page."""
 
     def __init__(self):
-        self.map, self.last = voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None
+        self.map, self.last, self.objects = voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None, None
 
     def forget(self):
         """Her map laid anew, the last look let go: the room changed under her."""
-        self.map, self.last = voxels.Map(self.map.means_of), None
+        self.map, self.last, self.objects = voxels.Map(self.map.means_of), None, None
 
     def took(self, seen, disp, kept):
-        """A look's frame (`Eyes.stereo`, `Eyes.shot`) into the map; the Look."""
+        """A look's frame (`Eyes.stereo`, `Eyes.shot`) into the map, its objects boxed (`instances`) where her
+        segmenter is; the Look."""
         xyz, rgb, rows, cols = points(seen, disp, kept)
         self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at), xyz, rgb)
+        seg = instances.segmenter()
+        self.objects = instances.boxes(seg(seen.left), self.last, self.map) if seg is not None else None
         return self.last
 
     def view(self):
@@ -407,8 +410,10 @@ def _pruned(cost, path):
 def told(keep):
     """[(kind, centre, half sizes, turn, id, clear)] of what her map tells (`voxels.Map.things`) as
     `world.props()` gives the room's boxes, each thing's id and whether the space over it is seen clear with
-    it: her registry's looks (`machine.eyes.registry`) from her eyes."""
-    return keep.map.things()[0]
+    it: her registry's looks (`machine.eyes.registry`) from her eyes - the last look's objects (`instances`) in place
+    of those of her map's they are, where her segmenter is."""
+    things = keep.map.things()[0]
+    return instances.merged(things, keep.objects, keep.map) if keep.objects else things
 
 
 def plan(blocked, at, to):
