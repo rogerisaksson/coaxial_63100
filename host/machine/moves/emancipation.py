@@ -26,8 +26,8 @@ from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
 from machine.law import latent, modal
 from machine.moves import leap
-from machine.moves.cascade import (_U, asked, LEG_JOINTS, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening, PLANTAR, reached,
-                                   released, SHED)
+from machine.moves.cascade import (_U, asked, HANG_RATE, LEG_JOINTS, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening,
+                                   PLANTAR, reached, released, SHED)
 from machine.stack.wbc import turn_error
 
 #: Her seat's manifolds facing up (`observer.UPRIGHT`): her rows, the segment their points lie on, the kernel's CoP box
@@ -203,7 +203,7 @@ def opened(g, s, ask, dt):
     posture's own - her chair's legs on her pelvis's height as sensed, her crouch's - a let-go leg pressed its foot
     down as she rose and lifted her 0.16 -> 0.26 m; yielding to all its sole bore, its hip wound to -200 deg; drawn to
     her text's knee, past where her sit had it, her released knees folded 146 -> 162 deg and her heels dragged her."""
-    high, ref, posture, opening_, let_hold = g.get('em_opening', opening)(
+    high, ref, posture, opening_, let_hold, hang = g.get('em_opening', opening)(
         g['a'][modal.LET_GO], s['q'], g['fr'], g['a'], g['y'], g['out'], g['high'], g['emancipation']['iota'],
         g['freed'], g['told'], g['sat'], ask['posture'], g['bend'], g['q_open'], g['posture'], g['q_lo'], g['q_hi'],
         g['emancipated'], dt)
@@ -212,6 +212,7 @@ def opened(g, s, ask, dt):
     ask['posture'][...] = posture
     ask['open'] = (OPEN['kp'], OPEN['kd'], opening_)
     ask['let_hold'] = let_hold
+    ask['hang'], ask['hang_rate'] = hang, HANG_RATE
     hipped(g, s, ask)
 
 

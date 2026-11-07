@@ -16,6 +16,7 @@ import numpy as np
 
 from machine.law import impedance, latent, melt, modal, poise
 from machine.law.stride import STRIDE_M
+from machine.moves.seated import POPLITEAL, RESTS
 from machine.texts import kernel, maneuver, ortho
 from machine.senses import observer
 from machine.stack import rounds
@@ -24,6 +25,18 @@ from machine.stack import rounds
 GATE = kernel.node('xform-intentional-limb-emancipation', 'release-gate')
 OPEN = kernel.node('xform-intentional-limb-emancipation', 'open-chain')['open-chain-impedance']
 CASCADE = kernel.node('xform-intentional-limb-emancipation', 'unloading-cascade')
+#: A leg hung off a seat, the kernel's (`specialize-posture-dangling-crural-hang` of `xform-sit-on-chair-or-stool`):
+#: its knee, ankle and their roll asked where they are, as gravity swings them. The kernel's reach foliation
+#: (`modulate-kinematic-reachability`):
+#: her soles on her toes through its window, dangling from its detach (DANGLE); sat, her reach is the seat's height over
+#: her popliteal height (`seated.POPLITEAL`).
+HANG = kernel.node('xform-sit-on-chair-or-stool', 'limb-hang')
+#: Its passive pendulum's damping, 1/s - twice its ratio its eigenfrequency, her shank's own (test_bedside): a hung
+#: leg's knee and ankle go as gravity swings them, damped so (`wrench._maps`).
+HANG_RATE = (2.0 * HANG['passive-pendulum-dynamics']['damping-ratio']
+             * 2.0 * np.pi * HANG['passive-pendulum-dynamics']['eigenfreq-hz'])
+FOLIATION = kernel.node('modulate-kinematic-reachability', 'reachability')
+DANGLE = (FOLIATION['equinus-morph-window']['rho-bounds'][1], FOLIATION['unloading-horizon']['detach-rho'])
 #: Her Froude number's lockout; the least share of her weight what bears her besides a leg is told; the least margin
 #: of her capture point inside it, N m (her weight times its distance in).
 FROUDE, ANCHORS, MARGIN_NM = GATE['max-allowable-froude'], GATE['min-complement-weight-sum'], GATE['min-residual-cone-margin']
@@ -132,7 +145,11 @@ def released(was, iota, eta, kept, sat, told, a, y, com, loads, fr, held, out, d
                        kept)
     hold = (iota * (1.0 - freed)).max() * (1.0 - freed.max())
     held = held + (1.0 - hold) * (out[latent.REF][LEGGED] - held)
-    return (eta, gamma, let_go, 1.0 - window(gamma, UNANCHOR), (1.0 - window(gamma, SHED)) * weight, freed, held,
+    # a let-go foot her text does not lift bears its leg below the knee resting (`seated.RESTS`): shed to nothing as she
+    # sat, her plan stood her low chair on one resting shank (0/278 N)
+    rests = (1.0 - window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS))) * RESTS * weight
+    return (eta, gamma, let_go, 1.0 - window(gamma, UNANCHOR), np.maximum((1.0 - window(gamma, SHED)) * weight, rests),
+            freed, held,
             out[latent.RATE][LEGGED] * (1.0 - hold), out[latent.ACC][LEGGED] * (1.0 - hold))
 
 
@@ -151,7 +168,22 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     up = up + driven * (np.clip(impedance.LIMBS * out[latent.REF][modal.LIFT], 0.0, ortho.REACH) - up)
     rising = np.logical_and(out[latent.RATE][modal.PITCH] > 0.05, out[latent.RATE][modal.AXIAL] > 0.0) * 1.0
     lifted = (1.0 - rising) * np.maximum(iota, freed * np.clip(told[DORSAL] / 0.10, 0.0, 1.0))
-    bed = let * (1.0 - sat)
+    # in bed as her back is told to bear or her text lifts the leg - sat upright on a chair, let go, it stays where
+    # her seat put it: read as in bed there, her hips went to 0.08 m over her ankles, her left sole off the low chair's
+    # floor, and she rose on her right alone, her left leg up to 0.98 m, and fell
+    bed = let * (1.0 - sat) * np.maximum(np.clip(told[DORSAL] / 0.10, 0.0, 1.0),
+                                         window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS)))
+    # where else than her soles bears her upright (borne, her trunk not past RECLINED_RAD back) on a seat her shank cannot
+    # reach the floor from - the kernel's reach foliation from what bears her: its lowest over the floor as sensed
+    # (`modal.PROP_LO`) over her popliteal height, past its toes' window to its detach -, a let-go leg her text neither
+    # lifts nor places hangs: its knee and ankle the kernel's (HANG), off her axial mode, its hip where the seat holds it,
+    # on its open chain's own impedance. Read as lifted in bed, her hips' height over her ankles went to 0.08 m and her
+    # knees, on her axial mode, opened 90 -> 33 deg on a chair; read from her knee's height, her knees up on the floor
+    # reached as far (rho 1) and hung her soles bearing 20 and 91 N: she fell
+    pitch = modal.pitched(y, rot)
+    reach = smooth(((y[modal.PROP_LO][1] - fr[modal.FLOOR]) / POPLITEAL - DANGLE[0]) / (DANGLE[1] - DANGLE[0]))
+    hung = (let * a[modal.BORNE] * (1.0 * (pitch[1] >= -modal.RECLINED_RAD)) * reach
+            * (1.0 - window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS))) * (1.0 - driven))
     down = 0.42 * (1.0 - lifted) + 0.08 * lifted
     high = (let * (high + dt * bed * (down - 0.04 * up - high) / SLEW_S)
             + (1.0 - let) * np.sqrt(leg[:, modal.UP] ** 2 + leg[:, modal.LEFT] ** 2))
@@ -166,6 +198,9 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     placed = np.arccos(np.clip((was ** 2 + high ** 2 - modal.SHANK ** 2 - modal.THIGH ** 2)
                                / (2.0 * modal.SHANK * modal.THIGH), -1.0, 1.0)) / modal.FLEX[1]
     said = said + driven * (placed - said)
+    # hung, its knee and ankle asked where they are - passive in her step; asked at the kernel's origin (90 deg, -0.24
+    # rad), her ask stood 25 deg off the ankle her sole set on the floor, and that much jumped as the hang let go
+    said = said + hung * (q[modal.CHAIN[:, 1]] - said)
     ref = q_open.copy()
     ref[modal.CHAIN[:, 1]] += dt * let * (said - ref[modal.CHAIN[:, 1]]) / SLEW_S
     knee = modal.FLEX[1] * ref[modal.CHAIN[:, 1]]
@@ -182,17 +217,20 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     up0, up1, up2 = 2.0 * (qx * qj - qw * qk), 1.0 - 2.0 * (qx * qx + qk * qk), 2.0 * (qj * qk + qw * qx)
     sensed = np.arctan2(up0 * rot[modal.ALONG][0] + up1 * rot[modal.ALONG][1] + up2 * rot[modal.ALONG][2], up1)
     aim = (1.0 - told_up) * (fr[modal.PITCH0][0] + modal.PITCH_RAD * out[latent.REF][modal.PITCH]) + told_up * sensed
-    chain = np.stack([modal.FLEX[0] * (knee - lean + aim), modal.FLEX[1] * knee,
-                      (1.0 - bed) * modal.FLEX[2] * lean + bed * laid[modal.CHAIN[:, 2]]], axis=1)
+    hip = modal.FLEX[0] * (knee - lean + aim)
+    ankle = (1.0 - bed) * modal.FLEX[2] * lean + bed * laid[modal.CHAIN[:, 2]]
+    chain = np.stack([hip + hung * (posture[modal.CHAIN[:, 0]] - hip), modal.FLEX[1] * knee,
+                      ankle + hung * (q[modal.CHAIN[:, 2]] - ankle)], axis=1)
     # both legs at once, each element's ops as a leg's alone (their joints apart): 20 numpy calls where 10
     joints, on = LEG_JOINTS, let[:, None]
     target = (1.0 - bed[:, None]) * ref[joints] + bed[:, None] * laid[joints]
     target[:, 2:5] = chain
+    target[:, 5] = target[:, 5] + hung * (q[joints][:, 5] - target[:, 5])
     ref[joints] += dt * on * (target - ref[joints]) / SLEW_S
     ref[joints] = np.clip(on * ref[joints] + (1.0 - on) * q[joints], q_lo[joints], q_hi[joints])
     posture = posture.copy()
     posture[joints] = on * ref[joints] + (1.0 - on) * posture[joints]
-    return high, ref, posture, freed * (1.0 - bed), 1.0 - window(emancipated, SHED)
+    return high, ref, posture, freed * (1.0 - bed * (1.0 - hung)), 1.0 - window(emancipated, SHED), hung
 
 
 def compiled():

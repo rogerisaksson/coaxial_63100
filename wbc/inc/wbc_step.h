@@ -80,6 +80,8 @@ typedef struct
   double        chain_unweight; /**< the share her anchors bear told a twist (machine.stack.chain_plan.said) */
   int           chain_free[2]; /**< her feet told free, her heels stepping in turn (machine.law.somatic) */
   double        cgive[WBC_STEP_C]; /**< each contact's give, m/s^2 a N: what bears it as firm as her skin feels it (borne) */
+  double        hang[2], hang_rate; /**< each let-go leg's share hung off a seat - its knee and ankle as gravity
+                                         swings them -, damped at hang_rate 1/s (machine.moves.cascade) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */

@@ -15,7 +15,7 @@ and swings out as she pushes it; the lamp's switch sits on the wall by it.
 """
 import math
 
-from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT
+from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT, SEAT_GRIP
 from machine.world.floor import CHAIR_LOW_H, FOAM, RISE_M, RUN_M, STEPS, core
 
 #: The room, m: x half width, z from .. to, the walls' height at the eaves and thickness.
@@ -155,9 +155,10 @@ def furnish(contacts, textured=False):
         '<geom name="door" type="box" size="%g %g %g" pos="%g 0 0" mass="%g"%s/></body></body>' % (
             DOOR_X[0], TO, DOOR[1], DOOR_DEG, DOOR_C, DOOR[0], DOOR[1], DOOR[2],
             DOOR[0], DOOR_KG, contacts),
-        _box('seat', (CHAIR_AT[0], SEAT_H, CHAIR_AT[1]), SEAT, contacts),
+        _box('seat', (CHAIR_AT[0], SEAT_H, CHAIR_AT[1]), SEAT, contacts, SEAT_GRIP),
         _box('back', (CHAIR_AT[0], SEAT_H + BACK[1] + 0.02, CHAIR_AT[1] + SEAT[2]), BACK, contacts),
-        _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts),
+        _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts,
+             SEAT_GRIP),
         _box('back_low', (CHAIR_LOW_AT[0] - SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
         '<body name="bed" pos="%g %g %g"><geom name="bed" type="box" size="%g %g %g" pos="0 %g 0"%s%s/>%s'
         '<geom name="bedframe" type="box" size="%g %g %g" pos="0 %g 0"%s/></body>' % (

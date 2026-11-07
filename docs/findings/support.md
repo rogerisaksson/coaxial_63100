@@ -1,8 +1,8 @@
 # Findings: support
 
 What bears her off her soles - a seat, a bed, a knee or a hand on the floor -
-as her skin feels it (`machine.senses.borne`) and her law and her step take it. Her
-scenarios: [scenarios](scenarios.md).
+as her skin feels it (`machine.senses.borne`) and her law and her step take it.
+Her scenarios: [scenarios](scenarios.md).
 
 - Past her modes' 1 onto a chair: 447 N on its seat at 1.83 s, her soles
   unload, her law reads no stance and lets her fall freely: down at 3.06 s.
@@ -201,3 +201,23 @@ scenarios: [scenarios](scenarios.md).
   reach 252 mm along the seat either side of her shoulders. Her forefeet
   take her from a seat of 0.738 m, dipped 0.822; from there undipped she
   drops 84 mm, 1.28 m/s, 25 J.
+- Her seat as the kernel's pressure box (the ischial box of
+  `anatomical-manifold-registry`, x -90..110 mm, y +-145 mm), where her step
+  holds each seat contact's point and its split pinned to the felt (W_PIN,
+  [seat](seat.md)): a probe on the Python twin of her upright step laid each
+  patch she sat on at the box's corners round its felt centre, in her way's
+  frame, a quarter of its force each, its split unpinned while she sat. In
+  the twin as on the bench stand_to_sit and sit_to_stand fell; the root of
+  stand_to_sit's fall (5.645 s, her arms 1 511 deg/s, her right elbow 17.9
+  times its clamp) is her turns against a pinned support, her head and arms
+  its reaction masses: replayed without the turn rows or the pin, the step's
+  scale stays 1.00. Cornered on any seat the beds regressed (bed_leg fell at
+  9.00 s); on firm seats alone her passes past her clamps went 19 -> 1 on
+  the chair and 7 -> 0 on the low one and both takes stood, the beds and the
+  floor the same to the digit, but the thighs' force moved past her hips; on
+  her pelvis alone sit_to_stand fell at 11.31 s, each corner on the segment
+  under it chair_low at 12.23. Not landed: the box lies flat in her way's
+  frame, and on a low chair her thighs slope and the seat is bounded, so its
+  corners land off what bears her. Open: the box clipped to the seat's face,
+  each corner on the segment under it there, as `emancipation.seated`
+  corners a seat on the floor.

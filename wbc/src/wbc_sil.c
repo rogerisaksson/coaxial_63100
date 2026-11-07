@@ -365,7 +365,7 @@ double wbc_played_step(wbc_played_t *p, double t, double dt, const double *sense
   }
   else
   {
-    done = wbc_bedentry_step(p->entry, p->state, p->cmd, dt, senses[0], senses[1], senses[2], senses[3], senses[4]);
+    done = wbc_sensed_step(p->sensed, p->state, p->cmd, dt, senses[0], senses[1], senses[2], senses[3], senses[4]);
   }
   if (done == 0.0)
   {

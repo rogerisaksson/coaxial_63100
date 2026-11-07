@@ -287,14 +287,15 @@ int  wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, 
 void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
                    const double *feed, const double *kp, const double *limit);
 
-/** A move of hers playing on her boards (machine.process.joints.played): her bed's exit, her scoot or her bed's
-    entry - the one whose tables are given -, its state and command (deg, every joint), her edge's angles read in
-    degrees, and its joints told - in radians, her clamps, its feed and stiffness - through wbc_sil_drive. */
+/** A move of hers playing on her boards (machine.process.joints.played): her bed's exit, her scoot or a move whose
+    phases end by what she senses (wbc_sensed.c) - the one whose tables are given -, its state and command (deg, every
+    joint), her edge's angles read in degrees, and its joints told - in radians, her clamps, its feed and stiffness -
+    through wbc_sil_drive. */
 typedef struct
 {
   const wbc_bedexit_t  *exit;              /**< the move's tables: one of the three, the others NULL */
   const wbc_scoot_t    *scoot;
-  const wbc_bedentry_t *entry;
+  const wbc_sensed_t   *sensed;
   double               *state;             /**< the move's state and command */
   double               *cmd;
   const double         *y;                 /**< her edge's array: every joint's angle from `q_at`, `nq` of them */

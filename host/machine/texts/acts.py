@@ -205,10 +205,10 @@ def _equilibrium(p, then, at, modes, body):
 def _recline(p, then, at, modes, body):
     """A recline: her trunk's ramp to its end, her centre of mass where she lies then (`seated.com`; left where
     she sat her law slid her hips to the edge; `talocrural-rad` her shin), her pelvis's turn's, her legs' sweep's
-    knee; what bears her panned as it says (`manifold-pan`), her fists on the seat behind her where it pans her
-    hands (`seated.braced`; `seated.planted` to `carpal-ahead-m`), held there as a pressing contact's point is
-    (`wrench.W_STILL`), hanging where it pans them none; her centre of mass on her rest's spring: on the seat's
-    -24 dB her trunk came back upright from -13 deg as her pelvis rolled under it."""
+    knee; what bears her panned (`manifold-pan`), her fists on the seat behind her where it pans her hands
+    (`seated.braced`; `seated.planted` to `carpal-ahead-m`), held as a pressing contact's point (`wrench.W_STILL`),
+    hanging where it pans none; her centre of mass on her rest's spring (on the seat's -24 dB her trunk came back
+    upright from -13 deg); her slide `slide-speed-mps`."""
     sweep = p.get('counterweight-limb-sweep', {})
     at['knee'], at['ankle'] = sweep.get('tibiofemoral-flex-rad', (at['knee'],))[-1], p.get('talocrural-rad', at['ankle'])
     trunk, weighs = p['torso-pitch-ramp'][-1], _weighs(p.get('manifold-pan'))
@@ -236,8 +236,8 @@ def _recline(p, then, at, modes, body):
                    'mode_arm_fold': sprung('mode_arm_fold', 1.0, 1.0, modes)}
                   if weighs is not None else {})}
     chain = p.get('contact-chain', ('recline',))
-    what = str(chain[-1]) if len(chain) > 1 else 'recline'
-    return [Phase('recline', what, p['duration-ms'], p['duration-ms'], targets, springs, None, None, weighs=weighs)]
+    what, ms = str(chain[-1]) if len(chain) > 1 else 'recline', p['duration-ms']
+    return [Phase('recline', what, ms, ms, targets, springs, None, None, weighs=weighs, slide=p.get('slide-speed-mps'))]
 
 
 def _sought(p, then, at, modes, body):

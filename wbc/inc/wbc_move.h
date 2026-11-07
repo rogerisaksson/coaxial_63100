@@ -1,4 +1,4 @@
-/** wbc_move.h - her moves in C (wbc_bedexit.c, wbc_scoot.c, wbc_bedentry.c): machine.moves' programs whose phases her
+/** wbc_move.h - her moves in C (wbc_bedexit.c, wbc_scoot.c, wbc_sensed.c): machine.moves' programs whose phases her
     senses tell,
     numpy's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #ifndef WBC_MOVE_H
@@ -120,44 +120,46 @@ void wbc_scoot_laid(double *state);
 double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double dt, double pitch, double hands,
                       double left, double right, double back, double turn, double heading);
 
-/** Her way into a bed over its end to its middle: its phases, the parts it moves (shoulders, elbows, hips, knees,
-    ankles, the legs' rolls and yaws a side each, the spine, waist and neck) and their joints. */
-#define WBC_BEDENTRY_PHASES 15
-#define WBC_BEDENTRY_PARTS  10
-#define WBC_BEDENTRY_MOVED  17
+/** Her moves whose phases end by what she senses (machine.moves.sensed: a table each of the suite's lisp - her way
+    into a bed over its end to its middle, up onto a seat too high for her feet): its phases at most, the parts it
+    moves (shoulders, elbows, hips, knees, ankles, the legs' rolls and yaws a side each, the spine, waist and neck) and
+    their joints. */
+#define WBC_SENSED_PHASES 15
+#define WBC_SENSED_PARTS  10
+#define WBC_SENSED_MOVED  17
 
-/** Its state's slots: the phase, the strokes, her side of the bed's middle (0 till her first pass). */
+/** Its state's slots: the phase, the strokes, her side of the furniture's middle (0 till her first pass). */
 enum
 {
-  WBC_BEDENTRY_PHASE,
-  WBC_BEDENTRY_COUNT,
-  WBC_BEDENTRY_WAY,
-  WBC_BEDENTRY_SLOTS
+  WBC_SENSED_PHASE,
+  WBC_SENSED_COUNT,
+  WBC_SENSED_WAY,
+  WBC_SENSED_SLOTS
 };
 
-/** machine.moves.bedentry's tables, filled once from it: the joints it moves (figure.JOINTS) and each one's part, how
-    each phase ends (0 its pose reached, 1 her feet planted or that, 2 her pelvis pulled in or that and she still, 3
-    that and she lying, 4 that and she still, 5 at the middle or that), the last phase; each phase's next, its next
-    while a stroke is due and whether it counts a stroke; each part's goal (deg), how it goes (WBC_ANATOMY_HELD, _RATE,
-    _LEAST) and its rate (deg/s); her feet's share planted, her pelvis's pull
-    in (m), still under her speed (m/s), lying past her pitch (deg), a stroke again while this short of the middle
-    (m), the strokes at most and a goal reached within (deg). */
+/** A move's tables, filled once from machine.moves.sensed's, its phases first: the joints it moves (figure.JOINTS) and
+    each one's part, how each phase ends (0 its goals reached, 1 her feet planted or that, 2 her pelvis pulled in or
+    that and she still, 3 that and she lying, 4 that and she still, 5 at the middle or that), the last phase; each
+    phase's next, its next while a stroke is due and whether it counts a stroke; each part's goal (deg), how it goes
+    (WBC_ANATOMY_HELD, _RATE, _LEAST) and its rate (deg/s); her feet's share planted, her pelvis's pull in (m), still
+    under her speed (m/s), lying past her pitch (deg), a stroke again while this short of the middle (m), the strokes
+    at most and a goal reached within (deg), one no end of its table reads 0. */
 typedef struct
 {
-  int    joint[WBC_BEDENTRY_MOVED], part[WBC_BEDENTRY_MOVED], over[WBC_BEDENTRY_PHASES], done;
-  double next[WBC_BEDENTRY_PHASES], again[WBC_BEDENTRY_PHASES], counts[WBC_BEDENTRY_PHASES];
-  double goal[WBC_BEDENTRY_PHASES][WBC_BEDENTRY_PARTS], how[WBC_BEDENTRY_PHASES][WBC_BEDENTRY_PARTS];
-  double rate[WBC_BEDENTRY_PHASES][WBC_BEDENTRY_PARTS];
+  int    joint[WBC_SENSED_MOVED], part[WBC_SENSED_MOVED], over[WBC_SENSED_PHASES], done;
+  double next[WBC_SENSED_PHASES], again[WBC_SENSED_PHASES], counts[WBC_SENSED_PHASES];
+  double goal[WBC_SENSED_PHASES][WBC_SENSED_PARTS], how[WBC_SENSED_PHASES][WBC_SENSED_PARTS];
+  double rate[WBC_SENSED_PHASES][WBC_SENSED_PARTS];
   double plant, pull_in, still, lain, near, strokes, tol;
-} wbc_bedentry_t;
+} wbc_sensed_t;
 
-/** The move's `state` as it begins: her feet first, no stroke, no side yet. */
-void wbc_bedentry_laid(double *state);
+/** A move's `state` as it begins: its first phase, no stroke, no side yet. */
+void wbc_sensed_laid(double *state);
 
-/** A pass of the move `dt` s on: `cmd` (deg, her joints) laid over from `state`, her soles' share of her weight, her
-    pelvis from the bed's middle along its length and that half length (m), her trunk's pitch (deg) and her speed
-    (m/s) sensed; 1.0 once she lies straight. */
-double wbc_bedentry_step(const wbc_bedentry_t *b, double *state, double *cmd, double dt, double soles, double along,
-                         double half, double pitch, double speed);
+/** A pass of the move of tables `b` `dt` s on: `cmd` (deg, her joints) laid over from `state`, her soles' share of her
+    weight, her pelvis from the furniture's middle along its length and that half length (m), her trunk's pitch (deg)
+    and her speed (m/s) sensed; 1.0 once at its last phase. */
+double wbc_sensed_step(const wbc_sensed_t *b, double *state, double *cmd, double dt, double soles, double along,
+                       double half, double pitch, double speed);
 
 #endif

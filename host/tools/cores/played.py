@@ -4,7 +4,7 @@
     done = played.passed(p['pass'], t, dt, senses)
 
 `machine.process.joints.played`'s move pass - the move's step on her angles in degrees (`tools.cores.bedexit`, `scoot`,
-`bedentry`), then its joints' setpoints in radians and her clamps through her boards' drive (`edge.bound`'s) -
+`sensed`), then its joints' setpoints in radians and her clamps through her boards' drive (`edge.bound`'s) -
 numpy's degrees, radians and takes operation for operation (test_tick): rising off the bed 47 of its 79 us a pass
 were two Python-wrapped C calls and the arrays between them.
 """
@@ -16,15 +16,15 @@ import numpy as np
 from tools.cores import wbc
 
 _d, _i, _vp = ctypes.c_double, ctypes.c_int, ctypes.c_void_p
-#: The struct's field each move's tables go in, by the move's module (`joints.MOVES`).
-FIELDS = {'tools.cores.bedexit': 'exit', 'tools.cores.scoot': 'scoot', 'tools.cores.bedentry': 'entry'}
+#: The struct's field each move's tables go in, by the module the move is (`joints.MOVES`) or is made in (`move`).
+FIELDS = {'tools.cores.bedexit': 'exit', 'tools.cores.scoot': 'scoot', 'tools.cores.sensed': 'sensed'}
 
 
 class Played(ctypes.Structure):
 
     """wbc_played_t: a move playing on her boards, pointing at her edge, her clamps and the move's own arrays."""
 
-    _fields_ = [('exit', _vp), ('scoot', _vp), ('entry', _vp), ('state', _vp), ('cmd', _vp), ('y', _vp), ('q_at', _i),
+    _fields_ = [('exit', _vp), ('scoot', _vp), ('sensed', _vp), ('state', _vp), ('cmd', _vp), ('y', _vp), ('q_at', _i),
                 ('nq', _i), ('n', _i), ('spare', _i), ('idx', _vp), ('clamp', _vp), ('feed', _vp), ('kp', _vp), ('target', _vp),
                 ('limit', _vp), ('world', _vp), ('q_deg', _d * 64)]
 
@@ -45,8 +45,9 @@ def laid(g, world, p):
     """(its address, the pass, the struct, its senses' buffer and address) for the move `p` plays (`joints.played`):
     her edge's angles, her clamps, the move's state, command, joints, feed, stiffness and buffers, her world's boards;
     None where its move is not one of her C moves or her boards are not laid."""
+    import inspect
     from machine.senses import edge
-    field = FIELDS.get(getattr(p['move'], '__name__', ''))
+    field = FIELDS.get(getattr(inspect.getmodule(p['move']), '__name__', ''))
     if field is None or getattr(world, 'limb_buses', None) is None:
         return None
     lib, tables = typed(), p['move']._laid()[1]

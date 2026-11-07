@@ -29,6 +29,9 @@ HAND = next((r, a) for seg, r, a, _b in figure.BODY if seg == 'hand')
 #: Her thigh's underside at her knee over the floor, m, her shank plumb on a flat sole: a seat over it her
 #: feet do not set her on (`acts._sought`).
 POPLITEAL = figure.ANKLE_H + figure.SHANK - THIGHS[-1][0]
+#: Her leg below its knee, her mass's share (her figure's shank, foot and toes): what a foot she lets go bears
+#: resting, 22.7 N of her.
+RESTS = sum(figure.shares()[part][0] for part in ('left_shank', 'left_foot', 'left_toes'))
 #: Newton's steps that set her fist where it is asked (`fisted`): within 1e-16 m from her arm hanging; the
 #: turn its slope is read over, rad.
 NEWTON, NUDGE = 12, 1e-6

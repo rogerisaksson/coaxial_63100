@@ -2,8 +2,8 @@
 
 A move her joints play (`machine.process.joints.MOVES`) is its tables of phases over her parts and the senses that
 end them; how a part goes is this module's (HELD .. LEAST), the same for each move - her way out of a bed over its
-end, into it, her scoot on the floor (`machine.moves.bedexit`, `bedentry`, `scoot`) drive her through it, the scoot's
-strokes setting its goals and rates. In C: wbc_anatomy.c, bit for bit.
+end, her scoot on the floor, her moves whose phases end by what she senses (`machine.moves.bedexit`, `scoot`,
+`sensed`) drive her through it, the scoot's strokes setting its goals and rates. In C: wbc_anatomy.c, bit for bit.
 
     goal = anatomy.aimed(how, goal, x)                          # the goal it goes to: LEAST no straighter than x
     x = anatomy.driven(how, goal, rate, x, q, start, a, dt)   # each joint's command a pass on, deg

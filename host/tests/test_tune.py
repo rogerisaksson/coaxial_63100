@@ -98,7 +98,7 @@ def test_a_literal_is_walked_where_it_stands(report):
 def test_a_literal_reaches_her_where_a_voice_reads_it(report):
     """The runway reaches 17 literals: its stride, its trunk's lean and its duck's attack move her
     voices by their rules, nothing voiceless does, a 0 the manifold says nothing larger of has no
-    scale. The chair's sit: its hand-over's and its descent's times move her phases."""
+    scale. The chair's sit: its hand-over's, its descent's and its mount's times move her phases."""
     from machine.law import modal
     from machine.texts import ortho, tune, voicing
     tx, fr, gr = tune.texts(), _her(), tune.grammar()
@@ -118,8 +118,8 @@ def test_a_literal_reaches_her_where_a_voice_reads_it(report):
                  str(refused))
     table = tune.walked('sit_chair', gr, tx)
     cols, refused = tune.reach('sit_chair', table, tx, fr)
-    report.check("the sit: its hand-over's and descent's ms move her phases' times",
-                 sorted(table[i][0].key for i in cols) == ['descent-duration-ms', 'transfer-time-ms']
+    report.check("the sit: its hand-over's, descent's and mount's ms move her phases' times",
+                 sorted(table[i][0].key for i in cols) == ['descent-duration-ms', 'duration-ms', 'transfer-time-ms']
                  and all(v == 1.0 for col in cols.values() for v in col.values()), str(cols))
     table = tune.walked('walk', gr, tx)
     cols, refused = tune.reach('walk', table, tx, fr)

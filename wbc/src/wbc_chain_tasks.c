@@ -98,5 +98,17 @@ int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, dou
   {
     want[i] = p->chain_posture_kp * (p->posture[i] - p->q[i]) - p->chain_posture_kd * p->v[p->act[i]];
   }
+  /* hung off a seat (hang, each leg's share): its knee, ankle and their roll as gravity swings them, damped at
+     hang_rate (machine.stack.chain.tasks) */
+  for (int k = 0; k < 2; k++)
+  {
+    for (int i = 3; i < 6; i++)
+    {
+      const int    j = p->legs[k][i], c = p->act[j];
+      const double passive = (-p->h[c]) / p->M[c * n + c] - p->hang_rate * p->v[c];
+
+      want[j] = want[j] + p->hang[k] * (passive - want[j]);
+    }
+  }
   return m;
 }

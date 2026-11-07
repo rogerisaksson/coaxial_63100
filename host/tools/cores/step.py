@@ -51,7 +51,8 @@ def _step_typed():
                ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f), ('chain_sweeps', i), ('chain_rounds', i),
                ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
                ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
-               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2), ('cgive', f * c)]
+               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
+               ('hang_rate', f)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -168,9 +169,9 @@ FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc ntur
           'rests slide fz_cap slid_cap hand_cap let_cap let_hold open_kp open_kd freed strides borne hold sat chain_vx '
           'chain_free swing swing_at swing_speed swing_acc swing_quat fold fold_knee fold_rate fold_acc knee_rate wep '
           'posture derate clamp wep_nm mass lo hi tau qacc bears cop cop_n cop_none over forces load scale '
-          'residual').split()
+          'residual hang hang_rate').split()
 #: The step's fields read and written through numpy views of the struct's own memory.
-VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'swing', 'fold', 'swing_at', 'swing_speed',
+VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'hang', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
           'bears', 'cop',
           'forces',
@@ -242,6 +243,7 @@ def _stepped(k, step, v, b, s, ask):
     v['let_cap'][:] = ask.get('let_cap', (np.inf, np.inf))
     v['let_hold'][:] = ask.get('let_hold', (0.0, 0.0))
     k.open_kp, k.open_kd, v['freed'][:] = ask.get('open', (0.0, 0.0, (0.0, 0.0)))
+    v['hang'][:], k.hang_rate = ask.get('hang', (0.0, 0.0)), float(ask.get('hang_rate', 0.0))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     k.sat, k.chain_vx = float(ask.get('sat', 0.0)), float(ask.get('twist', (0.0,))[0])
     k.chain_free[0], k.chain_free[1] = (int(bool(x)) for x in ask.get('free', (False, False)))

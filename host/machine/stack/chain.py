@@ -27,6 +27,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.stack.chain_plan import planned
+from machine.stack.rounds import LEGS
 from machine.stack.shrunk import box, shrunk
 from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
@@ -137,6 +138,14 @@ def tasks(b, s, ask, regime):
         rows.append(regime.twist * row)
         rhs.append(regime.twist * (regime.vkd * (vx - (float(row[0]) * float(v[0]) + float(row[2]) * float(v[2])))))
     want = regime.pkp * (np.asarray(ask['posture'], float) - s['q']) - regime.pkd * v[act]
+    # hung off a seat (`ask['hang']`, each leg's share): its knee, ankle and their roll (`rounds.LEGS`' last three) as
+    # gravity swings them, damped at `ask['hang_rate']` - her drives hold none of it (`wrench._maps`' PASSIVE)
+    rate = float(ask.get('hang_rate', 0.0))
+    for k, leg in enumerate(LEGS):
+        j = np.asarray(leg[3:])
+        c = act[j]
+        passive = -s['h'][c] / np.diag(s['M'])[c] - rate * v[c]
+        want[j] = want[j] + float(ask.get('hang', (0.0, 0.0))[k]) * (passive - want[j])
     return (np.vstack(rows) if rows else np.zeros((0, n))), np.array(rhs, float), want
 
 
@@ -267,7 +276,8 @@ def step(b, s, ask, regime, bounded=False, released=True, stopped=False, complia
     x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
                                  np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)), torque,
                                  released, stop_rows(b, s, nd) if stopped else None,
-                                 gives_of(b, contacts, regime, compliant, ask.get('_tc')), float(ask.get('hand_cap', 0.0)))
+                                 gives_of(b, contacts, regime, compliant, ask.get('_tc')), float(ask.get('hand_cap', 0.0)),
+                                 tuple(float(c) for c in ask.get('let_cap', (math.inf, math.inf))))
     qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
     rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0
     # 2. the contacts' forces by complementarity over her Delassus matrix on the dofs no drive holds

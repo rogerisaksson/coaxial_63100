@@ -6,6 +6,7 @@
   (:use :ortho-dsp.core)
   (:export #:bed-exit
            #:bed-entry
+           #:chair-mount
            #:scoot))
 (in-package :ortho-dsp.moves)
 
@@ -63,12 +64,14 @@
                :trunk seated-trunk)
               (:name :done :next :done)])))
 
-;; Her way into a bed over its end to its middle (machine.moves.bedentry, wbc_bedentry.c), told by where she lies on
-;; it: each phase ends by what she senses (`:ends` - :reached its pose, :feet planted or that, :pulled her pelvis in
-;; or that and she still, :lying that and past her pitch, :stilled that and still, :middle at the middle or that), none
-;; by the clock; each part's goal (deg) and rate (deg/s), `:least` no straighter than it is, a phase's shared goals
-;; first (`:with`); the phase after it and the one while a stroke is due (`:again`) - the puppet's program's poses
-;; (machine.process.joints' PROGRAMS), its heels drawn in from her stretch at its first stroke's pace.
+;; Her way into a bed over its end to its middle, told by where she lies on it - a move whose phases end by what she
+;; senses (machine.moves.sensed, wbc_sensed.c): each phase ends by what she senses (`:ends` - :reached its pose, :feet
+;; planted or that, :pulled her pelvis in or that and she still, :lying that and past her pitch, :stilled that and
+;; still, :middle at the middle or that), none by the clock; each part's goal (deg) and rate (deg/s), `:least` no
+;; straighter than it is, a phase's shared goals first (`:with`); the phase after it and the one while a stroke is due
+;; (`:again`), the phase that counts a stroke (`:counts`) - the puppet's program's poses (machine.process.joints'
+;; PROGRAMS), its heels drawn in from her stretch at its first stroke's pace. Her text goes on under it (`:holds`): its
+;; flat stage runs under it so her rest limps her on the foam as it ends (held back, her rise after it was never said).
 (defmove bed-entry []
   (let [;; her feet's share of her weight planted; her pelvis pulled in from the bed's end (m); still under her speed
         ;; (m/s: lying still 0.000-0.003, her pull 0.3-0.6); lying past her pitch (deg: flat -97 to -102); a stroke
@@ -78,6 +81,7 @@
         trunk (:spine [0.0 20.0] :waist [0.0 20.0] :neck [0.0 20.0])
         square (:hip-roll [0.0 15.0] :hip-yaw [0.0 15.0])]
     (:constants (:plant plant :pull-in pull-in :still still :lain lain :near near :strokes strokes :tol tol)
+     :holds false
      :phases [(:name :feet :ends :feet :next :pull :again :pull :goals (:knee [95.0 9.0] :ankle [0.0 30.0]))
               (:name :pull :ends :pulled :next :lie :again :lie
                :goals (:shoulder [30.0 83.0] :elbow [0.0 30.0] :hip [-75.0 22.0] :knee [30.0 114.0] :ankle [0.0 46.0]))
@@ -95,11 +99,30 @@
                :goals (:hip [-56.0 25.0] :knee [146.0 95.0]))
               (:name :bridge :ends :reached :next :push :again :push :goals (:hip [-34.0 88.0] :knee [134.0 48.0]))
               (:name :push :ends :middle :next :set :again :set :goals (:hip [-32.0 7.0] :knee [104.0 100.0]))
-              (:name :set :ends :stilled :next :straight :again :plant
+              (:name :set :ends :stilled :next :straight :again :plant :counts true
                :goals (:hip [-46.0 70.0] :knee [108.0 20.0 :least]))
               (:name :straight :ends :reached :next :done :again :done :with [trunk square]
                :goals (:knee [6.0 255.0] :hip [-3.0 108.0]))
               (:name :done :ends :reached :next :done :again :done)])))
+
+;; Her way up onto a seat too high for her feet, from its front edge, her fists on it beside her hips - the kernel's arm
+;; vault (`xform-overheight-arm-vault-ingress`), a move whose phases end by what she senses as her bed entry's: each
+;; phase ends by what she senses (`:ends` - :reached its pose, :stilled that and she still); each part's goal (deg) and
+;; rate (deg/s), a puppet's program's poses at its pace from her sit (a part's larger side's change over its beat's
+;; seconds: the vault 0.65 s, the hang 3). Her text's rows wait while it plays (`:holds`): her seat's stage then gives
+;; her law where she sits.
+(defmove chair-mount []
+  (let [;; still under her speed (m/s); a goal reached within tol deg
+        still 0.01 tol 1e-6]
+    (:constants (:still still :tol tol)
+     :holds true
+     ;; the vault: her shoulders flexed against her fists, her elbows straight, her hips and knees folded - her pelvis
+     ;; lifted off the edge and drawn back on her arms (0.152 m ahead of the seat's middle to 0.06, 7 cm up); the hang:
+     ;; her shoulders let her down onto the seat (0.05 m behind its middle, her trunk upright, no fall)
+     :phases [(:name :vault :ends :reached :next :hang
+               :goals (:shoulder [30.0 89.0] :elbow [0.0 74.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
+              (:name :hang :ends :stilled :next :done :goals (:shoulder [0.0 10.0] :elbow [5.0 1.7]))
+              (:name :done :ends :reached :next :done)])))
 
 ;; Her scoot on the floor as her twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on her seat, heels in turn,
 ;; then a stroke. Each part's how (:rate its goal at its rate, :end the stroke's end at her way's rate, :start the

@@ -318,24 +318,25 @@ def test_her_scoot_in_c_as_in_python(report, c):
 
 
 def test_her_bed_entry_in_c(report, c):
-    """Her way into a bed in C (wbc_bedentry.c) as in python, bit for bit at every pass and phase."""
-    from machine.moves import bedentry as py
-    from tools.cores import bedentry as ce
+    """Her bed entry in C (wbc_sensed.c) as in python, pass by pass."""
+    from machine.moves import sensed as py
+    from tools.cores import sensed as ce
     from tools.cores.orders import same
+    pm, cm = (m.move('bed-entry') for m in (py, ce))
     rng, bad, phases = np.random.default_rng(29), 0, set()
     for _ in range(12):
         q, (half, side, pace) = rng.uniform(-60, 60, len(py.JOINTS)), rng.uniform((0.8, -1, 0.05), (1.2, 1, 0.12))
-        ps, cs, a, b = py.laid(q, 0.0), ce.laid(q, 0.0), q.copy(), q.copy()
+        ps, cs, a, b = pm.laid(q, 0.0), cm.laid(q, 0.0), q.copy(), q.copy()
         for n in range(1, 40000):
             along = np.sign(side) * (half - 0.1 - pace * n * 1.3e-3)
             sensed = (0.0, 1.3e-3, rng.random() / 10, along, half, rng.uniform(-110, 10), rng.random() / 50)
-            want, got = py.step(ps, a, q, *sensed), ce.step(cs, b, q, *sensed)
+            want, got = pm.step(ps, a, q, *sensed), cm.step(cs, b, q, *sensed)
             bad += not (same(ps, cs) and same(a, b) and got == want)
             phases.add(int(ps[py.PHASE]))
             if want:
                 break
     report.check("her bed entry in C is her python's, %d phases" % len(phases),
-                 not bad and len(phases) == len(py.PHASES), '%d apart' % bad)
+                 not bad and len(phases) == len(pm.tables.names), '%d apart' % bad)
 
 
 def test_her_brace_in_c_as_she_walks(report, c):

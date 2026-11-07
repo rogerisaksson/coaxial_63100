@@ -173,7 +173,7 @@ def test_her_reach_rolls_her_onto_the_ball(report):
     from machine.texts import ortho
     from machine.stack import rounds
     # Her fists kept as they are (`seated.kept` is its suites'): the reach's caps alone are this check's.
-    g, told_by = ({'fr': np.zeros(modal.FRAME), 'sat': 0.0, 'y': None,
+    g, told_by = ({'fr': np.zeros(modal.FRAME), 'sat': 0.0, 'y': None, 'loads': [0.0, 0.0],
                    'kept': lambda y, fr, palmar, posture, q, fists: (posture, fists)}, np.eye(len(ortho.MANIFOLDS)))
     g['fr'][modal.ROT] = np.eye(3).ravel()
     g['fr'][modal.WEIGHT] = 300.0

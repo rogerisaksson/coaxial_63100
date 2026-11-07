@@ -36,9 +36,10 @@ LEGS_MODES = tuple(m for node in LEGS for m in NODES[node])
 #: suite's side-lie (side_lie.lisp) rolls her onto her trochanter, past her modes (`acts._pendulum`), and
 #: its supine sleep's dock, 70 mm, fell her off the mattress's edge 3 of 3 where the chair's 85 held.
 PLAYED = {
-    'sit_chair': ('patch-sit-rigid-chair', None, {'descent': 'lower', 'contact': 'seated', 'rest': 'seated'}),
-    'rise_chair': ('patch-rise-chair', 'sit_chair', {'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',
-                                                     'drive': 'stand'}),
+    'sit_chair': ('patch-sit-rigid-chair', None, {'descent': 'lower', 'contact': 'seated', 'rest': 'seated',
+                                                  'recline': 'seated'}),
+    'rise_chair': ('patch-rise-chair', 'sit_chair', {'recline': 'scoot', 'wake': 'plant', 'preload': 'lean',
+                                                     'contact': 'thrust', 'drive': 'stand'}),
     'lie_bed': ('patch-bed-lean', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
     'leg_bed': ('patch-leg-bed', None, {'descent': 'sit_edge', 'contact': 'sit_edge', 'recline': 'bed_rest'}),
     'rise_bed': ('patch-rise-bed', 'lie_bed', {'recline': 'sit_up', 'wake': 'plant', 'preload': 'lean', 'contact': 'thrust',

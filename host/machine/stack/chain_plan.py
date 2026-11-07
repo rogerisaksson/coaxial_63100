@@ -177,25 +177,35 @@ def held_map(Ja_p, Ja_g, Minv, Mpg, rhsk, dJva, Jva, fsa, lam2, bleed, gives=Non
     return Ja_pT, Dl, Bg, c0
 
 
-def capped(felt, patch, hands):
+def capped(felt, patch, hands, lets=(math.inf, math.inf)):
     """Each contact's push cap, N: what it feels (`felt`, k) by GROW_N, a hand's patch (`borne.CARPAL`'s) no more than
     its share as felt of `hands`, what her text tells her hands to bear (`ask['hand_cap']`, `pressed.patches`' rule;
-    none where not finite). Held as felt, lifting a leg onto the bed her hands bore 240-299 N of her told 89-102, her
-    pelvis 0 N: her release's gate shut and the leg fell to the floor."""
-    palm, nh, caps = 0.0, 0, []
+    none where not finite), a let-go foot's (`borne.LET`'s) its share as felt of its side's `lets` (`ask['let_cap']`:
+    resting, what its leg below the knee weighs). Held as felt, lifting a leg onto the bed her hands bore 240-299 N of
+    her told 89-102, her pelvis 0 N: her release's gate shut and the leg fell to the floor; uncapped, her low chair's
+    plan stood her weight on one resting shank (0/278 N) and her rise locked on it."""
+    palm, nh, caps, sole, ns = 0.0, 0, [], [0.0, 0.0], [0, 0]
     for i in range(len(felt)):
         palm, nh = palm + felt[i] * float(CARPAL <= int(patch[i]) < LET), nh + int(CARPAL <= int(patch[i]) < LET)
+        if int(patch[i]) >= LET:
+            k = int(patch[i]) // LET - 1
+            sole[k], ns[k] = sole[k] + felt[i], ns[k] + 1
     for i in range(len(felt)):
         cap = felt[i] + GROW_N
         if CARPAL <= int(patch[i]) < LET and math.isfinite(hands):
             told = hands * (felt[i] / palm if palm > 0.0 else 1.0 / float(nh if nh > 1 else 1))
             cap = told if told < cap else cap
+        if int(patch[i]) >= LET and math.isfinite(lets[int(patch[i]) // LET - 1]):
+            k = int(patch[i]) // LET - 1
+            rest = float(lets[k]) * (felt[i] / sole[k] if sole[k] > 0.0 else 1.0 / float(ns[k] if ns[k] > 1 else 1))
+            cap = rest if rest < cap else cap
         caps.append(cap)
     return caps
 
 
 def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, RP, RG, r, want, slide=(0.0, 0.0, 0.0),
-            free=(False, False), torque=None, released=True, stops=None, gives=None, hands=math.inf):
+            free=(False, False), torque=None, released=True, stops=None, gives=None, hands=math.inf,
+            lets=(math.inf, math.inf)):
     """(x (nd), qdd_P, z (3k)): her driven joints' accelerations the plan asks, the base's and passive joints' it
     foresees, the contacts' forces it counts on (world; a freed contact's 0).
     Each round: the contacts held (rows3: a point's normal, its two tangents) and her dynamics make the dofs no drive
@@ -212,9 +222,9 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
     A patch felt under `regime.hold` N - the segments one surface bears, `patch` (k): a fist's hand and fingers, the
     pelvis's two ischia - starts free, its points with it: her fingers' arrival at 2-4 N, held, fought her arms' pose
     and threw her elbow; her fists' 93 N split over hand and fingers, each under 30, left them out of the chain's
-    support at the bed. A hand's patch or a sole patch (`borne.CARPAL`'s, `body` below 0) asked past what it feels
-    by GROW_N (`rounds`, the upright step's own cap), a hand's past what her text tells them (`capped`), is held at
-    that cap, its friction boxed by it - what she sits or
+    support at the bed. A hand's, a let-go foot's or a sole patch (`borne.CARPAL`'s on, `body` below 0) asked past what
+    it feels by GROW_N (`rounds`, the upright step's own cap), a hand's past what her text tells them, a let-go foot's
+    past what its leg weighs (`capped`), is held at that cap, its friction boxed by it - what she sits or
     lies on is not: uncapped, on the bed's long side the plan asked her arms 250-554 N on 15-70 felt and her standing
     sole 273 N on 181, unloaded her pelvis, and she slid off the bed onto that sole; her seat capped too, it took 12 N
     of her 329 as she sat on the floor and she lay back. Told a twist (`slide`), her sled - no hand or foot - slides
@@ -225,7 +235,7 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
     k3, m1, lam2, task2 = 3 * len(Q), len(r), regime.lam * regime.lam, regime.task * regime.task
     eye, zfull, yields = np.eye(nd), np.zeros(k3), np.zeros(len(Q), bool)
     felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(len(Q))]
-    caps = capped(felt, patch, hands)
+    caps = capped(felt, patch, hands, lets)
     fs = said(f, patch, body, regime.unweight) if slide[0] != 0.0 or slide[2] != 0.0 else f
     srcs = (Jp, Jg, Jv, dJv, fs)
     rows3, Fk, framed, (JpF, JgF, JvF, dJvF, fsF) = started(regime, felt, fs, patch, body, Q, slide, free, srcs)
@@ -303,7 +313,7 @@ def planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, 
                 yields[i], changed = True, True
             elif zn < 0.0:
                 rows3[3 * i:3 * i + 3], Fk[3 * i:3 * i + 3], changed = False, 0.0, True
-            elif (int(body[i]) < 0 or CARPAL <= int(patch[i]) < LET) and zn > caps[i]:
+            elif (int(body[i]) < 0 or int(patch[i]) >= CARPAL) and zn > caps[i]:
                 cap = caps[i]
                 lim = regime.mu * cap
                 tb1, tb2 = (-lim if zt1 < -lim else (lim if zt1 > lim else zt1)), (-lim if zt2 < -lim else (lim if zt2 > lim else zt2))

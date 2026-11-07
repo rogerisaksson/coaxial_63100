@@ -72,7 +72,13 @@ def asked(g, s, out, told, ask):
     phase, last = g.get('_row', (0.0, now))
     phase = (phase + (now - last) * ROW_BPM / 60.0) % 1.0 if told else 0.0
     g['_row'] = (phase, now)
-    ask['twist'] = tuple(g['twist']) if told else (0.0, 0.0, 0.0)
+    # none told, her text's slide over what bears her along her way (her egress) her sled's twist, driven only as far as
+    # her soles do not yet bear what her legs weigh (`seated.RESTS`): the closed chains' step drives what she sits on
+    # at it - the upright step's slide frees its friction alone, 1.2 cm in 5.2 s -; driven on her low chair's
+    # bearing soles it pushed her off its seat
+    soles = float(np.sum(g['loads'])) / weight
+    driven = float(np.asarray(ask['slide'], float) @ way) * min(max(1.0 - soles / (2.0 * seated.RESTS), 0.0), 1.0)
+    ask['twist'] = tuple(g['twist']) if told else (driven, 0.0, 0.0)
     ask['free'] = (told and phase >= 0.5, told and phase < 0.5)
     return ask
 

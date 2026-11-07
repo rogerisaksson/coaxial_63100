@@ -45,11 +45,14 @@ static void frame_rows(const double *q9, int i, int np_, int ng, const double *J
 }
 
 /** Each contact's push cap, N: what it feels by grow_n, a hand's patch no more than its share as felt of hand_cap,
-    what her text tells her hands to bear - none where not finite (machine.stack.chain_plan.capped). */
+    what her text tells her hands to bear - none where not finite -, a let-go foot's its share as felt of its side's
+    let_cap, resting what its leg below the knee weighs (machine.stack.chain_plan.capped). */
 static void capped(const wbc_step_t *p, int nc, double *caps)
 {
   double palm = 0.0;
+  double sole[2] = {0.0, 0.0};
   int    hands = 0;
+  int    soles[2] = {0, 0};
 
   for (int i = 0; i < nc; i++)
   {
@@ -58,6 +61,13 @@ static void capped(const wbc_step_t *p, int nc, double *caps)
 
     palm = palm + sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]) * (double)hand;
     hands = hands + hand;
+    if (p->cpatch[i] >= 3 * p->carpal)
+    {
+      const int k = p->cpatch[i] / (3 * p->carpal) - 1;
+
+      sole[k] = sole[k] + sqrt(cf[0] * cf[0] + cf[1] * cf[1] + cf[2] * cf[2]);
+      soles[k] = soles[k] + 1;
+    }
   }
   for (int i = 0; i < nc; i++)
   {
@@ -70,6 +80,14 @@ static void capped(const wbc_step_t *p, int nc, double *caps)
       const double told = p->hand_cap * (palm > 0.0 ? felt / palm : 1.0 / (double)(hands > 1 ? hands : 1));
 
       cap = told < cap ? told : cap;
+    }
+    if (p->cpatch[i] >= 3 * p->carpal && isfinite(p->let_cap[p->cpatch[i] / (3 * p->carpal) - 1]))
+    {
+      const int    k = p->cpatch[i] / (3 * p->carpal) - 1;
+      const double rest =
+        p->let_cap[k] * (sole[k] > 0.0 ? felt / sole[k] : 1.0 / (double)(soles[k] > 1 ? soles[k] : 1));
+
+      cap = rest < cap ? rest : cap;
     }
     caps[i] = cap;
   }
@@ -515,7 +533,7 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
     }
     for (int i = 0; i < nc; i++)
     {
-      const int     pushes = p->cbody[i] < 0 || (p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal);
+      const int     pushes = p->cbody[i] < 0 || p->cpatch[i] >= p->carpal;
       double        loc[3];
 
       if (!rows3[3 * i])
@@ -539,8 +557,9 @@ int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double
       }
       else if (pushes && loc[0] > caps[i])
       {
-        /* a hand's or a sole's patch asked past what it feels by grow_n (machine.stack.rounds.GROW_N), a hand's past
-           what her text tells them (capped): held at that cap, its friction boxed by it; what she sits or lies on is not */
+        /* a hand's, a let-go foot's or a sole's patch asked past what it feels by grow_n (machine.stack.rounds.GROW_N),
+           a hand's past what her text tells them, a let-go foot's past its leg's weight (capped): held at that cap, its
+           friction boxed by it; what she sits or lies on is not */
         const double cap = caps[i], lim = mu * cap, tb1 = npclip(loc[1], -lim, lim), tb2 = npclip(loc[2], -lim, lim);
 
         for (int c = 0; c < 3; c++)

@@ -121,8 +121,11 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
       for (int i = 0; i < 6; i++)
       {
         const int    j = p->legs[k][i];
-        const double opened = p->freed[k] * (p->open_kp * (p->posture[j] - p->q[j]) - p->open_kd * p->v[cols[i]])
-                              / p->M[cols[i] * n + cols[i]] + (1.0 - p->freed[k]) * want[j];
+        const double chain = p->freed[k] * (p->open_kp * (p->posture[j] - p->q[j]) - p->open_kd * p->v[cols[i]])
+                             / p->M[cols[i] * n + cols[i]] + (1.0 - p->freed[k]) * want[j];
+        /* hung off a seat (hang, its share): its knee and ankle as gravity swings them, damped at hang_rate */
+        const double passive = (-p->h[cols[i]]) / p->M[cols[i] * n + cols[i]] - p->hang_rate * p->v[cols[i]];
+        const double opened = chain + (p->hang[k] * ((i >= 3) ? 1.0 : 0.0)) * (passive - chain);
 
         t0[cols[i]] = want[j] * (1.0 - loose);
         E[cols[i] * nu + 6 * k + i] = loose;

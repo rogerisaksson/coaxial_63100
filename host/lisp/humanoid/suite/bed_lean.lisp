@@ -38,7 +38,7 @@
 ;; thigh and landed 15 deg turned, the whole lie and its strokes yawed with it; the fists told 0.20 she lay square
 ;; but the pull drew her pelvis 0.01 m where it draws 0.13 on fists told 0.35-0.40, and told 0.40 the lodge's lie
 ;; landed 0.43 m in, short of its first stroke's grip). From the scoot's first tick her joints play her way in
-;; (`:joint-program`, machine.moves.bedentry), told by where she lies on the bed her eyes saw, not by a count: her
+;; (`:joint-program`, moves.lisp's `bed-entry`), told by where she lies on the bed her eyes saw, not by a count: her
 ;; feet planted, the shoulders flexed against the fists as the hips lift till her pelvis is 0.30 m in, the trunk
 ;; down, the legs raised, folded, lowered and stretched, then strokes up the bed - the heels planted 0.22 m from her
 ;; hips, the pelvis bridged, the heels pushed, the pelvis set down - while she is more than half a stroke short of

@@ -132,7 +132,7 @@ def test_a_moves_pass_in_c_as_in_python(report, _c):
                 np.take(g['clamp'], p['joints'], out=p['limit'])
             tally['apart'] += mine != done or any(a.tobytes() != b.tobytes() for a, b in zip(arrays, got))
             tally['passes'] += 1
-            tally['moves'].add(p['move'].__name__.rsplit('.', 1)[-1])
+            tally['moves'].add(p['name'])
             for a, h in zip(arrays, held):
                 a[...] = h
             return made[1](at, t, dt, buf_at)

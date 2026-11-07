@@ -75,14 +75,17 @@ PROGRAMS = {
 }
 #: A program's stroke: the beats from the first named to the last, played over as many times as said (`strokes`).
 STROKES = {'bed_pull': ('plant', 'set')}
-#: Her moves: programs whose phases her senses tell (a module's `laid` and `step`), not beats, her text's rows not
-#: yet due waiting while one plays (`waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her
-#: law sits her (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`); `scoot`, along the floor as her twist
-#: tells her once she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`); `bed_entry`, into a
-#: bed over its end to its middle as where she lies tells her (`machine.moves.bedentry`, in C: `tools.cores.bedentry`),
-#: her text going on under it (its `HOLDS`). A move's `SENSED` names what a pass gives it beyond her pose (`_felt`),
-#: her bed exit's soles, shanks and pitch where it names none.
-MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot', 'bed_entry': 'tools.cores.bedentry'}
+#: Her moves: programs whose phases her senses tell (a module's `laid` and `step`, or of a module of them the table its
+#: word names, `move`), not beats, her text's rows not yet due waiting while one plays as it says (`HOLDS`,
+#: `waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her law sits her
+#: (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`); `scoot`, along the floor as her twist tells her once
+#: she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`); `bed_entry`, into a bed over its end to
+#: its middle as where she lies tells her, and `chair_mount`, up onto a seat too high for her feet on her arms - each
+#: the `defmove` of its name, a move whose phases end by what she senses (`machine.moves.sensed`, in C:
+#: `tools.cores.sensed`). A move's `SENSED` names what a pass gives it beyond her pose (`_felt`), her bed exit's soles,
+#: shanks and pitch where it names none.
+MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot', 'bed_entry': 'tools.cores.sensed',
+         'chair_mount': 'tools.cores.sensed'}
 SENSED = ('soles', 'shins', 'pitch')
 #: The senses `bodily` tells at once: her soles', shanks', fists' and each foot's share of her weight, her pitch.
 BODILY = ('soles', 'shins', 'hands', 'left_foot', 'right_foot', 'pitch')
@@ -324,7 +327,9 @@ def played(g, world):
             p['score'] = scored(p['beats'], p['pose'])
         if 'move' in p:
             import importlib
-            p['move'] = importlib.import_module(p['move'])
+            module = importlib.import_module(p['move'])
+            # a module of moves (`move`) plays the table its word names, the `defmove` of that name
+            p['move'] = module.move(p['name'].replace('_', '-')) if hasattr(module, 'move') else module
             p['state'], p['cmd'], p['last'] = p['move'].laid(p['pose'], g['t']), p['pose'].copy(), g['t']
             p['sensed'], p['holds'] = getattr(p['move'], 'SENSED', SENSED), getattr(p['move'], 'HOLDS', True)
             # its step and its joints told in one C call where it is one of her C moves (`tools.cores.played`)

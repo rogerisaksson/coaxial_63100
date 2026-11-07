@@ -52,6 +52,9 @@ RIDGE = 1e-12
 
 
 _EYE3, _EYE6, _EYE_NU, _UP = np.eye(3), np.eye(6), np.eye(NU), np.array([0.0, 1.0, 0.0])
+#: A hung leg's chain below its knee (`ask['hang']`), a leg's joints in `rounds.LEGS`' order: the kernel's hang's
+#: tibiofemoral, talocrural and calcaneus (`modulate-unloaded-limb-jet`).
+PASSIVE = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
 _UPPER_IDX = 12 + np.arange(len(UPPER))
 _UPPER_ROWS = _EYE_NU[12:NU]
 #: Her arms' rows `ask['hold']` times the posture's, else the step pitched her trunk by them: shoulders
@@ -107,6 +110,11 @@ def _maps(b, s, ask, want):
             kp, kd, freed = ask.get('open', (0.0, 0.0, np.zeros(2)))
             opened = freed[k] * (kp * (np.asarray(ask['posture'])[leg] - s['q'][leg]) - kd * v[cols]) / np.diag(M)[cols]
             opened = opened + (1.0 - freed[k]) * want[leg]
+            # hung off a seat (`ask['hang']`, its share): its knee and ankle as gravity swings them, damped at the
+            # kernel's pendulum (`ask['hang_rate']`) - asked so, her drives hold none of it and what its foot rests
+            # on bears its own weight; held on its chain instead its toes pressed a low chair's floor at 133 N
+            passive = -h[cols] / np.diag(M)[cols] - float(ask.get('hang_rate', 0.0)) * v[cols]
+            opened = opened + (float(ask.get('hang', (0.0, 0.0))[k]) * PASSIVE) * (passive - opened)
             t0[cols] = want[leg] * (1.0 - hung)
             E[cols, 6 * k:6 * k + 6] = hung * _EYE6
             a6[6 * k:6 * k + 6] = hung * opened
