@@ -158,7 +158,7 @@ def control(g, dt):
     # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
-    ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'], g['fr'])
+    ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'], g['fr'], g['pitched'])
     ask['let_cap'], ask['sat'] = g['let_cap'], max(g['sat'], float(g['a'][modal.BORNE]) * float(g['a'][modal.LET_GO].max()))
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
@@ -241,6 +241,7 @@ def laid(g):
     g['readings'] = bodied.on_args(situation.readings, 'readings', (0, 1, 2, 3, 4, 5))
     g['read'] = bodied.on_args(situation.read, 'read', (0, 1))
     g['modes'] = bodied.on_args(modal.read, 'modes', (0, 1, 2))     # her modes said to her page (`sprung.state`)
+    g['pitched'] = bodied.on_args(modal.pitched, 'pitched', (0, 1))     # her trunk reclined (`modal.given`)
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
