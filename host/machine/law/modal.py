@@ -357,7 +357,7 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
 RECLINED_RAD = 0.35
 
 
-def given(a, y, posed, knees, bend, fr, pitched_=None):
+def given(a, y, posed, knees, bend, fr, pitched_=pitched):
     """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
     that does not stand is asked its acceleration where it is; no turn is asked with none standing;
     each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate; `reclined`
@@ -370,6 +370,6 @@ def given(a, y, posed, knees, bend, fr, pitched_=None):
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
             'settle': a[SETTLE].reshape(2, 6).copy(), 'edge': tuple(a[EDGE]), 'strides': float(a[STRIDES]),
             'borne': float(a[BORNE]), 'rests': tuple(a[RESTS]),
-            'reclined': float(a[BORNE] * ((pitched_ or pitched)(y, fr[ROT].reshape(3, 3))[1] < -RECLINED_RAD)),
+            'reclined': float(a[BORNE] * (pitched_(y, fr[ROT].reshape(3, 3))[1] < -RECLINED_RAD)),
             'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
             'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}
