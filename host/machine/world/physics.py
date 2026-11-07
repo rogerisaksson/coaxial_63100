@@ -169,12 +169,14 @@ class World:
         self.geared = np.zeros(len(JOINTS))
         #: The gearboxes (BOXED, `machine.body.gearbox`), their rotors' inertia off the joints'
         #: armature; the motors' torques this step.
-        self.boxes = gearbox.Boxes(np)
+        self.boxes = gearbox.Boxes(np, bool(BOXED))
+        #: Whether any joint's box is stepped (`gearbox.Boxes.sprung`): every driven one BOXED, else her ankle's
+        #: leaf's; stepped, a joint's rotor is the box's, its armature the servo's.
+        self.sprung = bool(self.boxes.sprung.any())
         self.motor = np.zeros(len(JOINTS))
         self.link = dclink.laid()
-        if BOXED:
-            m.dof_armature[self.vadr[self.driven]] = [SERVO[kind(j)][3] for j in JOINTS
-                                                      if not drives.passive(j)]
+        if self.sprung:
+            m.dof_armature[self.vadr[self.boxes.sprung]] = [SERVO[kind(j)][3] for j, on in zip(JOINTS, self.boxes.sprung) if on]
             self.armature = m.dof_armature[self.vadr].copy()
         #: Each sole's load as last read (`pose`, LOAD_S), and when; None since the reset.
         self.borne, self.borne_at = [0.0, 0.0], None
@@ -279,7 +281,7 @@ class World:
         if now <= self.at + 1e-9:
             return
         d = self.data
-        if (self.in_c and self.buses is None and not BOXED and self.hung is None and not self.laced
+        if (self.in_c and self.buses is None and not self.sprung and self.hung is None and not self.laced
                 and not self.pushed and d.time >= self.push_until):
             return steps.advanced(self, now, ROOM)
         np = self._np
@@ -304,20 +306,22 @@ class World:
                 b.time[0] = d.time
                 b.q[:], b.qd[:] = d.qpos[self.qadr], d.qvel[self.vadr]
                 b.delta[:] = (WOUND * self.boxes.delta if BOXED else self.boxes.rigid(np, b.q)) + self.boxes.zero
-                b.delta_d[:] = WOUND * (self.boxes.w - b.qd) if BOXED else np.zeros(len(JOINTS))
-                b.ahead[:] = WOUND * self.boxes.ahead(np, self.motor) if BOXED else np.zeros(len(JOINTS))
+                b.delta_d[:] = WOUND * (self.boxes.w - b.qd) * self.boxes.sprung if self.sprung else np.zeros(len(JOINTS))
+                b.ahead[:] = WOUND * self.boxes.ahead(np, self.motor) if self.sprung else np.zeros(len(JOINTS))
                 self._stroked()
                 self.buses.step()
                 d.ctrl[:] = b.ctrl
-            elif BOXED:
+            elif self.sprung:
+                # a joint whose box is not stepped has its rotor's speed its own (`gearbox.Boxes.step` leaves it the
+                # mid-step's qd): no rate of a wind-up on its board
                 ahead = WOUND * self.boxes.ahead(np, self.motor)
-                wrate = WOUND * (self.boxes.w - d.qvel[self.vadr])
+                wrate = WOUND * (self.boxes.w - d.qvel[self.vadr]) * self.boxes.sprung
                 p.delta = self.boxes.delta.ctypes.data
                 self._ctrl(ctypes.byref(p), d.time - start, ahead.ctypes.data, wrate.ctypes.data)
             else:
                 self._ctrl(ctypes.byref(p), d.time - start, None, None)
             self._motor(ctypes.byref(p), STEP_S)
-            if BOXED:
+            if self.sprung:
                 d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr],
                                             d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
                                             np.where(self.shorted, self.damping, 0.0), STEP_S)
@@ -330,9 +334,9 @@ class World:
             if self.hung is not None:
                 d.xfrc_applied[self.pelvis] = self._harness()
             self._mj.mj_step(self.model, d)
-            if BOXED:
+            if self.sprung:
                 self.boxes.moved(d.qpos[self.qadr])
-            self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if BOXED else None, STEP_S)
+            self._metered(ctypes.byref(p), self.boxes.w.ctypes.data if self.sprung else None, STEP_S)
             dclink.stepped(self, STEP_S)
             if self.laced:
                 self._unlace()
@@ -352,12 +356,12 @@ class World:
             s = drives.ratio(joint, math.degrees(self.data.qpos[self.qadr[i]])) / drives.ratio(joint)
             b.scale[i] = s
             seen = drives.armature(joint) * s * s
-            m.dof_armature[self.vadr[i]] = base if BOXED else base + REFLECTED * (seen - base)
+            m.dof_armature[self.vadr[i]] = base if self.boxes.sprung[i] else base + REFLECTED * (seen - base)
             self.boxes.j[i] = seen
             b.rotor[i] = REFLECTED * ROTOR_FF * seen
             m.dof_frictionloss[self.vadr[i]] = BACKDRIVE * drives.backdrive(joint) * s
             m.dof_damping[self.vadr[i]] = free + (self.damping[i] * s * s if self.shorted[i]
-                                                  and not BOXED else 0.0)
+                                                  and not self.boxes.sprung[i] else 0.0)
 
     def dents(self):
         """Where her mattress gives under her (`floor.dents`)."""
@@ -450,7 +454,7 @@ class World:
         the next pass."""
         self.shorted[index], self.cut[index], self.testing[index] = True, False, 0.0
         self.model.dof_damping[self.vadr[index]] = self.free[index] + (
-            0.0 if BOXED else self.damping[index])
+            0.0 if self.boxes.sprung[index] else self.damping[index])
         if index in self.bus_of:
             self.bus_of[index].short(index)
 
@@ -471,8 +475,8 @@ class World:
         copper's heat and their boards' own, housekeeping each, switching neither shorted nor
         cut but checking (`test`), and that check's copper."""
         p = self.passing
-        return self._drawn(ctypes.byref(p), self.motor.ctypes.data if BOXED else p.ctrl,
-                           self.boxes.w.ctypes.data if BOXED else None, *self._drawn_of,
+        return self._drawn(ctypes.byref(p), self.motor.ctypes.data if self.sprung else p.ctrl,
+                           self.boxes.w.ctypes.data if self.sprung else None, *self._drawn_of,
                            heat.HOUSEKEEPING_W, heat.SWITCHING_W)
 
     def reading(self, index):

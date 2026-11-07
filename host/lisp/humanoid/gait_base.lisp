@@ -99,13 +99,16 @@
   (cpg_config (amplitude mode_sagittal_drive 0.2) (amplitude mode_limb_lift 1.0))
   (task_constraints (maintain_zmp (polygon dynamic_footprint))))
 
-;; walk on: 0.69 m/s. Her soles rock heel to toe, her pelvis lists and turns, her arms swing
+;; walk on: 1.16 m/s, a woman's normal pace at her leg (1.26 m/s at 0.85 m). Her soles rock heel to
+;; toe, her pelvis lists and turns, her arms swing. Her pace from her rhythm, 2.3 steps a second: a
+;; step past 0.6 m lands her knee bent 40-48 deg (her drive 0.95 at 1 Hz) and spends it
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
   (latent_targets (mode_pitch_attitude 0.0))
   (cpg_config
-    (amplitude mode_sagittal_drive 0.6)
+    (frequency 1.15Hz)
+    (amplitude mode_sagittal_drive 0.8)
     (amplitude mode_foot_rock 0.6)
     (amplitude mode_pelvis_list 0.4)
     (amplitude mode_pelvis_turn 0.4)

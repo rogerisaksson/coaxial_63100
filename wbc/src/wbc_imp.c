@@ -1,6 +1,6 @@
 /** wbc_imp.c - her modes' springs on her body (wbc_imp.h): machine.law.impedance.ask, machine.law.modal's
-    reading under it, numpy's arithmetic operation for operation (wbc_np.h) - the ask the same bit
-    for bit. Portable C11, the host's alone. */
+    reading under it (wbc_stride.c, wbc_poses.c, wbc_floor.c, wbc_swing.c), numpy's arithmetic operation for
+    operation (wbc_np.h) - the ask the same bit for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
 
@@ -11,94 +11,18 @@
 
 typedef wbc_imp_said_t said_t;
 
-/** machine.law.impedance._poses: her turns, her arms and her knees into `a`; `z` her modes as she
-    is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still`
-    how still her rhythm is - her trunk's rates then her head's, shrunk where they are small. */
-static void poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
-                  const double *z, const said_t *s, const double turn[3][2], const double rates[3][2],
-                  const double up[2], const double folds[2], double still)
-{
-  const double *sway = out + k->o_sway, *psi = out + k->o_psi, *mom = y + k->y_moment, *rot = fr + k->f_rot;
-  const double  turn_dc = s->ref[k->turn] - sway[k->turn] * sin(psi[k->turn]);
-  const int     by[3] = {k->pitch, k->list, k->turn}, at[3] = {k->a_want, k->a_rolled, k->a_headed};
-  const double  knee = fr[k->f_knee], yawed = out[k->o_yawed];
-  double        bent, cosine, wh[3], spun[3][2];
-
-  for (int j = 0; j < 3; j++)
-  {
-    wh[j] = npmv3(rot + 3 * j, y + k->y_hspin);
-  }
-  {
-    const double dwh[3] = {wh[1] - rates[0][1], wh[0] - rates[1][1], 0.0};
-
-    for (int r = 0; r < 3; r++)
-    {
-      const double sq = dwh[r] * dwh[r], dwh4 = sq * sq, shrunk = (dwh[r] * dwh4) / (dwh4 + 0.04);
-
-      for (int b = 0; b < 2; b++)
-      {
-        spun[r][b] = rates[r][b] + ((0.5 * still) * (1.0 - k->pelvis[b])) * shrunk;
-      }
-    }
-  }
-
-  for (int b = 0; b < 2; b++)
-  {
-    const double p = k->pelvis[b];
-    const double aim[3] = {fr[k->f_pitch0 + b] + k->pitch_rad * s->ref[k->pitch], (p * k->list_rad) * s->ref[k->list],
-                           k->turn_rad * (p * s->ref[k->turn] + ((1.0 - p) * 1.10) * turn_dc)};
-    const double rate[3] = {k->pitch_rad * s->rate[k->pitch] + 0.0 * p, (p * k->list_rad) * s->rate[k->list],
-                            (p * k->turn_rad) * s->rate[k->turn]};
-    const double acc[3] = {k->pitch_rad * s->acc[k->pitch] + 0.0 * p, (p * k->list_rad) * s->acc[k->list],
-                           (p * k->turn_rad) * s->acc[k->turn]};
-
-    for (int r = 0; r < 3; r++)
-    {
-      const double turning
-        = (acc[r] + (s->kp[by[r]] * (aim[r] - turn[r][b])) * (1.0 - (a[k->a_borne] * (1.0 - npclip(out[k->o_held], 0.0, 1.0))) * p * (r == 1)))
-          + s->kd[by[r]] * (rate[r] - spun[r][b]);
-
-      a[at[r] + b] = turn[r][b] + (turning + k->turn_kd[1] * spun[r][b]) / k->turn_kd[0];
-    }
-  }
-  a[k->a_turned] = (double)((s->kp[k->pitch] + s->kd[k->pitch]) > 0.0);
-  a[k->a_swung] = k->arm_rad * (s->ref[k->arms] + (s->acc[k->arms] + k->posture_kd[1] * s->rate[k->arms]) / k->posture_kd[0]);
-  a[k->a_reached] = k->arm_rad * (s->ref[k->reach] + (s->acc[k->reach] + k->posture_kd[1] * s->rate[k->reach]) / k->posture_kd[0]);
-  a[k->a_elbowed] = k->arm_rad * (s->ref[k->elbows] + (s->acc[k->elbows] + k->posture_kd[1] * s->rate[k->elbows]) / k->posture_kd[0]);
-  bent = z[k->axial] + npclip(s->ref[k->axial] - z[k->axial], -k->ahead, k->ahead);
-  cosine = cos(0.5 * knee) - ((k->axial_m * bent) * fr[k->f_hips_by]) / k->leg_m;
-  a[k->a_bend] = 2.0 * acos(npclip(cosine, -1.0, 1.0)) - knee;
-  a[k->a_bend_rate] = ((((((2.0 * k->axial_m) * fr[k->f_hips_by]) * s->rate[k->axial]) * (double)(fabs(cosine) < 1.0)) / k->leg_m)
-                       / sqrt(npmax(1.0 - cosine * cosine, k->tiny))) * (1.0 - npclip(out[k->o_held], 0.0, 1.0));
-  for (int b = 0; b < 2; b++)
-  {
-    const double shorter = npclip(cos(0.5 * (knee + a[k->a_bend])) - (k->clear_m * npmax(up[b], 0.0)) / k->leg_m,
-                                  -1.0, 1.0);
-
-    a[k->a_fold + b] = ((2.0 * acos(shorter)) - knee) - a[k->a_bend];
-    a[k->a_fold_rate + b] = (((((2.0 * k->clear_m) * k->limbs[b]) * s->rate[k->lift]) * (double)(up[b] > 0.0)) / k->leg_m)
-                            / sqrt(npmax(1.0 - shorter * shorter, k->tiny));
-    a[k->a_folds + b] = folds[b];
-  }
-  for (int j = 0; j < 3; j++)
-  {
-    a[k->a_kdot + j] = (-k->momentum_k) * mom[j]
-                       - (k->upward[j] * k->yaw_k) * (mom[1] - npclip(mom[1], -yawed, yawed));
-  }
-}
-
 void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a)
 {
   const double *rot = fr + k->f_rot, *sway = out + k->o_sway, *psi = out + k->o_psi, *tilt = y + k->y_tilt;
   const double *tilting = y + k->y_tilt_rate, turns = out[k->o_turns];
-  const double  stood[2] = {a[k->a_stance], a[k->a_stance + 1]};
+  const double  stood[2] = {a[k->a_stance], a[k->a_stance + 1]}, begun[2] = {a[k->a_begun], a[k->a_begun + 1]};
   const int     n = k->n, ax = k->axial;
   said_t        s;
   double        z[WBC_IMP_N], zd[WBC_IMP_N], zdd[WBC_IMP_N], leg[2][3], len[2], lrate[2], turn[3][2], spun[3][2];
   double        c[3], v[3], vh[3], om, om2, shod[2][3], sr[2][3], flat[2][2], xi[2], low[2][2], high[2][2];
   double        floors[2], rise, still, dvh[3];
   double        way4[4][3], plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
-  double        smax, stepping, way, swung, sweep[2], phi[2], on[2], off[2], u[2], flying[2], kpf[2], kdf[2];
+  double        smax, stepping, way, swung, rate[2], sweep[2], phi[2], on[2], off[2], u[2], flying[2], fl2[2], pre[2], kpf[2], kdf[2];
   double        aside[2], hurry[2], limbs[2], tone[3], cruise, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3];
@@ -215,7 +139,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
-               a[k->a_need], a + k->a_lead, a + k->a_split, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
+               a[k->a_need], a + k->a_lead, a + k->a_split, begun, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   {
     const double held = 1.0 - npclip(out[k->o_held], 0.0, 1.0);
     const double gap = a[k->a_split] - a[k->a_split + 1];
@@ -273,11 +197,13 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   kpf[1] = s.kp[k->free_by[1]];
   kdf[0] = s.kd[k->free_by[0]];
   kdf[1] = s.kd[k->free_by[1]];
-  wbc_imp_hurried(k, aside, om, u, swung, kpf, hurry);
+  rate[0] = swung / (1.0 - begun[0]);
+  rate[1] = swung / (1.0 - begun[1]);
+  wbc_imp_hurried(k, aside, om, u, rate, kpf, hurry);
   for (int b = 0; b < 2; b++)
   {
     hurry[b] = 1.0 + flying[b] * (hurry[b] - 1.0);
-    a[k->a_lead + b] = on[b] * (a[k->a_lead + b] + (fr[k->f_dt] * swung) * (hurry[b] - 1.0));
+    a[k->a_lead + b] = on[b] * (a[k->a_lead + b] + (fr[k->f_dt] * rate[b]) * (hurry[b] - 1.0));
     limbs[b] = npmax(stepping, off[b]);
   }
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going]);
@@ -339,8 +265,10 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     up_h[b] = up[b] + short_h / k->clear_m;
   }
+  wbc_imp_pitched(k, fr + k->f_ground, pg2);
   {
-    const double beat3[3][2] = {{sweep[0], sweep[1]}, {off[0], off[1]}, {flying[0], flying[1]}};
+    const double beat4[4][2] = {{sweep[0], sweep[1]}, {off[0], off[1]}, {flying[0], flying[1]},
+                                {(double)(tilt[0] - pg2[0] >= k->heel_rad), (double)(tilt[1] - pg2[1] >= k->heel_rad)}};
     const double bears3[3][2] = {{y[k->y_load], y[k->y_load + 1]},
                                  {y[k->y_lowest] - floors[0], y[k->y_lowest + 1] - floors[1]},
                                  {y[k->y_lowest] - fr[k->f_floor], y[k->y_lowest + 1] - fr[k->f_floor]}};
@@ -348,7 +276,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
     zmp[0] = c[0] + both[0] / om2;
     zmp[1] = c[1] + both[1] / om2;
-    wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat3, bears3, y[k->y_vcom + 1],
+    wbc_imp_stands(k, zmp, xi, low, high, om, out[k->o_held], up_h, swaying, beat4, bears3, y[k->y_vcom + 1],
                    y[k->y_prop] * fr[k->f_weight], stood, prop, propped, stance);
   }
   /* a leg let go as her release has it (machine.moves.emancipation): its foot then a contact (machine.senses.borne) */
@@ -375,7 +303,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_imp_landings(k, y, fr, a, rot, c, flat, xi, &cruise, om, turns, wide, across, reach, stood, u, flying, meet, top, land, adj,
                    over, &apart);
   wbc_imp_rocks(k, s.ref[k->rock], s.rate[k->rock], s.acc[k->rock], tip, tipping, tipped);
-  wbc_imp_folds(k, off, y + k->y_load, fr[k->f_knee] + a[k->a_bend], fold, shorter);
+  pre[0] = off[0] * (1.0 - u[0]);
+  pre[1] = off[1] * (1.0 - u[1]);
+  wbc_imp_folds(k, pre, y + k->y_load, fr[k->f_knee] + a[k->a_bend], fold, shorter);
   a[k->a_prefold] = fold[0];
   a[k->a_prefold + 1] = fold[1];
   wbc_imp_heels(k, sr, tilt, tilting, hips, floors, l_ask, shorter, off, tip,
@@ -445,9 +375,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     lift2[b] = npmax(k->clear_m * (1.0 + fabs(sway[k->lift])) + a[k->a_raise], top[b] + 2.0 * k->clear_m) * (1.0 - propped)
                + k->clear_m * propped;
   }
-  th[0] = swung * hurry[0];
-  th[1] = swung * hurry[1];
-  wbc_imp_clears(k, u, flying, th, lift2, tip, tipping, tilt, late, land, clr);
+  th[0] = rate[0] * hurry[0];
+  th[1] = rate[1] * hurry[1];
+  fl2[0] = npmax(flying[0], off[0]);
+  fl2[1] = npmax(flying[1], off[1]);
+  wbc_imp_clears(k, u, fl2, th, lift2, tip, tipping, tilt, late, land, clr);
   for (int r = 0; r < 3; r++)
   {
     for (int b = 0; b < 2; b++)
@@ -465,8 +397,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     gc[j] = npdot(cm, 1, rot + j, 3, 3);
   }
-  th[0] = turns * hurry[0];
-  th[1] = turns * hurry[1];
+  th[0] = (turns * hurry[0]) / (1.0 - begun[0]);
+  th[1] = (turns * hurry[1]) / (1.0 - begun[1]);
   wbc_imp_guarded(k, meet, over, flat, apart, held2);
   wbc_imp_goes(k, held2, flat, shod, v, u, th, kpf, kdf, g2);
   for (int b = 0; b < 2; b++)
@@ -487,7 +419,6 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   wbc_imp_rested(k, &s, out[k->o_held], grounded, aloft, limbs, floors, y, shod, rot, a);
   /* its pitch on the rock's own spring, from the floor's under the soles that stand */
-  wbc_imp_pitched(k, fr + k->f_ground, pg2);
   pg = npdot(bears, 1, pg2, 1, 2);
   for (int b = 0; b < 2; b++)
   {
@@ -499,6 +430,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_going] += (fr[k->f_dt] / k->going_s) * (((0.0 + mvs[0]) + mvs[1]) / 2.0 - a[k->a_going]);
   a[k->a_stance] = stance[0];
   a[k->a_stance + 1] = stance[1];
+  for (int b = 0; b < 2; b++)
+  {
+    a[k->a_begun + b] = on[b] * (begun[b] + ((stood[b] * (1.0 - stance[b])) * off[b])
+                                             * (npmin(0.5 * (phi[b] / k->phi_w + 1.0), 0.0) - begun[b]));
+  }
   for (int j = 0; j < 3; j++)
   {
     a[k->a_com_acc + j] = npdot(com, 1, rot + j, 3, 3);
@@ -507,5 +443,5 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_borne] = propped;
   folds[0] = aloft[0] * (1.0 - limbs[0]);
   folds[1] = aloft[1] * (1.0 - limbs[1]);
-  poses(k, out, y, fr, a, z, &s, turn, spun, up_h, folds, still);
+  wbc_imp_poses(k, out, y, fr, a, z, &s, turn, spun, up_h, folds, still);
 }

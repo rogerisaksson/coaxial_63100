@@ -105,7 +105,7 @@ SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
 STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57, 58
 #: And her knees' bend's rate, rad/s: the stack's knee rows damp against it, not against still.
 BEND_RATE = 59
-#: And, kept, the tread of a floor told her each swing lands on (`stride.footholds`), -1 none.
+#: And, kept, the tread of a floor told her each swing lands on (`treads.footholds`), -1 none.
 CELL = slice(60, 62)
 #: And her sidechain's latch and envelope (`impedance._ducked`).
 DUCKING = slice(62, 64)
@@ -122,7 +122,9 @@ REACHED, ELBOWED = 73, 74
 LET_GO = slice(75, 77)
 #: And each limb's own shift of its place in her rhythm, rad: 0 but in a leap (`impedance`, the split).
 SPLIT = slice(77, 79)
-ASK = 79
+#: And, kept, the share of each limb's rhythm's swing its own began at: 0 there, less where its toes left first.
+BEGUN = slice(79, 81)
+ASK = 81
 
 #: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
 _G = gait.table('modes')
@@ -361,10 +363,14 @@ def given(a, y, posed, knees, bend, fr, pitched_=pitched):
     """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
     that does not stand is asked its acceleration where it is; no turn is asked with none standing;
     each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate; `reclined`
-    borne with her trunk sensed past RECLINED_RAD back along her way (`fr`; `pitched_` its C)."""
+    borne with her trunk sensed past RECLINED_RAD back along her way (`fr`; `pitched_` its C). A
+    standing knee her stride has off (pre-swing) is asked its fold (`poses`' PREFOLD) as a row of its
+    own: through the knees' summed row and her posture alone it stayed at 30 deg and her hip was still
+    extending, 82 deg/s, as her toes left - a woman's flexes there."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
     free = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5))
     folded = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5) & (a[FOLDS] > 0.5))
+    pre = np.flatnonzero((a[STANCE] > 0.5) & (a[SWINGS] > 0.5))
     return {'stance': tuple(a[STANCE] > 0.5), 'let_go': tuple(a[LET_GO] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
@@ -372,4 +378,5 @@ def given(a, y, posed, knees, bend, fr, pitched_=pitched):
             'borne': float(a[BORNE]), 'rests': tuple(a[RESTS]),
             'reclined': float(a[BORNE] * (pitched_(y, fr[ROT].reshape(3, 3))[1] < -RECLINED_RAD)),
             'swing': {int(i): (sw_at[i].copy(), speeds[i].copy(), accs[i].copy(), tips[i]) for i in free},
-            'fold': {int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded}}
+            'fold': {**{int(i): (pose[knees[i]] + a[FOLD][i], a[FOLD_RATE][i], 0.0) for i in folded},
+                     **{int(i): (pose[knees[i]], 0.0, 0.0) for i in pre}}}

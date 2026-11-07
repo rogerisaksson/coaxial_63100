@@ -24,7 +24,7 @@ typedef struct
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
   int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box, a_reached, a_elbowed, a_let_go;
-  int           a_split;
+  int           a_split, a_begun;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.law.impedance */
@@ -39,7 +39,7 @@ typedef struct
   double        touch_n, touch_m, rest_m_s, middle, ankle_h, ball, toe_m;
   /* machine.law.stride */
   double        limbs[2], stride_m, rock_rad, stirs, phi_w, back, ahead_m_s, reach_m, apart_m, soon_s;
-  double        rise_u, fall_u, rise_u2, fall_u2, arrive_u, leads, reach_m_s, reach_s, flat_k, heel_rad;
+  double        rise_u, fall_u, rise_u2, fall_u2, arrive_u, leads, land_share, reach_m_s, reach_s, flat_k, heel_rad;
   double        heel_rad_s, dip_m, edge_rad, fold_rad, heel_up, map_k;
 } wbc_imp_t;
 
@@ -66,6 +66,12 @@ typedef struct
   double hands[WBC_IMP_N * 6];
 } wbc_imp_said_t;
 
+/** machine.law.impedance._poses (wbc_poses.c): her turns, her arms and her knees into `a`; `z` her modes as she
+    is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still` her rhythm's. */
+void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
+                   const double *z, const wbc_imp_said_t *s, const double turn[3][2], const double rates[3][2],
+                   const double up[2], const double folds[2], double still);
+
 /** machine.law.swing.free and rested (wbc_swing.c). */
 void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const double v[3], double om,
                     const double shod[2][3], const double floors[2], double rise, const wbc_imp_said_t *s,
@@ -84,21 +90,22 @@ void wbc_imp_boxes(const wbc_imp_t *k, const double flat[2][2], const double edg
 void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2], const double phi[2], double by,
                      double slo[2], double shi[2]);
 
-/** machine.law.poise.stands: which soles stand, her ZMP into `zmp`. `beat` sweep, off, flying;
+/** machine.law.poise.stands: which soles stand, her ZMP into `zmp`. `beat` sweep, off, flying, toes;
     `bears` loads, over, felt; `prop` its low, high and how far. */
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
-                    const double beat[3][2], const double bears[3][2], double rising, double borne,
+                    const double beat[4][2], const double bears[3][2], double rising, double borne,
                     const double stood[2], const double prop[2][2], double by, double stance[2]);
 
 /** machine.law.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
-                  const double was[2], double need, const double lead[2], const double split[2], double *stepping, double *way,
+                  const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
+                  double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2]);
 
 /** machine.law.stride.hurried, cruises, meets, rocks, folds, lates, goes. */
-void   wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const double u[2], double rate,
+void   wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const double u[2], const double rate[2],
                        const double kp[2], double hurry[2]);
 double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going);
 void   wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], const double flat[2][2],

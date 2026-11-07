@@ -10,9 +10,10 @@ _G = gait.table('twist')
 #: Her twists' speeds (her build's, `machine.body.gait`): a walk, a sprint, a walk back, a sidestep,
 #: m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('walk_m_s', 'run_m_s', 'back_m_s', 'strafe_m_s', 'yaw_rad_s'))
+#: Told faster than this she goes over from her walk to her march (the gym's jog): midway, m/s.
+MARCH_FROM = 0.5 * (WALK_SPEED + RUN_SPEED)
 #: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
-STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
-#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride.
+STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride.
 WALK_HZ = _G['walk_hz']
 BRAKE_S = 1.0 / WALK_HZ
 #: Her stand's blend, s (gait_base.lisp's stand).
@@ -172,8 +173,8 @@ GAIT_BOXES = (
     (-0.05, _INF, -0.05, 0.05, -_INF, -0.05, 'turn_right'),
     (-_INF, -0.05, -0.05, 0.05, 0.05, _INF, 'turn_back_left'),
     (-_INF, -0.05, -0.05, 0.05, -_INF, -0.05, 'turn_back_right'),
-    (0.96, _INF, -0.05, 0.05, -0.05, 0.05, 'jog'),
-    (0.05, 0.96, -0.05, 0.05, -0.05, 0.05, 'walk'),
+    (MARCH_FROM, _INF, -0.05, 0.05, -0.05, 0.05, 'jog'),
+    (0.05, MARCH_FROM, -0.05, 0.05, -0.05, 0.05, 'walk'),
     (-_INF, -0.05, -0.05, 0.05, -0.05, 0.05, 'walk_back'),
 )
 
@@ -355,8 +356,8 @@ WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targ
            ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
            ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
            ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-           ' (cpg_config (enable true) (frequency 0.94Hz) (amplitude mode_lateral_shift 0.28)'
-           ' (amplitude mode_sagittal_drive 0.605) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.62)'
+           ' (cpg_config (enable true) (frequency 1.15Hz) (amplitude mode_lateral_shift 0.28)'
+           ' (amplitude mode_sagittal_drive 0.8) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.62)'
            ' (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.88)'
            ' (amplitude mode_stance_width 0.0) (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
            ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg) (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'

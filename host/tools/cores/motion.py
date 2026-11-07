@@ -31,7 +31,7 @@ FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass groun
       ' map_at map_way map_along map_rise map_n elbow0').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
      'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests propped '
-     'propped_below propped_since propped_box reached elbowed let_go split').split()
+     'propped_below propped_since propped_box reached elbowed let_go split begun').split()
 
 
 def _at(x):
@@ -68,6 +68,7 @@ def _doubles():
             ('reach_m', stride.REACH_M), ('apart_m', stride.APART_M), ('soon_s', stride.SOON_S),
             ('rise_u', stride.RISE_U), ('fall_u', stride.FALL_U), ('rise_u2', stride.RISE_U ** 2),
             ('fall_u2', stride.FALL_U ** 2), ('arrive_u', stride.ARRIVE_U), ('leads', stride.LEADS),
+            ('land_share', stride.LAND_SHARE),
             ('reach_m_s', stride.REACH_M_S), ('reach_s', stride.REACH_S), ('flat_k', stride.FLAT_K),
             ('heel_rad', stride.HEEL_RAD), ('heel_rad_s', stride.HEEL_RAD_S), ('dip_m', stride.DIP_M),
             ('edge_rad', stride.EDGE_RAD), ('fold_rad', stride.FOLD_RAD), ('heel_up', stride.HEEL_UP),

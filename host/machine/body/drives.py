@@ -73,6 +73,9 @@ COOLING, RIGID_PLAY_DEG = _BUILD['cooling'], _BUILD['rigid_play_deg']
 AHEAD_WIND, AHEAD_PLAY = _BUILD['ahead_wind'], _BUILD['ahead_play']
 #: Each kind's structure wound up a N m, mrad (`flex`).
 WIND = dict(_BUILD['wind'])
+#: Each kind's series spring between its drive and its joint, N m/rad at the joint (`series`): the ankle's pitch
+#: leaf (`linkage.LEAF`, `[series]`); the world steps those joints' rotors against it (`machine.body.gearbox`).
+SERIES = dict(_BUILD.get('series', {}))
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split, two discs facing
@@ -107,6 +110,12 @@ def wind(joint):
     """N m/rad the joint winds up by past its play: its gearbox's and its structure's (`flex`)
     through its lever squared; none undriven."""
     return 0.0 if passive(joint) else linkage.lever(joint) ** 2 / flex(joint)
+
+
+def series(joint):
+    """N m/rad of the spring in series between the joint's drive and the joint (SERIES), at the
+    joint; 0 none, and none undriven."""
+    return 0.0 if passive(joint) else float(SERIES.get(kind(joint), 0.0))
 
 
 def mesh(joint):

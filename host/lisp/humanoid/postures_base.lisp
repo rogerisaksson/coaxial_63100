@@ -97,21 +97,23 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 
-;; sprint / jog specialization for deeper axial compliance and stable high-cadence stride
+;; her march, the jog's slot: a power walk's cadence on her walk's step, her pelvis turned twice a
+;; walk's (9 deg, a power walk's 8-12) for its length: 1.35 m/s; turned as her walk's, 1.65 of her
+;; weight landing for 1.55 and more of the stack's shrinks; at 1.35 Hz, 1.40 m/s and twice those
 (defbehavior jog (extends jog)
   (phase apa
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 0.96Hz)
-      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.60)
+      (frequency 1.3Hz)
+      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.85)
       (amplitude mode_limb_lift 1.04) (amplitude mode_foot_rock 0.60)
-      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.38)
+      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.8)
       (amplitude mode_arm_swing 0.90)))
   (phase run
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 0.98Hz)
-      (amplitude mode_sagittal_drive 0.68) (amplitude mode_limb_lift 1.06)
+      (frequency 1.3Hz)
+      (amplitude mode_sagittal_drive 0.85) (amplitude mode_limb_lift 1.06)
       (amplitude mode_foot_rock 0.64) (amplitude mode_pelvis_list 0.36)
-      (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.95))))
+      (amplitude mode_pelvis_turn 0.8) (amplitude mode_arm_swing 0.95))))
 

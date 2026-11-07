@@ -72,12 +72,12 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     """(which soles stand, her ZMP): `zmp` as her springs ask it, `xi` her capture point, `low`
     and `high` her soles' boxes, `held` the polygon said (0 none, 1 her support's, 2 the
     dynamic footprint); `up` how far each sole is asked up, `swaying` whether she sways as
-    asked; `beat` her stride's (sweep, off, flying), `bears` (loads N, heights over the floor
+    asked; `beat` her stride's (sweep, off, flying, toes), `bears` (loads N, heights over the floor
     as it runs on under them and over the floor felt m, her speed up, what bears her off them
     N), `stood` the soles that stood the pass before;
     `prop` what bears her off
     them (`spanned`), her support with them."""
-    sweep, off, flying = beat
+    sweep, off, flying, toes = beat
     loads, over, felt, rising, borne = bears
     # a sole stands by its height alone only over a floor felt: at a 10 deg ramp's top a swing
     # that ended in the air on the ramp's plane run on stood at 0 N, the other was let go and
@@ -92,13 +92,15 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # down itself, come down ahead of her before its swing was out. Where it lands meets
     # her capture point, wherever that has gone: held down till her capture point was 5
     # cm from the other, her ZMP in the other took it further off and the sole went up
-    # and down on its ball
+    # and down on its ball. One its stride has off leaves so too once its heel is up as far as a
+    # woman's as her toes leave (`toes`): kept down to its swing, at 1.08 m/s its knee went from
+    # 28 to 16 deg in 57 ms, and its swing's start reversed it - her hip at its emergency clamp
     out_up = BIG * (up > LIFT_EPS)[:, None]
     lo_b, hi_b = spanned(low + out_up, high - out_up, prop)
     within = ((zmp >= lo_b - GATE_M) & (zmp <= hi_b + GATE_M)).all(axis=1)
     landed = np.array(leap.standing(off < 0.5, loads, level, rising, borne))
     early = (sweep > EARLY) & ((loads >= leap.TOUCH_N) | (stood > 0.5))
-    gone = (flying > 0.5) & (landed[::-1] | (over > leap.TOUCH_M)) & ~early
+    gone = (np.maximum(flying, off * toes) > 0.5) & (landed[::-1] | (over > leap.TOUCH_M)) & ~early
     lifting = ((up > LIFT_EPS) & ((within[::-1] & swaying) | (over > leap.TOUCH_M)) & (loads <= loads[::-1])) | gone
     stance = np.array(leap.standing(~lifting, loads, level, rising, borne), float)
     # and into the soles that are to stand - her capture point kept in them too while both
