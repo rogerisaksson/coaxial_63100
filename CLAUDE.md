@@ -109,14 +109,15 @@ Evaluate the prompt and working tree before invoking any tool:
     - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
     - Generated File: [NO (safe to edit) OR YES (create)]
     - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
-    - [INV-SYSTEM] Understood the software system, mechanics and dynamics? [YES / NO]
-    - [INV-CODE] No quick `hacks`, no overfitting, data massage and `tweaks`? [YES / NO]
-    - [INV-DAG] One-way import hierarchy preserved? [YES / NO]
-    - [INV-CONTROL] No scripted playback, dynamic control of motion? [YES / NO]
-    - [INV-DOD] Flat arrays, table order, single edge, zero branches? [YES / NO]
-    - [INV-PARITY] 1:1 real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
-    - [INV-PHYSICS] Upstream constraint fix (zero filters/magic/ifs)? [YES / NO]
-    - [INV-STYLE] <=100-char brief/synopsis, token budget, ASCII, 0 corp info? [YES / NO]
+    - [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
+    - [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
+    - [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
+    - [INV-CODE] Zero hacks, workarounds, overfitting, data massage, or tweaks? [YES / NO]
+    - [INV-DAG] Strict one-way acyclic dependency graph (0 circular imports)? [YES / NO]
+    - [INV-DOD] Contiguous flat arrays, table order, single edge, 0 branches? [YES / NO]
+    - [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO]
+    - [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
+    - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
 
 - **Transition Rule:**
   - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
@@ -166,7 +167,7 @@ Evaluate the prompt and working tree before invoking any tool:
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **TWO-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
   If verification fails in State 4, you are permitted **at most four (4)**
-  return to State 2 to revise the diagnosis. If the second attempt fails
+  return to State 2 to revise the diagnosis. If the fourth attempt fails
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
   trial-and-error hacking is strictly forbidden.
