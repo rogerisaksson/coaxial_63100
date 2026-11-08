@@ -211,8 +211,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     limbs[b] = npmax(stepping, off[b]);
   }
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going], phi_w);
-  /* her soles land for the lesser of her cruise and the pace asked of her (machine.law.impedance) */
-  pace = way * npmin(way * cruise, way * wbc_imp_cruises(k, way, asked[k->drive], turns, a[k->a_going], phi_w));
+  /* her soles land for her cruise while her drive is asked, for the pace asked once it is let go (machine.law.impedance) */
+  pace = cruise + (double)(fabs(asked[k->drive]) <= k->tiny) * (wbc_imp_cruises(k, way, asked[k->drive], turns, a[k->a_going], phi_w) - cruise);
   lat_dc = stepping * (s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]));
   across = 2.5 * lat_dc;
   /* still, her head's speed past her centre of mass's, shrunk where it is small, and her
@@ -358,7 +358,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   striding[0] = npclip(out[k->o_held], 0.0, 1.0) * flying[1];
   striding[1] = npclip(out[k->o_held], 0.0, 1.0) * flying[0];
   wbc_imp_vaults(k, leg, len, lrate, v, shod, along, propped, pressed, fr[k->f_hips_by], k->low_leg * fr[k->f_reach0], hip_h, reach_h,
-                 duck, rocked, striding, asked[k->drive], sway[k->drive], s.kp[ax], s.kd[ax], risen);
+                 duck, rocked, striding, asked[k->drive], s.kp[ax], s.kd[ax], risen);
   smax = npmax(stance[0], stance[1]);
   {
     /* her standing legs' geometry sets her height only while nothing else bears her (machine.law.impedance) */

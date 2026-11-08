@@ -100,7 +100,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         drv, trn, gng = abs(float(np.asarray(g['out'][latent.SWAY])[modal.DRIVE])), float(g['out'][latent.TURNS]), float(a[modal.GOING])
         crz = float(np.clip(2.0 / np.pi * stride.STRIDE_M * drv * np.sin(float(stride.swings(drv, trn, gng))) * trn,
                             abs(gng) - stride.AHEAD_M_S, abs(gng) + stride.AHEAD_M_S))
-        log['drive'].append([drv, gng, crz, min(1.0, abs(float(np.asarray(g['out'][latent.ASKED])[modal.DRIVE])) / max(drv, 1e-9))])
+        log['drive'].append([drv, gng, crz, 1.0 - float(abs(float(np.asarray(g['out'][latent.ASKED])[modal.DRIVE])) <= 1e-9)])
         from machine.process import sprung
         log['tilt_g'].append(float(sprung.tilt(g)))
         log['acc'].append(float(a[modal.COM_ACC][1]))

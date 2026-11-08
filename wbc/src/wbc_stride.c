@@ -334,11 +334,10 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
 void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
                     const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
                     double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
-                    const double heeled[2], const double striding[2], double asked, double sway, double kp, double kd,
-                    double risen[2])
+                    const double heeled[2], const double striding[2], double asked, double kp, double kd, double risen[2])
 {
-  /* and no further than her drive is still asked: the drive's amplitude asked over the one running */
-  const double push = npclip(fabs(asked) / npmax(fabs(sway), k->tiny), 0.0, 1.0);
+  /* and only while her drive is asked: none asked, the leg rolls over on the arc */
+  const double push = 1.0 - (double)(fabs(asked) <= k->tiny);
 
   for (int b = 0; b < 2; b++)
   {

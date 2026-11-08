@@ -145,8 +145,7 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
 void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
                     const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
                     double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
-                    const double heeled[2], const double striding[2], double asked, double sway, double kp, double kd,
-                    double risen[2]);
+                    const double heeled[2], const double striding[2], double asked, double kp, double kd, double risen[2]);
 
 /** machine.law.stride.clears: a swinging sole's middle over the floor, its rate, its acceleration. */
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],
