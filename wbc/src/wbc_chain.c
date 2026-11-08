@@ -21,7 +21,7 @@ static double *carve(double **at, int count)
   return out;
 }
 
-/** machine.stack.chain.frame: Q (3 x 3, rows) the normal (up where none felt) and two tangents. */
+/** machine.stack.chain.frame: Q (3 x 3, rows) the normal of what bears it (up where none) and two tangents. */
 static void frame(const double f[3], double Q[9])
 {
   const double norm = sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
@@ -198,7 +198,7 @@ int wbc_chain(wbc_step_t *p)
   for (int q = 0; q < nc; q++)
   {
     memcpy(J + 3 * q * n, p->cJ[q], (size_t)(3 * n) * sizeof(double));
-    frame(p->cf[q], Q + 9 * q);
+    frame(p->cn[q], Q + 9 * q);
   }
   for (int rw = 0; rw < k3; rw++)
   {

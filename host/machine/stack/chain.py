@@ -59,7 +59,7 @@ def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
     below 0 - held in its friction's box, never planned as a push. Felt whole, the leg her text lifted took 82 -> 112 N
     as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s."""
     soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]) * (1.0 - float(shed[k])), 0.0]),
-              'J': np.ascontiguousarray(f['J6'][3:6]),
+              'n': np.array([0.0, 1.0, 0.0]), 'J': np.ascontiguousarray(f['J6'][3:6]),
               'dJv': np.asarray(f['dJv'][3:6], float), 'patch': 0, 'side': k, 'body': -1 - k}
              for k, f in enumerate(s['feet']) if chained and stance[k]]
     return list(s.get('contacts', ())) + soles
@@ -76,7 +76,7 @@ def regime(said, unweight):
 
 
 def frame(f0, f1, f2):
-    """A contact's frame (3, 3), rows: its normal - the felt force's direction, up where it feels none -, two tangents."""
+    """A contact's frame (3, 3), rows: its normal - the way (f0, f1, f2) of what bears it, up where none -, two tangents."""
     norm = math.sqrt(f0 * f0 + f1 * f1 + f2 * f2)
     n0, n1, n2 = (f0 / norm, f1 / norm, f2 / norm) if norm > 0.0 else (0.0, 1.0, 0.0)
     e0, e1, e2 = (0.0, 0.0, 1.0) if abs(n0) > 0.9 else (1.0, 0.0, 0.0)
@@ -87,7 +87,8 @@ def frame(f0, f1, f2):
 
 
 def frames(f):
-    """Each contact's `frame` of the felt forces `f` (3k): (k, 3, 3)."""
+    """Each contact's `frame` of the normals of what bears it `f` (3k, `borne._normal`'s; her floor's up): (k, 3, 3).
+    Of the felt forces instead, her fists' shear tilted it 36-44 deg off her seat's and her plan held them at 7-21 N."""
     return np.array([frame(float(f[3 * i]), float(f[3 * i + 1]), float(f[3 * i + 2])) for i in range(len(f) // 3)]).reshape(-1, 3, 3)
 
 
@@ -262,7 +263,7 @@ def step(b, s, ask, regime, bounded=False, released=True, stopped=False, complia
     Minv = np.linalg.inv(Mpp)
     rhs0 = -h[P]
     Jp, Jg = np.ascontiguousarray(J[:, P]), np.ascontiguousarray(J[:, given])
-    Jv, Q = (J @ v if k else np.zeros(0)), frames(f)
+    Jv, Q = (J @ v if k else np.zeros(0)), frames(np.concatenate([np.asarray(c['n'], float) for c in contacts]) if k else f)
     # 1. her driven joints as the chain's plan asks them, the tasks answered through the contacts and her dynamics
     R, r, want = tasks(b, s, ask, regime)
     vx, way = float(ask.get('twist', (0.0,))[0]), ways(s['turns'][0]['quat'])[2]

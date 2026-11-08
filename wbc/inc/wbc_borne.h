@@ -52,6 +52,7 @@ typedef struct
   double                 touch_m, reach_m, shed0;   /* leap.TOUCH_M, observer.REACH_M, cascade.SHED[0] */
   int                    corner[WBC_BORNE_CONTACTS];  /* a contact's corner of the seat's cone, -1 none */
   double                 seat_on, seat_near;        /* emancipation.seated's g['seat_on'], g['seat_near'] */
+  double                 nrm[WBC_BORNE_CONTACTS][3]; /* a contact's normal of what bears it, world (borne._normal) */
 } wbc_borne_t;
 
 /** A read (machine.senses.borne.read) of her edge's array `y` at her law's velocity `v`, her `weight`, her hands

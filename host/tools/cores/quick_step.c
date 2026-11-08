@@ -18,7 +18,7 @@ enum
   F_LET_HOLD, F_OPEN_KP, F_OPEN_KD, F_FREED, F_STRIDES, F_BORNE, F_HOLD, F_SAT, F_CHAIN_VX, F_CHAIN_FREE, F_SWING,
   F_SWING_AT, F_SWING_SPEED, F_SWING_ACC, F_SWING_QUAT, F_FOLD, F_FOLD_KNEE, F_FOLD_RATE, F_FOLD_ACC, F_KNEE_RATE, F_WEP,
   F_POSTURE, F_DERATE, F_CLAMP, F_WEP_NM, F_MASS, F_LO, F_HI, F_TAU, F_QACC, F_BEARS, F_COP, F_COP_N, F_COP_NONE,
-  F_OVER, F_FORCES, F_LOAD, F_SCALE, F_RESIDUAL, F_HANG, F_HANG_RATE, FIELDS
+  F_OVER, F_FORCES, F_LOAD, F_SCALE, F_RESIDUAL, F_HANG, F_HANG_RATE, F_CN, FIELDS
 };
 
 /* The keys and attributes it reads and its answer's keys, interned once. */
@@ -27,14 +27,14 @@ static const char *const NAMES[] = {
   "settle", "edge", "mu", "rests", "slide", "fz_cap", "slid_cap", "hand_cap", "let_cap", "let_hold", "open", "strides",
   "borne", "hold", "sat", "twist", "free", "swing", "fold", "knee_rate", "wep", "posture", "derate", "lo", "hi",
   "clamp", "mass", "load", "sensed", "last", "c", "placed", "tau", "qacc", "bears", "cop", "over", "slack", "held",
-  "scale", "residual", "hang", "hang_rate"};
+  "scale", "residual", "hang", "hang_rate", "n"};
 enum
 {
   K_M, K_CONTACTS, K_J, K_P, K_DJV, K_F, K_PATCH, K_BODY, K_GIVE, K_STANCE, K_LET_GO, K_COM_ACC, K_TURNS, K_KDOT,
   K_SETTLE, K_EDGE, K_MU, K_RESTS, K_SLIDE, K_FZ_CAP, K_SLID_CAP, K_HAND_CAP, K_LET_CAP, K_LET_HOLD, K_OPEN, K_STRIDES,
   K_BORNE, K_HOLD, K_SAT, K_TWIST, K_FREE, K_SWING, K_FOLD, K_KNEE_RATE, K_WEP, K_POSTURE, K_DERATE, K_LO, K_HI,
   K_CLAMP, K_MASS, K_LOAD, K_SENSED, K_LAST, K_C, K_PLACED, K_TAU, K_QACC, K_BEARS, K_COP, K_OVER, K_SLACK, K_HELD,
-  K_SCALE, K_RESIDUAL, K_HANG, K_HANG_RATE, KEYS
+  K_SCALE, K_RESIDUAL, K_HANG, K_HANG_RATE, K_N, KEYS
 };
 static PyObject *K[KEYS];
 
@@ -247,7 +247,7 @@ static int pointed(step_t *t, PyObject *kobj, PyObject *s)
 /* Her contacts (`s.get('contacts', ())`) pointed at, their patches, bodies and give: 0 where one is not as laid. */
 static int touched(step_t *t, PyObject *s)
 {
-  static const int ptrs[4][2] = {{K_J, F_CJ}, {K_P, F_CP}, {K_DJV, F_CDJV}, {K_F, F_CF}};
+  static const int ptrs[5][2] = {{K_J, F_CJ}, {K_P, F_CP}, {K_DJV, F_CDJV}, {K_F, F_CF}, {K_N, F_CN}};
   int              bad = 0;
   PyObject        *contacts = got(s, K_CONTACTS, &bad);
   Py_ssize_t       nc = 0;
@@ -261,7 +261,7 @@ static int touched(step_t *t, PyObject *s)
     int       patch = 0, body = 0;
 
     ok = PyDict_Check(c);
-    for (int j = 0; ok && j < 4; j++)
+    for (int j = 0; ok && j < 5; j++)
       ok = (FP(t, ptrs[j][1])[at] = f64(got(c, ptrs[j][0], &bad))) != NULL;
     ok = ok && (((o = got(c, K_PATCH, &bad)) == NULL && !bad) || whole(o, &patch));
     ok = ok && (((o = got(c, K_BODY, &bad)) == NULL && !bad) || whole(o, &body));

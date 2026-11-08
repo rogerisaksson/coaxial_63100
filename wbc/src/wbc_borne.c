@@ -55,6 +55,64 @@ static double room_of(const wbc_borne_t *b, int k, const double local[3])
   return r;
 }
 
+/** borne._normal: the normal of what bears segment `k` at its touch `local` (its frame), world, into her - her capsule
+    nearest the point (room_of's choice) outward there, turned by `R`, reversed -; up with none or the point on its axis. */
+static void normal_of(const wbc_borne_t *b, int k, const double local[3], const double *R, double out[3])
+{
+  double gap = 0.0, r = 0.0, best[3] = {0.0, 0.0, 0.0};
+  int    found = 0;
+
+  for (int c = 0; c < b->caps[k]; c++)
+  {
+    const double *a = b->cap_a[k][c], *e = b->cap_b[k][c];
+    double        ab[3], la[3], q[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+      ab[i] = e[i] - a[i];
+      la[i] = local[i] - a[i];
+    }
+    const double t = npclip(wbc_dot(b->blas, la, 1, ab, 1, 3) / npmax(wbc_dot(b->blas, ab, 1, ab, 1, 3), 1e-12), 0.0,
+                            1.0);
+
+    for (int i = 0; i < 3; i++)
+    {
+      q[i] = local[i] - (a[i] + t * ab[i]);
+    }
+    const double here = norm3(b->blas, q) - b->cap_r[k][c];
+
+    if (!found || here < gap || (here == gap && b->cap_r[k][c] < r))
+    {
+      gap = here;
+      r = b->cap_r[k][c];
+      memcpy(best, q, sizeof best);
+      found = 1;
+    }
+  }
+  const double size = found ? norm3(b->blas, best) : 0.0;
+
+  if (size > 0.0)
+  {
+    double unit[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+      unit[i] = best[i] / size;
+    }
+    mv3(b->blas, R, unit, out);
+    for (int i = 0; i < 3; i++)
+    {
+      out[i] = -out[i];
+    }
+  }
+  else
+  {
+    out[0] = 0.0;
+    out[1] = 1.0;
+    out[2] = 0.0;
+  }
+}
+
 /** numpy's argmax of |f|: the first largest, the first nan where one is. */
 static int largest(const double f[3])
 {
@@ -127,8 +185,11 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
     {
       continue;
     }
-    const int axis = largest(f);
-    const int patch = 2 * axis + (f[axis] < 0.0) + b->carpal * (1 + side) * b->hand[k] + b->let * (1 + side) * let;
+    double nrm[3];
+
+    normal_of(b, k, ak, R, nrm);
+    const int axis = largest(nrm);
+    const int patch = 2 * axis + (nrm[axis] < 0.0) + b->carpal * (1 + side) * b->hand[k] + b->let * (1 + side) * let;
 
     if (k != b->pelvis)
     {
@@ -197,6 +258,7 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
       {
         b->p[c][j] = p[j];
         b->f[c][j] = share[q] * f[j];
+        b->nrm[c][j] = nrm[j];
       }
       b->carpal_of[c] = carpal;
       b->side[c] = side;
@@ -215,6 +277,7 @@ static void moved(wbc_borne_t *b, int from, int to)
 {
   memcpy(b->p[to], b->p[from], sizeof b->p[to]);
   memcpy(b->f[to], b->f[from], sizeof b->f[to]);
+  memcpy(b->nrm[to], b->nrm[from], sizeof b->nrm[to]);
   memcpy(b->dJv[to], b->dJv[from], sizeof b->dJv[to]);
   memcpy(b->J[to], b->J[from], sizeof b->J[to]);
   b->carpal_of[to] = b->carpal_of[from];
@@ -364,6 +427,9 @@ int wbc_borne_seated(wbc_borne_t *b, const double *points, const int64_t *rows, 
     b->f[c][0] = 0.0;
     b->f[c][1] = bears;
     b->f[c][2] = 0.0;
+    b->nrm[c][0] = 0.0;
+    b->nrm[c][1] = 1.0;
+    b->nrm[c][2] = 0.0;
     b->carpal_of[c] = 0.0;
     b->side[c]      = 0;
     b->patch[c]     = 2;

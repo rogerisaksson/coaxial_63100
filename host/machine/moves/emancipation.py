@@ -280,7 +280,8 @@ def seated(g, s):
                 b.mj.mj_jac(b.m, b.d, jp, jr, p, at)
                 J = jp[:, :b.n].copy()
                 b.mj.mj_jacDot(b.m, b.d, jp, jr, p, at)
-                s['contacts'].append({'p': p, 'f': np.array([0.0, bears, 0.0]), 'J': J, 'dJv': jp[:, :b.n] @ s['v'],
+                s['contacts'].append({'p': p, 'f': np.array([0.0, bears, 0.0]), 'n': np.array([0.0, 1.0, 0.0]), 'J': J,
+                                      'dJv': jp[:, :b.n] @ s['v'],
                                       'carpal': 0.0, 'side': 0, 'patch': 2, 'room': 0.0, 'body': at, 'corner': corner,
                                       'give': give})
     return s

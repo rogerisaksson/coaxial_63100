@@ -58,7 +58,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
             b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
             f = np.array([0.3, 1.0, 0.2]) * (60.0 + 80.0 * rng.random()) + 10.0 * rng.normal(size=3)
             # her left shank's patch a let-go left foot's (borne.LET's), told free every other state
-            contacts.append({'p': p, 'f': f, 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch if patch != 2 else 20, 'side': 0,
+            contacts.append({'p': p, 'f': f, 'n': f / np.linalg.norm(f), 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch if patch != 2 else 20, 'side': 0,
                              'body': body})
         # a turn of 0.2 rad about her pelvis's patch normal, the torsion its points leave free
         axis = contacts[0]['f'] + contacts[1]['f']
@@ -126,7 +126,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
         b.mj.mj_jac(b.m, b.d, jp, jr, p, body)
         J = jp[:, :b.n].copy()
         b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
-        sled.append({'p': p, 'f': share * weight * up, 'J': J, 'dJv': jp[:, :b.n] @ still['v'], 'patch': patch, 'side': 0, 'body': body})
+        sled.append({'p': p, 'f': share * weight * up, 'n': up, 'J': J, 'dJv': jp[:, :b.n] @ still['v'], 'patch': patch, 'side': 0, 'body': body})
     seats, apart = [], 0.0
     for vx in (0.0, 0.3):
         sc, sat = dict(still, contacts=sled), dict(ask, turns=tuple(t['quat'] for t in still['turns']), swing={}, posture=still['q'].copy(),

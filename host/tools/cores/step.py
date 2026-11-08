@@ -52,7 +52,7 @@ def _step_typed():
                ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
                ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
                ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
-               ('hang_rate', f)]
+               ('hang_rate', f), ('cn', p * c)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -169,7 +169,7 @@ FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc ntur
           'rests slide fz_cap slid_cap hand_cap let_cap let_hold open_kp open_kd freed strides borne hold sat chain_vx '
           'chain_free swing swing_at swing_speed swing_acc swing_quat fold fold_knee fold_rate fold_acc knee_rate wep '
           'posture derate clamp wep_nm mass lo hi tau qacc bears cop cop_n cop_none over forces load scale '
-          'residual hang hang_rate').split()
+          'residual hang hang_rate cn').split()
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'hang', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
@@ -220,7 +220,7 @@ def _stepped(k, step, v, b, s, ask):
         raise ValueError('wbc_step.c lays %d contacts at most, %d bear her' % (len(k.cJ), len(contacts)))
     k.nc = len(contacts)
     for at_, c in enumerate(contacts):
-        k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f'))
+        k.cJ[at_], k.cp[at_], k.cdJv[at_], k.cf[at_], k.cn[at_] = (at(c[name]) for name in ('J', 'p', 'dJv', 'f', 'n'))
         k.cpatch[at_], k.cbody[at_], k.cgive[at_] = int(c.get('patch', 0)), int(c.get('body', 0)), float(c.get('give', 0.0))
     v['stance'][:] = [bool(x) for x in ask['stance']]
     v['let_go'][:] = [bool(x) for x in ask.get('let_go', (False, False))]

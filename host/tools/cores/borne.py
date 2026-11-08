@@ -40,7 +40,8 @@ class Borne(ctypes.Structure):
                 + [(name, _d * (3 * DOF)) for name in ('jp', 'jr')]
                 + [(name, _i) for name in ('seat_skin', 'seat_body', 'pelvis_body', 'seat_spare')]
                 + [(name, _d * 2) for name in ('seat_dx', 'seat_dz')] + [(name, _d) for name in ('touch_m', 'reach_m', 'shed0')]
-                + [('corner', _i * CONTACTS)] + [(name, _d) for name in ('seat_on', 'seat_near')])
+                + [('corner', _i * CONTACTS)] + [(name, _d) for name in ('seat_on', 'seat_near')]
+                + [('nrm', (_d * 3) * CONTACTS)])
 
 
 @functools.lru_cache(maxsize=None)
@@ -90,7 +91,8 @@ def laid(b):
     t.touch_m, t.reach_m, t.shed0 = leap.TOUCH_M, observer.REACH_M, cascade.SHED[0]
     (step, sat), at, n = _typed(), ctypes.byref(t), b.n
     views = {name: np.ctypeslib.as_array(getattr(t, name)) for name in
-             ('p', 'f', 'dJv', 'J', 'carpal_of', 'room', 'give', 'side', 'patch', 'body', 'low', 'high', 'palms', 'corner')}
+             ('p', 'f', 'nrm', 'dJv', 'J', 'carpal_of', 'room', 'give', 'side', 'patch', 'body', 'low', 'high', 'palms',
+              'corner')}
     kept: dict = {}
 
     def read(_b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0, g=None):
@@ -110,7 +112,7 @@ def laid(b):
                 raise MachineError('her skin and her seat bear her at more than %d points (wbc_borne.h)' % CONTACTS)
             g['seat_on'], g['seat_near'] = t.seat_on, t.seat_near
         w = views
-        contacts = [{'p': w['p'][c].copy(), 'f': w['f'][c].copy(), 'J': w['J'][c, :, :n].copy(),
+        contacts = [{'p': w['p'][c].copy(), 'f': w['f'][c].copy(), 'n': w['nrm'][c].copy(), 'J': w['J'][c, :, :n].copy(),
                      'dJv': w['dJv'][c].copy(), 'carpal': float(w['carpal_of'][c]), 'side': int(w['side'][c]),
                      'patch': int(w['patch'][c]), 'room': float(w['room'][c]), 'body': int(w['body'][c]),
                      **({'corner': int(w['corner'][c])} if w['corner'][c] >= 0 else {}),

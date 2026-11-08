@@ -98,7 +98,7 @@ def replayed(g, regime, flags):
     names = [m.body(int(c['body'])).name if int(c.get('body', -1)) >= 0 else 'sole%d' % (-1 - int(c['body'])) for c in contacts]
     felt = {n: sum(float(c['f'][1]) for c, n2 in zip(contacts, names) if n2 == n) for n in set(names)}
     # each point's speed along the force it feels, m/s (+ out of what bears it), her bodies' most
-    Q = chain.frames(np.concatenate([np.asarray(c['f'], float) for c in contacts])) if len(contacts) else np.zeros((0, 3, 3))
+    Q = chain.frames(np.concatenate([np.asarray(c['n'], float) for c in contacts])) if len(contacts) else np.zeros((0, 3, 3))
     vn = [float(Q[i, 0] @ (np.asarray(c['J'], float) @ sc['v'])) for i, c in enumerate(contacts)]
     for nm in sorted(felt, key=lambda n: -felt[n])[:6]:
         idx = [i for i, n in enumerate(names) if n == nm]

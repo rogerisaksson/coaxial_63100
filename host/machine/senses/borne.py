@@ -5,8 +5,9 @@
 Each segment above her soles pushed up (`edge.TOUCH`) at its touch's centre (`edge.AT`), placed
 by her own model as her estimate has her - a seat, a bed, the floor under a knee or her hands -:
 prop, the share of her weight the furniture bears and the box what bears her spans, her hands' points too,
-world (share, low (3,), high (3,)); contacts, each such point, its force now (3,), its Jacobian (3, n) and that's
-drift (3,), whose force the step finds (`machine.stack.wrench`). Its sensed force fed to the step
+world (share, low (3,), high (3,)); contacts, each such point, its force now (3,), the normal of what bears it
+(3,, `_normal`), its Jacobian (3, n) and that's drift (3,), whose force the step finds (`machine.stack.wrench`).
+Its sensed force fed to the step
 instead, a stiff seat's a pass late, the step cancelled the seat's stiffness a pass after it
 pushed - 695, 250, 88, 539, 131 N on it 30 ms apart, her soles' loads swinging 0 to 286 N.
 Her hands bear as the furniture does, a patch of their own (CARPAL), out of prop's share: palms, each one's.
@@ -69,9 +70,26 @@ def _room(k, local):
         t = float(np.clip((local - a) @ ab / max(float(ab @ ab), 1e-12), 0.0, 1.0))
         gaps.append((float(np.linalg.norm(local - (a + t * ab))) - r, r))
     return min(gaps)[1] * ALONG
-#: The segments one surface bears are one patch of her step: a push's way, the world's axis it is most along and
-#: its sign - friction leans a push by atan MU, under 45 deg, so a seat's, a bed's or a floor's pushes are all
-#: up, a backrest's or a wall's all one way across (the lodge's surfaces stand square; a yawed wall's split). Each
+
+
+def _normal(k, local, R):
+    """(3,) the normal of what bears skin segment `k` at its touch `local` (its frame), world, into her: her capsule
+    nearest the point outward there, by her own model turned (`R`), reversed - up where she has no capsule or the
+    point lies on its axis. Of the felt force instead, her fists' 36-44 deg of real shear on a level seat tilted it
+    and her plan's cap and box about it set 7-21 N of her hands' 50 up (chain_plan.planned)."""
+    best = None
+    for r, a, b in CAPSULES[k]:
+        ab = b - a
+        t = float(np.clip((local - a) @ ab / max(float(ab @ ab), 1e-12), 0.0, 1.0))
+        q = local - (a + t * ab)
+        here = float(np.linalg.norm(q)) - r
+        best = (here, r, q) if best is None or here < best[0] or (here == best[0] and r < best[1]) else best
+    size = 0.0 if best is None else float(np.linalg.norm(best[2]))
+    return -(R @ (best[2] / size)) if best is not None and size > 0.0 else np.array([0.0, 1.0, 0.0])
+#: The segments one surface bears are one patch of her step: the way of what bears it (`_normal`), the world's axis
+#: it is most along and its sign - a seat's, a bed's or a floor's all up, a backrest's or a wall's all one way across
+#: (the lodge's surfaces stand square; a yawed wall's split); by the push's way, her fists' shear on a seat at its
+#: friction (49 of 50 N up) took them to a patch across. Each
 #: hand a patch of its own past every other's (CARPAL on, a side's apart): split as felt between them, one hand's
 #: share held what it was and the asymmetry grew till it let go. A let-go foot's past both hands' (LET on): held
 #: against the floor alone - held still along it too, her legs sliding out as she sat braked them 102 N and threw
@@ -150,8 +168,9 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
         # hands' 150-210 N off a chair's seat let her support go mid-rise and her capture point stepped her in place
         if k in untold:
             continue
-        axis = int(np.argmax(np.abs(f)))
-        patch = 2 * axis + int(f[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
+        nrm = _normal(k, at[k], R)
+        axis = int(np.argmax(np.abs(nrm)))
+        patch = 2 * axis + int(nrm[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
         for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
@@ -160,7 +179,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
             b.mj.mj_jac(m, d, jp, jr, p, ids[k])
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])
-            contacts.append({'p': p, 'f': share * f, 'J': J, 'dJv': jp[:, :n] @ s['v'], 'carpal': carpal,
+            contacts.append({'p': p, 'f': share * f, 'n': nrm, 'J': J, 'dJv': jp[:, :n] @ s['v'], 'carpal': carpal,
                              'side': side, 'patch': patch, 'room': float(room[0]), 'body': int(ids[k]), 'give': give})
     held = np.isfinite(low[0])
     return (up / weight, np.where(held, low, 0.0), np.where(held, high, 0.0)), contacts, palms / weight

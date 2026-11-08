@@ -102,9 +102,10 @@
       (setf (aref x i) (/ s (aref l (+ (* i m) i))))))
   x)
 
-;; 2. A CONTACT'S FRAME: its normal the felt force's direction (up where it feels none), two tangents
+;; 2. A CONTACT'S FRAME: its normal what bears it's (up where none), two tangents. Hers: her skin's capsule at its
+;; touch reversed (`machine.senses.borne._normal`); of the felt force, her fists' shear tilted it 36-44 deg.
 (defun contact-frame (f q at)
-  "q's 9 from at on: the frame's rows (normal, tangent, tangent) of the felt force f (3)."
+  "q's 9 from at on: the frame's rows (normal, tangent, tangent) of the normal f (3) of what bears the contact."
   (declare (type (simple-array double-float (*)) f q)
            (type fixnum at)
            (optimize (speed 3) (safety 0)))
