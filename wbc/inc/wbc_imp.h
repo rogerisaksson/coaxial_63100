@@ -282,9 +282,10 @@ void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, 
                    double t, double dt, double got[3]);
 
 /** Rows a contact releases (machine.law.waits.borne_rows) wait while a seat or a bed bears less of her
-    than her support counts it from: `got` the shift, the first. */
-void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
-                    double got[3]);
+    than her support counts it from, her soles' share's till her soles' loads bear it of her weight (`fr`):
+    `got` the shift, the first. */
+void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                    double t, double dt, double got[3]);
 
 /** Her text's rows after `t` wait a pass, `dt`, while a move of hers plays (machine.law.waits.played_rows): `got`
     the shift, the time after which rows wait. */

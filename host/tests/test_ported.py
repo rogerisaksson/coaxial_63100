@@ -146,7 +146,7 @@ def test_her_twist_in_c_as_she_walks(report, c):
 def test_her_waits_in_c_as_she_walks(report, c):
     """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`waits.held_rows`,
     `risen_rows`, `woken_rows`, `borne_rows`, `latched_rows`) on copies of her table and her state at
-    every pass of her law over PASSES of her walk - the table's times, the shift, the first row, the
+    every pass over PASSES of her walk - the table's times, the shift, the first row, the
     state and her rhythm woken bit for bit -, and a step's time."""
     from machine.law import latent, waits as py_waits
     from machine.process import worker
@@ -197,7 +197,7 @@ def test_her_waits_in_c_as_she_walks(report, c):
         def borne(self, tab, t, dt):
             mine = tab.copy()
             t0 = time.perf_counter()
-            want = py_waits.borne_rows(mine, g['y'], t, dt)
+            want = py_waits.borne_rows(mine, g['y'], g['fr'], t, dt)
             t1 = time.perf_counter()
             got = waits.borne(tab, t, dt)
             self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)

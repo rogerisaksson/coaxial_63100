@@ -168,12 +168,13 @@ void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, 
   got[1] = first;
 }
 
-void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, double t, double dt,
-                    double got[3])
+void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
+                    double t, double dt, double got[3])
 {
   unsigned char released[WBC_WAIT_ROWS] = {0}, short_[WBC_WAIT_ROWS] = {0};
   const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
   const double  prop = y[k->y_prop], palm = y[k->y_palms] + y[k->y_palms + 1];
+  const double  soles = (y[k->y_load] + y[k->y_load + 1]) / fr[k->f_weight];
   double        first, first_short, shift;
 
   for (int r = 0; r < rows; r++)
@@ -182,7 +183,7 @@ void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
 
     released[r] = (unsigned char)(contact != 0.0);
     short_[r] = (unsigned char)(((contact > 0.5 && contact < 1.5) && prop < k->prop_on) || (contact > 1.5 && palm <= 0.0)
-                                || (contact < 0.0 && prop > 1.0 + contact));
+                                || (contact < 0.0 && soles < -contact));
   }
   shift = dt * (double)due_rows(w, tab, rows, short_, t, dt, &first_short);
   (void)due_rows(w, tab, rows, released, t, dt, &first);

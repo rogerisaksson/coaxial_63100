@@ -45,8 +45,8 @@ def _typed():
     lib.wbh_wait_sunk.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
                                   + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
     lib.wbh_wait_sunk.restype = None
-    lib.wbh_wait_borne.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
-                                   + [ctypes.c_double] * 2 + [ctypes.c_void_p])
+    lib.wbh_wait_borne.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
+                                   + [ctypes.c_void_p] * 2 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
     lib.wbh_wait_woken.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
                                    + [ctypes.c_double] * 2)
     lib.wbh_wait_latched.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
@@ -114,7 +114,7 @@ class Waits:
 
     def borne(self, tab, t, dt):
         """(shift, first) of `machine.law.waits.borne_rows`, `tab`'s times shifted in place."""
-        self.borne_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], t, dt, self.gp)
+        self.borne_c(self.k, self.wp, self._table(tab), len(tab), self.at[2], self.at[3], t, dt, self.gp)
         return tuple(self.got[:2].tolist())
 
     def played(self, tab, t, dt):
