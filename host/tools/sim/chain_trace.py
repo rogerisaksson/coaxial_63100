@@ -239,11 +239,13 @@ def main(argv=None):
             ask = g.get('ask', {})
             if args.rounds and g.get('solve_in') is not None and ask and chain.chained(ask):
                 replayed(g, regime, flags)
-            # the way chosen (chain.chained): the closed chains' step, or the upright's, and what chose it
-            print('       way %s: swing %s stance %s let_go %s reclined %.1f prop %.2f' % (
+            # the way chosen (chain.chained): the closed chains' step, or the upright's, and what chose it; the shares her
+            # text tells her manifolds (the snapshot's told row: ischial, palmar)
+            to = kept[0]['latent']['state']['TO']['MANIFOLD'] if kept[0] is not None else {}
+            print('       way %s: swing %s stance %s let_go %s reclined %.1f prop %.2f told ischial %.2f palmar %.2f' % (
                 'chain' if chain.chained(ask) else 'upright', sorted(ask.get('swing', {})), ask.get('stance'),
-                ask.get('let_go'), float(ask.get('reclined', 0.0)), float(g.get('s', {}).get('prop', (math.nan,))[0])),
-                flush=True)
+                ask.get('let_go'), float(ask.get('reclined', 0.0)), float(g.get('s', {}).get('prop', (math.nan,))[0]),
+                float(to.get('ischial', math.nan)), float(to.get('palmar', math.nan))), flush=True)
             print('%6.2f %-24s pel %+.2f %+.2f %+.2f fast %-14s %4.0f | %-40s | scale %.2f | passes %d unmet %d' % (
                 t, str(sprung.doing(g))[:24], d.qpos[0], d.qpos[1], d.qpos[2], m.joint(m.dof_jntid[6 + j]).name,
                 v[j], top, float(g.get('got', {}).get('scale', math.nan)), seen['calls'], seen['unmet']), flush=True)

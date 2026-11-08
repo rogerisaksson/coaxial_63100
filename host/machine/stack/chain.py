@@ -51,16 +51,19 @@ def chained(ask):
     return int((not ask.get('swing') or (lying and not standing)) and (any(ask.get('let_go', ())) or not standing or reclined))
 
 
-def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
+def bearing(s, loads, stance, chained, shed=(0.0, 0.0), legs=()):
     """Her contacts with each standing sole one more patch where the step is hers (`chained`): its load up (felt) as far
     as her text keeps its leg (`shed`, the release `emancipation` asks of each), its Jacobian's translation, a body
     below 0 - an anchor within its friction's pyramid, never planned as a push. Felt whole, the leg her text lifted took
-    82 -> 112 N as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s."""
+    82 -> 112 N as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s.
+    Her legs' touch on what she sits on (`legs`, their bodies, given while she sits and her hands are told to bear -
+    `motion`) is the chains' sled alone: the upright step bears her on the kernel's cone, her soles, her hands and her
+    seat; with her thighs' points in it its seated balance never asked for her hands and the scoot began on none."""
     soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]) * (1.0 - float(shed[k])), 0.0]),
               'n': np.array([0.0, 1.0, 0.0]), 'J': np.ascontiguousarray(f['J6'][3:6]),
               'dJv': np.asarray(f['dJv'][3:6], float), 'patch': 0, 'side': k, 'body': -1 - k}
              for k, f in enumerate(s['feet']) if chained and stance[k]]
-    return list(s.get('contacts', ())) + soles
+    return [c for c in s.get('contacts', ()) if chained or int(c.get('body', -1)) not in legs] + soles
 
 
 def regime(said):
@@ -162,8 +165,8 @@ def stop_rows(b, s, nd):
 
 def gives_of(b, contacts, regime, compliant, tc=None):
     """Each contact's give for the QP's stick rows and its law of no sinking (`chain_qp.level1`): None, all rigid,
-    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has it, the solver's
-    impedance on what bears it (`borne.read`'s give, edge.GIVE), 'material' each as her world has what bears it, the
+    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has it, its support's
+    impedance over her mass (`borne.read`'s give, edge.GIVE), 'material' each as her world has what bears it, the
     python twin's measure alone (`tc` {her
     body's name: the time constant of what it touches}, read off her world: over the foam's, squared, of
     `regime.soft`; MuJoCo's default rigid)."""

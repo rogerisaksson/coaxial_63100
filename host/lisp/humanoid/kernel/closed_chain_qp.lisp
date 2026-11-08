@@ -127,7 +127,10 @@
 ;; slide against the way, al_t . s_t >= 0: with the pin's soft row that is static friction - z_t . s_t = -F while
 ;; the hands' F is under the cone, a = 0, no backward motor (the hard pin had her at -3.7 m/s^2 standing still) and
 ;; no reaction wheel (the plan swung her free arms at -7400 deg/s^2 for the pelvis's acceleration and her trunk hit
-;; the chair's back at 902 N) -; an eight-sided pyramid inscribed in its friction's
+;; the chair's back at 902 N) -; the static sleds' brake together no more than her anchors' friction can drive,
+;; -sum z_t . s_t <= sum mu_a z_n over the anchors whose tangents stick (a static friction is a reaction: pinned at
+;; the cone with her hands bearing 7 N the plan had a -165 N motor, asked -5.6 m/s^2 backward and pitched her 28 deg
+;; onto the backrest, al_t . s_t >= 0 met under her pelvis by the pitch) -; an eight-sided pyramid inscribed in its friction's
 ;; cone for every contact with three unknowns, d_k . z_t <= mu cos(pi/8) z_n, d_k at k pi/4 (k = 0..7); her torques
 ;; within [lo, hi] (her clamps as derated, her back-EMF's); her joints' stops where asked (chain.stop_rows).
 ;; Solved by the dual active set warm from the last pass's held rows (machine.stack.qp.solve); where no u meets the

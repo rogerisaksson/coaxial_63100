@@ -164,8 +164,11 @@ def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, b
     s_t >= 0 - with the pin's soft row that is static friction: z_t . s_t = -F while the hands' F is under the cone,
     a = 0, no backward motor and no reaction wheel (a soft pin alone gives z = (m a* - F - w mu N) / (1 + w), a
     motor again); a kinetic sled (`mode` 2, one unknown) brakes at the edge against its slip and may slow -; her
-    torques within `bounds` (lo, hi); her joints' stops (`stops`: rows on x, bounds) where asked. Rows a contact: 2
-    held, 3 free, its pyramid's 8 where its tangents are unknown, a static sled's 2."""
+    torques within `bounds` (lo, hi); her joints' stops (`stops`: rows on x, bounds) where asked; the static sleds'
+    brake together no more than her anchors' friction can drive, -sum z_t . s_t <= sum mu_a z_n over the anchors whose
+    tangents stick (a static friction is a reaction: pinned at the cone with her hands bearing 7 N the plan had a
+    -165 N motor, asked -5.6 m/s^2 backward and pitched her 28 deg onto the backrest). Rows a contact: 2 held, 3 free,
+    its pyramid's 8 where its tangents are unknown, a static sled's 2; then her torques', her stops', the brake's."""
     import numpy as np
     nd, nz, k = maps.Px.shape[1], S.shape[1], len(Q)
     nu, bleed = nd + nz, regime.bleed
@@ -224,6 +227,17 @@ def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, b
     if stops is not None:
         A.append(np.hstack([stops[0], np.zeros((len(stops[1]), nz))]))
         b.append(stops[1])
+    if any(m == 1 for m in mode):
+        # the static sleds' brake together no more than her anchors' friction can drive: a static friction is a reaction
+        # (pinned at the cone with her hands bearing 7 N the plan had a -165 N motor and pitched her onto the backrest)
+        cap = np.zeros(nu)
+        for i in range(k):
+            if mode[i] == 1:
+                cap -= np.concatenate([np.zeros(nd), float(st[i, 0]) * S[3 * i + 1] + float(st[i, 1]) * S[3 * i + 2]])
+            elif stick[i]:
+                cap -= mu[i] * np.concatenate([np.zeros(nd), S[3 * i]])
+        A.append(cap)
+        b.append(0.0)
     return H1, g1, G1, np.vstack([np.atleast_2d(a) for a in A]), np.concatenate([np.atleast_1d(v) for v in b])
 
 def projector(Jg, hands, nd, lam2):

@@ -58,7 +58,7 @@ def seen(g, dt):
                   dt, g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
-    palmar = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
+    palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))
     # what bears her and, sat, her seat's cone in C on her contacts before any is a dict (`emancipation.seated`)
     s['prop'], s['contacts'], s['palms'] = g['borne'](body, s, g['sense'], float(g['fr'][modal.WEIGHT]), palmar,
                                                       g['a'][modal.LET_GO], g)
@@ -193,8 +193,16 @@ def control(g, dt):
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     chained = chain.chained(ask)
+    # her legs' touch on the seat is the chains' alone while she sits - her pelvis bears, not reclined - and her hands
+    # are told to bear: the kernel's cone for the upright step (soles, ischia, palms). The sit tells the palms from
+    # `seated` on (4.2 s), after the landing, through the hands' vault: with the thighs in the cone she sat at the seat's
+    # middle leaning 16 deg back, fists in the air till the scoot; without them upright, 4 cm back, fists on the seat
+    sat = any(int(c.get('body', -1)) == body.pelvis for c in s.get('contacts', ()))
+    told = g.get('palmar', 0.0) > 0.0 and float(ask.get('reclined', 0.0)) <= 0.5
+    legs = body.legs if sat and told else ()
     # the step's inputs kept for her introspection (`borne.named`, chain_trace's replay), its answer `got`
-    g['solve_in'] = (dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'])),
+    g['solve_in'] = (dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'],
+                                                          legs)),
                      dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
     g['got'] = g['solves'][chained](body, *g['solve_in'])
     got = g['got']

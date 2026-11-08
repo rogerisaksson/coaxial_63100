@@ -122,6 +122,8 @@ class Body:
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)
         self.pelvis, self.torso, self.head = m.body('pelvis').id, m.body('torso').id, m.body('head').id
+        #: her legs' bodies on what she sits on: the closed chains' sled, not the upright step's (`chain.bearing`)
+        self.legs = tuple(m.body(name).id for name in ('left_thigh', 'left_shank', 'right_thigh', 'right_shank'))
         #: Her links and drives corrected as identified (`identified.correct`).
         self.identified = []
         if identified:

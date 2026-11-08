@@ -54,9 +54,9 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   const double      oct[8][2] = {{1.0, 0.0}, {rh, rh}, {0.0, 1.0}, {-rh, rh}, {-1.0, 0.0}, {-rh, -rh}, {0.0, -1.0}, {rh, -rh}};
   double           *L = carve(w, most * nu + 1), *e = carve(w, most + 1), *LT = carve(w, nu * most + 1);
   double           *vl = carve(w, k3 + 1), *fl = carve(w, k3 + 1), *normal = carve(w, nu), *along = carve(w, nu);
-  int               ml = m1, ma = 0;
+  int               ml = m1, ma = 0, any_static = 0;
 
-  if (13 * k + 2 * nd > WBC_QP_M)
+  if (13 * k + 2 * nd + 1 > WBC_QP_M)
   {
     return -1;
   }
@@ -215,7 +215,35 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     b[ma + i] = hi[i] - m->t0[i];
     b[ma + nd + i] = m->t0[i] - lo[i];
   }
-  return ma + 2 * nd;
+  ma += 2 * nd;
+  /* the static sleds' brake together no more than her anchors' friction can drive: a static friction is a reaction
+     (machine.stack.chain_qp.level1) */
+  for (int i = 0; i < k; i++)
+  {
+    any_static = any_static || mode[i] == 1;
+  }
+  if (any_static)
+  {
+    for (int c = 0; c < nu; c++)
+    {
+      double cap = 0.0;
+
+      for (int i = 0; i < k; i++)
+      {
+        if (mode[i] == 1)
+        {
+          cap -= c < nd ? 0.0 : st[2 * i] * S[(3 * i + 1) * nz + (c - nd)] + st[2 * i + 1] * S[(3 * i + 2) * nz + (c - nd)];
+        }
+        else if (stick[i])
+        {
+          cap -= c < nd ? 0.0 : mu[i] * S[(3 * i) * nz + (c - nd)];
+        }
+      }
+      A[ma * nu + c] = cap;
+    }
+    b[ma++] = 0.0;
+  }
+  return ma;
 }
 
 int wbc_chain_levels(wbc_step_t *p, const wbc_maps_t *m, const double *H1, const double *g1, const double *G1,
