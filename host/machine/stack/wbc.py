@@ -176,8 +176,9 @@ class Body:
         self.mass = float(m.body_subtreemass[self.pelvis])
         self._M = np.zeros((m.nv, m.nv))
         self._jp, self._jr, self._am = (np.zeros((3, m.nv)) for _ in range(3))
-        #: Each stance's active rows a level, the last step's (`qp.stack`'s warm start).
-        self.warm = {}
+        #: Each stance's active rows a level, the last step's (`qp.stack`'s warm start); the closed chains' step's
+        #: rows held a level (`chain.step`'s, warm for its next pass).
+        self.warm, self.chain_warm = {}, ((), ())
 
 
 def sense(b, qpos, qvel):

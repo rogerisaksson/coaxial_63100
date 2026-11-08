@@ -52,7 +52,11 @@ AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 TAU = slice(AT.stop, AT.stop + J)
 LINK = slice(TAU.stop, TAU.stop + 1)
 GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
-SENSED = GIVE.stop
+#: Each segment's touch's normal, its frame: the way its support pushes it, force-weighted over its contacts (unit
+#: where one touches, 0 where none; her skin's own estimate, the capsule's radial at the touch, stands in where it
+#: has none - a fist's capsule normal on a seat read 49 of 50 N across, her pelvis's on a bed 111 across on 84 up).
+NORMAL = slice(GIVE.stop, GIVE.stop + 3 * len(SKIN))
+SENSED = NORMAL.stop
 #: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
 TOUCHED_N = 5.0
 
@@ -81,7 +85,7 @@ def laid(world):
             'skin': np.ascontiguousarray(world.skin, dtype=np.int32),
             'loads': np.zeros(2), 'touch': np.zeros((len(SKIN), 3)), 'pressed': np.zeros(len(INSOLES)),
             'at': np.zeros((len(INSOLES), 3)), 'cells': np.zeros(2 * len(FEET)), 'felt_n': np.zeros(len(SKIN)),
-            'felt_at': np.zeros((len(SKIN), 3)), 'felt_give': np.zeros(len(SKIN))}
+            'felt_at': np.zeros((len(SKIN), 3)), 'felt_give': np.zeros(len(SKIN)), 'felt_nrm': np.zeros((len(SKIN), 3))}
     # her floor's soft compliance (MuJoCo's dmax^2 timeconst^2 dampratio^2, its geom's), the one her skin's give is past
     ref, imp = m.geom_solref[m.geom('floor').id], m.geom_solimp[m.geom('floor').id]
     c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M,
@@ -91,7 +95,7 @@ def laid(world):
     c.hers = cores.pointer(kept['hers'], np.bool_)
     for name, a in (('xmat', world.data.xmat), ('xpos', world.data.xpos)):
         setattr(c, name, cores.pointer(a))
-    for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give'):
+    for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give', 'felt_nrm'):
         setattr(c, name, cores.pointer(kept[name]))
     # what bears her its own give, each geom's solref and solimp (her skin's own left out)
     kept['solref'], kept['solimp'] = np.ascontiguousarray(m.geom_solref), np.ascontiguousarray(m.geom_solimp)
@@ -170,7 +174,7 @@ def contacted(world, y):
                 felt_n[k] += hn
                 felt_at[k] += hn * rm_t @ (d.xipos[body] - d.xpos[body])
     sensed(ctypes.byref(c), _cores().address(y), LOAD.start, TOUCH.start, PRESS.start, COP.start, CELLS.start, AT.start,
-           GIVE.start)
+           GIVE.start, NORMAL.start)
     return y
 
 

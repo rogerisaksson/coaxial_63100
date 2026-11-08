@@ -306,7 +306,7 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
   }
   for (int k = 0; k < 3 * c->nskin; k++)
   {
-    c->touch[k] = c->felt_at[k] = 0.0;
+    c->touch[k] = c->felt_at[k] = c->felt_nrm[k] = 0.0;
   }
   for (int k = 0; k < c->nskin; k++)
   {
@@ -387,6 +387,8 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
       {
         c->touch[3 * k + j] += (r[j] * push[0] + r[3 + j] * push[1]) + r[6 + j] * push[2];
         c->felt_at[3 * k + j] += ((af0 * r[j]) * rel[0] + (af0 * r[3 + j]) * rel[1]) + (af0 * r[6 + j]) * rel[2];
+        /* the contact's normal into her (MuJoCo's frame's first, from the first geom to the second), her frame */
+        c->felt_nrm[3 * k + j] += af0 * (((r[j] * frame[0] + r[3 + j] * frame[1]) + r[6 + j] * frame[2]) * sign);
       }
       c->felt_n[k] += af0;
       /* how much more what bears her gives than her floor: its own soft compliance, dmax^2 timeconst^2 dampratio^2
@@ -438,7 +440,7 @@ int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const do
 }
 
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
-                     int cells_at, int at_at, int give_at)
+                     int cells_at, int at_at, int give_at, int nrm_at)
 {
   for (int s = 0; s < 2; s++)
   {
@@ -450,6 +452,7 @@ void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_
     {
       y[touch_at + 3 * k + j] = c->touch[3 * k + j];
       y[at_at + 3 * k + j] = c->felt_at[3 * k + j] / npmax(c->felt_n[k], 1e-9);
+      y[nrm_at + 3 * k + j] = c->felt_nrm[3 * k + j] / npmax(c->felt_n[k], 1e-9);
     }
     y[give_at + k] = c->felt_give[k] / npmax(c->felt_n[k], 1e-9);
   }

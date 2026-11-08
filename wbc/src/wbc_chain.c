@@ -1,6 +1,7 @@
-/** wbc_chain.c - machine.stack.chain.step in C (wbc_step.h): the chain's plan through her dynamics
-    (wbc_chain_plan.c), the contacts' forces by complementarity, her torques shrunk - numpy's arithmetic and its OpenBLAS (wbc_blas.h) operation for
-    operation; carved 64-byte aligned from the step's workspace. Portable C11. */
+/** wbc_chain.c - machine.stack.chain.step in C (wbc_step.h): her tasks and the contacts' forces one QP within
+    friction (wbc_chain_qp.c), her torques those forces', shrunk where no answer met the laws - numpy's arithmetic
+    and its OpenBLAS (wbc_blas.h) operation for operation; carved 64-byte aligned from the step's workspace. Portable
+    C11. */
 #include "wbc_np.h"
 #include "wbc_step.h"
 
@@ -62,93 +63,11 @@ static void frame(const double f[3], double Q[9])
   Q[8] = n0 * t1 - n1 * t0;
 }
 
-/** machine.stack.chain.pgs: box-projected Gauss-Seidel on w = Dl z + b, z in place; the residual after. */
-static double pgs(int m, const double *Dl, const double *b, double *z, double mu, double soft, int sweeps)
-{
-  double residual = 0.0;
-
-  for (int sweep = 0; sweep < sweeps; sweep++)
-  {
-    for (int r = 0; r < m; r++)
-    {
-      double w = b[r], d, x;
-
-      for (int c = 0; c < m; c++)
-      {
-        w = w + Dl[r * m + c] * z[c];
-      }
-      d = Dl[r * m + r] + soft;
-      x = z[r] - w / d;
-      if (r % 3 == 0)
-      {
-        z[r] = x > 0.0 ? x : 0.0;
-      }
-      else
-      {
-        const double lim = mu * z[r - r % 3];
-
-        z[r] = x < -lim ? -lim : (x > lim ? lim : x);
-      }
-    }
-  }
-  for (int i = 0; i < m; i += 3)
-  {
-    double w = b[i], gap;
-
-    for (int c = 0; c < m; c++)
-    {
-      w = w + Dl[i * m + c] * z[c];
-    }
-    gap = fabs(w < z[i] ? w : z[i]);
-    residual = gap > residual ? gap : residual;
-  }
-  return residual;
-}
-
-/** machine.stack.chain.step's answered: tau and qdd with the forces z, her driven and held joints going qg. */
-static void answered(const wbc_step_t *p, int np_, const int *P, int ng, const int *given, int k3, const double *JpT,
-                     const double *z, const double *Minv, const double *qg, const double *rhs, const double *Jtz,
-                     double *push, double *qp, double *Mq, double *qdd, double *tau)
-{
-  const wbc_blas_t *l = &p->blas;
-  const int         n = p->n;
-
-  memset(qdd, 0, (size_t)n * sizeof(double));
-  for (int g = 0; g < ng; g++)
-  {
-    qdd[given[g]] = qg[g];
-  }
-  if (k3)
-  {
-    wbc_matmul(l, VIEW(JpT, k3, 1), VIEW(z, 1, 0), push, 1, 0, np_, k3, 1);
-  }
-  else
-  {
-    memset(push, 0, (size_t)np_ * sizeof(double));
-  }
-  for (int a = 0; a < np_; a++)
-  {
-    push[a] = push[a] + rhs[a];
-  }
-  wbc_matmul(l, VIEW(Minv, np_, 1), VIEW(push, 1, 0), qp, 1, 0, np_, np_, 1);
-  for (int a = 0; a < np_; a++)
-  {
-    qdd[P[a]] = qp[a];
-  }
-  wbc_matmul(l, VIEW(p->M, n, 1), VIEW(qdd, 1, 0), Mq, 1, 0, n, n, 1);
-  for (int i = 0; i < p->nd; i++)
-  {
-    const int a = p->act[i];
-
-    tau[i] = (Mq[a] + p->h[a]) - Jtz[a];
-  }
-}
-
 int wbc_chain(wbc_step_t *p)
 {
   const wbc_blas_t *l = &p->blas;
   const int         n = p->n, nd = p->nd, nh = p->nheld, nc = p->nc, k3 = 3 * nc, ng = nd + nh;
-  int               P[WBC_STEP_N], given[WBC_STEP_D + WBC_STEP_N], hung[WBC_STEP_N] = {0}, np_ = 0, any_over = 0, m1;
+  int               P[WBC_STEP_N], given[WBC_STEP_D + WBC_STEP_N], hung[WBC_STEP_N] = {0}, np_ = 0, any_over = 0, m1, met = 0;
   double           *base = (double *)(((uintptr_t)p->work + 63u) & ~(uintptr_t)63u), *w = base;
   double            scale = 1.0, slide[3] = {0.0, 0.0, 0.0};
 
@@ -175,17 +94,14 @@ int wbc_chain(wbc_step_t *p)
   {
     given[nd + i] = p->held[i];
   }
-  double *J = carve(&w, k3 * n), *Jp = carve(&w, k3 * np_), *JpT = carve(&w, np_ * k3), *Jg = carve(&w, k3 * ng);
-  double *Jv = carve(&w, k3), *dJv = carve(&w, k3), *Q = carve(&w, 9 * nc), *R = carve(&w, PLAN_ROWS * n);
+  double *J = carve(&w, k3 * n + 1), *Jp = carve(&w, k3 * np_ + 1), *Jg = carve(&w, k3 * ng + 1), *JA = carve(&w, k3 * nd + 1);
+  double *Jv = carve(&w, k3 + 1), *dJv = carve(&w, k3 + 1), *Q = carve(&w, 9 * nc + 1), *R = carve(&w, PLAN_ROWS * n);
   double *r = carve(&w, PLAN_ROWS), *want = carve(&w, nd), *RP = carve(&w, PLAN_ROWS * np_), *RG = carve(&w, PLAN_ROWS * ng);
-  double *x = carve(&w, nd), *jv6 = carve(&w, 6), *qg = carve(&w, ng), *qg0 = carve(&w, ng), *held = carve(&w, nh);
-  double *Mpp = carve(&w, np_ * np_), *Mpg = carve(&w, np_ * ng), *Minv = carve(&w, np_ * np_), *t = carve(&w, np_);
-  double *rhsh = carve(&w, np_), *rhs = carve(&w, np_), *rhs0 = carve(&w, np_), *W = carve(&w, k3 * np_);
-  double *Dl = carve(&w, k3 * k3), *Dloc = carve(&w, k3 * k3), *a0 = carve(&w, k3), *ag = carve(&w, k3), *bb = carve(&w, k3);
-  double *bloc = carve(&w, k3), *zl = carve(&w, k3), *z = carve(&w, k3), *zwarm = carve(&w, k3), *JT = carve(&w, n * k3), *Jtz = carve(&w, n);
-  double *qdd1 = carve(&w, n), *qdd0 = carve(&w, n), *Mq = carve(&w, n), *push = carve(&w, np_), *qp = carve(&w, np_);
-  double *tau1 = carve(&w, nd), *tau0 = carve(&w, nd), *tau = carve(&w, nd), *limit = carve(&w, nd);
-  double *nlimit = carve(&w, nd), *lo = carve(&w, nd), *hi = carve(&w, nd), *zeros = carve(&w, nd), *rest;
+  double *x = carve(&w, nd), *jv6 = carve(&w, 6), *held = carve(&w, nh + 1), *Mpp = carve(&w, np_ * np_), *Mpg = carve(&w, np_ * ng);
+  double *Minv = carve(&w, np_ * np_), *rhsh = carve(&w, np_), *MA = carve(&w, nd * (np_ + ng)), *hA = carve(&w, nd);
+  double *qddP = carve(&w, np_), *qddP0 = carve(&w, np_), *z = carve(&w, k3 + 1), *qdd1 = carve(&w, n), *qdd0 = carve(&w, n);
+  double *tau1 = carve(&w, nd), *tau0 = carve(&w, nd), *tau = carve(&w, nd), *limit = carve(&w, nd), *nlimit = carve(&w, nd);
+  double *lo = carve(&w, nd), *hi = carve(&w, nd), *zeros = carve(&w, nd), *rest;
 
   for (int i = 0; i < nd; i++)
   {
@@ -205,11 +121,14 @@ int wbc_chain(wbc_step_t *p)
     for (int a = 0; a < np_; a++)
     {
       Jp[rw * np_ + a] = J[rw * n + P[a]];
-      JpT[a * k3 + rw] = Jp[rw * np_ + a];
     }
     for (int g = 0; g < ng; g++)
     {
       Jg[rw * ng + g] = J[rw * n + given[g]];
+    }
+    for (int i = 0; i < nd; i++)
+    {
+      JA[rw * nd + i] = J[rw * n + p->act[i]];
     }
     dJv[rw] = p->cdJv[rw / 3][rw % 3];
   }
@@ -229,12 +148,29 @@ int wbc_chain(wbc_step_t *p)
     }
     rhsh[a] = -p->h[P[a]];
   }
+  for (int i = 0; i < nd; i++)
+  {
+    const int a = p->act[i];
+
+    for (int c = 0; c < np_; c++)
+    {
+      MA[i * (np_ + ng) + c] = p->M[a * n + P[c]];
+    }
+    for (int g = 0; g < ng; g++)
+    {
+      MA[i * (np_ + ng) + np_ + g] = p->M[a * n + given[g]];
+    }
+    hA[i] = p->h[a];
+    limit[i] = (p->wep ? p->wep_nm[i] : p->clamp[i]) * p->derate[i];
+    nlimit[i] = -limit[i];
+    lo[i] = npmax(-limit[i], p->lo[i]);
+    hi[i] = npmin(limit[i], p->hi[i]);
+  }
   rest = w;
   if (wbc_inv(l, VIEW(Mpp, np_, 1), np_, Minv, rest))
   {
     return 1;
   }
-  /* 1. the plan */
   m1 = wbc_chain_tasks(p, R, r, want, jv6);
   for (int i = 0; i < m1; i++)
   {
@@ -247,7 +183,6 @@ int wbc_chain(wbc_step_t *p)
       RG[i * ng + g] = R[i * n + given[g]];
     }
   }
-  memset(zwarm, 0, (size_t)k3 * sizeof(double));
   if (p->chain_vx != 0.0)
   {
     /* the twist told her: her sled's way, level (machine.stack.chain.step) */
@@ -261,116 +196,44 @@ int wbc_chain(wbc_step_t *p)
       slide[2] = sign * (hz / level);
     }
   }
-  if (wbc_chain_planned(p, np_, ng, k3, held, Minv, Mpg, rhsh, Jp, JpT, Jg, Jv, dJv, Q, RP, RG, r, m1, want, slide, x, zwarm, &w))
+  /* 1. the QP: her driven joints, the contacts' forces and her torques as one */
+  if (wbc_chain_qp(p, np_, ng, k3, held, Minv, Mpg, rhsh, Jp, Jg, Jv, dJv, Q, RP, RG, r, m1, want, slide, MA, hA, JA, lo, hi, x,
+                   qddP, z, tau1, &p->residual, &met, qddP0, tau0, &w))
   {
     return 1;
   }
-  if ((size_t)(w - base) + 4u * (size_t)WBC_STEP_U * (size_t)WBC_STEP_U > (size_t)WBC_STEP_WORK - 64u)
+  if ((size_t)(w - base) > (size_t)WBC_STEP_WORK - 64u)
   {
     return 1; /* the workspace's bound */
   }
+  for (int i = 0; i < nc; i++)
+  {
+    for (int c = 0; c < 3; c++)
+    {
+      p->forces[i][c] = z[3 * i + c];
+    }
+  }
+  memset(qdd1, 0, (size_t)n * sizeof(double));
+  memset(qdd0, 0, (size_t)n * sizeof(double));
   for (int i = 0; i < nd; i++)
   {
-    qg[i] = x[i];
-    qg0[i] = 0.0;
+    qdd1[p->act[i]] = x[i];
   }
   for (int i = 0; i < nh; i++)
   {
-    qg[nd + i] = qg0[nd + i] = held[i];
+    qdd1[p->held[i]] = qdd0[p->held[i]] = held[i];
   }
-  wbc_matmul(l, VIEW(Mpg, ng, 1), VIEW(qg, 1, 0), t, 1, 0, np_, ng, 1);
   for (int a = 0; a < np_; a++)
   {
-    rhs[a] = rhsh[a] - t[a];
+    qdd1[P[a]] = qddP[a];
+    qdd0[P[a]] = qddP0[a];
   }
-  wbc_matmul(l, VIEW(Mpg, ng, 1), VIEW(qg0, 1, 0), t, 1, 0, np_, ng, 1);
-  for (int a = 0; a < np_; a++)
-  {
-    rhs0[a] = rhsh[a] - t[a];
-  }
-  /* 2. forces */
-  p->residual = 0.0;
-  if (k3)
-  {
-    wbc_matmul(l, VIEW(Jp, np_, 1), VIEW(Minv, np_, 1), W, np_, 1, k3, np_, np_);
-    wbc_matmul(l, VIEW(W, np_, 1), VIEW(JpT, k3, 1), Dl, k3, 1, k3, np_, k3);
-    wbc_matmul(l, VIEW(W, np_, 1), VIEW(rhs, 1, 0), a0, 1, 0, k3, np_, 1);
-    wbc_matmul(l, VIEW(Jg, ng, 1), VIEW(qg, 1, 0), ag, 1, 0, k3, ng, 1);
-    for (int rw = 0; rw < k3; rw++)
-    {
-      bb[rw] = ((a0[rw] + ag[rw]) + dJv[rw]) + p->chain_bleed * Jv[rw];
-    }
-    /* framed, z warm from the plan's */
-    for (int i = 0; i < nc; i++)
-    {
-      for (int a = 0; a < 3; a++)
-      {
-        double s = 0.0, u = 0.0;
-
-        for (int c = 0; c < 3; c++)
-        {
-          s = s + Q[9 * i + 3 * a + c] * bb[3 * i + c];
-          u = u + Q[9 * i + 3 * a + c] * zwarm[3 * i + c];
-        }
-        bloc[3 * i + a] = s;
-        zl[3 * i + a] = u;
-        for (int j = 0; j < nc; j++)
-        {
-          for (int e = 0; e < 3; e++)
-          {
-            s = 0.0;
-            for (int c = 0; c < 3; c++)
-            {
-              for (int d = 0; d < 3; d++)
-              {
-                s = s + Q[9 * i + 3 * a + c] * Dl[(3 * i + c) * k3 + 3 * j + d] * Q[9 * j + 3 * e + d];
-              }
-            }
-            Dloc[(3 * i + a) * k3 + 3 * j + e] = s;
-          }
-        }
-      }
-    }
-    p->residual = pgs(k3, Dloc, bloc, zl, p->chain_mu, p->chain_soft, p->chain_sweeps);
-    for (int i = 0; i < nc; i++)
-    {
-      for (int c = 0; c < 3; c++)
-      {
-        double s = 0.0;
-
-        for (int a = 0; a < 3; a++)
-        {
-          s = s + Q[9 * i + 3 * a + c] * zl[3 * i + a];
-        }
-        z[3 * i + c] = s;
-        p->forces[i][c] = s;
-      }
-    }
-    for (int rw = 0; rw < k3; rw++)
-    {
-      for (int i = 0; i < n; i++)
-      {
-        JT[i * k3 + rw] = J[rw * n + i];
-      }
-    }
-    wbc_matmul(l, VIEW(JT, k3, 1), VIEW(z, 1, 0), Jtz, 1, 0, n, k3, 1);
-  }
-  else
-  {
-    memset(Jtz, 0, (size_t)n * sizeof(double));
-  }
-  /* 3. torques, shrunk */
-  answered(p, np_, P, ng, given, k3, JpT, z, Minv, qg, rhs, Jtz, push, qp, Mq, qdd1, tau1);
-  answered(p, np_, P, ng, given, k3, JpT, z, Minv, qg0, rhs0, Jtz, push, qp, Mq, qdd0, tau0);
+  /* 2. torques: the QP's where its laws were met, else shrunk as the upright step's */
   for (int i = 0; i < nd; i++)
   {
-    limit[i] = (p->wep ? p->wep_nm[i] : p->clamp[i]) * p->derate[i];
-    nlimit[i] = -limit[i];
-    lo[i] = npmax(-limit[i], p->lo[i]);
-    hi[i] = npmin(limit[i], p->hi[i]);
     any_over = any_over || fabs(tau1[i]) > limit[i];
   }
-  if (any_over)
+  if (!met && any_over)
   {
     int    over0 = 0;
     double s0 = 1.0;

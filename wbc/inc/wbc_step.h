@@ -6,6 +6,7 @@
 #define WBC_STEP_H
 
 #include "wbc_blas.h"
+#include "wbc_qp.h"
 
 /** The most dofs, driven joints, contacts bearing her; unknowns and rows. */
 #define WBC_STEP_N 48
@@ -13,10 +14,11 @@
 #define WBC_STEP_C 12
 #define WBC_STEP_U (WBC_STEP_D + 3 * WBC_STEP_C)
 #define WBC_STEP_R (2 * WBC_STEP_U + 2 * WBC_STEP_D + 40)
-/** The workspace's doubles. */
+/** The workspace's doubles: the upright step's, and the closed chains' QP's (wbc_chain_qp.c) with its maps and rows. */
 #define WBC_STEP_WORK (8 * WBC_STEP_N * WBC_STEP_U + 14 * WBC_STEP_U * WBC_STEP_U + 2 * WBC_STEP_R * WBC_STEP_U \
                        + WBC_STEP_U * WBC_STEP_C + 2 * WBC_STEP_C + 2 * WBC_STEP_D * WBC_STEP_U + 2 * WBC_STEP_U    \
-                       + 3 * WBC_STEP_D + WBC_STEP_N)
+                       + 3 * WBC_STEP_D + WBC_STEP_N + WBC_QP_WORK(WBC_STEP_U, WBC_QP_M)                             \
+                       + 24 * WBC_STEP_U * WBC_STEP_U + 3 * WBC_QP_M * WBC_STEP_U)
 
 /** The step: her body and machine.stack.wrench's constants laid once; what is sensed of her
     (machine.stack.wbc.sense) and what is asked (machine.stack.wbc.step's ask) pointed at or copied each
@@ -68,40 +70,69 @@ typedef struct
   double        load[WBC_STEP_D];
   int           cop_n, cop_none[2], over[WBC_STEP_D];
   double        work[WBC_STEP_WORK];
-  /* the closed chains' step's regime (wbc_chain.c), after the workspace so its offset keeps numpy's alignment: its
-     null space's damping m, a contact's softness m/s^2 a N, a sticking contact's slip bled 1/s, its friction; its
-     Gauss-Seidel's sweeps a pass */
-  double        chain_lam, chain_task_lam, chain_soft, chain_bleed, chain_mu, chain_hold_n; /**< its damping, the tasks' own, a contact held */
-  int           chain_sweeps, chain_rounds; /**< its Gauss-Seidel's sweeps a pass, its plan's rounds */
+  /* the closed chains' step's regime (wbc_chain.c, closed_chain_qp.lisp), after the workspace so its offset keeps
+     numpy's alignment: level 2's damping m and level 1's on x, a contact's softness m/s^2 a N, a sticking contact's
+     slip bled 1/s, her sled's friction, a patch held from N, an anchor's friction, a held contact's stick rows'
+     weight, the forces regularised toward none rad/s^2 a N */
+  double        chain_lam, chain_task_lam, chain_soft, chain_bleed, chain_mu, chain_hold_n;
+  double        chain_anchor_mu, chain_w_stick, chain_reg, chain_nreg;
   int           cbody[WBC_STEP_C]; /**< each contact's body of hers (machine.senses.borne) */
-  double        chain_w_turn, chain_w_swing, chain_w_posture, chain_w_force; /**< its tasks' weights */
+  double        chain_w_turn, chain_w_swing, chain_w_posture; /**< its tasks' weights */
   double        chain_turn_kp, chain_turn_kd, chain_posture_kp, chain_posture_kd; /**< its own gains */
   double        chain_w_twist, chain_twist_kd, chain_vx; /**< the twist told her: its weight, its gain 1/s, its speed m/s */
-  double        chain_unweight; /**< the share her anchors bear told a twist (machine.stack.chain_plan.said) */
   int           chain_free[2]; /**< her feet told free, her heels stepping in turn (machine.law.somatic) */
   double        cgive[WBC_STEP_C]; /**< each contact's give, m/s^2 a N: what bears it as firm as her skin feels it (borne) */
   double        hang[2], hang_rate; /**< each let-go leg's share hung off a seat - its knee and ankle as gravity
                                          swings them -, damped at hang_rate 1/s (machine.moves.cascade) */
   const double *cn[WBC_STEP_C]; /**< each contact's normal of what bears it, world (machine.senses.borne._normal) */
+  int           chain_held[2][WBC_QP_M], chain_nheld[2]; /**< the rows each level held last pass, warm for the next */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
 int wbc_step(wbc_step_t *p);
 
 /** machine.stack.chain.step (wbc_chain.c): her step in closed chains on `p`'s laid, sensed and asked - no sole
-    standing, what bears her by complementarity, her posture in its null space: 0, or 1 where numpy would raise. */
+    standing, her tasks and the contacts' forces one QP within friction (wbc_chain_qp.c), her posture in its null
+    space: 0, or 1 where numpy would raise. */
 int wbc_chain(wbc_step_t *p);
 /** machine.stack.chain.tasks (wbc_chain_tasks.c): the rows above posture into R (m x n) and r (m), m returned - her
     pelvis's turn about its own way and up, her trunk's whole, a sole's swing -; the posture's want (nd); jv a 6 scratch. */
 int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, double *jv);
-/** machine.stack.chain.planned (wbc_chain_plan.c): her driven accelerations x (nd) the plan asks, the forces it counts
-    on into zwarm (3k), her sled sliding along `slide` (3, her level way told, or 0), carved from *w on: 0, or 1 where
-    numpy would raise. */
-int wbc_chain_planned(const wbc_step_t *p, int np_, int ng, int k3, const double *held, const double *Minv,
-                      const double *Mpg, const double *rhs0, const double *Jp, const double *JpT, const double *Jg,
-                      const double *Jv, const double *dJv, const double *Q, const double *RP, const double *RG,
-                      const double *r, int m1, const double *want, const double *slide, double *x, double *zwarm,
-                      double **w);
+/** machine.stack.chain_qp (wbc_chain_qp.c): her step's QP on the matrices wbc_chain.c lays - Minv (np x np), Mpg
+    (np x ng), rhs0 (np), the contacts' Jp (3k x np), Jg (3k x ng), Jv and dJv (3k), their frames Q (9k), the tasks'
+    RP (m1 x np), RG (m1 x ng) and r, the posture's want (nd), her sled's way `slide` (3, unit level or 0), her mass
+    matrix's driven rows over (P, given) MA (nd x (np + ng)), hA (nd), the contacts' driven columns JA (3k x nd), her
+    torques' bounds lo and hi (nd) - into x (nd), qddP (np), z (3k, world), tau (nd), the complementarity's residual
+    and whether the laws were met, and with nothing asked of her joints (x = 0, the forces kept) qddP0 and tau0, the
+    shrink's other end; the rows held kept on p, warm for the next pass; carved from *w on. 0, or 1 where numpy would
+    raise. */
+/** machine.stack.chain_qp.Maps: level 1's affine maps in u = (x, zeta) - the dofs no drive holds qdd_P = p0 + Px x +
+    Pz zeta, the contacts' accelerations in their frames a0 + Ax x + Az zeta, her tasks Rx x + Rz zeta = rr, her
+    torques t0 + Tx x + Tz zeta - and the sizes they are laid on. */
+typedef struct
+{
+  int     np, nd, nz, k3, m1;
+  double *p0, *Px, *Pz, *a0, *Ax, *Az, *Rx, *Rz, *rr, *t0, *Tx, *Tz;
+} wbc_maps_t;
+
+/** machine.stack.chain_qp.level1 (wbc_chain_rows.c): into H1, g1, G1 (nu x nu, nu), the laws A (m x nu) and b (m),
+    m returned - S (k3 x nz) zeta -> z, each contact's unknowns' width, friction and whether held, give, Jv and f
+    (3k), frames Q, her torques' bounds lo and hi; stops none. -1 where the rows would pass WBC_QP_M. */
+int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
+                   const int *held, const double *Jv, const double *f, const double *Q, const double *lo,
+                   const double *hi, double *H1, double *g1, double *G1, double *A, double *b, double **w);
+/** machine.stack.chain_qp.solved (wbc_chain_rows.c): u (nu) by the two levels, the rows each held kept on p for the
+    next pass, `met` whether level 1's laws were; the held hands' rows `hands` (nh of them) for the posture's
+    projector; Jg (k3 x ng). 0, or 1 where numpy would raise. */
+int wbc_chain_levels(wbc_step_t *p, const wbc_maps_t *m, const double *H1, const double *g1, const double *G1,
+                     const double *A, const double *b, int ma, const double *Jg, int ng, const int *hands, int nh,
+                     const double *want, double *u, int *met, double **w);
+int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, const double *Minv, const double *Mpg,
+                 const double *rhs0, const double *Jp, const double *Jg, const double *Jv, const double *dJv,
+                 const double *Q, const double *RP, const double *RG, const double *r, int m1, const double *want,
+                 const double *slide, const double *MA, const double *hA, const double *JA, const double *lo,
+                 const double *hi, double *x, double *qddP, double *z, double *tau, double *residual, int *met,
+                 double *qddP0, double *tau0, double **w);
 
 /** machine.stack.shrunk.shrunk (wbc_step.c): how far from tau0 toward tau every drive stays within [lo, hi]. */
 double wbc_step_shrunk(int nd, const double *tau, const double *tau0, const double *lo, const double *hi);

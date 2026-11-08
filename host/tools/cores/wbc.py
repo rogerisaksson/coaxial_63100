@@ -19,7 +19,7 @@ from tools.cores import quick
 
 SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '_world', '_qp')]
            + [os.path.join(REPO, 'wbc', 'src', 'wbc_%s.c' % n) for n in (
-               'body stack solve wrench cone shrunk model pass beat world bus imp poses stride poise swing floor surety touch twist wait anatomy bedexit scoot sensed brace blas qp qp_interior law step maps rounds patch sil rcu gmo soa chain chain_plan chain_tasks borne registry').split()]
+               'body stack solve wrench cone shrunk model pass beat world bus imp poses stride poise swing floor surety touch twist wait anatomy bedexit scoot sensed brace blas qp qp_interior law step maps rounds patch sil rcu gmo soa chain chain_qp chain_rows chain_tasks borne registry').split()]
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
@@ -109,7 +109,7 @@ class Contacts(ctypes.Structure):
                 ('gb', _vp), ('hers', _vp), ('sole_side', _vp), ('insole', _vp), ('foot', _vp), ('skin', _vp),
                 ('xmat', _vp), ('xpos', _vp), ('loads', _vp), ('touch', _vp), ('pressed', _vp), ('at', _vp),
                 ('cells', _vp), ('felt_n', _vp), ('felt_at', _vp), ('geom_solref', _vp), ('geom_solimp', _vp),
-                ('floor_give', _d), ('felt_give', _vp)]
+                ('floor_give', _d), ('felt_give', _vp), ('felt_nrm', _vp)]
 
 
 class Heat(ctypes.Structure):

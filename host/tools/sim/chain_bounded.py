@@ -1,24 +1,22 @@
-"""Bench rows with her chain's plan bounded by her drives' clamps or not, over turned starts.
+"""Bench rows on her chain's QP as it is, with her joints' stops, or what she holds giving otherwise.
 
 The python twin stands in for wbc_chain.c in every run, so a row's lines differ by the variant alone: `twin` her
-plan as it is, `bounded` held within her drives' clamps (`chain.step(bounded=True)`), `held` one past its box not
-let slide (`released=False`), `bounded-held` both. One start is not a measure: her leg over the bed's edge is
-chaotic (the twin and the C apart by last bits rolled 61.5 deg against 6.2), so each runs over turned starts.
+step as it is, `stopped` with her joints' stops among the QP's laws (`chain.step(stopped=True)`), `rigid`,
+`compliant` and `material` with what she holds giving as none, as the foam or as her world has it. One start is
+not a measure: her leg over the bed's edge is chaotic (the twin and the C apart by last bits rolled 61.5 deg
+against 6.2), so each runs over turned starts.
 
-    python -X utf8 tools/sim/chain_bounded.py bed_rise bed_leg --variants twin bounded-held --wobbles 0 4 -4 8 -8
+    python -X utf8 tools/sim/chain_bounded.py bed_rise bed_leg --variants twin stopped --wobbles 0 4 -4 8 -8
 """
 import argparse
 import statistics
 import sys
 
-#: Each variant's (bounded, released, stopped, compliant): `stopped` her joints' stops on her plan (`chain.stop_rows`),
-#: `compliant` what she holds giving (`chain.gives_of`): her skin's, `twin`'s - `rigid` none, as it was; `compliant`
-#: all at the foam's `regime.soft`; `material` as her world has what bears it.
-VARIANTS = {'twin': (False, True, False, 'sensed'), 'rigid': (False, True, False, False),
-            'bounded': (True, True, False, 'sensed'), 'held': (False, False, False, 'sensed'),
-            'bounded-held': (True, False, False, 'sensed'), 'stopped': (False, True, True, 'sensed'),
-            'bounded-stopped': (True, True, True, 'sensed'), 'compliant': (False, True, False, True),
-            'material': (False, True, False, 'material')}
+#: Each variant's (stopped, compliant): `stopped` her joints' stops among the QP's laws (`chain.stop_rows`),
+#: `compliant` what she holds giving (`chain.gives_of`): her skin's, `twin`'s - `rigid` none; `compliant` all at the
+#: foam's `regime.soft`; `material` as her world has what bears it.
+VARIANTS = {'twin': (False, 'sensed'), 'rigid': (False, False), 'stopped': (True, 'sensed'), 'compliant': (False, True),
+            'material': (False, 'material')}
 
 
 def ran(name, variant, wobble):
@@ -39,8 +37,8 @@ def ran(name, variant, wobble):
         if not g.get('_twin'):
             g['_twin'] = True
             g['solves'] = (g['solves'][0], lambda b, sc, ask: chain.step(
-                b, sc, dict(ask, _tc=g.get('_tc')) if flags[3] == 'material' else ask, regime, *flags))
-        if flags[3] == 'material':
+                b, sc, dict(ask, _tc=g.get('_tc')) if flags[1] == 'material' else ask, regime, *flags))
+        if flags[1] == 'material':
             # what each body of hers touches, its time constant (solref's), read off her world for `chain.gives_of`
             wm, wd, tc = g['world'].model, g['world'].data, {}
             for j in range(wd.ncon):
@@ -108,7 +106,7 @@ def main(argv=None):
     import json
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('names', nargs='+', help='bench rows (tools/sim/scenarios.py)')
-    p.add_argument('--variants', nargs='+', default=['twin', 'bounded-held'], choices=sorted(VARIANTS))
+    p.add_argument('--variants', nargs='+', default=['twin', 'stopped'], choices=sorted(VARIANTS))
     p.add_argument('--wobbles', nargs='+', type=float, default=[0.0], help='starts laid turned, mrad')
     p.add_argument('--relay', action='store_true', help='each run its own process on the relay')
     p.add_argument('--json', action='store_true', help="each run's line as JSON")

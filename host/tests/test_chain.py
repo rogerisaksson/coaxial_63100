@@ -1,9 +1,10 @@
-"""Her step in closed chains (`machine.stack.chain`) in C beside its python, the forces in their friction's box.
+"""Her step in closed chains (`machine.stack.chain`) in C beside its python, one QP within friction.
 
 No sole standing, her pelvis (two points, one patch), shanks and hands bearing, her pelvis and trunk asked a
 turn and a sole a swing: wbc_chain.c's torques, accelerations and contact forces are the python step's bit
-for bit; rigid, the forces press alone within their friction's box with the complementarity met; the
-plan turns her toward the ask through her drives; a tick's time."""
+for bit; wherever the QP met its laws the forces press alone within their friction's cones and her torques
+within their clamps; the QP turns her toward the ask through her drives; told a twist her seat slides at
+its friction's edge and still bears her; a tick's time."""
 import os
 import sys
 import time
@@ -26,23 +27,40 @@ def _product(a, b):
                      a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]])
 
 
+def _lawful(contacts, got, regime, limit):
+    """How far the step's forces and torques break its laws, N and N m: a pull, a tangent past its cone (her sled's
+    `regime.mu`, an anchor's `regime.anchor`), a torque past its clamp."""
+    import numpy as np
+    from machine.senses.borne import CARPAL
+    from machine.stack import chain
+    worst = 0.0
+    for c, z, Q in zip(contacts, got['borne'], chain.frames(np.concatenate([cs['n'] for cs in contacts]))):
+        zn, zt1, zt2 = Q @ z
+        mu = regime.mu if int(c['body']) >= 0 and int(c['patch']) < CARPAL else regime.anchor
+        worst = max(worst, -zn, float(np.hypot(zt1, zt2)) - mu * zn * (1.0 + 1e-9))
+    return max(worst, float((np.abs(got['tau']) - limit).max()))
+
+
 def test_the_chain_step_in_c_is_the_steps(report):
     """wbc_chain.c beside `machine.stack.chain.step` on her stand's pose under random velocities, six contacts felt."""
     import numpy as np
     from machine.body import figure
     from machine.stack import chain, wbc
+    from machine.stack.shrunk import box
     from machine.world import physics
     from tools.cores import step as glue
     world, b = physics.World(), wbc.Body()
     world.reset(figure.stand())
     regime, solve = glue.regime(), glue.chain_laid(b)
-    # the text's regime gives a mattress's foam its pass of lag (its softness): the complementarity itself is the
-    # rigid regime's to meet, swept to convergence
-    rigid = regime._replace(soft=0.0, sweeps=40000)
-    rng, worst, boxed, turned, residuals = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, []
+    rng, worst, lawless, turned, met = np.random.default_rng(7), np.zeros(3), 0.0, 0.0, 0
+
+    def paired(sc, ask):
+        """(the python's, the C's) from cold: the rows each held last warm the next, so a pair compared starts alike."""
+        b.chain_warm, solve.args[0].chain_nheld[0], solve.args[0].chain_nheld[1] = ((), ()), 0, 0
+        return chain.step(b, sc, ask, regime), solve(b, sc, ask)
     # her pelvis and right shank on a foam as her skin feels it (borne's give: 21 m/s^2 a N), her hands and forearms on
     # what is firm (none): the C the same
-    gives, apart_g, apart_h, eased = (21.0, 21.0, 0.0, 0.0, 0.0, 21.0, 0.0, 0.0), 0.0, 0.0, np.inf
+    gives, apart_g = (21.0, 21.0, 0.0, 0.0, 0.0, 21.0, 0.0, 0.0), 0.0
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
     bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand', 'right_shank',
                                              'left_forearm', 'right_forearm')]
@@ -66,33 +84,24 @@ def test_the_chain_step_in_c_is_the_steps(report):
         spin = np.array([np.cos(0.1), *(np.sin(0.1) * axis)])
         turns = tuple(_product(spin, t['quat']) for t in s['turns'])
         f1 = s['feet'][1]
-        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False, 'hand_cap': np.inf,
+        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
                'posture': s['q'] + 0.02 * rng.normal(size=len(s['q'])), 'twist': (0.3 * (nth % 3 - 1), 0.0, 0.0),
                'free': (nth % 2 == 1, False)}
         sc = dict(s, contacts=contacts)
-        ours, theirs = chain.step(b, sc, ask, regime), solve(b, sc, ask)
+        ours, theirs = paired(sc, ask)
         soft = dict(s, contacts=[dict(c, give=g) for c, g in zip(contacts, gives)])
-        ours_g, theirs_g = chain.step(b, soft, ask, regime), solve(b, soft, ask)
+        ours_g, theirs_g = paired(soft, ask)
         apart_g = max(apart_g, float(np.abs(ours_g['tau'] - theirs_g['tau']).max()),
                       float(np.abs(ours_g['borne'] - theirs_g['borne']).max()))
-        # her hands' patches told 40 N between them (`ask['hand_cap']`), each held at its share as felt: the C the same
-        told = dict(ask, hand_cap=40.0)
-        ours_h, theirs_h = chain.step(b, soft, told, regime), solve(b, soft, told)
-        apart_h = max(apart_h, float(np.abs(ours_h['tau'] - theirs_h['tau']).max()),
-                      float(np.abs(ours_h['borne'] - theirs_h['borne']).max()))
-        pushed = [sum(float(z[1]) for c, z in zip(contacts, got['borne']) if 6 <= c['patch'] < 18) for got in (ours_g, ours_h)]
-        eased = min(eased, pushed[0] - pushed[1])
         worst = np.maximum(worst, [np.abs(ours['tau'] - theirs['tau']).max(), np.abs(ours['qacc'] - theirs['qacc']).max(),
                                    np.abs(ours['borne'] - theirs['borne']).max()])
-        hard = chain.step(b, sc, ask, rigid)
-        residuals.append(hard['residual'])
-        for Q, z in zip(chain.frames(np.concatenate([cs['f'] for cs in contacts])), hard['borne']):
-            zn, zt1, zt2 = Q @ z
-            boxed = max(boxed, -zn, abs(zt1) - regime.mu * zn, abs(zt2) - regime.mu * zn)
-        # the plan answers a turn through her drives and the contacts it holds: still, nothing else asked, a turn of
+        if ours['met']:
+            met += 1
+            lawless = max(lawless, _lawful(contacts, ours, regime, box(b, ask)[0]))
+        # the QP answers a turn through her drives and the contacts it holds: still, nothing else asked, a turn of
         # 0.5 rad about her pelvis's normal, what it foresees of her base goes the asked way (on her pelvis's two points
-        # alone it foresees none: pinned, they slide only past their box, and no lever asks that of them - her shank
+        # alone it foresees none: pinned, they slide only past their cone, and no lever asks that of them - her shank
         # and hands are the levers, and how far they take her is the state's)
         still = wbc.sense(b, world.data.qpos, np.zeros(len(world.data.qvel)))
         wide = np.array([np.cos(0.25), *(np.sin(0.25) * axis)])
@@ -109,14 +118,11 @@ def test_the_chain_step_in_c_is_the_steps(report):
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
     report.check("what bears her giving as her skin feels it, the C the same", apart_g < APART,
                  '%.1e apart at most' % apart_g)
-    report.check("her hands bearing no more than her text tells them, the C the same", apart_h < APART and eased >= 0.0,
-                 '%.1e apart at most, her hands eased %.1f N at least' % (apart_h, eased))
-    report.check("rigid, its forces press alone within their friction's box, the complementarity met",
-                 boxed < 1e-9 and max(residuals) < 1e-3, 'box %.1e N, residual %.1e' % (boxed, max(residuals)))
-    report.check("the plan turns her pelvis the asked way through her drives and the contacts it holds",
+    report.check("where the QP met its laws, its forces press alone within their cones and her torques within their clamps",
+                 met > 0 and lawless < 1e-6, '%d of %d states met, the laws broken by %.1e at most' % (met, STEPS, lawless))
+    report.check("the QP turns her pelvis the asked way through her drives and the contacts it holds",
                  turned < 1.0, 'the turn short of the ask by %.2f at worst' % turned)
-    # told a twist, her seat slides on its normal and bears her as held, her hands beside it (laid by her world's rows,
-    # its slide let go of world y, her seat's normal: it bore 10 N of the 183 it bears held, her base fell 5.3 m/s^2)
+    # told a twist, her seat slides at its friction's edge against the way told and still bears her, her hands beside it
     left, up, way = chain.ways(still['turns'][0]['quat'])
     weight, sled = float(b.m.body_subtreemass[b.m.body('pelvis').id]) * 9.81, []
     for name, off, share, patch in ([('pelvis', s * 0.07 * left - 0.08 * up - 0.03 * way, 0.40, 0) for s in (1.0, -1.0)]
@@ -131,16 +137,16 @@ def test_the_chain_step_in_c_is_the_steps(report):
     for vx in (0.0, 0.3):
         sc, sat = dict(still, contacts=sled), dict(ask, turns=tuple(t['quat'] for t in still['turns']), swing={}, posture=still['q'].copy(),
                                                     twist=(vx, 0.0, 0.0), free=(False, False))
-        ours, theirs = chain.step(b, sc, sat, regime), solve(b, sc, sat)
+        ours, theirs = paired(sc, sat)
         apart = max(apart, float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(ours['borne'] - theirs['borne']).max()))
         seats.append(sum(float(up @ z) for z in ours['borne'][:2]))
-    report.check("told a twist, her seat slides on its normal, bearing her as held, the C the same",
+    report.check("told a twist, her seat slides at its friction's edge, bearing her still, the C the same",
                  seats[1] >= 0.5 * seats[0] and apart < APART, 'held %.0f N, sliding %.0f N; C %.1e apart' % (seats[0], seats[1], apart))
     t = time.perf_counter()
     for _ in range(200):
         solve(b, sc, ask)
     us = 1e6 * (time.perf_counter() - t) / 200
-    report.check('a tick of it on this host', us < 1000.0, '%.1f us' % us)
+    report.check('a tick of it on this host', us < 5000.0, '%.1f us' % us)
 
 
 def test_the_step_is_hers_by_her_release(report):

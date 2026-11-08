@@ -128,7 +128,7 @@ static int largest(const double f[3])
 int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands, const double *let_go,
                    double dt)
 {
-  const double     *pushes = y + b->touch_at, *at = y + b->at_at, *gives = y + b->give_at;
+  const double     *pushes = y + b->touch_at, *at = y + b->at_at, *gives = y + b->give_at, *nrms = y + b->nrm_at;
   const wbc_blas_t *l = b->blas;
   int               skin[WBC_BORNE_SKIN + 2], soled[2], ns = 0, nk = 0;
   double            fp[3];
@@ -185,9 +185,30 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
     {
       continue;
     }
-    double nrm[3];
+    double nrm[3], size;
 
-    normal_of(b, k, ak, R, nrm);
+    /* the way its support pushes it: its contacts' normals as her edge has them (world, unit), her skin's own
+       estimate where it has none (normal_of), never against the push (machine.senses.borne.read) */
+    if (nrms[3 * k] != 0.0 || nrms[3 * k + 1] != 0.0 || nrms[3 * k + 2] != 0.0)
+    {
+      mv3(l, R, nrms + 3 * k, nrm);
+    }
+    else
+    {
+      normal_of(b, k, ak, R, nrm);
+    }
+    size = sqrt((nrm[0] * nrm[0] + nrm[1] * nrm[1]) + nrm[2] * nrm[2]);
+    for (int j = 0; j < 3; j++)
+    {
+      nrm[j] = nrm[j] / size;
+    }
+    if ((nrm[0] * f[0] + nrm[1] * f[1]) + nrm[2] * f[2] < 0.0)
+    {
+      for (int j = 0; j < 3; j++)
+      {
+        nrm[j] = -nrm[j];
+      }
+    }
     const int axis = largest(nrm);
     const int patch = 2 * axis + (nrm[axis] < 0.0) + b->carpal * (1 + side) * b->hand[k] + b->let * (1 + side) * let;
 

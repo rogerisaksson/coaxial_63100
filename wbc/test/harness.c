@@ -294,9 +294,9 @@ API int wbh_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, cons
 }
 
 API void wbh_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
-                         int cells_at, int at_at, int give_at)
+                         int cells_at, int at_at, int give_at, int nrm_at)
 {
-  wbc_pass_sensed(c, y, load_at, touch_at, press_at, cop_at, cells_at, at_at, give_at);
+  wbc_pass_sensed(c, y, load_at, touch_at, press_at, cop_at, cells_at, at_at, give_at, nrm_at);
 }
 
 API void wbh_pass_heat_load(wbc_heat_t *h, const double *torques, const double *qd)
@@ -635,6 +635,7 @@ API void wbh_step_sizes(int *out)
   out[4] = WBC_STEP_R;
   out[5] = WBC_STEP_WORK;
   out[6] = (int)sizeof(wbc_step_t);
+  out[7] = WBC_QP_M;
 }
 
 API void wbh_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,

@@ -1,22 +1,20 @@
-"""Her step in closed chains: contacts by complementarity, her tasks answered through her dynamics.
+"""Her step in closed chains: her tasks and the contacts' forces solved as one QP, within friction.
 
 No sole standing and none asked to land - her legs let go of the floor onto a bed, a seat's edge, the
 floor under her knees and hands -, her inverted pendulum is gone: the physics is a parallel chain with
-contacts that stick or slide (closed_chain_complementarity.lisp, closed_chain_plan.lisp). The upright
-step (`machine.stack.wrench`) holds every bearing point still at W_STILL and plans its push; on a
-yielding support both are asks it cannot meet (lying back on a bed she spasmed at the foam's 1.9 Hz and
-rolled 19 deg). This step asks no balance of what bears her. Its plan (`planned`) is dynamics-consistent:
-her base's and passive joints' accelerations are what the contacts held and her dynamics make of her
-driven joints', so her pelvis's and trunk's turns and a sole's swing are answered by her drives, not by
-free base dofs the forces then overrule; her posture follows in their damped null space (Levenberg-
-Marquardt); a contact the plan would pull on is let go of, one it would drag past its friction's box
-slides with its friction known, round by round. The contacts' forces come from a box-projected
-Gauss-Seidel over her Delassus matrix on the dofs no drive holds - pressing alone, within their
-friction's box, their slip bled -, warm from the plan's own forces (warm from what is felt, the
-mattress's lag kept them there and the push the plan counted on never reached her drives); her torques follow with them, shrunk to her
-clamps as the upright step's are. wbc_chain.c is it in C, bit for bit; `motion.control` picks it by her
-release alone (`chained`), never by a text's name, and hands it her standing soles as patches
-(`bearing`): held by their friction's box, never planned as a push.
+contacts that stick, slide or lift (closed_chain_qp.lisp). The upright step (`machine.stack.wrench`)
+holds every bearing point still at W_STILL and plans its push; on a yielding support both are asks it
+cannot meet (lying back on a bed she spasmed at the foam's 1.9 Hz and rolled 19 deg). This step asks no
+balance of what bears her. Its QP (`chain_qp`) takes her driven joints' accelerations and the contacts'
+forces as one unknown, every other quantity affine in them through her dynamics: level 1 answers her
+pelvis's and trunk's turns, a sole's swing and the twist told her with the anchors held still and the
+forces least, under the laws no answer may break - a contact presses alone and never sinks into its
+support faster than its give says, friction within its pyramid, her torques within their clamps -;
+level 2 lays her posture in level 1's damped null space, its arm columns projected off her held hands;
+her torques are those forces' - a plan that welded the contacts and a Gauss-Seidel that re-solved them
+apart squeezed her fists 570 N into each other and starved them. wbc_chain.c is it in C, bit for bit;
+`motion.control` picks it by her release alone (`chained`), never by a text's name, and hands it her
+standing soles as contacts (`bearing`).
 """
 import collections
 import math
@@ -26,19 +24,19 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.stack.chain_plan import planned
+from machine.senses.borne import CARPAL, LET
+from machine.stack import chain_qp
 from machine.stack.rounds import LEGS
 from machine.stack.shrunk import box, shrunk
-from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
+from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, G, turn_error
 
-#: The regime as its text says it (`closed-chain-regime`): the least squares' damping, the tasks' above posture their
-#: own, the Gauss-Seidel's sweeps, the plan's rounds, a contact's softness m/s^2 a N, a sticking contact's slip bled
-#: 1/s, its friction; the tasks' weights - a turn, a swing, the posture in their null space, the contacts' forces near
-#: what is felt (rad/s^2 a N) -; its own gains, a turn's
-#: and the posture's (kp, kd): lying down is slow, the gait's asked tens of rad/s^2 and the plan pulled her off the seat;
-#: a twist's weight and gain; the share her anchors bear told a twist (`chain_plan.said`).
-Regime = collections.namedtuple('Regime', 'lam task sweeps rounds soft bleed mu hold turn swing posture force tkp tkd pkp pkd '
-                                          'twist vkd unweight')
+#: The regime as its text says it (`closed-chain-regime`): level 2's damping m and level 1's on x, a contact's
+#: softness m/s^2 a N, a sticking contact's slip bled 1/s, her sled's friction and an anchor's, a patch held from N;
+#: a held contact's stick rows' weight, the shear and the normals regularised toward none (rad/s^2 a N); the tasks' weights - a
+#: turn, a swing, her posture -; its own gains, a turn's and the posture's (kp, kd): lying down is slow, the gait's
+#: asked tens of rad/s^2; a twist's weight and gain.
+Regime = collections.namedtuple('Regime', 'lam task soft bleed mu anchor hold stick reg nreg turn swing posture tkp tkd pkp '
+                                          'pkd twist vkd')
 
 
 def chained(ask):
@@ -56,8 +54,8 @@ def chained(ask):
 def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
     """Her contacts with each standing sole one more patch where the step is hers (`chained`): its load up (felt) as far
     as her text keeps its leg (`shed`, the release `emancipation` asks of each), its Jacobian's translation, a body
-    below 0 - held in its friction's box, never planned as a push. Felt whole, the leg her text lifted took 82 -> 112 N
-    as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s."""
+    below 0 - an anchor within its friction's pyramid, never planned as a push. Felt whole, the leg her text lifted took
+    82 -> 112 N as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s."""
     soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]) * (1.0 - float(shed[k])), 0.0]),
               'n': np.array([0.0, 1.0, 0.0]), 'J': np.ascontiguousarray(f['J6'][3:6]),
               'dJv': np.asarray(f['dJv'][3:6], float), 'patch': 0, 'side': k, 'body': -1 - k}
@@ -65,14 +63,14 @@ def bearing(s, loads, stance, chained, shed=(0.0, 0.0)):
     return list(s.get('contacts', ())) + soles
 
 
-def regime(said, unweight):
-    """The `Regime` of the kernel's `closed-chain-regime` as evaluated, `unweight` the ratchet's (`chain_plan.said`)."""
-    return Regime(float(said['dls-damping-m']), float(said['task-damping']), int(round(said['pgs-sweeps'])), int(round(said['plan-rounds'])),
-                  float(said['contact-softness-m-s2-per-n']), float(said['stick-bleed-per-s']), float(said['friction-mu']),
-                  float(said['hold-n']),
-                  float(said['turn-weight']), float(said['swing-weight']), float(said['posture-weight']), float(said['force-weight']),
-                  float(said['turn-kp']), float(said['turn-kd']), float(said['posture-kp']), float(said['posture-kd']),
-                  float(said['twist-weight']), float(said['twist-kd']), float(unweight))
+def regime(said):
+    """The `Regime` of the kernel's `closed-chain-regime` as evaluated."""
+    return Regime(float(said['dls-damping-m']), float(said['task-damping']), float(said['contact-softness-m-s2-per-n']),
+                  float(said['stick-bleed-per-s']), float(said['friction-mu']), float(said['anchor-mu']), float(said['hold-n']),
+                  float(said['stick-weight']), float(said['force-reg']), float(said['normal-reg']), float(said['turn-weight']),
+                  float(said['swing-weight']),
+                  float(said['posture-weight']), float(said['turn-kp']), float(said['turn-kd']), float(said['posture-kp']),
+                  float(said['posture-kd']), float(said['twist-weight']), float(said['twist-kd']))
 
 
 def frame(f0, f1, f2):
@@ -150,67 +148,6 @@ def tasks(b, s, ask, regime):
     return (np.vstack(rows) if rows else np.zeros((0, n))), np.array(rhs, float), want
 
 
-def framed(Dl, bb, f, Q):
-    """(the Delassus matrix, its offset, the forces warm) turned into the contacts' frames `Q`, 3 rows a contact."""
-    k, m = len(Q), len(bb)
-    Dloc, bloc, zloc = np.zeros((m, m)), np.zeros(m), np.zeros(m)
-    for i in range(k):
-        for a in range(3):
-            s, t = 0.0, 0.0
-            for c in range(3):
-                s = s + float(Q[i, a, c]) * float(bb[3 * i + c])
-                t = t + float(Q[i, a, c]) * float(f[3 * i + c])
-            bloc[3 * i + a], zloc[3 * i + a] = s, t
-            for j in range(k):
-                for e in range(3):
-                    s = 0.0
-                    for c in range(3):
-                        for d in range(3):
-                            s = s + float(Q[i, a, c]) * float(Dl[3 * i + c, 3 * j + d]) * float(Q[j, e, d])
-                    Dloc[3 * i + a, 3 * j + e] = s
-    return Dloc, bloc, zloc
-
-
-def world(Q, zloc):
-    """The frames' `zloc` back in the world, 3 a contact."""
-    z = np.zeros(len(zloc))
-    for i in range(len(Q)):
-        for c in range(3):
-            s = 0.0
-            for a in range(3):
-                s = s + float(Q[i, a, c]) * float(zloc[3 * i + a])
-            z[3 * i + c] = s
-    return z
-
-
-def pgs(Dl, b, z, mu, soft, sweeps):
-    """Box-projected Gauss-Seidel on w = `Dl` z + `b` in the contacts' frames, 3 a contact (normal, two tangents):
-    each normal pressing alone (0 <= w_n, 0 <= z_n, one of them 0), each tangent within the box |z_t| <= `mu` z_n
-    (the infinity norm's), `sweeps` over, `z` in place - warm from what is felt -, a contact's `soft` give on the
-    diagonal; the complementarity's residual, the largest |min(w_n, z_n)| after."""
-    m = len(b)
-    for _ in range(sweeps):
-        for r in range(m):
-            w = float(b[r])
-            for c in range(m):
-                w = w + float(Dl[r, c]) * float(z[c])
-            d = float(Dl[r, r]) + soft
-            x = float(z[r]) - w / d
-            if r % 3 == 0:
-                z[r] = x if x > 0.0 else 0.0
-            else:
-                lim = mu * float(z[r - r % 3])
-                z[r] = -lim if x < -lim else (lim if x > lim else x)
-    residual = 0.0
-    for i in range(0, m, 3):
-        w = float(b[i])
-        for c in range(m):
-            w = w + float(Dl[i, c]) * float(z[c])
-        gap = abs(min(w, float(z[i])))
-        residual = gap if gap > residual else residual
-    return residual
-
-
 def stop_rows(b, s, nd):
     """(rows (2j, nd), bounds (2j)): her driven joints' stops on her plan's accelerations as her upright QP bounds them
     (`wbc`): each met no nearer than STOP_RAD, LIMIT_S ahead at the acceleration asked."""
@@ -223,10 +160,11 @@ def stop_rows(b, s, nd):
 
 
 def gives_of(b, contacts, regime, compliant, tc=None):
-    """Each contact's give for her plan (`chain_plan.held_map`): None, all held rigid, unless `compliant` - True each at
-    the foam's `regime.soft`, 'sensed' each as her skin has her in what bears it (`borne.read`'s give), 'material' each
-    as her world has what bears it, the python twin's measure alone (`tc` {her body's name: the time constant of what
-    it touches}, read off her world: over the foam's, squared, of `regime.soft`; MuJoCo's default rigid)."""
+    """Each contact's give for the QP's stick rows and its law of no sinking (`chain_qp.level1`): None, all rigid,
+    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has her in what bears it
+    (`borne.read`'s give), 'material' each as her world has what bears it, the python twin's measure alone (`tc` {her
+    body's name: the time constant of what it touches}, read off her world: over the foam's, squared, of
+    `regime.soft`; MuJoCo's default rigid)."""
     if not compliant:
         return None
     if compliant is True:
@@ -239,15 +177,18 @@ def gives_of(b, contacts, regime, compliant, tc=None):
     for c in contacts:
         k = int(c.get('body', 0))
         t = (tc or {}).get(b.m.body(k).name if k >= 0 else ('left', 'right')[-1 - k] + '_foot', 0.0)
-        out.append(regime.soft * (t / foam) ** 2 if t > 0.02 + 1e-9 else regime.lam * regime.lam)
+        out.append(regime.soft * (t / foam) ** 2 if t > 0.02 + 1e-9 else 0.0)
     return np.array(out)
 
 
-def step(b, s, ask, regime, bounded=False, released=True, stopped=False, compliant='sensed'):
+def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     """{tau, qacc, bears, cop, over, slack, held, borne, scale, residual, foreseen}: `ask` as `wrench.step` takes it, no
-    sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask; `residual` the
-    complementarity's; `foreseen` the base's and passive joints' accelerations the plan counted on. Her driven joints go as the chain's plan asks (`planned`), her held joints damped (HELD_K), her
-    base and passive joints as the forces and her dynamics move them."""
+    sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask, 1 where the QP
+    met its laws; `residual` the complementarity's; `foreseen` the base's and passive joints' accelerations the QP
+    counted on; `held` the rows it held, warm for the next pass (`b.chain_warm`). Her driven joints' accelerations, the
+    contacts' forces and so her torques solved as one (`chain_qp`); `stopped`: her joints' stops among the laws
+    (`stop_rows`); `compliant`: what she holds giving (`gives_of`). Where no answer meets the laws, the least squares
+    alone and her torques shrunk as the upright step's: toward nothing asked of her joints, then toward 0."""
     n, M, h, v = b.n, s['M'], s['h'], s['v']
     contacts = s.get('contacts', ())
     A, H = np.asarray(b.act, int), np.asarray(b.held, int)
@@ -264,59 +205,42 @@ def step(b, s, ask, regime, bounded=False, released=True, stopped=False, complia
     rhs0 = -h[P]
     Jp, Jg = np.ascontiguousarray(J[:, P]), np.ascontiguousarray(J[:, given])
     Jv, Q = (J @ v if k else np.zeros(0)), frames(np.concatenate([np.asarray(c['n'], float) for c in contacts]) if k else f)
-    # 1. her driven joints as the chain's plan asks them, the tasks answered through the contacts and her dynamics
     R, r, want = tasks(b, s, ask, regime)
     vx, way = float(ask.get('twist', (0.0,))[0]), ways(s['turns'][0]['quat'])[2]
     hx, hz = float(way[0]), float(way[2])
     nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
     slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
-    # what she holds gives as what bears it gives, over what she feels (`gives_of`, her skin's `sensed`, wbc_chain_plan.c
-    # the same); `bounded`: her plan held within her drives' clamps (chain_plan.torqued); not `released`: one past its
-    # box held; `stopped`: her driven joints' stops on it (`stop_rows`) - those the python twin's alone as yet
-    torque = ((M[np.ix_(A, given)], M[np.ix_(A, P)], h[A], J[:, A], box(b, ask)[0]) if bounded else None)
-    x, foreseen, zwarm = planned(regime, nd, held, Minv, Mpg, rhs0, Jp, Jg, Jv, dJv, f, patch, body, Q, np.ascontiguousarray(R[:, P]),
-                                 np.ascontiguousarray(R[:, given]), r, want, slide, ask.get('free', (False, False)), torque,
-                                 released, stop_rows(b, s, nd) if stopped else None,
-                                 gives_of(b, contacts, regime, compliant, ask.get('_tc')), float(ask.get('hand_cap', 0.0)),
-                                 tuple(float(c) for c in ask.get('let_cap', (math.inf, math.inf))))
-    qg, qg0 = np.concatenate([x, held]), np.concatenate([np.zeros(nd), held])
-    rhs, rhs0 = rhs0 - Mpg @ qg, rhs0 - Mpg @ qg0
-    # 2. the contacts' forces by complementarity over her Delassus matrix on the dofs no drive holds
-    z, residual = np.zeros(3 * k), 0.0
-    JpT, JT = np.zeros((len(P), 0)), np.zeros((n, 0))
-    if k:
-        JpT, JT = np.ascontiguousarray(Jp.T), np.ascontiguousarray(J.T)
-        W = Jp @ Minv
-        Dl = W @ JpT
-        bb = W @ rhs + Jg @ qg + dJv + regime.bleed * Jv
-        Dloc, bloc, zloc = framed(Dl, bb, zwarm, Q)
-        residual = pgs(Dloc, bloc, zloc, regime.mu, regime.soft, regime.sweeps)
-        z = world(Q, zloc)
-    Jtz = JT @ z
-
-    def answered(qg_, rhs_):
-        """(the drives' torques, every acceleration) with the forces, her driven and held joints going `qg_`."""
-        qdd = np.zeros(n)
-        qdd[given] = qg_
-        qdd[P] = Minv @ (JpT @ z + rhs_)
-        return (M @ qdd + h - Jtz)[A], qdd
-    # 3. her torques, shrunk to her clamps as the upright step's: toward nothing asked of her joints, then toward 0
-    tau1, qdd1 = answered(qg, rhs)
-    tau0, qdd0 = answered(qg0, rhs0)
+    felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(k)]
+    width, S, mu, holds = chain_qp.unknowns(patch, body, felt, Q, slide, ask.get('free', (False, False)), regime)
+    maps = chain_qp.affine(Minv, Mpg, rhs0, held, Jp, Jg, dJv, Q, S, np.ascontiguousarray(R[:, P]),
+                           np.ascontiguousarray(R[:, given]), r, np.ascontiguousarray(M[np.ix_(A, np.concatenate([P, given]))]),
+                           h[A], np.ascontiguousarray(J[:, A]), nd)
+    gives = gives_of(b, contacts, regime, compliant, ask.get('_tc'))
     limit, lo, hi = box(b, ask)
-    if (np.abs(tau1) > limit).any():
+    H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, np.zeros(k) if gives is None else gives, Jv, f, Q, regime,
+                                         (lo, hi), stop_rows(b, s, nd) if stopped else None, G)
+    hands = [i for i in range(k) if holds[i] and CARPAL <= int(patch[i]) < LET]
+    u, b.chain_warm, met = chain_qp.solved(H1, g1, G1, Aq, bq, maps, S, Jg, hands, want, regime, b.chain_warm)
+    x, foreseen, z, tau1, residual = chain_qp.answer(u, maps, S, Q, nd)
+    qdd = np.zeros(n)
+    qdd[given], qdd[P] = np.concatenate([x, held]), foreseen
+    if met or not (np.abs(tau1) > limit).any():
+        scale, tau = 1.0, tau1
+    else:
+        zeta = u[nd:]
+        tau0, qdd0 = maps.t0 + maps.Tz @ zeta, np.zeros(n)
+        qdd0[given], qdd0[P] = np.concatenate([np.zeros(nd), held]), maps.p0 + maps.Pz @ zeta
         scale = shrunk(tau1, tau0, -limit, limit)
-        tau, qdd = tau0 + scale * (tau1 - tau0), qdd0 + scale * (qdd1 - qdd0)
+        tau, qdd = tau0 + scale * (tau1 - tau0), qdd0 + scale * (qdd - qdd0)
         s0 = shrunk(tau, np.zeros(nd), -limit, limit) if (np.abs(tau0) > limit).any() else 1.0
         if s0 < 1.0:
             tau, qdd = s0 * tau, s0 * qdd
         scale = s0 * scale
-    else:
-        scale, tau, qdd = 1.0, tau1, qdd1
     past = np.abs(tau1) > b.clamp * (1.0 + 1e-6)
     over = past.copy()
     for p, q in b.pairs:
         over[p] = over[q] = past[p] or past[q]
     b.load = np.abs(tau1) / b.clamp
     return {'tau': np.clip(tau, lo, hi), 'qacc': qdd, 'bears': [0.0, 0.0], 'cop': [], 'over': over, 'slack': [],
-            'held': (), 'borne': z.reshape(-1, 3), 'scale': scale, 'residual': residual, 'foreseen': foreseen}
+            'held': b.chain_warm, 'borne': z.reshape(-1, 3), 'scale': scale, 'residual': residual, 'foreseen': foreseen,
+            'met': met}

@@ -22,8 +22,8 @@ typedef void (*wbc_borne_jac_t)(const void *m, const void *d, double *jacp, doub
 typedef struct
 {
   int                    skin, above, n, nv;        /* her skin's segments, those above her soles; her dofs, her model's */
-  int                    touch_at, at_at, give_at;  /* her edge's array: TOUCH's, AT's and GIVE's first */
-  int                    pelvis, carpal, let;       /* borne.PELVIS, CARPAL, LET */
+  int                    touch_at, at_at, give_at, nrm_at;  /* her edge's array: TOUCH's, AT's, GIVE's and NORMAL's first */
+  int                    pelvis, carpal, let, role_spare; /* borne.PELVIS, CARPAL, LET; explicit: its ints a whole number of doubles */
   int                    sole[2];                   /* each sole's segment (`touch.SOLES`) */
   int                    ids[WBC_BORNE_SKIN];       /* each segment's body in her model */
   int                    order[WBC_BORNE_SKIN];     /* borne.ABOVE, in its order */

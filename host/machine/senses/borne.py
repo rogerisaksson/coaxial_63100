@@ -12,6 +12,7 @@ instead, a stiff seat's a pass late, the step cancelled the seat's stiffness a p
 pushed - 695, 250, 88, 539, 131 N on it 30 ms apart, her soles' loads swinging 0 to 286 N.
 Her hands bear as the furniture does, a patch of their own (CARPAL), out of prop's share: palms, each one's.
 """
+import math
 import os
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -73,10 +74,11 @@ def _room(k, local):
 
 
 def _normal(k, local, R):
-    """(3,) the normal of what bears skin segment `k` at its touch `local` (its frame), world, into her: her capsule
-    nearest the point outward there, by her own model turned (`R`), reversed - up where she has no capsule or the
-    point lies on its axis. Of the felt force instead, her fists' 36-44 deg of real shear on a level seat tilted it
-    and her plan's cap and box about it set 7-21 N of her hands' 50 up (chain_plan.planned)."""
+    """(3,) her skin's own estimate of the normal of what bears segment `k` at its touch `local` (its frame), world,
+    into her: her capsule nearest the point outward there, by her own model turned (`R`), reversed - up where she has
+    no capsule or the point lies on its axis; `read` takes it where her edge has no contact normal (`edge.NORMAL`).
+    Of the felt force instead, her fists' 36-44 deg of real shear on a level seat tilted it and her plan's cap and
+    box about it set 7-21 N of her hands' 50 up; of her pelvis's capsules on a bed it read 111 N across on 84 up."""
     best = None
     for r, a, b in CAPSULES[k]:
         ab = b - a
@@ -138,10 +140,13 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing.
     Each contact its segment's give over her law's pass `dt`, m/s^2 a N: how much more what bears it gives than her
     floor as her skin feels it (`edge.GIVE`, s^2) under her mass, over dt^2 - her bed's foam 19, a floor or a chair
-    none -, the closed chains' plan holding it giving so (`chain.gives_of`); her regime's own foam 27.9."""
+    none -, the closed chains' QP holding it giving so (`chain.gives_of`); her regime's own foam 27.9. Her drives'
+    wind-up is no give of the contact's: her hand's push on a seat rises as the rotor winds the box up while the
+    hand stays still, so the plan may plan it (counted as the contact's give it tied the hands' push to what they
+    felt and her bench fell from 3 of 6 met to 1)."""
     m, d, n = b.m, b.d, b.n
     ids = laid(b)
-    pushes, at = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3)
+    pushes, at, nrms = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3), y[edge.NORMAL].reshape(-1, 3)
     up, low, high, contacts, palms = 0.0, NOWHERE[0], NOWHERE[1], [], np.zeros(2)
     soled = [touch.SOLES[k][0] for k in (0, 1) if let_go[k] > 0.5]
     foot = {touch.SOLES[k][0]: k for k in (0, 1)}
@@ -168,7 +173,11 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
         # hands' 150-210 N off a chair's seat let her support go mid-rise and her capture point stepped her in place
         if k in untold:
             continue
-        nrm = _normal(k, at[k], R)
+        # the way its support pushes it: its contacts' normals as her edge has them (`edge.NORMAL`, world, unit), her
+        # skin's own estimate where it has none (`_normal`), never against the push - a support only pushes
+        nrm = R @ nrms[k] if (nrms[k] != 0.0).any() else _normal(k, at[k], R)
+        nrm = nrm / math.sqrt((float(nrm[0]) * float(nrm[0]) + float(nrm[1]) * float(nrm[1])) + float(nrm[2]) * float(nrm[2]))
+        nrm = -nrm if (float(nrm[0]) * float(f[0]) + float(nrm[1]) * float(f[1])) + float(nrm[2]) * float(f[2]) < 0.0 else nrm
         axis = int(np.argmax(np.abs(nrm)))
         patch = 2 * axis + int(nrm[axis] < 0.0) + CARPAL * (1 + side) * int(carpal) + LET * (1 + side) * let
         for share, local in _points(k, pushes[k], at[k]):

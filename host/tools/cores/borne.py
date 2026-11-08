@@ -27,8 +27,8 @@ class Borne(ctypes.Structure):
 
     """wbc_borne_t: the read laid on her law's model, a read's support and contacts beside it."""
 
-    _fields_ = ([(name, _i) for name in ('skin', 'above', 'n', 'nv', 'touch_at', 'at_at', 'give_at', 'pelvis',
-                                         'carpal', 'let')]
+    _fields_ = ([(name, _i) for name in ('skin', 'above', 'n', 'nv', 'touch_at', 'at_at', 'give_at', 'nrm_at', 'pelvis',
+                                         'carpal', 'let', 'role_spare')]
                 + [('sole', _i * 2)] + [(name, _i * SKIN) for name in ('ids', 'order', 'hand', 'right', 'thigh', 'caps')]
                 + [('cap_r', (_d * CAPS) * SKIN), ('cap_a', ((_d * 3) * CAPS) * SKIN), ('cap_b', ((_d * 3) * CAPS) * SKIN)]
                 + [(name, _d) for name in ('bears_n', 'seat_x', 'g_down')]
@@ -70,7 +70,7 @@ def laid(b):
     if len(edge.SKIN) > SKIN or max(len(c) for c in borne.CAPSULES) > CAPS or b.m.nv > DOF:
         raise ValueError('her skin, a capsule list or her model past wbc_borne.h')
     t = Borne(skin=len(edge.SKIN), above=len(borne.ABOVE), n=b.n, nv=b.m.nv, touch_at=edge.TOUCH.start,
-              at_at=edge.AT.start, give_at=edge.GIVE.start, pelvis=borne.PELVIS, carpal=borne.CARPAL, let=borne.LET,
+              at_at=edge.AT.start, give_at=edge.GIVE.start, nrm_at=edge.NORMAL.start, pelvis=borne.PELVIS, carpal=borne.CARPAL, let=borne.LET,
               bears_n=borne.BEARS_N, seat_x=figure.SEAT_X, g_down=float(-edge.G[1]))
     t.sole[:] = [touch.SOLES[k][0] for k in (0, 1)]
     ids, right = borne.laid(b).tolist(), set(borne.HANDS[len(touch.ARMS[0]):].tolist())

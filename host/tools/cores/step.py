@@ -22,9 +22,9 @@ from tools.cores.motion import Blas, numpy_blas
 def _step_typed():
     """wbc_step_t's mirror laid by the C's own sizes, its bytes the C's, and the step typed on it."""
     lib = wbc.library()
-    sizes = (ctypes.c_int * 7)()
+    sizes = (ctypes.c_int * 8)()
     lib.wbh_step_sizes(sizes)
-    n, d, c, u, r, work, size = list(sizes)
+    n, d, c, u, r, work, size, QP_ROWS = list(sizes)
     i, f, p = ctypes.c_int, ctypes.c_double, ctypes.c_void_p
     fields = [(name, i) for name in 'n nd nu0 nupper nheld npass nact npairs nbuffers'.split()]
     fields += [('act', i * d), ('legs', (i * 6) * 2), ('knees', i * 2), ('upper', i * d), ('held', i * n),
@@ -48,11 +48,12 @@ def _step_typed():
     fields += [(name, p) for name in 'posture derate clamp wep_nm lo hi'.split()]
     fields += [('tau', f * d), ('qacc', f * n), ('bears', f * 2), ('cop', (f * 2) * 2), ('forces', (f * 3) * c),
                ('scale', f), ('load', f * d), ('cop_n', i), ('cop_none', i * 2), ('over', i * d), ('work', f * work),
-               ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f), ('chain_sweeps', i), ('chain_rounds', i),
-               ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_w_force', f), ('chain_turn_kp', f),
+               ('chain_lam', f), ('chain_task_lam', f), ('chain_soft', f), ('chain_bleed', f), ('chain_mu', f), ('chain_hold_n', f),
+               ('chain_anchor_mu', f), ('chain_w_stick', f), ('chain_reg', f), ('chain_nreg', f),
+               ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_turn_kp', f),
                ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
-               ('chain_vx', f), ('chain_unweight', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
-               ('hang_rate', f), ('cn', p * c)]
+               ('chain_vx', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
+               ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -133,8 +134,7 @@ def regime():
     """The closed chains' regime as the kernel's text says it (`closed-chain-regime`, `machine.stack.chain.Regime`)."""
     from machine.stack import chain
     from machine.texts import kernel
-    return chain.regime(kernel.read()['closed-chain-regime'],
-                        kernel.said('xform-locomotion-seated-butt-scoot', 'buttock-unweight-ratio'))
+    return chain.regime(kernel.read()['closed-chain-regime'])
 
 
 def chain_laid(b, sensed=None, twin=False):
@@ -146,11 +146,11 @@ def chain_laid(b, sensed=None, twin=False):
         return functools.partial(chain.step, regime=said)
     k, views = _laid(b, sensed)
     k.chain_lam, k.chain_task_lam, k.chain_soft, k.chain_bleed, k.chain_mu = said.lam, said.task, said.soft, said.bleed, said.mu
-    k.chain_hold_n = said.hold
-    k.chain_sweeps, k.chain_rounds = said.sweeps, said.rounds
-    k.chain_w_turn, k.chain_w_swing, k.chain_w_posture, k.chain_w_force = said.turn, said.swing, said.posture, said.force
+    k.chain_hold_n, k.chain_anchor_mu, k.chain_w_stick, k.chain_reg, k.chain_nreg = said.hold, said.anchor, said.stick, said.reg, said.nreg
+    k.chain_w_turn, k.chain_w_swing, k.chain_w_posture = said.turn, said.swing, said.posture
     k.chain_turn_kp, k.chain_turn_kd, k.chain_posture_kp, k.chain_posture_kd = said.tkp, said.tkd, said.pkp, said.pkd
-    k.chain_w_twist, k.chain_twist_kd, k.chain_unweight = said.twist, said.vkd, said.unweight
+    k.chain_w_twist, k.chain_twist_kd = said.twist, said.vkd
+    k.chain_nheld[0] = k.chain_nheld[1] = 0
     k.quick = _quick(k, _step_typed()[1][1])
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 
