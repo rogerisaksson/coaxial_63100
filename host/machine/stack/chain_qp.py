@@ -34,11 +34,12 @@ def freed(patch, body, free):
 
 def unknowns(patch, body, felt, Q, slide, free, regime):
     """(width (k), S (3k, nz), mu (k), bears (k), sled (k)): each contact's unknowns in zeta - three in its frame, or
-    one for her sled (a body of hers, a patch under CARPAL: what she sits or lies on) told a twist (`slide`, unit): it
-    slides at its friction's edge against the way told, z = z_n (n - mu s_t), s_t the way's unit tangent in its frame
-    -, the map zeta -> z in frames, its friction (her sled's `regime.mu`, an anchor's `regime.anchor`), whether it
-    bears - its patch `regime.hold`, its points together, and its foot not told free (`freed`) - and whether it is her
-    sled."""
+    one for her sled (a body of hers, a patch under CARPAL: what she sits or lies on) told a twist (`slide`, unit)
+    where its normal bears against gravity (up within 45 deg; a back against a backrest braces, no pin): it slides at
+    its friction's edge against the way told, z = z_n (n - mu s_t), s_t the way's unit tangent in its frame -, the
+    map zeta -> z in frames, its friction (her sled's `regime.mu`, an anchor's `regime.anchor`), whether it
+    bears - its patch `regime.hold`, its points together, and its foot not told free (`freed`): an anchor's tangents
+    stick then - and whether it is her sled."""
     import numpy as np
     k = len(Q)
     width, mu, held, sleds, cols = [], [], [], [], []
@@ -49,7 +50,7 @@ def unknowns(patch, body, felt, Q, slide, free, regime):
         mu.append(regime.mu if sled else regime.anchor)
         sleds.append(sled)
         col = None
-        if sled and (slide[0] != 0.0 or slide[2] != 0.0):
+        if sled and float(Q[i, 0, 1]) >= ROOT_HALF and (slide[0] != 0.0 or slide[2] != 0.0):
             sn = (float(Q[i, 0, 0]) * slide[0] + float(Q[i, 0, 1]) * slide[1]) + float(Q[i, 0, 2]) * slide[2]
             t = [slide[c] - sn * float(Q[i, 0, c]) for c in range(3)]
             nt = math.sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2])
@@ -79,19 +80,20 @@ def keyed(patch, body):
 
 
 def zrows(holds, width):
-    """Each contact's row z_n >= 0 among level 1's laws (`level1`'s order: 2 rows held, 3 free, its pyramid's 8)."""
+    """Each contact's row z_n >= 0 among level 1's laws (`level1`'s order: 2 rows held, 3 free, then its pyramid's 8
+    or, pinned, its one row along the way)."""
     out, at = [], 0
     for h, w in zip(holds, width):
         out.append(at)
-        at += (2 if h else 3) + (8 if w == 3 else 0)
+        at += (2 if h else 3) + (8 if w == 3 else 1)
     return out
 
 
 def letting(keys, holds, let, held1, zrow, al):
     """The contacts the plan lets go of for the next pass: one held whose row z_n >= 0 level 1 held (`held1`: the plan
     would pull on it), one let already (`let`) the plan still lifts (al_n > 0). Complementarity resolved pass by pass
-    from the plan's own multiplier - a held contact presses with no cap, a let one carries what it feels and may
-    leave, its skin frees it as its force goes -, no release told by a text."""
+    from the plan's own multiplier - a held contact presses with no cap, a let one carries at most what it feels and
+    may leave, its skin frees it as its force goes -, no release told by a text."""
     return {keys[i] for i in range(len(keys)) if (holds[i] and zrow[i] in held1) or (let[i] and al[3 * i] > 0.0)}
 
 
@@ -133,21 +135,24 @@ def affine(Minv, Mpg, rhs0, held_q, Jp, Jg, dJv, Q, S, RP, RG, r, M_A, h_A, J_A,
     return Maps(p0, Px, Pz, a0, Ax, Az, Rx, Rz, rr, t0, Tx, Tz)
 
 
-def level1(maps, S, width, mu, held, sled, gives, Jv, f, Q, regime, bounds, stops):
-    """(H1, g1, G1, A, b): level 1's least squares - her tasks' rows, each held contact's stick rows at
-    `regime.stick` (its normal's al_n + give (z_n - f_n) = -bleed v_n, its support giving as the force grows past what
-    is felt; an anchor's tangents' al_t = -bleed v_t, its slip bled; her sled's tangents (`sled`) are its friction's
-    within the pyramid, free, or pinned against the way told: no tangential lock - held still on a mattress her
-    thighs locked her hip and knee against a leg swing and she rolled over one and fell), the forces
-    regularised toward none - each contact's tangents at `regime.reg`, its normal at `regime.nreg` -, x damped at
-    `regime.task` - and the laws A u <= b: a contact never sinks into its support faster than its give says (it may
-    leave faster); held (`held`) it presses alone, z_n >= 0, its release its force reaching none while it stays,
-    then its skin frees it; free (its patch under `regime.hold`, its foot told free) it carries what it feels, z_n =
-    f_n - no lever the world never gave (a sole felt at 10 N was planned at 262 N while leaving the floor at 8.7
-    m/s^2) and no cap on a held one's growth (felt + hold was the upright step's GROW_N: it froze a scoot's hands at
-    what they felt) -; its friction within the eight-sided pyramid inscribed in its cone (`OCTAGON`, `COS8`) where
-    its tangents are unknown; her torques within `bounds` (lo, hi); her joints' stops (`stops`: rows on x, bounds)
-    where asked. Rows a contact: 2 held, 3 free, and its pyramid's 8."""
+def level1(maps, S, width, mu, held, stick, gives, Jv, f, Q, regime, bounds, stops):
+    """(H1, g1, G1, A, b): level 1's least squares - her tasks' rows; each held contact's normal stick row at
+    `regime.stick`, al_n + give (z_n - f_n) = -bleed v_n (its support's impedance: a force asked past what is felt
+    costs acceleration into it); an anchor's tangents' al_t = -bleed v_t where it bears (`stick`), its slip bled -
+    her sled's tangents are its friction's within the pyramid, free, or pinned against the way told: no tangential
+    lock (held still on a mattress her thighs locked her hip and knee against a leg swing and she fell) -; the forces
+    regularised: each contact's tangents toward none at `regime.reg`, its normal toward what is felt at `regime.nreg`
+    (a force is a state, changing it is what costs: toward none a touching hand was unloaded and its give lifted it
+    off the seat); x damped at `regime.task` - and the laws A u <= b: a contact never sinks into its support faster
+    than its give says (it may leave faster); held (`held`: touching, not let go nor on a foot told free) it presses
+    alone, z_n >= 0, with no cap on its growth (felt + hold was the upright step's GROW_N: it froze a scoot's hands at
+    what they felt); free it carries at most what it feels, 0 <= z_n <= f_n, free to unload and leave - no lever the
+    world never gave (a sole felt at 10 N was planned at 262 N while leaving the floor at 8.7 m/s^2); pinned against
+    the way (one unknown) it is never planned to slide against it, al_t . s_t >= 0 - a kinetic brake assumed cannot
+    pull her back, static friction holds her instead (assumed pulling, the plan had her at -3.7 m/s^2 against a
+    world standing still) -; its friction within the eight-sided pyramid inscribed in its cone (`OCTAGON`, `COS8`)
+    where its tangents are unknown; her torques within `bounds` (lo, hi); her joints' stops (`stops`: rows on x,
+    bounds) where asked. Rows a contact: 2 held, 3 free, then its pyramid's 8 or its one along the way."""
     import numpy as np
     nd, nz, k = maps.Px.shape[1], S.shape[1], len(Q)
     nu, bleed = nd + nz, regime.bleed
@@ -163,11 +168,11 @@ def level1(maps, S, width, mu, held, sled, gives, Jv, f, Q, regime, bounds, stop
             rows.append(regime.stick * normal.reshape(1, -1))
             rhs.append(np.array([regime.stick * right]))
             for a in (1, 2):
-                if width[i] == 3 and not sled[i]:
+                if width[i] == 3 and stick[i]:
                     rows.append(regime.stick * np.concatenate([maps.Ax[3 * i + a], maps.Az[3 * i + a]]).reshape(1, -1))
                     rhs.append(np.array([regime.stick * ((-bleed * vl[3 * i + a]) - maps.a0[3 * i + a])]))
         A.append(-zn)
-        b.append(0.0 if held[i] else -fl[3 * i])
+        b.append(0.0)
         A.append(-normal)
         b.append(-right)
         if not held[i]:
@@ -177,16 +182,26 @@ def level1(maps, S, width, mu, held, sled, gives, Jv, f, Q, regime, bounds, stop
             for d1, d2 in OCTAGON:
                 A.append(np.concatenate([np.zeros(nd), (d1 * S[3 * i + 1] + d2 * S[3 * i + 2]) - (mu[i] * COS8) * S[3 * i]]))
                 b.append(0.0)
+        else:
+            # the way's unit tangent in its frame, read off its pin z = z_n (n - mu s_t): never planned against it
+            st = [-(float(S[3 * i + a, at]) / mu[i]) for a in (1, 2)]
+            A.append(-(st[0] * np.concatenate([maps.Ax[3 * i + 1], maps.Az[3 * i + 1]])
+                       + st[1] * np.concatenate([maps.Ax[3 * i + 2], maps.Az[3 * i + 2]])))
+            b.append(st[0] * maps.a0[3 * i + 1] + st[1] * maps.a0[3 * i + 2])
         at += width[i]
     L, e = np.vstack(rows), np.concatenate(rhs)
     LT = np.ascontiguousarray(L.T)
     G1 = LT @ L
-    # each contact's tangents regularised at `regime.reg`, its normal at `regime.nreg`: least shear, the normals physics'
+    # each contact's tangents regularised toward none at `regime.reg`, its normal toward what is felt at `regime.nreg`
     damp = [regime.task * regime.task] * nd
     for i in range(k):
         damp += [regime.nreg * regime.nreg] + [regime.reg * regime.reg] * (width[i] - 1)
     H1 = G1 + np.diag(np.array(damp))
     g1 = -(LT @ e)
+    at = nd
+    for i in range(k):
+        g1[at] = g1[at] - (regime.nreg * regime.nreg) * fl[3 * i]
+        at += width[i]
     T = np.hstack([maps.Tx, maps.Tz])
     A += [T, -T]
     b += [bounds[1] - maps.t0, maps.t0 - bounds[0]]

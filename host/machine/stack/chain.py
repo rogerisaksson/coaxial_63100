@@ -161,8 +161,9 @@ def stop_rows(b, s, nd):
 
 def gives_of(b, contacts, regime, compliant, tc=None):
     """Each contact's give for the QP's stick rows and its law of no sinking (`chain_qp.level1`): None, all rigid,
-    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has her in what bears it
-    (`borne.read`'s give), 'material' each as her world has what bears it, the python twin's measure alone (`tc` {her
+    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has it, the solver's
+    impedance on what bears it (`borne.read`'s give, edge.GIVE), 'material' each as her world has what bears it, the
+    python twin's measure alone (`tc` {her
     body's name: the time constant of what it touches}, read off her world: over the foam's, squared, of
     `regime.soft`; MuJoCo's default rigid)."""
     if not compliant:
@@ -186,8 +187,9 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     takes it, no sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask,
     1 where the QP met its laws; `residual` the complementarity's; `foreseen` the base's and passive joints'
     accelerations the QP counted on; `held` the rows it held, warm for the next pass (`b.chain_warm`); `holds` which
-    contacts it held (`chain_qp.unknowns`' bearing ones but those it let go last pass, `b.chain_let`: a held contact it
-    would have pulled on, a let one it still lifts - `chain_qp.letting`). Her driven joints' accelerations, the
+    contacts' normals it held (every touching one but a foot told free and those it let go last pass, `b.chain_let`:
+    a held contact it would have pulled on, a let one it still lifts - `chain_qp.letting`; an anchor's tangents stick
+    where its patch bears `regime.hold`). Her driven joints' accelerations, the
     contacts' forces and so her torques solved as one (`chain_qp`); `stopped`: her joints' stops among the laws
     (`stop_rows`); `compliant`: what she holds giving (`gives_of`). Where no answer meets the laws, the least squares
     alone and her torques shrunk as the upright step's: toward nothing asked of her joints, then toward 0."""
@@ -213,18 +215,21 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
     slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
     felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(k)]
-    width, S, mu, bears, sled = chain_qp.unknowns(patch, body, felt, Q, slide, ask.get('free', (False, False)), regime)
+    free = ask.get('free', (False, False))
+    width, S, mu, bears, sled = chain_qp.unknowns(patch, body, felt, Q, slide, free, regime)
     keys = chain_qp.keyed(patch, body)
-    let = [bears[i] and keys[i] in b.chain_let for i in range(k)]
-    holds = [bears[i] and not let[i] for i in range(k)]
+    loose = [chain_qp.freed(int(patch[i]), int(body[i]), free) for i in range(k)]
+    let = [not loose[i] and keys[i] in b.chain_let for i in range(k)]
+    holds = [not loose[i] and not let[i] for i in range(k)]
+    stick = [holds[i] and bears[i] and not sled[i] for i in range(k)]
     maps = chain_qp.affine(Minv, Mpg, rhs0, held, Jp, Jg, dJv, Q, S, np.ascontiguousarray(R[:, P]),
                            np.ascontiguousarray(R[:, given]), r, np.ascontiguousarray(M[np.ix_(A, np.concatenate([P, given]))]),
                            h[A], np.ascontiguousarray(J[:, A]), nd)
     gives = gives_of(b, contacts, regime, compliant, ask.get('_tc'))
     limit, lo, hi = box(b, ask)
-    H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, sled, np.zeros(k) if gives is None else gives, Jv, f, Q, regime,
-                                         (lo, hi), stop_rows(b, s, nd) if stopped else None)
-    hands = [i for i in range(k) if holds[i] and CARPAL <= int(patch[i]) < LET]
+    H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, stick, np.zeros(k) if gives is None else gives, Jv, f, Q,
+                                         regime, (lo, hi), stop_rows(b, s, nd) if stopped else None)
+    hands = [i for i in range(k) if holds[i] and bears[i] and CARPAL <= int(patch[i]) < LET]
     u, b.chain_warm, met = chain_qp.solved(H1, g1, G1, Aq, bq, maps, S, Jg, hands, want, regime, b.chain_warm)
     x, foreseen, z, tau1, residual, al = chain_qp.answer(u, maps, S, Q, nd)
     b.chain_let = chain_qp.letting(keys, holds, let, b.chain_warm[0], chain_qp.zrows(holds, width), al)

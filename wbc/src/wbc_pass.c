@@ -298,7 +298,7 @@ void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, in
   }
 }
 
-void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force)
+void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force, const double *efc_R)
 {
   for (int s = 0; s < 2; s++)
   {
@@ -375,9 +375,7 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
     k = c->skin[mine];
     if (k >= 0)
     {
-      const int     other = h0 ? geom[1] : geom[0];
-      const double *ref = c->geom_solref + 2 * other, *imp = c->geom_solimp + 5 * other;
-      double        push[3];
+      double push[3];
 
       for (int j = 0; j < 3; j++)
       {
@@ -391,13 +389,10 @@ void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const doubl
         c->felt_nrm[3 * k + j] += af0 * (((r[j] * frame[0] + r[3 + j] * frame[1]) + r[6 + j] * frame[2]) * sign);
       }
       c->felt_n[k] += af0;
-      /* how much more what bears her gives than her floor: its own soft compliance, dmax^2 timeconst^2 dampratio^2
-         (its geom's, not her skin's), past the floor's, its force's share - a floor's and a chair's none */
-      {
-        const double give = ((imp[1] * imp[1]) * (ref[0] * ref[0])) * (ref[1] * ref[1]);
-
-        c->felt_give[k] += af0 * (give > c->floor_give ? give - c->floor_give : 0.0);
-      }
+      /* its support's give: the solver's impedance on the contact's normal row (a_n = a_ref - R f_n: what a force
+         past what is felt costs in acceleration into or out of the support, m/s^2 a N), its force's share - a
+         chair's small, never none; at none a plan split a seat's load as it pleased at a_n = 0 */
+      c->felt_give[k] += af0 * (adr >= 0 ? efc_R[adr] : 0.0);
     }
   }
 }

@@ -282,9 +282,9 @@ API void wbh_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at
   wbc_pass_felt(w, y, quat_at, gyro_at, accel_at, q_at, qd_at, qm_at);
 }
 
-API void wbh_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force)
+API void wbh_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force, const double *efc_R)
 {
-  wbc_pass_contacts(c, ncon, pos, efc_force);
+  wbc_pass_contacts(c, ncon, pos, efc_force, efc_R);
 }
 
 API int wbh_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force,
@@ -353,10 +353,9 @@ API int wbh_touch_size(void)
   return (int)sizeof(wbc_touch_t);
 }
 
-API int wbh_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands,
-                       const double *let_go, double dt)
+API int wbh_borne_read(wbc_borne_t *b, const double *y, const double *v, double hands, const double *let_go)
 {
-  return wbc_borne_read(b, y, v, weight, hands, let_go, dt);
+  return wbc_borne_read(b, y, v, hands, let_go);
 }
 
 API int wbh_borne_size(void)

@@ -128,15 +128,17 @@ def laid(b):
     return b.skin
 
 
-def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
+def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
     """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
     left it for `s`, `weight` hers, N; her hands' contacts where her text tells them to bear (`hands`, their
     share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it, its push its palms' -, a let-go leg's
     foot too, not its toes (`let_go`, `machine.moves.emancipation`): no contact, the step took that leg for hanging on the
     floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing.
-    Each contact its segment's give over her law's pass `dt`, m/s^2 a N: how much more what bears it gives than her
-    floor as her skin feels it (`edge.GIVE`, s^2) under her mass, over dt^2 - her bed's foam 19, a floor or a chair
-    none -, the closed chains' QP holding it giving so (`chain.gives_of`); her regime's own foam 27.9. Her drives'
+    Each contact its segment's give, m/s^2 a N: the solver's impedance on its support's normal rows as her skin
+    feels it (`edge.GIVE`; a_n = a_ref - R f_n, a force asked past what is felt costs acceleration into the
+    support), the closed chains' QP holding it giving so (`chain.gives_of`) - as the foam's give past the floor's, a
+    chair's was none and the plan split her seat's load as it pleased at a_n = 0, believing a scoot it never drove
+    -; her regime's own foam 27.9. Her drives'
     wind-up is no give of the contact's: her hand's push on a seat rises as the rotor winds the box up while the
     hand stays still, so the plan may plan it (counted as the contact's give it tied the hands' push to what they
     felt and her bench fell from 3 of 6 met to 1). Her thighs and shanks on what bears her are contacts like her
@@ -156,7 +158,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
         f = R @ pushes[k]
         if f[1] <= BEARS_N:
             continue
-        give = float(y[edge.GIVE][k]) / (weight / -edge.G[1] * dt * dt) if dt > 0.0 else 0.0
+        give = float(y[edge.GIVE][k])
         # a let-go foot is a contact, not what bears her off her soles: in her props' box her centre was asked out over
         # her feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
         prop = float(k not in soled)

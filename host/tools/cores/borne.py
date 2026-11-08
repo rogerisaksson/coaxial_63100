@@ -1,7 +1,7 @@
 """What bears her off her soles in C through ctypes (wbc_borne.c), `borne.read`'s bit for bit.
 
     read = borne.laid(b)                                     # her law's body, laid once
-    prop, contacts, palms = read(b, s, y, weight, hands, let_go, dt)    # as borne.read gives them
+    prop, contacts, palms = read(b, s, y, weight, hands, let_go)        # as borne.read gives them
     prop, contacts, palms = read(b, s, y, weight, hands, let_go, dt, g) # and her seat's (`emancipation.seated`)
     supports = borne.supported(read)                         # emancipation.supports on its contacts as last read
 
@@ -31,7 +31,7 @@ class Borne(ctypes.Structure):
                                          'carpal', 'let', 'role_spare')]
                 + [('sole', _i * 2)] + [(name, _i * SKIN) for name in ('ids', 'order', 'hand', 'right', 'caps')]
                 + [('cap_r', (_d * CAPS) * SKIN), ('cap_a', ((_d * 3) * CAPS) * SKIN), ('cap_b', ((_d * 3) * CAPS) * SKIN)]
-                + [(name, _d) for name in ('bears_n', 'seat_x', 'g_down')]
+                + [(name, _d) for name in ('bears_n', 'seat_x')]
                 + [(name, _vp) for name in ('xmat', 'xpos', 'm', 'd', 'jac', 'jac_dot', 'blas')]
                 + [('nc', _i), ('spare', _i), ('up', _d), ('low', _d * 3), ('high', _d * 3), ('palms', _d * 2)]
                 + [(name, (_d * 3) * CONTACTS) for name in ('p', 'f', 'dJv')] + [('J', ((_d * DOF) * 3) * CONTACTS)]
@@ -51,7 +51,7 @@ def _typed():
     lib.wbh_borne_size.restype = ctypes.c_int
     if lib.wbh_borne_size() != ctypes.sizeof(Borne):
         raise ValueError('wbc_borne_t is %d bytes, its mirror %d' % (lib.wbh_borne_size(), ctypes.sizeof(Borne)))
-    lib.wbh_borne_read.argtypes = [ctypes.POINTER(Borne), _vp, _vp, _d, _d, _vp, _d]
+    lib.wbh_borne_read.argtypes = [ctypes.POINTER(Borne), _vp, _vp, _d, _vp]
     lib.wbh_borne_read.restype = ctypes.c_int
     lib.wbh_borne_seated.argtypes = [ctypes.POINTER(Borne), _vp, _vp, _i, _i, _d, _d, _d, _d, _vp, _vp]
     lib.wbh_borne_seated.restype = ctypes.c_int
@@ -71,7 +71,7 @@ def laid(b):
         raise ValueError('her skin, a capsule list or her model past wbc_borne.h')
     t = Borne(skin=len(edge.SKIN), above=len(borne.ABOVE), n=b.n, nv=b.m.nv, touch_at=edge.TOUCH.start,
               at_at=edge.AT.start, give_at=edge.GIVE.start, nrm_at=edge.NORMAL.start, pelvis=borne.PELVIS, carpal=borne.CARPAL, let=borne.LET,
-              bears_n=borne.BEARS_N, seat_x=figure.SEAT_X, g_down=float(-edge.G[1]))
+              bears_n=borne.BEARS_N, seat_x=figure.SEAT_X)
     t.sole[:] = [touch.SOLES[k][0] for k in (0, 1)]
     ids, right = borne.laid(b).tolist(), set(borne.HANDS[len(touch.ARMS[0]):].tolist())
     for k, caps in enumerate(borne.CAPSULES):
@@ -94,10 +94,10 @@ def laid(b):
               'corner')}
     kept: dict = {}
 
-    def read(_b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0, g=None):
+    def read(_b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), g=None):
         go = np.ascontiguousarray(let_go, dtype=np.float64)
         v = np.ascontiguousarray(s['v'], dtype=np.float64)
-        if step(at, wbc.address(y), wbc.address(v), weight, hands, wbc.address(go), dt) < 0:
+        if step(at, wbc.address(y), wbc.address(v), hands, wbc.address(go)) < 0:
             raise MachineError('her skin bears her at more than %d points (wbc_borne.h)' % CONTACTS)
         if g is not None:
             obs = g['observer']

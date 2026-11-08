@@ -32,7 +32,7 @@ typedef struct
   int                    caps[WBC_BORNE_SKIN];      /* each one's capsules */
   double                 cap_r[WBC_BORNE_SKIN][WBC_BORNE_CAPS];
   double                 cap_a[WBC_BORNE_SKIN][WBC_BORNE_CAPS][3], cap_b[WBC_BORNE_SKIN][WBC_BORNE_CAPS][3];
-  double                 bears_n, seat_x, g_down;   /* BEARS_N, figure.SEAT_X, -edge.G[1] */
+  double                 bears_n, seat_x;          /* BEARS_N, figure.SEAT_X */
   const double          *xmat, *xpos;               /* her model's data as her sense posed it */
   const void            *m, *d;                     /* her model and its data, MuJoCo's */
   wbc_borne_jac_t        jac, jac_dot;              /* mj_jac, mj_jacDot */
@@ -54,11 +54,10 @@ typedef struct
   double                 nrm[WBC_BORNE_CONTACTS][3]; /* a contact's normal of what bears it, world (borne._normal) */
 } wbc_borne_t;
 
-/** A read (machine.senses.borne.read) of her edge's array `y` at her law's velocity `v`, her `weight`, her hands
-    told to bear (`hands`), her legs let go (`let_go`, 2) and her law's pass `dt`: her support's lift `up` and box
+/** A read (machine.senses.borne.read) of her edge's array `y` at her law's velocity `v`, her hands
+    told to bear (`hands`) and her legs let go (`let_go`, 2): her support's lift `up` and box
     (`low`, `high`, infinite where nothing bears her), her palms and her contacts. 0, or -1 past WBC_BORNE_CONTACTS. */
-int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands, const double *let_go,
-                   double dt);
+int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double hands, const double *let_go);
 
 /** machine.moves.emancipation.seated on a read's contacts: the seat her text tells bears her (`told` its row's share,
     the observer's `points` of its `row` among `rows`, `npoints`) lying within reach of the `floor` - `seat_on` and

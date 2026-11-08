@@ -51,6 +51,9 @@ CELLS = slice(PRESS.stop, PRESS.stop + 2 * len(FEET))
 AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 TAU = slice(AT.stop, AT.stop + J)
 LINK = slice(TAU.stop, TAU.stop + 1)
+#: Each segment's support's give: the solver's impedance R on its contacts' normal rows (a_n = a_ref - R f_n), force-
+#: weighted, m/s^2 a N - one law on a chair and a bed (the foam's softness is in a_ref, its force building as she
+#: sinks); a chair's is small, never none (machine.senses.borne.read, machine.stack.chain_qp.level1).
 GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
 #: Each segment's touch's normal, its frame: the way its support pushes it, force-weighted over its contacts (unit
 #: where one touches, 0 where none; her skin's own estimate, the capsule's radial at the touch, stands in where it
@@ -86,10 +89,7 @@ def laid(world):
             'loads': np.zeros(2), 'touch': np.zeros((len(SKIN), 3)), 'pressed': np.zeros(len(INSOLES)),
             'at': np.zeros((len(INSOLES), 3)), 'cells': np.zeros(2 * len(FEET)), 'felt_n': np.zeros(len(SKIN)),
             'felt_at': np.zeros((len(SKIN), 3)), 'felt_give': np.zeros(len(SKIN)), 'felt_nrm': np.zeros((len(SKIN), 3))}
-    # her floor's soft compliance (MuJoCo's dmax^2 timeconst^2 dampratio^2, its geom's), the one her skin's give is past
-    ref, imp = m.geom_solref[m.geom('floor').id], m.geom_solimp[m.geom('floor').id]
-    c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M,
-                       floor_give=((imp[1] * imp[1]) * (ref[0] * ref[0])) * (ref[1] * ref[1]))
+    c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M)
     for name in ('gb', 'sole_side', 'insole', 'foot', 'skin'):
         setattr(c, name, cores.pointer(kept[name], np.int32))
     c.hers = cores.pointer(kept['hers'], np.bool_)
@@ -97,9 +97,6 @@ def laid(world):
         setattr(c, name, cores.pointer(a))
     for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give', 'felt_nrm'):
         setattr(c, name, cores.pointer(kept[name]))
-    # what bears her its own give, each geom's solref and solimp (her skin's own left out)
-    kept['solref'], kept['solimp'] = np.ascontiguousarray(m.geom_solref), np.ascontiguousarray(m.geom_solimp)
-    c.geom_solref, c.geom_solimp = cores.pointer(kept['solref']), cores.pointer(kept['solimp'])
     #: The contacts' bins and the C that fills them (wbc_pass.c), the contacts' layout laid at
     #: the first contact.
     lib = cores.library()
@@ -156,9 +153,9 @@ def contacted(world, y):
     if ncon:
         con = d.contact
         layout(c, con)
-        contacts(ctypes.byref(c), ncon, _cores().address(con.pos), _cores().address(d.efc_force))
+        contacts(ctypes.byref(c), ncon, _cores().address(con.pos), _cores().address(d.efc_force), _cores().address(d.efc_R))
     else:
-        contacts(ctypes.byref(c), 0, None, None)
+        contacts(ctypes.byref(c), 0, None, None, None)
     # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
     # their centres of mass, where the world applies it
     if d.xfrc_applied.any():

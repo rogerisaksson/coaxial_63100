@@ -101,8 +101,8 @@ def kinematics(snap, g, m, d, regime):
     # a bound
     contacts, twist = g.get('s', {}).get('contacts', ()), float(g.get('ask', {}).get('twist', (0.0,))[0])
     holds = got.get('holds') or [True] * len(contacts)
-    laws = sum((2 if holds[i] else 3) + 8 * (not (int(c['body']) >= 0 and int(c.get('patch', 0)) < CARPAL and twist != 0.0))
-               for i, c in enumerate(contacts))
+    laws = sum((2 if holds[i] else 3) + (1 if (int(c['body']) >= 0 and int(c.get('patch', 0)) < CARPAL and twist != 0.0
+                                               and float(c['n'][1]) >= math.sqrt(0.5)) else 8) for i, c in enumerate(contacts))
     held1, nd = (got.get('held') or ((), ()))[0], len(b.act)
     bound = sorted((i - laws) % nd for i in held1 if laws <= i < laws + 2 * nd)
     lo_hi = box(b, g['ask'])[1:] if g.get('ask') else (None, None)

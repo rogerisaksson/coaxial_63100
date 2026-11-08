@@ -33,15 +33,15 @@ def test_what_bears_her_in_c_as_in_python(report, c):
     def held(g):
         real = g['borne']
 
-        def beside(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0, g=None):
+        def beside(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), g=None):
             t0 = time.perf_counter()
-            (wp, wc, wh), twin = borne.read(b, s, y, weight, hands, let_go, dt), dict(g or {})
+            (wp, wc, wh), twin = borne.read(b, s, y, weight, hands, let_go), dict(g or {})
             if g is not None:
                 seat = dict(s, contacts=wc)
                 emancipation.seated(twin, seat)
                 wc = seat['contacts']
             t1 = time.perf_counter()
-            got = real(b, s, y, weight, hands, let_go, dt, g)
+            got = real(b, s, y, weight, hands, let_go, g)
             spent[0].append(time.perf_counter() - t1)
             spent[1].append(t1 - t0)
             gp, gc, gh = got

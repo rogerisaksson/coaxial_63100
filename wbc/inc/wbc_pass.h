@@ -180,15 +180,13 @@ typedef struct
   double              *cells;
   double              *felt_n;
   double              *felt_at;
-  const double        *geom_solref; /**< each geom's solref (2) and solimp (5), MuJoCo's: what bears her its own */
-  const double        *geom_solimp;
-  double               floor_give; /**< her floor's soft compliance, dmax^2 timeconst^2 dampratio^2, s^2 */
-  double              *felt_give;  /**< the bin: how much more each segment's support gives than her floor, its touch's size times */
+  double              *felt_give;  /**< the bin: each segment's support's give, the solver's impedance R on its contacts'
+                                        normal rows (a_n = a_ref - R f_n, m/s^2 a N), its touch's size times */
   double              *felt_nrm;   /**< the bin: each segment's contacts' normals into her (3, its frame), its touch's size times */
 } wbc_contacts_t;
 
-/** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`. */
-void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force);
+/** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`, their rows' impedance in `efc_R`. */
+void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force, const double *efc_R);
 
 /** Her contacts copied as they stand (machine.rig.live.raw): of `ncon` contacts at `pos`, each between a
     body of hers and one not with rows of the solver's, a row of `width` doubles in `out`, at most

@@ -125,8 +125,7 @@ static int largest(const double f[3])
   return at;
 }
 
-int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weight, double hands, const double *let_go,
-                   double dt)
+int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double hands, const double *let_go)
 {
   const double     *pushes = y + b->touch_at, *at = y + b->at_at, *gives = y + b->give_at, *nrms = y + b->nrm_at;
   const wbc_blas_t *l = b->blas;
@@ -169,7 +168,7 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
     {
       continue;
     }
-    const double give = dt > 0.0 ? gives[k] / (weight / b->g_down * dt * dt) : 0.0;
+    const double give = gives[k];
     const int    let = (ns > 0 && soled[0] == k) || (ns > 1 && soled[1] == k);
     const double prop = let ? 0.0 : 1.0, carpal = (double)b->hand[k];
     const int    side = b->right[k] + let * (k == b->sole[1]);

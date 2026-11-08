@@ -118,10 +118,11 @@ typedef struct
 } wbc_maps_t;
 
 /** machine.stack.chain_qp.level1 (wbc_chain_rows.c): into H1, g1, G1 (nu x nu, nu), the laws A (m x nu) and b (m),
-    m returned - S (k3 x nz) zeta -> z, each contact's unknowns' width, friction and whether held, give, Jv and f
+    m returned - S (k3 x nz) zeta -> z, each contact's unknowns' width, friction, whether its normal is held and its
+    tangents stick, give, Jv and f
     (3k), frames Q, her torques' bounds lo and hi; stops none. -1 where the rows would pass WBC_QP_M. */
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const int *sled, const double *Jv, const double *f, const double *Q,
+                   const int *held, const int *stick, const double *Jv, const double *f, const double *Q,
                    const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A, double *b, double **w);
 /** machine.stack.chain_qp.solved (wbc_chain_rows.c): u (nu) by the two levels, the rows each held kept on p for the
     next pass, `met` whether level 1's laws were; the held hands' rows `hands` (nh of them) for the posture's

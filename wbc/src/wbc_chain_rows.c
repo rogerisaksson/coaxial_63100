@@ -43,13 +43,13 @@ static void framed1(const double *Q, int k, const double *v, double *out)
 }
 
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const int *sled, const double *Jv, const double *f, const double *Q,
+                   const int *held, const int *stick, const double *Jv, const double *f, const double *Q,
                    const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A, double *b,
                    double **w)
 {
   const wbc_blas_t *l = &p->blas;
   const int         nd = m->nd, nz = m->nz, nu = nd + nz, k3 = m->k3, k = k3 / 3, m1 = m->m1, most = m1 + k3;
-  const double      bleed = p->chain_bleed, stick = p->chain_w_stick, rh = sqrt(0.5), cos8 = sqrt(0.5 + 0.5 * rh);
+  const double      bleed = p->chain_bleed, w_stick = p->chain_w_stick, rh = sqrt(0.5), cos8 = sqrt(0.5 + 0.5 * rh);
   const double      oct[8][2] = {{1.0, 0.0}, {rh, rh}, {0.0, 1.0}, {-rh, rh}, {-1.0, 0.0}, {-rh, -rh}, {0.0, -1.0}, {rh, -rh}};
   double           *L = carve(w, most * nu + 1), *e = carve(w, most + 1), *LT = carve(w, nu * most + 1);
   double           *vl = carve(w, k3 + 1), *fl = carve(w, k3 + 1), *normal = carve(w, nu);
@@ -73,7 +73,7 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   }
   framed1(Q, k, Jv, vl);
   framed1(Q, k, f, fl);
-  for (int i = 0; i < k; i++)
+  for (int i = 0, at = 0; i < k; at += width[i], i++)
   {
     const double give = p->cgive[i];
     const double right = ((-bleed) * vl[3 * i]) + give * fl[3 * i] - m->a0[3 * i];
@@ -88,29 +88,29 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     }
     if (held[i])
     {
-      /* its stick rows: the normal's with its give, an anchor's tangents' where unknown - her sled's tangents are its
-         friction's within the pyramid, no lock (machine.stack.chain_qp.level1) */
+      /* its stick rows: the normal's with its give, an anchor's tangents' where it bears (`stick`) - her sled's
+         tangents are its friction's within the pyramid, no lock (machine.stack.chain_qp.level1) */
       for (int c = 0; c < nu; c++)
       {
-        L[ml * nu + c] = stick * normal[c];
+        L[ml * nu + c] = w_stick * normal[c];
       }
-      e[ml++] = stick * right;
-      for (int a = 1; a < 3 && width[i] == 3 && !sled[i]; a++)
+      e[ml++] = w_stick * right;
+      for (int a = 1; a < 3 && width[i] == 3 && stick[i]; a++)
       {
         for (int c = 0; c < nd; c++)
         {
-          L[ml * nu + c] = stick * m->Ax[(3 * i + a) * nd + c];
+          L[ml * nu + c] = w_stick * m->Ax[(3 * i + a) * nd + c];
         }
         for (int c = 0; c < nz; c++)
         {
-          L[ml * nu + nd + c] = stick * m->Az[(3 * i + a) * nz + c];
+          L[ml * nu + nd + c] = w_stick * m->Az[(3 * i + a) * nz + c];
         }
-        e[ml++] = stick * (((-bleed) * vl[3 * i + a]) - m->a0[3 * i + a]);
+        e[ml++] = w_stick * (((-bleed) * vl[3 * i + a]) - m->a0[3 * i + a]);
       }
     }
-    /* the laws: it never sinks faster than its give says; held it presses alone, free it carries what it feels (its
-       normal's: no lever the world never gave, no cap on a held one's growth); its friction within its pyramid
-       (machine.stack.chain_qp.level1) */
+    /* the laws: it never sinks faster than its give says; it presses alone, free it carries at most what it feels
+       (its normal's: no lever the world never gave, free to unload; no cap on a held one's growth); its friction
+       within its pyramid (machine.stack.chain_qp.level1) */
     for (int c = 0; c < nu; c++)
     {
       const double zn = c < nd ? 0.0 : S[(3 * i) * nz + (c - nd)];
@@ -122,7 +122,7 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
         A[(ma + 2) * nu + c] = zn;
       }
     }
-    b[ma] = held[i] ? 0.0 : -fl[3 * i];
+    b[ma] = 0.0;
     b[ma + 1] = -right;
     if (!held[i])
     {
@@ -138,6 +138,20 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
       }
       b[ma++] = 0.0;
     }
+    if (width[i] == 1)
+    {
+      /* pinned against the way, never planned to slide against it: al_t . s_t >= 0, s_t read off its pin */
+      const double st1 = -(S[(3 * i + 1) * nz + at] / mu[i]), st2 = -(S[(3 * i + 2) * nz + at] / mu[i]);
+
+      for (int c = 0; c < nu; c++)
+      {
+        const double a1 = c < nd ? m->Ax[(3 * i + 1) * nd + c] : m->Az[(3 * i + 1) * nz + (c - nd)];
+        const double a2 = c < nd ? m->Ax[(3 * i + 2) * nd + c] : m->Az[(3 * i + 2) * nz + (c - nd)];
+
+        A[ma * nu + c] = -(st1 * a1 + st2 * a2);
+      }
+      b[ma++] = st1 * m->a0[3 * i + 1] + st2 * m->a0[3 * i + 2];
+    }
   }
   for (int i = 0; i < ml; i++)
   {
@@ -147,7 +161,7 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     }
   }
   mm(l, LT, L, G1, nu, ml, nu);
-  /* each contact's tangents regularised at chain_reg, its normal at chain_nreg: least shear, the normals physics' */
+  /* each contact's tangents regularised toward none at chain_reg, its normal toward what is felt at chain_nreg */
   for (int i = 0, at = nd; i < k; at += width[i], i++)
   {
     normal[at] = p->chain_nreg * p->chain_nreg;
@@ -167,6 +181,10 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   for (int i = 0; i < nu; i++)
   {
     g1[i] = -g1[i];
+  }
+  for (int i = 0, at = nd; i < k; at += width[i], i++)
+  {
+    g1[at] = g1[at] - (p->chain_nreg * p->chain_nreg) * fl[3 * i];
   }
   /* her torques within [lo, hi] */
   for (int i = 0; i < nd; i++)

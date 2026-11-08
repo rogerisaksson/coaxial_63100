@@ -111,14 +111,14 @@ static void letting(wbc_step_t *p, int k, int key[][3], const int *holds, const 
 }
 
 /** machine.stack.chain_qp.unknowns: each contact's width in zeta, S (3k x nz) zeta -> z in frames, its friction,
-    whether it bears (its patch hold-n, its foot not told free) and whether held still (bearing, not `let`); nz
-    returned, `let` narrowed to the bearing. */
-static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, int *let, int *width, double *S, double *mu,
-                    int *held, int *sleds)
+    whether it bears (its patch hold-n, its foot not told free) and whether it is her sled; nz returned. */
+static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, int *width, double *S, double *mu, int *bears,
+                    int *sleds)
 {
-  const int k = p->nc;
-  int       nz = 0;
-  double    cols[WBC_STEP_C][3];
+  const int    k = p->nc;
+  const double rh = sqrt(0.5);
+  int          nz = 0;
+  double       cols[WBC_STEP_C][3];
 
   for (int i = 0; i < k; i++)
   {
@@ -133,11 +133,12 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
 
       by = by + (double)(p->cpatch[j] == p->cpatch[i]) * sqrt(cj[0] * cj[0] + cj[1] * cj[1] + cj[2] * cj[2]);
     }
-    let[i] = (by >= p->chain_hold_n && !freed(p, i)) && let[i];
-    held[i] = (by >= p->chain_hold_n && !freed(p, i)) && !let[i];
+    bears[i] = by >= p->chain_hold_n && !freed(p, i);
     mu[i] = sled ? p->chain_mu : p->chain_anchor_mu;
     width[i] = 3;
-    if (sled && (slide[0] != 0.0 || slide[2] != 0.0))
+    /* pinned against the way told where its normal bears against gravity (up within 45 deg; a back against a
+       backrest braces, no pin) */
+    if (sled && Q[9 * i + 1] >= rh && (slide[0] != 0.0 || slide[2] != 0.0))
     {
       const double *q = Q + 9 * i;
       const double  sn = (q[0] * slide[0] + q[1] * slide[1]) + q[2] * slide[2];
@@ -317,7 +318,8 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   const wbc_blas_t *l = &p->blas;
   const int         nd = p->nd, k = k3 / 3;
   int               width[WBC_STEP_C], holds[WBC_STEP_C], hands[WBC_STEP_C], nh = 0, ma, nu;
-  int               key[WBC_STEP_C][3], let[WBC_STEP_C], zrow[WBC_STEP_C], sled[WBC_STEP_C];
+  int               key[WBC_STEP_C][3], let[WBC_STEP_C], zrow[WBC_STEP_C], sled[WBC_STEP_C], bears[WBC_STEP_C];
+  int               stick[WBC_STEP_C];
   double            mu[WBC_STEP_C];
   wbc_maps_t        m;
   double           *S = carve(w, k3 * k3 + 1), *H1, *g1, *G1, *A, *b, *u, *zl = carve(w, k3 + 1), *al = carve(w, k3 + 1);
@@ -328,12 +330,19 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   m.k3 = k3;
   m.m1 = m1;
   keyed(p, k, key, let);
-  m.nz = unknowns(p, Q, slide, let, width, S, mu, holds, sled);
+  m.nz = unknowns(p, Q, slide, width, S, mu, bears, sled);
   nu = nd + m.nz;
+  /* a touching contact's normal is held unless let go or on a foot told free; an anchor's tangents stick where its
+     patch bears (machine.stack.chain.step) */
   for (int i = 0, at = 0; i < k; i++)
   {
+    const int loose = freed(p, i);
+
+    let[i] = !loose && let[i];
+    holds[i] = !loose && !let[i];
+    stick[i] = holds[i] && bears[i] && !sled[i];
     zrow[i] = at;
-    at += (holds[i] ? 2 : 3) + (width[i] == 3 ? 8 : 0);
+    at += (holds[i] ? 2 : 3) + (width[i] == 3 ? 8 : 1);
   }
   affine(p, &m, held, Minv, Mpg, ng, rhs0, Jp, Jg, dJv, Q, S, RP, RG, r, MA, hA, JA, w);
   H1 = carve(w, nu * nu);
@@ -346,14 +355,14 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   {
     fv[rw] = p->cf[rw / 3][rw % 3];
   }
-  ma = wbc_chain_rows(p, &m, S, width, mu, holds, sled, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
+  ma = wbc_chain_rows(p, &m, S, width, mu, holds, stick, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
   if (ma < 0)
   {
     return 1;
   }
   for (int i = 0; i < k; i++)
   {
-    if (holds[i] && p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal)
+    if (holds[i] && bears[i] && p->cpatch[i] >= p->carpal && p->cpatch[i] < 3 * p->carpal)
     {
       hands[nh++] = i;
     }

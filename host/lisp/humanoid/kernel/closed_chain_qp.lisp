@@ -37,8 +37,10 @@
                                        ; (at 0.5 and 1.0 her floor sit fell over at 7.1 s)
   :contact-softness-m-s2-per-n  27.9   ; a contact's give over a pass, 1 / (k h^2): the viscoelastic mattress's k, her
                                        ; 31 kg at its 1.8 Hz (3 977 N/m), h her law's 3 ms pass - the force an
-                                       ; acceleration asks of the foam comes a pass late; a rigid floor's is 0, so the
-                                       ; softest support she lies on sets it and what is felt leads. Her drives'
+                                       ; acceleration asks of the foam comes a pass late (the compliant variant's);
+                                       ; sensed, each contact's give is the solver's impedance R on its normal rows
+                                       ; (edge.GIVE, a_n = a_ref - R f_n): a chair's small, never none - at none the
+                                       ; plan split her seat's load as it pleased at a_n = 0. Her drives'
                                        ; wind-up is no give of a contact's: a hand's push on a seat rises as the rotor
                                        ; winds the box up while the hand stays still (counted as give it tied her hands
                                        ; to what they felt: 3 of 6 met fell to 1)
@@ -79,11 +81,14 @@
     (replace q n :start1 (* 9 at)) (replace q t1 :start1 (+ (* 9 at) 3)) (replace q t2 :start1 (+ (* 9 at) 6))))
 
 ;; The unknowns: x (nd) and zeta, each contact's force in its frame - three (normal, two tangents), or one for her
-;; sled told a twist: it slides at its friction's edge against the way told, z = z_n (n - mu_s s_t), s_t the way's
-;; unit tangent in its frame, so what it bears sets what brakes it and the hands must overcome exactly that. Roles by
+;; sled told a twist whose normal bears against gravity (up within 45 deg): it slides at its friction's edge against
+;; the way told, z = z_n (n - mu_s s_t), s_t the way's unit tangent in its frame, so what it bears sets what brakes it
+;; and the hands must overcome exactly that; a back against a backrest braces - no pin, its tangents free within the
+;; pyramid. Roles by
 ;; what she is, never by a text's name: a hand's or a let-go foot's patch (carpal on) and a standing sole are anchors
-;; at anchor-mu; what she sits or lies on (a body of hers, a patch under carpal) is her sled at friction-mu. A patch
-;; bearing hold-n, its points together, is held; a foot told free (her heels stepping in turn) is not.
+;; at anchor-mu; what she sits or lies on (a body of hers, a patch under carpal) is her sled at friction-mu. A touching
+;; contact's normal is held unless let go or on a foot told free (her heels stepping in turn); an anchor's tangents
+;; stick where its patch bears hold-n, its points together.
 (defun closed-chain-unknowns (contacts slide regime)
   "(nz, span S (3k x nz), roles): zeta's width, the map zeta -> z in frames, each contact's role."
   (declare (ignore contacts slide regime))
@@ -97,14 +102,18 @@
 ;; stick rows at stick-weight - its normal's al_n + give (z_n - f_n) = -bleed v_n (its support gives as the force
 ;; grows past what is felt); an anchor's tangents' al_t = -bleed v_t (its slip bled); her sled's tangents are its
 ;; friction's within the pyramid, free, or pinned against the way told: no tangential lock (held still on a mattress
-;; her thighs locked her hip and knee against a leg swing) -; the forces regularised toward none, each contact's
-;; tangents at force-reg and its normal at normal-reg; x
-;; damped at task-damping (Levenberg-Marquardt).
+;; her thighs locked her hip and knee against a leg swing) -; the forces regularised: each contact's tangents toward
+;; none at force-reg, its normal toward what is felt at normal-reg (a force is a state, changing it is what costs:
+;; toward none a touching hand was unloaded and its give lifted it off the seat); x damped at task-damping
+;; (Levenberg-Marquardt).
 ;; Hard (A u <= b): al_n + give z_n >= -bleed v_n + give f_n every contact (it may leave its support faster than the
 ;; give says, never sink into it faster); a held contact presses alone, z_n >= 0, with no cap on its growth (felt +
 ;; hold-n was the upright step's GROW_N and froze a scoot's hands at what they felt); a free contact - its patch under
-;; hold-n, its foot told free, or let go - carries what it feels, z_n = f_n: no lever the world never gave (a sole felt
-;; at 10 N was planned at 262 N while leaving the floor at 8.7 m/s^2) -; an eight-sided pyramid inscribed in its friction's
+;; hold-n, its foot told free, or let go - carries at most what it feels, 0 <= z_n <= f_n, free to unload and leave:
+;; no lever the world never gave (a sole felt at 10 N was planned at 262 N while leaving the floor at 8.7 m/s^2); a
+;; sled pinned against the way is never planned to slide against it, al_t . s_t >= 0 (a kinetic brake assumed cannot
+;; pull her back, static friction holds her instead; assumed pulling, the plan had her at -3.7 m/s^2 against a world
+;; standing still) -; an eight-sided pyramid inscribed in its friction's
 ;; cone for every contact with three unknowns, d_k . z_t <= mu cos(pi/8) z_n, d_k at k pi/4 (k = 0..7); her torques
 ;; within [lo, hi] (her clamps as derated, her back-EMF's); her joints' stops where asked (chain.stop_rows).
 ;; Solved by the dual active set warm from the last pass's held rows (machine.stack.qp.solve); where no u meets the
