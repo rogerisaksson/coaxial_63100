@@ -242,6 +242,7 @@ def main(argv=None):
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
+    parser.add_argument('--rows', action='store_true', help="with --ensemble: each start's spec, whether she stood and when she fell, before the summary")
     args = parser.parse_args(argv)
     if args.specs is None:
         row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at, args.trace_right)
@@ -267,6 +268,9 @@ def main(argv=None):
     if args.ensemble:
         for spec in args.specs:
             texts = [rows[run or 'base'] for s, run in runs if s == spec]
+            if args.rows:
+                for r in (json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')):
+                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'hip_passes', 'v')}))
             print(ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
         return 0
     for spec in args.specs:
