@@ -75,7 +75,9 @@ AHEAD_WIND, AHEAD_PLAY = _BUILD['ahead_wind'], _BUILD['ahead_play']
 WIND = dict(_BUILD['wind'])
 #: Each kind's series spring between its drive and its joint, N m/rad at the joint (`series`): the ankle's pitch
 #: leaf (`linkage.LEAF`, `[series]`); the world steps those joints' rotors against it (`machine.body.gearbox`).
-SERIES = dict(_BUILD.get('series', {}))
+SERIES = {k: v for k, v in _BUILD.get('series', {}).items() if k != 'track'}
+#: The series springs' torque loop on the rotor (`gearbox.TRACK`), the build's: 0 at the 1040 leaf, 12 at 143-256.
+TRACK = float(_BUILD.get('series', {}).get('track', 0.0))
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split, two discs facing

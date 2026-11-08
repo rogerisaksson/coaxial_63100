@@ -37,7 +37,7 @@ PLAY_NM = 1.0
 #: and heel rise are a stiff joint's. Subtracting the box's own damping and mesh at the rotor's rate
 #: from the observed torque, to loop on the spring's alone, flipped 2 x 3.9 N m x TRACK at every sign
 #: change of that rate against the observer's lag: the peak 84 % of the time, 98 passes.
-TRACK = 0.0
+TRACK = drives.TRACK
 #: The board's observer of the torque its box passes on runs this many times faster than the loop's
 #: own mode (sqrt(k (1 + TRACK) / J)), 1/s: its rotor's generalized momentum J w against the integral
 #: of its own drive less that estimate, no rate of w differenced. At 143 N m/rad and TRACK 12 that is

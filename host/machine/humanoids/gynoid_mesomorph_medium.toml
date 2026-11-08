@@ -109,6 +109,9 @@ foot = 0.155
 # it through mid-stance, its recoil the push-off, the landing's blow taken in it and not in her knee.
 [series]
 ankle = 1040.0
+# The rotor's torque loop on the leaf (`gearbox.TRACK`, its drive TRACK times the feed's error over the observed
+# torque): 0 at this leaf, 12 for 143-256 N m/rad - set as a module constant it reached every build that extends this.
+track = 0.0
 
 # Joints without a drive, a kind's way: on a spring, 1 - its stiffness N m/rad and damping
 # N m s/rad about its rest, deg, a kind not given 40, 1 and 0 -; held at it, 2, between stops

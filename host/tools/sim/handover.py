@@ -52,7 +52,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive', 'loop')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -129,6 +129,11 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
             from machine.body.figure import JOINTS
             seen['bx'] = [JOINTS.index('left_ankle'), JOINTS.index('right_ankle')]
         log['leaf'].append([math.degrees(float(boxes.delta[i])) for i in seen['bx']] if boxes is not None else [0.0, 0.0])
+        # each ankle's board loop (gearbox.Boxes.step): the observed torque hat, the feed, the rotor drive, rate/k and
+        # rel = w - qd (the wind-up's own rate), N m, N m, N m, rad/s, rad/s
+        log['loop'].append(sum(([float(boxes.hat[i]), float(g['world'].feed[i]), float(boxes.drive[i]),
+                                 float(boxes.rate[i] / max(float(boxes.k[i]), 1e-9)), float(boxes.w[i] - d.qvel[g['world'].vadr[i]])]
+                                for i in seen['bx']), []) if boxes is not None else [0.0] * 10)
         # the board's wound-ahead ask on each ankle's rotor (gearbox.Boxes.ahead) and the motor torque it is read from
         log['ahead'].append(([float(boxes.ahead(np, g['world'].motor)[i]) for i in seen['bx']] + [float(g['world'].motor[i]) for i in seen['bx']]
                              + [float(boxes.drive[i]) for i in seen['bx']]
@@ -215,14 +220,15 @@ def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
     if trace and clean:
         i, b = clean[min(6, len(clean) - 1)]
         o = 1 - b
-        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along vx drive cruise push']
+        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along vx drive cruise push leaf_o hat_o feed_o drive_o ratek_o rel_o']
         for j in range(max(0, i - 8 * int(round(0.03 / dt))), min(len(A['t']), i + 3 * int(round(0.03 / dt)) + 1), max(1, int(round(0.01 / dt)))):
             row['trace'].append(' '.join('%.3g' % x for x in (
                 A['t'][j] - A['t'][i], A['ld'][j, o], A['ld'][j, b], A['qp'][j, o], A['qp'][j, b], A['st'][j, o], A['off'][j, o],
                 A['knee'][j, o], A['knee'][j, b], A['tilt'][j, o], A['sw'][j, 3 + o], A['hip'][j], A['acc'][j], A['pre'][j, o],
                 A['tau_k'][j, o], A['tau_a'][j, o], A['tau_hs'][j, o], A['tau_hs'][j, b], A['vs'][j, o], A['sw'][j, o], A['sw'][j, 5 + o], A['along'][j, o],
                 A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b], A['dip'][j, o], A['dip'][j, b], A['zmp'][j, o], A['zmp'][j, b], A['zmp'][j, 2], A['vx'][j],
-                A['drive'][j, 0], A['drive'][j, 2], A['drive'][j, 3])))
+                A['drive'][j, 0], A['drive'][j, 2], A['drive'][j, 3],
+                A['leaf'][j, o], A['loop'][j, 5 * o], A['loop'][j, 5 * o + 1], A['loop'][j, 5 * o + 2], A['loop'][j, 5 * o + 3], A['loop'][j, 5 * o + 4])))
     return row
 
 
