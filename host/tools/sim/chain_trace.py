@@ -192,8 +192,11 @@ def main(argv=None):
     p.add_argument('--every', type=float, default=0.25, help='s between lines')
     p.add_argument('--rounds', action='store_true', help="each line's closed-chain pass replayed, its asks let go in turn")
     p.add_argument('--kin', action='store_true', help="her kinematics through her introspection's snapshot (`kinematics`)")
+    p.add_argument('--set', action='append', default=[], help="PATH:START:END=VALUE, a literal of her texts (scenarios' --set)")
     args = p.parse_args(argv)
     regime, flags = glue.regime(), chain_bounded.VARIANTS[args.variant]
+    from machine.texts import tune
+    given = tune.given(dict(tune.setting(v) for v in args.set)) if args.set else None
     seen, last, tap, kept = {'calls': 0, 'unmet': 0}, [-math.inf], introspect.Tap(), [None]
     from tools.sim import scenarios
     real = scenarios.ran
@@ -242,15 +245,15 @@ def main(argv=None):
             # the way chosen (chain.chained): the closed chains' step, or the upright's, and what chose it; the shares her
             # text tells her manifolds (the snapshot's told row: ischial, palmar)
             to = kept[0]['latent']['state']['TO']['MANIFOLD'] if kept[0] is not None else {}
-            print('       way %s: swing %s stance %s let_go %s reclined %.1f prop %.2f told ischial %.2f palmar %.2f' % (
+            print('       way %s: swing %s stance %s let_go %s reclined %.1f prop %.2f told ischial %.2f palmar %.2f lean %.2f' % (
                 'chain' if chain.chained(ask) else 'upright', sorted(ask.get('swing', {})), ask.get('stance'),
                 ask.get('let_go'), float(ask.get('reclined', 0.0)), float(g.get('s', {}).get('prop', (math.nan,))[0]),
-                float(to.get('ischial', math.nan)), float(to.get('palmar', math.nan))), flush=True)
+                float(to.get('ischial', math.nan)), float(to.get('palmar', math.nan)), float(g.get('lean', 0.0))), flush=True)
             print('%6.2f %-24s pel %+.2f %+.2f %+.2f fast %-14s %4.0f | %-40s | scale %.2f | passes %d unmet %d' % (
                 t, str(sprung.doing(g))[:24], d.qpos[0], d.qpos[1], d.qpos[2], m.joint(m.dof_jntid[6 + j]).name,
                 v[j], top, float(g.get('got', {}).get('scale', math.nan)), seen['calls'], seen['unmet']), flush=True)
             seen.update(calls=0, unmet=0)
-        return real(name, wobble=wobble, laid=traced, texts=texts)
+        return real(name, wobble=wobble, laid=traced, texts=texts if texts is not None else given)
     scenarios.ran = ran
     r = chain_bounded.ran(args.name, args.variant, 1e-3 * args.wobble)
     print(chain_bounded.line(args.name, args.variant, args.wobble, r), flush=True)
