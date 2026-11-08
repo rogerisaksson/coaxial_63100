@@ -148,6 +148,11 @@ Evaluate the prompt and working tree before invoking any tool:
 
 ### STATE 4 -- NARROW FALSIFICATION & FOUR-STRIKE CIRCUIT BREAKER
 
+- **Enter 4 Gate (Upstream Sync & Rebase):**
+  Before executing any verification suites, fetch the latest remote changes and
+  rebase your active branch or worktree onto the upstream head (`git fetch
+  --all --prune` followed by `git pull --rebase`). Resolve any upstream drift
+  and proceed from the updated baseline; never verify against a stale tree.
 - **Required Verification (Strictly via the repository's relay test runner):**
   1. Run the narrowest targeted suite and keyword filter (`--file`) covering
      the modified path. Never execute a test suite directly outside the relay,
@@ -163,6 +168,11 @@ Evaluate the prompt and working tree before invoking any tool:
      type faults, and zero compiler warnings on target C builds.
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
+- **Post-Push Teardown (Worktree & Branch Cleanup):**
+  Immediately after committing and pushing the verified changes, remove any
+  temporary git worktrees (`git worktree remove` followed by `git worktree
+  prune`) and delete any ephemeral local and remote branches created for the
+  task. Never leave orphaned worktrees or stale branches behind.
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **FOUR-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
@@ -171,8 +181,3 @@ Evaluate the prompt and working tree before invoking any tool:
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
   trial-and-error hacking is strictly forbidden.
-  **Post-Push Teardown (Worktree & Branch Cleanup):**
-  Immediately after committing and pushing the verified changes, remove any
-  temporary git worktrees (`git worktree remove` followed by `git worktree
-  prune`) and delete any ephemeral local and remote branches created for the
-  task. Never leave orphaned worktrees or stale branches behind.
