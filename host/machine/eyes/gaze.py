@@ -358,9 +358,9 @@ def held(g, gz):
     sent with a look, her pictures laid by it (`sight.Eyes.stereo`). Told from a look's gaze alone, the play's side
     a saccade's path and her vergence turn left her eyes 0.2-0.5 deg apart off as built and her depth 5-21 % off."""
     st = _laid(g)
-    was = st.get('held') or {s: (0.0, 0.0) for s in ('left', 'right')}
-    st['held'] = {s: gimbal.played(was[s], gimbal.angles(s, gz, True), s, True) for s in ('left', 'right')}
-    return st['held']
+    was = st.get('gimbals') or {s: (0.0, 0.0) for s in ('left', 'right')}
+    st['gimbals'] = {s: gimbal.played(was[s], gimbal.angles(s, gz, True), s, True) for s in ('left', 'right')}
+    return st['gimbals']
 
 
 def gazed(head, gz):
