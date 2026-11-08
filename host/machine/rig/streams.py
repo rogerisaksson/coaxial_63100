@@ -125,6 +125,17 @@ def _latent_take(s, lay, row):
     row[:lay['split']], row[lay['split']:] = s['g']['st'], s['g']['out']
 
 
+def _modal(s):
+    """Her edge as her law reads it (`modal.sensed`): her soles, hips and centre of mass and their speeds, her
+    loads, her tilts - a flight's soles against her capture point are read here, not in her edge's arrays."""
+    from machine.law import modal
+    return {'n': modal.SENSED, 'fields': _fields('machine.law.modal', 'SENSED')}
+
+
+def _modal_take(s, lay, row):
+    row[:] = s['g']['y']
+
+
 def _impedance(s):
     from machine.law import modal
     return {'n': modal.ASK, 'fields': _fields('machine.law.modal', 'ASK')}
@@ -186,6 +197,7 @@ STREAMS = (
     Stream('felt', 'machine.senses.edge:felt', _at('felt'), _edge('felt'), _sensed, _pass),
     Stream('read', 'machine.senses.edge:contacted', _at('law'), _edge('contacted'), _sensed, _law),
     Stream('things', 'machine.eyes.registry:boxes', _things, None, lambda s, lay, row: list(s['g']['things']), _refresh),
+    Stream('modal', 'machine.law.modal:sensed', _at('law'), _modal, _modal_take, _law),
     Stream('latent', 'machine.law.latent:step', _at('law'), _latent, _latent_take, _law),
     Stream('impedance', 'machine.law.impedance:ask', _at('law'), _impedance, _impedance_take, _law),
     Stream('wrench', 'machine.stack.wrench:step', _at('law'), None, _wrench_take, _law),

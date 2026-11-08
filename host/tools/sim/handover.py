@@ -38,8 +38,10 @@ from tools.sim.knobs import arranged
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
 
 
-def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False):
-    """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at` instead, given."""
+def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False, record=None):
+    """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at`
+    instead, given; `record`, her loop recorded over the window (`watch.recorded`: recordings/`record`.jsonl, her
+    layers named, `tools/sim/recording.py` tells it)."""
     import numpy as np
     from machine.law import modal
     from tools.sim import scenarios
@@ -50,13 +52,16 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         plan, secs = [(at, {'say': label}) for at, label, _wire, _names in gym.planned(entries.split())], window[1] + 0.5
     else:
         plan, secs = played(play)
-    scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
+    if record:
+        plan = sorted(plan + [(from_s, {'record': record}), (to_s, {'record': None})], key=lambda step: step[0])
+    scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive', 'loop')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
         g = s['g']
+        seen['s'] = s
         m, d, t = g['world'].model, g['world'].data, g['t']
         if seen['ix'] is None:
             names = [m.joint(int(m.dof_jntid[i])).name for i in g['body'].act]
@@ -142,6 +147,16 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         log['leaf_k'].append(float(boxes.k[seen['bx'][0]]) if boxes is not None else 0.0)
 
     out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
+    if record and 's' in seen:
+        # the recording ended with the run where the fall ended it first, its windows written before we return
+        import time
+        from machine.process import watch
+        scope = (seen['s'].get('recording') or {}).get('scope')
+        watch.recorded(seen['s'], None)
+        for _ in range(200):
+            if scope is None or not scope.pending:
+                break
+            time.sleep(0.1)
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']))
     if len(log['t']) < 10:
         return row
@@ -249,9 +264,11 @@ def main(argv=None):
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
     parser.add_argument('--rows', action='store_true', help="with --ensemble: each start's spec, whether she stood and when she fell, before the summary")
+    parser.add_argument('--record', default=None, help="with --spec: her loop recorded over the window, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
     if args.specs is None:
-        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at, args.trace_right)
+        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at, args.trace_right,
+                  args.record)
         for line in row.pop('trace', []):
             print(line)
         print(json.dumps(row))

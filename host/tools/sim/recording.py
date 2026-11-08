@@ -108,9 +108,37 @@ def printed(table, t0=None):
     return '\n'.join(lines)
 
 
-def told(path, window=None, overview=None):
+def fielded(series, lay, specs, times):
+    """A row at each of `times` of the fields `specs` - 'stream.FIELD' of a vector stream (impedance.COM_ACC,
+    latent.NOW.Z, read.LOAD), 'stream.key.key' into a plain one's sample (wrench.got.bears) -, each entry '%.3g',
+    the sample at or before the row's time: her law's layers as the recording has them, beside the table."""
+    import numpy as np
+    cols = []
+    for spec in specs:
+        stream, _, path = spec.partition('.')
+        if lay.get(stream):
+            ts, block, _names = _field(series, lay, stream, path)
+            cols.append((spec, ts, lambda i, block=block: np.atleast_1d(block[i])))
+        else:
+            ts, vs = series.get(stream, (np.zeros(0), []))
+
+            def pick(i, vs=vs, path=path):
+                v = vs[i]
+                for key in path.split('.'):
+                    v = v[key] if isinstance(v, dict) else v[int(key)]
+                return np.atleast_1d(np.asarray(v, float)).ravel()
+            cols.append((spec, ts, pick))
+    lines = ['  %8s | %s' % ('t s', ' | '.join(spec for spec, _, _ in cols))]
+    for t in times:
+        cells = [' '.join('%.3g' % x for x in pick(i)) if (i := _at(ts, t)) is not None else '-' for _spec, ts, pick in cols]
+        lines.append('  %8.3f | %s' % (t, ' | '.join(cells)))
+    return '\n'.join(lines)
+
+
+def told(path, window=None, overview=None, fields=()):
     """The recording at `path` told as text: its blocks, its events, its windows' tables (`window`:
-    the one numbered so), the whole a row each `overview` s first where asked."""
+    the one numbered so), the whole a row each `overview` s first where asked; `fields`, her layers'
+    named fields at each row beside it (`fielded`)."""
     from machine.rig import gate
     gates = gate.read(path)
     series, lay = joined(gates)
@@ -130,8 +158,9 @@ def told(path, window=None, overview=None):
                if k not in ('t', 'analyzer', 'event', 'capture')}) for e in events if e['event'] not in QUIET)
     if overview:
         n = int(math.floor((span[1] - span[0]) / overview))
-        out += ['', 'overview, a row each %.2f s:' % overview,
-                printed(rows(series, lay, events, [span[0] + overview * (k + 1) for k in range(n)]))]
+        times = [span[0] + overview * (k + 1) for k in range(n)]
+        out += ['', 'overview, a row each %.2f s:' % overview, printed(rows(series, lay, events, times))]
+        out += [fielded(series, lay, fields, times)] if fields else []
     for k, g in enumerate(wins):
         if window is not None and k + 1 != window:
             continue
@@ -139,11 +168,12 @@ def told(path, window=None, overview=None):
         t0, (lo, hi) = m['t'], m['window']
         ev = {a: b for a, b in (m['event'] or {}).items() if a not in ('t', 'analyzer', 'event', 'capture')}
         held = [(h['name'], round(h['t'], 3)) for h in (g['trailer'] or {}).get('held_off') or []]
+        times = sorted({t0 + d for d in ROWS_S if lo <= t0 + d <= hi}
+                       | {lo + STEP_S * (j + 1) for j in range(int((hi - lo) / STEP_S))} | {hi})
         out += ['', 'window %d: %s at %.3f s %s, %.3f..%.3f%s' % (k + 1, m['name'], t0, ev, lo, hi,
                                                               ', held off %s' % held if held else ''),
-                printed(rows(series, lay, events, sorted({t0 + d for d in ROWS_S if lo <= t0 + d <= hi}
-                                                        | {lo + STEP_S * (j + 1) for j in range(int((hi - lo) / STEP_S))}
-                                                        | {hi}), lo), t0)]
+                printed(rows(series, lay, events, times, lo), t0)]
+        out += [fielded(series, lay, fields, times)] if fields else []
     return '\n'.join(out)
 
 
@@ -153,12 +183,14 @@ def main(argv=None):
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--window', type=int, help='its window numbered so alone')
     parser.add_argument('--overview', type=float, help='the whole of it a row each this many s first')
+    parser.add_argument('--fields', default='', help="her layers' fields beside each table's rows, comma-separated: "
+                                                     "impedance.COM_ACC,latent.NOW.Z,read.LOAD,wrench.got.bears")
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(RECORDINGS, '*.jsonl')) if args.last else []
     path = args.path or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
         parser.error('a recording, or --last')
-    print(told(path, args.window, args.overview))
+    print(told(path, args.window, args.overview, tuple(f for f in args.fields.split(',') if f)))
     return 0
 
 
