@@ -12,22 +12,18 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
                     const double clear[3][2], const double stance[2], double cruise, double grounded,
                     double propped, double got[2][3], double frame[3][3])
 {
-  const double *rot = fr + k->f_rot, *q = y + k->y_quat, *soles = y + k->y_sole, *sp = y + k->y_spin;
+  const double *rot = fr + k->f_rot, *soles = y + k->y_sole;
   const double  stood = npmax(stance[0], stance[1]);
-  const double  q1 = pow(q[1], 2.0), q2 = pow(q[2], 2.0), q3 = pow(q[3], 2.0);
-  const double  hers[3][3] = {
-      {2.0 * (q[1] * q[3] + q[0] * q[2]), 2.0 * (q[2] * q[3] - q[0] * q[1]), 1.0 - 2.0 * (q1 + q2)},
-      {1.0 - 2.0 * (q2 + q3), 2.0 * (q[1] * q[2] + q[0] * q[3]), 2.0 * (q[1] * q[3] - q[0] * q[2])},
-      {2.0 * (q[1] * q[2] - q[0] * q[3]), 1.0 - 2.0 * (q1 + q3), 2.0 * (q[2] * q[3] + q[0] * q[1])}};
   double        arm[2][3], moved[2][3], speed[2][3], at[2][3], off3[3][2][3], w[WBC_IMP_N], e[6], bears[2];
   double        bo[3][3];
   double        sr[2][3], along[2], aloft[2], ds[2], d1, d2, d3, d4, lead[3];
 
+  /* her way's frame, standing or aloft: plumb under her, not turning with her trunk */
   for (int i = 0; i < 3; i++)
   {
     for (int j = 0; j < 3; j++)
     {
-      frame[i][j] = grounded * rot[3 * i + j] + (1.0 - grounded) * hers[i][j];
+      frame[i][j] = rot[3 * i + j];
     }
   }
   for (int b = 0; b < 2; b++)
@@ -35,16 +31,7 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
     for (int j = 0; j < 3; j++)
     {
       arm[b][j] = soles[3 * b + j] - y[k->y_com + j];
-    }
-  }
-  for (int b = 0; b < 2; b++)
-  {
-    const double cr[3] = {sp[1] * arm[b][2] - sp[2] * arm[b][1], sp[2] * arm[b][0] - sp[0] * arm[b][2],
-                          sp[0] * arm[b][1] - sp[1] * arm[b][0]};
-
-    for (int j = 0; j < 3; j++)
-    {
-      moved[b][j] = (y[k->y_vsole + 3 * b + j] - y[k->y_vcom + j]) - (1.0 - grounded) * cr[j];
+      moved[b][j] = y[k->y_vsole + 3 * b + j] - y[k->y_vcom + j];
     }
   }
   npmmt(&moved[0][0], 2, &frame[0][0], &speed[0][0]);

@@ -12,7 +12,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.law import poise
-from machine.law.modal import AXIAL, COM, DRIVE, HOT, LIFT, LOWEST, QUAT, SOLE, SPIN, VCOM, VSOLE, WIDTH, Z0
+from machine.law.modal import AXIAL, COM, DRIVE, HOT, LIFT, LOWEST, SOLE, VCOM, VSOLE, WIDTH, Z0
 from machine.law.poise import TINY
 from machine.law.stride import ALONG, UP
 
@@ -31,10 +31,13 @@ def free(y, fr, at, said, clear, stance, cruise, grounded, propped):
     the other hung 6 cm off the floor and never landed. Along and across against her centre
     of mass as it goes, led along by her speed past her `cruise` over omega: against the
     standing sole she ran ahead of her steps at 0.36 m/s and went over forward. None
-    standing, against her centre of mass as it falls, in her pelvis's own frame, turning with
-    her: held level and plumb under her in the world, her legs kept none of her spin and her
-    trunk took it all - 0.7 rad forward in 0.15 s off the floor; none standing and something
-    else bearing her (`grounded` past them), up from the floor, in her way's frame: in her
+    standing, against her centre of mass as it falls, in her way's frame still - plumb under
+    her: in her pelvis's own frame, turning with her, a standing hop's flight pitched her 10
+    to 22 deg and swung her soles 0.19 m behind her centre (0.51 m of leg at 22 deg), she
+    landed past her capture point and stepped 0.35 m (plumb in the world an earlier jump,
+    leaving turning forward, gave her trunk all its spin, 0.7 rad in 0.15 s; she leaves
+    turning upright now, 1.7 rad/s); none standing and something else bearing her
+    (`grounded` past them), up from the floor, in her way's frame: in her
     pelvis's on a chair, pitched forward 0.5 rad, her soles rose 9 cm off the floor and she
     slid off it. So each sole that does not stand while something else bears her (`propped`):
     one let go seated, the other standing, rose where her folded legs put it, 7 mm in 70 ms,
@@ -44,17 +47,10 @@ def free(y, fr, at, said, clear, stance, cruise, grounded, propped):
     rot, v, om, shod, floors, rise = at
     ref, rate, acc, kp, kd, hands = said
     stood = stance.max()
-    q = y[QUAT][:4]
-    hers = np.array([[2.0 * (q[1] * q[3] + q[0] * q[2]), 2.0 * (q[2] * q[3] - q[0] * q[1]),
-                      1.0 - 2.0 * (q[1] ** 2 + q[2] ** 2)],
-                     [1.0 - 2.0 * (q[2] ** 2 + q[3] ** 2), 2.0 * (q[1] * q[2] + q[0] * q[3]),
-                      2.0 * (q[1] * q[3] - q[0] * q[2])],
-                     [2.0 * (q[1] * q[2] - q[0] * q[3]), 1.0 - 2.0 * (q[1] ** 2 + q[3] ** 2),
-                      2.0 * (q[2] * q[3] + q[0] * q[1])]])
-    frame = grounded * rot + (1.0 - grounded) * hers
+    frame = rot
     soles = y[SOLE].reshape(2, 3)
     arm = soles - y[COM]
-    speed = (y[VSOLE].reshape(2, 3) - y[VCOM] - (1.0 - grounded) * np.cross(y[SPIN][:3], arm)) @ frame.T
+    speed = (y[VSOLE].reshape(2, 3) - y[VCOM]) @ frame.T
     # a sole in the air is asked no further from her than her legs reach standing
     reach = ref - HOT[AXIAL] * np.minimum(ref[AXIAL], 0.0)
     off3 = np.stack([np.einsum('nia,n->ia', hands, reach - fr[Z0]) - arm @ frame.T,
