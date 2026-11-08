@@ -25,7 +25,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        floors[2], rise, still, dvh[3];
   double        way4[4][3], plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
   double        smax, stepping, way, swung, rate[2], sweep[2], phi[2], on[2], off[2], u[2], flying[2], fl2[2], pre[2], kpf[2], kdf[2];
-  double        aside[2], hurry[2], limbs[2], tone[3], cruise, lat_dc, across, e[6], both[2], up[2], zmp[2];
+  double        aside[2], hurry[2], limbs[2], tone[3], cruise, pace, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3], hip_h[2], reach_h[2], striding[2];
   double        rr[2][3], axial[2], pressed, risen[2], lifted, com[3], late[2], lift2[2], clr[3][2], clear[3][2];
@@ -211,6 +211,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     limbs[b] = npmax(stepping, off[b]);
   }
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going], phi_w);
+  /* her soles land for the lesser of her cruise and the pace asked of her (machine.law.impedance) */
+  pace = way * npmin(way * cruise, way * wbc_imp_cruises(k, way, asked[k->drive], turns, a[k->a_going], phi_w));
   lat_dc = stepping * (s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]));
   across = 2.5 * lat_dc;
   /* still, her head's speed past her centre of mass's, shrunk where it is small, and her
@@ -304,7 +306,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   /* striding: where a sole lands, how it is pitched, how a standing one is turned */
   reach = npmin(k->reach_m, gd * (c[2] - fr[k->f_floor]));
   wide = (2.0 * fr[k->f_w0]) * (1.0 + s.ref[k->width]);
-  wbc_imp_landings(k, y, fr, a, rot, c, flat, xi, &cruise, om, turns, wide, across, reach, stood, u, flying, meet, top, land, adj,
+  wbc_imp_landings(k, y, fr, a, rot, c, flat, xi, &pace, om, turns, wide, across, reach, stood, u, flying, meet, top, land, adj,
                    over, &apart);
   wbc_imp_rocks(k, s.ref[k->rock], s.rate[k->rock], s.acc[k->rock], tip, tipping, tipped);
   pre[0] = off[0] * (1.0 - u[0]);
@@ -387,7 +389,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       clear[r][b] = aloft[b] * (clr[r][b] + npeye(r, 0) * short_h);
     }
   }
-  wbc_imp_swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, cruise, grounded, propped, loose, frame);
+  wbc_imp_swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, pace, grounded, propped, loose, frame);
   npmm(&loose[0][0], &frame[0][0], &ff[0][0]);
   for (int j = 0; j < 3; j++)
   {
