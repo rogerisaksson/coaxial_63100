@@ -14,7 +14,10 @@ that turn's spread (`footprint.spread`) and her stop's spread along her arrival 
 and her walk back from there onto the dock, its arms' swing with it, leaves them her skin: a hand met
 the loft beside the chair; no
 distance of its own: staged a stride past her back's end (0.52 m), she settled 0.3-1.2 m out and backed
-0.3-1.3 m. Turned, she backs the few cm left onto the dock. The faces her stunt's patch docks her at first
+0.3-1.3 m. Turned, she backs the few cm left onto the dock. Her stage out to her turn's carry, a cell and
+her stop's spread: where she stops nearest, her aim less that spread, her turn ends her a cell off the
+dock - out to her carry and a cell alone, her walk's stop spread 0.06 -> 0.13 m (1.16 m/s) left the
+chair and the bed no stage, 1.8-2.6 cm short 0.47 m out. The faces her stunt's patch docks her at first
 (`furniture.first`: a bed's ends, its sides only where no end is hers to reach), the face's middle first,
 then the face her walk reaches soonest. Staged her stopping distance and a stride out
 (1.17 m), she backed 0.37-1.03 m after her turn, in 3.9-8.3 s.
@@ -141,7 +144,8 @@ def docked(at, things, floor, sc, box, standoff):
     far = walked(at, cells)
     s_dock = poise.HALF_M + standoff
     carried = max(footprint.carry(180.0, w)[0] for w in (1.0, -1.0))
-    outs = np.array([run_in] if run_in is not None else s_dock + np.arange(0.0, carried + voxels.CELL_M, 0.25 * voxels.CELL_M))
+    outs = np.array([run_in] if run_in is not None
+                    else s_dock + np.arange(0.0, carried + voxels.CELL_M + se2.STOP_SPREAD_M, 0.25 * voxels.CELL_M))
     rows = []
     for hn in furniture.GOES[sc][2](box, things):
         n, tan = np.array([math.sin(hn), math.cos(hn)]), np.array([math.cos(hn), -math.sin(hn)])
