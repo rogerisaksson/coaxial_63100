@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import dclink, drives, gearbox, heat, linkage
-from machine.world import floor, passing, room, steps
+from machine.world import floor, harness, passing, room, steps
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -69,11 +69,6 @@ ENVELOPE = 1.0
 #: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times (a gate drive
 #: sagging, the FETs half on) or its nodes at WARM_C.
 SOA_RDS, WARM_C = 50.0, 100.0
-
-#: Her harness (`World.hang`): N/m and N s/m on her pelvis's place, N m/rad and N m s/rad on its
-#: turn - 0.7 of critical on her 31 kg and 3 kg m^2.
-HANG = (4000.0, 500.0, 400.0, 50.0)
-
 
 class World:
 
@@ -324,7 +319,8 @@ class World:
             if self.sprung:
                 d.ctrl[:] = self.boxes.step(np, d.ctrl, d.qpos[self.qadr],
                                             d.qvel[self.vadr] + 0.5 * STEP_S * d.qacc[self.vadr],
-                                            np.where(self.shorted, self.damping, 0.0), STEP_S)
+                                            np.where(self.shorted, self.damping, 0.0), STEP_S,
+                                            d.ctrl if self.buses is not None else self.feed)
                 p.delta = self.boxes.delta.ctypes.data
             pushing = d.time < self.push_until
             if pushing or self.pushed:
@@ -332,7 +328,7 @@ class World:
                 d.xfrc_applied[self.torso, 0:3] = self.push_n if pushing else 0.0
             self.pushed = pushing
             if self.hung is not None:
-                d.xfrc_applied[self.pelvis] = self._harness()
+                d.xfrc_applied[self.pelvis] = harness.wrench(d, self._np, self.hung, self.pelvis)
             self._mj.mj_step(self.model, d)
             if self.sprung:
                 self.boxes.moved(d.qpos[self.qadr])
@@ -405,25 +401,14 @@ class World:
         self.push_until = self.data.time + seconds
 
     def hang(self):
-        """Her pelvis hung where it is in a harness (HANG): springs to its place and its turn."""
+        """Her pelvis hung where it is in a harness (`machine.world.harness`): springs to its place
+        and its turn."""
         self.hung = (self.data.qpos[0:3].copy(), self.data.qpos[3:7].copy())
 
-    def _harness(self):
-        """The harness's wrench on her pelvis, world: twice the vector part of turn * conj(q)
-        is the small turn from q to turn."""
-        d, np = self.data, self._np
-        at, turn = self.hung
-        q, w = d.qpos[3:7], d.xmat[self.pelvis].reshape(3, 3) @ d.qvel[3:6]
-        off = 2.0 * (q[0] * turn[1:] - turn[0] * q[1:] - np.cross(turn[1:], q[1:]))
-        return np.r_[HANG[0] * (at - d.qpos[0:3]) - HANG[1] * d.qvel[0:3],
-                     HANG[2] * off - HANG[3] * w]
-
     def pull(self):
-        """What a load cell in the harness reads: its force on her pelvis, world, N, and its
-        moment about her pelvis's origin, world, N m."""
-        d, np = self.data, self._np
-        w = self._harness()
-        return np.r_[w[:3], w[3:] + np.cross(d.xipos[self.pelvis] - d.xpos[self.pelvis], w[:3])]
+        """What a load cell in the harness reads (`harness.pull`): its force on her pelvis, world, N,
+        and its moment about her pelvis's origin, world, N m."""
+        return harness.pull(self.data, self._np, self.hung, self.pelvis)
 
     def glitch(self, joint, kind, seconds=0.0, celsius=WARM_C):
         """Drive `joint`'s board glitched: 'soa' its switches SOA_RDS times their on-resistance
