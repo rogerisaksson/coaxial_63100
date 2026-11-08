@@ -113,7 +113,7 @@ def arranged(spec):
     return tune.given(edits) if edits else None
 
 
-def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None):
+def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False):
     """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at` instead, given."""
     import numpy as np
     from machine.law import modal
@@ -204,10 +204,10 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']))
     if len(log['t']) < 10:
         return row
-    return _summed(log, seen, row, trace, from_s, to_s, at)
+    return _summed(log, seen, row, trace, from_s, to_s, at, right)
 
 
-def _summed(log, seen, row, trace, from_s, to_s, at_s=None):
+def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
     """`ran`'s row of its `log`: the landings' medians, the hip's passes and, `trace`, the passes round one landing."""
     import numpy as np
     A = {k: np.array(v) for k, v in log.items()}
@@ -270,7 +270,7 @@ def _summed(log, seen, row, trace, from_s, to_s, at_s=None):
     # the trace round a clean landing: the sole off the floor through half a STANCE_S before (no bounce, no flight)
     clean = [(i, b) for i, b in at if (A['ld'][max(0, i - back // 2):i, b] < LANDED).all()]
     if trace and at_s is not None:
-        clean = [(min(int(np.searchsorted(A['t'], at_s)), len(A['t']) - 1), 1)]
+        clean = [(min(int(np.searchsorted(A['t'], at_s)), len(A['t']) - 1), 1 - int(right))]
     if trace and clean:
         i, b = clean[min(6, len(clean) - 1)]
         o = 1 - b
@@ -295,13 +295,14 @@ def main(argv=None):
     parser.add_argument('--specs', nargs='*', default=None, help="variants, a relay job each ('' her walk as built)")
     parser.add_argument('--trace', action='store_true', help='the passes round one landing, a line each')
     parser.add_argument('--trace-at', type=float, default=None, help='the trace round this second instead of a landing (sole o her left)')
+    parser.add_argument('--trace-right', action='store_true', help='with --trace-at: sole o her right')
     parser.add_argument('--play', default='w12 -3', help="the player's moves (tools/sim/player.py), her walk unsaid")
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
     args = parser.parse_args(argv)
     if args.specs is None:
-        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at)
+        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at, args.trace_right)
         for line in row.pop('trace', []):
             print(line)
         print(json.dumps(row))
@@ -312,7 +313,7 @@ def main(argv=None):
     runs = [(spec, spec + start) for spec in args.specs for start in starts]
     jobs = [focus.Job(run or 'base', here + ['--spec', run, '--play', args.play, '--window', args.window]
                       + (['--entries', args.entries] if args.entries else []) + (['--trace'] if args.trace else [])
-                      + (['--trace-at', str(args.trace_at)] if args.trace_at is not None else []), 1.5, 900.0)
+                      + (['--trace-at', str(args.trace_at)] if args.trace_at is not None else []) + (['--trace-right'] if args.trace_right else []), 1.5, 900.0)
             for _spec, run in runs]
     rows = {}
     for job, text, _code, seconds in focus.relay(jobs):

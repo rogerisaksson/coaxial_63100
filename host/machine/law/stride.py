@@ -97,7 +97,11 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     whether its rhythm has it off, from where the other's swing ended - or from where the other
     came down (`stood`, standing in the last FALL_U of a swing its stride had it on, `was`, while this
     one stands in its rhythm, u 0: a leap's two soles, their rhythms aligned, landing together started
-    a pre-swing, and one left again) - to PHI_W past that place;
+    a pre-swing, and one left again) - to PHI_W past that place, its rhythm's alone on a standing
+    other sole or aloft itself (a flight); and on from a swing begun till it stands, the other standing,
+    its share held at 1 past its window (a swing ended by its window 13.5 cm behind her hung on a
+    straight leg 225 ms while the other's rhythm had it off bearing 1.9 of her weight: at its touch,
+    0.057, the other was gone from the plan in a pass and she came down at 2.8);
     whether her stride has it off the floor's count; its swing's share done from where it `begun`,
     `lead` ahead of its rhythm's (`hurried`) - landed at its end -; whether it swings; its rhythm's rate of that
     share, 1/s). A swing begun is finished, off as far as her stride has had it since (`was`,
@@ -111,7 +115,11 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     c = np.cos(psi) * np.cos(split) - np.sin(psi) * np.sin(split)
     sweep, phi = side * s, np.arctan2(side * s, side * c)
     u = clip((0.5 * (phi / phi_w + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
-    on = np.maximum((phi > phi_w - np.pi) * (phi < phi_w), (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0))
+    window = (phi > phi_w - np.pi) * (phi < phi_w)
+    came = (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0)
+    waits = was * (1.0 - stood) * stood[::-1]
+    on = np.maximum(np.maximum(window * np.maximum(stood[::-1], 1.0 - stood), came), waits)
+    u = np.maximum(u, waits * (1.0 - window))
     off = np.maximum(stepping, was) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
     return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / phi_w
 

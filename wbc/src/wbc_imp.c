@@ -1,5 +1,5 @@
 /** wbc_imp.c - her modes' springs on her body (wbc_imp.h): machine.law.impedance.ask, machine.law.modal's
-    reading under it (wbc_stride.c, wbc_poses.c, wbc_floor.c, wbc_swing.c), numpy's arithmetic operation for
+    reading under it (wbc_stride.c, wbc_poise.c, wbc_poses.c, wbc_floor.c, wbc_swing.c), numpy's arithmetic operation for
     operation (wbc_np.h) - the ask the same bit for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"

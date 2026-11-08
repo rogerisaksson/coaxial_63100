@@ -1,6 +1,6 @@
 /** wbc_stride.c - under the ask (wbc_imp.h): machine.law.modal's reading of her, machine.law.stride's
-    beat, landings, rocks and heels, machine.law.poise's boxes and stance, flight.standing - numpy's
-    arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
+    beat, landings, rocks and heels - numpy's arithmetic operation for operation (wbc_np.h). Her soles'
+    boxes and stance are wbc_poise.c's. Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
 
@@ -137,141 +137,6 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   }
 }
 
-void wbc_imp_boxes(const wbc_imp_t *k, const double flat[2][2], const double edge[2], const double tilt[2],
-                   double low[2][2], double high[2][2])
-{
-  for (int b = 0; b < 2; b++)
-  {
-    for (int j = 0; j < 2; j++)
-    {
-      const double on_edge = edge[b] * k->along_on[j];
-      const double mid = flat[b][j] + (on_edge * k->half_m) * cos(tilt[b]);
-
-      low[b][j] = mid - k->extent[j] * (1.0 - fabs(on_edge));
-      high[b][j] = mid + k->extent[j] * (1.0 - fabs(on_edge));
-    }
-  }
-}
-
-void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2], const double phi[2], double by,
-                     double slo[2], double shi[2])
-{
-  for (int j = 0; j < 2; j++)
-  {
-    slo[j] = lo[j] + by * (npmin(lo[j], plo[j]) - lo[j]);
-    shi[j] = hi[j] + by * (npmax(hi[j], phi[j]) - hi[j]);
-  }
-}
-
-/** machine.law.poise.into: `zmp` in the box lo to hi, `share` of the way to where xi stays in it. */
-static void into(const wbc_imp_t *k, const double zmp[2], const double xi[2], const double lo[2], const double hi[2],
-                 double om, double share, double got[2])
-{
-  for (int j = 0; j < 2; j++)
-  {
-    const double plain = npclip(zmp[j], lo[j], hi[j]);
-    const double viable = npclip(npclip(zmp[j], xi[j] - (hi[j] - xi[j]) / (om * k->capture_s),
-                                        xi[j] + (xi[j] - lo[j]) / (om * k->capture_s)), lo[j], hi[j]);
-
-    got[j] = plain + share * (viable - plain);
-  }
-}
-
-/** flight.standing: which soles stand of those `meant`. */
-static void standing(const wbc_imp_t *k, const int meant[2], const double loads[2], const double over[2],
-                     double rising, double borne, int out[2])
-{
-  const int rests = (loads[0] >= k->touch_n || loads[1] >= k->touch_n) | (borne >= k->touch_n)
-                    | (fabs(rising) <= k->rest_m_s);
-
-  for (int b = 0; b < 2; b++)
-  {
-    out[b] = meant[b] && ((loads[b] >= k->touch_n) || ((over[b] <= k->touch_m) && rests));
-  }
-}
-
-/** The box `zmp` is let in: the soles' boxes - each pushed `out_of` off, none NULL -
-    spanned over prop. */
-static void spanned_of(const double low[2][2], const double high[2][2], const double *out_of,
-                       const double prop[2][2], double by, double slo[2], double shi[2])
-{
-  double lo[2], hi[2];
-
-  for (int j = 0; j < 2; j++)
-  {
-    lo[j] = out_of ? npmin(low[0][j] + out_of[0], low[1][j] + out_of[1]) : npmin(low[0][j], low[1][j]);
-    hi[j] = out_of ? npmax(high[0][j] - out_of[0], high[1][j] - out_of[1]) : npmax(high[0][j], high[1][j]);
-  }
-  wbc_imp_spanned(lo, hi, prop[0], prop[1], by, slo, shi);
-}
-
-void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
-                    const double high[2][2], double om, double held, const double up[2], int swaying,
-                    const double beat[4][2], const double bears[3][2], double rising, double borne,
-                    const double stood[2], const double prop[2][2], double by, double stance[2])
-{
-  const double *sweep = beat[0], *off = beat[1], *flying = beat[2], *toes = beat[3];
-  const double *loads = bears[0], *over = bears[1], *felt = bears[2];
-  const double  kept = npclip(held, 0.0, 1.0), foot = npclip(held - 1.0, 0.0, 1.0);
-  double        level[2], slo[2], shi[2], got[2], left[2], out_of[2];
-  int           within[2], landed[2], lifting[2], st[2], meant[2];
-
-  for (int b = 0; b < 2; b++)
-  {
-    level[b] = npmax(over[b], felt[b]);
-  }
-  spanned_of(low, high, NULL, prop, by, slo, shi);
-  into(k, zmp, xi, slo, shi, om, 1.0 - foot, got);
-  for (int j = 0; j < 2; j++)
-  {
-    zmp[j] = zmp[j] + kept * (got[j] - zmp[j]);
-  }
-  for (int b = 0; b < 2; b++)
-  {
-    const double out_up = k->big * (double)(up[b] > k->lift_eps);
-    const double lb[2] = {low[b][0] + out_up, low[b][1] + out_up};
-    const double hb[2] = {high[b][0] - out_up, high[b][1] - out_up};
-    double       sb_lo[2], sb_hi[2];
-
-    wbc_imp_spanned(lb, hb, prop[0], prop[1], by, sb_lo, sb_hi);
-    within[b] = (zmp[0] >= sb_lo[0] - k->gate_m) && (zmp[0] <= sb_hi[0] + k->gate_m)
-                && (zmp[1] >= sb_lo[1] - k->gate_m) && (zmp[1] <= sb_hi[1] + k->gate_m);
-    meant[b] = off[b] < 0.5;
-  }
-  standing(k, meant, loads, level, rising, borne, landed);
-  for (int b = 0; b < 2; b++)
-  {
-    const int early = (sweep[b] > k->early) && ((loads[b] >= k->touch_n) || (stood[b] > 0.5));
-    const int gone = (npmax(flying[b], off[b] * toes[b]) > 0.5) && (landed[1 - b] || (over[b] > k->touch_m)) && !early;
-
-    lifting[b] = ((up[b] > k->lift_eps) && ((within[1 - b] && swaying) || (over[b] > k->touch_m))
-                  && (loads[b] <= loads[1 - b]))
-                 || gone;
-    meant[b] = !lifting[b];
-  }
-  standing(k, meant, loads, level, rising, borne, st);
-  for (int b = 0; b < 2; b++)
-  {
-    stance[b] = (double)st[b];
-    left[b] = stance[b] * (1.0 - off[b] * (double)landed[1 - b]);
-  }
-  {
-    const double most = npmax(left[0], left[1]);
-
-    for (int b = 0; b < 2; b++)
-    {
-      left[b] = left[b] + (1.0 - most) * stance[b];
-      out_of[b] = k->big * (1.0 - left[b]);
-    }
-  }
-  spanned_of(low, high, out_of, prop, by, slo, shi);
-  into(k, zmp, xi, slo, shi, om, foot * npmin(left[0], left[1]), got);
-  for (int j = 0; j < 2; j++)
-  {
-    zmp[j] = zmp[j] + kept * (got[j] - zmp[j]);
-  }
-}
-
 double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double going)
 {
   const double asked = (((2.0 / PI) * k->stride_m) * fabs(drive)) * turns;
@@ -286,6 +151,8 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
+  double waits[2], held[2];
+
   *stepping = npmax(npclip(fabs(drive) / k->stirs, 0.0, 1.0), need);
   *way = 1.0 - 2.0 * (double)(sin(lateral - psi) * copysign(1.0, sway) < -k->back);
   for (int b = 0; b < 2; b++)
@@ -304,8 +171,16 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
     /* or from where the other came down, standing in the last FALL_U of its swing (stride.beat) */
     const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
                         * (double)(u[b] <= 0.0);
+    /* its rhythm's alone on a standing other sole or aloft itself; a swing begun waits for the floor */
+    const double window = (double)((phi[b] > phi_w - PI) && (phi[b] < phi_w));
 
-    on[b] = npmax((double)((phi[b] > phi_w - PI) && (phi[b] < phi_w)), came);
+    waits[b] = (was[b] * (1.0 - stood[b])) * stood[1 - b];
+    on[b] = npmax(npmax(window * npmax(stood[1 - b], 1.0 - stood[b]), came), waits[b]);
+    held[b] = waits[b] * (1.0 - window);
+  }
+  for (int b = 0; b < 2; b++)
+  {
+    u[b] = npmax(u[b], held[b]);
     off[b] = (npmax(*stepping, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
     flying[b] = off[b] * (double)(u[b] > 0.0);
   }

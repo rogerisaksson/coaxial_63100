@@ -1,6 +1,6 @@
 """Her motion pass in C through ctypes, her python's bit for bit.
 
-Her ask (wbc_imp.c, wbc_stride.c), her latent step and her upper body's coupling (wbc_law.c) on
+Her ask (wbc_imp.c, wbc_stride.c, wbc_poise.c), her latent step and her upper body's coupling (wbc_law.c) on
 numpy's own OpenBLAS (wbc_blas.c); the structs they are laid on, filled of the modules that define
 their layouts and constants. Her surety field: `tools.cores.surety`; her step: `tools.cores.step`.
 

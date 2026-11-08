@@ -279,7 +279,7 @@ LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/
        'senses/borne', 'senses/grip')
 #: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'bedexit', 'scoot', 'brace'))
-LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'poses', 'stride', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
+LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'poses', 'stride', 'poise', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
                                                  'brace', 'law', 'blas'))
 #: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
 #: own modules. Her model posed is wbc.sense's and estimate.step's alone.

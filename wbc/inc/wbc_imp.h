@@ -1,4 +1,4 @@
-/** wbc_imp.h - her modes' springs on her body in C (wbc_imp.c, wbc_stride.c): machine.law.impedance's
+/** wbc_imp.h - her modes' springs on her body in C (wbc_imp.c, wbc_stride.c, wbc_poise.c): machine.law.impedance's
     ask, with machine.law.modal's reading, machine.law.poise, machine.law.stride and flight.standing under it,
     numpy's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #ifndef WBC_IMP_H
