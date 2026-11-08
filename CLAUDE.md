@@ -146,7 +146,7 @@ Evaluate the prompt and working tree before invoking any tool:
 
 ---
 
-### STATE 4 -- NARROW FALSIFICATION & TWO-STRIKE CIRCUIT BREAKER
+### STATE 4 -- NARROW FALSIFICATION & FOUR-STRIKE CIRCUIT BREAKER
 
 - **Required Verification (Strictly via the repository's relay test runner):**
   1. Run the narrowest targeted suite and keyword filter (`--file`) covering
@@ -165,9 +165,14 @@ Evaluate the prompt and working tree before invoking any tool:
      Never execute a state and dynamic introspection directly outside the tool.
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
-- **TWO-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
+- **FOUR-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
   If verification fails in State 4, you are permitted **at most four (4)**
   return to State 2 to revise the diagnosis. If the fourth attempt fails
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
   trial-and-error hacking is strictly forbidden.
+  **Post-Push Teardown (Worktree & Branch Cleanup):**
+  Immediately after committing and pushing the verified changes, remove any
+  temporary git worktrees (`git worktree remove` followed by `git worktree
+  prune`) and delete any ephemeral local and remote branches created for the
+  task. Never leave orphaned worktrees or stale branches behind.
