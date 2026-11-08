@@ -119,7 +119,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -151,6 +151,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         log['tilt'].append(list(np.degrees(tilt)))
         log['heeled'].append(list(np.degrees(np.asarray(a[modal.HEELED]))))
         log['hip'].append(float(hips[:, 1].mean() - fr[modal.FLOOR]))
+        log['hips'].append(list(hips[:, 1] - fr[modal.FLOOR]))
         log['along'].append(list(((soles - c) @ rot.T)[:, 0]))
         log['leg'].append(list(np.linalg.norm(leg, axis=1)))
         log['vs'].append(list(np.asarray(y[modal.VSOLE]).reshape(2, 3)[:, 1]))
@@ -254,12 +255,13 @@ def _summed(log, seen, row, trace, from_s, to_s):
     if trace and len(at) > 6:
         i, b = at[6]
         o = 1 - b
-        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o']
-        for j in range(i - 3 * int(round(0.03 / dt)), i + 5 * int(round(0.03 / dt)) + 1, max(1, int(round(0.01 / dt)))):
+        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b']
+        for j in range(i - 5 * int(round(0.03 / dt)), i + 3 * int(round(0.03 / dt)) + 1, max(1, int(round(0.01 / dt)))):
             row['trace'].append(' '.join('%.3g' % x for x in (
                 A['t'][j] - A['t'][i], A['ld'][j, o], A['ld'][j, b], A['qp'][j, o], A['qp'][j, b], A['st'][j, o], A['off'][j, o],
                 A['knee'][j, o], A['knee'][j, b], A['tilt'][j, o], A['sw'][j, 3 + o], A['hip'][j], A['acc'][j], A['pre'][j, o],
-                A['tau_k'][j, o], A['tau_a'][j, o], A['tau_hs'][j, o], A['tau_hs'][j, b], A['vs'][j, o], A['sw'][j, o], A['sw'][j, 5 + o], A['along'][j, o])))
+                A['tau_k'][j, o], A['tau_a'][j, o], A['tau_hs'][j, o], A['tau_hs'][j, b], A['vs'][j, o], A['sw'][j, o], A['sw'][j, 5 + o], A['along'][j, o],
+                A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b])))
     return row
 
 
