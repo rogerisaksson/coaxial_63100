@@ -145,7 +145,7 @@ def _joint(joint, axis, sign):
 
 
 def _mjcf(bones):
-    from machine.eyes import sight
+    from machine.eyes import gimbal, sight
     from machine.world.physics import CAMERA, PLACED, ROOM, SIGHT, STEP_S
     eyed = bool(CAMERA or SIGHT)
     from machine.body.servos import SERVO
@@ -197,7 +197,7 @@ def _mjcf(bones):
                    '<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         if name == 'head' and eyed:
-            out += sight.cameras()
+            out += gimbal.cameras()
         out += carried(name)
         grip = ' contype="%d" conaffinity="%d" condim="4" friction="%%g %g 0.001"' % (
             ME, MEETS, TORSION_M)

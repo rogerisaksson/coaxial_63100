@@ -14,7 +14,9 @@ from machine.way.steer import steer, tell
 
 def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None, thing=None):
     from machine.texts import maneuver
+    from machine.eyes import gaze
     g['_errand'] = None
+    gaze.rest(g)
     g['_twist_active'], g['_twist_stop_until'], g['_halt_at'], g['has_heading'] = False, 0.0, None, 0.0
     g['twist'] = g['asked'] = STOP
     by = {e[0]: e for e in gym}
@@ -103,7 +105,7 @@ def _looking(g, sc, at):
             'x_dock': float(d.qpos[0]), 'z_dock': float(d.qpos[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
             'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(d.qpos[0]), 'zd': float(d.qpos[2]), 'hdd': yaw,
             'lat_tol': 0.0, 'd_stage': 0.0, 'd_most': 0.0, 'turn_dir': 0.0, 'standoff': 0.0, 'retreats': 0,
-            'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': ()}
+            'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': (), 'scanned': False}
 
 
 def _told(twist):
@@ -123,6 +125,46 @@ def _took(g, gym, er, c, heard_fn, _say_fn):
     a = c['answer']
     er.update(_docked(er['kind'], a['laid']) if a.get('laid') else {})
     er.update(way=a['stops'], curve=a['curve'], held=a['held'], k=0, turn_dir=0.0)
+
+
+def _docking(er):
+    """(x, y, z) the place she docks at: her dock's edge at the thing's top (`peek.level`)."""
+    return er['x_dock'], er['top'], er['z_dock']
+
+
+def _scanning(g, gym, er, c, heard_fn, _say_fn):
+    """Her planner's way taken (`_took`), stood: her eyes on each of its places in turn, its corners on her floor
+    and her dock (`gaze.scan`) - what they show hers before she walks it, her way scanned once."""
+    from machine.eyes import gaze
+    _took(g, gym, er, c, heard_fn, _say_fn)
+    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+    gaze.scan(g, [(x, floor, z) for x, z in er['way']] + [_docking(er)])
+    er['scanned'] = True
+    tell(g, gym, heard_fn, {'twist': STOP})
+
+
+def _reported(g, gym, er, c, heard_fn, _say_fn):
+    """Her way scanned: her planner told what her eyes hold along it now (a watch, `_asked`) - barred, a way round."""
+    d = g['world'].data
+    _asked(g, er, 'watch', (er['xd'], er['zd']), way=[(float(d.qpos[0]), float(d.qpos[2]))] + [tuple(p) for p in er['way']])
+
+
+def _fixed(g, gym, er, c, heard_fn, _say_fn):
+    """Her planner's word on her way: the way it gave taken where it gave one (`_took`), her gaze held on her dock as
+    she walks there led by her way (`gaze.fix`) - on its ground ahead of her by the time what a look shows there takes
+    to stand her: hers in HELD looks, her planner's watch and its answer, her brake's run-out."""
+    from machine.eyes import gaze, sight
+    from machine.way import planner, route
+    if 'stops' in c['answer']:
+        _took(g, gym, er, c, heard_fn, _say_fn)
+    gaze.fix(g, _docking(er), er['curve'], gaze.HELD * sight.LOOK_S + planner.WATCH_S + planner.LATENCY_S + route.RUN_OUT_S)
+
+
+def _arrived(g, gym, er, c, heard_fn, _say_fn):
+    """Walked to her stage (`_stood`), her gaze let go (`gaze.rest`): her dock her body's now."""
+    from machine.eyes import gaze
+    _stood(g, gym, er, c, heard_fn, _say_fn)
+    gaze.rest(g)
 
 
 def _ran(g, gym, er, c, heard_fn, _say_fn):
@@ -176,8 +218,10 @@ def _faced(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _ended(g, gym, er, c, heard_fn, _say_fn):
-    """Out of the door, or a look round with nothing in reach found: the errand over, stood."""
+    """Out of the door, or a look round with nothing in reach found: the errand over, stood, her gaze let go."""
+    from machine.eyes import gaze
     g['_errand'], g['has_heading'] = None, 0.0
+    gaze.rest(g)
     tell(g, gym, heard_fn, {'twist': STOP})
 
 

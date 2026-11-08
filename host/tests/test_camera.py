@@ -163,21 +163,19 @@ def test_the_lodge_from_its_deck(report):
 
 
 def test_her_loop_sees_through_it(report):
-    """On her loop under `physics.SIGHT` her things are her fake camera's map's: two looks told LOOK_S past the
-    second, things among them."""
-    from machine.eyes import camera, sight
+    """On her loop under `physics.SIGHT` her things are her fake camera's map's: hers once HELD looks showed them."""
+    from machine.eyes import camera, gaze, sight
     from machine.world import physics
     from machine.process import sprung
     was, g = (physics.ROOM, physics.SIGHT), None
     physics.ROOM, physics.SIGHT = 1.0, 1.0
     try:
         g = sprung.laid(sprung.STACK_EVERY)
-        while g['t'] < 2.0 * sight.LOOK_S + 0.1:
+        while not len(g['things']) and g['t'] < 2.0 * (gaze.HELD + 1) * sight.LOOK_S:
             sprung.passed(g)
-        report.check('on her loop under SIGHT her things are her fake camera\'s: two looks told, things',
-                     isinstance(g['keep'], camera.Camera) and g['keep'].looks >= 2 and len(g['things']) >= 1,
-                     '%s, %d looks, %d things: %s' % (type(g['keep']).__name__, getattr(g['keep'], 'looks', 0),
-                                                    len(g['things']), sorted({b[0] for b in g['things']})))
+        report.check('on her loop under SIGHT her things her fake camera\'s, HELD looks on',
+                     isinstance(g['keep'], camera.Camera) and g['keep'].looks >= gaze.HELD and len(g['things']) >= 1,
+                     '%d looks, %d things: %s' % (g['keep'].looks, len(g['things']), sorted({b[0] for b in g['things']})))
     finally:
         physics.ROOM, physics.SIGHT = was
         if g is not None and g['keep'] is not None:

@@ -4,8 +4,10 @@
     errand.step_errand(g, gym, heard, heard_say)                      # a pass: the phase's first true row taken
 
 The phases a table (`_on_rows`): look (still while a glimpse of the kind firms up to hers, turning in
-place till a thing affords the verb, a full turn at most), plan (her planner's answer awaited), walk
-(her way round her things to the stage), corner, settle, turn, side, then back and done at a seat or a
+place till a thing affords the verb, a full turn at most), plan (her planner's answer awaited), scan and
+check where her eyes see (stood, her eyes on her way's places in turn, then her planner told what they showed:
+a way round what bars it - `machine.eyes.gaze`), walk (her way round her things to the stage, her gaze held on
+her dock and led by her way's ground ahead, let go there), corner, settle, turn, side, then back and done at a seat or a
 bed, out and door out of the door (`words._FACES`); the thing hers by what it affords (`machine.way.furniture`),
 her dock and way her planner's (`machine.way.planner`), the stunt on it (`machine.texts.maneuver`); the
 words its rows say, the thing it goes to and what her planner is asked `machine.way.words`'.
@@ -15,9 +17,9 @@ import math
 
 from machine.way.tour import STOP
 from machine.way.words import (
-    _asked, _at_hand, _begun, _cornered, _ended, _faced, _glimpsed, _halted, _held, _laid, _looking, _near,
-    _nothing, _out, _passed, _ran, _retreat, _seen, _stood, _stunt, _to_aim, _to_edge, _to_face, _to_line,
-    _to_look, _told, _took, _turning, _within,
+    _arrived, _asked, _at_hand, _begun, _cornered, _ended, _faced, _fixed, _glimpsed, _halted, _held, _laid, _looking,
+    _near, _nothing, _out, _passed, _ran, _reported, _retreat, _scanning, _seen, _stood, _stunt, _to_aim, _to_edge,
+    _to_face, _to_line, _to_look, _told, _turning, _within,
 )
 
 
@@ -73,13 +75,16 @@ def _on_rows():
                   (lambda c, er: c['seen'] is not None or er['swept'] >= math.tau, 'done', _ended),
                   (lambda c, er: c['glimpse'], 'look', _held)), _to_look),
         'plan': (((lambda c, er: c['answer'] is not None and c['answer'].get('laid', True) is None, 'done', _ended),
-                  (lambda c, er: c['answer'] is not None, 'walk', _took)), _nothing),
+                  (lambda c, er: c['answer'] is not None and c['sees'] and not er['scanned'], 'scan', _scanning),
+                  (lambda c, er: c['answer'] is not None, 'walk', _fixed)), _nothing),
+        'scan': (((lambda c, er: c['scanned'], 'check', _reported),), _halted),
+        'check': (((lambda c, er: c['answer'] is not None, 'walk', _fixed),), _nothing),
         'out': (((lambda c, er: c['answer'] is not None, 'door', _ran),), _nothing),
         'door': (((lambda c, er: -c['s_par'] > er['d_stage'] - 1.5 * stride.STRIDE_M, 'door', _ended),
                   (lambda c, er: c['corner'] and len(er['way']) > 1, 'door', _passed),
                   (lambda c, er: 'stops' in (c['answer'] or {}), 'door', _ran)), _to_aim),
-        'walk': (((lambda c, er: c['corner'], 'corner', _stood), (lambda c, er: c['stops_in'], 'settle', _stood),
-                  (lambda c, er: 'stops' in (c['answer'] or {}), 'walk', _took)), _to_aim),
+        'walk': (((lambda c, er: c['corner'], 'corner', _stood), (lambda c, er: c['stops_in'], 'settle', _arrived),
+                  (lambda c, er: 'stops' in (c['answer'] or {}), 'walk', _fixed)), _to_aim),
         'corner': (((lambda c, er: c['idle'] and c['still'], 'plan', _cornered),), _nothing),
         'turn': (((lambda c, er: abs(c['err_yaw']) <= modal.LIST_RAD, 'settle', _faced),), _to_face),
         'settle': (((lambda c, er: c['idle'] and c['s_par'] > er['d_stage'] + se2.STOP_M, 'walk', _nothing),
@@ -100,9 +105,10 @@ def _on_rows():
 
 
 #: What a phase looks for each pass: the look's its verb's thing among hers, and a glimpse of one among
-#: her registry's live slots; the rest nothing.
+#: her registry's live slots; a scan whether her eyes have looked along her way (`gaze.scanned`); the rest nothing.
 _SEEN = {'look': lambda g, e: _seen(g, e['kind'], e.get('at'))}
 _GLIMPSE = {'look': lambda g, e: _glimpsed(g, e['kind'], e.get('at'))}
+_SCANNED = {'scan': lambda g, e: _parts()[9].scanned(g)}
 
 
 def _turn_way(g, e, c):
@@ -123,8 +129,8 @@ def _parts():
     from machine.way import dock, planner, route
     from machine.senses import edge
     from machine.law import latent, modal, se2, stride
-    from machine.eyes import voxels
-    return dock, route, edge, latent, modal, se2, stride, voxels, planner
+    from machine.eyes import gaze, voxels
+    return dock, route, edge, latent, modal, se2, stride, voxels, planner, gaze
 
 
 def _watched(g, e):
@@ -193,7 +199,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     er = g.get('_errand')
     if not er:
         return
-    dock, route, edge, latent, modal, se2, stride, voxels, _planner = _parts()
+    dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze = _parts()
     rows, meanwhile = _on_rows()[er['phase']]
     d = g['world'].data
     gx, gz = float(d.qpos[0]), float(d.qpos[2])
@@ -236,6 +242,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         'answer': g['planner'].answer(g['t']),
         'seen': _SEEN.get(e['phase'], lambda _g, _e: None)(g, e),
         'glimpse': _GLIMPSE.get(e['phase'], lambda _g, _e: False)(g, e),
+        'sees': g.get('keep') is not None, 'scanned': _SCANNED.get(e['phase'], lambda _g, _e: False)(g, e),
     })
     ctx['turns'] = _TURNS.get(e['phase'], lambda _g, _e, _c: 0.0)(g, e, ctx)
     nxt, say = next(((phase, say) for on, phase, say in rows if on(ctx, e)), (e['phase'], meanwhile))

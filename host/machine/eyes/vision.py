@@ -12,7 +12,7 @@ registry kept there, the laid one sent it at each epoch and read here no more (`
 """
 from machine.process import aside
 from machine.senses import inekf
-from machine.eyes import registry
+from machine.eyes import gaze, registry
 from machine.errors import MachineError
 
 #: A look's things: the world's boxes as her eyes' stand-in, or her eyes' map's (`g['keep']`, `physics.SIGHT`).
@@ -23,12 +23,27 @@ SAME = 'her things as the look before'
 
 def look(g):
     """A look asked at `g['t']` (LOOKS by her eyes): her camera's shot first, her head as her law last sensed it,
-    the time since her last look."""
-    head = {'pos': g['s']['head']['pos'].copy(), 'quat': g['s']['head']['quat'].copy()}
+    the time since her last look; with her camera her eyes turned by her gaze (`gaze`) - her shot from her head and
+    her gaze, her stereo laying her pictures by it. Her eyes' things hers once each as they reach her, a look later:
+    at the time they were shot, her registry's frustum the head and gaze that shot them (`camera.Camera.shown`) - a
+    look's things laid again at each refresh counted its evidence 60 times and its move from the look before over a
+    refresh's 8 ms: a thing 'moving' 26 m/s, its wake 13 m, her map barred whole."""
+    head, t = {'pos': g['s']['head']['pos'].copy(), 'quat': g['s']['head']['quat'].copy()}, g['t']
     if g['keep'] is not None:
-        g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']))
-    g['vision'].start(g, LOOKS[g['eyes']](g), head, g['t'] - g.get('things_at', g['t']), not g['eyes'])
-    g['things_at'] = g['t']
+        gz = gaze.moved(g)
+        gaze.aimed(g['world'], gz)
+        held = gaze.held(g, gz)
+        # a look with her eyes standing on what they look at alone: none in a saccade's blur
+        took = gaze.settled(g) and g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held)
+        if took:
+            gaze.asked(g, gz)
+        if g['eyes'] and (not took or g['keep'].shown is None):
+            return
+        if g['eyes']:
+            t, shot, at = g['keep'].shown
+            head = gaze.gazed(shot, at)
+    g['vision'].start(g, LOOKS[g['eyes']](g), head, t - g.get('things_at', t), not g['eyes'], t)
+    g['things_at'] = t
 
 
 def joined(g):
@@ -52,10 +67,11 @@ class Here:
     def __init__(self):
         self.pending, self._things = False, None
 
-    def start(self, g, looks, head, dt, everywhere):
-        """Her registry (`g['registry']`) `dt` s on and the look `looks` into it from her `head` at `g['t']`."""
+    def start(self, g, looks, head, dt, everywhere, at=None):
+        """Her registry (`g['registry']`) `dt` s on and the look `looks` into it from her `head`, taken `at` s
+        (`g['t']` without)."""
         registry.passed(g['registry'], head, dt)
-        registry.seen(g['registry'], looks, head, g['t'], everywhere=everywhere)
+        registry.seen(g['registry'], looks, head, g['t'] if at is None else at, everywhere=everywhere)
         self._things, self.pending = registry.boxes(g['registry']), True
 
     def join(self):
@@ -81,7 +97,7 @@ class Apart:
         self._aside, self.pending, self._looks = aside.Aside('machine.eyes.vision', 'her vision'), False, []
         self._things = None
 
-    def start(self, g=None, looks=(), head=None, dt=0.0, everywhere=True):
+    def start(self, g=None, looks=(), head=None, dt=0.0, everywhere=True, at=None):
         """`Here.start` asked of its process - the look in flight before it dropped -; `g` None, its process spawned."""
         self._aside.start()
         if g is None:
@@ -90,8 +106,8 @@ class Apart:
             self.join()
         assert head is not None, 'a look is asked from her head'
         # her head as floats, its arrays laid anew there (`main`): two arrays pickled were most of an ask's 37 us
-        self._aside.send(('look', _laid(g), self._changed(looks), len(looks),
-                          (tuple(head['pos'].tolist()), tuple(head['quat'].tolist())), g['t'], dt, everywhere))
+        self._aside.send(('look', _laid(g), self._changed(looks), len(looks), (tuple(map(float, head['pos'])),
+                          tuple(map(float, head['quat']))), g['t'] if at is None else at, dt, everywhere))
         self.pending = True
 
     def _changed(self, looks):

@@ -102,22 +102,23 @@ def test_her_lodge_looks_in_c_as_in_numpy(report, c):
     changer = vision.Apart.__new__(vision.Apart)
     changer._looks = []
 
-    def beside(self, g, looks, head, dt, everywhere):
+    def beside(self, g, looks, head, dt, everywhere, at=None):
         twin, apart_ = twins.get(id(g['registry']), (None, None))
         if twin is None:
             twin, apart_ = twins[id(g['registry'])] = registry.laid(twin=True), (registry.laid(), {'looks': []})
+        t = g['t'] if at is None else at
         t0 = time.perf_counter()
-        start(self, g, looks, head, dt, everywhere)
+        start(self, g, looks, head, dt, everywhere, at)
         t1 = time.perf_counter()
         registry.passed(twin, head, dt)
-        registry.seen(twin, looks, head, g['t'], everywhere=everywhere)
+        registry.seen(twin, looks, head, t, everywhere=everywhere)
         t2 = time.perf_counter()
         changed, (slots, kept) = changer._changed(looks), apart_
         kept['looks'] = kept['looks'] if len(kept['looks']) == len(looks) else [None] * len(looks)
         for k, look in changed.items():
             kept['looks'][k] = look
         registry.passed(slots, head, dt)
-        registry.seen(slots, kept['looks'], head, g['t'], everywhere=everywhere, kept=kept, changed=changed)
+        registry.seen(slots, kept['looks'], head, t, everywhere=everywhere, kept=kept, changed=changed)
         spent[0].append(t1 - t0)
         spent[1].append(t2 - t1)
         apart, alike = _same(g['registry'], twin)

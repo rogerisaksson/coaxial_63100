@@ -17,15 +17,10 @@ import heapq
 import math
 import weakref
 
-from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, disparity
+from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np
 from machine.eyes.voxels import CELL_M, X_M, Z_M
-from machine.eyes import instances, voxels
+from machine.eyes import epipolar, gimbal, instances, squint, voxels
 
-#: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's,
-#: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
-#: down, a table's top was out of it nearer than 1.4 m and a chair's seat nearer than 1.9;
-#: FOVY_DEG high, W x H pixels (`machine.eyes.stereo`).
-EYES, DOWN_DEG = (0.05, 0.10, 0.09), 15.0
 #: A look's points every EVERY'th pixel each way: at 640 x 480 her map's 19 200 points a look as at 320 x 240
 #: every second - its cost theirs, 45 ms a look against 161 every second -, each point's depth twice as fine.
 EVERY = 4
@@ -74,7 +69,8 @@ def assets():
     """The `<asset>` block, a speckled texture and a material a kind, and the model's extent
     set to the room: the cameras clip nearer than a hundredth of it, and the floor's parked
     patches made it 10 km."""
-    out = ['<statistic extent="8" center="0 1 1"/>', '<asset>']
+    out = ['<statistic extent="8" center="0 1 1"/>', '<visual><global offwidth="%d" offheight="%d"/></visual>'
+           % (epipolar.FINE * W, epipolar.FINE * H), '<asset>']
     for kind, (a, b) in LOOKS.items():
         out.append('<texture name="%s" type="cube" builtin="flat" rgb1="%g %g %g" mark="random" '
                    'markrgb="%g %g %g" random="0.35" width="128" height="128"/>' % ((kind,) + a + b))
@@ -90,43 +86,30 @@ def lights():
             % at for at in ((-1.5, 0.0), (1.5, 0.0), (-1.5, 2.5), (1.5, 2.5))]
 
 
-def cameras():
-    """Her eyes in the head's body: each looks along the head's z, DOWN_DEG under it, x to
-    her right."""
-    x, y, z = EYES
-    up = (math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG)))
-    return ['<camera name="eye_%s" pos="%g %g %g" xyaxes="-1 0 0 0 %g %g" fovy="%g"/>'
-            % ((side, sx, y, z) + up + (FOVY_DEG,))
-            for side, sx in (('left', x), ('right', x - BASELINE_M))]
-
-
 def focal():
     """The focal length, px."""
     return (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
 
 
-#: The left eye's frame in the head's (`cameras`' xyaxes): x her left, y up and DOWN_DEG forward, z back.
-_EYE_R = ((-1.0, 0.0, 0.0), (0.0, math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG))),
-          (0.0, math.sin(math.radians(DOWN_DEG)), -math.cos(math.radians(DOWN_DEG))))
-
-
-def eye_pose(head):
-    """(the left eye's place, its rotation) in the frame her `head` {pos, quat} is given in."""
+def eye_pose(head, turn=None, at=gimbal.EYES):
+    """(the left eye's place `at`, the frame `turn` (3, 3) - her eye's at rest by default -, both in her head's) in
+    her `head`'s {pos, quat} frame."""
     np = _np()
     w, x, y, z = head['quat']
     R = np.array([[1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - w * z), 2.0 * (x * z + w * y)],
                   [2.0 * (x * y + w * z), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z - w * x)],
                   [2.0 * (x * z - w * y), 2.0 * (y * z + w * x), 1.0 - 2.0 * (x * x + y * y)]])
-    return np.asarray(head['pos'], float) + R @ np.array(EYES), R @ np.array(_EYE_R).T
+    return np.asarray(head['pos'], float) + R @ np.asarray(at, float), R @ (gimbal.mounted() if turn is None else turn)
 
 
 class Seen:
 
     """One look: both eyes' images (H, W, 3) uint8 and the left eye's pose - the renderer's, till
-    `Keep.look` lays hers."""
+    `Keep.look` lays hers -, its pictures' lay (`epipolar.Laid`'s beta, fv, baseline)."""
 
-    def __init__(self, left, right, at, turn):
+    def __init__(self, left, right, at, turn, lay=None):
         self.left, self.right, self.at, self.turn = left, right, at, turn
+        self.lay = (0.0, focal(), BASELINE_M) if lay is None else lay
 
 
 def _closed(eyes):
@@ -143,8 +126,9 @@ class Eyes:
 
     def __init__(self, world):
         import mujoco
-        self.renderer = mujoco.Renderer(world.model, H, W)
+        self.renderer = mujoco.Renderer(world.model, epipolar.FINE * H, epipolar.FINE * W)
         self.ids = {side: world.model.camera('eye_%s' % side).id for side in ('left', 'right')}
+        self.squint, self.laid, self.held = squint.Squint(), None, {'left': (0.0, 0.0), 'right': (0.0, 0.0)}
         atexit.register(_closed, weakref.ref(self))
 
     def close(self):
@@ -163,13 +147,25 @@ class Eyes:
         return Seen(shots['left'], shots['right'], d.cam_xpos[i].copy(),
                     d.cam_xmat[i].reshape(3, 3).copy())
 
-    def stereo(self, world, head):
-        """A look's frame (seen, disparity, kept): both eyes matched (`disparity`), laid at her `head`
-        {pos, quat} as her estimate has it - on the CPU too: CI's runner (Mesa's frames) told no chair from the
-        renderer's own depth (`shot`), 4.13 m off, and one from her match."""
-        seen = self.see(world)
-        seen.at, seen.turn = eye_pose(head)
-        return (seen,) + tuple(disparity(seen.left, seen.right))
+    def stereo(self, world, head, gz=(0.0, 0.0), held=None):
+        """A look's frame (seen, disparity, kept) at her servos' gaze `gz`: both eyes' pictures laid by their turns and
+        places as her calibration told her them - each gimbal where its pushrods' play leaves it by how she turned them
+        (`held`: her own, each command's, `gaze.held`; else played from the last look's) -, her right eye's as her
+        pictures told her past it (`squint.Squint`), and matched
+        (`epipolar.matched`), told on by the look; at her `head` {pos, quat} as her estimate has it - on the CPU too: CI's
+        runner (Mesa's frames) told no chair from the renderer's own depth (`shot`), 4.13 m off, and one from her match."""
+        seen, start = self.see(world), None
+        self.held = dict(held) if held is not None else {
+            s: gimbal.played(self.held[s], gimbal.angles(s, gz, True), s, True) for s in ('left', 'right')}
+        (lr, lc), (told, rc) = [(gimbal.eye(s, a, True), gimbal.place(s, a, True)) for s, a in self.held.items()]
+        for _ in range(2):
+            rr = told @ self.squint.turn()
+            left, right, disp, kept, laid = epipolar.matched(seen.left, seen.right, lr, rr, rc - lc)
+            start, again = self.squint.told(laid, left, right, disp, kept, lr, rr, rc - lc, gz, start)
+            if not again:
+                break
+        self.laid = laid
+        return Seen(left, right, *eye_pose(head, laid.E, lc), lay=(laid.beta, laid.fv, laid.B)), disp, kept
 
     def shot(self, world, head):
         """A look's frame (seen, disparity, kept) as her fake camera gives it (`machine.eyes.camera`): the left
@@ -177,19 +173,27 @@ class Eyes:
         pixel within REACH_M kept, laid at her `head` {pos, quat} as her estimate has it."""
         np = _np()
         self.renderer.update_scene(world.data, camera=self.ids['left'])
-        left, z = self.renderer.render().copy(), self.truth(world)
+        left, z = np.rint(_area(self.renderer.render())).astype(np.uint8), self.truth(world)
         kept = z < REACH_M
-        return Seen(left, None, *eye_pose(head)), np.where(kept, focal() * BASELINE_M / np.maximum(z, 1e-6), 0.0), kept
+        at = gimbal.place('left', (0.0, 0.0), True)
+        return (Seen(left, None, *eye_pose(head, gimbal.mounted('left', True), at)),
+                np.where(kept, focal() * BASELINE_M / np.maximum(z, 1e-6), 0.0), kept)
 
     def truth(self, world):
-        """The left eye's depth from the renderer's own buffer, m: the measure to hold the
-        stereo to, never hers."""
+        """The left eye's depth from the renderer's own buffer, m, each pixel its area's mean (`_area`): the
+        measure to hold the stereo to, never hers."""
         self.renderer.enable_depth_rendering()
         try:
             self.renderer.update_scene(world.data, camera=self.ids['left'])
-            return self.renderer.render().copy()
+            return _area(self.renderer.render())
         finally:
             self.renderer.disable_depth_rendering()
+
+
+def _area(a):
+    """(H, W, ..) float: a finer picture's (`epipolar.FINE`) pixels' means, each of hers its area's."""
+    f = epipolar.FINE
+    return _np().asarray(a, float).reshape((H, f, W, f) + a.shape[2:]).mean(axis=(1, 3))
 
 
 def depth(disp):
@@ -199,15 +203,11 @@ def depth(disp):
 
 def points(seen, disp, kept, every=EVERY):
     """World (x, y, z), colours (r, g, b) and pixels (row, col) of the kept pixels, every
-    `every`th row and column."""
+    `every`th row and column (`epipolar.points`)."""
     np = _np()
-    f = focal()
     rows, cols = np.indices((H, W))
     sel = kept & (rows % every == 0) & (cols % every == 0)
-    z = depth(disp[sel])
-    x = (cols[sel] - W / 2.0) / f * z
-    y = -(rows[sel] - H / 2.0) / f * z
-    cam = np.stack([x, y, -z], axis=1)
+    cam = epipolar.points(rows[sel], cols[sel], disp[sel], *seen.lay)
     return cam @ seen.turn.T + seen.at, seen.left[sel].astype(np.float32) / 255.0, rows[sel], cols[sel]
 
 

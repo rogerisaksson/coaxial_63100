@@ -106,8 +106,8 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 CONTROLLER = 'test_controller.py'
 
 #: The gynoid's body on fantasy boards, their SOA never binding: her clothes, her look, her
-#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes; her fake camera.
-GYNOID, WBC, SIGHT, CAMERA = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py'
+#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes; her fake camera; her gaze.
+GYNOID, WBC, SIGHT, CAMERA, GAZE = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py', 'test_gaze.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.stack.wrench`; the closed chains'.
 WBC_CORE, LEAP, WRENCH, CHAIN = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py', 'test_chain.py'
@@ -173,6 +173,8 @@ BUSES = 'test_buses.py'
 WEAR = 'test_wear.py'
 #: Her errands on her loop: a stop that settles, F heard, a scene laid anew and walked at once.
 ERRANDS = 'test_errands.py'
+#: Her docks foreseen on her page: the bed's long side and its foot, on the world's boxes and on her eyes.
+DOCKS = 'test_docks.py'
 #: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
 #: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
@@ -204,8 +206,8 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                                 BOOT_CORE, BOOT_CLIENT,
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
-                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, CHAIN, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS,
+                   BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
+                   WBC_CORE, LEAP, WRENCH, CHAIN, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -231,6 +233,7 @@ JOINS = (
     (12, GYNOID),
     (12, SIGHT),
     (12, CAMERA),
+    (12, GAZE),
     (12, REACH),
     (12, TERMS),
     (12, GVS),
@@ -260,6 +263,7 @@ JOINS = (
     (12, BUSES),
     (12, WEAR),
     (12, ERRANDS),
+    (12, DOCKS),
     (12, WRENCH),
     (12, CHAIN),
     (12, CYCLIC),

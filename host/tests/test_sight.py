@@ -1,5 +1,5 @@
-"""Her eyes (`machine.eyes.sight`): the stereo's depth held to the renderer's own on one look into the
-room; a look round, posed standing, into her map (`machine.eyes.voxels`), its occupied cells against the
+"""Her eyes (`machine.eyes.sight`; her stereo's depth held to the renderer's own in test_gaze): a look
+round, posed standing, into her map (`machine.eyes.voxels`), its occupied cells against the
 room's walls and things, the chair, the table and the bed told where they stand by what they afford
 her (`machine.way.affordance`), the bed's turn with it; a way to the chair planned round what she knows,
 clear of it all; the page's picture of her view (`coaxial.graphics.inset`); her way round the lodge's
@@ -15,9 +15,8 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 from machine.eyes import voxels
 
-#: A look round is LOOKS looks, her heading posed a turn about; the stereo is held to the
-#: renderer out to STEREO_M, the room's depth: her map takes less (`sight.FAR_M`).
-LOOKS, STEREO_M = 25, 4.0
+#: A look round is LOOKS looks, her heading posed a turn about.
+LOOKS = 25
 
 
 def _room():
@@ -69,34 +68,6 @@ def _told_as(things, at):
     return '; '.join('%.2f m: up %.2f, half %s, sits %s, backed %s' % (d, t[1][1], np.round(t[2], 2).tolist(),
                                                                      affordance.sits(t, things), affordance.backed(t, things))
                      for d, t in near if d < 0.6) or 'nothing within 0.6 m'
-
-
-def test_the_stereo_holds_to_the_depth(report):
-    """One look from her stand: the depth from the two eyes' disparity against the renderer's
-    own, on the pixels kept."""
-    from machine.eyes import sight, stereo
-    body, world = _room()
-    try:
-        _stood(world)
-        eyes = sight.Eyes(world)
-        seen = eyes.see(world)
-        disp, kept = sight.disparity(seen.left, seen.right)
-        c_disp, c_kept = stereo.cpu_disparity(seen.left, seen.right)
-        both = kept & c_kept
-        truth = eyes.truth(world)
-        ok = kept & (truth > 0.3) & (truth < STEREO_M)
-        err = np.abs(sight.depth(disp)[ok] - truth[ok]) / truth[ok]
-        report.check('a twentieth of the pixels or more are kept', ok.mean() >= 0.05,
-                     '%.0f %%' % (100.0 * ok.mean()))
-        report.check('their depth is within 3 %% of the renderer\'s at the median, 10 %% at the '
-                     'ninth decile', np.median(err) < 0.03 and np.percentile(err, 90) < 0.10,
-                     'median %.1f %%, 90th %.1f %%' % (100 * np.median(err), 100 * np.percentile(err, 90)))
-        report.check('the card\'s disparity agrees with the CPU\'s within 0.05 px on 99 %% of pixels',
-                     (kept == c_kept).mean() > 0.99 and np.max(np.abs(disp[both] - c_disp[both])) < 0.05,
-                     '%.2f %% agree, max %.4f px' % (100.0 * (kept == c_kept).mean(),
-                                                     float(np.max(np.abs(disp[both] - c_disp[both])))))
-    finally:
-        body.close()
 
 
 def test_her_map_is_the_room(report):
@@ -403,7 +374,7 @@ def test_her_things_fill_her_registry(report):
         body.close()
 
 
-ROSTER = [test_her_map_is_the_room, test_the_stereo_holds_to_the_depth, test_her_way_walked_through,
+ROSTER = [test_her_map_is_the_room, test_her_way_walked_through,
           test_her_kinds_from_their_boxes, test_her_map_from_painted_furniture, test_her_things_fill_her_registry]
 
 

@@ -37,9 +37,9 @@ import numpy as np
 
 from machine.texts import kernel
 from machine.eyes import stacked
-from machine.eyes.sight import DOWN_DEG, EYES, FOVY_DEG
+from machine.eyes.gimbal import DOWN_DEG, EYES
 from machine.eyes.voxels import CELL_M, FAR_M, NEAR_M
-from machine.eyes.stereo import H, W
+from machine.eyes.stereo import FOVY_DEG, H, W
 
 _LAW = kernel.node('assimilate-semantic-quadrics', 'quadric-registry')
 _BLIND = kernel.node('specialize-with-blindspot-memory-persistence', 'blindspot-memory')
@@ -352,6 +352,9 @@ class Things(list):
     """`boxes`'s things, their centres, half sizes and rotations kept as arrays beside them (`schema.room`); a
     plain list pickled - her page is sent the things, not the arrays: their numbers Python's floats, the same values,
     her state's pickle 1.35 -> 0.21 ms."""
+
+    #: (centres, half sizes, rotations) as `things` laid them.
+    arrays: tuple
 
     def __reduce__(self):
         centre, half, R = (a.tolist() for a in self.arrays)

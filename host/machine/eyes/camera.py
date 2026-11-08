@@ -11,6 +11,7 @@ wall's pace: her loop waits on the camera only when it is slower than that.
     cam = Camera(world)                  # her eyes and her map apart
     cam.look(world, t, head)             # LOOK_S apart: the last look's things taken, this one's world sent
     things = cam.told()                  # [(kind, centre, half, turn, id, clear)] as `sight.told`'s
+    t, head, gz = cam.shown              # the time, her head and her gaze they were shot at, a look before
     view = cam.view()                    # (thumbnail, hulls) of the last look told (`sight.Keep.view`)
     cam.close()
 """
@@ -40,14 +41,15 @@ class _Posed:
         self.data = mujoco.MjData(self.model)
         self.eyes = sight.Eyes(self)
 
-    def shot(self, poses, placed, head):
-        """A look's frame of her world posed and laid so: her two eyes drawn and matched on the card
-        (`sight.Eyes.stereo`) - her stereo's own disparity, the renderer's depth never hers (`truth`)."""
+    def shot(self, poses, placed, head, gz=(0.0, 0.0), held=None):
+        """A look's frame of her world posed and laid so: her two eyes drawn and matched on the card, laid by her
+        servos' gaze `gz` as she holds her eyes at it (`held`, `sight.Eyes.stereo`) - her stereo's own disparity,
+        the renderer's depth never hers (`truth`)."""
         for name, a in poses.items():
             getattr(self.data, name)[...] = a
         for name, a in placed.items():
             getattr(self.model, name)[...] = a
-        return self.eyes.stereo(self, head)
+        return self.eyes.stereo(self, head, gz, held)
 
 
 def main():
@@ -57,10 +59,10 @@ def main():
     keep, kept = sight.Keep(), {}
 
     def took(ask):
-        binary, poses, placed, head = ask
+        binary, poses, placed, head, gz, held = ask
         if binary is not None:
             kept['world'] = _Posed(binary)
-        keep.took(*kept['world'].shot(poses, placed, head))
+        keep.took(*kept['world'].shot(poses, placed, head, gz, held))
         return sight.told(keep), keep.view(), keep.map.looks
     aside.serve(took, ready=([], None, 0))
 
@@ -75,19 +77,21 @@ class Camera:
         self._aside = aside.Aside('machine.eyes.camera', "her camera's map apart").start()
         self._aside.heard(self._told_q)
         self.looked_at, self.sent, self.things, self.seen, self.looks = None, True, [], None, 0
-        self._binary_sent = False
+        self._binary_sent, self.shot, self.shown = False, None, None
 
-    def look(self, world, now, head):
+    def look(self, world, now, head, gz=(0.0, 0.0), held=None):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
-        takes it -, this one's world sent to be shot from her `head` {pos, quat} as her estimate has it -
-        her model's binary at the first -; whether one was."""
+        takes it -, `shown` the (time, head, gaze) they were shot at, none before a look's; this one's world sent to
+        be shot from her `head` {pos, quat} as her estimate has it at her gaze `gz`, her gimbals as she holds them
+        (`held`, `gaze.held`) - her model's binary at the first -; whether one was."""
         if self.looked_at is not None and now - self.looked_at < sight.LOOK_S:
             return False
         if self.sent:
             self.things, self.seen, self.looks = self._told()
         binary = None if self._binary_sent else _binary(world.model)
         self._said((binary, {k: getattr(world.data, k) for k in POSES}, {k: getattr(world.model, k) for k in PLACED},
-                    head))
+                    head, tuple(map(float, gz)), None if held is None else {s: tuple(map(float, a)) for s, a in held.items()}))
+        self.shown, self.shot = self.shot, (now, head, tuple(map(float, gz)))
         self.looked_at, self.sent, self._binary_sent = now, True, True
         return True
 

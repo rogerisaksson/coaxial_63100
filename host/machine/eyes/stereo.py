@@ -28,9 +28,14 @@ W, H, FOVY_DEG, BASELINE_M = 640, 480, 60.0, 0.12
 #: spread, the best's margin under the next.
 DISPARITIES = int(math.ceil((H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
 WINDOW, TEXTURE, UNIQUE = 9, 1.5, 1.15
-#: A pixel's census, px (columns, rows): a bit a neighbour darker than it, 62 of them. The aggregation's penalties,
-#: a step of one disparity along a path and of more, the customary ones on such a census.
-CENSUS, P1, P2 = (9, 7), 10, 120
+#: A pixel's census, px (columns, rows): a bit a neighbour darker than it past QUANTUM grey levels, another one
+#: brighter past it, 62 of each. The aggregation's penalties, a step of one disparity along a path and of more, the
+#: customary ones on such a census, its two planes'.
+CENSUS, P1, P2 = (9, 7), 20, 240
+#: A neighbour within this of a pixel's grey is told neither darker nor brighter: her pictures laid on her planes are
+#: rounded a grey level each (`epipolar.Laid.warped`) and a bit read on a level flipped - looked round four ways, her
+#: squinted eyes told 9 of the room's 20 seats and beds on one plane, 14 on two; square, 17 either way.
+QUANTUM = 1
 #: The paths aggregated, (dx, dy) a pixel each step, in this order on both the card and the CPU.
 PATHS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
 #: A grey in fixed point: the luma's weights in thousandths, rounded half up.
@@ -111,15 +116,18 @@ def _boxed(a, r, xp=None):
 
 
 def _census(g, xp):
-    """(H, W) uint64: each pixel's census (CENSUS), a bit a neighbour darker than it, edges clipped."""
+    """((H, W) uint64, (H, W) uint64): each pixel's census (CENSUS) - a bit a neighbour darker than it past QUANTUM,
+    a bit one brighter -, edges clipped."""
     rx, ry = CENSUS[0] // 2, CENSUS[1] // 2
     p = xp.pad(g, ((ry, ry), (rx, rx)), mode='edge')
-    code = xp.zeros((H, W), dtype=xp.uint64)
+    dark, bright = xp.zeros((H, W), dtype=xp.uint64), xp.zeros((H, W), dtype=xp.uint64)
     for dy in range(-ry, ry + 1):
         for dx in range(-rx, rx + 1):
             if dx or dy:
-                code = (code << xp.uint64(1)) | (p[ry + dy:ry + dy + H, rx + dx:rx + dx + W] < g).astype(xp.uint64)
-    return code
+                n = p[ry + dy:ry + dy + H, rx + dx:rx + dx + W]
+                dark = (dark << xp.uint64(1)) | (n < g - QUANTUM).astype(xp.uint64)
+                bright = (bright << xp.uint64(1)) | (n > g + QUANTUM).astype(xp.uint64)
+    return dark, bright
 
 
 def _aggregated(cost, xp):
@@ -170,11 +178,12 @@ def _array_disparity(left, right, xp, card=False):
     """Semi-global matching on array module `xp` (numpy or cupy); its paths on the card's kernel where `card`."""
     gl, gr = _grey(left, xp), _grey(right, xp)
     r = WINDOW // 2
-    cl, cr = _census(gl, xp), _census(gr, xp)
+    (dl, bl), (dr, br) = _census(gl, xp), _census(gr, xp)
     cost = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
     block = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
     for d in range(DISPARITIES):
-        cost[d, :, d:] = xp.bitwise_count(cl[:, d:] ^ cr[:, :W - d]).astype(xp.float32)
+        cost[d, :, d:] = (xp.bitwise_count(dl[:, d:] ^ dr[:, :W - d])
+                          + xp.bitwise_count(bl[:, d:] ^ br[:, :W - d])).astype(xp.float32)
         block[d, :, d:] = _boxed(xp.abs(gl[:, d:] - gr[:, :W - d]), r, xp).astype(xp.float32)
     total = _card_aggregated(cost, xp) if card else _aggregated(cost, xp)
     best = xp.argmin(total, axis=0)
@@ -230,10 +239,16 @@ def _gpu_solver():
         cp = importlib.import_module('cupy')
         if cp.cuda.runtime.getDeviceCount() > 0:
             solver = lambda left, right: tuple(cp.asnumpy(a) for a in _array_disparity(left, right, cp, card=True))
+            _SOLVER['cp'] = cp
     except Exception:
         solver = None
     _SOLVER['solver'] = solver
     return solver
+
+
+def card():
+    """CuPy where her stereo's card answers (`_gpu_solver`), None on the CPU: COAXIAL_GPU=0 or no card, CI's."""
+    return _SOLVER.get('cp') if _gpu_solver() is not None else None
 
 
 def disparity(left, right):
