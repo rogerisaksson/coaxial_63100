@@ -12,7 +12,7 @@ to after, the sole's fall and how far ahead it is; the load's peak; her hip's pa
 
 A spec is `key=value` pairs: `ax` the walk's axial target (init_walk's and WALK_ON's), `rock` a
 factor on the walk stream's foot rock, `drive` its drive, `k` the stride spring's stiffness (`c` its
-damping, 0.2 k unsaid), `heel` deg, `heelrate` rad/s, `flatk`, `fold`, `dip`, `ls`, `rise` the stride's; `mhz`,
+damping, 0.2 k unsaid), `heel` deg, `heelrate` rad/s, `flatk`, `fold`, `dip`, `ls`, `rise`, `edge` rad the stride's; `mhz`,
 `mdrive`, `mturn`, `max` (its axial target) the march's (the jog behaviour's two phases); `sea` her ankle's series
 spring, N m/rad, `track` its rotor's torque loop (`gearbox.TRACK`), `wfold` the stack's knee fold weight
 (`wrench.W_FOLD`). `--play 'W12 -3'` marches her.
@@ -42,7 +42,7 @@ def literal(src, key, start=0):
 
 def arranged(spec):
     """The texts and the stride's numbers as `spec` has them: the texts edited (`tune.given`), or None."""
-    from machine.law import se2, stride
+    from machine.law import rocker, se2, stride, vault
     from machine.texts import ortho, tune
     texts = tune.texts()
     GAIT, POSTURES = (next(k for k in texts if os.path.normcase(os.path.abspath(k)) == os.path.normcase(p)) for p in (GAIT_PATH, POSTURES_PATH))
@@ -75,10 +75,14 @@ def arranged(spec):
         edits[(GAIT, j, z)] = float(spec['k'])
         j, z, _ = literal(gait, '(damping mode_axial_compression ')
         edits[(GAIT, j, z)] = float(spec.get('c', 0.2 * float(spec['k'])))
+    # a stride constant is bound by name where rocker and vault import it: set in each (the C table takes stride's)
     for key, name, scale in (('heel', 'HEEL_RAD', math.pi / 180.0), ('heelrate', 'HEEL_RAD_S', 1.0), ('flatk', 'FLAT_K', 1.0),
-                             ('fold', 'FOLD_RAD', 1.0), ('dip', 'DIP_M', 1.0), ('ls', 'LAND_SHARE', 1.0), ('rise', 'RISE_U', 1.0)):
+                             ('fold', 'FOLD_RAD', 1.0), ('dip', 'DIP_M', 1.0), ('ls', 'LAND_SHARE', 1.0), ('rise', 'RISE_U', 1.0),
+                             ('edge', 'EDGE_RAD', 1.0)):
         if key in spec:
-            setattr(stride, name, scale * float(spec[key]))
+            for mod in (stride, rocker, vault):
+                if hasattr(mod, name):
+                    setattr(mod, name, scale * float(spec[key]))
     if 'swing' in spec:
         stride.SWING = float(spec['swing'])
         stride.PHI_W = math.pi * stride.SWING
