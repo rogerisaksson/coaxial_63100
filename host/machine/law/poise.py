@@ -94,7 +94,8 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # cm from the other, her ZMP in the other took it further off and the sole went up
     # and down on its ball. One its stride has off leaves so too once its heel is up as far as a
     # woman's as her toes leave (`toes`): kept down to its swing, at 1.08 m/s its knee went from
-    # 28 to 16 deg in 57 ms, and its swing's start reversed it - her hip at its emergency clamp
+    # 28 to 16 deg in 57 ms, and its swing's start reversed it - her hip at its emergency clamp;
+    # kept down till its toes bore nothing instead, its heel's rise pressed them and it never left
     out_up = BIG * (up > LIFT_EPS)[:, None]
     lo_b, hi_b = spanned(low + out_up, high - out_up, prop)
     within = ((zmp >= lo_b - GATE_M) & (zmp <= hi_b + GATE_M)).all(axis=1)

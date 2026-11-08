@@ -3,12 +3,14 @@
 The rotor runs free across the play, winds the box and the structure up past it against the
 mesh's friction, and the link is turned by that wind-up alone - every driven joint's box while
 `physics.BOXED`, else the joints' with a spring in series (`drives.series`: her ankle's leaf), the
-rest rigid (`sprung`).
+rest rigid (`sprung`). A sprung joint's board closes its torque loop on what it has - its rotor's
+encoder, its phase current and the link's rate as the law's chain has it, nothing across the leaf -:
+an observer of the torque its box passes on, the box's own model taking its damping and mesh off it.
 
     boxes = Boxes(np, boxed)                            # the numbers a joint (`machine.body.drives`)
     passed = boxes.step(np, ctrl, q, qd, brake, dt)     # the links' torques; the rotors stepped on
     boxes.moved(q)                                      # the links where the world's step left them
-    boxes.delta, boxes.w                                # each rotor's angle past its link, its speed
+    boxes.delta, boxes.w, boxes.hat                     # each rotor's angle past its link, its speed, its board's estimate
 """
 import math
 
@@ -18,11 +20,26 @@ from machine.body.figure import JOINTS
 #: A board's torque counts as taking up the play from this, N m (`ahead`).
 PLAY_NM = 1.0
 
-#: A series spring's torque loop (`drives.series`): its rotor driven TRACK times the command's shortfall
-#: against the spring's torque past the command, the spring's damping raised with it - a board on the
-#: two encoders either side of the leaf. 0 the drive's torque alone on the rotor: her ankle's leaf wound
-#: under 1.24 of her weight in a walking turn unwound as the load left and threw her into the air.
+#: A series spring's torque loop (`drives.series`, `Boxes.step`): its rotor driven TRACK times the
+#: command's shortfall against the spring's torque as the board has it, and the box's damping at the
+#: spring's winding rate the command's rate asks less the rotor's rate past the link's (a PD, its time
+#: the box's own c/k), the drive clipped to the board's peak. 0 the drive's torque alone on the rotor,
+#: the built leaf's (1040 N m/rad; under 1.24 of her weight in a walking turn it unwound as the load
+#: left and threw her into the air). 12 the leaf at the text's 0.55 M g L (143 N m/rad): a P loop on
+#: the leaf alone at 3 had the push-off's 60 N m 60-75 ms late (the rotor winding 17.6 deg at 6
+#: rad/s, her hip past its clamp 197 times in 6 s) and fell at 5-15 unclipped; at 12 she walks (46
+#: passes, v 1.19), marches (72, v 1.34), turns (0) and sprints (58), her leaf storing 11-12 J a step,
+#: the moves play falling in its march's stop. On the built leaf 12 is 33 passes for 0 unlooped.
 TRACK = 0.0
+#: The board's observer of the torque its box passes on runs this many times faster than the loop's
+#: own mode (sqrt(k (1 + TRACK) / J)), 1/s: its rotor's generalized momentum J w against the integral
+#: of its own drive less that estimate, no rate of w differenced. At 143 N m/rad and TRACK 12 that is
+#: 180 1/s: at 1500 the ask's 3 ms steps went through to her hip (203 passes, she fell) and the lead
+#: that cancels the observer's pole (0.6 of it) 82; slower, 100 fell in the walk's stop and 60 was 54.
+#: On the built leaf 180 fell at 4.7 s (its mode 174 1/s lagged into a swing), 400 walked, 1500 53.
+OBSERVE_X = 2.3
+#: The command's rate is read through this first-order lag, s: a pass's step spread over the world's steps.
+RATE_S = 0.005
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
 #: the world's step: at one on the knee's 6.2 kN m/rad and 0.177 kg m^2 (187 rad/s, 0.19 of a
 #: step) the rotor's mode grew faster than its damping took it and she fell rising.
@@ -35,8 +52,10 @@ class Boxes:
     wind-up past it, N m/rad (`drives.wind`) - in series with the joint's spring where it has one
     (`drives.series`) -, and its damping, N m s/rad (`drives.BOX_ZETA`); the mesh's friction, N m
     (`drives.mesh`); the rotor's inertia, kg m^2 (`drives.armature`, off the joint's armature while
-    stepped); the rotor's angle past the link's and its speed; `sprung` which joints are stepped:
-    every driven one `boxed`, else those with a spring."""
+    stepped); the rotor's angle past the link's and its speed; the board's estimate of the torque
+    its box passes on (`hat`), its observer's rate (`observe`, OBSERVE_X) and integral, its last
+    drive, the command and its rate (RATE_S), the board's peak (`drives.peak`); `sprung` which
+    joints are stepped: every driven one `boxed`, else those with a spring."""
 
     def __init__(self, np, boxed=False):
         self.driven = np.array([drives.passive(j) is None for j in JOINTS])
@@ -48,15 +67,21 @@ class Boxes:
         self.j = np.array([drives.armature(j) for j in JOINTS])
         self.c = 2.0 * drives.BOX_ZETA * np.sqrt(self.k * self.j)
         self.track = TRACK * (self.series > 0.0)
+        self.observe = np.where(self.sprung, OBSERVE_X * np.sqrt(self.k * (1.0 + self.track) / np.maximum(self.j, 1e-9)), 0.0)
         self.mesh = np.array([drives.mesh(j) for j in JOINTS])
         self.shock = np.array([drives.shock(j) for j in JOINTS])
+        self.peak = np.array([drives.peak(j) if drives.passive(j) is None else 0.0 for j in JOINTS])
         self.delta, self.w, self.zero = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
         self.held, self.q_was = math.radians(drives.RIGID_PLAY_DEG) / 2.0, np.zeros(len(JOINTS))
         self.q_step, self.went = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.hat, self.p_int, self.drive = np.zeros(len(JOINTS)), np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
+        self.asked, self.rate = np.zeros(len(JOINTS)), np.zeros(len(JOINTS))
 
     def reset(self, q):
-        """Every rotor on its joint at `q`, still: a board's encoder reads its hold there."""
+        """Every rotor on its joint at `q`, still, its board's observer at rest: a board's encoder
+        reads its hold there."""
         self.delta[:] = self.w[:] = self.zero[:] = 0.0
+        self.hat[:] = self.p_int[:] = self.drive[:] = self.asked[:] = self.rate[:] = 0.0
         self.q_was[:] = q
 
     def rigid(self, np, q):
@@ -81,22 +106,34 @@ class Boxes:
         added (c + mesh / MESH_RAD_S) dt qdd to a drive's torque, 0.13 kg m^2 at the waist -:
         what each box passes on - the wind-up past the play, its damping, the mesh's friction -,
         the rotors stepped `dt` on by what is left of their motors' torques against it, `brake`
-        each rotor's braking, N m s/rad (a short's), implicit; `moved` sets each rotor's angle
-        past its link right after."""
+        each rotor's braking, N m s/rad (a short's), implicit. A sprung joint's board drives its rotor
+        with the command, TRACK times the command's shortfall against the spring's torque - its
+        observer's (`hat`: the rotor's momentum J w against the integral of the board's own drive
+        less the estimate, `observe`) less its box's damping and mesh at the rotor's rate past the
+        link's, `qd` the law's - and the box's damping at the spring's winding rate the command's rate
+        (RATE_S) asks less that rate, within its peak. `moved` sets each rotor's angle past its link
+        right after."""
         on = self.sprung
         j = np.where(on, self.j, 1.0)
+        k = np.maximum(self.k, 1.0)
         h = dt / SUBSTEPS
         mean = np.zeros(len(ctrl))
         self.q_step, self.went = q.copy(), dt * qd
-        lim = self.gap + self.shock / np.maximum(self.k, 1.0)
+        lim = self.gap + self.shock / k
+        self.rate += (dt / RATE_S) * ((ctrl - self.asked) / dt - self.rate)
+        self.asked = ctrl.copy()
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
             passed = np.where(past != 0.0, self.k * past + self.c * rel
                               + self.mesh * np.tanh(rel / MESH_RAD_S), 0.0)
             passed = np.where(on, np.clip(passed, -self.shock, self.shock), passed)
-            drive = ctrl + self.track * ((ctrl - self.k * past) - self.c * rel)
-            self.w = np.where(on, (self.w + h * (drive - passed) / j) / (1.0 + h * brake / j), qd)
+            self.p_int = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
+            self.hat = self.observe * (self.p_int - j * self.w)
+            spring = self.hat - self.c * rel - self.mesh * np.tanh(rel / MESH_RAD_S)
+            drive = ctrl + self.track * ((ctrl - spring) + self.c * (self.rate / k - rel))
+            self.drive = np.where(on, np.clip(drive, -self.peak, self.peak), ctrl)
+            self.w = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
             self.delta = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
             mean += passed / SUBSTEPS
         return np.where(on, mean, ctrl)
