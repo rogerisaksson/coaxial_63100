@@ -1,4 +1,4 @@
-"""A handover row's sums beyond its landings: the double support's load planning, an ensemble's summary.
+"""A handover row's sums past its landings: the double support's load planning, an ensemble's summary.
 
     row.update(handovers.planned(A, at, dt, fwd, b10, landed))   # the plan's loads against the sensed, medians
     print(handovers.ensemble(spec, rows))                        # one line for a spec's runs over ENSEMBLE
