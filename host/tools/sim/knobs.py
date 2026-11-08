@@ -88,6 +88,9 @@ def arranged(spec):
     if 'rates' in spec:
         from machine.body import gearbox
         gearbox.RATE_S = float(spec['rates'])
+    if 'charge' in spec:
+        from machine.process import worker
+        worker.HOP_CHARGE = float(spec['charge'])
     if 'wfold' in spec:
         from machine.stack import wrench
         wrench.W_FOLD = float(spec['wfold'])

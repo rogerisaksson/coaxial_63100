@@ -186,7 +186,7 @@ def _apply_say(g, gym, by, command, errand_step):
     if entry is None:
         return
     if entry[0] == 'hop' and 'charge' not in command and g.get('_jump_until', 0.0) <= g['t']:
-        g['_hop_charge'] = 0.0
+        g['_hop_charge'] = HOP_CHARGE
     if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
         g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
         g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
@@ -259,6 +259,8 @@ def told_floor(g, profile):
     fr[modal.MAP_N] = float(len(pts))
 
 
+#: A hop's charge, 0 to 1, when a `hop` is said without one (the page says it with; tools/sim/knobs.py `charge`).
+HOP_CHARGE = 0.0
 #: A pass of her world, s; her drives' torque, power and watts averaged over AVERAGE_S; a wear
 #: window's passes.
 DT = 1.0 / sprung.RATE_HZ
