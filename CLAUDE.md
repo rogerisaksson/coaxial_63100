@@ -168,6 +168,7 @@ Evaluate the prompt and working tree before invoking any tool:
      type faults, and zero compiler warnings on target C builds.
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
+     No monkeypatching allowed. 
 - **Post-Push Teardown (Worktree & Branch Cleanup):**
   Immediately after committing and pushing the verified changes, remove any
   temporary git worktrees (`git worktree remove` followed by `git worktree
