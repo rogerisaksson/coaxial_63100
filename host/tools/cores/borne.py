@@ -29,7 +29,7 @@ class Borne(ctypes.Structure):
 
     _fields_ = ([(name, _i) for name in ('skin', 'above', 'n', 'nv', 'touch_at', 'at_at', 'give_at', 'nrm_at', 'pelvis',
                                          'carpal', 'let', 'role_spare')]
-                + [('sole', _i * 2)] + [(name, _i * SKIN) for name in ('ids', 'order', 'hand', 'right', 'thigh', 'caps')]
+                + [('sole', _i * 2)] + [(name, _i * SKIN) for name in ('ids', 'order', 'hand', 'right', 'caps')]
                 + [('cap_r', (_d * CAPS) * SKIN), ('cap_a', ((_d * 3) * CAPS) * SKIN), ('cap_b', ((_d * 3) * CAPS) * SKIN)]
                 + [(name, _d) for name in ('bears_n', 'seat_x', 'g_down')]
                 + [(name, _vp) for name in ('xmat', 'xpos', 'm', 'd', 'jac', 'jac_dot', 'blas')]
@@ -75,8 +75,7 @@ def laid(b):
     t.sole[:] = [touch.SOLES[k][0] for k in (0, 1)]
     ids, right = borne.laid(b).tolist(), set(borne.HANDS[len(touch.ARMS[0]):].tolist())
     for k, caps in enumerate(borne.CAPSULES):
-        t.ids[k], t.hand[k], t.right[k], t.thigh[k], t.caps[k] = (ids[k], k in borne.HANDS, k in right,
-                                                                  k in borne.THIGHS, len(caps))
+        t.ids[k], t.hand[k], t.right[k], t.caps[k] = ids[k], k in borne.HANDS, k in right, len(caps)
         for c, (r, a, e) in enumerate(caps):
             t.cap_r[k][c], t.cap_a[k][c][:], t.cap_b[k][c][:] = r, a.tolist(), e.tolist()
     t.order[:t.above] = borne.ABOVE.tolist()

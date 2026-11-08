@@ -29,7 +29,6 @@ typedef struct
   int                    order[WBC_BORNE_SKIN];     /* borne.ABOVE, in its order */
   int                    hand[WBC_BORNE_SKIN];      /* 1 of borne.HANDS */
   int                    right[WBC_BORNE_SKIN];     /* 1 of her right arm's (HANDS past touch.ARMS[0]) */
-  int                    thigh[WBC_BORNE_SKIN];     /* 1 of borne.THIGHS */
   int                    caps[WBC_BORNE_SKIN];      /* each one's capsules */
   double                 cap_r[WBC_BORNE_SKIN][WBC_BORNE_CAPS];
   double                 cap_a[WBC_BORNE_SKIN][WBC_BORNE_CAPS][3], cap_b[WBC_BORNE_SKIN][WBC_BORNE_CAPS][3];

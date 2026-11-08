@@ -95,20 +95,26 @@
 ;; tau = t0 + Tx x + Tz zeta.
 ;; Least squares (each row weighed): the tasks' rows (turn-weight, swing-weight, twist-weight); a held contact's
 ;; stick rows at stick-weight - its normal's al_n + give (z_n - f_n) = -bleed v_n (its support gives as the force
-;; grows past what is felt), its tangents' al_t = -bleed v_t (its slip bled); a sled told a twist its normal row
-;; alone -; the forces regularised toward none, each contact's tangents at force-reg and its normal at normal-reg; x
+;; grows past what is felt); an anchor's tangents' al_t = -bleed v_t (its slip bled); her sled's tangents are its
+;; friction's within the pyramid, free, or pinned against the way told: no tangential lock (held still on a mattress
+;; her thighs locked her hip and knee against a leg swing) -; the forces regularised toward none, each contact's
+;; tangents at force-reg and its normal at normal-reg; x
 ;; damped at task-damping (Levenberg-Marquardt).
-;; Hard (A u <= b): z_n >= 0 every contact; al_n + give z_n >= -bleed v_n + give f_n every contact (it may leave its
-;; support faster than the give says, never sink into it faster); al_n <= -bleed v_n + give (f_n - z_n) + g (1 - z_n
-;; / (f_n + hold-n)) every contact - still, it carries no more than it feels and a patch's hold (the upright step's
-;; own growth rule), leaving its support less, sinking into its foam more, bearing none it may fall away at g: the
-;; convex face of complementarity, that a contact leaving its support pushes nothing (a sole felt at 10 N was planned
-;; at 262 N while leaving the floor at 8.7 m/s^2, a push the world never gave; scaled by her weight the law still let
-;; it carry 206) -; an eight-sided pyramid inscribed in its friction's
+;; Hard (A u <= b): al_n + give z_n >= -bleed v_n + give f_n every contact (it may leave its support faster than the
+;; give says, never sink into it faster); a held contact presses alone, z_n >= 0, with no cap on its growth (felt +
+;; hold-n was the upright step's GROW_N and froze a scoot's hands at what they felt); a free contact - its patch under
+;; hold-n, its foot told free, or let go - carries what it feels, z_n = f_n: no lever the world never gave (a sole felt
+;; at 10 N was planned at 262 N while leaving the floor at 8.7 m/s^2) -; an eight-sided pyramid inscribed in its friction's
 ;; cone for every contact with three unknowns, d_k . z_t <= mu cos(pi/8) z_n, d_k at k pi/4 (k = 0..7); her torques
 ;; within [lo, hi] (her clamps as derated, her back-EMF's); her joints' stops where asked (chain.stop_rows).
 ;; Solved by the dual active set warm from the last pass's held rows (machine.stack.qp.solve); where no u meets the
 ;; laws, the least squares alone and her torques shrunk as the upright step's (machine.stack.shrunk).
+;; Let go (complementarity pass by pass, from the plan's own multiplier - no release a text tells, no cap): a held
+;; contact whose row z_n >= 0 the dual held (the plan would pull on it) is let go next pass - free, it carries what it
+;; feels and may leave -, and stays let while the plan lifts it (its al_n > 0); its skin frees it as its force goes,
+;; and bearing hold-n again while the plan presses on it (al_n <= 0) it is held again. A held contact's soft normal
+;; row alone had glued her torso to a chair's back: no answer could leave it. Remembered a pass by its key (body,
+;; patch, ordinal), wbc_step_t.chain_let in C.
 (defun closed-chain-level-1 (maps rows bounds warm)
   "(u1, held1, met): level 1's answer, its held rows, whether the laws were met."
   (declare (ignore maps rows bounds warm))

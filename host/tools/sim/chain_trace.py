@@ -76,7 +76,7 @@ def bodily(g, m, d):
             float(d.qfrc_passive[act[driven.index(j)]])) for j in SHOWN) + ' limp %.2f' % se2.limp(g), flush=True)
 
 
-def kinematics(snap, g, m, d):
+def kinematics(snap, g, m, d, regime):
     """Her kinematics this pass through her introspection's snapshot (`introspect.Tap`): her pelvis's speed along
     its way and up against the twist told (m/s), her arms' joints - angle, speed and its peak since the last
     snapshot (deg, deg/s; `body`) -, and for each what her step meant to do against what her world did (deg/s^2,
@@ -85,21 +85,24 @@ def kinematics(snap, g, m, d):
     from machine.stack import chain
     body, got = snap['body'], g.get('got', {})
     way = chain.ways(g['s']['turns'][0]['quat'])[2] if g.get('s') else np.array([0.0, 0.0, 1.0])
-    vel = np.asarray(d.qvel[:3], float)
-    print('       kin    pelvis along %+.3f up %+.3f m/s (told %+.2f) | base plan %+5.1f %+5.1f %+5.1f world %+5.1f %+5.1f %+5.1f m/s^2' % (
-        float(vel @ way), float(vel[1]), float(g.get('ask', {}).get('twist', (0.0,))[0]),
-        *(np.asarray(got.get('qacc', np.zeros(3)))[:3].tolist() if 'qacc' in got else (math.nan,) * 3),
-        *np.asarray(d.qacc[:3], float).tolist()), flush=True)
+    vel, acc = np.asarray(d.qvel[:3], float), np.asarray(d.qacc[:3], float)
+    plan = np.asarray(got['qacc'], float)[:3] if 'qacc' in got else np.full(3, math.nan)
+    print('       kin    pelvis along %+.3f up %+.3f m/s (told %+.2f) | base along plan %+5.2f world %+5.2f, up plan %+5.2f world %+5.2f m/s^2 | let %d' % (
+        float(vel @ way), float(vel[1]), float(g.get('ask', {}).get('twist', (0.0,))[0]), float(plan @ way), float(acc @ way),
+        float(plan[1]), float(acc[1]), len(getattr(g['body'], 'chain_let', ()))), flush=True)
     qadr, vadr = g['world'].qadr, g['world'].vadr
     from machine.body import drives
     from machine.senses.borne import CARPAL
     from machine.stack.shrunk import box
     b = g['body']
     driven = [n for n in body['angles'] if drives.passive(n) is None]
-    # the rows level 1 held: the laws' rows a contact (3, and 8 of its pyramid where its tangents are unknown), then
-    # her torques' bounds (nd each way): which drives sit on a bound
+    # the rows level 1 held: the laws' rows a contact (2 held or 3 free - `holds`, the step's -, and 8 of its pyramid
+    # where its tangents are unknown; `chain_qp.level1`), then her torques' bounds (nd each way): which drives sit on
+    # a bound
     contacts, twist = g.get('s', {}).get('contacts', ()), float(g.get('ask', {}).get('twist', (0.0,))[0])
-    laws = sum(3 + 8 * (not (int(c['body']) >= 0 and int(c.get('patch', 0)) < CARPAL and twist != 0.0)) for c in contacts)
+    holds = got.get('holds') or [True] * len(contacts)
+    laws = sum((2 if holds[i] else 3) + 8 * (not (int(c['body']) >= 0 and int(c.get('patch', 0)) < CARPAL and twist != 0.0))
+               for i, c in enumerate(contacts))
     held1, nd = (got.get('held') or ((), ()))[0], len(b.act)
     bound = sorted((i - laws) % nd for i in held1 if laws <= i < laws + 2 * nd)
     lo_hi = box(b, g['ask'])[1:] if g.get('ask') else (None, None)
@@ -133,10 +136,11 @@ def replayed(g, regime, flags):
     from machine.stack import chain
     b, sc, ask = g['_chain_in']
     m, load, warm = g['world'].model, np.array(b.load, copy=True), getattr(b, 'chain_warm', ((), ()))
+    let = set(getattr(b, 'chain_let', ()))
     try:
         got = chain.step(b, sc, ask, regime, *flags)
     finally:
-        b.load, b.chain_warm = load, warm
+        b.load, b.chain_warm, b.chain_let = load, warm, set(let)
     contacts = sc.get('contacts', ())
     names = [m.body(int(c['body'])).name if int(c.get('body', -1)) >= 0 else 'sole%d' % (-1 - int(c['body'])) for c in contacts]
     felt = {n: sum(float(c['f'][1]) for c, n2 in zip(contacts, names) if n2 == n) for n in set(names)}
@@ -153,24 +157,27 @@ def replayed(g, regime, flags):
     for c in contacts:
         by[c.get('patch', 0)] = by.get(c.get('patch', 0), 0.0) + float(np.linalg.norm(c['f']))
     order = sorted(range(len(contacts)), key=lambda i: -float(np.linalg.norm(contacts[i]['f'])))[:8]
+    way = chain.ways(sc['turns'][0]['quat'])[2] if sc.get('turns') else np.array([0.0, 0.0, 1.0])
+    holds = got.get('holds') or [True] * len(contacts)
     for i in order:
-        fl, zl = Q[i] @ np.asarray(contacts[i]['f'], float), Q[i] @ np.asarray(got['borne'][i], float)
+        fw, zw = np.asarray(contacts[i]['f'], float), np.asarray(got['borne'][i], float)
+        fl, zl = Q[i] @ fw, Q[i] @ zw
         # its normal acceleration as the step means to move it (+ out of its support): a force on a contact leaving
-        # its support is one the world never delivers
+        # its support is one the world never delivers; `way` each force's part along her sled's way, world
         an = float(Q[i, 0] @ (np.asarray(contacts[i]['J'], float) @ np.asarray(got['qacc'], float) + np.asarray(contacts[i]['dJv'], float)))
-        print('       frame  %-16s %s felt n %5.0f t %4.0f  step n %5.0f t %4.0f  a_n %+6.1f v_n %+.2f' % (
-            names[i], 'held' if by[contacts[i].get('patch', 0)] >= regime.hold else 'free', fl[0], np.hypot(fl[1], fl[2]),
-            zl[0], np.hypot(zl[1], zl[2]), an, vn[i]), flush=True)
+        print('       frame  %-16s %s felt n %5.0f t %4.0f  step n %5.0f t %4.0f  a_n %+6.1f v_n %+.2f  way felt %+4.0f step %+4.0f' % (
+            names[i], 'held' if holds[i] else 'free', fl[0], np.hypot(fl[1], fl[2]), zl[0], np.hypot(zl[1], zl[2]), an, vn[i],
+            float(fw @ way), float(zw @ way)), flush=True)
     print("       replay's laws %s, residual %.2g N, torques off the pass's %.2g N m" % (
         'met' if got.get('met') else 'NOT met', got['residual'],
         float(np.abs(np.asarray(got['tau']) - np.asarray(g['got']['tau'])).max())), flush=True)
     top = sorted(felt, key=lambda n: -felt[n])[:3]
     for what, kw in (('no posture', {'posture': 0.0}), ('no turns', {'turn': 0.0}), ('neither', {'posture': 0.0, 'turn': 0.0})):
         try:
-            let = chain.step(b, sc, ask, regime._replace(**kw), *flags)
+            gone = chain.step(b, sc, ask, regime._replace(**kw), *flags)
         finally:
-            b.load, b.chain_warm = load, warm
-        print('       replay %-10s ' % what + ' '.join('%s %.0f' % (nm, sum(float(let['borne'][i][1]) for i, n in enumerate(names)
+            b.load, b.chain_warm, b.chain_let = load, warm, set(let)
+        print('       replay %-10s ' % what + ' '.join('%s %.0f' % (nm, sum(float(gone['borne'][i][1]) for i, n in enumerate(names)
                                                                       if n == nm)) for nm in top), flush=True)
 
 
@@ -229,7 +236,7 @@ def main(argv=None):
             last[0] = t
             m, d = g['world'].model, g['world'].data
             if kept[0] is not None and args.kin:
-                kinematics(kept[0], g, m, d)
+                kinematics(kept[0], g, m, d, regime)
             v = np.abs(d.qvel[6:]) * 180.0 / math.pi
             j = int(np.argmax(v))
             bodies = {}

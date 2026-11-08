@@ -68,9 +68,53 @@ static int freed(const wbc_step_t *p, int i)
   return foot >= 0 && p->chain_free[foot];
 }
 
-/** machine.stack.chain_qp.unknowns: each contact's width in zeta, S (3k x nz) zeta -> z in frames, its friction and
-    whether held still; nz returned. */
-static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, int *width, double *S, double *mu, int *held)
+/** machine.stack.chain_qp.keyed and the let set's reading: each contact's key (body, patch, ordinal among those of
+    both) and whether the plan let it go last pass (p->chain_let). */
+static void keyed(const wbc_step_t *p, int k, int key[][3], int *let)
+{
+  for (int i = 0; i < k; i++)
+  {
+    key[i][0] = p->cbody[i];
+    key[i][1] = p->cpatch[i];
+    key[i][2] = 0;
+    for (int j = 0; j < i; j++)
+    {
+      key[i][2] += (p->cbody[j] == p->cbody[i] && p->cpatch[j] == p->cpatch[i]);
+    }
+    let[i] = 0;
+    for (int j = 0; j < p->chain_nlet; j++)
+    {
+      let[i] = let[i] || (p->chain_let[j][0] == key[i][0] && p->chain_let[j][1] == key[i][1] && p->chain_let[j][2] == key[i][2]);
+    }
+  }
+}
+
+/** machine.stack.chain_qp.letting: the contacts let go for the next pass into p->chain_let - a held one whose row z_n
+    >= 0 (`zrow`) level 1 held, a let one (`let`) the plan still lifts (al_n > 0) -; complementarity pass by pass. */
+static void letting(wbc_step_t *p, int k, int key[][3], const int *holds, const int *let, const int *zrow, const double *al)
+{
+  p->chain_nlet = 0;
+  for (int i = 0; i < k; i++)
+  {
+    int active = 0;
+
+    for (int j = 0; j < p->chain_nheld[0]; j++)
+    {
+      active = active || p->chain_held[0][j] == zrow[i];
+    }
+    if ((holds[i] && active) || (let[i] && al[3 * i] > 0.0))
+    {
+      memcpy(p->chain_let[p->chain_nlet], key[i], sizeof(key[i]));
+      p->chain_nlet++;
+    }
+  }
+}
+
+/** machine.stack.chain_qp.unknowns: each contact's width in zeta, S (3k x nz) zeta -> z in frames, its friction,
+    whether it bears (its patch hold-n, its foot not told free) and whether held still (bearing, not `let`); nz
+    returned, `let` narrowed to the bearing. */
+static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, int *let, int *width, double *S, double *mu,
+                    int *held, int *sleds)
 {
   const int k = p->nc;
   int       nz = 0;
@@ -78,9 +122,10 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
 
   for (int i = 0; i < k; i++)
   {
-    const double *ci = p->cf[i];
-    const int     sled = p->cbody[i] >= 0 && p->cpatch[i] < p->carpal;
-    double        by = 0.0;
+    const int sled = p->cbody[i] >= 0 && p->cpatch[i] < p->carpal;
+    double    by = 0.0;
+
+    sleds[i] = sled;
 
     for (int j = 0; j < k; j++)
     {
@@ -88,8 +133,8 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
 
       by = by + (double)(p->cpatch[j] == p->cpatch[i]) * sqrt(cj[0] * cj[0] + cj[1] * cj[1] + cj[2] * cj[2]);
     }
-    (void)ci;
-    held[i] = by >= p->chain_hold_n && !freed(p, i);
+    let[i] = (by >= p->chain_hold_n && !freed(p, i)) && let[i];
+    held[i] = (by >= p->chain_hold_n && !freed(p, i)) && !let[i];
     mu[i] = sled ? p->chain_mu : p->chain_anchor_mu;
     width[i] = 3;
     if (sled && (slide[0] != 0.0 || slide[2] != 0.0))
@@ -272,6 +317,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   const wbc_blas_t *l = &p->blas;
   const int         nd = p->nd, k = k3 / 3;
   int               width[WBC_STEP_C], holds[WBC_STEP_C], hands[WBC_STEP_C], nh = 0, ma, nu;
+  int               key[WBC_STEP_C][3], let[WBC_STEP_C], zrow[WBC_STEP_C], sled[WBC_STEP_C];
   double            mu[WBC_STEP_C];
   wbc_maps_t        m;
   double           *S = carve(w, k3 * k3 + 1), *H1, *g1, *G1, *A, *b, *u, *zl = carve(w, k3 + 1), *al = carve(w, k3 + 1);
@@ -281,8 +327,14 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   m.nd = nd;
   m.k3 = k3;
   m.m1 = m1;
-  m.nz = unknowns(p, Q, slide, width, S, mu, holds);
+  keyed(p, k, key, let);
+  m.nz = unknowns(p, Q, slide, let, width, S, mu, holds, sled);
   nu = nd + m.nz;
+  for (int i = 0, at = 0; i < k; i++)
+  {
+    zrow[i] = at;
+    at += (holds[i] ? 2 : 3) + (width[i] == 3 ? 8 : 0);
+  }
   affine(p, &m, held, Minv, Mpg, ng, rhs0, Jp, Jg, dJv, Q, S, RP, RG, r, MA, hA, JA, w);
   H1 = carve(w, nu * nu);
   g1 = carve(w, nu);
@@ -294,7 +346,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   {
     fv[rw] = p->cf[rw / 3][rw % 3];
   }
-  ma = wbc_chain_rows(p, &m, S, width, mu, holds, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
+  ma = wbc_chain_rows(p, &m, S, width, mu, holds, sled, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
   if (ma < 0)
   {
     return 1;
@@ -336,6 +388,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
     gap = fabs(zl[3 * i] < al[3 * i] ? zl[3 * i] : al[3 * i]);
     *residual = gap > *residual ? gap : *residual;
   }
+  letting(p, k, key, holds, let, zrow, al);
   mv(l, m.Px, x, qddP, np_, nd);
   for (int a = 0; a < np_; a++)
   {

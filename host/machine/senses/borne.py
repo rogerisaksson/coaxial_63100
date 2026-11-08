@@ -39,10 +39,6 @@ NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
 #: on them as far as it pushes up her pelvis (sat; lying on her back or side the two meet at the touch).
 #: One point, a seat held her roll by nothing: sat on her pelvis alone she rolled off at 2e-4 rad.
 PELVIS = edge.SKIN.index('pelvis')
-#: Her thighs and shanks: sat on a bed's edge with her hands asked behind her (`hands > 0`) or a leg released
-#: (`let_go`), her pelvis holds the bed; holding her legs still on the mattress (`wrench.W_STILL`) locked her
-#: hip and knee joints against her recline and leg swing.
-THIGHS = tuple(edge.SKIN.index(s + p) for s in ('left_', 'right_') for p in ('thigh', 'shank'))
 #: What bears her is a surface under her skin: a bearing point's room is its segment's capsule's radius round
 #: it along the floor (CAPSULES, `figure.BODY` by its name without its side; MuJoCo gives a capsule one
 #: contact point). Points alone, sat on her pelvis its box was the ischia's line and her centre of mass was
@@ -143,7 +139,9 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     none -, the closed chains' QP holding it giving so (`chain.gives_of`); her regime's own foam 27.9. Her drives'
     wind-up is no give of the contact's: her hand's push on a seat rises as the rotor winds the box up while the
     hand stays still, so the plan may plan it (counted as the contact's give it tied the hands' push to what they
-    felt and her bench fell from 3 of 6 met to 1)."""
+    felt and her bench fell from 3 of 6 met to 1). Her thighs and shanks on what bears her are contacts like her
+    pelvis (her sled's, `chain_qp.unknowns`): skipped while she sat, their static friction - 24 N against her
+    hands' 93 on a chair's seat - braked a scoot her plan believed it drove."""
     m, d, n = b.m, b.d, b.n
     ids = laid(b)
     pushes, at, nrms = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3), y[edge.NORMAL].reshape(-1, 3)
@@ -152,8 +150,6 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
     foot = {touch.SOLES[k][0]: k for k in (0, 1)}
     skin, handless = _SKINS.get(tuple(soled)) or _SKINS.setdefault(tuple(soled), _skin(soled))
     pushed, untold = skin[pushes[skin].any(axis=1)], set() if hands > 0.0 else set(skin[~handless].tolist())
-    pivot = bool(soled) and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N
-    ischial = pivot or (hands > 0.0 and (d.xmat[ids[PELVIS]].reshape(3, 3) @ pushes[PELVIS])[1] > BEARS_N)
     jp, jr = b.jacs
     for k in pushed:
         R = d.xmat[ids[k]].reshape(3, 3)
@@ -183,8 +179,6 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), dt=0.0):
         for share, local in _points(k, pushes[k], at[k]):
             p, room = d.xpos[ids[k]] + R @ local, _room(k, local)
             low, high = np.where(prop, np.minimum(low, p - room), low), np.where(prop, np.maximum(high, p + room), high)
-            if ischial and k in THIGHS:
-                continue
             b.mj.mj_jac(m, d, jp, jr, p, ids[k])
             J = jp[:, :n].copy()
             b.mj.mj_jacDot(m, d, jp, jr, p, ids[k])

@@ -53,7 +53,8 @@ def _step_typed():
                ('cbody', i * c), ('chain_w_turn', f), ('chain_w_swing', f), ('chain_w_posture', f), ('chain_turn_kp', f),
                ('chain_turn_kd', f), ('chain_posture_kp', f), ('chain_posture_kd', f), ('chain_w_twist', f), ('chain_twist_kd', f),
                ('chain_vx', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
-               ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2)]
+               ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2),
+               ('chain_let', (i * 3) * c), ('chain_nlet', i), ('chain_let_pad', i)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -151,6 +152,7 @@ def chain_laid(b, sensed=None, twin=False):
     k.chain_turn_kp, k.chain_turn_kd, k.chain_posture_kp, k.chain_posture_kd = said.tkp, said.tkd, said.pkp, said.pkd
     k.chain_w_twist, k.chain_twist_kd = said.twist, said.vkd
     k.chain_nheld[0] = k.chain_nheld[1] = 0
+    k.chain_nlet = 0
     k.quick = _quick(k, _step_typed()[1][1])
     return functools.partial(_stepped, k, _step_typed()[1][1], views)
 

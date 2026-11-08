@@ -131,7 +131,6 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
   const double     *pushes = y + b->touch_at, *at = y + b->at_at, *gives = y + b->give_at, *nrms = y + b->nrm_at;
   const wbc_blas_t *l = b->blas;
   int               skin[WBC_BORNE_SKIN + 2], soled[2], ns = 0, nk = 0;
-  double            fp[3];
 
   for (int k = 0; k < 2; k++)
   {
@@ -154,10 +153,6 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
     b->high[i] = -INFINITY;
   }
   b->nc = 0;
-  mv3(l, b->xmat + 9 * b->ids[b->pelvis], pushes + 3 * b->pelvis, fp);
-  const int pivot = ns > 0 && fp[1] > b->bears_n;
-  const int ischial = pivot || (hands > 0.0 && fp[1] > b->bears_n);
-
   for (int i = 0; i < nk; i++)
   {
     const int     k = skin[i];
@@ -253,10 +248,6 @@ int wbc_borne_read(wbc_borne_t *b, const double *y, const double *v, double weig
           b->low[j] = npminimum(b->low[j], p[j] - room[j]);
           b->high[j] = npmaximum(b->high[j], p[j] + room[j]);
         }
-      }
-      if (ischial && b->thigh[k])
-      {
-        continue;
       }
       if (b->nc >= WBC_BORNE_CONTACTS)
       {

@@ -28,7 +28,7 @@ from machine.senses.borne import CARPAL, LET
 from machine.stack import chain_qp
 from machine.stack.rounds import LEGS
 from machine.stack.shrunk import box, shrunk
-from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, G, turn_error
+from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
 #: The regime as its text says it (`closed-chain-regime`): level 2's damping m and level 1's on x, a contact's
 #: softness m/s^2 a N, a sticking contact's slip bled 1/s, her sled's friction and an anchor's, a patch held from N;
@@ -182,10 +182,12 @@ def gives_of(b, contacts, regime, compliant, tc=None):
 
 
 def step(b, s, ask, regime, stopped=False, compliant='sensed'):
-    """{tau, qacc, bears, cop, over, slack, held, borne, scale, residual, foreseen}: `ask` as `wrench.step` takes it, no
-    sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask, 1 where the QP
-    met its laws; `residual` the complementarity's; `foreseen` the base's and passive joints' accelerations the QP
-    counted on; `held` the rows it held, warm for the next pass (`b.chain_warm`). Her driven joints' accelerations, the
+    """{tau, qacc, bears, cop, over, slack, held, holds, borne, scale, residual, foreseen, met}: `ask` as `wrench.step`
+    takes it, no sole standing; `borne` each contact's force (k, 3), world; `scale` what her drives carry of the ask,
+    1 where the QP met its laws; `residual` the complementarity's; `foreseen` the base's and passive joints'
+    accelerations the QP counted on; `held` the rows it held, warm for the next pass (`b.chain_warm`); `holds` which
+    contacts it held (`chain_qp.unknowns`' bearing ones but those it let go last pass, `b.chain_let`: a held contact it
+    would have pulled on, a let one it still lifts - `chain_qp.letting`). Her driven joints' accelerations, the
     contacts' forces and so her torques solved as one (`chain_qp`); `stopped`: her joints' stops among the laws
     (`stop_rows`); `compliant`: what she holds giving (`gives_of`). Where no answer meets the laws, the least squares
     alone and her torques shrunk as the upright step's: toward nothing asked of her joints, then toward 0."""
@@ -211,17 +213,21 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     nh, sign = math.sqrt(hx * hx + hz * hz), 1.0 if vx > 0.0 else -1.0
     slide = (sign * (hx / nh), 0.0, sign * (hz / nh)) if vx != 0.0 and nh > 0.0 else (0.0, 0.0, 0.0)
     felt = [math.sqrt(f[3 * i] * f[3 * i] + f[3 * i + 1] * f[3 * i + 1] + f[3 * i + 2] * f[3 * i + 2]) for i in range(k)]
-    width, S, mu, holds = chain_qp.unknowns(patch, body, felt, Q, slide, ask.get('free', (False, False)), regime)
+    width, S, mu, bears, sled = chain_qp.unknowns(patch, body, felt, Q, slide, ask.get('free', (False, False)), regime)
+    keys = chain_qp.keyed(patch, body)
+    let = [bears[i] and keys[i] in b.chain_let for i in range(k)]
+    holds = [bears[i] and not let[i] for i in range(k)]
     maps = chain_qp.affine(Minv, Mpg, rhs0, held, Jp, Jg, dJv, Q, S, np.ascontiguousarray(R[:, P]),
                            np.ascontiguousarray(R[:, given]), r, np.ascontiguousarray(M[np.ix_(A, np.concatenate([P, given]))]),
                            h[A], np.ascontiguousarray(J[:, A]), nd)
     gives = gives_of(b, contacts, regime, compliant, ask.get('_tc'))
     limit, lo, hi = box(b, ask)
-    H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, np.zeros(k) if gives is None else gives, Jv, f, Q, regime,
-                                         (lo, hi), stop_rows(b, s, nd) if stopped else None, G)
+    H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, sled, np.zeros(k) if gives is None else gives, Jv, f, Q, regime,
+                                         (lo, hi), stop_rows(b, s, nd) if stopped else None)
     hands = [i for i in range(k) if holds[i] and CARPAL <= int(patch[i]) < LET]
     u, b.chain_warm, met = chain_qp.solved(H1, g1, G1, Aq, bq, maps, S, Jg, hands, want, regime, b.chain_warm)
-    x, foreseen, z, tau1, residual = chain_qp.answer(u, maps, S, Q, nd)
+    x, foreseen, z, tau1, residual, al = chain_qp.answer(u, maps, S, Q, nd)
+    b.chain_let = chain_qp.letting(keys, holds, let, b.chain_warm[0], chain_qp.zrows(holds, width), al)
     qdd = np.zeros(n)
     qdd[given], qdd[P] = np.concatenate([x, held]), foreseen
     if met or not (np.abs(tau1) > limit).any():
@@ -242,5 +248,5 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
         over[p] = over[q] = past[p] or past[q]
     b.load = np.abs(tau1) / b.clamp
     return {'tau': np.clip(tau, lo, hi), 'qacc': qdd, 'bears': [0.0, 0.0], 'cop': [], 'over': over, 'slack': [],
-            'held': b.chain_warm, 'borne': z.reshape(-1, 3), 'scale': scale, 'residual': residual, 'foreseen': foreseen,
-            'met': met}
+            'held': b.chain_warm, 'holds': holds, 'borne': z.reshape(-1, 3), 'scale': scale, 'residual': residual,
+            'foreseen': foreseen, 'met': met}

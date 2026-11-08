@@ -178,7 +178,7 @@ class Body:
         self._jp, self._jr, self._am = (np.zeros((3, m.nv)) for _ in range(3))
         #: Each stance's active rows a level, the last step's (`qp.stack`'s warm start); the closed chains' step's
         #: rows held a level (`chain.step`'s, warm for its next pass).
-        self.warm, self.chain_warm = {}, ((), ())
+        self.warm, self.chain_warm, self.chain_let = {}, ((), ()), set()
 
 
 def sense(b, qpos, qvel):

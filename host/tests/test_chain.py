@@ -57,6 +57,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
     def paired(sc, ask):
         """(the python's, the C's) from cold: the rows each held last warm the next, so a pair compared starts alike."""
         b.chain_warm, solve.args[0].chain_nheld[0], solve.args[0].chain_nheld[1] = ((), ()), 0, 0
+        b.chain_let, solve.args[0].chain_nlet = set(), 0
         return chain.step(b, sc, ask, regime), solve(b, sc, ask)
     # her pelvis and right shank on a foam as her skin feels it (borne's give: 21 m/s^2 a N), her hands and forearms on
     # what is firm (none): the C the same

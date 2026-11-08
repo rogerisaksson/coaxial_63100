@@ -43,8 +43,9 @@ static void framed1(const double *Q, int k, const double *v, double *out)
 }
 
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const double *Jv, const double *f, const double *Q, const double *lo,
-                   const double *hi, double *H1, double *g1, double *G1, double *A, double *b, double **w)
+                   const int *held, const int *sled, const double *Jv, const double *f, const double *Q,
+                   const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A, double *b,
+                   double **w)
 {
   const wbc_blas_t *l = &p->blas;
   const int         nd = m->nd, nz = m->nz, nu = nd + nz, k3 = m->k3, k = k3 / 3, m1 = m->m1, most = m1 + k3;
@@ -76,7 +77,6 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   {
     const double give = p->cgive[i];
     const double right = ((-bleed) * vl[3 * i]) + give * fl[3 * i] - m->a0[3 * i];
-    const double trust = (fl[3 * i] > 0.0 ? fl[3 * i] : 0.0) + p->chain_hold_n;
 
     for (int c = 0; c < nd; c++)
     {
@@ -88,13 +88,14 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     }
     if (held[i])
     {
-      /* its stick rows: the normal's with its give, the tangents' where unknown (machine.stack.chain_qp.level1) */
+      /* its stick rows: the normal's with its give, an anchor's tangents' where unknown - her sled's tangents are its
+         friction's within the pyramid, no lock (machine.stack.chain_qp.level1) */
       for (int c = 0; c < nu; c++)
       {
         L[ml * nu + c] = stick * normal[c];
       }
       e[ml++] = stick * right;
-      for (int a = 1; a < 3 && width[i] == 3; a++)
+      for (int a = 1; a < 3 && width[i] == 3 && !sled[i]; a++)
       {
         for (int c = 0; c < nd; c++)
         {
@@ -107,19 +108,27 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
         e[ml++] = stick * (((-bleed) * vl[3 * i + a]) - m->a0[3 * i + a]);
       }
     }
-    /* the laws: it presses alone, never sinks faster than its give says, leaves no faster than it is unloaded (still it
-       carries no more than it feels and a patch's hold, bearing none it may fall away at g), its friction within its
-       pyramid */
+    /* the laws: it never sinks faster than its give says; held it presses alone, free it carries what it feels (its
+       normal's: no lever the world never gave, no cap on a held one's growth); its friction within its pyramid
+       (machine.stack.chain_qp.level1) */
     for (int c = 0; c < nu; c++)
     {
-      A[ma * nu + c] = c < nd ? 0.0 : -S[(3 * i) * nz + (c - nd)];
+      const double zn = c < nd ? 0.0 : S[(3 * i) * nz + (c - nd)];
+
+      A[ma * nu + c] = -zn;
       A[(ma + 1) * nu + c] = -normal[c];
-      A[(ma + 2) * nu + c] = c < nd ? m->Ax[(3 * i) * nd + c] : m->Az[(3 * i) * nz + (c - nd)] + (give + p->g / trust) * S[(3 * i) * nz + (c - nd)];
+      if (!held[i])
+      {
+        A[(ma + 2) * nu + c] = zn;
+      }
     }
-    b[ma] = 0.0;
+    b[ma] = held[i] ? 0.0 : -fl[3 * i];
     b[ma + 1] = -right;
-    b[ma + 2] = right + p->g;
-    ma += 3;
+    if (!held[i])
+    {
+      b[ma + 2] = fl[3 * i];
+    }
+    ma += held[i] ? 2 : 3;
     for (int q = 0; q < 8 && width[i] == 3; q++)
     {
       for (int c = 0; c < nu; c++)
