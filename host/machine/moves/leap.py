@@ -266,10 +266,10 @@ def standing_leap(base_wire, fr, ch=0.0):
     return np.concatenate([load, throw, flight, brake, rows[3:]]).tobytes(), names, end_ms * 1e-3, t0
 
 
-def stride_leap(fr, ch, turns, now, label, speed):
-    """Her leap in stride from the sole landing now (`ballistic.bound`)."""
+def stride_leap(fr, turns, now, label):
+    """Her leap in stride from the sole landing now (`ballistic.bound`); the hold's charge is the standing jump's."""
     from machine.moves import ballistic
-    return ballistic.bound(fr, ch, turns, now, label, speed)
+    return ballistic.bound(fr, turns, now, label)
 
 
 def update_leap_charge(g, by, walk_on_wire, ch):
@@ -280,7 +280,7 @@ def update_leap_charge(g, by, walk_on_wire, ch):
     if g['t'] >= t_throw - 0.015 or 'hop' not in by or t0 <= 0.0:
         return
     in_stride = bool(g.get('_leap'))
-    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], ch, *g['_leap_at']) if in_stride
+    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], *g['_leap_at']) if in_stride
                                     else standing_leap(by['hop'][1], g['fr'], ch))
     new = latent.table(wire, t0, g['rest'])
     # in stride her first row's unsaid stay so, her rhythm runs on
@@ -357,8 +357,8 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)
     t_hop, ch = t0 + dt_b, float(g.get('_hop_charge', 0.0))
     # going on her way she leaps in her stride, her rhythm on (`ballistic.bound`); else stands and hops
-    g['_leap_at'] = (float(out[latent.TURNS]), g['st'][latent.TO].copy(), 'run' if prev == 'jog' else prev, float(spd))
-    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], ch, *g['_leap_at']) if in_fwd
+    g['_leap_at'] = (float(out[latent.TURNS]), g['st'][latent.TO].copy(), 'run' if prev == 'jog' else prev)
+    wire, names, dur, dt_load_ms = (stride_leap(g['fr'], *g['_leap_at']) if in_fwd
                                     else standing_leap(by['hop'][1], g['fr'], ch))
     if dt_b == 0.0 and not in_fwd:
         g['st'][latent.THETA] = ((0.10 - dt_load_ms * 0.001) % 1.0) * math.tau

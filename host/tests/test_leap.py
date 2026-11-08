@@ -115,7 +115,7 @@ def test_forward_leap_scales_with_charge(report):
     """`leap.hop_charge`, `leap.standing_leap`, `leap.stride_leap` and `leap.update_leap_charge`:
     Space hold duration in [5 ms, 250 ms] maps to [0, 1]; standing jump scales vertical preload
     and throw; in-stride leap (`ballistic.bound`) dips by the text's countermovement, its push waiting
-    on her dip, its sagittal throw scaled with charge and speed."""
+    on her dip, her hold and her drive as she had them (the charge is the standing jump's)."""
     import numpy as np
     from machine.texts import kernel, ortho, takes
     from machine.law import latent, modal, se2
@@ -152,15 +152,13 @@ def test_forward_leap_scales_with_charge(report):
     turns = 2.0 * math.pi * float(np.frombuffer(by['jog'][1], latent.WIRE)['p'][0, latent.HZ])
     now = np.frombuffer(se2._WALK_ON_WIRE, latent.WIRE)['p'][0].astype(float)
     z, per = latent.Z.start, modal.AXIAL_M * fr[modal.HIPS_BY]
-    leaps = [np.frombuffer(leap.stride_leap(fr, ch, turns, now, 'walk', spd)[0], latent.WIRE)
-             for ch, spd in ((0.0, 0.69), (1.0, 0.69), (1.0, 1.40))]
-    thrown = [float(r['p'][1, z + modal.SAGITTAL]) for r in leaps]
+    r = np.frombuffer(leap.stride_leap(fr, turns, now, 'walk')[0], latent.WIRE)
+    dip, drive = float((r['p'][0, z + modal.AXIAL] - now[z + modal.AXIAL]) * per), latent.AMP.start + modal.DRIVE
     report.check('in-stride leap dipped by the text\'s countermovement, %.0f mm, its push waiting on her dip and ending '
-                 'straight, thrown ahead with hold charge and running speed' % (1e3 * told),
-                 all(abs((r['p'][0, z + modal.AXIAL] - now[z + modal.AXIAL]) * per - told) < 1e-6
-                     and r['flags'][1] & ortho.RISE and abs(r['p'][-3, z + modal.AXIAL] - leap.STRAIGHT) < 1e-6
-                     for r in leaps) and thrown[0] < thrown[1] < thrown[2],
-                 'throw %.3f -> %.3f -> %.3f' % tuple(thrown))
+                 'straight, her hold and her drive as she had them' % (1e3 * told),
+                 abs(dip - told) < 1e-6 and bool(r['flags'][1] & ortho.RISE) and abs(r['p'][-3, z + modal.AXIAL] - leap.STRAIGHT) < 1e-6
+                 and bool(np.all(np.isnan(r['p'][:, z + modal.SAGITTAL]))) and bool(np.all(r['p'][:-1, drive] == now[drive])),
+                 'dip %.3f m, %d rows' % (dip, len(r)))
 
 
 def test_she_jumps_high_on_both_feet_from_standing(report):
@@ -259,7 +257,7 @@ def test_she_leaps_in_stride_and_walks_on(report):
                 air_s += worker.DT * up
                 off, flown = (float(s['g']['est']['pos'][2]) if off is None else off, flown + worker.DT) if up else (None, 0.0)
                 if up and flown > longest:
-                    longest, span = flown, float(s['g']['est']['pos'][2]) - off
+                    longest, span = flown, float(s['g']['est']['pos'][2]) - (off or 0.0)
                 clear_mm = max(clear_mm, 1e3 * min(float(f['pts'][:, 1].min()) for f in s['g']['s']['feet']))
             dz = float(s['g']['est']['pos'][2]) - z0
             dz_leap = float(s['g']['est']['pos'][2]) - (z_hop if z_hop is not None else z0)

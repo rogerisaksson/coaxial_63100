@@ -5,7 +5,7 @@
     dv = ballistic.braked(mu, cap, period)         # m/s: the most one step's stance brakes on a floor's friction
     n = ballistic.steps(v, v_walk, dv)             # steps from a run's speed to a walk's
     z = ballistic.crouch(fr)                       # axial: her deepest crouch to jump from, the text's
-    wire, names, s, ms = ballistic.bound(fr, ch, turns, now, label)   # her leap in stride, a table's rows
+    wire, names, s, ms = ballistic.bound(fr, turns, now, label)       # her leap in stride, a table's rows
     v, t, w = ballistic.launch(depth, legs)        # m/s, s, rad/s: her hips leaving the floor, her knees then
     h, x = ballistic.parabola(vz, vx)              # m: a flight's apex and span, landing as high as it left
 
@@ -19,9 +19,6 @@ G = 9.81
 #: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, 1/s^2 (the stride leap's table's).
 THROW_K = 21600.0
 KNEE = bemf.DRIVEN.index('left_knee')
-#: The stride leap's sagittal throw: her hold thrown THROW_M + THROW_GAIN * thrown ahead at THROW_K0 + THROW_KG * thrown,
-#: and her drive swept SWEEP of her flight's share of her swing's window further (tools/sim/knobs.py `throw`, `sweep`).
-THROW_M, THROW_GAIN, THROW_K0, THROW_KG, SWEEP = 0.28, 0.60, 1800.0, 1000.0, 1.0
 
 
 def froude(v, leg):
@@ -116,24 +113,27 @@ def crouch(fr):
         modal.AXIAL_M * fr[modal.HIPS_BY])
 
 
-def bound(fr, ch, turns, now, label, speed=0.69):
+def bound(fr, turns, now, label):
     """(wire, names, seconds, the ms its push begins) of her leap in stride (`xform-in-stride-unilateral-leap`) from
-    the sole landing now: its stance dipped by the text's countermovement (a tap, charge `ch` 0, half of it) and pushed
-    straight by one knee at its WEP (`launch`, one leg) to leave as her other sole's swing ends - half a turn of her
-    rhythm `turns` rad/s on -, her flight in place of her double support, her rhythm untouched: the other sole lands
-    meant to stand, this one swings at its own time. The push's spring held into the flight (let go at its curve's end
-    she stood on, 0.28 m/s up), her other swing held through the push (ZMP none), her landing waiting on her soles;
-    her gait's height, spring and support as she had them (`now`) after, the last row named `label`. Braked to a stand
-    first, her leap from a run went no further than her walk's."""
+    the sole landing now: its stance dipped by the text's countermovement and pushed straight by one knee at its bound
+    (`launch`, one leg) to leave as her other sole's swing ends - half a turn of her rhythm `turns` rad/s on -, her
+    flight in place of her double support, her rhythm untouched: the other sole lands meant to stand, this one swings
+    at its own time. The push's spring held into the flight (let go at its curve's end she stood on, 0.28 m/s up), her
+    other swing held through the push (ZMP none), her hold and her drive as she had them (`now`) throughout, her
+    landing waiting on her soles; her gait's height, spring and support as she had them after, the last row named
+    `label`. Her hips leave at the planned 1.15 m/s and fly 0.21 s. Her hold thrown 0.35-0.53 m ahead and her drive
+    swept x1.66 through the leap she fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as the other
+    sole landed. The hold's charge has no lever here: dipped deeper she squats 0.18 m on one knee over 0.3 s while
+    running on, pushes with the leg far behind her at 2 m/s forward and never leaves (twice the text's dip 0 of 9
+    walks, 1.5 times 1, 1.25 times 2, the text's 8)."""
     import math
     import numpy as np
     from machine.texts import kernel, ortho
-    from machine.law import latent, modal, stride
+    from machine.law import latent, modal
     from machine.moves import leap
     z, k, zmp, d = latent.Z.start + modal.AXIAL, latent.K.start + modal.AXIAL, latent.ZMP, latent.D.start + modal.AXIAL
     per = modal.AXIAL_M * fr[modal.HIPS_BY]
-    # dipped by the leap's countermovement, a hold thrown further ahead (the stride leap's sagittal throw): half the
-    # countermovement flew a walk's tap 0.13 s, the standing jump's felled a hold on landing
+    # the text's countermovement: half of it flew a walk's tap 0.13 s
     told = figure.SCALE * kernel.node('xform-in-stride-unilateral-leap', 'ssc-launch')['phase-1-countermovement']['crouch-depth-m']
     dip = float(now[z]) + told / per
     v, push_s, _w = launch((dip - leap.STRAIGHT) * per, legs=1.0)
@@ -156,16 +156,9 @@ def bound(fr, ch, turns, now, label, speed=0.69):
     rows['p'][0:n + 2, zmp] = modal.NONE
     rows['p'][n + 1, z] = leap.STRAIGHT
     rows['flags'][1] |= ortho.RISE
-    thrown = 0.06 + 0.28 * ch + 0.08 * min(1.0, max(0.0, (float(np.nan_to_num(speed)) - 0.55) / 0.20))
-    rows['p'][1:n + 1, latent.Z.start + modal.SAGITTAL] = THROW_M + THROW_GAIN * thrown
-    rows['p'][1:n + 1, latent.K.start + modal.SAGITTAL] = THROW_K0 + THROW_KG * thrown
-    rows['p'][n + 2, latent.Z.start + modal.SAGITTAL] = now[latent.Z.start + modal.SAGITTAL]
-    rows['p'][n + 2, latent.K.start + modal.SAGITTAL] = now[latent.K.start + modal.SAGITTAL]
-    # her stride swept as much further as her flight carries her: at her walk's sweep her held sole reached 0.14 m
-    # short of her centre and she landed on both soles behind it
+    # her drive as she had it through the leap, her hold untouched
     drive = latent.AMP.start + modal.DRIVE
-    rows['p'][0:n + 2, drive] = now[drive] * (1.0 + SWEEP * 2.0 * v / G / (2.0 * stride.PHI_W / max(float(turns), 1e-9)))
-    rows['p'][n + 2, drive] = now[drive]
+    rows['p'][0:n + 3, drive] = now[drive]
     landing = next(r[2] for r in leap._leap_specs() if r[:2] == (2, d))
     rows['p'][n + 2, z], rows['p'][n + 2, k], rows['p'][n + 2, d] = leap.bottom(fr, v / per), 0.0, landing
     rows['p'][n + 2, zmp] = now[zmp]
