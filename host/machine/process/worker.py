@@ -201,6 +201,7 @@ def stepped(s):
         return laid(s)
     try:
         if s['fallen_at'] is None:
+            gaits.halted(g, s['gym'])
             _errand().step_errand(g, s['gym'], heard, gaits.heard_say)
             sprung.passed(g, DT)
             if s['worn'].put(g['sense'], world.motor):

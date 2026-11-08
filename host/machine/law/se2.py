@@ -346,7 +346,7 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     was_on = bool(g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS)
     target = (gait_for_twist(vx, vy, wz) or ('walk_back' if vx < 0.0 else 'walk')) if active else ('stand' if was_on else None)
     if target is not None:
-        g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = active, g['t'] + 2.5, None
+        g['_twist_active'], g['_twist_stop_until'] = active, g['t'] + 2.5
     if not has_say and target in by:
         heard_say_fn(g, gym, by[target])
 
