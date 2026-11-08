@@ -9,13 +9,19 @@ to after, the sole's fall and how far ahead it is; the load's peak; her hip's pa
 
     python tools/sim/handover.py                          # her walk as built, here: a JSON row
     python tools/sim/handover.py --specs '' k=12000 heelrate=12,flatk=800   # variants, a relay job each
+    python tools/sim/handover.py --specs '' sea=143,track=12 --ensemble    # each over 3 x 3 starts: median, worst
 
 A spec is `key=value` pairs: `ax` the walk's axial target (init_walk's and WALK_ON's), `rock` a
 factor on the walk stream's foot rock, `drive` its drive, `k` the stride spring's stiffness (`c` its
 damping, 0.2 k unsaid), `heel` deg, `heelrate` rad/s, `flatk`, `fold`, `dip`, `ls`, `rise`, `edge` rad the stride's; `mhz`,
 `mdrive`, `mturn`, `max` (its axial target) the march's (the jog behaviour's two phases); `sea` her ankle's series
 spring, N m/rad, `track` its rotor's torque loop (`gearbox.TRACK`), `wfold` the stack's knee fold weight
-(`wrench.W_FOLD`). `--play 'W12 -3'` marches her.
+(`wrench.W_FOLD`). `--play 'W12 -3'` marches her. `--ensemble` runs each spec over ENSEMBLE's grid of the walk's
+drive and axial target - the gait is on an edge where one run measures its phase's luck, not its margin - and
+prints a summary a spec: how many stood, the hip clamp passes' median and worst, the landing knee's and the
+plan's load error's medians. A row also carries the double support's load planning against the sensed loads:
+`plan_err_land`/`plan_err_trail` the mean |planned - real| share over the 150 ms from a landing (the landing
+and the trailing sole), `plan_zero_ms` when the plan zeroes the trailing sole, `trail_off_ms` when its load leaves.
 """
 import argparse
 import json
@@ -27,6 +33,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: A sole has landed at this share of her weight; the window measured, s; a stance before, s.
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
+#: An ensemble's starts: the walk's drive and its axial target, a run each pair (`--ensemble`).
+ENSEMBLE = ((0.84, 0.85, 0.86), (0.028, 0.03, 0.032))
 GAIT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'humanoid', 'gait_base.lisp')
 POSTURES_PATH = os.path.join(os.path.dirname(GAIT_PATH), 'postures_base.lisp')
 
@@ -194,6 +202,37 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
     return _summed(log, seen, row, trace, from_s, to_s)
 
 
+def _planned(A, at, dt, fwd, b10):
+    """The double support's load planning against the sensed loads, medians over the landings `at`: the mean
+    |planned - real| share over `fwd` passes from a landing for the landing sole and the trailing one (from `b10`
+    passes before), ms after the landing when the plan zeroes the trailing sole and when its load leaves."""
+    import numpy as np
+    errs_b, errs_o, zero, left = [], [], [], []
+    for i, b in at:
+        o, hi = 1 - b, min(len(A['t']), i + fwd)
+        errs_b.append(np.abs(A['qp'][i:hi, b] - A['ld'][i:hi, b]).mean())
+        errs_o.append(np.abs(A['qp'][i - b10:hi, o] - A['ld'][i - b10:hi, o]).mean())
+        gone = np.flatnonzero(A['qp'][i:hi, o] <= 0.02)
+        off = np.flatnonzero(A['ld'][i:hi, o] < LANDED)
+        zero.append(1e3 * dt * (gone[0] if len(gone) else fwd))
+        left.append(1e3 * dt * (off[0] if len(off) else fwd))
+    return {k: round(float(np.median(v)), 3) for k, v in (('plan_err_land', errs_b), ('plan_err_trail', errs_o),
+                                                         ('plan_zero_ms', zero), ('trail_off_ms', left)) if v}
+
+
+def _ensemble(spec, rows):
+    """One line for `spec`'s ensemble `rows` (dicts): how many stood of how many, the hip clamp passes' median and
+    worst, the speed's, the landing knee's and the plan's load errors' medians."""
+    import numpy as np
+    med = lambda k: round(float(np.median([r[k] for r in rows if r.get(k) is not None])), 3) if any(r.get(k) is not None for r in rows) else None
+    return json.dumps({'spec': spec, 'runs': len(rows), 'stood': sum(bool(r.get('stood')) for r in rows),
+                       'fell_at': sorted(round(r['fell'], 1) for r in rows if r.get('fell') is not None),
+                       'hip_passes_med': med('hip_passes'), 'hip_passes_max': max((r.get('hip_passes') or 0) for r in rows),
+                       'v_med': med('v'), 'land_knee_med': med('land_knee'), 'knee_min_med': med('knee_min'),
+                       'plan_err_land_med': med('plan_err_land'), 'plan_err_trail_med': med('plan_err_trail'),
+                       'plan_zero_ms_med': med('plan_zero_ms'), 'trail_off_ms_med': med('trail_off_ms')})
+
+
 def _summed(log, seen, row, trace, from_s, to_s):
     """`ran`'s row of its `log`: the landings' medians, the hip's passes and, `trace`, the passes round one landing."""
     import numpy as np
@@ -223,6 +262,7 @@ def _summed(log, seen, row, trace, from_s, to_s):
     if events:
         row.update({k: round(float(np.median([e[k] for e in events])), 3) for k in events[0]})
     row['clamp'] = seen['clamp']
+    row.update(_planned(A, at, dt, fwd, b10))
     lands = sorted(A['t'][i] for i, _b in at)
     passes = {}
     for i, b in zip(*np.nonzero(A['tau_h'] > 108.0)):
@@ -281,6 +321,7 @@ def main(argv=None):
     parser.add_argument('--play', default='w12 -3', help="the player's moves (tools/sim/player.py), her walk unsaid")
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
+    parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
     args = parser.parse_args(argv)
     if args.specs is None:
         row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')))
@@ -290,9 +331,11 @@ def main(argv=None):
         return 0
     from tools.dev import focus
     here = [sys.executable, '-X', 'utf8', os.path.abspath(__file__)]
-    jobs = [focus.Job(spec or 'base', here + ['--spec', spec, '--play', args.play, '--window', args.window]
+    starts = [',drive=%g,ax=%g' % (d, ax) for d in ENSEMBLE[0] for ax in ENSEMBLE[1]] if args.ensemble else ['']
+    runs = [(spec, spec + start) for spec in args.specs for start in starts]
+    jobs = [focus.Job(run or 'base', here + ['--spec', run, '--play', args.play, '--window', args.window]
                       + (['--entries', args.entries] if args.entries else []) + (['--trace'] if args.trace else []), 1.5, 900.0)
-            for spec in args.specs]
+            for _spec, run in runs]
     rows = {}
     for job, text, _code, seconds in focus.relay(jobs):
         lines = [line for line in text.splitlines() if line.startswith('{')]
@@ -300,6 +343,11 @@ def main(argv=None):
         if args.trace:
             traced = [line for line in text.splitlines() if line[:1] in 't-0123456789']
             rows[job.name] = os.linesep.join([job.name + ':'] + traced + [rows[job.name]])
+    if args.ensemble:
+        for spec in args.specs:
+            texts = [rows[run or 'base'] for s, run in runs if s == spec]
+            print(_ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
+        return 0
     for spec in args.specs:
         print(rows[spec or 'base'])
     return 0
