@@ -1,20 +1,18 @@
 """Her stride on her latent loop: when a limb swings, where its sole lands, how a sole rolls.
 
-    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood)
-    start = stride.first(need, still, rate, was, beyond, loads, phi)    # rad: a step begun at once
-    split = stride.split(split, support, stepping, free, ahead, phi, u, turns, dt, start)   # rad: each limb's own shift
+    phi_w = stride.swings(drive, turns, going)              # rad: how far round her rhythm a limb swings
+    stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood, phi_w)
+    start = stride.first(need, still, rate, was, beyond, loads, phi, phi_w)    # rad: a step begun at once
+    split = stride.split(split, support, stepping, free, ahead, phi, u, turns, dt, phi_w, start)   # rad: each limb's own shift
     hurry = stride.hurried(aside, om, u, swung, kp)                  # (2,), 1 unhurried
-    cruise = stride.cruises(way, drive, turns, going)       # the speed her drive makes of its steps
+    cruise = stride.cruises(way, drive, turns, going, phi_w)    # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
-    tip, tipping, tipped = stride.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
-    fold, short = stride.folds(off, loads, bent)            # a knee's fold before its swing, rad and m
-    rocked, flatten, pin, round, reach = stride.heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground)
     clear = stride.clears(u, flying, swung, high, tip, tipping, tilt, late)     # (3, 2), over the floor
-    acc = stride.goes(meet, flat, shod, v, u, off, turns, kp, kd)   # a striding sole's, along and across
+    acc = stride.goes(meet, flat, shod, v, u, off, turns, kp, kd, phi_w)   # a striding sole's, along and across
 
 Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.modal` renders with it. Her
-stride is her drive's: a limb swings SWING of a turn, about where its drive carries it on
-fastest, and stands the rest. From where the other's swing ends it stands over its ball, its
+stride is her drive's: a limb swings SWING of a turn (SWING_FAST at her march's pace, `swings`),
+about where its drive carries it on fastest, and stands the rest; how a sole rolls is `machine.law.rocker`'s. From where the other's swing ends it stands over its ball, its
 heel rising, her ZMP in the other sole; it leaves as its own swing begins, or as its heel is up
 as far as a woman's as her toes leave - its swing then from there to its landing. In the air its
 lowest point is held clear of the floor, its sole pitched as her rock asks - the heel up behind
@@ -27,9 +25,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body import gait
-from machine.body.figure import ANKLE_H, BALL, SHANK, THIGH, TOE_M
-from machine.law.poise import BIG, HALF_M, TINY, clip
-from machine.stack.wbc import CONTACT_K
+from machine.body.figure import TOE_M
+from machine.law.poise import HALF_M, TINY, clip
 
 #: Her stride's numbers, her build's (`[gait.stride]`: each with what it was found at, Froude-similar
 #: on another leg, `machine.body.gait`).
@@ -40,8 +37,10 @@ LIMBS = np.array([1.0, -1.0])
 #: A unit of her drive, a limb's place from her centre of mass along her way, m; of her
 #: soles' rock, a sole's pitch, rad.
 STRIDE_M, ROCK_RAD = _G['stride_m'], _G['rock_rad']
-#: Her drive's amplitude over STIRS, she strides: a limb swings SWING of a turn.
-STIRS, SWING = _G['stirs'], _G['swing']
+#: Her drive's amplitude over STIRS, she strides: a limb swings SWING of a turn at her walk's pace,
+#: SWING_FAST at her march's (PACE_M_S to PACE_FAST_M_S of her drive, `swings`: the text's duty).
+STIRS, SWING, SWING_FAST = _G['stirs'], _G['swing'], _G['swing_fast']
+PACE_M_S, PACE_FAST_M_S = _G['pace_m_s'], _G['pace_fast_m_s']
 PHI_W = np.pi * SWING
 #: Her sway a quarter turn behind her drive, past BACK of it, she goes the other way.
 BACK = _G['back']
@@ -76,7 +75,22 @@ FOLD_RAD = _G['fold_rad']
 HEEL_UP = _G['heel_up']
 
 
-def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood):
+def swings(drive, turns, going):
+    """How far round her rhythm each limb swings, rad (PHI_W at her walk's pace): SWING of a turn up to
+    PACE_M_S of her pace - her drive's, STRIDE_M 2/pi |drive| turns (her cruise before the swing's own
+    sine), no further than AHEAD_M_S from her `going`, the speed her soles have made of late (`cruises`'
+    band) -, SWING_FAST from PACE_FAST_M_S, between them in line (the text's duty, 1 - the share). A swing's
+    accelerations go as one over its time squared: at 1.3 Hz on 0.40 her hip passed its clamp 190-460 times,
+    at 1.25 Hz on 0.48 12, 1.42 m/s; her walk on 0.43 went 1.06 m/s for 1.19, on 0.46 fell stopping. By her
+    drive alone, marched 2 s out of a walk back her swings went long at 0.3 m/s, she stamped 2.1 of her
+    weight stopping and fell; cut by her going or her centre's speed outright, their swing within a step
+    flickered the share and her march's hip passed its clamp 70-127 times for 12."""
+    pace = 2.0 / np.pi * STRIDE_M * np.abs(drive) * turns
+    pace = clip(pace, np.abs(going) - AHEAD_M_S, np.abs(going) + AHEAD_M_S)
+    return np.pi * (SWING + (SWING_FAST - SWING) * clip((pace - PACE_M_S) / (PACE_FAST_M_S - PACE_M_S), 0.0, 1.0))
+
+
+def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood, phi_w):
     """Her stride of her drive (its amplitude and angle) and her sway's: (whether she strides,
     0 to 1, as far as her drive or her `need` has it; her way, 1 or -1; each limb's place in its
     sweep, 1 its furthest on her way; its turn of it, 0 as it passes under her going on;
@@ -96,13 +110,13 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood)
     s = np.sin(psi) * np.cos(split) + np.cos(psi) * np.sin(split)
     c = np.cos(psi) * np.cos(split) - np.sin(psi) * np.sin(split)
     sweep, phi = side * s, np.arctan2(side * s, side * c)
-    u = clip((0.5 * (phi / PHI_W + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
-    on = np.maximum((phi > PHI_W - np.pi) * (phi < PHI_W), (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0))
+    u = clip((0.5 * (phi / phi_w + 1.0) - begun) / (1.0 - begun) + lead, 0.0, 1.0)
+    on = np.maximum((phi > phi_w - np.pi) * (phi < phi_w), (stood * was * (u > 1.0 - FALL_U) * (u < 1.0))[::-1] * (u <= 0.0))
     off = np.maximum(stepping, was) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
-    return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / PHI_W
+    return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / phi_w
 
 
-def split(split, support, stepping, free, ahead, phi, u, turns, dt, start=0.0):
+def split(split, support, stepping, free, ahead, phi, u, turns, dt, phi_w, start=0.0):
     """Each limb's own shift of its place in her rhythm a pass on, rad (the ballistic text's split leap): held - a
     throw, a flight, her `support` asked none -, a sole `free` of the floor behind her centre (`ahead`, m along her
     way) and out of its swing goes to its swing's start, one ahead done swinging waits for the floor; else they relax
@@ -110,19 +124,19 @@ def split(split, support, stepping, free, ahead, phi, u, turns, dt, start=0.0):
     by its rhythm alone, a sole pushed off early in its stance waited behind her 0.6 s. Both turned `start` (`first`).
     Her whole rhythm is never turned to a landing: turned so, her stride left her sway behind and she fell."""
     held, gap = 1.0 - clip(support, 0.0, 1.0), split[0] - split[1]
-    return split + start + (stepping * held * free * ((ahead <= 0.0) * ((u <= 0.0) + (u >= 1.0)) * np.mod(-PHI_W - phi, 2.0 * np.pi)
+    return split + start + (stepping * held * free * ((ahead <= 0.0) * ((u <= 0.0) + (u >= 1.0)) * np.mod(-phi_w - phi, 2.0 * np.pi)
                                                       - (ahead > 0.0) * (u >= 1.0) * turns * dt)
                             - (1.0 - held) * (0.5 * (gap - 2.0 * np.pi * np.round(gap / (2.0 * np.pi))) * LIMBS)
                             * min(1.0, turns * dt / (2.0 * np.pi)))
 
 
-def first(need, still, rate, was, beyond, loads, phi):
+def first(need, still, rate, was, beyond, loads, phi, phi_w):
     """Her rhythm's turn, rad, to the swing's start of the sole on her capture point's side, else the lighter, on a
     fresh `need` at rest (`still`, no `rate`, no swing `was`): to her rhythm, shoved 200 N, she fell from a lunge."""
     key = LIMBS * beyond[LEFT] - TINY * loads
     pick = 1.0 * (key > key[::-1]) + 1.0 * (key == key[::-1]) * (LIMBS > 0.0)
     fresh = still * (1.0 - clip(np.linalg.norm(rate) / TINY, 0.0, 1.0)) * (need > 0.5) * (np.max(was) < 0.5)
-    return fresh * (pick @ np.mod(-PHI_W - phi, 2.0 * np.pi))
+    return fresh * (pick @ np.mod(-phi_w - phi, 2.0 * np.pi))
 
 
 def hurried(aside, om, u, rate, kp):
@@ -138,12 +152,12 @@ def hurried(aside, om, u, rate, kp):
     return np.maximum(1.0, (1.0 - u) / (np.maximum(rate, TINY) * np.maximum(due, np.sqrt(6.0 / kp))))
 
 
-def cruises(way, drive, turns, going):
+def cruises(way, drive, turns, going, phi_w):
     """The speed her drive makes of its steps - a step her sweep from landing to landing, two
     a turn -, no further than AHEAD_M_S from her `going`, the speed her soles have made of
     late: asked 0.48 m/s under a sway her soles refused, she leant to her toes' edge
     standing and went over them; damped to her going alone she never set out."""
-    cruise = way * 2.0 / np.pi * STRIDE_M * np.abs(drive) * np.sin(PHI_W) * turns
+    cruise = way * 2.0 / np.pi * STRIDE_M * np.abs(drive) * np.sin(phi_w) * turns
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
@@ -193,71 +207,6 @@ def ducked(duck, held, stance, stood, dt):
     env = np.minimum(env0 + latch * dt / np.maximum(attack, dt)
                      - (1.0 - latch) * env0 * np.minimum(dt / np.maximum(release, dt), 1.0), 1.0)
     return np.array([latch, env]), -depth * np.array([env, (env - env0) / dt])
-
-
-def rocks(rock, rate, acc):
-    """Each sole's pitch as her rock has it, rad, its rate and its acceleration: its heel up
-    behind her, its toes up ahead (`rock` her rock's reference, `rate`, `acc` its own)."""
-    heel = ROCK_RAD * (1.0 + HEEL_UP * np.sign(LIMBS * rock))
-    return heel * LIMBS * rock, heel * LIMBS * rate, heel * LIMBS * acc
-
-
-def folds(off, loads, bent):
-    """A knee's fold before its swing, rad, and what it shortens its leg by, m (2 each): its
-    stride has the sole off and its load leaves it - none of her soles' loads on it, all of
-    FOLD_RAD. `bent` her knees' bend standing, rad. Before its swing alone (`off` less the swing's
-    share done): at the swing's end its sole lands, and the fold leaked there bent her landing knee
-    37-39 deg, a woman's 0-12."""
-    fold = FOLD_RAD * off * (1.0 - loads / np.maximum(loads.sum(), TINY))
-    return fold, (THIGH + SHANK) * (np.cos(0.5 * bent) - np.cos(0.5 * (bent + fold)))
-
-
-def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground):
-    """A standing sole's turn about the edge it stands on, striding: (the heel's rise asked,
-    rad; its turn's acceleration, rad/s^2; how far it stands on an edge, 1 its ball and -1 its
-    heel; its middle's acceleration round that edge, her way's frame (2, 3); the hip's height over
-    the floor its leg reaches with its heel so, m - `vault.vaults` holds her hip there). Flat; or, its
-    stride `off` it, over its ball as far as her rock has its heel up (`tip`); or as far as
-    its leg's length asks, her hip ahead of its ball - the heel's rise that lets the leg,
-    `long` m less what its knee's fold shortens it (`short`), reach her hip DIP_M under
-    where it stood over a sole (held there her straight leg reaches 0.26 m ahead at most, her step
-    0.5 m whatever her drive; held where the other leg lands straight instead, a long step's
-    compass, her hip came down 1 cm early in each stance and her landing knee bent 28 deg for 23,
-    her march at 1.3 Hz fell). Flat till it left, a sole
-    25 cm behind her had her hips 4 cm down as the other landed, on a knee at 36 deg. `sole`
-    each sole's (place in her way's frame (2, 3), pitch, its rate); `hips` each hip's place
-    along; `was` the rise asked the pass before, `dt` s ago. Its pitch is read against the
-    floor's under it (`ground`, each's): flat on a 10 deg ramp, read as on its heel, a sole's
-    box was its heel's line and she fell 1.9 m up it."""
-    place, tilt, tilting = sole
-    spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
-    inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
-    ball = (place + HALF_M * inward)[:, [ALONG, UP]]
-    hip = hips - ball[:, 0]
-    high = floor + ANKLE_H + long - DIP_M - ball[:, 1]
-    lever = np.hypot(hip * BALL - high * ANKLE_H, hip * ANKLE_H + high * BALL)
-    need = clip(np.arctan2(-(hip * ANKLE_H + high * BALL), hip * BALL - high * ANKLE_H) + np.arccos(clip(
-        ((long - short) ** 2 - hip * hip - high * high - BALL * BALL - ANKLE_H * ANKLE_H) / (2.0 * lever),
-        -1.0, 1.0)),
-        0.0, HEEL_RAD) * clip(hip / BALL, 0.0, 1.0)
-    rocked, lean = np.maximum(off * np.maximum(tip, 0.0), need), tilt - pitched(ground)
-    flatten = stepping * stance * (FLAT_K * (rocked - lean)
-                                   + CONTACT_K * clip((rocked - was) / dt, -HEEL_RAD_S, HEEL_RAD_S))
-    edge = np.sign(lean + BIG * rocked)
-    # the hip's height over the floor the leg reaches with its heel up as its length needs: the asked height while
-    # the heel can give it, the rocker's past HEEL_RAD - held to the asked height, a woman's heel capped, the hold
-    # was never met; with the rock's heel, the hold lifted a crouch asked 0.25 (text 102) to 0.15
-    reach = (ball[:, 1] - floor + BALL * np.sin(need) + ANKLE_H * np.cos(need)
-             + np.sqrt(np.maximum((long - short) ** 2 - (hip + BALL * np.cos(need) - ANKLE_H * np.sin(need)) ** 2, 0.0)))
-    return (rocked, flatten, stepping * stance * edge * clip(np.maximum(np.abs(lean), rocked) / EDGE_RAD, 0.0, 1.0),
-            (edge * HALF_M)[:, None] * (flatten[:, None] * spoke + (tilting * tilting)[:, None] * inward), reach)
-
-
-def pitched(ground):
-    """The floor's pitch as her soles take it, rad: under half EDGE_RAD level, past it all of
-    it - a level floor read 0.003 to 0.006 rad as her soft soles pressed it, and her pelvis
-    rolled 4.96 deg where 5.05."""
-    return ground * clip((np.abs(ground) - 0.5 * EDGE_RAD) / (0.5 * EDGE_RAD), 0.0, 1.0)
 
 
 def clears(u, flying, swung, high, tip, tipping, tilt, late, land):
@@ -316,12 +265,12 @@ def eased(u, off):
     return 1.0 - off + off * rising(u)
 
 
-def lates(phi, turns, stepping):
+def lates(phi, turns, stepping, phi_w):
     """How long past its swing each limb is, s, REACH_S at most."""
-    return stepping * clip((phi - PHI_W) / np.maximum(turns, TINY), 0.0, REACH_S)
+    return stepping * clip((phi - phi_w) / np.maximum(turns, TINY), 0.0, REACH_S)
 
 
-def goes(meet, flat, shod, v, u, off, turns, kp, kd):
+def goes(meet, flat, shod, v, u, off, turns, kp, kd, phi_w):
     """A striding sole's acceleration along and across (2, 2), to where it lands (`meet`) from
     where it is (`flat`, its speed `shod`, hers `v`): on a spring that stiffens as it nears -
     6 over the time left squared, damped 4 over it -, no stiffer than the limb's own (`kp`,
@@ -330,5 +279,5 @@ def goes(meet, flat, shod, v, u, off, turns, kp, kd):
     a standing sole's weightless ask till it was let go - her hip swung the leg at 130-170 N m, her
     walk 248 passes over its clamp; eased, 0, and her march's swing at 1.3 Hz, 0.31 s, landed under
     her centre and she fell - her march is at 1.1 Hz for it."""
-    to_go = np.maximum((ARRIVE_U - u) * 2.0 * PHI_W / np.maximum(turns, TINY), SOON_S)[:, None]
+    to_go = np.maximum((ARRIVE_U - u) * 2.0 * phi_w / np.maximum(turns, TINY), SOON_S)[:, None]
     return eased(u, off)[:, None] * (np.minimum(6.0 / to_go ** 2, kp) * (meet - flat) - np.minimum(4.0 / to_go, kd) * (shod[:, :2] - v[:2]))

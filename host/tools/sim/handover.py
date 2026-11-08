@@ -14,7 +14,8 @@ A spec is `key=value` pairs: `ax` the walk's axial target (init_walk's and WALK_
 factor on the walk stream's foot rock, `drive` its drive, `k` the stride spring's stiffness (`c` its
 damping, 0.2 k unsaid), `heel` deg, `heelrate` rad/s, `flatk`, `fold`, `dip`, `ls`, `rise` the stride's; `mhz`,
 `mdrive`, `mturn`, `max` (its axial target) the march's (the jog behaviour's two phases); `sea` her ankle's series
-spring, N m/rad. `--play 'W12 -3'` marches her.
+spring, N m/rad, `track` its rotor's torque loop (`gearbox.TRACK`), `wfold` the stack's knee fold weight
+(`wrench.W_FOLD`). `--play 'W12 -3'` marches her.
 """
 import argparse
 import json
@@ -81,9 +82,22 @@ def arranged(spec):
     if 'swing' in spec:
         stride.SWING = float(spec['swing'])
         stride.PHI_W = math.pi * stride.SWING
+    if 'swing_fast' in spec:
+        stride.SWING_FAST = float(spec['swing_fast'])
+    if 'pace_fast' in spec:
+        stride.PACE_FAST_M_S = float(spec['pace_fast'])
+    if 'rund' in spec:
+        from machine.law import rhythm
+        rhythm.R['run_drive'] = float(spec['rund'])
     if 'sea' in spec:
         from machine.body import drives
         drives.SERIES['ankle'] = float(spec['sea'])
+    if 'track' in spec:
+        from machine.body import gearbox
+        gearbox.TRACK = float(spec['track'])
+    if 'wfold' in spec:
+        from machine.stack import wrench
+        wrench.W_FOLD = float(spec['wfold'])
     return tune.given(edits) if edits else None
 
 
@@ -101,7 +115,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -160,6 +174,12 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         log['bend'].append(math.degrees(float(a[modal.BEND])))
         log['pre'].append(list(np.degrees(np.asarray(a[modal.PREFOLD]))))
         log['ank'].append([math.degrees(float(d.qpos[q])) for q in seen['aq']])
+        boxes = getattr(g['world'], 'boxes', None)
+        if boxes is not None and seen.get('bx') is None:
+            from machine.body.figure import JOINTS
+            seen['bx'] = [JOINTS.index('left_ankle'), JOINTS.index('right_ankle')]
+        log['leaf'].append([math.degrees(float(boxes.delta[i])) for i in seen['bx']] if boxes is not None else [0.0, 0.0])
+        log['leaf_k'].append(float(boxes.k[seen['bx'][0]]) if boxes is not None else 0.0)
 
     out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']))
@@ -213,6 +233,12 @@ def _summed(log, seen, row, trace, from_s, to_s):
     row['tilt_g_max_at'] = [round(float(A['t'][i]), 2), round(float(A['tilt_g'][i]), 1)] if (i := int(np.argmax(A['tilt_g']))) >= 0 else None
     row['land_tilt_max'] = round(float(max(abs(A['pitch'][i, 0]) for i, _b in at)), 1) if at else None
     offs = [(i, b) for b in (0, 1) for i in range(1, len(A['t'])) if A['st'][i - 1, b] > 0.5 >= A['st'][i, b]]
+    if offs:
+        row['rel_knee'] = round(float(np.median([A['knee'][i, b] for i, b in offs])), 1)
+        row['rel_ld'] = round(float(np.median([A['ld'][i, b] for i, b in offs])), 2)
+    leaf = np.abs(A['leaf'])
+    row['leaf_deg_p99'] = round(float(np.percentile(leaf, 99)), 1)
+    row['leaf_J_p99'] = round(float(0.5 * A['leaf_k'].max() * np.radians(np.percentile(leaf, 99)) ** 2), 1)
     if offs and lands:
         row['toe_tilt'] = round(float(np.median([A['tilt'][i, b] for i, b in offs])), 1)
         row['double_s'] = round(float(np.median([min([A['t'][i] - t for t in lands if t <= A['t'][i]] or [-1.0]) for i, _b in offs])), 3)

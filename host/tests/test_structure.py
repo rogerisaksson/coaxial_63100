@@ -275,7 +275,7 @@ def test_motor_imports_no_board(r):
 
 #: Her motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
 LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/impedance', 'law/modal', 'law/poise',
-       'law/stride', 'law/treads', 'law/vault', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
+       'law/stride', 'law/treads', 'law/vault', 'law/rocker', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
        'senses/borne', 'senses/grip')
 #: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'bedexit', 'scoot', 'brace'))

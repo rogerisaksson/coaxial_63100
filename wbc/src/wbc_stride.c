@@ -272,9 +272,17 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
   }
 }
 
+double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double going)
+{
+  const double asked = (((2.0 / PI) * k->stride_m) * fabs(drive)) * turns;
+  const double pace = npclip(asked, fabs(going) - k->ahead_m_s, fabs(going) + k->ahead_m_s);
+
+  return PI * (k->swing + (k->swing_fast - k->swing) * npclip((pace - k->pace_m_s) / (k->pace_fast_m_s - k->pace_m_s), 0.0, 1.0));
+}
+
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  const double stood[2], double *stepping, double *way,
+                  const double stood[2], double phi_w, double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
@@ -289,7 +297,7 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
 
     sweep[b] = side * s;
     phi[b] = atan2(side * s, side * c);
-    u[b] = npclip((0.5 * (phi[b] / k->phi_w + 1.0) - begun[b]) / (1.0 - begun[b]) + lead[b], 0.0, 1.0);
+    u[b] = npclip((0.5 * (phi[b] / phi_w + 1.0) - begun[b]) / (1.0 - begun[b]) + lead[b], 0.0, 1.0);
   }
   for (int b = 0; b < 2; b++)
   {
@@ -297,11 +305,11 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
     const double came = (((stood[1 - b] * was[1 - b]) * (double)(u[1 - b] > 1.0 - k->fall_u)) * (double)(u[1 - b] < 1.0))
                         * (double)(u[b] <= 0.0);
 
-    on[b] = npmax((double)((phi[b] > k->phi_w - PI) && (phi[b] < k->phi_w)), came);
+    on[b] = npmax((double)((phi[b] > phi_w - PI) && (phi[b] < phi_w)), came);
     off[b] = (npmax(*stepping, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
     flying[b] = off[b] * (double)(u[b] > 0.0);
   }
-  *swung = (0.5 * turns) / k->phi_w;
+  *swung = (0.5 * turns) / phi_w;
 }
 
 void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const double u[2], const double rate[2],
@@ -315,9 +323,9 @@ void wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, const
   }
 }
 
-double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going)
+double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going, double phi_w)
 {
-  const double cruise = ((((way * 2.0) / PI) * k->stride_m) * fabs(drive)) * sin(k->phi_w) * turns;
+  const double cruise = ((((way * 2.0) / PI) * k->stride_m) * fabs(drive)) * sin(phi_w) * turns;
 
   return npclip(cruise, going - k->ahead_m_s, going + k->ahead_m_s);
 }
@@ -498,21 +506,21 @@ void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2
   }
 }
 
-void wbc_imp_lates(const wbc_imp_t *k, const double phi[2], double turns, double stepping, double late[2])
+void wbc_imp_lates(const wbc_imp_t *k, const double phi[2], double turns, double stepping, double phi_w, double late[2])
 {
   for (int b = 0; b < 2; b++)
   {
-    late[b] = stepping * npclip((phi[b] - k->phi_w) / npmax(turns, k->tiny), 0.0, k->reach_s);
+    late[b] = stepping * npclip((phi[b] - phi_w) / npmax(turns, k->tiny), 0.0, k->reach_s);
   }
 }
 
 void wbc_imp_goes(const wbc_imp_t *k, const double meet[2][2], const double flat[2][2], const double shod[2][3],
                   const double v[3], const double u[2], const double off[2], const double turns[2],
-                  const double kp[2], const double kd[2], double acc[2][2])
+                  const double kp[2], const double kd[2], double phi_w, double acc[2][2])
 {
   for (int b = 0; b < 2; b++)
   {
-    const double to_go = npmax((((k->arrive_u - u[b]) * 2.0) * k->phi_w) / npmax(turns[b], k->tiny), k->soon_s);
+    const double to_go = npmax((((k->arrive_u - u[b]) * 2.0) * phi_w) / npmax(turns[b], k->tiny), k->soon_s);
     /* and on over a swing's rise, a sole in the air that is no swing whole (stride.eased) */
     const double on = npclip(u[b] / k->rise_u, 0.0, 1.0);
     const double rise = (1.0 - off[b]) + off[b] * (((on * on) * on) * (10.0 + on * (6.0 * on - 15.0)));

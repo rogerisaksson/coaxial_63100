@@ -345,7 +345,7 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     _st, _way, _sw, _phi, on, _off, u, _fl, swung = stride.beat(
         out[latent.SWAY][modal.DRIVE], out[latent.PSI][modal.DRIVE], out[latent.SWAY][modal.LATERAL],
         out[latent.PSI][modal.LATERAL], float(out[latent.TURNS]), a[modal.SWINGS], a[modal.NEED], a[modal.LEAD],
-        a[modal.SPLIT], a[modal.BEGUN], a[modal.STANCE])
+        a[modal.SPLIT], a[modal.BEGUN], a[modal.STANCE], stride.swings(out[latent.SWAY][modal.DRIVE], float(out[latent.TURNS]), a[modal.GOING]))
     t0 = t0 + float(moving) * float((on * (1.0 - u) * (1.0 - a[modal.BEGUN])).max()) / max(float(swung), stride.TINY)
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
     dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving and not in_fwd)

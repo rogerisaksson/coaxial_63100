@@ -416,9 +416,10 @@ slip_m_s = 0.04
 slip_hz = 1.05
 brisk_hz = 0.98
 quick_hz = 0.95
-# Run: her drive's sway `run_boost` times on to `run_drive` - her march's own, not cut below it -, her
-# arms' to `run_arms`; backed faster than her walk back, her drive's `back_boost` times on to
-# `back_drive`; sidestepped faster than hers, her lateral shift `side_shift` of its unit her sidestep's way.
+# Run: her drive's sway `run_boost` times on to `run_drive` - her march's own, not cut below it (at 1.0 her
+# march fell setting out, 3.4 s) -, her arms' to `run_arms`; backed faster than her walk back, her drive's
+# `back_boost` times on to `back_drive`; sidestepped faster than hers, her lateral shift `side_shift` of its
+# unit her sidestep's way.
 run_drive = 0.85
 run_boost = 1.08
 run_arms = 1.00
@@ -613,6 +614,14 @@ rock_rad = 0.5
 # 0.28 m/s, a shuffle by name (`tools.sim.normal`).
 stirs = 0.02
 swing = 0.4
+# And at her march's pace and past it, `swing_fast` of a turn (a power walk's duty 0.51): the swing's
+# acceleration asks go as 1 over its time squared, and at 1.25 Hz her hip passed its clamp 12 times in 6 s
+# at 0.48 for 1.41 m/s (p99 102 N m) where 0.40 at 1.3 Hz passed 190-460 times. From her walk's pace to her
+# march's, `pace_m_s` to `pace_fast_m_s` (her drive's, STRIDE_M 2/pi |drive| turns: 1.17 and 1.28), the share
+# goes in line: her walk at 0.43 went 1.06 m/s for 1.19 and at 0.46 fell in its stop.
+swing_fast = 0.48
+pace_m_s = 1.18
+pace_fast_m_s = 1.27
 # Her sway a quarter turn behind her drive, past `back` of it, she goes the other way.
 back = 0.5
 # Her centre of mass asked no more than this faster or slower than her soles have made of late, m/s.

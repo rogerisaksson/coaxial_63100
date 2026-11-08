@@ -21,7 +21,7 @@ PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'machine', 'motor', 'tes
 #: step arrays - cyclic.py, the whole-body loop's and the bank it reads.
 NUMPY_AT_IMPORT = tuple(os.path.join('machine', *m.split('/')) + '.py' for m in (
     'rig/cyclic stack/qp stack/wbc stack/wrench stack/chain stack/rounds law/latent law/modal law/impedance law/swing '
-    'law/poise law/stride law/treads law/vault law/support law/motion law/upper senses/edge senses/estimate senses/borne senses/grip '
+    'law/poise law/stride law/treads law/vault law/rocker law/support law/motion law/upper senses/edge senses/estimate senses/borne senses/grip '
     'senses/situation senses/touch law/waits law/supervisor senses/observer law/barrier senses/field '
     'senses/inekf texts/lowering law/schema stack/shrunk body/capsules eyes/registry eyes/classes law/somatic body/bemf '
     'law/brace way/affordance eyes/voxels way/obstacles moves/fours body/bends stack/pressed world/groundwork '

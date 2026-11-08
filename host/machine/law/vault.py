@@ -3,7 +3,7 @@
     risen = vault.vaults(legs, v, shod, along, propped, pressed, axial_m, hips_by, low, high, reach, duck, heeled, striding, kp, kd)
 
 Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` renders with it, her
-heel's rise and the height it reaches for from `machine.law.stride.heels`.
+heel's rise and the height it reaches for from `machine.law.rocker.heels`.
 """
 import os
 

@@ -97,24 +97,24 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 
-;; her march, the jog's slot: a brisk walk at 1.1 Hz on her walk's step, her drive 1.2 for 1.16 m/s,
-;; her pelvis turned 0.6 (7 deg): the swing's spring whole from its first pass swung her legs at
-;; 130-170 N m at 1.3 Hz (her hip's clamp 108) and eased on over its rise it landed them under her
-;; centre there; at 1.1 Hz with it eased her hip passes its clamp 0 times for 1.16 m/s (1.37 at 1.3 Hz)
+;; her march, the jog's slot: a power walk at 1.25 Hz, her drive 0.85 (the rhythm's `run_drive`: at 1.0 she
+;; fell setting out) for 1.41 m/s on 0.55 m steps, her pelvis turned 0.8 (9 deg, a power walk's 8-12) and
+;; each limb swinging 0.48 of a turn (`stride.swings`, a power walk's duty 0.51): her hip passes its clamp 12
+;; times in 6 s, p99 102 N m (at 1.3 Hz on 0.40 of a turn, 190-460), her landing knee 22 deg and 15 after
 (defbehavior jog (extends jog)
   (phase apa
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 1.1Hz)
-      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 1.2)
+      (frequency 1.25Hz)
+      (amplitude mode_lateral_shift 0.28) (amplitude mode_sagittal_drive 0.85)
       (amplitude mode_limb_lift 1.04) (amplitude mode_foot_rock 0.60)
-      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.6)
+      (amplitude mode_pelvis_list 0.35) (amplitude mode_pelvis_turn 0.8)
       (amplitude mode_arm_swing 0.90)))
   (phase run
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))
     (cpg_config
-      (frequency 1.1Hz)
-      (amplitude mode_sagittal_drive 1.2) (amplitude mode_limb_lift 1.06)
+      (frequency 1.25Hz)
+      (amplitude mode_sagittal_drive 0.85) (amplitude mode_limb_lift 1.06)
       (amplitude mode_foot_rock 0.64) (amplitude mode_pelvis_list 0.36)
-      (amplitude mode_pelvis_turn 0.6) (amplitude mode_arm_swing 0.95))))
+      (amplitude mode_pelvis_turn 0.8) (amplitude mode_arm_swing 0.95))))
 

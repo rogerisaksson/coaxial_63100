@@ -19,7 +19,7 @@ import numpy as np
 
 from machine.body import gait
 from machine.senses import borne
-from machine.law import latent, poise, stride, swing, treads, vault
+from machine.law import latent, poise, rocker, stride, swing, treads, vault
 from machine.moves import leap
 from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
 from machine.law.poise import HALF_M, TINY
@@ -81,10 +81,11 @@ def ask(out, y, fr, a):
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
     a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
+    phi_w = stride.swings(out[latent.SWAY][DRIVE], turns, a[GOING])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
-        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood)
-    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi))
+        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w)
+    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT], phi_w, stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi, phi_w))
     kp, kd, swung = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS], swung / (1.0 - begun)
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
     # across past the soles that stood, its own side of them - along her way too while her rhythm
@@ -99,7 +100,7 @@ def ask(out, y, fr, a):
     limbs = np.maximum(stepping, off)
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
-    cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING])
+    cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING], phi_w)
     lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
     across = 2.5 * lat_dc
     dv2 = (v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) ** 2 + (v[LEFT] - across - fr[W0] * rate[LATERAL]) ** 2
@@ -126,7 +127,7 @@ def ask(out, y, fr, a):
     short_h = propped * np.maximum((hips[:, UP] - floors).mean() - (ANKLE_H + long), 0.0)
     up = up + short_h / CLEAR_M
     stance, zmp = poise.stands(c[:2] + both[:2] / om ** 2, xi, low, high, om, out[latent.HELD], up,
-                               swaying, (sweep, off, flying, 1.0 * (tilt - stride.pitched(fr[GROUND]) >= stride.HEEL_RAD)),
+                               swaying, (sweep, off, flying, 1.0 * (tilt - rocker.pitched(fr[GROUND]) >= stride.HEEL_RAD)),
                                (y[LOAD], y[LOWEST] - floors, y[LOWEST] - fr[FLOOR], y[VCOM][1], y[PROP] * fr[WEIGHT]),
                                stood, prop)
     stance = stance * (1.0 - a[LET_GO])
@@ -141,9 +142,9 @@ def ask(out, y, fr, a):
     # on ice (0.1) a sole landed 0.3 m ahead of her as the other slid, slid too, and she fell
     reach = np.minimum(stride.REACH_M, (bears @ y[GRIP]) * (c[UP] - fr[FLOOR]))
     cruise, meet, top, land, adj, over, apart = _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach, stood, u, flying)
-    tip, tipping, tipped = stride.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
-    a[PREFOLD], short = stride.folds(off * (1.0 - u), y[LOAD], fr[KNEE] + a[BEND])
-    a[HEELED], flatten, a[EDGE], rounds, reach_h = stride.heels(
+    tip, tipping, tipped = rocker.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
+    a[PREFOLD], short = rocker.folds(off * (1.0 - u), y[LOAD], fr[KNEE] + a[BEND])
+    a[HEELED], flatten, a[EDGE], rounds, reach_h = rocker.heels(
         (soles @ rot.T, tilt, tilting), hips[:, ALONG], floors, long, short, off,
         tip, stance, stepping, a[HEELED], fr[DT], fr[GROUND])
     a[SETTLE] = np.concatenate([flatten[:, None] * rot[LEFT], rounds @ rot], axis=1).ravel()
@@ -160,7 +161,7 @@ def ask(out, y, fr, a):
     # borne off her soles alone (propped, her floor sit's legs threw her back at 110-330 N), up as her height asks
     lifted = upright * (bears @ risen) / fr[HIPS_BY] - (1.0 - upright) * AXIAL_M * pressed
     com = grounded * np.array([along[0], along[1], poise.clip(lifted, -G, THROW_M_S2)]) + (1.0 - grounded) * FALLS
-    late = stride.lates(phi, turns, stepping)
+    late = stride.lates(phi, turns, stepping, phi_w)
     # what a sole met (`machine.senses.touch`) her swings clear, for a turn of her rhythm; something bearing her off her
     # soles, a sole off the floor is no swing: it hovers CLEAR_M over the floor under it - clearing what it met,
     # sat with one sole lifted as the seat struck, that sole rose 16 cm and she fell
@@ -172,15 +173,15 @@ def ask(out, y, fr, a):
                              grounded, propped)
     strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
-        np.concatenate([stride.goes(stride.guarded(meet, over, flat, apart), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2]),
+        np.concatenate([stride.goes(stride.guarded(meet, over, flat, apart), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w),
                         stride.eased(u, off)[:, None] * free[:, UP:]], axis=1) @ rot)).ravel()
     a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out[latent.HELD], (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
     # its pitch on the rock's own spring, from the floor's under the soles that stand; the
     # loop's turn law asked for what gives that
-    a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (tipped + kp[ROCK] * (tip + bears @ stride.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (tipping - tilting))
+    a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (tipped + kp[ROCK] * (tip + bears @ rocker.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (tipping - tilting))
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
-    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN] = stance, com @ rot, stepping, propped, on * (begun + stood * (1.0 - stance) * off * (np.minimum(0.5 * (phi / stride.PHI_W + 1.0), 0.0) - begun))
+    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN] = stance, com @ rot, stepping, propped, on * (begun + stood * (1.0 - stance) * off * (np.minimum(0.5 * (phi / phi_w + 1.0), 0.0) - begun))
     _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 

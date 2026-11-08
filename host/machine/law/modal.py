@@ -23,7 +23,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import latent, stride
+from machine.law import latent, rocker
 from machine.moves import leap
 from machine.texts import ortho
 from machine.stack import rounds
@@ -255,7 +255,7 @@ def under(y, fr, stance):
     half `stride.EDGE_RAD`. Read level, each swing up a 10 deg ramp came down on it early, 0.05
     to 0.09 m behind her centre of mass, and she ran on to 1.7 m/s and fell at 5.1 s."""
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
-    rise = bears @ -np.tan(stride.pitched(fr[GROUND]))
+    rise = bears @ -np.tan(rocker.pitched(fr[GROUND]))
     return fr[FLOOR] + rise * ((y[SOLE].reshape(2, 3)[:, [0, 2]] - fr[FLOOR_AT]) @ fr[ROT][[0, 2]]), rise
 
 
