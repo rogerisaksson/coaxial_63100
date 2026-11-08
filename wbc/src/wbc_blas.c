@@ -194,3 +194,109 @@ int wbc_inv(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
 
   return gesv(l, a, eye, n, n, x, work);
 }
+
+/** a (m, q) view into Fortran order at `af`, m rows a column. */
+static void fortran(wbc_view_t a, int m, int q, double *af)
+{
+  for (int j = 0; j < q; j++)
+  {
+    for (int i = 0; i < m; i++)
+    {
+      af[i + j * m] = a.at[i * a.s0 + j * a.s1];
+    }
+  }
+}
+
+int wbc_potrf(const wbc_blas_t *l, wbc_view_t a, int n, double *x, double *work)
+{
+  /* umath_linalg's cholesky_lo: dpotrf on the Fortran-ordered copy, its upper triangle zeroed */
+  const char uplo = 'L';
+  int64_t    nn = n, info = 0;
+
+  fortran(a, n, n, work);
+  l->potrf(&uplo, &nn, work, &nn, &info);
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      x[i * n + j] = info != 0 ? NAN : (j > i ? 0.0 : work[i + j * n]);
+    }
+  }
+  return info != 0;
+}
+
+/** dgeqrf or dorgqr (`k` under 0) on `af` (m, cols) with its workspace asked first, as umath_linalg's init_geqrf and
+    init_gqr_common size it: 0, or 1 failed or `avail` doubles too few. */
+static int lapack_qr(const wbc_blas_t *l, int m, int cols, int64_t k, double *af, double *tau, double *lw, int64_t avail)
+{
+  int64_t mm = m, nn = cols, lwork = -1, info = 0;
+  double  asked = 0.0;
+
+  if (k < 0)
+  {
+    l->geqrf(&mm, &nn, af, &mm, tau, &asked, &lwork, &info);
+  }
+  else
+  {
+    l->orgqr(&mm, &nn, &k, af, &mm, tau, &asked, &lwork, &info);
+  }
+  lwork = (int64_t)asked;
+  lwork = lwork > nn ? lwork : (nn > 1 ? nn : 1);
+  if (info != 0 || lwork > avail)
+  {
+    return 1;
+  }
+  if (k < 0)
+  {
+    l->geqrf(&mm, &nn, af, &mm, tau, lw, &lwork, &info);
+  }
+  else
+  {
+    l->orgqr(&mm, &nn, &k, af, &mm, tau, lw, &lwork, &info);
+  }
+  return info != 0;
+}
+
+int wbc_qr(const wbc_blas_t *l, wbc_view_t a, int m, int q, double *Q, double *R, double *work, int nwork)
+{
+  /* numpy's qr: qr_r_raw's dgeqrf on the Fortran-ordered copy, R its upper triangle; qr_complete's (qr_reduced's at
+     q = m) dorgqr on the m by m copy of the reflectors, its first q columns */
+  double       *af = work, *qf = af + m * q, *tau = qf + m * m, *lw = tau + q;
+  const int64_t avail = (int64_t)nwork - (int64_t)(m * q + m * m + q);
+
+  if (avail < 1 || q > m)
+  {
+    return 1;
+  }
+  fortran(a, m, q, af);
+  if (lapack_qr(l, m, q, -1, af, tau, lw, avail))
+  {
+    return 1;
+  }
+  for (int i = 0; i < m; i++)
+  {
+    for (int j = 0; j < q; j++)
+    {
+      R[i * q + j] = j >= i ? af[i + j * m] : 0.0;
+    }
+  }
+  for (int j = 0; j < m; j++)
+  {
+    for (int i = 0; i < m; i++)
+    {
+      qf[i + j * m] = j < q ? af[i + j * m] : 0.0;
+    }
+  }
+  if (lapack_qr(l, m, m, q, qf, tau, lw, avail))
+  {
+    return 1;
+  }
+  for (int i = 0; i < m; i++)
+  {
+    for (int j = 0; j < m; j++)
+    {
+      Q[i * m + j] = qf[i + j * m];
+    }
+  }
+  return 0;
+}
