@@ -5,7 +5,8 @@
 `ax` the walk's axial target, `rock`/`drive` the walk stream's, `k`/`c` the stride spring's, `heel`, `heelrate`,
 `flatk`, `fold`, `dip`, `ls`, `rise`, `edge` the stride's and rocker's, `mhz`/`mdrive`/`mturn`/`max` the march's,
 `pace`/`pace_fast` the swing's, `rund` the run's drive, `sea` the ankle's series spring, `wind` the board's wound-ahead
-ask, `track` the rotor's torque loop, `wfold` the stack's knee fold weight (tools/sim/handover.py).
+ask, `track` the rotor's torque loop, `wfold` the stack's knee fold weight, `charge` a said hop's, `throw`/`sweep` scales
+on the stride leap's sagittal throw (reach and stiffness) and drive sweep (ballistic.bound) (tools/sim/handover.py).
 """
 import math
 import os
@@ -91,6 +92,13 @@ def arranged(spec):
     if 'charge' in spec:
         from machine.process import worker
         worker.HOP_CHARGE = float(spec['charge'])
+    if 'throw' in spec:
+        from machine.moves import ballistic
+        ballistic.THROW_M, ballistic.THROW_GAIN = 0.28 * float(spec['throw']), 0.60 * float(spec['throw'])
+        ballistic.THROW_K0, ballistic.THROW_KG = 1800.0 * float(spec['throw']), 1000.0 * float(spec['throw'])
+    if 'sweep' in spec:
+        from machine.moves import ballistic
+        ballistic.SWEEP = float(spec['sweep'])
     if 'wfold' in spec:
         from machine.stack import wrench
         wrench.W_FOLD = float(spec['wfold'])

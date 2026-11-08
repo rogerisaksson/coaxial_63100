@@ -19,6 +19,9 @@ G = 9.81
 #: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, 1/s^2 (the stride leap's table's).
 THROW_K = 21600.0
 KNEE = bemf.DRIVEN.index('left_knee')
+#: The stride leap's sagittal throw: her hold thrown THROW_M + THROW_GAIN * thrown ahead at THROW_K0 + THROW_KG * thrown,
+#: and her drive swept SWEEP of her flight's share of her swing's window further (tools/sim/knobs.py `throw`, `sweep`).
+THROW_M, THROW_GAIN, THROW_K0, THROW_KG, SWEEP = 0.28, 0.60, 1800.0, 1000.0, 1.0
 
 
 def froude(v, leg):
@@ -154,14 +157,14 @@ def bound(fr, ch, turns, now, label, speed=0.69):
     rows['p'][n + 1, z] = leap.STRAIGHT
     rows['flags'][1] |= ortho.RISE
     thrown = 0.06 + 0.28 * ch + 0.08 * min(1.0, max(0.0, (float(np.nan_to_num(speed)) - 0.55) / 0.20))
-    rows['p'][1:n + 1, latent.Z.start + modal.SAGITTAL] = 0.28 + 0.60 * thrown
-    rows['p'][1:n + 1, latent.K.start + modal.SAGITTAL] = 1800.0 + 1000.0 * thrown
+    rows['p'][1:n + 1, latent.Z.start + modal.SAGITTAL] = THROW_M + THROW_GAIN * thrown
+    rows['p'][1:n + 1, latent.K.start + modal.SAGITTAL] = THROW_K0 + THROW_KG * thrown
     rows['p'][n + 2, latent.Z.start + modal.SAGITTAL] = now[latent.Z.start + modal.SAGITTAL]
     rows['p'][n + 2, latent.K.start + modal.SAGITTAL] = now[latent.K.start + modal.SAGITTAL]
     # her stride swept as much further as her flight carries her: at her walk's sweep her held sole reached 0.14 m
     # short of her centre and she landed on both soles behind it
     drive = latent.AMP.start + modal.DRIVE
-    rows['p'][0:n + 2, drive] = now[drive] * (1.0 + 2.0 * v / G / (2.0 * stride.PHI_W / max(float(turns), 1e-9)))
+    rows['p'][0:n + 2, drive] = now[drive] * (1.0 + SWEEP * 2.0 * v / G / (2.0 * stride.PHI_W / max(float(turns), 1e-9)))
     rows['p'][n + 2, drive] = now[drive]
     landing = next(r[2] for r in leap._leap_specs() if r[:2] == (2, d))
     rows['p'][n + 2, z], rows['p'][n + 2, k], rows['p'][n + 2, d] = leap.bottom(fr, v / per), 0.0, landing
