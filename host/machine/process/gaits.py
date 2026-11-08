@@ -142,8 +142,12 @@ def heard_say(g, gym, entry):
     # with: she stood at 1.3 m/s and fell (stutter 2 of 9 starts)
     braked = g.get('_brake_from') if cur_d == 'brake' else None
     ae_dir = braked if braked in (sprung._FWD_GAITS + sprung._BACK_GAITS) else g.get('active_entry')
-    same_dir = ((ae_dir in sprung._FWD_GAITS and name in sprung._FWD_GAITS)
-                or (ae_dir in sprung._BACK_GAITS and name in sprung._BACK_GAITS))
+    # and the gait queued after the brake (`active_entry` while she brakes): a back turn said in a brake laid for the
+    # other back turn was braked again - a brake row reset, the turn 0.9 s later - for a splice (brake, brake, turn
+    # for brake, turn on the page's WD, SD, SA)
+    queued = g.get('active_entry') if cur_d == 'brake' else None
+    same_dir = any((d in sprung._FWD_GAITS and name in sprung._FWD_GAITS) or (d in sprung._BACK_GAITS and name in sprung._BACK_GAITS)
+                   for d in (ae_dir, queued))
     # the splice's time: the first row ahead, else the pending stand's earliest (`halted`)
     t_end = float(future[0, latent.AT]) if len(future) else (g['_halt_at'][0] if g.get('_halt_at') else None)
     if (cur_d in ('brake', 'stand', 'init_walk') and same_dir and t_end is not None

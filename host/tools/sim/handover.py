@@ -58,10 +58,16 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive', 'loop')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
+    # her analyzers over the run (`machine.process.watch`, `introspect.Tap`): a stumble, a fall, a spasm told
+    from machine.process import introspect, watch
+    tap, watched, told = introspect.Tap(), watch.Watch(), []
 
     def laid(s):
         g = s['g']
         seen['s'] = s
+        snap = tap.passed(s)
+        if snap is not None:
+            told.extend(watched.step(snap))
         m, d, t = g['world'].model, g['world'].data, g['t']
         if seen['ix'] is None:
             names = [m.joint(int(m.dof_jntid[i])).name for i in g['body'].act]
@@ -148,19 +154,26 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
 
     out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
     if record and 's' in seen:
-        # the recording ended with the run where the fall ended it first, its windows written before we return
-        import time
-        from machine.process import watch
-        scope = (seen['s'].get('recording') or {}).get('scope')
-        watch.recorded(seen['s'], None)
-        for _ in range(200):
-            if scope is None or not scope.pending:
-                break
-            time.sleep(0.1)
-    row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']))
+        _ended(seen['s'])
+    row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']),
+                     stumbles=[round(e['t'], 2) for e in told if e['event'] == 'stumble'],
+                     falls=[round(e['t'], 2) for e in told if e['event'] == 'fall'], spasms=sum(e['event'] == 'spasm' for e in told))
     if len(log['t']) < 10:
         return row
     return _summed(log, seen, row, trace, from_s, to_s, at, right)
+
+
+def _ended(s):
+    """The recording on her session `s` ended (`watch.recorded`) where the run ended first - a fall before the
+    window's end -, its windows written before the row is summed."""
+    import time
+    from machine.process import watch
+    scope = (s.get('recording') or {}).get('scope')
+    watch.recorded(s, None)
+    for _ in range(200):
+        if scope is None or not scope.pending:
+            break
+        time.sleep(0.1)
 
 
 def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
@@ -293,7 +306,7 @@ def main(argv=None):
             texts = [rows[run or 'base'] for s, run in runs if s == spec]
             if args.rows:
                 for r in (json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')):
-                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'hip_passes', 'v')}))
+                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'stumbles', 'hip_passes', 'v')}))
             print(ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
         return 0
     for spec in args.specs:

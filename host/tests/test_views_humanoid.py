@@ -87,53 +87,6 @@ def test_the_humanoid_pages_keys(report):
                  st['orbit'] is True and st['shoulder'] == -1.0 and st['frame'] == 4)
 
 
-def test_the_keys_that_move_her_are_one_twist(report):
-    """W A S D move and turn her relative to her own body (independent of the viewport); Q E
-    sidestep; Shift sprints: one twist, sent when it changes, each one the bench's plays hold."""
-    import time
-    from terminal.views import humanoid_keys, viewpoint
-    from tools.sim import scenarios
-
-    def tw(word, yaw=180.0, heading=0.0):
-        keys = dict({k: k in word.lower() for k in 'wsadqe'}, shift=word != word.lower())
-        return humanoid_keys.twist(keys, viewpoint.looks({'yaw': yaw}), heading)
-
-    report.check('in her frame: W walks her on, S walks her back, A turns her left in place, Q sidesteps left',
-                 (tw('w'), tw('s'), tw('a'), tw('q')) == ((0.69, 0.0, 0.0), (-0.35, 0.0, 0.0), (0.0, 0.0, 0.7), (0.0, 0.5, 0.0)))
-    report.check('independent of view yaw: W walks straight, WA arcs left, Shift+W sprints, E sidesteps right',
-                 (tw('w', 240.0), tw('wa', 240.0), tw('W', 90.0), tw('e', 45.0))
-                 == ((0.69, 0.0, 0.0), (0.69, 0.0, 0.7), (1.4, 0.0, 0.0), (0.0, -0.5, 0.0)))
-    every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
-             for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}
-    bound = [max(abs(t[i]) for t in scenarios.KEYS.values()) for i in range(3)]
-    report.check("every twist the keys send within the bench plays' bounds, a sidestep alone, a sprint all but straight",
-                 all(abs(t[i]) <= bound[i] + 1e-9 for t in every for i in range(3))
-                 and all(not (t[1] and (t[0] or t[2])) for t in every)
-                 and all(abs(t[2]) <= 0.3 for t in every if t[0] > 0.69), sorted(every)[:4])
-    sent = []
-    st: dict = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'yaw': 180.0, 'tour': None}
-    t = time.monotonic()
-    typed(humanoid_keys.PAD, 'w', st, t)
-    for dt in (0.0, 0.05, 2.0):
-        humanoid_keys.steered(st, t + dt, 0.0)
-    report.check('a W typed walks her, sent once while held, the stop once when let go',
-                 sent == [{'twist': (0.69, 0.0, 0.0)}, {'twist': (0.0, 0.0, 0.0)}]
-                 and not humanoid_keys.polled(['s'], st['pad'], t, held=set())['s'], sent)
-    from machine.law import latent, modal
-    from machine.process import worker
-    s = worker.session()
-    g, gym = s['g'], s['gym']
-    g['active_entry'], g['out'][latent.SWAY][modal.DRIVE], g['est']['vel'][2] = 'turn_right', 0.28, 0.55
-    worker.heard(g, gym, {'twist': tw('sd')})
-    lbl_sd = [n for w, n in g['labels'] if w < g['t'] + 5.0]
-    g['t'] += 0.05
-    worker.heard(g, gym, {'twist': tw('sa')})
-    lbl_sa = [n for w, n in g['labels'] if w < g['t'] + 5.0]
-    report.check('WD -> SD brakes then turns back (never dropping into rest); splicing SA mid-brake keeps the turn queued',
-                 lbl_sd == ['brake', 'turn'] and lbl_sa == ['brake', 'turn'] and g['active_entry'] == 'turn_back_left',
-                 (lbl_sd, lbl_sa, g.get('active_entry')))
-
-
 def test_a_held_p_charges_a_push(report):
     """P held charges a push CHARGE_N_S a second, landing RELEASE_S after its repeats stop."""
     import math
@@ -373,8 +326,7 @@ def test_her_chat_a_drawer(report):
                  and answered == [full, 0] and lead in SPIN, (opened, greeted, typing, answered, lead))
 
 
-ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_the_keys_that_move_her_are_one_twist,
-          test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
+ROSTER = (test_the_humanoid_pages_mouse, test_the_humanoid_pages_keys, test_a_held_p_charges_a_push, test_vision_scanner_docked_pip_and_affordances, test_her_verbs_and_the_chase,
           test_scenario_deck_tour_handoff_and_cybernetic_hud, test_her_clothes_bend_at_the_joints,
           test_a_scene_laid_anew_is_told_the_keys_again, test_her_chat_a_drawer)
 

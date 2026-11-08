@@ -111,6 +111,8 @@ GYNOID, WBC, SIGHT, CAMERA, GAZE = 'test_gynoid.py', 'test_wbc.py', 'test_sight.
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.stack.wrench`; the closed chains'.
 WBC_CORE, LEAP, WRENCH, CHAIN = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py', 'test_chain.py'
+#: WASD on her: the page's keys drive her, and the player's plays from each start stand without a stumble.
+WASD = 'test_wasd.py'
 #: The stack's dual active set in C beside its python on random QPs (tools.cores.qp).
 QP = 'test_qp.py'
 #: Her body identified of her edge alone, on the stand (machine.identify.sysid).
@@ -209,7 +211,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -243,6 +245,7 @@ JOINS = (
     (12, SCENES),
     (12, WBC),
     (12, LEAP),
+    (12, WASD),
     (12, ORTHO),
     (12, POSTURES),
     (12, FOURS),
@@ -367,7 +370,8 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUA
 #: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
 #: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI; the
 #: errands' 21 runs 754 s here, cut at 620 on CI planned at 310.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0, ERRANDS: 760.0}
+FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0, ERRANDS: 760.0,
+           WASD: 900.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

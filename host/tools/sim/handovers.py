@@ -37,6 +37,7 @@ def ensemble(spec, rows):
     med = lambda k: round(float(np.median([r[k] for r in rows if r.get(k) is not None])), 3) if any(r.get(k) is not None for r in rows) else None
     return json.dumps({'spec': spec, 'runs': len(rows), 'stood': sum(bool(r.get('stood')) for r in rows),
                        'fell_at': sorted(round(r['fell'], 1) for r in rows if r.get('fell') is not None),
+                       'stumbles': sum(len(r.get('stumbles') or ()) for r in rows),
                        'hip_passes_med': med('hip_passes'), 'hip_passes_max': max((r.get('hip_passes') or 0) for r in rows),
                        'v_med': med('v'), 'land_knee_med': med('land_knee'), 'knee_min_med': med('knee_min'),
                        'plan_err_land_med': med('plan_err_land'), 'plan_err_trail_med': med('plan_err_trail'),
