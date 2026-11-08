@@ -31,10 +31,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from tools.sim.handovers import ENSEMBLE, ensemble, planned
+
 #: A sole has landed at this share of her weight; the window measured, s; a stance before, s.
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
-#: An ensemble's starts: the walk's drive and its axial target, a run each pair (`--ensemble`).
-ENSEMBLE = ((0.84, 0.85, 0.86), (0.028, 0.03, 0.032))
 GAIT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'humanoid', 'gait_base.lisp')
 POSTURES_PATH = os.path.join(os.path.dirname(GAIT_PATH), 'postures_base.lisp')
 
@@ -113,8 +113,8 @@ def arranged(spec):
     return tune.given(edits) if edits else None
 
 
-def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
-    """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it."""
+def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None):
+    """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at` instead, given."""
     import numpy as np
     from machine.law import modal
     from tools.sim import scenarios
@@ -127,7 +127,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -169,6 +169,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
         log['leg'].append(list(np.linalg.norm(leg, axis=1)))
         log['vs'].append(list(np.asarray(y[modal.VSOLE]).reshape(2, 3)[:, 1]))
         log['vcom'].append(float(y[modal.VCOM][1]))
+        log['vx'].append(float(np.asarray(y[modal.VCOM]) @ rot[0]))
         from machine.process import sprung
         log['tilt_g'].append(float(sprung.tilt(g)))
         log['acc'].append(float(a[modal.COM_ACC][1]))
@@ -203,41 +204,10 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S)):
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']))
     if len(log['t']) < 10:
         return row
-    return _summed(log, seen, row, trace, from_s, to_s)
+    return _summed(log, seen, row, trace, from_s, to_s, at)
 
 
-def _planned(A, at, dt, fwd, b10):
-    """The double support's load planning against the sensed loads, medians over the landings `at`: the mean
-    |planned - real| share over `fwd` passes from a landing for the landing sole and the trailing one (from `b10`
-    passes before), ms after the landing when the plan zeroes the trailing sole and when its load leaves."""
-    import numpy as np
-    errs_b, errs_o, zero, left = [], [], [], []
-    for i, b in at:
-        o, hi = 1 - b, min(len(A['t']), i + fwd)
-        errs_b.append(np.abs(A['qp'][i:hi, b] - A['ld'][i:hi, b]).mean())
-        errs_o.append(np.abs(A['qp'][i - b10:hi, o] - A['ld'][i - b10:hi, o]).mean())
-        gone = np.flatnonzero(A['qp'][i:hi, o] <= 0.02)
-        off = np.flatnonzero(A['ld'][i:hi, o] < LANDED)
-        zero.append(1e3 * dt * (gone[0] if len(gone) else fwd))
-        left.append(1e3 * dt * (off[0] if len(off) else fwd))
-    return {k: round(float(np.median(v)), 3) for k, v in (('plan_err_land', errs_b), ('plan_err_trail', errs_o),
-                                                         ('plan_zero_ms', zero), ('trail_off_ms', left)) if v}
-
-
-def _ensemble(spec, rows):
-    """One line for `spec`'s ensemble `rows` (dicts): how many stood of how many, the hip clamp passes' median and
-    worst, the speed's, the landing knee's and the plan's load errors' medians."""
-    import numpy as np
-    med = lambda k: round(float(np.median([r[k] for r in rows if r.get(k) is not None])), 3) if any(r.get(k) is not None for r in rows) else None
-    return json.dumps({'spec': spec, 'runs': len(rows), 'stood': sum(bool(r.get('stood')) for r in rows),
-                       'fell_at': sorted(round(r['fell'], 1) for r in rows if r.get('fell') is not None),
-                       'hip_passes_med': med('hip_passes'), 'hip_passes_max': max((r.get('hip_passes') or 0) for r in rows),
-                       'v_med': med('v'), 'land_knee_med': med('land_knee'), 'knee_min_med': med('knee_min'),
-                       'plan_err_land_med': med('plan_err_land'), 'plan_err_trail_med': med('plan_err_trail'),
-                       'plan_zero_ms_med': med('plan_zero_ms'), 'trail_off_ms_med': med('trail_off_ms')})
-
-
-def _summed(log, seen, row, trace, from_s, to_s):
+def _summed(log, seen, row, trace, from_s, to_s, at_s=None):
     """`ran`'s row of its `log`: the landings' medians, the hip's passes and, `trace`, the passes round one landing."""
     import numpy as np
     A = {k: np.array(v) for k, v in log.items()}
@@ -266,7 +236,7 @@ def _summed(log, seen, row, trace, from_s, to_s):
     if events:
         row.update({k: round(float(np.median([e[k] for e in events])), 3) for k in events[0]})
     row['clamp'] = seen['clamp']
-    row.update(_planned(A, at, dt, fwd, b10))
+    row.update(planned(A, at, dt, fwd, b10, LANDED))
     lands = sorted(A['t'][i] for i, _b in at)
     passes = {}
     for i, b in zip(*np.nonzero(A['tau_h'] > 108.0)):
@@ -299,16 +269,18 @@ def _summed(log, seen, row, trace, from_s, to_s):
     row['rhythm_s'] = round(float(np.median(np.diff(starts))), 3) if len(starts) > 2 else None
     # the trace round a clean landing: the sole off the floor through half a STANCE_S before (no bounce, no flight)
     clean = [(i, b) for i, b in at if (A['ld'][max(0, i - back // 2):i, b] < LANDED).all()]
+    if trace and at_s is not None:
+        clean = [(min(int(np.searchsorted(A['t'], at_s)), len(A['t']) - 1), 1)]
     if trace and clean:
         i, b = clean[min(6, len(clean) - 1)]
         o = 1 - b
-        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along']
-        for j in range(i - 8 * int(round(0.03 / dt)), i + 3 * int(round(0.03 / dt)) + 1, max(1, int(round(0.01 / dt)))):
+        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along vx']
+        for j in range(max(0, i - 8 * int(round(0.03 / dt))), min(len(A['t']), i + 3 * int(round(0.03 / dt)) + 1), max(1, int(round(0.01 / dt)))):
             row['trace'].append(' '.join('%.3g' % x for x in (
                 A['t'][j] - A['t'][i], A['ld'][j, o], A['ld'][j, b], A['qp'][j, o], A['qp'][j, b], A['st'][j, o], A['off'][j, o],
                 A['knee'][j, o], A['knee'][j, b], A['tilt'][j, o], A['sw'][j, 3 + o], A['hip'][j], A['acc'][j], A['pre'][j, o],
                 A['tau_k'][j, o], A['tau_a'][j, o], A['tau_hs'][j, o], A['tau_hs'][j, b], A['vs'][j, o], A['sw'][j, o], A['sw'][j, 5 + o], A['along'][j, o],
-                A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b], A['dip'][j, o], A['dip'][j, b], A['zmp'][j, o], A['zmp'][j, b], A['zmp'][j, 2])))
+                A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b], A['dip'][j, o], A['dip'][j, b], A['zmp'][j, o], A['zmp'][j, b], A['zmp'][j, 2], A['vx'][j])))
     return row
 
 
@@ -322,13 +294,14 @@ def main(argv=None):
     parser.add_argument('--spec', default=None, help='one run here, its row as JSON')
     parser.add_argument('--specs', nargs='*', default=None, help="variants, a relay job each ('' her walk as built)")
     parser.add_argument('--trace', action='store_true', help='the passes round one landing, a line each')
+    parser.add_argument('--trace-at', type=float, default=None, help='the trace round this second instead of a landing (sole o her left)')
     parser.add_argument('--play', default='w12 -3', help="the player's moves (tools/sim/player.py), her walk unsaid")
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
     args = parser.parse_args(argv)
     if args.specs is None:
-        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')))
+        row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at)
         for line in row.pop('trace', []):
             print(line)
         print(json.dumps(row))
@@ -338,7 +311,8 @@ def main(argv=None):
     starts = [',drive=%g,ax=%g' % (d, ax) for d in ENSEMBLE[0] for ax in ENSEMBLE[1]] if args.ensemble else ['']
     runs = [(spec, spec + start) for spec in args.specs for start in starts]
     jobs = [focus.Job(run or 'base', here + ['--spec', run, '--play', args.play, '--window', args.window]
-                      + (['--entries', args.entries] if args.entries else []) + (['--trace'] if args.trace else []), 1.5, 900.0)
+                      + (['--entries', args.entries] if args.entries else []) + (['--trace'] if args.trace else [])
+                      + (['--trace-at', str(args.trace_at)] if args.trace_at is not None else []), 1.5, 900.0)
             for _spec, run in runs]
     rows = {}
     for job, text, _code, seconds in focus.relay(jobs):
@@ -350,7 +324,7 @@ def main(argv=None):
     if args.ensemble:
         for spec in args.specs:
             texts = [rows[run or 'base'] for s, run in runs if s == spec]
-            print(_ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
+            print(ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
         return 0
     for spec in args.specs:
         print(rows[spec or 'base'])
