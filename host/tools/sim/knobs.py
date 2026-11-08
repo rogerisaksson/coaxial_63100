@@ -85,6 +85,9 @@ def arranged(spec):
     if 'track' in spec:
         from machine.body import gearbox
         gearbox.TRACK = float(spec['track'])
+    if 'rates' in spec:
+        from machine.body import gearbox
+        gearbox.RATE_S = float(spec['rates'])
     if 'wfold' in spec:
         from machine.stack import wrench
         wrench.W_FOLD = float(spec['wfold'])
