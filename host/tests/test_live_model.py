@@ -256,6 +256,11 @@ def main(argv=None):
                              'back to the stand-in anyway - the model is the '
                              'real one either way, which is what this tests')
     args = parser.parse_args(argv)
+    # the runner's 'auto' is the tag this host runs (`capability.choose`, the pick the cli and board_chat make):
+    # passed on as it was, ollama answered 404, model 'auto' not found, and the suite crashed
+    if args.model == 'auto':
+        from coaxial_ollama import capability
+        args.model = capability.choose(capability.probe()).tag
 
     release = args.release
     session, chat, found = build(args.model, args.port, args.simulated,

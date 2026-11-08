@@ -314,7 +314,11 @@ def test_her_way_walked_through(report):
     off, turned, last, rounded, kept, took = 0, 0.0, True, 0, 0, []
     for verb in ('sit_chair', 'lie_bed'):
         found = furniture.nearest(g, verb)
-        laid = dock.docked(here, g['things'], floor, verb, found[6], maneuver.standoff(verb)) or {'stage': (math.nan,) * 2, 'face': None}
+        laid = dock.docked(here, g['things'], floor, verb, found[6], maneuver.standoff(verb))
+        # a way to no stage is none: walked to a NaN stage the suite died
+        report.check('%s docked from her start' % verb, laid is not None, 'stage %s' % ((laid or {}).get('stage'),))
+        if laid is None:
+            continue
         to = laid['stage']
         box = found[6]
         cost = route.costs(g['things'], floor, None, int(box[4]) if box is not None else -1, laid['face'])

@@ -123,18 +123,21 @@ def test_her_wayfinder_apart(report):
            'dock': ('sit_chair', box, maneuver.standoff('sit_chair')), 'passed': 0.0, 'way': ()}
     here: dict = planner.answered(ask)
     laid = here.get('laid') or {}
-    watch = dict(ask, kind='watch', to=laid.get('stage'), face=laid.get('face'), way=[(0.0, 0.0), laid.get('stage')])
-    p = planner.Planner()
-    try:
-        p.ask(1.0, ask)
-        told: dict | None = p.answer(1.0)
-        p.ask(2.0, watch)
-        early, watched = p.answer(2.0 + 0.5 * planner.LATENCY_S), p.answer(2.0 + planner.LATENCY_S)
-    finally:
-        p.close()
+    told = early = watched = None
+    # no dock laid, no way to watch: a watch of none killed her planner's process and the suite with it
+    if 'stage' in laid:
+        watch = dict(ask, kind='watch', to=laid['stage'], face=laid['face'], way=[(0.0, 0.0), laid['stage']])
+        p = planner.Planner()
+        try:
+            p.ask(1.0, ask)
+            told = p.answer(1.0)
+            p.ask(2.0, watch)
+            early, watched = p.answer(2.0 + 0.5 * planner.LATENCY_S), p.answer(2.0 + planner.LATENCY_S)
+        finally:
+            p.close()
     report.check('a dock answered at once as here, stage %s; a watch %.2f s on, none before' % (laid.get('stage'), planner.LATENCY_S),
                  told is not None and told.get('laid') == laid and told.get('stops') == here.get('stops')
-                 and early is None and watched is not None, '%s %s' % (told, watched))
+                 and early is None and watched is not None, '%s %s' % (told, watched) if laid else 'no dock laid: %s' % here)
     top = [('wood', (0.0, floor + 0.9, 0.0), (0.4, 0.05, 0.3), np.eye(3), 7)]
     at = [(0.0, 0.3 + d) for d in (0.3, 0.36)] + [(0.0, -0.3 - d) for d in (0.3, 0.36)]
     plain, opened = (np.isinf(obstacles.costed(at, top, floor, np.ones(4), 7, f)) for f in (None, (0.0, 1.0)))
