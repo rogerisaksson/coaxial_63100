@@ -124,7 +124,10 @@ LET_GO = slice(75, 77)
 SPLIT = slice(77, 79)
 #: And, kept, the share of each limb's rhythm's swing its own began at: 0 there, less where its toes left first.
 BEGUN = slice(79, 81)
-ASK = 81
+#: And each leg's hold's dip, m: its hip under the height its heel rises for (`rocker.heels`' reach, `vault.vaults`
+#: holds it there) - the leg's bend past its asked length, and past the heel's need its hip's fall under the arc.
+DIP = slice(81, 83)
+ASK = 83
 
 #: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
 _G = gait.table('modes')

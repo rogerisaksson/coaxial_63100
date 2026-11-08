@@ -349,6 +349,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
             + s.kd[ax] * ((s.rate[ax] + duck[1] / k->axial_m) - zd[ax]);
   hip_h[0] = hip3[0][2] - floors[0];
   hip_h[1] = hip3[1][2] - floors[1];
+  a[k->a_dip] = reach_h[0] - hip_h[0];
+  a[k->a_dip + 1] = reach_h[1] - hip_h[1];
   /* the hold a stride's lone stance's: the other sole swinging (machine.law.vault) */
   striding[0] = npclip(out[k->o_held], 0.0, 1.0) * flying[1];
   striding[1] = npclip(out[k->o_held], 0.0, 1.0) * flying[0];
