@@ -15,7 +15,7 @@ typedef struct
 {
   int           n;            /**< her modes, and each's index */
   int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock, reach, elbows;
-  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked, o_manifolded;
+  int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked, o_manifolded, o_asked;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin, y_elbow, y_palms;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
@@ -145,7 +145,8 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
 void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len[2], const double lrate[2],
                     const double v[3], const double shod[2][3], const double along[2], double propped, double pressed,
                     double hips_by, double low, const double high[2], const double reach_h[2], const double duck[2],
-                    const double heeled[2], const double striding[2], double kp, double kd, double risen[2]);
+                    const double heeled[2], const double striding[2], double asked, double sway, double kp, double kd,
+                    double risen[2]);
 
 /** machine.law.stride.clears: a swinging sole's middle over the floor, its rate, its acceleration. */
 void wbc_imp_clears(const wbc_imp_t *k, const double u[2], const double flying[2], const double swung[2],

@@ -14,6 +14,7 @@ typedef wbc_imp_said_t said_t;
 void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a)
 {
   const double *rot = fr + k->f_rot, *sway = out + k->o_sway, *psi = out + k->o_psi, *tilt = y + k->y_tilt;
+  const double *asked = out + k->o_asked;
   const double *tilting = y + k->y_tilt_rate, turns = out[k->o_turns];
   const double  stood[2] = {a[k->a_stance], a[k->a_stance + 1]}, begun[2] = {a[k->a_begun], a[k->a_begun + 1]};
   double        phi_w;
@@ -355,7 +356,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   striding[0] = npclip(out[k->o_held], 0.0, 1.0) * flying[1];
   striding[1] = npclip(out[k->o_held], 0.0, 1.0) * flying[0];
   wbc_imp_vaults(k, leg, len, lrate, v, shod, along, propped, pressed, fr[k->f_hips_by], k->low_leg * fr[k->f_reach0], hip_h, reach_h,
-                 duck, rocked, striding, s.kp[ax], s.kd[ax], risen);
+                 duck, rocked, striding, asked[k->drive], sway[k->drive], s.kp[ax], s.kd[ax], risen);
   smax = npmax(stance[0], stance[1]);
   {
     /* her standing legs' geometry sets her height only while nothing else bears her (machine.law.impedance) */

@@ -178,6 +178,10 @@ void wbc_law_latent(const wbc_law_t *k, double *st, const double *tab, int ntab,
     out[k->manifolded + i] = p[k->manifold + i];
   }
   out[k->slid] = p[k->slide];
+  for (int m = 0; m < n; m++)
+  {
+    out[k->asked + m] = to[k->gain] * to[k->amp + m];
+  }
 }
 
 void wbc_law_couple(const wbc_law_t *k, const double *q, const double *qd, const double *ref_q, const double *ref_v,

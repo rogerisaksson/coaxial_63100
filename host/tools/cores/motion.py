@@ -24,7 +24,7 @@ from tools.cores import wbc
 #: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.law.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach elbows'.split()
-OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded'.split()
+OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded asked'.split()
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin elbow palms').split()
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
@@ -190,7 +190,7 @@ def numpy_blas():
 #: wbc_law_t's ints and doubles in its order, by what fills them.
 LAW_INTS = ('n p driven z k d amp phase gain hz zmp yaw now from to t0 blend theta v0 v1 contig shape vals said at '
             'lerp curve shaped table ref rate acc ks ds psi sway turns held yawed bend duck ducked manifold '
-            'manifolded slide slid').split()
+            'manifolded slide slid asked').split()
 LAW_DOUBLES = 'edge_s tau tau_v eso_0 eso_s sigma bleed'.split()
 
 

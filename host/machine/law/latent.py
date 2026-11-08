@@ -53,14 +53,16 @@ TABLE = 2 * P + 11
 #: ZMP's polygon as told (her soles' weight laid on it after, `observer.weighed`), her yaw momentum's limit; and each mode's curve's own acceleration (BEND),
 #: the acceleration's less the rhythm's: the touch filter rebuilds the acceleration from it;
 #: her sidechain as said (DUCKED, `ortho.DUCK`); what bears her as told (MANIFOLDED, `ortho.MANIFOLD`) and
-#: her slide over it (SLID, `ortho.SLIDE`).
+#: her slide over it (SLID, `ortho.SLIDE`); and each mode's rhythm's amplitude as asked (ASKED): the blend's end,
+#: the text's own, where SWAY is the blend's now - a stop asks none while the sway still runs down.
 REF, RATE, ACC, KS, DS, PSI, SWAY = (slice(i * N, (i + 1) * N) for i in range(7))
 TURNS, HELD, YAWED = 7 * N, 7 * N + 1, 7 * N + 2
 BEND = slice(7 * N + 3, 8 * N + 3)
 DUCKED = slice(8 * N + 3, 8 * N + 6)
 MANIFOLDED = slice(8 * N + 6, 8 * N + 6 + len(ortho.MANIFOLDS))
 SLID = MANIFOLDED.stop
-OUT = SLID + 1
+ASKED = slice(SLID + 1, SLID + 1 + N)
+OUT = ASKED.stop
 #: A row as the wire carries it.
 WIRE = np.dtype([('id', '<u4'), ('at', '<u4'), ('blend', '<u4'), ('flags', '<u4'), ('p', '<f4', (P,))])
 #: A row's time is met within this, s.
@@ -183,5 +185,6 @@ def step(st, tab, now, dt, out):
     out[DUCKED] = p[DUCK]
     out[MANIFOLDED] = p[MANIFOLD]
     out[SLID] = p[SLIDE]
+    out[ASKED] = st[TO][GAIN] * st[TO][AMP]
     return out
 

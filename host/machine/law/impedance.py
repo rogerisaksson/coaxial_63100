@@ -157,7 +157,7 @@ def ask(out, y, fr, a):
     zd += HOT[AXIAL] * (axial[1] - (bears @ (air * shod[:, UP]) + stance.max() * dvh[2]) / (AXIAL_M * fr[HIPS_BY]) - zd[AXIAL])
     pressed = acc[AXIAL] + kp[AXIAL] * (ref[AXIAL] + duck[0] / AXIAL_M - short_h / (AXIAL_M * fr[HIPS_BY]) - z[AXIAL]) + kd[AXIAL] * (rate[AXIAL] + duck[1] / AXIAL_M - zd[AXIAL])
     risen = vault.vaults(legs, v, shod, along, propped, pressed, AXIAL_M, fr[HIPS_BY], LOW_LEG * fr[REACH0], hips[:, UP] - floors, reach_h, duck, a[HEELED],
-                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], kp[AXIAL], kd[AXIAL])
+                         poise.clip(out[latent.HELD], 0.0, 1.0) * flying[::-1], out[latent.ASKED][DRIVE], out[latent.SWAY][DRIVE], kp[AXIAL], kd[AXIAL])
     # borne off her soles alone (propped, her floor sit's legs threw her back at 110-330 N), up as her height asks
     lifted = upright * (bears @ risen) / fr[HIPS_BY] - (1.0 - upright) * AXIAL_M * pressed
     com = grounded * np.array([along[0], along[1], poise.clip(lifted, -G, THROW_M_S2)]) + (1.0 - grounded) * FALLS

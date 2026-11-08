@@ -32,88 +32,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.sim.handovers import ENSEMBLE, ensemble, planned
+from tools.sim.knobs import arranged
 
 #: A sole has landed at this share of her weight; the window measured, s; a stance before, s.
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
-GAIT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'humanoid', 'gait_base.lisp')
-POSTURES_PATH = os.path.join(os.path.dirname(GAIT_PATH), 'postures_base.lisp')
-
-
-def literal(src, key, start=0):
-    """(where the number after `key` begins and ends in `src`, from `start`, and its value)."""
-    j = src.find(key, start) + len(key)
-    z = j
-    while src[z] in '0123456789.-':
-        z += 1
-    return j, z, float(src[j:z])
-
-
-def arranged(spec):
-    """The texts and the stride's numbers as `spec` has them: the texts edited (`tune.given`), or None."""
-    from machine.law import rocker, se2, stride, vault
-    from machine.texts import ortho, tune
-    texts = tune.texts()
-    GAIT, POSTURES = (next(k for k in texts if os.path.normcase(os.path.abspath(k)) == os.path.normcase(p)) for p in (GAIT_PATH, POSTURES_PATH))
-    gait, postures = texts[GAIT], texts[POSTURES]
-    edits = {}
-    if 'ax' in spec:
-        j, z, _ = literal(se2.WALK_ON, '(mode_axial_compression ')
-        se2.WALK_ON = se2.WALK_ON[:j] + spec['ax'] + se2.WALK_ON[z:]
-        se2._WALK_ON_WIRE = ortho.compiled(se2.WALK_ON)[0]['']
-        j, z, _ = literal(postures, '(mode_axial_compression ', postures.find('(defbehavior init_walk'))
-        edits[(POSTURES, j, z)] = float(spec['ax'])
-    walk = gait.find('(sequence_id 204)')
-    if 'rock' in spec:
-        j, z, was = literal(gait, '(amplitude mode_foot_rock ', walk)
-        edits[(GAIT, j, z)] = round(was * float(spec['rock']), 3)
-    if 'drive' in spec:
-        j, z, _ = literal(gait, '(amplitude mode_sagittal_drive ', walk)
-        edits[(GAIT, j, z)] = float(spec['drive'])
-    jog = postures.find('(defbehavior jog')
-    for key, name in (('mhz', '(frequency '), ('mdrive', '(amplitude mode_sagittal_drive '), ('mturn', '(amplitude mode_pelvis_turn '),
-                      ('max', '(mode_axial_compression ')):
-        if key in spec:
-            at = jog
-            for _phase in range(2):
-                j, z, _ = literal(postures, name, at)
-                edits[(POSTURES, j, z)] = float(spec[key])
-                at = z
-    if 'k' in spec:
-        j, z, _ = literal(gait, '(stiffness mode_axial_compression ')
-        edits[(GAIT, j, z)] = float(spec['k'])
-        j, z, _ = literal(gait, '(damping mode_axial_compression ')
-        edits[(GAIT, j, z)] = float(spec.get('c', 0.2 * float(spec['k'])))
-    # a stride constant is bound by name where rocker and vault import it: set in each (the C table takes stride's)
-    for key, name, scale in (('heel', 'HEEL_RAD', math.pi / 180.0), ('heelrate', 'HEEL_RAD_S', 1.0), ('flatk', 'FLAT_K', 1.0),
-                             ('fold', 'FOLD_RAD', 1.0), ('dip', 'DIP_M', 1.0), ('ls', 'LAND_SHARE', 1.0), ('rise', 'RISE_U', 1.0),
-                             ('edge', 'EDGE_RAD', 1.0)):
-        if key in spec:
-            for mod in (stride, rocker, vault):
-                if hasattr(mod, name):
-                    setattr(mod, name, scale * float(spec[key]))
-    if 'swing' in spec:
-        stride.SWING = float(spec['swing'])
-        stride.PHI_W = math.pi * stride.SWING
-    if 'swing_fast' in spec:
-        stride.SWING_FAST = float(spec['swing_fast'])
-    if 'pace_fast' in spec:
-        stride.PACE_FAST_M_S = float(spec['pace_fast'])
-    if 'rund' in spec:
-        from machine.law import rhythm
-        rhythm.R['run_drive'] = float(spec['rund'])
-    if 'sea' in spec:
-        from machine.body import drives
-        drives.SERIES['ankle'] = float(spec['sea'])
-    if 'wind' in spec:
-        from machine.body import drives
-        drives.AHEAD_WIND = float(spec['wind'])
-    if 'track' in spec:
-        from machine.body import gearbox
-        gearbox.TRACK = float(spec['track'])
-    if 'wfold' in spec:
-        from machine.stack import wrench
-        wrench.W_FOLD = float(spec['wfold'])
-    return tune.given(edits) if edits else None
 
 
 def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False):
@@ -130,7 +52,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -173,6 +95,12 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         log['vs'].append(list(np.asarray(y[modal.VSOLE]).reshape(2, 3)[:, 1]))
         log['vcom'].append(float(y[modal.VCOM][1]))
         log['vx'].append(float(np.asarray(y[modal.VCOM]) @ rot[0]))
+        # her drive's amplitude, her going, the cruise it asks (stride.cruises, unsigned) and the vault's push (vault.vaults)
+        from machine.law import latent, stride
+        drv, trn, gng = abs(float(np.asarray(g['out'][latent.SWAY])[modal.DRIVE])), float(g['out'][latent.TURNS]), float(a[modal.GOING])
+        crz = float(np.clip(2.0 / np.pi * stride.STRIDE_M * drv * np.sin(float(stride.swings(drv, trn, gng))) * trn,
+                            abs(gng) - stride.AHEAD_M_S, abs(gng) + stride.AHEAD_M_S))
+        log['drive'].append([drv, gng, crz, min(1.0, abs(float(np.asarray(g['out'][latent.ASKED])[modal.DRIVE])) / max(drv, 1e-9))])
         from machine.process import sprung
         log['tilt_g'].append(float(sprung.tilt(g)))
         log['acc'].append(float(a[modal.COM_ACC][1]))
@@ -287,13 +215,14 @@ def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
     if trace and clean:
         i, b = clean[min(6, len(clean) - 1)]
         o = 1 - b
-        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along vx']
+        row['trace'] = ['t ld_o ld_b qp_o qp_b st_o off_o knee_o knee_b tilt_o tipped_o hip acc pre_o tauk_o taua_o tauh_o tauh_b sole_o_up sacc_up sacc_along along_o heeled_o hip_o hip_b dip_o dip_b zmp_o zmp_b acc_along vx drive cruise push']
         for j in range(max(0, i - 8 * int(round(0.03 / dt))), min(len(A['t']), i + 3 * int(round(0.03 / dt)) + 1), max(1, int(round(0.01 / dt)))):
             row['trace'].append(' '.join('%.3g' % x for x in (
                 A['t'][j] - A['t'][i], A['ld'][j, o], A['ld'][j, b], A['qp'][j, o], A['qp'][j, b], A['st'][j, o], A['off'][j, o],
                 A['knee'][j, o], A['knee'][j, b], A['tilt'][j, o], A['sw'][j, 3 + o], A['hip'][j], A['acc'][j], A['pre'][j, o],
                 A['tau_k'][j, o], A['tau_a'][j, o], A['tau_hs'][j, o], A['tau_hs'][j, b], A['vs'][j, o], A['sw'][j, o], A['sw'][j, 5 + o], A['along'][j, o],
-                A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b], A['dip'][j, o], A['dip'][j, b], A['zmp'][j, o], A['zmp'][j, b], A['zmp'][j, 2], A['vx'][j])))
+                A['heeled'][j, o], A['hips'][j, o], A['hips'][j, b], A['dip'][j, o], A['dip'][j, b], A['zmp'][j, o], A['zmp'][j, b], A['zmp'][j, 2], A['vx'][j],
+                A['drive'][j, 0], A['drive'][j, 2], A['drive'][j, 3])))
     return row
 
 
