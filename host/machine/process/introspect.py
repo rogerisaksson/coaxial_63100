@@ -11,7 +11,8 @@
 The layers as her loop leaves them each law pass (`motion.control`): latent - her state's rows and
 her latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it
 makes; wrench - the whole-body step's answer (`wrench.step`: tau, qacc, contact forces, ..); observer -
-what bears her as her observer splits it, against her skin (`observer.named`). Traced (`calls.Calls`), a
+what bears her as her observer splits it, against her skin (`observer.named`); contacts - the contacts
+her step was given, each named (`borne.named`). Traced (`calls.Calls`), a
 snapshot carries what her law called since the last, a count each. Each
 array's fields are named from her code's own layout, generated (`layout`): the run of module-level
 slice and int constants ending at a vector's size, laid in rising offsets - none listed by hand.
@@ -206,9 +207,9 @@ def snapshot(s, peaks=None, lazy=False) -> typing.Any:
 
 
 def _layers(s):
-    """Her law's layers this pass, named: latent, impedance, wrench, observer."""
+    """Her law's layers this pass, named: latent, impedance, wrench, observer, contacts."""
     import numpy as np
-    from machine.senses import observer
+    from machine.senses import borne, observer
     g = s['g']
     row, state, out, ask = (layout('machine.law.latent', 'P', 'NOW'), layout('machine.law.latent', 'STATE'),
                             layout('machine.law.latent', 'OUT'), layout('machine.law.modal', 'ASK'))
@@ -218,7 +219,7 @@ def _layers(s):
     rest = {name: v for name, v in _named(st, state, counted('machine.law.latent', 'STATE')).items() if name not in rows}
     return {'latent': {'state': {**rows, **rest}, 'out': _named(g['out'], out, counted('machine.law.latent', 'OUT'))},
             'impedance': {'ask': _named(g['a'], ask, counted('machine.law.modal', 'ASK')), 'step_ask': _plain(g.get('ask', {}))},
-            'wrench': _plain(g.get('got', {})), 'observer': observer.named(g)}
+            'wrench': _plain(g.get('got', {})), 'observer': observer.named(g), 'contacts': borne.named(g)}
 
 
 class Snap(dict):
@@ -238,7 +239,7 @@ class Snap(dict):
 
 
 #: Her law's layers a snapshot names.
-LAYERS = ('latent', 'impedance', 'wrench', 'observer')
+LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts')
 
 
 def row_len(fields):

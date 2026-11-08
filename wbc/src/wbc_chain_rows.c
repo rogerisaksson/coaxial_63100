@@ -43,19 +43,20 @@ static void framed1(const double *Q, int k, const double *v, double *out)
 }
 
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const int *stick, const double *Jv, const double *f, const double *Q,
-                   const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A, double *b,
-                   double **w)
+                   const int *held, const int *stick, const int *mode, const double *st, const double *Jv, const double *f,
+                   const double *Q, const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A,
+                   double *b, double **w)
 {
   const wbc_blas_t *l = &p->blas;
-  const int         nd = m->nd, nz = m->nz, nu = nd + nz, k3 = m->k3, k = k3 / 3, m1 = m->m1, most = m1 + k3;
+  const int         nd = m->nd, nz = m->nz, nu = nd + nz, k3 = m->k3, k = k3 / 3, m1 = m->m1, most = m1 + k3 + k;
   const double      bleed = p->chain_bleed, w_stick = p->chain_w_stick, rh = sqrt(0.5), cos8 = sqrt(0.5 + 0.5 * rh);
+  const double      w_pin = p->chain_w_pin / p->M[0];
   const double      oct[8][2] = {{1.0, 0.0}, {rh, rh}, {0.0, 1.0}, {-rh, rh}, {-1.0, 0.0}, {-rh, -rh}, {0.0, -1.0}, {rh, -rh}};
   double           *L = carve(w, most * nu + 1), *e = carve(w, most + 1), *LT = carve(w, nu * most + 1);
-  double           *vl = carve(w, k3 + 1), *fl = carve(w, k3 + 1), *normal = carve(w, nu);
+  double           *vl = carve(w, k3 + 1), *fl = carve(w, k3 + 1), *normal = carve(w, nu), *along = carve(w, nu);
   int               ml = m1, ma = 0;
 
-  if (11 * k + 2 * nd > WBC_QP_M)
+  if (13 * k + 2 * nd > WBC_QP_M)
   {
     return -1;
   }
@@ -73,7 +74,7 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
   }
   framed1(Q, k, Jv, vl);
   framed1(Q, k, f, fl);
-  for (int i = 0, at = 0; i < k; at += width[i], i++)
+  for (int i = 0; i < k; i++)
   {
     const double give = p->cgive[i];
     const double right = ((-bleed) * vl[3 * i]) + give * fl[3 * i] - m->a0[3 * i];
@@ -81,10 +82,12 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
     for (int c = 0; c < nd; c++)
     {
       normal[c] = m->Ax[(3 * i) * nd + c];
+      along[c] = 0.0;
     }
     for (int c = 0; c < nz; c++)
     {
       normal[nd + c] = m->Az[(3 * i) * nz + c] + give * S[(3 * i) * nz + c];
+      along[nd + c] = st[2 * i] * S[(3 * i + 1) * nz + c] + st[2 * i + 1] * S[(3 * i + 2) * nz + c];
     }
     if (held[i])
     {
@@ -107,6 +110,17 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
         }
         e[ml++] = w_stick * (((-bleed) * vl[3 * i + a]) - m->a0[3 * i + a]);
       }
+    }
+    if (mode[i] == 1)
+    {
+      /* a static sled's soft pin: its shear along the way drawn to the cone's edge, z_t . s_t = -mu z_n, over her mass */
+      for (int c = 0; c < nu; c++)
+      {
+        const double zn = c < nd ? 0.0 : S[(3 * i) * nz + (c - nd)];
+
+        L[ml * nu + c] = w_pin * (along[c] + mu[i] * zn);
+      }
+      e[ml++] = 0.0;
     }
     /* the laws: it never sinks faster than its give says; it presses alone, free it carries at most what it feels
        (its normal's: no lever the world never gave, free to unload; no cap on a held one's growth); its friction
@@ -138,19 +152,21 @@ int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, co
       }
       b[ma++] = 0.0;
     }
-    if (width[i] == 1)
+    if (mode[i] == 1)
     {
-      /* pinned against the way, never planned to slide against it: al_t . s_t >= 0, s_t read off its pin */
-      const double st1 = -(S[(3 * i + 1) * nz + at] / mu[i]), st2 = -(S[(3 * i + 2) * nz + at] / mu[i]);
-
+      /* a static sled's shear along the way dissipative alone (the seat never helps), and never planned to slide
+         against the way: with the pin that is static friction, z_t . s_t = -F under the cone, a = 0 */
       for (int c = 0; c < nu; c++)
       {
         const double a1 = c < nd ? m->Ax[(3 * i + 1) * nd + c] : m->Az[(3 * i + 1) * nz + (c - nd)];
         const double a2 = c < nd ? m->Ax[(3 * i + 2) * nd + c] : m->Az[(3 * i + 2) * nz + (c - nd)];
 
-        A[ma * nu + c] = -(st1 * a1 + st2 * a2);
+        A[ma * nu + c] = along[c];
+        A[(ma + 1) * nu + c] = -(st[2 * i] * a1 + st[2 * i + 1] * a2);
       }
-      b[ma++] = st1 * m->a0[3 * i + 1] + st2 * m->a0[3 * i + 2];
+      b[ma] = 0.0;
+      b[ma + 1] = st[2 * i] * m->a0[3 * i + 1] + st[2 * i + 1] * m->a0[3 * i + 2];
+      ma += 2;
     }
   }
   for (int i = 0; i < ml; i++)

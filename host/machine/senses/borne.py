@@ -1,6 +1,7 @@
 """What bears her off her soles as her skin feels it: her law's support, her step's contacts.
 
     prop, contacts, palms = borne.read(b, s, y, weight, hands)   # `wbc.sense`'s s, `machine.senses.edge`'s y
+    named = borne.named(g)                                        # her step's contacts this pass, named (`introspect`)
 
 Each segment above her soles pushed up (`edge.TOUCH`) at its touch's centre (`edge.AT`), placed
 by her own model as her estimate has her - a seat, a bed, the floor under a knee or her hands -:
@@ -212,3 +213,19 @@ def latched(y, rot, a, dt):
     box = np.concatenate([way[:, :2].min(axis=0), way[:, :2].max(axis=0)])
     a[PROPPED_BOX] = np.where(share >= PROP_RELEASE, box, a[PROPPED_BOX])
     return a[PROPPED], (a[PROPPED_BOX][:2].copy(), a[PROPPED_BOX][2:].copy(), a[PROPPED])
+
+
+def named(g):
+    """Her step's contacts this pass, named (`introspect`'s `contacts` layer): the contacts her step was given
+    (`motion.control`'s `solve_in`, else the reader's) - each its body ('sole0', 'sole1' a standing sole), patch,
+    point p and felt force f, world (m, N), the normal n of what bears it, its give (m/s^2 a N) and its point's
+    speed v (m/s)."""
+    sc = (g.get('solve_in') or (g.get('s') or {},))[0]
+    m, v, out = g['body'].m, np.asarray(sc.get('v', ()), float), []
+    for c in sc.get('contacts', ()):
+        k = int(c.get('body', -1))
+        out.append({'body': m.body(k).name if k >= 0 else 'sole%d' % (-1 - k), 'patch': int(c.get('patch', 0)),
+                    'p': [float(x) for x in c['p']], 'f': [float(x) for x in c['f']], 'n': [float(x) for x in c['n']],
+                    'give': float(c.get('give', 0.0)),
+                    'v': (np.asarray(c['J'], float) @ v).tolist() if len(v) else [0.0, 0.0, 0.0]})
+    return out

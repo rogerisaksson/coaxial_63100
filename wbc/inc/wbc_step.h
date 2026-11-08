@@ -88,6 +88,9 @@ typedef struct
   int           chain_held[2][WBC_QP_M], chain_nheld[2]; /**< the rows each level held last pass, warm for the next */
   int           chain_let[WBC_STEP_C][3], chain_nlet, chain_let_pad; /**< the contacts (body, patch, ordinal) the plan let
                                                                         go last pass (wbc_chain_qp.c); padded explicit */
+  double        chain_slide_m_s, chain_w_pin, chain_tilt; /**< her sled's slide past this speed (kinetic), the static
+                                                             sled's soft pin's weight, a slide's normal along the way
+                                                             under this (closed-chain-regime) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
@@ -119,11 +122,12 @@ typedef struct
 
 /** machine.stack.chain_qp.level1 (wbc_chain_rows.c): into H1, g1, G1 (nu x nu, nu), the laws A (m x nu) and b (m),
     m returned - S (k3 x nz) zeta -> z, each contact's unknowns' width, friction, whether its normal is held and its
-    tangents stick, give, Jv and f
+    tangents stick, its mode (1 a static sled, 2 a kinetic) and the way's tangent in its frame (st, 2), give, Jv and f
     (3k), frames Q, her torques' bounds lo and hi; stops none. -1 where the rows would pass WBC_QP_M. */
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
-                   const int *held, const int *stick, const double *Jv, const double *f, const double *Q,
-                   const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A, double *b, double **w);
+                   const int *held, const int *stick, const int *mode, const double *st, const double *Jv, const double *f,
+                   const double *Q, const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A,
+                   double *b, double **w);
 /** machine.stack.chain_qp.solved (wbc_chain_rows.c): u (nu) by the two levels, the rows each held kept on p for the
     next pass, `met` whether level 1's laws were; the held hands' rows `hands` (nh of them) for the posture's
     projector; Jg (k3 x ng). 0, or 1 where numpy would raise. */

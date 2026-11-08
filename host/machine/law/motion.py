@@ -193,8 +193,10 @@ def control(g, dt):
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     chained = chain.chained(ask)
-    g['got'] = g['solves'][chained](body, dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'])),
-                                   dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
+    # the step's inputs kept for her introspection (`borne.named`, chain_trace's replay), its answer `got`
+    g['solve_in'] = (dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'])),
+                     dict(ask, wep=bool((g['left'] > 0.0) & (sr > 0.25)), derate=g['_derate'], lo=lo, hi=hi))
+    g['got'] = g['solves'][chained](body, *g['solve_in'])
     got = g['got']
     g['seat_f'][:] = 0.0
     for c, f in zip(s.get('contacts', ()), got.get('borne', ())):

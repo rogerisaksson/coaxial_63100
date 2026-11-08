@@ -57,10 +57,10 @@
                                        ; rows' scale): the least shear - at 0.001 the plan used every anchor's friction
                                        ; to its edge, forearms at 116 of 116 N - never toward last pass's felt shear,
                                        ; which fed a squeeze back on itself
-  :normal-reg                   0.02   ; the normals' regularisation toward none: a held contact's normal follows what
-                                       ; it feels through its give regardless, so this weighs where nothing is felt -
-                                       ; a sole barely touching is not a support -; at 0.002 the plan put forces
-                                       ; where it pleased and the bench fell from 3 of 6 met to 1
+  :normal-reg                   0.02   ; the normals' regularisation toward what is felt: a force is a state, changing
+                                       ; it is what costs (toward none a touching hand was unloaded and its give lifted
+                                       ; it off the seat: a scoot with no hands); at 0.002 the plan put forces where it
+                                       ; pleased and the bench fell from 3 of 6 met to 1
   :turn-weight                  1.0    ; the tasks' weights: her pelvis's and trunk's turns and a
   :swing-weight                 1.0    ; sole's swing, weighed against each other alone
   :posture-weight               1.0    ; her posture's rows, level 2
@@ -69,7 +69,18 @@
   :posture-kp                   14.0   ; (at 16 and 20 her hands' arrival at the second lift threw her elbow 374-428
   :posture-kd                   7.5    ; deg/s; at 12 her floor sit's trunk sat 10.7 deg off)
   :twist-weight                 1.0    ; the twist told her (WASD, or her egress): her pelvis along its level way at
-  :twist-kd                     4.0)   ; its speed, 1/s - the sled's se(2) vector
+  :twist-kd                     4.0    ; its speed, 1/s - the sled's se(2) vector
+  :slide-m-s                    0.02   ; her sled slides past this speed along the way told: kinetic, its friction at
+                                       ; the cone's edge against its slip, free to slow; under it static, its shear
+                                       ; within the pyramid, dissipative, drawn to the edge by the pin's soft row and
+                                       ; never planned to slide against the way (at rest she creeps 6 mm/s)
+  :pin-weight                   2.0    ; the static sled's soft pin, z_t . s_t = -mu z_n over her mass, m/s^2, above the
+                                       ; twist's 1: at rest the hands push and the seat unloads until its friction
+                                       ; reaches the cone and she goes; a soft pin without al_t . s_t >= 0 pulls the
+                                       ; shear toward the edge anyway, z = (m a* - F - w mu N) / (1 + w) - a backward
+                                       ; motor again, as the hard pin was: the plan had her at -3.7 m/s^2 standing still
+  :slide-tilt                   0.2)   ; a slide's normal along the way under this; past it the contact braces (her
+                                       ; sacrum on the seat's rear at 0.42 pinned braked her at mu 0.11 and pitched her)
 
 ;; Each contact's frame Q (3 x 3, rows): the normal of what bears it - her skin's capsule nearest the touch, its
 ;; outward radial there reversed (borne._normal), up where she has none -, then two tangents from a fixed world axis.
@@ -81,10 +92,11 @@
     (replace q n :start1 (* 9 at)) (replace q t1 :start1 (+ (* 9 at) 3)) (replace q t2 :start1 (+ (* 9 at) 6))))
 
 ;; The unknowns: x (nd) and zeta, each contact's force in its frame - three (normal, two tangents), or one for her
-;; sled told a twist whose normal bears against gravity (up within 45 deg): it slides at its friction's edge against
-;; the way told, z = z_n (n - mu_s s_t), s_t the way's unit tangent in its frame, so what it bears sets what brakes it
-;; and the hands must overcome exactly that; a back against a backrest braces - no pin, its tangents free within the
-;; pyramid. Roles by
+;; sled told a twist on a level slide (its normal up within 45 deg, along the way under slide-tilt) sliding past
+;; slide-m-s along it: kinetic, it brakes at its friction's edge against its slip, z = z_n (n - mu_s sign(v . s_t) s_t),
+;; s_t the way's unit tangent in its frame, and may slow; at rest such a sled is static - three unknowns, its shear
+;; within the pyramid under the laws below; a back against a tilted rest braces - no slide rows, its tangents free
+;; within the pyramid. Roles by
 ;; what she is, never by a text's name: a hand's or a let-go foot's patch (carpal on) and a standing sole are anchors
 ;; at anchor-mu; what she sits or lies on (a body of hers, a patch under carpal) is her sled at friction-mu. A touching
 ;; contact's normal is held unless let go or on a foot told free (her heels stepping in turn); an anchor's tangents
@@ -101,19 +113,21 @@
 ;; Least squares (each row weighed): the tasks' rows (turn-weight, swing-weight, twist-weight); a held contact's
 ;; stick rows at stick-weight - its normal's al_n + give (z_n - f_n) = -bleed v_n (its support gives as the force
 ;; grows past what is felt); an anchor's tangents' al_t = -bleed v_t (its slip bled); her sled's tangents are its
-;; friction's within the pyramid, free, or pinned against the way told: no tangential lock (held still on a mattress
-;; her thighs locked her hip and knee against a leg swing) -; the forces regularised: each contact's tangents toward
-;; none at force-reg, its normal toward what is felt at normal-reg (a force is a state, changing it is what costs:
-;; toward none a touching hand was unloaded and its give lifted it off the seat); x damped at task-damping
-;; (Levenberg-Marquardt).
+;; friction's within the pyramid: no tangential lock (held still on a mattress her thighs locked her hip and knee
+;; against a leg swing); a static sled's soft pin at pin-weight over her mass, z_t . s_t = -mu_s z_n: drawn to the
+;; cone's edge against the way, the hands push and the seat unloads until it goes -; the forces regularised, each
+;; contact's tangents toward none at force-reg and its normal toward what is felt at normal-reg; x damped at
+;; task-damping (Levenberg-Marquardt).
 ;; Hard (A u <= b): al_n + give z_n >= -bleed v_n + give f_n every contact (it may leave its support faster than the
 ;; give says, never sink into it faster); a held contact presses alone, z_n >= 0, with no cap on its growth (felt +
 ;; hold-n was the upright step's GROW_N and froze a scoot's hands at what they felt); a free contact - its patch under
 ;; hold-n, its foot told free, or let go - carries at most what it feels, 0 <= z_n <= f_n, free to unload and leave:
 ;; no lever the world never gave (a sole felt at 10 N was planned at 262 N while leaving the floor at 8.7 m/s^2); a
-;; sled pinned against the way is never planned to slide against it, al_t . s_t >= 0 (a kinetic brake assumed cannot
-;; pull her back, static friction holds her instead; assumed pulling, the plan had her at -3.7 m/s^2 against a world
-;; standing still) -; an eight-sided pyramid inscribed in its friction's
+;; static sled's shear along the way dissipative alone, z_t . s_t <= 0 (the seat never helps), and never planned to
+;; slide against the way, al_t . s_t >= 0: with the pin's soft row that is static friction - z_t . s_t = -F while
+;; the hands' F is under the cone, a = 0, no backward motor (the hard pin had her at -3.7 m/s^2 standing still) and
+;; no reaction wheel (the plan swung her free arms at -7400 deg/s^2 for the pelvis's acceleration and her trunk hit
+;; the chair's back at 902 N) -; an eight-sided pyramid inscribed in its friction's
 ;; cone for every contact with three unknowns, d_k . z_t <= mu cos(pi/8) z_n, d_k at k pi/4 (k = 0..7); her torques
 ;; within [lo, hi] (her clamps as derated, her back-EMF's); her joints' stops where asked (chain.stop_rows).
 ;; Solved by the dual active set warm from the last pass's held rows (machine.stack.qp.solve); where no u meets the

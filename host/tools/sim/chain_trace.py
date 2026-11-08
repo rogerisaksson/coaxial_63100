@@ -80,10 +80,13 @@ def kinematics(snap, g, m, d, regime):
     """Her kinematics this pass through her introspection's snapshot (`introspect.Tap`): her pelvis's speed along
     its way and up against the twist told (m/s), her arms' joints - angle, speed and its peak since the last
     snapshot (deg, deg/s; `body`) -, and for each what her step meant to do against what her world did (deg/s^2,
-    `wrench.qacc` against the world's), her base's the same (m/s^2); the hands' slip on what bears them (m/s)."""
+    `wrench.qacc` against the world's), her base's the same (m/s^2); the rows level 1 held by kind; each contact in its
+    frame as the snapshot's `contacts` and `wrench` layers have it - felt and planned, normal and shear, N, the normal
+    acceleration the plan foresaw and its speed into its support, each force's part along her sled's way -; the hands'
+    slip on what bears them (m/s)."""
     import numpy as np
     from machine.stack import chain
-    body, got = snap['body'], g.get('got', {})
+    body, got, contacts = snap['body'], snap['wrench'], snap['contacts']
     way = chain.ways(g['s']['turns'][0]['quat'])[2] if g.get('s') else np.array([0.0, 0.0, 1.0])
     vel, acc = np.asarray(d.qvel[:3], float), np.asarray(d.qacc[:3], float)
     plan = np.asarray(got['qacc'], float)[:3] if 'qacc' in got else np.full(3, math.nan)
@@ -92,21 +95,20 @@ def kinematics(snap, g, m, d, regime):
         float(plan[1]), float(acc[1]), len(getattr(g['body'], 'chain_let', ()))), flush=True)
     qadr, vadr = g['world'].qadr, g['world'].vadr
     from machine.body import drives
-    from machine.senses.borne import CARPAL
+    from machine.senses.borne import CARPAL, LET
     from machine.stack.shrunk import box
     b = g['body']
     driven = [n for n in body['angles'] if drives.passive(n) is None]
-    # the rows level 1 held: the laws' rows a contact (2 held or 3 free - `holds`, the step's -, and 8 of its pyramid
-    # where its tangents are unknown; `chain_qp.level1`), then her torques' bounds (nd each way): which drives sit on
-    # a bound
-    contacts, twist = g.get('s', {}).get('contacts', ()), float(g.get('ask', {}).get('twist', (0.0,))[0])
-    holds = got.get('holds') or [True] * len(contacts)
-    laws = sum((2 if holds[i] else 3) + (1 if (int(c['body']) >= 0 and int(c.get('patch', 0)) < CARPAL and twist != 0.0
-                                               and float(c['n'][1]) >= math.sqrt(0.5)) else 8) for i, c in enumerate(contacts))
+    # the rows level 1 held: the laws' rows a contact (2 held or 3 free - `holds`, the step's -, 8 of its pyramid where
+    # its tangents are unknown, a static sled's 2; `chain_qp.level1`), then her torques' bounds (nd each way): which
+    # drives sit on a bound
+    holds, modes = got.get('holds') or [True] * len(contacts), got.get('modes') or [0] * len(contacts)
+    laws = sum((2 if holds[i] else 3) + (0 if modes[i] == 2 else 8) + (2 if modes[i] == 1 else 0) for i in range(len(contacts)))
     held1, nd = (got.get('held') or ((), ()))[0], len(b.act)
     bound = sorted((i - laws) % nd for i in held1 if laws <= i < laws + 2 * nd)
     lo_hi = box(b, g['ask'])[1:] if g.get('ask') else (None, None)
-    print('       kin    level 1 held %d rows, torque bounds on %s' % (len(held1), ' '.join(driven[i] for i in bound) or 'none'), flush=True)
+    print("       kin    level 1 held %d rows (%d of the contacts' laws), torque bounds on %s" % (
+        len(held1), sum(1 for i in held1 if i < laws), ' '.join(driven[i] for i in bound) or 'none'), flush=True)
     for j, name in enumerate(body['angles']):
         if not any(part in name for part in ('shoulder', 'elbow', 'wrist')):
             continue
@@ -119,22 +121,33 @@ def kinematics(snap, g, m, d, regime):
             name, body['angles'][name], body['speeds'][name], body['peaks'][name], plan, math.degrees(float(d.qacc[vadr[j]])),
             asked, float(d.qfrc_actuator[vadr[j]]), float(lo_hi[0][i]) if i >= 0 and lo_hi[0] is not None else math.nan,
             float(lo_hi[1][i]) if i >= 0 and lo_hi[1] is not None else math.nan, drives.mesh(name)), flush=True)
-    for c in g.get('s', {}).get('contacts', ()):
-        if c.get('carpal'):
-            slip = np.asarray(c['J'], float) @ np.asarray(g['s']['v'], float)
-            n = np.asarray(c['n'], float)
+    # each contact in its frame (`chain.frame` of its normal) as the snapshot has it (`contacts`, `wrench`): what it
+    # feels and what the step planned, normal and shear, N; the normal acceleration the plan foresaw (+ out of its
+    # support; `al`, the python twin's) and its speed into it, m/s; each force's part along her sled's way, world
+    z, al = np.asarray(got.get('borne', ()), float).reshape(-1, 3), got.get('al')
+    for i, c in sorted(enumerate(contacts), key=lambda ic: -float(np.linalg.norm(ic[1]['f'])))[:8]:
+        if i >= len(z):
+            continue
+        Q = chain.frame(*c['n'])
+        fl, zl, vn = Q @ np.asarray(c['f'], float), Q @ z[i], float(Q[0] @ np.asarray(c['v'], float))
+        print('       frame  %-16s %s felt n %5.0f t %4.0f  step n %5.0f t %4.0f  a_n %+6.1f v_n %+.2f  way felt %+4.0f step %+4.0f' % (
+            c['body'], 'held' if holds[i] else 'free', fl[0], np.hypot(fl[1], fl[2]), zl[0], np.hypot(zl[1], zl[2]),
+            float(al[3 * i]) if al is not None else math.nan, vn, float(np.asarray(c['f'], float) @ way), float(z[i] @ way)), flush=True)
+    for c in contacts:
+        if CARPAL <= int(c['patch']) < LET:
+            slip, n = np.asarray(c['v'], float), np.asarray(c['n'], float)
             print('       kin    %-20s slip %.3f m/s along, %+.3f out' % (
-                m.body(int(c['body'])).name, float(np.linalg.norm(slip - (slip @ n) * n)), float(slip @ n)), flush=True)
+                c['body'], float(np.linalg.norm(slip - (slip @ n) * n)), float(slip @ n)), flush=True)
 
 
 def replayed(g, regime, flags):
-    """Her last closed-chain pass replayed on its own inputs (`g['_chain_in']`, as her step was called): each body
+    """Her last closed-chain pass replayed on its own inputs (`g['solve_in']`, as her step was called): each body
     as she feels it bear her and as her QP gives it, N up, its laws met or not; the replay's torques against the
     pass's; then the QP with each of its asks let go - her posture, her turns, both - whose rows ask what of her
     contacts (the most felt three)."""
     import numpy as np
     from machine.stack import chain
-    b, sc, ask = g['_chain_in']
+    b, (sc, ask) = g['body'], g['solve_in']
     m, load, warm = g['world'].model, np.array(b.load, copy=True), getattr(b, 'chain_warm', ((), ()))
     let = set(getattr(b, 'chain_let', ()))
     try:
@@ -151,23 +164,6 @@ def replayed(g, regime, flags):
         idx = [i for i, n in enumerate(names) if n == nm]
         print('       replay %-16s felt %5.0f step %5.0f v_n %+.2f' % (
             nm, felt[nm], sum(float(got['borne'][i][1]) for i in idx), max((vn[i] for i in idx), key=abs)), flush=True)
-    # each contact in its own frame: what it feels and what the QP plans, normal and shear, N; held by its patch's felt
-    # (regime.hold) or free
-    by = {}
-    for c in contacts:
-        by[c.get('patch', 0)] = by.get(c.get('patch', 0), 0.0) + float(np.linalg.norm(c['f']))
-    order = sorted(range(len(contacts)), key=lambda i: -float(np.linalg.norm(contacts[i]['f'])))[:8]
-    way = chain.ways(sc['turns'][0]['quat'])[2] if sc.get('turns') else np.array([0.0, 0.0, 1.0])
-    holds = got.get('holds') or [True] * len(contacts)
-    for i in order:
-        fw, zw = np.asarray(contacts[i]['f'], float), np.asarray(got['borne'][i], float)
-        fl, zl = Q[i] @ fw, Q[i] @ zw
-        # its normal acceleration as the step means to move it (+ out of its support): a force on a contact leaving
-        # its support is one the world never delivers; `way` each force's part along her sled's way, world
-        an = float(Q[i, 0] @ (np.asarray(contacts[i]['J'], float) @ np.asarray(got['qacc'], float) + np.asarray(contacts[i]['dJv'], float)))
-        print('       frame  %-16s %s felt n %5.0f t %4.0f  step n %5.0f t %4.0f  a_n %+6.1f v_n %+.2f  way felt %+4.0f step %+4.0f' % (
-            names[i], 'held' if holds[i] else 'free', fl[0], np.hypot(fl[1], fl[2]), zl[0], np.hypot(zl[1], zl[2]), an, vn[i],
-            float(fw @ way), float(zw @ way)), flush=True)
     print("       replay's laws %s, residual %.2g N, torques off the pass's %.2g N m" % (
         'met' if got.get('met') else 'NOT met', got['residual'],
         float(np.abs(np.asarray(got['tau']) - np.asarray(g['got']['tau'])).max())), flush=True)
@@ -207,12 +203,6 @@ def main(argv=None):
             if laid is not None:
                 laid(s)
             g = s['g']
-            if args.rounds and g.get('_twin') and not g.get('_captured'):
-                # her closed chains' step called through a catch of its inputs, the replay's (`replayed`)
-                def captured(b, sc, ask, solve=g['solves'][1], g=g):
-                    g['_chain_in'] = (b, sc, ask)
-                    return solve(b, sc, ask)
-                g['solves'], g['_captured'] = (g['solves'][0], captured), True
             t = g['t']
             ask = g.get('ask', {})
             if ask:
@@ -247,7 +237,7 @@ def main(argv=None):
             top = ' '.join('%s:%.0f' % kv for kv in sorted(bodies.items(), key=lambda kv: -kv[1])[:3])
             bodily(g, m, d)
             ask = g.get('ask', {})
-            if args.rounds and g.get('_chain_in') is not None and ask and chain.chained(ask):
+            if args.rounds and g.get('solve_in') is not None and ask and chain.chained(ask):
                 replayed(g, regime, flags)
             # the way chosen (chain.chained): the closed chains' step, or the upright's, and what chose it
             print('       way %s: swing %s stance %s let_go %s reclined %.1f prop %.2f' % (

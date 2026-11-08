@@ -111,9 +111,11 @@ static void letting(wbc_step_t *p, int k, int key[][3], const int *holds, const 
 }
 
 /** machine.stack.chain_qp.unknowns: each contact's width in zeta, S (3k x nz) zeta -> z in frames, its friction,
-    whether it bears (its patch hold-n, its foot not told free) and whether it is her sled; nz returned. */
-static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, int *width, double *S, double *mu, int *bears,
-                    int *sleds)
+    whether it bears (its patch hold-n, its foot not told free), whether it is her sled, its mode (1 a static sled told
+    a twist on a level slide, 2 a kinetic one pinned against its slip, 0 other) and the way's unit tangent in its frame
+    (st, 2 a contact); nz returned. */
+static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, const double *Jv, int *width, double *S,
+                    double *mu, int *bears, int *sleds, int *mode, double *st)
 {
   const int    k = p->nc;
   const double rh = sqrt(0.5);
@@ -122,11 +124,14 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
 
   for (int i = 0; i < k; i++)
   {
-    const int sled = p->cbody[i] >= 0 && p->cpatch[i] < p->carpal;
-    double    by = 0.0;
+    const double *q = Q + 9 * i;
+    const int     sled = p->cbody[i] >= 0 && p->cpatch[i] < p->carpal;
+    const double  sn = (q[0] * slide[0] + q[1] * slide[1]) + q[2] * slide[2];
+    double        by = 0.0;
 
     sleds[i] = sled;
-
+    mode[i] = 0;
+    st[2 * i] = st[2 * i + 1] = 0.0;
     for (int j = 0; j < k; j++)
     {
       const double *cj = p->cf[j];
@@ -136,13 +141,11 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
     bears[i] = by >= p->chain_hold_n && !freed(p, i);
     mu[i] = sled ? p->chain_mu : p->chain_anchor_mu;
     width[i] = 3;
-    /* pinned against the way told where its normal bears against gravity (up within 45 deg; a back against a
-       backrest braces, no pin) */
-    if (sled && Q[9 * i + 1] >= rh && (slide[0] != 0.0 || slide[2] != 0.0))
+    /* her sled told a twist on a level slide (its normal up within 45 deg, along the way under slide-tilt: a back
+       against a tilted rest braces): static at rest, kinetic past slide-m-s along the way, pinned against its slip */
+    if (sled && q[1] >= rh && fabs(sn) < p->chain_tilt && (slide[0] != 0.0 || slide[2] != 0.0))
     {
-      const double *q = Q + 9 * i;
-      const double  sn = (q[0] * slide[0] + q[1] * slide[1]) + q[2] * slide[2];
-      double        t[3], nt;
+      double t[3], nt;
 
       for (int c = 0; c < 3; c++)
       {
@@ -151,12 +154,23 @@ static int unknowns(const wbc_step_t *p, const double *Q, const double *slide, i
       nt = sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
       if (nt > 0.0)
       {
-        const double st1 = ((q[3] * t[0] + q[4] * t[1]) + q[5] * t[2]) / nt, st2 = ((q[6] * t[0] + q[7] * t[1]) + q[8] * t[2]) / nt;
+        const double *jv = Jv + 3 * i;
+        const double  vt1 = (q[3] * jv[0] + q[4] * jv[1]) + q[5] * jv[2], vt2 = (q[6] * jv[0] + q[7] * jv[1]) + q[8] * jv[2];
+        double        vs;
 
-        cols[i][0] = 1.0;
-        cols[i][1] = -(mu[i] * st1);
-        cols[i][2] = -(mu[i] * st2);
-        width[i] = 1;
+        st[2 * i] = ((q[3] * t[0] + q[4] * t[1]) + q[5] * t[2]) / nt;
+        st[2 * i + 1] = ((q[6] * t[0] + q[7] * t[1]) + q[8] * t[2]) / nt;
+        vs = vt1 * st[2 * i] + vt2 * st[2 * i + 1];
+        mode[i] = fabs(vs) > p->chain_slide_m_s ? 2 : 1;
+        if (mode[i] == 2)
+        {
+          const double sgn = vs > 0.0 ? 1.0 : -1.0;
+
+          cols[i][0] = 1.0;
+          cols[i][1] = -(mu[i] * (sgn * st[2 * i]));
+          cols[i][2] = -(mu[i] * (sgn * st[2 * i + 1]));
+          width[i] = 1;
+        }
       }
     }
     nz += width[i];
@@ -319,8 +333,8 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   const int         nd = p->nd, k = k3 / 3;
   int               width[WBC_STEP_C], holds[WBC_STEP_C], hands[WBC_STEP_C], nh = 0, ma, nu;
   int               key[WBC_STEP_C][3], let[WBC_STEP_C], zrow[WBC_STEP_C], sled[WBC_STEP_C], bears[WBC_STEP_C];
-  int               stick[WBC_STEP_C];
-  double            mu[WBC_STEP_C];
+  int               stick[WBC_STEP_C], mode[WBC_STEP_C];
+  double            mu[WBC_STEP_C], st[2 * WBC_STEP_C];
   wbc_maps_t        m;
   double           *S = carve(w, k3 * k3 + 1), *H1, *g1, *G1, *A, *b, *u, *zl = carve(w, k3 + 1), *al = carve(w, k3 + 1);
   double           *tp = carve(w, np_), *tn = carve(w, nd), *fv = carve(w, k3 + 1), QT[9];
@@ -330,7 +344,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   m.k3 = k3;
   m.m1 = m1;
   keyed(p, k, key, let);
-  m.nz = unknowns(p, Q, slide, width, S, mu, bears, sled);
+  m.nz = unknowns(p, Q, slide, Jv, width, S, mu, bears, sled, mode, st);
   nu = nd + m.nz;
   /* a touching contact's normal is held unless let go or on a foot told free; an anchor's tangents stick where its
      patch bears (machine.stack.chain.step) */
@@ -342,7 +356,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
     holds[i] = !loose && !let[i];
     stick[i] = holds[i] && bears[i] && !sled[i];
     zrow[i] = at;
-    at += (holds[i] ? 2 : 3) + (width[i] == 3 ? 8 : 1);
+    at += (holds[i] ? 2 : 3) + (width[i] == 3 ? 8 : 0) + (mode[i] == 1 ? 2 : 0);
   }
   affine(p, &m, held, Minv, Mpg, ng, rhs0, Jp, Jg, dJv, Q, S, RP, RG, r, MA, hA, JA, w);
   H1 = carve(w, nu * nu);
@@ -355,7 +369,7 @@ int wbc_chain_qp(wbc_step_t *p, int np_, int ng, int k3, const double *held, con
   {
     fv[rw] = p->cf[rw / 3][rw % 3];
   }
-  ma = wbc_chain_rows(p, &m, S, width, mu, holds, stick, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
+  ma = wbc_chain_rows(p, &m, S, width, mu, holds, stick, mode, st, Jv, fv, Q, lo, hi, H1, g1, G1, A, b, w);
   if (ma < 0)
   {
     return 1;
