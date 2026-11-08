@@ -104,6 +104,9 @@ def arranged(spec):
     if 'sea' in spec:
         from machine.body import drives
         drives.SERIES['ankle'] = float(spec['sea'])
+    if 'wind' in spec:
+        from machine.body import drives
+        drives.AHEAD_WIND = float(spec['wind'])
     if 'track' in spec:
         from machine.body import gearbox
         gearbox.TRACK = float(spec['track'])
@@ -127,7 +130,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         plan, secs = played(play)
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     from_s, to_s = window
-    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx')}
+    log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
 
     def laid(s):
@@ -198,6 +201,11 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
             from machine.body.figure import JOINTS
             seen['bx'] = [JOINTS.index('left_ankle'), JOINTS.index('right_ankle')]
         log['leaf'].append([math.degrees(float(boxes.delta[i])) for i in seen['bx']] if boxes is not None else [0.0, 0.0])
+        # the board's wound-ahead ask on each ankle's rotor (gearbox.Boxes.ahead) and the motor torque it is read from
+        log['ahead'].append(([float(boxes.ahead(np, g['world'].motor)[i]) for i in seen['bx']] + [float(g['world'].motor[i]) for i in seen['bx']]
+                             + [float(boxes.drive[i]) for i in seen['bx']]
+                             + [float(g['world'].gains[seen['bx'][0], 0]), float(g['world'].target[seen['bx'][0]] - (float(d.qpos[g['world'].qadr[seen['bx'][0]]]) + float(boxes.delta[seen['bx'][0]]))),
+                                float(g['world'].feed[seen['bx'][0]])]) if boxes is not None else [0.0] * 9)
         log['leaf_k'].append(float(boxes.k[seen['bx'][0]]) if boxes is not None else 0.0)
 
     out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
@@ -258,6 +266,11 @@ def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
         row['rel_ld'] = round(float(np.median([A['ld'][i, b] for i, b in offs])), 2)
     leaf = np.abs(A['leaf'])
     row['leaf_deg_p99'] = round(float(np.percentile(leaf, 99)), 1)
+    row['ahead_p99'], row['motor_p99'], row['drive_p99'] = (round(float(np.percentile(np.abs(A['ahead'][:, :2]), 99)), 4),
+                                                            round(float(np.percentile(np.abs(A['ahead'][:, 2:4]), 99)), 1),
+                                                            round(float(np.percentile(np.abs(A['ahead'][:, 4:6]), 99)), 1))
+    row['ankle_kp'], row['pd_err_p99'], row['feed_p99'] = (round(float(A['ahead'][-1, 6]), 1), round(float(np.percentile(np.abs(A['ahead'][:, 7]), 99)), 4),
+                                                          round(float(np.percentile(np.abs(A['ahead'][:, 8]), 99)), 1))
     row['leaf_J_p99'] = round(float(0.5 * A['leaf_k'].max() * np.radians(np.percentile(leaf, 99)) ** 2), 1)
     if offs and lands:
         row['toe_tilt'] = round(float(np.median([A['tilt'][i, b] for i, b in offs])), 1)
