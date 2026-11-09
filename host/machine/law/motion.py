@@ -128,7 +128,7 @@ def control(g, dt):
     told = g['told'] = out[latent.MANIFOLDED].copy()
     weighed = g['weighed_w'] = g['weighed'](g['observer'], told, float(g['fr'][modal.WEIGHT]), dt * ev)
     out[latent.HELD] *= weighed[0]
-    melt.step(g, out, told, dt * ev)
+    melt.step(g, out, told, weighed, dt * ev)
     emancipation.step(g, s, out, told, dt * ev)
     unfelt, lean = float(weighed[0] - observer.said(told)[0]), float(told[ortho.FURNITURE].sum())
     g['seek'](g['field'], field.due(g['tab'], g['t'], dt * ev), y, lean, float(g['st'][latent.TO][latent.Z][modal.AXIAL]), dt * ev, out)

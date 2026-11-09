@@ -225,7 +225,9 @@ FUNCS = {**{k: (lambda k, f: lambda *a: Law(k, a) if Law in map(type, a) else f(
              '+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
              '/': operator.truediv, 'abs': abs, 'max': max, 'min': min}.items()}, 'not': operator.not_, 'tan': math.tan,
          'values': lambda *a: a, 'coerce': lambda x, kind: COERCE[kind](x), 'elt': lambda seq, k: seq[int(k)],
-         '>': operator.gt, '<': operator.lt, '>=': operator.ge, '<=': operator.le, 'eq': operator.eq,
+         # an order a truth of the text's own: numpy's False is not False to `_gated`
+         '>': lambda a, b: bool(a > b), '<': lambda a, b: bool(a < b), '>=': lambda a, b: bool(a >= b),
+         '<=': lambda a, b: bool(a <= b), 'eq': operator.eq,
          'get-param': _param, 'bars': lambda b0, b1, item: (b0, b1, item), 'oneshot': lambda g: ('oneshot', g),
          'dwell-ms': lambda ms: ('dwell', 1e-3 * ms),
          **{name: (lambda p: lambda g: g['oscillator'][p])(p) for name, p in (

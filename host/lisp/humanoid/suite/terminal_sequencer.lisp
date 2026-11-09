@@ -101,8 +101,12 @@
         :talocrural-rad 0.0
         :manifold-pan '((:plantar-bilateral 1.0) (:ischial-bilateral 0.0) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
-;; Composite 1: Dock and sit on a rigid chair, her hands on it where it stands over her shins, then up onto it
-(defpatch patch-sit-rigid-chair [approach-gait &key (seat-z-mm 450.0)] ; the seat her eyes see
+;; Composite 1: Dock and sit on a rigid chair, her hands on it where it stands over her shins, then up onto it where
+;; it is too high for her feet - over her popliteal height -, as the kernel's sit morphs by the seat's height
+;; (`xform-sit-on-chair-or-stool`). Mounted on her low chair, at her popliteal height, her pelvis went 0.22 m back
+;; along its seat as her feet stayed at its edge, her ankles asked the hang tipped her soles 0.27 rad onto their heels
+;; and she sat on her sacrum, her soles bearing 0.45 of her.
+(defpatch patch-sit-rigid-chair [approach-gait &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat her eyes see, her knees' height
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159)
       (substrate-rigid-fixture)
@@ -112,7 +116,8 @@
         :descent-duration-ms 1050.0
         :seat-z-mm seat-z-mm)
       (transfer-carpal-seat-boost)
-      (specialize-mount-overheight-seat)
+      (when-modifier (> seat-z-mm popliteal-mm)
+        (specialize-mount-overheight-seat))
       (master-anti-spasm-insert)))
 
 ;; Composite 2: Dock at bed, sit on mattress edge, roll to supine, and gate off inverters
@@ -143,12 +148,13 @@
       (master-anti-spasm-insert)))
 
 ;; Composite 4: Precharge from the chair's settled rest and stand up - off a seat over her popliteal height down onto
-;; her feet on her arms, as the kernel's egress morphs by the seat's height, else scooted to its edge
+;; her feet on her arms, as the kernel's egress morphs by the seat's height; from one her feet reach, where she sits.
+;; Scooted there (`transfer-egress-scoot`, off a seat too high for her feet), her flat soles were told none: on the low
+;; chair her right foot left the floor, the left rolled onto its heel and she never bore more than 0.18 of her on them
 (defpatch patch-rise-chair [seated-state &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat her eyes see, her knees' height
   (-> seated-state
-      (case (if (> seat-z-mm popliteal-mm) :overheight :reached)
-        (:overheight (transfer-egress-dip))
-        (otherwise (transfer-egress-scoot)))
+      (when-modifier (> seat-z-mm popliteal-mm)
+        (transfer-egress-dip))
       (wake-inverter-closed-loop)
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral

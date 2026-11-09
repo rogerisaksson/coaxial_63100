@@ -357,11 +357,14 @@ def said(g, item, at=None, thing=None):
     things yet, she looks till a sighting is hers (`registry.TAKEN` of HIT a look); still none, refused
     by name - unseen, the patch's own seat played a 0.45 m descent onto a floor mattress that was not
     there and she froze mid-air at 0.504 m. Its joint programs laid on her run (`g['programs']`, {phase:
-    program}): her boards play each from its phase's first tick (`machine.process.joints`)."""
+    program}): her boards play each from its phase's first tick (`machine.process.joints`); the seat's top it
+    sits her on, m (`g['seat']`, inf for an entry not a stunt): her legs rest from none over her popliteal height
+    (`melt.step`)."""
     import math as _math
     from machine.way import furniture
     from machine.eyes import registry
     from machine.process import sprung
+    g['seat'] = _math.inf
     if item[0] not in PLAYED:
         return item
     from machine.law import se2, stride
@@ -383,7 +386,7 @@ def said(g, item, at=None, thing=None):
         raise MachineError('%s plays where she stands: its furniture is %.1f m off, past her %.2f '
                            '(a stride and the standoff) - an errand walks there' % (item[0], edge, reach))
     names, ps, bound = _named(item[0], seen, _suite() if g['suite'] is None else g['suite'])
-    g['programs'] = _bound(names, bound)
+    g['programs'], g['seat'] = _bound(names, bound), float(seen[0])
     return _entry(item[0], _text(item[0], names, ps), g['texts'])
 
 

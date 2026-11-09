@@ -1,6 +1,6 @@
-"""Her legs' springs melted by the share of her weight told off soles her text asks nothing of.
+"""Her legs' springs melted by the share of her weight told off soles told nothing or but to rest.
 
-    melt.step(g, out, told, dt)                         # a pass: her legs' springs in `out` melted
+    melt.step(g, out, told, weighed, dt)                # a pass: her legs' springs in `out` melted
 
 The kernel's `bind-stiffness-to-support-share` on her loop.
 """
@@ -8,6 +8,7 @@ import math
 
 from machine.texts import acts, kernel, ortho
 from machine.law import latent
+from machine.moves.seated import POPLITEAL, RESTS
 
 #: In dB as that share, MELT_DB borne wholly, back within MELT_S as it unloads; her legs' modes (`acts.LEGS`).
 #: Unmelted, tipped back from her squat onto the floor she rolled over her heels to -128 deg; melted where her soles
@@ -30,12 +31,27 @@ def melted(melt, share, was, dt):
     return 10.0 ** (MELT_DB * melt / 20.0), melt
 
 
-def step(g, out, told, dt):
+def step(g, out, told, weighed, dt):
     """Her legs' springs in her latent's `out` melted by her text's share off soles it tells nothing (`told`,
     `latent.MANIFOLDED`), `g`'s melt kept, `dt` s on: normalized (`observer.said`), the share leapt to 1 at its
-    blend's first pass and she fell 22 cm in 0.25 s."""
-    share = float(told[1:].sum()) / max(float(told.sum()), 1.0) * float(told[0] <= 0.0)
+    blend's first pass and she fell 22 cm in 0.25 s. Soles told no more than her lower legs weigh resting (RESTS a
+    foot), resting on what bears them as her comparator feels (its plantar gate) from a seat no higher than her
+    popliteal height (`g['seat']`, `maneuver.said`: over it her feet hang off the floor), melt by what it feels bear
+    her off them (`weighed`, `observer.weighed`: none till it latches, none as it lets go), held as `melted` holds
+    while her text alone moves her and back within MELT_S while a joint program does (`g['played']`): stiff there,
+    on her low chair her soles bore 0.5 of her and her seat less than they; held under one, a bed's lie pushed off
+    on legs at 0.6 of their gain and she stood where she was to lie. Melted on a higher seat's edge before its
+    program, her 0.47 m chair's vault lifted her 5.5 cm for 7 and she sat back after it; the bed's lie (3 mm over)
+    threw her 1.5 m off its edge."""
+    said = max(float(told.sum()), 1.0)
+    share = float(told[1:].sum()) / said * float(told[0] <= 0.0)
+    rests = (float(0.0 < told[0] <= 2.0 * RESTS * said) * float(g.get('seat', math.inf) <= POPLITEAL)
+             * float(g['observer']['gate'][0]) * float(weighed[1:].sum()))
+    free, rested = float(g.get('played') is None), g.get('rested', 0.0)
     gain, g['melt'] = melted(g.get('melt', 0.0), share, g.get('melt_was', 0.0), dt)
-    g['melt_was'] = share
+    g['rested'] = (free * melted(rested, rests, g.get('rested_was', 0.0), dt)[1]
+                   + (1.0 - free) * rested * (1.0 - min(1.0, dt / MELT_S)))
+    g['melt_was'], g['rested_was'] = share, rests
+    gain = min(gain, 10.0 ** (MELT_DB * g['rested'] / 20.0))
     out[latent.KS][LEGGED] *= gain
     out[latent.DS][LEGGED] *= math.sqrt(gain)
