@@ -112,7 +112,7 @@ Evaluate the prompt and working tree before invoking any tool:
     - [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
     - [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
     - [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
-    - [INV-CODE] Zero hacks, workarounds, overfitting, data massage, or tweaks? [YES / NO]
+    - [INV-CODE] Zero hacks, magic numbers, workarounds, overfitting, data massage, or tweaks? [YES / NO]
     - [INV-DAG] Strict one-way acyclic dependency graph (0 circular imports)? [YES / NO]
     - [INV-DOD] Contiguous flat arrays, table order, single edge, 0 branches? [YES / NO]
     - [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO]
