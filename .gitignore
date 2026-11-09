@@ -58,6 +58,8 @@ htmlcov/
 *.log
 # A search's candidates, a line each, where it was run from.
 gait_montecarlo.jsonl
+# Analysis logs and runs.
+*.csv
 # Runner transcripts are the same thing in another format.
 host/data/
 !docs/**/*.log
