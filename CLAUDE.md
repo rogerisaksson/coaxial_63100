@@ -104,21 +104,23 @@ Evaluate the prompt and working tree before invoking any tool:
   satisfied against actual State 1 outputs.
 - **Required Output Block:**
 
-    [STATE 2 GATE: ROOT CAUSE & INVARIANT PROOF]
-    - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
-    - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
-    - Generated File: [NO (safe to edit) OR YES (create)]
-    - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
-    - [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
-    - [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
-    - [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
-    - [INV-CODE] Zero hacks, magic numbers, workarounds, overfitting, data massage, or tweaks? [YES / NO]
-    - [INV-PORT] Lisp, python or C code ported to the other languages? [YES / NO]
-    - [INV-DAG] Strict one-way acyclic dependency graph (0 circular imports)? [YES / NO]
-    - [INV-DOD] Contiguous flat arrays, table order, single edge, 0 branches? [YES / NO]
-    - [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO]
-    - [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO]
-    - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
+[STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
+- Proven Root Cause: [exact mathematical, physical, or structural mechanism]
+- Prior Strike Residual & Pruned Subspace: [N/A on Strike 0, OR exact numerical residual from State 4 and which hypothesis class it mathematically eliminated]
+- Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
+- Generated File: [NO (safe to edit) OR YES (create)]
+- Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
+- [INV-SOLVER] Zero oracle corruption (0 weakened tests, relaxed tolerances, or mocked returns)? [YES / NO]
+- [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
+- [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
+- [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
+- [INV-CODE] Zero hacks, magic numbers, workarounds, overfitting, data massage, or tweaks? [YES / NO]
+- [INV-PORT] Lisp, python or C code ported to the other languages? [YES / NO / N/A]
+- [INV-DAG] Strict one-way acyclic dependency graph (0 circular imports)? [YES / NO]
+- [INV-DOD] Contiguous flat arrays, table order, single edge, 0 branches? [YES / NO]
+- [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO / N/A]
+- [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO / N/A]
+- [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
 
 - **Transition Rule:**
   - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
@@ -170,6 +172,12 @@ Evaluate the prompt and working tree before invoking any tool:
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
      No monkeypatching allowed. 
+  **Per-Cycle Ephemeral Artifact Purge:**
+  Immediately after completing each test, introspection, or visual capture
+  cycle, delete all temporary diagnostic artifacts generated during the run
+  (including `*.csv`, `*.png`, `*.log`, `*.bin`, telemetry dumps, and scratch
+  traces) and verify a clean working tree (`git status --short`). Never allow
+  ephemeral run artifacts to persist across test cycles or enter a commit.
 - **Post-Push Teardown (Worktree & Branch Cleanup):**
   Immediately after committing and pushing the verified changes, remove any
   temporary git worktrees (`git worktree remove` followed by `git worktree
