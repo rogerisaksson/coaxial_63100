@@ -16,8 +16,8 @@ import time
 
 from tools.dev import counts
 from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, kill_tree, relay
-from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME,
-                              FRESH_S, ROOT, SHARDED)
+from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, FAILED_FIRST, LIVE, LIVE_GYNOID, OLLAMA,
+                              PORT, REAL_TIME, FRESH_S, ROOT, SHARDED, STRUCTURES)
 
 #: Per-run directory of shard CSVs outside the git worktree (`.../coaxial_63100/runs`).
 RUNS_DIR = os.path.join(os.path.dirname(LEDGER), 'runs')
@@ -232,29 +232,52 @@ def _write_shard_csv(dirs, job, out, parsed):
                 csv.writer(f).writerow([job.name, '' if code is None else code, p, fail, s, '%.1f' % elapsed])
 
 
+def _priority(job, failed):
+    """Sort key so structural checks run first, previously failed suites next, then longest first."""
+    suite = job.name.split()[0]
+    if suite in STRUCTURES:
+        return (0, STRUCTURES.index(suite))
+    if suite in failed:
+        return (1, -failed[suite])
+    if suite in FAILED_FIRST:
+        return (2, FAILED_FIRST.index(suite))
+    return (3, 0)
+
+
 def _results(suites, args, tags, live_sections):
-    """(suite, its result) in the order the report lists them, once every job has ended: all of
-    them on one relay, the longest expected first, a baton a physical core - the port's suites
-    one at a time beside the rest, the quiet ones with the host to themselves.
+    """(suite, its result) in the order the report lists them, stopping at once on the first
+    failing job: structural checks first, previously failed suites next, then longest expected
+    first, a baton a physical core.
     """
     known = counts.load()
     took, jobs_took = known.get('seconds') or {}, known.get('jobs') or {}
+    prior_failed = known.get('failed') if isinstance(known.get('failed'), dict) else {}
     words = getattr(args, 'words', None) or {}
-    share = max(SLICE_S, sum(took.get(name, SLICE_S) for name in suites)
+    share = max(SLICE_S, sum(took.get(name, FRESH_S.get(name, SLICE_S)) for name in suites)
                 / (2.0 * max(1, args.jobs)))
     plan = {name: _jobs(name, args, tags, live_sections, took, share, words.get(name, ()))
             for name in suites if (ROOT / 'tests' / name).exists()}
 
     def expected(job):
         suite = job.name.split()[0]
-        return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
-    queue = sorted((job for jobs in plan.values() for job in jobs), key=lambda j: -expected(j))
+        return jobs_took.get(job.name, took.get(suite, FRESH_S.get(suite, float('inf'))) / len(plan[suite]))
+    queue = sorted((job for jobs in plan.values() for job in jobs),
+                   key=lambda j: (*_priority(j, prior_failed), -expected(j)))
     got, seconds, dirs = {}, {}, _init_run_dirs()
     for job, out, code, took_s in relay(queue, args.jobs, bench=getattr(args, 'bench', False)):
-        got[job.name] = _parse(out, code, took_s, job.timeout)
-        _write_shard_csv(dirs, job, out, got[job.name])
-        if not words.get(job.name.split()[0]):
+        parsed = _parse(out, code, took_s, job.timeout)
+        got[job.name] = parsed
+        _write_shard_csv(dirs, job, out, parsed)
+        suite = job.name.split()[0]
+        if not words.get(suite):
             seconds[job.name] = round(took_s, 1)
+        tally, jcode, _failing, _el, crash, _groups = parsed
+        if crash is not None or jcode is None or jcode != 0 or tally is None or tally[1] > 0:
+            counts.record('failed', {suite: int(time.time())})
+            break
     counts.record('jobs', seconds)
     for name in suites:
-        yield name, (_merged([got[job.name] for job in plan[name]]) if name in plan else None)
+        if name not in plan:
+            yield name, None
+        elif any(job.name in got for job in plan[name]):
+            yield name, _merged([got[job.name] for job in plan[name] if job.name in got])

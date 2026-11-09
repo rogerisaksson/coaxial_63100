@@ -10,6 +10,11 @@ STRUCTURE = 'test_structure.py'
 #: firmware and the host agreeing - one 17 k-token file before.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
               'test_wire_requests.py', 'test_protocol_doc.py')
+#: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once.
+FAILED_FIRST = ('test_errands.py', 'test_wasd.py', 'test_sight.py', 'test_wayfinder.py',
+                'test_docks.py', 'test_camera.py', 'test_gaze.py', 'test_replays.py',
+                'test_scenarios.py', 'test_ortho.py', 'test_bedside.py', 'test_substrate.py',
+                'test_vault.py', 'test_emulator.py')
 
 CORE = 'test_modbus_core.py'
 

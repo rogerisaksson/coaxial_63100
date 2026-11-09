@@ -286,7 +286,7 @@ def watchdog(seconds):
     faulthandler.dump_traceback_later(seconds, exit=True)
 
 
-def run(job, env=None, ledger=None, bench=False):
+def run(job, env=None, ledger=None, bench=False, procs=None):
     """One job in a process of its own, stdout and stderr in one, killed with its tree at its
     time: (output, exit code - None out of time -, seconds); `ledger` its booking, its process
     named in it while it runs; `bench`, above normal priority from its start (Windows')."""
@@ -297,6 +297,8 @@ def run(job, env=None, ledger=None, bench=False):
     proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding='utf-8',
                             errors='replace', **group)
+    if procs is not None:
+        procs.add(proc.pid)
     if ledger is not None:
         with suppress(OSError), _Locked():
             booked(ledger, job.gb, proc.pid)
@@ -307,6 +309,9 @@ def run(job, env=None, ledger=None, bench=False):
         kill_tree(proc.pid)
         out, _ = proc.communicate()
         code = None
+    finally:
+        if procs is not None:
+            procs.discard(proc.pid)
     return out or '', code, time.monotonic() - started
 
 
@@ -369,7 +374,7 @@ def relay(jobs, batons=None, bench=False):
         while (taken := take()) is not None:
             job, path = taken
             try:
-                ended.put((job,) + run(job, env, path, bench))
+                ended.put((job,) + run(job, env, path, bench, procs))
             except OSError as exc:
                 ended.put((job, '%s: %s' % (type(exc).__name__, exc), 1, 0.0))
             finally:
@@ -380,10 +385,18 @@ def relay(jobs, batons=None, bench=False):
                     held['locks'].discard(job.lock)
                     turn.notify_all()
 
+    procs = set()
     for _ in range(max(1, min(count, batons or background.cores()))):
         threading.Thread(target=baton, name='baton', daemon=True).start()
-    for _ in range(count):
-        yield ended.get()
+    try:
+        for _ in range(count):
+            yield ended.get()
+    finally:
+        with turn:
+            waiting.clear()
+            turn.notify_all()
+        for pid in list(procs):
+            kill_tree(pid)
 
 
 def run_groups(path, groups, timeout, batons=None):
@@ -405,9 +418,13 @@ def run_groups(path, groups, timeout, batons=None):
             failed += 1
             print('  FAIL  %s: %s' % (job.name, 'out of time at %.0f s' % job.timeout
                                       if code is None else 'ended without a tally'))
+            sys.stdout.flush()
+            break
         else:
             passed += int(tally.group(1))
             failed += int(tally.group(2))
         sys.stdout.flush()
+        if failed or code != 0:
+            break
     print('\n%d passed, %d failed' % (passed, failed))
     return 1 if failed else 0

@@ -14,7 +14,7 @@ jobs:
   offline:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         python: ['3.12', '3.14']   # the declared floor, and the one it is developed on
     steps:
