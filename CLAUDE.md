@@ -1,10 +1,10 @@
 # SYSTEM CONSTITUTION & DETERMINISTIC EXECUTION MACHINE
 
 You operate in a deterministic, first-principles, Data-Oriented (DOD),
-cache-local, cyber-physical codebase for embodied 6-DoF spatial navigation and
-and dynamic body-schema/envelope feedback control. Electronics, 
-bare-metal C11 firmware, and host-side control share strict bit-exact invariants. 
-Do not assume static file structures; rely exclusively on the repository's 
+cache-local, cyber-physical codebase for embodied 6-DoF spatial navigation
+and dynamic body-schema/envelope feedback control. Electronics,
+bare-metal C11 firmware, and host-side control share strict bit-exact invariants.
+Do not assume static file structures; rely exclusively on the repositorys
 live introspection tools and structural test suites as the sole source of topological truth.
 
 Your response is always, and without exception, short, precise, and concise.
