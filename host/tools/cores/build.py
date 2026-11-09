@@ -3,6 +3,7 @@ import glob
 import hashlib
 import os
 import platform
+import re
 import subprocess
 import time
 from contextlib import suppress
@@ -96,9 +97,23 @@ def cached(sources, includes, name, extra=()):
             os.replace(made, lib)
         except OSError:
             return made, warnings           # another process's is there, loaded
+        _pruned(lib, name)
         return lib, warnings
     finally:
         _unmarked(lib + '.building')
+
+
+def _pruned(lib, name):
+    """`name`'s other builds gone once `lib` is laid: each change of its sources built one and kept it - 11 369 over
+    1757 cores, 1.2 GB, one core 1015 times -, and a build its process could not lay (`cached`) after it went; one a
+    process holds stays, as Windows removes no open file."""
+    from tools.dev.focus import _alive
+    own = re.compile(re.escape(name) + r'_(?:([0-9a-f]{12})|(\d+))\.(?:dll|so)$')
+    for other in glob.glob(os.path.join(OUT, glob.escape(name) + '_*')):
+        built = own.match(os.path.basename(other))
+        if other != lib and built and (built.group(1) or not _alive(int(built.group(2)))):
+            with suppress(OSError):
+                os.remove(other)
 
 
 def _unmarked(marker):
