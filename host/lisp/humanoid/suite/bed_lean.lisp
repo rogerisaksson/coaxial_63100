@@ -217,21 +217,15 @@
 ;; her on - knees 1.885, shins 0.489, trunk upright, the edge bearing what her law's own sit leaves it - so her law,
 ;; driving again, holds her there: asked the sit-up's knees (1.40 -> 1.45) it pushed her 0.07 m back up the bed and
 ;; her lean stood on soles 0.52, short of the thrust's 0.82; asked 1.78 and 0.45 off the move's 108 and 28 deg, she
-;; fell in her thrust
+;; fell in her thrust. Its time after the move is what her law takes to settle her there: 0.4 s to her pelvis under
+;; 2 mm/s, her joints under 17 deg/s (0, +-2e-4 rad laid); held 1.9 s - its 1200 ms and a second stage asking the same
+;; seat 700 - she sat still 1.5 s and stood 11.7 s after the say
 (defmaneuver specialize-sit-up-short-side [state]
   (-> state
       (stage-sequential-manifold
-        :duration-ms 1200.0
+        :duration-ms 400.0
         :contact-chain [:scapular-dorsal -> :palmar-carpal-bilateral]
         :joint-program :bed-exit
-        :torso-pitch-ramp [0.0 -> 0.0]
-        :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.885 -> 1.885] :limb-lift 0.0)
-        :talocrural-rad 0.489
-        :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.85) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))
-      (stage-sequential-manifold
-        :duration-ms 700.0
-        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
         :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.885 -> 1.885] :limb-lift 0.0)
