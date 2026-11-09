@@ -101,7 +101,8 @@ def test_her_map_keeps_what_her_looks_told(report):
 
 def test_her_wayfinder_apart(report):
     """Her wayfinder apart (`machine.way.planner`): the lodge's chair docked by her planner's process at once,
-    as answered here, her way to it watched LATENCY_S on, none before; a table top she goes to opened to her reach ahead
+    as answered here, her way to it watched LATENCY_S on, none before; what affords a verb kept of hers and of things
+    given her each (`furniture._afforded`); a table top she goes to opened to her reach ahead
     before its face, behind it her reach across (`:affordance-aperture`); the text's clothoid her
     arc's, its rate her arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
     import math
@@ -118,6 +119,14 @@ def test_her_wayfinder_apart(report):
         worker.stepped(s)
     floor = min(float(f['sole'][1]) for f in g['s']['feet'])
     box = furniture.nearest(g, 'sit_chair')[6]
+    # her errand's look asks of hers and of things given it each pass (`words._seen`, `words._glimpsed`): each kept
+    given, anew = list(g['things']), furniture._afforded({'things': g['things']}, 'sit_chair')
+    hers, theirs = furniture._afforded(g, 'sit_chair'), furniture._afforded(g, 'sit_chair', given)
+    kept = furniture._afforded(g, 'sit_chair') + furniture._afforded(g, 'sit_chair', given)
+    alike = lambda a, b: len(a) == len(b) and all(p is q and own == mine for (p, own), (q, mine) in zip(a, b))
+    report.check('what affords her sitting told of hers and of things given her, each kept: neither anew for the other',
+                 all(a is b for a, b in zip(kept, hers + theirs)) and bool(anew[1])
+                 and alike(hers[1], anew[1]) and alike(theirs[1], anew[1]), '%d afford it' % len(anew[1]))
     ask = {'kind': 'dock', 'at': (0.0, 0.0), 'yaw': 0.0, 'still': True, 'things': list(g['things']), 'floor': floor,
            'seen': None, 'slot': int(box[4]) if box is not None else -1, 'face': None, 'to': None, 'warm': (),
            'dock': ('sit_chair', box, maneuver.standoff('sit_chair')), 'passed': 0.0, 'way': ()}

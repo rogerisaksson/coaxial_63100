@@ -43,12 +43,14 @@ def _boxlike(p):
 def _afforded(g, verb, things=None):
     """(her boxes of `things` - hers, `g['things']`, without -, [(box, whether it is the thing itself)] of those
     `verb` goes to, in their order): told anew only as her things change - the very ones last told, or a look's of the
-    same bits (`_alike`): the last told in its places -, kept on `g` till then. Each pass of a bed's move found the bed
-    again among the lodge's 64 things (a box `affordance.lies` reads every other thing over it), 0.86 ms of her 1 kHz
-    pass while it played: lying down on the bed and rising from it she ran at half her pace; told anew each look, a
-    third of it."""
-    source = g['things'] if things is None else things
-    kept = g.setdefault('_afforded', {}).get(verb)
+    same bits (`_alike`): the last told in its places -, kept on `g` till then, hers and those given each their own.
+    Each pass of a bed's move found the bed again among the lodge's 64 things (a box `affordance.lies` reads every other
+    thing over it), 0.86 ms of her 1 kHz pass while it played: lying down on the bed and rising from it she ran at half
+    her pace; told anew each look, a third of it. Kept one a verb, her errand's look for a thing - hers and her
+    registry's every slot, both each pass (`words._seen`, `words._glimpsed`) - told it anew at every call: 346 us of
+    19 558 in her bed errand, 15 % of its wall."""
+    source, key = (g['things'] if things is None else things), (verb, things is None)
+    kept = g.setdefault('_afforded', {}).get(key)
     if kept is None or not (kept[0] is source and len(kept[1]) == len(source) and all(map(operator.is_, kept[1], source))):
         if kept is not None and _alike(kept[0], source):
             index, chosen = kept[2], kept[3]
@@ -58,7 +60,7 @@ def _afforded(g, verb, things=None):
             boxes = [source[k] for k in index]
             chosen = [(j, itself(p, boxes)) for j, p in enumerate(boxes) if affords(p, boxes)]
         boxes = [source[k] for k in index]
-        kept = g['_afforded'][verb] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen])
+        kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen])
     return kept[4], kept[5]
 
 
