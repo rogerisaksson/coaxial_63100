@@ -45,7 +45,8 @@ class Run:
         from machine.way import planner
         from machine.world import physics
         placed.placed()
-        physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 0.0
+        # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
+        physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
         s = self.s = worker.session(sprung.STACK_EVERY, False, None)
         s['g']['planner'], s['peeker'] = planner.Planner(), planner.Planner()
         s['g']['vision'] = vision.Here() if here else vision.Apart()
