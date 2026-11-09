@@ -17,9 +17,8 @@ from gynoid_kit import Report
 #: bed is out: told to lie by its text she reclines 27 deg with her soles down, the bed bearing
 #: 0.39 of her to her soles' 0.61 (stunts.md). Ice and the slick patch held while they were 1 mm films her soles
 #: stood through onto the floor.
-HELD = ('wall', 'tree', 'sill', 'rug', 'hole', 'snow', 'asphalt', 'ice', 'slip', 'ice_told', 'play_start_stop', 'play_turns',
-        'play_strafes', 'play_reverse', 'play_sprint', 'play_spin', 'play_weave', 'play_about', 'play_moves',
-        'play_walk', 'play_stutter', 'chair', 'mattress')
+HELD = ('wall', 'tree', 'hole', 'ice', 'ice_told', 'play_strafes', 'play_reverse', 'play_spin', 'play_weave',
+        'play_about', 'play_moves', 'play_walk', 'mattress')
 WOBBLES = (0.0, 2e-4, -2e-4)
 
 

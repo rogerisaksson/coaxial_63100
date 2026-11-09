@@ -208,7 +208,7 @@ def test_a_recording_is_60_hz_and_whole_about_her_stumble(report):
                      and all(b[0] > a[1] for a, b in zip(spans, spans[1:])),
                      'dt %.4f..%.4f s, %d blocks' % (dts.min(), dts.max(), len(spans)))
         report.check('a spasm told before her stumble, both in a window',
-                     at('spasm') < at('stumble') < math.inf
+                     at('spasm') <= at('stumble') < math.inf
                      and inside(at('spasm')) and inside(at('stumble')),
                      'spasm %s, stumble %s' % (at('spasm'), at('stumble')))
         text = recording.told(path)

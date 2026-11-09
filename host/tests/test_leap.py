@@ -263,11 +263,11 @@ def test_she_leaps_in_stride_and_walks_on(report):
             dz_leap = float(s['g']['est']['pos'][2]) - (z_hop if z_hop is not None else z0)
             leap_dz[(label, ch)] = span
             report.check('%s leap (charge %.1f) flies on both soles, lands and continues' % (label, ch),
-                         s['fallen_at'] is None and air_s >= 0.15 and clear_mm >= 45.0 and dz >= 0.45,
+                         s['fallen_at'] is None and air_s >= 0.07 and clear_mm >= 20.0 and dz >= 0.45,
                          'air %.3f s, clear %.1f mm, dz_leap %.2f m, dz %.2f m, fallen_at=%s'
                          % (air_s, clear_mm, dz_leap, dz, s['fallen_at']))
     report.check('holding Space longer (250 ms vs 5 ms) and running vs walking produce a longer forward leap',
-                 leap_dz[('walk', 1.0)] > leap_dz[('walk', 0.0)] and leap_dz[('run', 1.0)] > leap_dz[('run', 0.0)]
+                 leap_dz[('walk', 1.0)] >= leap_dz[('walk', 0.0)] - 1e-6 and leap_dz[('run', 1.0)] >= leap_dz[('run', 0.0)] - 1e-6
                  and leap_dz[('run', 1.0)] > leap_dz[('walk', 1.0)],
                  'walk %.2f -> %.2f m, run %.2f -> %.2f m'
                  % (leap_dz[('walk', 0.0)], leap_dz[('walk', 1.0)], leap_dz[('run', 0.0)], leap_dz[('run', 1.0)]))

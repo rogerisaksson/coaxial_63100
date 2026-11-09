@@ -105,14 +105,25 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('csv', nargs='?', help='a HUMANOID recording')
     parser.add_argument('--last', action='store_true', help='the newest recording')
+    parser.add_argument('--all', action='store_true', help='analyze all kept replays across WOBBLES')
     parser.add_argument('--keep', help='its commands and her pelvis track written here')
     parser.add_argument('--record', help="her loop recorded the while, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
+    from tools.sim import tabular
+    if args.all:
+        root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'tests', 'replays')
+        for path in sorted(glob.glob(os.path.join(root, '*.csv'))):
+            rows = tabular.read_rows(path)
+            heard = entries(rows)
+            runs = [replayed(heard, rows, wobble=w) for w in WOBBLES]
+            print('%-24s %2d cmds  %5.1f s  stood %d/%d  off %.1f mm' % (
+                os.path.basename(path), len(heard), runs[0]['t'], sum(r['fell'] is None for r in runs),
+                len(runs), 1e3 * max(r['off'] for r in runs)))
+        return 0
     found = glob.glob(os.path.join(RECORDINGS, '*.csv')) if args.last else []
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
-        parser.error('a recording, or --last')
-    from tools.sim import tabular
+        parser.error('a recording, --last, or --all')
     rows = tabular.read_rows(path)
     heard = entries(rows)
     if not heard:

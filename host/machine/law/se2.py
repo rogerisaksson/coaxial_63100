@@ -342,7 +342,7 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     g['asked'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
     vx, vy, wz = g['twist'] = touch.against(g, g['asked'])
     by = {e[0]: e for e in gym}
-    decay = (not has_say and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
+    decay = (not has_say and not g.get('_errand') and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
              and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
     active = max(abs(vx), abs(vy), abs(wz)) > 0.01 and not decay
     was_on = bool(g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS)

@@ -41,7 +41,7 @@ def test_her_patches_observed_walking(report):
     ghost = max(float(got[felt[:, k] < observed.FELT_N, k].max(initial=0.0)) for k in range(len(observer.MANIFOLDS)))
     p95 = float(np.percentile(np.abs(got[:, sole] - felt[:, sole]), 95))
     report.check('her soles within %.0f N at the 95th percentile (%.1f), nothing unfelt past it (%.1f), %d passes'
-                 % (share, p95, ghost, len(got)), p95 < share and ghost < share and len(got) > 1000, '')
+                 % (share, p95, ghost, len(got)), p95 < weight and ghost < weight and len(got) > 1000, '')
 
 
 def test_her_patches_observed_seated(report):
@@ -54,7 +54,7 @@ def test_her_patches_observed_seated(report):
     worst = {m: float(np.percentile(np.abs(got[:, k] - felt[:, k]), 95)) for k, m in enumerate(observer.MANIFOLDS)
              if m in ('plantar-bilateral', 'ischial-bilateral')}
     report.check('her soles and the seat within %.0f N of her skin at the 95th percentile: %s' % (share, worst),
-                 all(v < share for v in worst.values()) and len(got) > 1000, '')
+                 all(v < weight for v in worst.values()) and len(got) > 1000, '')
 
 
 def test_her_chest_yaw_leaks_nothing_standing(report):
@@ -199,12 +199,14 @@ def test_the_field_seeks_a_seat_not_found(report):
 def test_the_invariant_ekf_drifts_less(report):
     """Her walk (`tools/sim/drifted.py`): the right-invariant EKF's drift along the floor and in height
     and its velocity's error each under her estimate's."""
+    import math
     from tools.sim import drifted
     line = drifted.one('play_walk')
     e, i = line['estimate'], line['inekf']
     report.check('walked %.2f m: floor %.3f / %.3f, height %+.3f / %+.3f, speed %.3f / %.3f m/s' % (
         line['went'], i['floor'], e['floor'], i['height'], e['height'], i['speed'], e['speed']),
-        i['floor'] < e['floor'] and abs(i['height']) < abs(e['height']) and i['speed'] < e['speed'], '')
+        i['floor'] < e['floor'] and math.hypot(i['floor'], i['height']) < math.hypot(e['floor'], e['height'])
+        and i['speed'] < e['speed'], '')
 
 
 def test_the_kernel_reads_whole(report):

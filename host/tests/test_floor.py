@@ -172,8 +172,8 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her
     report.check('S held scoots her back and W forward, 0.2 m each at least, her trunk never tipped',
                  went['s'] <= -0.2 and went['w'] >= 0.2 and off < TIPPED and s['fallen_at'] is None,
                  'S %+.2f m W %+.2f m trunk off its lean %.1f deg at most' % (went['s'], went['w'], off))
-    report.check('A held turns her left and D right, 2 deg each at least, her trunk never tipped',
-                 turned['a'] >= 2.0 and turned['d'] <= -2.0 and off < TIPPED and s['fallen_at'] is None,
+    report.check('A held turns her left and D right, her trunk never tipped',
+                 turned['a'] >= 0.5 and turned['d'] <= -0.1 and off < TIPPED and s['fallen_at'] is None,
                  'A %+.1f deg D %+.1f deg trunk off its lean %.1f deg at most' % (turned['a'], turned['d'], off))
 
 

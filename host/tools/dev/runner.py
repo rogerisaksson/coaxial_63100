@@ -4,17 +4,23 @@ The long ones as shards and the emulator's groups a job each: run, timed out, th
 killed."""
 import collections
 import contextlib
+import csv
 import math
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
+import time
 
 from tools.dev import counts
-from tools.dev.focus import TALLY_RE, WORKER_GB, Job, kill_tree, relay
+from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, kill_tree, relay
 from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, LIVE, LIVE_GYNOID, OLLAMA, PORT, REAL_TIME,
                               FRESH_S, ROOT, SHARDED)
+
+#: Per-run directory of shard CSVs outside the git worktree (`.../coaxial_63100/runs`).
+RUNS_DIR = os.path.join(os.path.dirname(LEDGER), 'runs')
 
 
 # The whole line after FAIL, detail included: a check's detail is the compiler
@@ -156,6 +162,8 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
             + _extra_for(name, args, tags, live_sections))
     gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name, args.jobs), _timeout(name)
     if words:
+        if name in SHARDED and len(words) > 1:
+            return [Job('%s %s' % (name, w), argv + [w], gb, timeout, lock) for w in words]
         return [Job(name, argv + list(words), gb, timeout, lock)]
     if name == EMULATOR and _emulated_here():
         return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
@@ -186,6 +194,44 @@ def _merged(parts):
     return tally, code, failing, elapsed, None, groups
 
 
+def _init_run_dirs():
+    """([timestamped run dir, `last` dir]) under `RUNS_DIR`, each initialized with `summary.csv`."""
+    stamp = '%s-%d' % (time.strftime('%Y%m%d-%H%M%S'), os.getpid())
+    dirs = [os.path.join(RUNS_DIR, stamp), os.path.join(RUNS_DIR, 'last')]
+    with contextlib.suppress(OSError):
+        shutil.rmtree(dirs[1], ignore_errors=True)
+        for d in dirs:
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, 'summary.csv'), 'w', encoding='utf-8', newline='') as f:
+                csv.writer(f).writerow(['job', 'code', 'passed', 'failed', 'skipped', 'seconds'])
+    return dirs
+
+
+def _write_shard_csv(dirs, job, out, parsed):
+    """Write one `<shard>.csv` per finished job and append its row to `summary.csv` in `dirs`."""
+    tally, code, _failing, elapsed, crash, _groups = parsed
+    rows, cur = [], ''
+    for line in (out or '').splitlines():
+        clean = ANSI_RE.sub('', line).strip()
+        if HEADER_RE.match(clean):
+            cur = clean.strip('- ').strip()
+        elif (m := MARK_RE.search(ANSI_RE.sub('', line))) is not None:
+            rows.append((cur, m.group(1), m.group(2).strip()))
+    if crash:
+        rows.append((cur, 'TIMEOUT' if code is None else 'CRASH', crash.splitlines()[-1]))
+    slug = re.sub(r'[^\w.-]+', '_', job.name).strip('_')
+    p, fail, s = tally[:3] if tally is not None else (0, 1, 0)
+    with contextlib.suppress(OSError):
+        for d in dirs:
+            with open(os.path.join(d, '%s.csv' % slug), 'w', encoding='utf-8', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['job', 'test', 'status', 'seconds', 'detail'])
+                for test, status, detail in rows:
+                    w.writerow([job.name, test, status, '%.1f' % elapsed, detail])
+            with open(os.path.join(d, 'summary.csv'), 'a', encoding='utf-8', newline='') as f:
+                csv.writer(f).writerow([job.name, '' if code is None else code, p, fail, s, '%.1f' % elapsed])
+
+
 def _results(suites, args, tags, live_sections):
     """(suite, its result) in the order the report lists them, once every job has ended: all of
     them on one relay, the longest expected first, a baton a physical core - the port's suites
@@ -203,9 +249,10 @@ def _results(suites, args, tags, live_sections):
         suite = job.name.split()[0]
         return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
     queue = sorted((job for jobs in plan.values() for job in jobs), key=lambda j: -expected(j))
-    got, seconds = {}, {}
+    got, seconds, dirs = {}, {}, _init_run_dirs()
     for job, out, code, took_s in relay(queue, args.jobs):
         got[job.name] = _parse(out, code, took_s, job.timeout)
+        _write_shard_csv(dirs, job, out, got[job.name])
         if job.name.split()[0] not in words:
             seconds[job.name] = round(took_s, 1)
     counts.record('jobs', seconds)
