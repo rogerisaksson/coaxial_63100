@@ -48,6 +48,7 @@ def _harnessed(s):
     def control(g, dt):
         out = was[motion, 'control'](g, dt)
         got['law'].append((t(), {'st': g['st'].copy(), 'out': g['out'].copy(), 'a': g['a'].copy(), 'y': g['y'].copy(), 'fr': g['fr'].copy(),
+                                 'grip': np.concatenate([g['grip'], g['est']['slip'], g['grip_seen'].ravel()]),
                                  'ask': copied(g.get('ask') or {}), 'got': copied(g.get('got') or {})}))
         return out
 
@@ -91,6 +92,7 @@ def _expected(stream, meta, sample):
     import numpy as np
     from machine.senses import edge
     from machine.law import latent, modal
+    from machine.senses import grip
     fields = meta['fields']
     v = np.full(meta['n'], np.nan)
     for name, f in fields.items():
@@ -100,6 +102,7 @@ def _expected(stream, meta, sample):
                  (sample['out'][getattr(latent, part[1])] if part[0] == 'out' else
                   sample['st'][getattr(latent, part[0])][getattr(latent, part[1])] if len(part) == 2 else
                   sample['st'][getattr(latent, part[0])]) if stream == 'latent' else
+                 sample['grip'][getattr(grip, name)] if stream == 'grip' else
                  sample['y'][getattr(modal, name)] if stream == 'modal' else
                  sample['fr'][getattr(modal, name)] if stream == 'frame' else
                  sample['a'][getattr(modal, name)] if stream == 'impedance' else
@@ -114,7 +117,7 @@ def _sections(path, got, events):
     none missing -, and whether its records run in time."""
     import numpy as np
     from machine.rig import gate, streams
-    harness = {'felt': got['felt'], 'read': got['read'], 'modal': got['law'], 'frame': got['law'], 'latent': got['law'], 'impedance': got['law'],
+    harness = {'felt': got['felt'], 'read': got['read'], 'grip': got['law'], 'modal': got['law'], 'frame': got['law'], 'latent': got['law'], 'impedance': got['law'],
                'drives': got['drives'], 'world': got['world'], 'things': got['things'], 'wear': got['wear'],
                'heard': got['heard'], 'wrench': [(t, {'ask': x['ask'], 'got': x['got']}) for t, x in got['law']],
                'events': [(e['t'], e) for e in events]}

@@ -125,6 +125,18 @@ def _latent_take(s, lay, row):
     row[:lay['split']], row[lay['split']:] = s['g']['st'], s['g']['out']
 
 
+def _grip(s):
+    """Her soles' grip as her law reads it (`grip.felt`) and the slip it read it by: a slide told from a held push."""
+    from machine.senses import grip
+    return {'n': grip.READ, 'fields': _fields('machine.senses.grip', 'READ')}
+
+
+def _grip_take(s, lay, row):
+    from machine.senses import grip
+    g = s['g']
+    row[grip.FELT], row[grip.SLIP], row[grip.SHARES] = g['grip'], g['est']['slip'], g['grip_seen'].ravel()
+
+
 def _modal(s):
     """Her edge as her law reads it (`modal.sensed`): her soles, hips and centre of mass and their speeds, her
     loads, her tilts - a flight's soles against her capture point are read here, not in her edge's arrays."""
@@ -214,6 +226,7 @@ STREAMS = (
     Stream('felt', 'machine.senses.edge:felt', _at('felt'), _edge('felt'), _sensed, _pass),
     Stream('read', 'machine.senses.edge:contacted', _at('law'), _edge('contacted'), _sensed, _law),
     Stream('things', 'machine.eyes.registry:boxes', _things, None, lambda s, lay, row: list(s['g']['things']), _refresh),
+    Stream('grip', 'machine.senses.grip:felt', _at('law'), _grip, _grip_take, _law),
     Stream('modal', 'machine.law.modal:sensed', _at('law'), _modal, _modal_take, _law),
     Stream('frame', 'machine.law.se2:twisted', _at('law'), _frame, _frame_take, _law),
     Stream('latent', 'machine.law.latent:step', _at('law'), _latent, _latent_take, _law),

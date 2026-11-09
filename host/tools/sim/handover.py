@@ -154,26 +154,13 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
 
     out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
     if record and 's' in seen:
-        _ended(seen['s'])
+        scenarios.ended(seen['s'])
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']),
                      stumbles=[round(e['t'], 2) for e in told if e['event'] == 'stumble'],
                      falls=[round(e['t'], 2) for e in told if e['event'] == 'fall'], spasms=sum(e['event'] == 'spasm' for e in told))
     if len(log['t']) < 10:
         return row
     return _summed(log, seen, row, trace, from_s, to_s, at, right)
-
-
-def _ended(s):
-    """The recording on her session `s` ended (`watch.recorded`) where the run ended first - a fall before the
-    window's end -, its windows written before the row is summed."""
-    import time
-    from machine.process import watch
-    scope = (s.get('recording') or {}).get('scope')
-    watch.recorded(s, None)
-    for _ in range(200):
-        if scope is None or not scope.pending:
-            break
-        time.sleep(0.1)
 
 
 def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):

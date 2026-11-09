@@ -166,6 +166,7 @@ TOUCHES = (
     ('host/tools/sim/scenarios.py',            (STRUCTURE, SCENES)),
     ('host/tools/sim/player.py',               (STRUCTURE, SCENES)),
     ('host/tools/sim/stunts.py',               (STRUCTURE, SCENES)),
+    ('host/tools/sim/staged.py',               (STRUCTURE, SCENES)),
     ('host/tools/sim/jerk.py',                 (STRUCTURE,)),
     ('host/tools/sim/bench.py',                (STRUCTURE,)),
     ('host/tools/cores/manifest.py',           (STRUCTURE, 'test_mirrors.py', ORTHO)),

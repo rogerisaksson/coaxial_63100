@@ -36,6 +36,10 @@ BEARS, TRUST_S, RELAX_S = 0.1, 1.0, 30.0
 #: a sole over a sill's edge 0.122 -> 0.096, and the sill fell at every wobble.
 AGAINST, PLATEAU, SEEN = 0.7, 0.05, 4
 UP = np.array([0.0, 1.0, 0.0])
+#: A pass of her grip as read (the gate's 'grip' stream): each sole's grip felt; her bearing soles' slip it read
+#: (`estimate`'s, world, m/s); each sole's shares used sliding of late, the newest last (0 held, -1 bore none).
+FELT, SLIP, SHARES = slice(0, 2), slice(2, 5), slice(5, 5 + 2 * SEEN)
+READ = SHARES.stop
 
 
 def laid():
