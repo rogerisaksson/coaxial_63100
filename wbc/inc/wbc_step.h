@@ -91,6 +91,9 @@ typedef struct
   double        chain_slide_m_s, chain_w_pin, chain_tilt; /**< her sled's slide past this speed (kinetic), the static
                                                              sled's soft pin's weight, a slide's normal along the way
                                                              under this (closed-chain-regime) */
+  double        soles_free[2][6], soles[2][6]; /**< each sole's six unknowns - its wrench where it stands, its
+                                                  acceleration where not - in the first answer, the floor
+                                                  unbounded, and in the last (machine.stack.wrench.step) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
@@ -176,6 +179,6 @@ void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *fu
 void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne);
 
 int wbc_rounds(wbc_step_t *p, const wbc_geo_t *geo, const double *H0, const double *g0, const double *S,
-               const double *r, const double *bears, double lo, double hi, double *at, double *work);
+               const double *r, const double *bears, double lo, double hi, double *at, double *first, double *work);
 
 #endif

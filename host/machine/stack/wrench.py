@@ -145,13 +145,14 @@ def _maps(b, s, ask, want):
 
 
 def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
-    """The unknowns for the rows' normal matrix `H0` and right-hand side `g0` (R^T c), the contacts'
+    """(The unknowns, the soles' twelve of the first, floor-unbounded answer) for the rows' normal matrix `H0` and
+    right-hand side `g0` (R^T c), the contacts'
     `held` rows (`bears`, N up), her height's band `lo` to `hi`: the rounds, then the stride. `geo`: (nu, k3,
     moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips, give - the share of a contact's
     push hers to plan); `stride`: (strides, her kinetic metric)."""
     nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips, give = geo
     strides, kinetic = stride
-    pinned, at, band, edge = np.zeros(nu), np.zeros(nu), 0.0, 0.0
+    pinned, at, band, edge, first = np.zeros(nu), np.zeros(nu), 0.0, 0.0, np.zeros(12)
     # a contact told to bear nothing is let go, as one the step would have pull
     pressed, done, rounds = (np.broadcast_to(cap, (len(bears),)) > 0.0).astype(float), 0, ROUNDS
     Hr = gr = None
@@ -179,6 +180,7 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         K = H * np.outer(free, free) + np.diag(hard)
         u, way = _solved(K, np.array([free * (gr + rhs_s - H @ (hard * at)) + hard * at, up]).T, free).T
         u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
+        first = u[:12].copy() if done == 0 else first
         # her height's band: past an edge, held to it
         ay = float(lift @ u) / mass - G
         past = min(max(ay, lo), hi) + G
@@ -202,13 +204,14 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
             break
     if strides > 0.0 and (pinned.any() or band):
         return at + strides * (taken(_solved(Hr, gr, np.ones(nu)), kinetic, up, frames, stance, edges, (lo, hi),
-                                      grounded, mu) - at)
-    return at
+                                      grounded, mu) - at), first
+    return at, first
 
 
 def step(b, s, ask):
-    """{tau, qacc, bears, cop, over, slack, held, scale}: `ask` as `wbc.step` takes it; `strides` how far
-    she strides (0 none), her balance then her landings', not her rows'; `scale` what her drives carry of it."""
+    """{tau, qacc, bears, cop, over, slack, held, scale, soles_free, soles}: `ask` as `wbc.step` takes it;
+    `strides` how far she strides (0 none), her balance then her landings', not her rows'; `scale` what her drives
+    carry of it; each sole's six unknowns in the first answer, the floor unbounded, and in the last."""
     contacts = s.get('contacts', ())
     stance = np.array([float(bool(k)) for k in ask['stance']])
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
@@ -303,12 +306,12 @@ def step(b, s, ask):
         return tau, qdd
 
     # the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows
-    whole = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
+    whole, first = _rounds(H0, R0.T @ np.concatenate(rhs), [(S, r) for S, r, _r0 in still], felt,
                     a[1] - HEIGHT_BAND, a[1] + HEIGHT_BAND, geo, stride)
     limit, lo, hi = box(b, ask)
     tau, qdd = torques(whole)
     if (np.abs(tau) > limit).any():
-        stood = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
+        stood, _first = _rounds(H0, R0.T @ np.concatenate(rhs0), [(S, r0) for S, _r, r0 in still], felt,
                         -HEIGHT_BAND, HEIGHT_BAND, geo, stride)
         tau0 = torques(stood)[0]
         scale = shrunk(tau, tau0, -limit, limit)
@@ -333,5 +336,6 @@ def step(b, s, ask):
         over[p] = over[r] = past[p] or past[r]
     b.load = np.abs(tau) / b.clamp
     return {'tau': np.clip(carried, lo, hi), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
-            'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale}
+            'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale,
+            'soles_free': first.reshape(2, 6), 'soles': u[:12].reshape(2, 6)}
 

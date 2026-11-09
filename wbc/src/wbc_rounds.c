@@ -230,7 +230,7 @@ static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *u0, doub
 }
 
 int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double *g0, const double *S,
-               const double *r, const double *bears, double lo, double hi, double *at, double *work)
+               const double *r, const double *bears, double lo, double hi, double *at, double *first, double *work)
 {
   const int nu = g->nu, nc = g->k3 / 3;
   double   *Hr = work, *gr = Hr + nu * nu, *K = gr + nu, *H = K + nu * nu, *B = H + nu * nu, *X = B + 2 * nu;
@@ -341,6 +341,11 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
       for (int j = 0; j < nu; j++)
       {
         un[j] = X[2 * j] + by * X[2 * j + 1];
+      }
+      /* the soles' part of the first answer, the floor unbounded, told where asked */
+      if (done == 0 && first != NULL)
+      {
+        memcpy(first, un, (size_t)12 * sizeof(double));
       }
       /* her height's band: past an edge, held to it */
       ay = wbc_dot(&p->blas, g->lift, 1, un, 1, nu) / g->mass - p->g;

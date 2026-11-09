@@ -421,7 +421,7 @@ static int stepped(wbc_step_t *p)
   /* the ask's answer, and nothing's: accelerations 0, weight borne */
   wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs, 1, 0), g0, 1, 0, nu, at, 1);
   if (wbc_rounds(p, &geo, H0, g0, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band,
-                 whole, rest))
+                 whole, &p->soles_free[0][0], rest))
   {
     return 1;
   }
@@ -443,7 +443,7 @@ static int stepped(wbc_step_t *p)
     int    over0 = 0;
 
     wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs0, 1, 0), g0, 1, 0, nu, at, 1);
-    if (wbc_rounds(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, rest))
+    if (wbc_rounds(p, &geo, H0, g0, S, r0, felt, -p->height_band, p->height_band, stood, NULL, rest))
     {
       return 1;
     }
@@ -477,6 +477,7 @@ static int stepped(wbc_step_t *p)
     memcpy(u, whole, (size_t)nu * sizeof(double));
     memcpy(carried, tau, (size_t)nd * sizeof(double));
   }
+  memcpy(&p->soles[0][0], u, (size_t)12 * sizeof(double));
   p->scale = scale;
   p->cop_n = 0;
   for (int k = 0; k < 2; k++)
