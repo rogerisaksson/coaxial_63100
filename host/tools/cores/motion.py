@@ -28,7 +28,7 @@ OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded asked
 Y = ('com vcom sole vsole load quat spin moment lowest hip tilt tilt_rate arm prop prop_lo prop_hi grip vhead '
      'hspin elbow palms').split()
 FR = ('rot w0 floor weight knee pitch0 dt reach0 hips_by arm0 unit z0 mass ground floor_at'
-      ' map_at map_way map_along map_rise map_n elbow0').split()
+      ' map_at map_way map_along map_rise map_n elbow0 planted').split()
 A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled headed tipped swung folds settle '
      'edge heeled strides prefold swings raise need lead outside borne bend_rate cell ducking rests propped '
      'propped_below propped_since propped_box reached elbowed let_go split begun dip').split()

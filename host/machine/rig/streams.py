@@ -136,6 +136,23 @@ def _modal_take(s, lay, row):
     row[:] = s['g']['y']
 
 
+def _frame(s):
+    """Her frame as her law lays it (`modal.FRAME`, up to the floor told her): her way's turn and her heading, her
+    floor, her stance's numbers, the floor's pitch under each sole - her heading against her pelvis and her going."""
+    import numpy as np
+    from machine.law import modal
+    fields = _fields('machine.law.modal', 'FRAME', end='MAP_K')
+    n = max(f['at'] + f['n'] for f in fields.values())
+    fields['PLANTED'] = {'at': n, 'n': modal.PLANTED.stop - modal.PLANTED.start}
+    return {'n': n + fields['PLANTED']['n'], 'fields': fields,
+            'idx': np.concatenate([np.arange(n), np.arange(modal.PLANTED.start, modal.PLANTED.stop)])}
+
+
+def _frame_take(s, lay, row):
+    import numpy as np
+    np.take(s['g']['fr'], lay['idx'], out=row)
+
+
 def _impedance(s):
     from machine.law import modal
     return {'n': modal.ASK, 'fields': _fields('machine.law.modal', 'ASK')}
@@ -198,6 +215,7 @@ STREAMS = (
     Stream('read', 'machine.senses.edge:contacted', _at('law'), _edge('contacted'), _sensed, _law),
     Stream('things', 'machine.eyes.registry:boxes', _things, None, lambda s, lay, row: list(s['g']['things']), _refresh),
     Stream('modal', 'machine.law.modal:sensed', _at('law'), _modal, _modal_take, _law),
+    Stream('frame', 'machine.law.se2:twisted', _at('law'), _frame, _frame_take, _law),
     Stream('latent', 'machine.law.latent:step', _at('law'), _latent, _latent_take, _law),
     Stream('impedance', 'machine.law.impedance:ask', _at('law'), _impedance, _impedance_take, _law),
     Stream('wrench', 'machine.stack.wrench:step', _at('law'), None, _wrench_take, _law),

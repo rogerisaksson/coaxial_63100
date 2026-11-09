@@ -21,7 +21,7 @@ from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, rocker, stride, swing, treads, vault
 from machine.moves import leap
-from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
+from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
 from machine.law.poise import HALF_M, TINY
 from machine.law.stride import ALONG, LEFT, LIMBS, UP
 from machine.law.swing import BETWEEN, FREE_BY, HOT3
@@ -173,7 +173,7 @@ def ask(out, y, fr, a):
                              grounded, propped)
     strides = (limbs * grounded)[:, None]
     a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
-        np.concatenate([stride.goes(stride.guarded(meet, over, flat, apart), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w),
+        np.concatenate([stride.goes(stride.guarded(meet, over, flat, apart, fr[PLANTED]), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w),
                         stride.eased(u, off)[:, None] * free[:, UP:]], axis=1) @ rot)).ravel()
     a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out[latent.HELD], (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
     # its pitch on the rock's own spring, from the floor's under the soles that stand; the
@@ -215,11 +215,11 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     step_s = np.pi / np.maximum(turns, TINY)
     left_s = step_s * (1.0 - u * flying)
     apart = stride.APART_M * np.minimum(wide / (2.0 * fr[W0]), 1.0)
-    meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach, apart)
+    meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach, apart, fr[PLANTED])
     s_meet = (meet @ xz) @ way - start
     run = treads.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap, cruise * step_s)[3]
     cruise = np.minimum(cruise, run.min() * turns / np.pi)
-    meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach, apart)
+    meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach, apart, fr[PLANTED])
     s_meet = (meet @ xz) @ way - start
     s_new, top, land, _run, a[CELL] = treads.footholds(
         fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap, cruise * step_s)

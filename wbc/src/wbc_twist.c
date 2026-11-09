@@ -206,6 +206,11 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   fr[k->f_rot + 6] = 0.0;
   fr[k->f_rot + 7] = 1.0;
   fr[k->f_rot + 8] = 0.0;
+  /* each standing sole's turn of her way since it was planted, naught for one in the air (machine.law.se2.twisted) */
+  for (int b = 0; b < 2; b++)
+  {
+    fr[k->f_planted + b] = a[k->a_stance + b] * (fr[k->f_planted + b] + wrap(heading - w[t->w_heading]));
+  }
   /* her rhythm flipped half a turn where her sway leads the other way */
   l_psi = out[k->o_psi + k->lateral];
   d_psi = out[k->o_psi + k->drive];

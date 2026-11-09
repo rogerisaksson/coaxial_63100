@@ -38,10 +38,11 @@ def entries(rows):
     return sorted(out, key=lambda e: (e[0], e[1]))
 
 
-def replayed(heard, rows=(), to=None, wobble=0.0):
+def replayed(heard, rows=(), to=None, wobble=0.0, record=None):
     """{fell: (epoch, t) or None, off: m her pelvis furthest from the rows' (x, y, z) at their
     (epoch, t), t: where it ended, epochs}: `heard` (`entries`) replayed from its first epoch's
-    lay to its last command, or `to` s into its last epoch; laid `wobble` m to her left."""
+    lay to its last command, or `to` s into its last epoch; laid `wobble` m to her left; `record`,
+    her loop recorded the while (`watch.recorded`: recordings/`record`.jsonl, `tools/sim/recording.py`)."""
     from machine.world import physics
     from machine.process import worker
     laid = next(c['laid'] for _e, _p, _t, c in heard if 'laid' in c)
@@ -53,6 +54,8 @@ def replayed(heard, rows=(), to=None, wobble=0.0):
     world._mj.mj_forward(world.model, world.data)
     if laid.get('gym', s['gym_name']) != s['gym_name']:
         worker.apply(s, {'gym': laid['gym']})
+    if record:
+        worker.apply(s, {'record': record})
     want = {(int(r['epoch']) - first, round(float(r['t']), 3)): (float(r['x']), float(r['y']), float(r['z']))
             for r in rows if r.get('epoch') not in (None, '')}
     out = {'fell': None, 'off': 0.0}
@@ -92,6 +95,9 @@ def replayed(heard, rows=(), to=None, wobble=0.0):
         worker.stepped(s)
         judged()
         ran += 1
+    if record:
+        from tools.sim.handover import _ended
+        _ended(s)
     return dict(out, t=round(s['g']['t'], 3), epochs=s['epoch'] + 1)
 
 
@@ -100,6 +106,7 @@ def main(argv=None):
     parser.add_argument('csv', nargs='?', help='a HUMANOID recording')
     parser.add_argument('--last', action='store_true', help='the newest recording')
     parser.add_argument('--keep', help='its commands and her pelvis track written here')
+    parser.add_argument('--record', help="her loop recorded the while, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(RECORDINGS, '*.csv')) if args.last else []
     path = args.csv or (max(found, key=os.path.getmtime) if found else None)
@@ -111,7 +118,7 @@ def main(argv=None):
     if not heard:
         print('%s: no commands recorded - a recording from before they were' % path)
         return 1
-    got = replayed(heard, rows)
+    got = replayed(heard, rows, record=args.record)
     print('%s: %d commands over %d epochs, to %.3f s; her pelvis within %.1f mm of the recording; %s'
           % (path, len(heard), got['epochs'], got['t'], 1e3 * got['off'],
              'fell at %.3f s of epoch %d' % (got['fell'][1], got['fell'][0]) if got['fell'] else 'stood'))

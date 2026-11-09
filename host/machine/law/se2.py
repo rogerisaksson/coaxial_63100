@@ -303,6 +303,8 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     sh_n, ch_n = math.sin(heading), math.cos(heading)
     fr[modal.HEADING] = heading
     fr[modal.ROT][:] = (sh_n, 0.0, ch_n, ch_n, 0.0, -sh_n, 0.0, 1.0, 0.0)
+    # each standing sole's turn of her way since it was planted, naught for one in the air (`stride.meets`)
+    fr[modal.PLANTED] = a[modal.STANCE] * (fr[modal.PLANTED] + wrap_angle(heading - float(words[W_HEADING])))
     l_psi, d_psi = float(out[latent.PSI][modal.LATERAL]), float(out[latent.PSI][modal.DRIVE])
     l_sgn = math.copysign(1.0, float(out[latent.SWAY][modal.LATERAL]))
     cw = math.copysign(1.0, math.sin(l_psi - d_psi) * l_sgn + 0.5)

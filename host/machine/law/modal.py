@@ -78,7 +78,10 @@ MAP_ALONG, MAP_RISE = slice(31 + 3 * N, 31 + 3 * N + MAP_K), slice(31 + 3 * N + 
 MAP_N = 31 + 3 * N + 2 * MAP_K
 #: And her elbows as she stood.
 ELBOW0 = slice(MAP_N + 1, MAP_N + 3)
-FRAME = MAP_N + 3
+#: And her way's turn since each sole was planted, rad (`se2.twisted`), naught for one in the air: a standing sole's
+#: side is read on her way as it lay when it was planted (`stride.meets`).
+PLANTED = slice(MAP_N + 3, MAP_N + 5)
+FRAME = MAP_N + 5
 #: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its
 #: posture and its rate; whether a turn is asked; her knees' bend with her height; her angular

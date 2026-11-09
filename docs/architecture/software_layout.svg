@@ -11,7 +11,7 @@
 <text x="32" y="240" fill="#f8fafc" font-size="10" font-weight="bold">Shared State Arrays:</text>
 <text x="32" y="258" fill="#38bdf8" font-size="9">cmd / states  IPC (60 Hz)</text>
 <text x="32" y="276" fill="#a78bfa" font-size="9">y_in[341]     edge.SENSED</text>
-<text x="32" y="294" fill="#a78bfa" font-size="9">y[78], fr[105] modal.SENSED</text>
+<text x="32" y="294" fill="#a78bfa" font-size="9">y[78], fr[107] modal.SENSED</text>
 <text x="32" y="312" fill="#34d399" font-size="9">st[399], tab  latent.STATE</text>
 <text x="32" y="330" fill="#34d399" font-size="9">out[129]       latent.OUT</text>
 <text x="32" y="348" fill="#fbbf24" font-size="9">a[83]         modal.ASK</text>

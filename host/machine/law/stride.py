@@ -34,6 +34,8 @@ _G = gait.table('stride')
 #: A limb's place, her way's frame: along, to her left, up. Her limbs' mirrors, the first her left.
 ALONG, LEFT, UP = 0, 1, 2
 LIMBS = np.array([1.0, -1.0])
+#: Her way as each sole was planted in, turned since: none.
+UNTURNED = np.zeros(2)
 #: A unit of her drive, a limb's place from her centre of mass along her way, m; of her
 #: soles' rock, a sole's pitch, rad.
 STRIDE_M, ROCK_RAD = _G['stride_m'], _G['rock_rad']
@@ -169,7 +171,7 @@ def cruises(way, drive, turns, going, phi_w):
     return clip(cruise, going - AHEAD_M_S, going + AHEAD_M_S)
 
 
-def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart=APART_M):
+def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart=APART_M, planted=UNTURNED):
     """Where each sole lands (2, 2: along, across): it meets her capture point `xi`, carried
     along with her - a step's offset short of it along her going, what her `cruise` makes of
     a step, and the sole's own side of it by her width's (`wide` m between her soles). On its
@@ -179,7 +181,10 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
     went 0.33 m/s where 0.46 was asked; half a step ahead of her, she went 0.2 m/s: over a
     leg 16 cm ahead she rises 17 mm, 0.58 m/s to do it. No further than `reach` from her
     centre of mass `c`, and `apart` its own side of the other sole (`flat` their middles): APART_M,
-    less as her width is asked narrower than she stood (`guarded` holds a swing off as it passes)."""
+    less as her width is asked narrower than she stood (`guarded` holds a swing off as it passes) - its side as it
+    was planted, on her way as it lay then (`planted` rad her way has turned since): read on her way turned on, a sole
+    behind her shows a turn's inside, and in a turn begun at her walk's pace (A at 1.2 m/s) the inside sole landed 0.2
+    m inside her centre, its stance threw her out at 2.3 m/s^2 and her way spun from under her."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
@@ -187,20 +192,23 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
     led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([LAND_SHARE * (cruise * step_s / (grown - 1.0)) - led + 0.0 * LIMBS,
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
-    return np.stack([c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach),
-                     flat[::-1, LEFT] + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - flat[::-1, LEFT]), apart)],
-                    axis=1)
+    landed = c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach)
+    side = flat[::-1, LEFT] + (flat[::-1, ALONG] - landed) * np.tan(planted[::-1])
+    return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), apart / np.cos(planted[::-1]))], axis=1)
 
 
-def guarded(meet, over, flat, apart):
+def guarded(meet, over, flat, apart, planted=UNTURNED):
     """Each striding sole's target (2, 2: along, across) - from `flat` to its landing `meet` as
     far as it clears the floor (`over`) - held APART_M its own side of the other sole while their
     middles lie within a sole's length along her way, `apart` past it: a track narrower than her
-    soles are wide passes the standing sole, then closes. As it was where far enough off."""
+    soles are wide passes the standing sole, then closes. As it was where far enough off. The other
+    sole's side as `meets` reads it, as it was planted: read on her way turned on, it held a turn's
+    inside sole 0.2 m inside her centre after `meets` had let it land under her."""
     target, other = flat + (meet - flat) * over[:, None], flat[::-1]
     overlap = clip(1.0 - np.abs(flat[:, ALONG] - other[:, ALONG]) / (2.0 * HALF_M), 0.0, 1.0)
     floor = apart + (APART_M - apart) * overlap
-    held = LIMBS * np.maximum(floor - LIMBS * (target[:, LEFT] - other[:, LEFT]), 0.0)
+    side = other[:, LEFT] + (other[:, ALONG] - target[:, ALONG]) * np.tan(planted[::-1])
+    held = LIMBS * np.maximum(floor / np.cos(planted[::-1]) - LIMBS * (target[:, LEFT] - side), 0.0)
     return np.stack([target[:, ALONG], target[:, LEFT] + held], axis=1)
 
 

@@ -19,7 +19,7 @@ typedef struct
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
   int           y_tilt_rate, y_arm, y_prop, y_prop_lo, y_prop_hi, y_grip, y_vhead, y_hspin, y_elbow, y_palms;
   int           f_rot, f_w0, f_floor, f_weight, f_knee, f_pitch0, f_dt, f_reach0, f_hips_by, f_arm0, f_unit;
-  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_n, f_elbow0;
+  int           f_z0, f_mass, f_ground, f_floor_at, f_map_at, f_map_way, f_map_along, f_map_rise, f_map_n, f_elbow0, f_planted;
   int           a_stance, a_com_acc, a_sole_acc, a_want, a_fold, a_fold_rate, a_turned, a_bend, a_kdot;
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
@@ -113,9 +113,9 @@ void   wbc_imp_hurried(const wbc_imp_t *k, const double aside[2], double om, con
 double wbc_imp_cruises(const wbc_imp_t *k, double way, double drive, double turns, double going, double phi_w);
 void   wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], const double flat[2][2],
                      double cruise, double om, double turns, double wide, double across, double reach,
-                     double apart, double meet[2][2]);
+                     double apart, const double planted[2], double meet[2][2]);
 void   wbc_imp_guarded(const wbc_imp_t *k, const double meet[2][2], const double over[2], const double flat[2][2],
-                       double apart, double held[2][2]);
+                       double apart, const double planted[2], double held[2][2]);
 /** machine.law.stride.ducked: her height's sidechain, (latch, envelope) `held` in place, the duck and its rate, m. */
 void   wbc_imp_ducked(const double duck_p[3], double held[2], const double stance[2], const double stood[2], double dt,
                       double duck[2]);
