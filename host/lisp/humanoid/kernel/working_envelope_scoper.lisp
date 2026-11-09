@@ -242,6 +242,8 @@
 ;; When resting in bed (`:dorsal-supine`) or seated calmly, unloads the stereo
 ;; wayfinder, swing-chord guards, and whole-body limb QP; condenses the skeleton
 ;; down to the 3-IMU Prior Observer +active weight-shift prober (< 18 us/tick!).
+;; Hers: her eyes, her camera and her map rest while her step's clamps are told her drives as zeros (limp,
+;; `se2.limp`), waking as one rises (`vision.look`, `machine.law.composer`): a bed's lie rested 6.5 of its 16 s.
 (defmodifier specialize-scope-recumbent-hibernation [state]
   (-> state
       (xform-dynamic-working-envelope-scoper)

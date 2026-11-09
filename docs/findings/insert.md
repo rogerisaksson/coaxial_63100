@@ -104,6 +104,13 @@ anti_spasm_supervisor.lisp):
   8.4-8.9 s at every nudge; the base stands to 13.5 s): with the handover her
   law stood her at 7.58 s while her step still strode (0.96-0.88), both soles
   let go, she landed on one at 360 N and tilted 17 deg. Out of the bus, open.
+- The handover in her law instead, restored: between her upright and
+  closed-chain steps, at what bears her off her soles, out of a step held its
+  comparators' 45 ms dwell, it took bed_leg at +0.0002 off the bench (99 of
+  210 against 100); each change carried, bed_leg fell at every wobble, her arm
+  1 086 -> 1 612 deg/s. The sit-up whip it was for - her capture point 0.65 m
+  behind her soles as her upright step takes her - no longer arises at its
+  house spot (lie_bed at 0.5 1.4 facing 1.5 pi: she reaches no bed there).
 - The insert's comparators on what bears her off her soles, gating which
   borne segments her step plans on (on 0.18 of her weight, off 0.06, 45 ms
   dwell): the chair's pelvis bounced off the seat - its share 0.32, 0, 0.47,

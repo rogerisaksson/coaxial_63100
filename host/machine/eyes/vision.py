@@ -13,6 +13,7 @@ registry kept there, the laid one sent it at each epoch and read here no more (`
 from machine.process import aside
 from machine.senses import inekf
 from machine.eyes import gaze, registry
+from machine.law import composer
 from machine.errors import MachineError
 
 #: A look's things: the world's boxes as her eyes' stand-in, or her eyes' map's (`g['keep']`, `physics.SIGHT`).
@@ -21,6 +22,10 @@ LOOKS = (lambda g: g['world'].props(), lambda g: g['keep'].told())
 SAME = 'her things as the look before'
 
 
+# her step's clamps told her drives as zeros she rests limp (`se2.limp`, `motion.drives`): nothing of hers to steer, her
+# eyes, her camera and her map rest till a clamp rises (working_envelope_scoper.lisp's recumbent hibernation, `composer`)
+@composer.capability(lambda g: 'cmd' not in g or not g['drives'][1]['limit'].any() or bool(g['cmd']['limit'].any()),
+                     lambda _g: None)
 def look(g):
     """A look asked at `g['t']` (LOOKS by her eyes): her camera's shot first, her head as her law last sensed it,
     the time since her last look; with her camera her eyes turned by her gaze (`gaze`) - her shot from her head and
