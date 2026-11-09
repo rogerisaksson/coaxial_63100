@@ -52,9 +52,9 @@ THIN = 2.0 * CELL_M
 #: feet's, she steps onto it, and onto a rise of it from one she does; a top's piece stands on it with its foot no
 #: higher over it than the mid-pelvic slab; past the highest, her head's, a thing is overhead.
 FLUSH, STEP, OVER, OVERHEAD = figure.ANKLE_H, _SLAB_TOPS[0], _SLAB_TOPS[1], _SLAB_TOPS[2]
-#: A seat's top (`:sit-on-fixture`), m; past what she braces on (`:recruit-brace-support`) a face parts the room - a
-#: chair's back stays under it - and a top is a cabinet's or a shelf's.
-SEAT, BRACE = _WINDOWS[':sit-on-fixture'], _WINDOWS[':recruit-brace-support'][1]
+#: A seat's top (`:sit-on-fixture`) and a bed's (`:lie-supine-on-fixture`), m; past what she braces on
+#: (`:recruit-brace-support`) a face parts the room and a top is a cabinet's or a shelf's.
+SEAT, BED, BRACE = _WINDOWS[':sit-on-fixture'], _WINDOWS[':lie-supine-on-fixture'], _WINDOWS[':recruit-brace-support'][1]
 #: Her lap sat at her popliteal height (`floor.CHAIR_LOW_H`), her knee and her thigh's radius - a table's top is over
 #: it, a seat's under -; her lumbar over that seat (`affordance.LUMBAR_M`), a chair's back reaching it - m.
 LAP = figure.ANKLE_H + figure.SHANK + [c for c in figure.BODY if c[0] == 'thigh'][-1][1]
@@ -67,7 +67,7 @@ STANCE = 2.0 * (figure.HEEL + figure.BALL + figure.TOE_M)
 #: not: a door's standing from the lowest slab past her brace - shaded timber reads as one, pixel by pixel -; a bed's
 #: lying under her brace - a glass gable reads as one against the room behind it.
 BORNE = {'door': (lambda top, bottom: bottom <= OVER and top > BRACE, 'timber'),
-         'bed': (lambda top, bottom: _WINDOWS[':lie-supine-on-fixture'][0] <= top <= BRACE, 'glass')}
+         'bed': (lambda top, bottom: BED[0] <= top <= BED[1], 'glass')}
 
 #: A top's class by its features (`of`), the first that holds: flush with the floor; a shallow top she steps onto, a
 #: rise off another - a stair's tread - or alone; one she stands on whole, or as deep and solid under it within her
@@ -78,11 +78,11 @@ TOPS = (('floor', lambda f: np.abs(f['top']) <= FLUSH),
         ('stairs', lambda f: f['steps'] & (f['short'] < STANCE) & f['flight']),
         ('step', lambda f: f['steps'] & (f['short'] < STANCE)),
         ('platform', lambda f: f['steps'] | (f['solid'] & (f['short'] >= STANCE) & (f['top'] <= BRACE))),
-        ('sofa', lambda f: f['wide'] & f['seat'] & f['backed'] & (f['long'] >= 2.0 * f['short'])),
+        ('sofa', lambda f: f['wide'] & f['seat'] & f['backed'] & (f['long'] >= 2.0 * np.maximum(f['short'], STANCE))),
         ('chair', lambda f: f['wide'] & f['seat'] & f['backed']),
         ('table', lambda f: f['wide'] & (((f['top'] > LAP) & (f['top'] <= BRACE))
                                          | (f['seat'] & (f['short'] >= STANCE)))),
-        ('bench', lambda f: f['wide'] & f['seat'] & (f['long'] >= 2.0 * f['short'])),
+        ('bench', lambda f: f['wide'] & f['seat'] & (f['long'] >= 2.0 * np.maximum(f['short'], STANCE))),
         ('stool', lambda f: f['wide'] & f['seat']),
         ('cabinet', lambda f: f['wide'] & f['solid'] & (f['top'] > BRACE)),
         ('shelf', lambda f: f['wide'] & (f['top'] > BRACE)))
@@ -223,7 +223,7 @@ def of(kinds, centre, half, R, clear):
     # piece of its look beside it from no more than a cell over its top past her lumbar, its foot anywhere under - a
     # chair's back is one with its rear legs, a low chair's with the wall it stands against
     backs = (pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9)
-             & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= BRACE))
+             & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= OVERHEAD))
     held = on | under | backs
     # what she steps onto: a top no piece in the lowest slab, then each beside one she does a rise of it off it
     free = surface & ~held.any(axis=1)
@@ -288,7 +288,8 @@ def read(things):
     names, whole = of(kinds, centre, half, R, clear)
     ones, built = grouped(names, whole, centre, half, R)
     top = (clear > 0.0) & (2.0 * half[:, ::2].min(axis=1) > THIN + 1e-9)
-    return ([None if name == 'thing' or (name in FURNITURE and not t) else name for name, t in zip(names, top)],
+    return ([None if name == 'thing' or (name in FURNITURE + ('bed',) and not t) else name
+             for name, t in zip(names, top)],
             ones.tolist(), [(name, tuple(c.tolist()), tuple(h.tolist())) for name, c, h, _m in built])
 
 

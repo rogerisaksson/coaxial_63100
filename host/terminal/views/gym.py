@@ -168,7 +168,7 @@ def offers(now, seen):
     propped, floored = _propped(now), _floored(now)
     if propped:
         bearing = sorted((dist, kind, lo, hi) for kind, dist, lo, hi in things
-                         if scanner.AFFORDANCES[kind][0] == _BEARS[propped] and dist < REACH_M)
+                         if scanner.AFFORDANCES[kind][0] == _BEARS[propped])
         return [(propped, NAMED.get(propped, propped), _middle(lo, hi), '%s %.1fm' % (kind, dist), None)
                 for dist, kind, lo, hi in bearing[:1]]
     if floored:
@@ -209,7 +209,7 @@ def ballooned(state, offer, width, height, travel, docked=()):
     """The viewport's balloons: each of `offer` (`offered`'s) at a thing its key and word on it, on
     a drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
     cells; framed lit while F's choice is open; her errand's between its docks (`dock.shown`, `spokes`)."""
-    on = [o for o in offer if o[3] is not None]
+    on = fkeys.shown(state, offer, _propped(state.get('now') or {}))
     docks = fkeys.paired(on, (state.get('now') or {}).get('docks') or [], REACH_M, ONTO_M)
     places = gynoid.cells([o[3] for o in on] + [at for d in docks for at in d['at']], width, height, yaw=state['yaw'],
                           pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))

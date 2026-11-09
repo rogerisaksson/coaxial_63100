@@ -13,7 +13,7 @@ import functools
 
 
 #: The verbs her page rings docks for (`scanner.AFFORDANCES`), and the classes that are no seats.
-VERBS, NO_SEAT = ('sit_chair', 'lie_bed', 'exit_door'), ('table', 'platform', 'step', 'stairs')
+VERBS, NO_SEAT = ('sit_chair', 'lie_bed', 'exit_door'), ('table', 'platform', 'step', 'stairs', 'bed')
 
 
 def _goes(g):
@@ -22,7 +22,7 @@ def _goes(g):
     things = furniture._things(g, None)
     at = (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
     got = [(affordance.distance(p, at), verb, p) for verb in VERBS for p in things
-           if furniture.GOES[verb][0](p, things)
+           if furniture.GOES[verb][0](p, things) and (verb != 'lie_bed' or p[0] == 'bed')
            and (verb != 'sit_chair' or (not affordance.lies(p, things) and p[0] not in NO_SEAT))]
     return [(verb, p) for _d, verb, p in sorted(got, key=lambda h: h[0])]
 

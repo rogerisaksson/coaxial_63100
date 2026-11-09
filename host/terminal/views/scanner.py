@@ -115,8 +115,9 @@ class VisionScanner:
         """What her eyes' view holds (`scan`'s within FAR_M, ACROSS of her heading): her vision's panel."""
         heading = float((now or {}).get('heading') or 0.0)
         return [d for d in self.scan(now, reach=voxels.FAR_M)
-                if abs(math.remainder(math.atan2(d['near'][0] - now['where'][0], d['near'][2] - now['where'][2]) - heading,
-                                      math.tau)) <= ACROSS]
+                if d.get('shown') or abs(math.remainder(
+                    math.atan2(d['near'][0] - now['where'][0], d['near'][2] - now['where'][2]) - heading,
+                    math.tau)) <= ACROSS]
 
     def scan(self, now, look=None, reach=None):
         """Her things in her sight, one a thing of its pieces - her registry's, by what each is and the one thing
@@ -137,6 +138,7 @@ class VisionScanner:
         scen = str(now.get('scenario', ''))
         gx, gz = where[0], where[2]
         cones = [float(now.get('heading') or 0.0)] + ([look] if look is not None else [])
+        frustum = any(isinstance(p, (tuple, list)) and len(p) > 6 and float(p[6]) > 0.0 for p in things)
 
         pieces = {}
         for at, prop in enumerate(props):
@@ -145,24 +147,21 @@ class VisionScanner:
             raw_kind = named[at] if at < len(named) else None
             px, py, pz = float(prop[1][0]), float(prop[1][1]), float(prop[1][2])
             sz = prop[2] if hasattr(prop[2], '__len__') and len(prop[2]) >= 3 else (0.0, 0.0, 0.0)
-            sx, sz_d = min(float(sz[0]), float(sz[2])), max(float(sz[0]), float(sz[2]))
             turn = prop[3] if len(prop) > 3 else UPRIGHT
-            kind = (None if raw_kind is None else
-                    _PROP_RULES[raw_kind](py, sx, sz_d, scen) if raw_kind in _PROP_RULES else raw_kind)
             dx, dz = px - gx, pz - gz
             dist = math.hypot(dx, dz)
-            if kind is None or dist > (reach or SIGHT_M) or not _in_cone(dx, dz, dist, kind, reach, cones):
+            shown = frustum and len(prop) > 6 and float(prop[6]) == 0.0
+            if raw_kind is None or dist > (reach or SIGHT_M) or not (shown or _in_cone(dx, dz, dist, raw_kind, reach, cones)):
                 continue
             pieces.setdefault(groups[at] if at < len(groups) else at, []).append({
-                'kind': kind,
+                'kind': raw_kind,
                 'index': prop[4] if things and len(prop) > 4 else at,
                 'dist': dist,
                 'pos': (px, py, pz),
                 'extent': tuple(sum(abs(float(a)) * float(h) for a, h in zip(row, sz)) for row in turn),
-                'label': '%s (%.1fm)' % (kind, dist),
-                'affordances': [AFFORDANCES[kind]] if kind in AFFORDANCES else [],
+                'shown': shown,
             })
-        found: list[dict] = [_one(ds) for ds in pieces.values()]
+        found: list[dict] = [_one(ds, scen) for ds in pieces.values()]
 
         # a building she is outside of (`now['buildings']`, `classes.read`): its distance its shell's
         for k, (kind, centre, half) in enumerate(built):
@@ -185,15 +184,21 @@ def _met(d, places):
                for k, a, b in places)
 
 
-def _one(pieces):
-    """One thing of its `pieces` (`scan`'s, of one group): its nearest piece's kind, distance and label, that piece's
-    place `near`, the box round them all its `pos` and `extent`, the lowest slot its `index`."""
+def _one(pieces, scen=''):
+    """One thing of its `pieces` (`scan`'s, of one group): its nearest piece's kind (by `_PROP_RULES` on the
+    whole's box), distance and label, that piece's place `near`, the box round them all its `pos` and `extent`,
+    the lowest slot its `index`."""
     near = min(pieces, key=lambda d: d['dist'])
     lo = [min(d['pos'][k] - d['extent'][k] for d in pieces) for k in range(3)]
     hi = [max(d['pos'][k] + d['extent'][k] for d in pieces) for k in range(3)]
-    return dict(near, index=min(d['index'] for d in pieces), slots=frozenset(d['index'] for d in pieces),
-                near=near['pos'], pos=tuple(0.5 * (a + b) for a, b in zip(lo, hi)),
-                extent=tuple(0.5 * (b - a) for a, b in zip(lo, hi)))
+    pos = tuple(0.5 * (a + b) for a, b in zip(lo, hi))
+    ext = tuple(0.5 * (b - a) for a, b in zip(lo, hi))
+    raw = near['kind']
+    kind = _PROP_RULES[raw](pos[1], min(ext[0], ext[2]), max(ext[0], ext[2]), scen) if raw in _PROP_RULES else raw
+    return dict(near, kind=kind, index=min(d['index'] for d in pieces), slots=frozenset(d['index'] for d in pieces),
+                near=near['pos'], pos=pos, extent=ext, label='%s (%.1fm)' % (kind, near['dist']),
+                affordances=[AFFORDANCES[kind]] if kind in AFFORDANCES else [],
+                shown=any(d.get('shown') for d in pieces))
 
 
 def _render_plate_row(row_idx, top, left, width, text, code, key_frame):

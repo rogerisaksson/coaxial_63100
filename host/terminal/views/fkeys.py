@@ -44,6 +44,15 @@ def slotted(state, now, got, turn):
     return sorted(((s, got[i]) for i, s in at.items()), key=lambda p: p[0])
 
 
+def shown(state, offer, propped=None):
+    """The offers of `offer` (`gym.offered`'s) at a thing in her sight (`scanner.scan`), or bearing her (`propped`)."""
+    now, sc = state.get('now'), state.get('scanner')
+    view = sc.scan(now) if sc is not None and now and not propped else None
+    return [o for o in offer if o[3] is not None and (view is None or any(
+        abs(o[3][0] - d['pos'][0]) <= d['extent'][0] + 0.1 and abs(o[3][2] - d['pos'][2]) <= d['extent'][2] + 0.1
+        for d in view))]
+
+
 def paired(on, docks, reach_m, onto_m):
     """`docks` paired in the room's frame with their identified offers `on` [(key, verb, word, at, ..)]:
     each dock bound to the offer of its verb nearest its faces (`'for'`), within `reach_m` (`onto_m` for
@@ -55,8 +64,9 @@ def paired(on, docks, reach_m, onto_m):
         mx = sum(float(p[0]) for p in d['at']) / len(d['at'])
         mz = sum(float(p[2]) for p in d['at']) / len(d['at'])
         span = onto_m if d.get('kind') == 'sit_chair' else reach_m
-        near = [(math.hypot(mx - float(o[3][0]), mz - float(o[3][2])), i) for i, o in enumerate(on)
-                if i not in taken and o[1] == d.get('kind')]
+        pts = [(mx, 0.0, mz)] + list(d['at'])
+        near = [(min(math.hypot(float(p[0]) - float(o[3][0]), float(p[2]) - float(o[3][2])) for p in pts), i)
+                for i, o in enumerate(on) if i not in taken and o[1] == d.get('kind')]
         if near and min(near)[0] <= span:
             i = min(near)[1]
             taken.add(i)
