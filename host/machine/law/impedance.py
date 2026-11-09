@@ -20,7 +20,6 @@ import numpy as np
 from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, rocker, stride, swing, treads, vault
-from machine.moves import leap
 from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
 from machine.law.poise import HALF_M, TINY
 from machine.law.stride import ALONG, LEFT, LIMBS, UP
@@ -85,7 +84,7 @@ def ask(out, y, fr, a):
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w)
-    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], stepping, y[LOAD] < leap.TOUCH_N, way * (flat[:, ALONG] - c[ALONG]), phi, u, turns, fr[DT], phi_w, stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi, phi_w))
+    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi, phi_w))
     kp, kd, swung = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS], swung / (1.0 - begun)
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
     # across past the soles that stood, its own side of them - along her way too while her rhythm

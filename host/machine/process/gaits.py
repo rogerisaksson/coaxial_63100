@@ -75,7 +75,10 @@ def _queue_post_jump(g, by, entry):
     if leap_brake:
         sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=t_res - 0.01, reset=True)
         return sprung.said(g, *by['stand'], at=t_res + 0.54, reset=True)
-    post = (name, se2._WALK_ON_WIRE, (name,)) if name in ('walk', 'jog') else by.get(name)
+    # the run resumed on its own rows: on the walk's (`_WALK_ON_WIRE` labelled jog) a run's leap ran on at the walk's
+    # cadence and spring (1.15 Hz, axial 0.03 and 3000 for the jog's 1.25, 0.075 and 3200) and its stop fell 9 of 9
+    post = (('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else
+            leap._jog_resume_entry(by) if name == 'jog' and 'jog' in by else by.get(name))
     if post is not None:
         sprung.said(g, *post, at=t_res, reset=(name == 'stand'))
 

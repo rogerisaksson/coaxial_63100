@@ -11,15 +11,18 @@ KEYS = {'w': WALK, 's': (-se2.BACK_SPEED, 0.0, 0.0), 'q': (0.0, se2.STRAFE_SPEED
         'W': (se2.RUN_SPEED, 0.0, 0.0), '-': STOP}
 PLAYS = {'start_stop': 'w3 -3 w3 -3', 'turns': 'w2 wa2 wd2 -3', 'strafes': 'q2 e2 -3', 'reverse': 'w2 s2 w2 -3',
          'sprint': 'w2 W3 w2 -3', 'spin': 'a3 -3', 'weave': 'w1 wa1 w1 wd1 w1 -3', 'about': 'a2 wa1 w2 -3',
-         'walk': 'w10 -2', 'moves': 'w2 wa2 q2 s2 W2 -3', 'stutter': 'w3 -0.25 w2 -0.2 w3 -3'}
+         'walk': 'w10 -2', 'moves': 'w2 wa2 q2 s2 W2 -3', 'stutter': 'w3 -0.25 w2 -0.2 w3 -3',
+         'run_leap': 'W2 h3 -3', 'walk_leap': 'w3 h3 -3'}
 
 
 def played(keys):
-    """(commands, seconds) of a player's keys, 'w3 -2': each a twist held its seconds, from 1 s."""
+    """(commands, seconds) of a player's keys, 'w3 -2': each a twist held its seconds, from 1 s; 'h' Space,
+    a hop said at its moment over the twist held ('W2 h W3 -3': her run's leap)."""
     at, plan = 1.0, []
     for word in keys.split():
-        plan.append((at, {'twist': KEYS[word.rstrip('0123456789.')]}))
-        at += float(word[len(word.rstrip('0123456789.')):])
+        key, held = word.rstrip('0123456789.'), word[len(word.rstrip('0123456789.')):]
+        plan.append((at, {'say': 'hop'} if key == 'h' else {'twist': KEYS[key]}))
+        at += float(held or 0.0)
     return plan, at + 1.0
 
 

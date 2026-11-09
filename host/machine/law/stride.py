@@ -3,7 +3,7 @@
     phi_w = stride.swings(drive, turns, going)              # rad: how far round her rhythm a limb swings
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood, phi_w)
     start = stride.first(need, still, rate, was, beyond, loads, phi, phi_w)    # rad: a step begun at once
-    split = stride.split(split, support, stepping, free, ahead, phi, u, turns, dt, phi_w, start)   # rad: each limb's own shift
+    split = stride.split(split, support, turns, dt, start)   # rad: each limb's own shift
     hurry = stride.hurried(aside, om, u, swung, kp)                  # (2,), 1 unhurried
     cruise = stride.cruises(way, drive, turns, going, phi_w)    # the speed her drive makes of its steps
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide)       # where each sole lands (2, 2)
@@ -126,18 +126,16 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / phi_w
 
 
-def split(split, support, stepping, free, ahead, phi, u, turns, dt, phi_w, start=0.0):
-    """Each limb's own shift of its place in her rhythm a pass on, rad (the ballistic text's split leap): held - a
-    throw, a flight, her `support` asked none -, a sole `free` of the floor behind her centre (`ahead`, m along her
-    way) and out of its swing goes to its swing's start, one ahead done swinging waits for the floor; else they relax
-    to the nearest turn apart. Kept to her rhythm her trailing sole stood in the air 0.5 s and landed behind her; told
-    by its rhythm alone, a sole pushed off early in its stance waited behind her 0.6 s. Both turned `start` (`first`).
-    Her whole rhythm is never turned to a landing: turned so, her stride left her sway behind and she fell."""
+def split(split, support, turns, dt, start=0.0):
+    """Each limb's own shift of its place in her rhythm a pass on, rad: relaxed to the nearest turn apart while her
+    `support` holds, both turned `start` (`first`). Held - a throw, a flight, her support asked none - each limb keeps
+    its rhythm: a sole free of the floor behind her centre turned to its swing's start, and one ahead done swinging held
+    at its end for the floor, landed a run's leap with its limbs 1.86 rad off it; relaxed over a turn her steps
+    overlapped, she left both soles 1.5 s on and fell (the player's run leap 0 of 9, 9 of 9 so; the gym's jog, hop and
+    stand 0 of 9, 9 of 9; its walk, hop and stand 3 of 9, 5). Her whole rhythm is never turned to a landing: turned so,
+    her stride left her sway behind and she fell."""
     held, gap = 1.0 - clip(support, 0.0, 1.0), split[0] - split[1]
-    return split + start + (stepping * held * free * ((ahead <= 0.0) * ((u <= 0.0) + (u >= 1.0)) * np.mod(-phi_w - phi, 2.0 * np.pi)
-                                                      - (ahead > 0.0) * (u >= 1.0) * turns * dt)
-                            - (1.0 - held) * (0.5 * (gap - 2.0 * np.pi * np.round(gap / (2.0 * np.pi))) * LIMBS)
-                            * min(1.0, turns * dt / (2.0 * np.pi)))
+    return split + start - (1.0 - held) * (0.5 * (gap - 2.0 * np.pi * np.round(gap / (2.0 * np.pi))) * LIMBS) * min(1.0, turns * dt / (2.0 * np.pi))
 
 
 def first(need, still, rate, was, beyond, loads, phi, phi_w):

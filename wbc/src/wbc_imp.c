@@ -164,18 +164,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
        turned to its swing's start (stride.first) */
     start = (((still * settled) * (double)(a[k->a_need] > 0.5)) * (double)(npmax(a[k->a_swings], a[k->a_swings + 1]) < 0.5))
             * (pick[0] * npmod(-phi_w - phi[0], 2.0 * PI) + pick[1] * npmod(-phi_w - phi[1], 2.0 * PI));
+    /* relaxed to the nearest turn apart while her support holds, each limb keeping its rhythm held aloft
+       (machine.law.stride.split) */
     for (int b = 0; b < 2; b++)
     {
-      const double ahead = way * (flat[b][0] - c[0]);
-      const double to_swing = npmod(-phi_w - phi[b], 2.0 * PI);
-      const double free_ = (double)(y[k->y_load + b] < k->touch_n);
-      const double ends = (double)(u[b] <= 0.0) + (double)(u[b] >= 1.0);
-
-      a[k->a_split + b] = (a[k->a_split + b] + start)
-                          + ((((stepping * held) * free_)
-                              * ((((double)(ahead <= 0.0) * ends) * to_swing)
-                                 - ((((double)(ahead > 0.0) * (double)(u[b] >= 1.0)) * turns) * fr[k->f_dt])))
-                             - (((1.0 - held) * (half * k->limbs[b])) * relax));
+      a[k->a_split + b] = (a[k->a_split + b] + start) - (((1.0 - held) * (half * k->limbs[b])) * relax);
     }
   }
   a[k->a_swings] = off[0];
