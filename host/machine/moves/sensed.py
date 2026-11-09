@@ -2,7 +2,8 @@
 
 A move her joints play as a program does (`machine.process.joints`), bound by her text to a stage of hers by its
 `:joint-program`, the `defmove` of that name: her way into a bed over its end to its middle (`bed-entry`,
-bed_lean.lisp), up onto a seat too high for her feet (`chair-mount`, terminal_sequencer.lisp). Each phase drives her
+bed_lean.lisp), up onto a seat too high for her feet and down off it (`chair-mount`, `chair-dismount`,
+terminal_sequencer.lisp). Each phase drives her
 parts to its goals as her anatomy goes (`anatomy`: held, at a rate, at a rate but no straighter than she is) and ends
 by what she senses and where a look puts her on the furniture her eyes saw (`furniture.lain`), none by the clock: its
 goals reached; her feet planted (her soles' share PLANT) or that; her pelvis pulled in (PULL_IN m from its end), or

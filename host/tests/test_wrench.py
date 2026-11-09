@@ -124,21 +124,29 @@ def test_her_lean_hands_her_to_her_soles(report):
     springs back from the seat's gain by that share (`maneuver._legs`); the fade onto her soles ends the slide."""
     from machine.texts import acts, maneuver
     from machine.law import somatic
-    ps = maneuver.phases('rise_chair')
+    from machine.moves import seated
+    low = (seated.POPLITEAL, 0.17, 0.0, 0.0, None)  # a seat her feet reach: over it her dismount lands her on them
+    ps = maneuver.phases('rise_chair', low)
     lean = next(k for k, p in enumerate(ps) if p.stage == 'preload')
     p, then = ps[lean], ps[lean + 1]
-    text = maneuver.text('rise_chair')
+    text = maneuver.text('rise_chair', low)
     report.check('the lean pans to (plantar 0.82, ischial 0.18), ZMP in her support, slide %.2f m/s; the thrust slide 0'
                  % somatic.EGRESS_M_S,
                  p.zmp == acts.SUPPORT and abs(p.weighs[0] - 0.82) < 1e-9 and abs(p.weighs[1] - 0.18) < 1e-9
                  and p.slide == somatic.EGRESS_M_S and then.waits == ('soles', 0.82) and then.slide == 0.0
                  and '(contact_manifolds (plantar 0.82) (ischial 0.18) (trochanter 0) (dorsal 0) (palmar 0)) (slide 0.15)' in text,
                  '%s %s %s %s' % (p.zmp, p.weighs, p.slide, then.slide))
-    sat = next(q for q in maneuver.phases('sit_chair') if q.stage == 'contact' and 'mode_lateral_shift' in q.springs)
+    sat = next(q for q in maneuver.phases('sit_chair', low) if q.stage == 'contact' and 'mode_lateral_shift' in q.springs)
     k_seat, k_rest, k_lean = (q.springs['mode_lateral_shift'][0] for q in (sat, then, p))
     report.check('her legs\' springs come back with the pan: the lean\'s lateral shift %.0f N/m, 0.82 of the way from the'
                  ' seat\'s %.0f to her rest\'s %.0f' % (k_lean, k_seat, k_rest),
                  k_seat < k_lean < k_rest and abs(k_lean - (k_seat + 0.82 * (k_rest - k_seat))) < 1e-6 * k_rest, '')
+    high = maneuver.phases('rise_chair')  # the suite's 450 mm seat, over her popliteal height
+    landed = next(q for q in high if q.weighs is not None and q.weighs[0] >= 1.0)
+    report.check('off a seat over her popliteal height her dismount lands her all on her soles, her ZMP in her support'
+                 ' and her legs at their rest (%.0f N/m) from then on' % landed.springs['mode_lateral_shift'][0],
+                 all(q.zmp == acts.SUPPORT for q in high[high.index(landed):])
+                 and landed.springs['mode_lateral_shift'][0] == k_rest, [q.zmp for q in high])
 
 
 def test_a_slide_said_rides_her_row(report):

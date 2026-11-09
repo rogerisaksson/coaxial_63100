@@ -20,6 +20,7 @@ import math
 from machine.texts import curves, dsp, ortho
 from machine.body import defrobot, figure
 from machine.law import supervisor
+from machine.moves import seated
 from machine.stack import wrench
 from machine.texts.acts import ACTS, GRAIN_MS, LEGS, NODES, SUPPORT, sprung
 from machine.errors import MachineError
@@ -50,6 +51,8 @@ PLAYED = {
 #: The key a stunt's patch takes the seen furniture's height by, mm; the key it takes the edge she sat on
 #: by (`side`): a bed's end lain along straight back, its side rolled -90 deg onto (bed_lean.lisp).
 SEEN, SIDE = 'seat-z-mm', 'bed-side'
+#: The key it takes her popliteal height by, mm (`seated.POPLITEAL`): a seat over it hangs her feet off the floor.
+POPLITEAL = 'popliteal-mm'
 #: Her ischia's height over a seat bearing them, m (`figure`'s seat capsules).
 ISCHIA = -figure.SEAT_Y + figure.SEAT_R
 
@@ -97,6 +100,7 @@ def _played(name, got, seat, edge=None):
     base = _played(under, got, seat, edge)[0] if under else got['nominal-biped-manifold']
     keys = [':' + SEEN, 1e3 * seat] if seat is not None and SEEN in got[patch_name].keys else []
     keys += [':' + SIDE, edge] if edge is not None and SIDE in got[patch_name].keys else []
+    keys += [':' + POPLITEAL, 1e3 * seated.POPLITEAL] if POPLITEAL in got[patch_name].keys else []
     g = dsp.called(patch_name, [base] + [got['nominal-biped-manifold']] * (len(got[patch_name].params) - 1), keys, got)
     if not isinstance(g, dict):
         raise MachineError('%s: a patch of a gait, not of a transition' % patch_name)
@@ -194,14 +198,19 @@ def _supported(ps, modes):
     (the handover's liftoff), her ZMP in her support as they take her and her legs' springs back from
     the furniture's gain toward their rest by that share (`_panned`, `_legs`). Left to the fade, the
     seat bore 0.9-1.1 of her through the lean and one sole took her at the thrust, 33/156 N; panned
-    with her legs at the seat's -24 dB, one sole took her through the lean and rolled her 13 deg."""
+    with her legs at the seat's -24 dB, one sole took her through the lean and rolled her 13 deg. A
+    phase whose pan puts all of her on her soles (a move's landing: off a seat over her popliteal height,
+    `chair-dismount`) gives her ZMP to her support and her legs their rest as a fade onto them does: let
+    go till the rise's fade, she bore one sole at a time (141/0, 0/389 N), stepping at 14 s, knees 73-77 deg."""
     out, zmp, weighs, legs = [], None, None, None
     for p, then in zip(ps, ps[1:] + [None]):
-        zmp = p.zmp if p.zmp is not None else zmp
         weighs = p.weighs if p.weighs is not None else weighs
+        soled = weighs is not None and weighs[0] >= 1.0 and p.zmp is None and zmp != SUPPORT
+        zmp = p.zmp if p.zmp is not None else SUPPORT if soled else zmp
         legs = p.springs if all(m in p.springs for m in LEGS_MODES) else legs
         panned = _panned(p, then, weighs)
-        springs = {**_legs(legs, panned[0], modes), **p.springs} if panned and legs else p.springs
+        share = panned[0] if panned else 1.0 if soled else None
+        springs = {**_legs(legs, share, modes), **p.springs} if share is not None and legs else p.springs
         out.append(p._replace(zmp=SUPPORT if panned else zmp, weighs=panned or weighs, springs=springs))
     return out
 

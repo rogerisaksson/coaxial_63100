@@ -80,12 +80,13 @@ STROKES = {'bed_pull': ('plant', 'set')}
 #: `waits.played_back`): `bed_exit`, out of a bed over its end onto its edge as her law sits her
 #: (`machine.moves.bedexit`, played in C: `tools.cores.bedexit`); `scoot`, along the floor as her twist tells her once
 #: she sits on it (`scooted`, `machine.moves.scoot`, in C: `tools.cores.scoot`); `bed_entry`, into a bed over its end to
-#: its middle as where she lies tells her, and `chair_mount`, up onto a seat too high for her feet on her arms - each
+#: its middle as where she lies tells her, `chair_mount`, up onto a seat too high for her feet on her arms, and
+#: `chair_dismount`, down off it onto them - each
 #: the `defmove` of its name, a move whose phases end by what she senses (`machine.moves.sensed`, in C:
 #: `tools.cores.sensed`). A move's `SENSED` names what a pass gives it beyond her pose (`_felt`), her bed exit's soles,
 #: shanks and pitch where it names none.
 MOVES = {'bed_exit': 'tools.cores.bedexit', 'scoot': 'tools.cores.scoot', 'bed_entry': 'tools.cores.sensed',
-         'chair_mount': 'tools.cores.sensed'}
+         'chair_mount': 'tools.cores.sensed', 'chair_dismount': 'tools.cores.sensed'}
 SENSED = ('soles', 'shins', 'pitch')
 #: The senses `bodily` tells at once: her soles', shanks', fists' and each foot's share of her weight, her pitch.
 BODILY = ('soles', 'shins', 'hands', 'left_foot', 'right_foot', 'pitch')

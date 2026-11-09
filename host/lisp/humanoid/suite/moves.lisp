@@ -7,6 +7,7 @@
   (:export #:bed-exit
            #:bed-entry
            #:chair-mount
+           #:chair-dismount
            #:scoot))
 (in-package :ortho-dsp.moves)
 
@@ -122,6 +123,29 @@
      :phases [(:name :vault :ends :reached :next :hang
                :goals (:shoulder [30.0 89.0] :elbow [0.0 74.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :hang :ends :stilled :next :done :goals (:shoulder [0.0 10.0] :elbow [5.0 1.7]))
+              (:name :done :ends :reached :next :done)])))
+
+;; Her way down off that seat onto her feet, as her mount came up onto it - the kernel's arm-dip egress
+;; (`xform-overheight-arm-dip-egress`), a move whose phases end by what she senses as her mount's. Her slide on her
+;; fists asked of her law alone moved her none (her elbows kept bent, her fists unloaded 68 -> 22 N in 0.7 s), and
+;; vaulted from where her mount left them her arms were already straight (her elbows 12 deg): her shoulders drew back
+;; into her elbows, which folded to 30, and nothing lifted her. So as her mount starts it: her fists raised 5 cm and
+;; set beside her hips, her elbows bent as her arm's links reach the seat there (`seated.fisted`: shoulder -35.5 elbow
+;; 63.9 over it), pressed down onto it (-23.3 and 41.2 on it, the kernel's dip suspension's -26 and 43); then her
+;; elbows braced to their stop (the scoot's `locked`) lift her and carry her shoulders forward over her fists - at 30
+;; deg/s, the kernel's tangent speed on her arm's reach - and her shoulders drawn back after them at 14 (0.15 m/s on
+;; 0.61 m), her hips and knees held as she sits, till her soles bear her as her rise unlatches its seat (`:feet` at
+;; the concentric handover's 0.82): her palms bore up to 284 N, her pelvis 0.18 m forward, her soles 0.96 of her.
+;; Her text's rows wait while it plays.
+(defmove chair-dismount []
+  (let [;; her soles' share planted, as her rise unlatches its seat; a goal reached within tol deg
+        plant 0.82 tol 1e-6]
+    (:constants (:plant plant :tol tol)
+     :holds true
+     :phases [(:name :place :ends :reached :next :press
+               :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
+              (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
+              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; Her scoot on the floor as her twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on her seat, heels in turn,
