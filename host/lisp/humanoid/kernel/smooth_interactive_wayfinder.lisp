@@ -92,8 +92,8 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
-              (max-curvature-inv-m 1.01)       ; Min turning radius R_min ~ 0.54 m during normal walk! Hers 0.99 m, her arc
-              (max-clothoid-rate-inv-ms 1.83)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; hers 1.01 /m over a step's 0.56 s
+              (max-curvature-inv-m 0.60)       ; Min turning radius R_min ~ 0.54 m during normal walk! Hers 1.66 m, her arc
+              (max-clothoid-rate-inv-ms 1.39)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; hers 0.60 /m over a step's 0.43 s
               (harmonic-dipole-circulation 0.42)]
   (-> state
       (integrate-se2-clothoid-streamline
@@ -153,7 +153,7 @@
         :shoulder-aperture-slotting true)
       (filter-streamline-via-se2-clothoid
         :curvature-bandwidth-radps 6.5
-        :max-curvature-inv-m 1.01             ; 1.85! Hers 1.01, her arc
+        :max-curvature-inv-m 0.60             ; 1.85! Hers 0.60, her arc
         :harmonic-dipole-circulation 0.42)
       (allow-sub-overhang-interactive-footholds :shin-to-bevel-min-clearance-mm 14.0)
       (guard-3d-swing-and-prealign-ankle-so3

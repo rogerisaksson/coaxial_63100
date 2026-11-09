@@ -181,7 +181,7 @@
 ;; -----------------------------------------------------------------------------
 (defprimitive drive-stretch-shortening-ballistic-impulse
   [state &key (launch-topology :bilateral-in-phase) ; :bilateral-in-phase (two-footed jump) | :unilateral-split-leap (leap)
-              (target-apex-height-dz-mm 210.0)   ; her knees' launch from her crouch (320.0)
+              (target-apex-height-dz-mm 207.0)   ; her knees' launch from her crouch (320.0)
               (target-horizontal-span-dx-mm 0.0)
               (countermovement-depth-mm 175.6)   ; at her size (185.0)
               (arm-flywheel-assist true)]

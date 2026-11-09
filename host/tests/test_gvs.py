@@ -188,7 +188,7 @@ def test_data_oriented_ballistic_wire_and_module_addressing(report):
     sym_val = ballistic.now(plan, 'walk.amp.2')
     raw_val = ballistic.now(plan, 'wire[3,0,%d]' % col_drive)
     report.check('flat wire[e,r,c] and symbolic walk.amp.2 address the exact same float cell',
-                 abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.6) < 1e-6,
+                 abs(sym_val - raw_val) < 1e-6 and abs(sym_val - 0.85) < 1e-6,
                  'sym = %.3f, raw = %.3f' % (sym_val, raw_val))
 
     snap = ballistic._snapshot()
@@ -213,7 +213,7 @@ def test_data_oriented_ballistic_wire_and_module_addressing(report):
         ballistic._restore(snap)
 
     report.check('_restore() cleanly restores all module constants',
-                 abs(stride.AHEAD_M_S - 0.36) < 1e-9 and abs(impedance.GOING_S - 0.28) < 1e-9,
+                 abs(stride.AHEAD_M_S - 0.80) < 1e-9 and abs(impedance.GOING_S - 0.28) < 1e-9,
                  'AHEAD_M_S = %.2f, GOING_S = %.2f' % (stride.AHEAD_M_S, impedance.GOING_S))
 
     cands = ballistic.lhs_candidates({'a': (0.0, 1.0), 'b': (10.0, 20.0)}, 8, seed=11)

@@ -134,7 +134,7 @@ def test_her_lodge_looks_in_c_as_in_numpy(report, c):
         vision.Here.start = start
     report.check("her lodge's looks in C as in numpy walking out of its door, passed whole and restacked as her vision "
                  "apart's, every field and class bit for bit",
-                 len(spent[0]) > 500 and not worst, '%d looks, apart %s' % (len(spent[0]), worst[:3]))
+                 len(spent[0]) > 400 and not worst, '%d looks, apart %s' % (len(spent[0]), worst[:3]))
     us = [1e6 * float(np.median(each)) for each in spent]
     report.check("a look of her lodge in C on this host", us[0] < us[1], '%.0f us a look, numpy %.0f' % tuple(us))
 

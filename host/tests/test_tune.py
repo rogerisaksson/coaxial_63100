@@ -107,7 +107,8 @@ def test_a_literal_reaches_her_where_a_voice_reads_it(report):
     live = {table[i][0].key: col for i, col in cols.items()}
     twist = voicing.voiced(_got()['patch-sneaker-runway'], _got()['nominal-biped-manifold'], fr)[1]['twist'][0]
     h = 0.15 * 640.0
-    want = {'stride-length-mm': {('twist', 0): -twist * 640.0 / (640.0 ** 2 - h * h)},
+    want = {'stride-length-mm': {('twist', 0): (twist * 640.0 / (640.0 + h) - min(
+                twist * 640.0 / (640.0 - h), math.nextafter(voicing.WALK_TOP, 0.0))) / (2.0 * h)},
             'dc-offset-rad': {('slot', ortho.Z + modal.PITCH): -1.0 / fr[modal.UNIT][modal.PITCH]},
             'attack-ms': {('slot', ortho.DUCK.start + 1): 1e-3}}
     report.check('17 walked: stride, lean and attack move her by their rules, the rest inert',

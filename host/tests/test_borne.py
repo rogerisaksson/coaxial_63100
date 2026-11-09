@@ -60,7 +60,7 @@ def test_what_bears_her_in_c_as_in_python(report, c):
             tally['corners'] += sum('corner' in c for c in wc)
             return got
         g['borne'] = beside
-    r = told.Run('bed_behind')
+    r = told.Run('bed_foot_behind')
     held(r.s['g'])
     r.tell(say='lie_bed')
     r.go(LIE_S)
@@ -105,7 +105,7 @@ def test_her_supports_in_c_as_in_python(report, c):
             tally['felt'] += int(len(got[0]) > sum(len(f['pts']) for f in s['feet']))
             return got
         g['em_supports'] = beside
-    r = told.Run('bed_behind')
+    r = told.Run('bed_foot_behind')
     held(r.s['g'])
     r.tell(say='lie_bed')
     r.go(LIE_S)

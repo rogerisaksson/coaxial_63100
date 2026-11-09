@@ -198,8 +198,8 @@ def control(g, dt):
     # `seated` on (4.2 s), after the landing, through the hands' vault: with the thighs in the cone she sat at the seat's
     # middle leaning 16 deg back, fists in the air till the scoot; without them upright, 4 cm back, fists on the seat
     sat = any(int(c.get('body', -1)) == body.pelvis for c in s.get('contacts', ()))
-    told = g.get('palmar', 0.0) > 0.0 and float(ask.get('reclined', 0.0)) <= 0.5
-    legs = body.legs if sat and told else ()
+    told = (g.get('palmar', 0.0) > 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
+    legs = body.legs[:int(sat & told) * len(body.legs)]
     # the step's inputs kept for her introspection (`borne.named`, chain_trace's replay), its answer `got`
     g['solve_in'] = (dict(s, M=M, contacts=chain.bearing(s, g['loads'], ask['stance'], chained, g['emancipation']['iota'],
                                                           legs)),

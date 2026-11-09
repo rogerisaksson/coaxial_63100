@@ -265,7 +265,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
                  swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0, 0.0) and swung.zmp == acts.NONE
                  and swung.ms == 1550.0 and near(swung.targets['mode_pelvis_list'], 4.0)
                  and near(swung.targets['mode_pelvis_turn'], 3.0) and swung.targets['mode_axial_compression'] > 0.0
-                 and near(swung.springs['mode_limb_lift'][0], 2378.0 * 10.0 ** (-36.0 / 20.0))
+                 and near(swung.springs['mode_limb_lift'][0], 2486.0 * 10.0 ** (-36.0 / 20.0))
                  and swung.springs['mode_pelvis_list'][0] == 1458.0, str(swung))
 
 

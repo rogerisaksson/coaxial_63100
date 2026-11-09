@@ -68,7 +68,7 @@
         :on-backless-stool-detected
           (:halt-slide-at-quadric-centroid true
            :disable-thoracic-dorsal-admittance-seek true
-           :self-balancing-lumbar-pitch-bias-rad +0.045))))
+           :self-balancing-lumbar-pitch-bias-rad +0.001))))
 
 ;; -----------------------------------------------------------------------------
 ;; 3. 90-DEGREE TRANSVERSE <-> LONGITUDINAL BED PENDULUM (L-SWEEP MANEUVER)
@@ -129,7 +129,7 @@
         ;; v_y_escape = -R_eff(theta) * d(theta)/dt - k_center * y_offset_from_bed_axis
         :shrimp-counter-translation
           (:enabled true
-           :effective-torso-radius-m 0.197      ; her drift onto her side over its quarter turn
+           :effective-torso-radius-m 0.198      ; her drift onto her side over its quarter turn
            :centerline-restoring-gain 4.5
            ;; Plant contralateral heel + shoulder briefly to scoot pelvis BACK toward
            ;; bed centerline before completing the roll over the ipsilateral shoulder!

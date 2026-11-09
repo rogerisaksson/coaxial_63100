@@ -39,11 +39,11 @@
                                  (apply-universal-deformable-overlay)
                                  (master-anti-spasm-insert))
 
-        ;; 4. In-Stride Single-Leg Leap / Bound (1.45m bound over obstacle mid-stride! Hers 0.64 m, one knee)
+        ;; 4. In-Stride Single-Leg Leap / Bound (1.45m bound over obstacle mid-stride! Hers 0.63 m, one knee)
         stage-4-stride-leap  (-> stage-3-sprangmarsch
                                  (xform-in-stride-unilateral-leap
-                                   :leap-apex-z-mm 75.0    ; one knee's launch, hers (280.0)
-                                   :leap-span-x-mm 638.0)  ; at her 2.58 m/s (1450.0)
+                                   :leap-apex-z-mm 73.0    ; one knee's launch, hers (280.0)
+                                   :leap-span-x-mm 631.0)  ; at her 2.58 m/s (1450.0)
                                  (apply-universal-deformable-overlay)
                                  (master-anti-spasm-insert))
 
@@ -62,11 +62,11 @@
                                  (master-anti-spasm-insert))
 
         ;; 7. Stop & Execute Standing Two-Footed Jump (From a Standstill, Feet Together, 360mm vertical + 600mm forward;
-        ;;    hers 187 + 311 at its angle)
+        ;;    hers 184 + 306 at its angle)
         stage-7-standing-jmp (-> stage-6-rapid-brake
                                  (xform-standing-bilateral-jump
-                                   :jump-height-z-mm 187.0            ; her knees' launch at its angle (360.0)
-                                   :jump-distance-x-mm 311.0          ; (600.0)
+                                   :jump-height-z-mm 184.0            ; her knees' launch at its angle (360.0)
+                                   :jump-distance-x-mm 306.0          ; (600.0)
                                    :countermovement-crouch-mm 185.1)  ; at her size (195.0)
                                  (apply-universal-deformable-overlay)
                                  (master-anti-spasm-insert))]

@@ -101,7 +101,8 @@ def laid(body, build=None):
             'residual': np.zeros(n_d), 'read': np.zeros(n_d, int), 'armature': friction[:, 0].copy(),
             'boxes': np.zeros((n_d, len(campaign.BOX))), 'box_n': np.zeros(n_d, int),
             'zero': np.zeros(n_d), 'torso': (0.0, (0.0, 0.0, 0.0)), 'hems': hems, 'hem_limb': hem_limb,
-            'nominal_boxes': np.array([(drives.play(j), drives.wind(j)) for j in names_d]), 'service': table}
+            'nominal_boxes': np.array([(drives.play(j), 1.0 / (1.0 / drives.wind(j) + (
+                1.0 / drives.series(j) if drives.series(j) else 0.0))) for j in names_d]), 'service': table}
 
 
 def _hems(w, ys, dt, every):
@@ -112,79 +113,9 @@ def _hems(w, ys, dt, every):
 
 
 def _hemming(w, ys, dt, every):
-    """`_hems` a hem at a time, yielding after each."""
+    """`_hems` a hem at a time, yielding after each (`campaign.hemming`)."""
     import numpy as np
-    from tools.cores import wbc as cores
-    lay, body, hems = w['lay'], w['body'], w['hems']
-    m, at = body.m, np.arange(0, len(ys) - 1, every)
-    jids = [int(lay['jnt'][h]) for k in hems for h in range(lay['span'][k, 0], lay['span'][k, 1])]
-    qadr, vadr = np.array(m.jnt_qposadr[jids], int), np.array(m.jnt_dofadr[jids], int)
-    if len(ys) < 2 or not jids or float(m.body_mass[m.jnt_bodyid[jids[0]]]) <= 0.0:
-        z = np.zeros((len(at), len(jids)))
-        return (qadr, vadr, z, z, z), np.ones((len(at), len(hems)), bool)
-    n, rot = len(ys) - 1, sysid._rotations
-    R0 = rot(ys[:n, edge.QUAT])
-    w0 = np.einsum('nij,nj->ni', R0, ys[:n, edge.GYRO])
-    al0 = np.einsum('nij,nj->ni', R0, (ys[1:n + 1, edge.GYRO] - ys[:n, edge.GYRO]) / dt)
-    a0 = np.einsum('nij,nj->ni', rot(ys[1:n + 1, edge.QUAT]), ys[1:n + 1, edge.ACCEL])
-    qd_all = ys[:n, edge.QD]
-    qdd_all = (ys[1:n + 1, edge.QD] - qd_all) / dt
-    q_out, v_out, a_out = np.zeros((n, len(jids))), np.zeros((n, len(jids))), np.zeros((n, len(jids)))
-    hit, prev = np.zeros((n, len(hems)), bool), w.get('_hem_prev')
-    yield
-    cont = prev is not None and float(np.max(np.abs(ys[0, edge.Q] - prev[0]))) < 1e-9
-    next_state = []
-    for s_idx, k in enumerate(hems):
-        b = int(lay['bodies'][k])
-        mass = float(m.body_mass[b])
-        if mass <= 0.0:
-            next_state.append((0.0, 0.0, 0.0, 0.0))
-            continue
-        chain, p = [], int(lay['parent'][k])
-        while p > 0:
-            chain.append(int(lay['bodies'][p]))
-            p = int(lay['parent'][p])
-        R, wv, al, a = R0, w0, al0, a0
-        for link in reversed(chain):
-            dp = np.einsum('nij,j->ni', R, m.body_pos[link])
-            a = a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp))
-            R = R @ rot(m.body_quat[link])
-            j = int(m.body_jntadr[link])
-            ax, ji = m.jnt_axis[j], int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0])
-            q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
-            sw = np.einsum('nij,j->ni', R, ax)
-            al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
-            c, s = np.cos(0.5 * q), np.sin(0.5 * q)
-            R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
-        dp = np.einsum('nij,j->ni', R, m.body_pos[b])
-        ap = np.einsum('nji,nj->ni', R, a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp)))
-        om, alb = np.einsum('nji,nj->ni', R, wv), np.einsum('nji,nj->ni', R, al)
-        L, I0 = -float(m.body_ipos[b, 1]), float(m.body_inertia[b, 0])
-        J, jx, jz = I0 + mass * L * L, jids[2 * s_idx], jids[2 * s_idx + 1]
-        stiff, damp = float(m.jnt_stiffness[jx]), float(m.dof_damping[vadr[2 * s_idx]])
-        tc, dr = float(m.jnt_solref[jx, 0]), float(m.jnt_solref[jx, 1])
-        dmin, dmax, width = float(m.jnt_solimp[jx, 0]), float(m.jnt_solimp[jx, 1]), float(m.jnt_solimp[jx, 2])
-        invw = (float(m.dof_invweight0[vadr[2 * s_idx]]), float(m.dof_invweight0[vadr[2 * s_idx + 1]]))
-        lo, hi = (float(m.jnt_range[jx, 0]), float(m.jnt_range[jz, 0])), (float(m.jnt_range[jx, 1]), float(m.jnt_range[jz, 1]))
-        k_imp, b_imp = 1.0 / (dmax * dmax * tc * tc * dr * dr), 2.0 / (dmax * tc)
-        state = np.array(prev[1][s_idx] if cont and prev is not None else (0.0, 0.0, 0.0, 0.0), float)
-        # its steps in C (wbc_pass_hem), these floats' own operations: the window's 8 000 steps of
-        # np.cross on 3-vectors stood her 1.4 s, in python floats 42 ms
-        steps, hits = np.empty((3, n, 2)), np.zeros(n, np.uint8)
-        consts = np.array([L, mass, I0, J, stiff, damp, dmin, dmax, width, k_imp, b_imp, *invw, *lo, *hi])
-        ap, om, alb = (np.ascontiguousarray(x, dtype=np.float64) for x in (ap, om, alb))
-        cores.library().wbh_pass_hem(n, dt, ap.ctypes.data, om.ctypes.data, alb.ctypes.data, consts.ctypes.data,
-                                     state.ctypes.data, steps[0].ctypes.data, steps[1].ctypes.data,
-                                     steps[2].ctypes.data, hits.ctypes.data)
-        q_out[:, 2 * s_idx:2 * s_idx + 2], v_out[:, 2 * s_idx:2 * s_idx + 2], a_out[:, 2 * s_idx:2 * s_idx + 2] = steps
-        hit[:, s_idx] = hits.astype(bool)
-        next_state.append(tuple(state.tolist()))
-        yield
-    w['_hem_prev'] = (ys[-1, edge.Q].copy(), next_state)
-    pad = np.zeros((len(at), len(hems)), bool)
-    for d_step in range(-5, 6):
-        pad |= hit[np.clip(at + d_step, 0, n - 1)]
-    return (qadr, vadr, q_out[at], v_out[at], a_out[at]), ~pad
+    return (yield from campaign.hemming(w['lay'], w['body'], np.asarray(ys), dt, every, w))
 
 
 def window(w, ys, taus, dt):

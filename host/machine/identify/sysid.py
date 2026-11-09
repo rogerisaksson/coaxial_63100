@@ -22,8 +22,10 @@ model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing
 """
 import math
 
+from machine.body import servos
 from machine.senses import edge
-from machine.identify import regressor
+from machine.identify import campaign, regressor
+from machine.body.drives import armature, kind, series
 from machine.body.figure import JOINTS
 
 #: The states a part of `rowing` reads a regressor of: a part of her wear's window a pass.
@@ -38,9 +40,10 @@ FRICTION = ('J', 'b', 'f')
 INDEPENDENT, NONE, TIE = 1e-3, 1e-9, 1e-9
 #: A base parameter is trusted within this of itself.
 TRUST = 0.10
-#: A drive's row is read only where it slides faster than this, rad/s: at rest its Coulomb
+#: A drive's row is read only where it slides faster than this, rad/s (on a series spring's
+#: box, where its rotor's mesh rings past MuJoCo's dry-friction band): at rest its Coulomb
 #: friction is whatever holds it, anything within its limit.
-STICK = 0.25
+STICK, SPRUNG_STICK = 0.25, 0.85
 #: Her pelvis's force rows are read in N m at this lever, m, beside the moment rows.
 LEVER_M = 0.1
 #: A drive's row off the stand is read where the model holds: no joint of its limb within
@@ -85,6 +88,7 @@ def laid(body):
     col = np.full(m.nbody, -1)
     col[bodies] = 10 * np.arange(len(bodies))
     limited, rng = np.array(m.jnt_limited[ids], bool), np.array(m.jnt_range[ids], float)
+    stick = np.array([SPRUNG_STICK if series(j) else STICK for j in drives])
     limb, skin = np.zeros((len(joint), len(JOINTS)), bool), np.zeros((len(joint), len(edge.SKIN)), bool)
     for i, name in enumerate(drives):
         side = name.split('_')[0] + '_' if name.startswith(('left_', 'right_')) else None
@@ -96,12 +100,16 @@ def laid(body):
             kinds = ('spine', 'waist') if any(w in name for w in ('spine', 'waist')) else ('neck', 'head')
             limb[i] = [any(w in n for w in kinds) for n in JOINTS]
             skin[i] = [not s.endswith(('_foot', '_toes')) for s in edge.SKIN]
+    unm = np.array([k > 0 and not np.isin(hinge[span[k, 0]:span[k, 1]], vadr).any()
+                    for k in range(len(bodies))], bool)
+    hems = [int(k) for k in np.flatnonzero(unm) if (above[k, driven] @ limb).any()]
+    hem_limb = np.array([(limb @ (above[k, driven] @ limb)) > 0 for k in hems], bool)
     return {'bodies': bodies, 'parent': parent, 'span': span, 'hinge': hinge, 'jnt': jnt, 'above': above,
             'col': col, 'drive': 10 * len(bodies), 'driven': driven, 'dof': dof, 'joint': joint,
             'drives': drives, 'names': ['%s.%s' % (m.body(b).name, p) for b in bodies for p in INERTIAL]
             + ['%s.%s' % (name, p) for name in drives for p in FRICTION], 'qadr': qadr, 'vadr': vadr,
             'lo': np.where(limited, rng[:, 0], -np.inf), 'hi': np.where(limited, rng[:, 1], np.inf),
-            'limb': limb, 'skin': skin}
+            'limb': limb, 'skin': skin, 'stick': stick, 'hems': hems, 'hem_limb': hem_limb}
 
 
 def shifted(mass, h):
@@ -137,17 +145,17 @@ def truth(lay, m):
         links[k, 0], links[k, 1:4] = mass, h
         links[k, 4:] = (r @ np.diag(np.array(m.body_inertia[b], float)) @ r.T)[np.triu_indices(3)] + shifted(mass, h)
     dof = lay['dof']
-    theta[lay['drive']:] = np.column_stack([m.dof_armature[dof], m.dof_damping[dof], m.dof_frictionloss[dof]]).ravel()
+    arm = np.array(m.dof_armature[dof], float)
+    for i, name in enumerate(lay['drives']):
+        if series(name):
+            s0 = servos.SERVO[kind(name)][3]
+            if arm[i] < 2.0 * s0:
+                arm[i] *= (armature(name) + s0) / s0
+    theta[lay['drive']:] = np.column_stack([arm, m.dof_damping[dof], m.dof_frictionloss[dof]]).ravel()
     return theta
 
 
-def _rotations(q):
-    """(..., 3, 3) of quaternions `q` (..., 4), w first."""
-    import numpy as np
-    w, x, y, z = (np.asarray(q, float)[..., k] for k in range(4))
-    return np.stack([np.stack([1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)], -1),
-                     np.stack([2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)], -1),
-                     np.stack([2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)], -1)], -2)
+_rotations = campaign.rotations
 
 
 def _state(lay, body, ys, dt, every, extra=None):
@@ -170,6 +178,12 @@ def _state(lay, body, ys, dt, every, extra=None):
         qpos[:, extra[0]], qvel[:, extra[1]], qacc[:, extra[1]] = extra[2:]
     a0 = np.einsum('nij,nj->ni', _rotations(then[:, edge.QUAT]), then[:, edge.ACCEL])
     wacc = (then[:, edge.QM] - 2.0 * now[:, edge.QM] + before[:, edge.QM])[:, lay['joint']] / dt ** 2
+    for i, (j, name) in enumerate(zip(lay['joint'], lay['drives'])):
+        if series(name):
+            s0 = servos.SERVO[kind(name)][3]
+            qdd_sub = (0.6 * (then[:, edge.QD][:, j] - now[:, edge.QD][:, j])
+                       + 0.4 * (now[:, edge.QD][:, j] - before[:, edge.QD][:, j])) / dt
+            wacc[:, i] = (armature(name) * wacc[:, i] + s0 * qdd_sub) / (armature(name) + s0)
     wacc[at == 0] = qacc[at == 0][:, lay['dof']]
     return qpos, qvel, qacc, a0, wacc, at
 
@@ -202,7 +216,14 @@ def rowing(lay, body, ys, taus, dt, every=1, extra=None):
         Y[s:e] = regressor.in_c(lay, body, qpos[s:e], qvel[s:e], qacc[s:e], a0[s:e], wacc[s:e])[:, lay['driven']]
         yield
     tau = np.asarray(taus, float)[at][:, lay['joint']]
-    slides = np.abs(qvel[:, lay['dof']]) >= STICK
+    stick = lay.get('stick', STICK)
+    v0 = qvel[:, lay['dof']]
+    v1 = v0 + np.where(stick > STICK, 0.0, 0.0095) * qacc[:, lay['dof']]
+    slides = (np.abs(v0) >= stick) & (np.abs(v1) >= stick) & (v0 * v1 > 0.0)
+    if extra is None and lay.get('hems'):
+        (_, _, _, _, a_h), _ = yield from campaign.hemming(lay, body, np.asarray(ys), dt, every)
+        bad = np.abs(a_h).reshape(len(at), len(lay['hems']), 2).max(axis=2) > 120.0
+        slides = slides & ((bad.astype(int) @ lay['hem_limb']) == 0)
     Y *= slides[:, :, None]
     return Y, tau * slides
 
@@ -253,7 +274,7 @@ def borning(lay, body, ys, dt, every=1):
     import numpy as np
     m = body.m
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
-    now = np.asarray([ys[i] for i in at])
+    now = np.asarray([ys[i + 1] for i in at])
     yield
     parts, Y = [], None
     for s in range(0, len(at), ROWS_AT):
@@ -298,7 +319,12 @@ def hung(lay, body, ys, dt, pulls, every=1):
     n_h = len(lay['hinge'])
     out = np.concatenate([LEVER_M * Y[:, n_h:n_h + 3],
                           np.einsum('nij,njc->nic', _rotations(qpos[:, 3:7]), Y[:, n_h + 3:n_h + 6])], axis=1)
-    return out, np.asarray([pulls[i] for i in at], float) * np.r_[[LEVER_M] * 3, [1.0] * 3]
+    f = np.asarray([pulls[i] for i in at], float) * np.r_[[LEVER_M] * 3, [1.0] * 3]
+    if lay.get('hems'):
+        (_, _, _, _, a_h), _ = done(campaign.hemming(lay, body, np.asarray(ys), dt, every))
+        keep = np.abs(a_h).max(axis=1) <= 120.0
+        out, f = out * keep[:, None, None], f * keep[:, None]
+    return out, f
 
 
 def base(lay, Y):

@@ -127,7 +127,7 @@
           :max-coxa-turnout-rad 0.436
           :hindlimb-load-share (case posture-mode
                                  (:deep-biped-squat      1.00)
-                                 (:pronograde-belly-down 0.27)
+                                 (:pronograde-belly-down 0.28)
                                  (otherwise              0.38)))
         (xform-universal-spatial-awareness)
         (specialize-with-self-collision-manifold :min-malleolus-gap-mm 18.0 :min-arm-torso-gap-mm 24.0)

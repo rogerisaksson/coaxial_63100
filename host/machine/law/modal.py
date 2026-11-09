@@ -313,7 +313,7 @@ def sensed(s, loads, y):
     y[HIP], y[ARM], y[ELBOW] = np.ravel(s['hips']), s['arms'], s['elbows']
     y[PROP], y[PROP_LO], y[PROP_HI] = s.get('prop', (0.0, 0.0, 0.0))
     y[PALMS] = s.get('palms', (0.0, 0.0))
-    y[TILT] = np.arcsin(clip(np.array([-f['R'][1, 2] for f in feet]), -1.0, 1.0))
+    y[TILT] = [np.arcsin(clip(-f['R'][1, 2], -1.0, 1.0)) for f in feet]
     y[TILT_RATE] = [(f['J6'][:3] @ s['v']) @ f['R'][:, 0] for f in feet]
     y[VHEAD], y[HQUAT], y[HSPIN] = head['v'], head['quat'], head['w']
     return y

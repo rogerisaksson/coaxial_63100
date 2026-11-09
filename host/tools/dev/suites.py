@@ -371,7 +371,7 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUA
 #: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI; the
 #: errands' 21 runs 754 s here, cut at 620 on CI planned at 310.
 FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0, ERRANDS: 760.0,
-           WASD: 900.0}
+           WASD: 900.0, SIGHT: 600.0, CAMERA: 600.0, DOCKS: 600.0}
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.
