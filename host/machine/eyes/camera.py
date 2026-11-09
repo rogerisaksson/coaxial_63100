@@ -76,17 +76,23 @@ class Camera:
         self._told_q = queue.Queue()
         self._aside = aside.Aside('machine.eyes.camera', "her camera's map apart").start()
         self._aside.heard(self._told_q)
-        self.looked_at, self.sent, self.things, self.seen, self.looks = None, True, [], None, 0
-        self._binary_sent, self.shot, self.shown = False, None, None
+        # no look in flight, her map apart's ready owed: its things ([], None, 0) hers till her first look's reach her
+        self.looked_at, self.sent, self.things, self.seen, self.looks = None, False, [], None, 0
+        self._binary_sent, self.shot, self.shown, self._ready = False, None, None, True
 
     def look(self, world, now, head, gz=(0.0, 0.0), held=None):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
-        takes it -, `shown` the (time, head, gaze) they were shot at, none before a look's; this one's world sent to
-        be shot from her `head` {pos, quat} as her estimate has it at her gaze `gz`, her gimbals as she holds them
-        (`held`, `gaze.held`) - her model's binary at the first -; whether one was."""
+        takes it, its ready first after her first look, which waits on none: waited on there, her map apart's boot,
+        its renderer's laying and its first shot held her first world second 3 s and more -, `shown` the (time, head,
+        gaze) they were shot at, none before a look's; this one's world sent to be shot from her `head` {pos, quat}
+        as her estimate has it at her gaze `gz`, her gimbals as she holds them (`held`, `gaze.held`) - her model's
+        binary at the first -; whether one was."""
         if self.looked_at is not None and now - self.looked_at < sight.LOOK_S:
             return False
         if self.sent:
+            if self._ready:
+                self._told()
+                self._ready = False
             self.things, self.seen, self.looks = self._told()
         binary = None if self._binary_sent else _binary(world.model)
         self._said((binary, {k: getattr(world.data, k) for k in POSES}, {k: getattr(world.model, k) for k in PLACED},

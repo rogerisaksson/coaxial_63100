@@ -93,6 +93,76 @@ extern "C" __global__ void sgm_chains(const float* C, float* S, int H, int W, in
 """
 
 
+#: The rest of the match on the card in three launches where numpy's arithmetic took some 2 500 small ones - its
+#: census a neighbour at a time, its costs and windows a disparity at a time, its right eye's sums a disparity at a
+#: time: 157 ms a match, launch-bound on her card's driver. Integers alike, so the same bits: each pixel's census (the
+#: neighbours in `_census`'s order, a picture's edge held as numpy's 'edge' pad holds it); each disparity's cost - the
+#: bits its census differs in - laid (H, W, D) as the paths read it, and its window's grey differences summed over
+#: that disparity's own overlap, its edges held as `_boxed` holds them; each pixel's best as the right eye sees it,
+#: numpy's argmin of `back`: its first least, nan first.
+_FUSED = r"""
+extern "C" __global__ void censused(const long long* g, unsigned long long* dark, unsigned long long* bright,
+                                    int H, int W, int rx, int ry, long long q) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (long long)H * W) return;
+    int y = (int)(i / W), x = (int)(i % W);
+    long long c = g[i];
+    unsigned long long dk = 0, bt = 0;
+    for (int dy = -ry; dy <= ry; ++dy) {
+        int yy = min(max(y + dy, 0), H - 1);
+        for (int dx = -rx; dx <= rx; ++dx) {
+            if (dx == 0 && dy == 0) continue;
+            long long n = g[(long long)yy * W + min(max(x + dx, 0), W - 1)];
+            dk = (dk << 1) | (unsigned long long)(n < c - q);
+            bt = (bt << 1) | (unsigned long long)(n > c + q);
+        }
+    }
+    dark[i] = dk;
+    bright[i] = bt;
+}
+
+extern "C" __global__ void costed(const long long* gl, const long long* gr, const unsigned long long* dl,
+                                  const unsigned long long* dr, const unsigned long long* bl,
+                                  const unsigned long long* br, float* cost, float* block, int H, int W, int D, int r) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (long long)D * H * W) return;
+    int x = (int)(i % W), y = (int)((i / W) % H), d = (int)(i / ((long long)W * H));
+    float c = __int_as_float(0x7f800000), b = c;
+    if (x >= d) {
+        long long j = (long long)y * W + x, k = j - d, s = 0;
+        c = (float)(__popcll(dl[j] ^ dr[k]) + __popcll(bl[j] ^ br[k]));
+        for (int dy = -r; dy <= r; ++dy) {
+            long long row = (long long)min(max(y + dy, 0), H - 1) * W;
+            for (int dx = -r; dx <= r; ++dx) {
+                int at = min(max(x - d + dx, 0), W - d - 1);
+                long long a = gl[row + at + d] - gr[row + at];
+                s += a < 0 ? -a : a;
+            }
+        }
+        b = (float)s;
+    }
+    cost[((long long)y * W + x) * D + d] = c;
+    block[i] = b;
+}
+
+extern "C" __global__ void backed(const float* total, long long* best, int H, int W, int D) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (long long)H * W) return;
+    int y = (int)(i / W), x = (int)(i % W);
+    float least = __int_as_float(0x7f800000);
+    long long at = 0;
+    for (int d = 0; d < D; ++d) {
+        float v = x + d < W ? total[((long long)y * W + x + d) * D + d] : __int_as_float(0x7f800000);
+        if (isnan(v)) { at = d; break; }
+        if (v < least) { least = v; at = d; }
+    }
+    best[i] = at;
+}
+"""
+#: Threads a block of the fused launches.
+_BLOCK = 256
+
+
 def _np():
     os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
     import numpy
@@ -159,33 +229,73 @@ def _aggregated(cost, xp):
     return total
 
 
-def _card_aggregated(cost, cp):
-    """(D, H, W) the cost's sums along PATHS on the card (`_KERNEL`), a launch a path, a block each of its chains."""
+def _card_aggregated(laid, cp):
+    """(H, W, D) the sums along PATHS of the cost `laid` (H, W, D) on the card (`_KERNEL`), a launch a path, a block
+    each of its chains."""
     kernel = _SOLVER.get('kernel')
     if kernel is None:
         kernel = _SOLVER['kernel'] = cp.RawKernel(_KERNEL, 'sgm_chains')
-    D = cost.shape[0]
-    laid = cp.ascontiguousarray(cost.transpose(1, 2, 0))
+    D = laid.shape[2]
     total = cp.zeros_like(laid)
     for dx, dy in PATHS:
         chains = (H if dx else 0) + ((W - 1 if dx else W) if dy else 0)
         kernel((chains,), (D,), (laid, total, cp.int32(H), cp.int32(W), cp.int32(D), cp.int32(dx), cp.int32(dy),
                                  cp.float32(P1), cp.float32(P2)), shared_mem=2 * D * 4)
-    return total.transpose(2, 0, 1)
+    return total
+
+
+def _fused(cp, name):
+    """The card's fused launch `name` (`_FUSED`), compiled at its first ask."""
+    module = _SOLVER.get('fused')
+    if module is None:
+        module = _SOLVER['fused'] = cp.RawModule(code=_FUSED)
+    return module.get_function(name)
+
+
+def _card_costed(gl, gr, cp):
+    """((H, W, D) the census costs as the paths read them, (D, H, W) the windows' sums) of greys `gl`, `gr` on the
+    card in three launches (`_FUSED`): `_census`'s and the cost loop's in `_array_disparity`, the same bits."""
+    n, cells = H * W, DISPARITIES * H * W
+    gl, gr = cp.ascontiguousarray(gl, dtype=cp.int64), cp.ascontiguousarray(gr, dtype=cp.int64)
+    census = [cp.empty((H, W), dtype=cp.uint64) for _ in range(4)]
+    for g, (dark, bright) in ((gl, census[:2]), (gr, census[2:])):
+        _fused(cp, 'censused')(((n + _BLOCK - 1) // _BLOCK,), (_BLOCK,),
+                               (g, dark, bright, cp.int32(H), cp.int32(W), cp.int32(CENSUS[0] // 2),
+                                cp.int32(CENSUS[1] // 2), cp.int64(QUANTUM)))
+    cost = cp.empty((H, W, DISPARITIES), dtype=cp.float32)
+    block = cp.empty((DISPARITIES, H, W), dtype=cp.float32)
+    _fused(cp, 'costed')(((cells + _BLOCK - 1) // _BLOCK,), (_BLOCK,),
+                         (gl, gr, census[0], census[2], census[1], census[3], cost, block, cp.int32(H), cp.int32(W),
+                          cp.int32(DISPARITIES), cp.int32(WINDOW // 2)))
+    return cost, block
+
+
+def _card_backed(total, cp):
+    """(H, W) each pixel's best as the right eye sees it - numpy's argmin over `back` in `_array_disparity` - of the
+    paths' sums `total` (H, W, D), one launch."""
+    best = cp.empty((H, W), dtype=cp.int64)
+    _fused(cp, 'backed')((((H * W) + _BLOCK - 1) // _BLOCK,), (_BLOCK,),
+                         (total, best, cp.int32(H), cp.int32(W), cp.int32(DISPARITIES)))
+    return best
 
 
 def _array_disparity(left, right, xp, card=False):
     """Semi-global matching on array module `xp` (numpy or cupy); its paths on the card's kernel where `card`."""
     gl, gr = _grey(left, xp), _grey(right, xp)
     r = WINDOW // 2
-    (dl, bl), (dr, br) = _census(gl, xp), _census(gr, xp)
-    cost = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
-    block = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
-    for d in range(DISPARITIES):
-        cost[d, :, d:] = (xp.bitwise_count(dl[:, d:] ^ dr[:, :W - d])
-                          + xp.bitwise_count(bl[:, d:] ^ br[:, :W - d])).astype(xp.float32)
-        block[d, :, d:] = _boxed(xp.abs(gl[:, d:] - gr[:, :W - d]), r, xp).astype(xp.float32)
-    total = _card_aggregated(cost, xp) if card else _aggregated(cost, xp)
+    if card:
+        laid, block = _card_costed(gl, gr, xp)
+        paths = _card_aggregated(laid, xp)
+        total = paths.transpose(2, 0, 1)
+    else:
+        (dl, bl), (dr, br) = _census(gl, xp), _census(gr, xp)
+        cost = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
+        block = xp.full((DISPARITIES, H, W), xp.inf, dtype=xp.float32)
+        for d in range(DISPARITIES):
+            cost[d, :, d:] = (xp.bitwise_count(dl[:, d:] ^ dr[:, :W - d])
+                              + xp.bitwise_count(bl[:, d:] ^ br[:, :W - d])).astype(xp.float32)
+            block[d, :, d:] = _boxed(xp.abs(gl[:, d:] - gr[:, :W - d]), r, xp).astype(xp.float32)
+        total = _aggregated(cost, xp)
     best = xp.argmin(total, axis=0)
     rows, cols = xp.indices((H, W))
     # the paths' sum chooses the disparity, the window's own costs about it place it within a pixel: the paths'
@@ -202,10 +312,14 @@ def _array_disparity(left, right, xp, card=False):
     second = xp.where(apart, total, xp.inf).min(axis=0)
     mean = _boxed(gl, r, xp) / WINDOW ** 2
     spread = xp.sqrt(xp.maximum(_boxed(gl * gl, r, xp) / WINDOW ** 2 - mean * mean, 0.0))
-    back = xp.full_like(total, xp.inf)
-    for d in range(DISPARITIES):
-        back[d, :, :W - d] = total[d, :, d:]
-    agreed = xp.abs(xp.argmin(back, axis=0)[rows, xp.clip(cols - best, 0, W - 1)] - best) <= 1
+    if card:
+        seen = _card_backed(paths, xp)
+    else:
+        back = xp.full_like(total, xp.inf)
+        for d in range(DISPARITIES):
+            back[d, :, :W - d] = total[d, :, d:]
+        seen = xp.argmin(back, axis=0)
+    agreed = xp.abs(seen[rows, xp.clip(cols - best, 0, W - 1)] - best) <= 1
     # a depth's edge: its disparity a step over one off a neighbour's - a slope's steps one at most -; within half a
     # window of it the windows took both sides, the nearer smeared over the further: 23.7 % of such pixels
     # matched a pixel or more off, 0.98 % of the rest
