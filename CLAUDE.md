@@ -171,7 +171,7 @@ Evaluate the prompt and working tree before invoking any tool:
      type faults, and zero compiler warnings on target C builds.
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
-     No monkeypatching allowed. 
+     No monkeypatching allowed on file or in memory.
   **Per-Cycle Ephemeral Artifact Purge:**
   Immediately after completing each test, introspection, or visual capture
   cycle, delete all temporary diagnostic artifacts generated during the run
