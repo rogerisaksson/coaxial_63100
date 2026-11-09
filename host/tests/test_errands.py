@@ -28,6 +28,7 @@ def _run(s, seconds, until=None, after=0.0):
     g, last, flips, got, t0 = s['g'], None, 0, None, s['g']['t']
     for _ in range(int(round(seconds / worker.DT))):
         worker.stepped(s)
+        g = s['g']
         doing = sprung.doing(g)
         if doing != last:
             flips, last = flips + (last is not None and g['t'] - t0 >= after), doing
@@ -37,8 +38,7 @@ def _run(s, seconds, until=None, after=0.0):
 
 
 def _forwarded(s):
-    """Her world forwarded after a prop placed between its steps, as `World.scenario` does: unforwarded, her
-    look at the say read the chair parked and turned her, and the brake after that 10 ms turn sat her 1 s late."""
+    """Her world forwarded after a prop placed between its steps, as `World.scenario` does."""
     world = s['g']['world']
     world._mj.mj_forward(world.model, world.data)
 
@@ -49,10 +49,9 @@ def _speed(s):
 
 
 def test_a_stop_settles_and_f_is_heard(report):
-    """Walked 2 s and told to stop, her doing comes to the stand within the brake's own 1.2 s
-    and two of her rhythm's swings more, and holds - read between her law's passes it came at 1.2 s
-    and went; told to sit she is seated within 5 s, told to rise she stands within 6 s; a scene
-    laid anew with a walk asked at once, she walks at once."""
+    """Walked 2 s and told to stop, her doing comes to the stand within 2.3 s and holds; told to
+    sit she is seated within 5 s, told to rise she stands within 6 s; a scene laid anew with a
+    walk asked at once, she walks at once."""
     from machine.world import floor
     from machine.moves import leap
     from machine.law import modal
@@ -167,11 +166,8 @@ def test_doorway_arm_yields_and_she_walks_on(report):
 
 def test_chair_and_bed_seated_and_rising(report):
     """Seated on the chair by its text, the seat bears more of her than her soles do (`y[PROP]`
-    over her soles' share) - her soles lifted by the seat's excess where a human's stay down
-    (tools/sim/seats.py; reported, open), and told the rise she stands on her soles
-    (`sum(loads) >= 0.85 * weight`); told to lie on the bed by its text it bears her reclined and
-    she stays (by the take's rows her feet hang - a seat of 0.45 m over shanks of 0.455 with her
-    thighs level - and she collapses back from its edge: stunts.md) (docs/TODO.md)."""
+    over her soles' share), and told the rise she stands on her soles (`sum(loads) >= 0.85 * weight`);
+    told to lie on the bed by its text it bears her reclined and she stays."""
     from machine.moves import leap
     from machine.law import modal
     from machine.world import physics
@@ -207,45 +203,41 @@ def test_chair_and_bed_seated_and_rising(report):
 
 
 def test_viewport_f_errands_chair_bed_and_door(report):
-    """Walking toward the chair, bed, or door offers it first in the viewport (`gym.offered`), and F
-    (`_first`) makes her autonomously walk to the chair and sit, walk to the bed and lie down, or walk to
-    the door and exit."""
+    """Walking toward the chair (`SIGHT = 1.0`), bed, or door offers it first in the viewport
+    (`gym.offered`, `gym.ballooned`), and F (`_first`) makes her autonomously dock and sit, lie
+    down, or exit."""
     from types import SimpleNamespace as SN
     from machine.law import modal
     from machine.world import physics
     from machine.process import sprung, worker
     from terminal.views import gym, humanoid_keys, scanner, viewpoint
     sc = scanner.VisionScanner()
-    physics.ROOM, physics.SIGHT = 1.0, 0.0
     for label, hd0, walk_s, verb, goal_phase in (
         ('chair', 1.0, 0.6, 'sit_chair', 'seated_crossfade'),
         ('bed', -0.65, 1.0, 'lie_bed', 'bed_rest'),
         ('door', 0.22, 1.5, 'exit_door', 'stand'),
     ):
+        physics.ROOM, physics.SIGHT = 1.0, float(label == 'chair')
         s = worker.session()
         g = s['g']
-        if walk_s > 0.0:
-            worker.apply(s, {'heading': hd0, 'twist': WALK})
-            _run(s, walk_s)
-        else:
-            g['heading'] = hd0
-        now = worker.told(s)
+        worker.apply(s, {'heading': hd0, 'twist': WALK})
+        _run(s, walk_s)
         st = {'body': SN(send=lambda **cmd: worker.apply(s, cmd)), 'scanner': sc,
-              'now': now, 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
-        key, first = (gym.offered(st) or [('', None)])[0][:2]
+              'now': worker.told(s), 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
+        offer = gym.offered(st)
+        key, first = (offer or [('', None)])[0][:2]
         shown_prompt, expected_prompt = gym.prompt(st), '[%s] %s' % (key, gym.NAMED[verb])
-        shown = first == verb and shown_prompt.startswith(expected_prompt)
+        shown = first == verb and shown_prompt.startswith(expected_prompt) and bool(gym.ballooned(st, offer, 120, 40, STOP))
         _first(st, typed, humanoid_keys.PAD)
         max_prop = 0.0
         for _ in range(40000):
             worker.stepped(s)
+            g = s['g']
             max_prop = max(max_prop, float(g['y'][modal.PROP]))
             if s['fallen_at'] is not None:
                 break
             if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1:
                 break
-            # lain once her joints' program is over too (`joints`): told the rise at bed_rest's first tick, the pull
-            # was cut mid-program and she rose from where it left her
             if (label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.45 and g['t'] > 9.0
                     and g.get('played') is None):
                 break
@@ -294,13 +286,9 @@ def test_the_errand_goes_to_the_thing_told(report):
                  docks)
 
 
-
-
-
 def test_the_low_chair_is_docked_as_it_faces(report):
-    """The lodge's low chair against the west wall facing +x, F's offer from the start: told to sit
-    at it she docks before it facing the room, not at its flank against the wall where she shuttled
-    30 s (findings/errands.md), and is seated within 30 s."""
+    """The lodge's low chair against the west wall facing +x: told to sit at it she docks before it
+    facing the room, not at its flank against the wall, and is seated within 30 s."""
     from machine.world import physics, room
     from machine.process import worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
@@ -320,8 +308,7 @@ def test_the_low_chair_is_docked_as_it_faces(report):
 
 
 def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
-    """Sat on the lodge's low chair and risen, told the door: her way round the bed - a straight run at
-    the doorway from there crossed its foot and she tripped (findings/errands.md) -, out past the
+    """Sat on the lodge's low chair and risen, told the door: her way rounds the bed, out past the
     door's line, clear of the bed's box by her hips, no fall."""
     from machine.body import figure
     from machine.world import physics, room
@@ -336,15 +323,18 @@ def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
     _flips, stood = _run(s, 10.0, until='stand')
     _run(s, 1.0)
     worker.apply(s, {'say': 'exit_door'})
+    g, d = s['g'], s['g']['world'].data
     bed = next((t for t in g['things'] if t[0] == 'bed'), None)
     t0, nearest = g['t'], math.inf
     while g['t'] < t0 + 40.0 and s['fallen_at'] is None and g.get('_errand'):
         worker.stepped(s)
+        g, d = s['g'], s['g']['world'].data
         if bed is not None:
             dx = max(abs(float(d.qpos[0]) - bed[1][0]) - bed[2][0], 0.0)
             dz = max(abs(float(d.qpos[2]) - bed[1][2]) - bed[2][2], 0.0)
             nearest = min(nearest, math.hypot(dx, dz))
     _run(s, 3.0)
+    g, d = s['g'], s['g']['world'].data
     report.check('from the low chair, risen, she rounds the bed to the door and is out past its line, no fall',
                  seated is not None and stood is not None and s['fallen_at'] is None and not g.get('_errand')
                  and float(d.qpos[2]) > room.TO and bed is not None and nearest > figure.HIP_HALF,

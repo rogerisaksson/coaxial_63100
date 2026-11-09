@@ -248,10 +248,9 @@ def _sought(p, then, at, modes, body):
     down - what bore her the rest as it was split -, held where they bear once each does (`ortho.PALMED`). On
     the lodge's 0.47 m chair both bore, 9.7 cm onto it, 1 mm off her model: swung back from her descent's
     counterweight one met the seat's front face 3 cm under its top, and told nothing as they came down the
-    wait for them never ended. A seat under her shins: none. Refused by name where she cannot: her legs
-    reaching no floor from it (`seated.reaches`), her fists no room on the seat she sees where she sits -
-    its width less its middle aside of hers (`furniture.seen`; landed 0.151 m aside, a fist met none and the
-    wait never ended) -, or their push past her arm drives' peak (PEAKS)."""
+    wait for them never ended. A seat under her shins, or leaving her fists no room where she sits
+    (`furniture.seen`; landed 0.151 m aside, a fist met none and the wait never ended): none. Refused by name where
+    she cannot: her legs reaching no floor from it (`seated.reaches`), or their push past her arm drives' peak (PEAKS)."""
     if tuple(p['anatomical-frames']) != CARPAL or p['weight-law'].name != 'wrench-proportional':
         raise MachineError('refused: a manifold on %s, %s; her hands bear on %s by a wrench-proportional share'
                            % (' '.join(p['anatomical-frames']), p['weight-law'].name, ' '.join(CARPAL)))
@@ -260,12 +259,11 @@ def _sought(p, then, at, modes, body):
     share, trunk = p['weight-law'].args['max-share'], at.get('trunk', 0.0)
     pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
     _s, _e, aside, levers = seated.placed(seated.ON - pressed, trunk)
-    room = math.inf if at['across'] is None else 0.5 * at['across'] - abs(at['aside']) - aside
+    if at['across'] is not None and 0.5 * at['across'] - abs(at['aside']) - aside < 0.0 and seated.reaches(at['seat']):
+        return []
     torques = tuple(0.5 * share * body['weight'] * lever for lever in levers)
     faults = [why for why, bad in (
         ('her legs reach no floor from her hips on a seat %.2f m up' % at['seat'], not seated.reaches(at['seat'])),
-        ('a seat %.2f m wide, its middle %.2f m aside of hers, leaves her fists %.2f m aside no room'
-         % (at['across'] or 0.0, at['aside'], aside), room < 0.0),
         ('her fists bearing %.2f of her ask her shoulder %.1f, her elbow %.1f N m past their peak %.1f, %.1f'
          % ((share,) + torques + PEAKS), any(t > k for t, k in zip(torques, PEAKS)))) if bad]
     if faults:

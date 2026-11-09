@@ -105,6 +105,9 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         return start_mode(g, by, entry, at=t0 + tg)
     g['st'][latent.NOW][latent.GAIN] = max(float(g['st'][latent.NOW][latent.GAIN]), 0.04)
     dt_b = se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
+    if back_now and name == 'jog' and 'init_walk' in by:
+        sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0 + dt_b, reset=True)
+        return sprung.said(g, *entry, at=t0 + dt_b + se2.init_lead(g))
     nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
     return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
 

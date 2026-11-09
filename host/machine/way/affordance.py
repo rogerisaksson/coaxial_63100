@@ -29,7 +29,8 @@ SEAT_M2 = 1e-6 * _KERNELS[':sit-on-fixture']['min-polygon-area-mm2']
 BED_M_WIN = tuple(1e-3 * z for z in _KERNELS[':lie-supine-on-fixture']['elevation-window-z-mm'])
 BED_TOP_M = BED_M_WIN[1]
 BED_M = 1e-3 * _KERNELS[':lie-supine-on-fixture']['min-major-axis-length-mm']
-SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (1e-3 * _SLABS[2][0], 1e-3 * _SLABS[2][1])
+BED_M2 = BED_M * 2.0 * figure.ASIDE
+SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (0.0, 1e-3 * _SLABS[2][1])
 #: Her lumbar's height over her seat, sat upright, m: the torso's first dorsal point (`figure.BODY`, the
 #: observer's `dorsal-supine-continuum`) over her ischial capsules' underside - a seat's back reaching it
 #: is a backrest; a stair's riser under it is none.
@@ -102,10 +103,10 @@ def sits(box, things):
 
 def lies(box, things):
     """Whether `box` beds her among `things`: its top in BED_M_WIN, its long side BED_M or more, its width
-    her shoulders' (`figure.ASIDE`) or more, nothing over it in the high slab."""
+    her shoulders' (`figure.ASIDE`) or more, BED_M2 of it clear above."""
     _c, _axes, h = footprint(box)
     return (surface(box) and BED_M_WIN[0] <= top(box) <= BED_TOP_M and 2.0 * float(h.max()) >= BED_M
-            and float(h.min()) >= figure.ASIDE and clear(box, things, BED_CLEAR) >= 4.0 * float(h[0] * h[1]) - 1e-9)
+            and float(h.min()) >= figure.ASIDE and clear(box, things, BED_CLEAR) >= BED_M2)
 
 
 def back_of(box, things):

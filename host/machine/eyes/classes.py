@@ -223,7 +223,8 @@ def of(kinds, centre, half, R, clear):
     # piece of its look beside it from no more than a cell over its top past her lumbar, its foot anywhere under - a
     # chair's back is one with its rear legs, a low chair's with the wall it stands against
     backs = (pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9)
-             & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= OVERHEAD))
+             & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= BRACE + 0.5 * CELL_M)
+             & (long[:, None] <= long[None, :] + CELL_M + 1e-9))
     held = on | under | backs
     # what she steps onto: a top no piece in the lowest slab, then each beside one she does a rise of it off it
     free = surface & ~held.any(axis=1)
