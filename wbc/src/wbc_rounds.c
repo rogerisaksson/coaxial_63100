@@ -342,10 +342,10 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
       {
         un[j] = X[2 * j] + by * X[2 * j + 1];
       }
-      /* the soles' part of the first answer, the floor unbounded, told where asked */
+      /* the first answer, the floor unbounded, told where asked */
       if (done == 0 && first != NULL)
       {
-        memcpy(first, un, (size_t)12 * sizeof(double));
+        memcpy(first, un, (size_t)nu * sizeof(double));
       }
       /* her height's band: past an edge, held to it */
       ay = wbc_dot(&p->blas, g->lift, 1, un, 1, nu) / g->mass - p->g;

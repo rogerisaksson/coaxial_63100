@@ -39,6 +39,8 @@ PAST = 2
 #: wrench's parts in shares of her weight, a sole's acceleration left alone, a pinned part.
 W_COM, W_TURN, W_SWING, W_KNEE, W_POSTURE, W_HEIGHT, W_MOMENT = 1000.0, 30.0, 30.0, 3.0, 1.0, 1.0, 0.3
 W_FOLD, W_STOP, W_PART, W_AIR, W_PIN = 3.0, 30.0, 0.1, 1e-3, 1e5
+#: Her rows' groups in the order they are laid: what `got['rows_free']` tells each one's weighted residual by.
+GROUPS = ('com', 'height', 'turns', 'posture', 'swing', 'knee', 'fold', 'stop', 'momentum', 'spare')
 #: Striding, a standing sole's wrench kept in the projection's metric, of its share of her weight:
 #: her soles pushed against each other change her motion by nothing; unkept the faces were met through
 #: it - 926 N along one sole, -906 the other - till a sole pulled and both were let go, 11 times in 12 s
@@ -144,15 +146,22 @@ def _maps(b, s, ask, want):
     return T, E, t0, a6, asked
 
 
+def _residual(R0, rhs, first, grouped):
+    """Each of GROUPS' summed squared weighted residual at the first, floor-unbounded answer `first`: a row's its own
+    dot, summed in row order (wbc_step.c's, `wbc_dot`)."""
+    res = np.array([row @ first for row in R0]) - np.concatenate(rhs)
+    return np.bincount(np.asarray(grouped, int), res * res, minlength=len(GROUPS))
+
+
 def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
-    """(The unknowns, the soles' twelve of the first, floor-unbounded answer) for the rows' normal matrix `H0` and
+    """(The unknowns, the first, floor-unbounded answer) for the rows' normal matrix `H0` and
     right-hand side `g0` (R^T c), the contacts'
     `held` rows (`bears`, N up), her height's band `lo` to `hi`: the rounds, then the stride. `geo`: (nu, k3,
     moment, part, up, lift, mass, grounded, stance, frames, edges, mu, caps, slips, give - the share of a contact's
     push hers to plan); `stride`: (strides, her kinetic metric)."""
     nu, k3, moment, part, up, lift, mass, grounded, stance, frames, edges, mu, cap, slips, give = geo
     strides, kinetic = stride
-    pinned, at, band, edge, first = np.zeros(nu), np.zeros(nu), 0.0, 0.0, np.zeros(12)
+    pinned, at, band, edge, first = np.zeros(nu), np.zeros(nu), 0.0, 0.0, np.zeros(nu)
     # a contact told to bear nothing is let go, as one the step would have pull
     pressed, done, rounds = (np.broadcast_to(cap, (len(bears),)) > 0.0).astype(float), 0, ROUNDS
     Hr = gr = None
@@ -180,7 +189,7 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
         K = H * np.outer(free, free) + np.diag(hard)
         u, way = _solved(K, np.array([free * (gr + rhs_s - H @ (hard * at)) + hard * at, up]).T, free).T
         u = u + band * (edge - up @ u) / (up @ way + 1.0 - band) * way
-        first = u[:12].copy() if done == 0 else first
+        first = u.copy() if done == 0 else first
         # her height's band: past an edge, held to it
         ay = float(lift @ u) / mass - G
         past = min(max(ay, lo), hi) + G
@@ -209,9 +218,9 @@ def _rounds(H0, g0, held, bears, lo, hi, geo, stride):
 
 
 def step(b, s, ask):
-    """{tau, qacc, bears, cop, over, slack, held, scale, soles_free, soles}: `ask` as `wbc.step` takes it;
+    """{tau, qacc, bears, cop, over, slack, held, scale, soles_free, soles, rows_free}: `ask` as `wbc.step` takes it;
     `strides` how far she strides (0 none), her balance then her landings', not her rows'; `scale` what her drives
-    carry of it; each sole's six unknowns in the first answer, the floor unbounded, and in the last."""
+    carry of it; each sole's six unknowns in the first answer, the floor unbounded, and in the last; each GROUPS' residual."""
     contacts = s.get('contacts', ())
     stance = np.array([float(bool(k)) for k in ask['stance']])
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
@@ -232,14 +241,15 @@ def step(b, s, ask):
     Ai = np.linalg.inv(M[:6] @ T + 1e-9 * _EYE6)
     P, p0 = Ai @ (Gm - M[:6] @ E), -Ai @ (M[:6] @ t0 + h[:6])
     full, full0 = T @ P + E, T @ p0 + t0
-    rows, rhs, rhs0 = [], [], []
+    rows, rhs, rhs0, grouped = [], [], [], []
 
-    def lay(R, c, weight, c0=None):
+    def lay(R, c, weight, c0=None, group=0):
         """A row = `c`, weighed; `c0` what it is with nothing asked, every acceleration 0."""
         c, w = np.atleast_1d(c), np.asarray(weight, float)
         rows.append((w[:, None] if w.ndim else w) * (R if R.ndim == 2 else R[None, :]))
         rhs.append(w * c)
         rhs0.append(w * np.broadcast_to(np.asarray(0.0 if c0 is None else c0, float), c.shape))
+        grouped.extend([group] * len(rhs[-1]))
 
     sumf, about = np.zeros((3, nu)), np.zeros((3, nu))
     for k, f in enumerate(feet):
@@ -254,39 +264,38 @@ def step(b, s, ask):
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
     still, caps, slips = patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G))
     a = np.asarray(ask['com_acc'], float)
-    lay(sumf[[0, 2]] / mass, a[[0, 2]], (W_COM + (W_TURN - W_COM) * float(ask.get('sat', 0.0))) * grounded)
-    lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G)
+    lay(sumf[[0, 2]] / mass, a[[0, 2]], (W_COM + (W_TURN - W_COM) * float(ask.get('sat', 0.0))) * grounded, group=0)
+    lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G, group=1)
     for t, turn in zip(s['turns'], turns):
         left = -t['dJr'] - t['Jr'] @ full0
-        lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned,
-            left)
-    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * _loose(contacts)))
+        lay(t['Jr'] @ full, TURN_KD[0] * turn_error(turn, t['quat']) - TURN_KD[1] * t['w'] + left, W_TURN * turned, left, group=2)
+    lay(_UPPER_ROWS if not k3 else np.eye(nu)[12:NU], want[UPPER], W_POSTURE * (1.0 + (ask.get('hold', 1.0) - 1.0) * _loose(contacts)), group=3)
     edges, mu, strides = ask.get('edge', (0.0, 0.0)), ask.get('mu', (MU, MU)), float(ask.get('strides', 0.0))
     swung = np.concatenate([np.repeat(asked, 6), np.zeros(nu - 12)])
     resting = np.asarray(ask.get('rests', (0.0, 0.0)), float) * (1.0 - np.asarray(ask.get('let_go', (False, False)), float))
-    lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(resting, 6), np.zeros(nu - 12)]))
+    lay(np.diag(swung), a6, W_SWING + (W_STILL - W_SWING) * np.concatenate([np.repeat(resting, 6), np.zeros(nu - 12)]), group=4)
     knees, left = act[KNEES], -float(stance @ full0[act[KNEES]])
     # the knees' rows damped against the posture's rate: against still, a push's knees were held
     # at 0.2 of their clamp and her height at its band's floor
     knee_rate = np.asarray(ask.get('knee_rate', (0.0, 0.0)), float)
-    lay(stance @ full[knees], float(stance @ (want[KNEES] + POSTURE_KD[1] * knee_rate)) + left, W_KNEE * grounded, left)
+    lay(stance @ full[knees], float(stance @ (want[KNEES] + POSTURE_KD[1] * knee_rate)) + left, W_KNEE * grounded, left, group=5)
     for k, (knee, rate, acc) in ask.get('fold', {}).items():
         j = knees[k]
         lay(full[j], acc + SWING_KD[0] * (knee - s['q'][KNEES[k]]) + SWING_KD[1] * (rate - v[j]) - full0[j], W_FOLD,
-            -full0[j])
+            -full0[j], group=6)
     stops, (width, stiff, damp, reach) = b.buffers
     for i, stop, side in stops:
         j, depth = act[i], side * (stop - s['q'][i]) + width
         lay(full[j], stiff * side * max(depth, 0.0) - damp * v[j] - full0[j],
-            W_STOP * np.clip((depth + reach * max(-side * v[j], 0.0)) / width, 0.0, 1.0), -full0[j])
+            W_STOP * np.clip((depth + reach * max(-side * v[j], 0.0)) / width, 0.0, 1.0), -full0[j], group=7)
     kdot = ask.get('kdot')
-    lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded)
+    lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded, group=8)
     part, inv_mg, inv_mgr = np.zeros(nu), 1.0 / (mass * G), 1.0 / (mass * G * ROOM[0])
     part[:12] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2
     if k3:
         part[NU:] = inv_mg
     spare = W_PART * np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) * part + W_AIR * np.concatenate([1.0 - each, np.zeros(nu - 12)])
-    lay(np.diag(spare), np.zeros(nu), 1.0)
+    lay(np.diag(spare), np.zeros(nu), 1.0, group=9)
     R0, up = np.vstack(rows), sumf[1] / mass
     H0 = R0.T @ R0 + 1e-12 * (_EYE_NU if not k3 else np.eye(nu))
     frames, moment = [f['R'] for f in feet], (MOMENT if not k3 else np.concatenate([MOMENT, np.zeros(k3)]))
@@ -337,5 +346,5 @@ def step(b, s, ask):
     b.load = np.abs(tau) / b.clamp
     return {'tau': np.clip(carried, lo, hi), 'qacc': qdd, 'bears': bears, 'cop': cop, 'over': over,
             'slack': [], 'held': (), 'borne': u[NU:].reshape(-1, 3), 'scale': scale,
-            'soles_free': first.reshape(2, 6), 'soles': u[:12].reshape(2, 6)}
+            'soles_free': first[:12].reshape(2, 6), 'soles': u[:12].reshape(2, 6), 'rows_free': _residual(R0, rhs, first, grouped)}
 

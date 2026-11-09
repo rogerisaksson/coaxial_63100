@@ -55,7 +55,7 @@ def _step_typed():
                ('chain_vx', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
                ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2),
                ('chain_let', (i * 3) * c), ('chain_nlet', i), ('chain_let_pad', i),
-               ('chain_slide_m_s', f), ('chain_w_pin', f), ('chain_tilt', f), ('soles_free', (f * 6) * 2), ('soles', (f * 6) * 2)]
+               ('chain_slide_m_s', f), ('chain_w_pin', f), ('chain_tilt', f), ('rows_free', f * 10), ('soles_free', (f * 6) * 2), ('soles', (f * 6) * 2)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -173,13 +173,13 @@ FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc ntur
           'rests slide fz_cap slid_cap hand_cap let_cap let_hold open_kp open_kd freed strides borne hold sat chain_vx '
           'chain_free swing swing_at swing_speed swing_acc swing_quat fold fold_knee fold_rate fold_acc knee_rate wep '
           'posture derate clamp wep_nm mass lo hi tau qacc bears cop cop_n cop_none over forces load scale '
-          'residual hang hang_rate cn soles_free soles').split()
+          'residual hang hang_rate cn rows_free soles_free soles').split()
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'hang', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
           'bears', 'cop',
           'forces',
-          'load', 'cop_none', 'over', 'soles_free', 'soles')
+          'load', 'cop_none', 'over', 'rows_free', 'soles_free', 'soles')
 
 
 def _spread(a, n):
@@ -272,4 +272,4 @@ def _stepped(k, step, v, b, s, ask):
     return {'tau': v['tau'][:nd].copy(), 'qacc': v['qacc'][:k.n].copy(), 'bears': v['bears'].tolist(), 'cop': cop,
             'over': v['over'][:nd].astype(bool), 'slack': [], 'held': (),
             'borne': v['forces'][:k.nc].reshape(-1, 3).copy(), 'scale': k.scale, 'residual': k.residual,
-            'soles_free': v['soles_free'].copy(), 'soles': v['soles'].copy()}
+            'soles_free': v['soles_free'].copy(), 'soles': v['soles'].copy(), 'rows_free': v['rows_free'].copy()}

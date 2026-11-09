@@ -23,6 +23,9 @@
 /** The step: her body and machine.stack.wrench's constants laid once; what is sensed of her
     (machine.stack.wbc.sense) and what is asked (machine.stack.wbc.step's ask) pointed at or copied each
     call; what it answers. */
+/** Her rows' groups, in the order they are laid (machine.stack.wrench.GROUPS). */
+#define WBC_STEP_GROUPS 10
+
 typedef struct
 {
   /* her body, laid once: dofs, driven, unknowns before the contacts (NU), each driven joint's
@@ -91,6 +94,8 @@ typedef struct
   double        chain_slide_m_s, chain_w_pin, chain_tilt; /**< her sled's slide past this speed (kinetic), the static
                                                              sled's soft pin's weight, a slide's normal along the way
                                                              under this (closed-chain-regime) */
+  double        rows_free[WBC_STEP_GROUPS]; /**< each row group's summed squared weighted residual in the first
+                                             answer (machine.stack.wrench.GROUPS) */
   double        soles_free[2][6], soles[2][6]; /**< each sole's six unknowns - its wrench where it stands, its
                                                   acceleration where not - in the first answer, the floor
                                                   unbounded, and in the last (machine.stack.wrench.step) */

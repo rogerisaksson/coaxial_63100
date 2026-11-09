@@ -134,7 +134,7 @@ static int stepped(wbc_step_t *p)
   double            lo[WBC_STEP_D], hi[WBC_STEP_D], nlimit[WBC_STEP_D], zeros[WBC_STEP_D] = {0.0};
   double            grounded, turned, felt[WBC_STEP_C], strides = p->strides, scale = 1.0;
   wbc_geo_t         geo;
-  int               at = 0, any_over = 0;
+  int               at = 0, any_over = 0, mark[WBC_STEP_GROUPS + 1];
 
   if (nc > WBC_STEP_C)
   {
@@ -251,10 +251,13 @@ static int stepped(wbc_step_t *p)
   c[0] = p->com_acc[0];
   c[1] = p->com_acc[2];
   /* sat, her centre of mass's rows weigh as her turns' (machine.stack.wrench) */
+  mark[0] = at;
   at = lay(R0, rhs, rhs0, at, nu, VIEW(row, 2 * nu, 1), 2, c, (p->w_com + (p->w_turn - p->w_com) * p->sat) * grounded, NULL);
   c[0] = p->com_acc[1] + G;
   c0[0] = G;
+  mark[1] = at;
   at = lay(R0, rhs, rhs0, at, nu, VIEW(row + nu, nu, 1), 1, c, p->w_height * grounded, c0);
+  mark[2] = at;
   for (int t = 0; t < p->nturns; t++)
   {
     double left[3], te[3];
@@ -269,6 +272,7 @@ static int stepped(wbc_step_t *p)
     }
     at = lay(R0, rhs, rhs0, at, nu, VIEW(row, nu, 1), 3, c, p->w_turn * turned, left);
   }
+  mark[3] = at;
   for (int i = 0; i < p->nupper; i++)
   {
     /* her arms' rows as her text stiffens them, but an arm whose hand bears */
@@ -287,6 +291,7 @@ static int stepped(wbc_step_t *p)
   {
     swung[i] = i < 12 ? asked[i / 6] : 0.0;
   }
+  mark[4] = at;
   /* a sole not standing while borne rests: its rows a pressing point's */
   for (int i = 0; i < nu; i++)
   {
@@ -314,7 +319,9 @@ static int stepped(wbc_step_t *p)
     wbc_matmul(l, VIEW(stance, 0, 1), VIEW(fk, nu, 1), row, 0, 1, 1, 2, nu);
     c[0] = wbc_dot(l, stance, 1, wk, 1, 2) + left;
     c0[0] = left;
+    mark[5] = at;
     at = lay(R0, rhs, rhs0, at, nu, VIEW(row, nu, 1), 1, c, p->w_knee * grounded, c0);
+    mark[6] = at;
     for (int k = 0; k < 2; k++)
     {
       const int j = knee[k];
@@ -329,6 +336,7 @@ static int stepped(wbc_step_t *p)
       at = lay(R0, rhs, rhs0, at, nu, VIEW(full + j * nu, nu, 1), 1, c, p->w_fold, c0);
     }
   }
+  mark[7] = at;
   for (int b = 0; b < p->nbuffers; b++)
   {
     const int    j = p->act[p->buffer_at[b]];
@@ -344,7 +352,9 @@ static int stepped(wbc_step_t *p)
   {
     c[i] = p->kdot_given ? p->kdot[i] : (-p->momentum_k) * p->k[i];
   }
+  mark[8] = at;
   at = lay(R0, rhs, rhs0, at, nu, VIEW(about, nu, 1), 3, c, p->w_moment * grounded, NULL);
+  mark[9] = at;
   {
     const double inv_mg = 1.0 / (mass * G), inv_mgr = 1.0 / ((mass * G) * p->room[0]);
 
@@ -367,6 +377,7 @@ static int stepped(wbc_step_t *p)
     rhs0[at + i] = 0.0;
   }
   at += nu;
+  mark[10] = at;
   wbc_matmul(l, VIEW(R0, 1, nu), VIEW(R0, nu, 1), H0, nu, 1, nu, at, nu);
   for (int i = 0; i < nu; i++)
   {
@@ -421,9 +432,23 @@ static int stepped(wbc_step_t *p)
   /* the ask's answer, and nothing's: accelerations 0, weight borne */
   wbc_matmul(l, VIEW(R0, 1, nu), VIEW(rhs, 1, 0), g0, 1, 0, nu, at, 1);
   if (wbc_rounds(p, &geo, H0, g0, S, r, felt, p->com_acc[1] - p->height_band, p->com_acc[1] + p->height_band,
-                 whole, &p->soles_free[0][0], rest))
+                 whole, u, rest))
   {
     return 1;
+  }
+  /* the first answer's soles and each row group's summed squared weighted residual there (wrench._residual) */
+  memcpy(&p->soles_free[0][0], u, (size_t)12 * sizeof(double));
+  for (int g = 0; g < WBC_STEP_GROUPS; g++)
+  {
+    double sum = 0.0;
+
+    for (int i = mark[g]; i < mark[g + 1]; i++)
+    {
+      const double res = wbc_dot(&p->blas, R0 + i * nu, 1, u, 1, nu) - rhs[i];
+
+      sum += res * res;
+    }
+    p->rows_free[g] = sum;
   }
   for (int i = 0; i < nd; i++)
   {
