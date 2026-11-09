@@ -254,7 +254,7 @@ def ahead(curve, k, at):
     j = min(bisect.bisect_left(s, s[k] + _aim(pace[k])), n - 1)
     (k1, k0), (j1, j0) = ((min(i + 1, n - 1), min(i, n - 2)) for i in (k, j))
     along, there = math.atan2(x[k1] - x[k0], z[k1] - z[k0]), math.atan2(x[j1] - x[j0], z[j1] - z[j0])
-    return k, (x[j], z[j]), along, there, pace[k], bend[j]
+    return k, (x[j], z[j]), along, there, pace[k], max(bend[k], bend[j] * float(pace[k] < se2.WALK_SPEED))
 
 
 def _columns(curve):

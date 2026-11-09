@@ -201,8 +201,9 @@ def _stood(g, gym, er, c, heard_fn, _say_fn):
 def _cornered(g, gym, er, c, heard_fn, _say_fn):
     """Stood still on her way: the rest asked of her planner, her stage last - laid inside her map's
     grown cells by its turn's own clearance (`dock.docked`), not moved for them."""
+    from machine.eyes import voxels
     from machine.law import stride
-    _asked(g, er, 'plan', (er['xd'], er['zd']), stride.STRIDE_M)
+    _asked(g, er, 'plan', (er['xd'], er['zd']), stride.STRIDE_M + voxels.CELL_M)
     er['turn_dir'] = 0.0
 
 

@@ -106,13 +106,14 @@ def _affordance_aperture(field, node):
     goes = (field['slots'] == field['slot']) & (field['slot'] >= 0) & (field['face'] is not None) & (funnel['selector'] != ':none')
     if not goes.any():
         return
-    target = field['things'][int(np.argmax(goes))]
+    k = int(np.argmax(goes))
+    target = field['things'][k]
     hit = goes | (apart(field['centres'], [target])[:, 0] <= 0.0)
     off = field['points'] - np.array([target[1][0], target[1][2]], float)
     cos = off @ np.asarray(field['face'], float) / np.maximum(np.hypot(off[:, 0], off[:, 1]), 1e-9)
     s = (0.5 * (1.0 + cos)) ** funnel['cone-exponent']
     margin = np.broadcast_to(field['margin'], (len(field['points']), len(hit))).copy()
-    ahead = margin[0, hit] - field['reach'][hit] + field['ahead'][hit] + funnel['touch-standoff-m']
+    ahead = np.minimum(margin[0, hit], margin[0, hit] - field['reach'][hit] + field['ahead'][k] + funnel['touch-standoff-m'])
     margin[:, hit] = (1.0 - s[:, None]) * margin[:, hit] + s[:, None] * ahead[None, :]
     field['margin'] = margin
 

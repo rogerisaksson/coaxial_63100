@@ -234,13 +234,13 @@ class Map:
                 jj, knd = np.full(len(i), j), self._kind((i, np.full(len(i), j), k))[0]
                 c = self.moments[i, jj, k, 0].sum()
                 y = float(self.moments[i, jj, k, 5].sum() / c) if c > 0 else FLOOR_M + (j + 1) * self.voxel
-                met = [p for p in parts if p[3] == knd and abs(p[4] - y) <= 0.5 * self.voxel
-                       and (np.abs(p[0][:, None] - i) + np.abs(p[2][:, None] - k) <= 1).any()]
-                if met:
-                    met[0][:3] = [np.r_[a, b] for a, b in zip(met[0][:3], (i, jj, k))]
-                else:
-                    parts.append([i, jj, k, knd, y])
-        for i, jj, k, *_ in parts:
+                near = lambda p: (p[3] == knd and j - int(p[1].min()) <= 1 and abs(p[4] - y) <= 0.5 * self.voxel
+                                  and (np.abs(p[0][:, None] - i) + np.abs(p[2][:, None] - k) <= 1).any())
+                met, parts = [p for p in parts if near(p)], [p for p in parts if not near(p)]
+                i, jj, k = [np.concatenate([a] + [p[m] for p in met]) for m, a in enumerate((i, jj, k))]
+                c = self.moments[i, jj, k, 0].sum()
+                parts.append([i, jj, k, knd, float(self.moments[i, jj, k, 5].sum() / c) if c > 0 else y])
+        for i, jj, k, _knd, _y in parts:
             labels[i, jj, k] = len(out)
             out.append(self._box(i, k, int(jj.min()), int(jj.max()), self._kind((i, jj, k))[0], jj, True))
         surfaces = len(out)

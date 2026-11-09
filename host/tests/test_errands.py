@@ -364,28 +364,27 @@ def test_multi_pose_bed_settle_and_randomized_scenarios(report):
     from machine.law import modal, se2
     from machine.process import sprung, worker
     physics.ROOM, physics.SIGHT = 1.0, 0.0
-    for name, x0, z0, yaw0 in (('csv_rec', -0.62, 1.86, -1.50), ('south_face', -0.80, 1.50, 3.10)):
+    for name, x0, z0, yaw0 in (('lodge', 0.0, 0.0, 0.0), ('csv_rec', -0.62, 1.86, -1.50), ('south_face', -0.80, 1.50, 3.10)):
         s = worker.session()
-        g = s['g']
-        d = g['world'].data
+        g, d = s['g'], s['g']['world'].data
         sprung.relaid(g, (x0, z0), yaw0)
         _run(s, 0.4)
         worker.apply(s, {'say': 'lie_bed'})
-        er = dict(g['_errand'])
+        er, sh = dict(g['_errand']), 0.0
         while g['t'] < 40.0 and s['fallen_at'] is None and g.get('_errand'):
             worker.stepped(s)
-            er = dict(g['_errand']) if g.get('_errand') else er
+            er, sh = dict(g['_errand'] or er), max(sh, abs(float(g['sense'][edge.QD][5])), abs(float(g['sense'][edge.QD][13])))
         docked_t, dx, dz = g['t'], float(d.qpos[0]) - er['x_dock'], float(d.qpos[2]) - er['z_dock']
         s_par, s_perp = dx * er['nx'] + dz * er['nz'], dx * er['tx'] + dz * er['tz']
         yaw_off = se2.wrap_angle(er['hdd'] - se2.wrap_angle(edge.yaw(g['sense'])))
         _flips, sat_t = _run(s, 3.0, until='sit_edge')
         ok = (g.get('_errand') is None and abs(s_par - er['standoff']) <= figure.HEEL + figure.SOLE_HALF
               and abs(s_perp) <= er['lat_tol'] and abs(yaw_off) <= modal.LIST_RAD and sat_t is not None
-              and s['fallen_at'] is None)
+              and sh < 12.0 and s['fallen_at'] is None)
         report.check('bed errand from %s (%.2f, %.2f, %.2f rad): docks at the edge facing away and begins to sit'
                      % (name, x0, z0, yaw0), ok,
-                     'docked at %.1f s: heels %.2f m from the edge, %.2f m along it, yaw %.2f rad off; sits=%s fallen=%s'
-                     % (docked_t, s_par, s_perp, yaw_off, sat_t, s['fallen_at']))
+                     '%.1fs par=%.2f perp=%.2f yaw=%.2f sh=%.1f sits=%s fall=%s'
+                     % (docked_t, s_par, s_perp, yaw_off, sh, sat_t, s['fallen_at']))
     rng = random.Random(63100)
     rand_ok = True
     rand_details = []

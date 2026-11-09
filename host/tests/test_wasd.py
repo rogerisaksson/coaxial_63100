@@ -8,7 +8,6 @@ walk, the moves, the stutter) from each of the ensemble's starts (`tools/sim/han
 her drive and her axial as built and a hair either side), a relay job each (`tools/sim/handover.py --spec
 --play`), judged by the world and by her analyzers: `support.stumble` (her surety under her brace),
 `support.fall`, and `motion.spasm` counted beside them."""
-import json
 import math
 import os
 import sys
@@ -20,7 +19,6 @@ from tools.sim import player
 from gynoid_kit import Report
 from views_kit import typed
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: The page's frames, s apart, and a held key's repeats as a terminal types them, s apart (test_leap's page tests).
 FRAME_S, REPEAT_S = 0.05, 0.033
 #: The keys held in turn, s each: W walks her on, WA and WD arc her, none stops her, S backs her, none again.
@@ -28,8 +26,8 @@ HELD = (('w', 3.0), ('wa', 2.0), ('wd', 2.0), ('', 3.0), ('s', 2.0), ('', 3.0))
 #: She has gone this far on W, m; turned this far on WA and on WD, deg; backed this far on S, m (a walk back from
 #: her stand sets out slowly: 3-16 cm in its first 2.6 s); and stands slower than this, m/s, when the keys are let go.
 WENT_M, TURNED_DEG, BACKED_M, STILL_M_S = 1.5, 15.0, 0.02, 0.3
-#: The seconds each play is judged over (`handover.py --window`), and each job's budget, s.
-WINDOW, JOB_S = '1.0,14.0', 900.0
+#: The seconds each play is judged over (`handover.py --window`).
+WINDOW = (1.0, 14.0)
 
 
 def _heading(s):
@@ -163,18 +161,11 @@ _ROWS: dict = {}
 
 
 def _rows(name):
-    """[row] of `name` from each start, one relay job each (`handover.py --spec --play`), run once."""
+    """[row] of `name` from each start (`handover.ran`), run once."""
     if name not in _ROWS:
-        from tools.dev import focus
+        from tools.sim.handover import parsed, ran
         from tools.sim.handovers import ENSEMBLE
-        here = [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'tools', 'sim', 'handover.py')]
-        starts = ['drive=%g,ax=%g' % (d, ax) for d, ax in zip(*ENSEMBLE)]
-        jobs = [focus.Job(name + '@' + start, here + ['--spec', start, '--play', player.PLAYS[name], '--window', WINDOW], 1.5, JOB_S)
-                for start in starts]
-        _ROWS[name] = []
-        for _job, text, _code, _seconds in focus.relay(jobs):
-            lines = [line for line in text.splitlines() if line.startswith('{')]
-            _ROWS[name].append(json.loads(lines[-1]) if lines else {'stood': False, 'stumbles': ['no row']})
+        _ROWS[name] = [ran(parsed('drive=%g,ax=%g' % da), play=player.PLAYS[name], window=WINDOW) for da in zip(*ENSEMBLE)]
     return _ROWS[name]
 
 
