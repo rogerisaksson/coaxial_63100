@@ -102,6 +102,10 @@ class Camera:
             self._ready = False
         return self
 
+    def due(self, now):
+        """Whether a look is due at `now`: her first, or LOOK_S after her last."""
+        return self.looked_at is None or not now - self.looked_at < sight.LOOK_S
+
     def look(self, world, now, head, gz=(0.0, 0.0), held=None, waited=True):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
         takes it, its READY first after her first look, which waits on none: waited on there, her map apart's boot,
@@ -111,7 +115,7 @@ class Camera:
         was. Not `waited` - her eyes not hers (SIGHT 0: her registry on the world's boxes, her camera her page's view
         alone) -, nothing is waited for: what her map apart has said is taken, and a look still in flight leaves this
         one's world unsent, her looks due as ever (`_drained`)."""
-        if self.looked_at is not None and now - self.looked_at < sight.LOOK_S:
+        if not self.due(now):
             return False
         if not waited and self._drained():
             self.looked_at = now

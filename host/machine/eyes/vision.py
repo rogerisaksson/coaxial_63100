@@ -36,12 +36,14 @@ def look(g):
     head, t = {'pos': g['s']['head']['pos'].copy(), 'quat': g['s']['head']['quat'].copy()}, g['t']
     if g['keep'] is not None:
         gz = gaze.moved(g)
-        gaze.aimed(g['world'], gz)
+        gaze.swung(g['world'], gz)
         held = gaze.held(g, gz)
-        # a look with her eyes standing on what they look at alone: none in a saccade's blur
-        took = gaze.settled(g) and g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held,
-                                                  waited=bool(g['eyes']))
+        # a look with her eyes standing on what they look at alone: none in a saccade's blur; her cameras placed on her
+        # gimbals and her head read where one is due alone - each law pass they were 140 us of it, her looks LOOK_S apart
+        took = gaze.settled(g) and g['keep'].due(g['t'])
         if took:
+            gaze.placed(g['world'])
+            g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held, waited=bool(g['eyes']))
             gaze.asked(g, gz)
         if g['eyes'] and (not took or g['keep'].shown is None):
             return

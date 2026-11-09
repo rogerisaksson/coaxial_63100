@@ -3,6 +3,7 @@
     gz = gaze.moved(g)               # her gaze now (across, down, vergence): a saccade's or her fixation held
     gaze.settled(g)                  # whether her eyes stand on what they look at: a look only so (no saccade's blur)
     gaze.aimed(world, gz)            # her eyes' cameras turned and placed so on her head, as built (`gimbal`)
+    gaze.swung(world, gz); gaze.placed(world)     # the same in two: swung each pass, placed where a look is due
     held = gaze.held(g, gz)          # her gimbals as she holds them, each command through her play as told her
     head = gaze.gazed(head, gz)      # the head her eyes look from: hers turned by her gaze about her eye
     gaze.asked(g, gz)                # a look taken at it: the next fixation asked where it is due
@@ -347,11 +348,24 @@ def rest(g):
 
 
 def aimed(world, gz):
-    """Her eyes' cameras on her head at her servos' gaze `gz`: each gimbal turned through its pushrods and behind their
-    play (`gimbal.played`, from where it was: `world.gimbals`), its camera turned and its middle placed on it as built
-    (`gimbal.eye`, `gimbal.place`); their poses laid anew (`mj_camlight`): what her eyes draw next looks so."""
+    """Her eyes' cameras on her head at her servos' gaze `gz`: her gimbals swung to it (`swung`), her cameras placed
+    on them (`placed`)."""
+    swung(world, gz)
+    placed(world)
+
+
+def swung(world, gz):
+    """Her gimbals swung to her servos' gaze `gz`, each through its pushrods and behind their play (`gimbal.played`,
+    from where it was: `world.gimbals`) - each pass of her gaze, her play's side its path."""
     was = getattr(world, 'gimbals', None) or {s: (0.0, 0.0) for s in ('left', 'right')}
     world.gimbals = {s: gimbal.played(was[s], gimbal.angles(s, gz), s) for s in ('left', 'right')}
+
+
+def placed(world):
+    """Her eyes' cameras on her head as her gimbals stand (`swung`): each turned and its middle placed on its gimbal
+    as built (`gimbal.eye`, `gimbal.place`), their poses laid anew (`mj_camlight`): what her eyes draw next looks so.
+    Read at a look alone (`camera.POSES`, `sight.Eyes.see`), her world's step laying them again after: placed each
+    law pass they were 100 us of it."""
     for side, a in world.gimbals.items():
         i, R = world.model.camera('eye_' + side).id, gimbal.eye(side, a)
         world.model.cam_quat[i], world.model.cam_pos[i] = _quat(R), gimbal.place(side, a, R=R)
