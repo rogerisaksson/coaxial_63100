@@ -8,7 +8,11 @@ her trunk's. What the sum's springs ask is her centre of mass's acceleration, it
 soles (`machine.law.poise`), up no harder than her legs throw her. A sole that does not stand is
 sprung to the place her modes give it from the soles that do - none standing, from her centre
 of mass as it falls -, each axis on the difference's impedance: the drive's along, the width's
-across, the lift's up; striding, it is her stride's (`machine.law.stride`). The loop finds the
+across, the lift's up; striding, it is her stride's (`machine.law.stride`), and aloft the swing that
+lands first strides on falling with her: hung plumb under her a leap's landing sole came down 5-8 cm
+ahead of her for a capture point 0.2-0.3 m on and she fell a step later (her walk's leap 3 of 9, 9 so;
+the gym's walk, hop and stand 5, 9); both soles striding aloft, the push leg behind her was thrown on
+(the run's leap 18 stumbles, the gym's jog, hop and stand 0 of 9). The loop finds the
 torques and clips them to her drives (`machine.stack.wbc`, `machine.stack.wrench`).
 """
 import os
@@ -170,10 +174,10 @@ def ask(out, y, fr, a):
                      + HOT3[ALONG][:, None] * short_h)
     free, frame = swing.free(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                              grounded, propped)
-    strides = (limbs * grounded)[:, None]
-    a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (
+    strides, fell = (limbs * np.maximum(grounded, 1.0 * (u > u[::-1])))[:, None], ((1.0 - grounded) * com) @ rot
+    a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (fell + (
         np.concatenate([stride.goes(stride.guarded(meet, over, flat, apart, fr[PLANTED]), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w),
-                        stride.eased(u, off)[:, None] * free[:, UP:]], axis=1) @ rot)).ravel()
+                        stride.eased(u, off)[:, None] * free[:, UP:]], axis=1) @ rot))).ravel()
     a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out[latent.HELD], (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
     # its pitch on the rock's own spring, from the floor's under the soles that stand; the
     # loop's turn law asked for what gives that

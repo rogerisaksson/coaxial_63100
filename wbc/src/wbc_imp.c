@@ -30,7 +30,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3], hip_h[2], reach_h[2], striding[2];
   double        rr[2][3], axial[2], pressed, risen[2], lifted, com[3], late[2], lift2[2], clr[3][2], clear[3][2];
   double        wide, top[2], land[2], adj[2], over[2], len2[2], apart, held2[2][2], duck[2];
-  double        loose[2][3], frame[3][3], ff[2][3], cm[3], gc[3], th[2], g2[2][2], cat[2][3], gg[2][3], pg2[2], pg;
+  double        loose[2][3], frame[3][3], ff[2][3], cm[3], gc[3], fm[3], fc[3], th[2], g2[2][2], cat[2][3], gg[2][3], pg2[2], pg;
   double        mvs[2], folds[2], l_ask, short_h, up_h[2];
   int           swaying;
 
@@ -387,10 +387,12 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   for (int j = 0; j < 3; j++)
   {
     cm[j] = (1.0 - grounded * k->between[j]) * com[j];
+    fm[j] = (1.0 - grounded) * com[j];
   }
   for (int j = 0; j < 3; j++)
   {
     gc[j] = npdot(cm, 1, rot + j, 3, 3);
+    fc[j] = npdot(fm, 1, rot + j, 3, 3);
   }
   th[0] = (turns * hurry[0]) / (1.0 - begun[0]);
   th[1] = (turns * hurry[1]) / (1.0 - begun[1]);
@@ -409,11 +411,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   npmm(&cat[0][0], rot, &gg[0][0]);
   for (int b = 0; b < 2; b++)
   {
-    const double strides = limbs[b] * grounded;
+    const double strides = limbs[b] * npmax(grounded, (double)(u[b] > u[1 - b]));
 
     for (int j = 0; j < 3; j++)
     {
-      a[k->a_sole_acc + 3 * b + j] = (1.0 - strides) * (ff[b][j] + gc[j]) + strides * gg[b][j];
+      a[k->a_sole_acc + 3 * b + j] = (1.0 - strides) * (ff[b][j] + gc[j]) + strides * (fc[j] + gg[b][j]);
     }
   }
   wbc_imp_rested(k, &s, out[k->o_held], grounded, aloft, limbs, floors, y, shod, rot, a);
