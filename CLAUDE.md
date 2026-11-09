@@ -157,10 +157,10 @@ Evaluate the prompt and working tree before invoking any tool:
   --all --prune` followed by `git pull --rebase`). Resolve any upstream drift
   and proceed from the updated baseline; never verify against a stale tree.
 - **Required Verification (Strictly via the repository's relay test runner):**
-  1. Run the narrowest targeted suite and keyword filter (`--file`) covering
-     the modified path. Never execute a test suite directly outside the relay,
-     and quote the runner's exact `PASS`/`FAIL` tally verbatim (never
-     paraphrase).
+  1. Run the relay (run_tests.py) with the narrowest targeted suite and keyword 
+    filter (`--file`) covering the modified path. Never execute a test suite 
+     directly outside the relay, and quote the runner's exact `PASS`/`FAIL` 
+     tally verbatim (never paraphrase).
   2. If structure, imports, wire opcodes, or docs were touched, run the
      structural, layout, and mirror verification suites.
   3. If a shared C11 core or traced/ported array function was touched, run its
