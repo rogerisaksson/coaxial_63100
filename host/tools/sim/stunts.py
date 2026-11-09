@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 from machine.body import figure
-from machine.law import modal, stride
+from machine.law import modal, poise, stride
 from machine.texts import takes
 from tools import REPO
 
@@ -238,7 +238,7 @@ def measured(times, joints):
 
 def modes(times, joints, fr):
     """(times s at her size, (n, N) her modes) of a take, as `modal.reading` reads hers (her
-    frame `fr`, `modal.frame`): the legs shorter than standing, the centre of mass over the
+    frame `fr`, `statics.frame`): the legs shorter than standing, the centre of mass over the
     soles' middle to her left and along, the soles apart along, up and across, the trunk's pitch, the
     hips' line's list and turn, the arms' swing and the feet's rock off standing; lengths at her
     size, times by similarity. The legs' zero is the skeleton's straight leg, the arms' and
@@ -263,7 +263,7 @@ def modes(times, joints, fr):
     out = np.zeros((len(t), modal.N))
     out[:, modal.AXIAL] = (leg - legs) * scale / (modal.AXIAL_M * fr[modal.HIPS_BY])
     out[:, modal.LATERAL] = -(mid @ left) * scale / fr[modal.W0]
-    out[:, modal.SAGITTAL] = -(mid @ along) * scale / modal.HALF_M
+    out[:, modal.SAGITTAL] = -(mid @ along) * scale / poise.HALF_M
     out[:, modal.DRIVE] = 0.5 * ((place[1] - place[0]) @ along) * scale / stride.STRIDE_M
     out[:, modal.LIFT] = ((place[0] - place[1]) @ UP) * scale / modal.CLEAR_M
     out[:, modal.WIDTH] = 0.5 * ((place[0] - place[1]) @ left) * scale / fr[modal.W0] - 1.0
@@ -273,7 +273,7 @@ def modes(times, joints, fr):
     out[:, modal.LIST] = np.arctan2(line @ UP, line @ left) / modal.LIST_RAD
     out[:, modal.TURN] = np.arctan2(line @ along, line @ left) / modal.TURN_RAD
     out[:, modal.ARMS] = 0.5 * (modal.LIMBS @ (swing - np.median(swing[:, stood], axis=1)[:, None])) / modal.ARM_RAD
-    out[:, modal.ROCK] = 0.5 * (modal.LIMBS @ (tilt - np.median(tilt[:, stood], axis=1)[:, None])) / modal.ROCK_RAD
+    out[:, modal.ROCK] = 0.5 * (modal.LIMBS @ (tilt - np.median(tilt[:, stood], axis=1)[:, None])) / stride.ROCK_RAD
     return ((t - t[0]) * similar(leg, 'time')).astype(np.float32), out.astype(np.float32)
 
 

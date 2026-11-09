@@ -32,7 +32,7 @@ BLEND_S = math.pi * math.sqrt(modal.LEG_M / modal.G)
 def said(gym=None):
     """The walk's parameters (`ortho.P`) of her gym's entries `gym` (else her files', `sprung.entries`):
     each as the last of the walk's streams that says it, nan where none does - her loop keeps what
-    she had there, her rest (`modal.rest`) from a stand."""
+    she had there, her rest (`statics.rest`) from a stand."""
     import numpy as np
     from machine.law import latent
     from machine.process import sprung

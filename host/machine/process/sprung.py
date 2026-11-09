@@ -79,7 +79,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
     from machine.body import bends, figure, heat, servos
-    from machine.law import latent, melt, modal, motion
+    from machine.law import latent, melt, modal, motion, statics
     from machine.world import physics
     from machine.eyes import registry
     from machine.stack import wbc, wrench
@@ -99,10 +99,10 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     s = sensed(body, est, sense, limbs)
     y = modal.sensed(s, (0.0, 0.0), np.zeros(modal.SENSED))
     y[modal.CELLS] = sense[edge.CELLS]
-    fr = modal.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]), float(m.body_subtreemass[body.torso]),
+    fr = statics.frame(y, body.mass, float(m.body_subtreemass[m.body('left_hip_yaw').id]), float(m.body_subtreemass[body.torso]),
                      float(m.body_subtreemass[m.body('left_upper_arm').id]), float(m.body_subtreemass[m.body('left_forearm').id]),
                      float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
-    rest = modal.rest(fr)
+    rest = statics.rest(fr)
     rest[latent.K][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (8000.0, 4500.0, 1500.0)
     rest[latent.D][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (1000.0, 500.0, 350.0)
     st, tab = latent.state(rest), np.zeros((0, latent.TABLE))

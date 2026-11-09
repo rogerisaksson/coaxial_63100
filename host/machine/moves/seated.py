@@ -62,7 +62,7 @@ SEEK_M_S, YIELD_NS_M = -float(_ADMITTANCE['seek-velocity-mps'][2]), float(_ADMIT
 
 def axial(knee, modes, body):
     """Her height's mode at a knee's bend, rad: her legs' shortening (`modal.shortened`) as her
-    posture bends her knees for it (`impedance._poses`), a leg's mass off hers (`modal.frame`)."""
+    posture bends her knees for it (`impedance._poses`), a leg's mass off hers (`statics.frame`)."""
     hips_by = body['mass'] / (body['mass'] - modes['mode_limb_lift'][3])
     return ((math.cos(0.5 * math.radians(body['knee'])) - math.cos(0.5 * knee)) * (figure.THIGH + figure.SHANK)
             / (modes['mode_axial_compression'][0] * hips_by))

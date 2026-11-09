@@ -113,7 +113,7 @@ def reference():
 
 
 def _her():
-    """Her statics standing (`modal.frame`)."""
+    """Her statics standing (`statics.frame`)."""
     from machine.process import worker
     return worker.session()['g']['fr']
 

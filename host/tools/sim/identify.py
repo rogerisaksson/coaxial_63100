@@ -30,7 +30,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
-from machine.law import modal
+from machine.law import poise
 from tools.sim import mocap, normal, stunts
 from tools.sim.fbx import take
 
@@ -266,8 +266,8 @@ def emitted(name, got, ref):
     the suite's nominal moved by the take's change off `ref`'s, so `ref` emits the nominal; a
     duck of 0 mm none; a take striding under two soles steps in place, no walk to emit."""
     c, rc = got['clock'], ref['clock']
-    if not c['stride-mm'] >= 4e3 * modal.HALF_M:
-        raise ValueError('steps in place: a stride of %.0f mm, under two soles %.0f' % (c['stride-mm'], 4e3 * modal.HALF_M))
+    if not c['stride-mm'] >= 4e3 * poise.HALF_M:
+        raise ValueError('steps in place: a stride of %.0f mm, under two soles %.0f' % (c['stride-mm'], 4e3 * poise.HALF_M))
     co, rco = got['coronal'], ref['coronal']
     sc, rsc = got['sidechain'], ref['sidechain']
     ax, rax = got['axial'], ref['axial']

@@ -10,7 +10,7 @@ has instead (VOICELESS), what she cannot do refused by name (REFUSED), anything 
 import math
 
 from machine.texts import dsp, ortho, patch
-from machine.law import modal, se2, supervisor
+from machine.law import modal, se2, statics, supervisor
 from machine.errors import MachineError
 
 #: Her voices' slots.
@@ -133,11 +133,11 @@ def _covered(node, param):
 
 def walk(fr, gym=None):
     """Her walk's row as her loop holds it: what the walk says (`gait.said`, of her gym's entries
-    `gym` where given), her rest where it says nothing (`modal.rest`, of her statics `fr`)."""
+    `gym` where given), her rest where it says nothing (`statics.rest`, of her statics `fr`)."""
     import numpy as np
     from machine.law import gait
     said = gait.said(gym)
-    return np.where(np.isnan(said), modal.rest(fr), said)
+    return np.where(np.isnan(said), statics.rest(fr), said)
 
 
 def voiced(g, dry, fr, gym=None):

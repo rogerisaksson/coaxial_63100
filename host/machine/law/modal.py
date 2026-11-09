@@ -1,8 +1,6 @@
 """Her latent modes on her body: what is sensed read as modes, the loop's ask laid flat.
 
     y = modal.sensed(s, loads, y)                       # flat, of `wbc.sense`'s s and her soles' N
-    fr = modal.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # her statics, once
-    rest = modal.rest(fr)                               # her rest vector (`latent.state`)
     z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
     posed = modal.poses(a, y, fr, posture, bend, arms, reaches, folds, knees)  # the stack's ask's arithmetic
     ask = modal.given(a, y, posed, knees, bend, fr)     # the stack's ask (`wbc.step`) of `a`
@@ -23,15 +21,14 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import latent, rocker
+from machine.law import rocker
 from machine.moves import leap
 from machine.texts import ortho
 from machine.stack import rounds
 from machine.body import gait, terms
 from machine.body.figure import ANKLE_H, SHANK, THIGH
-from machine.law.poise import HALF_M, TINY, clip
-from machine.law.stride import ALONG, LEFT, LIMBS, ROCK_RAD, STRIDE_M, UP
-from machine.stack.wbc import HEIGHT_KD, POSTURE_KD, TURN_KD
+from machine.law.poise import TINY, clip
+from machine.law.stride import ALONG, LEFT, LIMBS, UP
 
 G = 9.81
 N = ortho.N
@@ -194,51 +191,6 @@ def _turned(yaw, pitch, roll):
     (cy, cp, cr), (sy, sp, sr) = np.cos(0.5 * np.stack([yaw, pitch, roll])), np.sin(0.5 * np.stack([yaw, pitch, roll]))
     return np.stack([cy * cp * cr + sy * sp * sr, cy * sp * cr + sy * cp * sr,
                      sy * cp * cr - cy * sp * sr, cy * cp * sr - sy * sp * cr], axis=1)
-
-
-def frame(y, mass, limb, trunk, arm, forearm, knee, dt):
-    """Her statics of what is sensed standing: `mass` hers, a `limb`'s, her `trunk`'s, an
-    `arm`'s and a `forearm`'s, kg; `knee` her knees' bend, rad; `dt` s from an ask to the next."""
-    q = y[QUAT]
-    yaw = 2.0 * np.arctan2(q[2], q[0])
-    s, c = np.sin(yaw), np.cos(yaw)
-    rot = np.array([[s, 0.0, c], [c, 0.0, -s], [0.0, 1.0, 0.0]])
-    soles = y[SOLE].reshape(2, 3)
-    legs = y[HIP].reshape(2, 3) - soles + leap.MIDDLE * rot[ALONG] - ANKLE_H * rot[UP]
-    fr = np.zeros(FRAME)
-    fr[ROT] = rot.ravel()
-    fr[FLOOR], fr[FLOOR_AT] = soles[:, 1].mean(), soles[:, [0, 2]].mean(axis=0)
-    fr[H0] = y[COM][1] - fr[FLOOR]
-    fr[W0] = 0.5 * abs((soles[0] - soles[1]) @ rot[LEFT])
-    fr[OMEGA], fr[WEIGHT], fr[KNEE], fr[DT] = np.sqrt(G / fr[H0]), mass * G, knee, dt
-    fr[PITCH0] = _turns(y, rot)[0][0]
-    fr[HEADING], fr[ARM0], fr[ELBOW0] = yaw, y[ARM], y[ELBOW]
-    fr[REACH0], fr[HIPS_BY] = np.linalg.norm(legs, axis=1).mean(), mass / (mass - limb)
-    fr[UNIT] = (AXIAL_M, fr[W0], STRIDE_M, PITCH_RAD, HALF_M, 0.5 * CLEAR_M, fr[W0], LIST_RAD, TURN_RAD,
-                ARM_RAD, ROCK_RAD, ARM_RAD, ARM_RAD)
-    fr[Z0] = HOT[AXIAL] * fr[H0] / AXIAL_M - HOT[WIDTH]
-    fr[MASS] = masses(mass, limb, trunk, arm, forearm)
-    return fr
-
-
-def masses(mass, limb, trunk, arm, forearm):
-    """The mass each mode moves, kg, of hers, a limb's, her trunk's, an arm's and a forearm's."""
-    return np.array([mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb, arm, forearm])
-
-
-def rest(fr):
-    """Her rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
-    her rhythm off at 1 Hz, her ZMP in her support polygon, her yaw momentum free, what bears her
-    unsaid - her soles alone then (`observer.weighed`), nothing capped (`somatic.asked`)."""
-    floor = REST_K * fr[OMEGA], fr[OMEGA] + REST_K
-    p = np.zeros(ortho.P)
-    for part, kd in ((latent.K, 0), (latent.D, 1)):
-        p[part] = fr[MASS] * np.array([HEIGHT_KD[kd], floor[kd], LIMB_KD[kd], TURN_KD[kd], floor[kd],
-                                       LIMB_KD[kd], LIMB_KD[kd], TURN_KD[kd], TURN_KD[kd],
-                                       POSTURE_KD[kd], TURN_KD[kd], POSTURE_KD[kd], POSTURE_KD[kd]])
-    p[latent.HZ], p[latent.ZMP], p[latent.YAW] = 1.0, SUPPORT, FREE
-    p[latent.MANIFOLD] = 0.0
-    return p
 
 
 def _legs(y, rot):

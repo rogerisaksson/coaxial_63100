@@ -1,6 +1,6 @@
 """Her latent space, stepped: rows blended into one vector, her rhythm turned, her modes asked.
 
-    st = latent.state(rest)                       # (STATE,) at her rest vector (`modal.rest`)
+    st = latent.state(rest)                       # (STATE,) at her rest vector (`statics.rest`)
     tab = latent.table(wire, begin, rest)         # (n, TABLE): rows (`ortho.compiled`) from `begin` s
     out = latent.step(st, tab, now, dt, out)      # (OUT,): what her modes are asked this pass
 

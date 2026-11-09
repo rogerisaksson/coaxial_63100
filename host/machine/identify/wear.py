@@ -25,7 +25,7 @@ from machine.identify import campaign, identified, sysid
 from machine.body import drives, mechatronics
 from machine.senses import edge
 from machine.moves import leap
-from machine.law import modal
+from machine.law import modal, statics
 from machine.errors import MachineError
 
 #: Where a load may ride on her limbs: her hands. Her back's load is seen by her drives only
@@ -259,7 +259,7 @@ def landed(w, moved, g=None):
         fr = g['fr']
         fr[modal.WEIGHT] = mass * modal.G
         fr[modal.HIPS_BY] = mass / (mass - limb)
-        fr[modal.MASS] = modal.masses(mass, limb, trunk, arm, forearm)
+        fr[modal.MASS] = statics.masses(mass, limb, trunk, arm, forearm)
     return touched
 
 
