@@ -32,11 +32,13 @@ def melted(melt, share, was, dt):
 
 
 def melting(g, _out, told, _weighed, _dt):
-    """Whether `step` works this pass: her soles told no more than twice what her lower legs weigh resting, or her melt
-    or her rest kept off zero. Else its share and its rest are 0, its melt held at 0 and her springs times 1.0 -
-    nothing: its rest is no step (`composer`)."""
-    said = max(float(told.sum()), 1.0)
-    return (float(told[0]) <= 2.0 * RESTS * said or g.get('melt', 0.0) != 0.0 or g.get('rested', 0.0) != 0.0
+    """Whether `step` works this pass, as its own zeros say: a share told off her soles while her soles are told none,
+    her soles told some but no more than twice what her lower legs weigh resting, or her melt or her rest kept off zero.
+    Else its share and its rest are 0, its melt held at 0 and her springs times 1.0 - nothing: its rest is no step
+    (`composer`). Told nothing - her walk's -, it had been reckoned at work, 34 us a law pass."""
+    said, soles = max(float(told.sum()), 1.0), float(told[0])
+    return ((float(told[1:].sum()) != 0.0 and soles <= 0.0) or 0.0 < soles <= 2.0 * RESTS * said
+            or g.get('melt', 0.0) != 0.0 or g.get('rested', 0.0) != 0.0
             or g.get('melt_was', 0.0) != 0.0 or g.get('rested_was', 0.0) != 0.0)
 
 
