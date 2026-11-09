@@ -89,6 +89,10 @@ class Here:
         joined(g)
         return registry.boxes(g['registry'], least)
 
+    def ready(self):
+        """Nothing to wait for: her looks are hers here."""
+        return self
+
     def close(self, wait=1.0):
         pass
 
@@ -101,10 +105,12 @@ class Apart:
 
     def __init__(self):
         self._aside, self.pending, self._looks = aside.Aside('machine.eyes.vision', 'her vision'), False, []
-        self._things, self._boxed = None, {}
+        self._things, self._boxed, self._owed = None, {}, False
 
     def start(self, g=None, looks=(), head=None, dt=0.0, everywhere=True, at=None):
-        """`Here.start` asked of its process - the look in flight before it dropped -; `g` None, its process spawned."""
+        """`Here.start` asked of its process - the look in flight before it dropped -; `g` None, its process spawned,
+        its ready owed (`ready`)."""
+        self._owed = self._owed or self._aside.process is None
         self._aside.start()
         if g is None:
             return
@@ -130,10 +136,19 @@ class Apart:
         """The look in flight's things, waited for: those it last laid where its boxes are theirs to the bit (SAME) -
         seated, every look's; built anew each, 105 us of numpy floats in tuples a look."""
         self.pending = False
-        got = self._aside.recv()
+        got = self.ready()._aside.recv()
         if not isinstance(got, str):
             self._things = registry.things(*got)
         return self._things
+
+    def ready(self):
+        """Its process booted - its C warmed (`registry.warm`, `main`) -, its ready taken: waited for once, before her
+        first pass (`worker.readied`) or her first answer; itself. Asked at her first pass, her vision's boot held it
+        0.66 s."""
+        if self._owed:
+            self._owed = False
+            self._aside.recv()
+        return self
 
     def boxes(self, g, least):
         """Her registry's boxes at `least` salience (`registry.boxed` there), a look in flight joined first: asked of
@@ -143,7 +158,7 @@ class Apart:
         joined(g)
         if least not in self._boxed:
             self._aside.send(('boxes', _laid(g), least))
-            self._boxed[least] = registry.things(*self._aside.recv())
+            self._boxed[least] = registry.things(*self.ready()._aside.recv())
         return self._boxed[least]
 
     def close(self, wait=1.0):
@@ -168,7 +183,8 @@ def _laid(g):
 
 def main():
     """Her vision apart (`aside.serve`): her registry as laid, each look - its changes on the last - passed into
-    it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first (`registry.warm`)."""
+    it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first (`registry.warm`),
+    its ready said then (`Apart.ready`)."""
     import numpy as np
     kept: dict = {'looks': []}
     registry.warm()
@@ -193,7 +209,7 @@ def main():
             return SAME
         kept['said'] = bits
         return boxes
-    aside.serve(answered)
+    aside.serve(answered, ready=True)
 
 
 if __name__ == '__main__':

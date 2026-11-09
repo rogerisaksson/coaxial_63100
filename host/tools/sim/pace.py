@@ -56,6 +56,7 @@ class Run:
             s['g']['vision'].start()
         s['worn'] = worn.Apart(worker.DT).start()
         s['worn'].laid(s['wear'])
+        worker.readied(s)
         self.seconds: list = []
         self.said, self.wall, self.second = 0.0, time.perf_counter(), math.floor(self.t)
 

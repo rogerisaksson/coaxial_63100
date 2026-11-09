@@ -181,6 +181,14 @@ def apply(s, command):
         s['refused'] = str(error)
 
 
+def readied(s):
+    """Her processes apart booted before her first pass - her vision's C warm (`vision.Apart.ready`), her camera's model
+    and renderer laid (`camera.Camera.ready`) -, beside her laying: her vision's boot held her first pass 0.66 s."""
+    s['g']['vision'].ready()
+    if s['g']['keep'] is not None:
+        s['g']['keep'].ready()
+
+
 @functools.cache
 def _errand():
     """`machine.way.errand`, imported at her first pass and not walked again each (a package's fromlist)."""
@@ -283,7 +291,8 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     unless `walks`. Run apart (`apart.paced`), no further than its lead past what her page has
     `shown`. Her registry's things are her eyes' (`physics.SIGHT`: her stereo pair drawn and matched, its map
     classified), her vision's panel their view - the world's boxes are her page's drawing alone; her planner and
-    her vision (`vision.Apart`) spawned warm; placed a core apart (`placed`)."""
+    her vision (`vision.Apart`) spawned warm, her vision and her camera waited for warm before her first pass
+    (`readied`); placed a core apart (`placed`)."""
     placed.placed()
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
@@ -293,6 +302,7 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     s['g']['vision'].start()
     s['worn'] = worn.Apart(DT).start()
     s['worn'].laid(s['wear'])
+    readied(s)
     if os.environ.get(TELEMETRY):
         from machine.process import introspect
         introspect.attach(s, int(os.environ[TELEMETRY]))
