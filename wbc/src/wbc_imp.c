@@ -397,6 +397,15 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   th[0] = (turns * hurry[0]) / (1.0 - begun[0]);
   th[1] = (turns * hurry[1]) / (1.0 - begun[1]);
   wbc_imp_guarded(k, meet, over, flat, apart, fr + k->f_planted, held2);
+  /* each sole's landing and its aim this pass, told in the ask (modal.MEET, modal.AIM) */
+  for (int b = 0; b < 2; b++)
+  {
+    for (int j = 0; j < 2; j++)
+    {
+      a[k->a_meet + (2 * b) + j] = meet[b][j];
+      a[k->a_aim + (2 * b) + j] = held2[b][j];
+    }
+  }
   wbc_imp_goes(k, held2, flat, shod, v, u, off, th, kpf, kdf, phi_w, g2);
   for (int b = 0; b < 2; b++)
   {

@@ -130,7 +130,9 @@ BEGUN = slice(79, 81)
 #: And each leg's hold's dip, m: its hip under the height its heel rises for (`rocker.heels`' reach, `vault.vaults`
 #: holds it there) - the leg's bend past its asked length, and past the heel's need its hip's fall under the arc.
 DIP = slice(81, 83)
-ASK = 83
+#: And each sole's landing (`stride.meets`) and its aim this pass (`stride.guarded`), on her way, m.
+MEET, AIM = slice(83, 87), slice(87, 91)
+ASK = 91
 
 #: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
 _G = gait.table('modes')
