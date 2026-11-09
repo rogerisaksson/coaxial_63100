@@ -101,7 +101,7 @@ class Apart:
 
     def __init__(self):
         self._aside, self.pending, self._looks = aside.Aside('machine.eyes.vision', 'her vision'), False, []
-        self._things = None
+        self._things, self._boxed = None, {}
 
     def start(self, g=None, looks=(), head=None, dt=0.0, everywhere=True, at=None):
         """`Here.start` asked of its process - the look in flight before it dropped -; `g` None, its process spawned."""
@@ -114,7 +114,7 @@ class Apart:
         # her head as floats, its arrays laid anew there (`main`): two arrays pickled were most of an ask's 37 us
         self._aside.send(('look', _laid(g), self._changed(looks), len(looks), (tuple(map(float, head['pos'])),
                           tuple(map(float, head['quat']))), g['t'] if at is None else at, dt, everywhere))
-        self.pending = True
+        self.pending, self._boxed = True, {}
 
     def _changed(self, looks):
         """{place: look} of `looks` not as last sent - a part not the same object, its tuples and floats the same
@@ -136,9 +136,15 @@ class Apart:
         return self._things
 
     def boxes(self, g, least):
+        """Her registry's boxes at `least` salience (`registry.boxed` there), a look in flight joined first: asked of
+        her process once a look - her registry moves at a look alone (`start`, its 'look'), `boxed` reads it -, the same
+        bits after. Asked each pass, her errand's look for a thing (`words._glimpsed`) spent 427 us a pass on the
+        round trip: 23 % of her door errand's wall time, her eyes hers."""
         joined(g)
-        self._aside.send(('boxes', _laid(g), least))
-        return registry.things(*self._aside.recv())
+        if least not in self._boxed:
+            self._aside.send(('boxes', _laid(g), least))
+            self._boxed[least] = registry.things(*self._aside.recv())
+        return self._boxed[least]
 
     def close(self, wait=1.0):
         self._aside.close(wait)
