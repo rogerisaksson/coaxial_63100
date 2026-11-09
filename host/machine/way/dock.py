@@ -140,6 +140,8 @@ def docked(at, things, floor, sc, box, standoff):
     if over and not seated.reaches(affordance.top(box)):
         return None
     across = seated.placed(seated.ON, 0.0)[2] if over else across
+    things = [t for t in things if t is box or not (
+        affordance.top(t) <= affordance.bottom(box) + voxels.CELL_M + 1e-9 and affordance.covered(box, t) > 0.0)]
     cells = route.blocked(things, floor)
     far = walked(at, cells)
     s_dock = poise.HALF_M + standoff
@@ -149,7 +151,8 @@ def docked(at, things, floor, sc, box, standoff):
     rows = []
     for hn in furniture.GOES[sc][2](box, things):
         n, tan = np.array([math.sin(hn), math.cos(hn)]), np.array([math.cos(hn), -math.sin(hn)])
-        edge, lat = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi) - across
+        span = affordance.support(box, hn + 0.5 * math.pi)
+        edge, lat = affordance.support(box, hn), span - (min(across, span) if span >= figure.HIP_HALF else across)
         mid = np.array([float(box[1][0]), float(box[1][2])]) + edge * n
         steps = int(max(lat, 0.0) / voxels.CELL_M)
         offs = [0.0] * (lat >= 0.0) + [s * k * voxels.CELL_M for k in range(1, steps + 1) for s in (1.0, -1.0)]
@@ -160,12 +163,13 @@ def docked(at, things, floor, sc, box, standoff):
         return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)
 
     def turned(edge, hn, n, a):
-        """(len(outs),) whether her turn onto the dock from arrival `a` at each stage leaves her things
-        her skin, its end's spread and her stop's along her arrival."""
-        heading = hn + math.pi + a
+        """(len(outs),) whether her turn onto the dock from arrival `a` at each stage, and where her stop's
+        spread along `a` toward the face carries her nearest, leaves her things her skin and its end's spread."""
+        heading, stop = hn + math.pi + a, se2.STOP_SPREAD_M * max(0.0, math.cos(a))
         poses = np.column_stack([edge + outs[:, None] * n, np.full(len(outs), heading)])
-        return np.any([gaps(poses, footprint.swept(d, w)) >= wayfinder.MARGIN + footprint.spread(d, w)
-                       + se2.STOP_SPREAD_M * max(0.0, math.cos(a)) for w, d in _ways(heading, hn)], axis=0)
+        near = np.column_stack([edge + (outs - stop)[:, None] * n, np.full(len(outs), heading)])
+        return np.any([np.minimum(gaps(poses, footprint.swept(d, w)), gaps(near, footprint.swept(d, w)))
+                       >= wayfinder.MARGIN + footprint.spread(d, w) for w, d in _ways(heading, hn)], axis=0)
 
     def backed(edge, hn, n):
         """(len(outs),) whether her walk back from each stage onto the dock leaves her things her skin."""
@@ -175,8 +179,9 @@ def docked(at, things, floor, sc, box, standoff):
 
     def laid(row):
         off, hn, edge, n, lat, rank = row
-        fits = np.ones(1, bool) if run_in is not None else backed(edge, hn, n) & np.all(
-            [turned(edge, hn, n, a) for a in ARRIVALS], axis=0)
+        turns = [turned(edge, hn, n, a) for a in ARRIVALS] if run_in is None else []
+        fits = np.ones(1, bool) if run_in is not None else (
+            backed(edge, hn, n) & turns[0] & (turns[1] | turns[2]) & (turns[3] | turns[4]))
         s = float(outs[np.argmax(fits)]) if fits.any() else None
         stage = edge + (s or 0.0) * n
         cell = route._cell(*stage)

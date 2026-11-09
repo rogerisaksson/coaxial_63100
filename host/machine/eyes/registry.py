@@ -324,7 +324,8 @@ def boxed(slots, least=TAKEN):
     from machine.eyes import sight
     r, kinds = slots['rows'], slots['kinds']
     taken = np.flatnonzero((r['on'] > 0.0) & (r['salience'] >= least))
-    swell = r['swell'][taken] + sight.LOOK_S * np.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
+    wake = np.array([kinds[i] == 'door' for i in taken], float) * r['shown'][taken]
+    swell = r['swell'][taken] + sight.LOOK_S * wake * np.hypot(r['vel'][taken, 0], r['vel'][taken, 2])
     return ([kinds[i] for i in taken], r['centre'][taken], r['half'][taken], r['R'][taken], taken.tolist(),
             r['clear'][taken].tolist(), swell.tolist())
 

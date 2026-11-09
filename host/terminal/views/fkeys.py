@@ -42,3 +42,23 @@ def slotted(state, now, got, turn):
     for i, s in at.items():
         held[s] = (got[i][0],) + tuple(got[i][4])
     return sorted(((s, got[i]) for i, s in at.items()), key=lambda p: p[0])
+
+
+def paired(on, docks, reach_m, onto_m):
+    """`docks` paired in the room's frame with their identified offers `on` [(key, verb, word, at, ..)]:
+    each dock bound to the offer of its verb nearest its faces (`'for'`), within `reach_m` (`onto_m` for
+    a seat) so an unidentified seat's dock never steals another's balloon."""
+    out, taken = [], set()
+    for d in docks:
+        if not d.get('at'):
+            continue
+        mx = sum(float(p[0]) for p in d['at']) / len(d['at'])
+        mz = sum(float(p[2]) for p in d['at']) / len(d['at'])
+        span = onto_m if d.get('kind') == 'sit_chair' else reach_m
+        near = [(math.hypot(mx - float(o[3][0]), mz - float(o[3][2])), i) for i, o in enumerate(on)
+                if i not in taken and o[1] == d.get('kind')]
+        if near and min(near)[0] <= span:
+            i = min(near)[1]
+            taken.add(i)
+            out.append(dict(d, **{'for': i}))
+    return out

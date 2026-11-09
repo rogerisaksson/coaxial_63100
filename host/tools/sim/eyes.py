@@ -38,6 +38,24 @@ def _stood(world, heading, at=(0.0, 0.0)):
                 turn=(math.cos(heading / 2.0), 0.0, math.sin(heading / 2.0), 0.0))
 
 
+def _looked(world, sights, keep, slots, a, k):
+    """One look at step `k` of `a.looks` in `eyes.py`, at `a.gaze` and the downward row where `a.gaze` is at rest."""
+    from machine.eyes import gaze, registry, sight
+    _stood(world, math.tau * k / a.looks + math.radians(a.turn), (a.at or [(0.0, 0.0)])[k // a.looks])
+    hb = world.model.body('head').id
+    head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
+    base = tuple(math.radians(v) for v in a.gaze)
+    rows = (base, (base[0], gaze.HALF[1], base[2])) if base == (0.0, 0.0, 0.0) and not a.camera else (base,)
+    took = 0.0
+    for r_idx, gz in enumerate(rows):
+        gaze.aimed(world, gz)
+        t0 = time.perf_counter()
+        keep.took(*(sights.shot(world, head) if a.camera else sights.stereo(world, head, gz)))
+        took += time.perf_counter() - t0
+        registry.seen(slots, sight.told(keep), head, (2 * k + r_idx) * sight.LOOK_S)
+    return took, sight.eye_pose(head)[0]
+
+
 def axis(half, R):
     """The turn of a box's longer floor axis, rad in [0, pi)."""
     k = 0 if half[0] >= half[2] else 2
@@ -298,15 +316,9 @@ def main(argv=None):
         hb = world.model.body('head').id
         took, eyes = [], []
         for k in range(a.looks * len(a.at or [None])):
-            _stood(world, math.tau * k / a.looks + math.radians(a.turn), (a.at or [(0.0, 0.0)])[k // a.looks])
-            head = {'pos': np.array(world.data.xpos[hb]), 'quat': np.array(world.data.xquat[hb])}
-            gz = tuple(math.radians(v) for v in a.gaze)
-            gaze.aimed(world, gz)
-            t0 = time.perf_counter()
-            keep.took(*(sights.shot(world, head) if a.camera else sights.stereo(world, head, gz)))
-            took.append(time.perf_counter() - t0)
-            eyes.append(sight.eye_pose(head)[0])
-            registry.seen(slots, sight.told(keep), head, k * sight.LOOK_S)
+            dt, eye = _looked(world, sights, keep, slots, a, k)
+            took.append(dt)
+            eyes.append(eye)
         props = visible(world.props(), np.mean(eyes, axis=0), voxels.FLOOR_M, voxels.CEIL_M, voxels.FAR_M)
         if a.column:
             print('her eyes %.2f m up; her map over (%.2f, %.2f):' % (float(np.mean(eyes, axis=0)[1]), *a.column))

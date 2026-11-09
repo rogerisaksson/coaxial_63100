@@ -210,7 +210,7 @@ def ballooned(state, offer, width, height, travel, docked=()):
     a drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
     cells; framed lit while F's choice is open; her errand's between its docks (`dock.shown`, `spokes`)."""
     on = [o for o in offer if o[3] is not None]
-    docks = (state.get('now') or {}).get('docks') or []
+    docks = fkeys.paired(on, (state.get('now') or {}).get('docks') or [], REACH_M, ONTO_M)
     places = gynoid.cells([o[3] for o in on] + [at for d in docks for at in d['at']], width, height, yaw=state['yaw'],
                           pitch=state['pitch'], zoom=state['zoom'], travel=travel, pan=viewpoint.panned(state))
     return balloons.docked(places, [o[:3] for o in on], docks, width, height, state.get('choosing') is not None,

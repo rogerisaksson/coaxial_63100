@@ -26,7 +26,8 @@ _SLABS = [s.args['z-window-mm'] for s in kernel.node('configure-foliated-sdf-ban
 #: side at least, m; over a seat the mid-pelvic and high-thoracic slabs clear, over a bed the high one, m.
 SEAT_M = tuple(1e-3 * z for z in _KERNELS[':sit-on-fixture']['elevation-window-z-mm'])
 SEAT_M2 = 1e-6 * _KERNELS[':sit-on-fixture']['min-polygon-area-mm2']
-BED_TOP_M = 1e-3 * _KERNELS[':lie-supine-on-fixture']['elevation-window-z-mm'][1]
+BED_M_WIN = tuple(1e-3 * z for z in _KERNELS[':lie-supine-on-fixture']['elevation-window-z-mm'])
+BED_TOP_M = BED_M_WIN[1]
 BED_M = 1e-3 * _KERNELS[':lie-supine-on-fixture']['min-major-axis-length-mm']
 SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (1e-3 * _SLABS[2][0], 1e-3 * _SLABS[2][1])
 #: Her lumbar's height over her seat, sat upright, m: the torso's first dorsal point (`figure.BODY`, the
@@ -100,11 +101,11 @@ def sits(box, things):
 
 
 def lies(box, things):
-    """Whether `box` beds her among `things`: its top under BED_TOP_M, its long side BED_M or more, nothing
-    over it in the high slab."""
+    """Whether `box` beds her among `things`: its top in BED_M_WIN, its long side BED_M or more, its width
+    her shoulders' (`figure.ASIDE`) or more, nothing over it in the high slab."""
     _c, _axes, h = footprint(box)
-    return (surface(box) and top(box) <= BED_TOP_M and 2.0 * float(h.max()) >= BED_M
-            and clear(box, things, BED_CLEAR) >= 4.0 * float(h[0] * h[1]) - 1e-9)
+    return (surface(box) and BED_M_WIN[0] <= top(box) <= BED_TOP_M and 2.0 * float(h.max()) >= BED_M
+            and float(h.min()) >= figure.ASIDE and clear(box, things, BED_CLEAR) >= 4.0 * float(h[0] * h[1]) - 1e-9)
 
 
 def back_of(box, things):

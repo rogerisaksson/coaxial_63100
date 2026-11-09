@@ -21,6 +21,7 @@ from machine.eyes import classes, sight, stereo, voxels
 
 #: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
 AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
+               'stool': ('sit_chair', 'sit'), 'bench': ('sit_chair', 'sit'), 'sofa': ('sit_chair', 'sit'),
                'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
                'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
@@ -68,7 +69,7 @@ class VisionScanner:
     def __init__(self):
         self._ollama_checked = False
         self._ollama_model = None
-        self._laid, self._known = None, set()
+        self._laid, self._known, self._places = None, set(), []
 
     def model_name(self):
         """Return the name of the local Ollama model if connected, else 'local/stereo'."""
@@ -95,9 +96,20 @@ class VisionScanner:
         its edge none of its; held to the wider `scan`, F offered things no look of hers had shown."""
         laid = (now.get('scenario'), now.get('epoch')) if now else None
         if laid != self._laid:
-            self._laid, self._known = laid, set()
-        self._known |= {d['index'] for d in self.seen(now)}
-        return [d for d in self.scan(now, reach=SIGHT_M) if d['index'] in self._known]
+            self._laid, self._known, self._places = laid, set(), []
+        for d in self.seen(now):
+            self._known |= d.get('slots', {d['index']})
+            lo = (d['pos'][0] - d['extent'][0], d['pos'][2] - d['extent'][2])
+            hi = (d['pos'][0] + d['extent'][0], d['pos'][2] + d['extent'][2])
+            if not _met(d, self._places):
+                self._places.append((d['kind'], lo, hi))
+        out = []
+        for d in self.scan(now, reach=SIGHT_M):
+            slots = d.get('slots', {d['index']})
+            if slots & self._known or _met(d, self._places):
+                self._known |= slots
+                out.append(d)
+        return out
 
     def seen(self, now):
         """What her eyes' view holds (`scan`'s within FAR_M, ACROSS of her heading): her vision's panel."""
@@ -165,14 +177,23 @@ class VisionScanner:
         return found
 
 
+def _met(d, places):
+    """Whether `d`'s footprint over the floor meets one of `places` [(kind, (x0, z0), (x1, z1))] of its kind."""
+    lo = (d['pos'][0] - d['extent'][0], d['pos'][2] - d['extent'][2])
+    hi = (d['pos'][0] + d['extent'][0], d['pos'][2] + d['extent'][2])
+    return any(k == d['kind'] and a[0] <= hi[0] and lo[0] <= b[0] and a[1] <= hi[1] and lo[1] <= b[1]
+               for k, a, b in places)
+
+
 def _one(pieces):
     """One thing of its `pieces` (`scan`'s, of one group): its nearest piece's kind, distance and label, that piece's
     place `near`, the box round them all its `pos` and `extent`, the lowest slot its `index`."""
     near = min(pieces, key=lambda d: d['dist'])
     lo = [min(d['pos'][k] - d['extent'][k] for d in pieces) for k in range(3)]
     hi = [max(d['pos'][k] + d['extent'][k] for d in pieces) for k in range(3)]
-    return dict(near, index=min(d['index'] for d in pieces), near=near['pos'],
-                pos=tuple(0.5 * (a + b) for a, b in zip(lo, hi)), extent=tuple(0.5 * (b - a) for a, b in zip(lo, hi)))
+    return dict(near, index=min(d['index'] for d in pieces), slots=frozenset(d['index'] for d in pieces),
+                near=near['pos'], pos=tuple(0.5 * (a + b) for a, b in zip(lo, hi)),
+                extent=tuple(0.5 * (b - a) for a, b in zip(lo, hi)))
 
 
 def _render_plate_row(row_idx, top, left, width, text, code, key_frame):

@@ -31,14 +31,17 @@ def _dotted(a, b, width, height):
     return {(int(r), int(c)): int(bits[r, c]) for r, c in zip(*np.nonzero(bits))}
 
 
-def between(places, verbs, kind, rings):
+def between(places, verbs, kind, rings, mine=None):
     """(`places` with the balloon of verb `kind` nearest `rings`' middle at it, that middle - None
     with no ring on the drawing -, its index): a thing's balloon between its docks."""
     seen = [p for p in rings if p]
     mid = tuple(round(sum(c) / len(seen)) for c in zip(*seen)) if seen else None
-    near = [(abs(p[0] - mid[0]) + abs(p[1] - mid[1]), i) for i, (p, v) in enumerate(zip(places, verbs))
-            if v == kind and p and mid]
-    mine = min(near)[1] if near else None
+    if mine is None:
+        near = [(abs(p[0] - mid[0]) + abs(p[1] - mid[1]), i) for i, (p, v) in enumerate(zip(places, verbs))
+                if v == kind and p and mid]
+        mine = min(near)[1] if near else None
+    elif mid is None or not (0 <= mine < len(places)) or verbs[mine] != kind or not places[mine]:
+        mine = None
     return [mid if i == mine else p for i, p in enumerate(places)], mid if mine is not None else None, mine
 
 
@@ -50,7 +53,7 @@ def docked(places, tags, docks, width, height, lit=False, shut=frozenset()):
     balloons, at = list(places[:n]), n
     for dock in docks:
         rings, at = places[at:at + len(dock['at'])], at + len(dock['at'])
-        balloons, mid, mine = between(balloons, verbs, dock['kind'], rings)
+        balloons, mid, mine = between(balloons, verbs, dock['kind'], rings, dock.get('for'))
         if mine is not None:
             verbs[mine] = None
             spoked.append((mid, rings, dock['chosen']))

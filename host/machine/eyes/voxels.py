@@ -12,7 +12,7 @@ the `palette`'s whose body colour its chromaticity lies nearest, the light's whi
 dichromatic model: a highlight lies on the line from a kind's chroma to grey, so a lit timber wall
 stays timber and a grey patch its neighbours'). A top is an occupied voxel seen through above with
 nothing standing in the layer above round it - its normal up, a hole in a wall's face none -, or by one
-with nothing over it and its points level (sharpened, `_segmented`); a
+with nothing over it and its points level (`_segmented`); a
 surface the 4-connected tops of one level, a structure the 26-connected rest - joined apart over
 and under a surface within its footprint a voxel round: what stands on a seat is not what holds it
 up -, each wall one, a chair's seat a surface, its back and its legs structures; a part of a
@@ -20,13 +20,12 @@ structure whose colour differs from
 the structure's past the three-sigma test on its own pixels (`SIGMA`) a thing of its own - the door
 in the glass gable, a chair's back against a wall; a structure resting on nothing, neither the floor's
 layer nor under a surface, a stray left out. A surface's kind its pooled colour's, a structure's the kind
-most of its voxels have, its test read on those - a glass gable seen from both sides pooled to neither glass
-nor its door's, and kept the door in it -; a thing's box the floor its voxels' points cover, its axes
+most of its voxels have, its test read on those; a thing's box the floor its voxels' points cover, its axes
 (its turn) and extents those corners', its height its voxels', a surface's top its points' (`_box`), a
 structure in pieces till no box claims floor further than a voxel from its cells (`_pieces`); its
 id the one of the thing it shares most voxels with at the look before, else new (`machine.eyes.registry`);
 `clear` 1.0 where the space over its top is seen through - a surface's -, 0.0 a structure's, its top
-unknown (`machine.way.affordance`: a seat or a bed is a surface). Nothing here reads the world's geometry.
+unknown (`machine.way.affordance`). Nothing here reads the world's geometry.
 """
 import math
 import os
@@ -38,12 +37,9 @@ import numpy as np
 from machine.body import figure
 from machine.world import room
 
-#: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high - her eyes' kept points
-#: fill none finer: at 0.05 m a look round told 553-791 things to 85 (HITS 1-3; 490-559 at 640 x 480), her
-#: registry's 256 slots all live and the bed off her buses -; a voxel is a thing from TOLD looks with HITS
-#: points in it; a point NEAR_M to FAR_M from the eye - further the depth is a tenth out, nearer is her own
-#: raised hand -; her own radius, inflating what she plans round: her widest half (`figure.WIDE_HALF`) and
-#: the map's half cell - 0.3 shut the 0.9 m doorway.
+#: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
+#: from TOLD looks with HITS points in it, NEAR_M to FAR_M from the eye; her own radius, inflating what
+#: she plans round (`figure.WIDE_HALF` and half a cell).
 CELL_M, X_M, Z_M, FLOOR_M, CEIL_M = 0.1, (-3.5, 3.5), (-2.0, 5.0), 0.08, 2.3
 HITS, TOLD, NEAR_M, FAR_M = 3, 2, 0.7, 3.5
 RADIUS_M = figure.WIDE_HALF + 0.5 * CELL_M
@@ -203,20 +199,21 @@ class Map:
     def _segmented(self):
         """([(kind, centre, half, R) each surface, then each structure], labels, the surfaces' count)."""
         occ, kind = self.occupied(), self.kinds()
+        n = np.maximum(self.moments[..., 0], 1.0)
+        mean_y = self.moments[..., 5] / n
         stood = np.zeros_like(occ)
         for di in (-1, 0, 1):
             for dk in (-1, 0, 1):
-                stood[max(0, -di):self.nx - max(0, di), :-1, max(0, -dk):self.nz - max(0, dk)] |= occ[
-                    max(0, di):self.nx - max(0, -di), 1:, max(0, dk):self.nz - max(0, -dk)]
+                s_i, d_i = slice(max(0, -di), self.nx - max(0, di)), slice(max(0, di), self.nx - max(0, -di))
+                s_k, d_k = slice(max(0, -dk), self.nz - max(0, dk)), slice(max(0, dk), self.nz - max(0, -dk))
+                over_y = (di == 0 and dk == 0) | (self.moments[d_i, 1:, d_k, 0] == 0) | (
+                    mean_y[d_i, 1:, d_k] - mean_y[s_i, :-1, s_k] > 0.5 * self.voxel)
+                stood[s_i, :-1, s_k] |= occ[d_i, 1:, d_k] & over_y
         above = np.zeros_like(occ)
         above[:, :-1] = self.free[:, 1:] > 0
         top = occ & ~stood & above
-        # sharpened: a voxel the cells round it held from a top though nothing stands over it, seen through above and
-        # its points level - their heights spread under a face's filling the voxel (a cell over root 12) - a top by
-        # one: a seat's rows by its back, a tread's by the next riser (the low chair's seat 0.20 m deep of 0.44 so);
-        # held to what stands over it alone, every voxel of a face under a ledge came a top, 275 things a look
-        n = np.maximum(self.moments[..., 0], 1.0)
-        level = (self.moments[..., 0] > 0) & (np.sqrt(np.maximum(self.moments[..., 6] / n - (self.moments[..., 5] / n) ** 2, 0.0))
+        # sharpened: a voxel held from a top though nothing stands over it, seen through above and its points level
+        level = (self.moments[..., 0] > 0) & (np.sqrt(np.maximum(self.moments[..., 6] / n - mean_y ** 2, 0.0))
                                               < self.voxel / math.sqrt(12.0))
         capped = np.zeros_like(occ)
         capped[:, :-1] = occ[:, 1:]
@@ -231,11 +228,21 @@ class Map:
             if (more == top).all():
                 break
             top = more
-        labels, out = np.full(occ.shape, -1), []
+        labels, out, parts = np.full(occ.shape, -1), [], []
         for j in range(self.ny):
             for i, k in _joined(top[:, j], _BESIDE):
-                labels[i, j, k] = len(out)
-                out.append(self._box(i, k, j, j, self._kind((i, np.full(len(i), j), k))[0]))
+                jj, knd = np.full(len(i), j), self._kind((i, np.full(len(i), j), k))[0]
+                c = self.moments[i, jj, k, 0].sum()
+                y = float(self.moments[i, jj, k, 5].sum() / c) if c > 0 else FLOOR_M + (j + 1) * self.voxel
+                met = [p for p in parts if p[3] == knd and abs(p[4] - y) <= 0.5 * self.voxel
+                       and (np.abs(p[0][:, None] - i) + np.abs(p[2][:, None] - k) <= 1).any()]
+                if met:
+                    met[0][:3] = [np.r_[a, b] for a, b in zip(met[0][:3], (i, jj, k))]
+                else:
+                    parts.append([i, jj, k, knd, y])
+        for i, jj, k, *_ in parts:
+            labels[i, jj, k] = len(out)
+            out.append(self._box(i, k, int(jj.min()), int(jj.max()), self._kind((i, jj, k))[0], jj, True))
         surfaces = len(out)
         # each voxel's nearest surface above it in its column, a voxel round: what holds a seat up is under
         # it, a back on the seat under its own top, a wall under none
@@ -271,9 +278,7 @@ class Map:
     def _pieces(self, at):
         """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at
         its mean till its box (`_box`) claims no floor further than a voxel from the cells its voxels stand
-        in: whole, the lodge's walls joined at its corners were one box 1.8-3.1 m off each wall. A surface
-        is told whole: its holes are what her eyes missed of a face seen from above - held to its cells, a
-        bed her stereo saw in patches came in pieces."""
+        in. A surface is told whole: its holes are what her eyes missed of a face seen from above."""
         out, todo = [], [np.arange(len(at[0]))]
         while todo:
             n = todo.pop()
@@ -302,12 +307,10 @@ class Map:
         _k, d = self._kind(part)
         return d[parent] * math.sqrt(float(self.hits[part].sum())) > SIGMA * max(pixel, 1e-9)
 
-    def _box(self, i, k, j_lo, j_hi, kind, j=None):
+    def _box(self, i, k, j_lo, j_hi, kind, j=None, surface=False):
         """A thing's box of its voxels - in the cells (i, k), levels j_lo to j_hi, each's `j` (j_lo all without) -:
         its footprint the floor its voxels' points cover, each's mean -+ root 3 sd along x and z (a uniform cover's)
-        held to its cell - voxels told without points their cells' middles a voxel wide -, its axes the text's fit
-        (`fitted`); its height its levels', a surface's top its points' mean. Held to its cells a seat came a voxel
-        coarse: the chair's 0.70 x 0.50 m 0.48 up for 0.61 x 0.44 at 0.47, so 0.58 x 0.43 at 0.467."""
+        held to its cell, its axes the text's fit (`fitted`); its height its levels', a surface's top its points' mean."""
         sums = self.moments[i, np.full(len(i), j_lo) if j is None else j, k]
         n, at, pad = sums[:, 0], np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel]), self.voxel
         lo, hi = FLOOR_M + j_lo * self.voxel, FLOOR_M + (j_hi + 1) * self.voxel
@@ -316,7 +319,7 @@ class Map:
             spread = math.sqrt(3.0) * np.sqrt(np.maximum(m[:, [2, 4]] - m[:, [1, 3]] ** 2, 0.0))
             ends = [np.clip(m[:, [1, 3]] + s * spread, cell - 0.5 * pad, cell + 0.5 * pad) for s in (-1.0, 1.0)]
             at, pad = np.concatenate([np.column_stack([e[:, 0], f[:, 1]]) for e in ends for f in ends]), 0.0
-            if j_lo == j_hi:
+            if j_lo == j_hi or surface:
                 hi = float(sums[:, 5].sum() / n.sum())
                 lo = hi - self.voxel
         a, b = fitted(at, pad)
@@ -339,9 +342,7 @@ class Map:
 
 def least_area(at, voxel):
     """(a, b) the floor axes of the least-area rectangle round points `at` (n, 2), a its longer: over
-    their hull's edges' directions, each extent a voxel wider (rotating calipers). 2000 boxes 0.3-2.5 m
-    laid at 0.1 m: turned 0.34 deg off at the median, 2.2 at the ninth decile (2.4 squarish), its area
-    1.26 of theirs there; their principal axes 0.63, 5.2 (26 squarish), 1.33."""
+    their hull's edges' directions, each extent a voxel wider (rotating calipers)."""
     from machine.eyes.sight import convex
     h = np.array(convex([tuple(p) for p in at]), float).reshape(-1, 2)
     e = np.roll(h, -1, axis=0) - h

@@ -66,8 +66,8 @@ STANCE = 2.0 * (figure.HEEL + figure.BALL + figure.TOE_M)
 #: A look that tells its class only where its box (top, bottom) bears it out, and the material it is taken for where
 #: not: a door's standing from the lowest slab past her brace - shaded timber reads as one, pixel by pixel -; a bed's
 #: lying under her brace - a glass gable reads as one against the room behind it.
-BORNE = {'door': (lambda top, bottom: bottom <= STEP and top > BRACE, 'timber'),
-         'bed': (lambda top, bottom: top <= BRACE, 'glass')}
+BORNE = {'door': (lambda top, bottom: bottom <= OVER and top > BRACE, 'timber'),
+         'bed': (lambda top, bottom: _WINDOWS[':lie-supine-on-fixture'][0] <= top <= BRACE, 'glass')}
 
 #: A top's class by its features (`of`), the first that holds: flush with the floor; a shallow top she steps onto, a
 #: rise off another - a stair's tread - or alone; one she stands on whole, or as deep and solid under it within her
@@ -214,15 +214,17 @@ def of(kinds, centre, half, R, clear):
     within = (gap + reach <= e[None, :, ::2] + CELL_M + 1e-9).all(axis=2) & ~np.eye(n, dtype=bool)
     # a piece of a raised top of its look: on its edge, its foot from the top's surface into the slab over it - a
     # chair's back -, or under it within its footprint - a leg, a face of what holds it up
-    pair = ((raw & ~see & ~(surface & wide))[:, None] & (surface & wide & (top > FLUSH))[None, :]
-            & (look[:, None] == look[None, :]))
+    wood = raw | np.isin(kinds, FURNITURE)
+    top_ = wood & (clear > 0.0) & wide & (top > FLUSH)
+    pair = (wood & ~see & ~top_)[:, None] & top_[None, :] & (look[:, None] == look[None, :])
     on = pair & beside & (bottom[:, None] >= top[None, :] - CELL_M - 1e-9) & (bottom[:, None] <= top[None, :] + OVER)
     under = pair & within & (top[:, None] <= bottom[None, :] + CELL_M + 1e-9)
-    held = on | under
     # her backrest at a seat's edge, the text's (`:verify-high-thoracic-slab-occupancy`, `affordance.back_of`'s): a
     # piece of its look beside it from no more than a cell over its top past her lumbar, its foot anywhere under - a
     # chair's back is one with its rear legs, a low chair's with the wall it stands against
-    backs = pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9) & (top[:, None] >= top[None, :] + LUMBAR)
+    backs = (pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9)
+             & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= BRACE))
+    held = on | under | backs
     # what she steps onto: a top no piece in the lowest slab, then each beside one she does a rise of it off it
     free = surface & ~held.any(axis=1)
     rise = beside & free[:, None] & free[None, :] & (np.abs(top[:, None] - top[None, :]) <= STEP)

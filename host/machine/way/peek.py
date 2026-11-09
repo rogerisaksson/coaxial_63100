@@ -12,13 +12,18 @@ things): a round of them some seconds, the loop never waiting on one (`planner.P
 import functools
 
 
+#: The verbs her page rings docks for (`scanner.AFFORDANCES`), and the classes that are no seats.
+VERBS, NO_SEAT = ('sit_chair', 'lie_bed', 'exit_door'), ('table', 'platform', 'step', 'stairs')
+
+
 def _goes(g):
     """[(verb, box)] each thing among hers a walked verb goes to (`furniture.GOES`), nearest her first."""
-    from machine.way import affordance, dock, furniture
+    from machine.way import affordance, furniture
     things = furniture._things(g, None)
     at = (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
-    got = [(affordance.distance(p, at), verb, p) for verb in dock.docks() for p in things
-           if furniture.GOES[verb][0](p, things)]
+    got = [(affordance.distance(p, at), verb, p) for verb in VERBS for p in things
+           if furniture.GOES[verb][0](p, things)
+           and (verb != 'sit_chair' or (not affordance.lies(p, things) and p[0] not in NO_SEAT))]
     return [(verb, p) for _d, verb, p in sorted(got, key=lambda h: h[0])]
 
 
@@ -64,7 +69,10 @@ def peeked(s):
     if told is not None and st['asked'] is not None and st['asked'][0] == st['epoch']:
         _epoch, verb, box = st['asked']
         laid = told.get('laid')
-        st['docks'][_key(verb, box)] = _shown(verb, box, laid) if laid and laid.get('reach') else None
+        if laid and laid.get('reach'):
+            st['docks'][_key(verb, box)] = _shown(verb, box, laid)
+        elif _key(verb, box) not in st['docks']:
+            st['docks'][_key(verb, box)] = None
     if planner.asked_at is not None:
         return
     if not st['todo']:

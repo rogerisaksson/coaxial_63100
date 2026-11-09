@@ -120,7 +120,7 @@ def _laid(g):
     return g.setdefault('_gaze', {'at': REST, 'to': REST, 'from': REST, 't0': float(g['t']), 'T': 0.0, 'jump': True,
                                   'on': False, 't': float(g['t']), 'points': [], 'held': 0, 'after': None, 'fix': None,
                                   'way': None, 'lead': 0.0, 'ground': None, 'walking': False, 'anchor': None, 'exploring': True, 'explore': None, 'seen': set(), 'visited': set(),
-                                  'here': (float(head['pos'][0]), float(head['pos'][2]))})
+                                  'here': (float(head['pos'][0]), float(head['pos'][2])), 'heading': _heading(head)})
 
 
 def _glimpses(g):
@@ -215,8 +215,9 @@ def _arrived(g, st):
     """Her gaze where nothing tells it - no way scanned, no place fixed, her errand none -: walking (her twist asked
     ahead or aside), what she explored dropped and her eyes on the ground she walks onto (`_anchored`), let go as she
     stops; her twist asked none and her head past NEAR_M from where she last explored (what she sees nearer her
-    stereo matches not), exploring anew - nothing seen from there, nothing looked at."""
-    if st['points'] or st['fix'] is not None or g.get('_errand'):
+    stereo matches not), exploring anew - nothing seen from there, nothing looked at -; turned a sector on, what she
+    had not reached from here explored."""
+    if st['points'] or st['fix'] is not None or (g.get('_errand') or {}).get('phase') not in (None, 'look'):
         return
     twist = g.get('twist', (0.0, 0.0, 0.0))
     walking = any(abs(float(v)) > 1e-9 for v in twist[:2])
@@ -226,9 +227,11 @@ def _arrived(g, st):
         st['anchor'] = _anchored(g)
         st['jump'] = st['jump'] or st['anchor'] is not None
     head = g['s']['head']
-    here = (float(head['pos'][0]), float(head['pos'][2]))
+    here, heading = (float(head['pos'][0]), float(head['pos'][2])), _heading(head)
     if not st['exploring'] and not any(abs(float(v)) > 1e-9 for v in twist) and math.dist(here, st['here']) > NEAR_M:
-        st.update(exploring=True, explore=None, seen=set(), visited=set(), here=here)
+        st.update(exploring=True, explore=None, seen=set(), visited=set(), here=here, heading=heading)
+    elif not walking and not st['exploring'] and abs(math.remainder(heading - st.get('heading', heading), math.tau)) > 0.5 * HALF[0]:
+        st.update(exploring=True, explore=None, heading=heading)
 
 
 def _quintic(u):
@@ -249,6 +252,8 @@ def moved(g):
     her vergence lagged TAU toward its depth either way; `on` while her eyes stand on it, no saccade in flight."""
     st = _laid(g)
     _arrived(g, st)
+    if st['explore'] is not None and not _reached(g['s']['head'], st['explore']['point']):
+        st['explore'] = None
     if st['exploring'] and st['explore'] is None and not st['points'] and st['fix'] is None:
         st['explore'] = _next(g, st)
         st['exploring'], st['jump'] = st['explore'] is not None, True
@@ -311,8 +316,9 @@ def asked(g, gz):
 def _over(g, **told):
     """Her gaze told to look as an errand asks (`told`), her exploring and her walk's anchor over, no way led but one
     told."""
+    head = g['s']['head']
     _laid(g).update(dict(held=0, after=None, exploring=False, explore=None, jump=True, way=None, lead=0.0, ground=None,
-                         walking=False, anchor=None), **told)
+                         walking=False, anchor=None, heading=_heading(head)), **told)
 
 
 def scan(g, points):
