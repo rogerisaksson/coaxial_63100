@@ -3,6 +3,7 @@
 A console's answer, a bootloader's, bytes until a pattern or a quiet, and Renode tied to this
 process's life.
 """
+import contextlib
 import ctypes
 import os
 import re
@@ -43,6 +44,23 @@ def tied(process):
     kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
     kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
     return job
+
+
+#: The latest run's log in a Renode's work, the only one kept (`swept`).
+LAST_LOG = 'renode_last.log'
+
+
+def swept(work, port, log=None):
+    """What the run on `port` left in `work` gone - its script, config and its lock, history and temp - and its
+    own log `log` kept as the latest run's alone (LAST_LOG): every run's kept, Renode's work came to 15 GB over
+    725 runs, five of their logs past 1 GB."""
+    for name in ('run_%d.resc', 'renode_%d.config', 'renode_%d.config.lock', 'history_%d'):
+        with contextlib.suppress(OSError):
+            os.remove(os.path.join(work, name % port))
+    shutil.rmtree(os.path.join(work, 'temp_%d' % port), ignore_errors=True)
+    if log:
+        with contextlib.suppress(OSError):
+            os.replace(log, os.path.join(work, LAST_LOG))
 
 
 def own_temp(path):

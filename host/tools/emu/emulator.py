@@ -39,7 +39,7 @@ from coaxial.simulated.sto import PILOT_HZ
 from tools.emu import protocol_frames as frames
 from tools.emu import world as worlds
 from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,
-                              own_temp, tied)
+                              own_temp, swept, tied)
 
 # frames://, the URL every emulator here hands out.
 if 'tools.emu' not in serial.protocol_handler_packages:
@@ -212,9 +212,10 @@ class Emulator:
         with open(config, 'w', encoding='utf-8') as f:
             f.write('[general]\nhistory-path = %s\n'
                     % os.path.join(WORK, 'history_%d' % self.port))
-        # Its log kept beside them: what Renode said before it went, where it goes (CI's
-        # Release runs).
-        self.log = self.log or os.path.join(WORK, 'renode_%d.log' % self.port)
+        # Its log beside them, what Renode said as it went (CI's Release runs); the last run's
+        # alone kept (`probes.swept`)
+        own = os.path.join(WORK, 'renode_%d.log' % self.port)
+        self._own, self.log = self.log in (None, own), self.log or own
         self._sink = open(self.log, 'w', encoding='utf-8')
         self.process = subprocess.Popen(
             [renode, '--disable-gui', '--plain', '--config', config, '-P', str(self.monitor),
@@ -379,6 +380,7 @@ class Emulator:
         if self._sink is not None:
             self._sink.close()
             self._sink = None
+        swept(WORK, self.port, self.log if getattr(self, '_own', False) else None)
 
     def __enter__(self):
         return self.start()
