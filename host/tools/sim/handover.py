@@ -21,7 +21,8 @@ drive and axial target - the gait is on an edge where one run measures its phase
 prints a summary a spec: how many stood, the hip clamp passes' median and worst, the landing knee's and the
 plan's load error's medians. A row also carries the double support's load planning against the sensed loads:
 `plan_err_land`/`plan_err_trail` the mean |planned - real| share over the 150 ms from a landing (the landing
-and the trailing sole), `plan_zero_ms` when the plan zeroes the trailing sole, `trail_off_ms` when its load leaves.
+and the trailing sole), `plan_zero_ms` when the plan zeroes the trailing sole, `trail_off_ms` when its load leaves;
+and `grip_min`, the least grip her soles felt over the run (`grip.felt`).
 """
 import argparse
 import json
@@ -65,6 +66,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     def laid(s):
         g = s['g']
         seen['s'] = s
+        seen['grip'] = min(seen.get('grip', np.inf), float(np.min(g['grip'])))
         snap = tap.passed(s)
         if snap is not None:
             told.extend(watched.step(snap))
@@ -157,7 +159,8 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         scenarios.ended(seen['s'])
     row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']),
                      stumbles=[round(e['t'], 2) for e in told if e['event'] == 'stumble'],
-                     falls=[round(e['t'], 2) for e in told if e['event'] == 'fall'], spasms=sum(e['event'] == 'spasm' for e in told))
+                     falls=[round(e['t'], 2) for e in told if e['event'] == 'fall'], spasms=sum(e['event'] == 'spasm' for e in told),
+                     grip_min=round(seen.get('grip', float('nan')), 3))
     if len(log['t']) < 10:
         return row
     return _summed(log, seen, row, trace, from_s, to_s, at, right)
@@ -293,7 +296,7 @@ def main(argv=None):
             texts = [rows[run or 'base'] for s, run in runs if s == spec]
             if args.rows:
                 for r in (json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')):
-                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'stumbles', 'hip_passes', 'v')}))
+                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'stumbles', 'hip_passes', 'v', 'grip_min')}))
             print(ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
         return 0
     for spec in args.specs:

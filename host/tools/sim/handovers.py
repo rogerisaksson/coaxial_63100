@@ -33,7 +33,8 @@ def planned(A, at, dt, fwd, b10, landed):
 
 def ensemble(spec, rows):
     """One line for `spec`'s ensemble `rows` (dicts): how many stood of how many, when the rest fell, the hip clamp
-    passes' median and worst, the speed's, the landing knee's and the plan's load errors' medians."""
+    passes' median and worst, the speed's, the landing knee's and the plan's load errors' medians, the least grip any
+    start felt."""
     med = lambda k: round(float(np.median([r[k] for r in rows if r.get(k) is not None])), 3) if any(r.get(k) is not None for r in rows) else None
     return json.dumps({'spec': spec, 'runs': len(rows), 'stood': sum(bool(r.get('stood')) for r in rows),
                        'fell_at': sorted(round(r['fell'], 1) for r in rows if r.get('fell') is not None),
@@ -41,4 +42,5 @@ def ensemble(spec, rows):
                        'hip_passes_med': med('hip_passes'), 'hip_passes_max': max((r.get('hip_passes') or 0) for r in rows),
                        'v_med': med('v'), 'land_knee_med': med('land_knee'), 'knee_min_med': med('knee_min'),
                        'plan_err_land_med': med('plan_err_land'), 'plan_err_trail_med': med('plan_err_trail'),
-                       'plan_zero_ms_med': med('plan_zero_ms'), 'trail_off_ms_med': med('trail_off_ms')})
+                       'plan_zero_ms_med': med('plan_zero_ms'), 'trail_off_ms_med': med('trail_off_ms'),
+                       'grip_min': min((r['grip_min'] for r in rows if r.get('grip_min') is not None), default=None)})
