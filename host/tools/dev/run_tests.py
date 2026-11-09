@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools.dev import background, counts
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
-from tools.dev.suites import (ALL_SUITES, ALONE, CONFORMANCE, DEFAULT_SUITES,
+from tools.dev.suites import (ALL_SUITES, ALONE, BENCHMARKS, CONFORMANCE, DEFAULT_SUITES,
                               FULL_EVERY, LIVE, NEEDS_BOARD, ROOT, STRUCTURES, TIERS)
 from tools.target import find_board
 
@@ -111,6 +111,11 @@ def _options(argv):
                              'one after another. The suites that time the link '
                              'or hold the model (%s) run alone whatever this '
                              'says.' % (BATONS, ', '.join(ALONE)))
+    parser.add_argument('--bench', action='store_true',
+                        help="a benchmark's run: the benchmarking suites (%s), "
+                             'or those --file names, each suite\'s processes '
+                             'above normal priority so the host\'s other loads '
+                             'do not move what they time.' % ', '.join(BENCHMARKS))
     args = parser.parse_args(argv)
     # test_x.py:word,word - the suite, and the words its tests are picked by.
     args.words = {name: tuple(filter(None, words.split(',')))
@@ -121,7 +126,7 @@ def _options(argv):
 
 def _run(args, tags, live_sections):
     """Run what the plan chose, and report it."""
-    suites = list(args.file) if args.file else list(DEFAULT_SUITES)
+    suites = list(args.file) if args.file else list(BENCHMARKS if args.bench else DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
     if (args.live and (not args.file or args.smart)
@@ -213,7 +218,10 @@ def main(argv=None):
         if reconfigure is not None:
             reconfigure(errors='replace')
     args = _options(argv)
-    background.lower()
+    if not args.bench:
+        # a benchmark's run is not held below the pages: its job object would hold every suite's process there,
+        # whatever priority the relay starts it at
+        background.lower()
     try:
         chosen = _plan(args)
         if chosen is None:

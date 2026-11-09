@@ -21,6 +21,7 @@ param(
     [string[]]$Tags,
     [string[]]$Scope,
     [string]$Model = 'auto',
+    [switch]$Bench,
     [switch]$DryRun
 )
 
@@ -44,6 +45,8 @@ switch ($PSCmdlet.ParameterSetName) {
     'Depth'           { $mode = "Depth $Depth %";  $runArgs = @('--coverage', [string]$Depth) }
     default           { $mode = 'Automatic 25 %'; $runArgs = @('--coverage', '25') }
 }
+# A benchmark's run: the benchmarking suites, or those -Scope names, above normal priority - no tier picks them.
+if ($Bench) { $mode = 'Bench'; $runArgs = @('--bench') }
 # Scope wins the label as well as the plan: --file makes the runner skip the
 # smart pick entirely, so a header still reading "Automatic 25 %" would be
 # describing a tier that had no say in what ran.
@@ -54,7 +57,7 @@ if ($Scope) {
     $Scope = @($Scope -split ',' | ForEach-Object { $_.Trim() } |
                Where-Object { $_ })
     foreach ($f in $Scope) { $runArgs += @('--file', $f) }
-    $mode = 'Scope ' + ($Scope -join ', ')
+    $mode = $(if ($Bench) { 'Bench, scope ' } else { 'Scope ' }) + ($Scope -join ', ')
 }
 if ($Tags)   { $runArgs += @('--tags', ($Tags -join ',')) }
 if ($DryRun) { $runArgs += '--dry-run' }

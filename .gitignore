@@ -140,6 +140,9 @@ host/prompt_io.tmp
 # Rewritten by every run; only ever used to say what a narrowed run skipped.
 host/tests/.counts.json
 
+# Her pace's floor (tests/test_pace.py --record): this host's own, another's pace not its.
+host/tests/.pace.json
+
 # The mesh reduction cached beside the model: derived from the STL, 1 MB,
 # and re-made in a second if it is missing.
 # The reduced mesh, rebuilt from the STL beside it on demand.

@@ -286,12 +286,14 @@ def watchdog(seconds):
     faulthandler.dump_traceback_later(seconds, exit=True)
 
 
-def run(job, env=None, ledger=None):
+def run(job, env=None, ledger=None, bench=False):
     """One job in a process of its own, stdout and stderr in one, killed with its tree at its
     time: (output, exit code - None out of time -, seconds); `ledger` its booking, its process
-    named in it while it runs."""
+    named in it while it runs; `bench`, above normal priority from its start (Windows')."""
     started = time.monotonic()
     group = {'start_new_session': True} if os.name != 'nt' else {}
+    if bench and os.name == 'nt':
+        group['creationflags'] = getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')
     proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding='utf-8',
                             errors='replace', **group)
@@ -308,13 +310,15 @@ def run(job, env=None, ledger=None):
     return out or '', code, time.monotonic() - started
 
 
-def relay(jobs, batons=None):
+def relay(jobs, batons=None, bench=False):
     """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
     a physical core each - each taking the first job whose commit fits the free commit less what
     every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
     an idle host fits anything -, while every relay's jobs with their children hold fewer processes
     than the batch's physical cores (`processes`), OpenBLAS on one thread in each; a job ending hands its
-    baton to the next at once. (job, output, exit code - None out of time -, seconds) as each ends."""
+    baton to the next at once. `bench` a benchmark's: each job above normal priority from its start and
+    `placed.BENCH` set for every process of hers it starts (`placed.raised`), its wall times less at the mercy
+    of the host's other loads. (job, output, exit code - None out of time -, seconds) as each ends."""
     waiting = collections.deque(jobs)
     count = len(waiting)
     held = {'running': 0, 'locks': set(), 'n': 0}
@@ -322,6 +326,9 @@ def relay(jobs, batons=None):
     ended = queue.Queue()
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     env.setdefault('OPENBLAS_NUM_THREADS', '1')
+    if bench:
+        from machine.process.placed import BENCH
+        env[BENCH] = '1'
 
     def fits(job, room):
         """Its lock free - an 'alone' job waits for this relay to empty, and holds it - and its
@@ -362,7 +369,7 @@ def relay(jobs, batons=None):
         while (taken := take()) is not None:
             job, path = taken
             try:
-                ended.put((job,) + run(job, env, path))
+                ended.put((job,) + run(job, env, path, bench))
             except OSError as exc:
                 ended.put((job, '%s: %s' % (type(exc).__name__, exc), 1, 0.0))
             finally:

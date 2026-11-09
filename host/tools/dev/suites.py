@@ -80,6 +80,9 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in TAGS)
 
 BENCH = 'test_bench.py'
 
+#: Her loop's pace, each errand alone at a benchmark's priority, against this host's recorded floor.
+PACE = 'test_pace.py'
+
 BROKER = 'test_broker.py'
 
 #: The acquisition front door against the stand-in - naming, reading,
@@ -225,7 +228,11 @@ LIVE = 'test_live_model.py'
 #: Her prompt through the local model on her loop, judged under the surface.
 LIVE_GYNOID = 'test_live_gynoid.py'
 
-ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE, LIVE_GYNOID)
+#: The benchmarking suites (`run_tests.ps1 -Bench`): what they time, timed at a benchmark's priority on the relay - each
+#: suite's processes above normal, the host's other loads under them (`focus.relay`'s bench).
+BENCHMARKS = (BENCH, PACE)
+
+ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE, LIVE_GYNOID, PACE)
 
 #: Where each suite joins a tier, cheapest a check first (s a check: simulated 0.003,
 #: ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance 0.29, bench 5.0, live
@@ -312,8 +319,10 @@ JOINS = (
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
-    # The bench guards the board's loop rates against a recorded baseline.
+    # The bench guards the board's loop rates against a recorded baseline; the pace her loop's, this host's, a
+    # whole run's alone: her five errands one after another, 3-4 min.
     (70, BENCH),
+    (100, PACE),
 )
 
 #: Where the live suite joins, and where it stops being one section. It is
@@ -348,8 +357,8 @@ def plan_for(percent):
 NEEDS_BOARD = (CONFORMANCE, 'test_parity.py', BENCH)
 
 #: Suites that time the link or hold the model on the card: the host to themselves - the bench
-#: suite measures the link's own rates, conformance its frame gaps.
-ALONE = (BENCH, CONFORMANCE, LIVE)
+#: suite measures the link's own rates, conformance its frame gaps, the pace her loop's.
+ALONE = (BENCH, PACE, CONFORMANCE, LIVE)
 
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host
 #: has four batons or fewer - CI's runner stood native's attitude page 4.7-8.3 s beside the

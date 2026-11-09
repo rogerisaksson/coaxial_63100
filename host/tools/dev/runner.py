@@ -250,7 +250,7 @@ def _results(suites, args, tags, live_sections):
         return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
     queue = sorted((job for jobs in plan.values() for job in jobs), key=lambda j: -expected(j))
     got, seconds, dirs = {}, {}, _init_run_dirs()
-    for job, out, code, took_s in relay(queue, args.jobs):
+    for job, out, code, took_s in relay(queue, args.jobs, bench=getattr(args, 'bench', False)):
         got[job.name] = _parse(out, code, took_s, job.timeout)
         _write_shard_csv(dirs, job, out, got[job.name])
         if not words.get(job.name.split()[0]):

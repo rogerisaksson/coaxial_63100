@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Her loop's pace as the worker runs her, flat out: her world's seconds a wall second, an errand.
 
-    python tools/sim/pace.py                   # her errands one at a time on the relay, a line each
-    python tools/sim/pace.py walk door         # those named, here
+    python tools/sim/pace.py                   # her errands one at a time on the relay, a benchmark's: a line each
+    python tools/sim/pace.py walk door         # those named, here (COAXIAL_BENCH=1: above normal priority too)
     python tools/sim/pace.py walk --profile    # and where her main thread spends its time, sampled
     python tools/sim/pace.py door --time machine.law.motion.control tools.cores.bodied.Bound.__call__
     python tools/sim/pace.py door --here --time machine.eyes.registry.seen   # her vision in this process
@@ -214,15 +214,15 @@ def _named(frame):
     return '%s:%s' % ('/'.join(path.split('/')[-2:]), code.co_name)
 
 
-def _relayed(names):
-    """Each errand its own process on the relay's batons (`focus.relay`), alone - her pace is wall
-    time, and a job beside it, with its four processes apart, takes its cores -, its lines in order."""
+def relayed(names):
+    """[(errand, its line)] of `names`, each its own process on the relay's batons at a benchmark's priority
+    (`focus.relay`'s bench: hers above normal, the host's other loads under them), alone - her pace is wall time,
+    and a job beside it, with its four processes apart, takes its cores -, in order."""
     from tools.dev import focus
     jobs = [focus.Job(name, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), name], 1.5, 900.0, 'alone')
             for name in names]
-    got = {job.name: (text or '').strip().splitlines()[-1:] for job, text, _code, _s in focus.relay(jobs)}
-    for name in names:
-        print((got.get(name) or ['%-6s no line' % name])[0], flush=True)
+    got = {job.name: (text or '').strip().splitlines()[-1:] for job, text, _code, _s in focus.relay(jobs, bench=True)}
+    return [(name, (got.get(name) or ['%-6s no line' % name])[0]) for name in names]
 
 
 def main(argv=None):
@@ -233,7 +233,8 @@ def main(argv=None):
     p.add_argument('--here', action='store_true', help='her vision in this process, not apart')
     args = p.parse_args(argv)
     if not args.names:
-        _relayed(list(ERRANDS))
+        for _name, line in relayed(list(ERRANDS)):
+            print(line, flush=True)
         return 0
     for name in args.names:
         if not args.profile:
