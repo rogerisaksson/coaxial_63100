@@ -47,7 +47,7 @@ def step(g, out, told, weighed, dt):
     share = float(told[1:].sum()) / said * float(told[0] <= 0.0)
     rests = (float(0.0 < told[0] <= 2.0 * RESTS * said) * float(g.get('seat', math.inf) <= POPLITEAL)
              * float(g['observer']['gate'][0]) * float(weighed[1:].sum()))
-    free, rested = float(g.get('played') is None), g.get('rested', 0.0)
+    free, rested = float(g.get('played') is None) * float(told[1:].sum() > 0.0), g.get('rested', 0.0)
     gain, g['melt'] = melted(g.get('melt', 0.0), share, g.get('melt_was', 0.0), dt)
     g['rested'] = (free * melted(rested, rests, g.get('rested_was', 0.0), dt)[1]
                    + (1.0 - free) * rested * (1.0 - min(1.0, dt / MELT_S)))

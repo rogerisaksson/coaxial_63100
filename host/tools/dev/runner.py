@@ -253,7 +253,7 @@ def _results(suites, args, tags, live_sections):
     for job, out, code, took_s in relay(queue, args.jobs):
         got[job.name] = _parse(out, code, took_s, job.timeout)
         _write_shard_csv(dirs, job, out, got[job.name])
-        if job.name.split()[0] not in words:
+        if not words.get(job.name.split()[0]):
             seconds[job.name] = round(took_s, 1)
     counts.record('jobs', seconds)
     for name in suites:
