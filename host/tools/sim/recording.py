@@ -110,8 +110,9 @@ def printed(table, t0=None):
 
 def fielded(series, lay, specs, times):
     """A row at each of `times` of the fields `specs` - 'stream.FIELD' of a vector stream (impedance.COM_ACC,
-    latent.NOW.Z, read.LOAD), 'stream.key.key' into a plain one's sample (wrench.got.bears) -, each entry '%.3g',
-    the sample at or before the row's time: her law's layers as the recording has them, beside the table."""
+    latent.NOW.Z, read.LOAD), 'stream.key.key' into a plain one's sample (wrench.got.bears; nan where the sample
+    lacks the key, wrench.ask.swing.1.0 while that sole stands) -, each entry '%.3g', the sample at or before the
+    row's time: her law's layers as the recording has them, beside the table."""
     import numpy as np
     cols = []
     for spec in specs:
@@ -125,6 +126,8 @@ def fielded(series, lay, specs, times):
             def pick(i, vs=vs, path=path):
                 v = vs[i]
                 for key in path.split('.'):
+                    if isinstance(v, dict) and key not in v:
+                        return np.full(1, np.nan)
                     v = v[key] if isinstance(v, dict) else v[int(key)]
                 return np.atleast_1d(np.asarray(v, float)).ravel()
             cols.append((spec, ts, pick))
