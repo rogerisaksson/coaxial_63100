@@ -141,7 +141,7 @@ def ask(out, y, fr, a):
     # a sole lands no further from her than its leg can push along itself inside its grip's cone:
     # on ice (0.1) a sole landed 0.3 m ahead of her as the other slid, slid too, and she fell
     reach = np.minimum(stride.REACH_M, (bears @ y[GRIP]) * (c[UP] - fr[FLOOR]))
-    cruise, meet, top, land, adj, over, apart = _landings(y, fr, a, rot, c, flat, xi, cruise + (np.abs(out[latent.ASKED][DRIVE]) <= TINY) * (stride.cruises(way, out[latent.ASKED][DRIVE], turns, a[GOING], phi_w) - cruise), om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach, stood, u, flying)
+    cruise, meet, top, land, adj, over, apart = _landings(y, fr, a, rot, c, flat, xi, cruise * (np.abs(out[latent.ASKED][DRIVE]) > TINY), om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach, stood, u, flying)
     tip, tipping, tipped = rocker.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
     a[PREFOLD], short = rocker.folds(off * (1.0 - u), y[LOAD], fr[KNEE] + a[BEND])
     a[HEELED], flatten, a[EDGE], rounds, reach_h = rocker.heels(
@@ -198,10 +198,11 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     swing's time left (`u`, `flying`): `meets` is exact at touchdown and sits at the stance sole
     at lift-off - and kept in `a[CELL]` as it swings. Nothing told, her landings as `stride.meets`
     has them, cleared, and the apart they lie at (`stride.meets`). What felled her: findings/stairs.md. `cruise` is
-    her cruise while her drive is asked and the pace asked of her (`latent.ASKED`'s, `stride.cruises` of none) once
-    it is let go: a stop's first step, planned on the march's cruise still running down, landed 1 cm ahead of her
-    centre and 23 cm short of her capture point (0.82 m/s), she ran on to 1.24 and the next step braked her at 3.48
-    of her weight. On the ask alone her march's first steps, placed for a pace she had not reached, fell her at 4.1
+    her cruise while her drive is asked and none once it is let go (`latent.ASKED`): a stop's first step, planned on
+    the march's cruise still running down, landed 1 cm ahead of her centre and 23 cm short of her capture point (0.82
+    m/s), she ran on to 1.24 and the next step braked her at 3.48 of her weight; on `stride.cruises` of none, floored
+    at her going less AHEAD_M_S, the stop's steps kept 2-5 cm of a walk's offset short of her capture point. On the
+    ask alone her march's first steps, placed for a pace she had not reached, fell her at 4.1
     s on the 143 N m/rad leaf; on the lesser of the two, rhythm.modulated's re-asking of the drive every pass of a
     turn moved the landings through it and the turn's stop fell (1040 turns 9/9 -> 8/9, the 143 leaf's -> 6/9)."""
     way, told, start = fr[MAP_WAY], fr[MAP_N], fr[MAP_AT] @ fr[MAP_WAY]

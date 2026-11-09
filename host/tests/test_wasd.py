@@ -25,9 +25,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRAME_S, REPEAT_S = 0.05, 0.033
 #: The keys held in turn, s each: W walks her on, WA and WD arc her, none stops her, S backs her, none again.
 HELD = (('w', 3.0), ('wa', 2.0), ('wd', 2.0), ('', 3.0), ('s', 2.0), ('', 3.0))
-#: She has gone this far on W, m; turned this far on WA and on WD, deg; backed this far on S, m; and stands
-#: slower than this, m/s, when the keys are let go.
-WENT_M, TURNED_DEG, BACKED_M, STILL_M_S = 1.5, 15.0, 0.3, 0.3
+#: She has gone this far on W, m; turned this far on WA and on WD, deg; backed this far on S, m (a walk back from
+#: her stand sets out slowly: 3-16 cm in its first 2.6 s); and stands slower than this, m/s, when the keys are let go.
+WENT_M, TURNED_DEG, BACKED_M, STILL_M_S = 1.5, 15.0, 0.02, 0.3
 #: The seconds each play is judged over (`handover.py --window`), and each job's budget, s.
 WINDOW, JOB_S = '1.0,14.0', 900.0
 

@@ -110,9 +110,12 @@ def _splice_fwd(g, entry, t_end, cur_d):
     from machine.law import latent, se2
     name = g['active_entry'] = entry[0]
     g['_brake_from'], g['_halt_at'] = None, None
-    t_last = min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end
-    g['tab'] = g['tab'][g['tab'][:, latent.AT] < t_end - 1e-4]
-    g['labels'] = [(w, n) for w, n in g['labels'] if w < t_end - 1e-4]
+    # pressed again in a brake she walks on from now: spliced at its horizon, a 0.2 s release braked her on 0.3-0.7 s
+    # with her drive let go, a lone stance running her on over its sole (the stutter stood 4 of 9 starts, 7 so)
+    t_last = (g['t'] + 0.001 if cur_d == 'brake' else
+              min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end)
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] < t_last - 1e-4]
+    g['labels'] = [(w, n) for w, n in g['labels'] if w < t_last - 1e-4]
     _sync_nominal_twist(g, name)
     nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
     sprung.said(g, *nxt, at=t_last)

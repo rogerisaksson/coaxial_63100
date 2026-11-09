@@ -211,8 +211,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     limbs[b] = npmax(stepping, off[b]);
   }
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going], phi_w);
-  /* her soles land for her cruise while her drive is asked, for the pace asked once it is let go (machine.law.impedance) */
-  pace = cruise + (double)(fabs(asked[k->drive]) <= k->tiny) * (wbc_imp_cruises(k, way, asked[k->drive], turns, a[k->a_going], phi_w) - cruise);
+  /* her soles land for her cruise while her drive is asked, for none once it is let go (machine.law.impedance) */
+  pace = cruise * (double)(fabs(asked[k->drive]) > k->tiny);
   lat_dc = stepping * (s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]));
   across = 2.5 * lat_dc;
   /* still, her head's speed past her centre of mass's, shrunk where it is small, and her
