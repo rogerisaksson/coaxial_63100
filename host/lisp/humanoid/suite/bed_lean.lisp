@@ -88,13 +88,16 @@
 ;; 9 of 12; her law's own stages (the trunk asked back to -1.57 over 4.5 s, yawed -0.6, the legs swept up) 1 of 12,
 ;; and her own size's unturned start only through a jolt off the seat (her soles 285 N at 5.25 s): her chain answers
 ;; her posture, not the turn asked of it. The take's misses: lain 6-12 cm off the edge, a leg over it (1.05); rolled
-;; off (0.95).
+;; off (0.95). Her legs her law's while it plays (`:joint-keep`): the take's own swept her hips apart (right -90,
+;; left to -26 deg) and rolled her 180 deg onto her belly over her right thigh, 8.2-11.2 s at up to 108 N m, and the
+;; rise from her back then asked her trunk upside down.
 (defmaneuver specialize-recline-long-side [state]
   (-> state
       (stage-sequential-manifold                       ; landed: the take's lie from its first tick
         :duration-ms 500.0
         :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
         :joint-program :lying-down-from-sitting
+        :joint-keep :legs
         :torso-pitch-ramp [0.0 -> -0.10]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.45] :limb-lift 0.0)

@@ -243,15 +243,18 @@ def _form(name, p, last):
 
 def _program(p, at):
     """What an act's `:joint-program` says of her joints (`machine.process.joints`, the loop's word): the program,
-    and where the act gives a stroke's gain up the furniture (`:stroke-m`) and where the program lands her middle
-    off its edge (`:landed-m`), the strokes that bring her middle to the furniture's middle by the depth her eyes
-    saw (`at['deep']`); None with no program."""
+    the groups her law keeps while it plays (`:joint-keep`, the player's KEPT), and where the act gives a stroke's
+    gain up the furniture (`:stroke-m`) and where the program lands her middle off its edge (`:landed-m`), the
+    strokes that bring her middle to the furniture's middle by the depth her eyes saw (`at['deep']`); None with no
+    program."""
     name = p.get('joint-program')
     if name is None:
         return None
     strokes = (max(0, math.floor((0.5 * at['deep'] / figure.SCALE - p.get('landed-m', 0.0)) / p['stroke-m'] + 0.5))
                if 'stroke-m' in p and at['deep'] is not None else None)
-    return {'joints': str(name).lstrip(':').replace('-', '_'), **({} if strokes is None else {'strokes': strokes})}
+    kept = str(p.get('joint-keep', '')).lstrip(':')
+    return {'joints': str(name).lstrip(':').replace('-', '_'), **({'keep': kept} if kept else {}),
+            **({} if strokes is None else {'strokes': strokes})}
 
 
 def _named(name, seen=None, got=None):
