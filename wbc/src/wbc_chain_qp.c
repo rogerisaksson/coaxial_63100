@@ -215,9 +215,9 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
   m->a0 = carve(w, k3 + 1);
   m->Ax = carve(w, k3 * nd + 1);
   m->Az = carve(w, k3 * nz + 1);
-  m->Rx = carve(w, m1 * nd + 1);
-  m->Rz = carve(w, m1 * nz + 1);
-  m->rr = carve(w, m1 + 1);
+  m->Rx = carve(w, (m1 + 3) * nd + 1);
+  m->Rz = carve(w, (m1 + 3) * nz + 1);
+  m->rr = carve(w, m1 + 4);
   m->t0 = carve(w, nd);
   m->Tx = carve(w, nd * nd);
   m->Tz = carve(w, nd * nz + 1);
@@ -291,6 +291,34 @@ static void affine(const wbc_step_t *p, wbc_maps_t *m, const double *held, const
   for (int i = 0; i < m1; i++)
   {
     m->rr[i] = m->rr[i] - tm[i];
+  }
+  /* her rise's centre of mass task where her rise's gate holds her (machine.stack.chain.leaned): three rows on the
+     contacts' forces alone, (lean / m) sum Q^T S zeta = lean (a* - g), each contact's block summed in turn */
+  if (p->lean > 0.0 && k > 0)
+  {
+    const double scale = p->lean / p->M[0];
+
+    for (int a = 0; a < 3; a++)
+    {
+      for (int c = 0; c < nd; c++)
+      {
+        m->Rx[(m1 + a) * nd + c] = 0.0;
+      }
+      for (int c = 0; c < nz; c++)
+      {
+        double sum = 0.0;
+
+        for (int i = 0; i < k; i++)
+        {
+          sum = sum + TS[(3 * i + a) * nz + c];
+        }
+        m->Rz[(m1 + a) * nz + c] = scale * sum;
+      }
+    }
+    m->rr[m1] = p->lean * (p->com_acc[0] - 0.0);
+    m->rr[m1 + 1] = p->lean * (p->com_acc[1] - (-p->g));
+    m->rr[m1 + 2] = p->lean * (p->com_acc[2] - 0.0);
+    m->m1 = m1 + 3;
   }
   /* her torques: t0 + Tx x + Tz zeta */
   sliced(MA, nd, np_ + ng, 0, np_, MAP);

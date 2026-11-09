@@ -55,7 +55,8 @@ def _step_typed():
                ('chain_vx', f), ('chain_free', i * 2), ('cgive', f * c), ('hang', f * 2),
                ('hang_rate', f), ('cn', p * c), ('chain_held', (i * QP_ROWS) * 2), ('chain_nheld', i * 2),
                ('chain_let', (i * 3) * c), ('chain_nlet', i), ('chain_let_pad', i),
-               ('chain_slide_m_s', f), ('chain_w_pin', f), ('chain_tilt', f), ('rows_free', f * 10), ('soles_free', (f * 6) * 2), ('soles', (f * 6) * 2)]
+               ('chain_slide_m_s', f), ('chain_w_pin', f), ('chain_tilt', f), ('rows_free', f * 10), ('soles_free', (f * 6) * 2), ('soles', (f * 6) * 2),
+               ('lean', f)]
     Step = type('Step', (ctypes.Structure,), {'_fields_': fields})
     if ctypes.sizeof(Step) != size:
         raise ValueError('wbc_step_t is %d bytes, its mirror %d' % (size, ctypes.sizeof(Step)))
@@ -173,7 +174,7 @@ FIELDS = ('n nd nc M cJ cp cdJv cf cpatch cbody cgive stance let_go com_acc ntur
           'rests slide fz_cap slid_cap hand_cap let_cap let_hold open_kp open_kd freed strides borne hold sat chain_vx '
           'chain_free swing swing_at swing_speed swing_acc swing_quat fold fold_knee fold_rate fold_acc knee_rate wep '
           'posture derate clamp wep_nm mass lo hi tau qacc bears cop cop_n cop_none over forces load scale '
-          'residual hang hang_rate cn rows_free soles_free soles').split()
+          'residual hang hang_rate cn rows_free soles_free soles lean').split()
 #: The step's fields read and written through numpy views of the struct's own memory.
 VIEWED = ('stance', 'let_go', 'com_acc', 'turn', 'kdot', 'settle', 'edge', 'mus', 'rests', 'slide', 'let_cap', 'let_hold', 'freed', 'hang', 'swing', 'fold', 'swing_at', 'swing_speed',
           'swing_acc', 'swing_quat', 'fold_knee', 'fold_rate', 'fold_acc', 'knee_rate', 'tau', 'qacc',
@@ -250,6 +251,7 @@ def _stepped(k, step, v, b, s, ask):
     v['hang'][:], k.hang_rate = ask.get('hang', (0.0, 0.0)), float(ask.get('hang_rate', 0.0))
     k.strides, k.borne, k.hold = float(ask.get('strides', 0.0)), float(ask.get('borne', 0.0)), float(ask.get('hold', 1.0))
     k.sat, k.chain_vx = float(ask.get('sat', 0.0)), float(ask.get('twist', (0.0,))[0])
+    k.lean = float(ask.get('lean', 0.0))
     k.chain_free[0], k.chain_free[1] = (int(bool(x)) for x in ask.get('free', (False, False)))
     swing, fold = ask.get('swing', {}), ask.get('fold', {})
     for side in range(2):

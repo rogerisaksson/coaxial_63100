@@ -85,7 +85,9 @@ def test_the_chain_step_in_c_is_the_steps(report):
         spin = np.array([np.cos(0.1), *(np.sin(0.1) * axis)])
         turns = tuple(_product(spin, t['quat']) for t in s['turns'])
         f1 = s['feet'][1]
-        ask = {'stance': (False, False), 'com_acc': np.zeros(3), 'turns': turns, 'wep': False,
+        # every other state her rise's centre of mass task asked (`chain.leaned`): its rows on the contacts' forces
+        ask = {'stance': (False, False), 'com_acc': np.array([0.3, 0.0, -0.2]) * (nth % 2), 'lean': float(nth % 2),
+               'turns': turns, 'wep': False,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
                'posture': s['q'] + 0.02 * rng.normal(size=len(s['q'])), 'twist': (0.3 * (nth % 3 - 1), 0.0, 0.0),
                'free': (nth % 2 == 1, False)}
@@ -169,7 +171,71 @@ def test_the_step_is_hers_by_her_release(report):
                  str([(c.get('body'), c['f'][1] if 'f' in c else None) for c in got]))
 
 
-ROSTER = (test_the_chain_step_in_c_is_the_steps, test_the_step_is_hers_by_her_release)
+def test_her_rise_waits_on_her_capture_point(report):
+    """`chain.outside`, her rise's gate: risen onto her soles - her text telling them more of her than all else - with
+    something else bearing her, it holds her closed chains while her capture point lies behind her soles' hull or they
+    bear less than her comparators' engage share, and lets her go over them; sitting, lying or borne by nothing else,
+    never. `chain.chained` keeps her chains while it holds."""
+    import numpy as np
+    from machine.stack import chain
+    from machine.texts import ortho
+    weight, om, P = 500.0, 3.0, ortho.MANIFOLDS.index('plantar')
+    pts = np.array([[x, 0.0, z] for x in (0.15, 0.30) for z in (-0.12, 0.12)])
+    rising, sitting = np.zeros(len(ortho.MANIFOLDS)), np.zeros(len(ortho.MANIFOLDS))
+    rising[P], rising[(P + 1) % len(rising)], sitting[P], sitting[(P + 1) % len(sitting)] = 0.8, 0.2, 0.25, 0.75
+
+    def gate(com, loads, told, stance=(True, True), propped=True):
+        s = {'feet': [{'pts': pts}, {'pts': pts}], 'com': np.array(com), 'vcom': np.zeros(3)}
+        return chain.outside(s, {'stance': stance, 'propped': propped}, loads, om, weight, told)
+    held = [gate((-0.30, 0.9, 0.0), (20.0, 20.0), rising), gate((0.22, 0.9, 0.0), (20.0, 20.0), rising),
+            gate((0.22, 0.9, 0.0), (150.0, 150.0), rising)]
+    never = [gate((-0.30, 0.9, 0.0), (20.0, 20.0), sitting), gate((-0.30, 0.9, 0.0), (20.0, 20.0), rising, (False, False)),
+             gate((-0.30, 0.9, 0.0), (20.0, 20.0), rising, propped=False)]
+    kept = [chain.chained({'stance': (True, True), 'outside': o}) for o in (1.0, 0.0)]
+    report.check("her rise's gate holds her chains behind her soles or on soles bearing too little, lets her go over them",
+                 held == [1.0, 1.0, 0.0] and never == [0.0, 0.0, 0.0] and kept == [1, 0], '%s %s %s' % (held, never, kept))
+
+
+def test_her_lean_leans_her_on_what_bears_her(report):
+    """`chain.leaned`: her rise's centre of mass task on the contacts' forces - m c'' = sum f + m g - brings what her
+    closed chains plan to bear her nearer her text's lean than without it, on her stand's pose under its contacts."""
+    import numpy as np
+    from machine.body import figure
+    from machine.stack import chain, wbc
+    from machine.world import physics
+    from tools.cores import step as glue
+    world, b = physics.World(), wbc.Body()
+    world.reset(figure.stand())
+    regime, rng, nearer, far = glue.regime(), np.random.default_rng(11), 0, []
+    jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
+    bodies = [b.m.body(name).id for name in ('pelvis', 'pelvis', 'left_shank', 'left_hand', 'right_hand', 'right_shank')]
+    for _nth in range(STEPS):
+        s = wbc.sense(b, world.data.qpos, np.zeros(len(world.data.qvel)))
+        contacts = []
+        for patch, body in enumerate(bodies):
+            p = b.d.xpos[body] + 0.03 * rng.normal(size=3)
+            b.mj.mj_jac(b.m, b.d, jp, jr, p, body)
+            J = jp[:, :b.n].copy()
+            f = np.array([0.0, 1.0, 0.0]) * (60.0 + 80.0 * rng.random())
+            contacts.append({'p': p, 'f': f, 'n': f / np.linalg.norm(f), 'J': J, 'dJv': np.zeros(3), 'patch': 2 * patch,
+                             'side': patch % 2, 'body': body})
+        a = np.array([0.6, 0.0, 0.0]) * rng.choice((-1.0, 1.0))
+        ask = {'stance': (False, False), 'com_acc': a, 'turns': tuple(t['quat'] for t in s['turns']), 'wep': False,
+               'swing': {}, 'posture': s['q'].copy(), 'twist': (0.0, 0.0, 0.0), 'free': (False, False)}
+        sc, m = dict(s, contacts=contacts), float(s['M'][0, 0])
+        off = []
+        for lean in (0.0, 1.0):
+            b.chain_warm, b.chain_let = ((), ()), set()
+            got = chain.step(b, sc, dict(ask, lean=lean), regime)
+            off.append(float(np.linalg.norm(np.asarray(got['borne']).sum(axis=0) / m + np.array([0.0, -wbc.G, 0.0]) - a)))
+        nearer += off[1] < off[0]
+        far.append(off)
+    report.check("her lean brings what bears her nearer her text's lean in %d of %d states" % (nearer, STEPS),
+                 nearer == STEPS, 'off without, with: %s' % ', '.join('%.2f/%.2f' % tuple(o) for o in far[:4]))
+
+
+ROSTER = (test_the_chain_step_in_c_is_the_steps, test_the_step_is_hers_by_her_release, test_her_rise_waits_on_her_capture_point,
+          test_her_lean_leans_her_on_what_bears_her)
 
 
 def main(argv=None):

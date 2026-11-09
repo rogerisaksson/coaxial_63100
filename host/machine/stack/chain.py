@@ -17,6 +17,7 @@ apart squeezed her fists 570 N into each other and starved them. wbc_chain.c is 
 standing soles as contacts (`bearing`).
 """
 import collections
+import functools
 import math
 import os
 
@@ -28,7 +29,7 @@ from machine.senses.borne import CARPAL, LET
 from machine.stack import chain_qp
 from machine.stack.rounds import LEGS
 from machine.stack.shrunk import box, shrunk
-from machine.stack.wbc import HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
+from machine.stack.wbc import G, HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
 #: The regime as its text says it (`closed-chain-regime`): level 2's damping m and level 1's on x, a contact's
 #: softness m/s^2 a N, a sticking contact's slip bled 1/s, her sled's friction and an anchor's, a patch held from N;
@@ -48,7 +49,62 @@ def chained(ask):
     she was reclined in the air with both soles asked to land, and taken here for 3 passes she landed beside it."""
     reclined, standing = ask.get('reclined', 0.0) > 0.5, any(ask['stance'])
     lying = reclined and bool(ask.get('propped', True))
-    return int((not ask.get('swing') or (lying and not standing)) and (any(ask.get('let_go', ())) or not standing or reclined))
+    # risen onto her soles her chains keep her till her capture point is in over them (`outside`, the rise's gate)
+    return int((not ask.get('swing') or (lying and not standing))
+               and (any(ask.get('let_go', ())) or not standing or reclined or ask.get('outside', 0.0) > 0.0))
+
+
+@functools.lru_cache(maxsize=None)
+def rise():
+    """(her rise's centre of mass task's weight, her comparators' engage share of her weight): the kernel's
+    `com-weight` (`closed-chain-regime`) and `schmitt-high-engage-fz` (`configure-contact-comparators`)."""
+    from machine.law import supervisor
+    from machine.texts import kernel
+    return (float(kernel.read()['closed-chain-regime']['com-weight']),
+            float(supervisor.insert()['contact-comparators']['schmitt-high-engage-fz']))
+
+
+def outside(s, ask, loads, om, weight, told):
+    """1.0 while her rise's gate holds her in her closed chains (`chained`): a sole standing (`ask['stance']`),
+    something else bearing her (`ask['propped']`) and her text telling her soles more of her than all else together
+    (`told`: her rise onto them - sat on a bed's edge her soles are told a quarter and her upright step holds her on its
+    seat: gated where they were told more than they bore, her leg onto the bed fell), her capture point xi = c +
+    c'/omega not yet her barrier's margin in of her standing soles' hull (`barrier`), or those soles bearing less than
+    her comparators' engage share of her `weight`; else 0.0 - lying, no sole standing, sitting, or over her soles as
+    they bear her."""
+    from machine.law import barrier
+    from machine.senses import observer
+    from machine.texts import ortho
+    stance, said = ask['stance'], observer.said(told)
+    feel, soles = sum(float(loads[k]) for k in range(2) if stance[k]), float(said[ortho.MANIFOLDS.index('plantar')])
+    if not (any(stance) and ask.get('propped', False)) or soles <= float(said.sum()) - soles:
+        return 0.0
+    ring = barrier.hull(np.concatenate([np.asarray(s['feet'][k]['pts'], float) for k in range(2) if stance[k]])[:, [0, 2]])
+    if len(ring) < 3:
+        return 1.0
+    edge = np.roll(ring, -1, axis=0) - ring
+    n = np.stack([edge[:, 1], -edge[:, 0]], axis=1) / np.linalg.norm(edge, axis=1)[:, None]
+    n *= np.sign(np.einsum('ij,ij->i', n, ring - ring.mean(axis=0)))[:, None]
+    com, vcom = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
+    xi = com[[0, 2]] + vcom[[0, 2]] / om
+    short = (np.einsum('ij,ij->i', n, ring) - n @ xi - barrier.MARGIN_M < 0.0).any()
+    return float(bool(short) or feel < rise()[1] * weight)
+
+
+def leaned(maps, Q, S, ask, mass, nd):
+    """`maps` with her rise's centre of mass task at its weight (`ask['lean']`: `com-weight` where her rise's gate holds
+    her, `outside`): three rows on the contacts' forces alone - all that bears her outside, m c'' = sum f + m g -,
+    (lean / m) sum Q^T S zeta = lean (a* - g), a* her text's lean as the upright step is asked it (`ask['com_acc']`,
+    world, y up); wbc_chain_qp.c's in its order."""
+    w = float(ask.get('lean', 0.0))
+    if w <= 0.0 or not len(Q):
+        return maps
+    TS = np.zeros((3, S.shape[1]))
+    for i in range(len(Q)):
+        TS += np.ascontiguousarray(Q[i].T) @ S[3 * i:3 * i + 3]
+    a = np.asarray(ask['com_acc'], float) - np.array([0.0, -G, 0.0])
+    return maps._replace(Rx=np.vstack([maps.Rx, np.zeros((3, nd))]), Rz=np.vstack([maps.Rz, (w / mass) * TS]),
+                         rr=np.concatenate([maps.rr, w * a]))
 
 
 def bearing(s, loads, stance, chained, shed=(0.0, 0.0), legs=()):
@@ -231,6 +287,7 @@ def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     maps = chain_qp.affine(Minv, Mpg, rhs0, held, Jp, Jg, dJv, Q, S, np.ascontiguousarray(R[:, P]),
                            np.ascontiguousarray(R[:, given]), r, np.ascontiguousarray(M[np.ix_(A, np.concatenate([P, given]))]),
                            h[A], np.ascontiguousarray(J[:, A]), nd)
+    maps = leaned(maps, Q, S, ask, float(M[0, 0]), nd)
     gives = gives_of(b, contacts, regime, compliant, ask.get('_tc'))
     limit, lo, hi = box(b, ask)
     H1, g1, G1, Aq, bq = chain_qp.level1(maps, S, width, mu, holds, stick, mode, st, np.zeros(k) if gives is None else gives, Jv,

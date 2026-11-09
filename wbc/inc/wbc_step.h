@@ -99,6 +99,8 @@ typedef struct
   double        soles_free[2][6], soles[2][6]; /**< each sole's six unknowns - its wrench where it stands, its
                                                   acceleration where not - in the first answer, the floor
                                                   unbounded, and in the last (machine.stack.wrench.step) */
+  double        lean; /**< her rise's centre of mass task's weight where her rise's gate holds her closed chains, 0 else
+                           (machine.stack.chain.leaned, closed-chain-regime's com-weight) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */

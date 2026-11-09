@@ -192,7 +192,12 @@ def control(g, dt):
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
-    chained = chain.chained(ask)
+    # her rise's gate keeps her closed chains as they leave her, never takes her into them: her chair's seat is in her
+    # upright step's cone, and held in her chains from her seat she sat on through every rise
+    ask['outside'] = (chain.outside(s, ask, g['loads'], float(g['fr'][modal.OMEGA]), float(g['fr'][modal.WEIGHT]),
+                                    g['told']) if g.get('chained', 0) else 0.0)
+    ask['lean'] = chain.rise()[0] * ask['outside']
+    chained = g['chained'] = chain.chained(ask)
     # her legs' touch on the seat is the chains' alone while she sits - her pelvis bears, not reclined - and her hands
     # are told to bear: the kernel's cone for the upright step (soles, ischia, palms). The sit tells the palms from
     # `seated` on (4.2 s), after the landing, through the hands' vault: with the thighs in the cone she sat at the seat's

@@ -18,7 +18,8 @@ enum
   F_LET_HOLD, F_OPEN_KP, F_OPEN_KD, F_FREED, F_STRIDES, F_BORNE, F_HOLD, F_SAT, F_CHAIN_VX, F_CHAIN_FREE, F_SWING,
   F_SWING_AT, F_SWING_SPEED, F_SWING_ACC, F_SWING_QUAT, F_FOLD, F_FOLD_KNEE, F_FOLD_RATE, F_FOLD_ACC, F_KNEE_RATE, F_WEP,
   F_POSTURE, F_DERATE, F_CLAMP, F_WEP_NM, F_MASS, F_LO, F_HI, F_TAU, F_QACC, F_BEARS, F_COP, F_COP_N, F_COP_NONE,
-  F_OVER, F_FORCES, F_LOAD, F_SCALE, F_RESIDUAL, F_HANG, F_HANG_RATE, F_CN, F_ROWS_FREE, F_SOLES_FREE, F_SOLES, FIELDS
+  F_OVER, F_FORCES, F_LOAD, F_SCALE, F_RESIDUAL, F_HANG, F_HANG_RATE, F_CN, F_ROWS_FREE, F_SOLES_FREE, F_SOLES, F_LEAN,
+  FIELDS
 };
 
 /* The keys and attributes it reads and its answer's keys, interned once. */
@@ -27,14 +28,14 @@ static const char *const NAMES[] = {
   "settle", "edge", "mu", "rests", "slide", "fz_cap", "slid_cap", "hand_cap", "let_cap", "let_hold", "open", "strides",
   "borne", "hold", "sat", "twist", "free", "swing", "fold", "knee_rate", "wep", "posture", "derate", "lo", "hi",
   "clamp", "mass", "load", "sensed", "last", "c", "placed", "tau", "qacc", "bears", "cop", "over", "slack", "held",
-  "scale", "residual", "hang", "hang_rate", "n", "soles_free", "soles", "rows_free"};
+  "scale", "residual", "hang", "hang_rate", "n", "soles_free", "soles", "rows_free", "lean"};
 enum
 {
   K_M, K_CONTACTS, K_J, K_P, K_DJV, K_F, K_PATCH, K_BODY, K_GIVE, K_STANCE, K_LET_GO, K_COM_ACC, K_TURNS, K_KDOT,
   K_SETTLE, K_EDGE, K_MU, K_RESTS, K_SLIDE, K_FZ_CAP, K_SLID_CAP, K_HAND_CAP, K_LET_CAP, K_LET_HOLD, K_OPEN, K_STRIDES,
   K_BORNE, K_HOLD, K_SAT, K_TWIST, K_FREE, K_SWING, K_FOLD, K_KNEE_RATE, K_WEP, K_POSTURE, K_DERATE, K_LO, K_HI,
   K_CLAMP, K_MASS, K_LOAD, K_SENSED, K_LAST, K_C, K_PLACED, K_TAU, K_QACC, K_BEARS, K_COP, K_OVER, K_SLACK, K_HELD,
-  K_SCALE, K_RESIDUAL, K_HANG, K_HANG_RATE, K_N, K_SOLES_FREE, K_SOLES, K_ROWS_FREE, KEYS
+  K_SCALE, K_RESIDUAL, K_HANG, K_HANG_RATE, K_N, K_SOLES_FREE, K_SOLES, K_ROWS_FREE, K_LEAN, KEYS
 };
 static PyObject *K[KEYS];
 
@@ -344,7 +345,8 @@ static int asked(step_t *t, PyObject *ask)
                                && real(PySequence_Fast_GET_ITEM(open, 1), FD(t, F_OPEN_KD))
                                && fill(PySequence_Fast_GET_ITEM(open, 2), FD(t, F_FREED), 2, 0)));
   ok = ok && number(ask, K_STRIDES, FD(t, F_STRIDES), 0.0, &bad) && number(ask, K_BORNE, FD(t, F_BORNE), 0.0, &bad)
-       && number(ask, K_HOLD, FD(t, F_HOLD), 1.0, &bad) && number(ask, K_SAT, FD(t, F_SAT), 0.0, &bad);
+       && number(ask, K_HOLD, FD(t, F_HOLD), 1.0, &bad) && number(ask, K_SAT, FD(t, F_SAT), 0.0, &bad)
+       && number(ask, K_LEAN, FD(t, F_LEAN), 0.0, &bad);
   if (twist == NULL)
     *FD(t, F_CHAIN_VX) = 0.0;
   ok = ok && (twist == NULL || ((PyTuple_Check(twist) || PyList_Check(twist)) && PySequence_Fast_GET_SIZE(twist) > 0

@@ -79,8 +79,21 @@
                                        ; reaches the cone and she goes; a soft pin without al_t . s_t >= 0 pulls the
                                        ; shear toward the edge anyway, z = (m a* - F - w mu N) / (1 + w) - a backward
                                        ; motor again, as the hard pin was: the plan had her at -3.7 m/s^2 standing still
-  :slide-tilt                   0.2)   ; a slide's normal along the way under this; past it the contact braces (her
+  :slide-tilt                   0.2    ; a slide's normal along the way under this; past it the contact braces (her
                                        ; sacrum on the seat's rear at 0.42 pinned braked her at mu 0.11 and pitched her)
+  :com-weight                   1.0)   ; her rise's centre of mass task against the tasks' 1, rows on the contacts'
+                                       ; forces alone - m c'' = sum f + m g, no Jacobian -: (1/m) sum Q^T S zeta =
+                                       ; a* - g, a* her text's lean as the upright step is asked it (`com_acc`), while
+                                       ; her rise's gate holds her here (`rise-gate`); lying, no sole standing, none
+
+;; Her rise's gate: leaving her closed chains with a sole standing, something else bearing her and her text telling her
+;; soles more of her than all else together - her rise onto them -, the upright step takes her only once her capture
+;; point xi = c + c'/omega is her barrier's margin in of her standing soles' hull (`enforce-dcm-barrier-zcbf`) and those
+;; soles bear her comparators' engage share of her weight (`configure-contact-comparators`); till then her closed chains
+;; keep her and lean her over her soles on what else bears her (`com-weight`). Taken with her capture point 0.65 m
+;; behind her soles, the upright step threw her arms 400-1000 deg/s at a bed's sit-up; blended into instead (the c2
+;; handover), the old step's forces lingered and her leg onto the bed fell; sat on a bed's edge, her capture point
+;; behind her soles is no rise: her upright step holds her on its seat. Called by what she is, never by a name.
 
 ;; Each contact's frame Q (3 x 3, rows): the normal of what bears it - her skin's capsule nearest the touch, its
 ;; outward radial there reversed (borne._normal), up where she has none -, then two tangents from a fixed world axis.
