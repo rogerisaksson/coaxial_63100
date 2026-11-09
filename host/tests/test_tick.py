@@ -160,14 +160,15 @@ WORLD_PASSES, SWING_RAD, SWING_HZ = 2500, 0.08, 1.3
 
 def test_her_world_steps_in_c_as_in_python(report, _c):
     """Two of her worlds laid alike in her room, their setpoints swung alike a pass at a time - one's steps between
-    MuJoCo's in C (`machine.world.steps`), the other's in python (`in_c` False) -: MuJoCo's state, ctrl, her motors,
-    gearboxes' peaks, meters, DC link, rates and stamps the same bits at every pass; MuJoCo's contacts paired in C
-    off its data (`steps.paired`) as python's views pair them."""
+    MuJoCo's in C (`machine.world.steps`), her ankles' sprung gearboxes stepped there, the other's in python (`in_c`
+    False) -: MuJoCo's state, ctrl, her motors, gearboxes' peaks and state, meters, DC link, rates and stamps the same
+    bits at every pass; MuJoCo's contacts paired in C off its data (`steps.paired`) as python's views pair them."""
     import math
     from machine.body import figure
     from machine.world import physics, steps
     from tools.cores import wbc as cores
-    was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'pairs': 0, 'paired': 0}
+    was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'pairs': 0, 'paired': 0,
+                                                                 'boxed': 0}
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 0.0, 0.0
     try:
         clock, worlds = [0.0], [physics.World(), physics.World()]
@@ -186,7 +187,10 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
                 w.advance()
             held = [(w.data.qpos, w.data.qvel, w.data.qacc, w.data.ctrl, w.motor, w.geared, w.rate, w.was,
                      *(w.link[n] for n in ('v', 'peak', 'bled', 'id')),
+                     *(getattr(w.boxes, n) for n in ('delta', 'w', 'hat', 'p_int', 'drive', 'asked', 'rate', 'q_step',
+                                                     'went')),
                      repr((w.effort, w.work, w.brake, w.heat, w.stamp, w.at))) for w in worlds]
+            tally['boxed'] += a._steps is not None and a._steps[6][2] is not None
             tally['apart'] += any(_apart(x, y) if isinstance(x, str) else x.tobytes() != y.tobytes()
                                   for x, y in zip(*held))
             d = a.data
@@ -200,8 +204,9 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
             tally['passes'] += 1
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = was
-    report.check("her world's steps in C as in python, %(passes)d passes, her contacts paired %(paired)d of %(pairs)d"
-                 % tally, tally['passes'] == WORLD_PASSES and tally['paired'] > 100 and not tally['apart'],
+    report.check("her world's steps in C as in python, %(passes)d passes, her boxes in C %(boxed)d, her contacts paired "
+                 "%(paired)d of %(pairs)d" % tally,
+                 tally['passes'] == WORLD_PASSES == tally['boxed'] and tally['paired'] > 100 and not tally['apart'],
                  '%(apart)d apart' % tally)
 
 

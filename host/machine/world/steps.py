@@ -16,9 +16,9 @@ def _laid(world):
 
 def advanced(world, now, room):
     """`world` on to `now` as `physics.World.advance` steps it where nothing else is asked of its steps - no buses, no
-    gearboxes, no push, no harness, no lace -: its setpoints' rates and stamp, then a step at a time her drives' torques
-    (C), MuJoCo's step (its own binding: its errors Python's), their meters, her link and, her `room` laid, her room's
-    switch (C), the switch's state in from her world and out again."""
+    push, no harness, no lace -: its setpoints' rates and stamp, then a step at a time her drives' torques and her
+    gearboxes (C), MuJoCo's step (its own binding: its errors Python's), the boxes moved, their meters, her link and,
+    her `room` laid, her room's switch (C), the switch's state in from her world and out again."""
     _at, rated, before, after, _paired, s, _kept = _laid(world)
     d = world.data
     if room:

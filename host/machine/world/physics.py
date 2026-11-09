@@ -271,12 +271,13 @@ class World:
     def advance(self):
         """On to the clock, a step at a time: the pass's setpoints broadcast on each bus and
         every board polled, the boards' loops a lockstep, the world stepped on their torques;
-        where nothing else is asked of the steps, between MuJoCo's in C (`steps.advanced`)."""
+        where nothing else is asked of the steps, between MuJoCo's in C (`steps.advanced`), her
+        gearboxes with them."""
         now = self.clock()
         if now <= self.at + 1e-9:
             return
         d = self.data
-        if (self.in_c and self.buses is None and not self.sprung and self.hung is None and not self.laced
+        if (self.in_c and self.buses is None and self.hung is None and not self.laced
                 and not self.pushed and d.time >= self.push_until):
             return steps.advanced(self, now, ROOM)
         np = self._np

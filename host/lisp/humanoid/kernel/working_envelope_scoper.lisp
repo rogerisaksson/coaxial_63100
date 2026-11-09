@@ -71,6 +71,9 @@
 ;; Hers: her capsules' pairs, staged within `manifold-preload-distance-mm` (`gmo.horizon`) by a sphere about each;
 ;; no speed bound is needed, a capsule's end moved a quarter of it restages them. Her points all stay: blind,
 ;; those off her soles join her split where her soles cannot bear her (10 pushes a pass walking), none evicted.
+;; Her shield's 13 pairs lie 4-12 within influence every law pass (median 10, sat 12): none to cull. Her law's
+;; parts gated by their activity (`machine.law.composer`): each at rest its rest, the same bits - her melt off
+;; her soles' share, her wayfinder's gauge without an errand, her counterweight with no leg asked released.
 ;; -----------------------------------------------------------------------------
 (defprimitive evaluate-operating-point-horizon
   [state &key (descriptor 'working-envelope-soa-descriptor)

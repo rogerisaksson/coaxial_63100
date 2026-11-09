@@ -1,6 +1,6 @@
 /** wbc_world.c - her world's steps on the host (wbc_world.h): World.advance's arithmetic between MuJoCo's steps,
-    numpy's operation for operation; MuJoCo's contacts read off its data through its own headers. The host's
-    alone. */
+    her gearboxes' with it, numpy's operation for operation and its own tanh; MuJoCo's contacts read off its data
+    through its own headers. The host's alone. */
 #include "wbc_world.h"
 #include "wbc_np.h"
 
@@ -20,10 +20,123 @@ void wbc_world_rated(wbc_steps_t *s, double span)
   }
 }
 
+/* np.tanh of `n` doubles `x` into `y` through numpy's own loop: its bits */
+static void nptanh(const wbc_boxes_t *b, double *x, double *y, int n)
+{
+  char           *args[2] = {(char *)x, (char *)y};
+  const ptrdiff_t dims[1] = {(ptrdiff_t)n};
+  const ptrdiff_t steps[2] = {(ptrdiff_t)sizeof(double), (ptrdiff_t)sizeof(double)};
+
+  b->tanh(args, dims, steps, b->tanh_data);
+}
+
+/* World.advance's `WOUND * boxes.ahead(motor)` and `WOUND * (boxes.w - qvel) * sprung`: each stepped box's rotor asked
+   past its setpoint by its wind-up and the play its last torque takes up, its rotor's speed past its link's */
+static void ahead(const wbc_steps_t *s, double *at, double *wrate, int n)
+{
+  const wbc_boxes_t *b = s->boxes;
+  const wbc_world_t *p = s->pass;
+  double             x[WBC_PASS_MAX], th[WBC_PASS_MAX];
+
+  for (int i = 0; i < n; i++)
+  {
+    x[i] = p->motor[i] / b->play_nm;
+  }
+  nptanh(b, x, th, n);
+  for (int i = 0; i < n; i++)
+  {
+    const int    on = b->on[i] != 0U;
+    const double k = on ? b->k[i] : 1.0;
+
+    at[i] = p->wound * (on ? (b->ahead_wind * p->motor[i]) / k + (b->ahead_play * b->gap[i]) * th[i] : 0.0);
+    wrate[i] = (p->wound * (b->w[i] - p->qvel[p->vadr[i]])) * (double)b->on[i];
+  }
+}
+
+/* Boxes.step on ctrl at the step's middle (the start's speed and half a step of the last acceleration): what each
+   stepped box passes on to its link - its wind-up past the play, its damping, its mesh's friction -, its rotor
+   stepped `substeps` times on its board's drive - the command, its torque loop on its observer's estimate against
+   the feed, within its peak -, braked where its drive is shorted; ctrl the mean each stepped box passed on */
+static void stepped(const wbc_steps_t *s, int n)
+{
+  const wbc_boxes_t *b = s->boxes;
+  wbc_world_t       *p = s->pass;
+  const double       dt = s->step_s, h = dt / (double)b->substeps, ease = dt / b->rate_s, half = 0.5 * dt;
+  double             qd[WBC_PASS_MAX], ctrl[WBC_PASS_MAX], brake[WBC_PASS_MAX], j[WBC_PASS_MAX], k[WBC_PASS_MAX];
+  double             lim[WBC_PASS_MAX], mean[WBC_PASS_MAX], rel[WBC_PASS_MAX], x[WBC_PASS_MAX], th[WBC_PASS_MAX];
+
+  for (int i = 0; i < n; i++)
+  {
+    qd[i] = p->qvel[p->vadr[i]] + half * p->qacc[p->vadr[i]];
+    ctrl[i] = p->ctrl[i];
+    brake[i] = (p->shorted[i] != 0U) ? b->damping[i] : 0.0;
+    j[i] = (b->on[i] != 0U) ? b->j[i] : 1.0;
+    k[i] = npmaximum(b->k[i], 1.0);
+    mean[i] = 0.0;
+    b->q_step[i] = p->qpos[p->qadr[i]];
+    b->went[i] = dt * qd[i];
+    lim[i] = b->gap[i] + b->shock[i] / k[i];
+    b->rate[i] = b->rate[i] + ease * ((p->feed[i] - b->asked[i]) / dt - b->rate[i]);
+    b->asked[i] = p->feed[i];
+  }
+  for (int sub = 0; sub < b->substeps; sub++)
+  {
+    for (int i = 0; i < n; i++)
+    {
+      rel[i] = b->w[i] - qd[i];
+      x[i] = rel[i] / b->mesh_rad_s;
+    }
+    nptanh(b, x, th, n);
+    for (int i = 0; i < n; i++)
+    {
+      const int    on = b->on[i] != 0U;
+      const double past = npsign(b->delta[i]) * npmaximum(fabs(b->delta[i]) - b->gap[i], 0.0);
+      double       passed = (past != 0.0) ? (b->k[i] * past + b->c[i] * rel[i]) + b->mesh[i] * th[i] : 0.0;
+      double       drive;
+
+      passed = on ? npclip(passed, -b->shock[i], b->shock[i]) : passed;
+      b->p_int[i] = on ? b->p_int[i] + h * ((b->drive[i] - brake[i] * b->w[i]) - b->hat[i]) : 0.0;
+      b->hat[i] = b->observe[i] * (b->p_int[i] - j[i] * b->w[i]);
+      drive = ctrl[i] + b->track[i] * ((p->feed[i] - b->hat[i]) + b->c[i] * (b->rate[i] / k[i] - rel[i]));
+      b->drive[i] = on ? npclip(drive, -b->peak[i], b->peak[i]) : ctrl[i];
+      b->w[i] = on ? (b->w[i] + (h * (b->drive[i] - passed)) / j[i]) / (1.0 + (h * brake[i]) / j[i]) : qd[i];
+      b->delta[i] = on ? npclip(b->delta[i] + h * (b->w[i] - qd[i]), -lim[i], lim[i]) : b->delta[i];
+      mean[i] = mean[i] + passed / (double)b->substeps;
+    }
+  }
+  for (int i = 0; i < n; i++)
+  {
+    p->ctrl[i] = (b->on[i] != 0U) ? mean[i] : ctrl[i];
+  }
+}
+
+/* Boxes.moved: each stepped rotor's angle past its link, its rotor's turn less where its link landed */
+static void moved(const wbc_steps_t *s, int n)
+{
+  const wbc_boxes_t *b = s->boxes;
+  const wbc_world_t *p = s->pass;
+
+  for (int i = 0; i < n; i++)
+  {
+    b->delta[i] = b->delta[i] + (b->went[i] - (p->qpos[p->qadr[i]] - b->q_step[i])) * (double)b->on[i];
+  }
+}
+
 void wbc_world_before(wbc_steps_t *s, double since)
 {
-  wbc_pass_ctrl(s->pass, since, NULL, NULL);
+  const int n = (s->pass->n < WBC_PASS_MAX) ? s->pass->n : WBC_PASS_MAX;
+  double    at[WBC_PASS_MAX], wrate[WBC_PASS_MAX];
+
+  if (s->boxes != NULL)
+  {
+    ahead(s, at, wrate, n);
+  }
+  wbc_pass_ctrl(s->pass, since, (s->boxes != NULL) ? at : NULL, (s->boxes != NULL) ? wrate : NULL);
   wbc_pass_motor(s->pass, s->step_s);
+  if (s->boxes != NULL)
+  {
+    stepped(s, n);
+  }
 }
 
 /* dclink.step: the link a step on under her drives' torques at their joints' speeds */
@@ -73,7 +186,11 @@ static void switched(wbc_steps_t *s)
 
 void wbc_world_after(wbc_steps_t *s)
 {
-  wbc_pass_metered(s->pass, NULL, s->step_s);
+  if (s->boxes != NULL)
+  {
+    moved(s, (s->pass->n < WBC_PASS_MAX) ? s->pass->n : WBC_PASS_MAX);
+  }
+  wbc_pass_metered(s->pass, (s->boxes != NULL) ? s->boxes->w : NULL, s->step_s);
   linked(s);
   if (s->switch_geom != NULL)
   {

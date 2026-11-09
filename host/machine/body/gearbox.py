@@ -94,7 +94,7 @@ class Boxes:
     def rigid(self, np, q):
         """The boards' encoders on rigid boxes: each held within `held` of its joint at `q`, rad,
         every board's - as the rigid world was modelled before the boxes (`drives.RIGID_PLAY_DEG`)."""
-        self.delta = np.where(self.sprung, self.delta, np.clip(self.delta + self.q_was - q, -self.held, self.held))
+        self.delta[:] = np.where(self.sprung, self.delta, np.clip(self.delta + self.q_was - q, -self.held, self.held))
         self.q_was[:] = q
         return self.delta
 
@@ -120,29 +120,30 @@ class Boxes:
         command itself unsaid), and the box's damping at the spring's winding rate that torque's rate
         (RATE_S) asks less the rotor's rate past the link's (`qd` the law's), within its peak; the
         command's rest, the pass's PD on the motor's angle, goes on the rotor as it is. `moved` sets
-        each rotor's angle past its link right after."""
+        each rotor's angle past its link right after. Its state stepped in place: her world's steps in C
+        step the same arrays (wbc_world.c, `tools.cores.world.boxed`)."""
         feed = ctrl if feed is None else feed
         on = self.sprung
         j = np.where(on, self.j, 1.0)
         k = np.maximum(self.k, 1.0)
         h = dt / SUBSTEPS
         mean = np.zeros(len(ctrl))
-        self.q_step, self.went = q.copy(), dt * qd
+        self.q_step[:], self.went[:] = q, dt * qd
         lim = self.gap + self.shock / k
         self.rate += (dt / RATE_S) * ((feed - self.asked) / dt - self.rate)
-        self.asked = feed.copy()
+        self.asked[:] = feed
         for _ in range(SUBSTEPS):
             rel = self.w - qd
             past = np.sign(self.delta) * np.maximum(np.abs(self.delta) - self.gap, 0.0)
             passed = np.where(past != 0.0, self.k * past + self.c * rel
                               + self.mesh * np.tanh(rel / MESH_RAD_S), 0.0)
             passed = np.where(on, np.clip(passed, -self.shock, self.shock), passed)
-            self.p_int = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
-            self.hat = self.observe * (self.p_int - j * self.w)
+            self.p_int[:] = np.where(on, self.p_int + h * (self.drive - brake * self.w - self.hat), 0.0)
+            self.hat[:] = self.observe * (self.p_int - j * self.w)
             drive = ctrl + self.track * ((feed - self.hat) + self.c * (self.rate / k - rel))
-            self.drive = np.where(on, np.clip(drive, -self.peak, self.peak), ctrl)
-            self.w = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
-            self.delta = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
+            self.drive[:] = np.where(on, np.clip(drive, -self.peak, self.peak), ctrl)
+            self.w[:] = np.where(on, (self.w + h * (self.drive - passed) / j) / (1.0 + h * brake / j), qd)
+            self.delta[:] = np.where(on, np.clip(self.delta + h * (self.w - qd), -lim, lim), self.delta)
             mean += passed / SUBSTEPS
         return np.where(on, mean, ctrl)
 

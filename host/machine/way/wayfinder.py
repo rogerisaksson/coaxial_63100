@@ -14,6 +14,7 @@ import functools
 import math
 
 from machine.texts import kernel
+from machine.law import composer
 from machine.body.figure import BODY, SEGMENTS
 
 _ARM = next(seg for seg in SEGMENTS if seg[0] == 'left_upper_arm')
@@ -87,6 +88,8 @@ def _schema():
     return schema
 
 
+# without an errand her gauge is 0.0 times the gap's: at rest it is 0.0, the gap unread (`composer`)
+@composer.capability(lambda g, _s: g.get('_errand') is not None, lambda _g, _s: 0.0)
 def gauged(g, s):
     """Her trunk's twist this pass of her session `g`: the gauge's for the gap her route meets among
     her things' boxes (`schema.room`) - none on a word's twist -, her gaze to be kept against it; the

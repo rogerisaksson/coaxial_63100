@@ -7,7 +7,7 @@ The kernel's `bind-stiffness-to-support-share` on her loop.
 import math
 
 from machine.texts import acts, kernel, ortho
-from machine.law import latent
+from machine.law import composer, latent
 from machine.moves.seated import POPLITEAL, RESTS
 
 #: In dB as that share, MELT_DB borne wholly, back within MELT_S as it unloads; her legs' modes (`acts.LEGS`).
@@ -31,6 +31,16 @@ def melted(melt, share, was, dt):
     return 10.0 ** (MELT_DB * melt / 20.0), melt
 
 
+def melting(g, _out, told, _weighed, _dt):
+    """Whether `step` works this pass: her soles told no more than twice what her lower legs weigh resting, or her melt
+    or her rest kept off zero. Else its share and its rest are 0, its melt held at 0 and her springs times 1.0 -
+    nothing: its rest is no step (`composer`)."""
+    said = max(float(told.sum()), 1.0)
+    return (float(told[0]) <= 2.0 * RESTS * said or g.get('melt', 0.0) != 0.0 or g.get('rested', 0.0) != 0.0
+            or g.get('melt_was', 0.0) != 0.0 or g.get('rested_was', 0.0) != 0.0)
+
+
+@composer.capability(melting, lambda *_a: None)
 def step(g, out, told, weighed, dt):
     """Her legs' springs in her latent's `out` melted by her text's share off soles it tells nothing (`told`,
     `latent.MANIFOLDED`), `g`'s melt kept, `dt` s on: normalized (`observer.said`), the share leapt to 1 at its

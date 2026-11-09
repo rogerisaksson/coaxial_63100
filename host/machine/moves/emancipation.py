@@ -24,7 +24,7 @@ from numpy._core.umath import clip as CLIP  # pyright: ignore[reportAttributeAcc
 
 from machine.senses import borne, field, observer, edge
 from machine.texts import kernel, ortho
-from machine.law import latent, modal
+from machine.law import composer, latent, modal
 from machine.moves import leap
 from machine.moves.cascade import (_U, asked, HANG_RATE, LEG_JOINTS, LEGGED, leave, MARGIN_NM, nothing, OPEN, opening,
                                    PLANTAR, reached, released, SHED)
@@ -161,6 +161,8 @@ def settling(acc, soled, row, latch_of, points, told, floor, sat, prop0, vcom):
     return np.stack([acc[0], acc[1] + rise, acc[2]])
 
 
+# no leg asked released, its lean is 0 iota times its cantilever's: at rest her ask as it was (`composer`)
+@composer.capability(lambda _acc, g: bool(g['emancipation']['iota'].any()), lambda acc, _g: np.array(acc, float), g=1)
 def counterweighted(acc, g):
     """`acc`, her centre of mass's ask (world, y up), with her capture point asked in of what bears her besides the
     leg her text most asks released, as far as it asks, to where her gate is open wholly (twice the text's margin, of

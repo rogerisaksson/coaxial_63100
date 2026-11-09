@@ -13,6 +13,11 @@ API int wbh_steps_size(void)
   return (int)sizeof(wbc_steps_t);
 }
 
+API int wbh_boxes_size(void)
+{
+  return (int)sizeof(wbc_boxes_t);
+}
+
 API void wbh_world_rated(wbc_steps_t *s, double span)
 {
   wbc_world_rated(s, span);
