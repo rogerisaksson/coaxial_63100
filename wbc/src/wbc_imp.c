@@ -422,6 +422,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   {
     const double strides = limbs[b] * npmax(grounded, (double)(u[b] > u[1 - b]));
 
+    a[k->a_strode + b] = strides;
     for (int j = 0; j < 3; j++)
     {
       a[k->a_sole_acc + 3 * b + j] = (1.0 - strides) * (ff[b][j] + gc[j]) + strides * (fc[j] + gg[b][j]);

@@ -24,7 +24,7 @@ import numpy as np
 from machine.body import gait
 from machine.senses import borne
 from machine.law import latent, poise, rocker, stride, swing, treads, vault
-from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, AIM, MEET, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
+from machine.law.modal import ANKLE_H, ARM_RAD, ARMS, AXIAL, AXIAL_M, BEGUN, BEND, BEND_RATE, BORNE, CELL, CLEAR_M, COM, COM_ACC, DRIVE, DT, DUCKING, EDGE, ELBOWED, ELBOWS, FLOOR, FOLD, FOLD_RATE, FOLDS, G, GOING, GRIP, GROUND, HANDS, HEADED, DIP, AIM, MEET, STRODE, HEELED, HIP, HIPS_BY, HOT, HSPIN, KDOT, KNEE, LATERAL, LEAD, LEG_M, LET_GO, LIFT, LIST, LIST_RAD, LOAD, LOWEST, MAP_ALONG, MAP_AT, MAP_N, MAP_RISE, MAP_WAY, MASS, MOMENT, NEED, OUTSIDE, PELVIS, PITCH, PITCH0, PLANTED, PITCH_RAD, PREFOLD, PROP, RAISE, REACH, REACH0, REACHED, RESTS, ROCK, ROLLED, ROT, SAGITTAL, SETTLE, SOLE, SOLE_ACC, SPLIT, STANCE, STRIDES, SWINGS, SWUNG, TILT, TILT_RATE, TIPPED, TURN, TURN_RAD, TURNED, UNIT, VCOM, VHEAD, VSOLE, W0, WANT, WEIGHT, WIDTH, reading, shortened, under
 from machine.law.poise import HALF_M, TINY
 from machine.law.stride import ALONG, LEFT, LIMBS, UP
 from machine.law.swing import BETWEEN, FREE_BY, HOT3
@@ -184,7 +184,7 @@ def ask(out, y, fr, a):
     a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (tipped + kp[ROCK] * (tip + bears @ rocker.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (tipping - tilting))
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
-    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP] = stance, com @ rot, stepping, propped, on * (begun + stood * (1.0 - stance) * off * (np.minimum(0.5 * (phi / phi_w + 1.0), 0.0) - begun)), reach_h - (hips[:, UP] - floors)
+    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP], a[STRODE] = stance, com @ rot, stepping, propped, on * (begun + stood * (1.0 - stance) * off * (np.minimum(0.5 * (phi / phi_w + 1.0), 0.0) - begun)), reach_h - (hips[:, UP] - floors), strides[:, 0]
     _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 

@@ -129,7 +129,9 @@ BEGUN = slice(79, 81)
 DIP = slice(81, 83)
 #: And each sole's landing (`stride.meets`) and its aim this pass (`stride.guarded`), on her way, m.
 MEET, AIM = slice(83, 87), slice(87, 91)
-ASK = 91
+#: And how far each sole strides to its aim, against hanging under her (`swing.free`), 0 to 1.
+STRODE = slice(91, 93)
+ASK = 93
 
 #: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
 _G = gait.table('modes')

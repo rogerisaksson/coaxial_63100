@@ -24,7 +24,7 @@ typedef struct
   int           a_going, a_rolled, a_headed, a_tipped, a_swung, a_folds, a_settle, a_edge, a_heeled;
   int           a_strides, a_prefold, a_swings, a_raise, a_need, a_lead, a_outside, a_borne, a_bend_rate, a_cell;
   int           a_ducking, a_rests, a_propped, a_propped_below, a_propped_since, a_propped_box, a_reached, a_elbowed, a_let_go;
-  int           a_split, a_begun, a_dip, a_meet, a_aim;
+  int           a_split, a_begun, a_dip, a_meet, a_aim, a_strode;
   int           free_by[3];   /**< the modes holding a sole that does not stand, an axis each */
   const double *hands;        /**< each mode's hand on a limb's place (n, 2, 3) */
   /* machine.law.impedance */
