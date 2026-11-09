@@ -46,7 +46,6 @@ def test_the_keys_that_move_her_are_one_twist(report):
     from types import SimpleNamespace as SN
     from machine.law import se2
     from terminal.views import humanoid_keys, viewpoint
-    from tools.sim import scenarios
     walk, back, side, run, yaw_s = se2.WALK_SPEED, se2.BACK_SPEED, se2.STRAFE_SPEED, se2.RUN_SPEED, round(se2.YAW_RATE, 2)
 
     def tw(word, yaw=180.0, heading=0.0):
@@ -60,7 +59,7 @@ def test_the_keys_that_move_her_are_one_twist(report):
                  == ((walk, 0.0, 0.0), (walk, 0.0, yaw_s), (run, 0.0, 0.0), (0.0, -side, 0.0)))
     every = {tw(w, yaw, hd) for w in ('w', 's', 'a', 'd', 'wa', 'wd', 'sa', 'sd', 'q', 'e', 'W', 'WA', 'S')
              for yaw in range(0, 360, 15) for hd in (0.0, 1.0, -2.0)}
-    bound = [max(abs(t[i]) for t in scenarios.KEYS.values()) for i in range(3)]
+    bound = [max(abs(t[i]) for t in player.KEYS.values()) for i in range(3)]
     report.check("every twist the keys send within the bench plays' bounds, a sidestep alone, a sprint all but straight",
                  all(abs(t[i]) <= bound[i] + 1e-9 for t in every for i in range(3))
                  and all(not (t[1] and (t[0] or t[2])) for t in every)
