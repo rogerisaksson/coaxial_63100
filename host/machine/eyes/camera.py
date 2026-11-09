@@ -80,15 +80,20 @@ class Camera:
         self.looked_at, self.sent, self.things, self.seen, self.looks = None, False, [], None, 0
         self._binary_sent, self.shot, self.shown, self._ready = False, None, None, True
 
-    def look(self, world, now, head, gz=(0.0, 0.0), held=None):
+    def look(self, world, now, head, gz=(0.0, 0.0), held=None, waited=True):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
         takes it, its ready first after her first look, which waits on none: waited on there, her map apart's boot,
         its renderer's laying and its first shot held her first world second 3 s and more -, `shown` the (time, head,
         gaze) they were shot at, none before a look's; this one's world sent to be shot from her `head` {pos, quat}
         as her estimate has it at her gaze `gz`, her gimbals as she holds them (`held`, `gaze.held`) - her model's
-        binary at the first -; whether one was."""
+        binary at the first -; whether one was. Not `waited` - her eyes not hers (SIGHT 0: her registry on the
+        world's boxes, her camera her page's view alone) -, nothing is waited for: what her map apart has said is
+        taken, and a look still in flight leaves this one's world unsent, her looks due as ever (`_drained`)."""
         if self.looked_at is not None and now - self.looked_at < sight.LOOK_S:
             return False
+        if not waited and self._drained():
+            self.looked_at = now
+            return True
         if self.sent:
             if self._ready:
                 self._told()
@@ -100,6 +105,22 @@ class Camera:
         self.shown, self.shot = self.shot, (now, head, tuple(map(float, gz)))
         self.looked_at, self.sent, self._binary_sent = now, True, True
         return True
+
+    def _drained(self):
+        """Whether a look is still in flight, what her map apart has said taken without a wait - its ready first,
+        then a look's things, view and looks."""
+        while True:
+            try:
+                told = self._told_q.get_nowait()
+            except queue.Empty:
+                return self.sent
+            if told is None:
+                raise MachineError(self._aside.ended())
+            if self._ready:
+                self._ready = False
+                continue
+            self.things, self.seen, self.looks = told
+            self.sent = False
 
     def _told(self):
         """The look in flight's things, view and looks - her map apart's ready first -; raises if it ended

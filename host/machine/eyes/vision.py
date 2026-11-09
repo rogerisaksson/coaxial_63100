@@ -39,7 +39,8 @@ def look(g):
         gaze.aimed(g['world'], gz)
         held = gaze.held(g, gz)
         # a look with her eyes standing on what they look at alone: none in a saccade's blur
-        took = gaze.settled(g) and g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held)
+        took = gaze.settled(g) and g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held,
+                                                  waited=bool(g['eyes']))
         if took:
             gaze.asked(g, gz)
         if g['eyes'] and (not took or g['keep'].shown is None):
