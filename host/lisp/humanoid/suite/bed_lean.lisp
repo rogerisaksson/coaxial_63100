@@ -258,11 +258,14 @@
 
 ;; Sat up as the edge she lay down from lets her, then up as from a chair, her trunk leaned a chair's 0.74 rad: from
 ;; its end, seated on its foam over its firm core, 1.00 threw her off her feet at all 4 of 7 docks that thrust; 0.74
-;; stood all 7
+;; stood all 7. From its long side as from its end (her bed exit's move): lain there on her back her pelvis is 0.85 m
+;; from the edge, her feet at it, and the long side's own sit-up - turned and raised in place over 1.9 s - got her
+;; trunk no higher than -54 deg as her pelvis tipped back, and the rise's lean flipped her; the move sits her up on
+;; her arms and scoots her toward her feet till her shanks hang, whichever edge that is
 (defpatch patch-rise-bed [seated-state &key (bed-side *bed-side*)]
   (-> seated-state
       (case bed-side
-        (:long (specialize-sit-up-long-side))
+        (:long (specialize-sit-up-short-side))
         (otherwise (specialize-sit-up-short-side)))
       (wake-inverter-closed-loop)
       (transfer-concentric-handover
