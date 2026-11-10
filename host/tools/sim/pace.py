@@ -6,6 +6,7 @@
     python tools/sim/pace.py walk --profile    # and where her main thread spends its time, sampled
     python tools/sim/pace.py door --time machine.law.motion.control tools.cores.bodied.Bound.__call__
     python tools/sim/pace.py door --here --time machine.eyes.registry.seen   # her vision in this process
+    python tools/sim/pace.py door --blind      # her eyes not hers: a sha1 over every pass, her bits' oracle
 
 Laid as `worker.run` lays her - this process placed (`placed`), her lodge, her fake camera, her
 planner and her vision apart -, her state said each SAY_S of her world's time, run flat out: a line
@@ -16,7 +17,10 @@ own share of the samples and its share with what it calls - a sample waits on th
 so a C call holding it is under-counted. `--time` wraps each function named (a module's, or a class's
 in it, where her code calls it through its module or its object) in a wall clock: its calls, its
 seconds with what it calls, its share of the errand's wall time; `--here` keeps her vision in this
-process (`vision.Here`, a run's), its look's own parts timed so - its bits the same either way.
+process (`vision.Here`, a run's), its look's own parts timed so - its bits the same either way. `--blind` lays
+her with her eyes not hers - her registry on the world's boxes, no camera - and tells a sha1 over every pass's
+qpos, qvel and ctrl: her bits the same at any pace and on any host's load, as her errands' ends with her eyes
+hers are not - the card's multisampling tells her camera's frames by the wall's time (`machine.eyes.camera`).
 """
 import argparse
 import collections
@@ -39,14 +43,15 @@ class Run:
     """Her session laid as the worker lays her (`worker.run`), stepped flat out a pass at a time as
     `worker.Her` steps her, each second's wall time kept with what she was doing."""
 
-    def __init__(self, here=False):
+    def __init__(self, here=False, blind=False):
         from machine.eyes import vision
         from machine.process import placed, sprung, worker, worn
         from machine.way import planner
         from machine.world import physics
         placed.placed()
         # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
-        physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
+        physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)
+        self.passed = hashlib.sha1() if blind else None
         s = self.s = worker.session(sprung.STACK_EVERY, False, None)
         s['g']['planner'], s['peeker'] = planner.Planner(), planner.Planner()
         s['g']['vision'] = vision.Here() if here else vision.Apart()
@@ -76,6 +81,10 @@ class Run:
         while self.t - t0 < seconds and self.s['fallen_at'] is None:
             worker.stepped(self.s)
             peek.peeked(self.s)
+            if self.passed is not None:
+                d = self.s['g']['world'].data
+                for a in (d.qpos, d.qvel, d.ctrl):
+                    self.passed.update(a.tobytes())
             if self.t - self.said >= sprung.SAY_S:
                 self.said = self.t
                 worker.told(self.s)
@@ -128,9 +137,10 @@ def _bed(r):
 ERRANDS = {'stand': _stand, 'walk': _walk, 'door': _door, 'chair': _chair, 'bed': _bed}
 
 
-def paced(name, here=False):
-    """Errand `name` run flat out from her laying, her vision in this process where `here`: its line."""
-    r = Run(here)
+def paced(name, here=False, blind=False):
+    """Errand `name` run flat out from her laying, her vision in this process where `here`, her eyes not hers and
+    every pass hashed where `blind`: its line."""
+    r = Run(here, blind)
     try:
         r.go(0.5)
         r.seconds.clear()
@@ -142,7 +152,8 @@ def paced(name, here=False):
     h = hashlib.sha1(r.s['g']['world'].data.qpos.tobytes()).hexdigest()[:12]
     return ('%-6s worst x%.2f (%s) mean x%.2f | %s | qpos %s at t %.2f%s'
             % (name, worst[1], worst[0][:14], sum(xs) / len(xs), ' '.join('%.2f' % x for x in xs), h, r.t,
-               '' if r.s['fallen_at'] is None else ', fell at %.2f s' % r.s['fallen_at']))
+               '' if r.s['fallen_at'] is None else ', fell at %.2f s' % r.s['fallen_at'])
+            + ('' if r.passed is None else ', passes %s' % r.passed.hexdigest()[:16]))
 
 
 def sampled(fn):
@@ -233,6 +244,7 @@ def main(argv=None):
     p.add_argument('--profile', action='store_true', help='where her main thread spends its time, sampled')
     p.add_argument('--time', nargs='+', default=(), help='functions by dotted name, each its wall time')
     p.add_argument('--here', action='store_true', help='her vision in this process, not apart')
+    p.add_argument('--blind', action='store_true', help='her eyes not hers, no camera: a sha1 over every pass told')
     args = p.parse_args(argv)
     if not args.names:
         for _name, line in relayed(list(ERRANDS)):
@@ -241,13 +253,13 @@ def main(argv=None):
     for name in args.names:
         if not args.profile:
             kept, t0 = timed(args.time), time.perf_counter()
-            line = paced(name, args.here)
+            line = paced(name, args.here, args.blind)
             wall = time.perf_counter() - t0
             for fn, (calls, s) in kept.items():
                 print('  %5.1f%%  %8.1f us x %6d  %s' % (100.0 * s / wall, 1e6 * s / max(calls, 1), calls, fn))
             print(line, flush=True)
             continue
-        line, own, inclusive, n = sampled(lambda: paced(name, args.here))
+        line, own, inclusive, n = sampled(lambda: paced(name, args.here, args.blind))
         for title, counts in (('own', own), ('inclusive', inclusive)):
             print('%s, %d samples:' % (title, n))
             for fn, k in counts.most_common(LISTED):
