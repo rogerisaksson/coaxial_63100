@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import barrier, brace, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
+from machine.law import barrier, brace, composer, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
 from machine.body import bemf, capsules
 from machine.senses import estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import cascade, emancipation, leap, seated
@@ -101,6 +101,22 @@ def surety(g, dt, ct=math.nan):
     return cur
 
 
+def _chained(g, _s, _ask):
+    """Whether her closed chains held her at her last pass: her rise's gate works then alone."""
+    return g.get('chained', 0)
+
+
+def _loose(_g, _s, _ask):
+    """Her rise's gate at rest: no chain of hers closed."""
+    return 0.0
+
+
+@composer.capability(_chained, _loose)
+def gated(g, s, ask):
+    """Her rise's gate (`chain.outside`) on her state `s` and her `ask`, a part composed by her chains."""
+    return chain.outside(s, ask, g['loads'], float(g['fr'][modal.OMEGA]), float(g['fr'][modal.WEIGHT]), g['told'])
+
+
 def control(g, dt):
     """A pass of her latent loop on what she senses: `g['got']` solved, `g['leg_kp']` her legs'
     stiffness by their stance."""
@@ -181,8 +197,7 @@ def control(g, dt):
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
     # her rise's gate keeps her closed chains as they leave her, never takes her into them: her chair's seat is in her
     # upright step's cone, and held in her chains from her seat she sat on through every rise
-    ask['outside'] = (chain.outside(s, ask, g['loads'], float(g['fr'][modal.OMEGA]), float(g['fr'][modal.WEIGHT]),
-                                    g['told']) if g.get('chained', 0) else 0.0)
+    ask['outside'] = gated(g, s, ask)
     ask['lean'] = chain.rise()[0] * ask['outside']
     chained = g['chained'] = chain.chained(ask)
     # her legs' touch on the seat is the chains' alone while she sits - her pelvis bears, not reclined - and her hands
