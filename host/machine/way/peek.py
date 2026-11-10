@@ -17,13 +17,15 @@ VERBS, NO_SEAT = ('sit_chair', 'lie_bed', 'exit_door'), ('table', 'platform', 's
 
 
 def _goes(g):
-    """[(verb, box)] each thing among hers a walked verb goes to (`furniture.GOES`), nearest her first."""
+    """[(verb, box)] each thing among hers a walked verb goes to (`furniture.GOES`), nearest her first: what affords
+    each as her errand keeps it told of her things (`furniture._afforded`) - told here anew each round, every thing
+    against every other, it was 3.9 ms of her loop nine times a second in her door's errand."""
     from machine.way import affordance, furniture
-    things = furniture._things(g, None)
     at = (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
-    got = [(affordance.distance(p, at), verb, p) for verb in VERBS for p in things
-           if furniture.GOES[verb][0](p, things) and (verb != 'lie_bed' or p[0] == 'bed')
-           and (verb != 'sit_chair' or (not affordance.lies(p, things) and p[0] not in NO_SEAT))]
+    goes = {verb: [p for p, _own in furniture._afforded(g, verb)[1]] for verb in VERBS}
+    lain = set(map(id, goes['lie_bed']))
+    got = [(affordance.distance(p, at), verb, p) for verb in VERBS for p in goes[verb]
+           if (verb != 'lie_bed' or p[0] == 'bed') and (verb != 'sit_chair' or (id(p) not in lain and p[0] not in NO_SEAT))]
     return [(verb, p) for _d, verb, p in sorted(got, key=lambda h: h[0])]
 
 
@@ -75,10 +77,13 @@ def peeked(s):
             st['docks'][_key(verb, box)] = None
     if planner.asked_at is not None:
         return
-    if not st['todo']:
+    # a round over, her things told anew - but those that told none are not told again: what a verb goes to is her
+    # things' alone, and told each pass with none (her door's errand, 3 387 times) it was 31 us of each
+    if not st['todo'] and st.get('none') is not g['things']:
         st['todo'] = _goes(g)
         live = {_key(verb, box) for verb, box in st['todo']}
         st['docks'] = {k: d for k, d in st['docks'].items() if k in live}
+        st['none'] = None if st['todo'] else g['things']
     if not st['todo']:
         return
     verb, box = st['todo'].pop(0)

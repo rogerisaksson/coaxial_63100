@@ -94,7 +94,7 @@ def _found(g, verb, at=None, thing=None, things=None):
     gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
     ax, az = at if at is not None else (gx, gz)
     things, afforded = _afforded(g, verb, things)
-    held = [p for p in things if thing is not None and len(p) > 4 and p[4] == thing]
+    held = [p for p in things if len(p) > 4 and p[4] == thing] if thing is not None else []
     itself = GOES.get(verb, _NONE)[1]
     near = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az), p, own)
             for p, own in ([(p, itself(p, things)) for p in held] if held else afforded)]

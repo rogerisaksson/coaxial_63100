@@ -330,9 +330,11 @@ def given(a, y, posed, knees, bend, fr, pitched_=pitched):
     own: through the knees' summed row and her posture alone it stayed at 30 deg and her hip was still
     extending, 82 deg/s, as her toes left - a woman's flexes there."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
-    free = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5))
-    folded = np.flatnonzero((a[STANCE] < 0.5) & (a[LET_GO] < 0.5) & (a[FOLDS] > 0.5))
-    pre = np.flatnonzero((a[STANCE] > 0.5) & (a[SWINGS] > 0.5))
+    # her two soles' sets read as numbers: three flatnonzeros of two were 20 us a law pass
+    stood, let, folds, swings = a[STANCE].tolist(), a[LET_GO].tolist(), a[FOLDS].tolist(), a[SWINGS].tolist()
+    free = [i for i, (st, lg) in enumerate(zip(stood, let)) if st < 0.5 and lg < 0.5]
+    folded = [i for i in free if folds[i] > 0.5]
+    pre = [i for i, (st, sw) in enumerate(zip(stood, swings)) if st > 0.5 and sw > 0.5]
     return {'stance': tuple(a[STANCE] > 0.5), 'let_go': tuple(a[LET_GO] > 0.5), 'com_acc': a[COM_ACC].copy(),
             'turns': tuple(turns[:2 * int(a[TURNED])]), 'posture': pose, 'kdot': a[KDOT].copy(),
             'knee_rate': tuple(float(bend[k] * a[BEND_RATE]) for k in knees),
