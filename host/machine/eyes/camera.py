@@ -57,12 +57,14 @@ class _Posed:
 
 
 def main():
-    """Her eyes and her map apart (`aside.serve`): her model first - its renderer laid, no look - and READY said, then
-    each look's world - its poses and its laying - shot (`_Posed.shot`) and taken into her map (`sight.Keep.took`), its
-    things, its view and its looks said back. Nothing is drawn or matched before her first look: the card's
-    multisampling tells a frame's pixels by the frames drawn before it and the wall's time between them - 6 to 17 of a
-    frame's a least bit off, the same scene; none without it -, so a frame drawn here moved her door errand's end, and
-    her stereo's card started here, her second look 0.5 s sooner, her bed errand's in 4 runs of 7."""
+    """Her eyes and her map apart (`aside.serve`): her model first - its renderer laid and her stereo's card started on
+    blank pictures (`sight.Eyes.warmed`), no frame drawn - and READY said, then each look's world - its poses and its
+    laying - shot (`_Posed.shot`) and taken into her map (`sight.Keep.took`), its things, its view and its looks said
+    back. No frame before her first look: the card's multisampling tells a frame's pixels by the frames drawn before it
+    and the wall's time between them - 6 to 17 of a frame's a least bit off, the same scene; none without it -, so one
+    drawn here moved her door errand's end. Her card's start moves no frame and no match - the same to the bit over
+    40 frames - but her second look is hers 0.5 s sooner, and by the wall's time, as by her loop's pace, her eyes'
+    frames tell her errands' ends."""
     keep, kept = sight.Keep(), {}
 
     def took(ask):
@@ -70,6 +72,7 @@ def main():
         if binary is not None:
             kept['world'] = _Posed(binary)
         if poses is None:
+            kept['world'].eyes.warmed()
             return READY
         keep.took(*kept['world'].shot(poses, placed, head, gz, held))
         return sight.told(keep), keep.view(), keep.map.looks

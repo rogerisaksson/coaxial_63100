@@ -20,6 +20,7 @@ import weakref
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np
 from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import epipolar, gimbal, instances, squint, voxels
+from machine.eyes.grids import convex, rim as _rim
 
 #: A look's points every EVERY'th pixel each way: at 640 x 480 her map's 19 200 points a look as at 320 x 240
 #: every second - its cost theirs, 45 ms a look against 161 every second -, each point's depth twice as fine.
@@ -146,6 +147,14 @@ class Eyes:
         i = self.ids['left']
         return Seen(shots['left'], shots['right'], d.cam_xpos[i].copy(),
                     d.cam_xmat[i].reshape(3, 3).copy())
+
+    def warmed(self):
+        """Her stereo's card started - two blank pictures laid where her gimbals are held and matched
+        (`epipolar.matched`) -, nothing of its own moved (`held`, `squint`, `laid`) and no frame drawn: a camera's first
+        match took 683 ms of the card's start, one after it 28."""
+        blank = _np().zeros((epipolar.FINE * H, epipolar.FINE * W, 3), 'uint8')
+        (lr, lc), (told, rc) = [(gimbal.eye(s, a, True), gimbal.place(s, a, True)) for s, a in self.held.items()]
+        epipolar.matched(blank, blank, lr, told @ self.squint.turn(), rc - lc)
 
     def stereo(self, world, head, gz=(0.0, 0.0), held=None):
         """A look's frame (seen, disparity, kept) at her servos' gaze `gz`: both eyes' pictures laid by their turns and
@@ -327,38 +336,6 @@ def thumbnail(rgb, w, h):
     np = _np()
     hh, ww = rgb.shape[0] // h * h, rgb.shape[1] // w * w
     return rgb[:hh, :ww].reshape(h, hh // h, w, ww // w, 3).mean(axis=(1, 3)).astype(np.uint8)
-
-
-def _rim(cols, rows):
-    """[(col, row)] of a picture's points (two (n,) of integers) that a hull can hold: each column's lowest and its
-    highest alone - one between them lies on their line -, so `convex` of them is `convex` of them all."""
-    np = _np()
-    order = np.lexsort((rows, cols))
-    c, r = cols[order], rows[order]
-    first = np.flatnonzero(np.r_[True, c[1:] != c[:-1]][:len(c)])
-    ends = np.concatenate([first, np.r_[first[1:] - 1, len(c) - 1][:len(first)]])
-    return list(zip(c[ends].tolist(), r[ends].tolist()))
-
-
-def convex(pts):
-    """The convex hull of (x, y) points, counter-clockwise (Andrew's monotone chain)."""
-    pts = sorted(set(pts))
-    if len(pts) < 3:
-        return pts
-
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-    lower, upper = [], []
-    for p in pts:
-        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
-            lower.pop()
-        lower.append(p)
-    for p in reversed(pts):
-        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
-            upper.pop()
-        upper.append(p)
-    return lower[:-1] + upper[:-1]
 
 
 def _nearest_free(blocked, cell):

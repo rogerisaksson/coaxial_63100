@@ -35,7 +35,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body import figure
-from machine.eyes.grids import grown, joined as _joined
+from machine.eyes.grids import convex, grown, joined as _joined
 from machine.world import room
 
 #: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
@@ -371,7 +371,6 @@ def least_area(at, voxel):
     """(a, b) the floor axes of the least-area rectangle round points `at` (n, 2), a its longer: over
     their hull's edges' directions, each extent a voxel wider (rotating calipers). The hull of the points as python's
     floats - the same doubles, the same arithmetic -: of numpy's scalars its chain's crosses were 35 ms a look."""
-    from machine.eyes.sight import convex
     h = np.array(convex(list(map(tuple, at.tolist()))), float).reshape(-1, 2)
     e = np.roll(h, -1, axis=0) - h
     th = np.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)

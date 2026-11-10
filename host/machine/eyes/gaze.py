@@ -232,6 +232,9 @@ def _arrived(g, st):
     if walking and st['anchor'] is None:
         st['anchor'] = _anchored(g)
         st['jump'] = st['jump'] or st['anchor'] is not None
+    # exploring or walking neither row below reads her head: her heading told each law pass was 20 us of it
+    if st['exploring'] or walking:
+        return
     head = g['s']['head']
     here, heading = (float(head['pos'][0]), float(head['pos'][2])), _heading(head)
     if not st['exploring'] and not any(abs(float(v)) > 1e-9 for v in twist) and math.dist(here, st['here']) > NEAR_M:

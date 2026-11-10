@@ -1,9 +1,11 @@
-"""Her grids' cells grown and joined: a grid grown round its set cells, their connected groups.
+"""Her grids' cells grown and joined, her points' hulls: of numpy alone, nothing of hers read.
 
     wider = grids.grown(cells, r)             # each set cell and those within r of it
     groups = grids.joined(on, offsets)        # [(index arrays)] the set cells' connected groups, lowest first
+    hull = grids.convex(pts)                  # [(x, y)] the hull of points, counter-clockwise
+    pts = grids.rim(cols, rows)               # a picture's points a hull can hold: each column's lowest and highest
 
-Her map's and her picture's (`machine.eyes.voxels`, `machine.eyes.sight`): numpy alone, nothing of hers read.
+Her map's and her picture's (`machine.eyes.voxels`, `machine.eyes.sight`).
 """
 import math
 
@@ -54,3 +56,35 @@ def joined(on, offsets):
     order = np.argsort(label, kind='stable')
     starts = np.flatnonzero(np.r_[True, label[order][1:] != label[order][:-1]])
     return [tuple(idx[:, order[s:e]]) for s, e in zip(starts, np.r_[starts[1:], len(order)])]
+
+
+def rim(cols, rows):
+    """[(col, row)] of a picture's points (two (n,) of integers) that a hull can hold: each column's lowest and its
+    highest alone - one between them lies on their line -, so `convex` of them is `convex` of them all."""
+    import numpy as np
+    order = np.lexsort((rows, cols))
+    c, r = cols[order], rows[order]
+    first = np.flatnonzero(np.r_[True, c[1:] != c[:-1]][:len(c)])
+    ends = np.concatenate([first, np.r_[first[1:] - 1, len(c) - 1][:len(first)]])
+    return list(zip(c[ends].tolist(), r[ends].tolist()))
+
+
+def convex(pts):
+    """The convex hull of (x, y) points, counter-clockwise (Andrew's monotone chain)."""
+    pts = sorted(set(pts))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
