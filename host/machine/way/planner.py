@@ -17,6 +17,7 @@ nothing. A new ask lets the one in flight go. `python -m machine.way.planner`, a
     told = planner.answer(t)                # None till LATENCY_S after an ask, then {laid, stops, curve, held}, or {}
     planner.close()
 """
+import operator
 import queue
 
 from machine.process import aside
@@ -26,6 +27,8 @@ from machine.errors import MachineError
 _APART = obstacles.laws()['wayfinder-apart']
 #: A watch's answer reaches her this long after it, s; her way is watched this often as she walks it, s.
 LATENCY_S, WATCH_S = _APART['watch-latency-s'], _APART['watch-period-s']
+#: What an ask tells of her things where they are the ask before's (`Planner.ask`): those her planner apart kept.
+SAME = 'her things as last asked'
 
 
 def answered(ask):
@@ -47,9 +50,17 @@ def answered(ask):
 
 
 def main():
-    """Her planner apart: each ask answered (`aside.serve`)."""
+    """Her planner apart: each ask answered (`aside.serve`), her things those of the ask before where it tells them
+    SAME (`Planner.ask`)."""
     from machine.way import dock, route  # noqa: F401 - warm before the first ask
-    aside.serve(answered)
+    kept: dict = {}
+
+    def served(ask):
+        if isinstance(ask['things'], str):
+            ask = dict(ask, things=kept['things'])
+        kept['things'] = ask['things']
+        return answered(ask)
+    aside.serve(served)
 
 
 class Planner:
@@ -58,20 +69,26 @@ class Planner:
 
     def __init__(self):
         self._aside, self._told_q = aside.Aside('machine.way.planner', 'her planner'), queue.Queue()
-        self.asked_at, self._wait = None, 0.0
+        self.asked_at, self._wait, self._things = None, 0.0, None
 
     def start(self):
         """Its process spawned, where it is not yet."""
         if self._aside.process is not None:
             return
+        self._things = None
         self._aside.start().heard(self._told_q)
 
     def ask(self, now, ask):
-        """`ask` sent at `now`, the one in flight let go (its answer read and dropped)."""
+        """`ask` sent at `now`, the one in flight let go (its answer read and dropped); her things told SAME where they
+        are the very ones of the ask before - kept there (`main`) -: pickled with every ask they were 0.8 to 1.8 ms of
+        each, her peeks' one after another, her things new at a look alone."""
         self.start()
         if self.asked_at is not None:
             self._told()
-        self._aside.send(ask)
+        things, was = ask['things'], self._things
+        same = was is not None and len(things) == len(was) and all(map(operator.is_, things, was))
+        self._things = things
+        self._aside.send(dict(ask, things=SAME) if same else ask)
         self.asked_at, self._wait = now, LATENCY_S * float(ask['kind'] == 'watch')
 
     def answer(self, now):
@@ -98,7 +115,7 @@ class Planner:
     def close(self, wait=1.0):
         """Its process ended (`aside.Aside.close`)."""
         self._aside.close(wait)
-        self.asked_at = None
+        self.asked_at, self._things = None, None
 
 
 class Here:

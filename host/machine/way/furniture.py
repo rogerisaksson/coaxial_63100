@@ -60,8 +60,18 @@ def _afforded(g, verb, things=None):
             boxes = [source[k] for k in index]
             chosen = [(j, itself(p, boxes)) for j, p in enumerate(boxes) if affords(p, boxes)]
         boxes = [source[k] for k in index]
-        kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen])
+        kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen], {})
     return kept[4], kept[5]
+
+
+def _faced(g, verb, things, box):
+    """The headings of the faces `verb` docks her at on `box` (GOES), one of the boxes last told of `things`
+    (`_afforded`): told once a telling, with what affords it - a seat's back sought among all her things at every
+    read of her errand's thing (`nearest`), 100 us a third of its passes."""
+    _source, _was, _index, _chosen, boxes, _afford, told = g['_afforded'][(verb, things is None)]
+    if id(box) not in told:
+        told[id(box)] = GOES.get(verb, _NONE)[2](box, boxes)
+    return told[id(box)]
 
 
 def _alike(was, things):
@@ -105,7 +115,7 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
         return math.inf, where[0], where[1], None, None, None, None
     edge, p = hit[1], hit[2]
     return (edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None),
-            GOES.get(verb, _NONE)[2](p, _things(g, things)), p)
+            _faced(g, verb, things, p), p)
 
 
 def lain(g, verb='lie_bed'):
