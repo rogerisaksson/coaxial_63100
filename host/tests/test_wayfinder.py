@@ -29,6 +29,22 @@ def test_the_wayfinder_gauges_her_way(report):
                  bool(np.allclose(widths, (1.0, 4.0, 0.0))) and twists[0] == 0.0 and twists[1] >= first
                  and twists[1] < twists[2] <= w.TWIST and twists[3] == w.TWIST
                  and math.isclose(across * math.cos(twists[2]) + depth * math.sin(twists[2]), 0.8 * across), '')
+    # the room's boxes laid to a doubling's capacity (`schema.room`), the last told again: every gap the same bits
+    from machine.law import schema
+    rng, off, counts = np.random.default_rng(7), 0, {}
+    for n in (0, 1, 3, 5, 12, 64, 65, 107):
+        turn = np.linalg.qr(rng.normal(size=(n, 3, 3)))[0]
+        props = [('wood', c, h, r) for c, h, r in zip(rng.uniform(-3.0, 3.0, (n, 3)), rng.uniform(0.05, 0.8, (n, 3)), turn)]
+        laid, plain = schema.room(props), [np.array([p[k] for p in props], float).reshape(shape)
+                                           for k, shape in ((1, (-1, 3)), (2, (-1, 3)), (3, (-1, 3, 3)))]
+        counts[n] = len(laid['centre'])
+        for at in rng.uniform(-3.0, 3.0, (24, 2)):
+            way = rng.normal(size=2)
+            way /= np.linalg.norm(way)
+            a, b = (float(w.gap(c, h, r, at, way, 0.0, w.NOMINAL)) for c, h, r in ((laid['centre'], laid['half'], laid['R']), plain))
+            off += a != b
+    report.check('her room\'s boxes laid to a doubling\'s capacity gauge every gap the same to the bit: %s' % counts,
+                 off == 0 and counts == {0: 0, 1: 1, 3: 4, 5: 8, 12: 16, 64: 64, 65: 128, 107: 128}, '%d gaps off' % off)
 
 
 def test_her_map_keeps_what_her_looks_told(report):

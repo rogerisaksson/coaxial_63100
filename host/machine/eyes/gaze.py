@@ -116,12 +116,17 @@ def _shown(head, sector):
 
 
 def _laid(g):
-    """Her gaze's memory, laid at its first read: at rest, exploring where she stands, nothing scanned or fixed."""
-    head = g['s']['head']
-    return g.setdefault('_gaze', {'at': REST, 'to': REST, 'from': REST, 't0': float(g['t']), 'T': 0.0, 'jump': True,
-                                  'on': False, 't': float(g['t']), 'points': [], 'held': 0, 'after': None, 'fix': None,
-                                  'way': None, 'lead': 0.0, 'ground': None, 'walking': False, 'anchor': None, 'exploring': True, 'explore': None, 'seen': set(), 'visited': set(),
-                                  'here': (float(head['pos'][0]), float(head['pos'][2])), 'heading': _heading(head)})
+    """Her gaze's memory, laid at its first read: at rest, exploring where she stands, nothing scanned or fixed. Laid
+    there alone: a default handed `setdefault` was laid at every read, her heading with it, 61 us a law pass."""
+    st = g.get('_gaze')
+    if st is None:
+        head = g['s']['head']
+        st = g['_gaze'] = {'at': REST, 'to': REST, 'from': REST, 't0': float(g['t']), 'T': 0.0, 'jump': True,
+                           'on': False, 't': float(g['t']), 'points': [], 'held': 0, 'after': None, 'fix': None,
+                           'way': None, 'lead': 0.0, 'ground': None, 'walking': False, 'anchor': None, 'exploring': True,
+                           'explore': None, 'seen': set(), 'visited': set(),
+                           'here': (float(head['pos'][0]), float(head['pos'][2])), 'heading': _heading(head)}
+    return st
 
 
 def _glimpses(g):

@@ -42,16 +42,23 @@ REFRESH_S = 1.0 / kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['refr
 
 
 def room(props):
-    """{centre (P, 3), half (P, 3), R (P, 3, 3)} of the room's boxes `props` (`world.props()`'s: kind,
+    """{centre (C, 3), half (C, 3), R (C, 3, 3)} of the room's boxes `props` (`world.props()`'s: kind,
     centre, half sizes, rotation), laid once per list: her things change at REFRESH_S, her law passes
-    oftener; her registry's things (`registry.Things`) laid off the arrays they keep."""
-    if _LAID.get('of') is not props and getattr(props, 'arrays', None) is not None:
-        _LAID.update(of=props, centre=props.arrays[0], half=props.arrays[1], R=props.arrays[2])
-    elif _LAID.get('of') is not props:
-        boxes = [p for p in props if len(p) >= 4 and len(p[1]) == 3 and np.size(p[2]) == 3 and np.size(p[3]) == 9]
-        _LAID.update(of=props, centre=np.array([p[1] for p in boxes], float).reshape(-1, 3),
-                     half=np.array([p[2] for p in boxes], float).reshape(-1, 3),
-                     R=np.array([p[3] for p in boxes], float).reshape(-1, 3, 3))
+    oftener; her registry's things (`registry.Things`) laid off the arrays they keep. Laid to a doubling's
+    capacity C - the least power of two that holds them, the last of them told again for the rest: a gap among
+    them is a least and an any (`wayfinder.gap`), the same with a box told twice, and her gauge's C is one a
+    capacity where it was one a count - her eyes' things told 25 counts in a door errand, each traced and held anew,
+    15 ms."""
+    if _LAID.get('of') is not props:
+        if getattr(props, 'arrays', None) is not None:
+            centre, half, R = props.arrays[:3]
+        else:
+            boxes = [p for p in props if len(p) >= 4 and len(p[1]) == 3 and np.size(p[2]) == 3 and np.size(p[3]) == 9]
+            centre, half, R = (np.array([p[k] for p in boxes], float).reshape(shape)
+                               for k, shape in ((1, (-1, 3)), (2, (-1, 3)), (3, (-1, 3, 3))))
+        more = (1 << max(len(centre) - 1, 0).bit_length()) * bool(len(centre)) - len(centre)
+        centre, half, R = (np.concatenate([a, np.repeat(a[-1:], more, axis=0)]) for a in (centre, half, R))
+        _LAID.update(of=props, centre=centre, half=half, R=R)
     return {k: _LAID[k] for k in ('centre', 'half', 'R')}
 
 
