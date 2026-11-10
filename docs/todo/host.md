@@ -88,6 +88,13 @@
   joints' poses four times; its paper stands on the outputs it had, its
   code being what ran. DOD: every paper alike on both but where a world's
   physics says otherwise (the machines paper's, on the stand-in).
+- **The gate under coverage runs five suites** (found, `cover.py --readme`
+  on a tree laid new at 131a1ba0): test_sight crashes under coverage.py and
+  the rest is skipped - 50 checks, 3 443 skipped, the host 15.4 %, the target
+  0.0 %. The offline gate by itself runs its 32 there, test_ortho red on two
+  branches (law/motion.py's IfExp 184, modal.py's 335 and 337). The README
+  carries the run of 647aea1, its tables of suites since gone left out.
+  DOD: `cover.py --readme` whole and green, docs/RESULTS.md written by it.
 - **Her surety field reads `out[latent.ZMP]`** (found): `latent.ZMP` indexes a
   parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands on the
   drive mode's phase, so `w_air` is 1 - psi. Kept as is, bit for bit, by the

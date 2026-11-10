@@ -24,6 +24,14 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   wrote the platform's line ends: the papers are written LF. `cycle` read
   `dtype.names` off an untyped `cyclic.run`: 17 type faults unseen, a
   notebook being linted only when it changes.
+- README.md is laid out of docs/README.src.md and the tree
+  (tools/dev/readme.py) and staged by the pre-commit: its lists - pages,
+  packages, machine types, cores, papers, suites, setup's stages - are read
+  off the code, and a path, an example's import, a top-level folder, a hook
+  or a document it names by hand and the tree does not hold stops the
+  commit. By hand alone it stood 1 392 commits behind its one generated
+  section, linked docs/SETUP.md and told of host/sim/, both gone, and its
+  cores lacked `world/`.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in

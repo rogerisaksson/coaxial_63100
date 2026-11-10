@@ -15,7 +15,13 @@ no board. *Coaxial* is the placement: no coax cable or connector exists.
 the 50 A clamp, 0.64 kW into the motor, the estimate 0.01 deg off the
 model's rotor.*
 
-## 1 Setup
+**Where to read.** New here, no board on the desk: section 1, then a
+notebook. Writing Python against a board or a machine: sections 2 to 4.
+Changing the tree: section 7. How it works inside: sections 8 and 9.
+
+## 1 Start here: no board needed
+
+Everything in this section runs on this machine alone; a board joins later.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, build, emulate
@@ -23,111 +29,79 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, b
 .\coaxial_tty.ps1                                     # terminal front page
 ```
 
-<details><summary>What setup does, the views and their keys</summary>
+**Look.** On the front page pick a page by its letter: the motor controller
+turns a demo rotor, the humanoid walks. Q quits a page, ESC returns to the
+front page.
+
+**Run.** Open a paper in [notebook_examples/](notebook_examples/README.md)
+and Run All: each runs as it stands, on the firmware's own image or on the
+stand-in.
+
+**Write.** Five lines against the stand-in, software in the board's place:
+
+```python
+from coaxial import SIMULATED, Coaxial63100
+
+with Coaxial63100(execution_mode=SIMULATED) as device:   # no board, no cable
+    print(device)
+    print(device.board.thermal.state())
+```
+
+**Ask.** `dbg "why is the NTC 25.00?"` asks the local model about the board;
+`board all` measures with no model in the loop.
+
+<details><summary>What setup does, and what it needs</summary>
 
 `setup.ps1` checks every dependency before it fetches any, asks once for the
 plan (`-Yes`: not at all), builds both images and runs the Debug one on
-Renode; `-Check` only reports. Its stages and areas are `setup/*.ps1`.
+Renode; `-Check` only reports.
 
-Views (`host/terminal/pages/`, one module each): session, imu (attitude),
-angle, adc (meter bridge), gate_drivers (the one that switches), rotor
-observer, thermal observer, humanoid (a gynoid walking under gravity,
-MuJoCo, a drive a joint), quad, helicopter, ornithopter, aerobat, chat,
-claude. `.\coaxial_tty.ps1 adc -Simulated` opens one
-with no cable; `-Frames N` ends it after N frames. In a view: Q quits, ESC
-returns to the front page. The 3D pages raster on the GPU where a card
-answers (wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
+| stage | what it does | where |
+| --- | --- | --- |
+| `update` | git pull --ff-only; the pulled setup instead, if it changed | `setup/update.ps1` |
+| `check` | every dependency, nothing fetched: the plan | `setup/<area>.ps1` |
+| `install` | the plan, after one yes (-Yes: none) | `setup/<area>.ps1` |
+| `build` | both images, Debug and Release, zero warnings | `setup/build.ps1` |
+| `emulate` | the Debug image on Renode, answering the library | `setup/build.ps1` |
+| `notebooks` | the papers behind their sources, written and run | `setup/build.ps1` |
 
-</details>
+Python 3.12 to 3.14 is what CI runs the host on. The host is one package,
+`coaxial63100` 1.6.0: `pip install -e host/`, which setup does.
 
-## 2 The board
-
-Three phase shunts, the DC link and an NTC through the analogue front end,
-sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain. Its
-schematic and layout: [Coaxial-63100 on CircuitMaker](https://workspace.circuitmaker.com/Projects/Details/RogerIsakssonLehtipalo/Coaxial-63100).
-
-<details><summary>The front end, the gate stage, the parts, the link</summary>
-
-- **Measurement.** The shunts, the DC link and the NTC into ADC1-3 on TIM1:
-  centre-aligned, the dead time from the calibration record, the break on
-  PE15. Scaling lives once, in the calibration record.
-- **The gate stage.** The drivers' supply comes from the STO chain, not the
-  MCU: the master's pilot on the RS485 pair, the MCU's keepalive, FAULTOUT on
-  the break ([HARDWARE](docs/HARDWARE.md)). Only gate op 1 sets MOE.
-- **Parts.** An A1335 angle sensor on the shaft and a BNO085 IMU. What is
-  fitted comes from the board (`0x6D` kind 4), never from a name.
-- **The link.** One UART, the console or Modbus RTU: the ST-Link's virtual COM
-  port, or RS485 on a limb of boards ([PROTOCOL](docs/PROTOCOL.md)).
+`.\coaxial_tty.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
+ends it after N frames. The 3D pages raster on the GPU where a card answers
+(wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
 
 </details>
 
-## 3 The firmware
+## 2 What it is made of
 
-C11 in layers, `core/` (CubeMX) -> `board/` -> `comms/` -> the portable
-cores, each core tested on this host through gcc.
+| Part | Where | What it is |
+| --- | --- | --- |
+| The board | `electronics/`, `datasheets/` | the inverter: its schematic, its bill of materials, its parts' datasheets |
+| The firmware | `core/`, `board/`, `comms/`, the cores | C11: the application and a bootloader |
+| The host | `host/` | Python: one board, boards into machines, the pages, the tools |
+| The emulation | `board/emu`, `board/native`, `board/fake`, `host/tools/emu/` | the firmware run with no board |
 
-<details><summary>The layers, the drive, the heat, the bootloader</summary>
+The host's packages, each in its own words:
 
-- `core/`: CubeMX, generated; edited only inside its `USER CODE` blocks.
-- `board/`: the hardware, one API header a `board_<x>.c`
-  (`comms/inc/board/<x>.h`).
-- `comms/`: the Modbus map and the 0x6E device operations - command tables,
-  a handler `h_<device>_<op>` each, requests read and replies written.
-- The cores: `modbus drive thermal filter daq shtp boot ctrl wbc aero mppi`,
-  portable C11.
-- The drive runs field-oriented current control each PWM period, its rotor
-  angle from high-frequency injection at rest and the back-EMF above the
-  crossover: 2 922 of a period's 9 500 cycles, its sample path from ITCM.
-- The thermal core carries the board's heat network, its envelope - which
-  drops MOE at the record's ceiling - and the observer.
-- The bootloader loads the host's own build over the bus at 10 Mbit:
-  `Coaxial63100.open()` loads it into a board running another or waiting
-  blank ([BOOT](docs/BOOT.md)).
+| package | what it is |
+| --- | --- |
+| `host/coaxial/` | The Coaxial63100 BLDC inverter: the board over its wire, its stand-in, its procedures |
+| `host/coaxial_mcp/` | MCP server for the coaxial_63100 board |
+| `host/coaxial_ollama/` | An Ollama-driven test runner for the coaxial_63100 bench |
+| `host/machine/` | Machines over IO nodes: loops of float channels, programs a model writes, any board family |
+| `host/motor/` | A PMSM: its constants and model, the motors and loads known here, their identification |
+| `host/terminal/` | The terminal: the front page and the live views, as one process |
+| `host/tools/` | Command-line scripts by function: dev, target, bench, thermal, render, sim, cores, notebooks |
 
-</details>
+5 machine types, each its limbs and its routines (`Machine.discover`):
+`humanoid`, `gynoid`, `quad`, `fixed_wing`, `ebike`.
 
-## 4 Data-oriented design
+## 3 Where it runs
 
-One shape on both sides: data in, a step, data out; memory laid once; the
-order a table; the hardware at one edge ([ARCHITECTURE](docs/ARCHITECTURE.md)).
-
-<details><summary>The shape, in the code</summary>
-
-Target: static structs, a step touching its arguments only, tables of
-function pointers walked in order; the board layer fills the buffers the
-cores read.
-
-```c
-/* drive/inc/drive.h: one PWM period */
-bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
-                drive_out_t *out);
-
-/* ctrl/src/ctrl.c: a part's regulator, by kind */
-static const ctrl_regulate_fn REGULATORS[CTRL_KINDS] = {
-  [CTRL_PI] = pi, [CTRL_ANGLE_HOLD] = angle_hold, [CTRL_DIRECT] = direct,
-  [CTRL_SPEED_PI] = speed_pi
-};
-```
-
-Host: numpy structured arrays, a field a channel and a row a board, stepped
-every row at once; one edge polls and pushes over the transport, a lost
-frame counted and never raised into a step
-(`notebook_examples/cycle.ipynb`):
-
-```python
-f = cyclic.frame('w_target', 'omega_hat', 'w_ref', 'iq_ref', rows=len(legs))
-edge = cyclic.edge(legs, 'drive', ins=('omega_hat',), outs=('iq_ref',))
-TABLE = (
-    (cyclic.slew, cyclic.state('Slew', n, rate=100.0), ('dt', 'w_target'), 'w_ref'),
-    (cyclic.pi, cyclic.state('PI', n, kp=0.1, ki=0.3, limit=3.0),
-     ('dt', 'w_ref', 'omega_hat'), 'iq_ref'),
-)
-log = cyclic.run((edge,), TABLE, f, CYCLES, PERIOD)
-```
-
-</details>
-
-## 5 Where it runs
+The same Python runs against a board, the firmware emulated, or a stand-in:
+`execution_mode` says which.
 
 | Mode | What runs | For |
 | --- | --- | --- |
@@ -153,9 +127,10 @@ log = cyclic.run((edge,), TABLE, f, CYCLES, PERIOD)
 
 </details>
 
-## 6 Examples
+## 4 Using the library
 
-Every board found on a machine's buses, and what it is told to do:
+One board is a `Coaxial63100`; boards on a machine's buses are a `Machine`,
+found and told what to do:
 
 ```python
 from machine import SIMULATED, Machine
@@ -227,19 +202,30 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 - Everything raises rather than returning a status. Channels and parts come
   from the board.
 - `host/machine/` imports no board: a family (`coaxial.node`) is loaded by
-  `Nodes.discover` when installed. Types: humanoid, gynoid, quad, helicopter,
-  ornithopter, aerobat, fixed_wing, ebike.
-- `host/sim/`: 6-DOF rigid-body flight dynamics, whole-body control and MPPI
-  simulators behind the 3D craft views.
+  `Nodes.discover` when installed.
+- `host/machine/aircraft/`: the quad, the helicopter, the ornithopter and the
+  aerobat behind the 3D craft pages.
 
 </details>
 
-## 7 The pages
+## 5 The pages
 
-Twelve on the front page, drawn in braille on the terminal: the session, the
-board's attitude, the shaft's angle, the meter bridge, the motor controller,
-the thermal observer, the humanoid, the quad, the helicopter, the
-ornithopter, the aerobat and the board chat.
+12 pages on the front page, each drawn in braille on the terminal:
+
+| page | titled | what it shows |
+| --- | --- | --- |
+| `adc` | METER BRIDGE | every analog channel on a meter bridge |
+| `aerobat` | AIRCRAFT XE AEROBATICS | two coaxial boards flying a 3D monoplane, its stunts and gates |
+| `angle` | SHAFT ANGLE | the magnet and the air gap, on a protractor |
+| `chat` | BOARD CHAT | the local llm, or claude with the board over MCP - the second question |
+| `helicopter` | HELICOPTER | two coaxial boards flying a 3D helicopter, its aerobatic stunts and gates |
+| `humanoid` | HUMANOID | a slender gynoid walking, her twenty joints on virtual actuators |
+| `imu` | BOARD ATTITUDE | the board turned by the IMU, drawn from the STL |
+| `motor` | MOTOR CONTROLLER | the gate drivers, or the rotor observer - the second question |
+| `ornithopter` | ORNITHOPTER | two coaxial boards flying a 4-wing Dune ornithopter, its stunts and gates |
+| `quad` | QUAD | four coaxial boards lifting a frame, full tilt into the sky and a stop 10 cm up |
+| `session` | SESSION | one dash over one port - analog, thermals, bridges, DIO, the IMU, the shaft angle |
+| `thermal` | THERMAL OBSERVER | where the heat sits, drawn on the board itself |
 
 <details><summary>Figures 2-4: the front page, the heat, the gynoid</summary>
 
@@ -264,17 +250,19 @@ Each drawn on the stand-in by `python host/tools/render/page.py <page>
 
 </details>
 
-## 8 Notebooks
+## 6 Notebooks
 
-Thirteen executed papers in `notebook_examples/`, generated from
-`host/tools/notebooks/` - [start there](notebook_examples/README.md): each
-runs as it stands, no board, no cable.
+13 executed papers in `notebook_examples/`, each written from its module in
+`host/tools/notebooks/`: acquisition, link, sensors, power_stage, thermal,
+drive, controller, cycle, sequencer, machines, motion, applications,
+commissioning.
 
-<details><summary>The thirteen, and how they are made</summary>
+[Start there](notebook_examples/README.md): what to do before the first
+paper, and each paper in a line.
 
-Acquisition, link, sensors, power_stage, thermal, drive, controller, cycle,
-sequencer, machines, motion, applications, commissioning: each a
-setup - what it runs on, the knob for the bench -, numbered sections,
+<details><summary>How they are made</summary>
+
+Each a setup - what it runs on, the knob for the bench -, numbered sections,
 results and references.
 
 ```powershell
@@ -288,15 +276,47 @@ it has.
 
 </details>
 
-## 9 Build and test
+## 7 Working in the tree
+
+| Folder | What it holds |
+| --- | --- |
+| `core/`, `drivers/`, `cmake/` | CubeMX's generated code, ST's HAL, the toolchain files |
+| `board/`, `comms/` | the hardware layer; the Modbus map and the device operations |
+| the cores | portable C11, each built for the target and for this host (section 8) |
+| `host/` | the Python host and its suites (`host/tests/`) |
+| `setup/`, `terminal/` | setup's stages; a launcher a page |
+| `docs/` | the documents under References, this README's source |
+| `notebook_examples/` | the papers, executed |
+| `electronics/`, `datasheets/`, `render/` | the schematic and BOM, the parts' datasheets, the board's 3D model |
+| `deprecated/` | what was retired, kept to read |
 
 ```powershell
 cube-cmake --build --preset Debug              # zero warnings; two images (app + bootloader)
 python host/tools/target/build_and_flash.py    # --boot flashes the bootloader first
-.\host\run_tests.ps1                           # ~25 %; -All the gate; -Structure 4 s
-python host/tools/dev/cover.py --readme        # the gate under coverage, into section 10
+.\host\run_tests.ps1                           # ~25 %; -All the gate; -DryRun what a change reaches
+python host/tools/dev/cover.py --readme        # the gate under coverage, into docs/RESULTS.md
 python -X utf8 docs/structure.py               # every folder's purpose; a folder: its files' synopses
 ```
+
+125 suites in `host/tests/`, each a plain script with its own tally.
+
+<details><summary>The commit cycle: what git's hooks do here</summary>
+
+`setup.ps1` points git at `.githooks/`.
+
+| Hook | What it does |
+| --- | --- |
+| `pre-commit` | stops a commit on a file past the token budget a model reads whole, on text that is not English, on `setup.ps1 -Check` faulting on a new machine, and on a need written nowhere - a module in no requirements file, a program setup never names; lays this README out of its source and the tree and stages it |
+| `commit-msg` | English only in a commit's message |
+| `pre-push` | every machine module imported and the humanoid's first seconds run headless; a fault stops the push |
+| `post-merge`, `post-rewrite`, `post-checkout` | after a pull, a rebase and a commit checked out: the images built where behind their sources, the papers laid where behind theirs |
+
+This README is laid by `python host/tools/dev/readme.py` out of
+`docs/README.src.md`: its lists are read off the code, and what it names by
+hand - a path, an import, a folder, a hook, a document - is held to the
+tree at every commit.
+
+</details>
 
 <details><summary>CI</summary>
 
@@ -305,9 +325,94 @@ push; a red run leaves its log's tail as a comment on its commit.
 
 </details>
 
+## 8 Inside: the board and the firmware
+
+Three phase shunts, the DC link and an NTC through the analogue front end,
+sampled on TIM1 at 50 kHz; the gate drivers supplied by the STO chain. Its
+schematic and layout: [Coaxial-63100 on CircuitMaker](https://workspace.circuitmaker.com/Projects/Details/RogerIsakssonLehtipalo/Coaxial-63100).
+
+<details><summary>The front end, the gate stage, the parts, the link</summary>
+
+- **Measurement.** The shunts, the DC link and the NTC into ADC1-3 on TIM1:
+  centre-aligned, the dead time from the calibration record, the break on
+  PE15. Scaling lives once, in the calibration record.
+- **The gate stage.** The drivers' supply comes from the STO chain, not the
+  MCU: the master's pilot on the RS485 pair, the MCU's keepalive, FAULTOUT on
+  the break ([HARDWARE](docs/HARDWARE.md)). Only gate op 1 sets MOE.
+- **Parts.** An A1335 angle sensor on the shaft and a BNO085 IMU. What is
+  fitted comes from the board (`0x6D` kind 4), never from a name.
+- **The link.** One UART, the console or Modbus RTU: the ST-Link's virtual COM
+  port, or RS485 on a limb of boards ([PROTOCOL](docs/PROTOCOL.md)).
+
+</details>
+
+The firmware is C11 in layers, `core/` (CubeMX) -> `board/` -> `comms/` ->
+the portable cores, each core tested on this host through gcc.
+
+The 12 portable cores: `aero/` `boot/` `ctrl/` `daq/` `drive/` `filter/`
+`modbus/` `mppi/` `shtp/` `thermal/` `wbc/` `world/`.
+
+<details><summary>The layers, the drive, the heat, the bootloader</summary>
+
+- `core/`: CubeMX, generated; edited only inside its `USER CODE` blocks.
+- `board/`: the hardware, one API header a `board_<x>.c`
+  (`comms/inc/board/<x>.h`).
+- `comms/`: the Modbus map and the 0x6E device operations - command tables,
+  a handler `h_<device>_<op>` each, requests read and replies written.
+- The drive runs field-oriented current control each PWM period, its rotor
+  angle from high-frequency injection at rest and the back-EMF above the
+  crossover: 2 922 of a period's 9 500 cycles, its sample path from ITCM.
+- The thermal core carries the board's heat network, its envelope - which
+  drops MOE at the record's ceiling - and the observer.
+- The bootloader loads the host's own build over the bus at 10 Mbit:
+  `Coaxial63100.open()` loads it into a board running another or waiting
+  blank ([BOOT](docs/BOOT.md)).
+
+</details>
+
+## 9 Inside: data-oriented design
+
+One shape on both sides: data in, a step, data out; memory laid once; the
+order a table; the hardware at one edge ([ARCHITECTURE](docs/ARCHITECTURE.md)).
+
+<details><summary>The shape, in the code</summary>
+
+Target: static structs, a step touching its arguments only, tables of
+function pointers walked in order; the board layer fills the buffers the
+cores read.
+
+```c
+/* drive/inc/drive.h: one PWM period */
+bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
+                drive_out_t *out);
+
+/* ctrl/src/ctrl.c: a part's regulator, by kind */
+static const ctrl_regulate_fn REGULATORS[CTRL_KINDS] = {
+  [CTRL_PI] = pi, [CTRL_ANGLE_HOLD] = angle_hold, [CTRL_DIRECT] = direct,
+  [CTRL_SPEED_PI] = speed_pi
+};
+```
+
+Host: numpy structured arrays, a field a channel and a row a board, stepped
+every row at once; one edge polls and pushes over the transport, a lost
+frame counted and never raised into a step
+(`notebook_examples/cycle.ipynb`):
+
+```python
+f = cyclic.frame('w_target', 'omega_hat', 'w_ref', 'iq_ref', rows=len(legs))
+edge = cyclic.edge(legs, 'drive', ins=('omega_hat',), outs=('iq_ref',))
+TABLE = (
+    (cyclic.slew, cyclic.state('Slew', n, rate=100.0), ('dt', 'w_target'), 'w_ref'),
+    (cyclic.pi, cyclic.state('PI', n, kp=0.1, ki=0.3, limit=3.0),
+     ('dt', 'w_ref', 'omega_hat'), 'iq_ref'),
+)
+log = cyclic.run((edge,), TABLE, f, CYCLES, PERIOD)
+```
+
+</details>
+
 ## 10 Results
 
-<!-- coverage -->
 Generated at `647aea1` by `python host/tools/dev/cover.py --readme`:
 one offline run (`host/tools/dev/run_tests.py --offline`), the Python under
 coverage.py, the C under gcov. ST's generated code - CubeMX's core/, startup and
@@ -320,87 +425,6 @@ cmake/stm32cubemx/, the HAL - is not counted.
 
 3866 checks in 32 suites: 3866 passed, 0 failed; 323 skipped, a board's.
 
-<details><summary>Each suite, each part</summary>
-
-| Suite | What it holds | Checks | Failed | s |
-| --- | --- | ---: | ---: | ---: |
-| test_structure.py | Does `host/` still hold together? | 1311 | 0 | 19 |
-| test_modbus_core.py | The portable Modbus core, on this host, with no board and no cable. | 78 | 0 | 1 |
-| test_shtp_core.py | SHTP framing and SH-2 decoding, on this host, with no IMU. | 38 | 0 | 1 |
-| test_drive_core.py | The control law, on this host, against a motor that exists only here. | 90 | 0 | 6 |
-| test_filter_core.py | The anti-alias chain, run for real and judged against the arithmetic. | 42 | 0 | 1 |
-| test_thermal_core.py | The thermal envelope, run as the C that will run on the board. | 146 | 0 | 10 |
-| test_daq_core.py | The acquisition engine, run as the C that will run on the board. | 59 | 0 | 1 |
-| test_boot_core.py | The bootloader's state host as the C that will run, on byte-array flash and RAM. | 71 | 0 | 1 |
-| test_ctrl_core.py | The board's parts and feedback (ctrl/), stepped beside host/machine/rig/parts.py. | 21 | 0 | 1 |
-| test_world_core.py | The world core (world/): the loads a machine's motors turn and its body, against closed forms; a board's heat and its STO chain against their circuits. | 15 | 0 | 3 |
-| test_wire.py | The device clients through the firmware's own wire, on this host. | 9 | 0 | 13 |
-| test_sensorless.py | The sensorless design arithmetic, and the commissioning against the stand-in. | 138 | 0 | 137 |
-| test_broker.py | coaxial.comm.broker: one process owns the port, everything else asks it. | 33 | 0 | 28 |
-| test_daq_api.py | The acquisition front door: picking channels, reading them, shaping them. | 82 | 0 | 81 |
-| test_controller.py | The controller: feedback loops over float channels, its parts, its panel, its sequencer. | 130 | 0 | 132 |
-| test_cyclic.py | The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, its cycle on a toy rotor. | 13 | 0 | 1 |
-| test_boot.py | The master's side of the bootloader against the stand-in (docs/BOOT.md). | 24 | 0 | 0 |
-| test_views.py | Every live view runs two frames against the stand-in, as a subprocess. | 274 | 0 | 118 |
-| test_render.py | The 3D engine, stage by stage, against exact expectations. | 146 | 0 | 20 |
-| test_ollama_tools.py | The tool surface: schemas, arguments, which tool answers what. | 219 | 0 | 10 |
-| test_ollama_runner.py | The plan runner, the sandbox, and the test tooling itself. | 224 | 0 | 13 |
-| test_ollama_prompt.py | SYSTEM, the per-turn hints, and what the model is told. | 113 | 0 | 2 |
-| test_ollama_link.py | The serial link: ports, probing, diagnosis, recovery. | 114 | 0 | 9 |
-| test_ollama_render.py | How a result reaches the screen: columns, blocks, clipping. | 32 | 0 | 1 |
-| test_ollama_bus.py | Nodes, segments, unit ids, broadcast. | 28 | 0 | 1 |
-| test_ollama_board.py | The board, its channels, its pins, the AFE. | 28 | 0 | 2 |
-| test_ollama_reply.py | What an answer means: retypes, blank answers, nudges. | 23 | 0 | 1 |
-| test_ollama_language.py | The session language, its lock, and the phrase table. | 12 | 0 | 1 |
-| test_simulated.py | coaxial.simulated: a board that was never plugged in. | 257 | 0 | 94 |
-| test_native.py | The board layer's drive path on this host, in real time: `native://`. | 16 | 0 | 18 |
-| test_emulator.py | The firmware's own image on an emulated MCU, its front end fed from the electronics. | 21 | 0 | 177 |
-| test_mcp.py | End-to-end test of the MCP server, plus a token accounting. | 59 | 0 | 29 |
-
-| Host | Lines | Covered | Run by |
-| --- | ---: | ---: | --- |
-| board/fake | 546 | 70.7 % | the emulation |
-| board/native | 849 | 90.2 % | the emulation |
-| world | 604 | 95.4 % | the emulation |
-| coaxial | 14330 | 88.8 % | the suites |
-| coaxial_mcp | 817 | 89.6 % | the suites |
-| coaxial_ollama | 2809 | 81.1 % | the suites |
-| machine | 3991 | 90.9 % | the suites |
-| motor | 132 | 93.9 % | the suites |
-| terminal | 5354 | 78.4 % | the suites |
-| testline | 143 | 44.8 % | the suites |
-| tools/bench | 972 | 3.8 % | a board |
-| tools/cores | 687 | 95.9 % | the core suites |
-| tools/dev | 1595 | 31.3 % | the gate and by hand |
-| tools/emu | 646 | 68.0 % | the emulator suite |
-| tools/notebooks | 336 | 39.9 % | the papers, as notebooks |
-| tools/render | 758 | 16.1 % | by hand |
-| tools/sim | 786 | 20.7 % | by hand |
-| tools/target | 383 | 30.8 % | a board |
-| tools/thermal | 424 | 0.0 % | a board |
-
-| Target | Lines | Covered |
-| --- | ---: | ---: |
-| board/src | 3136 | 60.3 % |
-| boot | 725 | 58.9 % |
-| comms | 2465 | 64.7 % |
-| ctrl | 188 | 92.0 % |
-| daq | 506 | 97.4 % |
-| drive | 870 | 96.8 % |
-| filter | 105 | 80.0 % |
-| modbus | 468 | 93.4 % |
-| shtp | 102 | 95.1 % |
-| thermal | 1053 | 88.8 % |
-
-Built for the target only, none of their lines run here (the bench's conformance
-suite is theirs): `board/src/board_boot.c`, `board/src/board_clock.c`,
-`board/src/board_flash.c`, `board/src/board_selftest.c`, `boot/src/boot_main.c`,
-`comms/src/console.c`, `comms/src/dev_uart.c`, `comms/src/link_report.c`,
-`comms/src/testrig.c`.
-
-</details>
-<!-- /coverage -->
-
 **Bench.** The bench board is unmodified (R93 on +5): AFE_ON high unpowers
 its drivers, and no current is measured while switching there. Measured:
 duty 1-100 % dry; three legs switching dry at 24-60.8 V, 25 and 50 kHz, the
@@ -409,15 +433,20 @@ thermal observer within 0.2 K of the thermistor after 120 s blind at 53.8 V;
 
 ## References
 
-- [docs/SETUP.md](docs/SETUP.md) - the setup scripts, the toolchain, the
-  machine preparation
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - the layout, the
   data-oriented design, the tests
-- [docs/PROTOCOL.md](docs/PROTOCOL.md) - everything on the wire
+- [docs/PROTOCOL.md](docs/PROTOCOL.md) - everything on the wire, and
+  [docs/PROTOCOL_VERSIONS.md](docs/PROTOCOL_VERSIONS.md) - its history
 - [docs/HARDWARE.md](docs/HARDWARE.md) - the board, before a measurement
 - [docs/BOOT.md](docs/BOOT.md) - the bootloader and the flash map
+- [docs/DIMENSIONS.md](docs/DIMENSIONS.md) - the gynoid's axes by drive type
 - [docs/MODELS.md](docs/MODELS.md) - the local model
+- [docs/RESULTS.md](docs/RESULTS.md) - the last measured run, as
+  `host/tools/dev/cover.py` wrote it
 - [docs/FINDINGS.md](docs/FINDINGS.md) - what was measured and settled on the
   board, and by subject in [docs/findings/](docs/findings/): read it before
   investigating anything
-- [docs/TODO.md](docs/TODO.md) - open work
+- [docs/TODO.md](docs/TODO.md) - open work, and [docs/DONE.md](docs/DONE.md) -
+  what left it
+
+<!-- Laid by host/tools/dev/readme.py from docs/README.src.md: write that. -->

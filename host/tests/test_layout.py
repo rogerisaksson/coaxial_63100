@@ -304,6 +304,21 @@ def test_a_paper_is_run_again_where_its_code_changed(r):
             [current.carried(name, book) for book in other] == [None] * 4)
 
 
+def test_the_readme_is_its_sources(r):
+    """README.md is what `tools/dev/readme.py` lays out of docs/README.src.md and the tree, and what it names
+    by hand the tree holds; a path, a link and an import the tree does not hold are each told."""
+    from tools.dev import readme
+    text, faults = readme.made()
+    r.check('the README names nothing the tree does not hold', not faults, '; '.join(faults[:3]))
+    r.check('README.md is laid: it says what its source and the tree say', readme.stands() == text,
+            'python tools/dev/readme.py lays it')
+    gone = readme.unheld(readme.Tree(), 'See `host/gone/away.py` and [it](docs/GONE.md).\n```python\n'
+                         'from coaxial.gone import thing\nfrom coaxial import NoSuchName\n```\n')
+    r.check('a path, a link and what an example imports, none of them in the tree: each told',
+            all(any(word in fault for fault in gone)
+                for word in ('host/gone/away.py', 'docs/GONE.md', 'coaxial.gone', 'NoSuchName')), gone[:4])
+
+
 DATE = re.compile(
     r'\b202\d-[01]\d-[0-3]\d\b'
     r'|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+202\d\b'
@@ -407,7 +422,8 @@ def test_her_structs_carry_no_padding(r):
 
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
           test_counts_are_measured, test_notebooks_are_papers, test_notebooks_are_their_sources,
-          test_a_paper_is_run_again_where_its_code_changed, test_no_dates_in_the_tree,
+          test_a_paper_is_run_again_where_its_code_changed, test_the_readme_is_its_sources,
+          test_no_dates_in_the_tree,
           test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree,
           test_her_structs_carry_no_padding)
 

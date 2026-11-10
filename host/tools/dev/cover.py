@@ -4,7 +4,7 @@
     python tools/dev/cover.py              # run, then the tables
     python tools/dev/cover.py --files      # and every file under 100 %
     python tools/dev/cover.py --report     # the last run's tables, no run
-    python tools/dev/cover.py --readme     # and the tables into README.md's section
+    python tools/dev/cover.py --readme     # and the tables into docs/RESULTS.md, the README's summary
 
 Two totals. The host: host/'s Python under coverage.py, followed into every suite's process
 (`[tool.coverage.run]`), and the emulation's own C - the world, the chip native:// runs over,
@@ -29,6 +29,7 @@ import textwrap
 
 from tools import REPO
 from tools.cores.build import OUT
+from tools.dev.readme import MARKS, RESULTS
 from tools.dev.suites import ROOT
 
 WHERE = os.path.join(REPO, 'build', 'coverage')
@@ -53,8 +54,10 @@ SUITE_RE = re.compile(r'^(test_\w+\.py)\s+(\d+) passed, (\d+) failed\s+([\d.]+)s
 CRASH_RE = re.compile(r'^(test_\w+\.py)\s+CRASHED')
 TOTAL_RE = re.compile(r'^Total: ~?(\d+)\s+Passed: (\d+), Skipped: ~?(\d+), Failed: (\d+)')
 
-README = os.path.join(REPO, 'README.md')
-MARKS = ('<!-- coverage -->', '<!-- /coverage -->')
+#: The page the tables are written to, whole; the README carries what stands above its tables
+#: (tools/dev/readme.py lays it there): a page's first line says it is no hand's.
+PAGE = os.path.join(REPO, *RESULTS.split('/'))
+TITLE = '# Results (written by host/tools/dev/cover.py, not by hand)'
 
 
 def run():
@@ -345,21 +348,17 @@ def markdown():
 
 
 def readme():
-    """The README's section, between its MARKS, rewritten."""
-    with open(README, encoding='utf-8', newline='') as f:
-        text = f.read()
-    nl = '\r\n' if '\r\n' in text else '\n'
-    head, rest = text.split(MARKS[0], 1)
-    _old, tail = rest.split(MARKS[1], 1)
-    with open(README, 'w', encoding='utf-8', newline='') as f:
-        f.write(head + MARKS[0] + nl + nl.join(markdown()) + nl + MARKS[1] + tail)
+    """docs/RESULTS.md written whole: its title, the section between its MARKS. The README's Results are
+    what stands above the tables there, laid by tools/dev/readme.py - at the next commit, or asked."""
+    with open(PAGE, 'w', encoding='utf-8', newline='\n') as f:
+        f.write('\n'.join([TITLE, '', MARKS[0]] + markdown() + [MARKS[1], '']))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--files', action='store_true', help='every file under 100 %%')
     parser.add_argument('--report', action='store_true', help="the last run's tables only")
-    parser.add_argument('--readme', action='store_true', help='the tables into README.md')
+    parser.add_argument('--readme', action='store_true', help='the tables into docs/RESULTS.md')
     args = parser.parse_args(argv)
     code = 0 if args.report else run()
     table(args.files)

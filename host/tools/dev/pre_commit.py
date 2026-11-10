@@ -12,7 +12,9 @@ a traceback, a failed line, an exit past 1 or no summary is a fault. Only a new 
 the paths without host/'s packages: two tracebacks stood there unseen. What the staged tree asks
 of a new machine and writes nowhere stops it too (tools/dev/depends.py: a module in no
 requirements file, a requirements file setup never reads, a program setup never names), read
-while setup runs.
+while setup runs. README.md is laid out of docs/README.src.md and that tree (tools/dev/readme.py)
+and staged where it is behind, so a commit carries the README its tree says; one that names what
+the tree does not hold stops it.
 """
 import os
 import re
@@ -26,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO
-from tools.dev import depends, token_budget
+from tools.dev import depends, readme, token_budget
 
 #: How to take a file of each kind under the budget.
 SPLIT = {
@@ -64,7 +66,7 @@ def how(path):
 
 #: setup.ps1 as the hook runs it, report only; what it and depends read and run, as staged; its time, s.
 SETUP = ('powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File')
-STAGED, SETUP_S = ('setup.ps1', 'setup', '.github', 'host', 'env.ps1'), 180
+STAGED, SETUP_S = ('setup.ps1', 'setup', '.github', 'host', 'env.ps1', 'docs/*.md'), 180
 
 #: A PATH entry holding one of these hands setup a python: gone from both machines, as is every
 #: entry under the real LOCALAPPDATA (a new machine has nothing installed per user).
@@ -175,9 +177,27 @@ def checked():
         with ThreadPoolExecutor(len(runs) + 1) as pool:
             going = [pool.submit(_setup, tree, r[2]) for r in runs]
             needs, counted = depends.faults(tree, staged_texts())
+            laid, held = readme.made(readme.Tree(tree, _git('ls-files').split('\n')))
             done = [g.result() for g in going]
     return ([f for r, d in zip(runs, done) for f in faults(r[0], r[1], d)],
-            time.perf_counter() - t if runs else 0.0, needs, counted)
+            time.perf_counter() - t if runs else 0.0, needs, counted, laid, held)
+
+
+def readme_laid(text):
+    """README.md held to `text`, what the staged tree lays (tools/dev/readme.py): (what was done, why the
+    commit stops). Staged as that: nothing. Else the working copy, where it is what is staged, is written
+    and staged - the commit carries it; where it has edits of its own they are not written over."""
+    staged = subprocess.run(['git', 'show', ':' + readme.LAID], cwd=REPO, capture_output=True).stdout
+    if staged.decode('utf-8', 'replace') == text:
+        return '', ''
+    have = readme.stands(REPO)
+    if have is not None and have.replace('\r\n', '\n').encode('utf-8') != staged.replace(b'\r\n', b'\n'):
+        return '', ('%s is laid out of %s and the tree, and it holds edits of its own here: write them '
+                    'there (python host/tools/dev/readme.py lays it)' % (readme.LAID, readme.SOURCE))
+    with open(os.path.join(REPO, readme.LAID), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text)
+    subprocess.run(['git', 'add', readme.LAID], cwd=REPO, capture_output=True, check=True)
+    return '%s laid out of %s and the tree, and staged' % (readme.LAID, readme.SOURCE), ''
 
 
 def main():
@@ -197,7 +217,7 @@ def main():
         for path, tokens, cap in past:
             print('  %s  %.1f k tokens of %.1f k: %s' % (path, tokens / 1e3, cap / 1e3, how(path)))
         code = 1
-    found, seconds, needs, counted = checked()
+    found, seconds, needs, counted, laid, held = checked()
     if found:
         print('pre-commit: setup.ps1 -Check broke - fix it before committing:')
         for fault in found:
@@ -212,6 +232,14 @@ def main():
         code = 1
     else:
         print('pre-commit: ' + counted)
+    said, why = ('', '') if held else readme_laid(laid)
+    if held or why:
+        print('pre-commit: %s' % (why or 'the README says what the tree does not hold - write %s:' % readme.SOURCE))
+        for fault in held:
+            print('  ' + fault)
+        code = 1
+    elif said:
+        print('pre-commit: ' + said)
     return code
 
 
