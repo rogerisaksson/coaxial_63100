@@ -1,4 +1,4 @@
-# Host-side dependencies. Five packages, and each one is here for a reason:
+# Host-side dependencies, each one here for a reason:
 #
 #   pyserial   the only way to the board. Nothing else in this tree talks to a
 #              COM port.
@@ -55,10 +55,16 @@ pytest>=8.0
 # in with their outputs - and the library imports neither.
 nbconvert>=7.0
 ipykernel>=6.0
+ipython>=8.0         # IPython.display in the notebooks' own cells; it arrived with ipykernel, so written
 ipywidgets>=8.0      # the controller panel: a dropdown per port
 nbformat>=5.9        # tools/notebooks/make_notebooks.py runs each notebook through nbclient on a kernel
 nbclient>=0.9        # jupyter_client names; they arrived with nbconvert and ipykernel, and are imported
 jupyter_client>=8.0  # there, so written
+
+# Only for tools/dev/depends.py: a requirement's marker under an extra it asks (`cupy-cuda13x[ctk]`),
+# by packaging's own evaluation - without it by the extra's clause alone. It arrived with matplotlib
+# and is imported where it is called, so written.
+packaging>=23.0
 
 # Only for tools/dev/focus.py: the machine's physical cores, which the relay's parallel sessions are
 # sized by (os.cpu_count() counts threads); without it Windows' own count.

@@ -9,7 +9,10 @@ The staged text is judged, not the working tree's: a file over tools/dev/token_b
 or one of its HEAVY grown past its cap, is named with the way to split it; setup.ps1 -Check
 runs as staged (STAGED checked out apart) on two new machines at once (machines()): its stderr,
 a traceback, a failed line, an exit past 1 or no summary is a fault. Only a new machine meets
-the paths without host/'s packages: two tracebacks stood there unseen.
+the paths without host/'s packages: two tracebacks stood there unseen. What the staged tree asks
+of a new machine and writes nowhere stops it too (tools/dev/depends.py: a module in no
+requirements file, a requirements file setup never reads, a program setup never names), read
+while setup runs.
 """
 import os
 import re
@@ -23,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO
-from tools.dev import token_budget
+from tools.dev import depends, token_budget
 
 #: How to take a file of each kind under the budget.
 SPLIT = {
@@ -59,9 +62,9 @@ def how(path):
     return SPLIT.get(os.path.splitext(path)[1], SPLIT['.py'])
 
 
-#: setup.ps1 as the hook runs it, report only; what it reads and runs, as staged; its time, s.
+#: setup.ps1 as the hook runs it, report only; what it and depends read and run, as staged; its time, s.
 SETUP = ('powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File')
-STAGED, SETUP_S = ('setup.ps1', 'setup', '.github', 'host'), 180
+STAGED, SETUP_S = ('setup.ps1', 'setup', '.github', 'host', 'env.ps1'), 180
 
 #: A PATH entry holding one of these hands setup a python: gone from both machines, as is every
 #: entry under the real LOCALAPPDATA (a new machine has nothing installed per user).
@@ -145,16 +148,36 @@ def faults(name, must, run):
     return ['%s: %s' % (name, f) for f in found]
 
 
-def setup_faults():
-    """(faults, s) of setup.ps1 -Check on each of MACHINES at once; none where no powershell is."""
-    if os.name != 'nt' or shutil.which('powershell') is None:
-        return [], 0.0
+def staged_texts():
+    """[(path, text)] of every python file and notebook as staged, read off git's index in one pass (0.3 s),
+    no file laid: a tree just checked out is read at half the pace (9.3 s against 4.5)."""
+    listed = subprocess.run(['git', 'ls-files', '-s', '-z', '--', '*.py', '*.ipynb'], cwd=REPO,
+                            capture_output=True, check=True).stdout.decode('utf-8')
+    rows = [row.split(None, 3) for row in listed.split(chr(0)) if row]           # mode, blob, stage, path
+    held = subprocess.run(['git', 'cat-file', '--batch'], cwd=REPO, capture_output=True, check=True,
+                          input=''.join(row[1] + '\n' for row in rows).encode('ascii')).stdout
+    found, at = [], 0
+    for _mode, _blob, _stage, path in rows:
+        end = held.index(b'\n', at)                                               # '<blob> blob <size>'
+        size = int(held[at:end].split()[2])
+        found.append((path, held[end + 1:end + 1 + size].decode('utf-8')))
+        at = end + size + 2
+    return found
+
+
+def checked():
+    """(setup's faults, their s, the staged tree's needs unwritten, what depends counted): setup.ps1 -Check on
+    each of machines() at once - none, 0 s, where no powershell is - while depends reads the staged tree."""
     t = time.perf_counter()
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as scratch:
-        tree, runs = staged_tree(scratch), machines(scratch)
-        with ThreadPoolExecutor(len(runs)) as pool:
-            done = list(pool.map(lambda r: _setup(tree, r[2]), runs))
-    return [f for r, d in zip(runs, done) for f in faults(r[0], r[1], d)], time.perf_counter() - t
+        tree = staged_tree(scratch)
+        runs = machines(scratch) if os.name == 'nt' and shutil.which('powershell') else []
+        with ThreadPoolExecutor(len(runs) + 1) as pool:
+            going = [pool.submit(_setup, tree, r[2]) for r in runs]
+            needs, counted = depends.faults(tree, staged_texts())
+            done = [g.result() for g in going]
+    return ([f for r, d in zip(runs, done) for f in faults(r[0], r[1], d)],
+            time.perf_counter() - t if runs else 0.0, needs, counted)
 
 
 def main():
@@ -174,7 +197,7 @@ def main():
         for path, tokens, cap in past:
             print('  %s  %.1f k tokens of %.1f k: %s' % (path, tokens / 1e3, cap / 1e3, how(path)))
         code = 1
-    found, seconds = setup_faults()
+    found, seconds, needs, counted = checked()
     if found:
         print('pre-commit: setup.ps1 -Check broke - fix it before committing:')
         for fault in found:
@@ -182,6 +205,13 @@ def main():
         code = 1
     elif seconds:
         print('pre-commit: setup.ps1 -Check clean with no python and a bare one (%.1f s)' % seconds)
+    if needs:
+        print('pre-commit: a new machine would lack what the tree asks - write it where setup reads it:')
+        for need in needs:
+            print('  ' + need)
+        code = 1
+    else:
+        print('pre-commit: ' + counted)
     return code
 
 

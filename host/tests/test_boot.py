@@ -211,7 +211,8 @@ def test_the_images_their_sources(report, _boot):
 def test_a_pull_runs_the_check(report, _boot):
     """Git's hooks (.githooks/post-merge, post-rewrite, post-checkout): a pull, a rebase and another commit checked
     out run the images' check in a tree that has built one - a stand-in tree, its check a file that counts its
-    runs -, and nothing in a tree that has built none, at a file checked out or at a commit amended."""
+    runs -, and nothing at a file checked out or at a commit amended; a tree that has built none runs it at its
+    pull and its rebase too - they lay its images -, at a commit checked out not."""
     import os
     import shutil
     import subprocess
@@ -252,7 +253,18 @@ def test_a_pull_runs_the_check(report, _boot):
         git('add', 'host')
         one, two = laid('f', 'one'), laid('f', 'two')
         git('checkout', '-q', '--detach', one)
-        bare = ran()
+        bare = [ran()]
+        git('merge', '-q', '--ff-only', two)
+        bare.append(ran())
+        git('reset', '-q', '--hard', one)
+        laid('g', 'three')
+        git('commit', '-q', '--amend', '-m', 'again')
+        bare.append(ran())
+        git('rebase', '-q', two)
+        bare.append(ran())
+        git('checkout', '-q', '--detach', one)
+        bare.append(ran())
+        was = bare[-1]
         os.makedirs(os.path.join(tree, 'build', 'Debug'))
         open(os.path.join(tree, 'build', 'Debug', 'build.ninja'), 'w').close()
         git('checkout', '-q', '--detach', two)
@@ -265,15 +277,17 @@ def test_a_pull_runs_the_check(report, _boot):
         git('merge', '-q', '--ff-only', two)
         merged = ran()
         git('reset', '-q', '--hard', one)
-        laid('g', 'three')
+        laid('h', 'four')
         git('commit', '-q', '--amend', '-m', 'again')
         amended = ran()
         git('rebase', '-q', two)
         rebased = ran()
-    report.check('no image built: no check; then one a commit checked out, none at the same or a file',
-                 (bare, moved, still) == (0, 1, 1), (bare, moved, still))
+    report.check('no image built: no check at a commit checked out or amended, one at a fast-forward merge and '
+                 'one at a rebase', bare == [0, 1, 1, 2, 2], bare)
+    report.check('an image built: one a commit checked out, none at the same or a file',
+                 (moved - was, still - was) == (1, 1), (moved - was, still - was))
     report.check('one more at a fast-forward merge, none at an amend, and more at a rebase',
-                 (merged, amended) == (2, 2) and rebased > amended, (merged, amended, rebased))
+                 (merged - was, amended - was) == (2, 2) and rebased > amended, (merged, amended, rebased))
 
 
 def main():

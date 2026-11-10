@@ -1,5 +1,11 @@
-# machine.ps1 - Windows, winget, python (found, or installed from python.org), git, gh,
+# machine.ps1 - Windows, winget, python (found, or installed from python.org), git, gh, node,
 # a host gcc, the execution policy.
+#
+# What host/ looks up or runs that no step of setup installs, and what each comes with - a commit
+# waits (host/tools/dev/depends.py) till setup names every program the tree seeks: objdump with
+# gcc; arm-none-eabi-objdump and arm-none-eabi-size with gnu-tools-for-stm32; powershell, taskkill
+# and tasklist are Windows' own; nvidia-smi a card's driver's; clang and cc another system's
+# compilers, sought where gcc is not (tools/cores/build.py).
 
 function Get-PythonGate {
     <#
@@ -353,6 +359,15 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
             Write-Item 'gh' 'ok' 'installed - `gh auth login` once to watch CI runs'
             Add-Todo -Optional 'gh auth login   (one time - lets `gh run watch` follow CI)'
         }
+    }
+
+    # node runs the Markdown linter (host/tools/dev/lint.py: markdownlint-cli2, fetched at its first use).
+    $node = Get-Tool 'node'
+    if ($null -eq $node) {
+        Write-Item 'node' 'missing' 'optional - OpenJS.NodeJS.LTS, for linting Markdown'
+        Add-Todo -Optional 'winget install --id OpenJS.NodeJS.LTS --exact   (tools/dev/lint.py lints Markdown with it)'
+    } else {
+        Write-Item 'node' 'ok' $node
     }
 
 

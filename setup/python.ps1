@@ -14,38 +14,20 @@ function Install-PythonDeps {
 
     # The list to probe comes from requirements.txt itself, never a copy here:
     # a copy drifted once - numpy and rich joined the file and this probe kept
-    # saying 'all present' on a machine that had neither.
-    $absent = Invoke-Python -Python $Python -Code @'
-import importlib.metadata as meta, importlib.util as util, re
+    # saying 'all present' on a machine that had neither. The probe is
+    # host/tools/dev/depends.py's, the lines the pre-commit runs: each distribution
+    # asked of the interpreter's metadata by the name the file writes - a module
+    # name guessed from it said pillow and fonttools missing where both stood -,
+    # the standard library alone, so a python with no package runs it.
+    $probe = @('-X', 'utf8', 'tools/dev/depends.py', '--absent')
+    $absent = Invoke-Host -Python $Python -Arguments ($probe + $requirements)
+    $probed = ($LASTEXITCODE -eq 0)
 
-RENAMED = {'pyserial': 'serial', 'pyyaml': 'yaml'}
-def _v(s):
-    return tuple(int(x) for x in re.findall(r'\d+', s))
-missing = []
-for line in open(r'REQUIREMENTS_PATH', encoding='utf-8'):
-    line = line.split('#')[0].strip()
-    if not line:
-        continue
-    dist = re.split(r'[<>=!~\[ ]', line)[0]
-    module = RENAMED.get(dist.lower(), dist.lower().replace('-', '_'))
-    if util.find_spec(module) is None:
-        missing.append(dist)
-        continue
-    try:
-        ver = _v(meta.version(dist))
-        for op, want in re.findall(r'(==|>=|<=|<|>)\s*([0-9.]+)', line[len(dist):]):
-            w = _v(want)
-            if ((op == '==' and ver != w) or (op == '>=' and ver < w)
-                    or (op == '<' and ver >= w) or (op == '<=' and ver > w)):
-                missing.append(dist)
-                break
-    except Exception:
-        pass
-print(','.join(missing))
-'@.Replace('REQUIREMENTS_PATH', $requirements)
-
-    $present = [string]::IsNullOrWhiteSpace($absent)
-    if ($present) {
+    $present = $probed -and [string]::IsNullOrWhiteSpace($absent)
+    if (-not $probed) {
+        Write-Item 'requirements' 'failed' $absent
+        Add-Todo 'python tools/dev/depends.py --absent requirements.txt failed - run it in host/ and read the output'
+    } elseif ($present) {
         Write-Item 'requirements' 'ok' 'all present'
     } else {
         Write-Item 'requirements' 'missing' $absent
@@ -60,6 +42,19 @@ print(','.join(missing))
             }
         } else {
             Add-Todo "python -m pip install -r host/requirements.txt"
+        }
+    }
+
+    # Her eyes on a CUDA card (host/requirements-gpu.txt) are asked where a card's driver stands and
+    # never installed unasked: gigabytes a bench PC does not use.
+    $gpu = Join-Path $Host_ 'requirements-gpu.txt'
+    if ($present -and (Test-Path $gpu) -and ($null -ne (Get-Tool 'nvidia-smi'))) {
+        $lacks = Invoke-Host -Python $Python -Arguments ($probe + $gpu)
+        if (($LASTEXITCODE -eq 0) -and [string]::IsNullOrWhiteSpace($lacks)) {
+            Write-Item 'requirements-gpu' 'ok' 'all present'
+        } else {
+            Write-Item 'requirements-gpu' 'missing' ('optional - her eyes on the card: ' + $lacks)
+            Add-Todo -Optional 'python -m pip install -r host/requirements-gpu.txt   (her eyes on the CUDA card here)'
         }
     }
 

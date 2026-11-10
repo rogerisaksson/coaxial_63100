@@ -8,6 +8,13 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - A file read whole past 6 k tokens costs a tenth of a window (38 of ours,
   test_views 32 k): split by subject (split_suite.py), the rest capped, held
   by test_structure and the pre-commit hook.
+- A new machine's needs are asked of the tree's own text at each commit
+  (tools/dev/depends.py): a module in no requirements file, a requirements
+  file setup never reads, a program setup never names. Setup's probe guessed
+  a module's name from its distribution's and said pillow and fonttools
+  missing where both stood - `-Check` never clean, its host suite never run;
+  it asks the metadata by the written name. `cupy-cuda13x` stood without
+  `[ctk]`: CUDA's runtime wheels had come by hand.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in
@@ -87,9 +94,12 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   terminal, opened in a console, ask each tree's ninja what it would build
   (0.04 s) and build Debug and Release where either is behind, Release last,
   so `open()` loads the newest (tools/target/current.py); a tree that built
-  no image builds none. Asked by the terminal alone the images stood three
-  days behind a pull's sources. `git reset --hard` runs no hook, and what an
-  autostash lays back comes after its hook: both are the terminal's to see.
+  no image builds them at its pull and its rebase (35 s from nothing), none
+  at a commit checked out: a worktree's suites found no image after its
+  rebase (test_boot 26 of 27). Asked by the terminal alone the images stood
+  three days behind a pull's sources. `git reset --hard` runs no hook, and
+  what an autostash lays back comes after its hook: both are the terminal's
+  to see.
   The host's C libraries are built in each process already, each named by
   its sources', headers' and flags' bytes: the headers beside its sources
   are among them (aero_bits.h, read by her native board's build off

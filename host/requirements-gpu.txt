@@ -5,7 +5,10 @@
 #   pip install -r host/requirements.txt -r host/requirements-gpu.txt
 #
 #   cupy-cuda13x   her stereo's block match on the card (machine.eyes.stereo, 95.6 ms -> 1.6 ms at
-#                  320x240) and the aircraft's SE(3) MPC (machine.aircraft.se3mpc).
+#                  320x240) and the aircraft's SE(3) MPC (machine.aircraft.se3mpc). Its [ctk] extra is
+#                  CUDA's own runtime as wheels - nvrtc, cublas, cufft, curand, cusolver, cusparse -,
+#                  which CuPy loads from there where no CUDA toolkit is installed (CUDA_PATH unset):
+#                  written, since no other package here brings them.
 #   torch          her segmenter's Mask R-CNN (machine.eyes.instances, COAXIAL_SEGMENT=1), its weights
 #   torchvision    torchvision's COCO ones, fetched into torch's cache at its first use. The CUDA 13.0
 #                  builds: the package index's are the CPU's on Windows, hence the index below.
@@ -19,7 +22,7 @@
 # onnxscript MIT, onnx Apache-2.0, TensorRT its own runtime licence. Deliberately absent: cudf
 # (coaxial.acquire, COAXIAL_DF=cudf) - Linux's alone, pandas else.
 --extra-index-url https://download.pytorch.org/whl/cu130
-cupy-cuda13x>=14.2
+cupy-cuda13x[ctk]>=14.2
 torch>=2.14
 torchvision>=0.29
 tensorrt-cu13>=11.4

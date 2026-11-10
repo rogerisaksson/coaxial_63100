@@ -133,6 +133,8 @@ QUICK = 'test_quick.py'
 TICK = 'test_tick.py'
 #: Her processes placed by her host's topology, on hosts of other shapes and live on this one (machine.process.placed).
 PLACED = 'test_placed.py'
+#: A new machine's needs written where setup reads them: modules, requirements, programs (tools.dev.depends).
+DEPENDS = 'test_depends.py'
 #: Her law's hand ports in C beside their python at every pass of her walk (tools.cores.surety, touch, twist, wait, brace).
 PORTED = 'test_ported.py'
 #: What bears her off her soles in C beside its python, lying into a bed and walking (tools.cores.borne).
@@ -221,7 +223,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, DEPENDS, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -311,7 +313,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (35, PORTED), (20, BORNE), (20, REGISTRY),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (20, DEPENDS), (35, PORTED), (20, BORNE), (20, REGISTRY),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, WIRE),
