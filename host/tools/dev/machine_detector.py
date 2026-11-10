@@ -5,12 +5,12 @@
     python tools/dev/machine_detector.py --keep    # tests/work.json laid from this tree's whole runs
 
 A suite's seconds are a host's and a width's: test_wasd's shards sum to 800.8 s here, 32 side by side,
-and to 505.0 s on GitHub's runner of four cores - a core beside 31 busy ones runs the same kernel of
+and to 505.0 s on GitHub's runner of two cores - a core beside 31 busy ones runs the same kernel of
 python and numpy 1.8 times slower than alone. Seconds written into the tree as numbers (FRESH_S: 900
 for that suite, a cut on CI's runner told in its comment) were one host's guesses of another's. So a
 run measures the host it is on: the kernel (`work`) on every baton at once, begun as one, its pace
 kernels a second (`paced`). What a suite costs is kept as work - its seconds times the pace they were
-run at, kernels, no host's - in tests/work.json, laid from whole runs (`--keep`); a run expects of a
+run at, kernels, no host's - in tests/work.json, the heaviest of its whole runs (`--keep`); a run expects of a
 suite its work over this host's pace where the tree's own record holds none, and that record's seconds
 by the pace they were run at (`expected`). A suite's shards and its limit follow (`runner._jobs`).
 """
@@ -84,33 +84,42 @@ def said(here):
         here['cores'], here['threads'], here['machine'], here['system'], here['pace'], here['width'])
 
 
-def table():
-    """{suite: its work, kernels} as tests/work.json holds it; none where it holds none."""
+def table(path=PATH):
+    """{suite: its work, kernels} as the table holds it (tests/work.json unless told); none where it holds none."""
     try:
-        with open(PATH, encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             got = json.load(f)
     except (OSError, ValueError):
         return {}
     return got if isinstance(got, dict) else {}
 
 
-def expected(seconds, paces, pace, work_of=None):
+def expected(seconds, paces, pace, work_of=None, suites=()):
     """{suite: s} a run expects on a host of `pace`: the tree's own record `seconds`, each by the pace it was
-    run at (`paces`; one with none as it stands), and for a suite the record has not, its work (`work_of`,
-    the table's unless told) over that pace."""
+    run at (`paces`; one with none as it stands), for a suite the record has not, its work (`work_of`,
+    the table's unless told) over that pace, and for one of `suites` neither knows the heaviest they know:
+    its first whole run is its measure, and expected at 0 s it ran as one job cut at the plain limit."""
     own = {name: s * paces.get(name, pace) / pace for name, s in seconds.items()}
-    return {**{name: kernels / pace for name, kernels in (table() if work_of is None else work_of).items()}, **own}
+    known = {**{name: kernels / pace for name, kernels in (table() if work_of is None else work_of).items()}, **own}
+    return {**dict.fromkeys(suites, max(known.values(), default=0.0)), **known}
 
 
-def keep():
-    """tests/work.json laid: each suite's work, kernels, off this tree's record of whole runs
-    (tests/.counts.json: a suite's seconds and the pace they were run at); a suite the record has not
-    keeps what the table held. What was laid."""
-    known = counts.load()
+def keep(known=None, path=PATH):
+    """The table laid (tests/work.json unless told): each suite's work, kernels, off this tree's record of
+    whole runs (tests/.counts.json unless told: a suite's seconds and the pace they were run at). A row is
+    the most a whole run of its suite has been measured to cost, raised and never lowered: a tree's state
+    is in a run's seconds - test_layout 20.7 s a fresh tree's first run and 2.2 s its next, 36 of the gate's
+    suites past 1.6 times lighter in one tree's gate than in another's - and a limit is to hold on a fresh
+    checkout; laid anew where the file is removed first. A suite the record has not keeps its row - read
+    before the file is opened to be written: read after, a run of eighteen suites left a table of 109
+    those eighteen. What the record told."""
+    known = counts.load() if known is None else known
     seconds, paces = known.get('seconds') or {}, known.get('paces') or {}
     laid = {name: round(seconds[name] * paces[name], 1) for name in sorted(seconds) if name in paces}
-    with open(PATH, 'w', encoding='utf-8', newline='\n') as f:
-        json.dump(dict(table(), **laid), f, indent=1, sort_keys=True)
+    held = table(path)
+    held.update({name: max(kernels, held.get(name, 0.0)) for name, kernels in laid.items()})
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(held, f, indent=1, sort_keys=True)
         f.write('\n')
     return laid
 

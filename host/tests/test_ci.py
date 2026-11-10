@@ -3,8 +3,11 @@
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured."""
+import json
 import os
+import pathlib
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -63,14 +66,47 @@ def test_a_suite_s_seconds_are_the_host_s(report):
     report.check("a suite the tree has no record of: its work in the table over the host's pace; one with no pace "
                  'kept: as it stands', (slow['test_far.py'], fast['test_far.py'], slow['test_old.py']) == (400.0, 100.0, 30.0),
                  (slow['test_far.py'], fast['test_far.py'], slow['test_old.py']))
+    new = m.expected(seconds, paces, 4.0, work, suites=('test_new.py', 'test_own.py'))
+    report.check('a suite neither knows: as the heaviest they know till its first whole run, 400 s; one known: its own',
+                 (new['test_new.py'], new['test_own.py']) == (400.0, 200.0), (new['test_new.py'], new['test_own.py']))
     here = m.host(2)
     report.check('this host measured: its cores, its threads, a pace at two batons',
                  here['cores'] >= 1 and here['threads'] >= here['cores'] and here['width'] == 2 and here['pace'] > 0.0,
                  m.said(here))
 
 
+def test_the_gate_s_suites_have_their_work(report):
+    """tests/work.json holds a row a suite of the offline gate - the gate a host with no record of its own
+    runs, GitHub's runner: one without is planned as the heaviest suite, not as itself (laid from a gate
+    stopped at its first red suite, the table had none of eleven). A new suite's row: run it whole, then
+    `machine_detector.py --keep`."""
+    from tools.dev import machine_detector, suites
+    have = {*suites.NEEDS_BOARD, *machine_detector.table()}
+    lacking = [name for name in suites.DEFAULT_SUITES if name not in have]
+    report.check('every suite of the offline gate has its work in the table', not lacking, lacking)
+
+
+def test_a_table_laid_keeps_what_was_not_run(report):
+    """`machine_detector.keep` on a table and a record laid here: a suite the record has not keeps its row -
+    read after the file was opened to be written, a run of eighteen suites left a table of 109 those
+    eighteen - and a row is raised, never lowered: a tree's later run is lighter than its first."""
+    from tools.dev import machine_detector as m
+    record = {'seconds': {'test_own.py': 100.0, 'test_warm.py': 10.0, 'test_old.py': 30.0},
+              'paces': {'test_own.py': 8.0, 'test_warm.py': 8.0}}
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder, 'work.json')
+        path.write_text(json.dumps({'test_far.py': 1600.0, 'test_own.py': 1.0, 'test_warm.py': 900.0}),
+                        encoding='utf-8')
+        told, held = m.keep(record, path), m.table(path)
+    report.check('a suite run whole: its seconds by its pace; one with no pace: not told',
+                 told == {'test_own.py': 800.0, 'test_warm.py': 80.0}, told)
+    report.check('the table: the suite not run keeps its row, a heavier run raises one, a lighter run lowers none',
+                 held == {'test_far.py': 1600.0, 'test_own.py': 800.0, 'test_warm.py': 900.0}, held)
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,
-          test_a_suite_s_seconds_are_the_host_s)
+          test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
+          test_a_table_laid_keeps_what_was_not_run)
 
 
 def main(argv=None):

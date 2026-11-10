@@ -258,8 +258,10 @@ def _results(suites, args, tags, live_sections):
     """
     known = counts.load()
     # a suite's seconds as this host runs them: the tree's own record by the pace it was run at, the table's
-    # work where it has none (`machine_detector.expected`) - a number written in the tree was another host's
-    took = machine_detector.expected(known.get('seconds') or {}, known.get('paces') or {}, args.host['pace'])
+    # work where it has none, the heaviest known where neither tells (`machine_detector.expected`) - a number
+    # written in the tree was another host's
+    took = machine_detector.expected(known.get('seconds') or {}, known.get('paces') or {}, args.host['pace'],
+                                     suites=suites)
     jobs_took = known.get('jobs') or {}
     prior_failed = known.get('failed') if isinstance(known.get('failed'), dict) else {}
     words = getattr(args, 'words', None) or {}

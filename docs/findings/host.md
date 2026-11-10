@@ -37,13 +37,37 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   two calls of gh, 1.8 s): the tuple was kept by hand. A gate stops at its
   first red suite, here as there, so what leads is what a run tells first.
 - A suite's seconds are a host's and a width's (test_wasd 800.8 s here, 32
-  at once; 505.0 s on GitHub's runner of four cores): a run measures its
+  at once; 505.0 s on GitHub's runner of two cores): a run measures its
   host as it starts (tools/dev/machine_detector.py: a kernel on every
   baton, begun as one; 3.12 a second here at 32) and expects a suite's
   work (tests/work.json, kernels) over that pace. FRESH_S, seconds written
   by hand, is gone. A suite cut short kept the seconds of what ran - a run
   stopped at its first red suite left test_wasd 415.8 s of its 800.8, its
   next run one job of 831.6 s, killed there: only a whole run is kept.
+- A suite the table held no row of was expected at 0 s: laid from a gate
+  that stopped at its first red suite, the table had none of eleven of the
+  offline gate's, and on GitHub's runner - no record of its own - her
+  errands ran as one job cut at the plain limit (test_errands.py CRASHED
+  exit=None 300.1s; FRESH_S had held 760 s). A suite neither the tree's
+  record nor the table knows is expected as the heaviest they know till
+  its first whole run tells (`machine_detector.expected`): in a fresh tree
+  her errands ran as 5 shards, 444.7 s, 21 of 21. `--keep` read the table
+  after it had opened it to be written - a run of 18 suites left a table
+  of 109 those 18 - and laid the tree's last run whatever the tree's
+  state: test_layout took 20.7 s as a fresh tree's first run and 2.2 s as
+  its next, and 36 of the gate's suites ran past 1.6 times lighter in that
+  tree's gate than in the one the table was laid from (test_emulator 1 of
+  its checks, no image built there). A row is the most a whole run of its
+  suite has been measured to cost, raised and never lowered; test_ci holds
+  the table to a row a suite of the offline gate. The gate whole in a
+  fresh tree: 120 suites, 6 500 checks.
+- GitHub's runner by its own measure (the run of b7999dd2): 2 cores, 4
+  threads, x86_64 Linux, 2 at once; 5.09 kernels a second a baton on its
+  Python 3.12 job, 2.63 on its 3.14 job. The table told its 3.12 job's
+  test_structure at 39.9 s and it took 36.7 s, its test_mirrors at 70.1 s
+  and they took 86.0 s. Ten runs before it took her errands 267.6 to
+  585.5 s on the one job and 276.7 to 523.5 s on the other, the slower job
+  not the same from run to run: a runner's pace is a run's.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in
