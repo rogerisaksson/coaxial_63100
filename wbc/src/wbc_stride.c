@@ -180,8 +180,10 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
   }
   for (int b = 0; b < 2; b++)
   {
+    const double step_off = *stepping * (1.0 - (double)((fabs(drive) <= k->tiny) && (fabs(sway) <= k->tiny) && (need <= 0.5)));
+
     u[b] = npmax(u[b], held[b]);
-    off[b] = (npmax(*stepping, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
+    off[b] = (npmax(step_off, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
     flying[b] = off[b] * (double)(u[b] > 0.0);
   }
   *swung = (0.5 * turns) / phi_w;
