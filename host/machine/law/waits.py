@@ -6,6 +6,7 @@
     waits.borne_back(g, dt)    # rows a contact releases wait till a seat or a bed bears her
     waits.sunk_back(g, dt)     # rows that raise her out of a dip wait while she still sinks
     waits.played_back(g, dt)   # rows not yet due wait while a move of hers plays (`joints.MOVES`)
+    waits.backs(g, dt)         # held, risen, landed, sunk, borne and latched back, a law pass's, in one call
     waits.woken_rows(tab, st, t, dt)   # the rows due wake her rhythm where it has died down
 
 `g` is `sprung.laid`'s; the C is `tools.cores.wait` on `g['waits']` (`motion.laid`); `held_rows`,
@@ -164,6 +165,26 @@ def borne_back(g, dt):
     the rise's word, 3.4 s stalled, and the wobbled rise fell."""
     shift, first = g['waits'].borne(g['tab'], g['t'], dt)
     g['labels'] = [(w + shift * (w >= first), n) for w, n in g['labels']]
+
+
+def backs(g, dt):
+    """`held_back`, `risen_back`, `landed_back`, `sunk_back`, `borne_back` and `latched_back` in that order, her law
+    pass's: their C in one call (`g['waits'].backs`), her labels and her jump's times shifted after as each shifts
+    them - nothing of them is read between -, a label through the five shifts in turn."""
+    t = g['t']
+    shifts, g['_held_s'], g['_prop_until'] = g['waits'].backs(g['tab'], t, dt, g.get('_held_s', 0.0),
+                                                               g.get('_prop_until', -1.0))
+    labels = []
+    for w, n in g['labels']:
+        for shift, first in shifts:
+            w = w + shift * (w >= first)
+        labels.append((w, n))
+    g['labels'] = labels
+    held, _risen, landed, sunk, _borne = (shift for shift, _first in shifts)
+    g['_jump_until'] = g.get('_jump_until', 0.0) + held * (g.get('_jump_until', 0.0) > t)
+    g['_jump_until'] = g['_jump_until'] + landed * (g['_jump_until'] > t)
+    g['_jump_throw'] = g.get('_jump_throw', 0.0) + sunk * (g.get('_jump_throw', 0.0) > t)
+    g['_jump_until'] = g['_jump_until'] + sunk * (g['_jump_until'] > t)
 
 
 def played_back(g, dt):

@@ -437,6 +437,12 @@ API void wbh_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, in
   wbc_wait_borne(k, w, tab, n, y, fr, t, dt, got);
 }
 
+API void wbh_wait_backs(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
+                        const double *y, const double *fr, double *st, double t, double dt, double *got)
+{
+  wbc_wait_backs(k, w, tab, n, a, out, y, fr, st, t, dt, got + 10, got);
+}
+
 API void wbh_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double *got)
 {
   wbc_wait_played(w, tab, n, t, dt, got);

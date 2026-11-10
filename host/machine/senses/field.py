@@ -58,8 +58,8 @@ def laid():
 
 def due(tab, t, dt):
     """1.0 where a seat's contact rows on her table `tab` are due within a pass `dt` of `t`, else 0.0."""
-    at = tab[:, latent.AT]
-    return float(((tab[:, latent.CONTACT] > 0.5) & (at <= t + dt + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)).any())
+    lo, hi = t - dt + latent.EDGE_S, t + dt + latent.EDGE_S
+    return float(any(c > 0.5 and lo < at <= hi for c, at in zip(tab[:, latent.CONTACT].tolist(), tab[:, latent.AT].tolist())))
 
 
 def seek(f, due, y, lean, goal, dt, out):

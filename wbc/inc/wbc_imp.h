@@ -287,6 +287,13 @@ void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, 
 void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                     double t, double dt, double got[3]);
 
+/** Her table's waits of a law pass in their order (machine.law.waits.backs): held, risen, landed, sunk and borne,
+    each one's shift and first row in `got` (five pairs), her hold's seconds and until when a prop counts carried in
+    `state` (2); then her latch (wbc_wait_latched). */
+void wbc_wait_backs(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
+                    const double *y, const double *fr, double *st, double t, double dt, double state[2],
+                    double got[10]);
+
 /** Her text's rows after `t` wait a pass, `dt`, while a move of hers plays (machine.law.waits.played_rows): `got`
     the shift, the time after which rows wait. */
 void wbc_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double got[3]);

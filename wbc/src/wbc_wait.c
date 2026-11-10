@@ -193,6 +193,32 @@ void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   got[1] = first;
 }
 
+void wbc_wait_backs(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
+                    const double *y, const double *fr, double *st, double t, double dt, double state[2],
+                    double got[10])
+{
+  double one[3] = {0.0, 0.0, 0.0};
+
+  wbc_wait_held(k, w, tab, n, a, out, t, dt, state[0], one);
+  got[0] = one[0];
+  got[1] = one[1];
+  state[0] = one[2];
+  wbc_wait_risen(k, w, tab, n, y, fr, a, st, t, dt, state[1], one);
+  got[2] = one[0];
+  got[3] = one[1];
+  state[1] = one[2];
+  wbc_wait_landed(k, w, tab, n, y, st, t, dt, one);
+  got[4] = one[0];
+  got[5] = one[1];
+  wbc_wait_sunk(k, w, tab, n, y, fr, t, dt, one);
+  got[6] = one[0];
+  got[7] = one[1];
+  wbc_wait_borne(k, w, tab, n, y, fr, t, dt, one);
+  got[8] = one[0];
+  got[9] = one[1];
+  wbc_wait_latched(k, w, tab, n, y, fr, a, st, t, dt);
+}
+
 void wbc_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double got[3])
 {
   const double first = t + w->edge_s;

@@ -7,6 +7,7 @@
     shift, first = waits.borne(tab, t, dt)                       # machine.law.waits.borne_rows
     shift, first = waits.played(tab, t, dt)                      # machine.law.waits.played_rows
     waits.latched(tab, t, dt)                                    # machine.law.waits.latched_rows: her vector in st
+    pairs, held_s, prop_until = waits.backs(tab, t, dt, held_s, prop_until)   # those of a law pass in one call
     waits.woken(tab, t, dt)                                      # her rhythm woken in st
 """
 import ctypes
@@ -53,11 +54,14 @@ def _typed():
                                      + [ctypes.c_void_p] * 4 + [ctypes.c_double] * 2)
     lib.wbh_wait_played.argtypes = [ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int] + [ctypes.c_double] * 2 + [
         ctypes.c_void_p]
+    lib.wbh_wait_backs.argtypes = ([ctypes.c_void_p, ctypes.POINTER(Wait), ctypes.c_void_p, ctypes.c_int]
+                                   + [ctypes.c_void_p] * 5 + [ctypes.c_double] * 2 + [ctypes.c_void_p])
+    lib.wbh_wait_backs.restype = None
     lib.wbh_wait_held.restype = lib.wbh_wait_risen.restype = lib.wbh_wait_landed.restype = None
     lib.wbh_wait_borne.restype = lib.wbh_wait_latched.restype = None
     lib.wbh_wait_woken.restype = lib.wbh_wait_played.restype = None
     return (lib.wbh_wait_held, lib.wbh_wait_risen, lib.wbh_wait_landed, lib.wbh_wait_borne, lib.wbh_wait_latched,
-            lib.wbh_wait_woken, int(lib.wbh_wait_rows()), lib.wbh_wait_sunk, lib.wbh_wait_played)
+            lib.wbh_wait_woken, int(lib.wbh_wait_rows()), lib.wbh_wait_sunk, lib.wbh_wait_played, lib.wbh_wait_backs)
 
 
 class Waits:
@@ -81,10 +85,10 @@ class Waits:
                       blas=c_motion.numpy_blas())
         self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))
         self.at = [wbc.pointer(arr) for arr in self.kept]
-        self.got = np.zeros(3)
+        self.got, self.all = np.zeros(3), np.zeros(12)
         (self.held_c, self.risen_c, self.landed_c, self.borne_c, self.latched_c, self.woken_c, self.rows,
-         self.sunk_c, self.played_c) = _typed()
-        self.k, self.wp, self.gp = ctypes.addressof(k), ctypes.byref(self.w), self.got.ctypes.data
+         self.sunk_c, self.played_c, self.backs_c) = _typed()
+        self.k, self.wp, self.gp, self.ap = ctypes.addressof(k), ctypes.byref(self.w), self.got.ctypes.data, self.all.ctypes.data
 
     def _table(self, tab):
         if len(tab) > self.rows:
@@ -121,6 +125,16 @@ class Waits:
         """(shift, first) of `machine.law.waits.played_rows`, `tab`'s times shifted in place."""
         self.played_c(self.wp, self._table(tab), len(tab), t, dt, self.gp)
         return tuple(self.got[:2].tolist())
+
+    def backs(self, tab, t, dt, held_s, prop_until):
+        """(((shift, first) of held, risen, landed, sunk and borne), held_s, prop_until): her table's waits of a
+        law pass in their order and her latch after them in one call (wbc_wait_backs), `tab`'s times shifted in place
+        and her vector latched in `st` as each alone does - six calls of her law's pass were 45 us of it."""
+        self.all[10], self.all[11] = held_s, prop_until
+        self.backs_c(self.k, self.wp, self._table(tab), len(tab), self.at[0], self.at[1], self.at[2], self.at[3],
+                     self.at[4], t, dt, self.ap)
+        got = self.all.tolist()
+        return tuple(zip(got[0:10:2], got[1:10:2])), got[10], got[11]
 
     def latched(self, tab, t, dt):
         """`machine.law.waits.latched_rows`: her vector latched in `st` where she is by the rows of `tab` due."""

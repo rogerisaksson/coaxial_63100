@@ -126,16 +126,28 @@ def step(g, s, out, told, dt):
     g['sat'] = max(g['seat_on'], g['sat'] * g['seat_near'])
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
     kept, iota, om, xi = g.get('em_asked', asked)(was, g['sat'], told, out, c, v, floor)
-    pts, room, soles = g.get('em_supports', supports)(s, g['observer'], told, floor, iota, loads, g.get('told_on'))
-    eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight, g.get('leave'))
+    eta, parts, support = gated(g, s, told, floor, iota, loads, xi, v, weight)
     eta, gamma, let_go, unanchored, let_cap, freed, held, rate, acc = g.get('em_released', released)(
         was, iota, eta, kept, g['sat'], told, g['a'], g['y'], c, loads, g['fr'], g['held_ref'], out, dt)
     g['emancipated'], g['unanchored'], g['let_cap'], g['freed'] = gamma, unanchored, let_cap, freed
     g['a'][modal.LET_GO] = let_go
     g['held_ref'][...] = held
     out[latent.REF][LEGGED], out[latent.RATE][LEGGED], out[latent.ACC][LEGGED] = held, rate, acc
-    g['emancipation'] = {'iota': iota, 'eta': eta, 'parts': parts, 'xi': xi, 'om': om, 'support': (pts, room, soles)}
+    g['emancipation'] = {'iota': iota, 'eta': eta, 'parts': parts, 'xi': xi, 'om': om, 'support': support}
     return gamma
+
+
+# no leg asked released, her cascade asks each iota times its leave: 0 times any leave is 0, and none else reads the
+# leave, its parts or her support - her counterweight's rest is this one's (`composer`)
+@composer.capability(lambda _g, _s, _told, _floor, iota, *_a: bool(iota.any()), lambda *_a: (np.zeros(2), None, None))
+def gated(g, s, told, floor, iota, loads, xi, v, weight):
+    """(eta (2,), the gate's parts, her support (points, radii, each leg's own)): the physics' leave to release each
+    leg (`gate`) over what bears her besides it (`supports`), at work while her text asks a leg released (`iota`, a
+    leg kept released among them). Asked none - her stand, her walk, her seat with both soles told -, they were told
+    each law pass for a leave her cascade multiplied by nothing: 72 us of it."""
+    pts, room, soles = g.get('em_supports', supports)(s, g['observer'], told, floor, iota, loads, g.get('told_on'))
+    eta, parts = gate(xi, pts, room, soles, v, observer.said(told), loads, weight, g.get('leave'))
+    return eta, parts, (pts, room, soles)
 
 
 def settled(acc, g, s):

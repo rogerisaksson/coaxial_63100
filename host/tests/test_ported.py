@@ -144,10 +144,10 @@ def test_her_twist_in_c_as_she_walks(report, c):
 
 
 def test_her_waits_in_c_as_she_walks(report, c):
-    """Her table's waits in C (`c_wait.laid`, wbc_wait.c) beside their python (`waits.held_rows`,
-    `risen_rows`, `woken_rows`, `borne_rows`, `latched_rows`) on copies of her table and her state at
-    every pass over PASSES of her walk - the table's times, the shift, the first row, the
-    state and her rhythm woken bit for bit -, and a step's time."""
+    """Her table's waits in C (`c_wait.laid`, wbc_wait.c: a law pass's in one call, `backs`) beside their python
+    (`waits.held_rows`, `risen_rows`, `landed_rows`, `sunk_rows`, `borne_rows`, `latched_rows` in that order,
+    `woken_rows`) on copies of her table and her state at every pass over PASSES of her walk - the table's times,
+    each one's shift and first row, the state and her rhythm woken bit for bit -, and a wait's time."""
     from machine.law import latent, waits as py_waits
     from machine.process import worker
     from tools.cores import motion as c_motion
@@ -158,58 +158,21 @@ def test_her_waits_in_c_as_she_walks(report, c):
 
     class Beside:
 
-        def held(self, tab, t, dt, held_s):
-            mine = tab.copy()
+        def backs(self, tab, t, dt, held_s, prop_until):
+            mine, st = tab.copy(), g['st'].copy()
             t0 = time.perf_counter()
-            want = py_waits.held_rows(mine, g['a'], g['out'], t, dt, held_s)
+            want = [py_waits.held_rows(mine, g['a'], g['out'], t, dt, held_s),
+                    py_waits.risen_rows(mine, g['y'], g['fr'], g['a'], g['st'], t, dt, prop_until),
+                    py_waits.landed_rows(mine, g['y'], g['st'], t, dt), py_waits.sunk_rows(mine, g['y'], g['fr'], t, dt),
+                    py_waits.borne_rows(mine, g['y'], g['fr'], t, dt)]
+            py_waits.latched_rows(mine, g['y'], g['fr'], g['a'], st, t, dt)
             t1 = time.perf_counter()
-            got = waits.held(tab, t, dt, held_s)
-            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
+            got = waits.backs(tab, t, dt, held_s, prop_until)
+            py_s, c_s = (t1 - t0) / 6.0, (time.perf_counter() - t1) / 6.0
+            for pair, each in zip(got[0], want):
+                self.tallied(py_s, c_s, tab, mine, pair, each[:2])
+            self.tallied(py_s, c_s, g['st'], st, got[1:], (want[0][2], want[1][2]))
             return got
-
-        def risen(self, tab, t, dt, prop_until):
-            mine = tab.copy()
-            t0 = time.perf_counter()
-            want = py_waits.risen_rows(mine, g['y'], g['fr'], g['a'], g['st'], t, dt, prop_until)
-            t1 = time.perf_counter()
-            got = waits.risen(tab, t, dt, prop_until)
-            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
-            return got
-
-        def landed(self, tab, t, dt):
-            mine = tab.copy()
-            t0 = time.perf_counter()
-            want = py_waits.landed_rows(mine, g['y'], g['st'], t, dt)
-            t1 = time.perf_counter()
-            got = waits.landed(tab, t, dt)
-            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
-            return got
-
-        def sunk(self, tab, t, dt):
-            mine = tab.copy()
-            t0 = time.perf_counter()
-            want = py_waits.sunk_rows(mine, g['y'], g['fr'], t, dt)
-            t1 = time.perf_counter()
-            got = waits.sunk(tab, t, dt)
-            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
-            return got
-
-        def borne(self, tab, t, dt):
-            mine = tab.copy()
-            t0 = time.perf_counter()
-            want = py_waits.borne_rows(mine, g['y'], g['fr'], t, dt)
-            t1 = time.perf_counter()
-            got = waits.borne(tab, t, dt)
-            self.tallied(t1 - t0, time.perf_counter() - t1, tab, mine, got, want)
-            return got
-
-        def latched(self, tab, t, dt):
-            mine = g['st'].copy()
-            t0 = time.perf_counter()
-            py_waits.latched_rows(tab, g['y'], g['fr'], g['a'], mine, t, dt)
-            t1 = time.perf_counter()
-            waits.latched(tab, t, dt)
-            self.tallied(t1 - t0, time.perf_counter() - t1, g['st'], mine, g['st'][latent.Z], mine[latent.Z])
 
         def woken(self, tab, t, dt):
             mine = g['st'].copy()

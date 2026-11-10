@@ -116,12 +116,7 @@ def control(g, dt):
     y[modal.GRIP] = g['held'] = g['outside'](g['grip'], g['situations']['grips'])
     g['into'] = g['read'](g['situations'], g['readings'](
         y, g['fr'], g['a'], g['grip'], y_in[edge.TOUCH].reshape(-1, 3), float(g['fr'][modal.WEIGHT])))
-    waits.held_back(g, dt * ev)
-    waits.risen_back(g, dt * ev)
-    waits.landed_back(g, dt * ev)
-    waits.sunk_back(g, dt * ev)
-    waits.borne_back(g, dt * ev)
-    waits.latched_back(g, dt * ev)
+    waits.backs(g, dt * ev)
     out = _step_latent(g, dt * ev)
     # her legs released as told and as what else bears her allows (`emancipation`): weighed, her hands told, unfelt,
     # kept them standing
