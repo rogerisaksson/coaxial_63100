@@ -16,11 +16,21 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
-#: A world run here: -O3; on x86-64 SSE4.1's roundss for floorf and nearbyintf, exact; on Windows
-#: ucrt's fminf and fmaxf inline (world_libm.h). The stand-in's drive period 448 -> 277 ns, its
-#: state the same bits at -O0 to -O3; her twenty native boards 2.03 -> 1.81 CPU s a wall s.
-FAST = (['-O3', '-fno-math-errno']
-        + (['-msse4.1'] if platform.machine().lower() in ('amd64', 'x86_64') else [])
+def native():
+    """The compiler's flags for this host's own instruction sets, nothing contracted: -march=native on x86,
+    -mcpu=native on ARM (clang's -march takes no native there), none on another processor; -ffp-contract=off with
+    them - gcc's ISO C contracts nothing, clang's does within an expression, and a fused multiply-add is not
+    numpy's bits."""
+    flag = {'amd64': '-march=native', 'x86_64': '-march=native', 'arm64': '-mcpu=native',
+            'aarch64': '-mcpu=native'}.get(platform.machine().lower())
+    return ('-ffp-contract=off',) + ((flag,) if flag else ())
+
+
+#: A world run here: -O3 on this host's own instruction sets (`native`, her cores' too: one set of them for
+#: every loop's C) - an x86's roundss for floorf and nearbyintf, exact -; on Windows ucrt's fminf and fmaxf inline
+#: (world_libm.h). The stand-in's drive period 448 -> 277 ns, its state the same bits at -O0 to -O3; her twenty
+#: native boards 2.03 -> 1.81 CPU s a wall s.
+FAST = (['-O3', '-fno-math-errno'] + list(native())
         + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h')] if os.name == 'nt' else []))
 
 #: With COAXIAL_GCOV set (tools/dev/cover.py), built for gcov: unoptimised, so a
@@ -77,16 +87,6 @@ def build(cc, sources, includes, name, extra=()):
     if done.returncode != 0:
         raise RuntimeError(done.stderr.strip()[-2000:])
     return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
-
-
-def native():
-    """The compiler's flags for this host's own instruction sets, nothing contracted: -march=native on x86,
-    -mcpu=native on ARM (clang's -march takes no native there), none on another processor; -ffp-contract=off with
-    them - gcc's ISO C contracts nothing, clang's does within an expression, and a fused multiply-add is not
-    numpy's bits."""
-    flag = {'amd64': '-march=native', 'x86_64': '-march=native', 'arm64': '-mcpu=native',
-            'aarch64': '-mcpu=native'}.get(platform.machine().lower())
-    return ('-ffp-contract=off',) + ((flag,) if flag else ())
 
 
 def _host():

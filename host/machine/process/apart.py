@@ -2,7 +2,8 @@
 
 Behind the wall by more than a slice, its debt is dropped rather than run off; given what its page
 has `shown`, it runs no further than `lead_s` past it; commands in, states said out. Her body
-(`machine.process.worker`) and the crafts' flights (`terminal.views.quad.flying`) run on it.
+(`machine.process.worker`) and the crafts' flights (`terminal.views.quad.flying`) run on it, each
+placed as a loop from its process's start (`looped`): what is found for one loop's process is every one's.
 
     apart = Apart(target, *args)       # target(commands, states, shown, *args), a spawned process
     apart.send(**command); newest = apart.latest(into=said); apart.shown(t); apart.close()
@@ -16,6 +17,8 @@ import multiprocessing
 import queue
 import time
 import weakref
+
+from machine.process import placed
 
 #: Behind the wall by more than SLICE_S, a world runs one slice and drops the rest of its debt;
 #: held to its page, it runs LEAD_S of its time past what that has shown at the most, s.
@@ -117,9 +120,18 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
                 last_wall = time.perf_counter()
 
 
+def looped(target, *args):
+    """`target(*args)` in a loop's process from its start: placed as a loop's by her host's topology
+    (`placed.placed(True)`: a cache group of its own, its thread held to it, not throttled) before its target lays
+    anything, so every process it starts leaves it that group. Her worker and each craft's flight alike - placed
+    each by its own target, her crafts' flights were placed as any other process, their pace 2-6 % under."""
+    placed.placed(True)
+    target(*args)
+
+
 class Apart:
 
-    """`target(commands, states, shown, *args)` in a spawned process: `send` it commands, read its
+    """`target(commands, states, shown, *args)` in a spawned process, placed as a loop's (`looped`): `send` it commands, read its
     `latest` state, tell it what the page has `shown` - none till then, past `shown` -; `kept`
     more of its queues, drained on `close`. `states` the most its queue holds."""
 
@@ -129,8 +141,8 @@ class Apart:
         for each in (self._commands, self._states) + self._kept:
             each.cancel_join_thread()
         self._shown = CONTEXT.Value('d', shown, lock=False)
-        self._process = CONTEXT.Process(target=target, daemon=True,
-                                        args=(self._commands, self._states, self._shown) + args)
+        self._process = CONTEXT.Process(target=looped, daemon=True,
+                                        args=(target, self._commands, self._states, self._shown) + args)
         self._process.start()
         self._last = self.mj = None
         LIVE.add(self)

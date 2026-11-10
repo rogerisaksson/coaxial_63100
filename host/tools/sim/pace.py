@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Her loop's pace as the worker runs her, flat out: her world's seconds a wall second, an errand.
+"""Her loop's pace as her worker runs her, a craft's as its page flies it: flat out, an errand.
 
-    python tools/sim/pace.py                   # her errands one at a time on the relay, a benchmark's: a line each
+    python tools/sim/pace.py                   # her errands and the crafts' flights one at a time on the relay: a line each
     python tools/sim/pace.py walk door         # those named, here (COAXIAL_BENCH=1: above normal priority too)
+    python tools/sim/pace.py quad helicopter ornithopter aerobat   # a craft's flight: its card's first FLOWN_S
     python tools/sim/pace.py walk --profile    # and where her main thread spends its time, sampled
     python tools/sim/pace.py door --time machine.law.motion.control tools.cores.bodied.Bound.__call__
     python tools/sim/pace.py door --here --time machine.eyes.registry.seen   # her vision in this process
@@ -21,6 +22,8 @@ process (`vision.Here`, a run's), its look's own parts timed so - its bits the s
 her with her eyes not hers - her registry on the world's boxes, no camera - and tells a sha1 over every pass's
 qpos, qvel and ctrl: her bits the same at any pace and on any host's load, as her errands' ends with her eyes
 hers are not - the card's multisampling tells her camera's frames by the wall's time (`machine.eyes.camera`).
+A craft (CRAFTS) is laid as its page lays it (`terminal.views.quad.flying`: its stand-in boards, its sky, its law, its
+card), placed as a loop's as her worker is, each step said as its page hears it; `--blind` hashes its every step.
 """
 import argparse
 import collections
@@ -37,6 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 WALK, HELD_S = (0.69, 0.0, 0.0), 3.0
 #: The sampler's period, s; the functions a profile lists, by own and by inclusive share.
 SAMPLE_S, LISTED = 0.0005, 24
+#: The crafts flown as errands, each its page's flight; how long of its card each is flown, s.
+CRAFTS, FLOWN_S = ('quad', 'helicopter', 'ornithopter', 'aerobat'), 20.0
 
 
 class Run:
@@ -68,6 +73,14 @@ class Run:
     @property
     def t(self):
         return self.s['g']['t']
+
+    @property
+    def data(self):
+        return self.s['g']['world'].data
+
+    @property
+    def ended(self):
+        return '' if self.s['fallen_at'] is None else ', fell at %.2f s' % self.s['fallen_at']
 
     def doing(self):
         from machine.process import sprung
@@ -134,13 +147,57 @@ def _bed(r):
     r.go(HELD_S)
 
 
-ERRANDS = {'stand': _stand, 'walk': _walk, 'door': _door, 'chair': _chair, 'bed': _bed}
+class Flown:
+
+    """A craft's flight laid as its page lays it (`terminal.views.quad.flying.run`), stepped flat out a step at a
+    time as `apart.paced` steps it - each step said as its page hears it -, each second's wall time kept with its
+    card's stage; this process placed as a loop's, as `apart.looped` places its page's."""
+
+    def __init__(self, kind, blind=False):
+        import importlib
+        from machine.process import placed
+        from terminal.views.quad import flying
+        placed.placed(True)
+        craft = importlib.import_module('machine.aircraft.' + kind)
+        flown = importlib.import_module('terminal.views.%s.flight' % kind)
+        self.flight = flying.Flight(craft, flown, len(getattr(flown, 'ROTORS', None) or craft.ROTOR_AT))
+        self.passed = hashlib.sha1() if blind else None
+        self.seconds: list = []
+        self.wall, self.second = time.perf_counter(), math.floor(self.t)
+
+    t = property(lambda self: self.flight.t)
+    data = property(lambda self: self.flight.sky.data)
+    ended = property(lambda self: ', wrecked' if self.flight.flight.get('wreck') else '')
+
+    def go(self, seconds):
+        """`seconds` of its flight's steps, each said (`Flight.said`) as its page's loop says it."""
+        t0 = self.t
+        while self.t - t0 < seconds:
+            self.flight.step()
+            self.flight.said(1.0)
+            if self.passed is not None:
+                for a in (self.data.qpos, self.data.qvel, self.data.xfrc_applied):
+                    self.passed.update(a.tobytes())
+            if math.floor(self.t) > self.second:
+                now = time.perf_counter()
+                self.seconds.append((str(self.flight.flight.get('stage')), (math.floor(self.t) - self.second) / (now - self.wall)))
+                self.wall, self.second = now, math.floor(self.t)
+
+    def close(self):
+        self.flight.close()
+
+
+def _flown(r):
+    r.go(FLOWN_S)
+
+
+ERRANDS = dict({'stand': _stand, 'walk': _walk, 'door': _door, 'chair': _chair, 'bed': _bed}, **dict.fromkeys(CRAFTS, _flown))
 
 
 def paced(name, here=False, blind=False):
     """Errand `name` run flat out from her laying, her vision in this process where `here`, her eyes not hers and
-    every pass hashed where `blind`: its line."""
-    r = Run(here, blind)
+    every pass hashed where `blind` - a craft's flight (CRAFTS) from its card's start, its every step hashed -: its line."""
+    r = Flown(name, blind) if name in CRAFTS else Run(here, blind)
     try:
         r.go(0.5)
         r.seconds.clear()
@@ -149,10 +206,10 @@ def paced(name, here=False, blind=False):
         r.close()
     xs = [x for _d, x in r.seconds] or [0.0]
     worst = min(r.seconds, key=lambda d: d[1]) if r.seconds else ('-', 0.0)
-    h = hashlib.sha1(r.s['g']['world'].data.qpos.tobytes()).hexdigest()[:12]
+    h = hashlib.sha1(r.data.qpos.tobytes()).hexdigest()[:12]
     return ('%-6s worst x%.2f (%s) mean x%.2f | %s | qpos %s at t %.2f%s'
             % (name, worst[1], worst[0][:14], sum(xs) / len(xs), ' '.join('%.2f' % x for x in xs), h, r.t,
-               '' if r.s['fallen_at'] is None else ', fell at %.2f s' % r.s['fallen_at'])
+               r.ended)
             + ('' if r.passed is None else ', passes %s' % r.passed.hexdigest()[:16]))
 
 

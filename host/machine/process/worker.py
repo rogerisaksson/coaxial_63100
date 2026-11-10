@@ -5,7 +5,7 @@ import math
 import os
 import queue
 import time
-from machine.process import apart, gaits, placed, sprung, worn
+from machine.process import apart, gaits, sprung, worn
 from machine.world import physics, referee
 from machine.senses import edge
 from machine.way import peek, planner
@@ -292,8 +292,7 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     `shown`. Her registry's things are her eyes' (`physics.SIGHT`: her stereo pair drawn and matched, its map
     classified), her vision's panel their view - the world's boxes are her page's drawing alone; her planner and
     her vision (`vision.Apart`) spawned warm, her vision and her camera waited for warm before her first pass
-    (`readied`); placed a core apart (`placed`)."""
-    placed.placed(True)
+    (`readied`); placed as a loop's by the process it is run in (`apart.looped`)."""
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
     s['g']['planner'], s['g']['vision'], s['peeker'] = planner.Planner(), vision.Apart(), planner.Planner()
