@@ -32,6 +32,10 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   commit. By hand alone it stood 1 392 commits behind its one generated
   section, linked docs/SETUP.md and told of host/sim/, both gone, and its
   cores lacked `world/`.
+- What GitHub's last host run left red leads suites.FAILED_FIRST, laid by
+  the pre-commit off the comment CI leaves on its commit (tools/dev/ci.py,
+  two calls of gh, 1.8 s): the tuple was kept by hand. A gate stops at its
+  first red suite, here as there, so what leads is what a run tells first.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in

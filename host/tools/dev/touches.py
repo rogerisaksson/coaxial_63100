@@ -1,6 +1,6 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
-                              DEPENDS,
+                              CI, DEPENDS,
                               BROKER, COMPILED, QUICK, TICK, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
                               DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
@@ -270,6 +270,7 @@ TOUCHES = (
     ('host/requirements',                      (DEPENDS, STRUCTURE)),
     ('host/tools/dev/depends.py',              (DEPENDS, STRUCTURE)),
     ('host/tools/dev/pre_commit.py',           (DEPENDS, STRUCTURE)),
+    ('host/tools/dev/ci.py',                   (CI, STRUCTURE)),
     # The README, laid out of its source and the tree: test_layout holds it, a structural suite.
     ('host/tools/dev/readme.py',               (STRUCTURE, 'test_ollama_runner.py')),
     # Neither the CAD export nor the schematic is read by a suite.

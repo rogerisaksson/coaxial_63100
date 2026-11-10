@@ -14,7 +14,8 @@ of a new machine and writes nowhere stops it too (tools/dev/depends.py: a module
 requirements file, a requirements file setup never reads, a program setup never names), read
 while setup runs. README.md is laid out of docs/README.src.md and that tree (tools/dev/readme.py)
 and staged where it is behind, so a commit carries the README its tree says; one that names what
-the tree does not hold stops it.
+the tree does not hold stops it. What GitHub's last host run left red is laid at the head of
+suites.FAILED_FIRST and staged too (tools/dev/ci.py): a run here leads with it.
 """
 import os
 import re
@@ -28,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO
-from tools.dev import depends, readme, token_budget
+from tools.dev import ci, depends, readme, token_budget
 
 #: How to take a file of each kind under the budget.
 SPLIT = {
@@ -174,30 +175,33 @@ def checked():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as scratch:
         tree = staged_tree(scratch)
         runs = machines(scratch) if os.name == 'nt' and shutil.which('powershell') else []
-        with ThreadPoolExecutor(len(runs) + 1) as pool:
-            going = [pool.submit(_setup, tree, r[2]) for r in runs]
+        with ThreadPoolExecutor(len(runs) + 2) as pool:
+            going, asking = [pool.submit(_setup, tree, r[2]) for r in runs], pool.submit(ci.asked)
             needs, counted = depends.faults(tree, staged_texts())
-            laid, held = readme.made(readme.Tree(tree, _git('ls-files').split('\n')))
-            done = [g.result() for g in going]
+            laid, unheld = readme.made(readme.Tree(tree, _git('ls-files').split('\n')))
+            done, red = [g.result() for g in going], asking.result()
     return ([f for r, d in zip(runs, done) for f in faults(r[0], r[1], d)],
-            time.perf_counter() - t if runs else 0.0, needs, counted, laid, held)
+            time.perf_counter() - t if runs else 0.0, needs, counted, laid, unheld, red)
 
 
-def readme_laid(text):
-    """README.md held to `text`, what the staged tree lays (tools/dev/readme.py): (what was done, why the
-    commit stops). Staged as that: nothing. Else the working copy, where it is what is staged, is written
-    and staged - the commit carries it; where it has edits of its own they are not written over."""
-    staged = subprocess.run(['git', 'show', ':' + readme.LAID], cwd=REPO, capture_output=True).stdout
+def held(path, laid):
+    """A file of the tree held to what this commit's tree says it is, `laid(what is staged) -> its text`:
+    (whether it was laid, why the commit stops). Staged as that: neither. Else the working copy, where it is
+    what is staged, is written and staged - the commit carries it; where it has edits of its own they are
+    not written over."""
+    staged = subprocess.run(['git', 'show', ':' + path], cwd=REPO, capture_output=True).stdout
+    text = laid(staged.decode('utf-8', 'replace'))
     if staged.decode('utf-8', 'replace') == text:
-        return '', ''
-    have = readme.stands(REPO)
-    if have is not None and have.replace('\r\n', '\n').encode('utf-8') != staged.replace(b'\r\n', b'\n'):
-        return '', ('%s is laid out of %s and the tree, and it holds edits of its own here: write them '
-                    'there (python host/tools/dev/readme.py lays it)' % (readme.LAID, readme.SOURCE))
-    with open(os.path.join(REPO, readme.LAID), 'w', encoding='utf-8', newline='\n') as f:
+        return False, ''
+    full = os.path.join(REPO, *path.split('/'))
+    with open(full, 'rb') as f:
+        have = f.read()
+    if have.replace(b'\r\n', b'\n') != staged.replace(b'\r\n', b'\n'):
+        return False, '%s is laid by this hook and holds edits of its own here, unstaged: stage them or take them back' % path
+    with open(full, 'w', encoding='utf-8', newline='\n') as f:
         f.write(text)
-    subprocess.run(['git', 'add', readme.LAID], cwd=REPO, capture_output=True, check=True)
-    return '%s laid out of %s and the tree, and staged' % (readme.LAID, readme.SOURCE), ''
+    subprocess.run(['git', 'add', path], cwd=REPO, capture_output=True, check=True)
+    return True, ''
 
 
 def main():
@@ -217,7 +221,7 @@ def main():
         for path, tokens, cap in past:
             print('  %s  %.1f k tokens of %.1f k: %s' % (path, tokens / 1e3, cap / 1e3, how(path)))
         code = 1
-    found, seconds, needs, counted, laid, held = checked()
+    found, seconds, needs, counted, laid, unheld, red = checked()
     if found:
         print('pre-commit: setup.ps1 -Check broke - fix it before committing:')
         for fault in found:
@@ -232,14 +236,22 @@ def main():
         code = 1
     else:
         print('pre-commit: ' + counted)
-    said, why = ('', '') if held else readme_laid(laid)
-    if held or why:
+    done, why = (False, '') if unheld else held(readme.LAID, lambda _staged: laid)
+    if unheld or why:
         print('pre-commit: %s' % (why or 'the README says what the tree does not hold - write %s:' % readme.SOURCE))
-        for fault in held:
+        for fault in unheld:
             print('  ' + fault)
         code = 1
-    elif said:
-        print('pre-commit: ' + said)
+    elif done:
+        print('pre-commit: %s laid out of %s and the tree, and staged' % (readme.LAID, readme.SOURCE))
+    if red and red[1]:
+        done, why = held(ci.SUITES, lambda staged: ci.led(staged, red[1]))
+        if why:
+            print('pre-commit: ' + why)
+            code = 1
+        elif done:
+            print("pre-commit: CI's last host run (%s) left %s red: first of FAILED_FIRST, staged"
+                  % (red[0][:8], ', '.join(red[1])))
     return code
 
 
