@@ -208,11 +208,80 @@ def test_the_images_their_sources(report, _boot):
                  repr(pending(said)))
 
 
+def test_a_pull_runs_the_check(report, _boot):
+    """Git's hooks (.githooks/post-merge, post-rewrite, post-checkout): a pull, a rebase and another commit checked
+    out run the images' check in a tree that has built one - a stand-in tree, its check a file that counts its
+    runs -, and nothing in a tree that has built none, at a file checked out or at a commit amended."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+    with tempfile.TemporaryDirectory() as top:
+        tree, hooks = os.path.join(top, 'tree'), os.path.join(top, 'hooks')
+        target = os.path.join(tree, 'host', 'tools', 'target')
+        os.makedirs(target)
+        os.makedirs(hooks)
+        for name in ('post-merge', 'post-rewrite', 'post-checkout'):
+            shutil.copy(os.path.join(repo, '.githooks', name), hooks)
+        for folder in (os.path.dirname(target), target):
+            open(os.path.join(folder, '__init__.py'), 'w').close()
+        with open(os.path.join(target, 'current.py'), 'w', encoding='utf-8') as f:
+            f.write("import os\nopen(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ran'), 'a').write('.')\n")
+
+        def git(*words):
+            done = subprocess.run(['git', '-c', 'core.hooksPath=' + hooks, '-c', 'user.name=check',
+                                   '-c', 'user.email=check@localhost', '-c', 'commit.gpgsign=false', *words],
+                                  cwd=tree, env=env, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            assert done.returncode == 0, (words, done.stderr[-300:])
+            return done.stdout.strip()
+
+        def ran():
+            path = os.path.join(target, 'ran')
+            return os.path.getsize(path) if os.path.exists(path) else 0
+
+        def laid(name, text):
+            with open(os.path.join(tree, name), 'w', encoding='utf-8') as f:
+                f.write(text)
+            git('add', name)
+            git('commit', '-q', '-m', text)
+            return git('rev-parse', 'HEAD')
+
+        git('init', '-q')
+        git('add', 'host')
+        one, two = laid('f', 'one'), laid('f', 'two')
+        git('checkout', '-q', '--detach', one)
+        bare = ran()
+        os.makedirs(os.path.join(tree, 'build', 'Debug'))
+        open(os.path.join(tree, 'build', 'Debug', 'build.ninja'), 'w').close()
+        git('checkout', '-q', '--detach', two)
+        moved = ran()
+        git('checkout', '-q', '--detach', two)
+        git('checkout', '-q', one, '--', 'f')
+        git('checkout', '-q', two, '--', 'f')
+        still = ran()
+        git('reset', '-q', '--hard', one)
+        git('merge', '-q', '--ff-only', two)
+        merged = ran()
+        git('reset', '-q', '--hard', one)
+        laid('g', 'three')
+        git('commit', '-q', '--amend', '-m', 'again')
+        amended = ran()
+        git('rebase', '-q', two)
+        rebased = ran()
+    report.check('no image built: no check; then one a commit checked out, none at the same or a file',
+                 (bare, moved, still) == (0, 1, 1), (bare, moved, still))
+    report.check('one more at a fast-forward merge, none at an amend, and more at a rebase',
+                 (merged, amended) == (2, 2) and rebased > amended, (merged, amended, rebased))
+
+
 def main():
     report = Report()
     for test in (test_one_node_flashed, test_the_same_image_kept, test_refusals, test_a_bus_of_four,
                  test_the_store, test_the_image_from_an_elf,
-                 test_the_two_implementations_share_their_names, test_the_images_their_sources):
+                 test_the_two_implementations_share_their_names, test_the_images_their_sources,
+                 test_a_pull_runs_the_check):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, SimulatedBoot())
     print('\n%d passed, %d failed' % (report.passed, report.failed))

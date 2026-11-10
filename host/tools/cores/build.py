@@ -44,13 +44,20 @@ def find_cc():
 
 
 def mujoco_headers():
-    """('-isystem', the directory MuJoCo's headers are included from), beside its package - wbc_world.c reads its data
-    through them -, found without importing it; () where it is not installed."""
+    """('-isystem', the directory MuJoCo's headers are included from, their version a define), beside its package -
+    wbc_world.c reads its data through them -, found without importing it; () where it is not installed. The
+    version is the library's digest's (`cached`): the path is the same through a pull that moves MuJoCo's pin
+    (host/requirements.txt), and a library built on the old headers would read the new one's data."""
     import importlib.util
     spec = importlib.util.find_spec('mujoco')
     roots = list(spec.submodule_search_locations or ()) if spec is not None else []
     found = sorted(h for r in roots for h in glob.glob(os.path.join(r, 'include', '**', 'mujoco.h'), recursive=True))
-    return ('-isystem', os.path.dirname(os.path.dirname(found[0]))) if found else ()
+    if not found:
+        return ()
+    with open(found[0], encoding='utf-8', errors='replace') as f:
+        version = re.search(r'^#define\s+mjVERSION_HEADER\s+(\d+)', f.read(), re.M)
+    return ('-isystem', os.path.dirname(os.path.dirname(found[0])),
+            '-DMUJOCO_HEADER=%s' % (version.group(1) if version else ''))
 
 
 def build(cc, sources, includes, name, extra=()):
@@ -100,6 +107,15 @@ def headers(includes):
     return b''.join(out)
 
 
+def beside(sources, includes):
+    """`includes` and, after them, the folders of `sources` that are none of them: a quoted include is sought beside
+    the file that names it before any -I, so a header there is the library's too (`cached`) - aero_bits.h, beside
+    aero's sources and read by her native board's build, was in no digest, and a change of it built nothing."""
+    known = {os.path.normcase(os.path.abspath(d)) for d in includes}
+    folders = dict.fromkeys(os.path.dirname(os.path.abspath(p)) for p in sources)
+    return list(includes) + [d for d in folders if os.path.normcase(d) not in known]
+
+
 def cached(sources, includes, name, extra=(), heads=None):
     """(path, warnings) of a library built once for these sources', their headers' and the
     flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
@@ -113,7 +129,7 @@ def cached(sources, includes, name, extra=(), heads=None):
     for path in sources:
         with open(path, 'rb') as f:
             digest.update(f.read())
-    digest.update(headers(includes) if heads is None else heads)
+    digest.update(headers(beside(sources, includes)) if heads is None else heads)
     lib = os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
                                           '.dll' if os.name == 'nt' else '.so'))
     if os.path.exists(lib) or not _claimed(lib):

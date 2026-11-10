@@ -1,0 +1,5 @@
+#!/bin/sh
+# The repo's post-rewrite (setup.ps1 points git here): a rebase that replayed one's own commits
+# ends here, not in post-merge - the images built as there; an amended commit builds nothing.
+[ "$1" = rebase ] || exit 0
+exec sh "$(dirname "$0")/post-merge"

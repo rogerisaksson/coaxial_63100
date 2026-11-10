@@ -121,7 +121,7 @@ TOUCHES = (
                                                 'test_simulated.py')),
     ('host/tools/cores/build.py',              (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER,
                                                 THERMAL, DAQ_CORE, BOOT_CORE, BOOT_CLIENT,
-                                                CTRL_CORE)),
+                                                CTRL_CORE, WORLD_CORE)),
     ('host/tools/cores/drive.py',              (STRUCTURE, DRIVE, DRIVE_OBSERVER, SENSORLESS)),
     ('host/tools/cores/thermal.py',            (THERMAL, THERMAL_APP)),
     ('host/tools/cores/reach.py',              (STRUCTURE, REACH)),
@@ -243,6 +243,8 @@ TOUCHES = (
     ('host/coaxial/simulated/boot.py',         (BOOT, STRUCTURE)),
     ('host/tools/target/flash_nodes.py',       (BOOT, STRUCTURE)),
     ('host/tools/target/current.py',           (BOOT, STRUCTURE)),
+    # Git's hooks after a pull, a rebase and a checkout run that check.
+    ('.githooks/post-',                        (BOOT,)),
     ('daq/',                                   (DAQ_CORE, CONFORMANCE, 'test_parity.py',
                                                 BENCH)),
     ('host/coaxial/model/thermal.py',          (THERMAL, 'test_sensorless.py',

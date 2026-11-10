@@ -1,0 +1,6 @@
+#!/bin/sh
+# The repo's post-checkout (setup.ps1 points git here): another commit checked out - a branch
+# switched, a worktree moved, a rebase's first step - builds the images as post-merge does; a
+# file checked out, or the same commit again, builds nothing.
+[ "$3" = 1 ] && [ "$1" != "$2" ] || exit 0
+exec sh "$(dirname "$0")/post-merge"

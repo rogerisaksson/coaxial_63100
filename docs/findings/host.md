@@ -44,8 +44,8 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - CI went red on stand-ins run by the wall: the quad's take-off (-5585 rpm) and
   the rotor demo's climb (1862 rpm of 1870). On 2 cores beside 6 busy loops the
   quad tripped 6 of 6, its 3 Hz speed loop sampled a few times a second. A
-  machine's run now tells its stand-ins its seconds (`machine.rig.nodes.Told`): 0
-  of 6, 3.0 s a run where 11.7. Told, the first run after the humanoid's
+  machine's run now tells its stand-ins its seconds (`machine.rig.nodes.Told`):
+  0 of 6, 3.0 s a run where 11.7. Told, the first run after the humanoid's
   tripped: its loop closed on the estimate at the switch (86 rpm off at 3 ms,
   4 at 15) and asked 0 of a rotor at 361 rpm. `started` waits 20 ms, a loop
   takes over at its reading: 361 -> 1747 rpm, no dip to 100. The demo's
@@ -82,11 +82,20 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - `test_sensorless` 20 of 20, 136 checks each, and `test_daq_api` 20 of 20,
   82 each, on the relay beside a quad grid: the servo's 1 gate in
   4 and the first dt's failure not seen.
-- A pull rebuilds: the terminal, opened in a console, asks each
-  tree's ninja what it would build (0.04 s) and builds Debug and Release where
-  either is behind, Release last, so `open()` loads the newest
-  (tools/target/current.py). The host's C libraries are built in each process
-  already. A source touched: both built in 3.9 s.
+- A pull rebuilds: git's hooks after a merge, a rebase and another commit
+  checked out (.githooks/post-merge, post-rewrite, post-checkout) and the
+  terminal, opened in a console, ask each tree's ninja what it would build
+  (0.04 s) and build Debug and Release where either is behind, Release last,
+  so `open()` loads the newest (tools/target/current.py); a tree that built
+  no image builds none. Asked by the terminal alone the images stood three
+  days behind a pull's sources. `git reset --hard` runs no hook, and what an
+  autostash lays back comes after its hook: both are the terminal's to see.
+  The host's C libraries are built in each process already, each named by
+  its sources', headers' and flags' bytes: the headers beside its sources
+  are among them (aero_bits.h, read by her native board's build off
+  aero/src, was 1 of 189 in no digest; the other cores' 0 of 133), and
+  MuJoCo's headers' version is one of her whole-body core's flags. A source
+  touched: both built in 3.9 s.
 - MuJoCo Warp on her world as built (mujoco_warp 3.15, an RTX 4080 SUPER;
   her model from its default pose, no control, 86 contacts): the CPU steps
   it in 0.31 ms, 3 200 a second a core; Warp 14 ms a step for one world,

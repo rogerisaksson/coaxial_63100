@@ -1,0 +1,11 @@
+#!/bin/sh
+# The repo's post-merge (setup.ps1 points git here): a pull's sources - `git pull --rebase` with
+# nothing of one's own to replay is one - built into the images this tree has built before
+# (host/tools/target/current.py: each tree's ninja asked, Debug and Release built where behind),
+# so no old binary is run after it; a tree that built none - a worktree - has none to run. The
+# check is run as this tree's own module, from host/, not as the installed one's. Git goes on
+# whatever the build says. post-rewrite and post-checkout run this too.
+[ -f host/tools/target/current.py ] || exit 0
+[ -f build/Debug/build.ninja ] || [ -f build/Release/build.ninja ] || exit 0
+cd host && python -X utf8 -m tools.target.current
+exit 0

@@ -341,6 +341,43 @@ def test_a_library_outlives_only_its_process(report, _lib):
                  kept == [True, False] and not os.path.exists(paths[0]), kept)
 
 
+def test_a_header_beside_its_source_builds_anew(report, _lib):
+    """The builder's digest (tools.cores.build.cached): a header beside a source, in no include folder, is read by
+    its build - aero_bits.h by her native board's -, so changed it is another library."""
+    import tempfile
+    from contextlib import suppress
+    from tools.cores.build import cached
+    libs = []
+    with tempfile.TemporaryDirectory() as folder:
+        source, header = (os.path.join(folder, 'beside_probe' + end) for end in ('.c', '.h'))
+        with open(source, 'w', encoding='utf-8') as f:
+            f.write('#include "beside_probe.h"\nint beside_probe(void)\n{\n  return PROBE;\n}\n')
+        for value in (1, 2):
+            with open(header, 'w', encoding='utf-8') as f:
+                f.write('#define PROBE %d\n' % value)
+            libs.append(cached([source], [], 'beside_probe')[0])
+    kept = [os.path.exists(lib) for lib in libs]
+    for lib in libs:
+        with suppress(OSError):
+            os.remove(lib)
+    report.check('its header changed, another library is built and the first goes',
+                 libs[0] != libs[1] and kept == [False, True], [os.path.basename(lib) for lib in libs] + kept)
+
+
+def test_mujoco_s_version_is_a_flag(report, _lib):
+    """The builder's MuJoCo flags (tools.cores.build.mujoco_headers): its headers' version is one, so her whole-body
+    core, which reads MuJoCo's data through them, is built anew as a pull moves MuJoCo's pin."""
+    from tools.cores.build import mujoco_headers
+    flags = mujoco_headers()
+    if not flags:
+        print('  no MuJoCo here: no flags of it')
+        return
+    import importlib
+    mujoco = importlib.import_module('mujoco')
+    report.check("the version of the MuJoCo that runs is among its headers' flags",
+                 '-DMUJOCO_HEADER=%d' % mujoco.mj_version() in flags, flags)
+
+
 def main():
     report = Report()
     if find_cc() is None:
@@ -353,7 +390,8 @@ def main():
                  test_the_frame_flies_in_its_air, test_the_pilot_releases_the_sto_chain, test_each_loss_trips_the_sto_chain,
                  test_the_pilot_window, test_the_sto_chain_holds_settled,
                  test_the_model_parameters_laid_live,
-                 test_a_library_outlives_only_its_process):
+                 test_a_library_outlives_only_its_process, test_a_header_beside_its_source_builds_anew,
+                 test_mujoco_s_version_is_a_flag):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report, lib)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
