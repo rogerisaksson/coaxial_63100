@@ -14,10 +14,10 @@ import subprocess
 import sys
 import time
 
-from tools.dev import counts
+from tools.dev import counts, machine_detector
 from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, kill_tree, relay
 from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, FAILED_FIRST, LIVE, LIVE_GYNOID, OLLAMA,
-                              PORT, REAL_TIME, FRESH_S, ROOT, SHARDED, STRUCTURES)
+                              PORT, REAL_TIME, ROOT, SHARDED, STRUCTURES)
 
 #: Per-run directory of shard CSVs outside the git worktree (`.../coaxial_63100/runs`).
 RUNS_DIR = os.path.join(os.path.dirname(LEDGER), 'runs')
@@ -168,7 +168,7 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     if name == EMULATOR and _emulated_here():
         return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
                 for group, seconds in EMULATOR_GROUPS.items()]
-    expected = took.get(name, FRESH_S.get(name, 0.0))
+    expected = took.get(name, 0.0)
     shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
     # A job's time twice its expected share at least: CI's two shards of the falls suite, 443 s
     # each, were cut at 300.
@@ -244,23 +244,33 @@ def _priority(job, failed):
     return (3, 0)
 
 
+def whole(jobs, got):
+    """Whether a suite ran whole: each of its `jobs` ran and told its tally. Only then are its seconds its own
+    - one cut short by a run that stopped at its first red suite, or a job killed at its limit, has the seconds
+    of what ran, and planned by those its next run is one job too few and a limit too short."""
+    return all(job.name in got and got[job.name][0] is not None for job in jobs)
+
+
 def _results(suites, args, tags, live_sections):
-    """(suite, its result) in the order the report lists them, stopping at once on the first
+    """(suite, its result, whether it ran whole) in the order the report lists them, stopping at once on the first
     failing job: structural checks first, previously failed suites next, then longest expected
     first, a baton a physical core.
     """
     known = counts.load()
-    took, jobs_took = known.get('seconds') or {}, known.get('jobs') or {}
+    # a suite's seconds as this host runs them: the tree's own record by the pace it was run at, the table's
+    # work where it has none (`machine_detector.expected`) - a number written in the tree was another host's
+    took = machine_detector.expected(known.get('seconds') or {}, known.get('paces') or {}, args.host['pace'])
+    jobs_took = known.get('jobs') or {}
     prior_failed = known.get('failed') if isinstance(known.get('failed'), dict) else {}
     words = getattr(args, 'words', None) or {}
-    share = max(SLICE_S, sum(took.get(name, FRESH_S.get(name, SLICE_S)) for name in suites)
+    share = max(SLICE_S, sum(took.get(name, SLICE_S) for name in suites)
                 / (2.0 * max(1, args.jobs)))
     plan = {name: _jobs(name, args, tags, live_sections, took, share, words.get(name, ()))
             for name in suites if (ROOT / 'tests' / name).exists()}
 
     def expected(job):
         suite = job.name.split()[0]
-        return jobs_took.get(job.name, took.get(suite, FRESH_S.get(suite, float('inf'))) / len(plan[suite]))
+        return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
     queue = sorted((job for jobs in plan.values() for job in jobs),
                    key=lambda j: (*_priority(j, prior_failed), -expected(j)))
     got, seconds, dirs = {}, {}, _init_run_dirs()
@@ -278,6 +288,6 @@ def _results(suites, args, tags, live_sections):
     counts.record('jobs', seconds)
     for name in suites:
         if name not in plan:
-            yield name, None
+            yield name, None, False
         elif any(job.name in got for job in plan[name]):
-            yield name, _merged([got[job.name] for job in plan[name] if job.name in got])
+            yield name, _merged([got[job.name] for job in plan[name] if job.name in got]), whole(plan[name], got)

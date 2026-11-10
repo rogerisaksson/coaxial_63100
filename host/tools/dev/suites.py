@@ -386,13 +386,9 @@ PORT = ('test_mcp.py', 'test_parity.py')
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, WASD, STRUCTURE)
 
-#: A sharded suite's seconds where none are recorded (tests/.counts.json, not committed):
-#: the loop's suite 120 s here whole, a walk a shard; the quad's page 211 s, a flight a
-#: shard; the scenarios' 1 894 s here at 20 held, and a shard of CI's 3.14 runner cut past
-#: twice its share of 900; the replays' 18 runs x 3 wobbles cut at 300 s unsharded on CI; the
-#: errands' 21 runs 754 s here, cut at 620 on CI planned at 310.
-FRESH_S = {ORTHO: 300.0, QUAD_PAGE: 250.0, REPLAYS: 900.0, SCENES: 2400.0, SITUATION: 400.0, WEAR: 300.0, ERRANDS: 760.0,
-           WASD: 900.0, SIGHT: 600.0, CAMERA: 600.0, DOCKS: 600.0}
+#: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
+#: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written
+#: here - 900 s for the keys' suite, a cut on CI's runner told beside it - were this host's guesses of another's.
 
 #: The emulator's groups and each one's time, s, a Renode each: the rig's took 150 of the
 #: suite's 211 one after another here, and CI's runner ran the Release image's past 240.

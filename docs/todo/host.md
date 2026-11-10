@@ -88,15 +88,15 @@
   joints' poses four times; its paper stands on the outputs it had, its
   code being what ran. DOD: every paper alike on both but where a world's
   physics says otherwise (the machines paper's, on the stand-in).
-- **The gate under coverage is cut short by a suite's time limit** (found,
-  `cover.py --readme`): the relay ends a job at twice its plain run's
-  seconds, and built for gcov her C runs unoptimised - test_wasd CRASHED
-  at 831.6 s (13089cde: 61 suites, 4 314 checks, none failed, the rest
-  skipped). On a tree laid new test_sight crashed there too (5 suites), its
-  cause not read. A gate stops at its first red suite, so the tables are of
-  what ran before it: the README carries the run of 647aea1, its tables of
-  suites since gone left out. DOD: a job's limit under gcov measured,
-  `cover.py --readme` whole, docs/RESULTS.md written by it.
+- **The gate under coverage does not run whole** (found, `cover.py
+  --readme`, four runs): it stops at its first red suite, and one is red a
+  run - test_camera's apart-against-here look (101 things each, told
+  unlike), test_native's alternate refused its gates while 32 other
+  processes held the host. A suite cut short had kept the seconds of what
+  ran and was then planned too short (test_wasd killed at 831.6 s): only
+  whole runs are kept now. The README carries the run of 647aea1, its
+  tables of suites since gone left out. DOD: `cover.py --readme` whole,
+  docs/RESULTS.md written by it.
 - **Her surety field reads `out[latent.ZMP]`** (found): `latent.ZMP` indexes a
   parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands on the
   drive mode's phase, so `w_air` is 1 - psi. Kept as is, bit for bit, by the

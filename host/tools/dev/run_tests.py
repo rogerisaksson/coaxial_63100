@@ -25,7 +25,7 @@ import sys
 os.environ.setdefault('COAXIAL_FALLBACK', 'simulated')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.dev import background, counts
+from tools.dev import background, counts, machine_detector
 from tools.dev.runner import _results
 from tools.dev.scope import _plan, hold_model, release_model
 from tools.dev.suites import (ALL_SUITES, ALONE, BENCHMARKS, CONFORMANCE, DEFAULT_SUITES,
@@ -125,7 +125,10 @@ def _options(argv):
 
 
 def _run(args, tags, live_sections):
-    """Run what the plan chose, and report it."""
+    """Run what the plan chose, and report it: on the host as it is measured at the run's start
+    (`machine_detector.host`: its pace at this run's width), a suite's shards and limit by it."""
+    args.host = machine_detector.host(args.jobs)
+    print(machine_detector.said(args.host), flush=True)
     suites = list(args.file) if args.file else list(BENCHMARKS if args.bench else DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
@@ -149,15 +152,17 @@ def _run(args, tags, live_sections):
     failing_lines = []
     ok = True
     try:
-        for name, result in _results(suites, args, tags, live_sections):
+        for name, result, ran_whole in _results(suites, args, tags, live_sections):
             if result is None:
                 print('%-20s MISSING %s' % (name, ROOT / 'tests' / name))
                 ok = False
                 continue
             tally, code, failing, elapsed, crash, groups = result
             # Some tests by their words time only those: kept as the suite's, they planned the
-            # falls suite whole into its 300 s cut.
-            if not (getattr(args, 'words', None) or {}).get(name):
+            # falls suite whole into its 300 s cut. A suite cut short - the run stopped at its first
+            # red suite, a job killed at its limit - is timed by what ran: test_wasd's 800.8 s stood
+            # as 415.8, its next run was one job of 831.6 s and was killed there.
+            if ran_whole and not (getattr(args, 'words', None) or {}).get(name):
                 seconds[name] = round(elapsed, 1)
             if tally is None:
                 print('\n'.join(filter(None, [
@@ -185,6 +190,7 @@ def _run(args, tags, live_sections):
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
         counts.record('suites', sizes)
         counts.record('seconds', seconds)
+        counts.record('paces', dict.fromkeys(seconds, round(args.host['pace'], 3)))
         # Suites that did not run at all, in checks, from what they came to
         # last time.
         missed, never = counts.missing(

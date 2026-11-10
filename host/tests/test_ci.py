@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid.
 
-No network: a gate's log tail as its comment holds it, and suites.py's own text."""
+No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
+is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured."""
 import os
 import sys
 
@@ -49,7 +50,27 @@ def test_the_red_suites_lead_those_that_run_first(report):
                  ci.led(source, was[:2]) == source and ci.led(source, []) == source and ci.led('x = 1\n', lead) == 'x = 1\n')
 
 
-ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first)
+def test_a_suite_s_seconds_are_the_host_s(report):
+    """`machine_detector.expected` on hosts laid here - a runner of four cores half as fast, a host twice as
+    fast -: the tree's record by the pace it was run at, the table's work where it has none; and this host
+    measured at two batons."""
+    from tools.dev import machine_detector as m
+    seconds, paces, work = {'test_own.py': 100.0, 'test_old.py': 30.0}, {'test_own.py': 8.0}, {'test_far.py': 1600.0,
+                                                                                               'test_own.py': 1.0}
+    slow, fast = (m.expected(seconds, paces, pace, work) for pace in (4.0, 16.0))
+    report.check('run at 8 kernels a second, 100 s: 200 s on a host half as fast, 50 s on one twice as fast',
+                 (slow['test_own.py'], fast['test_own.py']) == (200.0, 50.0), (slow['test_own.py'], fast['test_own.py']))
+    report.check("a suite the tree has no record of: its work in the table over the host's pace; one with no pace "
+                 'kept: as it stands', (slow['test_far.py'], fast['test_far.py'], slow['test_old.py']) == (400.0, 100.0, 30.0),
+                 (slow['test_far.py'], fast['test_far.py'], slow['test_old.py']))
+    here = m.host(2)
+    report.check('this host measured: its cores, its threads, a pace at two batons',
+                 here['cores'] >= 1 and here['threads'] >= here['cores'] and here['width'] == 2 and here['pace'] > 0.0,
+                 m.said(here))
+
+
+ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,
+          test_a_suite_s_seconds_are_the_host_s)
 
 
 def main(argv=None):

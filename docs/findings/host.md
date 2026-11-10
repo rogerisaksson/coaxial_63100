@@ -36,6 +36,14 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   the pre-commit off the comment CI leaves on its commit (tools/dev/ci.py,
   two calls of gh, 1.8 s): the tuple was kept by hand. A gate stops at its
   first red suite, here as there, so what leads is what a run tells first.
+- A suite's seconds are a host's and a width's (test_wasd 800.8 s here, 32
+  at once; 505.0 s on GitHub's runner of four cores): a run measures its
+  host as it starts (tools/dev/machine_detector.py: a kernel on every
+  baton, begun as one; 3.12 a second here at 32) and expects a suite's
+  work (tests/work.json, kernels) over that pace. FRESH_S, seconds written
+  by hand, is gone. A suite cut short kept the seconds of what ran - a run
+  stopped at its first red suite left test_wasd 415.8 s of its 800.8, its
+  next run one job of 831.6 s, killed there: only a whole run is kept.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in

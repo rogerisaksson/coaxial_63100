@@ -361,6 +361,20 @@ def test_a_crash_names_its_test(r):
             crash[:40])
 
 
+def test_a_suite_cut_short_keeps_its_seconds(r):
+    """`runner.whole`: a suite's seconds are kept only where each of its jobs ran and told its tally - cut by a
+    run stopped at its first red suite, or a job killed at its limit, they were what ran (test_wasd's 800.8 s
+    stood as 415.8 and its next run, one job of 831.6 s, was killed there)."""
+    from tools.dev.focus import Job
+    from tools.dev.runner import whole
+    jobs = [Job('test_x.py %d/3' % k, [], 1.0, 300.0, None) for k in (1, 2, 3)]
+    ran = {job.name: ((5, 0, 0, False), 0, [], 40.0, None, '') for job in jobs}
+    cut, killed = dict(list(ran.items())[:2]), dict(ran, **{jobs[2].name: (None, None, [], 300.0, 'TIMEOUT', '')})
+    r.check('each job ran and told its tally: whole; one not reached or one killed at its limit: not',
+            (whole(jobs, ran), whole(jobs, cut), whole(jobs, killed)) == (True, False, False),
+            (whole(jobs, ran), whole(jobs, cut), whole(jobs, killed)))
+
+
 DOC_REF = re.compile(
     r'\b(?:(?:host/)?(?:machine|coaxial\w*|terminal|tools(?:/\w+)?|tests)/[\w/]+\.(?:py|ps1|md|lisp|yaml)'
     r'|host/\w+\.(?:py|ps1)|(?:tests/)?test_[a-z_]\w*\.py|machine\.([a-z_]\w*))\b')
@@ -424,7 +438,8 @@ ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_h
           test_counts_are_measured, test_notebooks_are_papers, test_notebooks_are_their_sources,
           test_a_paper_is_run_again_where_its_code_changed, test_the_readme_is_its_sources,
           test_no_dates_in_the_tree,
-          test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree,
+          test_every_suite_runs, test_a_crash_names_its_test, test_a_suite_cut_short_keeps_its_seconds,
+          test_docs_name_only_the_tree,
           test_her_structs_carry_no_padding)
 
 def main(argv=None):

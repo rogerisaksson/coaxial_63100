@@ -300,6 +300,11 @@ python -X utf8 docs/structure.py               # every folder's purpose; a folde
 
 126 suites in `host/tests/`, each a plain script with its own tally.
 
+A run measures the host it is on as it starts - its cores, its pace with
+every baton busy (`host/tools/dev/machine_detector.py`) - and lays a
+suite's shards and its limit by that: GitHub's runner of four cores and a
+desk of thirty-two run the same table of work (`host/tests/work.json`).
+
 <details><summary>The commit cycle: what git's hooks do here</summary>
 
 `setup.ps1` points git at `.githooks/`.
