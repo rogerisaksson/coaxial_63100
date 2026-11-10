@@ -132,14 +132,15 @@ def _mods():
 
 
 def limp(g):
-    """How far she rests limp, 0 to 1: a doing in LIMP, or her back told to bear her and her row's blend done - lain
+    """How far she rests limp, 0 to 1: a doing in LIMP, or her back told to bear her, and her row's blend done - lain
     flat on a bed or the floor and still -, easing to 1 over as long as that row blended; her clamps go to zero by it
     over the bus (`motion.drives`), what bears her holds her. Measured on the bed: told at bed_rest's start her clamps
     dropped mid-blend; dropped in a pass at its blend's end (1.4 s in) her neck fell 64 deg at 138 deg/s, her spine 52
     at 153, her arms 109 at 142 - a flop, not a rest. A twist told her where no program plays wakes her: her law
     carries her pelvis along it (limp, her law's 1.4 m/s^2 back moved her 0.000 m), woken and let rest again as
     the limp eases (`g['_wake']`: its way, when it turned, from where) - woken in a pass her right elbow swung
-    309 deg/s, her walk's arms 128."""
+    309 deg/s, her walk's arms 128. A doing in LIMP eases as her back's does: limp at floor_rest's first pass she
+    went down slack at 188-327 deg/s, an arm came to rest in balance on an edge and fell 8 s on at 128 deg/s."""
     latent = _mods()[0]
     blend, now = max(float(g['st'][latent.BLEND]), 1e-3), g.get('t_law', g['t'])
     eased = min(1.0, max(0.0, (now - float(g['st'][latent.T0]) - blend) / blend))
@@ -148,7 +149,7 @@ def limp(g):
     woken = was + (way - was) * min(1.0, max(0.0, (now - at) / blend))
     if told != way:
         g['_wake'] = (told, now, woken)
-    return max(float(doing(g) in LIMP), eased * float(float(g['told'][DORSAL]) >= 0.5)) * (1.0 - woken)
+    return eased * max(float(doing(g) in LIMP), float(float(g['told'][DORSAL]) >= 0.5)) * (1.0 - woken)
 
 
 def closing(vx, vz, dx, dz):
