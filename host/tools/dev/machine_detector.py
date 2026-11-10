@@ -25,7 +25,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.dev import counts
+from tools.dev import background, counts
 from tools.dev.focus import physical_cores
 from tools.dev.suites import ROOT
 
@@ -69,19 +69,30 @@ def paced(width):
     return 1.0 / statistics.median(float(baton.communicate()[0]) for baton in going)
 
 
+def chosen(paces):
+    """Of {width: its pace a baton} the width that does most work, the narrower where two do the same."""
+    return max(paces, key=lambda width: width * paces[width])
+
+
 def host(width=None):
-    """This host as a run finds it: its physical cores, its threads, its processor and its system, and its
-    pace at `width` batons - the relay's: its physical cores unless told."""
+    """This host as a run finds it: whose it is - a CI runner or a desk (`background.runner`) -, its physical
+    cores, its threads, its processor and its system, and its pace at the relay's width: `width` where told,
+    else of the widths its batch may run at (`background.widths`: a desk's cores less those kept; a runner's
+    cores and its every thread) the one that does most work (`chosen`), each measured (`paces`)."""
     cores = physical_cores()
-    width = width or cores
-    return {'cores': cores, 'threads': os.cpu_count() or cores, 'machine': platform.machine(),
-            'system': platform.system(), 'width': width, 'pace': paced(width)}
+    paces = {wide: paced(wide) for wide in ((width,) if width else background.widths())}
+    width = chosen(paces)
+    return {'runner': background.runner(), 'cores': cores, 'threads': os.cpu_count() or cores,
+            'machine': platform.machine(), 'system': platform.system(), 'width': width, 'pace': paces[width],
+            'paces': paces}
 
 
 def said(here):
-    """A host, in a line."""
-    return 'host: %d cores, %d threads, %s %s; %.2f kernels a second a baton, %d at once' % (
-        here['cores'], here['threads'], here['machine'], here['system'], here['pace'], here['width'])
+    """A host, in a line: the width its run takes, and any other it measured."""
+    others = ''.join(', %.2f at %d' % (pace, wide) for wide, pace in here['paces'].items() if wide != here['width'])
+    return 'host: a %s, %d cores, %d threads, %s %s; %.2f kernels a second a baton, %d at once%s' % (
+        ('desk', 'runner')[here['runner']], here['cores'], here['threads'], here['machine'], here['system'],
+        here['pace'], here['width'], others)
 
 
 def table(path=PATH):

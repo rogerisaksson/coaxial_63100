@@ -104,9 +104,31 @@ def test_a_table_laid_keeps_what_was_not_run(report):
                  held == {'test_far.py': 1600.0, 'test_own.py': 800.0, 'test_warm.py': 900.0}, held)
 
 
+def test_a_batch_fits_whose_host_it_is(report):
+    """`tools.dev.background` and `machine_detector.chosen` on hosts laid here: a CI runner is nobody's desk -
+    nothing kept, its cores a width and its every thread another, the one that does most work taken as
+    measured; a desk keeps its user a third of its cores, four at most."""
+    from tools.dev import background as b, machine_detector as m
+    told = [b.runner(e) for e in ({'CI': 'true'}, {'CI': 'True'}, {'CI': '1'}, {}, {'CI': 'false'}, {'CI': ''})]
+    report.check("a runner: CI true in a job's environment; a desk: unset, empty or false",
+                 told == [True, True, True, False, False, False], told)
+    desks = [(b.kept(cores, False), b.widths(cores, 2 * cores, False)) for cores in (2, 4, 8, 12, 32)]
+    report.check('a desk keeps its user a third of its cores, four at most: none of 2, 1 of 4, 2 of 8, 4 of 12 and of 32',
+                 desks == [(0, (2,)), (1, (3,)), (2, (6,)), (4, (8,)), (4, (28,))], desks)
+    runners = [(b.kept(cores, True), b.widths(cores, threads, True)) for cores, threads in ((2, 4), (4, 4), (32, 64))]
+    report.check('a runner keeps none: its cores a width, its every thread another where it has more',
+                 runners == [(0, (2, 4)), (0, (4,)), (0, (32, 64))], runners)
+    took = [m.chosen(paces) for paces in ({2: 3.38, 4: 1.95}, {2: 3.38, 4: 1.6}, {2: 3.0, 4: 1.5}, {28: 3.2})]
+    report.check('the width that does most work is taken, the narrower where two do the same', took == [4, 2, 2, 28], took)
+    here = m.host(1)
+    report.check('this host tells whose it is as its environment does',
+                 here['runner'] == b.runner() and m.said(here).startswith('host: a %s,' % ('desk', 'runner')[b.runner()]),
+                 m.said(here))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
-          test_a_table_laid_keeps_what_was_not_run)
+          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is)
 
 
 def main(argv=None):

@@ -320,10 +320,12 @@ def relay(jobs, batons=None, bench=False):
     a physical core each - each taking the first job whose commit fits the free commit less what
     every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
     an idle host fits anything -, while every relay's jobs with their children hold fewer processes
-    than the batch's physical cores (`processes`), OpenBLAS on one thread in each; a job ending hands its
-    baton to the next at once. `bench` a benchmark's: each job above normal priority from its start and
-    `placed.BENCH` set for every process of hers it starts (`placed.raised`), its wall times less at the mercy
-    of the host's other loads. (job, output, exit code - None out of time -, seconds) as each ends."""
+    than the batch's widest (`processes`, `background.widths`), OpenBLAS on one thread in each; a job ending
+    hands its baton to the next at once. `bench` a benchmark's, on a desk: each job above normal priority
+    from its start and `placed.BENCH` set for every process of hers it starts (`placed.raised`), its wall
+    times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
+    (job, output, exit code - None out of time -, seconds) as each ends."""
+    bench = bench and not background.runner()
     waiting = collections.deque(jobs)
     count = len(waiting)
     held = {'running': 0, 'locks': set(), 'n': 0}
@@ -355,7 +357,7 @@ def relay(jobs, batons=None, bench=False):
                     free = free_commit_gb()
                     owed, running, pids = outstanding()
                     room = None if free is None or not running else free - owed - RESERVE_GB
-                    cores = processes(pids) + running - len(pids) < background.cores()
+                    cores = processes(pids) + running - len(pids) < background.widths()[-1]
                     job = next((j for j in waiting if fits(j, room)), None) if cores else None
                     if job is not None:
                         waiting.remove(job)

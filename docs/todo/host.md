@@ -88,6 +88,13 @@
   joints' poses four times; its paper stands on the outputs it had, its
   code being what ran. DOD: every paper alike on both but where a world's
   physics says otherwise (the machines paper's, on the stand-in).
+- **The gate on GitHub's runner stops at test_wasd** (found, the run of
+  011bfef4): start_stop and walk_leap each fell from one start of three,
+  at 13.0 s and at 8.1 s, on both jobs to the same numbers; 23 of 23 here.
+  Behind it no suite tells its seconds there - her errands' among them,
+  cut at 300.1 s the run before, while they had no row. DOD: test_wasd
+  green on the runner, the gate whole there, each suite's seconds beside
+  what the table told.
 - **The gate under coverage does not run whole** (found, `cover.py
   --readme`, four runs): it stops at its first red suite, and one is red a
   run - test_camera's apart-against-here look (101 things each, told

@@ -307,6 +307,12 @@ def main(argv=None):
         for _name, line in relayed(list(ERRANDS)):
             print(line, flush=True)
         return 0
+    from machine.process.placed import BENCH
+    from tools.dev import background
+    if not background.runner():
+        # an errand run here is a benchmark's or a profile's: on a desk her processes above normal priority
+        # (`placed.raised`), the user's other loads under what is timed; a runner has none
+        os.environ.setdefault(BENCH, '1')
     for name in args.names:
         if not args.profile:
             kept, t0 = timed(args.time), time.perf_counter()

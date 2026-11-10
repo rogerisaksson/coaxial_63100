@@ -68,6 +68,23 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   and they took 86.0 s. Ten runs before it took her errands 267.6 to
   585.5 s on the one job and 276.7 to 523.5 s on the other, the slower job
   not the same from run to run: a runner's pace is a run's.
+- A batch fits whose host it is (`background.runner`: CI true in a job's
+  environment). A desk's keeps its user a third of the cores, four at
+  most (one of four, two of eight, where a desk under twelve cores kept
+  none) and runs below normal priority; a runner's keeps none, runs at
+  the priority it was started at and at the width that does most work as
+  its run measures it, its cores or its every thread
+  (`machine_detector.host`): told as a runner this desk does 96.6 kernels
+  a second at 64 wide and 81.9 at 32 wide. A benchmark's processes run
+  above normal priority on a desk only, and `pace.py` run on one errand
+  raises hers as the relay's benchmark does.
+- GitHub's run of 011bfef4, 2 at once, 3.38 kernels a second a baton on
+  its Python 3.12 job and 3.27 on its 3.14 job: no suite cut. The table
+  told test_wasd at 576.1 and 595.5 s and it took 611.1 and 587.7 s;
+  test_mirrors at 112.1 and 115.9 s, 107.4 and 103.1 s; test_structure at
+  68.6 and 70.9 s, 52.0 and 43.8 s. The gate stopped at test_wasd, 2 of
+  its 23 red on both jobs to the same numbers, before her errands had told
+  their seconds.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in

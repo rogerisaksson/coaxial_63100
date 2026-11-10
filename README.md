@@ -304,6 +304,11 @@ A run measures the host it is on as it starts - its cores, its pace with
 every baton busy (`host/tools/dev/machine_detector.py`) - and lays a
 suite's shards and its limit by that: GitHub's runner of two cores and a
 desk of thirty-two run the same table of work (`host/tests/work.json`).
+Whose host it is tells how a batch runs on it
+(`host/tools/dev/background.py`): on a desk below normal priority and off
+a third of the cores, four at most - its user's; on a CI runner with the
+machine to itself, at the width that does most work as measured. A
+benchmark or a profile on a desk runs above normal priority.
 
 <details><summary>The commit cycle: what git's hooks do here</summary>
 

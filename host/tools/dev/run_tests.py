@@ -105,9 +105,12 @@ def _options(argv):
                              'board (%s). The default set runs either way - '
                              'it falls back to the simulated board and says '
                              'so.' % ', '.join(NEEDS_BOARD))
-    parser.add_argument('--jobs', type=int, default=BATONS,
-                        help='batons on the relay: jobs at once, the physical '
-                             'cores (%d here) as the free commit holds; 1 is '
+    parser.add_argument('--jobs', type=int,
+                        help='batons on the relay: jobs at once - unless told, '
+                             'the width this host does most work at as the run '
+                             "measures it: a desk's cores less those kept its "
+                             "user (%d here), a CI runner's cores or its every "
+                             'thread - as the free commit holds; 1 is '
                              'one after another. The suites that time the link '
                              'or hold the model (%s) run alone whatever this '
                              'says.' % (BATONS, ', '.join(ALONE)))
@@ -128,6 +131,7 @@ def _run(args, tags, live_sections):
     """Run what the plan chose, and report it: on the host as it is measured at the run's start
     (`machine_detector.host`: its pace at this run's width), a suite's shards and limit by it."""
     args.host = machine_detector.host(args.jobs)
+    args.jobs = args.host['width']
     print(machine_detector.said(args.host), flush=True)
     suites = list(args.file) if args.file else list(BENCHMARKS if args.bench else DEFAULT_SUITES)
     if args.conformance and not args.file:
