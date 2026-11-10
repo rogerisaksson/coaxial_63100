@@ -48,7 +48,7 @@ class Run:
         from machine.process import placed, sprung, worker, worn
         from machine.way import planner
         from machine.world import physics
-        placed.placed()
+        placed.placed(True)
         # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
         physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)
         self.passed = hashlib.sha1() if blind else None

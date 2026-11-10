@@ -258,8 +258,53 @@ def test_her_skin_reads_her_contacts_in_c_as_their_views(report, _c):
                  and not tally['apart'], '%(apart)d apart' % tally)
 
 
+AHEAD_PASSES = 2000
+
+
+def test_her_step_begun_beside_her_law_as_whole(report, _c):
+    """Two of her worlds laid alike, their setpoints swung alike a pass at a time: one's steps each begun beside
+    (`steps.ahead`: MuJoCo's mj_step1 on a thread of her C's, mj_step2 at its step), the other's whole - MuJoCo's
+    state, ctrl, poses, contacts and constraint forces the same bits at every pass; a step begun and not taken, as
+    where her pass raised, is joined (`steps.behind`) and her next step whole, a seventh of them."""
+    import math
+    from machine.body import figure
+    from machine.world import physics, steps
+    from tools.cores import world as c_world
+    was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'beside': 0, 'dropped': 0}
+    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 0.0, 0.0
+    try:
+        clock, worlds = [0.0], [physics.World(), physics.World()]
+        for w in worlds:
+            w.reset(figure.stand(), where=(0.0, figure.standing(), 0.0))
+            w.clock = lambda: clock[0]
+        a, b = worlds
+        base = a.target.copy()
+        for k in range(AHEAD_PASSES):
+            clock[0] = (k + 1) * physics.STEP_S
+            for w in worlds:
+                w.target[:] = base + SWING_RAD * math.sin(2.0 * math.pi * SWING_HZ * clock[0])
+            steps.ahead(a)
+            tally['beside'] += bool(vars(a)['_ahead'])
+            if k % 7 == 3:
+                tally['dropped'] += steps.behind(a)
+            a.advance()
+            b.advance()
+            held = [(d.qpos, d.qvel, d.qacc, d.ctrl, d.xpos, d.contact.pos, d.efc_force) for d in (a.data, b.data)]
+            tally['apart'] += a.data.ncon != b.data.ncon or any(x.tobytes() != y.tobytes() for x, y in zip(*held))
+            tally['passes'] += 1
+    finally:
+        physics.ROOM, physics.CAMERA, physics.SIGHT = was
+    told = c_world.staged() is not None
+    report.check("her world's steps begun beside as whole, %(passes)d passes, %(beside)d begun beside, %(dropped)d "
+                 "joined untaken" % tally,
+                 tally['passes'] == AHEAD_PASSES and not tally['apart']
+                 and (not told or (tally['beside'] == AHEAD_PASSES and tally['dropped'] == AHEAD_PASSES // 7 + 1)),
+                 '%(apart)d apart' % tally)
+
+
 ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
-          test_her_world_steps_in_c_as_in_python, test_her_skin_reads_her_contacts_in_c_as_their_views)
+          test_her_world_steps_in_c_as_in_python, test_her_skin_reads_her_contacts_in_c_as_their_views,
+          test_her_step_begun_beside_her_law_as_whole)
 
 
 def main(argv=None):

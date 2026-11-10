@@ -58,7 +58,7 @@ def build(cc, sources, includes, name, extra=()):
     firmware's."""
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
-    flags = [] if os.name == 'nt' else ['-fPIC']    # a .so on Linux; mingw warns on it
+    flags = [] if os.name == 'nt' else ['-fPIC', '-pthread']    # a .so on Linux; mingw warns on it
     for path in includes:
         flags += ['-I', path]
     if os.environ.get('COAXIAL_GCOV'):
@@ -72,9 +72,19 @@ def build(cc, sources, includes, name, extra=()):
     return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
 
 
+def native():
+    """The compiler's flags for this host's own instruction sets, nothing contracted: -march=native on x86,
+    -mcpu=native on ARM (clang's -march takes no native there), none on another processor; -ffp-contract=off with
+    them - gcc's ISO C contracts nothing, clang's does within an expression, and a fused multiply-add is not
+    numpy's bits."""
+    flag = {'amd64': '-march=native', 'x86_64': '-march=native', 'arm64': '-mcpu=native',
+            'aarch64': '-mcpu=native'}.get(platform.machine().lower())
+    return ('-ffp-contract=off',) + ((flag,) if flag else ())
+
+
 def _host():
     """This host's processor by the instruction sets it has, as numpy probes them: a library built for them
-    (-march=native) is no other processor's, its digest this too."""
+    (`native`) is no other processor's, its digest this too."""
     import numpy as np
     sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
     return ','.join(sorted(k for k, on in sets.items() if on))
@@ -99,7 +109,7 @@ def cached(sources, includes, name, extra=(), heads=None):
     thread beside her loop, they held her builds 0.63 s of her first second."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
-    digest.update((_host() if '-march=native' in extra else '').encode())
+    digest.update((_host() if any(flag.endswith('=native') for flag in extra) else '').encode())
     for path in sources:
         with open(path, 'rb') as f:
             digest.update(f.read())

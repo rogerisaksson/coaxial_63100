@@ -184,7 +184,7 @@ class World:
         self.passing = passing.laid(self, WOUND)
         #: Her steps between MuJoCo's in C where nothing else is asked of them (`steps`), laid at the first; False
         #: in `in_c` keeps them here (test_tick's twin).
-        self._steps, self.in_c = None, True
+        self._steps, self._ahead, self.in_c = None, False, True
         self._park()
 
 
@@ -232,6 +232,7 @@ class World:
         """Every joint at {joint: degrees}, moving at `rates` (deg/s), its drive holding it
         there; the pelvis at `where` turned by the quaternion `turn`, moving at `speed` (m/s)."""
         np, d = self._np, self.data
+        steps.behind(self)
         d.qpos[:] = d.qvel[:] = 0.0
         d.qpos[self.qadr] = np.clip(np.radians([degrees.get(j, 0) for j in JOINTS]), *stops(self.model))
         d.qvel[self.vadr] = np.radians([(rates or {}).get(j, 0) for j in JOINTS])
@@ -278,9 +279,9 @@ class World:
         if now <= self.at + 1e-9:
             return
         d = self.data
-        if (self.in_c and self.buses is None and self.hung is None and not self.laced
-                and not self.pushed and d.time >= self.push_until):
+        if steps.alone(self):
             return steps.advanced(self, now, ROOM)
+        steps.behind(self)
         np = self._np
         if self.buses is not None:
             for bus in self.buses.each:

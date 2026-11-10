@@ -293,7 +293,7 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     classified), her vision's panel their view - the world's boxes are her page's drawing alone; her planner and
     her vision (`vision.Apart`) spawned warm, her vision and her camera waited for warm before her first pass
     (`readied`); placed a core apart (`placed`)."""
-    placed.placed()
+    placed.placed(True)
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
     s['g']['planner'], s['g']['vision'], s['peeker'] = planner.Planner(), vision.Apart(), planner.Planner()

@@ -63,10 +63,26 @@ def typed():
         if size() != ctypes.sizeof(mirror):
             raise ValueError('wbc_%s_t is %d bytes, its mirror %d' % (name, size(), ctypes.sizeof(mirror)))
     for name, args, back in (('rated', [_vp, _d], None), ('before', [_vp, _d], None), ('after', [_vp], None),
-                             ('paired', [_vp, _vp, _vp, _d], _i)):
+                             ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i), ('behind', [], _i)):
         fn = getattr(lib, 'wbh_world_' + name)
         fn.argtypes, fn.restype = args, back
     return lib
+
+
+@functools.lru_cache(maxsize=None)
+def staged():
+    """(a stage begun on the thread of her C's beside her law, its join, MuJoCo's `mj_step1` where its library holds
+    it): her step's first half for `machine.world.steps.ahead`; None where MuJoCo's library is not found beside its
+    package."""
+    import glob
+    import os
+    import mujoco
+    folder = os.path.dirname(mujoco.__file__)
+    found = glob.glob(os.path.join(folder, 'mujoco.dll')) + glob.glob(os.path.join(folder, 'libmujoco*'))
+    if not found:
+        return None
+    lib = typed()
+    return lib.wbh_world_ahead, lib.wbh_world_behind, ctypes.cast(ctypes.CDLL(found[0]).mj_step1, _vp).value
 
 
 @functools.lru_cache(maxsize=None)

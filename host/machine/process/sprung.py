@@ -16,6 +16,7 @@ from machine.law import se2, supervisor
 from machine.law.se2 import WEP_S, _dropped, doing, said
 from machine.process import joints, page
 from machine.process.sensed import sensed
+from machine.world import steps
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
 #: Her registry's looks by `physics.SIGHT` off or on: her stand-in the world's boxes, the whole room's at a look;
@@ -252,36 +253,41 @@ def _beat():
 def passed(g, dt=0.001):
     """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on: felt through
     her edge, her motion pass at her law's (`machine.law.motion`), her drives' pass and her law's joints told her
-    boards in one C call, her felt in it between her law's passes (`tools.cores.beat`), a program over them."""
+    boards in one C call, her felt in it between her law's passes (`tools.cores.beat`), a program over them; her
+    world's step's first half begun beside her law (`steps.ahead`), joined here where her pass raised before it."""
     import numpy as np
     modal, motion, schema = _law()
     world, y, ev = g['world'], g['sense'], g['every']
-    felt, step, both, _b, _kept = g['beat']
-    if g['n'] % ev == 0:
-        felt(dt)
-        edge.contacted(world, y)
-        if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
-            (vision.look if g['vision'].apart else looked)(g)
-        try:
-            motion.control(g, dt)
-        finally:
-            vision.joined(g)
-        edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
-        bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
-        if any(b and not n for b, n in zip(g.get('bore', (False, False)), bears)):
-            g['lifted'] = g['t']
-        g['bore'] = bears
-        if g['n'] > 0:
-            g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
-    else:
-        step = both
-    motion.drives(g, dt, step)
-    joints.played(g, world)
-    # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
-    edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
-    g['t'], g['n'] = g['t'] + dt, g['n'] + 1
-    world.advance()
-    return g['s'], g['loads'], g['ask'], g['out']
+    try:
+        felt, step, both, _b, _kept = g['beat']
+        if g['n'] % ev == 0:
+            felt(dt)
+            edge.contacted(world, y)
+            if g['t'] - g.get('things_at', -math.inf) >= schema.REFRESH_S:
+                (vision.look if g['vision'].apart else looked)(g)
+            steps.ahead(world)
+            try:
+                motion.control(g, dt)
+            finally:
+                vision.joined(g)
+            edge.drive(world, g['leg_joints'], kp=g['leg_kp'])
+            bears = tuple(n >= leap.TOUCH_N for n in g['loads'])
+            if any(b and not n for b, n in zip(g.get('bore', (False, False)), bears)):
+                g['lifted'] = g['t']
+            g['bore'] = bears
+            if g['n'] > 0:
+                g['temp'] = np.asarray(g['heat'].step_joints(world.data.ctrl, world.data.qvel[world.vadr], dt * ev))
+        else:
+            step = both
+        motion.drives(g, dt, step)
+        joints.played(g, world)
+        # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
+        edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
+        g['t'], g['n'] = g['t'] + dt, g['n'] + 1
+        world.advance()
+        return g['s'], g['loads'], g['ask'], g['out']
+    finally:
+        steps.behind(world)
 
 
 def _heard(g, gym, command):

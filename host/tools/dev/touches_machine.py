@@ -4,7 +4,7 @@ from tools.dev.suites import (AERO_CORE, BALLISTIC, BEDSIDE, BUSES, CAMERA, COMP
                               GYNOID, INTROSPECT, KERNEL, LEAP, MPPI_CORE, NATIVE_SYSID, ORTHO, PORTED, BORNE, REGISTRY,
                               POSTURES, QUADS, REACH, RENDER, REPLAYS, SAYS, SCENES, SHIELD,
                               SIGHT, SITUATION, STREAMS, STRUCTURE, SUBSTRATE, SWEEP, SYSID, SYSID_LIVE,
-                              TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK)
+                              TERMS, TUNE, VAULT, WAYFINDER, WBC, WBC_CORE, WEAR, WRENCH, TICK, PLACED)
 
 #: machine/'s rows of the path map (`touches.TOUCHES`) in its order: a module's before its folder's.
 MACHINE = (
@@ -58,6 +58,7 @@ MACHINE = (
     ('host/machine/process/introspect.py',             (STRUCTURE, INTROSPECT, GATE)),
     ('host/machine/texts/calls.py',                  (STRUCTURE, INTROSPECT)),
     ('host/machine/process/watch.py',                  (STRUCTURE, INTROSPECT, GATE)),
+    ('host/machine/process/placed.py',                 (STRUCTURE, PLACED, ERRANDS, WEAR)),
     ('host/machine/analyzers/',                (STRUCTURE, INTROSPECT)),
     ('host/machine/rig/gate.py',                   (STRUCTURE, GATE)),
     ('host/machine/rig/streams.py',                (STRUCTURE, GATE)),
