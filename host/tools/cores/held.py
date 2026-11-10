@@ -78,9 +78,10 @@ def digest(*parts):
     return h.hexdigest()[:16]
 
 
-def built(source, name, matmul):
+def built(source, name, matmul, heads=None):
     """The library of `source` built once, its path: the C kept beside the builds, numpy's matmul
-    built with it where it has one, named by its source - a process builds any number at once."""
+    built with it where it has one, named by its source - a process builds any number at once; `heads`
+    its headers' bytes as a round of builds read them (`build.headers`)."""
     folder = os.path.join(build.OUT, 'gen')
     os.makedirs(folder, exist_ok=True)
     key = hashlib.sha1(source.encode()).hexdigest()[:12]
@@ -89,7 +90,7 @@ def built(source, name, matmul):
         with open(path + '.%d' % os.getpid(), 'w', encoding='utf-8', newline='\n') as f:
             f.write(source)
         os.replace(path + '.%d' % os.getpid(), path)
-    return build.cached([path] + ([BLAS_C] if matmul else []), INCLUDES, '%s_%s' % (name, key), GENERATED)[0]
+    return build.cached([path] + ([BLAS_C] if matmul else []), INCLUDES, '%s_%s' % (name, key), GENERATED, heads)[0]
 
 
 def loaded(path, name, batch=False, solves=False):
@@ -123,6 +124,7 @@ def _builds():
     (`quick`), so a part held is called through it and no build of it waits in her loop."""
     from tools.cores import quick
     quick.module()
+    heads = build.headers(INCLUDES)
     while True:
         with _LOCK:
             if not _QUEUE:
@@ -130,7 +132,7 @@ def _builds():
                 return
             job, source, name, matmul, solves = _QUEUE.pop(0)
         try:
-            job['lib'] = loaded(built(source, name, matmul), name, solves=solves)
+            job['lib'] = loaded(built(source, name, matmul, heads), name, solves=solves)
         except (RuntimeError, OSError) as e:
             job['why'] = e
         job['done'].set()

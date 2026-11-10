@@ -80,6 +80,7 @@ class World:
     _metered: Any
     _drawn: Any
     _drawn_of: Any
+    _at: Any
 
     def __init__(self):
         os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -461,8 +462,8 @@ class World:
         copper's heat and their boards' own, housekeeping each, switching neither shorted nor
         cut but checking (`test`), and that check's copper."""
         p = self.passing
-        return self._drawn(ctypes.byref(p), self.motor.ctypes.data if self.sprung else p.ctrl,
-                           self.boxes.w.ctypes.data if self.sprung else None, *self._drawn_of,
+        return self._drawn(ctypes.byref(p), self._at(self.motor) if self.sprung else p.ctrl,
+                           self._at(self.boxes.w) if self.sprung else None, *self._drawn_of,
                            heat.HOUSEKEEPING_W, heat.SWITCHING_W)
 
     def reading(self, index):

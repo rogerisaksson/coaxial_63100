@@ -72,17 +72,29 @@ def build(cc, sources, includes, name, extra=()):
     return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
 
 
-def cached(sources, includes, name, extra=()):
+def headers(includes):
+    """Every header in `includes`, their bytes in their names' order: the last part of a library's digest
+    (`cached`)."""
+    out = []
+    for path in sorted(h for d in includes for h in glob.glob(os.path.join(d, '*.h'))):
+        with open(path, 'rb') as f:
+            out.append(f.read())
+    return b''.join(out)
+
+
+def cached(sources, includes, name, extra=(), heads=None):
     """(path, warnings) of a library built once for these sources', their headers' and the
     flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
     suites built it once -, a compiler sought only where none is built yet; built by one process
-    at a time, the others waiting for it (`_claimed`)."""
+    at a time, the others waiting for it (`_claimed`). `heads` its headers' bytes where a round of
+    builds read them once (`headers`): read for each of her law's 33 parts, 23 files a part in a
+    thread beside her loop, they held her builds 0.63 s of her first second."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
-    headers = sorted(h for d in includes for h in glob.glob(os.path.join(d, '*.h')))
-    for path in list(sources) + headers:
+    for path in sources:
         with open(path, 'rb') as f:
             digest.update(f.read())
+    digest.update(headers(includes) if heads is None else heads)
     lib = os.path.join(OUT, '%s_%s%s' % (name, digest.hexdigest()[:12],
                                           '.dll' if os.name == 'nt' else '.so'))
     if os.path.exists(lib) or not _claimed(lib):

@@ -37,3 +37,8 @@ API int wbh_world_paired(const wbc_steps_t *s, const unsigned char *a, const uns
 {
   return wbc_world_paired(s, a, b, below);
 }
+
+API int wbh_world_contacted(const struct mjData_ *d, wbc_contacts_t *c)
+{
+  return wbc_world_contacted(d, c);
+}

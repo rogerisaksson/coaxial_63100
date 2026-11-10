@@ -146,15 +146,7 @@ def control(g, dt):
     sw = 1.0 - bw
     _, _, d_ax, d_lat = g['surety_vec']
     w_hop = float((axial_k(g['st']) > HOP_K) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
-    imp[modal.BEND] *= sw
-    imp[modal.SWUNG] *= sw
-    imp[modal.PREFOLD] *= sw
-    imp[modal.SOLE_ACC] *= sw
-    imp[modal.FOLD] *= sw
-    imp[modal.FOLD_RATE] *= sw
-    imp[modal.STRIDES] *= sw
-    imp[modal.COM_ACC] = np.array([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5, sw * imp[modal.COM_ACC][2]])
-    q_post = sw * (g['posture'] + dq) + bw * (np.array([1.0, d_ax, d_lat]) @ g['brace'])
+    q_post = g['sured'](imp, g['posture'], dq, g['brace'], sw, bw, d_ax, d_lat)
     # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
@@ -217,10 +209,15 @@ def control(g, dt):
     g['jeff'], g['leg_kp'] = g['braced'].blend(s['M'], M, s['q'], s['v'], s['h'], ask['posture'], got['qacc'], got['tau'],
                                                got['over'], sw, bw, d_ax, d_lat, w_hop, w_up, np.array(ask['stance'], float))
     _told(g)
-    w = g['weighed_w']
-    kept = np.maximum(w[0], g['a'][modal.LET_GO][g['distal_side']])
-    g['release'][:] = 1.0 - (1.0 - RELEASED) * (1.0 - (g['distal'] * kept + (1.0 - g['distal']) * np.maximum(
-        1.0 - w[2] - w[3], kept)))
+    g['released'](g['release'], g['weighed_w'], g['a'], g['distal'], g['distal_side'])
+
+
+def released(release, w, a, distal, side):
+    """`release` (in place), each joint's clamp's share: whole as far as what bears her needs it - a `distal`
+    joint her soles' (`w`, what bears her weighed), the rest also as she lies neither back nor on her side -, a let-go
+    leg's (`a`'s, by its `side`) kept whole; numpy's alone, so compiled (`g['released']`)."""
+    kept = np.maximum(w[0], a[modal.LET_GO][side])
+    release[:] = 1.0 - (1.0 - RELEASED) * (1.0 - (distal * kept + (1.0 - distal) * np.maximum(1.0 - w[2] - w[3], kept)))
 
 
 def _told(g):
@@ -262,6 +259,8 @@ def laid(g):
     g['settling'] = bodied.on_args(emancipation.settling, 'settling', tuple(range(10)))     # `emancipation.settled`
     g['bounds'] = bodied.on_args(bemf.bounds, 'bounds', (0, 1))     # her drives' torque bounds at their speeds
     g['gripped'] = bodied.on_args(gripped, 'gripped', (0, 1, 2, 3, 4))
+    g['sured'] = bodied.on_args(brace.sured, 'sured', tuple(range(8)))     # her ask and posture by her surety
+    g['released'] = bodied.on_args(released, 'released', (0, 1, 2, 3))     # her joints' clamps' shares
     g['poses'] = bodied.on_args(modal.poses, 'poses', (0, 1, 2, 3, 4, 5, 6, 7, 9, 10))
     g['ringed'] = bodied.on_shapes(barrier.ringed, 'ringed', (0, 1, 2, 3, 4, 5))
     g['ringed_ahead'] = list(barrier.HULLS)

@@ -91,7 +91,8 @@ def _found(g, verb, at=None, thing=None, things=None):
     one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as her things
     change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's, and those
     as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
-    gx, gz = float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])
+    q = g['world'].data.qpos
+    gx, gz = float(q[0]), float(q[2])
     ax, az = at if at is not None else (gx, gz)
     things, afforded = _afforded(g, verb, things)
     held = [p for p in things if len(p) > 4 and p[4] == thing] if thing is not None else []
@@ -116,6 +117,15 @@ def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
     edge, p = hit[1], hit[2]
     return (edge, float(p[1][0]), float(p[1][2]), float(p[1][1]) + float(p[2][1]), (p[4] if len(p) > 4 else None),
             _faced(g, verb, things, p), p)
+
+
+def slotted(g, verb, at=None, things=None):
+    """Whether the thing `verb` goes to nearest `at` among `things` (`nearest`) is a slot of her registry's: told of
+    what affords it alone where each of them is one, or none is - the nearest sought (`_found`) only between both.
+    Her errand's glimpse (`words._glimpsed`) asked the nearest's place, top and faces each pass for this one word:
+    42 us of her door errand's pass, her look held."""
+    of = {len(p) > 4 and p[4] is not None for p, _own in _afforded(g, verb, things)[1]}
+    return of.pop() if len(of) == 1 else bool(of) and nearest(g, verb, at, things=things)[4] is not None
 
 
 def lain(g, verb='lie_bed'):

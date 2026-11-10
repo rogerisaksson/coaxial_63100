@@ -2,6 +2,7 @@
 
     Ms = brace.scaled(M, acv, w_up)                      # the solve's M, four dofs' rows scaled off
     jeff, leg_kp = brace.braced(M, Ms, q, v, h, ...)     # the solve's answer blended with the tuck's
+    q_post = brace.sured(imp, posture, dq, rows, ...)    # her ask as far as she is sure, the tuck's as far as not
 
 The python of `wbc_brace.c` (`tools.cores.brace`), held bit for bit (test_ported); her loop runs
 the C (`machine.law.motion.laid`).
@@ -12,7 +13,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import se2
+from machine.law import modal, se2
 from machine.stack import wbc
 
 #: The tuck's posture, rad, and its lean along (AX) and across (LAT) her surety's direction.
@@ -23,6 +24,23 @@ TUCK = {'spine': 0.45, 'neck': 0.35, 'left_hip_roll': 0.12, 'right_hip_roll': -0
 AX = {'spine': -0.25, 'neck': -0.20, 'left_shoulder': 0.65, 'right_shoulder': 0.65,
       'left_elbow': -0.40, 'right_elbow': -0.40}
 LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll': 0.15, 'right_hip_roll': 0.15}
+
+
+def sured(imp, posture, dq, brace, sw, bw, d_ax, d_lat):
+    """(her posture asked): her loop's ask `imp` (modal's `a`, in place) and her `posture` with its coupling `dq` as
+    far as she is sure of her stance (`sw`), the tuck's (`brace`'s rows by its direction `d_ax`, `d_lat`) and its
+    fall as far as she is not (`bw`). Numpy's alone on her law's arrays, so compiled (`g['sured']`,
+    `machine.law.motion.laid`): its nine lines' fourteen calls were 36 us a law pass."""
+    imp[modal.BEND] *= sw
+    imp[modal.SWUNG] *= sw
+    imp[modal.PREFOLD] *= sw
+    imp[modal.SOLE_ACC] *= sw
+    imp[modal.FOLD] *= sw
+    imp[modal.FOLD_RATE] *= sw
+    imp[modal.STRIDES] *= sw
+    imp[modal.COM_ACC] = np.stack([sw * imp[modal.COM_ACC][0], sw * imp[modal.COM_ACC][1] - bw * 2.5,
+                                   sw * imp[modal.COM_ACC][2]])
+    return sw * (posture + dq) + bw * (np.stack([1.0, d_ax, d_lat]) @ brace)
 
 
 def scaled(M, acv, w_up):

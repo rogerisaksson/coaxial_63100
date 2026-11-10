@@ -199,7 +199,7 @@ class Heat:
         torques, qd = np.ascontiguousarray(torques, dtype=np.float64), np.ascontiguousarray(qd, dtype=np.float64)
         self._load(ctypes.byref(self._h), self._address(torques), self._address(qd))
         self.step(float(dt) / HASTE)
-        self._hottest(ctypes.byref(self._h), self._peak.ctypes.data)
+        self._hottest(ctypes.byref(self._h), self._address(self._peak))
         return self._peak
 
     def report(self, k):

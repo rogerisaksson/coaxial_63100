@@ -48,7 +48,7 @@ def _glimpsed(g, sc, at):
     """Whether `sc` goes to a thing among her registry's live slots at any salience: a sighting not yet
     hers (`registry.TAKEN`), her look held still while it firms up."""
     from machine.way import furniture
-    return furniture.nearest(g, sc, at, things=g['vision'].boxes(g, -math.inf))[4] is not None
+    return furniture.slotted(g, sc, at, things=g['vision'].boxes(g, -math.inf))
 
 
 #: Her heading docked off the dock's normal, by errand: through the door; her back to a seat, the rest.

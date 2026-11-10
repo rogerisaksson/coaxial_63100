@@ -24,7 +24,7 @@ def laid(world, wound):
     p.blas = ctypes.addressof(motion.numpy_blas())
     lib = cores.library()
     world._ctrl, world._motor, world._metered = lib.wbh_pass_ctrl, lib.wbh_pass_motor, lib.wbh_pass_metered
-    world._drawn = lib.wbh_pass_drawn
+    world._drawn, world._at = lib.wbh_pass_drawn, cores.address
     world._drawn_of = (p.loss, cores.pointer(world.driven, np.bool_), cores.pointer(world.testing),
                       cores.pointer(world.ohm))
     world.linked = dclink.compiled()

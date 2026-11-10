@@ -76,7 +76,7 @@ def asked(g, s, out, told, ask):
     # her soles do not yet bear what her legs weigh (`seated.RESTS`): the closed chains' step drives what she sits on
     # at it - the upright step's slide frees its friction alone, 1.2 cm in 5.2 s -; driven on her low chair's
     # bearing soles it pushed her off its seat
-    soles = float(np.sum(g['loads'])) / weight
+    soles = (g['loads'][0] + (0.0 + g['loads'][1])) / weight     # numpy's sum of the two, in its order
     driven = float(np.asarray(ask['slide'], float) @ way) * min(max(1.0 - soles / (2.0 * seated.RESTS), 0.0), 1.0)
     ask['twist'] = tuple(g['twist']) if told else (driven, 0.0, 0.0)
     ask['free'] = (told and phase >= 0.5, told and phase < 0.5)

@@ -210,8 +210,56 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
                  '%(apart)d apart' % tally)
 
 
+SKIN_PASSES, SHOVE_N = 1500, 40.0
+
+
+def test_her_skin_reads_her_contacts_in_c_as_their_views(report, _c):
+    """Her world swung a pass at a time, her skin's bins filled twice each pass: off MuJoCo's data in one C call
+    (wbc_world_contacted, `edge.contacted`'s) and through its contacts', forces' and impedances' numpy views
+    (wbc_pass_contacts, as her edge read them before) - every bin the same bits, the contacts' layout the same, and a
+    shove told where the world applies a force to a body, a third of the passes."""
+    import math
+    from machine.body import figure
+    from machine.senses import edge
+    from machine.world import physics
+    from tools.cores import wbc as cores
+    was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'contacts': 0, 'shoved': 0}
+    physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 0.0, 0.0
+    try:
+        clock, w = [0.0], physics.World()
+        w.reset(figure.stand(), where=(0.0, figure.standing(), 0.0))
+        w.clock = lambda: clock[0]
+        base, d, lib = w.target.copy(), w.data, cores.library()
+        skins = [(edge.laid(w), vars(w)['contacts'])[1] for _ in range(2)]     # two skins' bins on her one world
+        (c, kept, contacted, _sensed), (c2, kept2, *_rest) = skins
+        for k in range(SKIN_PASSES):
+            clock[0] = (k + 1) * physics.STEP_S
+            w.target[:] = base + SWING_RAD * math.sin(2.0 * math.pi * SWING_HZ * clock[0])
+            d.xfrc_applied[w.pelvis, 0] = SHOVE_N * (k % 3 == 0)
+            w.advance()
+            shoved = contacted(d._address, ctypes.byref(c))
+            if d.ncon:
+                edge.layout(c2, d.contact)
+                lib.wbh_pass_contacts(ctypes.byref(c2), d.ncon, cores.address(d.contact.pos), cores.address(d.efc_force),
+                                      cores.address(d.efc_R))
+            else:
+                lib.wbh_pass_contacts(ctypes.byref(c2), 0, None, None, None)
+            laid = [(x.stride, x.off_geom, x.off_frame, x.off_dim, x.off_efc, x.off_friction) for x in (c, c2)]
+            tally['apart'] += (any(kept[n].tobytes() != kept2[n].tobytes() for n in kept) or bool(shoved) != bool(d.xfrc_applied.any())
+                               or (d.ncon > 0 and laid[0] != laid[1]))
+            tally['contacts'] += d.ncon > 0
+            tally['shoved'] += shoved
+            tally['passes'] += 1
+    finally:
+        physics.ROOM, physics.CAMERA, physics.SIGHT = was
+    report.check("her skin's bins off MuJoCo's data in C as through its views, %(passes)d passes, %(contacts)d with "
+                 "contacts, %(shoved)d shoved" % tally,
+                 tally['passes'] == SKIN_PASSES and tally['contacts'] > 1000 and tally['shoved'] == SKIN_PASSES // 3
+                 and not tally['apart'], '%(apart)d apart' % tally)
+
+
 ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
-          test_her_world_steps_in_c_as_in_python)
+          test_her_world_steps_in_c_as_in_python, test_her_skin_reads_her_contacts_in_c_as_their_views)
 
 
 def main(argv=None):

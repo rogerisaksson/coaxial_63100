@@ -293,7 +293,10 @@ def step(obs, s, qpos, dt):
     manifold's normal force, a point off her soles not felt - none of its manifolds latched by her
     comparator (`weighed`) - joining the split only where her soles and what she feels cannot bear her;
     her drives' sums emptied."""
-    obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
+    latched = obs['latched'].tobytes()
+    if obs['gated_of'][0] != latched:     # her gate of her comparator's latches alone: told anew as they change
+        obs['gated'][:] = ~obs['soled'] & (obs['latch_of'] @ (obs['latched'] > 0.5) == 0.0)
+        obs['gated_of'][0] = latched
     v, base, u = s['v'], obs['base'], obs['u']
     R = rotation(qpos[3:7])
     base[:9], base[9:] = R.ravel(), qpos[:3]

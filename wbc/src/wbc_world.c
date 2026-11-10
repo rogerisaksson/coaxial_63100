@@ -211,3 +211,35 @@ int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigne
   }
   return paired;
 }
+
+int wbc_world_contacted(const mjData *d, wbc_contacts_t *c)
+{
+  const mjContact *con = d->contact;
+  const double    *applied = d->xfrc_applied;
+  int              shoved = 0;
+
+  if (d->ncon > 0)
+  {
+    const char *pos = (const char *)con[0].pos;
+
+    if (c->stride == 0)
+    {
+      c->stride = (int)sizeof(mjContact);
+      c->off_geom = (int)((const char *)con[0].geom - pos);
+      c->off_frame = (int)((const char *)con[0].frame - pos);
+      c->off_dim = (int)((const char *)&con[0].dim - pos);
+      c->off_efc = (int)((const char *)&con[0].efc_address - pos);
+      c->off_friction = (int)((const char *)con[0].friction - pos);
+    }
+    wbc_pass_contacts(c, d->ncon, pos, d->efc_force, d->efc_R);
+  }
+  else
+  {
+    wbc_pass_contacts(c, 0, NULL, NULL, NULL);
+  }
+  for (int i = 0; i < (6 * c->nbody); i++)
+  {
+    shoved = (applied[i] != 0.0) ? 1 : shoved;
+  }
+  return shoved;
+}

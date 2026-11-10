@@ -114,4 +114,4 @@ def laid(body):
             'forefoot': bodied.on_args(ob.forefoot, 'forefoot', (0,)), 'base': base, 'q': q, 'u': u,
             'ins': tuple(cores.pointer(a) for a in (base, q, u)), 'soles': np.zeros(2),
             'latched': np.zeros(len(rows)), 'below': np.zeros(len(rows)), 'since': np.zeros(len(rows)),
-            'gate': np.zeros(len(rows))}
+            'gate': np.zeros(len(rows)), 'gated_of': [None]}

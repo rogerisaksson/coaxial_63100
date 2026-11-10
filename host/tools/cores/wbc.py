@@ -234,6 +234,7 @@ def typed(lib):
     lib.wbh_pass_metered.argtypes = [ctypes.POINTER(World), _vp, d]
     lib.wbh_pass_felt.argtypes = [ctypes.POINTER(World), _vp, i, i, i, i, i, i]
     lib.wbh_pass_contacts.argtypes = [ctypes.POINTER(Contacts), i, _vp, _vp, _vp]
+    lib.wbh_world_contacted.argtypes, lib.wbh_world_contacted.restype = [_vp, ctypes.POINTER(Contacts)], i
     lib.wbh_pass_tapped.argtypes, lib.wbh_pass_tapped.restype = [ctypes.POINTER(Contacts), i] + [_vp] * 4 + [i, i, _vp], i
     lib.wbh_pass_sensed.argtypes = [ctypes.POINTER(Contacts), _vp, i, i, i, i, i, i, i]
     lib.wbh_pass_heat_load.argtypes = [ctypes.POINTER(Heat), _vp, _vp]

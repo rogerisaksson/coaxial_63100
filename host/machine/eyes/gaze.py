@@ -88,16 +88,16 @@ def _bearings(head, point):
     return 0.5 * (across[0] + across[1]), down, across[1] - across[0]
 
 
-def toward(head, point):
+def toward(head, point, told=None):
     """(across, down, vergence) rad her eyes look at world `point` (x, y, z) with from her `head` {pos, quat}, within
-    their reach (`_bearings`)."""
-    a, d, v = _bearings(head, point)
+    their reach (`_bearings`, or `told` of them)."""
+    a, d, v = told or _bearings(head, point)
     return max(-YAW, min(YAW, a)), max(PITCH[0], min(PITCH[1], d)), max(0.0, min(VERGE, v))
 
 
-def _reached(head, point):
-    """Whether her eyes reach world `point` from her `head` (`_bearings` within YAW and PITCH)."""
-    a, d, _v = _bearings(head, point)
+def _reached(head, point, told=None):
+    """Whether her eyes reach world `point` from her `head` (`_bearings`, or `told` of them, in YAW and PITCH)."""
+    a, d, _v = told or _bearings(head, point)
     return abs(a) <= YAW and PITCH[0] <= d <= PITCH[1]
 
 
@@ -168,13 +168,13 @@ def _told_of(g, st, gz):
             st['seen'].add(s)
 
 
-def _aim(g, st):
+def _aim(g, st, told=(None, None)):
     """(across, down, vergence) rad of what she looks at now: a way's place she scans, the ground her way takes her to
     or the place she fixes, the ground she walks onto, what she explores - from her head as she senses it
-    (`g['s']['head']`) -, else rest."""
+    (`g['s']['head']`) -, else rest; `told` (a point, its bearings) those `moved` told this pass already."""
     point = next((p for p in (st['points'][0] if st['points'] else None, st['ground'], st['fix'], st['anchor'],
                               (st['explore'] or {}).get('point')) if p is not None), None)
-    return REST if point is None else toward(g['s']['head'], point)
+    return REST if point is None else toward(g['s']['head'], point, told[1] if point is told[0] else None)
 
 
 def _anchored(g):
@@ -261,12 +261,15 @@ def moved(g):
     her vergence lagged TAU toward its depth either way; `on` while her eyes stand on it, no saccade in flight."""
     st = _laid(g)
     _arrived(g, st)
-    if st['explore'] is not None and not _reached(g['s']['head'], st['explore']['point']):
+    # what she explores told its bearings once a pass, her reach of it and her aim at it both theirs: 23 us each
+    point = None if st['explore'] is None else st['explore']['point']
+    told = (point, None if point is None else _bearings(g['s']['head'], point))
+    if st['explore'] is not None and not _reached(g['s']['head'], point, told[1]):
         st['explore'] = None
     if st['exploring'] and st['explore'] is None and not st['points'] and st['fix'] is None:
         st['explore'] = _next(g, st)
         st['exploring'], st['jump'] = st['explore'] is not None, True
-    t, aim = float(g['t']), _aim(g, st)
+    t, aim = float(g['t']), _aim(g, st, told)
     dt, at = max(t - st['t'], 0.0), st['at']
     if st['jump']:
         st.update(jump=False, t0=t, T=saccade(math.hypot(aim[0] - at[0], aim[1] - at[1])),

@@ -109,4 +109,9 @@ void wbc_world_after(wbc_steps_t *s);
     (wbc_pass_paired on its data's contacts). */
 int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigned char *b, double below);
 
+/** Her skin's bins filled from MuJoCo's contacts as its data `d` stands (wbc_pass_contacts on its contacts, their
+    forces and their rows' impedance), the contacts' layout laid on `c` at their first; 1 where the world applies a
+    force to any of its bodies (its xfrc_applied: a shove, for her skin to feel), else 0. */
+int wbc_world_contacted(const struct mjData_ *d, wbc_contacts_t *c);
+
 #endif

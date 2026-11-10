@@ -97,10 +97,10 @@ def laid(world):
         setattr(c, name, cores.pointer(a))
     for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give', 'felt_nrm'):
         setattr(c, name, cores.pointer(kept[name]))
-    #: The contacts' bins and the C that fills them (wbc_pass.c), the contacts' layout laid at
-    #: the first contact.
+    #: The contacts' bins and the C that fills them off MuJoCo's data (wbc_world_contacted, wbc_pass.c), the
+    #: contacts' layout laid at the first contact.
     lib = cores.library()
-    world.contacts = (c, kept, lib.wbh_pass_contacts, lib.wbh_pass_sensed)
+    world.contacts = (c, kept, lib.wbh_world_contacted, lib.wbh_pass_sensed)
     return read(world, np.zeros(SENSED))
 
 
@@ -147,18 +147,12 @@ def contacted(world, y):
     """`y`'s soles' loads, her segments' touch and where on each it is, as the world stands now."""
     d = world.data
     c, kept, contacts, sensed = world.contacts
-    ncon = d.ncon
-    # the contacts between a body of hers and one not, in C: each's force its rows of the
-    # solver's (the cone elliptic, `mjcf.CONE`), a bin a segment in the contacts' order
-    if ncon:
-        con = d.contact
-        layout(c, con)
-        contacts(ctypes.byref(c), ncon, _cores().address(con.pos), _cores().address(d.efc_force), _cores().address(d.efc_R))
-    else:
-        contacts(ctypes.byref(c), 0, None, None, None)
-    # a shove is a hand on her: what the world applies to her bodies, her skin feels - at
+    # the contacts between a body of hers and one not, in C off MuJoCo's data: each's force its rows of the
+    # solver's (the cone elliptic, `mjcf.CONE`), a bin a segment in the contacts' order - its contacts', forces' and
+    # impedances' views made here each law pass, and its shoves sought in numpy, were 30 of her read's 38 us.
+    # A shove is a hand on her: what the world applies to her bodies, her skin feels - at
     # their centres of mass, where the world applies it
-    if d.xfrc_applied.any():
+    if contacts(d._address, ctypes.byref(c)):
         touch, felt_n, felt_at = kept['touch'], kept['felt_n'], kept['felt_at']
         sb = world.skin_bodies
         hands = d.xfrc_applied[sb, :3]
