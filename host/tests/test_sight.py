@@ -99,6 +99,17 @@ def test_her_map_is_the_room(report):
                      '%d cells from %d looks' % (len(far), keep.map.looks))
         report.check('nine in ten occupied cells lie within 0.15 m of a wall or a thing',
                      near >= 0.9 * len(far), '%d of %d' % (near, len(far)))
+        # her map's boxes and pieces kept from the look before where their voxels and sums are the same (`_once`)
+        kept = keep.map.things()[0]
+        keep.map._kept, keep.map._was = {}, {}
+        anew = keep.map._segmented()[0]
+        same = len(kept) == len(anew) and all(a[:3] == b[:3] and np.array_equal(a[3], b[3]) for a, b in zip(kept, anew))
+        rng, off = np.random.default_rng(3), 0
+        for _ in range(400):
+            cols, rows = rng.integers(0, int(rng.choice([1, 2, 8, 160])), 40), rng.integers(0, int(rng.choice([1, 5, 120])), 40)
+            off += sight.convex(list(zip(cols.tolist(), rows.tolist()))) != sight.convex(sight._rim(cols, rows))
+        report.check('her map\'s boxes kept a look on are those told anew; a hull round its points\' rim the hull round all',
+                     same and off == 0, '%d things; %d of 400 hulls off' % (len(anew), off))
         at = (0.0, 0.0)
         to = (room.CHAIR_AT[0], room.CHAIR_AT[1] - 0.6)
         way = sight.plan(keep.map.blocked(), at, to)

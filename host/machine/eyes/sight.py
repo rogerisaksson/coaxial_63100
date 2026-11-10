@@ -253,17 +253,24 @@ class Keep:
             return []
         np, last = _np(), self.last
         told, one, housed, built = self._told(last)
-        kinds, code = np.unique(told.astype(str), return_inverse=True)
-        one = np.where(np.isin(kinds[code], SPREAD), -1, one)
+        # her points' classes and things as numbers, a class in its name's order and a pair one key: numpy's unique of
+        # 19 200 names as strings and of their pairs as rows, and each hull round every pixel, were 20 ms a look
+        names = told.tolist()
+        kinds = sorted(set(names))
+        at_kind = {k: i for i, k in enumerate(kinds)}
+        code = np.fromiter(map(at_kind.__getitem__, names), int, len(names))
+        one = np.where(np.isin(code, [at_kind[k] for k in SPREAD if k in at_kind]), -1, one)
+        span = int(one.max()) + 2 if len(one) else 1
+        pair = code * span + one + 1
         out = []
-        for i, k in np.unique(np.column_stack([code, one]), axis=0).tolist():
-            kind, at = str(kinds[i]), np.flatnonzero((code == i) & (one == k))
-            hull = convex(list(zip(last.cols[at].tolist(), last.rows[at].tolist())))
+        for key in np.unique(pair).tolist():
+            kind, at = kinds[key // span], np.flatnonzero(pair == key)
+            hull = convex(_rim(last.cols[at], last.rows[at]))
             if kind != 'thing' and len(hull) >= 3 and len(at) >= LUMP:
                 out.append((kind, INK.get(kind, INK['thing']), hull))
         for b, kind in enumerate(built):
             at = np.flatnonzero(housed == b)
-            hull = convex(list(zip(last.cols[at].tolist(), last.rows[at].tolist())))
+            hull = convex(_rim(last.cols[at], last.rows[at]))
             if len(hull) >= 3:
                 out.append((kind, INK.get(kind, INK['thing']), hull))
         return out
@@ -320,6 +327,17 @@ def thumbnail(rgb, w, h):
     np = _np()
     hh, ww = rgb.shape[0] // h * h, rgb.shape[1] // w * w
     return rgb[:hh, :ww].reshape(h, hh // h, w, ww // w, 3).mean(axis=(1, 3)).astype(np.uint8)
+
+
+def _rim(cols, rows):
+    """[(col, row)] of a picture's points (two (n,) of integers) that a hull can hold: each column's lowest and its
+    highest alone - one between them lies on their line -, so `convex` of them is `convex` of them all."""
+    np = _np()
+    order = np.lexsort((rows, cols))
+    c, r = cols[order], rows[order]
+    first = np.flatnonzero(np.r_[True, c[1:] != c[:-1]][:len(c)])
+    ends = np.concatenate([first, np.r_[first[1:] - 1, len(c) - 1][:len(first)]])
+    return list(zip(c[ends].tolist(), r[ends].tolist()))
 
 
 def convex(pts):

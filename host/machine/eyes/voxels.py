@@ -35,6 +35,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body import figure
+from machine.eyes.grids import grown, joined as _joined
 from machine.world import room
 
 #: Her map: CELL_M voxels over the room's floor (X_M, Z_M), FLOOR_M to CEIL_M high; a voxel is a thing
@@ -92,6 +93,7 @@ class Map:
         self.moments = np.zeros(shape + (7,))           # each voxel's points' count and sums: x, x^2, z, z^2, y, y^2
         self.looks, self._made = 0, None
         self._labels, self._ids, self._next = None, [], 1
+        self._kept, self._was = {}, {}                  # this look's boxes and pieces by what they are of, the last's
 
     def cell(self, x, z):
         return (int(math.floor((x - X_M[0]) / self.voxel)), int(math.floor((z - Z_M[0]) / self.voxel)))
@@ -146,10 +148,14 @@ class Map:
         flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0).reshape(len(far), n)
         solid = (inside & self.occupied().reshape(-1)[flat.reshape(-1)]).reshape(len(far), n)
         stop = np.where(solid.any(axis=1), solid.argmax(axis=1), n)
-        under = (at[:, 1] <= self.top.reshape(-1)[flat.reshape(-1)]) | ~np.isfinite(self.top.reshape(-1)[flat.reshape(-1)])
+        top = self.top.reshape(-1)[flat.reshape(-1)]
+        under = (at[:, 1] <= top) | ~np.isfinite(top)
         on = ((t < (far[:, None] - self.voxel)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
               & under.reshape(len(far), n))
-        self.free.reshape(-1)[np.unique(flat[on])] += 1
+        # each voxel crossed counted once: marked, not sorted - numpy's unique of a look's samples was 6 ms of it
+        crossed = np.zeros(self.free.size, bool)
+        crossed[flat[on]] = True
+        self.free.reshape(-1)[crossed] += 1
 
     def occupied(self):
         """The voxels TOLD looks have shown a thing in, more than have seen through them."""
@@ -173,6 +179,7 @@ class Map:
         (nx, ny, nz) each voxel's thing, -1 none); made once a look."""
         if self._made is not None:
             return self._made
+        self._was, self._kept = self._kept, {}
         out, labels, surfaces = self._segmented()
         ids = self._tracked(labels, len(out))
         self._labels, self._ids = labels, ids
@@ -278,7 +285,20 @@ class Map:
     def _pieces(self, at):
         """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at
         its mean till its box (`_box`) claims no floor further than a voxel from the cells its voxels stand
-        in. A surface is told whole: its holes are what her eyes missed of a face seen from above."""
+        in. A surface is told whole: its holes are what her eyes missed of a face seen from above. Of its voxels'
+        places alone: kept from her last look where they are the same (`_once`)."""
+        return self._once(('pieces',) + tuple(a.tobytes() for a in at), lambda: self._halved(at))
+
+    def _once(self, key, told):
+        """`told()` by `key` - all it is of, to the byte - from her last look's where it was told there, else told now;
+        kept a look on: a thing her look did not reach is of the very voxels and sums it was."""
+        got = self._kept.get(key)
+        if got is None:
+            got = self._kept[key] = self._was[key] if key in self._was else told()
+        return got
+
+    def _halved(self, at):
+        """`_pieces` told: the halvings."""
         out, todo = [], [np.arange(len(at[0]))]
         while todo:
             n = todo.pop()
@@ -310,8 +330,15 @@ class Map:
     def _box(self, i, k, j_lo, j_hi, kind, j=None, surface=False):
         """A thing's box of its voxels - in the cells (i, k), levels j_lo to j_hi, each's `j` (j_lo all without) -:
         its footprint the floor its voxels' points cover, each's mean -+ root 3 sd along x and z (a uniform cover's)
-        held to its cell, its axes the text's fit (`fitted`); its height its levels', a surface's top its points' mean."""
+        held to its cell, its axes the text's fit (`fitted`); its height its levels', a surface's top its points' mean.
+        Of its voxels' places and their points' sums alone: kept from her last look where they are the same (`_once`) -
+        told anew each look her 91 boxes were 51 ms of it, most of things her look had not reached."""
         sums = self.moments[i, np.full(len(i), j_lo) if j is None else j, k]
+        key = ('box', i.tobytes(), k.tobytes(), j_lo, j_hi, kind, None if j is None else j.tobytes(), surface, sums.tobytes())
+        return self._once(key, lambda: self._boxed(i, k, j_lo, j_hi, kind, surface, sums))
+
+    def _boxed(self, i, k, j_lo, j_hi, kind, surface, sums):
+        """`_box` told of its voxels' sums `sums`."""
         n, at, pad = sums[:, 0], np.column_stack([X_M[0] + (i + 0.5) * self.voxel, Z_M[0] + (k + 0.5) * self.voxel]), self.voxel
         lo, hi = FLOOR_M + j_lo * self.voxel, FLOOR_M + (j_hi + 1) * self.voxel
         if n.sum():
@@ -342,9 +369,10 @@ class Map:
 
 def least_area(at, voxel):
     """(a, b) the floor axes of the least-area rectangle round points `at` (n, 2), a its longer: over
-    their hull's edges' directions, each extent a voxel wider (rotating calipers)."""
+    their hull's edges' directions, each extent a voxel wider (rotating calipers). The hull of the points as python's
+    floats - the same doubles, the same arithmetic -: of numpy's scalars its chain's crosses were 35 ms a look."""
     from machine.eyes.sight import convex
-    h = np.array(convex([tuple(p) for p in at]), float).reshape(-1, 2)
+    h = np.array(convex(list(map(tuple, at.tolist()))), float).reshape(-1, 2)
     e = np.roll(h, -1, axis=0) - h
     th = np.arctan2(e[:, 1], e[:, 0]) % (0.5 * math.pi)
     c, s = np.cos(th), np.sin(th)
@@ -369,49 +397,3 @@ def fitted(at, voxel):
     """(a, b) the floor axes of a footprint's cells `at` (n, 2) by the wayfinder's texts' fit (`FITS`)."""
     from machine.way import obstacles
     return FITS[obstacles.laws()['obstacle-boxes']['footprint-fit']](at, voxel)
-
-
-def grown(cells, r, join=np.logical_or):
-    """`cells` (nx, nz) grown by `r` of them round each, `join` of a cell and each neighbour's."""
-    out = cells.copy()
-    nx, nz = cells.shape
-    for di in range(-r, r + 1):
-        for dj in range(-r, r + 1):
-            if di * di + dj * dj > r * r or (di == 0 and dj == 0):
-                continue
-            src = cells[max(0, -di):nx - max(0, di), max(0, -dj):nz - max(0, dj)]
-            at = out[max(0, di):nx - max(0, -di), max(0, dj):nz - max(0, -dj)]
-            at[...] = join(at, src)
-    return out
-
-
-def _joined(on, offsets):
-    """The connected groups of the set voxels of `on` (any rank), neighbours by `offsets` (one of each
-    pair): each a tuple of index arrays, union-find on the flat indices with pointer jumping."""
-    at = np.flatnonzero(on)
-    if not len(at):
-        return []
-    idx = np.array(np.unravel_index(at, on.shape))
-    label = np.arange(len(at))
-    strides = np.array([math.prod(on.shape[d + 1:]) for d in range(on.ndim)])
-    pairs = []
-    for off in offsets:
-        other = idx + off[:, None]
-        inside = ((other >= 0) & (other < np.array(on.shape)[:, None])).all(axis=0)
-        flat = (strides @ other)[inside]
-        where = np.searchsorted(at, flat)
-        found = where < len(at)
-        found[found] = at[where[found]] == flat[found]
-        pairs.append((np.flatnonzero(inside)[found], where[found]))
-    a, b = np.concatenate([p[0] for p in pairs]), np.concatenate([p[1] for p in pairs])
-    while True:
-        low = np.minimum(label[a], label[b])
-        np.minimum.at(label, a, low)
-        np.minimum.at(label, b, low)
-        jumped = label[label]
-        if np.array_equal(jumped, label) and np.array_equal(label[a], label[b]):
-            break
-        label = jumped
-    order = np.argsort(label, kind='stable')
-    starts = np.flatnonzero(np.r_[True, label[order][1:] != label[order][:-1]])
-    return [tuple(idx[:, order[s:e]]) for s, e in zip(starts, np.r_[starts[1:], len(order)])]
