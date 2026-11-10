@@ -72,6 +72,14 @@ def build(cc, sources, includes, name, extra=()):
     return lib, [l for l in (done.stderr or '').splitlines() if 'warning:' in l]
 
 
+def _host():
+    """This host's processor by the instruction sets it has, as numpy probes them: a library built for them
+    (-march=native) is no other processor's, its digest this too."""
+    import numpy as np
+    sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
+    return ','.join(sorted(k for k, on in sets.items() if on))
+
+
 def headers(includes):
     """Every header in `includes`, their bytes in their names' order: the last part of a library's digest
     (`cached`)."""
@@ -91,6 +99,7 @@ def cached(sources, includes, name, extra=(), heads=None):
     thread beside her loop, they held her builds 0.63 s of her first second."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
+    digest.update((_host() if '-march=native' in extra else '').encode())
     for path in sources:
         with open(path, 'rb') as f:
             digest.update(f.read())

@@ -23,8 +23,9 @@ SOURCES = ([os.path.join(REPO, 'wbc', 'test', 'harness%s.c' % n) for n in ('', '
            + [os.path.join(REPO, 'modbus', 'src', 'modbus_%s.c' % n) for n in ('crc rtu slave').split()])
 INCLUDES = [os.path.join(REPO, 'wbc', 'inc'), os.path.join(REPO, 'modbus', 'inc')]
 #: The firmware compiles the chain at -O2 (CMakeLists.txt); sin and cos called apart, as numpy calls
-#: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's.
-FLAGS = ('-O2', '-fno-builtin-sin', '-fno-builtin-cos') + build.mujoco_headers()
+#: them: gcc's sincos for the pair is glibc's own path at 0.855 < |x| < 2.43, its sin's last bit not sin's. On this
+#: host's own instruction sets: ISO C contracts nothing, a loop's elements four at once are the same bits.
+FLAGS = ('-O2', '-march=native', '-fno-builtin-sin', '-fno-builtin-cos') + build.mujoco_headers()
 
 
 def _define(name):
