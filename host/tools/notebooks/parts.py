@@ -1,4 +1,17 @@
 """The cells every notebook shares, and the one shape they are laid out in."""
+#: A name only this kernelspec carries: two CPython 3.14.7s here, one without
+#: the packages, and the editor picked that one by version.
+KERNEL = 'coaxial_63100'
+KERNEL_DISPLAY = 'Python (coaxial_63100)'
+
+#: What a reader needs before the first cell: that it runs as it stands, on what, on which
+#: kernel, and the knob to flip at the bench.
+GUIDE = ("Run All works as it stands - no board, no cable: `EMULATED` is this host's firmware image "
+         "on Renode, and the host's own stand-in where no emulator runs; `SIMULATED` is that stand-in "
+         "asked for. The kernel is `%s`, which `setup.ps1` registers. At the bench: `MODE = "
+         "ExecutionMode.HARDWARE` and `PORT` the board's port - `coaxial.comm.ports.find()` names the "
+         "first that answers." % KERNEL_DISPLAY)
+
 #: The knob flipped at the bench: the mode, and why it is that one.
 KNOB = """from coaxial import ExecutionMode
 
@@ -30,10 +43,10 @@ def section(heading, *cells):
 
 
 def paper(title, summary, sections, results, bench, references, device=True, mode=EMULATED):
-    """# title, summary; 1 Setup; the sections; close; Results; Bench; References.
+    """# title, summary; 1 Setup: the guide, the knob; the sections; close; Results; Bench; References.
     `device`: the paper opens a Coaxial63100 as `device` and closes it; else only the knob.
     `mode`: (the ExecutionMode's name, why)."""
-    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), code(KNOB % mode)]
+    cells = [md('# %s\n\n%s' % (title, summary)), md('## 1 Setup'), md(GUIDE), code(KNOB % mode)]
     if device:
         cells.append(code(OPEN))
     for number, (heading, body) in enumerate(sections, start=2):

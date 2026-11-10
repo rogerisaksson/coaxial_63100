@@ -90,7 +90,7 @@ TABLE = (
     (cyclic.pi,   cyclic.state('PI', n, kp=0.1, ki=0.3, limit=3.0),      ('dt', 'w_ref', 'omega_hat'),     'iq_ref'),
 )
 for step, s, ins, out in TABLE:
-    print('%-8s %-26s -> %-8s %s' % (step.__name__, ', '.join(ins), out, ', '.join(s.dtype.names)))'''),
+    print('%-8s %-26s -> %-8s %s' % (step.__name__, ', '.join(ins), out, ', '.join(cyclic.fields(s))))'''),
     ),
     section(
         'The cycle',
@@ -133,7 +133,7 @@ nodes.close()'''),
 ]
 
 RESULTS = [
-    code('''print('1. memory      %d fields x %d rows, %d B, laid once' % (len(f.dtype.names), f.size, f.nbytes))
+    code('''print('1. memory      %d fields x %d rows, %d B, laid once' % (len(cyclic.fields(f)), f.size, f.nbytes))
 print('2. the cycle   %d passes, %d frames lost' % (len(log), edge.lost.sum()))
 print('3. held        %d boards, the worst %.1f rad/s off its target' % (len(legs), miss.max()))
 print('4. together    %.0f -> %.0f rad/s apart' % tuple(spread))'''),

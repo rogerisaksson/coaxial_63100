@@ -6,6 +6,10 @@
 # never configured being behind, so the suites that read an image find one after its first pull.
 # The check is run as this tree's own module, from host/, not as the installed one's. Git goes
 # on whatever the build says. post-rewrite runs this too, post-checkout where an image was built.
+# The papers in notebook_examples/ behind their sources are then laid - run on those images where
+# their code changed (host/tools/notebooks/current.py: 0.3 s where none is behind, nothing said).
 [ -f host/tools/target/current.py ] || exit 0
-cd host && python -X utf8 -m tools.target.current
+cd host || exit 0
+python -X utf8 -m tools.target.current
+[ -f tools/notebooks/current.py ] && python -X utf8 -m tools.notebooks.current
 exit 0

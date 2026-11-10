@@ -15,6 +15,15 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   missing where both stood - `-Check` never clean, its host suite never run;
   it asks the metadata by the written name. `cupy-cuda13x` stood without
   `[ctk]`: CUDA's runtime wheels had come by hand.
+- The papers are held to their builder (test_layout,
+  tools/notebooks/current.py): four of thirteen stood behind it, one on a
+  dead time the record had changed. A paper whose prose alone changed is
+  laid with the outputs it has (0.3 s the thirteen); one whose code changed
+  is run (33-45 s), a failure keeping the paper that stood and not run again
+  on the same code. Setup and git's hooks after a pull ask it. nbformat
+  wrote the platform's line ends: the papers are written LF. `cycle` read
+  `dtype.names` off an untyped `cyclic.run`: 17 type faults unseen, a
+  notebook being linted only when it changes.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
 - test_controller's tied rows gave a knee 0.3 s to 20 deg: on the stand-in

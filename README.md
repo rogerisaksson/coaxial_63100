@@ -267,17 +267,24 @@ Each drawn on the stand-in by `python host/tools/render/page.py <page>
 ## 8 Notebooks
 
 Thirteen executed papers in `notebook_examples/`, generated from
-`host/tools/notebooks/`.
+`host/tools/notebooks/` - [start there](notebook_examples/README.md): each
+runs as it stands, no board, no cable.
 
 <details><summary>The thirteen, and how they are made</summary>
 
 Acquisition, link, sensors, power_stage, thermal, drive, controller, cycle,
 sequencer, machines, motion, applications, commissioning: each a
-setup, numbered sections, results and references.
+setup - what it runs on, the knob for the bench -, numbered sections,
+results and references.
 
 ```powershell
+python host/tools/notebooks/current.py         # those behind their sources
 python host/tools/notebooks/make_notebooks.py --execute [area ...]
 ```
+
+`setup.ps1` and every pull and rebase run the first: a paper whose code
+changed is run again, one whose prose alone did is laid with the outputs
+it has.
 
 </details>
 

@@ -34,6 +34,11 @@ def frame(*channels, rows=1):
     return np.zeros(rows, np.dtype([(name, 'f8') for name in names]))
 
 
+def fields(a: NDArray) -> tuple[str, ...]:
+    """A structured array's fields by name: a frame's channels, a step's parameters and its state."""
+    return a.dtype.names or ()
+
+
 def state(kind, rows=1, **params):
     """A step's own memory: `kind`'s fields, `params` on every row, at rest."""
     s = np.zeros(rows, STEPS[kind][1])
@@ -216,7 +221,7 @@ def cycle(edges, table, f, buffers):
         push(e, f)
 
 
-def run(edges, table, f, cycles, period, clock=time.monotonic, sleep=time.sleep):
+def run(edges, table, f, cycles, period, clock=time.monotonic, sleep=time.sleep) -> NDArray:
     """`cycles` passes `period` s apart, the frame after each logged - a structured array,
     (cycles, rows). Every buffer is laid before the first pass."""
     log = np.zeros((cycles, f.size), f.dtype)

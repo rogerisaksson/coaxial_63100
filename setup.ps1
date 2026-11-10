@@ -7,6 +7,7 @@
     install   the plan, after one yes (-Yes: none)                           setup\<area>.ps1
     build     both images, Debug and Release, zero warnings                  setup\build.ps1
     emulate   the Debug image on Renode, answering the library               setup\build.ps1
+    notebooks the papers behind their sources, written and run               setup\build.ps1
     Areas: machine, python, toolchain, emulator, ollama. Exit 0: nothing outstanding.
     Every shell afterwards: . .\env.ps1
 .PARAMETER Check
@@ -135,6 +136,7 @@ if (-not ($Check -or $NoBuild)) {
     Test-Emulated
     if ($Tests) { Test-Gate }
 }
+Update-Notebooks
 Test-Setup -Python $script:Python
 Write-Summary
 

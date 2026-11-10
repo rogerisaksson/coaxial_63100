@@ -71,9 +71,10 @@ def _paper(path):
         wrong.append('no title cell')
     elif len(head) != 3 or not head[2]:
         wrong.append('the title cell is not a title and one line')
-    opens = len(said) > 3 and 'Coaxial63100(' in said[3]
-    if len(cells) < 4 or said[1] != '## 1 Setup' or 'MODE = ' not in said[2]:
-        wrong.append('Setup is not the knob, and the open cell if it opens a device')
+    opens = len(said) > 4 and 'Coaxial63100(' in said[4]
+    if (len(cells) < 5 or said[1] != '## 1 Setup' or kinds[2] != 'markdown' or 'kernel' not in said[2]
+            or 'MODE = ' not in said[3]):
+        wrong.append('Setup is not the guide and the knob, and the open cell if it opens a device')
     headings = [s for k, s in zip(kinds, said) if k == 'markdown' and s.startswith('## ')]
     numbers = [h.split()[1] for h in headings if h[3].isdigit()]
     if numbers != [str(n) for n in range(1, len(numbers) + 1)]:
@@ -258,6 +259,51 @@ def test_notebooks_are_papers(r):
             ', '.join(names))
 
 
+def test_notebooks_are_their_sources(r):
+    """Every example notebook is what `tools/notebooks` lays now, each code cell run, and so is the index
+    beside them: four of thirteen stood behind their builder, one on a dead time the record had changed."""
+    from tools.notebooks import current
+    late = current.behind(sorted(notebook_areas()))
+    r.check('every paper\'s cells are its builder\'s, each code cell run', not late,
+            ', '.join(late) + ' behind: tools/notebooks/current.py lays them' if late
+            else 'all %d' % len(notebook_areas()))
+    r.check('the index beside them is the builder\'s', not current.index_behind(),
+            'tools/notebooks/current.py lays it')
+
+
+def test_a_paper_is_run_again_where_its_code_changed(r):
+    """`current.carried` on a paper that ran: its prose or a comment changed, it is laid with the outputs it
+    has; its code changed, a cell new or one never run, it is not - it is run."""
+    import copy
+    from tools.notebooks import current, make_notebooks
+    name = sorted(notebook_areas())[0]
+    ran = make_notebooks.notebook(name, notebook_areas()[name])
+    code = [k for k, c in enumerate(ran['cells']) if c['cell_type'] == 'code']
+    for count, k in enumerate(code, start=1):
+        ran['cells'][k].update(execution_count=count, outputs=[{'output_type': 'stream', 'name': 'stdout',
+                                                                'text': ['cell %d\n' % k]}])
+
+    def stood(change):
+        book = copy.deepcopy(ran)
+        change(book['cells'])
+        return book
+
+    prose = stood(lambda cells: cells.pop(2))
+    noted = stood(lambda cells: cells[code[0]]['source'].append('\n# a comment of its own'))
+    kept = [current.carried(name, book) for book in (prose, noted)]
+    r.check('prose or a comment apart: laid as the builder\'s, each code cell with the outputs it had',
+            all(book is not None and [(c['cell_type'], c['source']) for c in book['cells']]
+                == [(c['cell_type'], c['source']) for c in ran['cells']]
+                and [c['outputs'] for c in book['cells'] if c['cell_type'] == 'code']
+                == [ran['cells'][k]['outputs'] for k in code] for book in kept),
+            [book is not None for book in kept])
+    other = [stood(lambda cells: cells[code[-1]]['source'].append('\nprint(1)')),
+             stood(lambda cells: cells.pop(code[-1])),
+             stood(lambda cells: cells[code[0]].update(execution_count=None)), None]
+    r.check('its code changed, a cell gone, one never run, or no paper there: not laid - run',
+            [current.carried(name, book) for book in other] == [None] * 4)
+
+
 DATE = re.compile(
     r'\b202\d-[01]\d-[0-3]\d\b'
     r'|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+202\d\b'
@@ -360,7 +406,8 @@ def test_her_structs_carry_no_padding(r):
 
 
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
-          test_counts_are_measured, test_notebooks_are_papers, test_no_dates_in_the_tree,
+          test_counts_are_measured, test_notebooks_are_papers, test_notebooks_are_their_sources,
+          test_a_paper_is_run_again_where_its_code_changed, test_no_dates_in_the_tree,
           test_every_suite_runs, test_a_crash_names_its_test, test_docs_name_only_the_tree,
           test_her_structs_carry_no_padding)
 

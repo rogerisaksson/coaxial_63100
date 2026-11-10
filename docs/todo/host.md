@@ -84,7 +84,9 @@
   sensorless crossover trips the stand-in at overcurrent, 2 runs of 4 before
   the night and 4 of 4 now; the applications paper's servo and velocity
   cells trip the emulator, a cell further or nearer run to run, on the
-  night's tree as now. DOD: every paper alike on both but where a world's
+  night's tree as now - 5 runs of 5 since: the lane's stop once, the two
+  joints' poses four times; its paper stands on the outputs it had, its
+  code being what ran. DOD: every paper alike on both but where a world's
   physics says otherwise (the machines paper's, on the stand-in).
 - **Her surety field reads `out[latent.ZMP]`** (found): `latent.ZMP` indexes a
   parameter row (`ortho.P`), not `latent.OUT`; in `out` it lands on the

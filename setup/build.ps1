@@ -1,5 +1,6 @@
 # build.ps1 - the target built, both images at both presets with zero warnings; the Debug
-# image run on the emulator until it answers the library; with -Tests, the offline gate.
+# image run on the emulator until it answers the library; the papers in notebook_examples/
+# behind their sources written and run on it; with -Tests, the offline gate.
 
 function Build-Target {
     Write-Head 'build'
@@ -43,6 +44,41 @@ function Test-Emulated {
     } else {
         Write-Item 'image on Renode' 'failed' $line
         Add-Todo 'python host/tools/emu/emulator.py --check - the image did not answer on Renode'
+    }
+}
+
+function Update-Notebooks {
+    <#
+  The papers in notebook_examples/ out of host/tools/notebooks/: those behind their sources -
+        cells other than the builder's, a code cell never run - written and run, each laid where
+        it ran whole, one whose prose alone changed laid with the outputs it has
+        (host/tools/notebooks/current.py, which git's hooks ask after a pull too).
+#>
+    Write-Head 'notebooks'
+    if (-not $script:Packages) {
+        Write-Item 'notebooks' 'missing' 'after the python packages above'
+        return
+    }
+    $maker = @('-X', 'utf8', '-m', 'tools.notebooks.current')
+    $behind = Invoke-Host -Python $script:Python -Arguments ($maker + '--behind')
+    if ($LASTEXITCODE -ne 0) {
+        Write-Item 'notebooks' 'failed' $behind
+        Add-Todo 'python -m tools.notebooks.current --behind failed - run it in host/'
+    } elseif ([string]::IsNullOrWhiteSpace($behind)) {
+        Write-Item 'notebooks' 'ok' 'each paper its sources'', each run'
+    } else {
+        Write-Item 'notebooks' 'missing' ('behind their sources: ' + $behind)
+        if (Confirm-Step 'lay them ?  (run where their code changed: a kernel and an emulator each)') {
+            $tail = Invoke-Host -Python $script:Python -Arguments $maker
+            if ($LASTEXITCODE -eq 0) {
+                Write-Item 'notebooks' 'done' 'laid'
+            } else {
+                Write-Item 'notebooks' 'failed' $tail
+                Add-Todo 'python -m tools.notebooks.current failed - run it in host/ and read which paper'
+            }
+        } else {
+            Add-Todo 'python -m tools.notebooks.current   (in host/)'
+        }
     }
 }
 

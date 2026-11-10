@@ -8,6 +8,7 @@
 
 Executing needs jupyter, nbclient, pandas, matplotlib; the emulator or the stand-in, no board.
 Several run side by side, a process each - a kernel and an emulator each (tools.dev.focus).
+Which papers are behind their sources, and those alone laid or run: tools/notebooks/current.py.
 """
 import argparse
 import datetime
@@ -19,16 +20,12 @@ import sys
 
 from tools import notebooks
 from tools.dev.focus import Job, relay
+from tools.notebooks.parts import KERNEL, KERNEL_DISPLAY
 
 OUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))),
     'notebook_examples')
-
-#: A name only this kernelspec carries: two CPython 3.14.7s here, one without
-#: the packages, and the editor picked that one by version.
-KERNEL = 'coaxial_63100'
-KERNEL_DISPLAY = 'Python (coaxial_63100)'
 
 NOTEBOOKS = notebooks.AREAS
 
@@ -123,7 +120,8 @@ def execute(path, out_dir, timeout=CELL_S):
             data.pop(WIDGET_VIEW, None)
             if 'image/png' in data:
                 data.pop('image/jpeg', None)      # a picture once, lossless
-    nbformat.write(book, path)
+    with io.open(path, 'w', encoding='utf-8', newline='\n') as handle:     # the tree's line ends, on any host
+        nbformat.write(book, handle)
     for number, one in enumerate(book.cells):
         for output in one.get('outputs', []):
             if output.get('output_type') == 'error':
@@ -255,8 +253,9 @@ def _mode_of(name, mode=None):
     return mode or notebooks.mode_of(name)[0]
 
 
-def side_by_side_execute(wanted, args):
-    """`wanted` written and run on the relay, a process each; a line each as it ends."""
+def executed(wanted, args):
+    """`wanted` written and run on the relay into `args.out`, a process each, a line each as it ends:
+    the names that failed."""
     jobs = [Job('%s:%s' % (name, _mode_of(name, args.mode)),
                 [sys.executable, '-X', 'utf8', os.path.abspath(__file__), '--execute',
                  '--out', args.out] + (['--mode', args.mode] if args.mode else []) + [name],
@@ -270,6 +269,12 @@ def side_by_side_execute(wanted, args):
         print('%-30s %s  %.0f s' % (name, said, took), flush=True)
         if code != 0:
             failed.append(name)
+    return failed
+
+
+def side_by_side_execute(wanted, args):
+    """`wanted` written and run on the relay, a process each; a line each as it ends."""
+    failed = executed(wanted, args)
     print('%d notebooks%s' % (len(wanted), ', %d failed' % len(failed) if failed else ''))
     return 1 if failed else 0
 

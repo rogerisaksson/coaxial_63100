@@ -221,15 +221,17 @@ def test_a_pull_runs_the_check(report, _boot):
     env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
     with tempfile.TemporaryDirectory() as top:
         tree, hooks = os.path.join(top, 'tree'), os.path.join(top, 'hooks')
-        target = os.path.join(tree, 'host', 'tools', 'target')
+        target, papers = (os.path.join(tree, 'host', 'tools', name) for name in ('target', 'notebooks'))
         os.makedirs(target)
+        os.makedirs(papers)
         os.makedirs(hooks)
         for name in ('post-merge', 'post-rewrite', 'post-checkout'):
             shutil.copy(os.path.join(repo, '.githooks', name), hooks)
-        for folder in (os.path.dirname(target), target):
+        for folder in (os.path.dirname(target), target, papers):
             open(os.path.join(folder, '__init__.py'), 'w').close()
-        with open(os.path.join(target, 'current.py'), 'w', encoding='utf-8') as f:
-            f.write("import os\nopen(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ran'), 'a').write('.')\n")
+        for folder, name in ((target, 'current.py'), (papers, 'current.py')):
+            with open(os.path.join(folder, name), 'w', encoding='utf-8') as f:
+                f.write("import os\nopen(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ran'), 'a').write('.')\n")
 
         def git(*words):
             done = subprocess.run(['git', '-c', 'core.hooksPath=' + hooks, '-c', 'user.name=check',
@@ -238,8 +240,8 @@ def test_a_pull_runs_the_check(report, _boot):
             assert done.returncode == 0, (words, done.stderr[-300:])
             return done.stdout.strip()
 
-        def ran():
-            path = os.path.join(target, 'ran')
+        def ran(folder=target):
+            path = os.path.join(folder, 'ran')
             return os.path.getsize(path) if os.path.exists(path) else 0
 
         def laid(name, text):
@@ -281,13 +283,15 @@ def test_a_pull_runs_the_check(report, _boot):
         git('commit', '-q', '--amend', '-m', 'again')
         amended = ran()
         git('rebase', '-q', two)
-        rebased = ran()
+        rebased, laid_too = ran(), ran(papers)
     report.check('no image built: no check at a commit checked out or amended, one at a fast-forward merge and '
                  'one at a rebase', bare == [0, 1, 1, 2, 2], bare)
     report.check('an image built: one a commit checked out, none at the same or a file',
                  (moved - was, still - was) == (1, 1), (moved - was, still - was))
     report.check('one more at a fast-forward merge, none at an amend, and more at a rebase',
                  (merged - was, amended - was) == (2, 2) and rebased > amended, (merged, amended, rebased))
+    report.check("the papers' check (tools/notebooks/current.py) runs wherever the images' does",
+                 laid_too == rebased > 0, (laid_too, rebased))
 
 
 def main():
