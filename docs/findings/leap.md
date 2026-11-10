@@ -117,6 +117,28 @@ She stood every row as thrown now.
   went backward and sank on 40-90 N, her hips hers the throws flung her off
   her feet (air 1.3-3.4 s). Similarity scales his lengths and times to hers,
   not his speed.
+- The stride leap's flight told by what she senses a pass, no memory
+  (`swing.flew`): thrown, no sole standing, and her centre going up or no
+  sole left lying on the floor (within `leap.TOUCH_M` of it, not coming
+  down past `leap.REST_M_S`). Thrown with none standing alone, her dip's
+  passes flew - her stance sole under a touch (0-13 N) still lay on the
+  floor as she sank 0.57-0.83 m/s -, her swing was asked to the floor's
+  speed there, 52.8 m/s^2 back, and she bounced off her dip: 0.336 s aloft
+  for 0.24. Aloft the sole that trails hangs level and the one that leads
+  lands at the floor's speed (`swing.hung`), her stride the sole's that
+  lands first (`stride.flown`), a swing begun before its window counted
+  from there (`stride.begins`); the push's rows on their plan's clock,
+  damped critically (`ballistic.bound`). A walk's tap flies 0.195 s, 51 mm
+  clear, 0.13 m; a run's 0.219 s, 68 mm, 0.27 m (test_leap's bars back at
+  0.15 s and 45 mm). 32 plays from 9 starts each: 30 whole where 17, 284 of
+  288 stood where 214, none worse - the hop said 3.3-3.7 s into a walk and
+  a jog 9 of 9 each where 0-9, the run's leap on the run grid 9 where 3.
+  Left: the stutter and the sprint's grid 7 of 9 as before; the leading
+  sole meets the floor at 0.95-1.17 m/s along; the hold's charge has no
+  lever in stride - dipped 1.35 times deeper she flies no further (0.14 and
+  0.25 m): her stance sole behind her bears a third of her, she sinks
+  0.16-0.21 m for the 0.11-0.15 told, outruns a push laid on the clock and
+  coasts, her knee at 37-106 of its 171 N m.
 - Her launch from her drives (`ballistic.launch`, test_ballistic): both
   knees at their back-EMF bounds, their rotors (0.177 kg m^2) spun with her,
   leave the floor at 15.8-15.9 of their 16.8 rad/s: 2.03-2.07 m/s from a

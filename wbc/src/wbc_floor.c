@@ -103,7 +103,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
                       double across, double reach, const double stood[2], const double u[2], const double flying[2],
                       double meet[2][2], double top[2], double land[2], double adj[2], double over[2],
-                      double *apart)
+                      double flown, double *apart)
 {
   const double *way = fr + k->f_map_way, *along = fr + k->f_map_along, *rise = fr + k->f_map_rise;
   const int     told = (int)fr[k->f_map_n];
@@ -125,7 +125,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   {
     left_s[b] = step_s * (1.0 - u[b] * flying[b]);
   }
-  *apart = k->apart_m * npmin(wide / (2.0 * fr[k->f_w0]), 1.0);
+  *apart = (k->apart_m * npmin(wide / (2.0 * fr[k->f_w0]), 1.0)) * (1.0 - flown);
   wbc_imp_meets(k, xi, c, flat, *cruise, om, turns, wide, across, reach, *apart, fr + k->f_planted, meet);
   for (int b = 0; b < 2; b++)
   {

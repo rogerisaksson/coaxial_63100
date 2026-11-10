@@ -121,11 +121,14 @@ def bound(fr, turns, now, label):
     at its own time. The push's spring held into the flight (let go at its curve's end she stood on, 0.28 m/s up), her
     other swing held through the push (ZMP none), her hold and her drive as she had them (`now`) throughout, her
     landing waiting on her soles; her gait's height, spring and support as she had them after, the last row named
-    `label`. Her hips leave at the planned 1.15 m/s and fly 0.21 s. Her hold thrown 0.35-0.53 m ahead and her drive
-    swept x1.66 through the leap she fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as the other
-    sole landed. The hold's charge has no lever here: dipped deeper she squats 0.18 m on one knee over 0.3 s while
-    running on, pushes with the leg far behind her at 2 m/s forward and never leaves (twice the text's dip 0 of 9
-    walks, 1.5 times 1, 1.25 times 2, the text's 8)."""
+    `label`. Each push row is the curve's height at its blend's end, its spring damped critically on her mass,
+    undamped in flight. Planned to leave at 1.16-1.18 m/s she flies 0.195 s walking (0.69 m/s) and 0.219 s running
+    (1.40), her soles 51 and 68 mm clear, 0.13 and 0.27 m along her way. Her hold thrown 0.35-0.53 m ahead and her
+    drive swept x1.66 through the leap she fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as
+    the other sole landed. The hold's charge has no lever here: dipped 1.35 times the text's she stands and flies no
+    further (0.14 and 0.25 m) - the stance sole behind her bears a third of her and she sinks 0.16-0.21 m for the
+    0.11-0.15 told, then outruns a push laid on the clock (0.76 m/s on its 0.38) and coasts, her knee at 37-106 of
+    its 171 N m."""
     import math
     import numpy as np
     from machine.texts import kernel, ortho
@@ -149,10 +152,10 @@ def bound(fr, turns, now, label):
     rows['p'], rows['flags'] = np.nan, ortho.CURVE
     rows['flags'][0], rows['flags'][n + 2:] = 0, 0
     rows['at'], rows['blend'] = np.round(1e3 * at), np.round(1e3 * blend)
-    t = push_s * np.arange(n) / n
+    t = push_s * (np.arange(n) + 1.0) / n
     rows['p'][0, z], rows['p'][0, k] = dip, now[k]
     rows['p'][1:n + 1, z] = dip - rise((dip - leap.STRAIGHT) * per, 1.0, t) / per
-    rows['p'][1:n + 2, k], rows['p'][1:n + 2, d] = THROW_K, 0.0
+    rows['p'][1:n + 2, k], rows['p'][1:n + 1, d], rows['p'][n + 1, d] = THROW_K, 2.0 * math.sqrt(THROW_K * fr[modal.WEIGHT] / G), 0.0
     rows['p'][0:n + 2, zmp] = modal.NONE
     rows['p'][n + 1, z] = leap.STRAIGHT
     rows['flags'][1] |= ortho.RISE

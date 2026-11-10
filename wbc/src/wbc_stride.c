@@ -147,7 +147,7 @@ double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double go
 
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  const double stood[2], double phi_w, double *stepping, double *way,
+                  const double stood[2], double phi_w, double thrown, double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2])
 {
@@ -176,7 +176,8 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
 
     waits[b] = (was[b] * (1.0 - stood[b])) * stood[1 - b];
     on[b] = npmax(npmax(window * npmax(stood[1 - b], 1.0 - stood[b]), came), waits[b]);
-    held[b] = waits[b] * (1.0 - window);
+    /* thrown - a leap and its landing -, a swing begun before its window counts on from there (stride.begins) */
+    held[b] = (waits[b] * (1.0 - window)) * (1.0 - (double)((thrown > 0.0) && (0.5 * (phi[b] / phi_w + 1.0) >= begun[b])));
   }
   for (int b = 0; b < 2; b++)
   {

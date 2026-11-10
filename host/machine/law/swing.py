@@ -1,6 +1,8 @@
 """A sole that does not stand on her latent loop: where her modes put it, or at rest on the floor.
 
     free, frame = swing.free(y, fr, at, said, clear, stance, cruise, grounded, propped)
+    flies = swing.flew(thrown, grounded, v, low, shod)
+    free, went, strides, level = swing.hung(free, step, strides, flies, (high, low, shod), (kp, kd))
     sole_acc, rests = swing.rested(sole_acc, held, (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
 
 Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` asks with them.
@@ -12,9 +14,10 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.law import poise
-from machine.law.modal import AXIAL, COM, DRIVE, HOT, LIFT, LOWEST, SOLE, VCOM, VSOLE, WIDTH, Z0
+from machine.law.modal import AXIAL, COM, DRIVE, G, HOT, LIFT, LOWEST, SOLE, VCOM, VSOLE, WIDTH, Z0
 from machine.law.poise import TINY
-from machine.law.stride import ALONG, UP
+from machine.law.stride import ALONG, SOON_S, UP
+from machine.moves.leap import REST_M_S, TOUCH_M
 
 #: The mode whose impedance holds a sole that does not stand, an axis each.
 FREE_BY = np.array([DRIVE, WIDTH, LIFT])
@@ -82,3 +85,46 @@ def rested(sole_acc, held, on, gains, at):
     rest = ((1.0 - poise.clip(held, 0.0, 1.0)) * grounded * aloft)[:, None] * (1.0 - strides)
     kept = (kp[FREE_BY] * HOT3[UP] * (floors - y[LOWEST])[:, None] - kd[FREE_BY] * shod) @ rot
     return sole_acc + (rest * (kept - sole_acc.reshape(2, 3))).ravel(), rest[:, 0]
+
+
+def flew(thrown, grounded, v, low, shod):
+    """How far she flies, 0 to 1, by what she senses this pass alone: thrown (`thrown`, her support asked none), no
+    sole standing (`grounded`), and her centre going up (`v`, its speed in her way's frame) or no sole left lying
+    on the floor - within a touch of it (`leap.TOUCH_M`; `low` each sole's height over the floor under it) and not
+    coming down on it (`leap.REST_M_S`; `shod` its speed in her way's frame). Thrown with none standing alone, her
+    dip's passes flew: her stance sole bore under a touch (0-13 N) at 2.922, 2.961 and 2.970 s of a run's leap,
+    still on the floor (within 0.14 mm, 0.03-0.08 m/s) as she sank 0.57-0.83 m/s; her swing was asked to the
+    floor's speed there, 52.8 m/s^2 back, and she bounced off her dip, 0.336 s aloft for 0.24. A sole's height
+    alone closes before it lands: the floor felt lies 10-13 mm over where a pitched sole touches, 9 ms of its fall
+    at 1.0-1.5 m/s."""
+    lies = (low <= TOUCH_M) * (shod[:, UP] >= -REST_M_S)
+    return thrown * (1.0 - grounded) * np.maximum(v[UP] > 0.0, 1.0 - lies.max())
+
+
+def hung(free, step, strides, flies, heights, gains):
+    """Her soles aloft, thrown: (`free` with nothing asked of the sole that trails her stride along her way and, up,
+    the floor's alone - held `high` over it, a swing's clearance, on the limbs' own impedance over her fall, never
+    asked down under it -; her stride's ask (2, 3) in her way's frame, the sole that leads it landing at the
+    floor's speed; `strides` (2,), a column; how much of her rock's pitch each sole is asked (2,): the one that
+    trails none, it hangs level). `flies` (0 to 1) how far she flies (`flew`), `step` her stride's (ask along and
+    across (2, 2) (`stride.goes`), each sole's aim and its place, her centre's speed, each swing's ease: her way's
+    frame), `heights` (that clearance, each sole's height over the floor under it, its speed in her way's frame),
+    `gains` her modes' (kp, kd). The sole that leads has as long to its landing as its height has left to fall at
+    her centre's speed up: its landing is carried on with her that long, a place on the floor, and it is damped to
+    the floor, not to her, on `stride.goes`' spring of that time to go. Damped to her speed toward a landing
+    carried with her it met the floor at 1.5 m/s along (her centre at 1.15 a run's leap, 0.54 a walk's) and was
+    stopped by it in 15 ms: her grip read that skid's braking push 0.10-0.14 as ice and she slowed 1.16 to
+    0.29 m/s in 0.5 s. None standing, her soles' asks along her way are met by their difference alone: the sole
+    she pushed off asked on to its place under her 21-61 m/s^2 and down 59, the swing that lands lost 2.23 m/s in
+    0.2 s and hung 0.10-0.13 m short of its landing; the push leg straightened and touched first 0.30 m behind her
+    (her walk's hop fell at 5.61 s). Rocked as its stride's toe-off has it, its heel 10-29 deg up, its toes hung
+    14-42 mm under its middle: that rose 44-62 mm in 0.1 s, they stalled 22-28 mm over the floor."""
+    (went, aim, flat, v, ease), (high, low, shod), (kp, kd) = step, heights, gains
+    trails, leads = (flies * (1.0 - strides) * strides[::-1])[:, None], (flies * strides)[:, None]
+    held = np.maximum(kp[FREE_BY][UP] * (high - low) - kd[FREE_BY][UP] * shod[:, UP] + G, 0.0)
+    free = free + trails * (HOT3[UP] * held[:, None] - free)
+    left = np.maximum((v[UP] + np.sqrt(v[UP] * v[UP] + 2.0 * G * np.maximum(low, 0.0))) / G, SOON_S)[:, None]
+    down = ease[:, None] * (np.minimum(6.0 / left ** 2, kp[FREE_BY][:2]) * (aim + left * v[:2] - flat)
+                            - np.minimum(4.0 / left, kd[FREE_BY][:2]) * shod[:, :2])
+    return (free, np.concatenate([went + leads * (down - went), ease[:, None] * free[:, UP:]], axis=1),
+            strides[:, None], 1.0 - trails[:, 0])

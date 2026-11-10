@@ -9,10 +9,11 @@ soles (`machine.law.poise`), up no harder than her legs throw her. A sole that d
 sprung to the place her modes give it from the soles that do - none standing, from her centre
 of mass as it falls -, each axis on the difference's impedance: the drive's along, the width's
 across, the lift's up; striding, it is her stride's (`machine.law.stride`), and aloft the swing that
-lands first strides on falling with her: hung plumb under her a leap's landing sole came down 5-8 cm
-ahead of her for a capture point 0.2-0.3 m on and she fell a step later (her walk's leap 3 of 9, 9 so;
-the gym's walk, hop and stand 5, 9); both soles striding aloft, the push leg behind her was thrown on
-(the run's leap 18 stumbles, the gym's jog, hop and stand 0 of 9). The loop finds the
+lands first (`stride.flown`) strides on falling with her, the other hung (`swing.hung`): hung plumb
+under her a leap's landing sole came down 5-8 cm ahead of her for a capture point 0.2-0.3 m on and she
+fell a step later (her walk's leap 3 of 9, 9 so; the gym's walk, hop and stand 5, 9); both soles
+striding aloft, the push leg behind her was thrown on (the run's leap 18 stumbles, the gym's jog, hop
+and stand 0 of 9). The loop finds the
 torques and clips them to her drives (`machine.stack.wbc`, `machine.stack.wrench`).
 """
 import os
@@ -60,7 +61,7 @@ SEAT_HOLDS = np.array([[0.0], [1.0], [0.0]])
 def ask(out, y, fr, a):
     """`a`, the loop's ask this pass: `out` (`latent.step`) rendered on her as she is sensed."""
     rot = fr[ROT].reshape(3, 3)
-    stood, begun = a[STANCE].copy(), a[BEGUN].copy()
+    stood, begun, was, thrown = a[STANCE].copy(), a[BEGUN].copy(), a[SWINGS].copy(), 1.0 - poise.clip(out[latent.HELD], 0.0, 1.0)
     z, zd, legs, turn, spun = reading(y, fr, stood)
     turns, beat = out[latent.TURNS], out[latent.PSI][LIFT]
     c, v, vh = rot @ y[COM], rot @ y[VCOM], rot @ y[VHEAD]
@@ -87,7 +88,7 @@ def ask(out, y, fr, a):
     phi_w = stride.swings(out[latent.SWAY][DRIVE], turns, a[GOING])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
         out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
-        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w)
+        a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w, thrown)
     a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi, phi_w))
     kp, kd, swung = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS], swung / (1.0 - begun)
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
@@ -135,6 +136,7 @@ def ask(out, y, fr, a):
                                stood, prop)
     stance = stance * (1.0 - a[LET_GO])
     grounded, aloft, upright = np.maximum(stance.max(), propped), 1.0 - stance, stance.max() * (1.0 - propped)
+    flew = swing.flew(thrown, grounded, v, y[LOWEST] - floors, shod)
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     along = om ** 2 * (c[:2] - zmp)
     # along the floor no harder than her standing soles' grip gives: on ice (0.02) her step asked
@@ -144,7 +146,7 @@ def ask(out, y, fr, a):
     # a sole lands no further from her than its leg can push along itself inside its grip's cone:
     # on ice (0.1) a sole landed 0.3 m ahead of her as the other slid, slid too, and she fell
     reach = np.minimum(stride.REACH_M, (bears @ y[GRIP]) * (c[UP] - fr[FLOOR]))
-    cruise, meet, top, land, adj, over, apart = _landings(y, fr, a, rot, c, flat, xi, cruise * (np.abs(out[latent.ASKED][DRIVE]) > TINY), om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach, stood, u, flying)
+    cruise, meet, top, land, adj, over, apart = _landings(y, fr, a, rot, c, flat, xi, cruise * (np.abs(out[latent.ASKED][DRIVE]) > TINY), om, turns, 2.0 * fr[W0] * (1.0 + ref[WIDTH]), across, reach, stood, u, flying, flew)
     tip, tipping, tipped = rocker.rocks(ref[ROCK], rate[ROCK], acc[ROCK])
     a[PREFOLD], short = rocker.folds(off * (1.0 - u), y[LOAD], fr[KNEE] + a[BEND])
     a[HEELED], flatten, a[EDGE], rounds, reach_h = rocker.heels(
@@ -174,22 +176,21 @@ def ask(out, y, fr, a):
                      + HOT3[ALONG][:, None] * short_h)
     free, frame = swing.free(y, fr, (rot, v, om, shod, floors, rise), (ref, rate, acc, kp, kd, hands), clear, stance, cruise,
                              grounded, propped)
-    strides, fell = (limbs * np.maximum(grounded, 1.0 * (u > u[::-1])))[:, None], ((1.0 - grounded) * com) @ rot
-    a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (fell + (
-        np.concatenate([stride.goes(a[AIM].reshape(2, 2), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w),
-                        stride.eased(u, off)[:, None] * free[:, UP:]], axis=1) @ rot))).ravel()
+    (free, went, strides, level), fell = swing.hung(free, (stride.goes(a[AIM].reshape(2, 2), flat, shod, v, u, off, turns * hurry / (1.0 - begun), kp[FREE_BY][:2], kd[FREE_BY][:2], phi_w), a[AIM].reshape(2, 2), flat, v, stride.eased(u, off)),
+                                                    limbs * np.maximum(grounded, stride.flown(a[STRODE], off, stood, u, thrown, 1.0 * (v[UP] > 0.0))), flew, (lift2, y[LOWEST] - floors, shod), (kp, kd)), ((1.0 - grounded) * com) @ rot
+    a[SOLE_ACC] = ((1.0 - strides) * (free @ frame + ((1.0 - grounded * BETWEEN) * com) @ rot) + strides * (fell + went @ rot)).ravel()
     a[SOLE_ACC], a[RESTS] = swing.rested(a[SOLE_ACC], out[latent.HELD], (grounded, aloft, strides), (kp, kd), (floors, y, shod, rot))
     # its pitch on the rock's own spring, from the floor's under the soles that stand; the
     # loop's turn law asked for what gives that
-    a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (tipped + kp[ROCK] * (tip + bears @ rocker.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (tipping - tilting))
+    a[TIPPED] = tilt + (aloft * stride.eased(u, off) * (level * tipped + kp[ROCK] * (level * tip + bears @ rocker.pitched(fr[GROUND]) - tilt) + kd[ROCK] * (level * tipping - tilting))
                         + TURN_KD[1] * tilting) / TURN_KD[0]
     a[GOING] += fr[DT] / GOING_S * ((y[VSOLE].reshape(2, 3) @ rot[ALONG]).mean() - a[GOING])
-    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP], a[STRODE] = stance, com @ rot, stepping, propped, on * (begun + stood * (1.0 - stance) * off * (np.minimum(0.5 * (phi / phi_w + 1.0), 0.0) - begun)), reach_h - (hips[:, UP] - floors), strides[:, 0]
+    a[STANCE], a[COM_ACC], a[STRIDES], a[BORNE], a[BEGUN], a[DIP], a[STRODE] = stance, com @ rot, stepping, propped, stride.begins(begun, was, stood, stance, on, off, phi, phi_w, thrown), reach_h - (hips[:, UP] - floors), strides[:, 0]
     _poses(out, y, fr, a, (z, ref, rate, acc, kp, kd), (turn, spun), up, aloft * (1.0 - limbs), still)
     return a
 
 
-def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying):
+def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach, stood, u, flying, flown):
     """Where each sole lands on a floor told her (`treads.footholds`, her frame's map): (her
     cruise no faster than a tread a step, each landing (2, 2) her way's frame, the highest floor
     between each sole and its landing, m, the landing's floor over the felt one, m, and what each
@@ -200,7 +201,7 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     is picked by where the sole will touch down - its natural landing carried her cruise over the
     swing's time left (`u`, `flying`): `meets` is exact at touchdown and sits at the stance sole
     at lift-off - and kept in `a[CELL]` as it swings. Nothing told, her landings as `stride.meets`
-    has them, cleared, and the apart they lie at (`stride.meets`). What felled her: findings/stairs.md. `cruise` is
+    has them, cleared, and the apart they lie at (`stride.meets`; none thrown aloft, `flown`: no sole stands to lie apart of). What felled her: findings/stairs.md. `cruise` is
     her cruise while her drive is asked and none once it is let go (`latent.ASKED`): a stop's first step, planned on
     the march's cruise still running down, landed 1 cm ahead of her centre and 23 cm short of her capture point (0.82
     m/s), she ran on to 1.24 and the next step braked her at 3.48 of her weight; on `stride.cruises` of none, floored
@@ -217,7 +218,7 @@ def _landings(y, fr, a, rot, c, flat, xi, cruise, om, turns, wide, across, reach
     gap = -(((stood + TINY) / (stood.sum() + 2.0 * TINY)) @ treads.floor_at(fr[MAP_ALONG], fr[MAP_RISE], told, s_now))
     step_s = np.pi / np.maximum(turns, TINY)
     left_s = step_s * (1.0 - u * flying)
-    apart = stride.APART_M * np.minimum(wide / (2.0 * fr[W0]), 1.0)
+    apart = stride.APART_M * np.minimum(wide / (2.0 * fr[W0]), 1.0) * (1.0 - flown)
     meet = stride.meets(xi, c, flat, cruise, om, turns, wide, across, reach, apart, fr[PLANTED])
     s_meet = (meet @ xz) @ way - start
     run = treads.footholds(fr[MAP_ALONG], fr[MAP_RISE], told, s_meet, s_meet + cruise * left_s, s_now, s_com, reach, hold, gap, cruise * step_s)[3]

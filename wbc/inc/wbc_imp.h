@@ -103,7 +103,7 @@ double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double go
 /** machine.law.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
                   const double was[2], double need, const double lead[2], const double split[2], const double begun[2],
-                  const double stood[2], double phi_w, double *stepping, double *way,
+                  const double stood[2], double phi_w, double thrown, double *stepping, double *way,
                   double *swung, double sweep[2], double phi[2], double on[2], double off[2], double u[2],
                   double flying[2]);
 
@@ -159,7 +159,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
                       double across, double reach, const double stood[2], const double u[2], const double flying[2],
                       double meet[2][2], double top[2], double land[2], double adj[2], double over[2],
-                      double *apart);
+                      double flown, double *apart);
 double wbc_imp_floor_at(const double *along, const double *rise, int told, double s);
 double wbc_imp_floor_mean(const wbc_imp_t *k, const double *along, const double *rise, int told, double s0, double s1);
 
