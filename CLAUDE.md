@@ -95,15 +95,24 @@ Evaluate the prompt and working tree before invoking any tool:
     solving issues, correcting defects, benchmarking, profiling and performance 
     related tasks are involved): Run the relay (host/tools/dev/run_tests.py) 
     with the complete suite to establish a quantitative existing test failure(s) 
-    metric(s) of the system.
+    metrics of the system.
+  + Empirical real-time performance (mandatory for rigid body simulation):
+    Run the benchmarking and profiler tool to establish and to exceed RT performance 
+    (in MuJoCo) of the dynamic systems.
   + Empirical motion baseline (mandatory when kinematic, feedback control, dynamics 
     and real-world performance related tasks are involved): Run the introspection tool 
     (`host/tests/test_introspect.py`) to discover the internal dynamics of the system.
   + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight, 
     thermals, or UI are involved): execute the relevant simulation, trace, or live
-    introspection tool to capture quantitative metrics of the system.
-  + Read only the relevant source files as identified by the mapper, 
-    test and runtime measurements, and other acquired associated data.
+    introspection tool to capture quantitative measurements of the system.
+  + Empirical motion capture benchmarking (mandatory with locomotion): Run the 
+    motion capture reader tool and (generate from mocaps, or read) associated G-code.
+    Compare fidelity between the captured motion and the solver solutions captures.
+  + Read only the relevant source files as identified by the mapper, test and 
+    runtime measurements, and other associated and relevant data.
+  + Use existing selective probes or tests, or create new, for use with the tools 
+    (such as profilers, introspection, test suites), to establish reliable 
+    detectors and sieves for effectively discovering and rejecting solutions.
 
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`
@@ -139,6 +148,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO / N/A]
 - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
 - [INV-BUILD] (Re)built all binaries for all targets? [YES / NO]
+- [INV-RT] Exceeds RT performance in the rigid body simulator (MuJoCo)? [YES / NO / N/A]
 ```
 
 - **Transition Rule:**
