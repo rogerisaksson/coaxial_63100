@@ -63,6 +63,31 @@ def kill_tree(pid):
         os.killpg(os.getpgid(pid), signal.SIGKILL)
 
 
+#: A job out of time: its Python processes' stacks said this long before its tree is killed, s.
+SAY_S = 10.0
+
+
+def last_words(proc):
+    """(stdout, stderr) of `proc` out of time, its tree killed: on POSIX each Python process of its
+    group says its threads' stacks first (faulthandler on SIGABRT), SAY_S s at the most."""
+    if os.name != 'nt':
+        with suppress(OSError):
+            os.killpg(proc.pid, signal.SIGABRT)
+        with suppress(subprocess.TimeoutExpired):
+            proc.wait(timeout=SAY_S)
+    kill_tree(proc.pid)
+    return proc.communicate()
+
+
+def environment():
+    """A job's environment: the relay's own, OpenBLAS on one thread where not told, its output unbuffered
+    and each of its processes saying its threads' stacks on a fatal signal - a job cut at its time says
+    where it was: test_sight's 300 s on GitHub's runner said nothing, its prints held in a pipe's buffer."""
+    env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONFAULTHANDLER='1')
+    env.setdefault('OPENBLAS_NUM_THREADS', '1')
+    return env
+
+
 @functools.lru_cache(maxsize=None)
 def physical_cores():
     """The machine's physical cores: psutil's count where it is installed, Windows' own
@@ -306,8 +331,7 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
         out, _ = proc.communicate(timeout=job.timeout)
         code = proc.returncode
     except subprocess.TimeoutExpired:
-        kill_tree(proc.pid)
-        out, _ = proc.communicate()
+        out, _ = last_words(proc)
         code = None
     finally:
         if procs is not None:
@@ -331,8 +355,7 @@ def relay(jobs, batons=None, bench=False):
     held = {'running': 0, 'locks': set(), 'n': 0}
     turn = threading.Condition()
     ended = queue.Queue()
-    env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    env.setdefault('OPENBLAS_NUM_THREADS', '1')
+    env = environment()
     if bench:
         from machine.process.placed import BENCH
         env[BENCH] = '1'
