@@ -150,8 +150,9 @@ def test_the_page_carries_the_atlas(report):
 
 def test_the_terminal_page_walks_the_tree(report):
     """terminal/views/show_atlas.py on its state: the trunk in 3D, its twelve layers on F1 to F12 - the
-    terminal F1 - drawn in braille and named, each open already (its folders laid out ahead), all dim and
-    the node in the middle of the view named with its brief along the top; F4 chooses the executive - lit,
+    terminal F1 - drawn in braille and named, each open already (its folders laid out ahead), the trunk lit
+    and the rest greyed out, the node in the middle of the view named with its brief along the top; F4
+    chooses the executive - lit,
     the rest dim, its folders level round it with their files laid out ahead and the camera eased to frame
     them -, F1 its heaviest folder, its files hanging under it, the executive lit above it, BKSP back on the
     layer; the panel lists the layers far, the chosen layer's folders at its frame; a left drag turns the
@@ -190,9 +191,12 @@ def test_the_terminal_page_walks_the_tree(report):
                  and len(named) == len(atlas_tree.LAYERS) and listed == -1,
                  '%d rows, %d braille cells, %d drawn, %d named, listing %d' % (len(lines), cells, len(fell), len(named), listed))
     at = show_atlas.placed(state)['at']
-    report.check('every layer open already, its folders laid out ahead, and all of it dim - nothing chosen',
+    trunk, told = [i for i, row in enumerate(atlas_tree.LAYERS) if row[1] == 'trunk'], inks()
+    report.check('every layer open already, its folders laid out ahead; nothing chosen, the trunk lit and the '
+                 'rest greyed out',
                  all(f in at for layer in range(len(atlas_tree.LAYERS)) for f in state['kids'][layer])
-                 and set(inks().values()) == {scene.DIM_NODE}, '%d nodes laid' % len(at))
+                 and {told[t] for t in trunk} == {scene.NODE}
+                 and {ink for node, ink in told.items() if node not in trunk} == {scene.DIM_NODE}, '%d nodes laid' % len(at))
     title = show_atlas.titled(state, mid, 100)
     report.check('along the top: the node in the middle of the view, its name and its brief',
                  mid is not None and title.startswith('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid][:20])),
