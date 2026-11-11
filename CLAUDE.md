@@ -91,13 +91,20 @@ Evaluate the prompt and working tree before invoking any tool:
     (`host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`, `--ops`)
     to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
-  + Query the kinematic and motion introspection example:
-    (`host/tests/test_introspect.py`) discover the internal dynamics of the system.
-  + Empirical baseline (mandatory when dynamics, locomotion, flight, thermals,
-    or UI are involved): execute the relevant simulation, trace, or live
-    introspection tool to capture quantitative baseline metrics before reading
-    implementation files.
-  + Read only the minimal source files identified by the mapper.
+  + Empirical test baseline (mandatory when adding new features, finding bugs, 
+    solving issues, correcting defects, benchmarking, profiling and performance 
+    related tasks are involved): Run the relay (host/tools/dev/run_tests.py) 
+    with the complete suite to establish a quantitative existing test failure(s) 
+    metric(s) of the system.
+  + Empirical motion baseline (mandatory when kinematic, feedback control, dynamics 
+    and real-world performance related tasks are involved): Run the introspection tool 
+    (`host/tests/test_introspect.py`) to discover the internal dynamics of the system.
+  + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight, 
+    thermals, or UI are involved): execute the relevant simulation, trace, or live
+    introspection tool to capture quantitative metrics of the system.
+  + Read only the relevant source files as identified by the mapper, 
+    test and runtime measurements, and other acquired associated data.
+
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`
 
@@ -111,8 +118,8 @@ Evaluate the prompt and working tree before invoking any tool:
 
 ```text
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
-- Proven Root Cause: [exact mathematical, physical, or structural mechanism]
-- Prior Strike Residual & Pruned Subspace: [N/A on Strike 0, OR exact numerical 
+- Proven Root Cause: [exact cybernetic, physical, or structural mechanism]
+- Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical 
   residual from State 4 and which hypothesis class it eliminated]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
 - Generated File: [NO (safe to edit) OR YES (create)]
@@ -204,5 +211,5 @@ Evaluate the prompt and working tree before invoking any tool:
   lines you modified, **HALT**, and report the exact falsification numbers 
   to the user. In order to proceed, you, **MUST**, determine that you likely are 
   reward-maximizing and grinding away in a local minima/maxima, then take a fresh
-  perspective and consider refactoring sensistive parts of the system. 
+  perspective and consider refactoring sensistive parts of the system.
   Stacked trial-and-error hacking is strictly forbidden.
