@@ -41,6 +41,10 @@ def test_her_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
     report.check('one cache for all her cores: her loop on them all, another process off its first core alone',
                  own == fast == 0x5554 and mine == own and placed.left(caches, own, every) == own & ~(mine & -mine)
                  and placed.left(caches, own, none) == own, '%x, another %x' % (mine, placed.left(caches, own, every)))
+    # two cores or fewer: leaving the first core leaves at most one processor, so her processes are left unplaced
+    two = _host([0] * 2, 2, [range(2)])
+    report.check('two cores or fewer: leaving the first core leaves one processor at most, nothing bound',
+                 placed.apart(two[0]) == (0x4, 0x4) and not placed.placed(True, two) and not placed.placed(False, two))
     # a cache a core: no group holds two of her processors, her loop is left among them all
     found, caches = _host([0] * 4, 2, [[k] for k in range(4)])
     own, fast = placed.apart(found)

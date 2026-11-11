@@ -3,8 +3,8 @@
 Where each of her processes runs, never what it tells; read off the host at each start, nothing of any one machine
 written here. Windows tells its cores, their classes and their caches (GetLogicalProcessorInformationEx), Linux its
 sysfs, on any processor of theirs; macOS binds no thread to a core, there her loop's thread is told the user's own
-(its quality of service: its fast cores, not throttled); another system is left as it is. A host of one core, of
-one cache for all its cores, of a cache a core, of fast and slow cores or of several memory nodes is placed by the
+(its quality of service: its fast cores, not throttled); another system is left as it is. A host of two cores or fewer,
+of one cache for all its cores, of a cache a core, of fast and slow cores or of several memory nodes is placed by the
 same lines.
 
 A core apart: each process on one logical processor of each physical core but the first (the system's
@@ -286,19 +286,20 @@ def raised():
     return bool(kernel.SetPriorityClass(kernel.GetCurrentProcess(), getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')))
 
 
-def placed(loop=False):
+def placed(loop=False, host=None):
     """This process on the lowest logical processor of each physical core but the first: none of her processes
     on another's sibling thread, the scheduler free among the rest - above normal priority where a benchmark asks
     (`raised`), its speed not throttled as a background window's (Windows). Her `loop`'s process on those of a cache
     group it takes for itself (`chosen`), this thread - her loop's - held to its first fast one (`_bound`), or told
     the user's own where no thread is bound (`_keen`, macOS); another process off every group so taken (`left`).
-    False where it cannot be placed (one core, another system); results are untouched either way - only where her
-    processes run."""
-    raised()
-    if sys.platform == 'darwin':
-        return loop and _keen()
-    found, caches = topology()
-    if len(found) < 2:
+    False where it cannot be placed (two cores or fewer, another system); results are untouched either way - only where
+    her processes run."""
+    if host is None:
+        raised()
+        if sys.platform == 'darwin':
+            return loop and _keen()
+    found, caches = topology() if host is None else host
+    if len(found) < 3:
         return False
     if sys.platform == 'win32':
         kernel, state = _kernel(), _Throttling(1, _SPEED, 0)
