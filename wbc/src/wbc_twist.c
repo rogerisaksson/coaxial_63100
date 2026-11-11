@@ -90,18 +90,16 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
                               * npmin(1.0, npmax(0.0, (t->still_rad_s - fabs(wz)) / t->edge_rad_s)))
                              * npmin(1.0, npmax(0.0, (t->edge_m_s - fabs(vy)) / t->edge_m_s));
   double        w_vy, w_wz, w_wz5, w_spin, wz_way, ts_raw, ts, w_turn, bt_d, w, w_vxp, drv, amp_t, bt, w_slip, w_vx_hi, w_vy_hi;
-  double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back, w_short, sw, w_stride, tb;
+  double        w_back_hi, w_wz_hi, w_hz, hz_m, w_boost_fwd, w_boost_back, w_short, sw;
 
   st[t->st_to_amp + k->drive] += (w_rest * w_fast_fwd) * npmax(0.0, t->rest_drive - st[t->st_to_amp + k->drive]);
   w_vy = npmin(1.0, npmax(0.0, (fabs(vy) - t->side_m_s) / t->edge_m_s));
   w_wz = npmin(1.0, npmax(0.0, (fabs(wz) - t->turn_rad_s) / t->turn_edge_rad_s));
   w_wz5 = npmin(1.0, npmax(0.0, (fabs(wz) - t->spin_rad_s) / t->edge_rad_s));
   w_spin = ((w_on * w_wz5) * npmin(1.0, npmax(0.0, (t->spin_still_m_s - fabs(vx)) / t->edge_m_s))) * (1.0 - w_vy);
-  w_stride = (w_on * npmin(1.0, npmax(0.0, (fabs(vxp) - t->spin_still_m_s) / t->edge_m_s))) * (1.0 - w_vy);
   wz_way = (1.0 - 2.0 * (double)(vx < -t->backing_m_s)) * wz;
   ts_raw = ((w_on * w_wz) * (t->turn_dc - t->turn_dc_side * w_vy)) * npmax(-1.0, npmin(1.0, wz_way / t->yaw_rate));
-  tb = t->turn_blend + w_stride * (t->turn_stride_blend - t->turn_blend);
-  ts = state[t->s_turn_dc] + tb * (ts_raw - state[t->s_turn_dc]);
+  ts = state[t->s_turn_dc] + t->turn_blend * (ts_raw - state[t->s_turn_dc]);
   state[t->s_turn_dc] = ts;
   w_turn = w_on * npmax(w_wz, npmin(1.0, npmax(0.0, (fabs(ts) - t->turning) / t->turning_edge)));
   bt_d = st[t->st_theta] + st[t->st_now_phase + k->drive];

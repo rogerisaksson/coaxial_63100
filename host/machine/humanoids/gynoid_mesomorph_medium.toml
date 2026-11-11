@@ -394,13 +394,11 @@ spin_rad_s = 0.04
 spin_still_m_s = 0.05
 backing_m_s = 0.05
 # A turn told at her turn's rate holds her pelvis's turn `turn_dc` of its unit ahead, `turn_dc_side`
-# less sidestepping, blended at `turn_blend` a pass (`turn_stride_blend` striding off a spin, over
-# her turn's 360 ms blend); her turn's mode on past `turning` (over `turning_edge`), its sway
-# `turn_sway` of its unit, her sidestep's own turn sidestepping.
+# less sidestepping, blended in at `turn_blend` a pass; her turn's mode on past `turning` (over
+# `turning_edge`), its sway `turn_sway` of its unit, her sidestep's own turn sidestepping.
 turn_dc = 0.40
 turn_dc_side = 0.12
 turn_blend = 0.18
-turn_stride_blend = 0.025
 turning = 0.008
 turning_edge = 0.004
 turn_sway = 0.14
@@ -446,8 +444,8 @@ told_s = 0.03
 # Her heading turned as told, `stance_turn` of the turn while her soles bear alike, `stance_turn_load`
 # less or more as the sole on the turn's side bears more (by tanh of `stance_turn_k` times the share);
 # not while her pelvis lags it past `lag_rad`, and led on to her pelvis ahead of it at `lead_1_s`.
-stance_turn = 0.72
-stance_turn_load = 0.18
+stance_turn = 0.75
+stance_turn_load = 0.30
 stance_turn_k = 3.0
 lag_rad = 0.10
 lead_1_s = 10.0

@@ -66,15 +66,18 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
     sim0, said_at, spent, ran, ratio, headroom = world.t, 0.0, 0.0, 0.0, 1.0, 1.0
     passes = 0
     while True:
-        epoch = world.epoch
+        epoch, heard = world.epoch, False
         try:
             while True:
                 command = commands.get_nowait()
                 if command is None:
                     return
                 world.apply(command)
+                heard = True
         except queue.Empty:
             pass
+        if heard and world.epoch == epoch and say_s > 0.0:
+            put(states, world.said(None))
         began = time.perf_counter()
         if world.epoch == epoch:
             if not realtime:
@@ -88,17 +91,17 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
                     wall0, sim0 = began - slice_s, world.t
             if shown is not None:
                 due = min(due, shown.value + lead_s)
-            from_t = world.t
+            from_t = step_t0 = world.t
             while world.t < due - 1e-9 and world.epoch == epoch:
                 t_step = time.perf_counter()
                 left_out = world.step()
                 wall0 += left_out
                 wall_said += left_out
-                spent += max(0.0, (time.perf_counter() - t_step) - left_out)
+                now_w = time.perf_counter()
+                spent += max(0.0, (now_w - t_step) - left_out)
                 ran += world.t - from_t
                 from_t, passes = world.t, passes + 1
                 if world.epoch == epoch and world.t - said_at >= say_s:
-                    now_w = time.perf_counter()
                     wall_dt = now_w - wall_said
                     headroom = ran / spent if spent > 1e-6 else headroom
                     ratio = min(1.0, ran / wall_dt) if (realtime and wall_dt > 1e-6) else headroom
@@ -107,6 +110,8 @@ def paced(world, commands, states, shown=None, lead_s=LEAD_S, realtime=True, say
                         told = dict(told, mj=(passes / wall_dt if wall_dt > 1e-6 else 0.0, ratio, headroom))
                     wall_said, spent, ran, said_at, passes = now_w, 0.0, 0.0, world.t, 0
                     put(states, told)
+                if realtime and world.t > step_t0 and now_w - began >= slice_s:
+                    break
         last_wall = time.perf_counter()
         if world.epoch != epoch:
             wall0 = wall_said = last_wall

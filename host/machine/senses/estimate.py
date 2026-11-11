@@ -37,7 +37,7 @@ def laid(body, where):
     est = {'qpos': np.zeros(m.nq), 'qvel': np.zeros(m.nv), 'qadr': qadr, 'vadr': vadr,
            'pos': np.array(where, float), 'vel': np.zeros(3), 'jp': np.zeros((3, m.nv)),
            'speeds': np.zeros((len(edge.INSOLES), 3)), 'insoles': [m.body(n).id for n in edge.INSOLES],
-           'settled': np.zeros(2), 'slip': np.zeros(3)}
+           'slip': np.zeros(3)}
     est['qpos'][3] = 1.0
     return est
 
@@ -69,13 +69,7 @@ def step(est, body, y, dt):
     falls = est['vel'] + (rot @ y[edge.ACCEL] + edge.G) * dt
     went = -(loads @ est['speeds']) / np.maximum(bears, 1e-9)
     vel = falls + (bears > 0.0) * min(1.0, dt / HOLD_S) * (went - falls)
-    # a landing sole's 20 ms settle (`mjcf.SOLE_S`) and an unborne pass's return pull `vel` over
-    # HOLD_S before the sole stands still; `slip` counts the draw of soles settled across HOLD_S
-    sole_bears = loads.reshape(2, 2).sum(axis=1)
-    settled = np.where(sole_bears >= TOUCH_N, np.minimum(HOLD_S, est['settled'] + dt), 0.0)
-    held = np.where(settled >= HOLD_S, sole_bears, 0.0).sum() / np.maximum(bears, 1e-9)
-    est['settled'] = settled
-    est['slip'] = (1.0 - dt / SLIP_S) * (est['slip'] + held * (falls - vel))
+    est['slip'] = (1.0 - dt / SLIP_S) * (est['slip'] + falls - vel)
     est['pos'] += 0.5 * (est['vel'] + vel) * dt
     est['vel'] = vel
     qpos[0:3], qvel[0:3] = est['pos'], vel
