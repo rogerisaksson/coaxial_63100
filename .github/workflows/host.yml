@@ -6,6 +6,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Asked by hand with measure: every suite to its end on the runner - none cut at a limit, none
+  # stopping the run (run_tests.py --measure) -, the run's log the runner's measure of each suite's
+  # work, laid in tests/work.json by `machine_detector.py --keep --tail`.
+  workflow_dispatch:
+    inputs:
+      measure:
+        description: every suite to its end, none cut - the runner's measure
+        type: boolean
+        default: false
 
 permissions:
   contents: write        # the failure step posts the log tail as a commit comment
@@ -32,7 +41,7 @@ jobs:
           apt: libegl1 libgl1-mesa-dri
           requirements: host/requirements.txt
           editable: host
-      - run: python tools/dev/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
+      - run: python tools/dev/run_tests.py --offline ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
         env:

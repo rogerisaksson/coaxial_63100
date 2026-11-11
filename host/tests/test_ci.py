@@ -46,6 +46,10 @@ def test_a_tail_tells_the_runner_s_work(report):
                  work == {'test_structure.py': 92.2, 'test_wasd.py': 1059.9, 'test_sight.py': 26.5}, work)
     other = TAIL + ('host: a runner, 2 cores, 4 threads, x86_64 Linux; 1.00 kernels a second a baton, 4 at once\n'
                     'test_sight.py        CRASHED exit=None 300.1s\n')
+    logged = '\n'.join('offline (3.12)\tRun python tools/dev/run_tests.py --offline\t2026-11-11T16:53:34.1360273Z ' + line
+                       for line in TAIL.splitlines())
+    report.check("a job's whole log (gh run view --log) tells the same as its tail", ci.measured(logged) == work,
+                 ci.measured(logged))
     report.check('two runs: the most each told; a tail without a runner\'s pace: nothing',
                  ci.measured(other)['test_sight.py'] == 300.1
                  and ci.measured(TAIL.replace(TAIL.splitlines()[3] + '\n', '')) == {}, ci.measured(other))

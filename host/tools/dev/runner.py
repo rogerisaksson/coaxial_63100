@@ -156,8 +156,8 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     expected = took.get(name, 0.0)
     shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
     # A job's time twice its expected share at least: CI's two shards of the falls suite, 443 s
-    # each, were cut at 300.
-    timeout = max(timeout, 2.0 * expected / max(1, shards))
+    # each, were cut at 300. None for --measure: the run measures what a limit would guess.
+    timeout = None if getattr(args, 'measure', False) else max(timeout, 2.0 * expected / max(1, shards))
     if shards <= 1:
         return [Job(name, argv, gb, timeout, lock)]
     return [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,
@@ -271,7 +271,8 @@ def _results(suites, args, tags, live_sections):
         tally, jcode, _failing, _el, crash, _groups = parsed
         if crash is not None or jcode is None or jcode != 0 or tally is None or tally[1] > 0:
             counts.record('failed', {suite: int(time.time())})
-            break
+            if not getattr(args, 'measure', False):
+                break
     counts.record('jobs', seconds)
     for name in suites:
         if name not in plan:

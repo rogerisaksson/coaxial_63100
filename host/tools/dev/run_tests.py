@@ -119,6 +119,11 @@ def _options(argv):
                              'or those --file names, each suite\'s processes '
                              'above normal priority so the host\'s other loads '
                              'do not move what they time.' % ', '.join(BENCHMARKS))
+    parser.add_argument('--measure', action='store_true',
+                        help="the host's measure: every suite run whole to its end, none cut at a "
+                             'limit and none stopping the run - the table of each suite\'s work laid '
+                             'from its log (machine_detector.py --keep --tail): a limit from another '
+                             "host's work cut a suite the runner renders on its processor.")
     parser.add_argument('--params',
                         help='JSON/TOML file, inline JSON, or key=value overrides '
                              'forwarded via COAXIAL_PARAMS to simulation suites.')

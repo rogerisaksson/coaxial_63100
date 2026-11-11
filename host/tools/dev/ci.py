@@ -32,6 +32,8 @@ RED = re.compile(r'^(test_\w+\.py)\s+(?:\d+ passed, [1-9]\d* failed|CRASHED)', r
 #: A suite's line in a tail with its seconds - its tally or its crash -, and a runner's pace a baton.
 TIMED = re.compile(r'^(test_\w+\.py)\s+(?:\d+ passed, \d+ failed|CRASHED exit=\S+)\s+([\d.]+)s$')
 PACE = re.compile(r'^host: a runner\b.*?; ([\d.]+) kernels a second a baton')
+#: What a job's log (gh run view --log) sets before each line: its job, its step, its time.
+LOGGED = re.compile(r'^(?:[^\t]*\t){0,2}\d{4}-\d\d-\d\dT[\d:.]+Z ')
 
 #: The tuple in suites.py's text, and how wide its lines are laid.
 FIRST, WIDTH, INDENT = re.compile(r'^FAILED_FIRST = \((.*?)\)$', re.M | re.S), 100, ' ' * 16
@@ -53,12 +55,14 @@ def _gh(*words):
 
 
 def measured(tail):
-    """{suite: its work, kernels} a gate's log tail tells: each suite's seconds by the pace of the runner
-    that ran it (its host line before them) - a suite cut at its limit by the time it ran, the most of two
-    runs; none under no runner's pace."""
+    """{suite: its work, kernels} a gate's log tells - its tail as the comment holds it, or the job's
+    whole log (gh run view --log) -: each suite's seconds by the pace of the runner that ran it (its host
+    line before them) - a suite cut at its limit by the time it ran, the most of two runs; none under no
+    runner's pace."""
     pace, out = None, {}
     for line in tail.splitlines():
-        host, timed = PACE.match(line.strip()), TIMED.match(line.strip())
+        line = LOGGED.sub('', line).strip()
+        host, timed = PACE.match(line), TIMED.match(line)
         if host:
             pace = float(host.group(1))
         elif timed and pace:

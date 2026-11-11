@@ -146,11 +146,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     parser.add_argument('--keep', action='store_true',
                         help="tests/work.json laid from this tree's whole runs and GitHub's last host run")
+    parser.add_argument('--tail', help="with --keep: a run's log saved (gh run view --log) - a measuring run's "
+                                       "(run_tests.py --measure) - read for the runner's work, GitHub not asked")
     parser.add_argument('--jobs', type=int, help='the width measured at: the physical cores unless told')
     args = parser.parse_args(argv)
     if args.keep:
         from tools.dev import ci
-        got = ci.last()
+        if args.tail:
+            with open(args.tail, encoding='utf-8', errors='replace') as f:
+                got = (os.path.basename(args.tail), f.read())
+        else:
+            got = ci.last()
         ran = ci.measured(got[1]) if got else {}
         print('machine_detector: the work of %d suites laid in %s; %s' % (
             len(keep(ran=ran)), PATH.name, 'GitHub not asked (gh, its login, the network)' if got is None
