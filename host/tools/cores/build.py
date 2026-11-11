@@ -180,7 +180,7 @@ def _claimed(lib):
     while True:
         try:
             fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
+        except (FileExistsError, PermissionError):
             try:
                 with open(marker, encoding='utf-8') as f:
                     pid = int(f.read() or 0)

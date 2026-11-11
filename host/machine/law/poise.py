@@ -109,7 +109,7 @@ def stands(zmp, xi, low, high, om, held, up, swaying, beat, bears, stood, prop):
     # leant her past her toes standing. A sole whose stride has it off is out of it once
     # the other has landed: her weight is off it before it leaves - left in it, it bore 283
     # N of her 305 as it was let go, the other's knee gave 20 deg and she sank 26 mm
-    left = stance * (1.0 - off * landed[::-1])
+    left = stance * (1.0 - 1.0 * (off > 0.5) * landed[::-1])
     left = left + (1.0 - left.max()) * stance
     out_of = BIG * (1.0 - left)[:, None]
     return stance, zmp + kept * (into(zmp, xi, *spanned((low + out_of).min(axis=0), (high - out_of).max(axis=0), prop),

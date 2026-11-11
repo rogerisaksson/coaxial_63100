@@ -123,7 +123,7 @@ void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const
   for (int b = 0; b < 2; b++)
   {
     stance[b] = (double)st[b];
-    left[b] = stance[b] * (1.0 - off[b] * (double)landed[1 - b]);
+    left[b] = stance[b] * (1.0 - (double)(off[b] > 0.5) * (double)landed[1 - b]);
   }
   {
     const double most = npmax(left[0], left[1]);

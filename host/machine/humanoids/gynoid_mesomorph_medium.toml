@@ -446,8 +446,8 @@ told_s = 0.03
 # Her heading turned as told, `stance_turn` of the turn while her soles bear alike, `stance_turn_load`
 # less or more as the sole on the turn's side bears more (by tanh of `stance_turn_k` times the share);
 # not while her pelvis lags it past `lag_rad`, and led on to her pelvis ahead of it at `lead_1_s`.
-stance_turn = 0.75
-stance_turn_load = 0.30
+stance_turn = 0.72
+stance_turn_load = 0.18
 stance_turn_k = 3.0
 lag_rad = 0.10
 lead_1_s = 10.0

@@ -62,7 +62,7 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any, reco
         return {'spec': label, 'play': play, 'wobble': wobble, 'stood': got['fell_at'] is None and bool(got['met']),
                 'met': bool(got['met']), 'fell': got['fell_at'], 'stumbles': [] if got['met'] else ['not_met'], 'spasms': 0}
     from types import SimpleNamespace as SN
-    from machine.process import introspect, kinematics, watch, worker
+    from machine.process import introspect, kinematics, sprung, watch, worker
     from machine.world import physics
     from terminal.ui import bindings
     from terminal.views import humanoid_keys
@@ -79,11 +79,12 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any, reco
         worker.stepped(s)
     if record:
         watch.recorded(s, record)
-    sent, told = [], []
+    sent, told, marks = [], [], []
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
     tap, watched = introspect.Tap(), watch.Watch()
     frame, typed_at, min_sr, knee_min, ahead_max, mode_err = 0.0, -math.inf, 1.0, 180.0, 0.0, (0.0, '')
+    z0 = float(s['g']['est']['pos'][2])
     m_world, d_world = s['g']['world'].model, s['g']['world'].data
     kq = [int(m_world.jnt_qposadr[m_world.joint(n).id]) for n in ('left_knee', 'right_knee')]
     for word, seconds in held:
@@ -114,6 +115,9 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any, reco
                 knee_min = min(knee_min, min(abs(math.degrees(float(d_world.qpos[idx]))) for idx in kq))
                 if abs(md['worst_err']) > abs(mode_err[0]):
                     mode_err = (md['worst_err'], md['worst_mode'])
+        w, x, y, z = (float(v) for v in s['g']['s']['turns'][0]['quat'])
+        marks.append((float(s['g']['est']['pos'][2]), math.degrees(math.atan2(2.0 * (x * z + w * y), 1.0 - 2.0 * (x * x + y * y))),
+                      sprung.doing(s['g']), math.hypot(float(s['g']['est']['vel'][0]), float(s['g']['est']['vel'][2]))))
     if record:
         scope = (s.get('recording') or {}).get('scope')
         watch.recorded(s, None)
@@ -122,8 +126,14 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any, reco
                 break
             import time
             time.sleep(0.05)
+    went, backed = marks[0][0] - z0, marks[3][0] - marks[4][0]
+    t0_deg, t1_deg = marks[1][1] - marks[0][1], marks[2][1] - marks[1][1]
+    met = (s['fallen_at'] is None and went >= 1.5 and t0_deg >= 15.0 and t1_deg <= -15.0 and backed >= 0.02
+           and all(m[2] in ('stand', 'rest') and m[3] < 0.3 for m in (marks[3], marks[5])))
     stumbles = [round(e['t'], 2) for e in told if e['event'] in ('stumble', 'fall')]
-    return {'spec': label, 'play': play, 'wobble': wobble, 'stood': s['fallen_at'] is None, 'fell': s['fallen_at'],
+    return {'spec': label, 'play': play, 'wobble': wobble, 'stood': s['fallen_at'] is None, 'met': met, 'fell': s['fallen_at'],
+            'went': round(went, 2), 'turned': [round(t0_deg, 1), round(t1_deg, 1)],
+            'stood_at': [[m[2], round(m[3], 2)] for m in (marks[3], marks[5])], 'backed': round(backed, 3),
             'min_sr': round(min_sr, 4), 'knee_min': round(knee_min, 2), 'ahead_max': round(ahead_max, 3),
             'mode_err': round(mode_err[0], 3), 'worst_mode': mode_err[1],
             'stumbles': stumbles, 'spasms': sum(e['event'] == 'spasm' for e in told)}
@@ -156,7 +166,7 @@ def run_sweep(cfg: dict[str, Any], args: Any, script_path: str) -> int:
         got[job.name] = json.loads(lines[-1]) if lines else {'stood': False, 'err': text[-200:]}
     for vname, _vspec in variants:
         sub = [got[it[2].name] for it in items if it[0] == vname]
-        bad = [r for r in sub if not r.get('stood') or r.get('stumbles') or 'err' in r]
+        bad = [r for r in sub if not r.get('stood') or r.get('met') is False or r.get('stumbles') or 'err' in r]
         if args.rows:
             for r in sub:
                 print(json.dumps(r))
