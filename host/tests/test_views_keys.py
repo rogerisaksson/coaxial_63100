@@ -155,8 +155,48 @@ def test_the_drawing_takes_the_columns_room(report):
                  "83", out == (106, 106, 48) and folded == (141, 141, 83), (out, folded))
 
 
+def test_a_paste_is_never_typed(report):
+    """terminal.ui.console: a bracketed paste is dropped whole however long it takes to come - VS Code pastes
+    the clipboard on a right press, 50 characters every 5 ms, and the rest of one cut at 0.2 s was typed as
+    keys: a chord of both buttons froze the atlas's tree in thousands of them -, its end marker found where a
+    read splits it, the keys before and after it typed; a paste whose bytes stop before its end let go; a
+    function key's code the table has not is no key (Insert, a stray paste marker were F1)."""
+    import time
+    from terminal.ui import console
+
+    class Fed(console.Keys):
+        """Keys handed `reads` as a console hands them, one a poll."""
+
+        def __init__(self, reads):
+            super().__init__(console=True)
+            self.reads = list(reads)
+
+        def _drain(self):
+            return [self.reads.pop(0)] if self.reads else []
+
+    body = 'Kolla igenom 4 och resten / o w q ' * 100
+    end = console.PASTE_END
+    reads = ['a', console.PASTE_START + body[:50]] + [body[k:k + 50] for k in range(50, len(body), 50)] + [end[:3], end[3:] + 'b']
+    keys, typed = Fed(reads), ''
+    for _ in range(len(reads) + 2):
+        typed += keys._strip_sequences()[0]
+        time.sleep(0.01)
+    report.check('a paste of %d characters come 50 a read over %.1f s: none of it typed, the keys round it typed'
+                 % (len(body), 0.01 * len(reads)), typed == 'ab' and not keys.taken(), repr(typed[:40]))
+    keys = Fed([console.PASTE_START + 'cut off'])
+    keys._strip_sequences()
+    keys._paste_at -= console.PASTE_GAP_S + 0.1
+    keys._strip_sequences()
+    keys.reads = ['c']
+    report.check('a paste whose bytes stop before its end let go: the next key typed', keys._strip_sequences()[0] == 'c', '')
+    keys = Fed(['\x1b[2~\x1b[11~'])
+    keys._strip_sequences()
+    report.check("a function key's code the table has not is no key: Insert none, F1 F1", keys.taken() == ['f1'], '')
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
-          test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room)
+          test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
+          test_a_paste_is_never_typed)
 
 
 def main(argv=None):

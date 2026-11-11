@@ -5,6 +5,7 @@
     python tools/render/page.py rotor_observer --frames 40 --size 150 44
     python tools/render/page.py menu
     python tools/render/page.py desk --port emulator://      # the image on Renode
+    python tools/render/page.py atlas --feed 'CHUNK|CHUNK'   # what a terminal sends, a chunk a poll
 
 The page runs its own `main` with `--simulated --frames N` - or `--port PORT` - on a
 console of the given size, as a terminal would size it; the last frame it drew is printed to text and,
@@ -17,12 +18,14 @@ import io
 import os
 import shutil
 import sys
+import time
 
 from rich.console import Console
 from rich.live import Live
 
 from machine.rig import ansi
 from terminal.ui import console as keys_module
+from terminal.ui import screen as screen_module
 from terminal.ui import stage as stage_module
 
 PAGES = {
@@ -53,6 +56,35 @@ class _Still(keys_module.Keys):
         super().__init__(False, *args, **kwargs)
 
 
+class _Fed(keys_module.Keys):
+    """Keys fed what a terminal would send (`FED`, a chunk a poll): its mouse reports and keys through the
+    console's own decoder, the mouse held where the page asks it; no console read or set."""
+    FED = []
+
+    def __init__(self, _console, *args, **kwargs):
+        super().__init__(True, *args, **kwargs)
+
+    def __enter__(self):
+        if self.mouse:
+            keys_module.Keys.holder, self._grabbed = self, not self._select
+        return self
+
+    def __exit__(self, *exc_info):
+        if keys_module.Keys.holder is self:
+            keys_module.Keys.holder = None
+        return False
+
+    def grab(self, on):
+        self._grabbed = bool(self.mouse and on)
+        return self._grabbed
+
+    def _hold(self):
+        self._held_at = time.monotonic()
+
+    def _drain(self):
+        return [_Fed.FED.pop(0)] if _Fed.FED else []
+
+
 class _Nowhere(io.StringIO):
     """A console's file that keeps nothing: the page's frames drawn and dropped."""
 
@@ -60,9 +92,10 @@ class _Nowhere(io.StringIO):
         return len(text)
 
 
-def frame(name, width=150, height=44, frames=12, port=None, keys=''):
+def frame(name, width=150, height=44, frames=12, port=None, keys='', fed=None):
     """The page's last frame as ANSI text: simulated, or on `port`; `keys` typed a frame each
-    where the page takes `--keys`. Only the last is kept: every frame and the console's whole
+    where the page takes `--keys`; `fed` what a terminal would send, a chunk a poll, through the
+    console's own decoder (mouse reports among it). Only the last is kept: every frame and the console's whole
     output grew 0.5 MB a frame, and two six-minute pages ran this laptop's commit out."""
     drawn = []
 
@@ -79,16 +112,17 @@ def frame(name, width=150, height=44, frames=12, port=None, keys=''):
 
     # A page that sizes itself off the terminal (the thermal map) is told this size too.
     told = os.terminal_size((width, height))
-    was = (stage_module.stage, keys_module.Keys, Live.update, shutil.get_terminal_size,
+    was = (stage_module.stage, keys_module.Keys, screen_module.Keys, Live.update, shutil.get_terminal_size,
            os.get_terminal_size)
-    stage_module.stage, keys_module.Keys, Live.update = sized, _Still, kept
+    stand_in, _Fed.FED = (_Fed, list(fed)) if fed else (_Still, [])
+    stage_module.stage, keys_module.Keys, screen_module.Keys, Live.update = sized, stand_in, stand_in, kept
     shutil.get_terminal_size = lambda *_args, **_kwargs: told
     os.get_terminal_size = lambda *_args, **_kwargs: told
     try:
         module = importlib.import_module(PAGES[name])
         setattr(module, 'stage', sized)
         if hasattr(module, 'Keys'):
-            setattr(module, 'Keys', _Still)
+            setattr(module, 'Keys', stand_in)
         argv = ((['--port', port] if port else ['--simulated']) + ['--frames', str(frames)]
                 + (['--keys', keys] if keys else []))
         if inspect.signature(module.main).parameters:
@@ -100,7 +134,7 @@ def frame(name, width=150, height=44, frames=12, port=None, keys=''):
             finally:
                 sys.argv = saved
     finally:
-        (stage_module.stage, keys_module.Keys, Live.update, shutil.get_terminal_size,
+        (stage_module.stage, keys_module.Keys, screen_module.Keys, Live.update, shutil.get_terminal_size,
          os.get_terminal_size) = was
     if not drawn:
         raise RuntimeError('%s drew no frame' % name)
@@ -120,8 +154,12 @@ def main(argv=None):
     parser.add_argument('--png', help='also the picture as a PNG here')
     parser.add_argument('--port', help='a port, not the stand-in (emulator:// for the image)')
     parser.add_argument('--keys', default='', help="typed a frame each, '.' none (HUMANOID)")
+    parser.add_argument('--feed', default='', help="what a terminal would send, a chunk a poll, '|' between: "
+                                                  'escapes as in Python, ESC [<0;60;20M a left press reported')
     args = parser.parse_args(argv)
-    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys)
+    fed = [chunk.encode('latin-1', 'backslashreplace').decode('unicode_escape')
+           for chunk in args.feed.split('|')] if args.feed else None
+    art = frame(args.page, *args.size, frames=args.frames, port=args.port, keys=args.keys, fed=fed)
     print(art)
     if args.png:
         size = ansi.png(art, args.png)
