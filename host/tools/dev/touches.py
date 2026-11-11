@@ -1,6 +1,6 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
-                              CI, DEPENDS,
+                              CI, DEPENDS, ATLAS,
                               BROKER, COMPILED, QUICK, TICK, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
                               DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
@@ -116,6 +116,8 @@ TOUCHES = (
     ('host/terminal/views/gym.py',             (STRUCTURE, ORTHO, ERRANDS, 'test_views_humanoid.py')),
     ('host/terminal/views/show_humanoid.py',   (STRUCTURE, ORTHO, *VIEWS)),
     ('host/terminal/views/humanoid_keys.py',   (STRUCTURE, ORTHO, *VIEWS)),
+    ('host/terminal/views/show_atlas.py',      (STRUCTURE, ATLAS, *VIEWS)),
+    ('host/terminal/pages/atlas.py',           (STRUCTURE, ATLAS, *VIEWS)),
     ('host/terminal/views/',                   (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
     ('host/terminal/ui/',                      (STRUCTURE, *VIEWS,
@@ -256,12 +258,13 @@ TOUCHES = (
     # And the file the notebooks are written FROM.
     ('host/tools/notebooks/make_notebooks.py', (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
+    ('docs/structure.py',                      (ATLAS, 'test_ollama_runner.py')),
     ('docs/',                                  ('test_ollama_runner.py',)),
     ('CLAUDE.md',                              ('test_ollama_runner.py',)),
     ('README.md',                              ('test_ollama_runner.py',)),
     # PowerShell around the Python.
     ('terminal/',                              (STRUCTURE,)),
-    ('coaxial_tty.ps1',                        (STRUCTURE,)),
+    ('system_terminal.ps1',                        (STRUCTURE,)),
     ('env.ps1',                                (STRUCTURE, DEPENDS)),
     ('host/run_tests.ps1',                     (STRUCTURE,)),
     ('setup.ps1',                              (STRUCTURE, DEPENDS)),
@@ -274,6 +277,10 @@ TOUCHES = (
     ('host/tools/dev/machine_detector.py',     (CI, STRUCTURE)),
     # The README, laid out of its source and the tree: test_layout holds it, a structural suite.
     ('host/tools/dev/readme.py',               (STRUCTURE, 'test_ollama_runner.py')),
+    # The atlas, the maps it composes and the page it lays: test_atlas holds them to the tree.
+    ('host/tools/dev/atlas',                   (ATLAS, STRUCTURE)),
+    ('host/tools/dev/host_map.py',             (ATLAS, STRUCTURE)),
+    ('host/tools/dev/target_map.py',           (ATLAS, STRUCTURE)),
     # Neither the CAD export nor the schematic is read by a suite.
     ('render/',                                ()),
     ('electronics/',                           ()),

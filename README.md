@@ -26,7 +26,7 @@ Everything in this section runs on this machine alone; a board joins later.
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, build, emulate
 . .\env.ps1                                           # each shell: PATH + aliases
-.\coaxial_tty.ps1                                     # terminal front page
+.\system_terminal.ps1                                 # terminal front page
 ```
 
 **Look.** On the front page pick a page by its letter: the motor controller
@@ -68,7 +68,7 @@ Renode; `-Check` only reports.
 Python 3.12 to 3.14 is what CI runs the host on. The host is one package,
 `coaxial63100` 1.6.0: `pip install -e host/`, which setup does.
 
-`.\coaxial_tty.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
+`.\system_terminal.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
 ends it after N frames. The 3D pages raster on the GPU where a card answers
 (wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
 
@@ -210,13 +210,14 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 
 ## 5 The pages
 
-12 pages on the front page, each drawn in braille on the terminal:
+13 pages on the front page, each drawn in braille on the terminal:
 
 | page | titled | what it shows |
 | --- | --- | --- |
 | `adc` | METER BRIDGE | every analog channel on a meter bridge |
 | `aerobat` | AIRCRAFT XE AEROBATICS | two coaxial boards flying a 3D monoplane, its stunts and gates |
 | `angle` | SHAFT ANGLE | the magnet and the air gap, on a protractor |
+| `atlas` | SYSTEM ATLAS | the trunk from the terminal up to the shunts, every layer, folder, file and tie |
 | `chat` | BOARD CHAT | the local llm, or claude with the board over MCP - the second question |
 | `helicopter` | HELICOPTER | two coaxial boards flying a 3D helicopter, its aerobatic stunts and gates |
 | `humanoid` | HUMANOID | a slender gynoid walking, her twenty joints on virtual actuators |
@@ -298,7 +299,7 @@ python host/tools/dev/cover.py --readme        # the gate under coverage, into d
 python -X utf8 docs/structure.py               # every folder's purpose; a folder: its files' synopses
 ```
 
-126 suites in `host/tests/`, each a plain script with its own tally.
+127 suites in `host/tests/`, each a plain script with its own tally.
 
 A run measures the host it is on as it starts - its cores, its pace with
 every baton busy (`host/tools/dev/machine_detector.py`) - and lays a

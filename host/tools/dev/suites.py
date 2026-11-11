@@ -5,11 +5,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]           # host/
 
 STRUCTURE = 'test_structure.py'
+#: The whole tree on one trunk, the terminal up to the shunts, its ties read off the code (tools.dev.atlas).
+ATLAS = 'test_atlas.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
-#: firmware and the host agreeing - one 17 k-token file before.
+#: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
-              'test_wire_requests.py', 'test_protocol_doc.py')
+              'test_wire_requests.py', 'test_protocol_doc.py', ATLAS)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
 FAILED_FIRST = ('test_wasd.py', 'test_errands.py', 'test_sight.py', 'test_wayfinder.py',

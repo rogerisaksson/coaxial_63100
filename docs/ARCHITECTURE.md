@@ -32,7 +32,11 @@ imports one way, `terminal` and `tools` over them. Every source folder's
 purpose and, given a folder, each file's synopsis (Python, C and Lisp):
 `python -X utf8 docs/structure.py`. Each module's brief:
 `python tools/dev/host_map.py` from host/, each target file's
-`python host/tools/dev/target_map.py`. From there: her moves are found as
+`python host/tools/dev/target_map.py`. The three as one atlas - the trunk
+from the terminal up to the shunts, a node opened at a time, the ties
+between files, a word's column, the chain of ties between two nodes:
+`python -X utf8 host/tools/dev/atlas.py`, `--html` its page, and the
+terminal's SYSTEM ATLAS page. From there: her moves are found as
 puppets, sensed phases on the servos played in a scene in memory and a
 take's G-code danced there (`tools/sim/puppet.py`, `tools/sim/gcode.py`,
 [findings/stunts.md](findings/stunts.md)); her loop's layers are read live

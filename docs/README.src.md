@@ -26,7 +26,7 @@ Everything in this section runs on this machine alone; a board joins later.
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1   # pull, check, install, build, emulate
 . .\env.ps1                                           # each shell: PATH + aliases
-.\coaxial_tty.ps1                                     # terminal front page
+.\system_terminal.ps1                                 # terminal front page
 ```
 
 **Look.** On the front page pick a page by its letter: the motor controller
@@ -60,7 +60,7 @@ Renode; `-Check` only reports.
 
 <!-- python -->
 
-`.\coaxial_tty.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
+`.\system_terminal.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
 ends it after N frames. The 3D pages raster on the GPU where a card answers
 (wgpu); `COAXIAL_GPU=0` keeps them on the CPU.
 

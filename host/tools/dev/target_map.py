@@ -56,10 +56,10 @@ def layer(rel):
     return 'board' if rel.startswith('comms/inc/board') else rel.split('/')[0]
 
 
-def resolver():
+def resolver(dirs=DIRS + ('core',)):
     """`#include "x"` -> the tree's header, found as the compiler finds it:
-    beside the includer first, then in every inc/ directory."""
-    headers = {rel for rel, _ in files(DIRS + ('core',)) if rel.endswith('.h')}
+    beside the includer first, then in every inc/ directory (of `dirs`)."""
+    headers = {rel for rel, _ in files(dirs) if rel.endswith('.h')}
     incs = sorted({h.split('/inc/')[0] + '/inc' for h in headers if '/inc/' in h})
 
     def resolve(name, includer):

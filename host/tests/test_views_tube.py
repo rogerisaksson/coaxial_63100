@@ -18,14 +18,14 @@ def test_the_tube_switches_on_over_the_shell(report):
     """On: the shell's text kept, a white dot at its centre, drawn out to a line, the first frame
     unfolding from it over the shell, whole at the end."""
     from terminal.ui import tube
-    shell = ['PS C:\\> .\\coaxial_tty.ps1'] + [''] * (HEIGHT - 1)
+    shell = ['PS C:\\> .\\system_terminal.ps1'] + [''] * (HEIGHT - 1)
     lines = ['row %02d' % r for r in range(HEIGHT)]
     frame = tube._on_frame(shell, lines)
     dot, line, unfolding, whole = (frame(u, WIDTH, HEIGHT) for u in (tube.DOT / 2, (tube.DOT + tube.LINE) / 2,
                                                                      (tube.LINE + 1.0) / 2, 1.0))
     report.check('a dot, a line, the frame unfolding over the shell, whole at the end',
-                 'coaxial_tty' in dot[0] and _white(dot[HEIGHT // 2]) < _white(line[HEIGHT // 2])
-                 and 'coaxial_tty' in unfolding[0] and 0 < sum(r.startswith('row') for r in unfolding) < HEIGHT
+                 'system_terminal' in dot[0] and _white(dot[HEIGHT // 2]) < _white(line[HEIGHT // 2])
+                 and 'system_terminal' in unfolding[0] and 0 < sum(r.startswith('row') for r in unfolding) < HEIGHT
                  and whole == lines, '%d rows unfolded' % sum(r.startswith('row') for r in unfolding))
 
 

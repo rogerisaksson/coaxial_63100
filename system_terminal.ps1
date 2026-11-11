@@ -9,7 +9,7 @@
 .PARAMETER Name
     Skip the front page and go straight to a page or an item by name:
     session, imu, angle, adc, gate_drivers, rotor_observer,
-    thermal_observer, humanoid, quad, helicopter, ornithopter, aerobat, chat, claude.
+    thermal_observer, humanoid, quad, helicopter, ornithopter, aerobat, chat, claude, atlas.
 .PARAMETER Port
     The board: native://, the firmware's cores built for this host, in real time; emulator://
     the image on Renode (host/tools/emu), a VCP the bench's - COM4.
@@ -18,14 +18,14 @@
 .PARAMETER Frames
     Stop after this many rather than running until closed - the smoke.
 .EXAMPLE
-    .\coaxial_tty.ps1
+    .\system_terminal.ps1
 .EXAMPLE
-    .\coaxial_tty.ps1 -Port COM4
+    .\system_terminal.ps1 -Port COM4
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc', 'gate_drivers',
                  'rotor_observer', 'thermal_observer', 'humanoid', 'quad', 'helicopter',
-                 'ornithopter', 'aerobat', 'chat', 'claude')]
+                 'ornithopter', 'aerobat', 'chat', 'claude', 'atlas')]
     [string]$Name,
     [string]$Port = 'native://',
     [switch]$Simulated,

@@ -56,7 +56,7 @@ try {
     $call += $Extra
 
     & python @call
-    # The view's own exit code: 64 is ESC asking coaxial_tty.ps1 for the menu.
+    # The view's own exit code: 64 is ESC asking system_terminal.ps1 for the menu.
     $code = $LASTEXITCODE
 } finally {
     Pop-Location
