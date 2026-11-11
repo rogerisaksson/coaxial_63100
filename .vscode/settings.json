@@ -45,10 +45,9 @@
     // default on Windows) even while a page held the mouse, and the
     // pseudoconsole VS Code runs a terminal in (its own OpenConsole) hands
     // the paste on without its bracketed-paste markers, though the page asks
-    // for them: the clipboard ran as the page's keys, and a chord of both
-    // buttons froze the atlas's tree (host/tools/dev/conpty_input.py shows
-    // it). The right button is the pages' - a right drag pans; Shift+right
-    // press keeps VS Code's menu, Ctrl+V pastes.
+    // for them: the clipboard ran as the page's keys (host/tools/dev/
+    // conpty_input.py shows it). The right button is the pages' - a right
+    // drag pans; Shift+right press keeps VS Code's menu, Ctrl+V pastes.
     "terminal.integrated.rightClickBehavior": "nothing",
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [

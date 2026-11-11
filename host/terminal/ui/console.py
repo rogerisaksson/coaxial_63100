@@ -58,6 +58,8 @@ def console_mode(was, mouse=True):
 
 #: xterm SGR mouse reporting (1002 button-drag, 1006 wide terminals) and bracketed paste.
 MOUSE_ON, MOUSE_OFF = '\033[?1002h\033[?1006h', '\033[?1006l\033[?1002l'
+#: The reporting off and on, its SGR kept: a terminal's listeners for drags and releases laid anew.
+REARM = '\033[?1002l\033[?1002h'
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
 HOLD_S, WHEEL_STEP, DRAG_STEP = 1.0, 0.12, 0.02
 #: A bracketed paste's markers, and how long a paste's bytes may stop coming before its end marker ere it is
@@ -166,6 +168,7 @@ class Keys:
         self._pasting = False
         self._pan_at, self._panned, self._spun = (0, 0), (0.0, 0.0), (0.0, 0.0)
         self._buttons, self._held_at, self._last_key_at, self._paste_at = 0, 0.0, 0.0, 0.0
+        self._unreleased = 0                 # the buttons the terminal told pressed and not let go, a bit each
 
     def __enter__(self):
         if not self.console:
@@ -289,6 +292,14 @@ class Keys:
         out.flush()
         self._held_at = time.monotonic()
 
+    def _rearm(self):
+        """The terminal's reporting off and on (REARM), for a view holding the mouse."""
+        if not self._grabbed:
+            return
+        out = sys.__stdout__ or sys.stdout
+        out.write(REARM)
+        out.flush()
+
     def taken(self):
         """Characters typed since the last call, for a view with bindings."""
         out, self._typed = self._typed, []
@@ -300,6 +311,19 @@ class Keys:
         button &= ~28
         if button in (64, 65):
             return WHEEL_STEP if button == 64 else -WHEEL_STEP
+        if kind == 'M' and button < 3:
+            if self._unreleased:
+                # A press told while another is not let go - a chord of two buttons, or a release lost: VS
+                # Code's xterm.js lays its listeners for drags and releases anew at each press, the same
+                # handler, so the new one is no listener and the old one's removal takes the only one; it
+                # told presses and the wheel and never a drag or a release again - a chord froze the
+                # atlas's tree. Its reporting off and on clears them, and it tells none of these let go.
+                self._rearm()
+                self._unreleased = 0
+            else:
+                self._unreleased = 1 << button
+        elif kind == 'm':
+            self._unreleased &= ~(1 << (button & 3))
         if button in (2, 34) and kind == 'm':
             self._dragging = False
             return 0.0

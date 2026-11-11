@@ -286,6 +286,8 @@ TOUCHES = (
     ('host/tools/dev/target_map.py',           (ATLAS, STRUCTURE)),
     # What a page's keys read in a pseudoconsole as VS Code's terminal writes to it: Windows only, no suite runs it.
     ('host/tools/dev/conpty_input.py',         (STRUCTURE,)),
+    # A VS Code of its own driven over DevTools: what a page makes of what VS Code hands it (no suite runs it).
+    ('host/tools/dev/vscode_input.py',         (STRUCTURE,)),
     # Neither the CAD export nor the schematic is read by a suite.
     ('render/',                                ()),
     ('electronics/',                           ()),

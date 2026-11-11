@@ -194,9 +194,49 @@ def test_a_paste_is_never_typed(report):
     report.check("a function key's code the table has not is no key: Insert none, F1 F1", keys.taken() == ['f1'], '')
 
 
+def test_a_chord_rearms_the_terminal(report):
+    """terminal.ui.console: a press told while another is not let go - a chord of both buttons - turns the
+    terminal's reporting off and on once (VS Code's xterm.js lost its drag and release listeners at the
+    chord's second press and told presses alone after it: the atlas's tree froze, the wheel zoomed), no
+    press left owed a release; a drag after it turns by its moves; presses after releases ask nothing."""
+    from terminal.ui import console
+
+    class Fed(console.Keys):
+        """Keys handed `reads` one a poll, holding the mouse, the re-arms they ask of the terminal counted."""
+
+        def __init__(self, reads):
+            super().__init__(console=True, mouse=True, select=frozenset(), pan=True)
+            self.reads, self.rearmed = list(reads), 0
+
+        def _drain(self):
+            return [self.reads.pop(0)] if self.reads else []
+
+        def _rearm(self):
+            self.rearmed += 1
+
+    esc = chr(27)
+    chord = [esc + '[<0;30;23M', esc + '[<2;30;23M']
+    drag = [esc + '[<0;30;23M', esc + '[<32;35;23M', esc + '[<32;40;24M', esc + '[<0;40;24m']
+    keys = Fed(chord + drag)
+    for _ in range(len(chord)):
+        keys._strip_sequences()
+    report.check('the chord: one re-arm at its second press, no press owed a release, no click',
+                 keys.rearmed == 1 and not keys._unreleased and not keys.clicked(), '%d re-arms' % keys.rearmed)
+    for _ in range(len(drag)):
+        keys._strip_sequences()
+    spun = keys.dragged()
+    report.check('the drag after it: turned (10, 1) cells, let go', spun == (10, 1) and keys.rearmed == 1
+                 and not keys._unreleased and not keys._holding, '%s, %d re-arms' % (spun, keys.rearmed))
+    keys = Fed([esc + '[<0;30;23M', esc + '[<0;30;23m', esc + '[<2;31;23M', esc + '[<34;33;24M', esc + '[<2;33;24m'])
+    for _ in range(5):
+        keys._strip_sequences()
+    report.check('a click, then a right drag: no re-arm, the click told, the drag panned',
+                 keys.rearmed == 0 and keys.clicked() == [(30, 23)] and keys.panned() == (2, 1), str(keys.rearmed))
+
+
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
           test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
-          test_a_paste_is_never_typed)
+          test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal)
 
 
 def main(argv=None):
