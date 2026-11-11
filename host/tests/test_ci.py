@@ -2,10 +2,12 @@
 """What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid.
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
-is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured."""
+is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
+take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt)."""
 import json
 import os
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -126,9 +128,35 @@ def test_a_batch_fits_whose_host_it_is(report):
                  m.said(here))
 
 
+def test_the_jobs_take_their_inputs_kept(report):
+    """.github/inputs.txt pins each tool a job takes from outside: a row a tool, the sha256 of what its
+    source serves, its program inside that, and an https archive of a kind .github/inputs.sh unpacks; a
+    tool's sources of one kind name one program. Both workflows take their inputs through the inputs
+    action (.github/actions/inputs, kept in the Actions cache) and fetch nothing themselves - apt's
+    mirrors not resolving had failed the host's gate before a suite ran, three pushes running."""
+    root = pathlib.Path(__file__).resolve().parents[2] / '.github'
+    rows = [line.split() for line in (root / 'inputs.txt').read_text(encoding='utf-8').splitlines()
+            if line.strip() and not line.startswith('#')]
+    kinds = ('.zip', '.tar.gz', '.deb')
+    bad = [row for row in rows if len(row) != 4 or not re.fullmatch('[0-9a-f]{64}', row[1])
+           or not row[3].startswith('https://') or not row[3].endswith(kinds)]
+    report.check('every pinned source: a tool, its sha256, its program, an https archive', rows and not bad,
+                 str(bad[:2]))
+    programs = {}
+    for tool, _sum, program, source in (row for row in rows if len(row) == 4 and row[3].endswith(kinds)):
+        programs.setdefault((tool, next(k for k in kinds if source.endswith(k))), set()).add(program)
+    report.check("a tool's sources of one kind name one program",
+                 all(len(names) == 1 for names in programs.values()), str(programs))
+    raw = [name for name in ('firmware.yml', 'host.yml')
+           if './.github/actions/inputs' not in (text := (root / 'workflows' / name).read_text(encoding='utf-8'))
+           or re.search(r'apt-get|curl |pip install', text)]
+    report.check('both jobs take their inputs kept, fetching nothing themselves', not raw, str(raw))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
-          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is)
+          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
+          test_the_jobs_take_their_inputs_kept)
 
 
 def main(argv=None):

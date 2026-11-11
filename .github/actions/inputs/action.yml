@@ -1,0 +1,105 @@
+# A job's inputs from outside - the pinned tools of .github/inputs.txt, apt packages, a Python
+# environment - each kept in the Actions cache under its own key: a run reaches nothing but GitHub; an
+# input not kept yet is fetched once (from mirrors, every fetch retried, a tool's bytes checked) and
+# kept at once, before anything else in the job can fail.
+name: inputs
+description: The job's tools, apt packages and Python environment, kept in the Actions cache.
+inputs:
+  tools:
+    description: "'true' for the pinned tools of .github/inputs.txt, on PATH and in their variables"
+    default: 'false'
+  apt:
+    description: apt packages, space-separated
+    default: ''
+  requirements:
+    description: a pip requirements file the job's Python environment is made from
+    default: ''
+  editable:
+    description: a package folder installed into that environment as it stands (pip -e), offline
+    default: ''
+runs:
+  using: composite
+  steps:
+    # What a kept input depends on beyond its own files: the runner's image (apt's packages, a
+    # virtual environment's libraries) and the exact interpreter the environment was made for.
+    - id: keys
+      shell: bash
+      env:
+        APT: ${{ inputs.apt }}
+        REQUIREMENTS: ${{ inputs.requirements }}
+        EDITABLE: ${{ inputs.editable }}
+      run: |
+        echo "image=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "apt=$(printf '%s' "$APT" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        if [ -n "$REQUIREMENTS" ]; then
+          echo "python=$(python -c 'import sys; print(sys.version.split()[0], sys.executable)' | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          echo "deps=$(cat "$REQUIREMENTS" ${EDITABLE:+"$EDITABLE/pyproject.toml"} | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        fi
+
+    - if: inputs.tools == 'true'
+      id: tools
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.ci-inputs
+        key: tools-${{ runner.os }}-${{ hashFiles('.github/inputs.txt', '.github/inputs.sh') }}
+    - if: inputs.tools == 'true'
+      shell: bash
+      run: bash .github/inputs.sh
+    - if: inputs.tools == 'true' && steps.tools.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.ci-inputs
+        key: ${{ steps.tools.outputs.cache-primary-key }}
+
+    - if: inputs.apt != ''
+      id: apt
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.ci-apt
+        key: apt-${{ steps.keys.outputs.image }}-${{ steps.keys.outputs.apt }}-${{ hashFiles('.github/apt.sh') }}
+    - if: inputs.apt != ''
+      shell: bash
+      env:
+        APT: ${{ inputs.apt }}
+      run: bash .github/apt.sh $APT
+    - if: inputs.apt != '' && steps.apt.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.ci-apt
+        key: ${{ steps.apt.outputs.cache-primary-key }}
+
+    - if: inputs.requirements != ''
+      id: venv
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.ci-venv
+        key: venv-${{ steps.keys.outputs.image }}-${{ steps.keys.outputs.python }}-${{ steps.keys.outputs.deps }}
+    # Made where not kept: the requirements and what the editable package's own build asks
+    # (pyproject's build-system), so its install below needs no index.
+    - if: inputs.requirements != '' && steps.venv.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        REQUIREMENTS: ${{ inputs.requirements }}
+        EDITABLE: ${{ inputs.editable }}
+      run: |
+        python -m venv ~/.ci-venv
+        build=()
+        if [ -n "$EDITABLE" ]; then
+          mapfile -t build < <(~/.ci-venv/bin/python -c "import sys, tomllib; print('\n'.join(tomllib.load(open(sys.argv[1], 'rb'))['build-system']['requires']))" "$EDITABLE/pyproject.toml")
+        fi
+        ~/.ci-venv/bin/python -m pip install --retries 10 --timeout 60 -r "$REQUIREMENTS" "${build[@]}"
+    - if: inputs.requirements != '' && steps.venv.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.ci-venv
+        key: ${{ steps.venv.outputs.cache-primary-key }}
+    - if: inputs.requirements != ''
+      shell: bash
+      run: |
+        echo "$HOME/.ci-venv/bin" >> "$GITHUB_PATH"
+        echo "VIRTUAL_ENV=$HOME/.ci-venv" >> "$GITHUB_ENV"
+    - if: inputs.editable != ''
+      shell: bash
+      env:
+        EDITABLE: ${{ inputs.editable }}
+      run: ~/.ci-venv/bin/python -m pip install --no-deps --no-build-isolation -e "$EDITABLE"

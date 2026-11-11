@@ -22,12 +22,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-          cache: pip
-          cache-dependency-path: host/requirements.txt
-      - run: pip install -r host/requirements.txt && pip install --no-deps -e host
-      # Her eyes render (machine.eyes.sight, MuJoCo's renderer): the runner has no display, so
-      # Mesa's EGL in software - without, mjr_makeContext raised and test_sight crashed.
-      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
+      # What the suites take from outside, kept in the Actions cache (.github/actions/inputs): their
+      # environment, and Mesa's EGL in software for her eyes' renderer (machine.eyes.sight, MuJoCo's) -
+      # the runner has no display; without it mjr_makeContext raised and test_sight crashed. Fetched
+      # afresh every run, apt's mirrors not resolving failed the gate before a suite ran (f97eab6b,
+      # c3a6174a, 074c24b0).
+      - uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          editable: host
       - run: python tools/dev/run_tests.py --offline 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
@@ -40,7 +44,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tail -c 60000 run.log > tail.log
+          tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
           gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
             -f body="$(printf 'CI offline (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}'; cat tail.log; printf '\n~~~\n')" \
             || true

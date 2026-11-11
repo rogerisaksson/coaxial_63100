@@ -20,24 +20,22 @@ jobs:
         preset: [Debug, Release]
     steps:
       - uses: actions/checkout@v7
+      # Arm's GCC: the action keeps it in the Actions cache itself.
       - uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: '14.2.Rel1'
-      # The tools the job takes from outside (ninja, Renode), as .github/inputs.txt pins them: kept in
-      # the Actions cache, so a run reaches only GitHub - as the GCC above and the pip cache below do; a
-      # pin not kept yet is fetched from its sources in turn, each retried, its bytes checked, and kept
-      # at once. Fetched afresh every run they failed the job whenever a mirror's name did not resolve.
-      - id: inputs
-        uses: actions/cache/restore@v6
+      - uses: actions/setup-python@v7
         with:
-          path: ~/.ci-inputs
-          key: inputs-${{ runner.os }}-${{ hashFiles('.github/inputs.txt', '.github/inputs.sh') }}
-      - run: bash .github/inputs.sh
-      - if: steps.inputs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+          python-version: '3.12'
+      # Everything else the job takes from outside - ninja and Renode as .github/inputs.txt pins them,
+      # the environment the emulator's suites run in - kept in the Actions cache: a run reaches nothing
+      # but GitHub (.github/actions/inputs). Fetched afresh every run, a mirror whose name did not
+      # resolve failed the job before it built (f97eab6b, c3a6174a).
+      - uses: ./.github/actions/inputs
         with:
-          path: ~/.ci-inputs
-          key: ${{ steps.inputs.outputs.cache-primary-key }}
+          tools: 'true'
+          requirements: host/requirements.txt
+          editable: host
       - run: cmake --preset ${{ matrix.preset }}
       - run: cmake --build --preset ${{ matrix.preset }} 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
         shell: bash
@@ -58,12 +56,6 @@ jobs:
             build/${{ matrix.preset }}/coaxial_63100_boot.elf
       # The image itself on Renode's STM32H753 (board/emu): the conformance suite and the
       # wire sweeps against the ELF, CubeMX's code and the HAL included.
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: host/requirements.txt
-      - run: pip install -r host/requirements.txt && pip install --no-deps -e host
       - run: python -X utf8 tests/test_emulator.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
