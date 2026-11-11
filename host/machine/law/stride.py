@@ -26,7 +26,7 @@ import numpy as np
 
 from machine.body import gait
 from machine.body.figure import TOE_M
-from machine.law.poise import HALF_M, TINY, clip
+from machine.law.poise import BIG, HALF_M, TINY, clip
 
 #: Her stride's numbers, her build's (`[gait.stride]`: each with what it was found at, Froude-similar
 #: on another leg, `machine.body.gait`).
@@ -187,7 +187,8 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
     m inside her centre, its stance threw her out at 2.3 m/s^2 and her way spun from under her."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
-    led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
+    hi = (cruise > 0.0) * HALF_M + (cruise <= 0.0) * BIG
+    led = LEADS * clip((xi[ALONG] - c[ALONG]) - cruise / om, -0.04, hi)
     s_ac = np.sign(across)
     led_lat = s_ac * clip(s_ac * (xi[LEFT] - c[LEFT]) - 1.35 * np.abs(across) / om, -0.052, 0.042)
     meet = xi - np.stack([LAND_SHARE * (cruise * step_s / (grown - 1.0)) - led + 0.0 * LIMBS,

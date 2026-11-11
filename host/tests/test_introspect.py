@@ -211,18 +211,45 @@ def test_a_recording_is_60_hz_and_whole_about_her_stumble(report):
                      at('spasm') <= at('stumble') < math.inf
                      and inside(at('spasm')) and inside(at('stumble')),
                      'spasm %s, stumble %s' % (at('spasm'), at('stumble')))
-        text = recording.told(path)
-        report.check('told: its windows, its stumble a row', 'support.stumble' in text and '|tau| N m' in text,
+        text = recording.told(path, modes=True, kinematics=True)
+        report.check('told: its windows, its stumble a row, modes and kinematics beside it',
+                     'support.stumble' in text and '|tau| N m' in text and 'worst err' in text and 'v_way' in text,
                      text[:300])
     finally:
         if os.path.exists(path):
             os.remove(path)
 
 
+def test_her_modes_kinematics_and_drives_are_named(report):
+    """`introspect.snapshot` names all measured modes (`z`, `zd`, `ref`, `err`), way-frame kinematics
+    (`v_way_m_s`, `capture_way_m`, soles, legs) and driven joint commands (`drives`) matching `modal.read`."""
+    import numpy as np
+    from machine.law import modal
+    from machine.process import introspect, worker
+    from machine.texts import ortho
+    s = worker.session(walks=True)
+    for _ in range(300):
+        worker.stepped(s)
+    snap = introspect.snapshot(s)
+    g = s['g']
+    z, zd = modal.read(g['y'], g['fr'], g['a'][modal.STANCE])
+    md, wy, dr = snap['modes'], snap['kinematics'], snap['drives']
+    z_snap = np.array([md['z'][m] for m in ortho.MODES])
+    zd_snap = np.array([md['zd'][m] for m in ortho.MODES])
+    report.check('all modes named and matching modal.read bit for bit, way kinematics and drives present',
+                 set(md['z']) == set(ortho.MODES) and np.allclose(z_snap, z, atol=0.0, rtol=0.0)
+                 and np.allclose(zd_snap, zd, atol=0.0, rtol=0.0)
+                 and {'left', 'right'} == set(wy['soles']) == set(wy['legs'])
+                 and len(wy['v_way_m_s']) == 3 and len(wy['capture_way_m']) == 2
+                 and len(dr['joints']) == len(g['joints']) and len(dr['knees_deg']) == 2,
+                 'worst mode %s %.3f' % (md['worst_mode'], md['worst_err']))
+
+
 ROSTER = (test_the_layouts_are_her_codes_own, test_a_client_reads_her_layers_live,
           test_a_traced_pass_names_her_calls_and_her_observer, test_her_analyzers_reduce_as_the_probes_do,
           test_the_analyzers_reload_as_she_runs, test_a_spasm_is_past_her_own_walk,
-          test_a_recording_is_60_hz_and_whole_about_her_stumble)
+          test_a_recording_is_60_hz_and_whole_about_her_stumble,
+          test_her_modes_kinematics_and_drives_are_named)
 
 
 def main(argv=None):

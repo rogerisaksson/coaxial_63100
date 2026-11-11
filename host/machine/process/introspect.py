@@ -207,8 +207,9 @@ def snapshot(s, peaks=None, lazy=False) -> typing.Any:
 
 
 def _layers(s):
-    """Her law's layers this pass, named: latent, impedance, wrench, observer, contacts."""
+    """Her law's layers this pass, named: latent, impedance, wrench, observer, contacts, modes, kinematics, drives."""
     import numpy as np
+    from machine.process import kinematics
     from machine.senses import borne, observer
     g = s['g']
     row, state, out, ask = (layout('machine.law.latent', 'P', 'NOW'), layout('machine.law.latent', 'STATE'),
@@ -219,7 +220,8 @@ def _layers(s):
     rest = {name: v for name, v in _named(st, state, counted('machine.law.latent', 'STATE')).items() if name not in rows}
     return {'latent': {'state': {**rows, **rest}, 'out': _named(g['out'], out, counted('machine.law.latent', 'OUT'))},
             'impedance': {'ask': _named(g['a'], ask, counted('machine.law.modal', 'ASK')), 'step_ask': _plain(g.get('ask', {}))},
-            'wrench': _plain(g.get('got', {})), 'observer': observer.named(g), 'contacts': borne.named(g)}
+            'wrench': _plain(g.get('got', {})), 'observer': observer.named(g), 'contacts': borne.named(g),
+            **kinematics.named(s)}
 
 
 class Snap(dict):
@@ -239,7 +241,7 @@ class Snap(dict):
 
 
 #: Her law's layers a snapshot names.
-LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts')
+LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts', 'modes', 'kinematics', 'drives')
 
 
 def row_len(fields):

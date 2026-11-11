@@ -52,7 +52,7 @@ def ensemble(spec, rows):
                        'grip_min': min((r['grip_min'] for r in rows if r.get('grip_min') is not None), default=None)})
 
 
-def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any) -> dict[str, Any]:
+def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any, record: str | None = None) -> dict[str, Any]:
     """Run `'driven'` (page WASD sequence) or `'scenario:<name>'` at initial yaw `wobble`, returning a uniform row."""
     from tools.sim import scenarios
     label = json.dumps(spec, separators=(',', ':')) if any(isinstance(v, dict) for v in spec.values()) else ','.join('%s=%s' % kv for kv in spec.items())
@@ -62,7 +62,7 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any) -> d
         return {'spec': label, 'play': play, 'wobble': wobble, 'stood': got['fell_at'] is None and bool(got['met']),
                 'met': bool(got['met']), 'fell': got['fell_at'], 'stumbles': [] if got['met'] else ['not_met'], 'spasms': 0}
     from types import SimpleNamespace as SN
-    from machine.process import introspect, watch, worker
+    from machine.process import introspect, kinematics, watch, worker
     from machine.world import physics
     from terminal.ui import bindings
     from terminal.views import humanoid_keys
@@ -77,11 +77,15 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any) -> d
         world._mj.mj_forward(world.model, world.data)
     for _ in range(1000):
         worker.stepped(s)
+    if record:
+        watch.recorded(s, record)
     sent, told = [], []
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
     tap, watched = introspect.Tap(), watch.Watch()
-    frame, typed_at, min_sr = 0.0, -math.inf, 1.0
+    frame, typed_at, min_sr, knee_min, ahead_max, mode_err = 0.0, -math.inf, 1.0, 180.0, 0.0, (0.0, '')
+    m_world, d_world = s['g']['world'].model, s['g']['world'].data
+    kq = [int(m_world.jnt_qposadr[m_world.joint(n).id]) for n in ('left_knee', 'right_knee')]
     for word, seconds in held:
         t0 = float(s['g']['t'])
         while s['g']['t'] - t0 < seconds and s['fallen_at'] is None:
@@ -89,8 +93,9 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any) -> d
                 worker.apply(s, cmd)
             sent.clear()
             worker.stepped(s)
-            min_sr = min(min_sr, float(s['g']['surety']))
-            t = float(s['g']['t'])
+            g = s['g']
+            min_sr = min(min_sr, float(g['surety']))
+            t = float(g['t'])
             if word and t - typed_at >= 0.033:
                 typed_at = t
                 bindings.act_on(humanoid_keys.PAD, list(word), st, t)
@@ -101,9 +106,27 @@ def ran_special(spec: dict[str, Any], play: str, wobble: float, texts: Any) -> d
             snap = tap.passed(s)
             if snap is not None:
                 told.extend(watched.step(snap))
+                wy = kinematics.way(g['y'], g['fr'], g['a'])
+                md = kinematics.modes(g['y'], g['fr'], g['a'], g['out'])
+                for side in ('left', 'right'):
+                    if wy['soles'][side]['load_n'] > 0.2 * float(g['fr'][13]):
+                        ahead_max = max(ahead_max, float(wy['soles'][side]['place_way_m'][0]))
+                knee_min = min(knee_min, min(abs(math.degrees(float(d_world.qpos[idx]))) for idx in kq))
+                if abs(md['worst_err']) > abs(mode_err[0]):
+                    mode_err = (md['worst_err'], md['worst_mode'])
+    if record:
+        scope = (s.get('recording') or {}).get('scope')
+        watch.recorded(s, None)
+        for _ in range(100):
+            if not scope or not scope.pending:
+                break
+            import time
+            time.sleep(0.05)
     stumbles = [round(e['t'], 2) for e in told if e['event'] in ('stumble', 'fall')]
     return {'spec': label, 'play': play, 'wobble': wobble, 'stood': s['fallen_at'] is None, 'fell': s['fallen_at'],
-            'min_sr': round(min_sr, 4), 'stumbles': stumbles, 'spasms': sum(e['event'] == 'spasm' for e in told)}
+            'min_sr': round(min_sr, 4), 'knee_min': round(knee_min, 2), 'ahead_max': round(ahead_max, 3),
+            'mode_err': round(mode_err[0], 3), 'worst_mode': mode_err[1],
+            'stumbles': stumbles, 'spasms': sum(e['event'] == 'spasm' for e in told)}
 
 
 def run_sweep(cfg: dict[str, Any], args: Any, script_path: str) -> int:

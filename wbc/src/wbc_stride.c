@@ -213,7 +213,8 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
                    double apart, const double planted[2], double meet[2][2])
 {
   const double step_s = PI / npmax(turns, k->tiny), grown = exp(om * step_s);
-  const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
+  const double hi = (double)(cruise > 0.0) * k->half_m + (double)(cruise <= 0.0) * k->big;
+  const double led = k->leads * npclip((xi[0] - c[0]) - cruise / om, -0.04, hi), s_ac = npsign(across);
   const double led_lat = s_ac * npclip(s_ac * (xi[1] - c[1]) - (1.35 * fabs(across)) / om, -0.052, 0.042);
 
   for (int b = 0; b < 2; b++)

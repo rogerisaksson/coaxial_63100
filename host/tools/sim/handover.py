@@ -50,7 +50,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     spec = parse_spec(spec)
     texts = arranged(spec)
     if play == 'driven' or play.startswith('scenario:'):
-        return ran_special(spec, play, wobble, texts)
+        return ran_special(spec, play, wobble, texts, record=record)
     if entries:
         from tools.sim import ortho as gym
         plan, secs = [(at, {'say': label}) for at, label, _wire, _names in gym.planned(entries.split())], window[1] + 0.5

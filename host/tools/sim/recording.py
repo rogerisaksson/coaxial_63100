@@ -138,10 +138,67 @@ def fielded(series, lay, specs, times):
     return '\n'.join(lines)
 
 
-def told(path, window=None, overview=None, fields=()):
+def _state_at(series, lay, t):
+    """`(y, fr, a, out)` reconstructed from recorded vector streams at or before `t`, or `None`."""
+    from machine.law import latent
+    from machine.process import kinematics
+    for name in ('modal', 'frame', 'impedance', 'latent'):
+        if name not in series:
+            return None
+    ym, fm, am, lm = (_at(series[n][0], t) for n in ('modal', 'frame', 'impedance', 'latent'))
+    if any(idx is None for idx in (ym, fm, am, lm)):
+        return None
+    fr_fields = (lay.get('frame') or (None,))[0]
+    fr = kinematics.unpack_frame(series['frame'][1][fm], fr_fields)
+    return series['modal'][1][ym], fr, series['impedance'][1][am], series['latent'][1][lm][latent.STATE:]
+
+
+def moded(series, lay, times):
+    """Modal table (`z/ref` for locomotion modes and worst mode tracking error) across `times`."""
+    from machine.process import kinematics
+    keys = (('ax', 'axial_compression'), ('lat', 'lateral_shift'), ('drv', 'sagittal_drive'),
+            ('pit', 'pitch_attitude'), ('sag', 'sagittal_shift'), ('trn', 'pelvis_turn'), ('rck', 'foot_rock'))
+    lines = ['  %8s | %s | worst err' % ('t s', ' | '.join('%-13s' % k for k, _m in keys))]
+    for t in times:
+        st = _state_at(series, lay, t)
+        if st is None:
+            lines.append('  %8.3f | -' % t)
+            continue
+        md = kinematics.modes(*st)
+        cells = ['%+5.2f/%+5.2f  ' % (md['z'][m], md['ref'][m]) for _k, m in keys]
+        lines.append('  %8.3f | %s | %+.3f %s' % (t, ' | '.join(cells), md['worst_err'], md['worst_mode']))
+    return '\n'.join(lines)
+
+
+def posed(series, lay, times):
+    """Way-frame kinematic table (CoM speed, capture point, soles, legs and knees) across `times`."""
+    from machine.process import kinematics
+    tk_l, kl, _ = _field(series, lay, 'world', 'qpos.left_knee')
+    tk_r, kr, _ = _field(series, lay, 'world', 'qpos.right_knee')
+    lines = ['  %8s | v_way (al,lt,up)  | xi (al,lt)    | sole_al L/R   | meet_al L/R   | tilt L/R deg | leg L/R m   | knee L/R deg' % 't s']
+    for t in times:
+        st = _state_at(series, lay, t)
+        if st is None:
+            lines.append('  %8.3f | -' % t)
+            continue
+        wy = kinematics.way(*st[:3])
+        sl, sr = wy['soles']['left'], wy['soles']['right']
+        ll, lr = wy['legs']['left'], wy['legs']['right']
+        il, ir = _at(tk_l, t), _at(tk_r, t)
+        kn = ('%5.1f %5.1f' % (abs(math.degrees(float(kl[il][0]))), abs(math.degrees(float(kr[ir][0]))))
+              if il is not None and ir is not None else '    -     -')
+        lines.append('  %8.3f | %+5.2f %+5.2f %+5.2f | %+5.2f %+5.2f   | %+6.3f %+6.3f | %+6.3f %+6.3f | %+5.1f %+5.1f  | %.3f %.3f | %s' % (
+            t, wy['v_way_m_s'][0], wy['v_way_m_s'][1], wy['v_way_m_s'][2],
+            wy['capture_way_m'][0], wy['capture_way_m'][1],
+            sl['place_way_m'][0], sr['place_way_m'][0], sl['meet_way_m'][0], sr['meet_way_m'][0],
+            sl['tilt_deg'], sr['tilt_deg'], ll['length_m'], lr['length_m'], kn))
+    return '\n'.join(lines)
+
+
+def told(path, window=None, overview=None, fields=(), modes=False, kinematics=False):
     """The recording at `path` told as text: its blocks, its events, its windows' tables (`window`:
-    the one numbered so), the whole a row each `overview` s first where asked; `fields`, her layers'
-    named fields at each row beside it (`fielded`)."""
+    the one numbered so), the whole a row each `overview` s first where asked; `fields`, `modes` and
+    `kinematics`, her layers, modes and way-frame kinematics beside each table."""
     from machine.rig import gate
     gates = gate.read(path)
     series, lay = joined(gates)
@@ -164,6 +221,8 @@ def told(path, window=None, overview=None, fields=()):
         times = [span[0] + overview * (k + 1) for k in range(n)]
         out += ['', 'overview, a row each %.2f s:' % overview, printed(rows(series, lay, events, times))]
         out += [fielded(series, lay, fields, times)] if fields else []
+        out += [moded(series, lay, times)] if modes else []
+        out += [posed(series, lay, times)] if kinematics else []
     for k, g in enumerate(wins):
         if window is not None and k + 1 != window:
             continue
@@ -177,6 +236,8 @@ def told(path, window=None, overview=None, fields=()):
                                                               ', held off %s' % held if held else ''),
                 printed(rows(series, lay, events, times, lo), t0)]
         out += [fielded(series, lay, fields, times)] if fields else []
+        out += [moded(series, lay, times)] if modes else []
+        out += [posed(series, lay, times)] if kinematics else []
     return '\n'.join(out)
 
 
@@ -188,12 +249,15 @@ def main(argv=None):
     parser.add_argument('--overview', type=float, help='the whole of it a row each this many s first')
     parser.add_argument('--fields', default='', help="her layers' fields beside each table's rows, comma-separated: "
                                                      "impedance.COM_ACC,latent.NOW.Z,read.LOAD,wrench.got.bears")
+    parser.add_argument('--modes', action='store_true', help='her measured modes beside references and worst error')
+    parser.add_argument('--kinematics', action='store_true', help='her way-frame CoM, capture point, soles, legs and knees')
     args = parser.parse_args(argv)
     found = glob.glob(os.path.join(RECORDINGS, '*.jsonl')) if args.last else []
     path = args.path or (max(found, key=os.path.getmtime) if found else None)
     if path is None:
         parser.error('a recording, or --last')
-    print(told(path, args.window, args.overview, tuple(f for f in args.fields.split(',') if f)))
+    print(told(path, args.window, args.overview, tuple(f for f in args.fields.split(',') if f),
+               args.modes, args.kinematics))
     return 0
 
 
