@@ -4,15 +4,21 @@ A path's layer is its longest prefix in LAYERS; the rest is read from the files 
 docs/structure.py, modules and imports by host_map.py, prototypes, includes and the wire's rows by
 target_map.py. A tie joins two files: a module's import, a C file's include, a text naming a file by a
 name only that file has, or a command the wire names on both ends - CMD_X's number in a header, X bound
-to it in a host module. tools/dev/atlas.py shows it, a node at a time or as a page.
+to it in a host module. tools/dev/atlas.py shows it, a node at a time or as a page. A build keeps what it
+read off each file in build/atlas.cache, by the file's size and time and the code that read it: the next
+reads only the files changed since.
 """
 import ast
 import collections
+import contextlib
 import csv
+import hashlib
 import importlib.util
+import marshal
 import os
 import re
 import subprocess
+import sys
 
 from tools import REPO
 from tools.dev import host_map, target_map
@@ -74,6 +80,12 @@ NAMED = re.compile(r'(?<![\w./-])[\w./-]+\.[A-Za-z]{1,5}\b')
 COMMAND = re.compile(r'^\s*#\s*define\s+CMD_(\w+)\s+(0x[0-9A-Fa-f]+|\d+)', re.M)
 DEF = re.compile(r'^\((def[\w-]*)\s+\(?([^\s()]+)', re.M)
 LEAD = re.compile(r'^\s*(?:#+|//+|;+|\*+|/\*+)\s?(.*?)\s*(?:\*/)?$')
+#: Where a build keeps what it read off each file (git leaves build/ out), and a file's rows as kept: its
+#: stamp (size, time) when read, its brief, its symbols, a module's import statements and top-level
+#: numbers, the file names it says, the headers it includes, a header's command numbers, a C file's wire
+#: rows - None where its kind has none.
+CACHE = os.path.join(REPO, 'build', 'atlas.cache')
+STAMP, BRIEF, DEFS, IMPORTS, NUMBERS, NAMES, INCLUDES, COMMANDS, CODES = range(9)
 
 
 def _load(path):
@@ -114,17 +126,18 @@ def layer_of(path):
 
 class Atlas:
     """The atlas as columns: its nodes in table order - the layers, then each folder, its files and their
-    symbols - and the ties between files; each file's text beside."""
+    symbols - and the ties between files."""
 
     def __init__(self):
         self.id, self.up, self.kind, self.label, self.brief, self.line = [], [], [], [], [], []
         self.src, self.dst, self.tie = [], [], []
-        self.at, self.texts, self.low, self.seen = {}, {}, {}, set()
+        self.at, self.low, self.seen = {}, {}, set()
 
     def lowered(self, path):
-        """A file's text in lower case, kept once asked: a word looked for in every text."""
+        """A file's text in lower case, read and kept once asked - a word looked for in every text: the
+        build keeps no texts, 19.6 MB a query read back for a word few queries look for."""
         if path not in self.low:
-            self.low[path] = self.texts.get(path, '').lower()
+            self.low[path] = _read(path).lower()
         return self.low[path]
 
     def add(self, key, up, kind, label, brief='', line=0):
@@ -290,12 +303,12 @@ SYMBOLS = {'.h': _h, '.c': _c, '.lisp': _lisp, '.md': _md, '.asc': _asc, '.csv':
                          r'(?:class|struct|interface|enum)\s+(\w+)')}
 
 
-def build():
-    """The atlas of the tree as it stands: its nodes, then its ties. A file is read and parsed once and
-    left as flat rows - its brief, its symbols, a module's import statements and top-level numbers - its
-    tree let go at once: 843 modules' trees held to the end had the collector walk them, and a walk of
-    each whole tree for its imports was half the build."""
-    atlas, imports, numbers, parts = Atlas(), {}, {}, collections.defaultdict(list)
+def build(cache: str | None = CACHE):
+    """The atlas of the tree as it stands: its nodes, then its ties. A file's rows - all the build reads off
+    it alone (`_file`) - are taken from `cache` while its stamp holds, else read afresh, and the cache laid
+    anew when any was; the ties are joined from them all (`_ties`). None: no cache."""
+    atlas, parts, files, fresh = Atlas(), collections.defaultdict(list), {}, False
+    kept = _kept(cache) if cache else {}
     for key, _, brief, _ in LAYERS:
         atlas.add(key, -1, LAYER, key, brief)
     for path in tracked():
@@ -307,37 +320,43 @@ def build():
         names = [p.rpartition('/')[2] for p in paths]
         here = (folder or '.') + '/'
         key = here + '@' + LAYERS[layer][0] if folder in split else here
-        files = [_file(atlas, path, imports, numbers) for path in paths]
-        said = {name: brief for name, (brief, _rows) in zip(names, files)}
-        up = atlas.add(key, layer, FOLDER, here, _purpose(folder, names, said))
-        for path, name, (brief, rows) in zip(paths, names, files):
-            node = atlas.add(path, up, FILE, name, brief)
-            for symbol, signature, told, line in rows:
+        for path in paths:
+            stamp, told = _stamp(path), kept.get(path)
+            if told is None or stamp is None or told[STAMP] != stamp:
+                told, fresh = _file(path, stamp), True
+            files[path] = told
+        up = atlas.add(key, layer, FOLDER, here, _purpose(folder, names, {n: files[p][BRIEF] for n, p in zip(names, paths)}))
+        for path, name in zip(paths, names):
+            node = atlas.add(path, up, FILE, name, files[path][BRIEF])
+            for symbol, signature, told, line in files[path][DEFS]:
                 atlas.add(path + '::' + symbol, node, SYMBOL, signature, told, line)
-    _ties(atlas, imports, numbers)
+    _ties(atlas, files)
+    if cache and (fresh or kept.keys() != files.keys()):
+        _keep(cache, files)
     return atlas
 
 
-def _file(atlas, path, imports, numbers):
-    """A file read once - its text kept in the atlas - and parsed once where it is a module: (its brief,
-    its symbols' rows), a module's import statements into `imports` and its top-level numbers into
-    `numbers`; its tree not kept."""
-    text = atlas.texts[path] = _read(path)
+def _file(path, stamp):
+    """A file's rows (STAMP to CODES), read off it alone: read once, parsed once where it is a module and
+    its tree let go - 843 trees held to the end had the collector walk them."""
+    text = _read(path)
     kind = os.path.splitext(path)[1].lower()
-    if kind != '.py':
-        return _brief(path, text), SYMBOLS[kind](text) if kind in SYMBOLS else []
-    tree = _parse(text)
-    imports[path] = _imported(tree)
-    numbers[path] = [(node.targets[0].id, node.value.value) for node in tree.body
-                     if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-                     and isinstance(node.value, ast.Constant) and type(node.value.value) is int]
-    return _brief(path, text, tree), _py(tree)
+    tree = _parse(text) if kind == '.py' else None
+    return (stamp, _brief(path, text, tree), _py(tree) if tree is not None else SYMBOLS[kind](text) if kind in SYMBOLS else [],
+            [_row(node) for node in _imported(tree)] if tree is not None else None,
+            [(node.targets[0].id, node.value.value) for node in tree.body
+             if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+             and isinstance(node.value, ast.Constant) and type(node.value.value) is int] if tree is not None else None,
+            sorted(set(NAMED.findall(text))) if path.lower().endswith(NAMING) else None,
+            target_map.INCLUDE.findall(text) if path.endswith(('.c', '.h')) else None,
+            COMMAND.findall(text) if path.endswith('.h') else None,
+            target_map.ROW.findall(text) if path.endswith('.c') else None)
 
 
 def _imported(tree):
     """A module's import statements alone, wherever they stand - a function's, a branch's, a handler's -
     in the order ast.walk meets them: its statements walked breadth first, not its expressions, where
-    nine in ten of its nodes are. All host_map.imports reads."""
+    nine in ten of its nodes are (6.0 s of walking the build's trees whole, 0.38 s)."""
     found, todo = [], collections.deque([tree])
     while todo:
         node = todo.popleft()
@@ -348,16 +367,31 @@ def _imported(tree):
             value = getattr(node, field, None)
             if isinstance(value, list):
                 todo.extend(item for item in value if isinstance(item, (ast.stmt, ast.excepthandler, ast.match_case)))
-    return ast.Module(body=found, type_ignores=[])
+    return found
 
 
-def _ties(atlas, modules, numbers):
-    """The ties between the atlas's files, read off their modules' import statements and top-level numbers
-    (`_file`) and their texts."""
+def _row(node):
+    """An import statement as a row kept: (None, names, 0) an import, (module, names, level) a from - a name
+    (name, as)."""
+    names = tuple((a.name, a.asname) for a in node.names)
+    return (None, names, 0) if isinstance(node, ast.Import) else (node.module, names, node.level)
+
+
+def _statements(rows):
+    """A module's import statements again off their rows, as host_map.imports reads them."""
+    def aliases(names):
+        return [ast.alias(name=n, asname=a) for n, a in names]
+    return ast.Module(body=[ast.Import(names=aliases(names)) if module is None and level == 0
+                            else ast.ImportFrom(module=module, names=aliases(names), level=level)
+                            for module, names, level in rows], type_ignores=[])
+
+
+def _ties(atlas, files):
+    """The ties between the atlas's files, joined from their rows (`_file`)."""
     known = {path[5:-3].replace('/', '.').replace('.__init__', ''): path
-             for path in modules if path.startswith('host/')}
+             for path, told in files.items() if told[IMPORTS] is not None and path.startswith('host/')}
     for dotted, path in known.items():
-        imports = modules[path]
+        imports = _statements(files[path][IMPORTS])
         for dep in host_map.imports(path[5:], dotted, imports, known):
             atlas.join(path, known[dep], TIES.index('imports'))
         # A script's own folder is on its path, so a bare name there is its sibling (tests' kits); in a
@@ -368,35 +402,74 @@ def _ties(atlas, modules, numbers):
                          else [node.module] if isinstance(node, ast.ImportFrom) and node.module and not node.level
                          else []):
                 atlas.join(path, '%s/%s.py' % (folder, name.partition('.')[0]), TIES.index('imports'))
-    resolve = target_map.resolver(sorted({p.split('/')[0] for p in atlas.texts if p.endswith(('.c', '.h'))}))
-    for path, text in atlas.texts.items():
-        if path.endswith(('.c', '.h')):
-            for header in target_map.deps(path, text, resolve):
-                atlas.join(path, header, TIES.index('includes'))
+    resolve = target_map.resolver(sorted({p.split('/')[0] for p in files if p.endswith(('.c', '.h'))}))
+    for path, told in files.items():
+        for header in target_map.resolved(path, told[INCLUDES], resolve) if told[INCLUDES] is not None else ():
+            atlas.join(path, header, TIES.index('includes'))
     tails = collections.defaultdict(list)
-    for path in atlas.texts:
+    for path in files:
         tails[path.rpartition('/')[2]].append(path)
-    for path, text in atlas.texts.items():
-        for said in set(NAMED.findall(text)) if path.lower().endswith(NAMING) else ():
+    for path, told in files.items():
+        for said in told[NAMES] or ():
             said = said.strip('./')
             ends = [p for p in tails.get(said.rpartition('/')[2], ()) if p.endswith(said)]
             if len(ends) == 1:
                 atlas.join(path, ends[0], TIES.index('names'))
-    _wire(atlas, numbers)
+    _wire(atlas, files)
 
 
-def _wire(atlas, numbers):
+def _wire(atlas, files):
     """A command named on both ends of the wire: CMD_X in a handler's row, X bound to its number in a module
-    (its top-level numbers, `_file`)."""
-    number = {}
-    for path, text in atlas.texts.items():
-        if path.endswith('.h'):
-            number.update((name, int(value, 0)) for name, value in COMMAND.findall(text))
-    bound = collections.defaultdict(list)
-    for path, told in numbers.items():
-        for name, value in told:
+    (its top-level numbers)."""
+    number, bound = {}, collections.defaultdict(list)
+    for told in files.values():
+        number.update((name, int(value, 0)) for name, value in told[COMMANDS] or ())
+    for path, told in files.items():
+        for name, value in told[NUMBERS] or ():
             bound[(name, value)].append(path)
-    for path, text in atlas.texts.items():
-        for code in target_map.ROW.findall(text) if path.endswith('.c') else ():
+    for path, told in files.items():
+        for code in told[CODES] or ():
             for module in bound.get((code[0][4:], number.get(code[0][4:])), ()):
                 atlas.join(module, path, TIES.index('wire'))
+
+
+def _stamp(path):
+    """A file's size and time as it stands; None where there is none to read."""
+    try:
+        st = os.stat(os.path.join(REPO, path))
+    except OSError:
+        return None
+    return st.st_size, st.st_mtime_ns
+
+
+def _code():
+    """What a file's rows hang on beside the file: the code that reads it - this module, host_map,
+    target_map, structure.py - and the interpreter."""
+    digest = hashlib.sha256(sys.version.encode())
+    for module in [__file__] + [m.__file__ or '' for m in (host_map, target_map, structure)]:
+        with open(module, 'rb') as f:
+            digest.update(f.read())
+    return digest.hexdigest()
+
+
+def _kept(cache):
+    """{path: its rows} the cache keeps for this code; none where it keeps none, another code's, or less."""
+    try:
+        with open(cache, 'rb') as f:
+            code, files = marshal.loads(f.read())
+    except (OSError, EOFError, ValueError, TypeError):
+        return {}
+    return files if code == _code() and isinstance(files, dict) else {}
+
+
+def _keep(cache, files):
+    """The cache laid anew, whole or not at all: written beside it, then put in its place."""
+    beside = '%s.%d' % (cache, os.getpid())
+    try:
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        with open(beside, 'wb') as f:
+            f.write(marshal.dumps((_code(), files)))
+        os.replace(beside, cache)
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.remove(beside)

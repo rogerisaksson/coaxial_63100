@@ -72,7 +72,13 @@ def resolver(dirs=DIRS + ('core',)):
 
 def deps(rel, text, resolve):
     """The tree headers `rel` includes (the toolchain's are left out)."""
-    found = (resolve(name, rel) for name in INCLUDE.findall(text))
+    return resolved(rel, INCLUDE.findall(text), resolve)
+
+
+def resolved(rel, names, resolve):
+    """The tree headers `rel`'s included `names` are (the toolchain's left out): what a reader that kept
+    the names (tools/dev/atlas_tree.py) resolves against the tree as it stands."""
+    found = (resolve(name, rel) for name in names)
     return [h for h in found if h and h != rel]
 
 

@@ -22,8 +22,8 @@ from structure_kit import Report
 
 @functools.lru_cache(maxsize=1)
 def built():
-    """The tree's atlas, read once for every test."""
-    return atlas_tree.build()
+    """The tree's atlas, read once for every test - afresh, no cache: what a cache must give back."""
+    return atlas_tree.build(None)
 
 
 def test_every_path_lies_in_one_layer(report):
@@ -96,6 +96,39 @@ def test_each_node_opens_as_lines(report):
     told = [atlas.told(('7ae76b6d', n)) for n in (0, 1, 3)]
     report.check('a commit said with the files the working tree has changed since',
                  told == ['7ae76b6d', '7ae76b6d + 1 file changed', '7ae76b6d + 3 files changed'], str(told))
+
+
+def test_a_build_keeps_what_it_read(report):
+    """atlas_tree.build with a cache: laying it and building from it both give the atlas read afresh, list
+    for list - its ties in one order whatever the hash seed -; a file whose stamp moved is read again and
+    kept again; a cache another code laid is left; a file's text is read when a word is looked for in it."""
+    import marshal
+    fresh, path = built(), 'host/tools/dev/atlas_tree.py'
+    columns = ('id', 'up', 'kind', 'label', 'brief', 'line', 'src', 'dst', 'tie')
+
+    def differs(atlas):
+        return [c for c in columns if getattr(atlas, c) != getattr(fresh, c)]
+
+    with tempfile.TemporaryDirectory() as folder:
+        cache = os.path.join(folder, 'atlas.cache')
+        laid, kept = atlas_tree.build(cache), atlas_tree.build(cache)
+        report.check('laying the cache and building from it give the atlas read afresh',
+                     not differs(laid) and not differs(kept), str(differs(laid) + differs(kept)))
+        with open(cache, 'rb') as f:
+            code, files = marshal.loads(f.read())
+        stale = ((-1, -1), 'stale') + tuple(files[path][2:])
+        with open(cache, 'wb') as f:
+            f.write(marshal.dumps((code, {**files, path: stale})))
+        again = atlas_tree.build(cache)
+        with open(cache, 'rb') as f:
+            told = marshal.loads(f.read())[1][path]
+        report.check('a file whose stamp moved is read again, and kept again',
+                     not differs(again) and told[atlas_tree.STAMP] != (-1, -1) and told[atlas_tree.BRIEF] != 'stale',
+                     str(told[:2]))
+        with open(cache, 'wb') as f:
+            f.write(marshal.dumps(('another code', {**files, path: stale})))
+        report.check("a cache another code laid is left", atlas_tree._kept(cache) == {}, '')
+    report.check("a file's text read when a word is looked for in it", 'def build(' in fresh.lowered(path), '')
 
 
 def test_the_page_carries_the_atlas(report):
@@ -277,8 +310,8 @@ def test_the_page_holds_the_mouse(report):
 
 ROSTER = (test_every_path_lies_in_one_layer, test_the_trunk_climbs_from_the_terminal_to_the_shunts,
           test_ties_join_files, test_a_chain_of_ties_crosses_the_wire, test_each_node_opens_as_lines,
-          test_the_page_carries_the_atlas, test_the_terminal_page_walks_the_tree, test_the_scene_is_rastered_as_data,
-          test_the_page_holds_the_mouse)
+          test_a_build_keeps_what_it_read, test_the_page_carries_the_atlas, test_the_terminal_page_walks_the_tree,
+          test_the_scene_is_rastered_as_data, test_the_page_holds_the_mouse)
 
 
 def main(argv=None):
