@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""What GitHub's last host run left red leads the suites that run first here (suites.FAILED_FIRST).
+"""What GitHub's last host run told: its red suites run first here, its seconds the table's work.
 
     python tools/dev/ci.py        # GitHub asked (gh): the suites its last host run on main left red
+
+Its red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
+--keep`).
 
 The gate on GitHub stops at its first red suite and leaves its log's tail as a comment on its commit;
 `FAILED_FIRST` schedules suites right after the structural ones, so a run here says first whether the
 tree at hand still has them red. That tuple was kept by hand. The pre-commit asks GitHub at every commit
 (two calls of gh, 1.8 s beside its other checks) and lays what the last finished host run left red at the
 tuple's head, staged with the commit; no gh, no network or a green run: nothing changed, nothing said.
+The same tail says each suite's seconds on the runner and the runner's pace: its work there, which the
+table holds for a host with no record of its own - GitHub's runner itself - where this desk's runs alone
+had told it: test_sight renders on a card here, on the runner's processor there, and was cut at 300 s.
 """
 import json
 import re
@@ -22,6 +28,10 @@ SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites.py', 'host.yml', 'main'
 
 #: A red suite in a gate's log tail: one that failed a check, or crashed.
 RED = re.compile(r'^(test_\w+\.py)\s+(?:\d+ passed, [1-9]\d* failed|CRASHED)', re.M)
+
+#: A suite's line in a tail with its seconds - its tally or its crash -, and a runner's pace a baton.
+TIMED = re.compile(r'^(test_\w+\.py)\s+(?:\d+ passed, \d+ failed|CRASHED exit=\S+)\s+([\d.]+)s$')
+PACE = re.compile(r'^host: a runner\b.*?; ([\d.]+) kernels a second a baton')
 
 #: The tuple in suites.py's text, and how wide its lines are laid.
 FIRST, WIDTH, INDENT = re.compile(r'^FAILED_FIRST = \((.*?)\)$', re.M | re.S), 100, ' ' * 16
@@ -42,18 +52,45 @@ def _gh(*words):
         return None
 
 
-def asked():
-    """(its commit, the suites it left red) of GitHub's last finished host run on main - none where it was
-    green -, read off the comments it left on its commit; None where GitHub could not be asked."""
-    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed',
-               '--limit', '1', '--json', 'conclusion,headSha')
-    if not runs:
+def measured(tail):
+    """{suite: its work, kernels} a gate's log tail tells: each suite's seconds by the pace of the runner
+    that ran it (its host line before them) - a suite cut at its limit by the time it ran, the most of two
+    runs; none under no runner's pace."""
+    pace, out = None, {}
+    for line in tail.splitlines():
+        host, timed = PACE.match(line.strip()), TIMED.match(line.strip())
+        if host:
+            pace = float(host.group(1))
+        elif timed and pace:
+            out[timed.group(1)] = max(out.get(timed.group(1), 0.0), round(float(timed.group(2)) * pace, 1))
+    return out
+
+
+def told(runs):
+    """Of finished runs, the newest first, the newest that ended green or red - a cancelled one tells
+    neither -; None where none did."""
+    return next((run for run in runs if run.get('conclusion') in ('success', 'failure')), None)
+
+
+def last():
+    """(its commit, its gate's log tail - none where it was green -) of GitHub's last host run on main that
+    ended green or red, read off the comments it left on its commit; None where GitHub could not be asked
+    or no run told."""
+    run = told(_gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed',
+                   '--limit', '10', '--json', 'conclusion,headSha') or [])
+    if run is None:
         return None
-    commit = runs[0]['headSha']
-    if runs[0]['conclusion'] != 'failure':
-        return commit, []
-    notes = _gh('api', 'repos/{owner}/{repo}/commits/%s/comments' % commit) or []
-    return commit, red('\n'.join(str(note.get('body', '')) for note in notes))
+    if run['conclusion'] != 'failure':
+        return run['headSha'], ''
+    notes = _gh('api', 'repos/{owner}/{repo}/commits/%s/comments' % run['headSha']) or []
+    return run['headSha'], '\n'.join(str(note.get('body', '')) for note in notes)
+
+
+def asked():
+    """(its commit, the suites it left red) of GitHub's last host run on main that ended green or red - none
+    where it was green -; None where GitHub could not be asked."""
+    got = last()
+    return None if got is None else (got[0], red(got[1]))
 
 
 def led(source, suites):

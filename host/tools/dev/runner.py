@@ -9,13 +9,12 @@ import math
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import time
 
 from tools.dev import counts, machine_detector
-from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, kill_tree, relay
+from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, last_words, relay
 from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, FAILED_FIRST, LIVE, LIVE_GYNOID, OLLAMA,
                               PORT, REAL_TIME, ROOT, SHARDED, STRUCTURES)
 
@@ -53,8 +52,6 @@ SLICE_S = 10.0
 MAX_SHARDS = 32
 
 
-#: A run out of time: its Python processes' stacks said this long before its tree is killed, s.
-SAY_S = 10.0
 #: A captured run: its argv, its exit code - None out of time -, what it said.
 Captured = collections.namedtuple('Captured', 'args returncode stdout stderr')
 #: A crash's or a timeout's tail said, characters: a stuck page's stacks, the last header.
@@ -73,20 +70,8 @@ def run_captured(argv, timeout, cwd=None):
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        return Captured(argv, None, *_last_words(proc))
+        return Captured(argv, None, *last_words(proc))
     return Captured(argv, proc.returncode, out, err)
-
-
-def _last_words(proc):
-    """(stdout, stderr) of `proc` out of time, its tree killed: on POSIX each Python process of its
-    group says its threads' stacks first (faulthandler on SIGABRT), SAY_S s at the most."""
-    if os.name != 'nt':
-        with contextlib.suppress(OSError):
-            os.killpg(proc.pid, signal.SIGABRT)
-        with contextlib.suppress(subprocess.TimeoutExpired):
-            proc.wait(timeout=SAY_S)
-    kill_tree(proc.pid)
-    return proc.communicate()
 
 
 def _parse(out, code, elapsed, timeout):

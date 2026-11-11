@@ -115,9 +115,12 @@ def expected(seconds, paces, pace, work_of=None, suites=()):
     return {**dict.fromkeys(suites, max(known.values(), default=0.0)), **known}
 
 
-def keep(known=None, path=PATH):
+def keep(known=None, path=PATH, ran=None):
     """The table laid (tests/work.json unless told): each suite's work, kernels, off this tree's record of
-    whole runs (tests/.counts.json unless told: a suite's seconds and the pace they were run at). A row is
+    whole runs (tests/.counts.json unless told: a suite's seconds and the pace they were run at) and what
+    GitHub's runner measured (`ran`, kernels: `ci.measured`) - the host the table is for, where a suite can
+    cost another share of the work: test_sight renders on this desk's card and on the runner's processor,
+    its 131.3 kernels here 663 there at the least (cut at 300 s, 2.21 kernels a second). A row is
     the most a whole run of its suite has been measured to cost, raised and never lowered: a tree's state
     is in a run's seconds - test_layout 20.7 s a fresh tree's first run and 2.2 s its next, 36 of the gate's
     suites past 1.6 times lighter in one tree's gate than in another's - and a limit is to hold on a fresh
@@ -127,6 +130,8 @@ def keep(known=None, path=PATH):
     known = counts.load() if known is None else known
     seconds, paces = known.get('seconds') or {}, known.get('paces') or {}
     laid = {name: round(seconds[name] * paces[name], 1) for name in sorted(seconds) if name in paces}
+    for name, kernels in (ran or {}).items():
+        laid[name] = max(kernels, laid.get(name, 0.0))
     held = table(path)
     held.update({name: max(kernels, held.get(name, 0.0)) for name, kernels in laid.items()})
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -136,13 +141,20 @@ def keep(known=None, path=PATH):
 
 
 def main(argv=None):
-    """`--keep`: the table laid, how many suites said; else this host measured and said."""
+    """`--keep`: the table laid - GitHub's last host run asked for what it measured -, how many suites said;
+    else this host measured and said."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
-    parser.add_argument('--keep', action='store_true', help="tests/work.json laid from this tree's whole runs")
+    parser.add_argument('--keep', action='store_true',
+                        help="tests/work.json laid from this tree's whole runs and GitHub's last host run")
     parser.add_argument('--jobs', type=int, help='the width measured at: the physical cores unless told')
     args = parser.parse_args(argv)
     if args.keep:
-        print('machine_detector: the work of %d suites laid in %s' % (len(keep()), PATH.name))
+        from tools.dev import ci
+        got = ci.last()
+        ran = ci.measured(got[1]) if got else {}
+        print('machine_detector: the work of %d suites laid in %s; %s' % (
+            len(keep(ran=ran)), PATH.name, 'GitHub not asked (gh, its login, the network)' if got is None
+            else "%d as GitHub's runner measured them (%s)" % (len(ran), got[0][:8])))
         return 0
     print(said(host(args.jobs)))
     return 0

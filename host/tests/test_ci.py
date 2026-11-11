@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid.
+"""What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid, the
+runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
@@ -18,6 +19,7 @@ from gynoid_kit import Report
 
 #: A gate's log tail as CI's comment on a commit holds it: a suite red on a check, one crashed, the rest green.
 TAIL = ('CI offline (3.14) failed. Log tail:\n\n~~~\n'
+        'host: a runner, 2 cores, 4 threads, x86_64 Linux; 2.21 kernels a second a baton, 4 at once, 4.11 at 2\n'
         'test_structure.py    2557 passed, 0 failed  41.7s\n'
         'test_wasd.py         22 passed, 1 failed  479.6s\n'
         'test_sight.py        CRASHED exit=3221225477 12.0s\n'
@@ -32,6 +34,37 @@ def test_a_log_tail_names_its_red_suites(report):
     report.check('a tail read: the suite red on a check and the one crashed, each once; the green ones not',
                  ci.red(TAIL) == ['test_wasd.py', 'test_sight.py'], ci.red(TAIL))
     report.check('a green tail names none', ci.red('test_structure.py    2557 passed, 0 failed  41.7s\n') == [])
+
+
+def test_a_tail_tells_the_runner_s_work(report):
+    """`ci.measured`: each suite's seconds in a tail by the pace of the runner its host line says - a crash
+    by the time it ran -, the most of two runs' tails, none without a runner's pace; `ci.told`: the newest
+    run that ended green or red, a cancelled one passed over."""
+    from tools.dev import ci
+    work = ci.measured(TAIL)
+    report.check("a tail's suites by its runner's pace: 41.7 s, 479.6 s and a crash at 12.0 s at 2.21 kernels a second",
+                 work == {'test_structure.py': 92.2, 'test_wasd.py': 1059.9, 'test_sight.py': 26.5}, work)
+    other = TAIL + ('host: a runner, 2 cores, 4 threads, x86_64 Linux; 1.00 kernels a second a baton, 4 at once\n'
+                    'test_sight.py        CRASHED exit=None 300.1s\n')
+    report.check('two runs: the most each told; a tail without a runner\'s pace: nothing',
+                 ci.measured(other)['test_sight.py'] == 300.1
+                 and ci.measured(TAIL.replace(TAIL.splitlines()[3] + '\n', '')) == {}, ci.measured(other))
+    runs = [{'conclusion': 'cancelled', 'headSha': 'a'}, {'conclusion': 'failure', 'headSha': 'b'},
+            {'conclusion': 'success', 'headSha': 'c'}]
+    report.check('the newest run that ended green or red, a cancelled one passed over; none of none',
+                 (ci.told(runs) or {}).get('headSha') == 'b' and ci.told(runs[:1]) is None, ci.told(runs))
+
+
+def test_a_job_cut_at_its_time_says_where_it_was(report):
+    """`focus.run` in the relay's environment (`focus.environment`) on a job printing and then held past its
+    time: what it printed comes back, not lost in a pipe's buffer - test_sight cut at 300 s on the runner
+    said nothing -, on POSIX with its threads' stacks; its code None."""
+    from tools.dev import focus
+    job = focus.Job('held', [sys.executable, '-c', "print('-- held --'); import time; time.sleep(60)"], timeout=3.0)
+    out, code, took = focus.run(job, focus.environment())
+    report.check('a job cut at its time: what it printed and its code None, at its time',
+                 '-- held --' in out and code is None and took < 30.0, '%r %r %.1f s' % (out[:80], code, took))
+    report.check('on POSIX its stacks with it', ('most recent call first' in out) == (os.name != 'nt'), out[-200:])
 
 
 def test_the_red_suites_lead_those_that_run_first(report):
@@ -104,6 +137,13 @@ def test_a_table_laid_keeps_what_was_not_run(report):
                  told == {'test_own.py': 800.0, 'test_warm.py': 80.0}, told)
     report.check('the table: the suite not run keeps its row, a heavier run raises one, a lighter run lowers none',
                  held == {'test_far.py': 1600.0, 'test_own.py': 800.0, 'test_warm.py': 900.0}, held)
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder, 'work.json')
+        path.write_text(json.dumps(held), encoding='utf-8')
+        m.keep({}, path, {'test_far.py': 2000.0, 'test_ci.py': 5.0, 'test_own.py': 10.0})
+        ran = m.table(path)
+    report.check("what GitHub's runner measured raises a row and lays a new one, lowers none",
+                 ran == {'test_far.py': 2000.0, 'test_own.py': 800.0, 'test_warm.py': 900.0, 'test_ci.py': 5.0}, ran)
 
 
 def test_a_batch_fits_whose_host_it_is(report):
@@ -160,7 +200,8 @@ def test_the_jobs_take_their_inputs_kept(report):
     report.check("every fetcher's fallbacks checked, whenever it changes", not unchecked, str(unchecked))
 
 
-ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,
+ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
+          test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
           test_the_jobs_take_their_inputs_kept)
