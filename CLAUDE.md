@@ -130,6 +130,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO / N/A]
 - [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO / N/A]
 - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
+- [INV-BUILD] (Re)built all binaries for all targets? [YES / NO]
 ```
 
 - **Transition Rule:**
