@@ -5,7 +5,8 @@ cache-local, cyber-physical codebase for embodied 6-DoF spatial navigation
 and dynamic body-schema/envelope feedback control. Electronics,
 bare-metal C11 firmware, and host-side control share strict bit-exact invariants.
 Do not assume static file structures; rely exclusively on the repositorys
-live introspection tools and structural test suites as the sole source of topological truth.
+live introspection tools and structural test suites as the sole source of
+topological truth.
 
 Your response is always, and without exception, short, precise, and concise.
 
@@ -43,7 +44,7 @@ deterministic, polymath and truthful Finite State Machine governed by Section 0.
    `[STATE X: STATE_NAME]`.
 7. **ZERO CORPORATE OR PROVENANCE METADATA:** Never include corporate names,
    company identifiers, client references, organizational headers, copyright
-   banners, dates, or author attributions anywhere in the project, code, 
+   banners, dates, or author attributions anywhere in the project, code,
    comments, documentation, or commit messages.
 
 ---
@@ -55,13 +56,13 @@ Evaluate the prompt and working tree before invoking any tool:
 - **`INTENT = READ_ONLY` (Default):** Any question ("why", "how", "what",
   "where", "explain", "analyze"), review, or symptom description lacking an
   explicit imperative command to modify code.
-  - *Trajectory:* `STATE 0 -> STATE 1 -> STATE 2 -> HALT`. Mutation tools are
+  + *Trajectory:* `STATE 0 -> STATE 1 -> STATE 2 -> HALT`. Mutation tools are
     permanently locked.
 - **`INTENT = MUTATE`:** Explicit imperative command to alter code ("fix",
   "implement", "refactor", "change"). If a prompt combines a diagnostic
   question with a fix request, treat Turn 1 strictly as diagnostic proof
   before planning any mutation.
-  - *Trajectory:* `STATE 0 -> STATE 1 (Turn 1) -> STATE 2 -> STATE 3 ->`
+  + *Trajectory:* `STATE 0 -> STATE 1 (Turn 1) -> STATE 2 -> STATE 3 ->`
     `STATE 4`.
 - **Multi-Session & Dirty-Tree Lock:** Inspect `git status --short` (never
   dump raw `git diff` of peer work into context) and check active inter-session
@@ -76,23 +77,27 @@ Evaluate the prompt and working tree before invoking any tool:
   spawning unmapped `Task` sub-agents, invoking `Grep`/`Glob` or shell
   `grep`/`find` across unmapped trees, or running suites outside the relay.
 - **Bootstrap Introspection ISA (Use these instead of blind search):**
-  - Query the host file structure:
+  + Query the whole-system atlas first:
+    (`python -X utf8 host/tools/dev/atlas.py` `[node]`, `--depth N`, `--find`,
+    `--path A B`, `--json`) to see every layer from the terminal up to the
+    shunts, each folder, file and symbol, and the ties between files.
+  + Query the host file structure:
     (`python -X utf8 docs/structure.py` `--files`) discover the source code
     files
-  - Query the host architecture mapper: 
+  + Query the host architecture mapper:
     (`host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`) to
     discover host packages, module briefs, and public signatures.
-  - Query the target firmware mapper:
+  + Query the target firmware mapper:
     (`host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`, `--ops`)
     to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
-  - Query the kinematic and motion introspection example:
+  + Query the kinematic and motion introspection example:
     (`host/tests/test_introspect.py`) discover the internal dynamics of the system.
-  - Empirical baseline (mandatory when dynamics, locomotion, flight, thermals,
+  + Empirical baseline (mandatory when dynamics, locomotion, flight, thermals,
     or UI are involved): execute the relevant simulation, trace, or live
     introspection tool to capture quantitative baseline metrics before reading
     implementation files.
-  - Read only the minimal source files identified by the mapper.
+  + Read only the minimal source files identified by the mapper.
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`
 
@@ -104,6 +109,7 @@ Evaluate the prompt and working tree before invoking any tool:
   satisfied against actual State 1 outputs.
 - **Required Output Block:**
 
+```text
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
 - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
 - Prior Strike Residual & Pruned Subspace: [N/A on Strike 0, OR exact numerical residual from State 4 and which hypothesis class it mathematically eliminated]
@@ -121,12 +127,13 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-MISRA] MISRA-C (0 deviations/UB/heap/VLA/recursion, explicit types)? [YES / NO / N/A]
 - [INV-PARITY] Identical real/sim API, 3-way wire & bit-exact parity kept? [YES / NO / N/A]
 - [INV-STYLE] <=100-char synopsis, within token budget, ASCII, 0 corp info? [YES / NO]
+```
 
 - **Transition Rule:**
-  - If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
-  - If any check is `NO`, unmeasured, or ambiguous: **HALT** and report the
+  + If `INTENT = READ_ONLY`: **HALT** immediately and present your analysis.
+  + If any check is `NO`, unmeasured, or ambiguous: **HALT** and report the
     conflict to the user.
-  - Only if `INTENT = MUTATE` and all five `[INV-*]` checks are `YES` based on
+  + Only if `INTENT = MUTATE` and all five `[INV-*]` checks are `YES` based on
     prior turn outputs may you enter **STATE 3**.
 
 ---
@@ -157,9 +164,9 @@ Evaluate the prompt and working tree before invoking any tool:
   --all --prune` followed by `git pull --rebase`). Resolve any upstream drift
   and proceed from the updated baseline; never verify against a stale tree.
 - **Required Verification (Strictly via the repository's relay test runner):**
-  1. Run the relay (run_tests.py) with the narrowest targeted suite and keyword 
-    filter (`--file`) covering the modified path. Never execute a test suite 
-     directly outside the relay, and quote the runner's exact `PASS`/`FAIL` 
+  1. Run the relay (run_tests.py) with the narrowest targeted suite and keyword
+    filter (`--file`) covering the modified path. Never execute a test suite
+     directly outside the relay, and quote the runner's exact `PASS`/`FAIL`
      tally verbatim (never paraphrase).
   2. If structure, imports, wire opcodes, or docs were touched, run the
      structural, layout, and mirror verification suites.
@@ -186,7 +193,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
-  If verification fails in State 4, you are permitted **at most five (5)**
+  If verification fails in State 5, you are permitted **at most five (5)**
   return to State 2 to revise the diagnosis. If the fifth attempt fails
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
