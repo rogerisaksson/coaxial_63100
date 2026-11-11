@@ -88,10 +88,11 @@ def _lisp(text):
     return 'exports ' + ', '.join(re.findall(r'#:([\w*+-]+)', exports.group(1))) + '.' if exports else ''
 
 
-def synopsis(folder, name):
-    """`name`'s first sentence, read from it."""
-    with open(os.path.join(REPO, folder, name), encoding='utf-8', errors='replace') as f:
-        text = f.read()
+def synopsis(folder, name, text=None):
+    """`name`'s first sentence, read from it - from `text` where its caller has read it already."""
+    if text is None:
+        with open(os.path.join(REPO, folder, name), encoding='utf-8', errors='replace') as f:
+            text = f.read()
     kind = os.path.splitext(name)[1]
     return _python(text) if kind == '.py' else _lisp(text) if kind == '.lisp' else _c(name, text)
 
@@ -102,15 +103,18 @@ def head(said):
     return first if len(first) <= HEAD else first[:HEAD].rpartition(' ')[0].rstrip(',')
 
 
-def purpose(folder, names):
-    """What `folder` is for: its lead file's synopsis, else its files' synopses' heads, WIDTH characters of them."""
+def purpose(folder, names, synopses=None):
+    """What `folder` is for: its lead file's synopsis, else its files' synopses' heads, WIDTH characters of
+    them - `synopses` {name: synopsis} where its caller has them, else each read."""
+    def told(name):
+        return synopses[name] if synopses is not None else synopsis(folder, name)
     base = folder.rpartition('/')[2]
     component = folder.rpartition('/')[0].rpartition('/')[2] if base in ROLES else base
     lead = next((n for n in ('__init__.py',) + tuple(component + k for k in KINDS) if n in names), None)
     if lead:
-        said = synopsis(folder, lead)
+        said = told(lead)
     else:
-        heads = '; '.join(dict.fromkeys(filter(None, (head(synopsis(folder, n)) for n in names))))
+        heads = '; '.join(dict.fromkeys(filter(None, (head(told(n)) for n in names))))
         said = heads if len(heads) <= WIDTH else (heads[:WIDTH].rpartition('; ')[0] or heads[:WIDTH]) + '; ...'
     return ('%s %s: %s' % (component, ROLES[base], said)) if base in ROLES else said
 

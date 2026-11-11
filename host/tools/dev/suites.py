@@ -14,9 +14,9 @@ STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.
               'test_wire_requests.py', 'test_protocol_doc.py', ATLAS)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_docks.py', 'test_sight.py', 'test_wasd.py', 'test_errands.py',
-                'test_wayfinder.py', 'test_camera.py', 'test_gaze.py', 'test_replays.py',
-                'test_scenarios.py', 'test_ortho.py', 'test_bedside.py', 'test_substrate.py',
+FAILED_FIRST = ('test_ortho.py', 'test_docks.py', 'test_sight.py', 'test_wasd.py',
+                'test_errands.py', 'test_wayfinder.py', 'test_camera.py', 'test_gaze.py',
+                'test_replays.py', 'test_scenarios.py', 'test_bedside.py', 'test_substrate.py',
                 'test_vault.py', 'test_emulator.py')
 
 CORE = 'test_modbus_core.py'

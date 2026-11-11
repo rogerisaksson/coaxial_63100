@@ -6,13 +6,14 @@
 
 The terminal stands at the trunk's foot and the shunts at its crown. The tree is tools/dev/atlas_tree.py's,
 read from the files as they stand when the page opens; the scene is terminal/views/atlas/scene.py's, the
-panel beside it terminal/views/atlas/panel.py's. A left drag turns the tree, a right drag moves it, the
-wheel brings it near; F1 to F12 (or 1 to 9 and 0, where a terminal
-keeps a function key) open the nodes whose names carry them - at the trunk its twelve layers, the
-terminal F1 -, PGUP PGDN the next twelve, BKSP closes the node open, a click opens the node under it and
-ENTER the one in the middle of the view. As the wheel brings it near, the panel names what the middle
-of the view holds, the deeper the nearer: layers, then folders, files, symbols. W lays the same atlas
-as a page (tools/dev/atlas.py --html) and opens it in the browser.
+panel beside it terminal/views/atlas/panel.py's. The page holds the mouse from its start: a left drag turns
+the tree, a right drag moves it, the wheel brings it near. The nodes F1 to F12 offer (or 1 to 9 and 0,
+where a terminal keeps a function key) are open already, their own children laid out ahead, and dim with
+the rest of the tree; the key choosing one lights it and those above it - at the trunk the twelve layers,
+the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a click the node under it and
+ENTER the one in the middle of the view. Along the viewport's top the node in the middle says its name
+and its brief; as the wheel brings it near, the panel names what it holds, the deeper the nearer: layers,
+then folders, files, symbols. W lays the same atlas as a page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -28,7 +29,7 @@ from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import room
 from terminal.views.atlas import panel, scene
 from tools.dev import atlas
-from tools.dev.atlas_tree import FILE, FOLDER, LAYER, LAYERS, SYMBOL, build
+from tools.dev.atlas_tree import FILE, FOLDER, KINDS, LAYER, LAYERS, SYMBOL, build
 
 TITLE = 'SYSTEM ATLAS'
 #: The keys that open the context's nodes in its order: F1 to F12, and the digits 1 to 9 and 0 for a
@@ -178,9 +179,22 @@ def zoomed(state, k):
 
 
 def wheeled(state, _keys, moved_by):
-    """The wheel's notches (screen.WHEEL_STEP each): up nearer."""
+    """The wheel's notches in a frame (screen.WHEEL_STEP each, up nearer): the zoom e to their sum, so each
+    notch is the same step in and out - 1 + their sum went negative past eight notches down and the
+    camera leapt to its nearest."""
     if moved_by:
-        zoomed(state, 1.0 + moved_by)
+        zoomed(state, math.exp(moved_by))
+
+
+def mouse(state):
+    """`run_view`'s mouse for the page: held from the page's start - the terminal's own selection and
+    paste took the clicks of a page that waited for F, a chord of both buttons froze the tree -; a left
+    drag turns the tree, a right drag moves it, the wheel brings it near, a left click on the drawing
+    opens the node under it."""
+    return {'mouse': True, 'select': frozenset(),
+            'on_input': lambda keys, moved_by: wheeled(state, keys, moved_by),
+            'on_click': lambda col, row: clicked(state, col, row) if col < room(state['size'][0]) + 2 else None,
+            'on_drag': lambda dx, dy: turned(state, dx, dy), 'on_pan': lambda dx, dy: moved(state, dx, dy)}
 
 
 def clicked(state, col, row):
@@ -292,6 +306,15 @@ ROWS = (
 PAD = bindings.page(ROWS, take=_typed)
 
 
+def titled(state, mid, width):
+    """The viewport's title along its top: TREE, then the node in the middle of the view - the one the wheel
+    brings near - by its name and its brief (its kind where it has none), as wide as the frame lets it."""
+    if mid is None:
+        return 'TREE'
+    tree = state['tree']
+    return panel.fit('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid] or KINDS[tree.kind[mid]]), width - 2)
+
+
 def draw_of(view, state, keys=''):
     """The frame: the scene in the viewport, the panel beside it, the keys under; `keys` comma-separated
     key names typed a frame each first ('.' none: f3, pagedown, a, ...), as the console would type them."""
@@ -314,7 +337,7 @@ def draw_of(view, state, keys=''):
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
         art = [''] + [line + ' ' * max(0, width - _screen.visible(line)) for line in lines]
         return frame_of(view, state['origin'], TITLE, '\n'.join(art), boxes, bindings.shown(PAD, state),
-                        art_title='TREE')
+                        art_title=titled(state, mid, width))
     return draw
 
 
@@ -336,10 +359,7 @@ def main(argv=None):
     was, bindings.UX['column'] = bindings.UX['column'], True
     try:
         leaving = run_view(view, view.is_terminal, 1.0 / FPS_CAP, args.frames, draw_of(view, state, args.keys),
-                           on_input=lambda keys, moved_by: wheeled(state, keys, moved_by), mouse=True,
-                           on_click=lambda col, row: clicked(state, col, row) if col < room(state['size'][0]) + 2 else None,
-                           on_drag=lambda dx, dy: turned(state, dx, dy), on_pan=lambda dx, dy: moved(state, dx, dy),
-                           pad=PAD, state=state)
+                           pad=PAD, state=state, **mouse(state))
     finally:
         bindings.UX['column'] = was
     return answer(leaving)

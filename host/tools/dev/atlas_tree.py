@@ -70,7 +70,7 @@ TEXT = ('.py', '.c', '.h', '.s', '.lisp', '.md', '.ps1', '.cs', '.asc', '.asy', 
 NAMING = ('.py', '.c', '.h', '.lisp', '.md', '.ps1', '.cs', '.repl', '.resc', '.toml', '.json', '.yml',
           '.cmake')
 #: A file a text names; a command's number where a header defines it; a Lisp definition; a comment line.
-NAMED = re.compile(r'[\w./-]+\.[A-Za-z]{1,5}\b')
+NAMED = re.compile(r'(?<![\w./-])[\w./-]+\.[A-Za-z]{1,5}\b')
 COMMAND = re.compile(r'^\s*#\s*define\s+CMD_(\w+)\s+(0x[0-9A-Fa-f]+|\d+)', re.M)
 DEF = re.compile(r'^\((def[\w-]*)\s+\(?([^\s()]+)', re.M)
 LEAD = re.compile(r'^\s*(?:#+|//+|;+|\*+|/\*+)\s?(.*?)\s*(?:\*/)?$')
@@ -176,7 +176,7 @@ def _brief(path, text, tree=None):
     if tree is not None:
         return structure.sentence((ast.get_docstring(tree) or '').split('\n\n')[0])
     if kind in structure.KINDS:
-        return structure.synopsis(folder or '.', name)
+        return structure.synopsis(folder or '.', name, text)
     if os.path.isdir(os.path.join(REPO, path)):
         return 'A submodule, not checked out here.'
     said = re.search(r'^#+\s+(.+)$' if kind == '.md' else r'\.SYNOPSIS[ \t]*\n\s*(.+)', text, re.M)
@@ -191,13 +191,13 @@ def _brief(path, text, tree=None):
     return structure.sentence(' '.join(w for w in lead if w.strip(' *-=')))
 
 
-def _purpose(folder, names):
-    """What a folder's files are for: structure.py's purpose of its sources, else its README's title."""
+def _purpose(folder, names, said):
+    """What a folder's files are for: structure.py's purpose of its sources, else its README's title -
+    off `said`, each file's brief as the build read it, no file read again."""
     sources = [n for n in names if n.endswith(structure.KINDS)]
     if sources:
-        return structure.purpose(folder or '.', sources)
-    readme = (folder + '/' if folder else '') + 'README.md'
-    return _brief(readme, _read(readme)) if 'README.md' in names else ''
+        return structure.purpose(folder or '.', sources, said)
+    return said.get('README.md', '')
 
 
 def _line(text, at):
@@ -291,8 +291,11 @@ SYMBOLS = {'.h': _h, '.c': _c, '.lisp': _lisp, '.md': _md, '.asc': _asc, '.csv':
 
 
 def build():
-    """The atlas of the tree as it stands: its nodes, then its ties."""
-    atlas, trees, parts = Atlas(), {}, collections.defaultdict(list)
+    """The atlas of the tree as it stands: its nodes, then its ties. A file is read and parsed once and
+    left as flat rows - its brief, its symbols, a module's import statements and top-level numbers - its
+    tree let go at once: 843 modules' trees held to the end had the collector walk them, and a walk of
+    each whole tree for its imports was half the build."""
+    atlas, imports, numbers, parts = Atlas(), {}, {}, collections.defaultdict(list)
     for key, _, brief, _ in LAYERS:
         atlas.add(key, -1, LAYER, key, brief)
     for path in tracked():
@@ -304,31 +307,57 @@ def build():
         names = [p.rpartition('/')[2] for p in paths]
         here = (folder or '.') + '/'
         key = here + '@' + LAYERS[layer][0] if folder in split else here
-        up = atlas.add(key, layer, FOLDER, here, _purpose(folder, names))
-        for path, name in zip(paths, names):
-            text = atlas.texts[path] = _read(path)
-            kind = os.path.splitext(name)[1].lower()
-            tree = trees[path] = _parse(text) if kind == '.py' else None
-            node = atlas.add(path, up, FILE, name, _brief(path, text, tree))
-            rows = _py(tree) if tree is not None else SYMBOLS[kind](text) if kind in SYMBOLS else []
-            for symbol, signature, brief, line in rows:
-                atlas.add(path + '::' + symbol, node, SYMBOL, signature, brief, line)
-    _ties(atlas, {path: tree for path, tree in trees.items() if tree is not None})
+        files = [_file(atlas, path, imports, numbers) for path in paths]
+        said = {name: brief for name, (brief, _rows) in zip(names, files)}
+        up = atlas.add(key, layer, FOLDER, here, _purpose(folder, names, said))
+        for path, name, (brief, rows) in zip(paths, names, files):
+            node = atlas.add(path, up, FILE, name, brief)
+            for symbol, signature, told, line in rows:
+                atlas.add(path + '::' + symbol, node, SYMBOL, signature, told, line)
+    _ties(atlas, imports, numbers)
     return atlas
 
 
+def _file(atlas, path, imports, numbers):
+    """A file read once - its text kept in the atlas - and parsed once where it is a module: (its brief,
+    its symbols' rows), a module's import statements into `imports` and its top-level numbers into
+    `numbers`; its tree not kept."""
+    text = atlas.texts[path] = _read(path)
+    kind = os.path.splitext(path)[1].lower()
+    if kind != '.py':
+        return _brief(path, text), SYMBOLS[kind](text) if kind in SYMBOLS else []
+    tree = _parse(text)
+    imports[path] = _imported(tree)
+    numbers[path] = [(node.targets[0].id, node.value.value) for node in tree.body
+                     if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                     and isinstance(node.value, ast.Constant) and type(node.value.value) is int]
+    return _brief(path, text, tree), _py(tree)
+
+
 def _imported(tree):
-    """A module's import statements alone, gathered in one walk of it: all host_map.imports reads."""
-    return ast.Module(body=[n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))],
-                      type_ignores=[])
+    """A module's import statements alone, wherever they stand - a function's, a branch's, a handler's -
+    in the order ast.walk meets them: its statements walked breadth first, not its expressions, where
+    nine in ten of its nodes are. All host_map.imports reads."""
+    found, todo = [], collections.deque([tree])
+    while todo:
+        node = todo.popleft()
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            found.append(node)
+            continue
+        for field in node._fields:
+            value = getattr(node, field, None)
+            if isinstance(value, list):
+                todo.extend(item for item in value if isinstance(item, (ast.stmt, ast.excepthandler, ast.match_case)))
+    return ast.Module(body=found, type_ignores=[])
 
 
-def _ties(atlas, trees):
-    """The ties between the atlas's files, read off their trees and texts."""
+def _ties(atlas, modules, numbers):
+    """The ties between the atlas's files, read off their modules' import statements and top-level numbers
+    (`_file`) and their texts."""
     known = {path[5:-3].replace('/', '.').replace('.__init__', ''): path
-             for path in trees if path.startswith('host/')}
+             for path in modules if path.startswith('host/')}
     for dotted, path in known.items():
-        imports = _imported(trees[path])
+        imports = modules[path]
         for dep in host_map.imports(path[5:], dotted, imports, known):
             atlas.join(path, known[dep], TIES.index('imports'))
         # A script's own folder is on its path, so a bare name there is its sibling (tests' kits); in a
@@ -353,21 +382,20 @@ def _ties(atlas, trees):
             ends = [p for p in tails.get(said.rpartition('/')[2], ()) if p.endswith(said)]
             if len(ends) == 1:
                 atlas.join(path, ends[0], TIES.index('names'))
-    _wire(atlas, trees)
+    _wire(atlas, numbers)
 
 
-def _wire(atlas, trees):
-    """A command named on both ends of the wire: CMD_X in a handler's row, X bound to its number in a module."""
+def _wire(atlas, numbers):
+    """A command named on both ends of the wire: CMD_X in a handler's row, X bound to its number in a module
+    (its top-level numbers, `_file`)."""
     number = {}
     for path, text in atlas.texts.items():
         if path.endswith('.h'):
             number.update((name, int(value, 0)) for name, value in COMMAND.findall(text))
     bound = collections.defaultdict(list)
-    for path, tree in trees.items():
-        for node in tree.body:
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) \
-                    and isinstance(node.value, ast.Constant) and type(node.value.value) is int:
-                bound[(node.targets[0].id, node.value.value)].append(path)
+    for path, told in numbers.items():
+        for name, value in told:
+            bound[(name, value)].append(path)
     for path, text in atlas.texts.items():
         for code in target_map.ROW.findall(text) if path.endswith('.c') else ():
             for module in bound.get((code[0][4:], number.get(code[0][4:])), ()):

@@ -8,6 +8,7 @@ the page with its script and the atlas inlined; the terminal's tree in 3D walked
 (tools/dev/atlas.py, tools/dev/atlas_tree.py, terminal/views/show_atlas.py, terminal/views/atlas/)."""
 import functools
 import json
+import math
 import os
 import sys
 import tempfile
@@ -116,11 +117,13 @@ def test_the_page_carries_the_atlas(report):
 
 def test_the_terminal_page_walks_the_tree(report):
     """terminal/views/show_atlas.py on its state: the trunk in 3D, its twelve layers on F1 to F12 - the
-    terminal F1 - drawn in braille and named; F4 opens the executive, its folders level round it and the
-    camera eased to frame them, F1 its heaviest folder, its files hanging under it, BKSP back on the layer;
-    the panel lists the layers far, the open layer's folders at its frame; a left drag turns the tree within
-    its tip, the wheel brings it near; / and a word put its hits on the keys, ESC lets the word go and ESC
-    again leaves for the front page."""
+    terminal F1 - drawn in braille and named, each open already (its folders laid out ahead), all dim and
+    the node in the middle of the view named with its brief along the top; F4 chooses the executive - lit,
+    the rest dim, its folders level round it with their files laid out ahead and the camera eased to frame
+    them -, F1 its heaviest folder, its files hanging under it, the executive lit above it, BKSP back on the
+    layer; the panel lists the layers far, the chosen layer's folders at its frame; a left drag turns the
+    tree within its tip, the wheel brings it near; / and a word put its hits on the keys, ESC lets the word
+    go and ESC again leaves for the front page."""
     from terminal.ui import bindings, screen
     from terminal.views import show_atlas
     from terminal.views.atlas import panel, scene
@@ -131,33 +134,53 @@ def test_the_terminal_page_walks_the_tree(report):
         return bindings.act_on(show_atlas.PAD, list(keys), state)[0]
 
     def drawn():
-        """The scene at the ease's end: its lines, the nodes drawn, the view, the node the panel lists."""
+        """The scene at the ease's end: its lines, the nodes drawn, the node in the middle, the one the panel
+        lists."""
         state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
         lines, fell, v = scene.picture(show_atlas.placed(state), state['cam'], 100, 36, show_atlas.keyed(state), set())
-        return lines, fell, show_atlas.listing(state, panel.middle(fell, v))
+        mid = panel.middle(fell, v)
+        return lines, fell, mid, show_atlas.listing(state, mid)
+
+    def inks():
+        """{node: its ink} of the scene as laid at its focus, a found word aside."""
+        laid = scene.flat(show_atlas.placed(state))
+        return dict(zip(laid['nodes'].tolist(), laid['ink'].tolist()))
 
     keys = show_atlas.keyed(state)
     report.check('at the trunk F1 to F12 open its twelve layers, the terminal F1',
                  list(keys) == list(range(len(atlas_tree.LAYERS))) and keys[0] == 'F1', str(keys))
-    lines, fell, listed = drawn()
+    lines, fell, mid, listed = drawn()
     plain = screen.plain('\n'.join(lines))
     cells, named = sum(0x2800 <= ord(ch) <= 0x28FF for ch in plain), [row[0] for row in atlas_tree.LAYERS if row[0] in plain]
     report.check('the trunk drawn in braille, every layer before the camera and named; far, the panel lists the layers',
-                 len(lines) == 36 and cells > 100 and len(fell) == len(named) == len(atlas_tree.LAYERS) and listed == -1,
+                 len(lines) == 36 and cells > 100 and all(layer in fell for layer in range(len(atlas_tree.LAYERS)))
+                 and len(named) == len(atlas_tree.LAYERS) and listed == -1,
                  '%d rows, %d braille cells, %d drawn, %d named, listing %d' % (len(lines), cells, len(fell), len(named), listed))
+    at = show_atlas.placed(state)['at']
+    report.check('every layer open already, its folders laid out ahead, and all of it dim - nothing chosen',
+                 all(f in at for layer in range(len(atlas_tree.LAYERS)) for f in state['kids'][layer])
+                 and set(inks().values()) == {scene.DIM_NODE}, '%d nodes laid' % len(at))
+    title = show_atlas.titled(state, mid, 100)
+    report.check('along the top: the node in the middle of the view, its name and its brief',
+                 mid is not None and title.startswith('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid][:20])),
+                 title)
     executive = next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive')
     typed('f%d' % (executive + 1))
-    at, folders = show_atlas.placed(state)['at'], state['kids'][executive]
-    report.check('F4: the executive open, its folders level round it, the camera eased to frame them',
+    at, folders, told = show_atlas.placed(state)['at'], state['kids'][executive], inks()
+    report.check('F4: the executive chosen and lit, its folders dim and level round it, their files laid out '
+                 'ahead under them, the camera eased to frame them',
                  state['focus'] == executive and folders and all(at[f][1] == at[executive][1] for f in folders)
+                 and all(at[c][1] < at[f][1] for f in folders for c in state['kids'][f])
+                 and told[executive] == scene.OPEN and {told[f] for f in folders} == {scene.DIM_NODE}
                  and state['goal']['distance'] < scene.camera()['distance'], '%d folders' % len(folders))
-    lines, fell, listed = drawn()
+    lines, fell, mid, listed = drawn()
     report.check("at its frame the panel lists its folders", listed == executive, tree.id[listed] if listed >= 0 else '-1')
     heaviest = scene.children(tree, state['kids'], state['below'], executive)[0]
     typed('f1')
-    at, files = show_atlas.placed(state)['at'], state['kids'][heaviest]
-    report.check('F1: its heaviest folder open, its files hanging under it',
-                 state['focus'] == heaviest and files and all(at[f][1] < at[heaviest][1] for f in files), tree.id[heaviest])
+    at, files, told = show_atlas.placed(state)['at'], state['kids'][heaviest], inks()
+    report.check('F1: its heaviest folder chosen, its files hanging under it, the executive lit above it',
+                 state['focus'] == heaviest and files and all(at[f][1] < at[heaviest][1] for f in files)
+                 and told[heaviest] == scene.OPEN and told[executive] == scene.NODE, tree.id[heaviest])
     typed('\x08')
     report.check('BKSP: back on the layer', state['focus'] == executive, str(state['focus']))
     yaw, near = state['cam']['yaw'], state['cam']['distance']
@@ -165,7 +188,7 @@ def test_the_terminal_page_walks_the_tree(report):
     show_atlas.wheeled(state, [], 0.12)
     report.check('a left drag turns the tree and tips it within its bounds; the wheel brings it near',
                  state['cam']['yaw'] == yaw - 10 * show_atlas.DRAG_DEG[0] and state['cam']['pitch'] == show_atlas.TIP_DEG[1]
-                 and abs(state['cam']['distance'] * 1.12 - near) < 1e-9, str(state['cam']))
+                 and abs(state['cam']['distance'] * math.exp(0.12) - near) < 1e-9, str(state['cam']))
     typed('/', *'shunt')
     hits = show_atlas.context(state)
     report.check('/ and a word: its hits on the keys while it is typed', state['find'] == 'shunt' and state['typing']
@@ -176,9 +199,86 @@ def test_the_terminal_page_walks_the_tree(report):
                  and then == 'menu', '%r then %r' % (first, then))
 
 
+def test_the_scene_is_rastered_as_data(report):
+    """terminal/views/atlas/scene.py rasters every segment and disc of a frame in one pass: each segment's
+    dots those its own line drew - cut to the drawing, then its longer extent's dots and two more spaced by
+    numpy.linspace, each where it falls -, each disc's the dots whose middles lie within its radius; 300
+    segments and 200 discs at random, ends far off the drawing among them."""
+    import numpy as np
+    from terminal.views.atlas import scene
+    w, h, rng = 200, 120, np.random.default_rng(3)
+
+    def line(x0, y0, x1, y1):
+        """One segment's dots by the rule, a segment at a time."""
+        t0, t1, dx, dy = 0.0, 1.0, x1 - x0, y1 - y0
+        for p, q in ((-dx, x0), (dx, w - 1e-3 - x0), (-dy, y0), (dy, h - 1e-3 - y0)):
+            if p == 0.0 and q < 0.0:
+                return set()
+            t0, t1 = (max(t0, q / p), t1) if p < 0.0 else (t0, min(t1, q / p)) if p > 0.0 else (t0, t1)
+        if t0 > t1:
+            return set()
+        ax, ay, bx, by = x0 + dx * t0, y0 + dy * t0, x0 + dx * t1, y0 + dy * t1
+        n = int(max(abs(bx - ax), abs(by - ay))) + 2
+        xs = np.clip(np.linspace(ax, bx, n).astype(np.intp), 0, w - 1)
+        ys = np.clip(np.linspace(ay, by, n).astype(np.intp), 0, h - 1)
+        return set((ys * w + xs).tolist())
+
+    x0, y0, x1, y1 = (rng.uniform(-300, 500, 300) for _ in range(4))
+    flat, of = scene.segments(x0, y0, x1, y1, w, h)
+    batched = [set(flat[of == k].tolist()) for k in range(300)]
+    wrong = [k for k in range(300) if batched[k] != line(x0[k], y0[k], x1[k], y1[k])]
+    report.check("every segment's dots, rastered with all the others, are those its own line drew",
+                 not wrong and sum(map(len, batched)) > 1000, str(wrong[:5]))
+    x, y, r = rng.uniform(-8, w + 8, 200), rng.uniform(-8, h + 8, 200), rng.uniform(0.8, 5.0, 200)
+    flat, of = scene.discs(x, y, r, w, h)
+    wrong = [k for k in range(200) if set(flat[of == k].tolist()) != {
+        py * w + px for py in range(h) for px in range(w)
+        if abs(px - x[k]) < 7 and abs(py - y[k]) < 7 and (px + 0.5 - x[k]) ** 2 + (py + 0.5 - y[k]) ** 2 <= r[k] * r[k]}]
+    report.check("every disc's dots, rastered with all the others, are those whose middles lie within its radius",
+                 not wrong, str(wrong[:5]))
+
+
+def test_the_page_holds_the_mouse(report):
+    """show_atlas.mouse: the page holds the mouse from its start - no F waited for: a waiting page's clicks
+    went to the terminal's own selection and paste, and a chord of both buttons froze the tree -; a chord of
+    both buttons through the console's decoder (terminal.ui.console.Keys) turns the tree, moves it and draws
+    on; a notch of the wheel is the same step in and out, ten notches down never leap in."""
+    from terminal.ui.console import Keys
+    from terminal.views import show_atlas
+    from terminal.views.atlas import scene
+    state = show_atlas.opened(built())
+    hands = show_atlas.mouse(state)
+    report.check('held from the start: no key to wait for, a left drag, a right drag, a click, the wheel',
+                 hands['mouse'] and hands['select'] == frozenset()
+                 and all(hands.get(k) for k in ('on_drag', 'on_pan', 'on_click', 'on_input')), str(sorted(hands)))
+    state['size'], state['art'] = (140, 44), (100, 36)
+    state['fell'], state['view'] = scene.picture(show_atlas.placed(state), state['cam'], 100, 36, {}, set())[1:]
+    keys, before = Keys(False, mouse=True, pan=True), dict(state['cam'])
+    for button, col, row, kind in ((0, 60, 20, 'M'), (2, 60, 20, 'M'), (32, 64, 21, 'M'), (34, 69, 23, 'M'),
+                                   (0, 69, 23, 'm'), (34, 73, 24, 'M'), (2, 73, 24, 'm')):
+        keys._mouse(button, col, row, kind)
+    hands['on_drag'](*keys.dragged())
+    hands['on_pan'](*keys.panned())
+    for col, row in keys.clicked():
+        hands['on_click'](col, row)
+    lines = scene.picture(show_atlas.placed(state), state['cam'], 100, 36, show_atlas.keyed(state), set())[0]
+    report.check('a chord of both buttons turns the tree and moves it, and the next frame draws',
+                 state['cam']['yaw'] != before['yaw'] and state['cam']['target'] != before['target']
+                 and all(map(math.isfinite, state['cam']['target'])) and len(lines) == 36, str(state['cam']))
+    near = state['cam']['distance']
+    show_atlas.wheeled(state, [], 0.12)
+    show_atlas.wheeled(state, [], -0.12)
+    back = state['cam']['distance']
+    show_atlas.wheeled(state, [], -1.2)
+    report.check('a notch in and one out come back; ten notches down take it e^1.2 farther, never nearer',
+                 abs(back - near) < 1e-9 and abs(state['cam']['distance'] - min(show_atlas.DISTANCE[1], near * math.exp(1.2))) < 1e-9,
+                 '%.4f -> %.4f -> %.4f' % (near, back, state['cam']['distance']))
+
+
 ROSTER = (test_every_path_lies_in_one_layer, test_the_trunk_climbs_from_the_terminal_to_the_shunts,
           test_ties_join_files, test_a_chain_of_ties_crosses_the_wire, test_each_node_opens_as_lines,
-          test_the_page_carries_the_atlas, test_the_terminal_page_walks_the_tree)
+          test_the_page_carries_the_atlas, test_the_terminal_page_walks_the_tree, test_the_scene_is_rastered_as_data,
+          test_the_page_holds_the_mouse)
 
 
 def main(argv=None):
