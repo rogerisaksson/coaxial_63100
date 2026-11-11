@@ -33,8 +33,8 @@ LAYERS = (
                            'step, senses, eyes, body.',
      ('host/machine/',)),
     ('rig', 'trunk', "Machines over IO nodes: boards and their loops, the inverter's library, the motors.",
-     ('host/machine/rig/', 'host/machine/__init__.py', 'host/machine/errors.py', 'host/motor/',
-      'host/coaxial/')),
+     ('host/machine/rig/', 'host/machine/library/', 'host/machine/__init__.py', 'host/machine/errors.py',
+      'host/motor/', 'host/coaxial/')),
     ('wire', 'trunk', "The wire: Modbus RTU framing and the board's commands, the host's end and the "
                       "firmware's.",
      ('host/coaxial/comm/', 'comms/', 'modbus/')),
@@ -299,10 +299,12 @@ def build():
         layer = layer_of(path)
         if layer is not None:
             parts[(path.rpartition('/')[0], layer)].append(path)
+    split = {folder for folder, n in collections.Counter(f for f, _ in parts).items() if n > 1}
     for (folder, layer), paths in sorted(parts.items()):
         names = [p.rpartition('/')[2] for p in paths]
         here = (folder or '.') + '/'
-        up = atlas.add(here, layer, FOLDER, here, _purpose(folder, names))
+        key = here + '@' + LAYERS[layer][0] if folder in split else here
+        up = atlas.add(key, layer, FOLDER, here, _purpose(folder, names))
         for path, name in zip(paths, names):
             text = atlas.texts[path] = _read(path)
             kind = os.path.splitext(name)[1].lower()
@@ -315,13 +317,28 @@ def build():
     return atlas
 
 
+def _imported(tree):
+    """A module's import statements alone, gathered in one walk of it: all host_map.imports reads."""
+    return ast.Module(body=[n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))],
+                      type_ignores=[])
+
+
 def _ties(atlas, trees):
     """The ties between the atlas's files, read off their trees and texts."""
     known = {path[5:-3].replace('/', '.').replace('.__init__', ''): path
              for path in trees if path.startswith('host/')}
     for dotted, path in known.items():
-        for dep in host_map.imports(path[5:], dotted, trees[path], known):
+        imports = _imported(trees[path])
+        for dep in host_map.imports(path[5:], dotted, imports, known):
             atlas.join(path, known[dep], TIES.index('imports'))
+        # A script's own folder is on its path, so a bare name there is its sibling (tests' kits); in a
+        # package an import is absolute and no sibling's.
+        folder = path.rpartition('/')[0]
+        for node in imports.body if folder + '/__init__.py' not in atlas.at else ():
+            for name in ([a.name for a in node.names] if isinstance(node, ast.Import)
+                         else [node.module] if isinstance(node, ast.ImportFrom) and node.module and not node.level
+                         else []):
+                atlas.join(path, '%s/%s.py' % (folder, name.partition('.')[0]), TIES.index('imports'))
     resolve = target_map.resolver(sorted({p.split('/')[0] for p in atlas.texts if p.endswith(('.c', '.h'))}))
     for path, text in atlas.texts.items():
         if path.endswith(('.c', '.h')):

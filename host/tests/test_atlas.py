@@ -4,8 +4,8 @@
 Every tracked path in a layer of the table and every prefix of it holding one; the trunk from the terminal
 to the analog front end, the word 'shunt' found up it; ties between files of every kind, the wire's two
 ends among them; a chain of ties across the wire; the trunk, a layer, a folder and a file opened as lines;
-the page with the atlas inlined; the terminal's page walked by its keys (tools/dev/atlas.py,
-tools/dev/atlas_tree.py, terminal/views/show_atlas.py)."""
+the page with its script and the atlas inlined; the terminal's tree in 3D walked by its keys and its mouse
+(tools/dev/atlas.py, tools/dev/atlas_tree.py, terminal/views/show_atlas.py, terminal/views/atlas/)."""
 import functools
 import json
 import os
@@ -61,6 +61,9 @@ def test_ties_join_files(report):
     wire = {(tree.id[s], tree.id[d]) for s, d, t in zip(tree.src, tree.dst, tree.tie) if atlas_tree.TIES[t] == 'wire'}
     report.check("the wire's host end reaches the board's commands",
                  ('host/coaxial/comm/protocol.py', 'comms/src/cmd_board.c') in wire, str(sorted(wire)[:3]))
+    imports = {(tree.id[s], tree.id[d]) for s, d, t in zip(tree.src, tree.dst, tree.tie) if atlas_tree.TIES[t] == 'imports'}
+    report.check("a script's bare import of a module beside it, in a folder that is no package, is a tie",
+                 ('host/tests/test_ci.py', 'host/tests/gynoid_kit.py') in imports, '')
 
 
 def test_a_chain_of_ties_crosses_the_wire(report):
@@ -84,11 +87,19 @@ def test_each_node_opens_as_lines(report):
                      len(lines) > 3 and lines[-2].startswith('  -> ') and lines[-1].startswith('  <- '),
                      lines[0][:70] if lines else 'nothing')
     report.check('a name the atlas has not is none', atlas.find_node(tree, 'no/such/node') == [], '')
+    parts = [tree.id[i] for i in atlas.find_node(tree, 'host/')]
+    report.check("a folder on two layers is a node on each, its name finding both: host/'s agents and workshop",
+                 sorted(parts) == ['host/@agents', 'host/@workshop'], str(parts))
+    report.check('--depth 2 opens each layer of the trunk too', len(atlas.show_trunk(tree, 2)) > 2 * len(trunk),
+                 '%d lines to %d' % (len(atlas.show_trunk(tree, 2)), len(trunk)))
+    told = [atlas.told(('7ae76b6d', n)) for n in (0, 1, 3)]
+    report.check('a commit said with the files the working tree has changed since',
+                 told == ['7ae76b6d', '7ae76b6d + 1 file changed', '7ae76b6d + 3 files changed'], str(told))
 
 
 def test_the_page_carries_the_atlas(report):
-    """--html: the template beside atlas.py with the atlas inlined - every node and tie -, ASCII, nothing
-    left to fill."""
+    """--html: the template beside atlas.py with its script (atlas.js) and the atlas inlined - every node and
+    tie -, ASCII, nothing left to fill: one file a browser opens from anywhere."""
     tree = built()
     with tempfile.TemporaryDirectory() as folder:
         with open(atlas.page(tree, os.path.join(folder, 'atlas.html')), encoding='utf-8') as f:
@@ -96,38 +107,69 @@ def test_the_page_carries_the_atlas(report):
     data = json.loads(text.split('type="application/json">', 1)[1].split('</script>', 1)[0])
     report.check('the page inlines every node and tie', len(data['id']) == len(tree.id)
                  and len(data['src']) == len(tree.src), '%d nodes, %d ties' % (len(data['id']), len(data['src'])))
-    report.check('and it is ASCII with nothing left to fill', text.isascii() and '__ATLAS__' not in text, '')
+    with open(atlas.SCRIPT, encoding='utf-8') as f:
+        script = f.read()
+    report.check('its script inlined whole, ASCII, nothing left to fill',
+                 script.replace('</', '<\\/') in text and text.isascii() and '__ATLAS__' not in text
+                 and '__SCRIPT__' not in text, '%d characters of script' % len(script))
 
 
 def test_the_terminal_page_walks_the_tree(report):
-    """terminal/views/show_atlas.py on its state: the trunk in braille, its strip for a small window; DOWN
-    and ENTER open the second layer from the crown, ENTER its first folder, BKSP back with the cursor on it;
-    / and a word list its hits, ESC lets the word go and ESC again leaves for the front page."""
+    """terminal/views/show_atlas.py on its state: the trunk in 3D, its twelve layers on F1 to F12 - the
+    terminal F1 - drawn in braille and named; F4 opens the executive, its folders level round it and the
+    camera eased to frame them, F1 its heaviest folder, its files hanging under it, BKSP back on the layer;
+    the panel lists the layers far, the open layer's folders at its frame; a left drag turns the tree within
+    its tip, the wheel brings it near; / and a word put its hits on the keys, ESC lets the word go and ESC
+    again leaves for the front page."""
     from terminal.ui import bindings, screen
     from terminal.views import show_atlas
-    state = show_atlas.opened(built())
+    from terminal.views.atlas import panel, scene
+    tree = built()
+    state = show_atlas.opened(tree)
 
     def typed(*keys):
         return bindings.act_on(show_atlas.PAD, list(keys), state)[0]
 
-    def braille(line):
-        return sum(0x2800 <= ord(ch) <= 0x28FF for ch in screen.plain(line))
+    def drawn():
+        """The scene at the ease's end: its lines, the nodes drawn, the view, the node the panel lists."""
+        state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
+        lines, fell, v = scene.picture(show_atlas.placed(state), state['cam'], 100, 36, show_atlas.keyed(state), set())
+        return lines, fell, show_atlas.listing(state, panel.middle(fell, v))
 
-    slabs = [line for line in show_atlas.trunk_lines(state)[:-1] if braille(line)]
-    report.check('the trunk is drawn in braille, two rows a layer, the strip two cells a layer',
-                 len(slabs) == 2 * len(atlas_tree.LAYERS) and braille(show_atlas.strip(state)) == 2 * len(atlas_tree.LAYERS),
-                 '%d rows, %d cells' % (len(slabs), braille(show_atlas.strip(state))))
-    second = [layer for _n, layer in atlas.order()][1]
-    typed('down', '\r')
-    report.check('DOWN, ENTER: the second layer from the crown open', state['cur'] == second, str(state['cur']))
-    typed('\r')
-    folder = state['cur']
+    keys = show_atlas.keyed(state)
+    report.check('at the trunk F1 to F12 open its twelve layers, the terminal F1',
+                 list(keys) == list(range(len(atlas_tree.LAYERS))) and keys[0] == 'F1', str(keys))
+    lines, fell, listed = drawn()
+    plain = screen.plain('\n'.join(lines))
+    cells, named = sum(0x2800 <= ord(ch) <= 0x28FF for ch in plain), [row[0] for row in atlas_tree.LAYERS if row[0] in plain]
+    report.check('the trunk drawn in braille, every layer before the camera and named; far, the panel lists the layers',
+                 len(lines) == 36 and cells > 100 and len(fell) == len(named) == len(atlas_tree.LAYERS) and listed == -1,
+                 '%d rows, %d braille cells, %d drawn, %d named, listing %d' % (len(lines), cells, len(fell), len(named), listed))
+    executive = next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive')
+    typed('f%d' % (executive + 1))
+    at, folders = show_atlas.placed(state)['at'], state['kids'][executive]
+    report.check('F4: the executive open, its folders level round it, the camera eased to frame them',
+                 state['focus'] == executive and folders and all(at[f][1] == at[executive][1] for f in folders)
+                 and state['goal']['distance'] < scene.camera()['distance'], '%d folders' % len(folders))
+    lines, fell, listed = drawn()
+    report.check("at its frame the panel lists its folders", listed == executive, tree.id[listed] if listed >= 0 else '-1')
+    heaviest = scene.children(tree, state['kids'], state['below'], executive)[0]
+    typed('f1')
+    at, files = show_atlas.placed(state)['at'], state['kids'][heaviest]
+    report.check('F1: its heaviest folder open, its files hanging under it',
+                 state['focus'] == heaviest and files and all(at[f][1] < at[heaviest][1] for f in files), tree.id[heaviest])
     typed('\x08')
-    report.check('ENTER a folder, BKSP: back on its layer, the cursor on it', state['cur'] == second
-                 and show_atlas.items(state)[show_atlas.cursor(state)] == folder, str(state['cur']))
+    report.check('BKSP: back on the layer', state['focus'] == executive, str(state['focus']))
+    yaw, near = state['cam']['yaw'], state['cam']['distance']
+    show_atlas.turned(state, 10, 100)
+    show_atlas.wheeled(state, [], 0.12)
+    report.check('a left drag turns the tree and tips it within its bounds; the wheel brings it near',
+                 state['cam']['yaw'] == yaw - 10 * show_atlas.DRAG_DEG[0] and state['cam']['pitch'] == show_atlas.TIP_DEG[1]
+                 and abs(state['cam']['distance'] * 1.12 - near) < 1e-9, str(state['cam']))
     typed('/', *'shunt')
-    report.check('/ and a word: its hits listed while it is typed', state['find'] == 'shunt' and state['typing']
-                 and len(show_atlas.items(state)) > 5, '%d hits' % len(show_atlas.items(state)))
+    hits = show_atlas.context(state)
+    report.check('/ and a word: its hits on the keys while it is typed', state['find'] == 'shunt' and state['typing']
+                 and len(hits) > 5 and list(show_atlas.keyed(state)) == hits[:show_atlas.PAGE], '%d hits' % len(hits))
     typed('\r')
     first, then = typed('\x1b'), typed('\x1b')
     report.check('ESC lets the word go, ESC again the front page', state['find'] is None and first is None

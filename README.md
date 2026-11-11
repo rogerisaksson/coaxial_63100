@@ -217,7 +217,7 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 | `adc` | METER BRIDGE | every analog channel on a meter bridge |
 | `aerobat` | AIRCRAFT XE AEROBATICS | two coaxial boards flying a 3D monoplane, its stunts and gates |
 | `angle` | SHAFT ANGLE | the magnet and the air gap, on a protractor |
-| `atlas` | SYSTEM ATLAS | the trunk from the terminal up to the shunts, every layer, folder, file and tie |
+| `atlas` | SYSTEM ATLAS | the system as a tree in 3D, the terminal up to the shunts, opened a node at a time |
 | `chat` | BOARD CHAT | the local llm, or claude with the board over MCP - the second question |
 | `helicopter` | HELICOPTER | two coaxial boards flying a 3D helicopter, its aerobatic stunts and gates |
 | `humanoid` | HUMANOID | a slender gynoid walking, her twenty joints on virtual actuators |

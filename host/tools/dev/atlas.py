@@ -13,8 +13,9 @@
 
 The tree - the layers, every file on them, their symbols and the ties between files - is
 tools/dev/atlas_tree.py's, read from the files as they are; here it is shown: as lines, a node at a time
-(+ one to open, . a leaf), or as the page beside this file (atlas.html), the trunk drawn as a stack. The
-terminal shows it too, on its front page's SYSTEM ATLAS (terminal/views/show_atlas.py), W there this page.
+(+ one to open, . a leaf), or as the page beside this file (atlas.html, its script atlas.js), the trunk
+drawn as a stack. The terminal shows it as a tree in 3D on its front page's SYSTEM ATLAS
+(terminal/views/show_atlas.py), turned by the mouse and opened by F1 to F12; W there lays this page.
 """
 import argparse
 import collections
@@ -33,6 +34,7 @@ from tools.dev.atlas_tree import FILE, KINDS, LAYER, LAYERS, SYMBOL, TIES, build
 
 #: The page's template beside this file; where the page is laid unless told; how much a view names.
 PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'atlas.html')
+SCRIPT = os.path.join(os.path.dirname(PAGE), 'atlas.js')
 OUT = os.path.join(REPO, 'build', 'atlas.html')
 SHOWN, PER_LAYER = 12, 20
 
@@ -93,30 +95,29 @@ def order():
         [('', i) for i in range(len(LAYERS)) if i not in trunk]
 
 
-def hues():
-    """Each layer's hue, degrees: the trunk's from blue at its foot to copper at its crown, those beside
-    it teal, violet and rose - the page's and the terminal's alike."""
-    trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
-    beside = [i for i in range(len(LAYERS)) if i not in trunk]
-    out = {layer: round(214 - k * 188 / max(1, len(trunk) - 1)) for k, layer in enumerate(trunk)}
-    out.update({layer: (172, 268, 318)[k % 3] for k, layer in enumerate(beside)})
-    return [out[i] for i in range(len(LAYERS))]
-
-
 def commit():
-    """The tree's commit, short: what the atlas was read at, uncommitted changes aside."""
-    run = subprocess.run(('git', 'rev-parse', '--short', 'HEAD'), cwd=REPO, capture_output=True, text=True)
-    return run.stdout.strip()
+    """The tree's commit, short, and how many tracked files the working tree has changed since: the atlas
+    reads the files as they stand, not as the commit holds them."""
+    def git(*args):
+        return subprocess.run(('git',) + args, cwd=REPO, capture_output=True, text=True).stdout
+    return git('rev-parse', '--short', 'HEAD').strip(), len(git('status', '--porcelain', '-uno').splitlines())
 
 
-def show_trunk(atlas):
+def told(at):
+    """A commit as said: '7ae76b6d', or '7ae76b6d + 10 files changed' over a working tree that differs."""
+    head, changed = at
+    return head + (' + %d file%s changed' % (changed, '' if changed == 1 else 's') if changed else '')
+
+
+def show_trunk(atlas, depth=1):
     """The trunk's lines: each layer from the crown down to the foot, then beside it, with what it holds,
-    the layers it reaches (->) and those reaching it (<-)."""
+    the layers it reaches (->) and those reaching it (<-); `depth` past 1 opens each layer that far - at
+    2 the whole map's folders, each with its purpose."""
     kids, below = tree_of(atlas)
     own, stack = owners(atlas), order()
     trunk = sum(1 for n, _ in stack if n)
     lines = ['%s at %s: %d layers on the trunk, the terminal at its foot (1), the shunts at its crown (%d).'
-             % (os.path.basename(REPO), commit(), trunk, trunk),
+             % (os.path.basename(REPO), told(commit()), trunk, trunk),
              '%d files, %d symbols, %d ties. Open one: atlas.py NODE [--depth N]; --find WORD; --path A B; '
              '--html; --json PATH' % (atlas.kind.count(FILE), atlas.kind.count(SYMBOL), len(atlas.src))]
     for n, i in stack:
@@ -127,6 +128,7 @@ def show_trunk(atlas):
                                                               LAYERS[i][2]))
         lines.append('%14s-> %s' % ('', _said(atlas, out)))
         lines.append('%14s<- %s' % ('', _said(atlas, into)))
+        _open(atlas, i, depth - 1, kids, below, lines, ' ' * 14)
     return lines
 
 
@@ -172,7 +174,7 @@ def find_node(atlas, key):
     path, path::symbol - a folder split between layers in each part; [] where none."""
     key = key.replace('\\', '/').strip()
     for want in (key, key.rstrip('/') + '/'):
-        hits = [i for i, name in enumerate(atlas.id) if re.sub(r'#\d+$', '', name) == want]
+        hits = [i for i, name in enumerate(atlas.id) if re.sub(r'(@[\w-]+|#\d+)$', '', name) == want]
         if hits:
             return hits
     return []
@@ -244,20 +246,23 @@ def show_path(atlas, a, b):
 
 def data(atlas):
     """The atlas as JSON's columns, with what the page names its source by."""
-    return {'repo': os.path.basename(REPO), 'commit': commit(), 'root': REPO.replace(os.sep, '/'),
-            'layers': [list(row[:3]) for row in LAYERS], 'hues': hues(), 'kinds': KINDS, 'ties': TIES,
+    return {'repo': os.path.basename(REPO), 'commit': told(commit()), 'root': REPO.replace(os.sep, '/'),
+            'layers': [list(row[:3]) for row in LAYERS], 'kinds': KINDS, 'ties': TIES,
             'id': atlas.id, 'up': atlas.up, 'kind': atlas.kind, 'label': atlas.label, 'brief': atlas.brief,
             'line': atlas.line, 'src': atlas.src, 'dst': atlas.dst, 'tie': atlas.tie}
 
 
 def page(atlas, out=OUT):
-    """Lay the page - the template beside this file with the atlas inlined - and say where."""
+    """Lay the page - the template beside this file, its script (atlas.js) and the atlas inlined, one file
+    a browser opens from anywhere - and say where."""
     with open(PAGE, encoding='utf-8') as f:
         template = f.read()
+    with open(SCRIPT, encoding='utf-8') as f:
+        script = f.read().replace('</', '<\\/')
     blob = json.dumps(data(atlas), separators=(',', ':')).replace('</', '<\\/')
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, 'w', encoding='utf-8', newline='') as f:
-        f.write(template.replace('"__ATLAS__"', blob, 1))
+        f.write(template.replace('/*__SCRIPT__*/', script, 1).replace('"__ATLAS__"', blob, 1))
     return out
 
 
@@ -292,7 +297,7 @@ def main(argv=None):
         return 1
     lines = (show_find(atlas, args.find) if args.find else show_path(atlas, *args.path) if args.path
              else [line for i in nodes for line in show_node(atlas, i, args.depth)] if nodes
-             else show_trunk(atlas))
+             else show_trunk(atlas, args.depth))
     print('\n'.join(lines))
     return 0
 

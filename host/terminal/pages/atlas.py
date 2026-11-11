@@ -1,7 +1,7 @@
-"""SYSTEM ATLAS: the trunk from the terminal up to the shunts, every layer, folder, file and tie."""
+"""SYSTEM ATLAS: the system as a tree in 3D, the terminal up to the shunts, opened a node at a time."""
 from terminal.loader import call, common
 
-HEADLINE, KEY, WHAT = 'SYSTEM ATLAS', 'V', 'the system from the terminal up to the shunts'
+HEADLINE, KEY, WHAT = 'SYSTEM ATLAS', 'V', '3D tree, the terminal up to the shunts'
 ORDER, NAME = 80, 'atlas'
 
 

@@ -117,6 +117,7 @@ TOUCHES = (
     ('host/terminal/views/show_humanoid.py',   (STRUCTURE, ORTHO, *VIEWS)),
     ('host/terminal/views/humanoid_keys.py',   (STRUCTURE, ORTHO, *VIEWS)),
     ('host/terminal/views/show_atlas.py',      (STRUCTURE, ATLAS, *VIEWS)),
+    ('host/terminal/views/atlas/',             (STRUCTURE, ATLAS, *VIEWS)),
     ('host/terminal/pages/atlas.py',           (STRUCTURE, ATLAS, *VIEWS)),
     ('host/terminal/views/',                   (STRUCTURE, *VIEWS,
                                                 'test_simulated.py')),
