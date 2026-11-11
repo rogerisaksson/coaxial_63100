@@ -281,7 +281,7 @@ benchmark or a profile on a desk runs above normal priority.
 
 | Hook | What it does |
 | --- | --- |
-| `pre-commit` | stops a commit on a file past the token budget a model reads whole, on text that is not English, on `setup.ps1 -Check` faulting on a new machine, and on a need written nowhere - a module in no requirements file, a program setup never names; lays this README out of its source and the tree and stages it; puts the suite CI last left red on GitHub first among those that run first (`host/tools/dev/ci.py`) |
+| `pre-commit` | stops a commit on a file past the token budget a model reads whole, on text that is not English, on `setup.ps1 -Check` faulting on a new machine, and on a need written nowhere - a module in no requirements file, a program setup never names; lays this README out of its source and the tree and stages it; puts the suite CI last left red on GitHub first among those that run first (`host/tools/dev/ci.py`); once the rest passes, removes every recording - each carries the commit it was made at (`host/machine/process/commit.py`) |
 | `commit-msg` | English only in a commit's message |
 | `pre-push` | every machine module imported and the humanoid's first seconds run headless; a fault stops the push |
 | `post-merge`, `post-rewrite`, `post-checkout` | after a pull, a rebase and a commit checked out: the images built where behind their sources, the papers laid where behind theirs |

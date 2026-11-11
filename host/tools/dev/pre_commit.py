@@ -15,8 +15,11 @@ requirements file, a requirements file setup never reads, a program setup never 
 while setup runs. README.md is laid out of docs/README.src.md and that tree (tools/dev/readme.py)
 and staged where it is behind, so a commit carries the README its tree says; one that names what
 the tree does not hold stops it. What GitHub's last host run left red is laid at the head of
-suites.FAILED_FIRST and staged too (tools/dev/ci.py): a run here leads with it.
+suites.FAILED_FIRST and staged too (tools/dev/ci.py): a run here leads with it. Once the rest passes,
+every recording (introspect.RECORDINGS) is removed (purged()): each was made at the commit this one
+leaves behind (machine/process/commit.py); one a writer holds open is kept and named.
 """
+import contextlib
 import os
 import re
 import shutil
@@ -28,6 +31,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from machine.process.introspect import RECORDINGS
 from tools import REPO
 from tools.dev import ci, depends, readme, token_budget
 
@@ -204,6 +208,23 @@ def held(path, laid):
     return True, ''
 
 
+def purged(folder=RECORDINGS):
+    """Every recording under `folder` removed, its folders emptied, `folder` kept: (how many, those a
+    writer holds open - kept, relative to `folder`)."""
+    gone, kept = 0, []
+    for root, dirs, files in os.walk(folder, topdown=False):
+        for name in files:
+            try:
+                os.remove(os.path.join(root, name))
+                gone += 1
+            except OSError:
+                kept.append(os.path.relpath(os.path.join(root, name), folder))
+        for name in dirs:
+            with contextlib.suppress(OSError):
+                os.rmdir(os.path.join(root, name))
+    return gone, kept
+
+
 def main():
     code = 0
     staged_items = list(staged())
@@ -252,6 +273,10 @@ def main():
         elif done:
             print("pre-commit: CI's last host run (%s) left %s red: first of FAILED_FIRST, staged"
                   % (red[0][:8], ', '.join(red[1])))
+    gone, kept = purged() if code == 0 else (0, [])
+    if gone or kept:
+        print('pre-commit: %d recording%s removed, made at the commit this one follows%s'
+              % (gone, '' if gone == 1 else 's', ''.join('\n  kept, held open: ' + k for k in kept)))
     return code
 
 

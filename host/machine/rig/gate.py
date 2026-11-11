@@ -12,7 +12,7 @@ else one its analyzer marks capture. Fired, it takes its streams (`streams.STREA
 pre_s, t + post_s] - half her leg's swing each way unless told (`takes.ENTER_S`) -, written once
 the post has passed; armed again till `count` gates are written (None, unbounded), a trigger
 while its window is open held off and told in its trailer. Its file, one an arming, is gate after
-gate: a metadata line {'gate': its trigger's name, tag, event and time, the window, each stream
+gate: a metadata line {'gate': its trigger's name, tag, event and time, the commit, the window, each stream
 expected - what makes it and its words, its kind, period, the most it fits and fields -}; its records {'t',
 's', 'v'} in time, the streams interleaved - one instant's in her pass's order -, an aperiodic
 stream's last before the window first: the value it held; a trailer {'gated': each stream's count, the
@@ -348,14 +348,17 @@ def _piped(writer, jobs):
 
 
 def _writes(pipe, done):
-    """The writer's process: each gate its parent pipes in written (`written`), its records told
+    """The writer's process: each gate its parent pipes in written (`written`), its metadata the commit
+    HEAD stood at as the writer began (`commit.head`: git apart from her loop), its records told
     back a JSON line each; the pipe closed - its parent gone -, it ends."""
+    from machine.process import commit
+    sha = commit.head()
     while True:
         try:
             job, path, meta, taken, trailer = pickle.load(pipe)
         except EOFError:
             return 0
-        done.write(json.dumps([job, written(path, meta, taken, trailer)]) + '\n')
+        done.write(json.dumps([job, written(path, dict(meta, commit=sha), taken, trailer)]) + '\n')
         done.flush()
 
 

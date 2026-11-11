@@ -2,7 +2,8 @@
 # cube-cmake writes per-preset trees here; everything in it is regenerated.
 build/
 out/
-# her recordings (`introspect.RECORDINGS`): a page's R, a gate's windows.
+# her recordings (`introspect.RECORDINGS`): a page's R, a gate's windows. Each carries the commit
+# it was made at (machine/process/commit.py); the pre-commit removes them all.
 recordings/
 cmake-build-*/
 

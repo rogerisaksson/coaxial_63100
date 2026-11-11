@@ -284,6 +284,10 @@ def test_r_records_its_flight(report):
                  and sent == [{'wind': True}, {'reset': True}],
                  (rows[1][len(show_quad.FLIGHT) - 1:], sent))
     report.check('while it records the drawing carries REC and its rows', corner.strip() == '● REC ⠙ 1', corner)
+    from machine.process import commit
+    sha = commit.head()
+    report.check('its file named with the commit it was made at',
+                 sha is not None and held['recorded'].endswith('_%s.csv' % sha[:commit.SHORT]), held['recorded'])
     from terminal.ui.console import WHEEL_STEP
     zooms = []
     show_quad.wheeled(zooms.append, 2.0 * WHEEL_STEP)

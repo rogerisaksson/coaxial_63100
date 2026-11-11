@@ -171,12 +171,12 @@ def test_a_spasm_is_past_her_own_walk(report):
 
 def test_a_recording_is_60_hz_and_whole_about_her_stumble(report):
     """R's recording (`watch.recorded`) of her slip: 60 Hz between its windows, its blocks one after
-    another, a spasm told before her stumble and both whole in a window, told
-    (`tools/sim/recording.py`)."""
+    another, a spasm told before her stumble and both whole in a window, each gate marked with HEAD
+    (`commit.head`), told (`tools/sim/recording.py`)."""
     import math
     import os
     import numpy as np
-    from machine.process import introspect, sprung, watch, worker
+    from machine.process import commit, introspect, sprung, watch, worker
     from machine.rig import gate
     from tools.sim import recording
     s, name = worker.session(), 'test_introspect_%d' % os.getpid()
@@ -211,6 +211,10 @@ def test_a_recording_is_60_hz_and_whole_about_her_stumble(report):
                      at('spasm') <= at('stumble') < math.inf
                      and inside(at('spasm')) and inside(at('stumble')),
                      'spasm %s, stumble %s' % (at('spasm'), at('stumble')))
+        sha = commit.head()
+        report.check('each gate marked with the commit it was made at',
+                     sha is not None and gates and all(g['meta'].get('commit') == sha for g in gates),
+                     sorted({str(g['meta'].get('commit')) for g in gates}))
         text = recording.told(path, modes=True, kinematics=True)
         report.check('told: its windows, its stumble a row, modes and kinematics beside it',
                      'support.stumble' in text and '|tau| N m' in text and 'worst err' in text and 'v_way' in text,

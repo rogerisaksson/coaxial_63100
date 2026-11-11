@@ -4,7 +4,7 @@
 A distribution laid in a folder - its module of another name, one extra met, one not - is asked by the name a
 requirements file writes; a tree laid in a folder imports it by a statement, by a name and in a notebook, and
 looks two programs up; and the tree itself, as it stands: every module written, every requirements file read
-by setup, every program named there."""
+by setup, every program named there. The same pre-commit removes every recording (`pre_commit.purged`)."""
 import json
 import os
 import sys
@@ -125,8 +125,25 @@ def test_the_tree_writes_what_it_asks(report):
                  'there', found == [], '; '.join(found) or counted)
 
 
+def test_a_commit_removes_every_recording(report):
+    """`pre_commit.purged` on a folder laid here: each recording, in it and in a folder of it, removed; the
+    folder kept, emptied."""
+    import shutil
+    from tools.dev import pre_commit
+    folder = tempfile.mkdtemp()
+    os.mkdir(os.path.join(folder, 'sub'))
+    for name in ('page.csv', 'gate.jsonl', os.path.join('sub', 'gate.jsonl')):
+        with open(os.path.join(folder, name), 'w', encoding='utf-8') as f:
+            f.write('{}\n')
+    got = pre_commit.purged(folder)
+    left = os.listdir(folder)
+    shutil.rmtree(folder, ignore_errors=True)
+    report.check('three recordings removed, none kept, the folder left empty', got == (3, []) and left == [],
+                 (got, left))
+
+
 ROSTER = (test_a_requirement_is_asked_by_the_name_it_writes, test_a_module_s_distribution_is_written,
-          test_the_tree_writes_what_it_asks)
+          test_the_tree_writes_what_it_asks, test_a_commit_removes_every_recording)
 
 
 def main(argv=None):

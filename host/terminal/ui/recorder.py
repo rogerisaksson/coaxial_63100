@@ -4,14 +4,14 @@
     recorder.added(rec, rows)                        # a frame's rows
     recorder.badge(rec)                              # '● REC ⠹ 1 234' while it records
     recorder.corner(rec, width)                      # the same in a drawing's top-right corner
-    path = recorder.saved(rec)                       # R again: recordings/humanoid_<time>.csv
+    path = recorder.saved(rec)                       # R again: recordings/humanoid_<time>_<commit>.csv
 """
 import csv
 import os
 import time
 
 from coaxial.graphics.callouts import packed
-from machine.process import introspect
+from machine.process import commit, introspect
 
 #: Where a page's recordings go, a CSV from a press to the next (`introspect.RECORDINGS`).
 RECORDINGS = introspect.RECORDINGS
@@ -21,10 +21,12 @@ INK, GROUND = (255, 96, 96), (10, 22, 35)
 
 
 def started(name, header):
-    """A recording of rows under `header`, its file named after `name` and when it began (`stamp`:
-    her loop's own recording of the same, `watch.recorded`, is named so)."""
+    """A recording of rows under `header`, its file named after `name`, when it began and the commit it
+    began at (`stamp`, `commit.head` cut to SHORT, none outside a repository: her loop's own recording
+    of the same, `watch.recorded`, is named so)."""
+    sha = commit.head()
     return {'name': name, 'header': list(header), 'rows': [], 'began': time.monotonic(),
-            'stamp': time.strftime(name + '_%Y%m%d_%H%M%S')}
+            'stamp': time.strftime(name + '_%Y%m%d_%H%M%S') + ('_' + sha[:commit.SHORT] if sha else '')}
 
 
 def added(rec, rows):
