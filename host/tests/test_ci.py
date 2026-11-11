@@ -133,7 +133,8 @@ def test_the_jobs_take_their_inputs_kept(report):
     source serves, its program inside that, and an https archive of a kind .github/inputs.sh unpacks; a
     tool's sources of one kind name one program. Both workflows take their inputs through the inputs
     action (.github/actions/inputs, kept in the Actions cache) and fetch nothing themselves - apt's
-    mirrors not resolving had failed the host's gate before a suite ran, three pushes running."""
+    mirrors not resolving had failed the host's gate before a suite ran, three pushes running. Every
+    fetcher's fallbacks are checked by the inputs workflow, run when the fetcher changes."""
     root = pathlib.Path(__file__).resolve().parents[2] / '.github'
     rows = [line.split() for line in (root / 'inputs.txt').read_text(encoding='utf-8').splitlines()
             if line.strip() and not line.startswith('#')]
@@ -151,6 +152,12 @@ def test_the_jobs_take_their_inputs_kept(report):
            if './.github/actions/inputs' not in (text := (root / 'workflows' / name).read_text(encoding='utf-8'))
            or re.search(r'apt-get|curl |pip install', text)]
     report.check('both jobs take their inputs kept, fetching nothing themselves', not raw, str(raw))
+    health = (root / 'workflows' / 'inputs.yml').read_text(encoding='utf-8')
+    watched = re.findall(r'paths: \[([^\]]*)\]', health)
+    unchecked = [name for name in ('inputs.sh', 'apt.sh')
+                 if not watched or any("'.github/%s'" % name not in paths for paths in watched)
+                 or not re.search(r'run: bash \.github/%s --every' % re.escape(name), health)]
+    report.check("every fetcher's fallbacks checked, whenever it changes", not unchecked, str(unchecked))
 
 
 ROSTER = (test_a_log_tail_names_its_red_suites, test_the_red_suites_lead_those_that_run_first,

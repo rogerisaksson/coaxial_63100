@@ -1,14 +1,15 @@
-# Every source of every pinned tool fetched, checked and unpacked - the mirrors a job falls back to
-# among them (.github/inputs.sh --every) - when the table or its fetcher changes, weekly, and when
-# asked: a fallback no run exercises would rot unseen, the Actions cache answering in its place.
+# Every source a job falls back to, checked on the runner's own network: each pinned tool's sources
+# fetched, checked and unpacked (.github/inputs.sh --every), apt updated from each independent mirror
+# alone (.github/apt.sh --every) - when a fetcher or the table changes, weekly, and when asked: a
+# fallback no run exercises would rot unseen, the Actions cache answering in its place.
 name: inputs
 
 on:
   push:
     branches: [main]
-    paths: ['.github/inputs.txt', '.github/inputs.sh', '.github/workflows/inputs.yml']
+    paths: ['.github/inputs.txt', '.github/inputs.sh', '.github/apt.sh', '.github/workflows/inputs.yml']
   pull_request:
-    paths: ['.github/inputs.txt', '.github/inputs.sh', '.github/workflows/inputs.yml']
+    paths: ['.github/inputs.txt', '.github/inputs.sh', '.github/apt.sh', '.github/workflows/inputs.yml']
   schedule:
     - cron: '17 4 * * 1'
   workflow_dispatch:
@@ -22,3 +23,5 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: bash .github/inputs.sh --every
+      - if: always()
+        run: bash .github/apt.sh --every
