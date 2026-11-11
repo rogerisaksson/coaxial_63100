@@ -120,6 +120,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
 - [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
 - [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
+- [INV-SIDE] Side effects handled, no whack-a-mole issues, no easily avoided regressions? [YES / NO]
 - [INV-CODE] Zero hacks, magic numbers, workarounds, overfitting, data massage, or tweaks? [YES / NO]
 - [INV-PORT] Lisp, python or C code ported to the other languages? [YES / NO / N/A]
 - [INV-DAG] Strict one-way acyclic dependency graph (0 circular imports)? [YES / NO]
