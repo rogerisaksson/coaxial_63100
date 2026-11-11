@@ -23,15 +23,21 @@ jobs:
       - uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: '14.2.Rel1'
-      # Ninja from its own release, as winget gives the bench its own: off the host the job already
-      # reaches (the checkout, the actions, Renode), retried and checked - the distribution's mirrors
-      # went unresolvable for minutes under apt at f97eab6b and c3a6174a.
-      - run: |
-          curl -sSfL --retry 8 --retry-all-errors -o ninja-linux.zip \
-            https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip
-          echo "5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6  ninja-linux.zip" | sha256sum -c -
-          sudo unzip -o ninja-linux.zip -d /usr/local/bin && rm ninja-linux.zip
-          ninja --version
+      # The tools the job takes from outside (ninja, Renode), as .github/inputs.txt pins them: kept in
+      # the Actions cache, so a run reaches only GitHub - as the GCC above and the pip cache below do; a
+      # pin not kept yet is fetched from its sources in turn, each retried, its bytes checked, and kept
+      # at once. Fetched afresh every run they failed the job whenever a mirror's name did not resolve.
+      - id: inputs
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.ci-inputs
+          key: inputs-${{ runner.os }}-${{ hashFiles('.github/inputs.txt', '.github/inputs.sh') }}
+      - run: bash .github/inputs.sh
+      - if: steps.inputs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.ci-inputs
+          key: ${{ steps.inputs.outputs.cache-primary-key }}
       - run: cmake --preset ${{ matrix.preset }}
       - run: cmake --build --preset ${{ matrix.preset }} 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
         shell: bash
@@ -58,10 +64,6 @@ jobs:
           cache: pip
           cache-dependency-path: host/requirements.txt
       - run: pip install -r host/requirements.txt && pip install --no-deps -e host
-      - run: |
-          curl -sSfL --retry 8 --retry-all-errors https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz | tar xz
-          echo "RENODE=$PWD/$(ls -d renode_*/ | head -1)renode" >> "$GITHUB_ENV"
-        shell: bash
       - run: python -X utf8 tests/test_emulator.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host

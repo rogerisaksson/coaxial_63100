@@ -1,0 +1,11 @@
+# The tools the firmware job takes from outside, as .github/inputs.sh fetches them: a tool's rows are
+# its sources, tried in this order - mirrors of the same bytes, or the same program packed another
+# way - each pinned by the sha256 of what it serves, with its program's path inside what it unpacks to.
+# A tool whose behaviour is under test (Renode, the emulator) has one source only: other bytes would be
+# another emulator. The Actions cache keeps what this table fetched, keyed by it.
+#
+# tool  sha256                                                            program          source
+ninja   5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6  ninja            https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip
+ninja   533239a464183f041f7c979f899fd8419e31ac82366540e57902a255de78f156  usr/bin/ninja    https://mirrors.edge.kernel.org/ubuntu/pool/universe/n/ninja-build/ninja-build_1.13.2-1_amd64.deb
+ninja   533239a464183f041f7c979f899fd8419e31ac82366540e57902a255de78f156  usr/bin/ninja    https://archive.ubuntu.com/ubuntu/pool/universe/n/ninja-build/ninja-build_1.13.2-1_amd64.deb
+renode  4ba7c68b59e2447f188ef4b4b112fcccd2802582c460beedceb63b84e5605a5f  renode_*/renode  https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz
