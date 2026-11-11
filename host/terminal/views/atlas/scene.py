@@ -5,8 +5,9 @@ STEP apart; a layer beside it stands SIDE out, at the height of the trunk's laye
 node chosen and those above it are open, and so are the nodes its keys offer - its children, at the trunk
 the layers -, their own children laid out ahead: a layer's folders ring it level, a folder's files and a
 file's symbols hang under it as a cap, the heaviest at its foot and the rest spiralling out by the golden
-angle. The chosen node and those above it are lit, the rest dim, the nodes offered among them; the chosen
-node's ties are bowed out from the trunk, so those along it are not lost in it.
+angle. The chosen node and those above it are lit - before any is chosen, the trunk -, the rest greyed
+out, the nodes offered among them; the chosen node's ties are bowed out from the trunk, so those along it
+are not lost in it.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
 all at once, cuts them at the near plane and at the drawing's edge, rasters every dot of every segment and
@@ -37,10 +38,10 @@ TURNS = tuple((math.cos(2 * math.pi * k / SIDES), math.sin(2 * math.pi * k / SID
 #: chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses.
 FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY = \
     range(1, 16)
-INK = {FAINT: (40, 46, 54), DIM_EDGE: (46, 53, 62), DIM_NODE: (70, 79, 90), EDGE: (128, 140, 154),
-       TIE_OUT: (25, 158, 112), TIE_IN: (217, 89, 38), NODE: (226, 231, 238), OUT: (25, 158, 112),
-       IN: (217, 89, 38), HIT: (213, 81, 129), OPEN: (57, 135, 229), NAME_DIM: (98, 108, 120),
-       NAME: (150, 160, 172), TOLD: (226, 231, 238), KEY: (57, 135, 229)}
+INK = {FAINT: (23, 26, 31), DIM_EDGE: (28, 32, 38), DIM_NODE: (42, 48, 56), EDGE: (178, 190, 204),
+       TIE_OUT: (25, 158, 112), TIE_IN: (217, 89, 38), NODE: (247, 249, 252), OUT: (25, 158, 112),
+       IN: (217, 89, 38), HIT: (213, 81, 129), OPEN: (57, 135, 229), NAME_DIM: (62, 69, 79),
+       NAME: (198, 206, 216), TOLD: (250, 252, 255), KEY: (57, 135, 229)}
 SGR = {0: '\x1b[0m', **{ink: '\x1b[38;2;%d;%d;%dm' % rgb for ink, rgb in INK.items()}}
 CUT = chr(0x2026)
 
@@ -174,13 +175,13 @@ def flat(scene):
 def _flat(scene):
     from coaxial.model.blocks import numpy as np
     tree, at, focus, out, into = scene['tree'], scene['at'], scene['focus'], scene['out'], scene['into']
-    lit, nodes, parts = set(chain(tree, focus)), list(at), []
+    trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
+    lit, nodes, parts = set(chain(tree, focus) if focus >= 0 else trunk), list(at), []
 
     def curve(points, ink):
         parts.extend((p, q, ink, False) for p, q in zip(points, points[1:]))
 
-    trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
-    parts += [(at[a], at[b], DIM_EDGE, True) for a, b in zip(trunk, trunk[1:])]
+    parts += [(at[a], at[b], EDGE if a in lit and b in lit else DIM_EDGE, True) for a, b in zip(trunk, trunk[1:])]
     parts += [(point, at[layer], EDGE if layer in lit else DIM_EDGE, False) for point, layer in scene['stubs']]
     parts += [(at[tree.up[n]], at[n], EDGE if n in lit else DIM_EDGE, False) for n in nodes if tree.kind[n] != LAYER]
     for layer in range(len(LAYERS)):

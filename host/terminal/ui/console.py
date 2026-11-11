@@ -60,6 +60,32 @@ def console_mode(was, mouse=True):
 MOUSE_ON, MOUSE_OFF = '\033[?1002h\033[?1006h', '\033[?1006l\033[?1002l'
 PASTE_ON, PASTE_OFF = '\033[?2004h', '\033[?2004l'
 HOLD_S, WHEEL_STEP, DRAG_STEP = 1.0, 0.12, 0.02
+#: A bracketed paste's markers, and how long a paste's bytes may stop coming before its end marker ere it is
+#: let go: VS Code writes a paste to the program 50 characters every 5 ms, so till its end they keep coming.
+PASTE_START, PASTE_END, PASTE_GAP_S = '\033[200~', '\033[201~', 0.5
+
+
+def unpasted(text, pasting):
+    """(`text` less every bracketed paste in it - each dropped whole, its start marker to its end -, whether
+    one is still open at its end, what of it is held for the next read: an end marker's start the read cut).
+    A view's keys are typed, never pasted: VS Code pastes the clipboard on a right press, 50 characters every
+    5 ms, and a paste's rest after it was cut at 0.2 s came in as keys - a chord of both buttons froze a
+    page in thousands of them."""
+    kept = []
+    while True:
+        if pasting:
+            end = text.find(PASTE_END)
+            if end < 0:
+                cut = next((n for n in range(min(len(PASTE_END) - 1, len(text)), 0, -1)
+                            if PASTE_END.startswith(text[-n:])), 0)
+                return ''.join(kept), True, text[len(text) - cut:] if cut else ''
+            text, pasting = text[end + len(PASTE_END):], False
+        start = text.find(PASTE_START)
+        if start < 0:
+            kept.append(text)
+            return ''.join(kept), False, ''
+        kept.append(text[:start])
+        text, pasting = text[start + len(PASTE_START):], True
 #: A key typed counts held this long, s, where the console cannot tell (a terminal's first
 #: repeat comes 250-500 ms on).
 HOLD_WINDOW_S = 0.65
@@ -115,8 +141,6 @@ class Keys:
     holder: 'Keys | None' = None
 
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
-    PASTE_START = '\033[200~'
-    PASTE_RE = re.compile(r'\033\[200~.*?\033\[201~', re.S)
     ARROW_RE = re.compile(r'\033\[([ABCD])')
     ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
     FUNCTION_RE = re.compile(r'\033(?:O([P-S])|\[\[([A-E])|\[(\d+)~)')
@@ -138,7 +162,8 @@ class Keys:
         self._clicked, self._typed, self._keys_down = [], [], set()
         self._saved = self._was_mode = self._posix = self._last_row = self._grip = self._term_hwnd = self._pressed = None
         self._dragging = self._holding = self._grabbed = self._async_keys = self._latched_wasd = self._hw_seen = False
-        self._buffer = self._pending = ''
+        self._buffer = self._pending = self._paste_held = ''
+        self._pasting = False
         self._pan_at, self._panned, self._spun = (0, 0), (0.0, 0.0), (0.0, 0.0)
         self._buttons, self._held_at, self._last_key_at, self._paste_at = 0, 0.0, 0.0, 0.0
 
@@ -173,16 +198,15 @@ class Keys:
         return False
 
     def _strip_sequences(self):
-        """Drain raw input and strip paste, mouse, arrow, function, and CSI sequences."""
+        """Drain raw input and strip paste, mouse, arrow, function, and CSI sequences: a paste dropped whole
+        however long it takes to come (`unpasted`), let go where its bytes stop for PASTE_GAP_S."""
         now = time.monotonic()
-        self._buffer = self.PASTE_RE.sub('', self._buffer + ''.join(self._drain()))
-        start = self._buffer.find(self.PASTE_START)
-        if start >= 0 and not self._paste_at:
+        got = ''.join(self._drain())
+        if got or self._buffer:
             self._paste_at = now
-        elif start < 0:
-            self._paste_at = 0.0
-        pasting = self._buffer[start:] if start >= 0 and now - self._paste_at <= 0.2 else ''
-        self._buffer = self._buffer[:start] if start >= 0 else self._buffer
+        elif self._pasting and now - self._paste_at > PASTE_GAP_S:
+            self._pasting, self._paste_held = False, ''
+        self._buffer, self._pasting, self._paste_held = unpasted(self._buffer + self._paste_held + got, self._pasting)
         zoom = 0.0
         for found in self.MOUSE_RE.finditer(self._buffer):
             self._held_at = now
@@ -190,8 +214,9 @@ class Keys:
                                 int(found.group(3)), found.group(4))
         self._buffer = self.MOUSE_RE.sub('', self._buffer)
         seq = [(m.start(), self.ARROWS[m.group(1)]) for m in self.ARROW_RE.finditer(self._buffer)]
-        seq += [(m.start(), self.FUNCTION_KEYS.get(m.group(1) or m.group(2) or m.group(3), 'f1'))
-                for m in self.FUNCTION_RE.finditer(self._buffer)]
+        # A function key's code the table has not is none - Insert, Delete, a stray paste marker were F1.
+        seq += [(m.start(), key) for m in self.FUNCTION_RE.finditer(self._buffer)
+                if (key := self.FUNCTION_KEYS.get(m.group(1) or m.group(2) or m.group(3)))]
         self._typed.extend(k for _, k in sorted(seq))
         self._buffer = self.CSI_RE.sub('', self.FUNCTION_RE.sub('', self.ARROW_RE.sub('', self._buffer)))
 
@@ -206,7 +231,7 @@ class Keys:
             elif len(tail) > 1:
                 self._buffer = head
         self._pending = held
-        keys, self._buffer = self._buffer, held + pasting
+        keys, self._buffer = self._buffer, held
         return keys, zoom
 
     def poll(self):
