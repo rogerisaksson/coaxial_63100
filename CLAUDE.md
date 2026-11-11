@@ -199,6 +199,9 @@ Evaluate the prompt and working tree before invoking any tool:
 - **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
   If verification fails in State 5, you are permitted **at most five (5)**
   return to State 2 to revise the diagnosis. If the fifth attempt fails
-  verification, you **MUST** restore only the exact lines you modified,
-  **HALT**, and report the exact falsification numbers to the user. Stacked
-  trial-and-error hacking is strictly forbidden.
+  verification, likely from being stuck, you **MUST** restore only the exact 
+  lines you modified, **HALT**, and report the exact falsification numbers 
+  to the user. In order to proceed, you, **MUST**, determine that you likely are 
+  reward-maximizing and grinding away in a local minima/maxima, then take a fresh
+  perspective and consider refactoring sensistive parts of the system. 
+  Stacked trial-and-error hacking is strictly forbidden.
