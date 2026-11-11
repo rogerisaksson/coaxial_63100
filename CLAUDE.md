@@ -149,7 +149,7 @@ Evaluate the prompt and working tree before invoking any tool:
 
 ---
 
-### STATE 4 -- NARROW FALSIFICATION & FOUR-STRIKE CIRCUIT BREAKER
+### STATE 4 -- NARROW FALSIFICATION & FIVE-STRIKE CIRCUIT BREAKER
 
 - **Enter 4 Gate (Upstream Sync & Rebase):**
   Before executing any verification suites, fetch the latest remote changes and
@@ -185,9 +185,9 @@ Evaluate the prompt and working tree before invoking any tool:
   task. Never leave orphaned worktrees or stale branches behind.
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
-- **FOUR-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
-  If verification fails in State 4, you are permitted **at most four (4)**
-  return to State 2 to revise the diagnosis. If the fourth attempt fails
+- **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
+  If verification fails in State 4, you are permitted **at most five (5)**
+  return to State 2 to revise the diagnosis. If the fifth attempt fails
   verification, you **MUST** restore only the exact lines you modified,
   **HALT**, and report the exact falsification numbers to the user. Stacked
   trial-and-error hacking is strictly forbidden.
