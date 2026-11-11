@@ -117,6 +117,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - Generated File: [NO (safe to edit) OR YES (create)]
 - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
 - [INV-SOLVER] Zero oracle corruption (0 weakened tests, relaxed tolerances, or mocked returns)? [YES / NO]
+- [INV-REWARD] Prioritized code quality over quantity and speed? [YES / NO]
 - [INV-SYSTEM] System architecture, mechanics, and dynamics verified in code? [YES / NO]
 - [INV-PHYSICS] Root-cause upstream fix (0 ad-hoc filters/clamps/magic/ifs)? [YES / NO]
 - [INV-CONTROL] Closed-loop dynamic control (0 scripted playback/keyframes)? [YES / NO]
