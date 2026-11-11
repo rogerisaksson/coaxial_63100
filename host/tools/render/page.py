@@ -29,6 +29,7 @@ PAGES = {
     'menu': 'terminal.menu',
     'aerobat': 'terminal.views.show_aerobat',
     'angle': 'terminal.views.show_angle',
+    'atlas': 'terminal.views.show_atlas',
     'capture': 'terminal.views.show_capture',
     'chat': 'terminal.views.show_chat',
     'desk': 'terminal.views.show_desk',

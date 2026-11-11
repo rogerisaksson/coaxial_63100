@@ -68,6 +68,7 @@ THEME = Theme({
     'chip.nat':   'black on #6ea0ff',
     'chip.virtual': 'black on #a58cff',
     'chip.dynamic': 'black on #ff9f5a',
+    'chip.tree':  'black on #c8d0d8',
     'chip.sto':   'black on color(214)',         # the drivers supplied: the light source
     'chip.sto.off': 'color(66) on color(23)',   # the safe state, the band's own
     'alarm':      'bold black on red3',
@@ -219,13 +220,15 @@ def live(count):
 def chip(origin):
     """The meaning tag: green LIVE on a board; EMU SIM NAT with the page's own lit - teal the
     image on Renode, yellow the stand-in, blue the board layer native; violet VIRTUAL and
-    amber DYNAMIC for machines. Never restyled."""
+    amber DYNAMIC for machines; grey TREE for the code itself, no board. Never restyled."""
     if origin.kind == 'emulator':
         return modes(mode_of(origin.port))
     if origin.kind == 'virtual':
         return VIRTUAL_CHIP
     if origin.kind == 'dynamic':
         return DYNAMIC_CHIP
+    if origin.kind == 'tree':
+        return TREE_CHIP
     if origin.real:
         return live(broker.clients() or 0)
     return modes('SIM')
@@ -252,6 +255,9 @@ VIRTUAL_CHIP = Text(' VIRTUAL ', style='chip.virtual')
 
 #: A body with mass's chip (machine.world.physics): no board, the physics simulated.
 DYNAMIC_CHIP = Text(' DYNAMIC ', style='chip.dynamic')
+
+#: The code's own chip (terminal/views/show_atlas.py): no board, the tree as it stands.
+TREE_CHIP = Text(' TREE ', style='chip.tree')
 
 
 def band_of(name, extra='', tag=None, gauges=None):

@@ -146,7 +146,7 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - numpy's OpenBLAS pool costs ~499 MB commit per process; this laptop has no
   page file. Capped in `coaxial.model.blocks`.
 - `UL` is 64-bit on Linux: `-Wconversion` warned on CI only.
-- `env.ps1` dot-sourced into `coaxial_tty.ps1`: its `foreach ($name ...)` was
+- `env.ps1` dot-sourced into `system_terminal.ps1`: its `foreach ($name ...)` was
   the caller's `[ValidateSet] $Name` and failed it; the loop variable is
   `$bundle`.
 - With the bench attached the gate's test_mcp ran live, 397 s and 9 red:

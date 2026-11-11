@@ -8,7 +8,7 @@
     Coaxial63100(port='emulator://?body=humanoid&bus=LL', unit=2).open()  # the left knee
     Coaxial63100(port='emulator://?nodes=1&boot=1').open()   # blank: the host loads its build
     Coaxial63100(port='emulator://?nodes=4&ber=1e-7').open() # a bit flipped at that rate each way
-    .\\coaxial_tty.ps1 -Port emulator://
+    .\\system_terminal.ps1 -Port emulator://
 
 One emulator per URL a process (tools.emu.emulator); every open of the URL is a connection
 to it, its `time_scale` Renode's load on the open and the Transport's, its `units` what a scan

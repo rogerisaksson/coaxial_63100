@@ -352,7 +352,7 @@ def test_smart_selection(report):
     # The map settles the cheap cases on its own.
     for paths, what in (
         (['terminal/adc.ps1'], 'a demo wrapper'),
-        (['coaxial_tty.ps1'], 'the demo picker'),
+        (['system_terminal.ps1'], 'the demo picker'),
         (['host/coaxial/draw/desk.py'], 'a pure renderer'),
         (['host/terminal/views/show_desk.py'], 'a live view'),
         (['datasheets/imu/UserGuide.pdf'], 'something no suite reads'),

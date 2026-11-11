@@ -1,4 +1,4 @@
-"""One dashboard over one rig. `coaxial_tty.ps1` runs this.
+"""One dashboard over one rig. `system_terminal.ps1` runs this.
 
 Six blocks in three columns - the analog channels, the thermal budget and
 the half-bridges over DIO, the IMU and the angle sensor - under one line

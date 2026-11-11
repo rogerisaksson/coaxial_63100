@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System atlas</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2329; --mute: #5a6470; --line: #d7dce2;
+  --accent: #0b62d6; --out: #17803d; --in: #b84e00; --hit: #b8327a;
+  --slab-s: 52%; --slab-l: 86%; --edge-l: 66%; --tile-s: 58%; --tile-l: 60%; --card-l: 46%;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116; --panel: #161b22; --ink: #e5eaf0; --mute: #8e98a3; --line: #2d343d;
+    --accent: #5aa2ff; --out: #46c06a; --in: #f29a4a; --hit: #f27dbb;
+    --slab-s: 34%; --slab-l: 23%; --edge-l: 12%; --tile-s: 48%; --tile-l: 46%; --card-l: 58%;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+h1, .t, .who, .s, #crumbs { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+header { position: sticky; top: 0; z-index: 200; display: flex; gap: 14px; align-items: center;
+  padding: 9px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+#head { color: var(--mute); font-size: 12px; white-space: nowrap; }
+#crumbs { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; }
+#crumbs a { color: var(--accent); cursor: pointer; }
+#crumbs a:hover { text-decoration: underline; }
+#crumbs .sep { color: var(--mute); margin: 0 5px; }
+#find { width: 230px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--ink); font: inherit; }
+#find:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+main { display: grid; grid-template-columns: 372px minmax(0, 1fr); align-items: start; }
+#tower { position: sticky; top: 51px; max-height: calc(100vh - 51px); overflow: auto;
+  padding: 26px 10px 22px 6px; border-right: 1px solid var(--line); }
+.stack { position: relative; }
+.row { position: relative; display: grid; grid-template-columns: 196px minmax(0, 1fr); align-items: center;
+  height: 60px; cursor: pointer; }
+.slab { width: 132px; height: 78px; margin-left: 32px; display: flex; flex-wrap: wrap; align-content: stretch;
+  gap: 2px; padding: 4px; border-radius: 5px; --iso: rotateX(60deg) rotateZ(-45deg); transform: var(--iso);
+  filter: drop-shadow(0 7px 7px rgb(0 0 0 / .28)); background: hsl(var(--h) var(--slab-s) var(--slab-l));
+  box-shadow: 0 0 0 1px hsl(var(--h) 45% 50% / .55), 5px 5px 0 hsl(var(--h) var(--slab-s) var(--edge-l));
+  transition: .2s ease; }
+.row:hover .slab { transform: var(--iso) translateZ(6px); }
+.row.on .slab { transform: var(--iso) translateZ(12px);
+  box-shadow: 0 0 0 2px var(--accent), 5px 5px 0 hsl(var(--h) var(--slab-s) var(--edge-l)); }
+.row.dim .slab { opacity: .25; }
+.tile { flex: var(--n) 1 9px; min-height: 9px; border-radius: 2px; background-color: hsl(var(--h) var(--tile-s) var(--tile-l));
+  background-image: linear-gradient(160deg, rgb(255 255 255 / .26), rgb(255 255 255 / 0) 55%);
+  transition: background-color .2s ease; }
+.tag .o { color: var(--out); }
+.tag .n { color: var(--in); }
+.tag em { font-style: normal; font-size: 11px; display: none; }
+.root .tag em { display: block; }
+mark { background: color-mix(in srgb, var(--hit) 28%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+#lens[data-way="up"] .card { animation-name: fall; }
+@keyframes fall { from { opacity: 0; transform: translateY(-5px) scale(1.015); } to { opacity: 1; transform: none; } }
+.sym .s:focus-visible, .tie:focus-visible, .hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tile:hover { outline: 2px solid var(--ink); }
+.tile.on { background-color: var(--accent); }
+.tile.out { background-color: var(--out); }
+.tile.in { background-color: var(--in); }
+.tile.hit { background-color: var(--hit); }
+.tag { display: flex; flex-direction: column; min-width: 0; }
+.tag b { font-size: 13px; }
+.tag small { font-size: 11.5px; }
+.tag em, .tag small, .legend, #tower h4, .where, .brief, .stats, .card .n, .card .b, .card .r, .sym .b, .tie .k,
+.tie .c, .hit .b, .none, footer, .ties h3, .kind, h2 small, h3 small { color: var(--mute); }
+.tag i { font-style: normal; color: var(--hit); font-size: 11.5px; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 22px 0 6px 14px; font-size: 11.5px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin-right: 5px; vertical-align: -1px; background: var(--c); }
+#tower h4 { margin: 18px 0 2px 14px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+#lens { padding: 20px 24px 48px; min-width: 0; }
+.head { border-left: 4px solid hsl(var(--h, 210) 60% var(--card-l)); padding-left: 12px; }
+.kind { display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+  border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin-right: 8px; }
+.where { font-size: 12.5px; }
+h1 { font-size: 19px; margin: 6px 0 4px; word-break: break-word; }
+h2 { font-size: 14px; margin: 26px 0 8px; border-left: 4px solid hsl(var(--h, 210) 60% var(--card-l)); padding-left: 8px; }
+h2 small, h3 small { font-weight: 400; }
+.brief { margin: 0 0 6px; max-width: 86ch; }
+.stats { font-size: 12.5px; margin: 0; }
+a.code, a.ln { color: var(--accent); text-decoration: none; }
+a.code:hover, a.ln:hover { text-decoration: underline; }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 16px; }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.card { display: flex; flex-direction: column; gap: 3px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 4px solid hsl(var(--h) 60% var(--card-l)); border-radius: 8px; padding: 9px 12px;
+  animation: rise .18s ease both; }
+.card:hover, .card:focus-visible { border-color: var(--accent); outline: none; }
+.card .top { display: flex; gap: 8px; align-items: baseline; }
+.card .t { font-size: 13px; font-weight: 600; word-break: break-all; flex: 1; }
+.card .n { font-size: 11.5px; white-space: nowrap; }
+.card .b { font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card .r { font-size: 11.5px; }
+@keyframes rise { from { opacity: 0; transform: translateY(5px) scale(.985); } to { opacity: 1; transform: none; } }
+.syms { margin-top: 16px; border-top: 1px solid var(--line); }
+.sym { display: grid; grid-template-columns: 58px minmax(0, 1fr); column-gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.sym .ln { font: 12px ui-monospace, monospace; padding-top: 1px; }
+.sym .s { font-size: 12.5px; word-break: break-word; }
+.sym .s:hover { color: var(--accent); }
+.sym .b { grid-column: 2; font-size: 12.5px; }
+.ties { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 26px; }
+.ties h3 { font-size: 12.5px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+.tie, .hit { display: flex; gap: 8px; align-items: baseline; width: 100%; padding: 4px 6px; border-radius: 5px;
+  border-left: 3px solid hsl(var(--h) 60% var(--card-l)); }
+.tie:hover, .hit:hover, .tie:focus-visible, .hit:focus-visible { background: var(--panel); outline: none; }
+.tie .who, .hit .who { flex: 1; font-size: 12.5px; word-break: break-all; }
+.tie .k { font-size: 11px; }
+.tie .c { font-size: 11.5px; min-width: 2.5em; text-align: right; }
+.hit .b { font-size: 12px; flex: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.none { font-size: 12.5px; margin: 4px 0; }
+footer { font-size: 11.5px; margin-top: 34px; }
+@media (prefers-reduced-motion: reduce) { .card, .slab { animation: none; transition: none; } }
+@media (max-width: 780px) {
+  header { flex-wrap: wrap; }
+  #find { width: 100%; order: 3; }
+  #crumbs { order: 4; flex-basis: 100%; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  #tower { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  #lens { padding: 16px; }
+  .ties { grid-template-columns: minmax(0, 1fr); }
+  .grid, .grid.wide { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">atlas</span><span id="head"></span>
+  <nav id="crumbs" aria-label="Where"></nav>
+  <input id="find" type="search" placeholder="Find a word  ( / )" autocomplete="off" spellcheck="false" aria-label="Find">
+</header>
+<main>
+  <section id="tower" aria-label="The trunk"></section>
+  <section id="lens" aria-live="polite"><noscript>The atlas is drawn by its script.</noscript></section>
+</main>
+<script id="atlas-data" type="application/json">"__ATLAS__"</script>
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const A = JSON.parse($('#atlas-data').textContent);
+  const lens = $('#lens'), tower = $('#tower'), crumbs = $('#crumbs'), find = $('#find');
+  if (!A || typeof A !== 'object') { lens.textContent = 'No atlas inlined: atlas.py --html lays it.'; return; }
+  const N = A.id.length, LAYER = 0, FOLDER = 1, FILE = 2, SYMBOL = 3;
+  const kids = Array.from({length: N}, () => []);
+  const own = [0, 1, 2].map(() => new Int32Array(N).fill(-1));
+  for (let i = 0; i < N; i++) {
+    const u = A.up[i], k = A.kind[i];
+    if (u >= 0) { kids[u].push(i); for (let l = 0; l < 3; l++) own[l][i] = own[l][u]; }
+    if (k < SYMBOL) own[k][i] = i;
+  }
+  const below = [0, 1, 2, 3].map(() => new Int32Array(N));
+  for (let i = N - 1; i >= 0; i--) {
+    const u = A.up[i];
+    if (u < 0) continue;
+    below[A.kind[i]][u]++;
+    for (let k = 1; k < 4; k++) below[k][u] += below[k][i];
+  }
+  const byId = new Map(A.id.map((s, i) => [s, i]));
+  const trunk = [], beside = [], hue = A.hues, pos = [];
+  A.layers.forEach((r, i) => (r[1] === 'trunk' ? trunk : beside).push(i));
+  trunk.forEach((L, p) => { pos[L] = p + 1; });
+  const count = k => A.kind.reduce((n, x) => n + (x === k), 0);
+  const counted = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+  const totals = count(FILE) + ' files &middot; ' + count(SYMBOL) + ' symbols &middot; ' + A.src.length + ' ties';
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const vscode = (path, line) => 'vscode://file/' + encodeURI(A.root + '/' + path) + ':' + (line || 1);
+  const name = i => A.kind[i] === SYMBOL ? A.label[i] : A.id[i];
+  const layerName = L => (pos[L] ? pos[L] + ' ' : '') + A.layers[L][0];
+  let cur = -1, query = '';
+
+  function bump(m, k, t) { let e = m.get(k); if (!e) m.set(k, e = {n: 0, k: new Set()}); e.n++; e.k.add(t); }
+  function ties(i) {
+    if (A.kind[i] === SYMBOL) i = A.up[i];
+    const lv = A.kind[i], out = new Map(), inn = new Map();
+    for (let t = 0; t < A.src.length; t++) {
+      const a = own[lv][A.src[t]], b = own[lv][A.dst[t]];
+      if (a === b) continue;
+      if (a === i) bump(out, b, A.tie[t]); else if (b === i) bump(inn, a, A.tie[t]);
+    }
+    return [out, inn];
+  }
+  const ranked = m => [...m.entries()].sort((x, y) => y[1].n - x[1].n);
+  function lit(i) {
+    const out = new Set(), inn = new Set(), outL = new Map(), inL = new Map();
+    if (i < 0) return [out, inn, outL, inL];
+    const node = A.kind[i] === SYMBOL ? A.up[i] : i, lv = A.kind[node];
+    for (let t = 0; t < A.src.length; t++) {
+      const s = A.src[t], d = A.dst[t], a = own[lv][s] === node, b = own[lv][d] === node;
+      if (a && !b) { out.add(own[FOLDER][d]); outL.set(own[0][d], (outL.get(own[0][d]) || 0) + 1); }
+      else if (b && !a) { inn.add(own[FOLDER][s]); inL.set(own[0][s], (inL.get(own[0][s]) || 0) + 1); }
+    }
+    return [out, inn, outL, inL];
+  }
+  function marked(s, q) {
+    const low = String(s).toLowerCase();
+    let out = '', at = 0, k;
+    while (q && (k = low.indexOf(q, at)) >= 0) {
+      out += esc(s.slice(at, k)) + '<mark>' + esc(s.slice(k, k + q.length)) + '</mark>';
+      at = k + q.length;
+    }
+    return out + esc(String(s).slice(at));
+  }
+
+  function row(L, z) {
+    const tiles = kids[L].map(f => '<span class="tile" data-go="' + f + '" data-f="' + f + '" style="--n:' +
+      Math.max(1, below[FILE][f]) + '" title="' + esc(A.id[f] + ' (' + below[FILE][f] + ' files)' +
+      (A.brief[f] ? ' - ' + A.brief[f] : '')) + '"></span>').join('');
+    return '<div class="row" data-go="' + L + '" data-l="' + L + '" style="--h:' + hue[L] + ';z-index:' + z + '">' +
+      '<div class="slab">' + tiles + '</div><div class="tag"><b>' + esc(layerName(L)) + '</b><small>' +
+      counted(kids[L].length, 'folder') + ', ' + counted(below[FILE][L], 'file') + '</small><i class="hits"></i>' +
+      (L === trunk[trunk.length - 1] ? '<em>crown: up to the shunts</em>' : L === trunk[0] ? '<em>foot: this terminal</em>' : '') +
+      '</div></div>';
+  }
+  tower.innerHTML = '<div class="stack">' + trunk.slice().reverse().map((L, j) => row(L, 100 - j)).join('') + '</div>' +
+    '<div class="legend"><span style="--c:var(--accent)">open</span><span style="--c:var(--out)">reaches</span>' +
+    '<span style="--c:var(--in)">reached by</span><span style="--c:var(--hit)">found</span></div>' +
+    '<h4>beside the trunk</h4><div class="stack">' + beside.map((L, j) => row(L, 50 - j)).join('') + '</div>';
+  $('#head').textContent = A.repo + ' @ ' + A.commit;
+
+  function card(i, extra) {
+    const k = A.kind[i];
+    const n = k <= FOLDER ? counted(below[FILE][i], 'file') : k === FILE ? counted(below[SYMBOL][i], 'symbol') : ':' + A.line[i];
+    const title = k === LAYER ? layerName(i) : k === FOLDER ? A.id[i] : A.label[i];
+    return '<button class="card" data-go="' + i + '" style="--h:' + hue[own[0][i]] + '"><span class="top"><span class="t">' +
+      esc(title) + '</span><span class="n">' + n + '</span></span>' +
+      (A.brief[i] ? '<span class="b">' + esc(A.brief[i]) + '</span>' : '') +
+      (extra ? '<span class="r">' + extra + '</span>' : '') + '</button>';
+  }
+  function layerCard(L) {
+    const top = ranked(ties(L)[0]).slice(0, 4).map(([j, e]) => esc(A.id[j]) + ' ' + e.n).join(' &middot; ');
+    return card(L, top ? 'reaches ' + top : '');
+  }
+  function side(m, title) {
+    const rows = ranked(m), shown = rows.slice(0, 60);
+    return '<div><h3>' + title + ' <small>' + rows.length + '</small></h3>' + (shown.map(([j, e]) =>
+      '<button class="tie" data-go="' + j + '" style="--h:' + hue[own[0][j]] + '"><span class="who">' + esc(name(j)) +
+      '</span><span class="k">' + [...e.k].map(t => A.ties[t]).join(' ') + '</span><span class="c">' + e.n + '</span></button>'
+    ).join('') || '<p class="none">none</p>') + (rows.length > 60 ? '<p class="none">and ' + (rows.length - 60) + ' more</p>' : '') + '</div>';
+  }
+  function tiesHtml(i) { const [out, inn] = ties(i); return '<section class="ties">' + side(out, 'reaches') + side(inn, 'reached by') + '</section>'; }
+  function headHtml(i) {
+    const k = A.kind[i], L = own[0][i], file = own[2][i];
+    const where = k === LAYER ? (pos[i] ? 'layer ' + pos[i] + ' of ' + trunk.length + ' on the trunk' : 'beside the trunk') :
+      'in ' + layerName(L) + (k === SYMBOL ? ', ' + A.id[file] : '');
+    const held = [FOLDER, FILE, SYMBOL].filter(x => x > k && below[x][i]).map(x => counted(below[x][i], A.kinds[x])).join(' &middot; ');
+    const link = file >= 0 ? '<a class="code" href="' + vscode(A.id[file], k === SYMBOL ? A.line[i] : 1) + '">VS Code</a>' : '';
+    return '<div class="head" style="--h:' + hue[L] + '"><span class="kind">' + A.kinds[k] + '</span><span class="where">' + esc(where) +
+      '</span><h1>' + esc(name(i)) + '</h1>' + (A.brief[i] ? '<p class="brief">' + esc(A.brief[i]) + '</p>' : '') +
+      '<p class="stats">' + [held, link].filter(Boolean).join(' &middot; ') + '</p></div>';
+  }
+  function symsHtml(i) {
+    if (!kids[i].length) return '<p class="none">No symbols read from this kind of file.</p>';
+    return '<div class="syms">' + kids[i].map(s => '<div class="sym"><a class="ln" href="' + vscode(A.id[i], A.line[s]) + '">:' +
+      A.line[s] + '</a><button class="s" data-go="' + s + '">' + esc(A.label[s]) + '</button>' +
+      (A.brief[s] ? '<span class="b">' + esc(A.brief[s]) + '</span>' : '') + '</div>').join('') + '</div>';
+  }
+  function rootHtml() {
+    return '<div class="head"><span class="kind">trunk</span><h1>' + esc(A.repo) + '</h1><p class="brief">From the terminal at its foot ' +
+      'up to the shunts at its crown, ' + trunk.length + ' layers; beside it ' + beside.map(L => esc(A.layers[L][0])).join(', ') +
+      '. Open a slab, a tile or a card.</p>' +
+      '<p class="stats">' + totals + ' &middot; commit ' + esc(A.commit) + '</p></div>' +
+      '<div class="grid wide">' + trunk.slice().reverse().map(layerCard).join('') + '</div>' +
+      '<h2>beside the trunk</h2><div class="grid wide">' + beside.map(layerCard).join('') + '</div>';
+  }
+  function nodeHtml(i) {
+    const k = A.kind[i];
+    const body = k <= FOLDER ? '<div class="grid">' + kids[i].map(c => card(c)).join('') + '</div>' : k === FILE ? symsHtml(i) : '';
+    return headHtml(i) + body + tiesHtml(i);
+  }
+  let hay = null;
+  function findGroups(q) {
+    hay = hay || A.id.map((s, i) => (s + '\n' + A.label[i] + '\n' + A.brief[i]).toLowerCase());
+    const groups = new Map();
+    for (let i = 0; i < N; i++) if (hay[i].includes(q)) { const L = own[0][i]; if (!groups.has(L)) groups.set(L, []); groups.get(L).push(i); }
+    return groups;
+  }
+  function findHtml(q, groups) {
+    const all = [...groups.values()].reduce((n, g) => n + g.length, 0), on = trunk.filter(L => groups.has(L)).length;
+    return '<div class="head"><span class="kind">find</span><h1>' + esc(q) + '</h1><p class="brief">' + all + ' nodes named, signed or briefed ' +
+      'with it, on ' + on + ' of the trunk\'s ' + trunk.length + ' layers and ' + (groups.size - on) + ' beside it. ' +
+      'atlas.py --find reads the files\' texts too.</p></div>' +
+      trunk.slice().reverse().concat(beside).filter(L => groups.has(L)).map(L => {
+        const g = groups.get(L);
+        return '<h2 style="--h:' + hue[L] + '">' + esc(layerName(L)) + ' <small>' + g.length + '</small></h2>' + g.slice(0, 80).map(i =>
+          '<button class="hit" data-go="' + i + '" style="--h:' + hue[L] + '"><span class="kind">' + A.kinds[A.kind[i]] + '</span><span class="who">' +
+          marked(A.kind[i] === SYMBOL ? A.id[i] : name(i), q) + '</span><span class="b">' + marked(A.brief[i], q) + '</span></button>').join('') +
+          (g.length > 80 ? '<p class="none">and ' + (g.length - 80) + ' more</p>' : '');
+      }).join('');
+  }
+  function paint(groups) {
+    const [out, inn, outL, inL] = groups ? [new Set(), new Set(), new Map(), new Map()] : lit(cur);
+    const curL = cur >= 0 ? own[0][cur] : -1, curF = cur >= 0 ? own[1][cur] : -1, hitF = new Set();
+    if (groups) for (const g of groups.values()) for (const i of g) hitF.add(own[1][i]);
+    tower.classList.toggle('root', cur < 0 && !groups);
+    tower.querySelectorAll('.row').forEach(r => {
+      const L = +r.dataset.l, n = groups && groups.has(L) ? groups.get(L).length : 0, o = outL.get(L), m = inL.get(L);
+      r.classList.toggle('on', !groups && L === curL);
+      r.classList.toggle('dim', !!groups && !n);
+      r.querySelector('.hits').innerHTML = n ? n + ' found' : [o ? '<span class="o">&rarr; ' + o + '</span>' : '',
+        m ? '<span class="n">&larr; ' + m + '</span>' : ''].filter(Boolean).join(' ');
+    });
+    tower.querySelectorAll('.tile').forEach(t => {
+      const f = +t.dataset.f;
+      t.className = 'tile' + (groups ? (hitF.has(f) ? ' hit' : '') : f === curF ? ' on' : out.has(f) ? ' out' : inn.has(f) ? ' in' : '');
+    });
+  }
+  let restore = -1, way = 'down';
+  function render(focus) {
+    const groups = query ? findGroups(query) : null;
+    lens.dataset.way = way;
+    lens.innerHTML = (groups ? findHtml(query, groups) : cur < 0 ? rootHtml() : nodeHtml(cur)) +
+      '<footer><kbd>/</kbd> find &middot; <kbd>&uarr;</kbd> <kbd>&darr;</kbd> move &middot; <kbd>&rarr;</kbd> open &middot; ' +
+      '<kbd>&larr;</kbd> up &middot; <kbd>Esc</kbd> the word, then up &middot; atlas.py --html at ' + esc(A.commit) + '</footer>';
+    document.title = 'atlas' + (groups ? ' / ' + query : cur >= 0 ? ' / ' + name(cur) : '');
+    const chain = [];
+    for (let i = cur; i >= 0; i = A.up[i]) chain.unshift(i);
+    crumbs.innerHTML = '<a data-go="-1">trunk</a>' + chain.map(i => '<span class="sep">/</span><a data-go="' + i + '">' +
+      esc(A.kind[i] === LAYER ? layerName(i) : A.kind[i] === SYMBOL ? A.label[i].split('(')[0] : A.kind[i] === FILE ? A.label[i] : A.id[i]) + '</a>').join('');
+    paint(groups);
+    if (focus) {
+      const el = (restore >= 0 && lens.querySelector('[data-go="' + restore + '"]')) || lens.querySelector('[data-go]');
+      if (el) { el.focus({preventScroll: true}); el.scrollIntoView({block: 'nearest'}); }
+    }
+  }
+  function go(i) {
+    const chain = [];
+    for (let k = cur; k >= 0; k = A.up[k]) chain.unshift(k);
+    const at = i < 0 ? -1 : chain.indexOf(i), upward = cur >= 0 && i !== cur && (i < 0 || at >= 0);
+    way = upward ? 'up' : 'down';
+    restore = upward ? chain[at + 1] : -1;
+    const h = i < 0 ? '' : '#' + encodeURIComponent(A.id[i]);
+    if (location.hash !== h) location.hash = h; else { cur = i; render(true); }
+  }
+  function route() {
+    const key = decodeURIComponent(location.hash.slice(1));
+    if (key.startsWith('find=')) {
+      find.value = key.slice(5);
+      query = find.value.trim().toLowerCase();
+    }
+    cur = key && byId.has(key) ? byId.get(key) : -1;
+    window.scrollTo(0, 0);
+    render(true);
+    restore = -1;
+    way = 'down';
+  }
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-go]');
+    if (!el || e.target.closest('a.ln, a.code')) return;
+    e.preventDefault();
+    if (query) { query = ''; find.value = ''; }
+    go(+el.dataset.go);
+  });
+  let timer = 0;
+  find.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { query = find.value.trim().toLowerCase(); render(); }, 120);
+  });
+  const focusable = () => [...lens.querySelectorAll('[data-go]')];
+  document.addEventListener('keydown', e => {
+    const typing = e.target === find, list = focusable(), k = list.indexOf(document.activeElement);
+    if (e.key === '/' && !typing) { e.preventDefault(); find.focus(); find.select(); }
+    else if (e.key === 'Escape') {
+      if (find.value) { find.value = ''; query = ''; render(true); } else if (cur >= 0) go(A.up[cur]);
+      if (typing) find.blur();
+    } else if (typing) {
+      if ((e.key === 'ArrowDown' || e.key === 'Enter') && find.value.trim()) {
+        e.preventDefault();
+        clearTimeout(timer);
+        query = find.value.trim().toLowerCase();
+        render(false);
+        const first = focusable()[0];
+        if (first && e.key === 'Enter') first.click(); else if (first) first.focus();
+      }
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && list.length) {
+      e.preventDefault();
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+        : Math.max(0, Math.min(list.length - 1, k + (e.key === 'ArrowDown' ? 1 : -1)));
+      list[next].focus();
+      list[next].scrollIntoView({block: 'nearest'});
+    } else if (e.key === 'ArrowRight' && k >= 0) { e.preventDefault(); list[k].click(); }
+    else if ((e.key === 'ArrowLeft' || e.key === 'Backspace') && cur >= 0) { e.preventDefault(); go(A.up[cur]); }
+  });
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>

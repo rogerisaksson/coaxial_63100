@@ -44,8 +44,8 @@ def test_the_loader_reads_the_pages(report):
     from terminal import menu
     entries, sub, opens, picks = loader.listing()
     keys = [key for key, _h, _w in entries]
-    report.check('loader: twelve pages, keys unique, SESSION first',
-                 len(entries) == 12 and len(set(keys)) == 12
+    report.check('loader: thirteen pages, keys unique, SESSION first',
+                 len(entries) == 13 and len(set(keys)) == 13
                  and entries[0][1] == 'SESSION', str(entries))
     report.check('loader: the front page draws the loader\'s list',
                  menu.ENTRIES == entries and menu.SUB == sub and menu.OPEN == opens,
@@ -58,7 +58,7 @@ def test_the_loader_reads_the_pages(report):
                  names == sorted(['session', 'imu', 'angle', 'adc', 'gate_drivers',
                                   'rotor_observer', 'thermal_observer', 'humanoid',
                                   'quad', 'helicopter', 'ornithopter', 'aerobat',
-                                  'chat', 'claude'])
+                                  'chat', 'claude', 'atlas'])
                  and all(loader.by_name(n)[1] == n for n in names), str(names))
     args = argparse.Namespace(port='COM4', simulated=True, frames=2)
     for code, (page, name) in sorted(picks.items()):

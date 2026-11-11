@@ -160,7 +160,7 @@ def open_chat(a, script, strip=None):
 #: What -p is told about this page. CLAUDE.md routes routine board work
 #: to the local model and has claude ask "local model, or here?"; on
 #: this page the operator picked Anthropic, so the question is answered.
-PAGE = ('You are the ANTHROPIC page of coaxial_tty. The operator chose '
+PAGE = ('You are the ANTHROPIC page of system_terminal. The operator chose '
         'you over the local model by opening this page, so the '
         'local-model routing and the "Local model, or here?" question in '
         'CLAUDE.md do not apply: drive the board yourself through the '
