@@ -112,7 +112,8 @@ Evaluate the prompt and working tree before invoking any tool:
 ```text
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
 - Proven Root Cause: [exact mathematical, physical, or structural mechanism]
-- Prior Strike Residual & Pruned Subspace: [N/A on Strike 0, OR exact numerical residual from State 4 and which hypothesis class it mathematically eliminated]
+- Prior Strike Residual & Pruned Subspace: [N/A on Strike 0, OR exact numerical 
+  residual from State 4 and which hypothesis class it eliminated]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
 - Generated File: [NO (safe to edit) OR YES (create)]
 - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
