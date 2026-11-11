@@ -172,7 +172,7 @@
         ;; her hips could flex no further and she fell back). A hip holds her trunk only while a foot bears: sat, it
         ;; lifts her legs instead (a set foot rose off the floor again, -84 to -103 deg, and W pulled on one heel;
         ;; pulling, W went 0.03-0.27 m in 8 s)
-        trunk -28.0 gain 30.0 hip-lo -130.0 hip-hi -35.0
+        trunk -28.0 gain 12.0 hip-lo -130.0 hip-hi -35.0
         ;; her shoulders sat on straight arms, her fists on the floor behind her (`:seat`, as her text's sit braces her:
         ;; her seat bore 0.85 of her); vaulted, her straight arms her struts as her hips open her off her seat till her
         ;; trunk leans leant back of its lean (her pelvis 0.23 m up, as HEAD's set rose her: her shoulders alone, at

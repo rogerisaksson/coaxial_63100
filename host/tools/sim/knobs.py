@@ -1,39 +1,161 @@
-"""A handover spec's knobs: the texts edited and the law's numbers set as its `key=value` pairs say.
+"""A handover spec's knobs: JSON, TOML or key=value overrides on her texts and gait tables.
 
     texts = knobs.arranged(handover.parsed('sea=143,track=12,edge=0.1'))   # the texts given (tune.given), or None
 
-`ax` the walk's axial target, `rock`/`drive` the walk stream's, `k`/`c` the stride spring's, `heel`, `heelrate`,
-`flatk`, `fold`, `dip`, `ls`, `rise`, `edge` the stride's and rocker's, `mhz`/`mdrive`/`mturn`/`max` the march's,
-`pace`/`pace_fast` the swing's, `rund` the run's drive, `sea` the ankle's series spring, `wind` the board's wound-ahead
-ask, `track` the rotor's torque loop, `wfold` the stack's knee fold weight, `charge` a said hop's (tools/sim/handover.py).
+Supports flat `key=value` pairs, inline JSON, or `.json`/`.toml` files (and `COAXIAL_PARAMS` from the environment),
+plus `behaviors` (`{behavior_name: {clause: number}}`) across any Lisp behavior/trait/derivation and `gait` overrides.
 """
+import itertools
+import json
 import math
 import os
+import tomllib
+from typing import Any
 
 GAIT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'lisp', 'humanoid', 'gait_base.lisp')
 POSTURES_PATH = os.path.join(os.path.dirname(GAIT_PATH), 'postures_base.lisp')
 
 
-def literal(src, key, start=0):
+def parse_spec(raw: Any = None) -> dict[str, Any]:
+    """Parse `raw` (`dict`, `.toml`/`.json` file path, inline JSON, or `k=v,k=v`) into a dict."""
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return dict(raw)
+    text = str(raw).strip()
+    if os.path.isfile(text):
+        with open(text, 'rb') as f:
+            return dict(tomllib.load(f) if text.endswith('.toml') else json.loads(f.read().decode('utf-8')))
+    if text.startswith('{'):
+        return dict(json.loads(text))
+    return dict(kv.split('=', 1) for kv in text.split(',') if '=' in kv)
+
+
+def merged(base: Any = None, over: Any = None) -> dict[str, Any]:
+    """Deep-merge two parameter dicts (`over` wins on leaf keys)."""
+    out: dict[str, Any] = {str(k): merged(v, None) if isinstance(v, dict) else v for k, v in (base or {}).items()}
+    for k, v in (over or {}).items():
+        out[str(k)] = merged(out.get(str(k)), v) if isinstance(v, dict) else v
+    return out
+
+
+def expand_variants(cfg: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Expand `cfg` (`variants` list and/or Cartesian `grid` dict) into `[(name, spec_dict)]`."""
+    base = {k: v for k, v in cfg.items() if k not in ('variants', 'grid', 'plays', 'wobbles', 'ensemble', 'window')}
+    raw_vars: list[dict[str, Any]] = list(cfg.get('variants') or [])
+    out = [(str(v.get('name', 'v%d' % i)), merged(base, {k: x for k, x in v.items() if k != 'name'}))
+           for i, v in enumerate(raw_vars)]
+    grid: dict[str, Any] = dict(cfg.get('grid') or {})
+    if grid:
+        keys = list(grid)
+        vals = [v if isinstance(v, list) else [v] for v in grid.values()]
+        for combo in itertools.product(*vals):
+            tag = ','.join('%s=%s' % (k.split('.')[-1], c) for k, c in zip(keys, combo))
+            spec = merged(base, {})
+            for k, c in zip(keys, combo):
+                if '.' in k:
+                    bname, clause = k.split('.', 1)
+                    spec.setdefault('behaviors', {}).setdefault(bname, {})[clause] = c
+                else:
+                    spec[k] = c
+            out.append((tag, spec))
+    return out or [('base', base)]
+
+
+def literal(src, key, start=0, end=None):
     """(where the number after `key` begins and ends in `src`, from `start`, and its value)."""
-    j = src.find(key, start) + len(key)
+    pos = src.find(key, start) if end is None else src.find(key, start, end)
+    if pos < 0:
+        raise KeyError(key)
+    j = pos + len(key)
+    while j < len(src) and src[j] == ' ':
+        j += 1
     z = j
-    while src[z] in '0123456789.-':
+    while z < len(src) and src[z] in '0123456789.-+':
         z += 1
     return j, z, float(src[j:z])
 
 
-def arranged(spec):
-    """The texts and the stride's numbers as `spec` has them: the texts edited (`tune.given`), or None."""
+def _form_span(src, name):
+    """`(start, end)` of top-level `(defbehavior|derive|deftrait|define-... <name> ...)` in `src`, or None."""
+    for head in ('(defbehavior ', '(derive ', '(deftrait ', '(define-'):
+        idx = 0
+        while (pos := src.find(head, idx)) >= 0:
+            rest = src[pos + len(head):]
+            tok = rest.split(None, 1)[0].rstrip(')') if rest else ''
+            if tok == name or (head == '(define-' and name in rest[:48].split()):
+                depth = 0
+                for k in range(pos, len(src)):
+                    depth += (src[k] == '(') - (src[k] == ')')
+                    if depth == 0:
+                        return pos, k + 1
+            idx = pos + len(head)
+    return None
+
+
+def _edit_behaviors(texts, edits, behaviors):
+    """Record `(path, j, z) -> val` edits for `{behavior_name: {clause: val}}` across `texts`."""
+    for bname, clauses in (behaviors or {}).items():
+        hit = next(((p, span) for p, s in texts.items() if (span := _form_span(s, bname)) is not None), None)
+        if hit is None:
+            raise KeyError('unknown behavior %r' % bname)
+        path, (lo, hi) = hit
+        src = texts[path]
+        for clause, val in clauses.items():
+            needle = clause if clause.startswith(('(', ':')) else '(' + clause + ' '
+            j, z, _ = literal(src, needle, lo, hi)
+            edits[(path, j, z)] = float(val)
+
+
+def _apply_gait_map(gmap: dict[str, Any]) -> None:
+    """Apply `gait` overrides (`{'rhythm': {'turn_sway': 0.4}}` or `{'stride.HEEL_RAD': 0.5}`)."""
+    from machine.law import poise, rhythm, rocker, se2, stride, vault
+    mods: dict[str, Any] = {'rhythm': rhythm.R, 'steer': se2.STEER, 'stride': stride, 'rocker': rocker, 'vault': vault, 'poise': poise}
+    for k, v in (gmap or {}).items():
+        if isinstance(v, dict) and k in mods:
+            tgt = mods[k]
+            for sk, sv in v.items():
+                if isinstance(tgt, dict):
+                    tgt[sk] = float(sv)
+                else:
+                    setattr(tgt, sk, float(sv))
+        elif '.' in k and not isinstance(v, dict):
+            mname, attr = k.split('.', 1)
+            tgt = mods[mname]
+            if isinstance(tgt, dict):
+                tgt[attr] = float(v)
+            else:
+                setattr(tgt, attr, float(v))
+
+
+def arranged(spec: Any = None):
+    """The texts and the stride's numbers as `spec` (and `COAXIAL_PARAMS`) have them (`tune.given`), or None."""
     from machine.law import rocker, se2, stride, vault
     from machine.texts import ortho, tune
+    cfg: dict[str, Any] = merged(parse_spec(spec), parse_spec(os.environ.get('COAXIAL_PARAMS')))
+    if not cfg:
+        return None
+    spec = cfg
     texts = tune.texts()
     GAIT, POSTURES = (next(k for k in texts if os.path.normcase(os.path.abspath(k)) == os.path.normcase(p)) for p in (GAIT_PATH, POSTURES_PATH))
     gait, postures = texts[GAIT], texts[POSTURES]
-    edits = {}
+    edits: dict[tuple[str, int, int], float] = {}
+    behaviors: dict[str, Any] = dict(cfg.get('behaviors') or {})
+    for k, v in cfg.items():
+        if '.' in k and not isinstance(v, dict) and k.split('.', 1)[0] not in ('rhythm', 'steer', 'stride', 'rocker', 'vault', 'poise'):
+            bname, clause = k.split('.', 1)
+            behaviors.setdefault(bname, {})[clause] = v
+    if behaviors:
+        _edit_behaviors(texts, edits, behaviors)
+    gmap: dict[str, Any] = dict(cfg.get('gait') or {})
+    for k, v in cfg.items():
+        if '.' in k and not isinstance(v, dict) and k.split('.', 1)[0] in ('rhythm', 'steer', 'stride', 'rocker', 'vault', 'poise'):
+            gmap[k] = v
+    if gmap:
+        _apply_gait_map(gmap)
     if 'ax' in spec:
         j, z, _ = literal(se2.WALK_ON, '(mode_axial_compression ')
-        se2.WALK_ON = se2.WALK_ON[:j] + spec['ax'] + se2.WALK_ON[z:]
+        se2.WALK_ON = se2.WALK_ON[:j] + str(spec['ax']) + se2.WALK_ON[z:]
         se2._WALK_ON_WIRE = ortho.compiled(se2.WALK_ON)[0]['']
         j, z, _ = literal(postures, '(mode_axial_compression ', postures.find('(defbehavior init_walk'))
         edits[(POSTURES, j, z)] = float(spec['ax'])

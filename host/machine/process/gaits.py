@@ -83,6 +83,15 @@ def _queue_post_jump(g, by, entry):
         sprung.said(g, *post, at=t_res, reset=(name == 'stand'))
 
 
+def _stride_entry(entry):
+    from machine.law import se2
+    from machine.moves import leap
+    name = entry[0]
+    if name == 'walk':
+        return ('walk', se2._WALK_ON_WIRE, ('walk',))
+    return leap._jog_resume_entry({'jog': entry}) if name == 'jog' else entry
+
+
 def _brake_and_switch(g, by, entry, t0, spd, back_now):
     import numpy as np
     from machine.law import latent, se2
@@ -108,12 +117,11 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
     if back_now and name == 'jog' and 'init_walk' in by:
         sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0 + dt_b, reset=True)
         return sprung.said(g, *entry, at=t0 + dt_b + se2.init_lead(g))
-    nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
-    return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
+    return sprung.said(g, *_stride_entry(entry), at=t0 + dt_b, reset=True)
 
 
 def _splice_fwd(g, entry, t_end, cur_d):
-    from machine.law import latent, se2
+    from machine.law import latent
     name = g['active_entry'] = entry[0]
     g['_brake_from'], g['_halt_at'] = None, None
     # pressed again in a brake she walks on from now: spliced at its horizon, a 0.2 s release braked her on 0.3-0.7 s
@@ -123,8 +131,7 @@ def _splice_fwd(g, entry, t_end, cur_d):
     g['tab'] = g['tab'][g['tab'][:, latent.AT] < t_last - 1e-4]
     g['labels'] = [(w, n) for w, n in g['labels'] if w < t_last - 1e-4]
     _sync_nominal_twist(g, name)
-    nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
-    sprung.said(g, *nxt, at=t_last)
+    sprung.said(g, *_stride_entry(entry), at=t_last)
 
 
 def heard_say(g, gym, entry):
@@ -135,12 +142,12 @@ def heard_say(g, gym, entry):
     if name == g.get('active_entry') and (name == 'stand' or sprung.doing(g) not in ('rest', 'stand')
                                           or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())):
         return
-    striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
-                or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
     # her gait's direction is the one she was told, not her sway's phase: a spin's read as a backward walk
     back_now = g.get('active_entry') in sprung._BACK_GAITS
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
+    striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
+                or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
     off_c = not striding and cur_d not in ('stand', 'rest') and (
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
         or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
@@ -182,10 +189,9 @@ def heard_say(g, gym, entry):
         return _brake_and_switch(g, by, entry, t0, spd, back_now)
     if striding and same:
         rst = name in ('jog', 'walk') and ae in (('strafe_left', 'strafe_right') + TURN_GAITS)
-        nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
         if ae != name:
             g['active_entry'] = name
-            sprung.said(g, *nxt, at=t0, reset=rst)
+            sprung.said(g, *_stride_entry(entry), at=t0, reset=rst)
         return
     if cur_d == 'sway' and name in (('step',) + sprung._FWD_GAITS):
         sprung.said(g, *by['step'], at=t0, reset=True)

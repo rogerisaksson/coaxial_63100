@@ -237,9 +237,11 @@ def _borne(rs):
                     and ts[0] <= t - DIP_S and t + LOADED_S[1] <= ts[-1]):
                 about = [i for i, s in enumerate(ts) if t - LOADED_S[0] <= s <= t + LOADED_S[1]]
                 top = max(y for s, y in zip(ts, ys) if t - DIP_S <= s <= t)
-                out.append((max(sums[i] for i in about) / weight,
-                            min(sums[i] for i in about if ts[i] >= t + EASED_S) / weight,
-                            1e3 * (top - min(ys[i] for i in about))))
+                eased = [sums[i] for i in about if ts[i] >= t + EASED_S]
+                if eased:
+                    out.append((max(sums[i] for i in about) / weight,
+                                min(eased) / weight,
+                                1e3 * (top - min(ys[i] for i in about))))
     return tuple(_mean(o[k] for o in out) for k in range(3)) if out else (math.nan,) * 3
 
 

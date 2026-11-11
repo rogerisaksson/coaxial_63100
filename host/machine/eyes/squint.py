@@ -114,7 +114,7 @@ def matches(laid, a, b, disp, kept):
     rw = rw - rw.mean(axis=(3, 4), keepdims=True)
     ncc = (rw * lw[:, None, None]).sum(axis=(3, 4)) / np.maximum(
         np.sqrt((rw * rw).sum(axis=(3, 4)) * (lw * lw).sum(axis=(1, 2))[:, None, None]), 1e-12)
-    best = ncc.reshape(len(pr), -1).argmax(axis=1)
+    best = ncc.reshape(len(pr), len(dy) * len(dx)).argmax(axis=1)
     iy, ix = best // len(dx), best % len(dx)
     i = np.flatnonzero((iy > 0) & (iy < len(dy) - 1) & (ix > 0) & (ix < len(dx) - 1))
     y, x = (pr[i] + dy[iy[i]]).astype(float), (right[pr[i], pc[i]] + dx[ix[i]]).astype(float)

@@ -119,7 +119,19 @@ def _options(argv):
                              'or those --file names, each suite\'s processes '
                              'above normal priority so the host\'s other loads '
                              'do not move what they time.' % ', '.join(BENCHMARKS))
+    parser.add_argument('--params',
+                        help='JSON/TOML file, inline JSON, or key=value overrides '
+                             'forwarded via COAXIAL_PARAMS to simulation suites.')
     args = parser.parse_args(argv)
+    if args.params:
+        import json
+        import tomllib
+        if os.path.isfile(args.params):
+            with open(args.params, 'rb') as pf:
+                data = tomllib.load(pf) if args.params.endswith('.toml') else json.loads(pf.read().decode('utf-8'))
+            os.environ['COAXIAL_PARAMS'] = json.dumps(data)
+        else:
+            os.environ['COAXIAL_PARAMS'] = args.params
     # test_x.py:word,word - the suite, and the words its tests are picked by.
     args.words = {name: tuple(filter(None, words.split(',')))
                   for name, _, words in (f.partition(':') for f in args.file)}

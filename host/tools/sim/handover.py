@@ -32,14 +32,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from tools.sim.handovers import ENSEMBLE, ensemble, planned
-from tools.sim.knobs import arranged
+from tools.sim.handovers import planned, ran_special, run_specs, run_sweep
+from tools.sim.knobs import arranged, merged, parse_spec
 
 #: A sole has landed at this share of her weight; the window measured, s; a stance before, s.
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
 
 
-def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False, record=None):
+def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False, record=None, wobble=0.0):
     """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at`
     instead, given; `record`, her loop recorded over the window (`watch.recorded`: recordings/`record`.jsonl, her
     layers named, `tools/sim/recording.py` tells it)."""
@@ -47,7 +47,10 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     from machine.law import modal
     from tools.sim import scenarios
     from tools.sim.player import played
+    spec = parse_spec(spec)
     texts = arranged(spec)
+    if play == 'driven' or play.startswith('scenario:'):
+        return ran_special(spec, play, wobble, texts)
     if entries:
         from tools.sim import ortho as gym
         plan, secs = [(at, {'say': label}) for at, label, _wire, _names in gym.planned(entries.split())], window[1] + 0.5
@@ -154,10 +157,11 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
                                 float(g['world'].feed[seen['bx'][0]])]) if boxes is not None else [0.0] * 9)
         log['leaf_k'].append(float(boxes.k[seen['bx'][0]]) if boxes is not None else 0.0)
 
-    out = scenarios.ran('handover', 0.0, laid=laid, **({'texts': texts} if texts is not None else {}))
+    out = scenarios.ran('handover', wobble, laid=laid, **({'texts': texts} if texts is not None else {}))
     if record and 's' in seen:
         scenarios.ended(seen['s'])
-    row: dict = dict(spec=','.join('%s=%s' % kv for kv in spec.items()), stood=out['stood'], fell=out['fell_at'], samples=len(log['t']),
+    s_lbl = json.dumps(spec, separators=(',', ':')) if any(isinstance(v, dict) for v in spec.values()) else ','.join('%s=%s' % kv for kv in spec.items())
+    row: dict = dict(spec=s_lbl, stood=out['stood'], fell=out['fell_at'], samples=len(log['t']),
                      stumbles=[round(e['t'], 2) for e in told if e['event'] == 'stumble'],
                      falls=[round(e['t'], 2) for e in told if e['event'] == 'fall'], spasms=sum(e['event'] == 'spasm' for e in told),
                      grip_min=round(seen.get('grip', float('nan')), 3))
@@ -251,57 +255,39 @@ def _summed(log, seen, row, trace, from_s, to_s, at_s=None, right=False):
 
 
 def parsed(text):
-    """A spec of `text`'s `key=value` pairs, comma-separated."""
-    return dict(kv.split('=', 1) for kv in text.split(',') if kv)
+    """Parse `text` (`key=value` pairs, inline JSON, or `.json`/`.toml` file path) into a spec dict."""
+    return parse_spec(text)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--spec', default=None, help='one run here, its row as JSON')
+    parser.add_argument('--spec', default=None, help='one run here (k=v, JSON, or .json/.toml file), its row as JSON')
     parser.add_argument('--specs', nargs='*', default=None, help="variants, a relay job each ('' her walk as built)")
+    parser.add_argument('--params', default=None, help='JSON/TOML sweep or override file/string (grid, variants, plays, wobbles)')
+    parser.add_argument('--wobble', type=float, default=0.0, help='initial yaw perturbation, rad')
     parser.add_argument('--trace', action='store_true', help='the passes round one landing, a line each')
     parser.add_argument('--trace-at', type=float, default=None, help='the trace round this second instead of a landing (sole o her left)')
     parser.add_argument('--trace-right', action='store_true', help='with --trace-at: sole o her right')
-    parser.add_argument('--play', default='w12 -3', help="the player's moves (tools/sim/player.py), her walk unsaid")
+    parser.add_argument('--play', default='w12 -3', help="the player's moves, 'driven', or 'scenario:<name>'")
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
-    parser.add_argument('--rows', action='store_true', help="with --ensemble: each start's spec, whether she stood and when she fell, before the summary")
+    parser.add_argument('--rows', action='store_true', help="with --ensemble/--params: print each individual run row before the summary")
     parser.add_argument('--record', default=None, help="with --spec: her loop recorded over the window, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
+    if args.params is not None:
+        cfg = parse_spec(args.params)
+        if any(k in cfg for k in ('variants', 'grid', 'plays', 'wobbles')) or args.ensemble:
+            return run_sweep(cfg, args, os.path.abspath(__file__))
+        args.spec = json.dumps(merged(cfg, parse_spec(args.spec)))
     if args.specs is None:
         row = ran(parsed(args.spec or ''), args.trace, args.play, args.entries, tuple(float(x) for x in args.window.split(',')), args.trace_at, args.trace_right,
-                  args.record)
+                  args.record, args.wobble)
         for line in row.pop('trace', []):
             print(line)
         print(json.dumps(row))
         return 0
-    from tools.dev import focus
-    here = [sys.executable, '-X', 'utf8', os.path.abspath(__file__)]
-    starts = [',drive=%g,ax=%g' % (d, ax) for d in ENSEMBLE[0] for ax in ENSEMBLE[1]] if args.ensemble else ['']
-    runs = [(spec, spec + start) for spec in args.specs for start in starts]
-    jobs = [focus.Job(run or 'base', here + ['--spec', run, '--play', args.play, '--window', args.window]
-                      + (['--entries', args.entries] if args.entries else []) + (['--trace'] if args.trace else [])
-                      + (['--trace-at', str(args.trace_at)] if args.trace_at is not None else []) + (['--trace-right'] if args.trace_right else []), 1.5, 900.0)
-            for _spec, run in runs]
-    rows = {}
-    for job, text, _code, seconds in focus.relay(jobs):
-        lines = [line for line in text.splitlines() if line.startswith('{')]
-        rows[job.name] = (lines[-1] if lines else 'NO ROW: ' + ' | '.join(text.splitlines()[-3:])[-400:]) + ' (%.0f s)' % seconds
-        if args.trace:
-            traced = [line for line in text.splitlines() if line[:1] in 't-0123456789']
-            rows[job.name] = os.linesep.join([job.name + ':'] + traced + [rows[job.name]])
-    if args.ensemble:
-        for spec in args.specs:
-            texts = [rows[run or 'base'] for s, run in runs if s == spec]
-            if args.rows:
-                for r in (json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')):
-                    print(json.dumps({k: r.get(k) for k in ('spec', 'stood', 'fell', 'stumbles', 'hip_passes', 'v', 'grip_min')}))
-            print(ensemble(spec or 'base', [json.loads(t[:t.rfind('}') + 1]) for t in texts if t.startswith('{')]))
-        return 0
-    for spec in args.specs:
-        print(rows[spec or 'base'])
-    return 0
+    return run_specs(args, os.path.abspath(__file__))
 
 
 if __name__ == '__main__':

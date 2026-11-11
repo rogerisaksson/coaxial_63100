@@ -87,7 +87,7 @@ def rows(series, lay, events, times, start=None):
     tl, load, _ = _field(series, lay, 'read', 'LOAD')
     tt, tau, tn = _field(series, lay, 'felt', 'TAU')
     tq, qd, qn = _field(series, lay, 'felt', 'QD')
-    out, last = [], times[0] - 1e-3 if start is None else start
+    out, last = [], (times[0] - 1e-3 if times else 0.0) if start is None else start
     for t in times:
         i, k = _at(st, t), _at(tl, t)
         told = [e['analyzer'] + '.' + e['event'] for e in events if last < e['t'] <= t and e['event'] not in QUIET]

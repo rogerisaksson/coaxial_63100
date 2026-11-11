@@ -12,10 +12,10 @@ from machine.body import gait
 #: Her rhythm's numbers in the order wbc_twist_t lays them.
 NAMES = ('moving', 'moving_edge', 'gain_on', 'gain_edge', 'rest_lo', 'rest_hi', 'edge_m_s', 'still_rad_s',
          'edge_rad_s', 'rest_drive', 'side_m_s', 'turn_rad_s', 'turn_edge_rad_s', 'spin_rad_s', 'spin_still_m_s',
-         'backing_m_s', 'turn_dc', 'turn_dc_side', 'turn_blend', 'turning', 'turning_edge', 'spin_fast_m_s',
-         'spin_fast_edge_m_s', 'spin_drive', 'spin_drive_s_m', 'spin_drive_from_m_s', 'spin_lift', 'turn_sway',
-         'slip_grip', 'slip_grip_edge', 'slip_m_s', 'slip_hz', 'brisk_hz', 'quick_hz', 'run_drive', 'run_boost',
-         'run_arms', 'back_drive', 'back_boost', 'side_shift')
+         'backing_m_s', 'turn_dc', 'turn_dc_side', 'turn_blend', 'turn_stride_blend', 'turning', 'turning_edge',
+         'spin_fast_m_s', 'spin_fast_edge_m_s', 'spin_drive', 'spin_drive_s_m', 'spin_drive_from_m_s', 'spin_lift',
+         'turn_sway', 'slip_grip', 'slip_grip_edge', 'slip_m_s', 'slip_hz', 'brisk_hz', 'quick_hz', 'run_drive',
+         'run_boost', 'run_arms', 'back_drive', 'back_boost', 'side_shift')
 R = gait.table('rhythm')
 
 
@@ -39,9 +39,11 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     w_wz = min(1.0, max(0.0, (abs(wz) - r['turn_rad_s']) / r['turn_edge_rad_s']))
     w_wz5 = min(1.0, max(0.0, (abs(wz) - r['spin_rad_s']) / r['edge_rad_s']))
     w_spin = w_on * w_wz5 * min(1.0, max(0.0, (r['spin_still_m_s'] - abs(vx)) / r['edge_m_s'])) * (1.0 - w_vy)
+    w_stride = w_on * min(1.0, max(0.0, (abs(vxp) - r['spin_still_m_s']) / r['edge_m_s'])) * (1.0 - w_vy)
     wz_way = (1.0 - 2.0 * float(vx < -r['backing_m_s'])) * wz
     ts_raw = w_on * w_wz * (r['turn_dc'] - r['turn_dc_side'] * w_vy) * max(-1.0, min(1.0, wz_way / se2.YAW_RATE))
-    ts = state[se2.TURN_DC] = float(state[se2.TURN_DC]) + r['turn_blend'] * (ts_raw - float(state[se2.TURN_DC]))
+    tb = r['turn_blend'] + w_stride * (r['turn_stride_blend'] - r['turn_blend'])
+    ts = state[se2.TURN_DC] = float(state[se2.TURN_DC]) + tb * (ts_raw - float(state[se2.TURN_DC]))
     w_turn = w_on * max(w_wz, min(1.0, max(0.0, (abs(ts) - r['turning']) / r['turning_edge'])))
     bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
     w_vxp = min(1.0, max(0.0, (abs(vxp) - r['spin_fast_m_s']) / r['spin_fast_edge_m_s']))
