@@ -106,7 +106,7 @@ def _on_rows():
 
 #: What a phase looks for each pass: the look's its verb's thing among hers, and a glimpse of one among
 #: her registry's live slots; a scan whether her eyes have looked along her way (`gaze.scanned`); the rest nothing.
-_SEEN = {'look': lambda g, e: _seen(g, e['kind'], e.get('at'))}
+_SEEN = {'look': lambda g, e: _seen(g, e['kind'], e.get('at'), e['swept'])}
 _GLIMPSE = {'look': lambda g, e: _glimpsed(g, e['kind'], e.get('at'))}
 _SCANNED = {'scan': lambda g, e: _parts()[9].scanned(g)}
 
@@ -195,9 +195,14 @@ class _Context(dict):
 def step_errand(g, gym, heard_fn, heard_say_fn):
     """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): her place in the dock's
     frame, her stop, her aim - her curve, her next stop, else its normal line -, what the phase looks
-    for (`_SEEN`, `_GLIMPSE`), her planner's answer, the row (`_on_rows`), her way watched (`_watched`)."""
-    er = g.get('_errand')
+    for (`_SEEN`, `_GLIMPSE`), her planner's answer, the row (`_on_rows`), her way watched (`_watched`). Her floor let
+    her go (`g['relocalize']`, `machine.eyes.sight.Keep.took`: her light or her room changed under her): the errand
+    begun anew, its thing and its dock found from what she sees now."""
+    er, relocalize = g.get('_errand'), g.pop('relocalize', False)
     if not er:
+        return
+    if relocalize and er['phase'] not in ('look', 'plan'):
+        start_errand(g, gym, er['kind'], heard_fn, heard_say_fn, er.get('at'))
         return
     dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze, furniture = _parts()
     rows, meanwhile = _on_rows()[er['phase']]
@@ -215,13 +220,16 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
     rem = max(0.0, e['d_stage'] - 1.5 * stride.STRIDE_M + s_par)
-    door_pace = min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * rem))
-    walk_pace = door_pace if e['phase'] == 'door' else se2.WALK_SPEED
+    gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
+    # her straight leg braked into its stop as her curve is into its end (`route.rounded`, the wayfinder's centripetal
+    # governor): at BRAKE to her SLOWEST a stride off it, where `corner` stands her; told her walk up to it she stood
+    # from 0.5-1.0 m/s, her capture step 0.30 m on for 0.39, and fell at the bed's first corner 3 of 4 - braked, 0 of 4
+    off = rem if e['phase'] == 'door' else max(0.0, gap - stride.STRIDE_M - voxels.CELL_M * float(len(e['way']) > 1))
+    walk_pace = min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * off))
     way_hd = e['hdd'] if e['phase'] == 'door' and len(e['way']) <= 1 else math.atan2(stop[0] - gx, stop[1] - gz)
     e['k'], (ax, az), along, _there, pace, bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
         else (e['k'], stop, way_hd, pyaw, walk_pace, 0.0))
-    gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
     # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),

@@ -20,7 +20,7 @@ import importlib
 import queue
 import threading
 
-from machine.process import aside
+from machine.process import aside, placed
 from machine.eyes import sight
 from machine.errors import MachineError
 
@@ -31,8 +31,8 @@ POSES = ('xpos', 'xquat', 'xmat', 'geom_xpos', 'geom_xmat', 'site_xpos', 'site_x
          'light_xpos', 'light_xdir', 'ten_wrapadr', 'ten_wrapnum', 'wrap_obj', 'wrap_xpos', 'ten_length')
 #: What her scene's laying writes into her model as she runs (`floor.lay`): its geoms' sizes and places.
 PLACED = ('geom_size', 'geom_pos')
-#: What her map apart says once warm (`main`): no things, no view, no looks - hers till her first look's reach her.
-READY = ([], None, 0)
+#: What her map apart says once warm (`main`): no things, no view, no looks, no floor - hers till her first look's reach her.
+READY = ([], None, 0, None)
 
 
 class _Posed:
@@ -65,17 +65,22 @@ def main():
     drawn here moved her door errand's end. Her card's start moves no frame and no match - the same to the bit over
     40 frames - but her second look is hers 0.5 s sooner, and by the wall's time, as by her loop's pace, her eyes'
     frames tell her errands' ends."""
+    # on a cache group of her eyes' own, her map and frames laid and warm there (`placed`): moved among every core but
+    # her loop's its thread crossed caches 16 times in 40 looks, each look 4.5 % slower
+    placed.placed(cache=True)
     keep, kept = sight.Keep(), {}
 
     def took(ask):
-        binary, poses, placed, head, gz, held = ask
+        binary, poses, placed, head, gz, held, unfloor = ask
         if binary is not None:
             kept['world'] = _Posed(binary)
         if poses is None:
             kept['world'].eyes.warmed()
             return READY
+        if unfloor:
+            keep.forget()
         keep.took(*kept['world'].shot(poses, placed, head, gz, held))
-        return sight.told(keep), keep.view(), keep.map.looks
+        return sight.told(keep), keep.view(), keep.map.looks, keep.fix
     aside.serve(took)
 
 
@@ -88,12 +93,13 @@ class Camera:
         self._told_q = queue.Queue()
         self._aside = aside.Aside('machine.eyes.camera', "her camera's map apart").start()
         self._aside.heard(self._told_q)
-        # no look in flight, her map apart's READY owed: its things hers till her first look's reach her
-        self.looked_at, self.sent, self.things, self.seen, self.looks = None, False, [], None, 0
+        # no look in flight, her map apart's READY owed: its things hers till her first look's reach her; a look laid onto
+        # her floor (`sight.Keep.took`) hers to take once (`fixed`)
+        self.looked_at, self.sent, self.things, self.seen, self.looks, self.fix = None, False, [], None, 0, None
         self.shot, self.shown, self._ready = None, None, True
         # her model sent by a thread of its own, its write the first down the pipe (`_said`): her map apart booting, its
         # 3 MB written here held her laying till it read them
-        warm = (_binary(world.model), None, None, None, None, None)
+        warm = (_binary(world.model), None, None, None, None, None, False)
         self._warming = threading.Thread(target=self._aside.send, args=(warm,), daemon=True)
         self._warming.start()
 
@@ -109,7 +115,7 @@ class Camera:
         """Whether a look is due at `now`: her first, or LOOK_S after her last."""
         return self.looked_at is None or not now - self.looked_at < sight.LOOK_S
 
-    def look(self, world, now, head, gz=(0.0, 0.0), held=None, waited=True):
+    def look(self, world, now, head, gz=(0.0, 0.0), held=None, waited=True, unfloor=False):
         """A look LOOK_S after the last at `now`: the last one's things taken - waited for while her map
         takes it, its READY first after her first look, which waits on none: waited on there, her map apart's boot,
         its renderer's laying and its first shot held her first world second 3 s and more -, `shown` the (time, head,
@@ -125,9 +131,10 @@ class Camera:
             return True
         if self.sent:
             self.ready()
-            self.things, self.seen, self.looks = self._told()
+            self.things, self.seen, self.looks, self.fix = self._told()
         self._said((None, {k: getattr(world.data, k) for k in POSES}, {k: getattr(world.model, k) for k in PLACED},
-                    head, tuple(map(float, gz)), None if held is None else {s: tuple(map(float, a)) for s, a in held.items()}))
+                    head, tuple(map(float, gz)), None if held is None else {s: tuple(map(float, a)) for s, a in held.items()},
+                    bool(unfloor)))
         self.shown, self.shot = self.shot, (now, head, tuple(map(float, gz)))
         self.looked_at, self.sent = now, True
         return True
@@ -145,7 +152,7 @@ class Camera:
             if self._ready:
                 self._ready = False
                 continue
-            self.things, self.seen, self.looks = told
+            self.things, self.seen, self.looks, self.fix = told
             self.sent = False
 
     def _told(self):
@@ -168,6 +175,12 @@ class Camera:
 
     def told(self):
         return self.things
+
+    def fixed(self):
+        """The last look laid onto her floor (`sight.Keep.took`: fix, information, eye, its grey's fit), once: None after
+        it is taken."""
+        fix, self.fix = self.fix, None
+        return fix
 
     def view(self):
         return self.seen

@@ -17,10 +17,10 @@ import heapq
 import math
 import weakref
 
-from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np
+from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, _np, indices
 from machine.eyes.voxels import CELL_M, X_M, Z_M
-from machine.eyes import epipolar, gimbal, instances, squint, voxels
-from machine.eyes.grids import convex, rim as _rim
+from machine.eyes import epipolar, gimbal, ground, instances, squint, voxels
+from machine.eyes.grids import coded, convex, joined_by, rim as _rim
 
 #: A look's points every EVERY'th pixel each way: at 640 x 480 her map's 19 200 points a look as at 320 x 240
 #: every second - its cost theirs, 45 ms a look against 161 every second -, each point's depth twice as fine.
@@ -72,7 +72,7 @@ def assets():
     patches made it 10 km."""
     out = ['<statistic extent="8" center="0 1 1"/>', '<visual><global offwidth="%d" offheight="%d"/></visual>'
            % (epipolar.FINE * W, epipolar.FINE * H), '<asset>']
-    for kind, (a, b) in LOOKS.items():
+    for kind, (a, b) in list(LOOKS.items()) + [('floor', ground.LOOK)]:
         out.append('<texture name="%s" type="cube" builtin="flat" rgb1="%g %g %g" mark="random" '
                    'markrgb="%g %g %g" random="0.35" width="128" height="128"/>' % ((kind,) + a + b))
         out.append('<material name="%s" texture="%s" texuniform="true" texrepeat="%g %g" '
@@ -128,6 +128,7 @@ class Eyes:
     def __init__(self, world):
         import mujoco
         self.renderer = mujoco.Renderer(world.model, epipolar.FINE * H, epipolar.FINE * W)
+        ground.speckled(world.model)
         self.ids = {side: world.model.camera('eye_%s' % side).id for side in ('left', 'right')}
         self.squint, self.laid, self.held = squint.Squint(), None, {'left': (0.0, 0.0), 'right': (0.0, 0.0)}
         atexit.register(_closed, weakref.ref(self))
@@ -214,7 +215,7 @@ def points(seen, disp, kept, every=EVERY):
     """World (x, y, z), colours (r, g, b) and pixels (row, col) of the kept pixels, every
     `every`th row and column (`epipolar.points`)."""
     np = _np()
-    rows, cols = np.indices((H, W))
+    rows, cols = indices(np)
     sel = kept & (rows % every == 0) & (cols % every == 0)
     cam = epipolar.points(rows[sel], cols[sel], disp[sel], *seen.lay)
     return cam @ seen.turn.T + seen.at, seen.left[sel].astype(np.float32) / 255.0, rows[sel], cols[sel]
@@ -233,17 +234,23 @@ class Keep:
     """The map she keeps (`voxels.Map` of LOOKS' colours) and her last look into it, kept for the page."""
 
     def __init__(self):
-        self.map, self.last, self.objects = voxels.Map({k: a for k, (a, _b) in LOOKS.items()}), None, None
+        self.map = voxels.Map({k: a for k, (a, _b) in LOOKS.items()})
+        self.forget()
 
     def forget(self):
-        """Her map laid anew, the last look let go: the room changed under her."""
-        self.map, self.last, self.objects = voxels.Map(self.map.means_of), None, None
+        """Her map and floor laid anew, the last look let go: the room changed under her."""
+        self.map, self.last, self.objects = voxels.Map(self.map.means_of, after=self.map), None, None
+        self.ground, self.fix = ground.Mosaic(EVERY / focal()), None
 
     def took(self, seen, disp, kept):
-        """A look's frame (`Eyes.stereo`, `Eyes.shot`) into the map, its objects boxed (`instances`) where her
-        segmenter is; the Look."""
+        """A look's frame (`Eyes.stereo`, `Eyes.shot`) laid onto her floor (`ground.Mosaic`, `fix` her estimate's to
+        take) and into the map, its objects boxed (`instances`) where her segmenter is; the Look."""
         xyz, rgb, rows, cols = points(seen, disp, kept)
-        self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at), xyz, rgb)
+        grey = rgb.mean(axis=1)
+        fix, info, fit = self.ground.fixed(xyz, grey, seen.at)
+        self.fix, xyz = (fix, info, seen.at.copy(), fit), ground.laid(xyz, seen.at, fix)
+        self.last = Look(seen, rows, cols, self.map.add(xyz, rgb, seen.at + fix[1:]), xyz, rgb)
+        self.ground.add(xyz, grey)
         seg = instances.segmenter()
         self.objects = instances.boxes(seg(seen.left), self.last, self.map) if seg is not None else None
         return self.last
@@ -303,12 +310,11 @@ class Keep:
         xyz, low = last.xyz[off], last.xyz[off, 1] <= voxels.FLOOR_M
         look = np.argmin(voxels.lit(voxels.chroma(last.rgb[off]), self.map.means), axis=-1)
         band = np.where(low, np.round(xyz[:, 1] / voxels.CELL_M), 1.0)
-        code = np.unique(np.column_stack([look, low, band]), axis=0, return_inverse=True)[1].reshape(-1)
+        code = coded(look, low, band)
         grid, index = np.full((H // EVERY + 1, W // EVERY + 1), -1), np.full((H // EVERY + 1, W // EVERY + 1), -1)
         grid[last.rows[off] // EVERY, last.cols[off] // EVERY] = code
         index[last.rows[off] // EVERY, last.cols[off] // EVERY] = np.arange(len(off))
-        lumps = [i for j in np.unique(code) for g in voxels._joined(grid == j, voxels._BESIDE) for i in [index[g]]
-                 if len(i) >= LUMP]
+        lumps = [i for _j, g in joined_by(grid, voxels._BESIDE) for i in [index[g]] if len(i) >= LUMP]
         level = np.array([bool(low[i[0]]) for i in lumps], bool)
         ground = level & np.array([away[off[i]].max() >= REACH_M - voxels.CELL_M for i in lumps], bool)
         lo = np.array([xyz[i].min(axis=0) for i in lumps]).reshape(-1, 3)

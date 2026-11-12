@@ -20,7 +20,7 @@ nothing. A new ask lets the one in flight go. `python -m machine.way.planner`, a
 import operator
 import queue
 
-from machine.process import aside
+from machine.process import aside, placed
 from machine.way import obstacles
 from machine.errors import MachineError
 
@@ -51,7 +51,9 @@ def answered(ask):
 
 def main():
     """Her planner apart: each ask answered (`aside.serve`), her things those of the ask before where it tells them
-    SAME (`Planner.ask`)."""
+    SAME (`Planner.ask`). On a cache group of its own (`placed`): her page's peeker in it planned docks 0.83 of a
+    core over six caches, her vision's among them."""
+    placed.placed(cache=True)
     from machine.way import dock, route  # noqa: F401 - warm before the first ask
     kept: dict = {}
 

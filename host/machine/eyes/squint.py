@@ -18,7 +18,7 @@ and her pushrods' play, it moves as her pictures show it and no further.
 import math
 
 from machine.eyes import epipolar, gimbal
-from machine.eyes.stereo import H, W, WINDOW, _boxed, _grey, _np
+from machine.eyes.stereo import H, W, WINDOW, _boxed, _grey, _np, indices
 
 #: A point a TILE x TILE of her left eye's laid picture, px; matched REACH rows and SIDE columns either way of her
 #: stereo's match (`stereo.CENSUS`' rows' half), its window her stereo's (`stereo.WINDOW`).
@@ -94,7 +94,7 @@ def matches(laid, a, b, disp, kept):
     sxx, syy, sxy = (_boxed(g, r0, xp) for g in (gx * gx, gy * gy, gx * gy))
     least = epipolar.host((sxx + syy) / 2.0 - xp.sqrt(((sxx - syy) / 2.0) ** 2 + sxy * sxy))
     gl, gr = epipolar.host(gl), epipolar.host(gr)
-    rows, cols = np.indices((H, W))
+    rows, cols = indices(np)
     right = cols - np.rint(disp).astype(np.int64)
     room = (kept & laid.on[0] & (rows >= r0 + REACH + 1) & (rows < H - r0 - REACH - 2) & (right >= r0 + SIDE + 1)
             & (right < W - r0 - SIDE - 2) & (cols >= r0) & (cols < W - r0))
@@ -110,16 +110,25 @@ def matches(laid, a, b, disp, kept):
     dy, dx = np.arange(-REACH, REACH + 1), np.arange(-SIDE, SIDE + 1)
     yy = pr[:, None, None, None, None] + dy[None, :, None, None, None] + o[None, None, None, :, None]
     xx = right[pr, pc][:, None, None, None, None] + dx[None, None, :, None, None] + o[None, None, None, None, :]
-    rw = gr[yy, xx]
-    rw = rw - rw.mean(axis=(3, 4), keepdims=True)
-    ncc = (rw * lw[:, None, None]).sum(axis=(3, 4)) / np.maximum(
-        np.sqrt((rw * rw).sum(axis=(3, 4)) * (lw * lw).sum(axis=(1, 2))[:, None, None]), 1e-12)
+    # a row of tiles at a time, its windows in a core's caches: all of a look's at once were tens of MB a temporary
+    step = W // TILE
+    ncc = np.concatenate([_ncc(gr, lw[s:s + step], yy[s:s + step], xx[s:s + step]) for s in range(0, len(pr), step)]
+                         or [np.zeros((0, len(dy), len(dx)))])
     best = ncc.reshape(len(pr), len(dy) * len(dx)).argmax(axis=1)
     iy, ix = best // len(dx), best % len(dx)
     i = np.flatnonzero((iy > 0) & (iy < len(dy) - 1) & (ix > 0) & (ix < len(dx) - 1))
     y, x = (pr[i] + dy[iy[i]]).astype(float), (right[pr[i], pc[i]] + dx[ix[i]]).astype(float)
     y, x, held = _followed(gr, lw[i], y, x, _slopes(disp, kept, pr[i], pc[i], o))
     return pr[i][held], pc[i][held], y[held], x[held]
+
+
+def _ncc(gr, lw, yy, xx):
+    """(n, rows, columns) each left window `lw` (n, w, w, its mean off) matched on her right picture `gr` at the
+    windows `yy`, `xx` reach: their normalized cross-correlation."""
+    rw = gr[yy, xx]
+    rw = rw - rw.mean(axis=(3, 4), keepdims=True)
+    return (rw * lw[:, None, None]).sum(axis=(3, 4)) / _np().maximum(
+        _np().sqrt((rw * rw).sum(axis=(3, 4)) * (lw * lw).sum(axis=(1, 2))[:, None, None]), 1e-12)
 
 
 def _slopes(disp, kept, rows, cols, o):

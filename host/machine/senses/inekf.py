@@ -25,6 +25,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import figure
+from machine.law import se2
 from machine.senses import edge
 from machine.texts import kernel
 from machine.senses import observer
@@ -38,6 +40,11 @@ GYRO, ACCEL = _EKF['inertial-noise']['gyro-radps-sqrt-hz'], _EKF['inertial-noise
 GRAIN, REACH = 2.0 * math.pi / 4096.0 / 30.0, 0.9
 CONTACTS, N = 3, 18
 CORE = np.array([edge.SKIN.index('pelvis'), edge.SKIN.index('torso')])
+#: Her world's up, against gravity (`edge.G`): what a look laid onto her floor turns her about (`seen`).
+UP = -edge.G / np.linalg.norm(edge.G)
+#: How fast a bearing sole's point rolls along it at most, m/s: its length (`figure.SOLE_HALF` twice) once a stride of
+#: her walk (`se2.WALK_HZ`) - her drift's walk a pass (`stepped`).
+ROLL_M_S = 2.0 * figure.SOLE_HALF * se2.WALK_HZ
 
 
 def _skew(w):
@@ -72,6 +79,7 @@ def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
     imu = np.zeros(IMU.stop - IMU.start)
     return {'R': R, 'v': np.zeros(3), 'p': np.array(where, float), 'd': np.zeros((CONTACTS, 3)),
             'P': np.eye(N) * 1e-6, 'on': np.zeros(CONTACTS), 'imu': imu, 'gyro': imu[IMU_GYRO], 'accel': imu[IMU_ACCEL],
+            'drift': np.zeros((4, 4)),
             'span': np.zeros(())}
 
 
@@ -122,6 +130,19 @@ def stepped(f, body, y, shares, dt, points, step):
     anchors = points(body, y, local, weights)
     soles = points(body, y, *f['last']) if 'last' in f else anchors
     f['last'] = (local, weights)
+    # her drift since her floor last held her (`seen`): her gyro's on her turn, a sole's point's travel along it as it
+    # rolls, bearing this pass and the last, on her place - what her contacts, telling her how she moved, cannot tell her
+    # of where she is -, no further a pass than a sole rolls its length a stride (ROLL_M_S): a sole come down or let go,
+    # its weight shifted heel to toe in a turn on the spot, jumps its point, no roll (her drift 0.2-1.2 m a look so);
+    # summed in floats over her contacts - as numpy arrays it was 14 us of her pass, 4.7 so
+    cap = (ROLL_M_S * dt) ** 2
+    rolled = sum(min(x * x + y * y + z * z, cap) * (s >= observer.RELEASE) * (o > 0.5) for (x, y, z), s, o in
+                 zip((soles - anchors).tolist(), sh.tolist(), f['on'].tolist()))
+    drift = f['drift']
+    drift[0, 0] += GYRO ** 2 * dt
+    drift[1, 1] += rolled
+    drift[2, 2] += rolled
+    drift[3, 3] += rolled
     return step(f, y, soles, anchors, sh, dt)
 
 
@@ -170,3 +191,24 @@ def step(f, y, soles, anchors, shares, dt):
         P[idx, idx] += anew * (P[6:9, 6:9] + np.eye(3) * (GRAIN * REACH) ** 2)
     f['P'], f['on'] = P, (np.asarray(shares) >= observer.RELEASE).astype(float)
     return f
+
+
+def seen(f, fix, info, eye):
+    """Whether `f` took a look laid onto her floor (`machine.eyes.ground.Mosaic.fixed`), the text's visual innovation:
+    `fix` its turn about UP through `eye`, rad, and its shift along x, y, z, m, `info` its information (4, 4) - each
+    direction her floor resolves -, weighed against her drift since her floor last held her (`f['drift']`, `stepped`),
+    gated as her contacts are (GATE); taken, her whole frame turned about `eye` and shifted, her drift what is left of
+    it. Her soles carry her place between looks, her floor holds it: her contacts tell her how she moved, not where she
+    is, and her filter's own spread said so to 0.3-2 mm while her head read 0.142 m high in 21 s of a bed errand."""
+    drift = f['drift']
+    told = np.linalg.inv(np.linalg.inv(drift + np.eye(4) * (GRAIN * REACH) ** 2) + info)
+    held = float(fix @ (info - info @ told @ info) @ fix <= GATE)
+    step = held * (told @ info @ fix)
+    c, s = math.cos(step[0]), math.sin(step[0])
+    turn = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+    e = np.asarray(eye, float)
+    f['R'][...], f['v'][...] = turn @ f['R'], turn @ f['v']
+    f['p'][...] = e + turn @ (f['p'] - e) + step[1:]
+    f['d'][...] = e + (f['d'] - e) @ turn.T + step[1:]
+    f['drift'][...] = held * 0.5 * (told + told.T) + (1.0 - held) * drift
+    return held

@@ -24,6 +24,7 @@ peer's suites flickered 8-17 % between runs of the same tree.
 
     placed.placed()      # this process: True where it now runs a core apart, off her loops' caches
     placed.placed(True)  # her loop's: on a cache group of its own where one is free, its thread on its first core
+    placed.placed(cache=True)  # her camera's, her vision's: a group of its own, its threads free, kept by later calls
     placed.raised()      # this process above normal priority where BENCH is set: True where it now does
     placed.cores()       # [each physical core's logical processors, a mask] where the host tells them, else []
     placed.groups()      # [each last-level cache's logical processors, a mask], else []
@@ -286,12 +287,14 @@ def raised():
     return bool(kernel.SetPriorityClass(kernel.GetCurrentProcess(), getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')))
 
 
-def placed(loop=False, host=None):
+def placed(loop=False, host=None, cache=False):
     """This process on the lowest logical processor of each physical core but the first: none of her processes
     on another's sibling thread, the scheduler free among the rest - above normal priority where a benchmark asks
     (`raised`), its speed not throttled as a background window's (Windows). Her `loop`'s process on those of a cache
     group it takes for itself (`chosen`), this thread - her loop's - held to its first fast one (`_bound`), or told
-    the user's own where no thread is bound (`_keen`, macOS); another process off every group so taken (`left`).
+    the user's own where no thread is bound (`_keen`, macOS); a `cache` process (a working set of its own: her
+    camera's, her vision's) on a group of its own alike, its threads free among its cores - held to one, a peer's
+    load on it held her eyes and her errands' pace fell 6-10 %; another process off every group so taken (`left`).
     False where it cannot be placed (two cores or fewer, another system); results are untouched either way - only where
     her processes run."""
     if host is None:
@@ -305,12 +308,13 @@ def placed(loop=False, host=None):
         kernel, state = _kernel(), _Throttling(1, _SPEED, 0)
         kernel.SetProcessInformation(kernel.GetCurrentProcess(), _THROTTLING, ctypes.byref(state), ctypes.sizeof(state))
     own, fast = apart(found)
-    if loop and len(_MINE) < 2:
+    if (loop or cache) and len(_MINE) < 2:
         mine = chosen(caches, own, lambda group: _claim(group, True), fast)
         if mine:
             _MINE.append(mine)
-    mine = _MINE[1] if loop and len(_MINE) > 1 else 0
-    first = (mine & fast or mine) & -(mine & fast or mine)
+    # a group once taken is kept: an aside's own call after it (`aside.serve`) binds it there again
+    mine = _MINE[1] if len(_MINE) > 1 else 0
+    first = (mine & fast or mine) & -(mine & fast or mine) if loop else 0
     held = _bound(mine or left(caches, own, lambda group: not _claim(group, False)), first)
     if mine and not held:
         _given()

@@ -80,7 +80,7 @@ class Map:
 
     """Her voxels, `voxel` m a side: each's hits, looks that told it, looks through it, its colour."""
 
-    def __init__(self, palette, voxel=CELL_M):
+    def __init__(self, palette, voxel=CELL_M, after=None):
         self.means_of, self.names, self.voxel = dict(palette), list(palette), voxel
         self.means = chroma(np.array([palette[k] for k in self.names], float))
         self.nx = int(round((X_M[1] - X_M[0]) / self.voxel))
@@ -92,7 +92,8 @@ class Map:
         self.top = np.full(shape, -np.inf)              # each voxel's highest point told, m
         self.moments = np.zeros(shape + (7,))           # each voxel's points' count and sums: x, x^2, z, z^2, y, y^2
         self.looks, self._made = 0, None
-        self._labels, self._ids, self._next = None, [], 1
+        # ids after `after`'s: her registry matches by id
+        self._labels, self._ids, self._next = None, [], 1 if after is None else after._next
         self._kept, self._was = {}, {}                  # this look's boxes and pieces by what they are of, the last's
 
     def cell(self, x, z):
@@ -141,20 +142,26 @@ class Map:
         n = int(np.ceil(far.max() / step)) if len(far) else 0
         if n == 0:
             return
-        t = (np.arange(n) * step)[None, :]
-        k = t / np.maximum(far[:, None], 1e-6)
-        at = (eye + d[:, None, :] * k[:, :, None]).reshape(-1, 3)
-        i, j, kk, inside = self._index(at)
-        flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0).reshape(len(far), n)
-        solid = (inside & self.occupied().reshape(-1)[flat.reshape(-1)]).reshape(len(far), n)
-        stop = np.where(solid.any(axis=1), solid.argmax(axis=1), n)
-        top = self.top.reshape(-1)[flat.reshape(-1)]
-        under = (at[:, 1] <= top) | ~np.isfinite(top)
-        on = ((t < (far[:, None] - self.voxel)) & (np.arange(n)[None, :] < stop[:, None]) & inside.reshape(len(far), n)
-              & under.reshape(len(far), n))
+        occupied, top = self.occupied().reshape(-1), self.top.reshape(-1)
         # each voxel crossed counted once: marked, not sorted - numpy's unique of a look's samples was 6 ms of it
         crossed = np.zeros(self.free.size, bool)
-        crossed[flat[on]] = True
+        # a step at a time over the rays still going: at once, tens of MB a look
+        ray, last, reach = d, far - self.voxel, np.maximum(far, 1e-6)
+        for s in range(n):
+            t = s * step
+            going = t < last
+            if not going.all():
+                ray, last, reach = ray[going], last[going], reach[going]
+                if not len(last):
+                    break
+            at = eye + ray * (t / reach)[:, None]
+            i, j, kk, inside = self._index(at)
+            flat = np.where(inside, (i * self.ny + j) * self.nz + kk, 0)
+            solid = inside & occupied[flat]
+            told = top[flat]
+            crossed[flat[~solid & inside & ((at[:, 1] <= told) | ~np.isfinite(told))]] = True
+            if solid.any():
+                ray, last, reach = ray[~solid], last[~solid], reach[~solid]
         self.free.reshape(-1)[crossed] += 1
 
     def occupied(self):
@@ -237,7 +244,7 @@ class Map:
             top = more
         labels, out, parts = np.full(occ.shape, -1), [], []
         for j in range(self.ny):
-            for i, k in _joined(top[:, j], _BESIDE):
+            for i, k in self._once(('layer', top[:, j].tobytes()), lambda: _joined(top[:, j], _BESIDE)):
                 jj, knd = np.full(len(i), j), self._kind((i, np.full(len(i), j), k))[0]
                 c = self.moments[i, jj, k, 0].sum()
                 y = float(self.moments[i, jj, k, 5].sum() / c) if c > 0 else FLOOR_M + (j + 1) * self.voxel
@@ -258,29 +265,32 @@ class Map:
             over[:, j, :] = run
             run = np.where(grown(top[:, j, :], 1), j, run)
         for level in np.unique(over[occ & ~top]):
-            for group in _joined(occ & ~top & (over == level), _AROUND):
-                parent = int(np.bincount(kind[group]).argmax())
-                pixel = self._pixel(tuple(a[kind[group] == parent] for a in group), parent)
-                own = np.ones(len(group[0]), bool)
-                other = np.zeros_like(occ)
-                other[group] = kind[group] != parent
-                for part in _joined(other, _AROUND):
-                    if self._apart(pixel, parent, part):
-                        self._told(part, out, labels)
-                        own &= labels[group] < 0
-                rest = tuple(a[own] for a in group)
-                # what rests on nothing - above the floor's layer under no surface - is a stray, not a thing
-                if len(rest[0]) and (level >= 0 or rest[1].min() == 0):
-                    self._told(rest, out, labels, parent)
+            at = occ & ~top & (over == level)
+            for group in self._once(('level', np.flatnonzero(at).tobytes()), lambda: _joined(at, _AROUND)):
+                key = ('group', int(level)) + tuple(a.tobytes() for a in group) + tuple(
+                    a[group].tobytes() for a in (kind, self.colour, self.hits, self.moments))
+                for piece, box in self._once(key, lambda: self._grouped(group, kind, level)):
+                    labels[piece] = len(out)
+                    out.append(box)
         return out, labels, surfaces
 
-    def _told(self, at, out, labels, kind=None):
-        """A structure's voxels `at` (index arrays) onto `out` in its pieces (`_pieces`), each voxel's piece in
-        `labels`; each piece's kind `kind`, or its own pooled colour's."""
-        for piece in self._pieces(at):
-            labels[piece] = len(out)
-            out.append(self._box(piece[0], piece[2], int(piece[1].min()), int(piece[1].max()),
-                                 self._kind(piece)[0] if kind is None else kind, piece[1]))
+    def _grouped(self, group, kind, level):
+        """[(piece, box)] of voxels `group` under the surface at `level`: its own colour's parts, then its rest."""
+        parent = int(np.bincount(kind[group]).argmax())
+        pixel = self._pixel(tuple(a[kind[group] == parent] for a in group), parent)
+        other, apart, out = np.zeros(kind.shape, bool), np.zeros(kind.shape, bool), []
+        other[group] = kind[group] != parent
+        for part in _joined(other, _AROUND):
+            if self._apart(pixel, parent, part):
+                out += self._told(part)
+                apart[part] = True
+        rest = tuple(a[~apart[group]] for a in group)
+        return out + self._told(rest, parent) if len(rest[0]) and (level >= 0 or rest[1].min() == 0) else out
+
+    def _told(self, at, kind=None):
+        """[(piece, box)] of voxels `at` in their pieces (`_pieces`), of kind `kind` or each its own colour's."""
+        return [(piece, self._box(piece[0], piece[2], int(piece[1].min()), int(piece[1].max()),
+                                  self._kind(piece)[0] if kind is None else kind, piece[1])) for piece in self._pieces(at)]
 
     def _pieces(self, at):
         """A structure's voxels `at` (index arrays) in pieces, each halved across its footprint's long axis at

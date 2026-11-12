@@ -10,7 +10,9 @@ registry kept there, the laid one sent it at each epoch and read here no more (`
     looked(g)                                  # both at once: a look between her passes (`sprung.looked`)
     things = g['vision'].boxes(g, least)       # her registry's boxes at `least` salience, between looks
 """
-from machine.process import aside
+import math
+
+from machine.process import aside, placed
 from machine.senses import inekf
 from machine.eyes import gaze, registry
 from machine.law import composer
@@ -43,15 +45,49 @@ def look(g):
         took = gaze.settled(g) and g['keep'].due(g['t'])
         if took:
             gaze.placed(g['world'])
-            g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held, waited=bool(g['eyes']))
+            g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held, waited=bool(g['eyes']),
+                           unfloor=g.pop('unfloor', False))
             gaze.asked(g, gz)
         if g['eyes'] and (not took or g['keep'].shown is None):
             return
         if g['eyes']:
             t, shot, at = g['keep'].shown
             head = gaze.gazed(shot, at)
+            fix = g['keep'].fixed()
+            if fix is not None:
+                _floored(g, t, fix)
     g['vision'].start(g, LOOKS[g['eyes']](g), head, t - g.get('things_at', t), not g['eyes'], t)
     g['things_at'] = t
+
+
+def _floored(g, t, fix):
+    """Her estimate told where her look at `t` lay on her floor (`sight.Keep.took`: `fix`, its information, its eye, its
+    grey's fit; `inekf.seen`) - laid by her estimate as it rose, her looks raised the bed's top 0.44 -> 0.512 m, her head
+    0.09-0.41 m high at its sit -; what it told her and whether she took it kept for her introspection (`g['seen']`).
+    Looks her floor told something she could not take in a row longer than chance at her own share of them (Laplace's,
+    of every look that told) gives at her gate's confidence (`_confidence`) - her light or her floor changed past what
+    a look's gain and offset carry, or she was thrown -: her map and her floor laid anew from her next look
+    (`g['unfloor']`), her errand to find its thing and its dock again from what she sees then (`g['relocalize']`,
+    `machine.way.errand.step_errand`). Two in a row let her go 4-6 times an errand, steady: a quarter of her looks were
+    gated, her registration's errors heavier-tailed than it said."""
+    from machine.eyes import voxels
+    taken = inekf.seen(g['inekf'], *fix[:3])
+    g['seen'] = (t, fix, taken)
+    if not fix[1].any():
+        return
+    told, refused, run = g.get('floor_runs', (0, 0, 0))
+    told, refused, run = told + 1, refused + (not taken), (run + 1) * (not taken)
+    share = (refused + 1.0) / (told + 2.0)
+    g['floor_runs'] = (told, refused, run)
+    if run >= max(voxels.TOLD, math.log(1.0 - _confidence()) / math.log(share)):
+        g['floor_runs'], g['unfloor'], g['relocalize'] = (told, refused, 0), True, True
+
+
+def _confidence():
+    """Her floor's gate's confidence: the chi square with 3 degrees of freedom - a look's turn and place along her
+    floor - below `inekf.GATE` (the text's visual gate), in closed form."""
+    x = inekf.GATE
+    return math.erf(math.sqrt(0.5 * x)) - math.sqrt(2.0 * x / math.pi) * math.exp(-0.5 * x)
 
 
 def joined(g):
@@ -188,6 +224,7 @@ def main():
     it, its boxes kept and restacked where they changed (`registry.seen`), said; its C warmed first (`registry.warm`),
     its ready said then (`Apart.ready`)."""
     import numpy as np
+    placed.placed(cache=True)
     kept: dict = {'looks': []}
     registry.warm()
 

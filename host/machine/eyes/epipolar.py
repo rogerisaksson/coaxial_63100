@@ -18,7 +18,7 @@ their tangents' gap, along it that times the left's (`points`).
 """
 import math
 
-from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card
+from machine.eyes.stereo import BASELINE_M, FOVY_DEG, H, W, WINDOW, _array_disparity, _boxed, _np, card, indices
 
 #: Her eyes' focal length, px (`sight.focal`).
 F = (H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0)
@@ -83,7 +83,7 @@ class Laid:
         self.E = np.column_stack([e1, np.cross(e3, e1), e3])
         self.beta = math.asin(max(-1.0, min(1.0, float(o @ e1))))
         self.fv = F * math.cos(self.beta)
-        rows, cols = xp.indices((H, W), dtype=float)
+        rows, cols = indices(xp, float)
         t = (H / 2.0 - rows) / self.fv
         c = 1.0 / xp.sqrt(1.0 + t * t)
         b = self.beta + xp.arctan((cols - W / 2.0) * c / F)
@@ -150,7 +150,7 @@ class Laid:
         """`kept` on its array module."""
         xp = self.xp
         inner = [_boxed((~on).astype(xp.int64), WINDOW // 2, xp) == 0 for on in self._on]
-        rows, cols = xp.indices((H, W))
+        rows, cols = indices(xp)
         return inner[0] & inner[1][rows, xp.clip(xp.rint(cols - disp).astype(xp.int64), 0, W - 1)]
 
 

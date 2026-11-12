@@ -24,11 +24,21 @@ def _fire_errand_stunt(g, gym, kind, heard_say_fn, at=None, thing=None):
         heard_say_fn(g, gym, maneuver.said(g, by[kind], at, thing))
 
 
-def _seen(g, sc, at):
-    """What `sc` goes to nearest `at` among her things, None with nothing of the kind among them."""
+def _seen(g, sc, at, swept=0.0):
+    """What `sc` goes to nearest `at` among her things - told a place, the thing there (`_there`) till she has looked a
+    full turn round (`swept`, rad) -, None with nothing of the kind among them."""
     from machine.way import furniture
     hit = furniture.nearest(g, sc, at)
-    return None if hit[4] is None else hit
+    return None if hit[4] is None or not _there(hit[6], at, swept) else hit
+
+
+def _there(box, at, swept=0.0):
+    """Whether `box` is the thing told at `at`: none told, a full turn looked round (`swept`, rad), or `at` on its
+    footprint a stride round. Taken the first that afforded it, her bed errand went for the loft 4.4 m off the bed
+    she was told: her textured floor's first look round told the loft a bed before the bed came in sight."""
+    from machine.way import affordance
+    from machine.law import stride
+    return at is None or swept >= math.tau or affordance.distance(box, at) <= stride.STRIDE_M
 
 
 def _within(sc, hit):
@@ -48,7 +58,11 @@ def _glimpsed(g, sc, at):
     """Whether `sc` goes to a thing among her registry's live slots at any salience: a sighting not yet
     hers (`registry.TAKEN`), her look held still while it firms up."""
     from machine.way import furniture
-    return furniture.slotted(g, sc, at, things=g['vision'].boxes(g, -math.inf))
+    things = g['vision'].boxes(g, -math.inf)
+    if not furniture.slotted(g, sc, at, things=things):
+        return False
+    box = furniture.nearest(g, sc, at, things=things)[6]
+    return box is not None and _there(box, at)
 
 
 #: Her heading docked off the dock's normal, by errand: through the door; her back to a seat, the rest.

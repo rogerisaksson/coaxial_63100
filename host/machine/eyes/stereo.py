@@ -169,6 +169,19 @@ def _np():
     return numpy
 
 
+#: Her pictures' pixels' (rows, columns) by array module and type, once laid (`indices`).
+_GRIDS: dict = {}
+
+
+def indices(xp, dtype: type = int):
+    """(rows, columns) (H, W) of her pictures' pixels on array module `xp`, laid once each - five of a look's passes
+    laid them anew, 4.9 MB a time -: read, never written."""
+    key = (xp.__name__, dtype)
+    if key not in _GRIDS:
+        _GRIDS[key] = xp.indices((H, W), dtype=dtype)
+    return _GRIDS[key]
+
+
 def _grey(rgb, xp):
     """(H, W) int64: a picture's grey in fixed point (LUMA), the same integers on the card and the CPU."""
     c = xp.asarray(rgb).astype(xp.int64)
@@ -297,7 +310,7 @@ def _array_disparity(left, right, xp, card=False):
             block[d, :, d:] = _boxed(xp.abs(gl[:, d:] - gr[:, :W - d]), r, xp).astype(xp.float32)
         total = _aggregated(cost, xp)
     best = xp.argmin(total, axis=0)
-    rows, cols = xp.indices((H, W))
+    rows, cols = indices(xp)
     # the paths' sum chooses the disparity, the window's own costs about it place it within a pixel: the paths'
     # sum read so spread it 0.197 px, the window's 0.122 (against the renderer's depth)
     c0 = block[best, rows, cols]
