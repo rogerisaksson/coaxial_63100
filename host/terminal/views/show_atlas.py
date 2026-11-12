@@ -11,14 +11,14 @@ the tree, a right drag moves it, the wheel brings it near. The nodes F1 to F12 o
 where a terminal keeps a function key) are open already, their own children laid out ahead, and dim with
 the rest of the tree; the key choosing one lights it, those above it and all laid out below it - at the
 trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a
-click the node under it and ENTER the one in the middle of the view. The farther a thing from the point
-the view turns about, the more out of focus - its dots fewer, scattered, darker. The tree names no leaf:
-a key's leaves are a panel on the viewport, the branch nearest its middle the active one
-(terminal/views/atlas/leaves.py). Python's package plumbing - a package's __init__.py, its __main__.py -
-is left out, its ties landing on its folder. Along the viewport's top the node in the middle says its name
-and its brief; as the wheel brings it near, the panel beside names what it holds, the deeper the nearer:
-layers, then folders, files, symbols - Tab folds it, as every page's column. W lays the same atlas as a
-page (tools/dev/atlas.py --html) and opens it.
+click the node under it and ENTER the key nearest the viewport. The farther a thing from the point the
+view turns about, the more out of focus - its dots fewer, scattered, darker. The tree names no leaf: a
+key's leaves are a panel on the viewport, the branch nearest the viewport the active one, the panel beside
+marking its key (terminal/views/atlas/leaves.py). Python's package plumbing - a package's __init__.py, its
+__main__.py - is left out, its ties landing on its folder. Along the viewport's top the key nearest it
+says its name and its brief; as the wheel brings it near, the panel beside names what it holds, the
+deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. W lays
+the same atlas as a page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -250,8 +250,8 @@ def _upped(state, _key, _now):
 
 
 def _middled(state, _key, _now):
-    """ENTER: the node in the middle of the view opened."""
-    mid = panel.middle(state['fell'], state['view']) if state['view'] else None
+    """ENTER: the key nearest the viewport opened (`panel.middle`)."""
+    mid = panel.middle(state['fell'], state['view'], keyed(state)) if state['view'] else None
     if mid is not None:
         focused(state, mid)
 
@@ -310,8 +310,8 @@ ROWS = (
      dict.fromkeys(('pageup', 'pagedown'), _paged)),
     ('ATLAS', 'BKSP', 'the node open closed, the one above it open', (('BKSP', 'UP'),),
      dict.fromkeys(('\x08', '\x7f'), _upped)),
-    ('ATLAS', 'ENTER', 'the node in the middle of the view opened; a click the one under it',
-     (('ENTER', 'MIDDLE'),), dict.fromkeys(ENTER_KEYS, _middled)),
+    ('ATLAS', 'ENTER', 'the key nearest the viewport opened; a click the node under it',
+     (('ENTER', 'NEAREST'),), dict.fromkeys(ENTER_KEYS, _middled)),
     ('ATLAS', 'ARROWS', 'the tree turned and tipped; a left drag the same, a right drag moves it, the '
      'wheel brings it near', (), dict.fromkeys(('left', 'right', 'up', 'down'), _turned)),
     ('ATLAS', '+ -', 'nearer, farther', (), {'+': lambda s, _k, _n: zoomed(s, ZOOM_KEY),
@@ -328,8 +328,8 @@ PAD = bindings.page(ROWS, take=_typed)
 
 
 def titled(state, mid, width):
-    """The viewport's title along its top: TREE, then the node in the middle of the view - the one the wheel
-    brings near - by its name and its brief (its kind where it has none), as wide as the frame lets it."""
+    """The viewport's title along its top: TREE, then the key nearest the viewport (`panel.middle`) by its
+    name and its brief (its kind where it has none), as wide as the frame lets it."""
     if mid is None:
         return 'TREE'
     tree = state['tree']
@@ -357,7 +357,7 @@ def draw_of(view, state, keys=''):
             lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, marks, cols, rows,
                                                           taken))
         state['art'] = (width, height)
-        mid = panel.middle(state['fell'], state['view'])
+        mid = panel.middle(state['fell'], state['view'], marks)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
         art = [''] + [line + ' ' * max(0, width - _screen.visible(line)) for line in lines]
         return frame_of(view, state['origin'], TITLE, '\n'.join(art), boxes, bindings.shown(PAD, state),

@@ -151,7 +151,7 @@ def test_the_page_carries_the_atlas(report):
 def test_the_terminal_page_walks_the_tree(report):
     """terminal/views/show_atlas.py on its state: the trunk in 3D, its twelve layers on F1 to F12 - the
     terminal F1 - drawn in braille and named, each open already (its folders laid out ahead), the trunk lit
-    and the rest greyed out, the node in the middle of the view named with its brief along the top; F4
+    and the rest greyed out, the key nearest the viewport named with its brief along the top; F4
     chooses the executive - it and all laid out below it lit, the rest dim, its folders level round it with
     their files laid out ahead and the camera eased to frame them -, F1 its heaviest folder, its files
     hanging under it lit with it, the executive lit above it, BKSP back on the
@@ -168,11 +168,11 @@ def test_the_terminal_page_walks_the_tree(report):
         return bindings.act_on(show_atlas.PAD, list(keys), state)[0]
 
     def drawn():
-        """The scene at the ease's end: its lines, the nodes drawn, the node in the middle, the one the panel
-        lists."""
+        """The scene at the ease's end: its lines, the nodes drawn, the key nearest the viewport, the node the
+        panel lists."""
         state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
         lines, fell, v = scene.picture(show_atlas.placed(state), state['cam'], 100, 36, show_atlas.keyed(state), set())
-        mid = panel.middle(fell, v)
+        mid = panel.middle(fell, v, show_atlas.keyed(state))
         return lines, fell, mid, show_atlas.listing(state, mid)
 
     def inks():
@@ -205,7 +205,7 @@ def test_the_terminal_page_walks_the_tree(report):
                  and not any(hidden[n] for rows in show_atlas.hits(state).values() for n, _ in rows), str(len(plumbing)))
     state['find'] = None
     title = show_atlas.titled(state, mid, 100)
-    report.check('along the top: the node in the middle of the view, its name and its brief',
+    report.check('along the top: the key nearest the viewport, its name and its brief',
                  mid is not None and title.startswith('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid][:20])),
                  title)
     executive = next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive')

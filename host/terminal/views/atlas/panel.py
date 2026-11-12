@@ -1,9 +1,10 @@
-"""The SYSTEM ATLAS page's panel: where the node open lies, what the view's middle holds, keys, ties.
+"""The SYSTEM ATLAS page's panel: where the node open lies, what the nearest key holds, keys, ties.
 
-The instruments beside the scene: the node open's layer, folder, file and brief; what the middle of the
-view holds at the zoom's depth; the keys that open nodes; the open node's ties; the atlas. Zoomed out, the panel lists the layers; wheeled in as near a node in the middle of the view as its own
-frame - a layer's, then a folder's, a file's -, its children: what the scene shows as dots the panel
-names, the deeper the nearer, whether the node is open or not.
+The instruments beside the scene: the node open's layer, folder, file and brief; what the key nearest the
+viewport holds at the zoom's depth; the keys that open nodes; the open node's ties; the atlas. Zoomed out,
+the panel lists the layers; wheeled in as near the key nearest the viewport as its own frame - a layer's,
+then a folder's, a file's -, its children: what the scene shows as dots the panel names, the deeper the
+nearer, whether the node is open or not.
 """
 import textwrap
 
@@ -30,10 +31,14 @@ def fit(text, width, tail=False):
     return CUT + text[len(text) - width + 1:] if tail else text[:max(0, width - 1)] + CUT
 
 
-def middle(fell, v):
-    """The shown node nearest the middle of the view `v` ({node: (x, y, depth)} in dots); None for none."""
-    cx, cy = v['w'] / 2, v['h'] / 2
-    return min(fell, key=lambda n: (fell[n][0] - cx) ** 2 + (fell[n][1] - cy) ** 2, default=None)
+def middle(fell, v, among=None):
+    """The shown node nearest the viewport ({node: (x, y, depth)} in dots, `v` the view): the least depth
+    among `among` - the keys - drawn within the view, else among all drawn there, the nearest the view's
+    middle between equals; None for none."""
+    w, h = v['w'], v['h']
+    inside = [n for n, (x, y, _depth) in fell.items() if 0 <= x < w and 0 <= y < h]
+    pool = [n for n in inside if n in (among or ())] or inside
+    return min(pool, key=lambda n: (fell[n][2], (fell[n][0] - w / 2) ** 2 + (fell[n][1] - h / 2) ** 2), default=None)
 
 
 def under(state, base, kind):
@@ -77,7 +82,7 @@ def here(state):
 
 def listed(state, base, mid, keyed):
     """`base`'s children (`in_view`), a row a node - its key where one opens it, else what it holds, the
-    node in the middle of the view marked -, and the keys whose nodes it leaves out."""
+    key nearest the viewport marked -, and the keys whose nodes it leaves out."""
     tree = state['tree']
     title, nodes = in_view(state, base)
     shown = nodes[:ROWS]

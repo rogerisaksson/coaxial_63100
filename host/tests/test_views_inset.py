@@ -267,12 +267,13 @@ def test_balloons_stand_on_what_she_sees(report):
 
 def test_the_atlas_leaves_are_panels(report):
     """The atlas's leaves in panels on its viewport, framed as her eyes' picture (terminal/views/atlas/
-    leaves.py): the executive chosen, the tree names every key and no leaf; the branch nearest the middle the
-    active panel - its key and name its title, its heaviest leaf first -, the rest idle in a dim frame, the
-    drawing's foot free; turned a quarter round, the branches ranked anew."""
+    leaves.py): the executive chosen, the tree names every key and no leaf; the branch nearest the viewport -
+    the least depth - the active panel, its key the one the panel beside marks - its key and name its title,
+    its heaviest leaf first -, the rest idle in a dim frame, the drawing's foot free; turned a quarter round,
+    the branches ranked anew."""
     import re
     from terminal.views import show_atlas
-    from terminal.views.atlas import leaves, scene
+    from terminal.views.atlas import leaves, panel, scene
     from tools.dev import atlas_tree
     tree = atlas_tree.build()
     state = show_atlas.opened(tree)
@@ -283,7 +284,7 @@ def test_the_atlas_leaves_are_panels(report):
     def over(fell, cols, rows, taken):
         cells.update(leaves.panels(tree, placing['rings'], fell, keyed, cols, rows, taken))
         return cells
-    lines, fell, _v = scene.picture(placing, state['cam'], 100, 36, keyed, set(), over)
+    lines, fell, v = scene.picture(placing, state['cam'], 100, 36, keyed, set(), over)
     drawn = '\n'.join(''.join(' ' if (c, r) in cells else ch for c, ch in enumerate(re.sub(r'\x1b\[[\d;]*m', '', row)))
                       for r, row in enumerate(lines))
     named = [k for n, k in keyed.items() if '%s %s' % (k, scene.short(tree, n)[:5]) in drawn]
@@ -292,7 +293,11 @@ def test_the_atlas_leaves_are_panels(report):
     report.check('the tree names every key and no leaf', len(named) == len(keyed) == 12 and not leafed,
                  '%d keys named, leaves named: %s' % (len(named), [scene.short(tree, n) for n in leafed[:3]]))
     first = leaves.ranked(fell, keyed, placing['rings'], 100, 36)
-    near = first[0][1]
+    near, shown = first[0][1], [n for n in keyed if n in fell and 0 <= fell[n][0] < 200 and 0 <= fell[n][1] < 144]
+    front = min(shown, key=lambda n: fell[n][2])
+    report.check('the active branch the key with leaves nearest the viewport, the one the panel beside marks',
+                 near == min((n for n in shown if placing['rings'].get(n)), key=lambda n: fell[n][2])
+                 and panel.middle(fell, v, keyed) == front == near, '%s, %s marked' % (keyed[near], keyed[front]))
     title = ''.join(ch for (_c, _r), (ch, ink) in sorted(cells.items(), key=lambda kv: kv[0][::-1]) if ink == scene.TITLE)
     rows = {r: ''.join(cells.get((c, r), (' ', 0))[0] for c in range(100)) for r in range(36)}
     heaviest = scene.short(tree, placing['rings'][near][0])
