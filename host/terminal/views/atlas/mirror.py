@@ -1,18 +1,22 @@
 """The atlas's mirror world: its tree turned over, what flows between its files drawn.
 
-What holds what gives way to what flows where. M turns the page's world over: every node where its reflection in the trunk's foot falls, the tree's edges
-faint, and the flows the code says pass between its files (tools/dev/atlas_flow.py: her pass, the wire) as
-bowed curves between the nodes shown - a flow's ends taken to the nearest node shown, so a layer carries
-what its files pass -, those out of the chosen node and into it lit, the rest in their kind's ink: her pass
-the title's, the wire the note's. Its panels list each key's flows, out and in, by the file at the other
-end and what passes.
+What holds what gives way to what flows where. M turns the page's world over: every node where its
+reflection in the trunk's foot falls, the tree's edges faint, and the flows the code says pass between its
+files (tools/dev/atlas_flow.py: her pass, the wire, what comes back) as bowed curves between the nodes shown
+- a flow's ends taken to the nearest node shown, so a layer carries what its files pass -, those out of the
+chosen node and into it lit, the rest in their kind's ink: her pass the title's, the wire the note's, what
+comes back - her loop through the world, the wire's readings - the hit's. A bright dot runs each curve from
+its maker to its taker (`pulsed`): the way the data goes, a loop going round. Its panels list each key's
+flows, out, in and back (↺), by the file at the other end and what passes.
 """
 from terminal.views.atlas import scene
 from terminal.views.atlas.panel import fit
 from tools.dev.atlas_tree import LAYER, LAYERS
 
-#: Each kind's ink (atlas_flow.KINDS: her pass, the wire); how far a flow's curve bows.
-INKS, BOW = (scene.TITLE, scene.NOTE), 0.8
+#: Each kind's ink (atlas_flow.KINDS: her pass, the wire, what comes back); how far a flow's curve bows; a
+#: curve's segments (scene.bow's points, less one); the seconds a dot takes along one, and how far apart the
+#: curves' dots start, a share of the way (the golden one, so no two run together).
+INKS, BOW, SPAN, TRAVEL_S, PHASE = (scene.TITLE, scene.NOTE, scene.HIT), 0.8, 12, 2.0, 0.618
 
 
 def turned(p):
@@ -23,10 +27,10 @@ def turned(p):
 def mirrored(placed, flow, keyed):
     """The mirror of the scene `placed` (show_atlas.placed): its nodes reflected; its flat arrays laid as
     `scene.picture` reads them - the trunk and the tree's edges faint, the flows between the nodes shown
-    bowed -; `out` and `into` {node: flows} the chosen node's flows reach and come from; `rings` {key's
-    node: its flows [(arrow, what passes, the node at the other end)]}."""
+    bowed, `arcs` where each curve's segments start -; `out` and `into` {node: flows} the chosen node's flows
+    reach and come from; `rings` {key's node: its flows [(arrow, what passes, the node at the other end)]}."""
     from coaxial.model.blocks import numpy as np
-    tree, focus = placed['tree'], placed['focus']
+    tree, focus, back = placed['tree'], placed['focus'], len(INKS) - 1
     at = {n: turned(p) for n, p in placed['at'].items()}
     lit = set(scene.chain(tree, focus) + [n for n in at if focus in scene.chain(tree, n)]) if focus >= 0 else set()
     key_of = {n: next((k for k in scene.chain(tree, n) if k in keyed), -1) for n in at}
@@ -38,20 +42,21 @@ def mirrored(placed, flow, keyed):
     trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
     parts = [(at[a], at[b], scene.FAINT, True) for a, b in zip(trunk, trunk[1:])]
     parts += [(at[tree.up[n]], at[n], scene.FAINT, False) for n in at if tree.kind[n] != LAYER]
-    out, into, rings = {}, {}, {k: [] for k in keyed}
+    out, into, rings, arcs = {}, {}, {k: [] for k in keyed}, []
     for (a, b, kind), labels in sorted(passed.items(), key=lambda kv: -len(kv[1])):
         ink = INKS[kind]
         if b in lit and a not in lit:
-            ink, into[a] = scene.TIE_IN, into.get(a, 0) + len(labels)
+            ink, into[a] = scene.TIE_IN if kind != back else ink, into.get(a, 0) + len(labels)
         elif a in lit and b not in lit:
-            ink, out[b] = scene.TIE_OUT, out.get(b, 0) + len(labels)
+            ink, out[b] = scene.TIE_OUT if kind != back else ink, out.get(b, 0) + len(labels)
         points = scene.bow(at[a], at[b], BOW)
+        arcs.append(len(parts))
         parts += [(p, q, ink, False) for p, q in zip(points, points[1:])]
-        said = ', '.join(sorted(set(labels)))
+        said, arrows = ', '.join(sorted(set(labels))), ('↺', '↺') if kind == back else ('→', '←')
         if key_of[a] in rings:
-            rings[key_of[a]].append(('→', said, b))
+            rings[key_of[a]].append((arrows[0], said, b))
         if key_of[b] in rings and key_of[b] != key_of[a]:
-            rings[key_of[b]].append(('←', said, a))
+            rings[key_of[b]].append((arrows[1], said, a))
     nodes = list(at)
     ink = [scene.OPEN if n == focus else (scene.OUT if out.get(n, 0) >= into.get(n, 0) else scene.IN)
            if n in out or n in into else scene.NODE if n in lit else scene.DIM_NODE for n in nodes]
@@ -61,7 +66,19 @@ def mirrored(placed, flow, keyed):
             'lit': lit, 'from': ends[0], 'to': ends[1], 'segink': np.array([s[2] for s in parts], np.uint8),
             'thick': np.array([s[3] for s in parts], bool)}
     return {**placed, 'at': at, 'out': out, 'into': into, 'rings': {k: v for k, v in rings.items() if v},
-            'faint': [], 'flat': flat}
+            'faint': [], 'flat': flat, 'arcs': np.array(arcs, np.intp)}
+
+
+def pulsed(mirror, now):
+    """The `mirror` (`mirrored`) at `now`: a bright dot on each flow's curve, run from its maker to its taker
+    every TRAVEL_S, the curves' dots PHASE of the way apart - the way what flows goes, a loop going round."""
+    from coaxial.model.blocks import numpy as np
+    arcs, flat = mirror['arcs'], mirror['flat']
+    if not len(arcs):
+        return mirror
+    ink = flat['segink'].copy()
+    ink[arcs + ((now / TRAVEL_S + np.arange(len(arcs)) * PHASE) % 1.0 * SPAN).astype(np.intp)] = scene.TOLD
+    return {**mirror, 'flat': {**flat, 'segink': ink}}
 
 
 def lines(tree, flows, wide, tall, active):

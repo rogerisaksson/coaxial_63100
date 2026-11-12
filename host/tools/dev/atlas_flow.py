@@ -3,9 +3,11 @@
     rows = atlas_flow.flows(atlas)       # [(from node, to node, kind, label)], the atlas's file nodes
 
 Her pass (machine/rig/streams.py, STREAMS): each stream made by a function, in the order one instant's
-records keep - the file making a stream hands on to the file making the next, the stream's name on it.
-The wire (tools/dev/target_map.py, `ops`): a command from the host's end of the wire to its handler, and
-from the handler to each of the board's functions it reaches, the command's code on each.
+records keep - the file making a stream hands on to the file making the next, the stream's name on it -,
+and fed back: what the pass ends with (a stream on its end's clock, the world it left) is what her edge
+reads the next pass (a stream laid off her edge). The wire (tools/dev/target_map.py, `ops`): a command from
+the host's end of the wire to its handler and from the handler to each of the board's functions it
+reaches, and fed back, what it read, from the handler to the host's end - the command's code on each.
 """
 import ast
 import os
@@ -13,21 +15,28 @@ import os
 from tools.dev import target_map
 from tools.dev.atlas_tree import REPO, TIES
 
-#: The kinds of flow: her pass, the wire; where her pass's streams are told.
-KINDS, STREAMS = ('pass', 'wire'), os.path.join(REPO, 'host', 'machine', 'rig', 'streams.py')
+#: The kinds of flow: her pass, the wire, what comes back; where her pass's streams are told.
+KINDS, STREAMS = ('pass', 'wire', 'feedback'), os.path.join(REPO, 'host', 'machine', 'rig', 'streams.py')
 
 
 def streams(path=STREAMS):
-    """[(name, 'module:function')] of her pass's streams in their order, read off STREAMS' rows - a row's
-    first word its name, its second what makes it."""
+    """[(name, 'module:function', whether its clock is the pass's end, whether it is laid off her edge)] of her
+    pass's streams in their order, read off STREAMS' rows - Stream(name, by, clock, laid, ...)."""
     with open(path, encoding='utf-8') as f:
         top = ast.parse(f.read())
+    out = []
     for node in top.body:
         if isinstance(node, ast.Assign) and any(getattr(t, 'id', '') == 'STREAMS' for t in node.targets):
-            rows = [[c.value for c in ast.walk(row) if isinstance(c, ast.Constant) and isinstance(c.value, str)]
-                    for row in getattr(node.value, 'elts', [])]
-            return [(row[0], row[1]) for row in rows if len(row) > 1 and ':' in row[1]]
-    return []
+            for row in getattr(node.value, 'elts', []):
+                args = row.args if isinstance(row, ast.Call) else []
+                name, by = (getattr(a, 'value', None) for a in (args + [None, None])[:2])
+                clock, laid = (args + [None, None, None, None])[2:4]
+                end = isinstance(clock, ast.Call) and any(k.arg == 'end' and getattr(k.value, 'value', None) is True
+                                                          for k in clock.keywords)
+                edge = isinstance(laid, ast.Call) and getattr(laid.func, 'id', '') == '_edge'
+                if isinstance(name, str) and isinstance(by, str) and ':' in by:
+                    out.append((name, by, end, edge))
+    return out
 
 
 def _file(atlas, dotted):
@@ -37,22 +46,25 @@ def _file(atlas, dotted):
 
 
 def flows(atlas):
-    """[(from node, to node, kind, label)]: her pass's hand-ons and the wire's commands between the atlas's
-    files (KINDS), none from a file to itself."""
-    made = [(name, _file(atlas, by.partition(':')[0])) for name, by in streams()]
-    out = [(a, b, KINDS.index('pass'), name) for (name, a), (_next, b) in zip(made, made[1:])
+    """[(from node, to node, kind, label)]: her pass's hand-ons and its loop, the wire's commands and what they
+    bring back, between the atlas's files (KINDS), none from a file to itself."""
+    passed, wire, back = (KINDS.index(kind) for kind in KINDS)
+    made = [(name, _file(atlas, by.partition(':')[0]), end, edge) for name, by, end, edge in streams()]
+    out = [(a, b, passed, name) for (name, a, _e, _d), (_n, b, _f, _g) in zip(made, made[1:])
            if a >= 0 and b >= 0 and a != b]
+    out += [(a, b, back, name) for name, a, end, _edge in made if end and a >= 0
+            for _n, b, _end, edge in made if edge and b >= 0 and a != b]
     host = {}
     for s, d, t in zip(atlas.src, atlas.dst, atlas.tie):
         if TIES[t] == 'wire':
             near, far = (s, d) if atlas.id[s].startswith('host/') else (d, s)
             host[far] = near
-    where, wire = target_map.definers(), KINDS.index('wire')
+    where = target_map.definers()
     for code, _word, rel, _fn, calls in target_map.ops():
         handler = atlas.at.get(rel, -1)
         if handler < 0:
             continue
-        out += [(host[handler], handler, wire, code)] if handler in host else []
+        out += [(host[handler], handler, wire, code), (handler, host[handler], back, code)] if handler in host else []
         out += [(handler, atlas.at[where[c]], wire, code) for c in calls
                 if where.get(c) in atlas.at and atlas.at[where[c]] != handler]
     return out

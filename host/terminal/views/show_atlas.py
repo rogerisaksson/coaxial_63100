@@ -11,16 +11,17 @@ the tree, a right drag moves it, the wheel brings it near. The nodes F1 to F12 o
 where a terminal keeps a function key) are open already, their own children laid out ahead, and dim with
 the rest of the tree; the key choosing one lights it, those above it and all laid out below it - at the
 trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a
-click the node under it and ENTER the key nearest the viewport. The farther a thing from the point the
+click the node under it and ENTER the child nearest the viewport. The farther a thing from the point the
 view turns about, the more out of focus - its dots fewer, scattered, darker. The tree names no leaf: a
 key's leaves are a panel on the viewport, the branch nearest the viewport the active one, the panel beside
 marking its key (terminal/views/atlas/leaves.py). Python's package plumbing - a package's __init__.py, its
-__main__.py - is left out, its ties landing on its folder. Along the viewport's top the key nearest it
+__main__.py - is left out, its ties landing on its folder. Along the viewport's top the child nearest it
 says its name and its brief; as the wheel brings it near, the panel beside names what it holds, the
 deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. M turns
-the world over into its mirror: what flows between the files - her pass, the wire - drawn where what
-holds what was, the panels a key's flows (terminal/views/atlas/mirror.py). W lays the same atlas as a
-page (tools/dev/atlas.py --html) and opens it.
+the world over into its mirror: what flows between the files - her pass, the wire, and what comes back,
+her loop through the world, the wire's readings, a dot running each - drawn where what holds what was,
+the panels a child's flows (terminal/views/atlas/mirror.py). W lays the same atlas as a page
+(tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -112,8 +113,8 @@ def placed(state):
     upright = _memo(state, ('placed', focus), make)
     if not state['mirror']:
         return upright
-    keys = keyed(state)
-    return _memo(state, ('mirror', focus, tuple(keys)), lambda: mirror.mirrored(upright, flowing(state), keys))
+    children = context(state)
+    return _memo(state, ('mirror', focus, tuple(children)), lambda: mirror.mirrored(upright, flowing(state), children))
 
 
 def hits(state):
@@ -274,8 +275,8 @@ def _upped(state, _key, _now):
 
 
 def _middled(state, _key, _now):
-    """ENTER: the key nearest the viewport opened (`panel.middle`)."""
-    mid = panel.middle(state['fell'], state['view'], keyed(state)) if state['view'] else None
+    """ENTER: the child nearest the viewport opened (`panel.middle`), whichever page of keys holds it."""
+    mid = panel.middle(state['fell'], state['view'], set(context(state))) if state['view'] else None
     if mid is not None:
         focused(state, mid)
 
@@ -334,7 +335,7 @@ ROWS = (
      dict.fromkeys(('pageup', 'pagedown'), _paged)),
     ('ATLAS', 'BKSP', 'the node open closed, the one above it open', (('BKSP', 'UP'),),
      dict.fromkeys(('\x08', '\x7f'), _upped)),
-    ('ATLAS', 'ENTER', 'the key nearest the viewport opened; a click the node under it',
+    ('ATLAS', 'ENTER', 'the child nearest the viewport opened; a click the node under it',
      (('ENTER', 'NEAREST'),), dict.fromkeys(ENTER_KEYS, _middled)),
     ('ATLAS', 'ARROWS', 'the tree turned and tipped; a left drag the same, a right drag moves it, the '
      'wheel brings it near', (), dict.fromkeys(('left', 'right', 'up', 'down'), _turned)),
@@ -354,7 +355,7 @@ PAD = bindings.page(ROWS, take=_typed)
 
 
 def titled(state, mid, width):
-    """The viewport's title along its top: TREE, then the key nearest the viewport (`panel.middle`) by its
+    """The viewport's title along its top: TREE, then the child nearest the viewport (`panel.middle`) by its
     name and its brief (its kind where it has none), as wide as the frame lets it."""
     head = 'FLOW' if state['mirror'] else 'TREE'
     if mid is None:
@@ -377,16 +378,19 @@ def draw_of(view, state, keys=''):
         height = max(12, state['size'][1] - 6)
         eased(state, time.monotonic())
         placing, marks = placed(state), keyed(state)
+        # The child nearest the viewport, whichever page of keys holds it: its panel, its mark, its brief.
+        named = {n: marks.get(n, '') for n in context(state)}
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
         told = (mirror.lines, mirror.noted) if state['mirror'] else (None, None)
         state['flowing'] = (placing['out'], placing['into']) if state['mirror'] else None
+        placing = mirror.pulsed(placing, time.monotonic()) if state['mirror'] else placing
         lines, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
-            lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, marks, cols, rows,
+            lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows,
                                                           taken, *told))
         state['art'] = (width, height)
-        mid = panel.middle(state['fell'], state['view'], marks)
+        mid = panel.middle(state['fell'], state['view'], named)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
         art = [''] + [line + ' ' * max(0, width - _screen.visible(line)) for line in lines]
         return frame_of(view, state['origin'], TITLE, '\n'.join(art), boxes, bindings.shown(PAD, state),

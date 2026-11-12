@@ -93,6 +93,7 @@
  "test_tick.py": 220.2,
  "test_tune.py": 137.9,
  "test_vault.py": 27.2,
+ "test_views_atlas.py": 12.6,
  "test_views_demo.py": 179.7,
  "test_views_drawing.py": 21.0,
  "test_views_floor.py": 7.6,

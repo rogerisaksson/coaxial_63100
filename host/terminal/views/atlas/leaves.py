@@ -112,7 +112,9 @@ def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, no
         kinds = set() if noted else {tree.kind[n] for n in leaves}
         note = noted(leaves) if noted else ' %d %ss ' % (len(leaves), KINDS[kinds.pop()]) if len(kinds) == 1 \
             else ' %d leaves ' % len(leaves)
-        title = [(' %s ' % keyed[node], KEY), (short(tree, node) + ' ', TITLE if active else NAME_DIM)]
+        key = keyed.get(node)   # none for a child past the keys' page
+        title = ([(' %s ' % key, KEY)] if key else [(' ', KEY)]) \
+            + [(short(tree, node) + ' ', TITLE if active else NAME_DIM)]
         _laid(out, left, top, wide, lines, title, note, active)
         tops[right], laid = top + len(lines) + 2, laid + 1
     return out
