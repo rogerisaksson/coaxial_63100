@@ -197,6 +197,13 @@ def test_the_terminal_page_walks_the_tree(report):
                  all(f in at for layer in range(len(atlas_tree.LAYERS)) for f in state['kids'][layer])
                  and {told[t] for t in trunk} == {scene.NODE}
                  and {ink for node, ink in told.items() if node not in trunk} == {scene.DIM_NODE}, '%d nodes laid' % len(at))
+    hidden, state['find'] = state['hidden'], '__init__'
+    plumbing = [n for n, h in enumerate(hidden) if h and tree.kind[n] == atlas_tree.FILE]
+    report.check('the tree keeps its __init__.py and __main__.py; the page has none as a child, finds none',
+                 len(plumbing) > 10 and all(tree.label[n][:2] == '__' for n in plumbing)
+                 and not any(hidden[c] for row in state['kids'] for c in row)
+                 and not any(hidden[n] for rows in show_atlas.hits(state).values() for n, _ in rows), str(len(plumbing)))
+    state['find'] = None
     title = show_atlas.titled(state, mid, 100)
     report.check('along the top: the node in the middle of the view, its name and its brief',
                  mid is not None and title.startswith('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid][:20])),
@@ -273,11 +280,12 @@ def test_the_scene_is_rastered_as_data(report):
         return set((ys * w + xs).tolist())
 
     x0, y0, x1, y1 = (rng.uniform(-300, 500, 300) for _ in range(4))
-    flat, of = scene.segments(x0, y0, x1, y1, w, h)
+    flat, of, along = scene.segments(x0, y0, x1, y1, w, h)
     batched = [set(flat[of == k].tolist()) for k in range(300)]
-    wrong = [k for k in range(300) if batched[k] != line(x0[k], y0[k], x1[k], y1[k])]
-    report.check("every segment's dots, rastered with all the others, are those its own line drew",
-                 not wrong and sum(map(len, batched)) > 1000, str(wrong[:5]))
+    wrong = [k for k in range(300) if batched[k] != line(x0[k], y0[k], x1[k], y1[k])
+             or not np.array_equal(along[of == k], np.arange(np.count_nonzero(of == k)))]
+    report.check("every segment's dots, rastered with all the others, are those its own line drew, counted "
+                 "along it from its start", not wrong and sum(map(len, batched)) > 1000, str(wrong[:5]))
     x, y, r = rng.uniform(-8, w + 8, 200), rng.uniform(-8, h + 8, 200), rng.uniform(0.8, 5.0, 200)
     flat, of = scene.discs(x, y, r, w, h)
     wrong = [k for k in range(200) if set(flat[of == k].tolist()) != {
@@ -285,6 +293,21 @@ def test_the_scene_is_rastered_as_data(report):
         if abs(px - x[k]) < 7 and abs(py - y[k]) < 7 and (px + 0.5 - x[k]) ** 2 + (py + 0.5 - y[k]) ** 2 <= r[k] * r[k]}]
     report.check("every disc's dots, rastered with all the others, are those whose middles lie within its radius",
                  not wrong, str(wrong[:5]))
+    cam = scene.camera()
+    near, v, far = cam['distance'], scene.view(cam, 100, 36), 1.8 * cam['distance']
+
+    def at(depth, up, side):
+        return [cam['target'][k] + v['f'][k] * (depth - near) + v['u'][k] * up + v['r'][k] * side for k in range(3)]
+    lines = scene.picture({'tree': built(), 'focus': -1, 'out': {}, 'into': {}, 'flat': {
+        'nodes': np.zeros(0, np.intp), 'pos': np.zeros((0, 3)), 'disc': np.zeros(0), 'ink': np.zeros(0, np.uint8),
+        'lit': set(), 'from': np.array([at(near, 2, -5), at(far, -2 * far / near, -5 * far / near)]),
+        'to': np.array([at(near, 2, 5), at(far, -2 * far / near, 5 * far / near)]),
+        'segink': np.array([scene.EDGE] * 2, np.uint8), 'thick': np.zeros(2, bool)}}, cam, 100, 36, {}, set())[0]
+    dots = [sum(bin(ord(c) - 0x2800).count('1') for c in line if 0x2800 < ord(c) <= 0x28FF) for line in lines]
+    sharp, sparse = sum(dots[:18]), sum(dots[18:])
+    report.check('a line at the point the view turns about drawn whole, one as long on the screen past the field '
+                 'keeping 3/16 of its dots', scene.blur(np.array([near, 1.7 * near]), near).tolist() == [0, 1]
+                 and sharp > 100 and abs(sparse - 3 * sharp / 16) <= 3, '%d and %d dots' % (sharp, sparse))
 
 
 def test_the_page_holds_the_mouse(report):

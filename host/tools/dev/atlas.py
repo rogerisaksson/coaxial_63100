@@ -39,12 +39,13 @@ OUT = os.path.join(REPO, 'build', 'atlas.html')
 SHOWN, PER_LAYER = 12, 20
 
 
-def tree_of(atlas):
-    """Each node's children, and how many of each kind lie beneath it, as columns."""
+def tree_of(atlas, kept=None):
+    """Each node's children, and how many of each kind lie beneath it, as columns - of the nodes `kept`
+    (a truth a node; all where None): one not kept is no one's child, nor counted, nor what lies in it."""
     kids, below = [[] for _ in atlas.id], [[0] * 4 for _ in atlas.id]
     for i in range(len(atlas.id) - 1, -1, -1):
         up = atlas.up[i]
-        if up >= 0:
+        if up >= 0 and (kept is None or kept[i]):
             kids[up].append(i)
             below[up][atlas.kind[i]] += 1
             below[up] = [a + b for a, b in zip(below[up], below[i])]

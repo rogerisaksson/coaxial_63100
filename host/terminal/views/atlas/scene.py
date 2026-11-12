@@ -7,11 +7,14 @@ the layers -, their own children laid out ahead: a layer's folders ring it level
 file's symbols hang under it as a cap, the heaviest at its foot and the rest spiralling out by the golden
 angle. The chosen node, those above it and all laid out below it are lit - before any is chosen, the
 trunk -, the rest greyed out; the chosen node's ties are bowed out from the trunk, so those along it are
-not lost in it.
+not lost in it. Far before or behind the point the view turns about a thing is out of focus: it thins to
+a screen door's dots, the sparser the farther, and past the field goes unnamed but for the chosen node,
+its keys and those above it.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
 all at once, cuts them at the near plane and at the drawing's edge, rasters every dot of every segment and
-disc in one pass, keeps each dot's highest-ranked ink and encodes the cells as braille (`picture`).
+disc in one pass, lets those out of focus through their screen door, keeps each dot's highest-ranked ink
+and encodes the cells as braille (`picture`).
 """
 import functools
 import math
@@ -32,6 +35,16 @@ DISC, DOTS, NAMES, FAINT_TIES, TIES_SHOWN = (0.11, 0.05, 0.022, 0.011), (0.8, 4.
 #: their ends' turns.
 HALO, SIDES = 0.24, 24
 TURNS = tuple((math.cos(2 * math.pi * k / SIDES), math.sin(2 * math.pi * k / SIDES)) for k in range(SIDES + 1))
+#: The depth of field round the point the view turns about - its target, the camera's distance ahead -,
+#: fractions of that distance: a thing within the first is sharp, one past the second at its sparsest,
+#: keeping SPARSE of its dots; the second a framed node's reach (show_atlas.frame stands the camera some
+#: 2.8 reaches off it), so the far side of the node chosen thins and all behind it is at its sparsest.
+#: Its screen door, each dot's threshold of 16: along a line from its start (DOOR, the bit-reversed count
+#: - every share spread evenly, a line's first dot always), round a node's middle (BAYER, the ordered
+#: dither - its middle dot always).
+FOCUS, SPARSE = (0.05, 0.36), 0.2
+DOOR = (0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15)
+BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
 #: The inks by rank - a dot keeps its highest-ranked: the faint ties between layers, dim edges and nodes -
 #: all but the chosen node's, those above it and those laid out below it -, lit edges, the chosen node's
 #: ties out and in, lit nodes, then the legend's (the dark terminal's, validated all-pairs): reaches,
@@ -203,6 +216,13 @@ def _flat(scene):
             'thick': np.array([s[3] for s in parts], bool)}
 
 
+def blur(depth, near):
+    """How far out of focus things `depth` ahead are, the view turning about a point `near` ahead: 0 within
+    FOCUS[0] of that distance, 1 past FOCUS[1], straight between."""
+    from coaxial.model.blocks import numpy as np
+    return np.clip((np.abs(depth - near) / near - FOCUS[0]) / (FOCUS[1] - FOCUS[0]), 0.0, 1.0)
+
+
 def _local(v, p):
     """World points (n, 3) in the camera's frame: [right, up, ahead], each (n,)."""
     d0, d1, d2 = p[:, 0] - v['eye'][0], p[:, 1] - v['eye'][1], p[:, 2] - v['eye'][2]
@@ -211,8 +231,9 @@ def _local(v, p):
 
 def segments(x0, y0, x1, y1, w, h):
     """Every dot of every segment (x0, y0)-(x1, y1) - dots, arrays - within a `w` x `h` drawing: (flat index,
-    segment) a dot. A segment is cut to the drawing (Liang-Barsky) and drawn as its longer extent's dots and
-    two more, evenly spaced from its start to its end (numpy.linspace's), each where it falls."""
+    segment, its count along the segment) a dot. A segment is cut to the drawing (Liang-Barsky) and drawn
+    as its longer extent's dots and two more, evenly spaced from its start to its end (numpy.linspace's),
+    each where it falls."""
     from coaxial.model.blocks import numpy as np
     dx, dy = x1 - x0, y1 - y0
     t0, t1, out = np.zeros_like(dx), np.ones_like(dx), np.zeros(dx.shape, bool)
@@ -230,7 +251,7 @@ def segments(x0, y0, x1, y1, w, h):
     last = k == (n - 1)[seg]
     xs = np.where(last, bx[seg], k * ((bx - ax) / (n - 1))[seg] + ax[seg]).astype(np.intp)
     ys = np.where(last, by[seg], k * ((by - ay) / (n - 1))[seg] + ay[seg]).astype(np.intp)
-    return np.clip(ys, 0, h - 1) * w + np.clip(xs, 0, w - 1), keep[seg]
+    return np.clip(ys, 0, h - 1) * w + np.clip(xs, 0, w - 1), keep[seg], k
 
 
 def discs(x, y, r, w, h):
@@ -323,11 +344,20 @@ def picture(scene, cam, width, height, keyed, found):
     seen = np.flatnonzero(cz >= NEAR)
     drawn = np.flatnonzero(~(behind_a & behind_b))
     twice = drawn[f['thick'][drawn]]
-    on, by = segments(np.concatenate((xa[drawn], xa[twice] + 1.0)), np.concatenate((ya[drawn], ya[twice])),
-                      np.concatenate((xb[drawn], xb[twice] + 1.0)), np.concatenate((yb[drawn], yb[twice])), w, h)
+    on, by, along = segments(np.concatenate((xa[drawn], xa[twice] + 1.0)), np.concatenate((ya[drawn], ya[twice])),
+                             np.concatenate((xb[drawn], xb[twice] + 1.0)), np.concatenate((yb[drawn], yb[twice])),
+                             w, h)
     under, of = discs(x[seen], y[seen], size[seen] + (nodes[seen] == focus), w, h)
-    flat_at = np.concatenate((on, under))
-    ranks = np.concatenate((f['segink'][np.concatenate((drawn, twice))][by], ink[seen][of]))
+    # Out of focus a thing keeps a share of its dots, its screen door's: a line's from its start, a disc's
+    # round its node's middle.
+    line_of, disc_of, near = np.concatenate((drawn, twice))[by], seen[of], cam['distance']
+    across = under % w - np.floor(x[disc_of]).astype(np.intp)
+    down = under // w - np.floor(y[disc_of]).astype(np.intp)
+    door = np.concatenate((np.array(DOOR)[along & 15], np.array(BAYER)[down & 3, across & 3]))
+    out = np.concatenate((blur((a[2] + b[2])[line_of] / 2, near), blur(cz[disc_of], near)))
+    stay = (door + 0.5) / 16 < 1.0 - out * (1.0 - SPARSE)
+    flat_at = np.concatenate((on, under))[stay]
+    ranks = np.concatenate((f['segink'][line_of], ink[disc_of]))[stay]
     dots = np.zeros(w * h, np.uint8)
     for rank in np.unique(ranks).tolist():
         dots[flat_at[ranks == rank]] = rank
@@ -337,9 +367,12 @@ def picture(scene, cam, width, height, keyed, found):
     tied_most = sorted(list(scene['out'].items()) + list(scene['into'].items()), key=lambda kv: -kv[1])
     order = [focus] + list(keyed) + chain(tree, focus) + list(range(len(LAYERS))) + [n for n, _ in tied_most] \
         + sorted(found) + nodes[seen][np.argsort(cz[seen], kind='stable')].tolist()
+    # Past the field a node goes unnamed, but the chosen node, its keys, those above it and a word's hits.
+    sharp = dict(zip(nodes[seen].tolist(), (blur(cz[seen], near) < 1.0).tolist()))
+    always = {focus, *keyed, *chain(tree, focus), *found}
     named, done = 0, set()
     for node in order:
-        if node in done or node not in fell or named >= NAMES:
+        if node in done or node not in fell or named >= NAMES or not (sharp[node] or node in always):
             continue
         done.add(node)
         (nx, ny, _), r, key = fell[node], radius[node], keyed.get(node)

@@ -9,11 +9,14 @@ read from the files as they stand when the page opens; the scene is terminal/vie
 panel beside it terminal/views/atlas/panel.py's. The page holds the mouse from its start: a left drag turns
 the tree, a right drag moves it, the wheel brings it near. The nodes F1 to F12 offer (or 1 to 9 and 0,
 where a terminal keeps a function key) are open already, their own children laid out ahead, and dim with
-the rest of the tree; the key choosing one lights it and those above it - at the trunk the twelve layers,
-the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a click the node under it and
-ENTER the one in the middle of the view. Along the viewport's top the node in the middle says its name
-and its brief; as the wheel brings it near, the panel names what it holds, the deeper the nearer: layers,
-then folders, files, symbols. W lays the same atlas as a page (tools/dev/atlas.py --html) and opens it.
+the rest of the tree; the key choosing one lights it, those above it and all laid out below it - at the
+trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a
+click the node under it and ENTER the one in the middle of the view. What lies far before or behind the
+point the view turns about thins out of focus. Python's package plumbing - a package's __init__.py, its
+__main__.py - is left out, its ties landing on its folder. Along the viewport's top the node in the
+middle says its name and its brief; as the wheel brings it near, the panel names what it holds, the
+deeper the nearer: layers, then folders, files, symbols. W lays the same atlas as a page
+(tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -43,10 +46,21 @@ ZOOM_KEY, DISTANCE, EASE_S, ORBIT_DEG_S = 1.25, (0.25, 40.0), 0.2, 9.0
 LISTS_AT, CLICK_DOTS = 1.3, 10.0
 
 
+def plumbing(tree):
+    """Whether each node is Python's package plumbing or lies in it: a file named __x__.py - a package's
+    __init__.py, its __main__.py - and its symbols. A parent comes before its children in the tree."""
+    out = [False] * len(tree.kind)
+    for i, (up, kind, name) in enumerate(zip(tree.up, tree.kind, tree.label)):
+        out[i] = (up >= 0 and out[up]) or (kind == FILE and name.startswith('__') and name.endswith('__.py'))
+    return out
+
+
 def opened(tree):
-    """The page's state over `tree` (atlas_tree.build): its columns, the ties between layers, the node
-    open (-1 the trunk), the camera and the frame it eases to, the word found, the band's origin."""
-    kids, below = atlas.tree_of(tree)
+    """The page's state over `tree` (atlas_tree.build): its columns - Python's package plumbing left out,
+    the ties into it landing on its folder -, the ties between layers, the node open (-1 the trunk), the
+    camera and the frame it eases to, the word found, the band's origin."""
+    hidden = plumbing(tree)
+    kids, below = atlas.tree_of(tree, [not h for h in hidden])
     own = atlas.owners(tree)
     between = [[0] * len(LAYERS) for _ in LAYERS]
     for s, d in zip(tree.src, tree.dst):
@@ -54,8 +68,8 @@ def opened(tree):
             between[own[s][LAYER]][own[d][LAYER]] += 1
     sums = [('files', str(tree.kind.count(FILE))), ('symbols', str(tree.kind.count(SYMBOL))),
             ('ties', str(len(tree.src)))]
-    return {'tree': tree, 'kids': kids, 'below': below, 'own': own, 'between': between, 'focus': -1,
-            'page': 0, 'cam': scene.camera(), 'goal': scene.camera(), 'then': None, 'orbit': False,
+    return {'tree': tree, 'kids': kids, 'below': below, 'hidden': hidden, 'own': own, 'between': between,
+            'focus': -1, 'page': 0, 'cam': scene.camera(), 'goal': scene.camera(), 'then': None, 'orbit': False,
             'find': None, 'typing': False, 'said': '', 'memo': {}, 'sums': sums, 'fell': {}, 'view': None,
             'size': (120, 40), 'origin': Origin(False, 'tree', 0, 'tree',
                                                  'THE TREE AT %s' % atlas.told(atlas.commit()), 'tree', 0)}
@@ -86,10 +100,15 @@ def placed(state):
 
 
 def hits(state):
-    """{layer: [(node, named)]} of the word found (atlas.found); none under two letters."""
-    word = state['find'] or ''
-    return _memo(state, ('find', word),
-                 lambda: atlas.found(state['tree'], word, state['own']) if len(word) > 1 else {})
+    """{layer: [(node, named)]} of the word found (atlas.found), the plumbing the page leaves out not among
+    them; none under two letters."""
+    word, hidden = state['find'] or '', state['hidden']
+
+    def make():
+        found = atlas.found(state['tree'], word, state['own']) if len(word) > 1 else {}
+        shown = {layer: [(node, named) for node, named in rows if not hidden[node]] for layer, rows in found.items()}
+        return {layer: rows for layer, rows in shown.items() if rows}
+    return _memo(state, ('find', word), make)
 
 
 def context(state):
