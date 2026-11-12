@@ -179,8 +179,8 @@ Evaluate the prompt and working tree before invoking any tool:
 
 - **Permitted Actions:** `Create`, `Edit`, `Write` (limit to the proven target
   files, only create new files and systems if existing solutions deemed insufficient).
-  If edits exist with a dirty main, create or reuse a worktree and make it visible 
-  in VSCode. Make your edits in the new worktree.
+  If edits exist with a dirty main, create or reuse a worktree register and make it visible 
+  in Visual Studio Code `Source Control` panel. Make your edits in the new worktree.
 - **Scope Lock:** Modify only the exact lines in the exact existing, or newly added 
   file(s) proven in State 2. Never leave untracked temporary or backup files in the tree.
 - **Generator Rule:** Never hand-edit machine-generated files (manifests,
@@ -190,7 +190,7 @@ Evaluate the prompt and working tree before invoking any tool:
   formatting untouched lines, breaching the per-file token budget, or
   inserting corporate, client, or author references anywhere in the project.
 - **Exit Gate (Emit immediately after mutation before verification):**
-  `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 .. N]]`
+  `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 to 5]]`
 - **Immediate Transition:** Proceed directly to **STATE 4**.
 
 ---
@@ -203,8 +203,8 @@ Evaluate the prompt and working tree before invoking any tool:
   --all --prune` followed by `git pull --rebase`). Resolve any upstream drift
   and proceed from the updated baseline; never verify against a stale tree.
 - **Required Verification (Strictly via the repository's relay test runner):**
-  1. Run the relay (run_tests.py) with the narrowest affected targeted suite
-     considering side effects, and keyword filter (`--file`) covering the
+  1. Run the relay (run_tests.py) with the narrowest affected targeted suite,
+     considering likely side effects, and keyword filter (`--file`) covering the
      modified path. Never execute a test suite directly outside the relay,
      and quote the runner's exact `PASS`/`FAIL` tally verbatim (never paraphrase).
   2. If structure, imports, wire opcodes, or docs were touched, run the
