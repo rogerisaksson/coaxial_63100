@@ -126,24 +126,24 @@ _TURNS = {'settle': lambda g, e, c: float(c['idle'] and c['still'] and c['even']
 @functools.cache
 def _parts():
     """What a pass of her errand reads, imported at her first errand's pass and not looked up again each."""
-    from machine.way import dock, planner, route
+    from machine.way import dock, furniture, planner, route
     from machine.senses import edge
     from machine.law import latent, modal, se2, stride
     from machine.eyes import gaze, voxels
-    return dock, route, edge, latent, modal, se2, stride, voxels, planner, gaze
+    return dock, route, edge, latent, modal, se2, stride, voxels, planner, gaze, furniture
 
 
 def _watched(g, e):
     """Her way left watched by her planner (`_asked`) once WATCH_S walking, none in flight: replanned
     where her things bar it (`route.barred`) - a new way only where the old stops existing."""
-    planner = _parts()[8]
+    planner, furniture = _parts()[8], _parts()[10]
     due = e['phase'] in ('walk', 'door') and g['planner'].asked_at is None
     if not due or g['t'] - e.get('checked_at', -math.inf) < planner.WATCH_S:
         return
     e['checked_at'] = g['t']
-    d = g['world'].data
+    q = furniture.where(g)
     curve = [tuple(p) for p in e['curve'][e['k']:, :2]] if len(e['curve']) else []
-    pts = [(float(d.qpos[0]), float(d.qpos[2]))] + curve + [tuple(p) for p in e['way'][bool(curve):]]
+    pts = [(float(q[0]), float(q[2]))] + curve + [tuple(p) for p in e['way'][bool(curve):]]
     _asked(g, e, 'watch', (e['xd'], e['zd']), way=pts)
 
 
@@ -199,10 +199,10 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     er = g.get('_errand')
     if not er:
         return
-    dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze = _parts()
+    dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze, furniture = _parts()
     rows, meanwhile = _on_rows()[er['phase']]
-    d = g['world'].data
-    gx, gz = float(d.qpos[0]), float(d.qpos[2])
+    q = furniture.where(g)
+    gx, gz = float(q[0]), float(q[2])
     vx_w, vz_w = float(g['est']['vel'][0]), float(g['est']['vel'][2])
     pyaw = se2.wrap_angle(edge.yaw(g['sense']))
     e = er
@@ -217,9 +217,10 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     rem = max(0.0, e['d_stage'] - 1.5 * stride.STRIDE_M + s_par)
     door_pace = min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * rem))
     walk_pace = door_pace if e['phase'] == 'door' else se2.WALK_SPEED
+    way_hd = e['hdd'] if e['phase'] == 'door' and len(e['way']) <= 1 else math.atan2(stop[0] - gx, stop[1] - gz)
     e['k'], (ax, az), along, _there, pace, bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
-        else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw, walk_pace, 0.0))
+        else (e['k'], stop, way_hd, pyaw, walk_pace, 0.0))
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
     # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell

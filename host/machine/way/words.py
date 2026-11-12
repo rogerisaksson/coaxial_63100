@@ -61,13 +61,13 @@ def _asked(g, e, kind, to=None, passed=0.0, way=(), dock=None):
     velocity and turn rate: from where she stood, a replan walking began 0.2 m behind her and she fell."""
     from machine.senses import edge
     from machine.law import latent
-    from machine.way import planner
-    d, v, on = g['world'].data, g['est']['vel'], planner.LATENCY_S * float(kind == 'watch')
+    from machine.way import furniture, planner
+    q, v, on = furniture.where(g), g['est']['vel'], planner.LATENCY_S * float(kind == 'watch')
     g['planner'].ask(g['t'], {
-        'kind': kind, 'at': (float(d.qpos[0]) + float(v[0]) * on, float(d.qpos[2]) + float(v[2]) * on),
+        'kind': kind, 'at': (float(q[0]) + float(v[0]) * on, float(q[2]) + float(v[2]) * on),
         'yaw': edge.yaw(g['sense']) + float(g['sense'][edge.GYRO][1]) * on,
         'still': float(g['st'][latent.NOW][latent.GAIN]) < 1e-6, 'things': list(g['things']),
-        'floor': min(float(f['sole'][1]) for f in g['s']['feet']), 'seen': None, 'slot': e['slot'], 'face': e['face'],
+        'floor': furniture.floor(g), 'seen': None, 'slot': e['slot'], 'face': e['face'],
         'to': to, 'dock': dock, 'warm': e['held'], 'passed': passed, 'way': way})
 
 
@@ -100,10 +100,11 @@ def _looking(g, sc, at):
     """The errand `sc` looking round for its thing: its dock where she stands, nothing planned, her yaw
     swept from none."""
     from machine.senses import edge
-    d, yaw = g['world'].data, edge.yaw(g['sense'])
+    from machine.way import furniture
+    q, yaw = furniture.where(g), edge.yaw(g['sense'])
     return {'kind': sc, 'phase': 'look', 'thing': None, 'at': at, 'swept': 0.0, 'yaw_was': yaw,
-            'x_dock': float(d.qpos[0]), 'z_dock': float(d.qpos[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
-            'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(d.qpos[0]), 'zd': float(d.qpos[2]), 'hdd': yaw,
+            'x_dock': float(q[0]), 'z_dock': float(q[2]), 'nx': math.sin(yaw), 'nz': math.cos(yaw),
+            'tx': math.cos(yaw), 'tz': -math.sin(yaw), 'xd': float(q[0]), 'zd': float(q[2]), 'hdd': yaw,
             'lat_tol': 0.0, 'd_stage': 0.0, 'd_most': 0.0, 'turn_dir': 0.0, 'standoff': 0.0, 'retreats': 0,
             'way': [], 'curve': (), 'k': 0, 'held': (), 'slot': -1, 'face': None, 'docks': (), 'scanned': False}
 
@@ -136,8 +137,9 @@ def _scanning(g, gym, er, c, heard_fn, _say_fn):
     """Her planner's way taken (`_took`), stood: her eyes on each of its places in turn, its corners on her floor
     and her dock (`gaze.scan`) - what they show hers before she walks it, her way scanned once."""
     from machine.eyes import gaze
+    from machine.way import furniture
     _took(g, gym, er, c, heard_fn, _say_fn)
-    floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+    floor = furniture.floor(g)
     gaze.scan(g, [(x, floor, z) for x, z in er['way']] + [_docking(er)])
     er['scanned'] = True
     tell(g, gym, heard_fn, {'twist': STOP})
@@ -145,8 +147,9 @@ def _scanning(g, gym, er, c, heard_fn, _say_fn):
 
 def _reported(g, gym, er, c, heard_fn, _say_fn):
     """Her way scanned: her planner told what her eyes hold along it now (a watch, `_asked`) - barred, a way round."""
-    d = g['world'].data
-    _asked(g, er, 'watch', (er['xd'], er['zd']), way=[(float(d.qpos[0]), float(d.qpos[2]))] + [tuple(p) for p in er['way']])
+    from machine.way import furniture
+    q = furniture.where(g)
+    _asked(g, er, 'watch', (er['xd'], er['zd']), way=[(float(q[0]), float(q[2]))] + [tuple(p) for p in er['way']])
 
 
 def _fixed(g, gym, er, c, heard_fn, _say_fn):

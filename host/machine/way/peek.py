@@ -21,7 +21,8 @@ def _goes(g):
     each as her errand keeps it told of her things (`furniture._afforded`) - told here anew each round, every thing
     against every other, it was 3.9 ms of her loop nine times a second in her door's errand."""
     from machine.way import affordance, furniture
-    at = (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
+    q = furniture.where(g)
+    at = (float(q[0]), float(q[2]))
     goes = {verb: [p for p, _own in furniture._afforded(g, verb)[1]] for verb in VERBS}
     lain = set(map(id, goes['lie_bed']))
     got = [(affordance.distance(p, at), verb, p) for verb in VERBS for p in goes[verb]
@@ -86,11 +87,12 @@ def peeked(s):
         st['none'] = None if st['todo'] else g['things']
     if not st['todo']:
         return
+    from machine.way import furniture
     verb, box = st['todo'].pop(0)
     standoff = maneuver.standoff(verb, g['suite']) if verb in maneuver.PLAYED else 0.0
-    d = g['world'].data
-    planner.ask(g['t'], {'kind': 'peek', 'at': (float(d.qpos[0]), float(d.qpos[2])), 'things': list(g['things']),
-                         'floor': min(float(f['sole'][1]) for f in g['s']['feet']), 'dock': (verb, box, standoff)})
+    q = furniture.where(g)
+    planner.ask(g['t'], {'kind': 'peek', 'at': (float(q[0]), float(q[2])), 'things': list(g['things']),
+                         'floor': furniture.floor(g), 'dock': (verb, box, standoff)})
     st['asked'] = (st['epoch'], verb, box)
 
 

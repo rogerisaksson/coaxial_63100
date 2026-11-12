@@ -84,6 +84,16 @@ def _alike(was, things):
             and all(p[0] == q[0] and p[4:] == q[4:] for p, q in zip(things, was)))
 
 
+def where(g):
+    """Her pelvis (3,) in her things' frame: her invariant EKF's under her eyes, the world's without."""
+    return g['inekf']['p'] if g.get('eyes') else g['world'].data.qpos[:3]
+
+
+def floor(g):
+    """Her lower sole's height (m) in her things' frame (`where`)."""
+    return min(float(f['sole'][1]) for f in g['s']['feet']) - float(g['est']['pos'][1]) + float(where(g)[1])
+
+
 def _found(g, verb, at=None, thing=None, things=None):
     """(its distance from `at`, its edge's from her, the thing - kind, centre, half sizes, turn, slot) of
     what `verb` goes to nearest `at` (x, z) - her without one - among `things` (hers, `g['things']`,
@@ -91,7 +101,7 @@ def _found(g, verb, at=None, thing=None, things=None):
     one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as her things
     change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's, and those
     as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
-    q = g['world'].data.qpos
+    q = where(g)
     gx, gz = float(q[0]), float(q[2])
     ax, az = at if at is not None else (gx, gz)
     things, afforded = _afforded(g, verb, things)
@@ -133,14 +143,14 @@ def lain(g, verb='lie_bed'):
     that half length, m; her root's speed, m/s) of her things, (0.0, 0.0, speed) with none seen: her root where a
     look takes it (`_found`), her place in the room as her eyes tell it - not her dead reckoning, whose estimate drifted
     0.28 m along a bed as she lay down on it and stroked up it."""
-    data = g['world'].data
+    q, data = where(g), g['world'].data
     speed = float(math.sqrt(sum(float(v) ** 2 for v in data.qvel[:3])))
     hit = _found(g, verb)
     if hit is None:
         return 0.0, 0.0, speed
     _kind, (px, _py, pz), half, turn = hit[2][:4]
     j = 0 if half[0] > half[2] else 2
-    along = (float(data.qpos[0]) - px) * turn[0][j] + (float(data.qpos[2]) - pz) * turn[2][j]
+    along = (float(q[0]) - px) * turn[0][j] + (float(q[2]) - pz) * turn[2][j]
     return float(along), float(half[j]), speed
 
 
@@ -162,7 +172,7 @@ def seen(g, stunt, at=None, thing=None):
     if hit is None:
         return None
     _kind, (px, py, pz), half, turn = hit[2][:4]
-    root = g['world'].data.qpos[:3] - g['est']['pos']
+    root = where(g) - g['est']['pos']
     mid, yaw = g['y'][modal.SOLE].reshape(2, 3).mean(axis=0) + root, edge.yaw(g['sense'])
     way, off = (math.sin(yaw), math.cos(yaw)), (px - float(mid[0]), pz - float(mid[2]))
     dots = [way[0] * turn[0][j] + way[1] * turn[2][j] for j in (0, 2)]

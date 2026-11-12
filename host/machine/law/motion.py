@@ -54,8 +54,9 @@ def seen(g, dt):
     qpos, qvel = g['estimated'](g['est'], body, g['sense'], dt)
     s = g['sensed'](body, qpos, qvel)
     observer.step(g['observer'], s, qpos, dt)
-    inekf.stepped(g['inekf'], body, g['sense'], g['observer']['soles'] * g['unanchored'] / float(g['fr'][modal.WEIGHT]),
-                  dt, g['inekf_points'], g['inekf_step'])
+    shares = np.append(g['observer']['soles'] * g['unanchored'],
+                       g['observer']['normal'][observer.ROWS[1:4]].sum()) / float(g['fr'][modal.WEIGHT])
+    inekf.stepped(g['inekf'], body, g['sense'], shares, dt, g['inekf_points'], g['inekf_step'])
     s['hips'], s['arms'], s['elbows'], s['qpos'] = (body.d.xpos[limbs['hips']].copy(), s['q'][limbs['shoulders']],
                                                     s['q'][limbs['elbows']], qpos.copy())
     palmar = g['palmar'] = min(float(g['told'][ortho.PALMAR]), float(g['st'][latent.TO][latent.MANIFOLD.start + ortho.PALMAR]))

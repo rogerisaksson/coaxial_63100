@@ -58,7 +58,8 @@ def shown(er):
 
 
 def _floor(g):
-    return min(float(f['sole'][1]) for f in g['s']['feet'])
+    from machine.way import furniture
+    return furniture.floor(g)
 
 
 def _ways(heading, to):

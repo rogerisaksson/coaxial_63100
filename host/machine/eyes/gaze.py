@@ -12,28 +12,18 @@
     gaze.fix(g, point, way, lead)    # held on a world point wherever she stands; walking `way`, led by its ground
     gaze.rest(g)                     # let go: her eyes at rest, held there
 
-Three ordinary servos turn her eyes - one across (version, to her left +), one down past their rest (pitch, DOWN_DEG's
-way +), one across against each other (vergence, converging +), each eye on its own gimbal by small pushrods
-(`gimbal`: squinted, played, levered as built) -: a turned or converged pair's rows are no longer its planes through
-both eyes, so her stereo lays both pictures on those planes by her eyes' turns as her calibration told her them and her
-pictures since (`sight.Eyes.stereo`, `squint`). Her eyes go from what they look at to the next as a person's do, two
-pace apart: a saccade, ballistic - a minimum jerk's quintic over the main sequence's time (MAIN), no shorter than her
-servos turn (RATE) -, then a fixation held on its world point as her head moves under it (her VOR, from her head as she
-senses it, 120 times a second); her vergence slower, the lag of TAU to the fixation's depth. A look is taken only with
-her eyes standing on what they look at (`settled`): a look in a saccade's blur none - her map and her squint's word
-from still pictures alone. What she looks at: where she stands what she has not seen - the world round her in
-sectors (SECTORS), her registry's glimpses not yet hers -, the one whose look tells most a second first (`_next`): the
-sectors' wide saccades and single looks before her glimpses' near ones held HELD looks, a person's ambient look then
-her focal; nothing left in her eyes' reach, her gaze held still at rest till she stands somewhere new (`_arrived`).
-Walking with no errand, her eyes on the ground she walks onto HELD looks on, held as she walks up to it, a saccade on
-once a look there shows it no more (`_anchored`): a person's sawtooth.
-Told a way, each of its places held till what it shows is hers (`scan`), then the place she goes to held as she walks
-(`fix`) - between its looks the ground her way takes her to where a look at that place shows it not, a person's foot
-zone between her affordance's looks -, let go as she gets there (`rest`). What a look tells is read from her eye as it looked (`gazed`).
+Three servos turn her eyes - across (version, left +), down past rest (`DOWN_DEG` +) and vergence
+(converging +), each eye on its gimbal by pushrods (`gimbal`) - so stereo rectifies by her calibrated
+turns (`sight.Eyes.stereo`, `squint`). Gaze moves in saccades - a minimum-jerk quintic over `MAIN` or
+`RATE` - then holds world fixations via 120 Hz VOR while vergence lags by `TAU`. Looks fire only when
+`settled`. Standing idle, she explores unseen `SECTORS` and glimpses by information rate (`_next`)
+until `rest` (`_arrived`); walking free, she anchors `HELD` looks ahead (`_anchored`); on a way, she
+scans waypoints (`scan`) then holds her target (`fix`) and lead ground (`_ahead`) before `rest`.
 """
 import math
 
 from machine.eyes import gimbal, registry
+from machine.senses import inekf
 from machine.eyes.epipolar import F
 from machine.eyes.gimbal import DOWN_DEG, EYES, turned
 from machine.eyes.stereo import BASELINE_M, H, W, _np
@@ -115,12 +105,23 @@ def _shown(head, sector):
     return eye + FAR_M * np.array([math.sin(sector[0]) * math.cos(down), -math.sin(down), math.cos(sector[0]) * math.cos(down)])
 
 
+def _head(g):
+    """Her head {pos, quat} in her things' frame: her filter's (`inekf.head`) under her eyes, her sense's without."""
+    return inekf.head(g['inekf'], g['body']) if g.get('eyes') and 'inekf' in g else g['s']['head']
+
+
+def _floor(g):
+    """Her lower sole's height (m) in her things' frame."""
+    off = float(g['inekf']['p'][1]) - float(g['est']['pos'][1]) if g.get('eyes') and 'inekf' in g else 0.0
+    return min(float(f['sole'][1]) for f in g['s']['feet']) + off
+
+
 def _laid(g):
     """Her gaze's memory, laid at its first read: at rest, exploring where she stands, nothing scanned or fixed. Laid
     there alone: a default handed `setdefault` was laid at every read, her heading with it, 61 us a law pass."""
     st = g.get('_gaze')
     if st is None:
-        head = g['s']['head']
+        head = _head(g)
         st = g['_gaze'] = {'at': REST, 'to': REST, 'from': REST, 't0': float(g['t']), 'T': 0.0, 'jump': True,
                            'on': False, 't': float(g['t']), 'points': [], 'held': 0, 'after': None, 'fix': None,
                            'way': None, 'lead': 0.0, 'ground': None, 'walking': False, 'anchor': None, 'exploring': True,
@@ -143,7 +144,7 @@ def _next(g, st):
     eyes reach, the one whose look tells most a second - each one's word on what she has not seen, a sector's a look
     and a glimpse's HELD (`registry.TAKEN` over its HIT), over its saccade's time and its looks' -; none, None."""
     from machine.eyes.sight import LOOK_S
-    head, at = g['s']['head'], st['at']
+    head, at = _head(g), st['at']
     open_ = [(_shown(head, s), 1, ('sector', s)) for s in SECTORS if s not in st['seen']]
     open_ += [(c, HELD, ('slot', k)) for k, c in _glimpses(g) if k not in st['visited']]
     best, rate = None, 0.0
@@ -158,10 +159,10 @@ def _next(g, st):
 
 
 def _told_of(g, st, gz):
-    """The sectors a look at gaze `gz` showed her whole from her head (`g['s']['head']`): each one's bearings and rows -
+    """The sectors a look at gaze `gz` showed her whole from her head (`_head`): each one's bearings and rows -
     its half the sectors' spacing either way - within her view's half across and up of where her eyes looked, seen
     from here; a sector's neighbour in her view's edge shown in part, not seen."""
-    view, wide = _heading(g['s']['head']) + gz[0], math.tau / len({s[0] for s in SECTORS}) / 2.0
+    view, wide = _heading(_head(g)) + gz[0], math.tau / len({s[0] for s in SECTORS}) / 2.0
     for s in SECTORS:
         if (abs(math.remainder(s[0] - view, math.tau)) + wide <= HALF[0] + 1e-9
                 and abs(s[1] - gz[1]) + HALF[1] / 2.0 <= HALF[1] + 1e-9):
@@ -170,11 +171,11 @@ def _told_of(g, st, gz):
 
 def _aim(g, st, told=(None, None)):
     """(across, down, vergence) rad of what she looks at now: a way's place she scans, the ground her way takes her to
-    or the place she fixes, the ground she walks onto, what she explores - from her head as she senses it
-    (`g['s']['head']`) -, else rest; `told` (a point, its bearings) those `moved` told this pass already."""
+    or the place she fixes, the ground she walks onto, what she explores - from her head in her things' frame
+    (`_head`) -, else rest; `told` (a point, its bearings) those `moved` told this pass already."""
     point = next((p for p in (st['points'][0] if st['points'] else None, st['ground'], st['fix'], st['anchor'],
                               (st['explore'] or {}).get('point')) if p is not None), None)
-    return REST if point is None else toward(g['s']['head'], point, told[1] if point is told[0] else None)
+    return REST if point is None else toward(_head(g), point, told[1] if point is told[0] else None)
 
 
 def _anchored(g):
@@ -182,13 +183,13 @@ def _anchored(g):
     rad/s) takes her from her head's place and heading HELD looks on - what a look shows there hers by the time she
     stands on it -, on her floor; out of her eyes' reach, None."""
     from machine.eyes.sight import LOOK_S
-    head, T = g['s']['head'], HELD * LOOK_S
+    head, T = _head(g), HELD * LOOK_S
     vx, vy, wz = (float(v) for v in g.get('twist', (0.0, 0.0, 0.0)))
     a = _heading(head)
     b = a + wz * T
     # her heading's sine and cosine walked over T: a turn's arc, or a line
     sn, cs = ((math.cos(a) - math.cos(b)) / wz, (math.sin(b) - math.sin(a)) / wz) if abs(wz) * T > 1e-9 else (math.sin(a) * T, math.cos(a) * T)
-    p = (float(head['pos'][0]) + vx * sn + vy * cs, min(float(f['sole'][1]) for f in g['s']['feet']),
+    p = (float(head['pos'][0]) + vx * sn + vy * cs, _floor(g),
          float(head['pos'][2]) + vx * cs - vy * sn)
     return p if _reached(head, p) else None
 
@@ -205,7 +206,7 @@ def _ahead(g, st):
     """(x, y, z) the ground her way (`fix`'s) takes her to `lead` s on from its place nearest her at its pace, on her
     floor, where her eyes reach it and a look at what she fixes shows it not; else None."""
     np = _np()
-    head, way = g['s']['head'], st['way']
+    head, way = _head(g), st['way']
     here = np.array([float(head['pos'][0]), float(head['pos'][2])])
     a, ab, s, v = way[:-1, :2], np.diff(way[:, :2], axis=0), way[:, 2], way[:, 3]
     u = np.clip(np.einsum('ij,ij->i', here - a, ab) / np.maximum(np.einsum('ij,ij->i', ab, ab), 1e-300), 0.0, 1.0)
@@ -213,7 +214,7 @@ def _ahead(g, st):
     # her way's time walked to each of its places, each leg at its ends' pace's mean
     t = np.r_[0.0, np.cumsum(np.diff(s) / np.maximum(0.5 * (v[:-1] + v[1:]), 1e-300))]
     to = float(np.interp(float(np.interp(s[k] + u[k] * (s[k + 1] - s[k]), s, t)) + st['lead'], t, s))
-    p = (float(np.interp(to, s, way[:, 0])), min(float(f['sole'][1]) for f in g['s']['feet']), float(np.interp(to, s, way[:, 1])))
+    p = (float(np.interp(to, s, way[:, 0])), _floor(g), float(np.interp(to, s, way[:, 1])))
     return None if not _reached(head, p) or _shows(head, toward(head, st['fix']), p) else p
 
 
@@ -235,7 +236,7 @@ def _arrived(g, st):
     # exploring or walking neither row below reads her head: her heading told each law pass was 20 us of it
     if st['exploring'] or walking:
         return
-    head = g['s']['head']
+    head = _head(g)
     here, heading = (float(head['pos'][0]), float(head['pos'][2])), _heading(head)
     if not st['exploring'] and not any(abs(float(v)) > 1e-9 for v in twist) and math.dist(here, st['here']) > NEAR_M:
         st.update(exploring=True, explore=None, seen=set(), visited=set(), here=here, heading=heading)
@@ -262,9 +263,9 @@ def moved(g):
     st = _laid(g)
     _arrived(g, st)
     # what she explores told its bearings once a pass, her reach of it and her aim at it both theirs: 23 us each
-    point = None if st['explore'] is None else st['explore']['point']
-    told = (point, None if point is None else _bearings(g['s']['head'], point))
-    if st['explore'] is not None and not _reached(g['s']['head'], point, told[1]):
+    point, head = (None if st['explore'] is None else st['explore']['point']), _head(g)
+    told = (point, None if point is None else _bearings(head, point))
+    if st['explore'] is not None and not _reached(head, point, told[1]):
         st['explore'] = None
     if st['exploring'] and st['explore'] is None and not st['points'] and st['fix'] is None:
         st['explore'] = _next(g, st)
@@ -311,7 +312,7 @@ def asked(g, gz):
             st['jump'] = was is not None or st['ground'] is not None
     elif st['walking']:
         # her anchor held while a look at it shows the ground she walks onto, else a saccade on to it: a sawtooth
-        head, a, ahead = g['s']['head'], st['anchor'], _anchored(g)
+        head, a, ahead = _head(g), st['anchor'], _anchored(g)
         if a is None or ahead is None or not _reached(head, a) or not _shows(head, toward(head, a), ahead):
             st['anchor'], st['jump'] = ahead, True
     elif st['fix'] is None and st['exploring']:
@@ -328,7 +329,7 @@ def asked(g, gz):
 def _over(g, **told):
     """Her gaze told to look as an errand asks (`told`), her exploring and her walk's anchor over, no way led but one
     told."""
-    head = g['s']['head']
+    head = _head(g)
     _laid(g).update(dict(held=0, after=None, exploring=False, explore=None, jump=True, way=None, lead=0.0, ground=None,
                          walking=False, anchor=None, heading=_heading(head)), **told)
 

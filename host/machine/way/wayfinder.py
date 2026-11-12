@@ -95,7 +95,8 @@ def gauged(g, s):
     her things' boxes (`schema.room`) - none on a word's twist -, her gaze to be kept against it; the
     gap in C (`g['gap']`, `machine.law.motion.laid`)."""
     schema = _schema()
-    floor = min(float(f['sole'][1]) for f in s['feet'])
-    at = (float(g['est']['pos'][0]), float(g['est']['pos'][2]))
+    p = g['inekf']['p'] if g.get('eyes') else g['est']['pos']
+    floor = min(float(f['sole'][1]) for f in s['feet']) - float(g['est']['pos'][1]) + float(p[1])
+    at = (float(p[0]), float(p[2]))
     return float(g.get('_errand') is not None) * ahead(schema.room(g.get('things', ())), at, g['heading'],
                                                         float(g.get('twist', (0.0,))[0]), floor, MARGIN, g['gap'])
