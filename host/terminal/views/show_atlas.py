@@ -18,10 +18,11 @@ marking its key (terminal/views/atlas/leaves.py). Python's package plumbing - a 
 __main__.py - is left out, its ties landing on its folder. Along the viewport's top the child nearest it
 says its name and its brief; as the wheel brings it near, the panel beside names what it holds, the
 deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. M turns
-the world over into its mirror: what flows between the files - her pass, the wire, and what comes back,
-her loop through the world, the wire's readings, a dot running each - drawn where what holds what was,
-the panels a child's flows (terminal/views/atlas/mirror.py). W lays the same atlas as a page
-(tools/dev/atlas.py --html) and opens it.
+the page to its mirror world, faced whole: the files a flow joins laid out the way the data goes - her pass
+a ring closed by what comes back through the world, the wire columns from the host's end to the board's,
+a dot running each flow -, a panel the flows of the child nearest the viewport; M again, the tree as it
+was seen (terminal/views/atlas/mirror.py). W lays the same atlas as a page (tools/dev/atlas.py --html)
+and opens it.
 """
 import argparse
 import math
@@ -75,7 +76,7 @@ def opened(tree):
             ('ties', str(len(tree.src)))]
     return {'tree': tree, 'kids': kids, 'below': below, 'hidden': hidden, 'own': own, 'between': between,
             'focus': -1, 'page': 0, 'cam': scene.camera(), 'goal': scene.camera(), 'then': None, 'orbit': False,
-            'mirror': False, 'flow': None, 'flowing': None,
+            'mirror': False, 'upright': None, 'flow': None, 'flowing': None,
             'find': None, 'typing': False, 'said': '', 'memo': {}, 'sums': sums, 'fell': {}, 'view': None,
             'size': (120, 40), 'origin': Origin(False, 'tree', 0, 'tree',
                                                  'THE TREE AT %s' % atlas.told(atlas.commit()), 'tree', 0)}
@@ -100,7 +101,7 @@ def flowing(state):
 def placed(state):
     """The scene at the node open (scene.layout, scene.tied): where each node shown stands, the stubs, the
     reaches, its ties to the nodes shown; at the trunk the faint ties between layers, the most first - its
-    mirror (`mirror.mirrored`, the keys' flows its rings) while M has the world turned over."""
+    mirror world (`mirror.mirrored`) while M holds."""
     focus, tree, between = state['focus'], state['tree'], state['between']
 
     def make():
@@ -113,8 +114,7 @@ def placed(state):
     upright = _memo(state, ('placed', focus), make)
     if not state['mirror']:
         return upright
-    children = context(state)
-    return _memo(state, ('mirror', focus, tuple(children)), lambda: mirror.mirrored(upright, flowing(state), children))
+    return _memo(state, ('mirror', focus), lambda: mirror.mirrored(upright, flowing(state)))
 
 
 def hits(state):
@@ -147,28 +147,42 @@ def keyed(state):
     return {node: 'F%d' % (k + 1) for k, node in enumerate(nodes[start:start + PAGE])}
 
 
+def sized(state):
+    """(cells across, rows) of the drawing on the terminal's size, the column's room left beside it."""
+    return max(40, room(state['size'][0])), max(12, state['size'][1] - 6)
+
+
 def frame(state, node):
-    """(target, distance) that frames `node` and what it opens - the trunk whole at none -, in the mirror
-    where its reflection stands, a cap hanging up."""
+    """(target, distance) that frames `node` and what it opens - the trunk whole at none -; in the mirror
+    its flow world whole (mirror.framed)."""
+    if state['mirror']:
+        return mirror.framed(placed(state), *sized(state), keyed(state))
     if node < 0:
         home = scene.camera()
-        return mirror.turned(home['target']) if state['mirror'] else home['target'], home['distance']
+        return home['target'], home['distance']
     tree, p = state['tree'], placed(state)['at'][node]
-    n, kind, down = len(state['kids'][node]), tree.kind[node], -1.0 if state['mirror'] else 1.0
+    n, kind = len(state['kids'][node]), tree.kind[node]
     if kind == LAYER:
         return p, 2.8 * (scene.RING[0] + scene.RING[1] * n) + 1.0
     if kind in (FOLDER, FILE) and n:
         r = scene.CAP[kind][0] + scene.CAP[kind][1] * math.sqrt(n)
-        return (p[0], p[1] - down * 0.55 * r, p[2]), 2.8 * r + 0.5
+        return (p[0], p[1] - 0.55 * r, p[2]), 2.8 * r + 0.5
     return p, 0.8
 
 
 def _mirrored(state, _key, _now):
-    """M: the world turned over - what flows between the files where what holds what was (`mirror`) -, and
-    back; the view on the same node's reflection."""
+    """M: the mirror world (`mirror`) faced whole, the tree's view kept; M again, the tree as it was seen -
+    framed anew where another node opened meanwhile."""
+    cam, goal = state['cam'], state['goal']
     state['mirror'] = not state['mirror']
-    for cam in (state['cam'], state['goal']):
-        cam['target'] = mirror.turned(cam['target'])
+    if state['mirror']:
+        state['upright'] = (state['focus'], dict(goal), cam['yaw'], cam['pitch'])
+        cam['yaw'] = cam['pitch'] = 0.0
+        goal['target'], goal['distance'] = frame(state, state['focus'])
+        return
+    focus, seen, cam['yaw'], cam['pitch'] = state['upright']
+    goal['target'], goal['distance'] = (seen['target'], seen['distance']) if focus == state['focus'] \
+        else frame(state, state['focus'])
 
 
 def focused(state, node):
@@ -274,9 +288,18 @@ def _upped(state, _key, _now):
         focused(state, state['tree'].up[state['focus']])
 
 
+def viewed(state):
+    """The view the node nearest the viewport is judged in: the drawing's, in the mirror the room left of its
+    panel (mirror.room)."""
+    v = state['view']
+    return mirror.room(placed(state), v, state['art'][0]) if v and state['mirror'] else v
+
+
 def _middled(state, _key, _now):
-    """ENTER: the child nearest the viewport opened (`panel.middle`), whichever page of keys holds it."""
-    mid = panel.middle(state['fell'], state['view'], set(context(state))) if state['view'] else None
+    """ENTER: the child nearest the viewport opened (`panel.middle`), whichever page of keys holds it - in
+    the mirror the node drawn nearest."""
+    among = None if state['mirror'] else set(context(state))
+    mid = panel.middle(state['fell'], viewed(state), among) if state['view'] else None
     if mid is not None:
         focused(state, mid)
 
@@ -288,8 +311,8 @@ def _turned(state, key, _now):
 
 
 def _homed(state, _key, _now):
-    """HOME: the view turned back, the node open framed."""
-    home = scene.camera()
+    """HOME: the view turned back - in the mirror to face its world -, the node open framed."""
+    home = scene.camera(0.0, 0.0) if state['mirror'] else scene.camera()
     state['cam']['yaw'], state['cam']['pitch'] = home['yaw'], home['pitch']
     state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
 
@@ -345,7 +368,7 @@ ROWS = (
     ('ATLAS', 'HOME', 'the view turned back, the node open framed', (), {'home': _homed}),
     ('ATLAS', 'O', 'the tree orbits, or stops', (('O', 'ORBIT'),),
      bindings.cased('o', lambda s, _k, _n: s.update(orbit=not s['orbit']))),
-    ('ATLAS', 'M', 'the mirror: the tree turned over, what flows between its files drawn, and back',
+    ('ATLAS', 'M', 'the mirror world: what flows between the files, laid out the way it goes; and back',
      (('M', 'MIRROR'),), bindings.cased('m', _mirrored)),
     ('ATLAS', '/', 'a word found in every name, signature, brief and text; its hits on the keys',
      (('/', 'FIND'),), {'/': _finding}),
@@ -374,23 +397,26 @@ def draw_of(view, state, keys=''):
         if typed != '.':
             bindings.act_on(PAD, ['\r' if typed == 'enter' else '\x08' if typed == 'bksp' else typed], state)
         state['size'] = (view.size.width or 120, view.size.height or 40)
-        width = max(40, room(state['size'][0]))
-        height = max(12, state['size'][1] - 6)
+        width, height = sized(state)
+        turned_over = state['mirror']
+        if turned_over and state.get('art') != (width, height):   # the mirror world framed for this drawing
+            state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
         eased(state, time.monotonic())
         placing, marks = placed(state), keyed(state)
-        # The child nearest the viewport, whichever page of keys holds it: its panel, its mark, its brief.
-        named = {n: marks.get(n, '') for n in context(state)}
+        # The child nearest the viewport, whichever page of keys holds it - in the mirror the node drawn
+        # nearest -: its panel, its mark, its brief.
+        named = {n: marks.get(n, '') for n in (placing['at'] if turned_over else context(state))}
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
-        told = (mirror.lines, mirror.noted) if state['mirror'] else (None, None)
-        state['flowing'] = (placing['out'], placing['into']) if state['mirror'] else None
-        placing = mirror.pulsed(placing, time.monotonic()) if state['mirror'] else placing
+        state['flowing'] = (placing['flows_out'], placing['flows_in']) if turned_over else None
+        placing = mirror.pulsed(placing, time.monotonic()) if turned_over else placing
+        sight = scene.view(state['cam'], width, height)
         lines, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
-            lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows,
-                                                          taken, *told))
+            lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken)
+            if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken))
         state['art'] = (width, height)
-        mid = panel.middle(state['fell'], state['view'], named)
+        mid = panel.middle(state['fell'], viewed(state), named)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
         art = [''] + [line + ' ' * max(0, width - _screen.visible(line)) for line in lines]
         return frame_of(view, state['origin'], TITLE, '\n'.join(art), boxes, bindings.shown(PAD, state),

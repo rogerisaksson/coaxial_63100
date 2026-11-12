@@ -338,7 +338,8 @@ def picture(scene, cam, width, height, keyed, found, over=None):
     """The scene from `cam` on `width` x `height` cells, as lines, where each node shown fell ({node:
     (x, y, depth)}, dots) and the view: `keyed` {node: the key choosing it}, `found` the nodes shown a
     word's hits lie under; `over` (fell, cols, rows, the cells the keys' names took) -> {(col, row): (char,
-    ink)} laid after the chosen node's, its keys' and its chain's names, before the rest's."""
+    ink)} laid after the chosen node's, its keys' and its chain's names, before the rest's - a scene's own
+    `groups` of names where it has them."""
     from coaxial.model.blocks import numpy as np
     tree, f, focus = scene['tree'], flat(scene), scene['focus']
     v = view(cam, width, height)
@@ -366,8 +367,9 @@ def picture(scene, cam, width, height, keyed, found, over=None):
                              w, h)
     under, of = discs(x[seen], y[seen], size[seen] + (nodes[seen] == focus), w, h)
     # Out of focus (`blur`) a thing keeps a share of its dots - a screen door's: a line's from its start, a
-    # disc's round its node's middle -, they stray and darken.
-    line_of, disc_of, near, target = np.concatenate((drawn, twice))[by], seen[of], cam['distance'], cam['target']
+    # disc's round its node's middle -, they stray and darken; a scene's `field`, camera distances, in focus.
+    line_of, disc_of, target = np.concatenate((drawn, twice))[by], seen[of], cam['target']
+    near = cam['distance'] * scene.get('field', 1.0)
     across = under % w - np.floor(x[disc_of]).astype(np.intp)
     down = under // w - np.floor(y[disc_of]).astype(np.intp)
     count = np.concatenate((along, across * 4 + down))
@@ -388,8 +390,8 @@ def picture(scene, cam, width, height, keyed, found, over=None):
     radius = dict(zip(nodes[seen].tolist(), size[seen].tolist()))
     cols, rows, lit = w // 2, h // 4, f['lit']
     tied_most = sorted(list(scene['out'].items()) + list(scene['into'].items()), key=lambda kv: -kv[1])
-    groups = ([focus] + list(keyed) + chain(tree, focus),
-              list(range(len(LAYERS))) + [n for n, _ in tied_most] + sorted(found))
+    groups = scene.get('groups') or ([focus] + list(keyed) + chain(tree, focus),
+                                     list(range(len(LAYERS))) + [n for n, _ in tied_most] + sorted(found))
     text, named, done = {}, 0, set()
     for k, group in enumerate(groups):
         if k and over:   # `over` after the keys' names, over none of them, before the rest's

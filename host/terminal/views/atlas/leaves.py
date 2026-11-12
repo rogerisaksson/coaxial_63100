@@ -26,6 +26,12 @@ def ranked(fell, keyed, rings, cols, rows):
                   if rings.get(n) and n in fell and 0 <= fell[n][0] < 2 * cols and 0 <= fell[n][1] < 4 * rows)
 
 
+def width(cols, active=True):
+    """A panel's width on a drawing `cols` cells across, its frame's cells in: active or idle (ACTIVE, IDLE)."""
+    share, least, most = ACTIVE if active else IDLE
+    return max(least, min(most, int(cols * share)))
+
+
 def _fit(text, wide):
     """`text` in `wide` cells, cut with an ellipsis."""
     return text if len(text) <= wide else text[:max(0, wide - 1)] + CUT
@@ -83,23 +89,22 @@ def _laid(out, left, top, wide, lines, title, note, active):
     _put(out, left + wide + 1 - len(note), top + tall + 1, [(note, NOTE if active else FRAME_DIM)], left + wide + 1)
 
 
-def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None):
+def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None, most=MOST, docked=False):
     """{(col, row): (char, ink)}: the branches with leaves as panels on a drawing `cols` by `rows` cells
     (`ranked`; `rings` {node: its children as laid}, its lines by `say` and its note by `noted` - `lines_of`
     and its leaves' count where None, the mirror's flows its own) - the first laid active, the rest idle,
-    MOST at most -,
-    each at the edge on the side its node stands - the active one on the other where its own has no room -,
+    `most` at most -, each at the edge on the side its node stands - the active one on the other where its
+    own has no room -, or `docked` all at the right, ranked by the room left of the active one,
     stacked down from the top in rows free of a cell `taken` (the keys' names): the active one in the
     longest such run, as many of its leaves as it holds, an idle one in the first; none where its edge has no
     room left above the foot, none wider than half the drawing."""
     out, tops, laid = {}, {False: 0, True: 0}, 0
-    for _off, node in ranked(fell, keyed, rings, cols, rows):
+    for _off, node in ranked(fell, keyed, rings, cols - width(cols) if docked else cols, rows):
         active, leaves = not laid, rings[node]
-        share, least, most = ACTIVE if active else IDLE
-        wide, side = max(least, min(most, int(cols * share))) - 2, fell[node][0] >= cols
-        if laid == MOST or wide + 2 > cols // 2:
+        wide, own = width(cols, active) - 2, docked or fell[node][0] >= cols
+        if laid == most or wide + 2 > cols // 2:
             continue
-        for right in (side, not side) if active else (side,):
+        for right in (own, not own) if active and not docked else (own,):
             left = cols - wide - 2 if right else 0
             busy = {r for c, r in taken if left <= c <= left + wide + 1}
             runs = [run for run in _runs(busy, tops[right], rows - FOOT) if run[1] >= (4 if active else 3)]

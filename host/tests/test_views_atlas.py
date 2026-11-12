@@ -1,8 +1,27 @@
-"""The atlas's viewport: the child nearest it whichever page of keys holds it, its mirror's loops and pulses."""
+"""The atlas's viewport: the child nearest it whichever page of keys holds it; its mirror world, laid out."""
 import sys
 
 from tools.dev.focus import chosen
 from views_kit import Report
+
+
+def _crossed(flat, arcs, span):
+    """How many pairs of a scene's flow curves (`flat`'s segments, `arcs` where each of `span` starts) cross
+    one another, those meeting at a node's end left out: in the flow world's plane (x, y)."""
+    from coaxial.model.blocks import numpy as np
+    a, b = flat['from'][:, :2], flat['to'][:, :2]
+    of = np.repeat(np.arange(len(arcs)), span)
+    ends = np.concatenate((a[arcs], b[arcs + span - 1]))
+    near = np.linalg.norm(ends[:, None] - ends[None], axis=2) < 1e-9
+    k = len(arcs)
+    met = near[:k, :k] | near[:k, k:] | near[k:, :k] | near[k:, k:]
+
+    def side(p, q, r):
+        return np.sign((q[..., 0] - p[..., 0]) * (r[..., 1] - p[..., 1]) - (q[..., 1] - p[..., 1]) * (r[..., 0] - p[..., 0]))
+    i, j = np.triu_indices(len(a), 1)
+    i, j = i[~met[of[i], of[j]]], j[~met[of[i], of[j]]]
+    cut = (side(a[i], b[i], a[j]) * side(a[i], b[i], b[j]) < 0) & (side(a[j], b[j], a[i]) * side(a[j], b[j], b[i]) < 0)
+    return len({(of[p], of[q]) for p, q in zip(i[cut].tolist(), j[cut].tolist())})
 
 
 def test_the_nearest_child_past_the_keys(report):
@@ -63,7 +82,83 @@ def test_the_mirror_closes_her_loop(report):
                  '%d marked, %d curves' % (len(marked), len(turned['arcs'])))
 
 
-ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_her_loop)
+def test_the_mirror_faces_what_flows(report):
+    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): her pass and the wire flow; M faces the world of
+    the nodes a flow joins - none other drawn -, framed whole; M back: the tree as it was seen."""
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from terminal.views.atlas import mirror, scene
+    from tools.dev import atlas_flow, atlas_tree
+    tree = atlas_tree.build()
+    flows = atlas_flow.flows(tree)
+    said = {(kind, label.partition('_')[0]) for _a, _b, kind, label in flows}
+    state = show_atlas.opened(tree)
+    show_atlas.focused(state, next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'))
+    up, seen = show_atlas.placed(state)['at'], (dict(state['goal']), state['cam']['yaw'], state['cam']['pitch'])
+    ends = [(scene.shown_of(tree, up, a), scene.shown_of(tree, up, b)) for a, b, _k, _l in flows]
+    joined = {n for a, b in ends if min(a, b) >= 0 and a != b for n in (a, b)}
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    over, goal = show_atlas.placed(state), state['goal']
+    framed = mirror.framed(over, *show_atlas.sized(state), show_atlas.keyed(state))
+    report.check('the flows; M: the nodes a flow joins drawn, none other, faced whole',
+                 {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and set(over['at']) == joined < set(up)
+                 and set(over['flat']['nodes'].tolist()) == joined and state['cam']['yaw'] == state['cam']['pitch'] == 0
+                 and (goal['target'], goal['distance']) == framed, '%d of %d nodes drawn' % (len(joined), len(up)))
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    report.check('M back: the tree as it was seen', show_atlas.placed(state)['at'] == up
+                 and (dict(state['goal']), state['cam']['yaw'], state['cam']['pitch']) == seen, '')
+
+
+def test_the_mirror_lays_the_flow_out(report):
+    """The mirror world at the trunk and at each layer (atlas/mirror.py): her loop's stages round one circle
+    in its order - the first at its top, on clockwise -, each joined to the next by what passes or comes back,
+    the last to the first; the wire's asks each to a column on the right but one that closes a loop; every
+    node named on a drawing framed whole; the curves crossing counted."""
+    import math
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from terminal.views.atlas import mirror, scene
+    from tools.dev import atlas_flow, atlas_tree
+    tree = atlas_tree.build()
+    flows, state = atlas_flow.flows(tree), show_atlas.opened(tree)
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    looped, onward, unnamed, crossed = [], [], [], {}
+    for focus in [-1] + list(range(len(atlas_tree.LAYERS))):
+        show_atlas.focused(state, focus)
+        over, keys, up = show_atlas.placed(state), show_atlas.keyed(state), state['memo'][('placed', focus)]['at']
+        at, loop, where = over['at'], over['loop'], scene.short(tree, focus) if focus >= 0 else 'trunk'
+        ends = {(scene.shown_of(tree, up, a), scene.shown_of(tree, up, b), kind) for a, b, kind, _l in flows}
+        if loop:
+            cx, cy = (sum(at[s][k] for s in loop) / len(loop) for k in range(2))
+            turns = [math.atan2(at[s][1] - cy, at[s][0] - cx) - math.pi / 2 + 2 * math.pi * k / len(loop)
+                     for k, s in enumerate(loop)]
+            radii = [math.hypot(at[s][0] - cx, at[s][1] - cy) for s in loop]
+            looped.append(max(radii) - min(radii) < 1e-9 and all(abs(math.remainder(t, 2 * math.pi)) < 1e-9 for t in turns)
+                          and all(any((s, loop[(k + 1) % len(loop)], kind) in ends for kind in (0, 2))
+                                  for k, s in enumerate(loop)))
+        staged = {n for a, b, kind in ends if kind == 0 for n in (a, b)}
+        asks = {(a, b) for a, b, kind in ends if kind == 1 and a != b and a in at and b in at and not {a, b} & staged}
+        right = {(a, b) for a, b in asks if at[b][0] > at[a][0]}
+        for a, b in asks - right:   # back to the left: only where the right-running asks lead from b to a
+            reached, todo = {b}, [b]
+            for n in todo:
+                todo += [q for p, q in right if p == n and q not in reached]
+                reached |= {q for p, q in right if p == n}
+            onward.append('%s: %s -> %s' % (where, scene.short(tree, a), scene.short(tree, b)) if a not in reached else '')
+        target, distance = mirror.framed(over, 150, 40, keys)
+        sight = scene.view(scene.camera(0.0, 0.0, distance, target), 150, 40)
+        words = mirror.labels(over, sight, 150, 40, keys)
+        drawn = {w for r in range(40) for w in ''.join(words.get((c, r), (' ', 0))[0] for c in range(150)).split()}
+        unnamed += ['%s: %s' % (where, t[1]) for t in over['tags'] if t[3] is not None and t[1] not in drawn]
+        crossed[where] = _crossed(over['flat'], over['arcs'], mirror.SPAN)
+    report.check('her loop round one circle in its order, closed; the asks to the right but a loop\'s',
+                 looped and all(looped) and not any(onward), '%d loops; %s' % (len(looped), [o for o in onward if o]))
+    report.check('every node named; the curves crossing counted', not unnamed,
+                 '%s unnamed; crossings %s' % (unnamed[:4], ', '.join('%s %d' % kv for kv in crossed.items())))
+
+
+ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_her_loop, test_the_mirror_faces_what_flows,
+          test_the_mirror_lays_the_flow_out)
 
 
 def main(argv=None):
