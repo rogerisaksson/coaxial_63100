@@ -62,8 +62,8 @@ def laid():
 def step(g, out, dt):
     """Her skin's and her soles' contact filter on `out` and `g['a']` this pass, her twist told
     back: `stepped` in C on her arrays (`g['touched_step']`, `machine.law.motion.laid`)."""
-    g['twist'] = g['touched_step'](g.get('asked', (0.0, 0.0, 0.0)), g['twist'], float(g.get('_twist_active', False)),
-                                   float(g['heading']), dt, g['est']['vel'])
+    g['twist'] = g['touched_step'](g.get('governed', g.get('asked', (0.0, 0.0, 0.0))), g['twist'],
+                                   float(g.get('_twist_active', False)), float(g['heading']), dt, g['est']['vel'])
 
 
 def stepped(y_in, vel, y, fr, a, st, out, rest, state, soled, asked, twist, tw_on, heading, dt):

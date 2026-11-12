@@ -31,7 +31,7 @@ def _apply_say(g, gym, by, command, errand_step):
         g['_hop_charge'] = HOP_CHARGE
     if 'twist' not in command and entry[0] != 'hop' and not (g.get('_twist_active') and entry[0] in se2.WASD_GAITS):
         g['_twist_active'], g['_twist_stop_until'], g['_halt_at'] = False, 0.0, None
-        g['twist'] = g['asked'] = (0.0, 0.0, 0.0)
+        g['twist'] = g['governed'] = g['asked'] = (0.0, 0.0, 0.0)
     if 'heading' not in command and entry[0] in gaits.TURN_ALL:
         g['target_heading'], g['has_heading'] = 0.0, 0.0
     from machine.moves import clocked
@@ -211,6 +211,7 @@ def stepped(s):
         if s['fallen_at'] is None:
             gaits.halted(g, s['gym'])
             _errand().step_errand(g, s['gym'], heard, gaits.heard_say)
+            gaits.govern_twist(g, s['gym'], DT)
             sprung.passed(g, DT)
             if s['worn'].put(g['sense'], world.motor):
                 s['worn'].shut(s['passes'])

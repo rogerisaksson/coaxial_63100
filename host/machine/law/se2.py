@@ -21,6 +21,7 @@ STAND_S = _G['stand_s']
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
+SE2_GAITS = ('walk', 'jog', 'turn_left', 'turn_right', 'spin_left', 'spin_right')
 
 NOMINAL_TWIST = {
     'walk': (WALK_SPEED, 0.0, 0.0), 'init_walk': (WALK_SPEED, 0.0, 0.0), 'trip': (WALK_SPEED, 0.0, 0.0),
@@ -108,7 +109,7 @@ def said(g, label, wire, names=(), at=None, reset=False):
 def _dropped(g):
     g['tab'], g['labels'], g['_jump_until'], g['_held_s'] = (
         g['tab'][:0], [(w, n) for w, n in g['labels'] if w <= g['t']], 0.0, 0.0)
-    g['_jump_t0'], g['_jump_throw'], g['_leap'] = 0.0, 0.0, False
+    g['_jump_t0'], g['_jump_throw'], g['_leap'], g['_jog_until'] = 0.0, 0.0, False, 0.0
 
 
 def doing(g):
@@ -126,9 +127,9 @@ def doing(g):
 
 @functools.cache
 def _mods():
-    """machine.law's latent and modal, imported at a first pass and not looked up again each."""
-    from machine.law import latent, modal
-    return latent, modal
+    """machine.law's latent, modal and stride, imported at a first pass and not looked up again each."""
+    from machine.law import latent, modal, stride
+    return latent, modal, stride
 
 
 def limp(g):
@@ -339,17 +340,31 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
 
 def heard_twist(g, gym, tw, has_say, heard_say_fn):
     from machine.senses import touch
+    latent, modal, stride = _mods()
     pvx, pvy, _ = g.get('twist', (0.0, 0.0, 0.0))
+    was_tw = bool(g.get('_twist_active'))
     g['asked'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
-    vx, vy, wz = g['twist'] = touch.against(g, g['asked'])
-    by = {e[0]: e for e in gym}
+    vx, vy, wz = touch.against(g, g['asked'])
+    by, cur_d = {e[0]: e for e in gym}, doing(g)
     # a twist less than the last is a key let go, not her errand's own braking: read so, F's run to the door slowed
     # 0.69 -> 0.53 m/s for a corner, stood, braked to nothing there, backed 0.6 m and fell at 6.1 s
     decay = (not has_say and not g.get('_errand') and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
              and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)
     active = max(abs(vx), abs(vy), abs(wz)) > 0.01 and not decay
-    was_on = bool(g.get('_twist_active') or g.get('active_entry') in WASD_GAITS or doing(g) in WASD_GAITS)
+    was_on = bool(was_tw or g.get('active_entry') in WASD_GAITS or cur_d in WASD_GAITS)
     target = (gait_for_twist(vx, vy, wz) or ('walk_back' if vx < 0.0 else 'walk')) if active else ('stand' if was_on else None)
+    ae = g.get('active_entry') or (cur_d if cur_d in SE2_GAITS else None)
+    striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
+                or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or float(g['st'][latent.NOW][latent.GAIN]) > 0.02)
+    if (active and not has_say and g.get('_errand') is None and striding and cur_d not in ('brake', 'stand', 'init_walk')
+            and g.get('_jump_until', 0.0) <= g['t'] and ae in SE2_GAITS and target in SE2_GAITS):
+        g['governed'] = g['governed'] if was_tw else NOMINAL_TWIST.get(str(ae), g['asked'])
+        g['active_entry'], g['_twist_active'], g['_twist_stop_until'] = ae, True, g['t'] + 2.5
+        if ae == 'jog':
+            g['_jog_until'] = g['t'] + 0.5 * BRAKE_S
+        g['twist'] = touch.against(g, g['governed'])
+        return
+    g['governed'], g['twist'] = g['asked'], (vx, vy, wz)
     if target is not None:
         g['_twist_active'], g['_twist_stop_until'] = active, g['t'] + 2.5
     if not has_say and target in by:

@@ -8,6 +8,7 @@ and the gait resumed after it; split from the worker.
     gaits.start_mode(g, by, entry, at)      # a mode's rows from `at`, init_walk first where the gait takes one
     gaits.TURN_ALL                          # the turns, which take a heading
 """
+import functools
 import math
 from machine.process import sprung
 from machine.texts import ortho
@@ -24,8 +25,8 @@ def _sync_nominal_twist(g, name):
     from machine.law import se2
     from machine.senses import touch
     if not g.get('_twist_active') and name != 'hop':
-        g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
-        g['twist'] = touch.against(g, g['asked'])
+        g['governed'] = g['asked'] = se2.NOMINAL_TWIST.get(name, (0.0, 0.0, 0.0))
+        g['twist'] = touch.against(g, g['governed'])
 
 
 def _start_hop(g, by, entry, at):
@@ -105,7 +106,7 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         return start_mode(g, by, entry, at=t0 + tg)
     g['st'][latent.NOW][latent.GAIN] = max(float(g['st'][latent.NOW][latent.GAIN]), 0.04)
     dt_b = se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
-    if back_now and name == 'jog' and 'init_walk' in by:
+    if name == 'jog' and 'init_walk' in by:
         sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0 + dt_b, reset=True)
         return sprung.said(g, *entry, at=t0 + dt_b + se2.init_lead(g))
     nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
@@ -217,3 +218,58 @@ def halted(g, gym):
         g['_halt_at'] = None
         by = {e[0]: e for e in gym}
         sprung.said(g, *by['stand'], at=g['t'] + 0.001, reset=True)
+
+
+@functools.cache
+def _gov_mods():
+    from machine.law import rhythm, se2
+    from machine.senses import touch
+    return rhythm, se2, touch
+
+
+def _slew(val, goal, step):
+    return val + max(-step, min(step, goal - val))
+
+
+def govern_twist(g, gym, dt):
+    """Step her governed twist toward `asked` within her clothoid and braking envelope across
+    forward and spin gaits (`se2.SE2_GAITS`), switching gait polytopes without zero-crossing chatter."""
+    if not g.get('_twist_active') or g.get('_errand') is not None or g.get('_jump_until', 0.0) > g['t']:
+        return
+    rhythm, se2, touch = _gov_mods()
+    ae = g.get('active_entry')
+    if ae not in se2.SE2_GAITS or sprung.doing(g) in ('brake', 'stand', 'init_walk'):
+        return
+    if ae == 'jog':
+        g['_jog_until'] = g['t'] + 0.5 * se2.BRAKE_S
+    ax, ay, az = g.get('asked', (0.0, 0.0, 0.0))
+    vx, vy, wz = g.get('governed', (ax, ay, az))
+    if abs(ay) > 0.01 or (vx == ax and vy == ay and wz == az and se2.gait_for_twist(vx, vy, wz) == ae):
+        return
+    still_wz = rhythm.R['still_rad_s']
+    prior = max(min(float(g['grip_prior'][0]), float(g['grip_prior'][1])), 1e-6)
+    mu = min(1.0, max(0.25, min(float(g['held'][0]), float(g['held'][1])) / prior))
+    a_brake = se2.WALK_SPEED * se2.WALK_HZ * mu
+    a_accel, dwz_wind = 2.0 * a_brake, 2.0 * se2.WALK_HZ * se2.YAW_RATE * mu
+    dwz_unwind = 2.0 * dwz_wind
+    fast = abs(az) > still_wz and (vx > se2.MARCH_FROM or ae == 'jog' or g.get('_jog_until', 0.0) > g['t'])
+    wz_goal = 0.0 if fast else az
+    vx_goal = se2.WALK_SPEED if (fast or (ax > se2.WALK_SPEED and abs(wz) > still_wz)) else ax
+    vx = _slew(vx, vx_goal, (a_brake if vx_goal < vx else a_accel) * dt)
+    vy = _slew(vy, ay, a_accel * dt)
+    if wz * (wz_goal - wz) < 0.0:
+        step_0 = min(abs(wz), dwz_unwind * dt)
+        rem_dt = max(0.0, dt - step_0 / max(dwz_unwind, 1e-9))
+        wz_mid = wz - math.copysign(step_0, wz)
+        wz = _slew(wz_mid, wz_goal, dwz_wind * rem_dt) if abs(wz_mid) <= 1e-12 else wz_mid
+    else:
+        wz = _slew(wz, wz_goal, (dwz_unwind if abs(wz_goal) < abs(wz) else dwz_wind) * dt)
+    g['governed'] = (vx, vy, wz)
+    g['twist'] = touch.against(g, g['governed'])
+    wz_box = (math.copysign(max(abs(wz), still_wz + 1e-4), az)
+              if (abs(az) > still_wz and ae in TURN_GAITS and wz * az >= 0.0) else wz)
+    target = ae if (abs(az) > still_wz and ae in TURN_GAITS and wz * az < 0.0) else se2.gait_for_twist(vx, vy, wz_box)
+    if target is not None and target != ae:
+        by = {e[0]: e for e in gym}
+        if target in by:
+            heard_say(g, gym, by[target])

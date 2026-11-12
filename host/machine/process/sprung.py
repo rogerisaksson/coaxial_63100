@@ -144,7 +144,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'eso': np.array([q0, np.zeros(len(q0)), np.zeros(len(q0))]), 'jeff': np.diag(s['M'])[body.act].copy(), 'surety': 1.0,
          '_brake_wire': _BRAKE_WIRE, '_stand_entry': next((e for e in gym if e[0] == 'stand'), None),
          'gym': gym, 'texts': texts, 'suite': suite,
-         'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0),
+         'heading': float(fr[modal.HEADING]), 'twist': (0.0, 0.0, 0.0), 'asked': (0.0, 0.0, 0.0), 'governed': (0.0, 0.0, 0.0),
          'heat': heat.Heat.for_joints(JOINTS), 'temp': np.full(len(JOINTS), 25.0), 'scenario': 'flat',
          'touched': touch.laid(), 'twisted': se2.twist_laid(), 'words': se2.words_laid(),
          'solves': (solve_step, c_step.chain_laid(body, sensing, picked == 'stack')), 'sensed': sensing, 'told': np.zeros(len(ortho.MANIFOLDS)), 'weighed_w': observer.SOLES.copy(), 'emancipated': np.zeros(2), 'unanchored': np.ones(2), 'let_cap': np.full(2, np.inf), 'freed': np.zeros(2), 'emancipation': {'iota': np.zeros(2)}, 'held_ref': out[latent.REF][melt.LEGGED].copy(), 'q_open': s['q'].copy(), 'high': np.zeros(2), 'sat': 0.0, 'sat_off': 0.0, 'seat_on': 0.0, 'seat_near': 0.0, 'seat_f': np.zeros(4), 'knee_was': np.zeros(2), 'axial_off': 0.0, 'axial_was': float(out[latent.REF][modal.AXIAL]), 'rate_hz': RATE_HZ, 'observer': momentum.laid(body), 'field': field.laid(), 'inekf': inekf.laid(world.data.qpos[0:3], world.data.qpos[3:7]), 'registry': registry.laid(),
@@ -207,9 +207,9 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['a'][:], g['a'][modal.STANCE], g['ref_q'][:], g['ref_v'][:], g['hold'][:] = 0.0, 1.0, q0, 0.0, 0.0
     g['left'], g['eso'][:], g['surety'] = WEP_S, [q0, 0.0 * q0, 0.0 * q0], 1.0
     g['heat'], g['temp'][:] = type(g['heat']).for_joints(), 25.0
-    g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['twist_actual'] = (
-        False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
-    g['active_entry'], g['n'], g['_halt_at'] = None, 0, None
+    g['_twist_active'], g['_twist_stop_until'], g['twist'], g['asked'], g['governed'], g['twist_actual'] = (
+        False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+    g['active_entry'], g['n'], g['_halt_at'], g['_jog_until'] = None, 0, None, 0.0
     g['twisted'][se2.LOOK_YAW], g['twisted'][se2.TURN_DC] = 0.0, 0.0
     g['touched'][:] = touch.REST       # what she felt stood in the world laid away
     g['_w_back'], g['_backing_yaw'] = 0.0, 0.0
