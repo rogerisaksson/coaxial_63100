@@ -7,8 +7,7 @@ from views_kit import Report
 
 
 def _crossed(lanes):
-    """How many cells of a schematic's `lanes` (atlas/mirror.py's, corners in its cells) one lane only passes
-    across another in, joining none of it (atlas/schematic.py draws them broken)."""
+    """The cells where one of `lanes` (atlas/mirror.py's) only passes across another (schematic.py breaks it)."""
     from terminal.views.atlas import schematic
     straight, per = {schematic.LEFT | schematic.RIGHT, schematic.UP | schematic.DOWN}, {}
     for k, (_a, _b, corners, *_inks) in enumerate(lanes):
@@ -165,7 +164,7 @@ def test_the_mirror_lays_the_flow_out(report):
         target, distance = mirror.framed(over, 150, 40)
         sight = scene.view(scene.camera(0.0, 0.0, distance, target), 150, 40)
         cells, paths, _spots, said = mirror.laid(over, sight, 150, 40)
-        lanes = {cell for path in paths for cell in path}
+        lanes = {cell for path in paths.values() for cell in path}
         smudged += ['%s %s' % (where, cell) for cell in lanes if cell in cells
                     and cells[cell][0] not in sharp and cells[cell][1] not in detail.FADE]
         slotted = {(k, d) for *_cell, k, d, _way in over['slots']}
@@ -186,15 +185,15 @@ def test_the_mirror_lays_the_flow_out(report):
 
 def test_the_mirror_zooms_and_pans(report):
     """The mirror's camera (atlas/mirror.py, show_atlas.py): zoomed in, every lane still reaches its nodes -
-    its ends where they stand from their signs, in the terminal's cells -, two line cells at least behind
-    every head; zoomed out no farther than its framing; an arrow moves its flat world, never turns it; the
-    node nearest the viewport one - lit in it, named on top and in the panel where room is kept for it -,
-    the panel's room kept or not."""
+    its ends where they stand from their signs, in the terminal's cells, a node open aside -, two line cells
+    at least behind every head; zoomed out no farther than its framing; an arrow moves its flat world, never
+    turns it; the node nearest the viewport one - lit in it, named on top and in the panel where room is kept
+    for it -, the panel's room kept or not."""
     import io
     from rich.console import Console
     from terminal.ui import bindings, stage
     from terminal.views import show_atlas
-    from terminal.views.atlas import leaves, mirror, scene, schematic
+    from terminal.views.atlas import leaves, mirror, nested, scene, schematic
     from tools.dev import atlas_tree
     tree = atlas_tree.build()
     state = show_atlas.opened(tree)
@@ -217,10 +216,13 @@ def test_the_mirror_zooms_and_pans(report):
         over, sight, w, h = drawn(150, 44, ['+'] * (zoom > 0))
         cells, paths, spots, _said = mirror.laid(over, sight, w, h)
         distances.append(state['cam']['distance'])
-        for (a, b, corners, _ink, into, out, _heavy), path in zip(over['lanes'], paths):
+        opened = {inner['node'] for inner, _near in nested.opened(over, mirror.zoom(over, sight))}
+        for k, (a, b, corners, _ink, into, out, _heavy) in enumerate(over['lanes']):
+            path = paths[k]
             for end, node, cell in ((path[0], a, corners[0]), (path[-1], b, corners[-1])):
                 mark, sign = over['marks'][node], spots[node][0]
-                loose += [end] if end != (sign[0] + cell[0] - mark[0], sign[1] + cell[1] - mark[1]) else []
+                loose += [end] if node not in opened and end != (sign[0] + cell[0] - mark[0], sign[1] + cell[1] - mark[1]) \
+                    else []
             for seq, head in ((path[::-1], into), (path, out)):
                 behind += [next((k for k, c in enumerate(seq[1:]) if cells.get(c, ' ')[0] in heads), len(seq) - 1)] \
                     if head is not None and zoom == 0 else []
@@ -247,11 +249,8 @@ def test_the_mirror_zooms_and_pans(report):
 
 
 def test_the_mirror_tells_more_nearer(report):
-    """Nearer, the mirror's lanes tell more (atlas/mirror.py): at the executive and the wire's sources, a zoom
-    key's step at a time, more lanes say where their words are made and where they are taken, the commands
-    they ask; a lane's writing on its own run or beside its own heads - on no cell of another lane, no sign
-    nor name under it -, in the inks a detail comes out of the background in (detail.FADE): just fitting
-    faint, a zoom key's step roomier the brief's; nodes' briefs beside their names."""
+    """Nearer, more lanes say where their words are made and taken, the commands asked (atlas/detail.py), each
+    on cells of its own, faint as it fits to the brief's ink a zoom key's step on; briefs beside names."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import detail, mirror, scene
@@ -270,7 +269,7 @@ def test_the_mirror_tells_more_nearer(report):
             told.setdefault(scene.short(tree, focus), []).append(tuple(sum(lv >= j for lv, _c in said.values())
                                                                        for j in (1, 2)))
             on, named = {}, {c for sign, name in spots.values() for c in [sign] + name}
-            for k, path in enumerate(paths):
+            for k, path in paths.items():
                 for c in path:
                     on.setdefault(c, set()).add(k)
             for (k, _d), (_lv, written) in said.items():
@@ -284,14 +283,56 @@ def test_the_mirror_tells_more_nearer(report):
     report.check('nearer, more lanes say where their words are made and taken, the commands they ask; briefs',
                  all(t[-1][0] > t[0][0] and t[-1][1] > t[0][1] for t in told.values()) and briefs,
                  'lanes made, taken a step at a time %s; %d briefs' % (told, briefs))
-    report.check("a lane's writing on its own cells, in the inks it comes out of the background in, faint to "
-                 "the brief's over a zoom key's step", not foul and inks <= set(detail.FADE) and inks - {scene.BRIEF}
+    report.check("a lane's writing on its own cells, faint to the brief's ink over a zoom key's step",
+                 not foul and inks <= set(detail.FADE) and inks - {scene.BRIEF}
                  and ramp == sorted(ramp) and ramp[0] == 0 and ramp[-1] == len(detail.FADE) - 1,
                  '%d cells foul %s; inks %s; ramp %s' % (len(foul), foul[:3], sorted(inks), ramp))
 
 
+def test_the_mirror_opens_nearer(report):
+    """Nearer still a node opens in place (atlas/nested.py): framed and titled about its parts - senses/'s
+    estimators (◈), law/'s regulators -, lanes outside ending on it; faint as it opens, a key step on not."""
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from terminal.views.atlas import mirror, nested, scene
+    from tools.dev import atlas_tree
+    tree = atlas_tree.build()
+    state = show_atlas.opened(tree)
+    bindings.act_on(show_atlas.PAD, ['m', 'f4'], state)
+    over, (w, h) = show_atlas.placed(state), (160, 44)
+    target, distance = mirror.framed(over, w, h)
+    shut = not nested.opened(over, 1.0)
+    mirror.laid(over, scene.view(scene.camera(0.0, 0.0, distance / 2, target), w, h), w, h)
+    opens = {scene.short(tree, n): round(inner['scale'], 2) for n, inner in over['nests'].items() if inner}
+    seen, within, off, inks = {}, [], [], []
+    for name, parts in (('senses/', ('edge.py', '◈ inekf.py', '◈ observer.py', 'grip.py')),
+                        ('law/', ('modal.py', 'se2.py', 'latent.py', 'impedance.py', 'motion.py'))):
+        node = next(n for n in over['nests'] if scene.short(tree, n) == name)
+        inner, (ax, ay, az) = over['nests'][node], over['at'][node]
+        (fx0, fy0, fx1, fy1), (cx, cy), u = inner['frame'], inner['anchor'], mirror.CELL * inner['unit']
+        middle = (ax + ((fx0 + fx1) / 2 - cx) * u, ay - ((fy0 + fy1) / 2 - cy) * 2 * u, az)   # its frame's
+        for k in (1.01, 1.01 * scene.ZOOM):   # just open, a zoom key's step on
+            sight = scene.view(scene.camera(0.0, 0.0, distance / (inner['scale'] * k), middle), w, h)
+            cells, paths, spots, _said = mirror.laid(over, sight, w, h)
+            (x0, y0), rows = spots[node][0], [''.join(cells.get((c, r), ' ')[0] for c in range(w)) for r in range(h)]
+            x0 -= 3
+            x1, y1 = rows[y0].index('╮', x0), next(r for r in range(y0, h) if rows[r][x0] == '╰')
+            seen[name] = all(any(p in row[x0:x1] for row in rows[y0:y1]) for p in parts)
+            for i, (a, b, *_rest) in enumerate(over['lanes']):
+                within += [(name, i) for c in paths[i] if x0 < c[0] < x1 and y0 < c[1] < y1]
+                off += [(name, i) for end, at in ((paths[i][0], a), (paths[i][-1], b)) if at == node
+                        and not (x0 <= end[0] <= x1 and end[1] in (y0, y1) or y0 <= end[1] <= y1 and end[0] in (x0, x1))]
+            inks.append({cells[c][1] for c in cells if x0 < c[0] < x1 and y0 < c[1] < y1})
+    report.check('framed none open; each opens a key step in or more, framed, titled, its parts within',
+                 shut and min(opens.values()) >= scene.ZOOM and all(seen.values()), 'opens at %s; parts %s' % (opens, seen))
+    report.check('no lane outside in a frame, one meeting it ending on it; faint as it opens, its inks a step on',
+                 not within and not off and inks[0] == inks[2] == {scene.FAINT} and len(inks[1]) > 2 and len(inks[3]) > 2,
+                 '%d cells within, ends off %s; inks %s' % (len(within), off[:3], [sorted(i) for i in inks]))
+
+
 ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_her_loop, test_the_mirror_faces_what_flows,
-          test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans, test_the_mirror_tells_more_nearer)
+          test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans, test_the_mirror_tells_more_nearer,
+          test_the_mirror_opens_nearer)
 
 
 def main(argv=None):

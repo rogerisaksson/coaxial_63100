@@ -83,16 +83,16 @@ def _cut(parts, room):
     return out, sized(1)
 
 
-def _levels(mirror, k, d, right):
-    """[(parts, the fewest cells they are written in)] a level of lane `k`'s writing (`_written`, `_cut`): 0
-    its words, 1 where they are made, 2 where they are taken - its way `d` alone (0 a to b), both where None,
-    its first way flowing `right`; kept."""
+def _levels(mirror, key, said, d, right):
+    """[(parts, the fewest cells they are written in)] a level of the writing of lane `key`, `said` (what goes
+    a to b, what comes back) (`_written`, `_cut`): 0 its words, 1 where they are made, 2 where they are taken -
+    its way `d` alone (0 a to b), both where None, its first way flowing `right`; kept."""
     kept = mirror.setdefault('written', {})
-    if (k, d, right) not in kept:
-        ways = [(e, way) for e, way in enumerate(mirror['said'][k]) if d in (None, e)]
+    if (key, d, right) not in kept:
+        ways = [(e, way) for e, way in enumerate(said) if d in (None, e)]
         levels = [[p for p in (_written(way, j, right == (e == 0)) for e, way in ways) if p] for j in range(3)]
-        kept[(k, d, right)] = [(parts, _cut(parts, 0)[1]) for parts in levels]
-    return kept[(k, d, right)]
+        kept[(key, d, right)] = [(parts, _cut(parts, 0)[1]) for parts in levels]
+    return kept[(key, d, right)]
 
 
 def faded(ratio):
@@ -101,13 +101,13 @@ def faded(ratio):
     return FADE[max(0, min(len(FADE) - 1, int((len(FADE) - 1) * math.log(ratio) / math.log(scene.ZOOM))))]
 
 
-def detailed(mirror, cells, runs, at, spots, wide, rows):
+def detailed(mirror, cells, lanes, runs, slots, spots, wide, rows):
     """{(lane, way): (the level written, its cells)} - way None for both, else 0 a to b, 1 back -: into `cells`
-    (mirror.laid's, `at` {layout cell: its cell}) on a drawing `wide` columns by `rows`, each lane's richest
-    writing that fits (`_levels`), centred in its run (`runs`, schematic.laid) a blank either side - a hung
-    stage's each way beside the head it goes into (mirror.mirrored's slots) -; then each node's brief beside its
-    name away from its sign (`spots`), its first clause at least, cut at a word to what fits; each level's ink
-    by its room (`faded`)."""
+    (mirror.laid's) on a drawing `wide` columns by `rows`, each lane's - `lanes` [(lane, what it carries)] -
+    richest writing that fits (`_levels`), centred in its run (`runs`, schematic.laid) a blank either side - a
+    hung stage's each way beside the head it goes into (`slots` [(col, row, the side it grows to, lane, what it
+    carries, way)], mirror.mirrored's) -; then each node's brief beside its name away from its sign (`spots`),
+    its first clause at least, cut at a word to what fits; each level's ink by its room (`faded`)."""
     briefs = {nd: (name[0][0], name[0][1] + (-1 if name[0][1] < sign[1] else 1)) for nd, (sign, name) in spots.items()
               if name}
     stops, said = set(briefs.values()), {}
@@ -132,15 +132,14 @@ def detailed(mirror, cells, runs, at, spots, wide, rows):
                 x += len(text)
             cells.update(put)
             said[lane] = (best, sorted(put))
-    slotted = {k for *_cell, k, _d, _way in mirror['slots']}
-    for k, run in enumerate(runs):
+    slotted = {key for _x, _y, _way, key, _said, _d in slots}
+    for (key, carried), run in zip(lanes, runs):
         run = [c for c in run if c[0] < wide]
-        if k not in slotted and len(run) > 4:
-            write(_levels(mirror, k, None, run[-1][0] > run[0][0]), len(run) - 4, min(c for c, _r in run) + 2,
-                  run[0][1], 0, (k, None))
-    for x, y, dx, dy, k, d, way in mirror['slots']:
-        x, y = at[(x, y)][0] + dx, at[(x, y)][1] + dy
-        write(_levels(mirror, k, d, d == 0), free(x, y, way), x, y, way, (k, d))
+        if key not in slotted and len(run) > 4:
+            write(_levels(mirror, key, carried, None, run[-1][0] > run[0][0]), len(run) - 4,
+                  min(c for c, _r in run) + 2, run[0][1], 0, (key, None))
+    for x, y, way, key, carried, d in slots:
+        write(_levels(mirror, key, carried, d, d == 0), free(x, y, way), x, y, way, (key, d))
     for nd, (x, y) in briefs.items():   # its first clause at least
         brief, room = ' '.join(mirror['tree'].brief[nd].split()), free(x, y, 1)
         clause = re.search('[:;,]', brief)

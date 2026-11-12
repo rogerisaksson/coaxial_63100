@@ -23,49 +23,16 @@ as its room grows by a zoom key's step.
 """
 import math
 
-from terminal.views.atlas import detail, leaves, panel, scene, schematic
+from terminal.views.atlas import detail, leaves, nested, scene, schematic
+from terminal.views.atlas.nested import INKS
 from terminal.views.atlas.panel import fit
 from tools.dev import atlas_flow
 from tools.dev.atlas_tree import LAYERS
 
-#: Each kind's ink (atlas_flow.KINDS: her pass, the wire, what comes back).
-INKS = (scene.TITLE, scene.NOTE, scene.HIT)
 #: The flow world in the world: how far under the trunk's foot its plane stands; a terminal cell's width
 #: there, world units - a row two of them, braille's dots square, a cell two across and four down; her loop
 #: and the wire apart, cells.
 DEPTH, CELL, APART = 6.0, 0.1, 6
-#: A node's sign by the first word of its path naming what it is, its own name first: her eyes, her senses,
-#: her law, her drives, the world, the wire, the board, a process, what wears; a dot for the rest.
-SIGNS = (('eye', '◉'), ('sight', '◉'), ('registry', '◉'), ('vision', '◉'), ('camera', '◉'),
-         ('sens', '◎'), ('edge', '◎'), ('grip', '◎'), ('felt', '◎'), ('imu', '◎'), ('angle', '◎'), ('adc', '◎'),
-         ('thermal', '◎'), ('law', '⎔'), ('modal', '⎔'), ('se2', '⎔'), ('latent', '⎔'), ('impedance', '⎔'),
-         ('stack', '⎔'), ('wrench', '⎔'), ('chain', '⎔'), ('ctrl', '⎔'), ('motion', '⊛'), ('drive', '⊛'),
-         ('motor', '⊛'), ('gate', '⊛'), ('pwm', '⊛'), ('power', '⊛'), ('world', '⊕'), ('twin', '⊕'),
-         ('physics', '⊕'), ('wire', '⌁'), ('comm', '⌁'), ('link', '⌁'), ('uart', '⌁'), ('protocol', '⌁'),
-         ('shtp', '⌁'), ('cmd', '⌁'), ('board', '▣'), ('process', '⟳'), ('worker', '⟳'), ('wear', '⧖'),
-         ('watch', '⧖'), ('identify', '⧖'))
-
-
-def _names(tree, nodes):
-    """{node: its name}: its own, the folder it is in before it where two share one."""
-    own = {n: scene.short(tree, n) for n in nodes}
-    shared = {s for s in own.values() if list(own.values()).count(s) > 1}
-    return {n: '/'.join(tree.id[n].rstrip('/').split('/')[-2:]) + s[len(s.rstrip('/')):] if s in shared else s
-            for n, s in own.items()}
-
-
-def _sign(tree, node):
-    """`node`'s sign (SIGNS): of its path's parts, its own first, the first holding a word that names one."""
-    for part in reversed(tree.id[node].lower().rstrip('/').split('/')):
-        for word, sign in SIGNS:
-            if word in part:
-                return sign
-    return '●'
-
-
-def _made(tree, node):
-    """Where a word is made, as the tree writes it: its file and its function's name."""
-    return '%s › %s' % (scene.short(tree, tree.up[node]), tree.id[node].rpartition('::')[2]) if node >= 0 else ''
 
 
 def mirrored(placed, flow, room, kin=(), keys=None):
@@ -78,16 +45,16 @@ def mirrored(placed, flow, room, kin=(), keys=None):
     node)] - each by a cell and its offset in the terminal's cells, `node` the one it names -, in its cells;
     `said` [(what goes a to b, what comes back)] a lane, each [(kind, [(word, where it is made, where it is
     taken)])] - a command's none -, `slots` where a hung stage's lane is written (schematic.ring), in its
-    cells, by lane; `dots` [(lane, forward)] a flow; its nodes' dots as `scene.picture` reads them (`flat`, none of its own
-    names, all in focus), `anchors` the cells the camera places and `points` their middles in the world;
-    `flows_out` and `flows_in` {node: flows} the chosen node's flows reach and come from; `rings` {node: its
-    flows [(arrow, what passes, the name at the other end, where it is made)]}; `loop` her loop's stages in
-    order; `center` and `extent`."""
+    cells, by lane; `dots` [(lane, forward)] a flow; its nodes' dots as `scene.picture` reads them (`flat`, none
+    of its own names, all in focus), `anchors` the cells the camera places; `flows_out` and `flows_in` {node:
+    flows} the chosen node's flows reach and come from; `rings` {node: its flows [(arrow, what passes, the name
+    at the other end, where it is made)]}; `loop` her loop's stages in order; `center` and `extent`; a level
+    its nodes open in (atlas/nested.py): `own`, `named`, `inks`, `owner`, `flow`, `nests`."""
     from coaxial.model.blocks import numpy as np
     tree, focus, back, keys = placed['tree'], placed['focus'], len(INKS) - 1, keys or {}
     named = set(kin) | set(scene.chain(tree, focus)) | set(range(len(LAYERS)))
     lit = {n for n in named if focus in scene.chain(tree, n)} if focus >= 0 else set()
-    made, took = {label: _made(tree, node) for label, node in atlas_flow.makers(tree).items()}, atlas_flow.takers(tree)
+    made, took = {label: nested.made(tree, node) for label, node in atlas_flow.makers(tree).items()}, atlas_flow.takers(tree)
     passed, stages = {}, []
     for a, b, kind, label in flow:
         a, b = scene.shown_of(tree, named, a), scene.shown_of(tree, named, b)
@@ -100,7 +67,7 @@ def mirrored(placed, flow, room, kin=(), keys=None):
     hung = schematic.hanging(loop, stages, ahead | home) if loop else {}
     ringed = set(loop) | set(hung)
     among = sorted({n for a, b, _k in passed for n in (a, b)} - ringed)
-    own, index, n = _names(tree, ringed | set(among)), {s: k for k, s in enumerate(loop)}, len(loop)
+    own, index, n = nested.names(tree, ringed | set(among)), {s: k for k, s in enumerate(loop)}, len(loop)
     names = {nd: ('%s %s' % (keys[nd], name) if nd in keys else name) for nd, name in own.items()}
     asks = [(a, b) for a, b, kind in passed if kind != back and a in among and b in among]
     depth, links, flows = schematic.depths(among, asks), {}, []
@@ -168,7 +135,7 @@ def mirrored(placed, flow, room, kin=(), keys=None):
     nodes = sorted(marks, key=lambda nd: (nd != focus, nd not in lit, nd))
     inks = {nd: scene.OPEN if nd == focus else (scene.OUT if out.get(nd, 0) >= into.get(nd, 0) else scene.IN)
             if nd in out or nd in into else scene.NODE if nd in lit else scene.EDGE for nd in nodes}
-    texts = [(*marks[nd], 0, 0, _sign(tree, nd), inks[nd], nd) for nd in nodes]
+    texts = [(*marks[nd], 0, 0, nested.sign(tree, nd), inks[nd], nd) for nd in nodes]
     for nd in nodes:   # its key in the keys' ink, as the tree writes it, then its name
         (dx, dy), key = rnamed.get(nd, (2, 0)), keys.get(nd, '')
         texts += [(*marks[nd], dx, dy, key, scene.KEY, None)] if key else []
@@ -183,9 +150,11 @@ def mirrored(placed, flow, room, kin=(), keys=None):
     return {**placed, 'at': {nd: world(c) for nd, c in marks.items()}, 'out': {}, 'into': {}, 'flows_out': out,
             'flows_in': into, 'rings': rings, 'faint': [], 'flat': flat, 'loop': loop, 'marks': marks, 'lanes': lanes,
             'texts': texts, 'said': carried, 'slots': slots, 'anchors': anchors,
-            'dots': [(which[key], key == (a, b)) for a, b, _k, _s, key, _by in flows],
-            'points': np.array([world(c) for c in anchors], float).reshape(-1, 3), 'groups': ((), ()),
-            'field': math.inf, 'center': (0.0, -DEPTH, 0.0), 'extent': (width, height), 'beside': beside, 'kept': {}}
+            'dots': [(which[key], key == (a, b)) for a, b, _k, _s, key, _by in flows], 'groups': ((), ()),
+            'field': math.inf, 'center': (0.0, -DEPTH, 0.0), 'extent': (width, height), 'beside': beside, 'kept': {},
+            'own': names, 'named': {nd: rnamed.get(nd, (2, 0)) for nd in marks}, 'inks': inks, 'flow': flow,
+            'owner': lambda n, _out=True: scene.shown_of(tree, named, n), 'origin': (0.0, 0.0), 'anchor': (0, 0), 'unit': 1.0,
+            'nests': {}}
 
 
 def framed(mirror, cols, rows):
@@ -200,59 +169,75 @@ def framed(mirror, cols, rows):
 
 
 def laid(mirror, sight, cols, rows):
-    """(cells {(col, row): (char, ink)}, [cells] a lane in order, {node: (its sign's cell, its name's cells)},
-    {(lane, way): (the level its writing shows, its cells)}): the schematic where `sight` (scene.view) puts
-    its cells on a drawing `cols` by `rows` (schematic.laid) - a lane's ends and every word where they stand
-    from what they name in the terminal's cells, only the cells between them spread by the zoom -, what each
-    lane carries and each node's brief where they find room (atlas/detail.py) left of the panel's kept room; laid
-    anew only where a cell of it moves: the camera's ease creeps on."""
+    """(cells {(col, row): (char, ink)}, {lane: its cells in order} - a mirror's lane by its index, an open
+    node's by (its level, its index) -, {node: (its sign's cell, its name's cells)}, {(lane, way): (the level
+    its writing shows, its cells)}): the schematic where `sight` (scene.view) puts its cells on a drawing
+    `cols` by `rows` (schematic.laid) - a lane's ends and every word where they stand from what they name in
+    the terminal's cells, only the cells between them spread by the zoom -, each node open at the zoom in its
+    frame (atlas/nested.py), what each lane carries and each node's brief where they find room
+    (atlas/detail.py) left of the panel's kept room; laid anew only where a cell of it moves."""
+    return _kept(mirror, sight, cols, rows)[:4]
+
+
+def zoom(mirror, sight):
+    """Terminal cells to a cell of the mirror where `sight` (scene.view) faces it: 1 framed (`framed`)."""
     from coaxial.model.blocks import numpy as np
-    rel = mirror['points'] - np.array(sight['eye'])
+    ahead = float((np.array(mirror['center']) - np.array(sight['eye'])) @ np.array(sight['f']))
+    return CELL * sight['focal'] / 2 / max(ahead, scene.NEAR)
+
+
+def _cells(mirror, sight, at):
+    """(cols, rows) of the terminal's cells where `sight` (scene.view) puts the mirror's cells `at` [(x, y)]."""
+    from coaxial.model.blocks import numpy as np
+    (width, height), (x, y) = mirror['extent'], np.asarray(at, float).reshape(-1, 2).T
+    rel = np.stack(((x + 0.5 - width / 2) * CELL, -DEPTH - (2 * y + 1 - height) * CELL, 0 * x), 1) - np.array(sight['eye'])
     across, up, ahead = (rel @ np.array(sight[axis]) for axis in ('r', 'u', 'f'))
     ahead = np.maximum(ahead, scene.NEAR)
-    col = np.floor((sight['w'] / 2 + across * sight['focal'] / ahead) / 2).astype(np.intp)
-    row = np.floor((sight['h'] / 2 - up * sight['focal'] / ahead) / 4).astype(np.intp)
-    key = (col.tobytes(), row.tobytes(), cols, rows)
-    if key not in mirror['kept']:
-        marks, at = mirror['marks'], dict(zip(mirror['anchors'], zip(col.tolist(), row.tolist())))
+    return np.floor((sight['w'] / 2 + across * sight['focal'] / ahead) / 2).astype(np.intp), \
+        np.floor((sight['h'] / 2 - up * sight['focal'] / ahead) / 4).astype(np.intp)
 
-        def beside(node, cell):   # a lane's end where it stands from its node's sign
-            (sx, sy), (mx, my) = at[marks[node]], marks[node]
-            return (sx + cell[0] - mx, sy + cell[1] - my)
-        lanes = [(at[marks[a]], at[marks[b]], [beside(a, cs[0])] + [at[c] for c in cs[1:-1]] + [beside(b, cs[-1])],
-                  ink, into, out, heavy) for a, b, cs, ink, into, out, heavy in mirror['lanes']]
-        texts = [(at[(x, y)][0] + dx, at[(x, y)][1] + dy, text, ink, node) for x, y, dx, dy, text, ink, node in mirror['texts']]
-        cells, paths, runs = schematic.laid(lanes, [t[:4] for t in texts], cols, rows)
-        spots = {}
-        for x, y, text, _ink, node in texts:
-            if node is not None:
-                sign, name = spots.get(node, (None, []))
-                spots[node] = ((x, y), name) if sign is None else (sign, [(x + k, y) for k in range(len(text))])
-        said = detail.detailed(mirror, cells, runs, at, spots, cols - mirror['beside'], rows)
-        mirror['kept'] = {key: (cells, paths, spots, said)}
+
+def _kept(mirror, sight, cols, rows):
+    """`laid`'s, then [(lane, forward, the node it goes into)] each flow drawn: the nodes open at the zoom -
+    terminal cells to a cell of the mirror - (nested.opened), each level's cells where `sight` puts them."""
+    levels, places = [(mirror, 1.0)] + nested.opened(mirror, zoom(mirror, sight)), []
+    for level, _near in levels:
+        if 'anchors' not in level:   # a nest's: its lanes' corners, its marks, its frame's corners
+            x0, y0, x1, y1 = level['frame']
+            level['anchors'] = sorted({c for lane in level['lanes'] for c in lane[2]} | set(level['marks'].values())
+                                      | {(x0, y0), (x1, y1)})
+            mirror['rings'].update(level['rings'])
+        (ox, oy), (ax, ay), unit = level['origin'], level['anchor'], level['unit']
+        places.append(_cells(mirror, sight, [(ox + (x - ax) * unit, oy + (y - ay) * unit) for x, y in level['anchors']]))
+    key = (tuple(c.tobytes() + r.tobytes() for c, r in places), tuple(id(level) for level, _n in levels), cols, rows)
+    if key not in mirror['kept']:
+        mirror['kept'] = {key: nested.composed(mirror, levels, places, cols, rows)}
     return mirror['kept'][key]
 
 
 def dots(mirror, sight, cols, rows, now):
-    """The cell the head of each flow's packet is on at `now` (schematic.dot), on its lane as `laid`."""
-    paths = laid(mirror, sight, cols, rows)[1]
-    return [schematic.dot(paths[k], forward, now, i) for i, (k, forward) in enumerate(mirror['dots'])]
+    """The cell the head of each flow's packet drawn is on at `now` (schematic.dot), on its lane as `laid`."""
+    _cells_, paths, _spots, _said, flows = _kept(mirror, sight, cols, rows)
+    return [schematic.dot(paths[k], forward, now, i) for i, (k, forward, _home) in enumerate(flows)]
 
 
-def middle(mirror, fell, sight, cols):
-    """The node drawn nearest the middle of the room the schematic keeps (`room`) - its title's, its panel's
-    and the one lit in it (`over`, show_atlas)."""
-    return panel.middle(fell, room(mirror, sight, cols), mirror['rings'])
+def middle(mirror, _fell, sight, cols):
+    """The node drawn nearest the middle of the room the schematic keeps (`room`), an open one's parts among
+    them - its title's, its panel's and the one lit in it (`over`, show_atlas)."""
+    rows, wide = sight['h'] // 4, cols - mirror['beside']
+    spots = laid(mirror, sight, cols, rows)[2]
+    near = {n: s for n, (s, _name) in spots.items() if n in mirror['rings'] and 0 <= s[0] < wide and 0 <= s[1] < rows}
+    return min(near, key=lambda n: ((near[n][0] - wide / 2) ** 2 + (2 * near[n][1] - rows) ** 2, n), default=None)
 
 
 def drawn(mirror, sight, cols, rows, now, mid=None):
     """{(col, row): (char, ink)}: the schematic as `laid`, each flow's packet at `now` bright (schematic.trail),
     a taker's sign lit as its packet comes home; the node `mid`'s sign in the chosen node's ink, its name bright."""
-    cells, paths, spots, _said = laid(mirror, sight, cols, rows)
-    cells, lanes = dict(cells), mirror['lanes']
-    for i, (k, forward) in enumerate(mirror['dots']):
-        packet, home = schematic.trail(paths[k], forward, now, i)
-        lit = packet + ([spots[lanes[k][1] if forward else lanes[k][0]][0]] if home else [])
+    cells, paths, spots, _said, flows = _kept(mirror, sight, cols, rows)
+    cells = dict(cells)
+    for i, (k, forward, home) in enumerate(flows):
+        packet, arrived = schematic.trail(paths[k], forward, now, i)
+        lit = packet + ([spots[home][0]] if arrived and home in spots else [])
         cells.update({cell: (cells[cell][0], scene.TOLD) for cell in lit if cell in cells})
     sign, name = spots.get(mid, (None, []))
     cells.update({cell: (cells[cell][0], scene.TOLD) for cell in name if cell in cells})
@@ -265,10 +250,11 @@ def over(mirror, sight, keyed, fell, cols, rows, taken=frozenset(), now=0.0):
     `middle`), then at the right a panel listing that node's flows (leaves.panels, `keyed` {node: its key}:
     `lines`, `noted`), over none of it."""
     mid = middle(mirror, fell, sight, cols)
-    cells = drawn(mirror, sight, cols, rows, now, mid)
+    cells, sign = drawn(mirror, sight, cols, rows, now, mid), laid(mirror, sight, cols, rows)[2].get(mid, ((0, 0),))[0]
     rings = {mid: mirror['rings'][mid]} if mid in mirror['rings'] else {}
-    return {**cells, **leaves.panels(mirror['tree'], rings, fell, {n: keyed.get(n, '') for n in rings}, cols, rows,
-                                     taken | set(cells), lines, noted, most=1, docked=True)}
+    return {**cells, **leaves.panels(mirror['tree'], rings, {**fell, mid: (2 * sign[0], 4 * sign[1], 0.0)},
+                                     {n: keyed.get(n, '') for n in rings}, cols, rows, taken | set(cells), lines, noted,
+                                     most=1, docked=True)}
 
 
 def room(mirror, sight, cols):

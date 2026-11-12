@@ -184,42 +184,49 @@ def ring(loop, hung, chords, said, names):
                                                                 if root[m] in bottom], default=0))
 
 
-def wire(nodes, lanes, asks, names):
+def wire(nodes, lanes, asks, names, depth=None, pinned=(None, None)):
     """The wire laid in cells from (0, 0): (marks {node: its dot's cell}, routes [(u, v, corners, heavy)] - from
     the cell past u's name to the cell before v's dot, light -, (width, height)); `lanes` [(u, v)] each from its left
-    node to its right one, the columns by `asks` (from, to) (`depths`), each node's dot then its name; a lane
-    past a column straight through it at a place of its own, a fan's lanes one track and its teeth."""
-    depth = depths(nodes, asks)
+    node to its right one, the columns `depth` {node: its column} or by `asks` (from, to) (`depths`), each node's
+    dot then its name - one of no name (a port) its dot alone, its lanes from it or into it -, `pinned` (top,
+    bottom) at the top and the bottom of their columns; a lane past a column straight through it at a place of
+    its own, a fan's lanes one track and its teeth."""
+    depth = depth or depths(nodes, asks)
     columns = [[n for n in nodes if depth[n] == c] for c in range(max(depth.values(), default=-1) + 1)]
     col, chains = dict(depth), []
     for u, v in lanes:
         chain = [u]
         for c in range(col[u] + 1, col[v]):
-            via = -2 - len(col)
+            via = -10 - len(col)
             col[via] = c
             columns[c].append(via)
             chain.append(via)
         chains.append(chain + [v])
     hops = [(p, q) for chain in chains for p, q in zip(chain, chain[1:])]
     _ordered(columns, {n: [q for p, q in hops if p == n] + [p for p, q in hops if q == n] for c in columns for n in c})
+    top, bottom = pinned
+    for column in columns:
+        column.sort(key=lambda n: (n != top) + (n == bottom))
     tall = max((len(c) for c in columns), default=0)
     y = {n: (tall - len(c)) // 2 + i for c in columns for i, n in enumerate(c)}
+    y.update({n: row for n, row in ((top, 0), (bottom, tall - 1)) if n in y})
     outs, ins = Counter(p for p, _q in hops), Counter(q for _p, q in hops)
     key = {(p, q): (p, 0) if outs[p] >= ins[q] else (q, 1) for p, q in hops}
     tracks = [_tracked([h for h in hops if col[h[0]] == c], key, y) for c in range(len(columns))]
     xs, ends, x = [], [], 0
     for c, column in enumerate(columns):   # a column its dots, its names, a blank, its tracks two apart, a head
         xs.append(x)
-        ends.append(x + 3 + max((len(names[n]) for n in column if n >= 0), default=0))
+        ends.append(x + 3 + max((len(names[n]) for n in column if n in names), default=0))
         x = ends[-1] + 2 * len(tracks[c]) + 2
     at = {(c, k): ends[c] + 1 + 2 * j for c, ts in enumerate(tracks) for j, k in enumerate(ts)}
     routes = []
     for chain in chains:
-        corners = [(xs[col[chain[0]]] + 3 + len(names[chain[0]]), y[chain[0]])]
+        u, v = names[chain[0]], names[chain[-1]]
+        corners = [(xs[col[chain[0]]] + (3 + len(u) if u else 0), y[chain[0]])]
         for p, q in zip(chain, chain[1:]):
             corners += [(at[(col[p], key[(p, q)])], y[p]), (at[(col[p], key[(p, q)])], y[q])]
-        routes.append((chain[0], chain[-1], corners + [(xs[col[chain[-1]]] - 1, y[chain[-1]])], False))
-    marks = {n: (xs[col[n]], y[n]) for c in columns for n in c if n >= 0}
+        routes.append((chain[0], chain[-1], corners + [(xs[col[chain[-1]]] - bool(v), y[chain[-1]])], False))
+    marks = {n: (xs[col[n]], y[n]) for c in columns for n in c if n in names}
     return marks, routes, (ends[-1] - 1 if columns else 0, tall)
 
 
@@ -267,8 +274,11 @@ def laid(lanes, texts, cols, rows):
         ways, glyphs = {bits for bits, _i, _h in got}, HEAVY if all(h for _b, _i, h in got) else GLYPHS
         if ways == {LEFT | RIGHT, UP | DOWN}:   # one lane across another, joining none of it: the upright on
             out[cell] = (glyphs[UP | DOWN], next(ink for bits, ink, _h in got if bits == UP | DOWN))
-        else:
-            out[cell] = (glyphs[sum(1 << k for k in range(4) if any(bits >> k & 1 for bits in ways))], got[-1][1])
+        else:   # every way out of the cell any lane takes
+            mask = 0
+            for bits in ways:
+                mask |= bits
+            out[cell] = (glyphs[mask], got[-1][1])
     out.update(heads)
     for col, row, text, ink in texts:
         out.update({(col + k, row): (ch, ink) for k, ch in enumerate(text)})
