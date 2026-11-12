@@ -96,13 +96,20 @@ def listed(state, base, mid, keyed):
 
 
 def ties(state):
-    """REACHES, REACHED BY: the open node's ties, the other end at its level (atlas.ties_of)."""
+    """REACHES, REACHED BY: the open node's ties, the other end at its level (atlas.ties_of); in the mirror
+    FLOWS OUT, FLOWS IN: its flows, the other end the node shown (`state['flowing']`, mirror.mirrored's)."""
     tree, focus = state['tree'], state['focus']
     if focus < 0:
         return []
-    reach, reached = state['memo'].setdefault(('ties', focus), atlas.ties_of(tree, focus, state['own']))
+    flowing = state.get('flowing')
+    if flowing:
+        boxes = (('FLOWS OUT', {(n, 0): k for n, k in flowing[0].items()}),
+                 ('FLOWS IN', {(n, 0): k for n, k in flowing[1].items()}))
+    else:
+        reach, reached = state['memo'].setdefault(('ties', focus), atlas.ties_of(tree, focus, state['own']))
+        boxes = (('REACHES', reach), ('REACHED BY', reached))
     out = []
-    for title, said in (('REACHES', reach), ('REACHED BY', reached)):
+    for title, said in boxes:
         total = {}
         for (node, _tie), n in said.items():
             total[node] = total.get(node, 0) + n

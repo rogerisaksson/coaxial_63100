@@ -126,17 +126,34 @@ def reached(name, defined, public, seen=None):
     return out
 
 
-def show_ops():
+def ops():
+    """[(code, its word, the handler's file, the handler, the public functions it reaches)] of every wire
+    command - a handler's row in comms/ or a device's case -, the functions sorted."""
     public = {m.group(1)
               for rel, text in files(DIRS) if rel.endswith('.h') and not rel.endswith('/wire.h')
               for p in prototypes(text) if (m := re.search(r'(\w+)\s*\(', p))}
+    out = []
     for rel, text in files(('comms',)):
         defined = bodies(text)
         rows = ([(code, what, fn) for code, what, fn in ROW.findall(text)]
                 + [('%s.%s' % (dev, op), '', fn) for dev, op, fn in CASE.findall(text)])
-        for code, what, fn in rows:
-            calls = sorted(reached(fn, defined, public))
-            print('%s %s%s: %s' % (code, what + ' ' if what else '', fn, ' '.join(calls)))
+        out += [(code, what, rel, fn, sorted(reached(fn, defined, public))) for code, what, fn in rows]
+    return out
+
+
+def definers():
+    """{function: the C file defining it} over DIRS: a name's definition in a src/ folder first - the board's
+    own sources ahead of their stand-ins (board/fake) -, else its first."""
+    out = {}
+    for rel, text in sorted(files(DIRS), key=lambda told: ('/src/' not in told[0], told[0])):
+        for name in bodies(text) if rel.endswith('.c') else ():
+            out.setdefault(name, rel)
+    return out
+
+
+def show_ops():
+    for code, what, _rel, fn, calls in ops():
+        print('%s %s%s: %s' % (code, what + ' ' if what else '', fn, ' '.join(calls)))
 
 
 def main(argv=None):

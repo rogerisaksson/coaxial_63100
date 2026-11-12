@@ -83,9 +83,11 @@ def _laid(out, left, top, wide, lines, title, note, active):
     _put(out, left + wide + 1 - len(note), top + tall + 1, [(note, NOTE if active else FRAME_DIM)], left + wide + 1)
 
 
-def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset()):
+def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None):
     """{(col, row): (char, ink)}: the branches with leaves as panels on a drawing `cols` by `rows` cells
-    (`ranked`; `rings` {node: its children as laid}) - the first laid active, the rest idle, MOST at most -,
+    (`ranked`; `rings` {node: its children as laid}, its lines by `say` and its note by `noted` - `lines_of`
+    and its leaves' count where None, the mirror's flows its own) - the first laid active, the rest idle,
+    MOST at most -,
     each at the edge on the side its node stands - the active one on the other where its own has no room -,
     stacked down from the top in rows free of a cell `taken` (the keys' names): the active one in the
     longest such run, as many of its leaves as it holds, an idle one in the first; none where its edge has no
@@ -103,12 +105,13 @@ def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset()):
             runs = [run for run in _runs(busy, tops[right], rows - FOOT) if run[1] >= (4 if active else 3)]
             if runs:   # the active one in the longest run free, its lines as many as it holds; an idle the first
                 top, room = max(runs, key=lambda run: (run[1], -run[0])) if active else runs[0]
-                lines = lines_of(tree, leaves, wide, min(room - 2, len(leaves) if active else IDLE_ROWS), active)
+                lines = (say or lines_of)(tree, leaves, wide, min(room - 2, len(leaves) if active else IDLE_ROWS), active)
                 break
         else:
             continue
-        kinds = {tree.kind[n] for n in leaves}
-        note = ' %d %ss ' % (len(leaves), KINDS[kinds.pop()]) if len(kinds) == 1 else ' %d leaves ' % len(leaves)
+        kinds = set() if noted else {tree.kind[n] for n in leaves}
+        note = noted(leaves) if noted else ' %d %ss ' % (len(leaves), KINDS[kinds.pop()]) if len(kinds) == 1 \
+            else ' %d leaves ' % len(leaves)
         title = [(' %s ' % keyed[node], KEY), (short(tree, node) + ' ', TITLE if active else NAME_DIM)]
         _laid(out, left, top, wide, lines, title, note, active)
         tops[right], laid = top + len(lines) + 2, laid + 1

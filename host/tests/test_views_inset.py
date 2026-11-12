@@ -312,9 +312,31 @@ def test_the_atlas_leaves_are_panels(report):
                  '%s -> %s' % (keyed[near], keyed[turned[0][1]]))
 
 
+def test_the_atlas_mirror_flows(report):
+    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): her pass and the wire flow; M turns the tree over,
+    the view with it; M back."""
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from tools.dev import atlas_flow, atlas_tree
+    tree = atlas_tree.build()
+    flows = atlas_flow.flows(tree)
+    said = {(kind, label.partition('_')[0]) for _a, _b, kind, label in flows}
+    state = show_atlas.opened(tree)
+    show_atlas.focused(state, next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'))
+    up, goal = show_atlas.placed(state)['at'], state['goal']['target']
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    over = show_atlas.placed(state)
+    report.check("the flows; M turns every node over, the view with it; the keys' flows",
+                 {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and over['rings']
+                 and all(over['at'][n] == (p[0], -p[1], p[2]) for n, p in up.items())
+                 and state['goal']['target'] == (goal[0], -goal[1], goal[2]), '%d flows' % len(flows))
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    report.check('M back: as it was', show_atlas.placed(state)['at'] == up and state['goal']['target'] == goal, '')
+
+
 ROSTER = (test_her_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
           test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_she_sees,
-          test_the_atlas_leaves_are_panels)
+          test_the_atlas_leaves_are_panels, test_the_atlas_mirror_flows)
 
 
 def main(argv=None):

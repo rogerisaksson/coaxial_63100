@@ -17,8 +17,10 @@ key's leaves are a panel on the viewport, the branch nearest the viewport the ac
 marking its key (terminal/views/atlas/leaves.py). Python's package plumbing - a package's __init__.py, its
 __main__.py - is left out, its ties landing on its folder. Along the viewport's top the key nearest it
 says its name and its brief; as the wheel brings it near, the panel beside names what it holds, the
-deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. W lays
-the same atlas as a page (tools/dev/atlas.py --html) and opens it.
+deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. M turns
+the world over into its mirror: what flows between the files - her pass, the wire - drawn where what
+holds what was, the panels a key's flows (terminal/views/atlas/mirror.py). W lays the same atlas as a
+page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -32,8 +34,8 @@ from terminal.ui import bindings, screen as _screen
 from terminal.ui.screen import ENTER_KEYS, FPS_CAP, PORT, run_view, say
 from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import room
-from terminal.views.atlas import leaves, panel, scene
-from tools.dev import atlas
+from terminal.views.atlas import leaves, mirror, panel, scene
+from tools.dev import atlas, atlas_flow
 from tools.dev.atlas_tree import FILE, FOLDER, KINDS, LAYER, LAYERS, SYMBOL, build
 
 TITLE = 'SYSTEM ATLAS'
@@ -72,6 +74,7 @@ def opened(tree):
             ('ties', str(len(tree.src)))]
     return {'tree': tree, 'kids': kids, 'below': below, 'hidden': hidden, 'own': own, 'between': between,
             'focus': -1, 'page': 0, 'cam': scene.camera(), 'goal': scene.camera(), 'then': None, 'orbit': False,
+            'mirror': False, 'flow': None, 'flowing': None,
             'find': None, 'typing': False, 'said': '', 'memo': {}, 'sums': sums, 'fell': {}, 'view': None,
             'size': (120, 40), 'origin': Origin(False, 'tree', 0, 'tree',
                                                  'THE TREE AT %s' % atlas.told(atlas.commit()), 'tree', 0)}
@@ -86,9 +89,17 @@ def _memo(state, key, make):
     return memo[key]
 
 
+def flowing(state):
+    """What the code says flows between the tree's files (atlas_flow.flows), read once a page, on first ask."""
+    if state['flow'] is None:
+        state['flow'] = atlas_flow.flows(state['tree'])
+    return state['flow']
+
+
 def placed(state):
     """The scene at the node open (scene.layout, scene.tied): where each node shown stands, the stubs, the
-    reaches, its ties to the nodes shown; at the trunk the faint ties between layers, the most first."""
+    reaches, its ties to the nodes shown; at the trunk the faint ties between layers, the most first - its
+    mirror (`mirror.mirrored`, the keys' flows its rings) while M has the world turned over."""
     focus, tree, between = state['focus'], state['tree'], state['between']
 
     def make():
@@ -98,7 +109,11 @@ def placed(state):
                         for b in range(a + 1, len(LAYERS))), reverse=True)
         return {'tree': tree, 'focus': focus, 'at': at, 'stubs': stubs, 'reach': reach, 'rings': rings,
                 'out': out, 'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
-    return _memo(state, ('placed', focus), make)
+    upright = _memo(state, ('placed', focus), make)
+    if not state['mirror']:
+        return upright
+    keys = keyed(state)
+    return _memo(state, ('mirror', focus, tuple(keys)), lambda: mirror.mirrored(upright, flowing(state), keys))
 
 
 def hits(state):
@@ -132,18 +147,27 @@ def keyed(state):
 
 
 def frame(state, node):
-    """(target, distance) that frames `node` and what it opens - the trunk whole at none."""
+    """(target, distance) that frames `node` and what it opens - the trunk whole at none -, in the mirror
+    where its reflection stands, a cap hanging up."""
     if node < 0:
         home = scene.camera()
-        return home['target'], home['distance']
+        return mirror.turned(home['target']) if state['mirror'] else home['target'], home['distance']
     tree, p = state['tree'], placed(state)['at'][node]
-    n, kind = len(state['kids'][node]), tree.kind[node]
+    n, kind, down = len(state['kids'][node]), tree.kind[node], -1.0 if state['mirror'] else 1.0
     if kind == LAYER:
         return p, 2.8 * (scene.RING[0] + scene.RING[1] * n) + 1.0
     if kind in (FOLDER, FILE) and n:
         r = scene.CAP[kind][0] + scene.CAP[kind][1] * math.sqrt(n)
-        return (p[0], p[1] - 0.55 * r, p[2]), 2.8 * r + 0.5
+        return (p[0], p[1] - down * 0.55 * r, p[2]), 2.8 * r + 0.5
     return p, 0.8
+
+
+def _mirrored(state, _key, _now):
+    """M: the world turned over - what flows between the files where what holds what was (`mirror`) -, and
+    back; the view on the same node's reflection."""
+    state['mirror'] = not state['mirror']
+    for cam in (state['cam'], state['goal']):
+        cam['target'] = mirror.turned(cam['target'])
 
 
 def focused(state, node):
@@ -320,6 +344,8 @@ ROWS = (
     ('ATLAS', 'HOME', 'the view turned back, the node open framed', (), {'home': _homed}),
     ('ATLAS', 'O', 'the tree orbits, or stops', (('O', 'ORBIT'),),
      bindings.cased('o', lambda s, _k, _n: s.update(orbit=not s['orbit']))),
+    ('ATLAS', 'M', 'the mirror: the tree turned over, what flows between its files drawn, and back',
+     (('M', 'MIRROR'),), bindings.cased('m', _mirrored)),
     ('ATLAS', '/', 'a word found in every name, signature, brief and text; its hits on the keys',
      (('/', 'FIND'),), {'/': _finding}),
     ('ATLAS', 'W', 'the same atlas as a page, in the browser', (('W', 'WEB'),), bindings.cased('w', _web)),
@@ -330,10 +356,11 @@ PAD = bindings.page(ROWS, take=_typed)
 def titled(state, mid, width):
     """The viewport's title along its top: TREE, then the key nearest the viewport (`panel.middle`) by its
     name and its brief (its kind where it has none), as wide as the frame lets it."""
+    head = 'FLOW' if state['mirror'] else 'TREE'
     if mid is None:
-        return 'TREE'
+        return head
     tree = state['tree']
-    return panel.fit('TREE  %s  %s' % (scene.short(tree, mid), tree.brief[mid] or KINDS[tree.kind[mid]]), width - 2)
+    return panel.fit('%s  %s  %s' % (head, scene.short(tree, mid), tree.brief[mid] or KINDS[tree.kind[mid]]), width - 2)
 
 
 def draw_of(view, state, keys=''):
@@ -352,10 +379,12 @@ def draw_of(view, state, keys=''):
         placing, marks = placed(state), keyed(state)
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
+        told = (mirror.lines, mirror.noted) if state['mirror'] else (None, None)
+        state['flowing'] = (placing['out'], placing['into']) if state['mirror'] else None
         lines, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
             lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, marks, cols, rows,
-                                                          taken))
+                                                          taken, *told))
         state['art'] = (width, height)
         mid = panel.middle(state['fell'], state['view'], marks)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
