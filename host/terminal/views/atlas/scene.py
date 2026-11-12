@@ -5,9 +5,9 @@ STEP apart; a layer beside it stands SIDE out, at the height of the trunk's laye
 node chosen and those above it are open, and so are the nodes its keys offer - its children, at the trunk
 the layers -, their own children laid out ahead: a layer's folders ring it level, a folder's files and a
 file's symbols hang under it as a cap, the heaviest at its foot and the rest spiralling out by the golden
-angle. The chosen node and those above it are lit - before any is chosen, the trunk -, the rest greyed
-out, the nodes offered among them; the chosen node's ties are bowed out from the trunk, so those along it
-are not lost in it.
+angle. The chosen node, those above it and all laid out below it are lit - before any is chosen, the
+trunk -, the rest greyed out; the chosen node's ties are bowed out from the trunk, so those along it are
+not lost in it.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
 all at once, cuts them at the near plane and at the drawing's edge, rasters every dot of every segment and
@@ -33,9 +33,9 @@ DISC, DOTS, NAMES, FAINT_TIES, TIES_SHOWN = (0.11, 0.05, 0.022, 0.011), (0.8, 4.
 HALO, SIDES = 0.24, 24
 TURNS = tuple((math.cos(2 * math.pi * k / SIDES), math.sin(2 * math.pi * k / SIDES)) for k in range(SIDES + 1))
 #: The inks by rank - a dot keeps its highest-ranked: the faint ties between layers, dim edges and nodes -
-#: all not chosen, the nodes offered among them -, lit edges, the chosen node's ties out and in, lit
-#: nodes, then the legend's (the dark terminal's, validated all-pairs): reaches, reached by, found,
-#: chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses.
+#: all but the chosen node's, those above it and those laid out below it -, lit edges, the chosen node's
+#: ties out and in, lit nodes, then the legend's (the dark terminal's, validated all-pairs): reaches,
+#: reached by, found, chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses.
 FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY = \
     range(1, 16)
 INK = {FAINT: (23, 26, 31), DIM_EDGE: (28, 32, 38), DIM_NODE: (42, 48, 56), EDGE: (178, 190, 204),
@@ -176,7 +176,9 @@ def _flat(scene):
     from coaxial.model.blocks import numpy as np
     tree, at, focus, out, into = scene['tree'], scene['at'], scene['focus'], scene['out'], scene['into']
     trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
-    lit, nodes, parts = set(chain(tree, focus) if focus >= 0 else trunk), list(at), []
+    nodes, parts = list(at), []
+    # The chosen node, those above it and all laid out below it; before any is chosen, the trunk.
+    lit = set(chain(tree, focus) + [n for n in nodes if focus in chain(tree, n)]) if focus >= 0 else set(trunk)
 
     def curve(points, ink):
         parts.extend((p, q, ink, False) for p, q in zip(points, points[1:]))

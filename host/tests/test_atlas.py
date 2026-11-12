@@ -152,9 +152,9 @@ def test_the_terminal_page_walks_the_tree(report):
     """terminal/views/show_atlas.py on its state: the trunk in 3D, its twelve layers on F1 to F12 - the
     terminal F1 - drawn in braille and named, each open already (its folders laid out ahead), the trunk lit
     and the rest greyed out, the node in the middle of the view named with its brief along the top; F4
-    chooses the executive - lit,
-    the rest dim, its folders level round it with their files laid out ahead and the camera eased to frame
-    them -, F1 its heaviest folder, its files hanging under it, the executive lit above it, BKSP back on the
+    chooses the executive - it and all laid out below it lit, the rest dim, its folders level round it with
+    their files laid out ahead and the camera eased to frame them -, F1 its heaviest folder, its files
+    hanging under it lit with it, the executive lit above it, BKSP back on the
     layer; the panel lists the layers far, the chosen layer's folders at its frame; a left drag turns the
     tree within its tip, the wheel brings it near; / and a word put its hits on the keys, ESC lets the word
     go and ESC again leaves for the front page."""
@@ -204,20 +204,32 @@ def test_the_terminal_page_walks_the_tree(report):
     executive = next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive')
     typed('f%d' % (executive + 1))
     at, folders, told = show_atlas.placed(state)['at'], state['kids'][executive], inks()
-    report.check('F4: the executive chosen and lit, its folders dim and level round it, their files laid out '
-                 'ahead under them, the camera eased to frame them',
+
+    def under(node):
+        """The nodes laid out below `node`."""
+        return [n for n in at if n != node and node in scene.chain(tree, n)]
+
+    def rest(node):
+        """The inks of the nodes neither above `node`, nor it, nor laid out below it."""
+        return {told[n] for n in at if n not in scene.chain(tree, node) and n not in under(node)}
+    report.check('F4: the executive chosen and lit, its folders level round it and their files laid out ahead '
+                 'under them all lit, the rest dim or a tie of its, the camera eased to frame them',
                  state['focus'] == executive and folders and all(at[f][1] == at[executive][1] for f in folders)
                  and all(at[c][1] < at[f][1] for f in folders for c in state['kids'][f])
-                 and told[executive] == scene.OPEN and {told[f] for f in folders} == {scene.DIM_NODE}
-                 and state['goal']['distance'] < scene.camera()['distance'], '%d folders' % len(folders))
+                 and told[executive] == scene.OPEN and {told[n] for n in under(executive)} == {scene.NODE}
+                 and rest(executive) <= {scene.DIM_NODE, scene.OUT, scene.IN} and scene.DIM_NODE in rest(executive)
+                 and state['goal']['distance'] < scene.camera()['distance'],
+                 '%d folders, %d laid out below' % (len(folders), len(under(executive))))
     lines, fell, mid, listed = drawn()
     report.check("at its frame the panel lists its folders", listed == executive, tree.id[listed] if listed >= 0 else '-1')
     heaviest = scene.children(tree, state['kids'], state['below'], executive)[0]
     typed('f1')
     at, files, told = show_atlas.placed(state)['at'], state['kids'][heaviest], inks()
-    report.check('F1: its heaviest folder chosen, its files hanging under it, the executive lit above it',
+    report.check('F1: its heaviest folder chosen, its files hanging under it lit with all laid out below it, '
+                 'the executive lit above it',
                  state['focus'] == heaviest and files and all(at[f][1] < at[heaviest][1] for f in files)
-                 and told[heaviest] == scene.OPEN and told[executive] == scene.NODE, tree.id[heaviest])
+                 and told[heaviest] == scene.OPEN and told[executive] == scene.NODE
+                 and {told[n] for n in under(heaviest)} == {scene.NODE}, tree.id[heaviest])
     typed('\x08')
     report.check('BKSP: back on the layer', state['focus'] == executive, str(state['focus']))
     yaw, near = state['cam']['yaw'], state['cam']['distance']
