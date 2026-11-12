@@ -5,12 +5,11 @@ loop is laid round a rectangle in heavy lines (`ring`), the wire in columns whos
 tracks between them (`wire`); a lane runs through its corners cell by cell (`walked`); where lanes join one
 glyph carries every way out of the cell (a comb's teeth), where one only passes across another the upright
 one runs on and the other breaks under it, so a crossing never reads as a join; a head ends a lane where a
-flow goes in, pointing at the node it goes into; the words lie over the lines (`laid`). A word keeps its
-place beside what it names in the terminal's cells, whatever the zoom spreads between them.
+flow goes in, pointing at the node it goes into; the words lie over the lines, and each lane's run where
+nothing else is is found for what it carries (`laid`), a hung stage's beside its heads (`ring`'s slots).
+A word keeps its place beside what it names in the terminal's cells, whatever the zoom spreads between them.
 """
 from collections import Counter
-
-from terminal.views.atlas import scene
 
 #: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded - her loop's
 #: heavy -; a lane's head by the way it points, her loop's filled.
@@ -124,20 +123,16 @@ def _tracked(hops, key, y):
     return keys
 
 
-def _said(word, x, row):
-    """`word` written in a line at `row` centred on cell `x`, a blank either side: as `ring`'s texts are."""
-    return (x, row, -((len(word) + 2) // 2), 0, ' %s ' % word, scene.BRIEF)
-
-
 def ring(loop, hung, chords, said, names):
     """Her loop laid in cells from (0, 0): (marks {node: its dot's cell}, named {node: its name's offset from
-    its dot}, routes [(a, b, corners, heavy)] - from the cell beside a's dot to the cell beside b's -, texts
-    [(x, y, across, down, text, ink)] what passes - each by a cell of the layout and its offset from it in
-    the terminal's cells -, (width, height)): its first half along the top left to right in heavy lines, the
-    rest back along the bottom, the last up the left side to the first, LEAD line cells at least before a
-    head, a stage's name inside, what passes in the line on its way - a side's on its run to the corner -; `hung`
-    (`hanging`) straight out SPUR rows, each word beside its own head; `chords` [(a, b)] across it on rows
-    of their own inside, a row clear either side; `said` (a, b) -> (what goes a to b, what comes back)."""
+    its dot}, routes [(a, b, corners, heavy)] - from the cell beside a's dot to the cell beside b's -, slots
+    [(x, y, across, down, (a, b), way, grows)] where a hung stage's lane is written each way (0 a to b) - by
+    a cell of the layout and its offset from it in the terminal's cells, the side it grows to -, (width,
+    height)): its first half along the top left to right in heavy lines, the rest back along the bottom, the
+    last up the left side to the first, LEAD line cells at least before a head, a stage's name inside, room
+    for what passes in the line on its way - a side's on its run to the corner -; `hung` (`hanging`)
+    straight out SPUR rows, what passes beside the head it goes into; `chords` [(a, b)] across it on rows of
+    their own inside, a row clear either side; `said` (a, b) -> (what goes a to b, what comes back)."""
     n, t = len(loop), (len(loop) + 1) // 2
     top, bottom, kids, root = loop[:t], loop[t:], {}, {}
     for m, (p, _hops) in hung.items():
@@ -171,25 +166,21 @@ def ring(loop, hung, chords, said, names):
     routes.append((top[-1], bottom[0], [(xt[-1] + 1, y0), (x1, y0), (x1, y1), (xb[0] + 1, y1)], True))
     routes += [(bottom[j], bottom[j + 1], [(xb[j] - 1, y1), (xb[j + 1] + 1, y1)], True) for j in range(len(bottom) - 1)]
     routes.append((bottom[-1], top[0], [(xb[-1] - 1, y1), (x0, y1), (x0, y0), (xt[0] - 1, y0)], True))
-    texts = [_said(side[i], (xt[i] + xt[i + 1]) // 2, y0) for i in range(t - 1) if side[i]]
-    texts += [_said(side[t + j], (xb[j] + xb[j + 1]) // 2, y1) for j in range(len(bottom) - 1) if side[t + j]]
-    texts += [_said(side[t - 1], (xt[-1] + x1) // 2, y0)] if side[t - 1] else []
-    texts += [_said(side[-1], (x0 + xb[-1]) // 2, y1)] if side[-1] else []
+    slots = []
     for m, (p, _hops) in hung.items():
         (px, py), (mx, my), o = marks[p], marks[m], -1 if root[m] in top else 1
         routes.append((p, m, [(px, py + o), (px, py + 2 * o), (mx, py + 2 * o), (mx, my - o)], False))
         out, back = said(p, m)
-        texts += [(mx, my, -1 - len(out), -o, out, scene.BRIEF)] if out else []
-        texts += [(px, py, 2, o, back, scene.BRIEF)] if back else []
+        slots += [(mx, my, -2, -o, (p, m), 0, -1)] if out else []
+        slots += [(px, py, 2, o, (p, m), 1, 1)] if back else []
     for k, (a, b) in enumerate(chords):
         (ax, ay), (bx, by), row = marks[a], marks[b], y0 + 3 + k
         routes.append((a, b, [(ax, ay + (1 if ay == y0 else -1)), (ax, row), (bx, row), (bx, by + (1 if by == y0 else -1))],
                        False))
-        word = ' · '.join(w for w in said(a, b) if w)
-        texts += [_said(word, (ax + bx) // 2, row)] if word else []
-    width = max([x + 1 for x, _y in marks.values()] + [x + dx + len(text) for x, _y, dx, _dy, text, _i in texts]
+    width = max([x1 + 1] + [x + 1 for x, _y in marks.values()]
+                + [x + dx + len(said(*lane)[1]) for x, _y, dx, _dy, lane, d, _w in slots if d]
                 + [marks[nd][0] + dx + len(names[nd]) for nd, (dx, _dy) in named.items()])
-    return marks, named, routes, texts, (width, y1 + 1 + max([h * SPUR for m, (_p, h) in hung.items()
+    return marks, named, routes, slots, (width, y1 + 1 + max([h * SPUR for m, (_p, h) in hung.items()
                                                                 if root[m] in bottom], default=0))
 
 
@@ -251,11 +242,13 @@ def toward(cell, at):
 
 
 def laid(lanes, texts, cols, rows):
-    """({(col, row): (char, ink)}, [cells] a lane): `lanes` [(from, to, corners, ink, head in, head out,
-    heavy)] - each from the cell beside its node `from` through `corners` to the cell beside `to`, a head (its
-    ink, or None) where a flow goes into `to` and one where a flow comes back into `from` - in lines, heads
-    and the ways they reach their nodes, heavy where every lane through a cell is; then `texts` [(col, row,
-    text, ink)] over them; all on a drawing `cols` by `rows` cells, the lanes' cells in order besides."""
+    """({(col, row): (char, ink)}, [cells] a lane, [cells] a lane's run): `lanes` [(from, to, corners, ink,
+    head in, head out, heavy)] - each from the cell beside its node `from` through `corners` to the cell
+    beside `to`, a head (its ink, or None) where a flow goes into `to` and one where a flow comes back into
+    `from` - in lines, heads and the ways they reach their nodes, heavy where every lane through a cell is;
+    then `texts` [(col, row, text, ink)] over them; all on a drawing `cols` by `rows` cells, the lanes' cells
+    in order besides and each lane's longest run along a row of cells it alone passes straight through, no
+    head nor text on one: where what it carries may be written."""
     per, heads, paths = {}, {}, []
     for start, end, corners, ink, into, back, heavy in lanes:
         cells, ways, tips = walked(corners), {}, FILLED if heavy else HEADS
@@ -279,7 +272,17 @@ def laid(lanes, texts, cols, rows):
     out.update(heads)
     for col, row, text, ink in texts:
         out.update({(col + k, row): (ch, ink) for k, ch in enumerate(text)})
-    return {cell: v for cell, v in out.items() if 0 <= cell[0] < cols and 0 <= cell[1] < rows}, paths
+    runs = []
+    for cells in paths:   # a run ends where another lane, a head, a text, a turn or the drawing's edge is
+        best, run = [], []
+        for cell in cells + [None]:
+            if cell in per and len(per[cell]) == 1 and per[cell][0][0] == LEFT | RIGHT and out[cell][0] in '─━' \
+                    and 0 <= cell[0] < cols and 0 <= cell[1] < rows:
+                run.append(cell)
+            else:
+                best, run = max(best, run, key=len), []
+        runs.append(best)
+    return {cell: v for cell, v in out.items() if 0 <= cell[0] < cols and 0 <= cell[1] < rows}, paths, runs
 
 
 def trail(path, forward, now, k):

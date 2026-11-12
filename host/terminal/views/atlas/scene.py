@@ -24,8 +24,8 @@ from coaxial.draw import braille
 from coaxial.graphics.callouts import FRAME_INK
 from tools.dev.atlas_tree import FILE, FOLDER, LAYER, LAYERS, SYMBOL
 
-#: A layer's step up the trunk, how far out a layer beside it stands, the near plane; world units.
-STEP, SIDE, NEAR = 1.0, 2.6, 0.05
+#: A layer's step up the trunk, how far out a layer beside it stands, the near plane, world units; a key's zoom.
+STEP, SIDE, NEAR, ZOOM = 1.0, 2.6, 0.05, 1.25
 #: A layer's ring of folders: its radius's base and its growth a folder. A cap's radius - its base and
 #: its growth a square root of its children - by the kind it hangs from, and its half-angle.
 RING, CAP, CAP_DEG = (0.6, 0.04), {FOLDER: (0.25, 0.07), FILE: (0.12, 0.025)}, 75.0
@@ -363,7 +363,7 @@ def picture(scene, cam, width, height, keyed, found, over=None):
                              w, h)
     under, of = discs(x[seen], y[seen], size[seen] + (nodes[seen] == focus), w, h)
     # Out of focus (`blur`) a thing keeps a share of its dots - a screen door's: a line's from its start, a
-    # disc's round its node's middle -, they stray and darken; a scene's `field`, camera distances, in focus.
+    # disc's round its node's middle -, they stray and darken; a scene's `field` in focus.
     line_of, disc_of, target = np.concatenate((drawn, twice))[by], seen[of], cam['target']
     near = cam['distance'] * scene.get('field', 1.0)
     across = under % w - np.floor(x[disc_of]).astype(np.intp)

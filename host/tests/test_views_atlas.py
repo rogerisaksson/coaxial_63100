@@ -1,4 +1,5 @@
-"""The atlas's viewport: the child nearest it whichever page of keys holds it; its mirror world's schematic."""
+"""The atlas's viewport: the child nearest it whichever page of keys holds it; its mirror world's schematic,
+telling more nearer."""
 import sys
 
 from tools.dev.focus import chosen
@@ -127,17 +128,17 @@ def test_the_mirror_lays_the_flow_out(report):
     stages round a rectangle in its order - its first half along the top left to right, the rest back along
     the bottom -, each joined to the next by what passes or comes back, the last to the first; the wire's
     asks each to a column on the right but one that closes a loop; on a drawing framed whole every lane's
-    cell a line or a head or the lane's own word, no name on a lane, every node named; the lanes crossing
-    counted."""
+    cell a line or a head or what the lane carries, no name on a lane, every node named, every lane of her
+    pass's words written; the lanes crossing counted."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
-    from terminal.views.atlas import mirror, scene, schematic
+    from terminal.views.atlas import detail, mirror, scene, schematic
     from tools.dev import atlas_flow, atlas_tree
     tree = atlas_tree.build()
     flows, state = atlas_flow.flows(tree), show_atlas.opened(tree)
     bindings.act_on(show_atlas.PAD, ['m'], state)
     sharp = {*schematic.GLYPHS.values(), *schematic.HEAVY.values(), *schematic.HEADS.values(), *schematic.FILLED.values()}
-    looped, onward, smudged, unnamed, crossed = [], [], [], [], {}
+    looped, onward, smudged, unnamed, unsaid, crossed = [], [], [], [], [], {}
     for focus in [-1] + list(range(len(atlas_tree.LAYERS))):
         show_atlas.focused(state, focus)
         over = show_atlas.placed(state)
@@ -163,19 +164,24 @@ def test_the_mirror_lays_the_flow_out(report):
             onward.append('%s: %s -> %s' % (where, scene.short(tree, a), scene.short(tree, b)) if a not in reached else '')
         target, distance = mirror.framed(over, 150, 40)
         sight = scene.view(scene.camera(0.0, 0.0, distance, target), 150, 40)
-        cells, paths, _spots = mirror.laid(over, sight, 150, 40)
+        cells, paths, _spots, said = mirror.laid(over, sight, 150, 40)
         lanes = {cell for path in paths for cell in path}
         smudged += ['%s %s' % (where, cell) for cell in lanes if cell in cells
-                    and cells[cell][0] not in sharp and cells[cell][1] != scene.BRIEF]
+                    and cells[cell][0] not in sharp and cells[cell][1] not in detail.FADE]
+        slotted = {(k, d) for *_cell, k, d, _way in over['slots']}
+        unsaid += ['%s: lane %d' % (where, k) for k, ways in enumerate(over['said']) for d, way in enumerate(ways)
+                   if any(w[1] is not None for _kind, told in way for w in told)
+                   and ((k, d) if (k, d) in slotted else (k, None)) not in said]
         rows = [''.join(cells.get((c, r), (' ', 0))[0] for c in range(150)) for r in range(40)]
         unnamed += ['%s: %s' % (where, name) for *_at, name, ink, node in over['texts']
                     if node is not None and ink in (scene.NAME, scene.TOLD) and not any(name in row for row in rows)]
         crossed[where] = _crossed(over['lanes'])
     report.check("her loop round its rectangle in its order, closed; the asks to the right but a loop's",
                  looped and all(looped) and not any(onward), '%d loops; %s' % (len(looped), [o for o in onward if o]))
-    report.check('every lane a line, a head or its own word, no name on one; every node named; the crossings '
-                 'counted', not smudged and not unnamed, '%s smudged, %s unnamed; crossings %s' % (
-                     smudged[:3], unnamed[:3], ', '.join('%s %d' % kv for kv in crossed.items())))
+    report.check('every lane a line, a head or what it carries, no name on one; every node named, her words '
+                 'written; the crossings counted', not smudged and not unnamed and not unsaid,
+                 '%s smudged, %s unnamed, %s unsaid; crossings %s' % (
+                     smudged[:3], unnamed[:3], unsaid[:3], ', '.join('%s %d' % kv for kv in crossed.items())))
 
 
 def test_the_mirror_zooms_and_pans(report):
@@ -209,7 +215,7 @@ def test_the_mirror_zooms_and_pans(report):
     loose, behind, distances = [], [], []
     for zoom in range(4):
         over, sight, w, h = drawn(150, 44, ['+'] * (zoom > 0))
-        cells, paths, spots = mirror.laid(over, sight, w, h)
+        cells, paths, spots, _said = mirror.laid(over, sight, w, h)
         distances.append(state['cam']['distance'])
         for (a, b, corners, _ink, into, out, _heavy), path in zip(over['lanes'], paths):
             for end, node, cell in ((path[0], a, corners[0]), (path[-1], b, corners[-1])):
@@ -240,8 +246,52 @@ def test_the_mirror_zooms_and_pans(report):
                  'in the panel', moved and all(agreed), 'moved %s; agreed %s' % (moved, agreed))
 
 
+def test_the_mirror_tells_more_nearer(report):
+    """Nearer, the mirror's lanes tell more (atlas/mirror.py): at the executive and the wire's sources, a zoom
+    key's step at a time, more lanes say where their words are made and where they are taken, the commands
+    they ask; a lane's writing on its own run or beside its own heads - on no cell of another lane, no sign
+    nor name under it -, in the inks a detail comes out of the background in (detail.FADE): just fitting
+    faint, a zoom key's step roomier the brief's; nodes' briefs beside their names."""
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from terminal.views.atlas import detail, mirror, scene
+    from tools.dev import atlas_tree
+    tree = atlas_tree.build()
+    state = show_atlas.opened(tree)
+    bindings.act_on(show_atlas.PAD, ['m'], state)
+    told, foul, inks, briefs = {}, [], set(), 0
+    for focus in (next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'), tree.at['comms/src/']):
+        show_atlas.focused(state, focus)
+        over = show_atlas.placed(state)
+        target, distance = mirror.framed(over, 150, 40)
+        for z in range(5):
+            sight = scene.view(scene.camera(0.0, 0.0, distance / scene.ZOOM ** z, target), 150, 40)
+            cells, paths, spots, said = mirror.laid(over, sight, 150, 40)
+            told.setdefault(scene.short(tree, focus), []).append(tuple(sum(lv >= j for lv, _c in said.values())
+                                                                       for j in (1, 2)))
+            on, named = {}, {c for sign, name in spots.values() for c in [sign] + name}
+            for k, path in enumerate(paths):
+                for c in path:
+                    on.setdefault(c, set()).add(k)
+            for (k, _d), (_lv, written) in said.items():
+                foul += [(k, c) for c in written if on.get(c, {k}) - {k} or c in named]
+                inks |= {cells[c][1] for c in written if cells[c][0] != ' '}
+            for nd, (sign, name) in spots.items():   # its brief's first word beside its name, away from its sign
+                brief, y = tree.brief[nd].split(), name[0][1] + (-1 if name[0][1] < sign[1] else 1)
+                briefs += bool(brief) and ''.join(cells.get((name[0][0] + i, y), ' ')[0]
+                                                  for i in range(len(brief[0]))) == brief[0]
+    ramp = [detail.FADE.index(detail.faded(scene.ZOOM ** (i / 8))) for i in range(9)]
+    report.check('nearer, more lanes say where their words are made and taken, the commands they ask; briefs',
+                 all(t[-1][0] > t[0][0] and t[-1][1] > t[0][1] for t in told.values()) and briefs,
+                 'lanes made, taken a step at a time %s; %d briefs' % (told, briefs))
+    report.check("a lane's writing on its own cells, in the inks it comes out of the background in, faint to "
+                 "the brief's over a zoom key's step", not foul and inks <= set(detail.FADE) and inks - {scene.BRIEF}
+                 and ramp == sorted(ramp) and ramp[0] == 0 and ramp[-1] == len(detail.FADE) - 1,
+                 '%d cells foul %s; inks %s; ramp %s' % (len(foul), foul[:3], sorted(inks), ramp))
+
+
 ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_her_loop, test_the_mirror_faces_what_flows,
-          test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans)
+          test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans, test_the_mirror_tells_more_nearer)
 
 
 def main(argv=None):

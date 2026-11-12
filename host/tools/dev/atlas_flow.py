@@ -2,6 +2,7 @@
 
     rows = atlas_flow.flows(atlas)       # [(from node, to node, kind, label)], the atlas's file nodes
     made = atlas_flow.makers(atlas)      # {stream: the atlas's node of the function making it}
+    took = atlas_flow.takers(atlas)      # {(kind, stream): [the atlas's nodes of the functions taking it]}
 
 Her pass (machine/rig/streams.py, STREAMS): each stream made by a function, in the order one instant's
 records keep - the file making a stream hands on to the file making the next, the stream's name on it -,
@@ -56,6 +57,17 @@ def makers(atlas):
         module, _, function = by.partition(':')
         out[name] = atlas.at.get('host/%s.py::%s' % (module.replace('.', '/'), function), -1)
     return out
+
+
+@functools.lru_cache(maxsize=2)
+def takers(atlas):
+    """{(kind, stream): [the atlas's nodes of the functions taking it]} (KINDS, `makers`): in her pass the
+    next stream's maker, fed back - a stream on the pass's end's clock - those of the streams laid off her
+    edge."""
+    rows, made = streams(), makers(atlas)
+    out = {(KINDS.index('pass'), name): [made[after]] for (name, *_r), (after, *_s) in zip(rows, rows[1:])}
+    edge = [made[name] for name, _by, _end, laid in rows if laid]
+    return {**out, **{(KINDS.index('feedback'), name): edge for name, _by, end, _laid in rows if end}}
 
 
 def flows(atlas):

@@ -52,7 +52,7 @@ FKEYS, DIGITS, PAGE = tuple('f%d' % k for k in range(1, 13)), tuple('1234567890'
 #: A left drag's degrees a cell across and a row down, the tip's bounds; an arrow's turn and tip; a key's
 #: zoom, the distance's bounds; the ease's time constant, s; O's orbit, degrees a second.
 DRAG_DEG, TIP_DEG, KEY_DEG = (2.0, 3.0), (-80.0, 85.0), (10.0, 5.0)
-ZOOM_KEY, DISTANCE, EASE_S, ORBIT_DEG_S = 1.25, (0.25, 40.0), 0.2, 9.0
+ZOOM_KEY, DISTANCE, EASE_S, ORBIT_DEG_S = scene.ZOOM, (0.25, 40.0), 0.2, 9.0
 #: How near a node's frame the camera is when the panel lists its children; a click's reach, dots.
 LISTS_AT, CLICK_DOTS = 1.3, 10.0
 
