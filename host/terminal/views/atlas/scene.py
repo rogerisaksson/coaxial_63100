@@ -7,19 +7,21 @@ the layers -, their own children laid out ahead: a layer's folders ring it level
 file's symbols hang under it as a cap, the heaviest at its foot and the rest spiralling out by the golden
 angle. The chosen node, those above it and all laid out below it are lit - before any is chosen, the
 trunk -, the rest greyed out; the chosen node's ties are bowed out from the trunk, so those along it are
-not lost in it. Far before or behind the point the view turns about a thing is out of focus: it thins to
-a screen door's dots, the sparser the farther, and past the field goes unnamed but for the chosen node,
-its keys and those above it.
+not lost in it. Named in the tree are the chosen node, its keys, those above it, the layers, its ties'
+ends and a word's hits; its leaves are in panels on the viewport (`over`, terminal/views/atlas/leaves.py).
+The farther a thing from the point the view turns about, across the view or along it, the more out of
+focus, smoothly: its dots fewer, scattered and darker.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
 all at once, cuts them at the near plane and at the drawing's edge, rasters every dot of every segment and
-disc in one pass, lets those out of focus through their screen door, keeps each dot's highest-ranked ink
-and encodes the cells as braille (`picture`).
+disc in one pass, thins and scatters those out of focus, keeps each dot's highest-ranked ink and its shade
+and encodes the cells as braille, each cell's ink darkened by its sharpest dot's shade (`picture`).
 """
 import functools
 import math
 
 from coaxial.draw import braille
+from coaxial.graphics.callouts import FRAME_INK
 from tools.dev.atlas_tree import FILE, FOLDER, LAYER, LAYERS, SYMBOL
 
 #: A layer's step up the trunk, how far out a layer beside it stands, the near plane; world units.
@@ -35,27 +37,38 @@ DISC, DOTS, NAMES, FAINT_TIES, TIES_SHOWN = (0.11, 0.05, 0.022, 0.011), (0.8, 4.
 #: their ends' turns.
 HALO, SIDES = 0.24, 24
 TURNS = tuple((math.cos(2 * math.pi * k / SIDES), math.sin(2 * math.pi * k / SIDES)) for k in range(SIDES + 1))
-#: The depth of field round the point the view turns about - its target, the camera's distance ahead -,
-#: fractions of that distance: a thing within the first is sharp, one past the second at its sparsest,
-#: keeping SPARSE of its dots; the second a framed node's reach (show_atlas.frame stands the camera some
-#: 2.8 reaches off it), so the far side of the node chosen thins and all behind it is at its sparsest.
-#: Its screen door, each dot's threshold of 16: along a line from its start (DOOR, the bit-reversed count
-#: - every share spread evenly, a line's first dot always), round a node's middle (BAYER, the ordered
-#: dither - its middle dot always).
-FOCUS, SPARSE = (0.05, 0.36), 0.2
+#: Out of focus (`blur`) a thing's distance from the point the view turns about, a share of the camera's to
+#: it, makes half out at FOCUS - a framed node's reach (show_atlas.frame stands the camera 2.8 off). Out of
+#: focus a dot keeps of its share down to SPARSE, darkens to DARK of its ink in SHADES steps and strays up to
+#: STRAY dots; a screen door picks which keep - a dot's threshold of 16 along a line from its start (DOOR,
+#: the bit-reversed count) or round a node's middle (BAYER, the ordered dither) - and STRAYS its way (/3).
+FOCUS, SPARSE, DARK, SHADES, STRAY = 0.36, 0.2, 0.2, 6, 2.0
 DOOR = (0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15)
 BAYER = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+STRAYS = (0, 3, -2, 1, -3, 2, -1, 0, 2, -3, 1, -2, 3, -1, 0, 1)
 #: The inks by rank - a dot keeps its highest-ranked: the faint ties between layers, dim edges and nodes -
 #: all but the chosen node's, those above it and those laid out below it -, lit edges, the chosen node's
 #: ties out and in, lit nodes, then the legend's (the dark terminal's, validated all-pairs): reaches,
-#: reached by, found, chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses.
-FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY = \
-    range(1, 16)
+#: reached by, found, chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses; a
+#: panel's frame - her eyes' (coaxial.graphics.inset: the instruments' frame, the theme's name and value) -,
+#: an idle panel's frame, a brief.
+FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY, \
+    FRAME, TITLE, NOTE, FRAME_DIM, BRIEF = range(1, 21)
 INK = {FAINT: (23, 26, 31), DIM_EDGE: (28, 32, 38), DIM_NODE: (42, 48, 56), EDGE: (178, 190, 204),
        TIE_OUT: (25, 158, 112), TIE_IN: (217, 89, 38), NODE: (247, 249, 252), OUT: (25, 158, 112),
        IN: (217, 89, 38), HIT: (213, 81, 129), OPEN: (57, 135, 229), NAME_DIM: (62, 69, 79),
-       NAME: (198, 206, 216), TOLD: (250, 252, 255), KEY: (57, 135, 229)}
+       NAME: (198, 206, 216), TOLD: (250, 252, 255), KEY: (57, 135, 229), FRAME: FRAME_INK,
+       TITLE: (0, 215, 215), NOTE: (255, 175, 0), FRAME_DIM: (44, 62, 62), BRIEF: (112, 122, 134)}
 SGR = {0: '\x1b[0m', **{ink: '\x1b[38;2;%d;%d;%dm' % rgb for ink, rgb in INK.items()}}
+
+
+@functools.lru_cache(maxsize=None)
+def shaded(key):
+    """The SGR of `key` - an ink times SHADES and its shade -: the ink darkened shade / (SHADES - 1) of the way
+    down to DARK of itself; the reset for none."""
+    ink, shade = divmod(key, SHADES)
+    k = 1.0 - (1.0 - DARK) * shade / (SHADES - 1)
+    return '\x1b[38;2;%d;%d;%dm' % tuple(round(c * k) for c in INK[ink]) if ink else SGR[0]
 CUT = chr(0x2026)
 
 
@@ -89,12 +102,12 @@ def chain(tree, node):
 def layout(tree, kids, below, between, focus):
     """{node: (x, y, z)} of every node shown - the layers always, the children of the node chosen and of
     those above it, and laid out ahead the children of the nodes its keys offer (its own, at the trunk the
-    layers) -, the stubs [(trunk point, beside layer)] that tie a layer beside the trunk to it, and each
-    open node's {node: reach}: its children's ring or cap radius."""
+    layers) -, the stubs [(trunk point, beside layer)] that tie a layer beside the trunk to it, each open
+    node's {node: reach}: its children's ring or cap radius, and {node: its children as they are laid}."""
     trunk = [i for i, row in enumerate(LAYERS) if row[1] == 'trunk']
     beside = [i for i, row in enumerate(LAYERS) if row[1] != 'trunk']
     at = {layer: (0.0, k * STEP, 0.0) for k, layer in enumerate(trunk)}
-    stubs, reach = [], {}
+    stubs, reach, rings = [], {}, {}
     for k, layer in enumerate(beside):
         pull = {t: between[layer][t] + between[t][layer] for t in trunk}
         y = sum(at[t][1] * w for t, w in pull.items()) / (sum(pull.values()) or 1)
@@ -102,7 +115,7 @@ def layout(tree, kids, below, between, focus):
         at[layer] = (SIDE * math.cos(a), y, SIDE * math.sin(a))
         stubs.append(((0.0, y, 0.0), layer))
     for node in chain(tree, focus) + list(range(len(LAYERS)) if focus < 0 else kids[focus]):
-        ring = children(tree, kids, below, node)
+        ring = rings[node] = children(tree, kids, below, node)
         if not ring:
             continue
         (x, y, z), turn, n = at[node], (node * GOLDEN) % (2 * math.pi), len(ring)
@@ -118,7 +131,7 @@ def layout(tree, kids, below, between, focus):
             polar, a = math.radians(CAP_DEG) * math.sqrt((k + 0.5) / n), turn + k * GOLDEN
             at[child] = (x + r * math.sin(polar) * math.cos(a), y - r * math.cos(polar),
                          z + r * math.sin(polar) * math.sin(a))
-    return at, stubs, reach
+    return at, stubs, reach, rings
 
 
 def shown_of(tree, at, node):
@@ -216,11 +229,11 @@ def _flat(scene):
             'thick': np.array([s[3] for s in parts], bool)}
 
 
-def blur(depth, near):
-    """How far out of focus things `depth` ahead are, the view turning about a point `near` ahead: 0 within
-    FOCUS[0] of that distance, 1 past FOCUS[1], straight between."""
+def blur(away):
+    """How far out of focus, 0 to 1, things `away` from the point the view turns about are - that distance a
+    share of the camera's to the point -: 1 - e^-(away / FOCUS)^2, sharp at it, half out at FOCUS."""
     from coaxial.model.blocks import numpy as np
-    return np.clip((np.abs(depth - near) / near - FOCUS[0]) / (FOCUS[1] - FOCUS[0]), 0.0, 1.0)
+    return 1.0 - np.exp(-(np.asarray(away, float) / FOCUS) ** 2)
 
 
 def _local(v, p):
@@ -280,9 +293,10 @@ def _glyphs():
     return np.array([' '] + [braille.ALL[bits] for bits in range(1, 256)], dtype='<U1')
 
 
-def cells(dots, text, w, h):
+def cells(dots, text, w, h, shade=None):
     """The drawing as lines of SGR runs: a cell its text where it has any (`text` {(col, row): (char,
-    ink)}), else its dots (`dots`, w * h ranks) in braille in the ink of the highest rank among them."""
+    ink)}), else its dots (`dots`, w * h ranks) in braille in the ink of the highest rank among them,
+    darkened by the least of their `shade`s (w * h steps, `shaded`; none where None)."""
     from coaxial.model.blocks import numpy as np
     rows, cols = h // 4, w // 2
     grid = dots.reshape(h, w)[:rows * 4, :cols * 2].reshape(rows, 4, cols, 2)
@@ -291,14 +305,16 @@ def cells(dots, text, w, h):
         for lane in range(2):
             bits |= np.where(grid[:, dy, :, lane] > 0, braille.BIT[lane][dy], 0)
     inks, chars = grid.max(axis=(1, 3)).astype(np.intp), _glyphs()[bits]
+    dark = np.zeros_like(inks) if shade is None else np.where(inks > 0, np.where(
+        grid > 0, shade.reshape(h, w)[:rows * 4, :cols * 2].reshape(rows, 4, cols, 2), SHADES).min(axis=(1, 3)), 0)
     for (col, row), (ch, ink) in text.items():
-        chars[row, col], inks[row, col] = ch, ink
-    out = []
+        chars[row, col], inks[row, col], dark[row, col] = ch, ink, 0
+    keys, out = inks * SHADES + dark, []
     for row in range(rows):
-        line, ink = chars[row].tobytes().decode('utf-32-le'), inks[row]
+        line, key = chars[row].tobytes().decode('utf-32-le'), keys[row]
         parts, at = [], 0
-        for c in np.flatnonzero(ink != np.concatenate(([0], ink[:-1]))).tolist():
-            parts += [line[at:c], SGR[int(ink[c])]]
+        for c in np.flatnonzero(key != np.concatenate(([0], key[:-1]))).tolist():
+            parts += [line[at:c], shaded(int(key[c]))]
             at = c
         out.append(''.join(parts) + line[at:] + SGR[0])
     return out
@@ -318,10 +334,11 @@ def _label(text, col, row, runs, cols, rows):
     return True
 
 
-def picture(scene, cam, width, height, keyed, found):
+def picture(scene, cam, width, height, keyed, found, over=None):
     """The scene from `cam` on `width` x `height` cells, as lines, where each node shown fell ({node:
     (x, y, depth)}, dots) and the view: `keyed` {node: the key choosing it}, `found` the nodes shown a
-    word's hits lie under."""
+    word's hits lie under; `over` (fell, cols, rows, the cells the keys' names took) -> {(col, row): (char,
+    ink)} laid after the chosen node's, its keys' and its chain's names, before the rest's."""
     from coaxial.model.blocks import numpy as np
     tree, f, focus = scene['tree'], flat(scene), scene['focus']
     v = view(cam, width, height)
@@ -348,39 +365,45 @@ def picture(scene, cam, width, height, keyed, found):
                              np.concatenate((xb[drawn], xb[twice] + 1.0)), np.concatenate((yb[drawn], yb[twice])),
                              w, h)
     under, of = discs(x[seen], y[seen], size[seen] + (nodes[seen] == focus), w, h)
-    # Out of focus a thing keeps a share of its dots, its screen door's: a line's from its start, a disc's
-    # round its node's middle.
-    line_of, disc_of, near = np.concatenate((drawn, twice))[by], seen[of], cam['distance']
+    # Out of focus (`blur`) a thing keeps a share of its dots - a screen door's: a line's from its start, a
+    # disc's round its node's middle -, they stray and darken.
+    line_of, disc_of, near, target = np.concatenate((drawn, twice))[by], seen[of], cam['distance'], cam['target']
     across = under % w - np.floor(x[disc_of]).astype(np.intp)
     down = under // w - np.floor(y[disc_of]).astype(np.intp)
+    count = np.concatenate((along, across * 4 + down))
     door = np.concatenate((np.array(DOOR)[along & 15], np.array(BAYER)[down & 3, across & 3]))
-    out = np.concatenate((blur((a[2] + b[2])[line_of] / 2, near), blur(cz[disc_of], near)))
+    away = np.linalg.norm((f['from'] + f['to']) / 2 - target, axis=1), np.linalg.norm(f['pos'] - target, axis=1)
+    out = np.concatenate((blur(away[0] / near)[line_of], blur(away[1] / near)[disc_of]))
     stay = (door + 0.5) / 16 < 1.0 - out * (1.0 - SPARSE)
-    flat_at = np.concatenate((on, under))[stay]
+    spot, strays = np.concatenate((on, under)), np.array(STRAYS) * STRAY / 3.0
+    px = np.clip(spot % w + np.rint(out * strays[count & 15]).astype(np.intp), 0, w - 1)
+    py = np.clip(spot // w + np.rint(out * strays[(count + 5) & 15]).astype(np.intp), 0, h - 1)
+    flat_at, out = (py * w + px)[stay], out[stay]
     ranks = np.concatenate((f['segink'][line_of], ink[disc_of]))[stay]
-    dots = np.zeros(w * h, np.uint8)
+    dots, shade = np.zeros(w * h, np.uint8), np.zeros(w * h, np.uint8)
     for rank in np.unique(ranks).tolist():
-        dots[flat_at[ranks == rank]] = rank
+        sel = ranks == rank
+        dots[flat_at[sel]], shade[flat_at[sel]] = rank, np.rint(out[sel] * (SHADES - 1))
     fell = dict(zip(nodes[seen].tolist(), zip(x[seen].tolist(), y[seen].tolist(), cz[seen].tolist())))
     radius = dict(zip(nodes[seen].tolist(), size[seen].tolist()))
-    text, cols, rows, lit = {}, w // 2, h // 4, f['lit']
+    cols, rows, lit = w // 2, h // 4, f['lit']
     tied_most = sorted(list(scene['out'].items()) + list(scene['into'].items()), key=lambda kv: -kv[1])
-    order = [focus] + list(keyed) + chain(tree, focus) + list(range(len(LAYERS))) + [n for n, _ in tied_most] \
-        + sorted(found) + nodes[seen][np.argsort(cz[seen], kind='stable')].tolist()
-    # Past the field a node goes unnamed, but the chosen node, its keys, those above it and a word's hits.
-    sharp = dict(zip(nodes[seen].tolist(), (blur(cz[seen], near) < 1.0).tolist()))
-    always = {focus, *keyed, *chain(tree, focus), *found}
-    named, done = 0, set()
-    for node in order:
-        if node in done or node not in fell or named >= NAMES or not (sharp[node] or node in always):
-            continue
-        done.add(node)
-        (nx, ny, _), r, key = fell[node], radius[node], keyed.get(node)
-        name = short(tree, node)
-        name = name if len(name) <= 28 else name[:27] + CUT
-        runs = ([(key + ' ', KEY)] if key else []) + [(name, TOLD if node == focus else NAME if node in lit else NAME_DIM)]
-        across = sum(len(t) for t, _ in runs)
-        if _label(text, int((nx + r) // 2) + 1, int(ny // 4), runs, cols, rows) \
-                or _label(text, int((nx - r) // 2) - across, int(ny // 4), runs, cols, rows):
-            named += 1
-    return cells(dots, text, w, h), fell, v
+    groups = ([focus] + list(keyed) + chain(tree, focus),
+              list(range(len(LAYERS))) + [n for n, _ in tied_most] + sorted(found))
+    text, named, done = {}, 0, set()
+    for k, group in enumerate(groups):
+        if k and over:   # `over` after the keys' names, over none of them, before the rest's
+            text.update(over(fell, cols, rows, frozenset(text)))
+        for node in group:
+            if node in done or node not in fell or named >= NAMES:
+                continue
+            done.add(node)
+            (nx, ny, _), r, key = fell[node], radius[node], keyed.get(node)
+            name = short(tree, node)
+            name = name if len(name) <= 28 else name[:27] + CUT
+            runs = ([(key + ' ', KEY)] if key else []) + [(name, TOLD if node == focus else NAME if node in lit else NAME_DIM)]
+            right, left, row = int((nx + r) // 2) + 1, int((nx - r) // 2) - sum(len(t) for t, _ in runs), int(ny // 4)
+            # Right of its node, left of it, then a row or two above or below: a key's name finds its room.
+            if any(_label(text, col, row + step, runs, cols, rows) for step in (0, -1, 1, -2, 2) for col in (right, left)):
+                named += 1
+    return cells(dots, text, w, h, shade), fell, v

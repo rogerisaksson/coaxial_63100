@@ -11,12 +11,14 @@ the tree, a right drag moves it, the wheel brings it near. The nodes F1 to F12 o
 where a terminal keeps a function key) are open already, their own children laid out ahead, and dim with
 the rest of the tree; the key choosing one lights it, those above it and all laid out below it - at the
 trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve, BKSP chooses the node above, a
-click the node under it and ENTER the one in the middle of the view. What lies far before or behind the
-point the view turns about thins out of focus. Python's package plumbing - a package's __init__.py, its
-__main__.py - is left out, its ties landing on its folder. Along the viewport's top the node in the
-middle says its name and its brief; as the wheel brings it near, the panel names what it holds, the
-deeper the nearer: layers, then folders, files, symbols. W lays the same atlas as a page
-(tools/dev/atlas.py --html) and opens it.
+click the node under it and ENTER the one in the middle of the view. The farther a thing from the point
+the view turns about, the more out of focus - its dots fewer, scattered, darker. The tree names no leaf:
+a key's leaves are a panel on the viewport, the branch nearest its middle the active one
+(terminal/views/atlas/leaves.py). Python's package plumbing - a package's __init__.py, its __main__.py -
+is left out, its ties landing on its folder. Along the viewport's top the node in the middle says its name
+and its brief; as the wheel brings it near, the panel beside names what it holds, the deeper the nearer:
+layers, then folders, files, symbols - Tab folds it, as every page's column. W lays the same atlas as a
+page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import math
@@ -30,7 +32,7 @@ from terminal.ui import bindings, screen as _screen
 from terminal.ui.screen import ENTER_KEYS, FPS_CAP, PORT, run_view, say
 from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import room
-from terminal.views.atlas import panel, scene
+from terminal.views.atlas import leaves, panel, scene
 from tools.dev import atlas
 from tools.dev.atlas_tree import FILE, FOLDER, KINDS, LAYER, LAYERS, SYMBOL, build
 
@@ -90,12 +92,12 @@ def placed(state):
     focus, tree, between = state['focus'], state['tree'], state['between']
 
     def make():
-        at, stubs, reach = scene.layout(tree, state['kids'], state['below'], between, focus)
+        at, stubs, reach, rings = scene.layout(tree, state['kids'], state['below'], between, focus)
         out, into = scene.tied(tree, state['own'], at, focus) if focus >= 0 else ({}, {})
         pairs = sorted(((between[a][b] + between[b][a], a, b) for a in range(len(LAYERS))
                         for b in range(a + 1, len(LAYERS))), reverse=True)
-        return {'tree': tree, 'focus': focus, 'at': at, 'stubs': stubs, 'reach': reach, 'out': out,
-                'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
+        return {'tree': tree, 'focus': focus, 'at': at, 'stubs': stubs, 'reach': reach, 'rings': rings,
+                'out': out, 'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
     return _memo(state, ('placed', focus), make)
 
 
@@ -350,7 +352,10 @@ def draw_of(view, state, keys=''):
         placing, marks = placed(state), keyed(state)
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
-        lines, state['fell'], state['view'] = scene.picture(placing, state['cam'], width, height, marks, found)
+        lines, state['fell'], state['view'] = scene.picture(
+            placing, state['cam'], width, height, marks, found,
+            lambda fell, cols, rows, taken: leaves.panels(state['tree'], placing['rings'], fell, marks, cols, rows,
+                                                          taken))
         state['art'] = (width, height)
         mid = panel.middle(state['fell'], state['view'])
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
@@ -361,8 +366,8 @@ def draw_of(view, state, keys=''):
 
 
 def main(argv=None):
-    """The page until ESC or Q: its answer to the loader. The instruments' column opens with it - the
-    panel is half the page - and is left as it was found."""
+    """The page until ESC or Q: its answer to the loader. The panel beside the viewport is the instruments'
+    column, out or folded as Tab left it, as on every page."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default=PORT, help="the loader's; the atlas reads no board")
     parser.add_argument('--simulated', action='store_true', help="the loader's; nothing here is simulated")
@@ -375,12 +380,8 @@ def main(argv=None):
     state = opened(tree)
     say('ok', 'atlas', '%d files, %d symbols, %d ties at %s' % (
         tree.kind.count(FILE), tree.kind.count(SYMBOL), len(tree.src), atlas.told(atlas.commit())))
-    was, bindings.UX['column'] = bindings.UX['column'], True
-    try:
-        leaving = run_view(view, view.is_terminal, 1.0 / FPS_CAP, args.frames, draw_of(view, state, args.keys),
-                           pad=PAD, state=state, **mouse(state))
-    finally:
-        bindings.UX['column'] = was
+    leaving = run_view(view, view.is_terminal, 1.0 / FPS_CAP, args.frames, draw_of(view, state, args.keys),
+                       pad=PAD, state=state, **mouse(state))
     return answer(leaving)
 
 

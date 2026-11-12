@@ -300,14 +300,15 @@ def test_the_scene_is_rastered_as_data(report):
         return [cam['target'][k] + v['f'][k] * (depth - near) + v['u'][k] * up + v['r'][k] * side for k in range(3)]
     lines = scene.picture({'tree': built(), 'focus': -1, 'out': {}, 'into': {}, 'flat': {
         'nodes': np.zeros(0, np.intp), 'pos': np.zeros((0, 3)), 'disc': np.zeros(0), 'ink': np.zeros(0, np.uint8),
-        'lit': set(), 'from': np.array([at(near, 2, -5), at(far, -2 * far / near, -5 * far / near)]),
-        'to': np.array([at(near, 2, 5), at(far, -2 * far / near, 5 * far / near)]),
+        'lit': set(), 'from': np.array([at(near, 0.5, -1), at(far, -0.5 * far / near, -far / near)]),
+        'to': np.array([at(near, 0.5, 1), at(far, -0.5 * far / near, far / near)]),
         'segink': np.array([scene.EDGE] * 2, np.uint8), 'thick': np.zeros(2, bool)}}, cam, 100, 36, {}, set())[0]
     dots = [sum(bin(ord(c) - 0x2800).count('1') for c in line if 0x2800 < ord(c) <= 0x28FF) for line in lines]
-    sharp, sparse = sum(dots[:18]), sum(dots[18:])
-    report.check('a line at the point the view turns about drawn whole, one as long on the screen past the field '
-                 'keeping 3/16 of its dots', scene.blur(np.array([near, 1.7 * near]), near).tolist() == [0, 1]
-                 and sharp > 100 and abs(sparse - 3 * sharp / 16) <= 3, '%d and %d dots' % (sharp, sparse))
+    sharp, sparse, edge = sum(dots[:18]), sum(dots[18:]), scene.EDGE * scene.SHADES
+    report.check('a line at the point the view turns about drawn whole, one as long on the screen far off it a fifth '
+                 'of its dots, darkest', scene.blur(0.0) == 0 and abs(scene.blur(scene.FOCUS) - 1 + math.exp(-1)) < 1e-9
+                 and sharp > 24 and sparse < 0.35 * sharp and scene.shaded(edge) in ''.join(lines[:18])
+                 and scene.shaded(edge + scene.SHADES - 1) in ''.join(lines[18:]), '%d and %d dots' % (sharp, sparse))
 
 
 def test_the_page_holds_the_mouse(report):

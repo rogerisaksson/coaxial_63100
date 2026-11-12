@@ -1,4 +1,5 @@
-"""The picture in the viewport's corner: its frame, her eyes' labels, the quad's camera on its gimbal."""
+"""The picture in the viewport's corner: its frame, her eyes' labels, the quad's camera on its gimbal; the
+atlas's leaves in panels on its viewport."""
 import math
 import sys
 
@@ -264,8 +265,51 @@ def test_balloons_stand_on_what_she_sees(report):
                  and out[(20, 69)][1] == callouts.packed(inset.NOTE_INK), tips)
 
 
+def test_the_atlas_leaves_are_panels(report):
+    """The atlas's leaves in panels on its viewport, framed as her eyes' picture (terminal/views/atlas/
+    leaves.py): the executive chosen, the tree names every key and no leaf; the branch nearest the middle the
+    active panel - its key and name its title, its heaviest leaf first -, the rest idle in a dim frame, the
+    drawing's foot free; turned a quarter round, the branches ranked anew."""
+    import re
+    from terminal.views import show_atlas
+    from terminal.views.atlas import leaves, scene
+    from tools.dev import atlas_tree
+    tree = atlas_tree.build()
+    state = show_atlas.opened(tree)
+    show_atlas.focused(state, next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'))
+    state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
+    placing, keyed, cells = show_atlas.placed(state), show_atlas.keyed(state), {}
+
+    def over(fell, cols, rows, taken):
+        cells.update(leaves.panels(tree, placing['rings'], fell, keyed, cols, rows, taken))
+        return cells
+    lines, fell, _v = scene.picture(placing, state['cam'], 100, 36, keyed, set(), over)
+    drawn = '\n'.join(''.join(' ' if (c, r) in cells else ch for c, ch in enumerate(re.sub(r'\x1b\[[\d;]*m', '', row)))
+                      for r, row in enumerate(lines))
+    named = [k for n, k in keyed.items() if '%s %s' % (k, scene.short(tree, n)[:5]) in drawn]
+    leafed = [n for n in placing['at'] if tree.up[n] in keyed
+              and re.search(r'(?<![\w.])%s(?!\w)' % re.escape(scene.short(tree, n)), drawn)]
+    report.check('the tree names every key and no leaf', len(named) == len(keyed) == 12 and not leafed,
+                 '%d keys named, leaves named: %s' % (len(named), [scene.short(tree, n) for n in leafed[:3]]))
+    first = leaves.ranked(fell, keyed, placing['rings'], 100, 36)
+    near = first[0][1]
+    title = ''.join(ch for (_c, _r), (ch, ink) in sorted(cells.items(), key=lambda kv: kv[0][::-1]) if ink == scene.TITLE)
+    rows = {r: ''.join(cells.get((c, r), (' ', 0))[0] for c in range(100)) for r in range(36)}
+    heaviest = scene.short(tree, placing['rings'][near][0])
+    inks = {ink for _ch, ink in cells.values()}
+    report.check('the nearest branch the active panel, its heaviest leaf first; the rest idle, dim; the foot free',
+                 title.strip() == scene.short(tree, near) and any(heaviest in row for row in rows.values())
+                 and {scene.FRAME, scene.FRAME_DIM} <= inks and sum(ch == '╭' for ch, _ink in cells.values()) > 1
+                 and not any(r >= 36 - leaves.FOOT for _c, r in cells), '%r, %r first' % (title.strip(), heaviest))
+    state['cam']['yaw'] += 90.0
+    turned = leaves.ranked(scene.picture(placing, state['cam'], 100, 36, keyed, set())[1], keyed, placing['rings'], 100, 36)
+    report.check('turned a quarter round, the branches ranked anew', [n for _d, n in turned] != [n for _d, n in first],
+                 '%s -> %s' % (keyed[near], keyed[turned[0][1]]))
+
+
 ROSTER = (test_her_eyes_picture_is_framed, test_its_camera_rides_a_gimbal,
-          test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_she_sees)
+          test_figures_are_watched_from_beside_the_field, test_balloons_stand_on_what_she_sees,
+          test_the_atlas_leaves_are_panels)
 
 
 def main(argv=None):
