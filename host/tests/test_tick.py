@@ -302,9 +302,64 @@ def test_her_step_begun_beside_her_law_as_whole(report, _c):
                  '%(apart)d apart' % tally)
 
 
+CONTROL_ARRAYS = ('y', 'fr', 'a', 'st', 'out', 'posture', 'jeff', 'leg_kp', 'release', 'seat_f', 'words', 'twisted', 'tab')
+CONTROL_NUMBERS = ('heading', 'surety', 'surety_probe', 'chained', '_w_back', '_backing_yaw', '_twist_clear')
+
+
+def _control_pair(make):
+    """Two identical sessions from `make()`, the second rebound to `c_motion.twins` and garbage-collected."""
+    import gc
+    from tools.cores import motion as c_motion
+    s1, s2 = make(), make()
+    c_motion.twins(s2['g'])
+    gc.collect()
+    return s1, s2
+
+
+def test_her_motion_control_in_c_is_her_python_twins(report, _c):
+    """Two lockstep sessions - one on `motion.laid`'s C and compiled hooks, one rebound to `tools.cores.motion.twins`
+    after `gc.collect()` - stepped through an open-chain walk and a closed-chain bed lie (`chained` 0 and 1): every
+    array and scalar `motion.control` writes matches bit for bit (`exact_host`) or within 1e-11."""
+    from machine.process import worker
+    from tools.cores import motion as c_motion
+    from tools.sim import told
+
+    def lie_session():
+        r = told.Run('bed_behind')
+        r.tell(say='lie_bed')
+        r.go(5.8)
+        return r.s
+    tally, chains = {'passes': 0, 'apart': 0, 'err': 0.0}, set()
+    for steps_n, make in ((900, lambda: worker.session(walks=True)), (2400, lie_session)):
+        s1, s2 = _control_pair(make)
+        for _ in range(steps_n):
+            worker.stepped(s1)
+            worker.stepped(s2)
+            g1, g2 = s1['g'], s2['g']
+            chains.add(int(g1.get('chained', 0)))
+            if s1['passes'] % g1['every']:
+                continue
+            tally['passes'] += 1
+            arrs = [(g1[k], g2[k]) for k in CONTROL_ARRAYS] + [
+                (g1['drives'][1]['tau'], g2['drives'][1]['tau']), (g1['drives'][1]['qacc'], g2['drives'][1]['qacc']),
+                (g1['cmd']['feed'], g2['cmd']['feed'])]
+            for a, b in arrs:
+                tally['apart'] += _apart(a, b)
+                d = np.abs(a - b)
+                tally['err'] = max(tally['err'], float(np.nanmax(d)) if np.any(~np.isnan(d)) else 0.0)
+            for k in CONTROL_NUMBERS:
+                v1, v2 = float(g1.get(k, 0.0)), float(g2.get(k, 0.0))
+                tally['apart'] += repr(v1) != repr(v2)
+                tally['err'] = max(tally['err'], abs(v1 - v2))
+    exact = c_motion.exact_host()
+    ok = tally['passes'] >= 1000 and {0, 1} <= chains and (not tally['apart'] if exact else tally['err'] <= 1e-11)
+    report.check('her motion.control in C is her python twins, %d passes (chained %s)'
+                 % (tally['passes'], sorted(chains)), ok, '%(apart)d apart, %(err).3g max' % tally)
+
+
 ROSTER = (test_her_drives_pass_in_c_as_in_python, test_a_moves_pass_in_c_as_in_python,
           test_her_world_steps_in_c_as_in_python, test_her_skin_reads_her_contacts_in_c_as_their_views,
-          test_her_step_begun_beside_her_law_as_whole)
+          test_her_step_begun_beside_her_law_as_whole, test_her_motion_control_in_c_is_her_python_twins)
 
 
 def main(argv=None):

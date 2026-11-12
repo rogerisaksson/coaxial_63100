@@ -45,8 +45,13 @@ def look(g):
         took = gaze.settled(g) and g['keep'].due(g['t'])
         if took:
             gaze.placed(g['world'])
+            unfloor, unfloored = g.pop('unfloor', False), g.pop('_unflooring', False)
             g['keep'].look(g['world'], g['t'], inekf.head(g['inekf'], g['body']), gz, held, waited=bool(g['eyes']),
-                           unfloor=g.pop('unfloor', False))
+                           unfloor=unfloor)
+            if unfloor:
+                g['_unflooring'] = True
+            if unfloored:
+                g['_relocalizing'] = True
             gaze.asked(g, gz)
         if g['eyes'] and (not took or g['keep'].shown is None):
             return
@@ -80,7 +85,7 @@ def _floored(g, t, fix):
     share = (refused + 1.0) / (told + 2.0)
     g['floor_runs'] = (told, refused, run)
     if run >= max(voxels.TOLD, math.log(1.0 - _confidence()) / math.log(share)):
-        g['floor_runs'], g['unfloor'], g['relocalize'] = (told, refused, 0), True, True
+        g['floor_runs'], g['unfloor'] = (told, refused, 0), True
 
 
 def _confidence():
@@ -94,6 +99,8 @@ def joined(g):
     """Her things after the look asked last (`look`), once; none asked, nothing."""
     if g['vision'].pending:
         g['things'] = g['vision'].join()
+        if g.pop('_relocalizing', False):
+            g['relocalize'] = True
 
 
 def looked(g):

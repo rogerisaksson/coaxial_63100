@@ -55,9 +55,9 @@ def laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state):
     for s in range(2):
         t.soles[s][:] = list(touch.SOLES[s])
     t.kept = (np.ascontiguousarray(ids, dtype=np.int32), np.ascontiguousarray(tips, dtype=np.float64),
-              y_in, xmat, xpos, y, fr, a, st, out, rest, state)
+              y_in, xmat, xpos, y, fr, a, st, out, rest, state, k)
     t.ids, t.tips = wbc.pointer(t.kept[0], np.int32), wbc.pointer(t.kept[1])
-    for name, arr in zip(('y_in', 'xmat', 'xpos', 'y', 'fr', 'a', 'st', 'out', 'rest', 'state'), t.kept[2:]):
+    for name, arr in zip(('y_in', 'xmat', 'xpos', 'y', 'fr', 'a', 'st', 'out', 'rest', 'state'), t.kept[2:12]):
         setattr(t, name, wbc.pointer(arr))
     asked, twist = np.zeros(3), np.zeros(3)
     step, at, tp, ap, wp = _typed(), ctypes.addressof(k), ctypes.byref(t), asked.ctypes.data, twist.ctypes.data

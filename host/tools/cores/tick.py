@@ -43,5 +43,6 @@ def laid(g, hop_k, wep_s, wep_fill):
     t = Tick(drives=ctypes.addressof(p), imp=imp, field=field, rng=wbc.pointer(g['rng']),
              kept=wbc.pointer(kept['limit']), limit=wbc.pointer(g['cmd']['limit']), hop_k=hop_k, wep_s=wep_s,
              wep_fill=wep_fill)
+    t._kept = (p, kept, g['surety_field'], g['rng'], g['cmd']['limit'])
     return ctypes.addressof(t), _typed(), t, np.ctypeslib.as_array(t.vec)
 

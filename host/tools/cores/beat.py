@@ -62,4 +62,4 @@ def laid(g):
              imu_at=inekf.IMU.start, nimu=inekf.IMU.stop - inekf.IMU.start, nj=nj, n=len(idx))
     at = ctypes.addressof(b)
     return (functools.partial(lib.wbh_beat_felt, at), (at, lib.wbh_beat_drive), (at, lib.wbh_beat_passed), b,
-            (idx, y, world.motor, link, f['imu'], f['span'], *cmd.values()))
+            (idx, y, world.motor, link, f['imu'], f['span'], world.passing, g['observer']['c'], g['tick'], *cmd.values()))

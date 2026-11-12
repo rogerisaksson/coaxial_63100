@@ -86,6 +86,7 @@ class Waits:
                       blas=c_motion.numpy_blas())
         self.kept = (a, out, y, fr, st, np.zeros((1, latent.TABLE)))
         self.at = [wbc.pointer(arr) for arr in self.kept]
+        self.k_kept = k
         self.got, self.all = np.zeros(3), np.zeros(12)
         (self.held_c, self.risen_c, self.landed_c, self.borne_c, self.latched_c, self.woken_c, self.rows,
          self.sunk_c, self.played_c, self.backs_c) = _typed()

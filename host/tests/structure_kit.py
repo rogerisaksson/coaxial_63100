@@ -394,3 +394,80 @@ def _c_reads(text, name, defines):
         else:
             stack[-1][0].append(width)
     return stack[0][0]
+
+
+def _fn_ast(rel, name):
+    """FunctionDef `name` inside `HOST/rel`."""
+    tree = ast.parse(io.open(os.path.join(HOST, *rel.split('/')), encoding='utf-8').read())
+    return next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == name)
+
+
+def _laid_hooks():
+    """(all motion.control hooks on `g`, the non-bodied subset) from `motion.laid` and `cascade.compiled`."""
+    laid, comp = _fn_ast('machine/law/motion.py', 'laid'), _fn_ast('machine/moves/cascade.py', 'compiled')
+    bodied_k, other_k = set(), {'solves'}
+    for n in ast.walk(laid):
+        if not (isinstance(n, ast.Assign) and len(n.targets) == 1):
+            continue
+        pairs = (list(zip(n.targets[0].elts, n.value.elts))
+                 if isinstance(n.targets[0], ast.Tuple) and isinstance(n.value, ast.Tuple)
+                 else [(n.targets[0], n.value)])
+        for sub, val in pairs:
+            if not (isinstance(sub, ast.Subscript) and isinstance(sub.value, ast.Name) and sub.value.id == 'g'
+                    and isinstance(sub.slice, ast.Constant) and isinstance(sub.slice.value, str)
+                    and isinstance(val, ast.Call)):
+                continue
+            key = sub.slice.value
+            if key in ('bus', 'drives', 'tick'):
+                continue
+            fn = val.func.attr if isinstance(val.func, ast.Attribute) else ''
+            if fn in ('on_body', 'on_args', 'on_shapes'):
+                bodied_k.add(key)
+            elif fn in ('partial', 'laid', 'supported'):
+                other_k.add(key)
+    for n in ast.walk(comp):
+        if isinstance(n, ast.Dict):
+            bodied_k |= {k.value for k in n.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+    bodied_k.add('sensed')
+    return bodied_k | other_k, other_k
+
+
+def test_twins_and_errand_rows(r):
+    """Every C or compiled hook in `motion.control` has a Python twin and lifetime ref; errand rows never toggle."""
+    from tools.cores import motion as c_motion
+    from machine.way import errand
+    hooks, non_bodied = _laid_hooks()
+    tw = _fn_ast('tools/cores/motion.py', 'twins')
+    updated = {kw.arg for n in ast.walk(tw) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+               and n.func.attr == 'update' for kw in n.keywords if kw.arg}
+    r.check('tools.cores.motion.HOOKS matches motion.laid + cascade.compiled + sprung.laid',
+            hooks == set(c_motion.HOOKS), 'diff: %s' % sorted(hooks ^ set(c_motion.HOOKS)))
+    r.check('tools.cores.motion.twins rebinds every hand-ported C hook',
+            non_bodied <= updated, 'missing: %s' % sorted(non_bodied - updated))
+    kept_ok = all(w in io.open(os.path.join(HOST, 'tools', 'cores', f), encoding='utf-8').read()
+                  for f, w in (('tick.py', 't._kept'), ('surety.py', ', k)'), ('touch.py', ', k)'),
+                               ('twist.py', ', k)'), ('wait.py', 'k_kept = k'), ('beat.py', "g['tick']")))
+    r.check('every ctypes core struct retains Python refs to its pointed-at structs', kept_ok)
+    rows = errand._on_rows()
+    bad_dst = [dst for ph, (rs, _) in rows.items() for _, dst, _ in rs if dst not in rows]
+    fn_rows = _fn_ast('machine/way/errand.py', '_on_rows')
+    ret = next(n.value for n in ast.walk(fn_rows) if isinstance(n, ast.Return) and isinstance(n.value, ast.Dict))
+    by_ph = {k.value: ast.unparse(v) for k, v in zip(ret.keys, ret.values)
+             if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+    side_leak = [p for p, src in by_ph.items() if p != 'side' and 's_perp_side' in src]
+    done_first = by_ph['done'].split("'settle'")[0]
+    r.check('errand phases close, only side reads s_perp_side, and done re-settles only once still',
+            not bad_dst and not side_leak and "'still'" in done_first,
+            'dst=%s leak=%s done=%s' % (bad_dst, side_leak, done_first))
+    plan_src = ast.unparse(_fn_ast('machine/way/route.py', 'planned'))
+    r.check('route.planned guards passed distance before calling way()',
+            plan_src.index('passed') < plan_src.index('way('))
+    floored_fn = _fn_ast('machine/eyes/vision.py', '_floored')
+    floored_src = ast.unparse(ast.Module(body=floored_fn.body[1:], type_ignores=[]))
+    joined_src = ast.unparse(_fn_ast('machine/eyes/vision.py', 'joined'))
+    step_er_src = ast.unparse(_fn_ast('machine/way/errand.py', 'step_errand'))
+    round_src = ast.unparse(_fn_ast('machine/way/route.py', 'rounded'))
+    r.check('vision defers relocalize to joined, step_errand scopes it, and route.rounded brakes a stride early',
+            'relocalize' not in floored_src and 'relocalize' in joined_src
+            and "('scan', 'check', 'walk', 'corner')" in step_er_src
+            and 'STRIDE_M' in round_src and 'STRIDE_M' in step_er_src)

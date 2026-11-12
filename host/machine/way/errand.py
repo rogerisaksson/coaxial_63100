@@ -93,14 +93,14 @@ def _on_rows():
                    (lambda c, er: c['idle'] and c['off'] and c['away'], 'done', _stunt),
                    (lambda c, er: c['idle'] and c['off'] and c['facing'] and er['retreats'] < 1, 'clear', _retreat),
                    (lambda c, er: c['idle'] and c['off'], 'turn', _nothing),
-                   (lambda c, er: c['idle'] and abs(c['s_perp_side']) > er['lat_tol'], 'side', _nothing),
+                   (lambda c, er: c['idle'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and er['through'], 'out', _out),
                    (lambda c, er: c['idle'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
                    (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _halted),
         'clear': (((lambda c, er: c['turns'] != 0.0 or c['s_par'] > er['d_stage'] + stride.STRIDE_M, 'settle', _stood),), _nothing),
         'side': (((lambda c, er: c['s_perp_side'] * c['s_perp'] <= 0.0, 'settle', _told(STOP)),), _to_line),
         'back': (((lambda c, er: c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
-        'done': (((lambda c, er: c['idle'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp_side']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
+        'done': (((lambda c, er: c['idle'] and c['still'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
     }
 
 
@@ -201,7 +201,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     er, relocalize = g.get('_errand'), g.pop('relocalize', False)
     if not er:
         return
-    if relocalize and er['phase'] not in ('look', 'plan'):
+    if relocalize and er['phase'] in ('scan', 'check', 'walk', 'corner'):
         start_errand(g, gym, er['kind'], heard_fn, heard_say_fn, er.get('at'))
         return
     dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze, furniture = _parts()
@@ -221,11 +221,12 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
     rem = max(0.0, e['d_stage'] - 1.5 * stride.STRIDE_M + s_par)
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
-    # her straight leg braked into its stop as her curve is into its end (`route.rounded`, the wayfinder's centripetal
-    # governor): at BRAKE to her SLOWEST a stride off it, where `corner` stands her; told her walk up to it she stood
-    # from 0.5-1.0 m/s, her capture step 0.30 m on for 0.39, and fell at the bed's first corner 3 of 4 - braked, 0 of 4
-    off = rem if e['phase'] == 'door' else max(0.0, gap - stride.STRIDE_M - voxels.CELL_M * float(len(e['way']) > 1))
-    walk_pace = min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * off))
+    # her straight leg braked into an intermediate corner as her curve is into its end (`route.rounded`, the
+    # wayfinder's centripetal governor): at BRAKE to her SLOWEST a stride and a cell off it, where `corner` stands her;
+    # at her stage (`len(e['way']) <= 1`) `corner` and `stops_in` already time her STOP_M run-out from WALK_SPEED
+    off = rem if e['phase'] == 'door' else max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
+    walk_pace = (min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * off))
+                 if e['phase'] == 'door' or len(e['way']) > 1 else se2.WALK_SPEED)
     way_hd = e['hdd'] if e['phase'] == 'door' and len(e['way']) <= 1 else math.atan2(stop[0] - gx, stop[1] - gz)
     e['k'], (ax, az), along, _there, pace, bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])

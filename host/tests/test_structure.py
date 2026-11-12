@@ -6,7 +6,8 @@ import os
 import sys
 
 from tools.dev.focus import chosen
-from structure_kit import HOST, NUMPY_AT_IMPORT, PACKAGES, TWINS, WIRE_ONLY, Report, depth, sources, svg_connectors_clear
+from structure_kit import (HOST, NUMPY_AT_IMPORT, PACKAGES, TWINS, WIRE_ONLY, Report, depth, sources,
+                           svg_connectors_clear, test_twins_and_errand_rows)
 
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
@@ -459,7 +460,7 @@ ROSTER = (test_every_file_fits_a_reading, test_imports, test_no_undefined_names,
           test_no_unused_imports, test_numpy_enters_behind_the_thread_cap,
           test_machine_imports_no_board, test_motor_imports_no_board,
           test_her_law_reads_her_sensors_alone, test_the_gym_moves_her_through_the_world_alone, test_shape,
-          test_documented, test_no_escaping_scars)
+          test_documented, test_no_escaping_scars, test_twins_and_errand_rows)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

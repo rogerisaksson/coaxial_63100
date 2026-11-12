@@ -328,7 +328,7 @@ void wbc_imp_heels(const wbc_imp_t *k, const double place[2][3], const double ti
     const double lean = tilt[b] - pitched[b];
     double       sign;
 
-    rocked[b] = npmax(off[b] * npmax(tip[b], 0.0), need);
+    rocked[b] = npmaximum(off[b] * npmaximum(tip[b], 0.0), need);
     flatten[b] = (stepping * stance[b]) * (k->flat_k * (rocked[b] - lean)
                                            + k->contact_k * npclip((rocked[b] - was[b]) / dt, -k->heel_rad_s,
                                                                    k->heel_rad_s));

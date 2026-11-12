@@ -256,3 +256,104 @@ def coupled(laid_, q, qd, ref_q, ref_v, eso_z, out):
     couple(ctypes.byref(k), wbc.pointer(q), wbc.pointer(qd), wbc.pointer(ref_q), wbc.pointer(ref_v),
            wbc.pointer(eso_z), wbc.pointer(out), wbc.address(dq))
     return dq
+
+
+#: Every C or compiled hook `machine.law.motion.control` dispatches through on `g` (`sprung.laid` and `motion.laid`).
+HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'outside', 'readings', 'read', 'modes',
+         'pitched', 'capped', 'told_on', 'settling', 'bounds', 'gripped', 'sured', 'released', 'poses', 'ringed',
+         'modal_sensed', 'inekf_points', 'inekf_step', 'seek', 'leave', 'em_asked', 'em_released', 'em_opening',
+         'kept', 'shield', 'impedance', 'surety_field', 'latent', 'couple', 'borne', 'em_supports', 'touched_step',
+         'twist_step', 'waits', 'braced')
+
+
+class _WaitsTwin:
+
+    """Her table's waits in python on `g`'s arrays (`machine.law.waits`), `tools.cores.wait.Waits`'s twin."""
+
+    def __init__(self, g, py_waits):
+        self.g, self.w = g, py_waits
+
+    def held(self, tab, t, dt, held_s):
+        return self.w.held_rows(tab, self.g['a'], self.g['out'], t, dt, held_s)
+
+    def risen(self, tab, t, dt, prop_until):
+        return self.w.risen_rows(tab, self.g['y'], self.g['fr'], self.g['a'], self.g['st'], t, dt, prop_until)
+
+    def landed(self, tab, t, dt):
+        return self.w.landed_rows(tab, self.g['y'], self.g['st'], t, dt)
+
+    def sunk(self, tab, t, dt):
+        return self.w.sunk_rows(tab, self.g['y'], self.g['fr'], t, dt)
+
+    def borne(self, tab, t, dt):
+        return self.w.borne_rows(tab, self.g['y'], self.g['fr'], t, dt)
+
+    def played(self, tab, t, dt):
+        return self.w.played_rows(tab, t, dt)
+
+    def latched(self, tab, t, dt):
+        self.w.latched_rows(tab, self.g['y'], self.g['fr'], self.g['a'], self.g['st'], t, dt)
+
+    def woken(self, tab, t, dt):
+        self.w.woken_rows(tab, self.g['st'], t, dt)
+
+    def backs(self, tab, t, dt, held_s, prop_until):
+        h = self.held(tab, t, dt, held_s)
+        r = self.risen(tab, t, dt, prop_until)
+        pairs = (h[:2], r[:2], self.landed(tab, t, dt), self.sunk(tab, t, dt), self.borne(tab, t, dt))
+        self.latched(tab, t, dt)
+        return pairs, h[2], r[2]
+
+
+class _BracedTwin:
+
+    """Her brace in python on `g`'s arrays (`machine.law.brace`), `tools.cores.brace.Braced`'s twin."""
+
+    def __init__(self, g, py_brace):
+        self.g, self.b = g, py_brace
+
+    def scaled(self, M, w_up):
+        return self.b.scaled(M, self.g['_acv_sh'], w_up)
+
+    def blend(self, M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance):
+        g, b = self.g, self.g['body']
+        return self.b.braced(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance,
+                             g['brace'], b.act, g['_acv_sh'], g['_cv_sh'], b.clamp, g['free_kp'], g['legs'])
+
+
+def twins(g):
+    """`g` rebound to the pure-python twins of every `HOOKS` entry `motion.control` calls, returning `g`."""
+    from machine.law import brace as py_brace, impedance, latent, modal, se2, support, surety as py_surety, waits as py_waits
+    from machine.moves import emancipation
+    from machine.senses import borne as py_borne, edge, touch as py_touch
+    from machine.stack import wrench
+    from tools.cores import bodied, step as c_step
+    for name in HOOKS:
+        v = g[name]
+        if isinstance(v, bodied.Compiled):
+            g[name] = v.fn
+        elif isinstance(v, bodied.Shaped):
+            g[name] = v.at[0]
+
+    def borne_twin(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0), g_=None):
+        prop, contacts, palms = py_borne.read(b, s, y, weight, hands, let_go)
+        if g_ is not None:
+            contacts = emancipation.seated(g_, dict(s, contacts=contacts))['contacts']
+        return prop, contacts, palms
+
+    def touched_twin(asked_now, twist_now, tw_on, heading, dt, vel):
+        soled = py_touch.soles(g['body'], g['sense'][edge.TOUCH].reshape(-1, 3), g['_skin_ids'], g['_tips'], g['y'],
+                               g['fr'], g['a'][modal.STANCE])
+        return py_touch.stepped(g['sense'], vel, g['y'], g['fr'], g['a'], g['st'], g['out'], g['rest'], g['touched'],
+                                soled, asked_now, twist_now, tw_on, heading, dt)
+
+    g.update(solves=(wrench.step, c_step.chain_laid(g['body'], None, True)), impedance=impedance.ask,
+             surety_field=lambda prev, dt, ct, t: py_surety.field(
+                 g['sense'], g['y'], g['fr'], g['a'], g['st'], g['out'], prev, dt, ct, t),
+             latent=latent.step, couple=support.couple, borne=borne_twin, em_supports=emancipation.supports,
+             touched_step=touched_twin,
+             twist_step=lambda dt, vel, held, prior: se2.twisted(
+                 g['sense'], vel, g['y'], g['fr'], g['a'], g['st'], g['out'], g['posture'], held, prior, g['twisted'],
+                 g['words'], dt, g['waist_idx'], g['head_idx']),
+             waits=_WaitsTwin(g, py_waits), braced=_BracedTwin(g, py_brace))
+    return g

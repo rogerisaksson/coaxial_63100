@@ -230,8 +230,44 @@ def test_her_gaps_as_numpys_einsums(report):
                  tally['calls'] > 100 and tally['costs'] > 5 and not tally['apart'], '%(apart)d apart' % tally)
 
 
+def test_the_planner_and_errand_rows_do_not_toggle(report):
+    """`route.planned` within `passed` next to grown cells returns empty stops instead of detouring out and back;
+    and `errand.step_errand` in `'settle'` and `'done'` ignores standing postural sway velocity (`s_perp_side`) when
+    her position `s_perp` is within `lat_tol`, waiting for `still` before re-settling from `'done'`."""
+    import numpy as np
+    from machine.law import latent
+    from machine.process import worker
+    from machine.way import errand, route
+    cost = np.ones(route._grid()[1])
+    ic, jc = route._cell(0.0, 0.0)
+    cost[ic - 1:ic + 5, jc - 2:jc + 3] = np.inf
+    stops, curve, _ = route.planned((-0.30, 0.0), 0.0, True, (0.0, 0.0), cost, passed=0.45)
+    report.check('route.planned within passed of a dock inside grown cells returns [] without detour loop',
+                 stops == [] and len(curve) == 0, stops)
+    s = worker.session()
+    g = s['g']
+    for _ in range(300):
+        worker.stepped(s)
+    worker.apply(s, {'say': 'sit_chair'})
+    while (g.get('_errand') or {}).get('phase') in ('look', 'plan') and g['t'] < 1.0:
+        worker.stepped(s)
+    er = g['_errand']
+    er.update(phase='settle', way=[], curve=(), x_dock=float(g['est']['pos'][0]) - 0.17 * er['nx'],
+              z_dock=float(g['est']['pos'][2]) - 0.17 * er['nz'], d_stage=0.70, lat_tol=0.06,
+              hdd=float(g['heading']))
+    g['st'][latent.NOW][latent.GAIN] = 0.05
+    g['est']['vel'][0], g['est']['vel'][2] = 0.25 * er['tx'], 0.25 * er['tz']
+    errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
+    kept_settle = er['phase']
+    er.update(phase='done')
+    errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
+    kept_done = g.get('_errand') is not None and er['phase']
+    report.check('settle and done ignore standing sway lead s_perp_side within lat_tol and wait for still in done',
+                 kept_settle == 'settle' and kept_done == 'done', (kept_settle, kept_done))
+
+
 ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart,
-          test_her_gaps_as_numpys_einsums)
+          test_her_gaps_as_numpys_einsums, test_the_planner_and_errand_rows_do_not_toggle)
 
 
 def main(argv=None):

@@ -14,7 +14,7 @@ import bisect
 import math
 
 from machine.way import obstacles
-from machine.law import rhythm, se2
+from machine.law import rhythm, se2, stride
 from machine.eyes import sight, voxels
 #: Setting off she walks while her heading is CONE off her leg at most, her walk's arc (WALK_SPEED /
 #: YAW_RATE round) a cell off it at most.
@@ -212,13 +212,14 @@ def rounded(cells, pts):
                 rows.append([x, z, cap, bend])
     q = np.asarray(rows, float)
     ds = np.hypot(*np.diff(q[:, :2], axis=0).T)
+    s, stop = np.r_[0.0, np.cumsum(ds)], stride.STRIDE_M + voxels.CELL_M * float(last < n)
     v = q[:, 2].copy()
-    v[-1] = min(v[-1], SLOWEST)
+    v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], SLOWEST)
     for k in range(1, len(v)):
         v[k] = min(v[k], math.sqrt(v[k - 1] ** 2 + 2.0 * BRAKE * ds[k - 1]))
     for k in range(len(v) - 2, -1, -1):
         v[k] = min(v[k], math.sqrt(v[k + 1] ** 2 + 2.0 * BRAKE * ds[k]))
-    return np.column_stack([q[:, :2], np.r_[0.0, np.cumsum(ds)], v, q[:, 3]]), last
+    return np.column_stack([q[:, :2], s, v, q[:, 3]]), last
 
 
 def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
@@ -229,8 +230,10 @@ def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
     inside a grown thing's hers, as she rises off a chair she stood a corner at a time); none held. `yaw`, `still` and `warm` her planner's ask's: she turns standing where she is off her
     way, as at a stop (`steer`)."""
     np = sight._np()
-    cells = np.isinf(cost)
     here = tuple(at)
+    if passed > 0.0 and math.dist(here, to) <= passed:
+        return [], np.zeros((0, 5)), ()
+    cells = np.isinf(cost)
     corners = way(here, to, cost)
     corners = [p for k, p in enumerate(corners) if any(math.dist(here, q) > passed for q in corners[:k + 1])]
     pts = [here] + corners

@@ -43,8 +43,8 @@ def laid(k, y_in, y, fr, a, st, out):
                k_to=latent.TO.start + latent.K.start + modal.AXIAL, k_from=latent.FROM.start + latent.K.start + modal.AXIAL,
                gain_now=latent.NOW.start + latent.GAIN, zmp_out=latent.ZMP,
                held_out=latent.HELD)
-    s.kept = (y_in, y, fr, a, st, out)
-    for name, arr in zip(('y_in', 'y', 'fr', 'a', 'st', 'out'), s.kept):
+    s.kept = (y_in, y, fr, a, st, out, k)
+    for name, arr in zip(('y_in', 'y', 'fr', 'a', 'st', 'out'), s.kept[:6]):
         setattr(s, name, wbc.pointer(arr))
     vec, step, at, sp = np.zeros(5), _typed(), ctypes.addressof(k), ctypes.byref(s)
     vp = vec.ctypes.data
