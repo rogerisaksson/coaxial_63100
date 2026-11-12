@@ -18,11 +18,11 @@ marking its key (terminal/views/atlas/leaves.py). Python's package plumbing - a 
 __main__.py - is left out, its ties landing on its folder. Along the viewport's top the child nearest it
 says its name and its brief; as the wheel brings it near, the panel beside names what it holds, the
 deeper the nearer: layers, then folders, files, symbols - Tab folds it, as every page's column. M turns
-the page to its mirror world, faced whole: the files a flow joins laid out the way the data goes - her pass
-a ring closed by what comes back through the world, the wire columns from the host's end to the board's,
-a dot running each flow -, a panel the flows of the child nearest the viewport; M again, the tree as it
-was seen (terminal/views/atlas/mirror.py). W lays the same atlas as a page (tools/dev/atlas.py --html)
-and opens it.
+the page to its mirror world, faced whole: the files a flow joins as a schematic of the data's way in
+box-drawing lines - her pass a loop closed by what comes back through the world, the wire columns from the
+host's end to the board's, a dot running each flow -, a panel the flows of the child nearest the viewport;
+M again, the tree as it was seen (terminal/views/atlas/mirror.py). W lays the same atlas as a page
+(tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import functools
@@ -137,7 +137,9 @@ def placed(state):
     upright = _memo(state, ('placed', focus), make)
     if not state['mirror']:
         return upright
-    return _memo(state, ('mirror', focus), lambda: mirror.mirrored(upright, flowing(state)))
+    width, height = sized(state)
+    room_ = (width, height, leaves.width(width))   # laid for the drawing, beside the panel where it fits
+    return _memo(state, ('mirror', focus, room_), lambda: mirror.mirrored(upright, flowing(state), room_))
 
 
 def hits(state):
@@ -179,7 +181,7 @@ def frame(state, node):
     """(target, distance) that frames `node` and what it opens - the trunk whole at none -; in the mirror
     its flow world whole (mirror.framed)."""
     if state['mirror']:
-        return mirror.framed(placed(state), *sized(state), keyed(state))
+        return mirror.framed(placed(state), *sized(state))
     if node < 0:
         home = scene.camera()
         return home['target'], home['distance']
@@ -432,11 +434,10 @@ def draw_of(view, state, keys=''):
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
         state['flowing'] = (placing['flows_out'], placing['flows_in']) if turned_over else None
-        placing = mirror.pulsed(placing, time.monotonic()) if turned_over else placing
-        sight = scene.view(state['cam'], width, height)
+        sight, now = scene.view(state['cam'], width, height), time.monotonic()
         rows, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
-            lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken)
+            lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken, now)
             if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken))
         state['art'] = (width, height)
         mid = panel.middle(state['fell'], viewed(state), named)
