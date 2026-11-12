@@ -123,7 +123,7 @@ def control(g, dt):
     body, ev, y_in = g['body'], g['every'], g['sense']
     g['t_law'] = g['t']
     s = g['s'] = seen(g, dt * ev)
-    g['grip'] = g['felt'](g['grip'], g['grip_seen'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
+    g['grip'] = g['felt'](g['grip'], g['grip_seen'], g['grip_settled'], body.d.xmat[g['grip_at']].reshape(2, 2, 3, 3),
                           y_in[edge.TOUCH].reshape(-1, 3),
                           g['est']['slip'], float(g['fr'][modal.WEIGHT]), dt * ev, g['grip_prior'])
     g['loads'] = [float(v) for v in y_in[edge.LOAD]]
@@ -255,7 +255,7 @@ def laid(g):
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores
     g['estimated'] = bodied.on_body(estimate.step, 'estimate', (0, 2), body=1)
-    g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 7))
+    g['felt'] = bodied.on_args(grip.felt, 'felt', (0, 1, 2, 3, 4, 5, 6, 8))
     g['weighed'] = bodied.on_args(observer.weighed, 'weighed', (0, 1, 2, 3))
     g['clear'] = bodied.on_body(capsules.felt, 'clear', (1,))
     g['gap'] = bodied.on_shapes(wayfinder.gap, 'gap', (0, 1, 2, 3, 4, 5))

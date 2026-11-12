@@ -17,6 +17,7 @@
            #:fuse-tri-imu-axial-kinematics
            #:regularize-manifold-simplex-with-priors
            #:gate-supports-by-stillness
+           #:read-floor-friction-from-settled-slides
            #:probe-unobserved-substrate-via-weight-shift
            #:xform-prior-regularized-observer
            #:specialize-observer-for-sensorless-soft-bed
@@ -147,6 +148,22 @@
            :hold-out-of-free-support-set true))))
 
 ;; -----------------------------------------------------------------------------
+;; 4c. A SLIDE TELLS ITS FLOOR ONCE ITS SOLE HAS SETTLED (HERS)
+;; A bearing sole sliding past her slip uses the floor's friction: the share of its push across
+;; (`machine.senses.grip`). A landing sole settles into the floor as her speed is drawn to it: what it
+;; pushes across till then is its settle, not the floor's. Read at once, a stop's first braking landing -
+;; its sole still 0.4-0.6 m/s along the floor at 300-400 N - told 0.19 on a floor of 1.0, her slippery
+;; situation cut her drive mid-brake and she fell from 6 of 39 starts; read once settled, from none. Her
+;; run's landings slide on past it, 0.16-0.23 m/s 30-60 ms on: her foot strike's, not the floor's.
+;; -----------------------------------------------------------------------------
+(defprimitive read-floor-friction-from-settled-slides
+  [state &key (settle-s 0.03)]                   ; her speed drawn to a landing sole (`estimate.HOLD_S`)
+  (-> state
+      (read-floor-friction-from-slides
+        :observer-bank 'tri-imu-observer-soa-state
+        :read-once-borne-s settle-s)))
+
+;; -----------------------------------------------------------------------------
 ;; 5. ACTIVE PROPRIOCEPTIVE WEIGHT-SHIFT PROBER (TEST BY REDISTRIBUTING WEIGHT!)
 ;; When sitting or lying on a soft, unmeasured surface (kappa > 0.45), injects a
 ;; gentle, bounded weight redistribution (via limb cantilever or trunk shift)
@@ -194,6 +211,7 @@
         :min-prior-floor-mg-ratio 1.0e-6                ; (0.02)
         :uninstrumented-prior-boost 0.85)
       (gate-supports-by-stillness :support-slip-mps 0.15)
+      (read-floor-friction-from-settled-slides :settle-s 0.03)
       (probe-unobserved-substrate-via-weight-shift
         :probe-trigger-kappa 0.45
         :max-probe-com-shift-mm 16.0)))

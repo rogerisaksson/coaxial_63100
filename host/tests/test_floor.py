@@ -53,7 +53,8 @@ def test_a_grown_prop_bears_where_it_has_grown(report):
 
 def test_her_grip_bounds_her_rhythm(report):
     """Her text's slippery situation caps her rhythm under its grip, its targets kept; at her law's
-    own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that."""
+    own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that, a
+    landing one's once it has settled."""
     import numpy as np
     from machine.senses import grip, situation
     from machine.law import latent, modal, motion
@@ -85,10 +86,17 @@ def test_her_grip_bounds_her_rhythm(report):
     touch[grip.SOLES[:, 0]] = (-8.0, 300.0, 0.0)
     seen, slid = np.zeros((2, grip.SEEN)), np.full(2, MU)
     for _ in range(grip.SEEN):
-        slid = grip.felt(slid, seen, frames, touch, np.array([0.5, 0.0, 0.0]), 550.0, 1.0)
-    held_on = grip.felt(np.full(2, 0.01), np.zeros((2, grip.SEEN)), frames, touch, np.zeros(3), 550.0, grip.TRUST_S)
+        slid = grip.felt(slid, seen, np.zeros(2), frames, touch, np.array([0.5, 0.0, 0.0]), 550.0, 1.0)
+    held_on = grip.felt(np.full(2, 0.01), np.zeros((2, grip.SEEN)), np.zeros(2), frames, touch, np.zeros(3), 550.0,
+                        grip.TRUST_S)
     report.check('a sole sliding at one share its last passes has that grip, a holding one at least it',
                  np.allclose(slid, 8.0 / 300.0) and (held_on >= 8.0 / 300.0).all(), '%s, %s' % (slid, held_on))
+    landing, seen, settled, early = np.full(2, MU), np.full((2, grip.SEEN), -1.0), np.zeros(2), []
+    for k in range(10):
+        landing = grip.felt(landing, seen, settled, frames, touch, np.array([0.5, 0.0, 0.0]), 550.0, grip.SETTLE_S / 8.0)
+        early += [float(landing.min())] if k < 7 else []
+    report.check('a sole sliding since it landed reads that share once it has settled, its settle not before',
+                 min(early) == MU and np.allclose(landing, 8.0 / 300.0), '%s, %s' % (min(early), landing))
 
 
 def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):

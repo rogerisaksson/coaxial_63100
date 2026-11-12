@@ -1,7 +1,7 @@
 """Her soles' grip as she feels it: each one's floor friction, read from what it used as it slid.
 
     grip = grip.laid()                                          # her law's own, MU, a sole each
-    grip = grip.felt(grip, seen, frames, touch, slip, weight, dt, prior)  # a pass of her law on
+    grip = grip.felt(grip, seen, settled, frames, touch, slip, weight, dt, prior)  # a pass of her law on
 
 A bearing sole that slides (`estimate`'s slip) uses the floor's friction: the share of its push
 across the floor. One that holds has at least that. Read across her IMU's up: across a sole's own,
@@ -19,6 +19,7 @@ import numpy as np
 
 from machine.senses import edge
 from machine.stack.wbc import MU, SLIDE_M_S
+from machine.texts import kernel
 
 #: Each sole's segments with skin: its foot and its toes.
 SOLES = np.array([[edge.SKIN.index(side + '_foot'), edge.SKIN.index(side + '_toes')] for side in ('left', 'right')])
@@ -35,6 +36,9 @@ BEARS, TRUST_S, RELAX_S = 0.1, 1.0, 30.0
 #: to 0.101 while its load fell 348 -> 194 N; a hard landing's skid read 0.174 -> 0.137 in three,
 #: a sole over a sill's edge 0.122 -> 0.096, and the sill fell at every wobble.
 AGAINST, PLATEAU, SEEN = 0.7, 0.05, 4
+#: A landing sole's push across tells its floor once the sole has borne SETTLE_S, its settle over
+#: (`read-floor-friction-from-settled-slides`, her kernel's observer).
+SETTLE_S = kernel.said('read-floor-friction-from-settled-slides', 'settle-s')
 UP = np.array([0.0, 1.0, 0.0])
 #: A pass of her grip as read (the gate's 'grip' stream): each sole's grip felt; her bearing soles' slip it read
 #: (`estimate`'s, world, m/s); each sole's shares used sliding of late, the newest last (0 held, -1 bore none).
@@ -58,9 +62,10 @@ def outside(grip, grips):
     return MU + out * (grip - MU)
 
 
-def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU):
+def felt(grip, seen, settled, frames, touch, slip, weight, dt, prior=MU):
     """Each sole's grip `dt` s on (2,), `seen` (2, SEEN) its last shares used sliding (0 holding)
-    moved on: `frames` (2, 2, 3, 3) her model's of each sole's foot and toes, `touch` the edge's
+    and `settled` (2,) how long it has borne, to SETTLE_S, moved on: `frames` (2, 2, 3, 3) her
+    model's of each sole's foot and toes, `touch` the edge's
     (SKIN, 3), `slip` her bearing soles' (3,, world, m/s), `weight` hers, N; `prior` what she
     knows of the floor. An unloaded sole takes the floor the other stands on, as far as that is
     known under the prior - kept from where it stood itself, past a slick patch a sole's reach
@@ -70,6 +75,7 @@ def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU):
     across = pushed - press[:, None] * UP
     used = np.linalg.norm(across, axis=1) / np.maximum(press, 1e-9)
     bears = press >= BEARS * weight
+    settled[:] = np.where(bears, np.minimum(SETTLE_S, settled + dt), 0.0)
     # a landing sole meets the floor the other stands on, as far as that is known under her prior
     touchdown = bears & (seen[:, -1] < 0.0)
     grip = grip + touchdown * (np.minimum(prior, grip.min()) - grip)
@@ -78,7 +84,8 @@ def felt(grip, seen, frames, touch, slip, weight, dt, prior=MU):
     against = across @ slip <= -AGAINST * np.linalg.norm(across, axis=1) * np.linalg.norm(slip)
     moving = bears & (np.hypot(slip[0], slip[2]) > SLIDE_M_S) & against
     seen[:, :-1], seen[:, -1] = seen[:, 1:].copy(), moving * used - ~bears
-    slides = moving & (seen.min(axis=1) > 0.0) & (seen.max(axis=1) - seen.min(axis=1) <= PLATEAU * seen.mean(axis=1))
+    slides = (moving & (settled >= SETTLE_S) & (seen.min(axis=1) > 0.0)
+              & (seen.max(axis=1) - seen.min(axis=1) <= PLATEAU * seen.mean(axis=1)))
     # a holding sole's share is the least the floor holds, a sliding one's the most: what is not
     # friction - an edge's push, the sole's own inertia - only adds to a push across
     held = grip + (bears & ~moving) * min(1.0, dt / TRUST_S) * np.maximum(used - grip, 0.0)

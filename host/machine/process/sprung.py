@@ -137,7 +137,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
          'free_kp': world.gains[:, 0].copy(), 'clamp': world.limit.copy(), 'wep_lim': wep_lim, 'joints': joints,
          'hold': np.zeros(len(body.clamp)), 'left': WEP_S, 'rng': rng, 'ref_q': q0.copy(), 'ref_v': np.zeros(len(q0)),
          'sense': sense, 'est': est, 'grip': grip.laid(), 'grip_prior': grip.laid(), 'situations': sit, 'into': np.zeros(len(sit['names'])),
-         'grip_seen': np.zeros((2, grip.SEEN)),
+         'grip_seen': np.zeros((2, grip.SEEN)), 'grip_settled': np.zeros(2),
          'grip_at': np.array([[m.body(s0 + part).id for part in ('foot', 'toes')] for s0 in ('left_', 'right_')]),
          'q_lo': rng[:, 0].copy(), 'q_hi': rng[:, 1].copy(),
          't': float(world.data.time), 'n': 0, 'every': every, 's': s, 'loads': [hw, hw], 'ask': {}, 'got': {}, 'wo': ESO_WO * (inner == 'eso'),
@@ -193,7 +193,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     from machine.eyes import registry
     g['inekf'], g['registry'], g['things'], g['things_at'] = inekf.laid(d.qpos[0:3], d.qpos[3:7]), registry.laid(), (), -math.inf
     g['beat'] = _beat().laid(g)     # her world's link and her filter laid anew
-    g['grip_seen'][:] = 0.0
+    g['grip_seen'][:], g['grip_settled'][:] = 0.0, 0.0
     s = g['s'] = sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
     hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
     g['loads'], g['heading'], g['target_heading'], g['has_heading'] = [hw, hw], yaw, yaw, 0.0
