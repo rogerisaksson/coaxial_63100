@@ -61,12 +61,12 @@
 ;; strafe left: lateral stepping and CoM shift to the left
 (defbehavior strafe_left
   (phase shift (use reverse_gait)
-    (duration 60s) (blend_duration 500ms)
+    (duration 60s) (blend_duration 180ms)
     (latent_targets (mode_axial_compression 0.035) (mode_lateral_shift 0.08))
     (cpg_config
       (frequency 0.90Hz)
-      (amplitude mode_sagittal_drive 0.04) (amplitude mode_pelvis_list 0.22)
-      (amplitude mode_arm_swing 0.35)
+      (amplitude mode_lateral_shift 0.04) (amplitude mode_sagittal_drive 0.05)
+      (amplitude mode_pelvis_list 0.12) (amplitude mode_arm_swing 0.35)
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 

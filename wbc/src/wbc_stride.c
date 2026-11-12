@@ -220,6 +220,8 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
   const double step_s = PI / npmax(turns, k->tiny), grown = exp(om * step_s);
   const double led = k->leads * npmax((xi[0] - c[0]) - cruise / om, -0.04), s_ac = npsign(across);
   const double led_lat = s_ac * npclip(s_ac * (xi[1] - c[1]) - (1.35 * fabs(across)) / om, -0.052, 0.042);
+  const double w_side = npclip((fabs(across) - 0.07) / 0.03, 0.0, 1.0);
+  const double span = apart + w_side * npmaximum(wide - apart, 0.0);
 
   for (int b = 0; b < 2; b++)
   {
@@ -231,7 +233,7 @@ void wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], co
     {
       const double side = flat[1 - b][1] + (flat[1 - b][0] - meet[b][0]) * tan(planted[1 - b]);
 
-      meet[b][1] = side + k->limbs[b] * npmax(k->limbs[b] * (m1 - side), apart / cos(planted[1 - b]));
+      meet[b][1] = side + k->limbs[b] * npmax(k->limbs[b] * (m1 - side), span / cos(planted[1 - b]));
     }
   }
 }

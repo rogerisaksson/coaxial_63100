@@ -186,7 +186,58 @@ def _play(name):
     return test
 
 
-ROSTER = [test_the_keys_that_move_her_are_one_twist, test_the_pages_keys_drive_her] + [_play(name) for name in player.PLAYS]
+def test_a_sidestep_lifts_its_leading_sole_and_closes_neutral(report):
+    """On E (strafe_right) and Q (strafe_left) from a stand, the leading sole unloads and lifts first so her body leans
+    naturally that way - no counter-step or lean the other way -, lands on the stabilizing polygon, and the trailing
+    sole closes so she stands neutrally again."""
+    from machine.law import modal
+    from machine.process import introspect, sprung, watch
+    from tools.sim import scenarios
+    from tools.sim.player import played
+    for key, sign, lead in (('e', -1.0, 1), ('q', 1.0, 0)):
+        plan, secs = played('%s2 -2.5' % key)
+        scenarios.SCENARIOS['sidestep_check'] = ('flat', plan, secs, 'stands', None)
+        tap, judge, first_lift, worst_opp, swings, told, holder = introspect.Tap(), watch.Watch(), None, 0.0, [], [], []
+
+        def laid(s, tap=tap, judge=judge, swings=swings, told=told, holder=holder, sign=sign):
+            nonlocal first_lift, worst_opp
+            holder[:] = [s['g']]
+            snap = tap.passed(s)
+            if snap is None:
+                return
+            told.extend(e for e in judge.step(snap) if e['event'] in ('stumble', 'fall'))
+            t, st = snap['t'], snap['impedance']['ask']['STANCE']
+            soles = snap['kinematics']['sensed']['SOLE']
+            com_x = float(s['g']['y'][modal.COM][0])
+            if 1.0 <= t <= 3.0:
+                worst_opp = max(worst_opp, -sign * com_x)
+                if first_lift is None and min(st) < 0.5:
+                    first_lift = (round(t, 3), list(st), round(soles[3 * (1 - lead)], 4), round(com_x, 4))
+                if min(st) < 0.5 and (not swings or swings[-1][1] != list(st)):
+                    swings.append((round(t, 3), list(st)))
+
+        try:
+            res = scenarios.ran('sidestep_check', laid=laid)
+        finally:
+            scenarios.SCENARIOS.pop('sidestep_check', None)
+        g = holder[0]
+        soles = g['y'][modal.SOLE].reshape(2, 3)
+        span = float(soles[0, 0] - soles[1, 0])
+        moved = sign * float(g['y'][modal.COM][0])
+        spd = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2]))
+        want_st = [1.0, 0.0] if lead == 1 else [0.0, 1.0]
+        trail_x0 = 0.095 if lead == 1 else -0.095
+        report.check("%s: leading sole lifts first, trailing sole stays planted, zero counter-lean" % key.upper(),
+                     first_lift is not None and first_lift[1] == want_st and abs(first_lift[2] - trail_x0) < 0.015
+                     and worst_opp < 0.005, (first_lift, round(worst_opp, 4), swings[:4]))
+        report.check("%s: sidesteps >= 0.25 m and halts neutrally on both soles (span %.3f m)" % (key.upper(), span),
+                     res['fell_at'] is None and not told and moved >= 0.25 and sprung.doing(g) in ('stand', 'rest')
+                     and list(g['a'][modal.STANCE]) == [1.0, 1.0] and 0.14 <= span <= 0.23 and spd < 0.05,
+                     (res['fell_at'], told, round(moved, 3), round(span, 3), round(spd, 3), sprung.doing(g)))
+
+
+ROSTER = [test_the_keys_that_move_her_are_one_twist, test_the_pages_keys_drive_her,
+          test_a_sidestep_lifts_its_leading_sole_and_closes_neutral] + [_play(name) for name in player.PLAYS]
 
 
 def main(argv=None):

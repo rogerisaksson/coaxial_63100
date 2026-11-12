@@ -63,7 +63,7 @@ def ask(out, y, fr, a):
     rot = fr[ROT].reshape(3, 3)
     stood, begun, was, thrown = a[STANCE].copy(), a[BEGUN].copy(), a[SWINGS].copy(), 1.0 - poise.clip(out[latent.HELD], 0.0, 1.0)
     z, zd, legs, turn, spun = reading(y, fr, stood)
-    turns, beat = out[latent.TURNS], out[latent.PSI][LIFT]
+    turns, sway, psi, beat = out[latent.TURNS], out[latent.SWAY], out[latent.PSI], out[latent.PSI][LIFT]
     c, v, vh = rot @ y[COM], rot @ y[VCOM], rot @ y[VHEAD]
     om = np.sqrt(G / np.maximum(c[UP] - fr[FLOOR], LOW_M))
     soles, shod = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3) @ rot.T
@@ -73,23 +73,23 @@ def ask(out, y, fr, a):
     floors, rise = under(y, fr, stood)
     propped, prop = borne.latched(y, rot, a, fr[DT])
     # the lift's own rhythm is her stride's clearance, not a sole's place
-    tone = out[latent.SWAY][LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
+    tone = sway[LIFT] * np.array([np.sin(beat), turns * np.cos(beat), -turns * turns * np.sin(beat)])
     ref, rate, acc = (out[part] - HOT[LIFT] * t for part, t in zip((latent.REF, latent.RATE, latent.ACC), tone))
     up = LIMBS * ref[LIFT]
     # her capture point past the soles that stood - past her ZMP's margin in them - steps her
     # while the rows hold the polygon: let go, a push stepped a sole at its end (0/497 N)
-    still = 1.0 - poise.clip(np.linalg.norm(out[latent.SWAY]) / TINY, 0.0, 1.0)
+    still = 1.0 - poise.clip(np.linalg.norm(sway) / TINY, 0.0, 1.0)
     out_of = poise.BIG * (1.0 - stood)[:, None]
     lifted = out_of * np.maximum(1.0 - still, np.maximum(a[SWINGS], up > poise.LIFT_EPS))[:, None]
     lo, hi = poise.boxes(flat, 0.0 * a[EDGE], tilt)
     beyond = xi - poise.clip(xi, *poise.spanned((lo + out_of).min(axis=0), (hi - out_of).max(axis=0), prop))
     past = np.linalg.norm(xi - poise.clip(xi, *poise.spanned((lo + lifted).min(axis=0), (hi - lifted).max(axis=0), prop)))
     a[NEED] = (1.0 - propped) * stood.max() * poise.clip(past / poise.MARGIN_M, 0.0, 1.0) * poise.clip(out[latent.HELD], 0.0, 1.0)
-    phi_w = stride.swings(out[latent.SWAY][DRIVE], turns, a[GOING])
+    phi_w, lat0 = stride.swings(sway[DRIVE], turns, a[GOING]), ref[LATERAL] - sway[LATERAL] * np.sin(psi[LATERAL])
     stepping, way, sweep, phi, on, off, u, flying, swung = stride.beat(
-        out[latent.SWAY][DRIVE], out[latent.PSI][DRIVE], out[latent.SWAY][LATERAL], out[latent.PSI][LATERAL], turns,
+        sway[DRIVE], psi[DRIVE], sway[LATERAL], psi[LATERAL], turns,
         a[SWINGS], a[NEED], a[LEAD], a[SPLIT], begun, stood, phi_w, thrown)
-    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], beyond, y[LOAD], phi, phi_w))
+    a[SWINGS], a[SPLIT] = off, stride.split(a[SPLIT], out[latent.HELD], turns, fr[DT], stride.first(a[NEED], still, out[latent.RATE], a[SWINGS], stood, sway[DRIVE], out[latent.ASKED][DRIVE], lat0, beyond, y[LOAD], phi, phi_w))
     kp, kd, swung = out[latent.KS] / fr[MASS], out[latent.DS] / fr[MASS], swung / (1.0 - begun)
     # a swing goes ahead of its rhythm as far as lands it before her capture point is a reach
     # across past the soles that stood, its own side of them - along her way too while her rhythm
@@ -104,9 +104,8 @@ def ask(out, y, fr, a):
     limbs = np.maximum(stepping, off)
     # along her way her centre of mass is damped to her cruise, not to her soles' middle:
     # damped to that she stopped between steps and each sole waited for her
-    cruise = stride.cruises(way, out[latent.SWAY][DRIVE], turns, a[GOING], phi_w)
-    lat_dc = stepping * (ref[LATERAL] - out[latent.SWAY][LATERAL] * np.sin(out[latent.PSI][LATERAL]))
-    across = 2.5 * lat_dc
+    lat_dc = stepping * lat0
+    cruise, across = stride.cruises(way, sway[DRIVE], turns, a[GOING], phi_w), 2.5 * lat_dc
     dv2 = (v[ALONG] - cruise - HALF_M * rate[SAGITTAL]) ** 2 + (v[LEFT] - across - fr[W0] * rate[LATERAL]) ** 2
     dvh = np.array([vh[ALONG] - v[ALONG] - HALF_M * PITCH_RAD * rate[PITCH], vh[LEFT] - v[LEFT], vh[UP] - v[UP]])
     dvh4 = (dvh * dvh) ** 2

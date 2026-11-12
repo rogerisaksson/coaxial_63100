@@ -141,13 +141,16 @@ def split(split, support, turns, dt, start=0.0):
     return split + start - (1.0 - held) * (0.5 * (gap - 2.0 * np.pi * np.round(gap / (2.0 * np.pi))) * LIMBS) * min(1.0, turns * dt / (2.0 * np.pi))
 
 
-def first(need, still, rate, was, beyond, loads, phi, phi_w):
-    """Her rhythm's turn, rad, to the swing's start of the sole on her capture point's side, else the lighter, on a
-    fresh `need` at rest (`still`, no `rate`, no swing `was`): to her rhythm, shoved 200 N, she fell from a lunge."""
+def first(need, still, rate, was, stood, drive, asked, lat, beyond, loads, phi, phi_w):
+    """Her rhythm's turn, rad, to the swing's start on a fresh `need` at rest or a sidestep's leading sole."""
     key = LIMBS * beyond[LEFT] - TINY * loads
     pick = 1.0 * (key > key[::-1]) + 1.0 * (key == key[::-1]) * (LIMBS > 0.0)
     fresh = still * (1.0 - clip(np.linalg.norm(rate) / TINY, 0.0, 1.0)) * (need > 0.5) * (np.max(was) < 0.5)
-    return fresh * (pick @ np.mod(-phi_w - phi, 2.0 * np.pi))
+    side = (1.0 * (np.min(stood) > 0.5) * (np.max(was) < 0.5) * (np.abs(drive) < 0.5 * STIRS)
+            * (np.abs(asked) > TINY) * (np.abs(asked) < 4.0 * STIRS) * (np.abs(lat) > 0.1 * STIRS))
+    turn = -1.05 * phi_w - phi
+    return (fresh * (pick @ np.mod(-phi_w - phi, 2.0 * np.pi))
+            + (1.0 - fresh) * side * ((1.0 * (LIMBS * lat > 0.0)) @ (turn - 2.0 * np.pi * np.round(turn / (2.0 * np.pi)))))
 
 
 def hurried(aside, om, u, rate, kp):
@@ -173,19 +176,10 @@ def cruises(way, drive, turns, going, phi_w):
 
 
 def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart=APART_M, planted=UNTURNED):
-    """Where each sole lands (2, 2: along, across): it meets her capture point `xi`, carried
-    along with her - a step's offset short of it along her going, what her `cruise` makes of
-    a step, and the sole's own side of it by her width's (`wide` m between her soles). On its
-    sweep's place from her as her drive has it, a sole came down 15 cm ahead of her at 0.31
-    m/s, 7 cm past where she could go over it, and she stopped and went back; to where her
-    capture point was foreseen from her ZMP, e^(omega t) on, she lost 0.06 m/s a landing and
-    went 0.33 m/s where 0.46 was asked; half a step ahead of her, she went 0.2 m/s: over a
-    leg 16 cm ahead she rises 17 mm, 0.58 m/s to do it. No further than `reach` from her
-    centre of mass `c`, and `apart` its own side of the other sole (`flat` their middles): APART_M,
-    less as her width is asked narrower than she stood (`guarded` holds a swing off as it passes) - its side as it
-    was planted, on her way as it lay then (`planted` rad her way has turned since): read on her way turned on, a sole
-    behind her shows a turn's inside, and in a turn begun at her walk's pace (A at 1.2 m/s) the inside sole landed 0.2
-    m inside her centre, its stance threw her out at 2.3 m/s^2 and her way spun from under her."""
+    """Where each sole lands (2, 2: along, across): meeting her capture point `xi`, a step's offset short of it along
+    her `cruise` and the sole's own side of it by `wide` (`e^(omega t)` on lost 0.06 m/s a landing; half a step ahead
+    went 0.2 m/s). Within `reach` of `c`, and `apart` (or `wide` sidestepping) its own side of the other sole `flat` as
+    planted (`planted` rad her way turned since, so an inside sole in a begun turn never lands under her centre)."""
     step_s = np.pi / np.maximum(turns, TINY)
     grown = np.exp(om * step_s)
     led = LEADS * np.maximum((xi[ALONG] - c[ALONG]) - cruise / om, -0.04)
@@ -195,7 +189,9 @@ def meets(xi, c, flat, cruise, om, turns, wide, across=0.0, reach=REACH_M, apart
                           -led_lat - LIMBS * wide / (grown + 1.0)], axis=1)
     landed = c[ALONG] + clip(meet[:, ALONG] - c[ALONG], -reach, reach)
     side = flat[::-1, LEFT] + (flat[::-1, ALONG] - landed) * np.tan(planted[::-1])
-    return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), apart / np.cos(planted[::-1]))], axis=1)
+    w_side = clip((np.abs(across) - 0.07) / 0.03, 0.0, 1.0)
+    span = apart + w_side * np.maximum(wide - apart, 0.0)
+    return np.stack([landed, side + LIMBS * np.maximum(LIMBS * (meet[:, LEFT] - side), span / np.cos(planted[::-1]))], axis=1)
 
 
 def guarded(meet, over, flat, apart, planted=UNTURNED):

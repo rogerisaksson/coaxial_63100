@@ -92,6 +92,12 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
     name = g['active_entry'] = entry[0]
     brake = np.frombuffer(sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, latent.WIRE).copy()
     brake['blend'] = round(1e3 * se2.braked(spd))
+    if g['_brake_from'] in ('strafe_left', 'strafe_right'):
+        from machine.law import modal
+        lead = 0 if g['_brake_from'] == 'strafe_left' else 1
+        wide_open = float(g['a'][modal.SWINGS][lead]) > 0.5 and float(g['a'][modal.STANCE][lead]) < 0.5
+        brake['p'][:, ortho.AMP + modal.LATERAL] = 0.0
+        brake['blend'] = 450 if wide_open else 160
     sprung.said(g, 'brake', brake.tobytes(), ('brake',), at=t0, reset=True)
     if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS):
         ts, tg = se2.stand_lead(spd)

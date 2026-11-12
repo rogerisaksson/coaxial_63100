@@ -26,7 +26,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        floors[2], rise, still, dvh[3];
   double        way4[4][3], plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
   double        smax, stepping, way, swung, rate[2], sweep[2], phi[2], on[2], off[2], u[2], flying[2], fl2[2], pre[2], kpf[2], kdf[2];
-  double        aside[2], hurry[2], limbs[2], tone[3], cruise, pace, lat_dc, across, e[6], both[2], up[2], zmp[2];
+  double        aside[2], hurry[2], limbs[2], tone[3], cruise, pace, lat0, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
   double        strides[2], trails[2], flew, lies[2];
   double        tipped[2], fold[2], shorter[2], hip3[2][3], hips[2], rocked[2], flatten[2], edge[2], rounds[2][3], hip_h[2], reach_h[2], striding[2];
@@ -144,33 +144,31 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
                     * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
+  lat0 = s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]);
   wbc_imp_beat(k, sway[k->drive], psi[k->drive], sway[k->lateral], psi[k->lateral], turns, a + k->a_swings,
                a[k->a_need], a + k->a_lead, a + k->a_split, begun, stood, phi_w, gone, &stepping, &way, &swung, sweep, phi, on, off, u, flying);
   {
-    const double held = 1.0 - npclip(out[k->o_held], 0.0, 1.0);
-    const double gap = a[k->a_split] - a[k->a_split + 1];
-    const double half = 0.5 * (gap - (2.0 * PI) * rint(gap / (2.0 * PI)));
-    const double relax = npmin(1.0, (turns * fr[k->f_dt]) / (2.0 * PI));
-    const double settled = 1.0 - npclip(sqrt(npdot(out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0);
-    double       key[2], pick[2], start;
+    const double gap = a[k->a_split] - a[k->a_split + 1], pi2 = 2.0 * PI, ad = fabs(asked[k->drive]), st = k->stirs;
+    const double half = 0.5 * (gap - pi2 * rint(gap / pi2)), relax = npmin(1.0, (turns * fr[k->f_dt]) / pi2);
+    const double idle = (double)(npmax(was[0], was[1]) < 0.5);
+    const double fresh = ((still * (1.0 - npclip(sqrt(npdot(out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0)))
+                          * (double)(a[k->a_need] > 0.5)) * idle;
+    const double side = (double)((npmin(stood[0], stood[1]) > 0.5) && (idle > 0.5) && (fabs(sway[k->drive]) < 0.5 * st)
+                                 && (ad > k->tiny) && (ad < 4.0 * st) && (fabs(lat0) > 0.1 * st));
+    const double k0 = k->limbs[0] * beyond[1] - k->tiny * y[k->y_load], k1 = k->limbs[1] * beyond[1] - k->tiny * y[k->y_load + 1];
+    double       sf = 0.0, ss = 0.0;
 
     for (int b = 0; b < 2; b++)
     {
-      key[b] = k->limbs[b] * beyond[1] - k->tiny * y[k->y_load + b];
+      const double t0 = (-1.05 * phi_w) - phi[b], pk = (b != 0) ? (double)(k1 > k0) : (double)(k0 >= k1);
+
+      sf += pk * npmod(-phi_w - phi[b], pi2);
+      ss += (double)(k->limbs[b] * lat0 > 0.0) * (t0 - pi2 * rint(t0 / pi2));
     }
     for (int b = 0; b < 2; b++)
     {
-      pick[b] = (double)(key[b] > key[1 - b]) + (double)(key[b] == key[1 - b]) * (double)(k->limbs[b] > 0.0);
-    }
-    /* a fresh need at rest - no sway, her modes' rates none, no swing under way - steps a sole at once, her rhythm
-       turned to its swing's start (stride.first) */
-    start = (((still * settled) * (double)(a[k->a_need] > 0.5)) * (double)(npmax(a[k->a_swings], a[k->a_swings + 1]) < 0.5))
-            * (pick[0] * npmod(-phi_w - phi[0], 2.0 * PI) + pick[1] * npmod(-phi_w - phi[1], 2.0 * PI));
-    /* relaxed to the nearest turn apart while her support holds, each limb keeping its rhythm held aloft
-       (machine.law.stride.split) */
-    for (int b = 0; b < 2; b++)
-    {
-      a[k->a_split + b] = (a[k->a_split + b] + start) - (((1.0 - held) * (half * k->limbs[b])) * relax);
+      a[k->a_split + b] = (a[k->a_split + b] + (fresh * (0.0 + sf) + ((1.0 - fresh) * side) * (0.0 + ss)))
+                          - (((1.0 - gone) * (half * k->limbs[b])) * relax);
     }
   }
   a[k->a_swings] = off[0];
@@ -208,7 +206,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   cruise = wbc_imp_cruises(k, way, sway[k->drive], turns, a[k->a_going], phi_w);
   /* her soles land for her cruise while her drive is asked, for none once it is let go (machine.law.impedance) */
   pace = cruise * (double)(fabs(asked[k->drive]) > k->tiny);
-  lat_dc = stepping * (s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]));
+  lat_dc = stepping * lat0;
   across = 2.5 * lat_dc;
   /* still, her head's speed past her centre of mass's, shrunk where it is small, and her
      height's spring lifted by what her speed off her rhythm's asks */
