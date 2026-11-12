@@ -39,12 +39,12 @@ def test_every_path_lies_in_one_layer(report):
 
 
 def test_the_trunk_climbs_from_the_terminal_to_the_shunts(report):
-    """The trunk runs from the terminal at its foot to the analog front end at its crown, and the word
-    'shunt' is found up it: the terminal's drawings, the rig's scaling, the wire, the cores, the board's
+    """The trunk runs from the terminal at its foot to its sensing at its crown, the analog front end, and the
+    word 'shunt' is found up it: the terminal's drawings, the rig's scaling, the wire, the cores, the board's
     reads of the converters."""
     trunk = [row[0] for row in atlas_tree.LAYERS if row[1] == 'trunk']
-    report.check('the trunk runs from the terminal to the analog front end',
-                 trunk[0] == 'terminal' and trunk[-1] == 'analog', ' '.join(trunk))
+    report.check('the trunk runs from the terminal to its sensing',
+                 trunk[0] == 'terminal' and trunk[-1] == 'sensing', ' '.join(trunk))
     reached = {atlas_tree.LAYERS[layer][0] for layer in atlas.found(built(), 'shunt')}
     report.check("'shunt' is found on the terminal, the rig, the wire, the cores and the board",
                  {'terminal', 'rig', 'wire', 'cores', 'board'} <= reached, ', '.join(sorted(reached)))
@@ -80,7 +80,7 @@ def test_each_node_opens_as_lines(report):
     tree = built()
     trunk = atlas.show_trunk(tree)
     names = [line.split()[1] for line in trunk[2:] if line[:2].strip().isdigit()]
-    report.check('the trunk lists its layers from the crown to the terminal', names[0] == 'analog'
+    report.check('the trunk lists its layers from the crown to the terminal', names[0] == 'sensing'
                  and names[-1] == 'terminal' and len(names) == 9, ' '.join(names))
     for key in ('executive', 'host/machine/law', 'host/coaxial/comm/protocol.py'):
         lines = [line for i in atlas.find_node(tree, key) for line in atlas.show_node(tree, i, 1)]

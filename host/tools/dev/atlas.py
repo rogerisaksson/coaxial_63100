@@ -7,7 +7,7 @@
     python -X utf8 host/tools/dev/atlas.py host/coaxial/comm/protocol.py   # a file: its symbols, its ties
     python -X utf8 host/tools/dev/atlas.py executive --depth 2      # two levels open at once
     python -X utf8 host/tools/dev/atlas.py --find shunt             # a word's column up the trunk
-    python -X utf8 host/tools/dev/atlas.py --path terminal analog   # the shortest chain of ties
+    python -X utf8 host/tools/dev/atlas.py --path terminal sensing  # the shortest chain of ties
     python -X utf8 host/tools/dev/atlas.py --html                   # the page, build/atlas.html
     python -X utf8 host/tools/dev/atlas.py --json -                 # the atlas as columns
 

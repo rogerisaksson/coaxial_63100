@@ -71,7 +71,7 @@ def here(state):
     """HERE: where the node open lies - its layer, folder, file and symbol - and its brief."""
     tree, focus = state['tree'], state['focus']
     if focus < 0:
-        return hud('HERE', [('trunk', 'the terminal at its foot'), ('crown', 'the shunts, analog'),
+        return hud('HERE', [('trunk', 'the terminal at its foot'), ('crown', 'the shunts, sensing'),
                             ('beside', ', '.join(row[0] for row in LAYERS if row[1] != 'trunk'))])
     own = state['own'][focus] + ([focus] if tree.kind[focus] == SYMBOL else [])
     rows = [(KINDS[k], fit(scene.short(tree, node), WIDE, tail=k == FILE)) for k, node in enumerate(own) if node >= 0]

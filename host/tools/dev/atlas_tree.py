@@ -49,7 +49,7 @@ LAYERS = (
     ('board', 'trunk', 'The MCU and its edge: boot, main and interrupts, the board layer, the build.',
      ('board/', 'core/', 'boot/', 'shtp/', 'cmake/', 'CMakeLists.txt', 'CMakePresets.json',
       'STM32H753xx_FLASH.ld', 'startup_stm32h753xx.s', 'coaxial_63100.ioc')),
-    ('analog', 'trunk', 'The power stage and the analog front end up to the phase shunts: schematic, BOM, '
+    ('sensing', 'trunk', 'The power stage and the analog front end up to the phase shunts: schematic, BOM, '
                         'SPICE models, datasheets.',
      ('electronics/', 'electronic_simulations', 'datasheets/')),
     ('twin', 'stand-in', 'What stands in for the hardware: her world in MuJoCo, the simulated board, the C '

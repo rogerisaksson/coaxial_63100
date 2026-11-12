@@ -1,6 +1,6 @@
 """The SYSTEM ATLAS page's scene: the system as a tree in 3D, seen by an orbiting camera in braille.
 
-The trunk stands up the y axis, the terminal at its foot and the analog front end at its crown, a layer a
+The trunk stands up the y axis, the terminal at its foot and its sensing at its crown, a layer a
 STEP apart; a layer beside it stands SIDE out, at the height of the trunk's layers it ties to most. The
 node chosen and those above it are open, and so are the nodes its keys offer - its children, at the trunk
 the layers -, their own children laid out ahead: a layer's folders ring it level, a folder's files and a
