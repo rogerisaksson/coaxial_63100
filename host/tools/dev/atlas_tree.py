@@ -21,7 +21,7 @@ import subprocess
 import sys
 
 from tools import REPO
-from tools.dev import host_map, target_map
+from tools.dev import atlas_calls, host_map, target_map
 
 #: The trunk from its foot, the terminal, up to the shunts; then what stands in for its upper half and
 #: what is about it. A row: its key, its role, what it holds, its path prefixes (a path's is its longest).
@@ -83,9 +83,9 @@ LEAD = re.compile(r'^\s*(?:#+|//+|;+|\*+|/\*+)\s?(.*?)\s*(?:\*/)?$')
 #: Where a build keeps what it read off each file (git leaves build/ out), and a file's rows as kept: its
 #: stamp (size, time) when read, its brief, its symbols, a module's import statements and top-level
 #: numbers, the file names it says, the headers it includes, a header's command numbers, a C file's wire
-#: rows - None where its kind has none.
+#: rows, what a module's defs name (atlas_calls) - None where its kind has none.
 CACHE = os.path.join(REPO, 'build', 'atlas.cache')
-STAMP, BRIEF, DEFS, IMPORTS, NUMBERS, NAMES, INCLUDES, COMMANDS, CODES = range(9)
+STAMP, BRIEF, DEFS, IMPORTS, NUMBERS, NAMES, INCLUDES, COMMANDS, CODES, CALLS = range(10)
 
 
 def _load(path):
@@ -131,7 +131,7 @@ class Atlas:
     def __init__(self):
         self.id, self.up, self.kind, self.label, self.brief, self.line = [], [], [], [], [], []
         self.src, self.dst, self.tie = [], [], []
-        self.at, self.low, self.seen = {}, {}, set()
+        self.at, self.low, self.seen, self.calls = {}, {}, set(), {}
 
     def lowered(self, path):
         """A file's text in lower case, read and kept once asked - a word looked for in every text: the
@@ -331,6 +331,7 @@ def build(cache: str | None = CACHE):
             for symbol, signature, told, line in files[path][DEFS]:
                 atlas.add(path + '::' + symbol, node, SYMBOL, signature, told, line)
     _ties(atlas, files)
+    atlas_calls.join(atlas, files, IMPORTS, CALLS)
     if cache and (fresh or kept.keys() != files.keys()):
         _keep(cache, files)
     return atlas
@@ -350,7 +351,8 @@ def _file(path, stamp):
             sorted(set(NAMED.findall(text))) if path.lower().endswith(NAMING) else None,
             target_map.INCLUDE.findall(text) if path.endswith(('.c', '.h')) else None,
             COMMAND.findall(text) if path.endswith('.h') else None,
-            target_map.ROW.findall(text) if path.endswith('.c') else None)
+            target_map.ROW.findall(text) if path.endswith('.c') else None,
+            atlas_calls.named(tree) if tree is not None else None)
 
 
 def _imported(tree):
@@ -444,9 +446,9 @@ def _stamp(path):
 
 def _code():
     """What a file's rows hang on beside the file: the code that reads it - this module, host_map,
-    target_map, structure.py - and the interpreter."""
+    target_map, structure.py, atlas_calls - and the interpreter."""
     digest = hashlib.sha256(sys.version.encode())
-    for module in [__file__] + [m.__file__ or '' for m in (host_map, target_map, structure)]:
+    for module in [__file__] + [m.__file__ or '' for m in (host_map, target_map, structure, atlas_calls)]:
         with open(module, 'rb') as f:
             digest.update(f.read())
     return digest.hexdigest()

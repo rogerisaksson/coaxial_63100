@@ -1,7 +1,7 @@
 {
  "test_aero_core.py": 128.9,
  "test_aerobat.py": 100.1,
- "test_atlas.py": 33.6,
+ "test_atlas.py": 47.4,
  "test_ballistic.py": 146.4,
  "test_bedside.py": 30.1,
  "test_board_mem.py": 80.3,
@@ -93,7 +93,8 @@
  "test_tick.py": 220.2,
  "test_tune.py": 137.9,
  "test_vault.py": 27.2,
- "test_views_atlas.py": 12.6,
+ "test_views_apps.py": 7.4,
+ "test_views_atlas.py": 14.8,
  "test_views_demo.py": 179.7,
  "test_views_drawing.py": 21.0,
  "test_views_floor.py": 7.6,

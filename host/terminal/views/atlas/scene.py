@@ -4,18 +4,18 @@ The trunk stands up the y axis, the terminal at its foot and its sensing at its 
 STEP apart; a layer beside it stands SIDE out, at the height of the trunk's layers it ties to most. The
 node chosen and those above it are open, and so are the nodes its keys offer - its children, at the trunk
 the layers -, their own children laid out ahead: a layer's folders ring it level, a folder's files and a
-file's symbols hang under it as a cap, the heaviest at its foot and the rest spiralling out by the golden
+file's symbols hang under it as a cap, the heaviest at its foot, the rest spiralling out by the golden
 angle. The chosen node, those above it and all laid out below it are lit - before any is chosen, the
-trunk -, the rest greyed out; the chosen node's ties are bowed out from the trunk, so those along it are
-not lost in it. Named in the tree are the chosen node, its keys, those above it, the layers, its ties'
-ends and a word's hits; its leaves are in panels on the viewport (`over`, terminal/views/atlas/leaves.py).
-The farther a thing from the point the view turns about, across the view or along it, the more out of
-focus, smoothly: its dots fewer, scattered and darker.
+trunk -, the rest grey; the chosen node's ties are bowed out from the trunk, so those along it are
+not lost in it. Named in the tree, by a scene's own `names` where it has them, are the chosen node, its
+keys, those above it, the layers, its ties' ends and a word's hits; its leaves in panels on the viewport
+(`over`, atlas/leaves.py). The farther a thing from the point the view turns about, the more out of
+focus: its dots fewer, scattered and darker.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
-all at once, cuts them at the near plane and at the drawing's edge, rasters every dot of every segment and
-disc in one pass, thins and scatters those out of focus, keeps each dot's highest-ranked ink and its shade
-and encodes the cells as braille, each cell's ink darkened by its sharpest dot's shade (`picture`).
+all at once, cuts them at the near plane and the drawing's edge, rasters every segment's and disc's dots
+in one pass, thins, scatters those out of focus, keeps each dot's highest-ranked ink and shade and
+encodes the cells as braille, each cell's ink darkened by its sharpest dot's shade (`picture`).
 """
 import functools
 import math
@@ -397,7 +397,7 @@ def picture(scene, cam, width, height, keyed, found, over=None):
                 continue
             done.add(node)
             (nx, ny, _), r, key = fell[node], radius[node], keyed.get(node)
-            name = short(tree, node)
+            name = scene.get('names', {}).get(node) or short(tree, node)
             name = name if len(name) <= 28 else name[:27] + CUT
             runs = ([(key + ' ', KEY)] if key else []) + [(name, TOLD if node == focus else NAME if node in lit else NAME_DIM)]
             right, left, row = int((nx + r) // 2) + 1, int((nx - r) // 2) - sum(len(t) for t, _ in runs), int(ny // 4)

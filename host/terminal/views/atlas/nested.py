@@ -119,8 +119,11 @@ def nest(level, node):
         a, b = owner(fa, False), owner(fb)
         if a is not None and b is not None and a != b and max(a, b) >= 0:
             data.setdefault((a, b, kind), []).append(label)
-    used = {(owner(d), owner(s)) for s, d in _uses(tree).get(node, ())}   # the used one's data into its user
+    kept = level['reach']   # a page's files alone, where the mirror keeps to one (atlas/apps.py)
+    ties = [(s, d) for s, d in _uses(tree).get(node, ()) if kept is None or s in kept and d in kept]
+    used = {(owner(d), owner(s)) for s, d in ties}   # the used one's data into its user
     bound = {(a, b) for s, d in (_uses(tree).get(level['node'], ()) if 'up' in level else ())   # through a port
+             if kept is None or s in kept and d in kept
              for a, b in ((owner(d, False), owner(s)),) if a is not None and b is not None and (a < 0) != (b < 0)}
     near = {}
     for d, s in used:
@@ -214,7 +217,7 @@ def nest(level, node):
     out = {'tree': tree, 'node': node, 'marks': {**{n: marks_[n] for n in parts}, **port}, 'own': own, 'named': named,
            'lanes': lanes, 'said': said, 'dots': dots, 'rings': rings, 'owner': owner, 'flow': level['flow'],
            'frame': (x0, y0, x1, y1), 'ports': ports, 'port': port, 'anchor': (cx, cy), 'nests': {},
-           'inks': dict.fromkeys(parts, scene.EDGE), 'up': level}
+           'inks': dict.fromkeys(parts, scene.EDGE), 'up': level, 'reach': kept}
     out['box'] = _box(out, cx)
     return out
 

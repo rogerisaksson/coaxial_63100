@@ -39,6 +39,15 @@ OUT = os.path.join(REPO, 'build', 'atlas.html')
 SHOWN, PER_LAYER = 12, 20
 
 
+def plumbing(atlas):
+    """Whether each node is Python's package plumbing or lies in it: a file named __x__.py - a package's
+    __init__.py, its __main__.py - and its symbols. A parent comes before its children in the tree."""
+    out = [False] * len(atlas.kind)
+    for i, (up, kind, name) in enumerate(zip(atlas.up, atlas.kind, atlas.label)):
+        out[i] = (up >= 0 and out[up]) or (kind == FILE and name.startswith('__') and name.endswith('__.py'))
+    return out
+
+
 def tree_of(atlas, kept=None):
     """Each node's children, and how many of each kind lie beneath it, as columns - of the nodes `kept`
     (a truth a node; all where None): one not kept is no one's child, nor counted, nor what lies in it."""

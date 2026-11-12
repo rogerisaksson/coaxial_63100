@@ -35,12 +35,13 @@ from tools.dev.atlas_tree import LAYERS
 DEPTH, CELL, APART = 6.0, 0.1, 6
 
 
-def mirrored(placed, flow, room, kin=(), keys=None):
+def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
     """The flow world of the scene `placed` (show_atlas.placed) for a drawing `room` (cols, rows, the panel's
     width) - side by side or her loop over the wire, beside the panel where either fits (`beside` the room
     kept for it), else on the whole width -, the module's head; its nodes those the tree names at the node
     open - its children `kin`, those above it, the layers -, a flow's ends taken to the nearest of them,
-    each named as the tree names it, its key (`keys` {node: its key}) before. `marks` {node: its sign's
+    each named as the tree names it, its key (`keys` {node: its key}) before; kept to the files `reach`
+    holds where it holds any (atlas/apps.py: a page's), flows and parts. `marks` {node: its sign's
     cell}, `lanes` [(a, b, corners, ink, head in, head out, heavy)], `texts` [(x, y, across, down, text, ink,
     node)] - each by a cell and its offset in the terminal's cells, `node` the one it names -, in its cells;
     `said` [(what goes a to b, what comes back)] a lane, each [(kind, [(word, where it is made, where it is
@@ -56,6 +57,7 @@ def mirrored(placed, flow, room, kin=(), keys=None):
     lit = {n for n in named if focus in scene.chain(tree, n)} if focus >= 0 else set()
     made, took = {label: nested.made(tree, node) for label, node in atlas_flow.makers(tree).items()}, atlas_flow.takers(tree)
     passed, stages = {}, []
+    flow = [f for f in flow if reach is None or f[0] in reach and f[1] in reach]
     for a, b, kind, label in flow:
         a, b = scene.shown_of(tree, named, a), scene.shown_of(tree, named, b)
         if a >= 0 and b >= 0 and a != b:
@@ -154,7 +156,7 @@ def mirrored(placed, flow, room, kin=(), keys=None):
             'field': math.inf, 'center': (0.0, -DEPTH, 0.0), 'extent': (width, height), 'beside': beside, 'kept': {},
             'own': names, 'named': {nd: rnamed.get(nd, (2, 0)) for nd in marks}, 'inks': inks, 'flow': flow,
             'owner': lambda n, _out=True: scene.shown_of(tree, named, n), 'origin': (0.0, 0.0), 'anchor': (0, 0), 'unit': 1.0,
-            'nests': {}}
+            'nests': {}, 'reach': reach}
 
 
 def framed(mirror, cols, rows):
