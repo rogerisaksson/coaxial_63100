@@ -85,23 +85,25 @@ Evaluate the prompt and working tree before invoking any tool:
     (`python -X utf8 docs/structure.py` `--files`) discover the source code
     files
   + Query the host architecture mapper:
-    (`host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`) to
+    (`python -X utf8 host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`) to
     discover host packages, module briefs, and public signatures.
   + Query the target firmware mapper:
-    (`host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`, `--ops`)
-    to discover C briefs, header prototypes, include graphs, and wire-command
+    (`python -X utf8 host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`,
+     `--ops`) to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
   + Empirical test baseline (mandatory when adding new features, finding bugs, 
     solving issues, correcting defects, benchmarking, profiling and performance 
-    related tasks are involved): Run the relay (host/tools/dev/run_tests.py) 
+    related tasks are involved): Run the relay (`python -X utf8 host/tools/dev/run_tests.py`) 
     with the complete suite to establish a quantitative existing test failure(s) 
     metrics of the system.
   + Empirical real-time performance (mandatory for rigid body simulation):
-    Run the benchmarking and profiler tool to establish and to exceed RT performance 
-    (in MuJoCo) of the dynamic systems.
+    Run the benchmarking and profiler tool 
+    (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish 
+    and to exceed RT performance (in MuJoCo) of the solver and dynamic systems.
   + Empirical motion baseline (mandatory when kinematic, feedback control, dynamics 
-    and real-world performance related tasks are involved): Run the introspection tool 
-    (`host/tests/test_introspect.py`) to discover the internal dynamics of the system.
+    and real-world performance related tasks are involved): Run the introspection tool, 
+    see the example (`python -X utf8 host/tests/test_introspect.py`), to discover the
+    internal dynamics of the system.
   + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight, 
     thermals, or UI are involved): execute the relevant simulation, trace, or live
     introspection tool to capture quantitative measurements of the system.
