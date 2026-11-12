@@ -179,13 +179,18 @@ void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, dou
     /* thrown - a leap and its landing -, a swing begun before its window counts on from there (stride.begins) */
     held[b] = (waits[b] * (1.0 - window)) * (1.0 - (double)((thrown > 0.0) && (0.5 * (phi[b] / phi_w + 1.0) >= begun[b])));
   }
-  for (int b = 0; b < 2; b++)
   {
-    const double step_off = *stepping * (1.0 - (double)((fabs(drive) <= k->tiny) && (fabs(sway) <= k->tiny) && (need <= 0.5)));
+    const double quiet = (double)((fabs(drive) <= k->tiny) && (fabs(sway) <= k->tiny));
 
-    u[b] = npmax(u[b], held[b]);
-    off[b] = (npmax(step_off, was[b]) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
-    flying[b] = off[b] * (double)(u[b] > 0.0);
+    for (int b = 0; b < 2; b++)
+    {
+      const double step_off = *stepping * (1.0 - quiet * (double)(need <= 0.5));
+      const double was_off = was[b] * (1.0 - quiet * (double)(was[b] <= 0.5));
+
+      u[b] = npmax(u[b], held[b]);
+      off[b] = (npmax(step_off, was_off) * on[b]) * (1.0 - (double)((lead[b] > 0.0) && (u[b] >= 1.0)));
+      flying[b] = off[b] * (double)(u[b] > 0.0);
+    }
   }
   *swung = (0.5 * turns) / phi_w;
 }

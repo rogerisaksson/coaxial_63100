@@ -124,7 +124,8 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     waits = was * (1.0 - stood) * stood[::-1]
     on = np.maximum(np.maximum(window * np.maximum(stood[::-1], 1.0 - stood), came), waits)
     u = np.maximum(u, waits * (1.0 - window) * (1.0 - (thrown > 0.0) * (0.5 * (phi / phi_w + 1.0) >= begun)))
-    off = np.maximum(stepping * (1.0 - (np.abs(drive) <= TINY) * (np.abs(sway) <= TINY) * (need <= 0.5)), was) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
+    quiet = (np.abs(drive) <= TINY) * (np.abs(sway) <= TINY)
+    off = np.maximum(stepping * (1.0 - quiet * (need <= 0.5)), was * (1.0 - quiet * (was <= 0.5))) * on * (1.0 - (lead > 0.0) * (u >= 1.0))
     return stepping, way, sweep, phi, on, off, u, off * (u > 0.0), 0.5 * turns / phi_w
 
 
