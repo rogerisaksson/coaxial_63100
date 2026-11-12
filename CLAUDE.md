@@ -127,6 +127,7 @@ Evaluate the prompt and working tree before invoking any tool:
 
 ```text
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
+- Rebased and merged: [no stale code, A/B test with your stash, branch or worktree]
 - Proven Root Cause: [exact cybernetic, physical, or structural mechanism]
 - Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical 
   residual from State 4 and which hypothesis class it eliminated]
