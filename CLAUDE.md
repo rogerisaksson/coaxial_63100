@@ -190,7 +190,7 @@ Evaluate the prompt and working tree before invoking any tool:
   formatting untouched lines, breaching the per-file token budget, or
   inserting corporate, client, or author references anywhere in the project.
 - **Exit Gate (Emit immediately after mutation before verification):**
-  `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 or 2]]`
+  `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 .. N]]`
 - **Immediate Transition:** Proceed directly to **STATE 4**.
 
 ---
@@ -232,8 +232,8 @@ Evaluate the prompt and working tree before invoking any tool:
 - **Exit Gate (Emit after verification completes):**
   `[STATE 4 GATE: Tally=[exact PASS/FAIL] Parity=[OK/N/A] Lint=[OK]]`
 - **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
-  If verification fails in State 5, you are permitted **at most five (5)**
-  return to State 2 to revise the diagnosis. If the fifth attempt fails
+  If verification fails, you are permitted **at most five (5)**
+  returns to State 2 to revise the diagnosis. If the fifth attempt fails
   verification, likely from being stuck, you **MUST** restore only the exact
   lines you modified, **HALT**, and report the exact falsification numbers
   to the user. Stacked trial-and-error hacking is strictly forbidden.
