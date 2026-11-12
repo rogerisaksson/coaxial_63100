@@ -294,9 +294,9 @@ def _glyphs():
 
 
 def cells(dots, text, w, h, shade=None):
-    """The drawing as lines of SGR runs: a cell its text where it has any (`text` {(col, row): (char,
-    ink)}), else its dots (`dots`, w * h ranks) in braille in the ink of the highest rank among them,
-    darkened by the least of their `shade`s (w * h steps, `shaded`; none where None)."""
+    """The drawing as rows (its line, its runs' starts, their keys - `shaded`'s): a cell its text where it
+    has any (`text` {(col, row): (char, ink)}), else its dots (`dots`, w * h ranks) in braille in the ink
+    of the highest rank among them, darkened by the least of their `shade`s (w * h steps)."""
     from coaxial.model.blocks import numpy as np
     rows, cols = h // 4, w // 2
     grid = dots.reshape(h, w)[:rows * 4, :cols * 2].reshape(rows, 4, cols, 2)
@@ -309,15 +309,11 @@ def cells(dots, text, w, h, shade=None):
         grid > 0, shade.reshape(h, w)[:rows * 4, :cols * 2].reshape(rows, 4, cols, 2), SHADES).min(axis=(1, 3)), 0)
     for (col, row), (ch, ink) in text.items():
         chars[row, col], inks[row, col], dark[row, col] = ch, ink, 0
-    keys, out = inks * SHADES + dark, []
-    for row in range(rows):
-        line, key = chars[row].tobytes().decode('utf-32-le'), keys[row]
-        parts, at = [], 0
-        for c in np.flatnonzero(key != np.concatenate(([0], key[:-1]))).tolist():
-            parts += [line[at:c], shaded(int(key[c]))]
-            at = c
-        out.append(''.join(parts) + line[at:] + SGR[0])
-    return out
+    keys = inks * SHADES + dark
+    go = np.flatnonzero(np.diff(keys, axis=1, prepend=-1))   # runs' starts
+    at, line = np.searchsorted(go, np.arange(rows + 1) * cols).tolist(), chars.tobytes().decode('utf-32-le')
+    key, go = keys.ravel()[go].tolist(), (go % cols).tolist()
+    return [(line[r * cols:(r + 1) * cols], go[at[r]:at[r + 1]], key[at[r]:at[r + 1]]) for r in range(rows)]
 
 
 def _label(text, col, row, runs, cols, rows):
@@ -335,7 +331,7 @@ def _label(text, col, row, runs, cols, rows):
 
 
 def picture(scene, cam, width, height, keyed, found, over=None):
-    """The scene from `cam` on `width` x `height` cells, as lines, where each node shown fell ({node:
+    """The scene from `cam` on `width` x `height` cells, as rows (`cells`), where each node fell ({node:
     (x, y, depth)}, dots) and the view: `keyed` {node: the key choosing it}, `found` the nodes shown a
     word's hits lie under; `over` (fell, cols, rows, the cells the keys' names took) -> {(col, row): (char,
     ink)} laid after the chosen node's, its keys' and its chain's names, before the rest's - a scene's own

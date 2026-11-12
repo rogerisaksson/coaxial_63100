@@ -25,14 +25,19 @@ was seen (terminal/views/atlas/mirror.py). W lays the same atlas as a page (tool
 and opens it.
 """
 import argparse
+import functools
 import math
 import sys
+import threading
 import time
 import webbrowser
 
+from rich.segment import Segment
+
 from coaxial.comm.session import Origin
 from terminal.loader import answer
-from terminal.ui import bindings, screen as _screen
+from terminal.ui import bindings
+from terminal.ui.marquee import Marquee, styled
 from terminal.ui.screen import ENTER_KEYS, FPS_CAP, PORT, run_view, say
 from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import room
@@ -92,10 +97,28 @@ def _memo(state, key, make):
 
 
 def flowing(state):
-    """What the code says flows between the tree's files (atlas_flow.flows), read once a page, on first ask."""
+    """What the code says flows between the tree's files (atlas_flow.flows), read once a page: beside its
+    frames from its start (`main`, waited for where M comes first), else on first ask."""
+    reading = state.get('reading')
+    if reading is not None and reading is not threading.current_thread():
+        reading.join()
     if state['flow'] is None:
         state['flow'] = atlas_flow.flows(state['tree'])
     return state['flow']
+
+
+@functools.lru_cache(maxsize=None)
+def painted(key):
+    """The style of a drawn run by its key (scene.cells, scene.shaded), as the marquee reads it."""
+    return styled(scene.shaded(key))
+
+
+def drawing(rows):
+    """The scene's rows (scene.cells) as the viewport's lines, a blank one above: styled Segments of
+    widths known - no text to write and read back, nothing to measure."""
+    lines = [[Segment(line[a:b], painted(k)) for a, b, k in zip(go, go[1:] + [len(line)], keys)]
+             for line, go, keys in rows]
+    return Marquee([[]] + lines, centred=True, widths=[0] + [len(line) for line, _go, _keys in rows])
 
 
 def placed(state):
@@ -411,15 +434,14 @@ def draw_of(view, state, keys=''):
         state['flowing'] = (placing['flows_out'], placing['flows_in']) if turned_over else None
         placing = mirror.pulsed(placing, time.monotonic()) if turned_over else placing
         sight = scene.view(state['cam'], width, height)
-        lines, state['fell'], state['view'] = scene.picture(
+        rows, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
             lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken)
             if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken))
         state['art'] = (width, height)
         mid = panel.middle(state['fell'], viewed(state), named)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
-        art = [''] + [line + ' ' * max(0, width - _screen.visible(line)) for line in lines]
-        return frame_of(view, state['origin'], TITLE, '\n'.join(art), boxes, bindings.shown(PAD, state),
+        return frame_of(view, state['origin'], TITLE, drawing(rows), boxes, bindings.shown(PAD, state),
                         art_title=titled(state, mid, width))
     return draw
 
@@ -437,6 +459,9 @@ def main(argv=None):
     with boot('READING THE TREE', view):
         tree = build()
     state = opened(tree)
+    # What flows between the files, read beside the first frames: M finds it read (`flowing`).
+    state['reading'] = threading.Thread(target=flowing, args=(state,), daemon=True)
+    state['reading'].start()
     say('ok', 'atlas', '%d files, %d symbols, %d ties at %s' % (
         tree.kind.count(FILE), tree.kind.count(SYMBOL), len(tree.src), atlas.told(atlas.commit())))
     leaving = run_view(view, view.is_terminal, 1.0 / FPS_CAP, args.frames, draw_of(view, state, args.keys),

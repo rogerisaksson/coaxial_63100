@@ -351,11 +351,12 @@ def hud(title, rows):
 
 
 def viewport(title, art, corner='', page=None):
-    """The drawing, centred in a heavy frame that owns its region; `corner`
-    (a `Rate.label()`) over its top-left cells; `page` its title, the house HUD
-    over it (Chrome), None for a drawing that carries its own."""
-    drawing = Marquee(art, centred=True)
-    if not drawing.plain:
+    """The drawing - ANSI text, or a Marquee laid already - centred in a heavy
+    frame that owns its region; `corner` (a `Rate.label()`) over its top-left
+    cells; `page` its title, the house HUD over it (Chrome), None for a drawing
+    that carries its own."""
+    drawing = art if isinstance(art, Marquee) else Marquee(art, centred=True)
+    if not drawing.plain and isinstance(art, str):
         drawing = Align(Marquee(art), align='center', vertical='middle')
     return Panel(Corner(drawing, corner) if page is None else Chrome(drawing, page, corner=corner),
                  title=Text(' %s ' % title, style='name'),

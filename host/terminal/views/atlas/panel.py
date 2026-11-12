@@ -106,7 +106,10 @@ def ties(state):
         boxes = (('FLOWS OUT', {(n, 0): k for n, k in flowing[0].items()}),
                  ('FLOWS IN', {(n, 0): k for n, k in flowing[1].items()}))
     else:
-        reach, reached = state['memo'].setdefault(('ties', focus), atlas.ties_of(tree, focus, state['own']))
+        memo = state['memo']
+        if ('ties', focus) not in memo:   # read once a node: setdefault read them every frame to throw away
+            memo[('ties', focus)] = atlas.ties_of(tree, focus, state['own'])
+        reach, reached = memo[('ties', focus)]
         boxes = (('REACHES', reach), ('REACHED BY', reached))
     out = []
     for title, said in boxes:

@@ -64,6 +64,15 @@ def _sgr_colour(codes, j):
     return None
 
 
+def styled(sgr):
+    """The style one SGR sequence sets on what follows it, as the marquee reads it: None the default; an
+    escape it does not read refused."""
+    runs = _runs_of(sgr + ' ')
+    if runs is None:
+        raise ValueError('not an SGR colour the marquee reads: %r' % sgr)
+    return runs[0][1]
+
+
 def _style_of(fg, bg):
     if fg is None and bg is None:
         return None
@@ -166,9 +175,12 @@ class Marquee:
     slide.
     """
 
-    def __init__(self, art, centred=False):
-        self.lines, self.widths, self.centred = [], [], centred
-        for raw in art.split('\n'):
+    def __init__(self, art, centred=False, widths=None):
+        """`art` ANSI text, read and measured here; or, with its `widths` in cells, its lines cut into
+        styled Segments already - taken as they are, nothing to read or measure."""
+        self.centred = centred
+        self.lines, self.widths = ([], []) if widths is None else (list(art), list(widths))
+        for raw in art.split('\n') if widths is None else ():
             runs = _runs_of(raw)
             if runs is None:
                 line = Text.from_ansi(raw)
@@ -212,9 +224,12 @@ class Marquee:
         width = min(self.wide, options.max_width)
         extra = self.wide - width
         at = _slide(extra) if extra > 0 else 0
+        # A line left whole keeps the width it was measured at; one cropped is measured anew.
         lines = [_cropped(line, at, width) if at or wide > width else line
                  for line, wide in zip(self.lines, self.widths)]
-        shape = max((sum(cell_len(seg.text) for seg in line) for line in lines), default=0)
+        wides = [wide if line is whole else sum(cell_len(seg.text) for seg in line)
+                 for line, whole, wide in zip(lines, self.lines, self.widths)]
+        shape = max(wides, default=0)
         excess = options.max_width - shape
         left = excess // 2 if excess > 0 else 0
         right = excess - left if excess > 0 else 0
@@ -225,11 +240,11 @@ class Marquee:
         blank, newline = Segment(' ' * options.max_width + '\n'), Segment.line()
         for _ in range(top):
             yield blank
-        for line in lines:
+        for line, wide in zip(lines, wides):
             if left:
                 yield Segment(' ' * left)
             yield from line
-            short = shape - sum(cell_len(seg.text) for seg in line)
+            short = shape - wide
             if short > 0:
                 yield Segment(' ' * short)
             if right:

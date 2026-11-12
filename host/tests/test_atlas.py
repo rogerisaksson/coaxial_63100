@@ -158,7 +158,7 @@ def test_the_terminal_page_walks_the_tree(report):
     layer; the panel lists the layers far, the chosen layer's folders at its frame; a left drag turns the
     tree within its tip, the wheel brings it near; / and a word put its hits on the keys, ESC lets the word
     go and ESC again leaves for the front page."""
-    from terminal.ui import bindings, screen
+    from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import panel, scene
     tree = built()
@@ -184,7 +184,7 @@ def test_the_terminal_page_walks_the_tree(report):
     report.check('at the trunk F1 to F12 open its twelve layers, the terminal F1',
                  list(keys) == list(range(len(atlas_tree.LAYERS))) and keys[0] == 'F1', str(keys))
     lines, fell, mid, listed = drawn()
-    plain = screen.plain('\n'.join(lines))
+    plain = '\n'.join(row[0] for row in lines)
     cells, named = sum(0x2800 <= ord(ch) <= 0x28FF for ch in plain), [row[0] for row in atlas_tree.LAYERS if row[0] in plain]
     report.check('the trunk drawn in braille, every layer before the camera and named; far, the panel lists the layers',
                  len(lines) == 36 and cells > 100 and all(layer in fell for layer in range(len(atlas_tree.LAYERS)))
@@ -303,12 +303,12 @@ def test_the_scene_is_rastered_as_data(report):
         'lit': set(), 'from': np.array([at(near, 0.5, -1), at(far, -0.5 * far / near, -far / near)]),
         'to': np.array([at(near, 0.5, 1), at(far, -0.5 * far / near, far / near)]),
         'segink': np.array([scene.EDGE] * 2, np.uint8), 'thick': np.zeros(2, bool)}}, cam, 100, 36, {}, set())[0]
-    dots = [sum(bin(ord(c) - 0x2800).count('1') for c in line if 0x2800 < ord(c) <= 0x28FF) for line in lines]
+    dots = [sum(bin(ord(c) - 0x2800).count('1') for c in line if 0x2800 < ord(c) <= 0x28FF) for line, _g, _k in lines]
     sharp, sparse, edge = sum(dots[:18]), sum(dots[18:]), scene.EDGE * scene.SHADES
     report.check('a line at the point the view turns about drawn whole, one as long on the screen far off it a fifth '
                  'of its dots, darkest', scene.blur(0.0) == 0 and abs(scene.blur(scene.FOCUS) - 1 + math.exp(-1)) < 1e-9
-                 and sharp > 24 and sparse < 0.35 * sharp and scene.shaded(edge) in ''.join(lines[:18])
-                 and scene.shaded(edge + scene.SHADES - 1) in ''.join(lines[18:]), '%d and %d dots' % (sharp, sparse))
+                 and sharp > 24 and sparse < 0.35 * sharp and any(edge in k for _l, _g, k in lines[:18])
+                 and any(edge + scene.SHADES - 1 in k for _l, _g, k in lines[18:]), '%d and %d dots' % (sharp, sparse))
 
 
 def test_the_page_holds_the_mouse(report):

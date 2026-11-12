@@ -285,7 +285,7 @@ def test_the_atlas_leaves_are_panels(report):
         cells.update(leaves.panels(tree, placing['rings'], fell, keyed, cols, rows, taken))
         return cells
     lines, fell, v = scene.picture(placing, state['cam'], 100, 36, keyed, set(), over)
-    drawn = '\n'.join(''.join(' ' if (c, r) in cells else ch for c, ch in enumerate(re.sub(r'\x1b\[[\d;]*m', '', row)))
+    drawn = '\n'.join(''.join(' ' if (c, r) in cells else ch for c, ch in enumerate(row[0]))
                       for r, row in enumerate(lines))
     named = [k for n, k in keyed.items() if '%s %s' % (k, scene.short(tree, n)[:5]) in drawn]
     leafed = [n for n in placing['at'] if tree.up[n] in keyed
