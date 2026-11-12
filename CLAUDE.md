@@ -1,7 +1,7 @@
 # SYSTEM CONSTITUTION & DETERMINISTIC EXECUTION MACHINE
 
 You operate in a deterministic, first-principles, Data-Oriented (DOD),
-cache-local, cyber-physical, cybernetic, codebase for embodied 6-DoF spatial 
+cache-local, cyber-physical, cybernetic, codebase for embodied 6-DoF spatial
 navigation and dynamic body-schema/envelope feedback control. Electronics,
 bare-metal C11 firmware, and host-side control share strict bit-exact invariants.
 Do not assume static file structures; rely exclusively on the repositorys
@@ -85,35 +85,47 @@ Evaluate the prompt and working tree before invoking any tool:
     (`python -X utf8 docs/structure.py` `--files`) discover the source code
     files
   + Query the host architecture mapper:
-    (`python -X utf8 host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`) to
-    discover host packages, module briefs, and public signatures.
+    (`python -X utf8 host/tools/dev/host_map.py` `--api`, `--layers`, `--deps`)
+    to discover host packages, module briefs, and public signatures.
   + Query the target firmware mapper:
     (`python -X utf8 host/tools/dev/target_map.py` `--api`, `--layers`, `--deps`,
      `--ops`) to discover C briefs, header prototypes, include graphs, and wire-command
     call chains.
-  + Empirical test baseline (mandatory when adding new features, finding bugs, 
-    solving issues, correcting defects, benchmarking, profiling and performance 
-    related tasks are involved): Run the relay (`python -X utf8 host/tools/dev/run_tests.py`) 
-    with the complete suite to establish a quantitative existing test failure(s) 
+  + Empirical test baseline (mandatory when adding new features, finding bugs,
+    solving issues, correcting defects, benchmarking, profiling and performance
+    related tasks are involved): Run the relay
+    (`python -X utf8 host/tools/dev/run_tests.py` `--conformance` `--live`)
+    with the complete suite to establish a quantitative existing test failure(s)
     metrics of the system.
   + Empirical real-time performance (mandatory for rigid body simulation):
-    Run the benchmarking and profiler tool 
-    (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish 
+    Run the benchmarking and profiler tool
+    (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
     and to exceed RT performance (in MuJoCo) of the solver and dynamic systems.
-  + Empirical motion baseline (mandatory when kinematic, feedback control, dynamics 
-    and real-world performance related tasks are involved): Run the introspection tool, 
-    see the example (`python -X utf8 host/tests/test_introspect.py`), to discover the
-    internal dynamics of the system.
-  + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight, 
-    thermals, or UI are involved): execute the relevant simulation, trace, or live
-    introspection tool to capture quantitative measurements of the system.
-  + Empirical motion capture benchmarking (mandatory with locomotion): Run the 
-    motion capture reader tool and (generate from mocaps, or read) associated G-code.
-    Compare fidelity between the captured motion and the solver solutions captures.
-  + Read only the relevant source files as identified by the mapper, test and 
+  + Empirical motion baseline (mandatory when kinematic, feedback control, dynamics
+    and real-world performance related tasks are involved): Run the introspection
+    tool (`python -X utf8 host/tools/sim/introspected.py` `--play`, `--at`,
+    `--fields`) to discover the internal dynamics of the system.
+  + Empirical data aquisition baseline (mandatory when dynamics, locomotion, flight,
+    thermals, or UI are involved): execute the relevant simulation
+    (`python -X utf8 host/tools/sim/told.py` `[scenario]` `--trace`), trace
+    (`python -X utf8 host/tools/sim/trace.py` `SCENARIO FROM TO`), recording
+    (`python -X utf8 host/tools/sim/recording.py` `--last`), flight
+    (`python -X utf8 host/tools/sim/flights.py`), thermal
+    (`python -X utf8 host/tools/sim/demand.py` `--scene S`), UI
+    (`python -X utf8 host/tools/render/page.py` `PAGE` `--png OUT.png`), or
+    live introspection tool (`python -X utf8 -m machine.process.introspect`
+    `--attach PORT`) to capture quantitative measurements of the system.
+  + Empirical motion capture benchmarking (mandatory with locomotion): Run the
+    motion capture reader tool (`python -X utf8 host/tools/sim/mocap.py`
+    `TAKE.fbx`, `--joints`) and (generate from mocaps, or read) associated
+    G-code (`python -X utf8 host/tools/sim/gcode.py` `[take]`, `--report`,
+    `--all`). Compare fidelity between the captured motion and the solver
+    solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
+    `--save`, `--against`).
+  + Read only the relevant source files as identified by the mapper, test and
     runtime measurements, and other associated and relevant data.
-  + Use existing selective probes or tests, or create new, for use with the tools 
-    (such as profilers, introspection, test suites), to establish reliable 
+  + Use existing selective probes or tests, or create new, for use with the tools
+    (such as profilers, introspection, test suites), to establish reliable
     detectors and sieves for effectively discovering and rejecting solutions.
 
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
@@ -131,7 +143,7 @@ Evaluate the prompt and working tree before invoking any tool:
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
 - Rebased and merged: [no stale code, A/B test with your stash, branch or worktree]
 - Proven Root Cause: [exact cybernetic, physical, or structural mechanism]
-- Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical 
+- Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical
   residual from State 4 and which hypothesis class it eliminated]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
 - Generated File: [NO (safe to edit) OR YES (create)]
@@ -189,9 +201,9 @@ Evaluate the prompt and working tree before invoking any tool:
   --all --prune` followed by `git pull --rebase`). Resolve any upstream drift
   and proceed from the updated baseline; never verify against a stale tree.
 - **Required Verification (Strictly via the repository's relay test runner):**
-  1. Run the relay (run_tests.py) with the narrowest affected targeted suite 
-     considering side effects, and keyword filter (`--file`) covering the 
-     modified path. Never execute a test suite directly outside the relay, 
+  1. Run the relay (run_tests.py) with the narrowest affected targeted suite
+     considering side effects, and keyword filter (`--file`) covering the
+     modified path. Never execute a test suite directly outside the relay,
      and quote the runner's exact `PASS`/`FAIL` tally verbatim (never paraphrase).
   2. If structure, imports, wire opcodes, or docs were touched, run the
      structural, layout, and mirror verification suites.
@@ -220,6 +232,6 @@ Evaluate the prompt and working tree before invoking any tool:
 - **FIVE-STRIKE CIRCUIT BREAKER (Anti-Thrashing Lock):**
   If verification fails in State 5, you are permitted **at most five (5)**
   return to State 2 to revise the diagnosis. If the fifth attempt fails
-  verification, likely from being stuck, you **MUST** restore only the exact 
-  lines you modified, **HALT**, and report the exact falsification numbers 
+  verification, likely from being stuck, you **MUST** restore only the exact
+  lines you modified, **HALT**, and report the exact falsification numbers
   to the user. Stacked trial-and-error hacking is strictly forbidden.
