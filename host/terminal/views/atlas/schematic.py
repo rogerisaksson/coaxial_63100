@@ -1,27 +1,32 @@
 """The mirror's schematic in the terminal's cells: laid out, in box-drawing lines, its words over.
 
 What the mirror shows (atlas/mirror.py), knife sharp: no line cut into dots, none between two cells. Her
-loop is laid round a rectangle (`ring`), the wire in columns whose lanes run square along tracks between
-them (`wire`); a lane runs through its corners cell by cell (`walked`); where lanes join one glyph carries
-every way out of the cell (a comb's teeth), where one only passes across another the upright one runs on
-and the other breaks under it, so a crossing never reads as a join; a head ends a lane where a flow goes in,
-pointing at the node it goes into; the words lie over the lines (`laid`).
+loop is laid round a rectangle in heavy lines (`ring`), the wire in columns whose lanes run square along
+tracks between them (`wire`); a lane runs through its corners cell by cell (`walked`); where lanes join one
+glyph carries every way out of the cell (a comb's teeth), where one only passes across another the upright
+one runs on and the other breaks under it, so a crossing never reads as a join; a head ends a lane where a
+flow goes in, pointing at the node it goes into; the words lie over the lines (`laid`). A word keeps its
+place beside what it names in the terminal's cells, whatever the zoom spreads between them.
 """
 from collections import Counter
 
 from terminal.views.atlas import scene
 
-#: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded; a lane's head
-#: by the way it points.
+#: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded - her loop's
+#: heavy -; a lane's head by the way it points, her loop's filled.
 UP, DOWN, LEFT, RIGHT = 1, 2, 4, 8
 GLYPHS = {UP | DOWN: '│', LEFT | RIGHT: '─', DOWN | RIGHT: '╭', DOWN | LEFT: '╮', UP | RIGHT: '╰',
           UP | LEFT: '╯', UP | DOWN | RIGHT: '├', UP | DOWN | LEFT: '┤', DOWN | LEFT | RIGHT: '┬',
           UP | LEFT | RIGHT: '┴', UP | DOWN | LEFT | RIGHT: '┼', UP: '│', DOWN: '│', LEFT: '─', RIGHT: '─'}
-HEADS = {RIGHT: '▸', LEFT: '◂', DOWN: '▾', UP: '▴'}
-#: The seconds a flow's dot takes along its lane, how far apart the flows' dots start, a share of the way
-#: (the golden one, so no two run together); a stage hanging off the loop from the one it hangs from, rows;
-#: the sweeps that order the wire's columns.
-TRAVEL_S, PHASE, SPUR, SWEEPS = 2.0, 0.618, 3, 4
+HEAVY = {UP | DOWN: '┃', LEFT | RIGHT: '━', DOWN | RIGHT: '┏', DOWN | LEFT: '┓', UP | RIGHT: '┗',
+         UP | LEFT: '┛', UP | DOWN | RIGHT: '┣', UP | DOWN | LEFT: '┫', DOWN | LEFT | RIGHT: '┳',
+         UP | LEFT | RIGHT: '┻', UP | DOWN | LEFT | RIGHT: '╋', UP: '┃', DOWN: '┃', LEFT: '━', RIGHT: '━'}
+HEADS, FILLED = {RIGHT: '▸', LEFT: '◂', DOWN: '▾', UP: '▴'}, {RIGHT: '▶', LEFT: '◀', DOWN: '▼', UP: '▲'}
+#: The seconds a flow's packet takes along its lane, how far apart the flows' packets start, a share of the
+#: way (the golden one, so no two run together), its cells; a stage hanging off the loop from the one it
+#: hangs from, rows - two line cells between the heads of a lane both ways -; the sweeps that order the
+#: wire's columns; the line cells at least before a head on her loop.
+TRAVEL_S, PHASE, TRAIL, SPUR, SWEEPS, LEAD = 2.0, 0.618, 3, 5, 4, 3
 
 
 def looped(stages, edges, back):
@@ -120,17 +125,19 @@ def _tracked(hops, key, y):
 
 
 def _said(word, x, row):
-    """`word` written in a line at `row`, centred on cell `x`, a blank either side."""
-    return (x - (len(word) + 2) // 2, row, ' %s ' % word, scene.BRIEF)
+    """`word` written in a line at `row` centred on cell `x`, a blank either side: as `ring`'s texts are."""
+    return (x, row, -((len(word) + 2) // 2), 0, ' %s ' % word, scene.BRIEF)
 
 
 def ring(loop, hung, chords, said, names):
-    """Her loop laid in cells from (0, 0): (marks {node: its dot's cell}, named {node: where its name starts},
-    routes [(a, b, corners)] - from the cell beside a's dot to the cell beside b's -, texts [(x, y, text,
-    ink)] what passes, (width, height)): its first half along the top left to right, the rest back along the
-    bottom, the last up the left side to the first, a stage's name inside, what passes in the line on its way
-    - on a side beside it -; `hung` (`hanging`) straight out, each word beside its own head; `chords` [(a,
-    b)] across it on rows of their own inside; `said` (a, b) -> (what goes a to b, what comes back)."""
+    """Her loop laid in cells from (0, 0): (marks {node: its dot's cell}, named {node: its name's offset from
+    its dot}, routes [(a, b, corners, heavy)] - from the cell beside a's dot to the cell beside b's -, texts
+    [(x, y, across, down, text, ink)] what passes - each by a cell of the layout and its offset from it in
+    the terminal's cells -, (width, height)): its first half along the top left to right in heavy lines, the
+    rest back along the bottom, the last up the left side to the first, LEAD line cells at least before a
+    head, a stage's name inside, what passes in the line on its way - on a side beside it -; `hung`
+    (`hanging`) straight out SPUR rows, each word beside its own head; `chords` [(a, b)] across it on rows
+    of their own inside, a row clear either side; `said` (a, b) -> (what goes a to b, what comes back)."""
     n, t = len(loop), (len(loop) + 1) // 2
     top, bottom, kids, root = loop[:t], loop[t:], {}, {}
     for m, (p, _hops) in hung.items():
@@ -140,53 +147,53 @@ def ring(loop, hung, chords, said, names):
     left = {s: max([len(said(hung[m][0], m)[0]) + 2 for m in hangs[s]], default=0) for s in loop}
     right = {s: max([len(said(hung[m][0], m)[1]) + 2 for m in hangs[s]] + [len(names[m]) + 2 for m in hangs[s]],
                     default=0) for s in loop}
-    side = [' · '.join(w for w in said(loop[i], loop[(i + 1) % n]) if w) for i in range(n)]
+    side, lead = [' · '.join(w for w in said(loop[i], loop[(i + 1) % n]) if w) for i in range(n)], 2 * LEAD + 4
     # The dots apart along the top and back along the bottom: the word in the line, the name, the hung words.
-    gaps = [max(len(side[i]) + 6, len(names[top[i]]) + 4, right[top[i]] + left[top[i + 1]] + 3) for i in range(t - 1)]
-    backs = [max(len(side[t + j]) + 6, len(names[bottom[j + 1]]) + 4, right[bottom[j + 1]] + left[bottom[j]] + 3)
+    gaps = [max(len(side[i]) + lead, len(names[top[i]]) + 4, right[top[i]] + left[top[i + 1]] + 3) for i in range(t - 1)]
+    backs = [max(len(side[t + j]) + lead, len(names[bottom[j + 1]]) + 4, right[bottom[j + 1]] + left[bottom[j]] + 3)
              for j in range(len(bottom) - 1)]
-    tl, tr = max(3, left[top[0]] + 2), max(3, len(names[top[-1]]) + 4, right[top[-1]] + 2)
-    bl, br = max(3, left[bottom[-1]] + 2), max(3, len(names[bottom[0]]) + 4, right[bottom[0]] + 2)
+    tl, tr = max(LEAD + 2, left[top[0]] + 2), max(LEAD + 2, len(names[top[-1]]) + 4, right[top[-1]] + 2)
+    bl, br = max(LEAD + 2, left[bottom[-1]] + 2), max(LEAD + 2, len(names[bottom[0]]) + 4, right[bottom[0]] + 2)
     inner = max(tl + sum(gaps) + tr, bl + sum(backs) + br)
     x0 = len(side[-1]) + 2
     x1 = x0 + inner
     xt = [x0 + tl + (inner - tl - sum(gaps) - tr) // 2 + sum(gaps[:i]) for i in range(t)]
     xb = [x1 - br - (inner - bl - sum(backs) - br) // 2 - sum(backs[:j]) for j in range(len(bottom))]
     y0 = max([h * SPUR for m, (_p, h) in hung.items() if root[m] in top], default=0)
-    y1 = y0 + 3 + len(chords)
+    y1 = y0 + (5 + len(chords) if chords else 3)
     marks = {**{s: (x, y0) for s, x in zip(top, xt)}, **{s: (x, y1) for s, x in zip(bottom, xb)}}
     for m, (p, _hops) in hung.items():   # the nearest first: the stage it hangs from laid before it
         marks[m] = (marks[p][0] + 4 * kids[p].index(m), marks[p][1] + (-SPUR if root[m] in top else SPUR))
-    named = {**{s: (x + 2, y0 + 1) for s, x in zip(top, xt)}, **{s: (x + 2, y1 - 1) for s, x in zip(bottom, xb)},
-             **{m: (marks[m][0] + 2, marks[m][1]) for m in hung}}
-    routes = [(top[i], top[i + 1], [(xt[i] + 1, y0), (xt[i + 1] - 1, y0)]) for i in range(t - 1)]
-    routes.append((top[-1], bottom[0], [(xt[-1] + 1, y0), (x1, y0), (x1, y1), (xb[0] + 1, y1)]))
-    routes += [(bottom[j], bottom[j + 1], [(xb[j] - 1, y1), (xb[j + 1] + 1, y1)]) for j in range(len(bottom) - 1)]
-    routes.append((bottom[-1], top[0], [(xb[-1] - 1, y1), (x0, y1), (x0, y0), (xt[0] - 1, y0)]))
+    named = {**dict.fromkeys(top, (2, 1)), **dict.fromkeys(bottom, (2, -1)), **dict.fromkeys(hung, (2, 0))}
+    routes = [(top[i], top[i + 1], [(xt[i] + 1, y0), (xt[i + 1] - 1, y0)], True) for i in range(t - 1)]
+    routes.append((top[-1], bottom[0], [(xt[-1] + 1, y0), (x1, y0), (x1, y1), (xb[0] + 1, y1)], True))
+    routes += [(bottom[j], bottom[j + 1], [(xb[j] - 1, y1), (xb[j + 1] + 1, y1)], True) for j in range(len(bottom) - 1)]
+    routes.append((bottom[-1], top[0], [(xb[-1] - 1, y1), (x0, y1), (x0, y0), (xt[0] - 1, y0)], True))
     mid = (y0 + y1) // 2
     texts = [_said(side[i], (xt[i] + xt[i + 1]) // 2, y0) for i in range(t - 1) if side[i]]
     texts += [_said(side[t + j], (xb[j] + xb[j + 1]) // 2, y1) for j in range(len(bottom) - 1) if side[t + j]]
-    texts += [(x1 + 2, mid, side[t - 1], scene.BRIEF), (x0 - 1 - len(side[-1]), mid, side[-1], scene.BRIEF)]
+    texts += [(x1, mid, 2, 0, side[t - 1], scene.BRIEF), (x0, mid, -1 - len(side[-1]), 0, side[-1], scene.BRIEF)]
     for m, (p, _hops) in hung.items():
-        (px, py), (mx, _my), o = marks[p], marks[m], -1 if root[m] in top else 1
-        routes.append((p, m, [(px, py + o), (px, py + 2 * o), (mx, py + 2 * o), (mx, py + (SPUR - 1) * o)]))
+        (px, py), (mx, my), o = marks[p], marks[m], -1 if root[m] in top else 1
+        routes.append((p, m, [(px, py + o), (px, py + 2 * o), (mx, py + 2 * o), (mx, my - o)], False))
         out, back = said(p, m)
-        texts += [(mx - 1 - len(out), py + (SPUR - 1) * o, out, scene.BRIEF)] if out else []
-        texts += [(px + 2, py + o, back, scene.BRIEF)] if back else []
+        texts += [(mx, my, -1 - len(out), -o, out, scene.BRIEF)] if out else []
+        texts += [(px, py, 2, o, back, scene.BRIEF)] if back else []
     for k, (a, b) in enumerate(chords):
-        (ax, ay), (bx, by), row = marks[a], marks[b], y0 + 2 + k
-        routes.append((a, b, [(ax, ay + (1 if ay == y0 else -1)), (ax, row), (bx, row), (bx, by + (1 if by == y0 else -1))]))
+        (ax, ay), (bx, by), row = marks[a], marks[b], y0 + 3 + k
+        routes.append((a, b, [(ax, ay + (1 if ay == y0 else -1)), (ax, row), (bx, row), (bx, by + (1 if by == y0 else -1))],
+                       False))
         word = ' · '.join(w for w in said(a, b) if w)
         texts += [_said(word, (ax + bx) // 2, row)] if word else []
-    width = max([x + 1 for x, _y in marks.values()] + [x + len(text) for x, _y, text, _i in texts]
-                + [x + len(names[nd]) for nd, (x, _y) in named.items()])
+    width = max([x + 1 for x, _y in marks.values()] + [x + dx + len(text) for x, _y, dx, _dy, text, _i in texts]
+                + [marks[nd][0] + dx + len(names[nd]) for nd, (dx, _dy) in named.items()])
     return marks, named, routes, texts, (width, y1 + 1 + max([h * SPUR for m, (_p, h) in hung.items()
                                                                 if root[m] in bottom], default=0))
 
 
 def wire(nodes, lanes, asks, names):
-    """The wire laid in cells from (0, 0): (marks {node: its dot's cell}, routes [(u, v, corners)] - from the
-    cell past u's name to the cell before v's dot -, (width, height)); `lanes` [(u, v)] each from its left
+    """The wire laid in cells from (0, 0): (marks {node: its dot's cell}, routes [(u, v, corners, heavy)] - from
+    the cell past u's name to the cell before v's dot, light -, (width, height)); `lanes` [(u, v)] each from its left
     node to its right one, the columns by `asks` (from, to) (`depths`), each node's dot then its name; a lane
     past a column straight through it at a place of its own, a fan's lanes one track and its teeth."""
     depth = depths(nodes, asks)
@@ -218,7 +225,7 @@ def wire(nodes, lanes, asks, names):
         corners = [(xs[col[chain[0]]] + 3 + len(names[chain[0]]), y[chain[0]])]
         for p, q in zip(chain, chain[1:]):
             corners += [(at[(col[p], key[(p, q)])], y[p]), (at[(col[p], key[(p, q)])], y[q])]
-        routes.append((chain[0], chain[-1], corners + [(xs[col[chain[-1]]] - 1, y[chain[-1]])]))
+        routes.append((chain[0], chain[-1], corners + [(xs[col[chain[-1]]] - 1, y[chain[-1]])], False))
     marks = {n: (xs[col[n]], y[n]) for c in columns for n in c if n >= 0}
     return marks, routes, (ends[-1] - 1 if columns else 0, tall)
 
@@ -242,39 +249,46 @@ def toward(cell, at):
 
 
 def laid(lanes, texts, cols, rows):
-    """({(col, row): (char, ink)}, [cells] a lane): `lanes` [(from, to, corners, ink, head in, head out)] -
-    each from the cell beside its node `from` through `corners` to the cell beside `to`, a head (its ink, or
-    None) where a flow goes into `to` and one where a flow comes back into `from` - in lines, heads and the
-    ways they reach their nodes; then `texts` [(col, row, text, ink)] over them; all on a drawing `cols` by
-    `rows` cells, the lanes' cells in order besides."""
+    """({(col, row): (char, ink)}, [cells] a lane): `lanes` [(from, to, corners, ink, head in, head out,
+    heavy)] - each from the cell beside its node `from` through `corners` to the cell beside `to`, a head (its
+    ink, or None) where a flow goes into `to` and one where a flow comes back into `from` - in lines, heads
+    and the ways they reach their nodes, heavy where every lane through a cell is; then `texts` [(col, row,
+    text, ink)] over them; all on a drawing `cols` by `rows` cells, the lanes' cells in order besides."""
     per, heads, paths = {}, {}, []
-    for start, end, corners, ink, into, back in lanes:
-        cells, ways = walked(corners), {}
+    for start, end, corners, ink, into, back, heavy in lanes:
+        cells, ways, tips = walked(corners), {}, FILLED if heavy else HEADS
         for cell, at in ((cells[0], start), (cells[-1], end)):
             ways[cell] = ways.get(cell, 0) | toward(cell, at)
         for (pc, pr), (qc, qr) in zip(cells, cells[1:]):
             go, come = (RIGHT, LEFT) if qc > pc else (LEFT, RIGHT) if qc < pc else (DOWN, UP) if qr > pr else (UP, DOWN)
             ways[(pc, pr)], ways[(qc, qr)] = ways.get((pc, pr), 0) | go, ways.get((qc, qr), 0) | come
         for cell, bits in ways.items():
-            per.setdefault(cell, []).append((bits, ink))
-        heads.update({cells[-1]: (HEADS[toward(cells[-1], end)], into)} if into is not None else {})
-        heads.update({cells[0]: (HEADS[toward(cells[0], start)], back)} if back is not None else {})
+            per.setdefault(cell, []).append((bits, ink, heavy))
+        heads.update({cells[-1]: (tips[toward(cells[-1], end)], into)} if into is not None else {})
+        heads.update({cells[0]: (tips[toward(cells[0], start)], back)} if back is not None else {})
         paths.append(cells)
     out = {}
     for cell, got in per.items():
-        ways = {bits for bits, _ink in got}
+        ways, glyphs = {bits for bits, _i, _h in got}, HEAVY if all(h for _b, _i, h in got) else GLYPHS
         if ways == {LEFT | RIGHT, UP | DOWN}:   # one lane across another, joining none of it: the upright on
-            out[cell] = (GLYPHS[UP | DOWN], next(ink for bits, ink in got if bits == UP | DOWN))
+            out[cell] = (glyphs[UP | DOWN], next(ink for bits, ink, _h in got if bits == UP | DOWN))
         else:
-            out[cell] = (GLYPHS[sum(1 << k for k in range(4) if any(bits >> k & 1 for bits in ways))], got[-1][1])
+            out[cell] = (glyphs[sum(1 << k for k in range(4) if any(bits >> k & 1 for bits in ways))], got[-1][1])
     out.update(heads)
     for col, row, text, ink in texts:
         out.update({(col + k, row): (ch, ink) for k, ch in enumerate(text)})
     return {cell: v for cell, v in out.items() if 0 <= cell[0] < cols and 0 <= cell[1] < rows}, paths
 
 
+def trail(path, forward, now, k):
+    """([cells] the `k`th flow's packet lies on at `now`, its head first, TRAIL long; whether it is home, its
+    head on the cell before its taker): run along `path` from its first cell to its last - back where not
+    `forward` - every TRAVEL_S, the flows' packets PHASE apart."""
+    way = path if forward else path[::-1]
+    at = int((now / TRAVEL_S + k * PHASE) % 1.0 * len(way))
+    return way[max(0, at - TRAIL + 1):at + 1][::-1], at == len(way) - 1
+
+
 def dot(path, forward, now, k):
-    """The cell of `path` the `k`th flow's dot is on at `now`, run from its first cell to its last - or back
-    where not `forward` - every TRAVEL_S."""
-    at = int((now / TRAVEL_S + k * PHASE) % 1.0 * len(path))
-    return path[at] if forward else path[-1 - at]
+    """The cell of `path` the head of the `k`th flow's packet is on at `now` (`trail`)."""
+    return trail(path, forward, now, k)[0][0]

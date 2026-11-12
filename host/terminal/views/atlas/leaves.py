@@ -94,12 +94,12 @@ def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, no
     (`ranked`; `rings` {node: its children as laid}, its lines by `say` and its note by `noted` - `lines_of`
     and its leaves' count where None, the mirror's flows its own) - the first laid active, the rest idle,
     `most` at most -, each at the edge on the side its node stands - the active one on the other where its
-    own has no room -, or `docked` all at the right, ranked by the room left of the active one,
+    own has no room -, or `docked` all at the right,
     stacked down from the top in rows free of a cell `taken` (the keys' names): the active one in the
     longest such run, as many of its leaves as it holds, an idle one in the first; none where its edge has no
     room left above the foot, none wider than half the drawing."""
     out, tops, laid = {}, {False: 0, True: 0}, 0
-    for _off, node in ranked(fell, keyed, rings, cols - width(cols) if docked else cols, rows):
+    for _off, node in ranked(fell, keyed, rings, cols, rows):
         active, leaves = not laid, rings[node]
         wide, own = width(cols, active) - 2, docked or fell[node][0] >= cols
         if laid == most or wide + 2 > cols // 2:

@@ -114,8 +114,7 @@ def painted(key):
 
 
 def drawing(rows):
-    """The scene's rows (scene.cells) as the viewport's lines, a blank one above: styled Segments of
-    widths known - no text to write and read back, nothing to measure."""
+    """The scene's rows (scene.cells) as the viewport's lines, a blank one above: styled Segments, widths known."""
     lines = [[Segment(line[a:b], painted(k)) for a, b, k in zip(go, go[1:] + [len(line)], keys)]
              for line, go, keys in rows]
     return Marquee([[]] + lines, centred=True, widths=[0] + [len(line) for line, _go, _keys in rows])
@@ -235,13 +234,16 @@ def eased(state, now):
     cam, goal, k = state['cam'], state['goal'], 1.0 - math.exp(-dt / EASE_S)
     cam['target'] = tuple(c + (g - c) * k for c, g in zip(cam['target'], goal['target']))
     cam['distance'] *= (goal['distance'] / cam['distance']) ** k
-    if state['orbit']:
+    if state['orbit'] and not state['mirror']:
         cam['yaw'] += ORBIT_DEG_S * dt
 
 
 def turned(state, dx, dy):
-    """A left drag of (dx, dy) cells, or an arrow's: the tree turned with it, tipped within TIP_DEG."""
+    """A left drag of (dx, dy) cells, or an arrow's: the tree turned with it, tipped within TIP_DEG - the
+    mirror's flat world moved with it (`moved`)."""
     cam = state['cam']
+    if state['mirror']:
+        return moved(state, dx, dy)
     cam['yaw'] -= dx * DRAG_DEG[0]
     cam['pitch'] = max(TIP_DEG[0], min(TIP_DEG[1], cam['pitch'] + dy * DRAG_DEG[1]))
 
@@ -258,9 +260,9 @@ def moved(state, dx, dy):
 
 
 def zoomed(state, k):
-    """The camera `k` times nearer, within DISTANCE; held there."""
-    cam = state['cam']
-    cam['distance'] = state['goal']['distance'] = max(DISTANCE[0], min(DISTANCE[1], cam['distance'] / k))
+    """The camera `k` times nearer, within DISTANCE - in the mirror no farther than its framing -; held there."""
+    cam, far = state['cam'], frame(state, state['focus'])[1] if state['mirror'] else DISTANCE[1]
+    cam['distance'] = state['goal']['distance'] = max(DISTANCE[0], min(far, cam['distance'] / k))
 
 
 def wheeled(state, _keys, moved_by):
@@ -313,18 +315,12 @@ def _upped(state, _key, _now):
         focused(state, state['tree'].up[state['focus']])
 
 
-def viewed(state):
-    """The view the node nearest the viewport is judged in: the drawing's, in the mirror the room left of its
-    panel (mirror.room)."""
-    v = state['view']
-    return mirror.room(placed(state), v, state['art'][0]) if v and state['mirror'] else v
-
-
 def _middled(state, _key, _now):
     """ENTER: the child nearest the viewport opened (`panel.middle`), whichever page of keys holds it - in
-    the mirror the node drawn nearest."""
-    among = None if state['mirror'] else set(context(state))
-    mid = panel.middle(state['fell'], viewed(state), among) if state['view'] else None
+    the mirror the node lit (mirror.middle)."""
+    v, fell = state['view'], state['fell']
+    mid = None if v is None else mirror.middle(placed(state), fell, v, state['art'][0]) if state['mirror'] \
+        else panel.middle(fell, v, set(context(state)))
     if mid is not None:
         focused(state, mid)
 
@@ -428,9 +424,8 @@ def draw_of(view, state, keys=''):
             state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
         eased(state, time.monotonic())
         placing, marks = placed(state), keyed(state)
-        # The child nearest the viewport, whichever page of keys holds it - in the mirror the node drawn
-        # nearest -: its panel, its mark, its brief.
-        named = {n: marks.get(n, '') for n in (placing['at'] if turned_over else context(state))}
+        # The child nearest the viewport, whichever page of keys holds it: its panel, its mark, its brief.
+        named = {n: marks.get(n, '') for n in context(state)}
         found = {scene.shown_of(state['tree'], placing['at'], node)
                  for nodes in hits(state).values() for node, _named in nodes}
         state['flowing'] = (placing['flows_out'], placing['flows_in']) if turned_over else None
@@ -440,7 +435,8 @@ def draw_of(view, state, keys=''):
             lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken, now)
             if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken))
         state['art'] = (width, height)
-        mid = panel.middle(state['fell'], viewed(state), named)
+        fell = state['fell']
+        mid = mirror.middle(placing, fell, sight, width) if turned_over else panel.middle(fell, sight, named)
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
         return frame_of(view, state['origin'], TITLE, drawing(rows), boxes, bindings.shown(PAD, state),
                         art_title=titled(state, mid, width))

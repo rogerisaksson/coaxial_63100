@@ -124,7 +124,7 @@ def test_the_mirror_lays_the_flow_out(report):
     tree = atlas_tree.build()
     flows, state = atlas_flow.flows(tree), show_atlas.opened(tree)
     bindings.act_on(show_atlas.PAD, ['m'], state)
-    sharp = set(schematic.GLYPHS.values()) | set(schematic.HEADS.values())
+    sharp = {*schematic.GLYPHS.values(), *schematic.HEAVY.values(), *schematic.HEADS.values(), *schematic.FILLED.values()}
     looped, onward, smudged, unnamed, crossed = [], [], [], [], {}
     for focus in [-1] + list(range(len(atlas_tree.LAYERS))):
         show_atlas.focused(state, focus)
@@ -150,13 +150,13 @@ def test_the_mirror_lays_the_flow_out(report):
             onward.append('%s: %s -> %s' % (where, scene.short(tree, a), scene.short(tree, b)) if a not in reached else '')
         target, distance = mirror.framed(over, 150, 40)
         sight = scene.view(scene.camera(0.0, 0.0, distance, target), 150, 40)
-        cells, paths = mirror.laid(over, sight, 150, 40)
+        cells, paths, _spots = mirror.laid(over, sight, 150, 40)
         lanes = {cell for path in paths for cell in path}
         smudged += ['%s %s' % (where, cell) for cell in lanes if cell in cells
                     and cells[cell][0] not in sharp and cells[cell][1] != scene.BRIEF]
         rows = [''.join(cells.get((c, r), (' ', 0))[0] for c in range(150)) for r in range(40)]
-        unnamed += ['%s: %s' % (where, name) for _x, _y, name, ink in over['texts']
-                    if ink in (scene.NAME, scene.TOLD) and not any(name in row for row in rows)]
+        unnamed += ['%s: %s' % (where, name) for *_at, name, ink, node in over['texts']
+                    if node is not None and ink in (scene.NAME, scene.TOLD) and not any(name in row for row in rows)]
         crossed[where] = _crossed(over['lanes'])
     report.check("her loop round its rectangle in its order, closed; the asks to the right but a loop's",
                  looped and all(looped) and not any(onward), '%d loops; %s' % (len(looped), [o for o in onward if o]))
@@ -165,8 +165,70 @@ def test_the_mirror_lays_the_flow_out(report):
                      smudged[:3], unnamed[:3], ', '.join('%s %d' % kv for kv in crossed.items())))
 
 
+def test_the_mirror_zooms_and_pans(report):
+    """The mirror's camera (atlas/mirror.py, show_atlas.py): zoomed in, every lane still reaches its nodes -
+    its ends where they stand from their signs, in the terminal's cells -, two line cells at least behind
+    every head; zoomed out no farther than its framing; an arrow moves its flat world, never turns it; the
+    node nearest the viewport one - lit in it, named on top and in the panel where room is kept for it -,
+    the panel's room kept or not."""
+    import io
+    from rich.console import Console
+    from terminal.ui import bindings, stage
+    from terminal.views import show_atlas
+    from terminal.views.atlas import leaves, mirror, scene, schematic
+    from tools.dev import atlas_tree
+    tree = atlas_tree.build()
+    state = show_atlas.opened(tree)
+    heads = {*schematic.HEADS.values(), *schematic.FILLED.values()}
+
+    def drawn(cols, rows, keys=()):
+        view = Console(file=io.StringIO(), force_terminal=True, width=cols, height=rows, color_system='truecolor',
+                       theme=stage.THEME, highlight=False, legacy_windows=False)
+        draw = show_atlas.draw_of(view, state)
+        bindings.act_on(show_atlas.PAD, list(keys), state)
+        for _ in range(3):   # the ease at its end
+            state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
+            view.print(draw())
+        over, (w, h) = show_atlas.placed(state), state['art']
+        return over, scene.view(state['cam'], w, h), w, h
+
+    bindings.act_on(show_atlas.PAD, ['m', 'f6'], state)
+    loose, behind, distances = [], [], []
+    for zoom in range(4):
+        over, sight, w, h = drawn(150, 44, ['+'] * (zoom > 0))
+        cells, paths, spots = mirror.laid(over, sight, w, h)
+        distances.append(state['cam']['distance'])
+        for (a, b, corners, _ink, into, out, _heavy), path in zip(over['lanes'], paths):
+            for end, node, cell in ((path[0], a, corners[0]), (path[-1], b, corners[-1])):
+                mark, sign = over['marks'][node], spots[node][0]
+                loose += [end] if end != (sign[0] + cell[0] - mark[0], sign[1] + cell[1] - mark[1]) else []
+            for seq, head in ((path[::-1], into), (path, out)):
+                behind += [next((k for k, c in enumerate(seq[1:]) if cells.get(c, ' ')[0] in heads), len(seq) - 1)] \
+                    if head is not None and zoom == 0 else []
+    drawn(150, 44, ['-'] * 8)
+    report.check('zoomed in every lane reaching its nodes, two line cells behind a head; out no farther than framed',
+                 not loose and min(behind) >= 2 and distances == sorted(distances, reverse=True)
+                 and state['cam']['distance'] == distances[0], '%d loose ends, %d cells at least behind a head; '
+                 'distances %s' % (len(loose), min(behind), ' '.join('%.2f' % d for d in distances)))
+    target = state['cam']['target']
+    drawn(150, 44, ['right', 'down'])
+    moved, agreed = state['cam']['target'] != target and state['cam']['yaw'] == state['cam']['pitch'] == 0, []
+    for cols, rows in ((150, 44), (100, 30)):
+        over, sight, w, h = drawn(cols, rows)
+        mid = mirror.middle(over, state['fell'], sight, w)
+        cells = mirror.over(over, sight, show_atlas.keyed(state), state['fell'], w, h)
+        sign, name = mirror.laid(over, sight, w, h)[2][mid]
+        panel = [''.join(cells[(c, r)][0] for c in range(w - leaves.width(w), w) if cells.get((c, r), ' ')[1:] == (scene.TITLE,))
+                 for r in range(h)]
+        agreed.append(show_atlas.titled(state, mid, w).startswith('FLOW  ' + scene.short(tree, mid))
+                      and (not over['beside'] or any(scene.short(tree, mid) in t for t in panel)) and cells[sign][1] == scene.OPEN
+                      and all(cells[c][1] == scene.TOLD for c in name if c in cells))
+    report.check('an arrow moves the flat world, never turns it; the node nearest the viewport one, lit, on top, '
+                 'in the panel', moved and all(agreed), 'moved %s; agreed %s' % (moved, agreed))
+
+
 ROSTER = (test_the_nearest_child_past_the_keys, test_the_mirror_closes_her_loop, test_the_mirror_faces_what_flows,
-          test_the_mirror_lays_the_flow_out)
+          test_the_mirror_lays_the_flow_out, test_the_mirror_zooms_and_pans)
 
 
 def main(argv=None):
