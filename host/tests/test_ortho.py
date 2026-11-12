@@ -307,48 +307,45 @@ def test_the_gym_runs_her_in_a_process(report):
     from terminal.views import gym
     body = sprung.Running(walks=False)
     try:
-        began, first = time.monotonic(), None
-        while first is None and time.monotonic() - began < 30.0:
-            first = body.latest()
-            time.sleep(0.05)
+        first, _ = _until(body, lambda state: True)
         says = first.get('says', ()) if first else ()
         report.check('her state comes with her modes and what the digits say',
                      first is not None and len(first['modes']) == len(gym.SHORT) and says[:1] == ('gynoid_mesomorph_medium',)
                      and 'crouch' in says,
                      '%s' % (says,))
         body.send(say=says.index('crouch') - 1 if 'crouch' in says else 0)
-        deep, began = 0.0, time.monotonic()
-        while deep < 0.5 and time.monotonic() - began < 30.0:
-            state = body.latest()
-            deep = max(deep, state['modes'][0][2] if state else 0.0)
-            time.sleep(0.05)
-        report.check('the crouch said, she is down past 0.5', deep >= 0.5, '%.2f in %.1f s' % (
-            deep, time.monotonic() - began))
+        state, took = _until(body, lambda state: state['modes'][0][2] >= 0.5, 30.0)
+        deep = state['modes'][0][2] if state else 0.0
+        report.check('the crouch said, she is down past 0.5', deep >= 0.5, '%.2f in %.1f s of hers' % (deep, took))
         body.send(gym='examples')
-        began, other = time.monotonic(), ()
-        while other[:1] != ('examples',) and time.monotonic() - began < 10.0:
-            state = body.latest()
-            other = state.get('says', ()) if state else ()
-            time.sleep(0.05)
+        state, _ = _until(body, lambda state: state.get('says', ())[:1] == ('examples',), 10.0)
+        other = state.get('says', ()) if state else ()
         report.check("the gym's other text taken: the first texts", other[:2] == ('examples', '#101'), '%s' % (other,))
         body.send(text='(stream_inject (latent_targets (mode_wing_flap 1)))')
-        began, refused = time.monotonic(), None
-        while not refused and time.monotonic() - began < 10.0:
-            state = body.latest()
-            refused = state.get('refused') if state else None
-            time.sleep(0.05)
+        state, _ = _until(body, lambda state: bool(state.get('refused')), 10.0)
+        refused = state.get('refused') if state else None
         report.check('a text the compiler refuses is said with her state, and she stands on',
                      bool(refused) and 'mode_wing_flap' in refused, '%s' % (refused or '')[:60])
         body.send(pace=0.5)
-        began, refused = time.monotonic(), None
-        while not (refused and 'pace' in refused) and time.monotonic() - began < 10.0:
-            state = body.latest()
-            refused = state.get('refused') if state else None
-            time.sleep(0.05)
+        state, _ = _until(body, lambda state: 'pace' in (state.get('refused') or ''), 10.0)
+        refused = state.get('refused') if state else None
         report.check('a command the loop does not know is refused by name: nothing else runs her',
                      bool(refused) and 'pace' in refused, '%s' % (refused or '')[:70])
     finally:
         body.close()
+
+
+def _until(body, done, hers=math.inf):
+    """Her `body`'s state once `done`, and the s it took - while she lives, `hers` s of her time, not the wall's."""
+    state, start = None, None
+    while body.alive():
+        state = body.latest() or state
+        if state is not None:
+            start = start if start and start[0] == state['epoch'] else (state['epoch'], state['t'])
+            if done(state) or state['t'] - start[1] >= hers:
+                return state, state['t'] - start[1]
+        time.sleep(0.05)
+    return state, 0.0
 
 
 def test_the_pages_keys_on_the_loop(report):
