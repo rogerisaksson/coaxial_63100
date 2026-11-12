@@ -93,9 +93,11 @@ def risen_rows(tab, y, fr, a, st, t, dt, prop_until):
                     | (xi[1] < (lo[:, 1] + off[:, 0]).min()) | (xi[1] > (hi[:, 1] - off[:, 0]).max()))
     at, axial, sag = tab[:, latent.AT], modal.AXIAL, modal.SAGITTAL
     vals, said, to = tab[:, latent.VALS][:, latent.Z], tab[:, latent.SAID][:, latent.Z], st[latent.TO][latent.Z]
-    # a row raises her over her soles with its centre of mass told from her heels' edge on (the
-    # sagittal's -1); told behind them her legs straighten lying, and would wait for nothing
-    over = np.where(said[:, sag] > 0.5, vals[:, sag], to[sag]) >= -1.0
+    zmp = np.where(tab[:, latent.SAID][:, latent.ZMP] > 0.5, tab[:, latent.VALS][:, latent.ZMP],
+                   st[latent.TO][latent.ZMP]) > 0.5
+    # a row raises her onto her soles - her ZMP in her support (`acts.SUPPORT`) - with its centre of
+    # mass told from her heels' edge on (the sagittal's -1); ZMP let go, or behind them, is a recline or lie
+    over = (np.where(said[:, sag] > 0.5, vals[:, sag], to[sag]) >= -1.0) & zmp
     rises = (said[:, axial] > 0.5) & (vals[:, axial] < min(float(to[axial]), 2.0) - 1e-6) & over
     due = rises & (at <= t + latent.EDGE_S) & (at > t - dt + latent.EDGE_S)
     shift = dt * propped * outside * float(np.any(due))

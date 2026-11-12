@@ -214,8 +214,12 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
-    e['k'], (ax, az), along, _there, pace, bend = (route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
-                                                   else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw, se2.WALK_SPEED, 0.0))
+    rem = max(0.0, e['d_stage'] - 1.5 * stride.STRIDE_M + s_par)
+    door_pace = min(se2.WALK_SPEED, math.sqrt(route.SLOWEST ** 2 + 2.0 * route.BRAKE * rem))
+    walk_pace = door_pace if e['phase'] == 'door' else se2.WALK_SPEED
+    e['k'], (ax, az), along, _there, pace, bend = (
+        route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
+        else (e['k'], stop, math.atan2(stop[0] - gx, stop[1] - gz), pyaw, walk_pace, 0.0))
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
     # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell

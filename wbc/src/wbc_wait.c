@@ -75,7 +75,7 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   const double  has_prop = (double)(bears > 0.0);
   const double  until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until;
   const double  propped = (double)((bears > 0.0) || (t <= until));
-  const double  to_ax = st[w->st_to_z + k->axial], to_sag = st[w->st_to_z + k->sagittal];
+  const double  to_ax = st[w->st_to_z + k->axial], to_sag = st[w->st_to_z + k->sagittal], to_zmp = st[w->st_to_z + w->zmp];
   double        c[3], v[3], om, xi[2], sr[2][3], flat[2][2], edge[2], tilt[2], lo[2][2], hi[2][2], lmin[2], hmax[2];
   double        first, outside, shift;
 
@@ -108,12 +108,13 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
     hmax[1] = npmaximum(hi[0][1] - off[0], hi[1][1] - off[1]);
   }
   outside = (double)((xi[0] < lmin[0]) || (xi[1] < lmin[1]) || (xi[0] > hmax[0]) || (xi[1] > hmax[1]));
-  /* a row raises her over her soles with its centre of mass told from her heels' edge on */
+  /* a row raises her onto her soles (ZMP in her support) with its centre of mass from her heels' edge on */
   for (int r = 0; r < rows; r++)
   {
     const double *row = tab + r * w->table;
     const double  sag = row[w->said_z + k->sagittal] > 0.5 ? row[w->vals_z + k->sagittal] : to_sag;
-    const int     over = sag >= -1.0;
+    const double  zmp = row[w->said_z + w->zmp] > 0.5 ? row[w->vals_z + w->zmp] : to_zmp;
+    const int     over = sag >= -1.0 && zmp > 0.5;
 
     rises[r] = (unsigned char)(row[w->said_z + k->axial] > 0.5 && row[w->vals_z + k->axial] < npmin(to_ax, 2.0) - 1e-6
                                && over);

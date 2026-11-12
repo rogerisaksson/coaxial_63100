@@ -85,10 +85,9 @@
 ;; Down from a seat too high for her feet onto them, as the kernel's egress from it lowers her on her arms
 ;; (`specialize-for-overheight-seat` :egress, `xform-overheight-arm-dip-egress`): her joints play her dismount
 ;; (moves.lisp `chair-dismount`), her text's rows waiting, till her soles bear her; what bears her then all her soles,
-;; as the kernel's homotopy pans her seat onto her feet, her wake latching her where her dismount left her. Scooted
-;; instead, on the 0.45 m chair she moved none in 6 s (her seat 305-315 N at its end, 3 starts); played on the scoot's
-;; first stage her dismount stood her on 0.96 of her, then its next stage sat her back 6 cm onto 0.65 of the seat
-;; and the rise's lean slid her off its edge: she fell at 13.8 s.
+;; her shins 0.44 rad ahead of plumb where her dismount lands them, as the kernel's homotopy pans her seat onto her
+;; feet and her wake latches her where her dismount left her. Told plumb ankles instead, her scoot and lean asked her
+;; centre of mass 14 cm behind her soles' middle, pulling her back onto the chair's edge or into a step at stand.
 (defmaneuver transfer-egress-dip [seated-state]
   (-> seated-state
       (stage-sequential-manifold
@@ -98,7 +97,7 @@
         :torso-pitch-ramp [0.0 -> 0.0]
         :axial-yaw-ramp [0.0 -> 0.0]
         :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.5708 -> 1.5708] :limb-lift 0.0)
-        :talocrural-rad 0.0
+        :talocrural-rad 0.44
         :manifold-pan '((:plantar-bilateral 1.0) (:ischial-bilateral 0.0) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
 ;; Composite 1: Dock and sit on a rigid chair, her hands on it where it stands over her shins, then up onto it where

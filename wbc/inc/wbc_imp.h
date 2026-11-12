@@ -250,16 +250,14 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
 /** The most rows of her table the waits take. */
 #define WBC_WAIT_ROWS 512
 
-/** machine.law.waits.held_rows's, risen_rows's and woken_rows's reading of her table (machine.law.latent):
-    a row's doubles, its time's place, its targets told and said, its gain told and said, its
-    amplitudes told, its phases said and told; her latent state's targets asked, its gain and
-    phases now, her rhythm's angle; a row's latch, her state's targets now and from and its
-    blend's rates; the waits' constants; numpy's BLAS. */
+/** machine.law.waits' reading of her table (machine.law.latent): a row's width, time, targets,
+    gain, amplitudes, phases, contact, latch and rise; her state's targets, gain, phases, rhythm
+    angle and blend rates; the waits' constants and numpy's BLAS. */
 typedef struct
 {
   int        table, at, vals_z, said_z, vals_gain, said_gain, st_to_z, contact;
   int        vals_amp, said_phase, vals_phase, st_now_gain, st_now_phase, st_theta;
-  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z, rise;
+  int        latch, st_now_z, st_from_z, st_v0_z, st_v1_z, rise, zmp;
   double     edge_s, tiny, phi_w;
   wbc_blas_t blas;
 } wbc_wait_t;
