@@ -37,7 +37,7 @@ from terminal.ui.rate import Corner, rate_of
 from terminal.ui.screen import PORT, ENTER_KEYS, paced
 from terminal.ui.chrome import KANA, Chrome
 from terminal.ui.stage import band_of, curtain, live, mode_of, modes, stage
-from terminal.ui.taskbar import bar_of, footer, help_panel
+from terminal.ui.taskbar import RAIL, bar_of, footer, help_panel, rail
 
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
@@ -225,21 +225,23 @@ def compose(port, picked, view, size=None, who=None, rate=''):
     below = readout_rows(tall)
     above = max(6, tall - below)
     state = view.setdefault('readout', readout.fresh(time.monotonic()))
-    column = Layout()
-    column.split_column(
-        Layout(Panel(Corner(Chrome(Align(Marquee(stand.turntable(view, wide - 2, above)),
-                                         align='center', vertical='middle'),
-                                   'COAXIAL 63100', tags=False), rate),
-                     title=Text(' COAXIAL 63100 ', style='name'),
-                     title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 0), expand=True), name='model'),
-        Layout(Panel(readout.draw(state, _BROKER.get('identity'), wide - 4,
-                                  below - 2, note=_BROKER.get('said'),
-                                  preload=_BROKER.get('preload')),
-                     title=Text(' READOUT ', style='name'),
-                     title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 1), expand=True), name='readout',
-               size=below))
+    # The column is every page's side column: folded to the rail on Tab (`bindings.UX`), drawn only out.
+    shown, column = bindings.UX['column'], Layout()
+    if shown:
+        column.split_column(
+            Layout(Panel(Corner(Chrome(Align(Marquee(stand.turntable(view, wide - 2, above)),
+                                             align='center', vertical='middle'),
+                                       'COAXIAL 63100', tags=False), rate),
+                         title=Text(' COAXIAL 63100 ', style='name'),
+                         title_align='left', box=box.HEAVY, border_style='frame',
+                         padding=(0, 0), expand=True), name='model'),
+            Layout(Panel(readout.draw(state, _BROKER.get('identity'), wide - 4,
+                                      below - 2, note=_BROKER.get('said'),
+                                      preload=_BROKER.get('preload')),
+                         title=Text(' READOUT ', style='name'),
+                         title_align='left', box=box.HEAVY, border_style='frame',
+                         padding=(0, 1), expand=True), name='readout',
+                   size=below))
     body = Layout()
     body.split_row(
         Layout(Panel(Chrome(asking(who) if who is not None else roster(picked),
@@ -249,7 +251,7 @@ def compose(port, picked, view, size=None, who=None, rate=''):
                      title_align='left', border_style='frame.hud',
                      padding=(1, 1), expand=True),
                name='list'),
-        Layout(column, name='board', size=wide))
+        Layout(column if shown else rail(), name='board', size=wide if shown else RAIL))
 
     keys, help = bar_of(bindings.shown(FRONT, {'who': who}), time.monotonic())
     panel, rows = help_panel(*help, width=size.width if size else 150) if help else (None, 0)
@@ -310,7 +312,7 @@ ROWS = (
      {'\x1b': lambda nav, _key, _now: nav.update(who=None)}),
     ('PAGES', 'F', "the mouse the turntable's, or the terminal's", (('F', lambda nav: None if nav['who'] else 'MOUSE'),), {}),
 )
-FRONT = bindings.page(ROWS, take=_second, column=False)
+FRONT = bindings.page(ROWS, take=_second)
 
 
 def _typed_choice(line):

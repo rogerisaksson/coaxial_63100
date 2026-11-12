@@ -19,12 +19,13 @@ def test_a_page_its_keys_the_terminals_after(report):
                  'q' in her['held'] and ('Q', 'EXIT') not in her['bar'] and set(shared) <= set(her['bar'])
                  and [label for label, _what in dict(her['groups'])['TERMINAL']] == ['ESC', 'TAB', '?'], her['bar'])
     folded = bindings.UX['column']
+    rest = bindings.act_on(menu.FRONT, ['\t'], {'picked': 0, 'who': None})[1]
+    tabbed, bindings.UX['column'] = bindings.UX['column'], folded
     report.check("the chat's typing keeps ? and Q; a flying page's bar its rows' then the terminal's; the front "
-                 "page's Esc its own, no Tab: its panels stay up",
+                 "page's Esc its own, Tab the terminal's: its board folds as every page's column",
                  not {'?', 'q', 'Q'} & set(chat['keys']) and keys.PAD['bar'][-4:] == shared + (('Q', 'EXIT'),)
-                 and ('ESC', 'BACK') not in menu.FRONT['bar'] and ('TAB', 'COLUMN') not in menu.FRONT['bar']
-                 and bindings.act_on(menu.FRONT, ['\t'], {'picked': 0, 'who': None})[1] == ['\t']
-                 and bindings.UX['column'] == folded)
+                 and ('ESC', 'BACK') not in menu.FRONT['bar'] and ('TAB', 'COLUMN') in menu.FRONT['bar']
+                 and rest == [] and tabbed != folded)
     try:
         bindings.page((('A', 'X', 'one', (), {'x': bindings.did(print)}), ('A', 'X', 'two', (), {'x': bindings.did(print)})))
         refused = ''
@@ -45,7 +46,10 @@ def test_esc_the_front_page(report):
 
 def test_tab_and_help_in_any_mode(report):
     """Tab shows the instruments' column - folded to its rail at first - and folds it again, the
-    page's own mode open too; ? the page's keys up and down; the arrows no row binds the column's."""
+    page's own mode open too, the front page's board as every page's column; ? the page's keys up and
+    down; the arrows no row binds the column's."""
+    from rich.layout import Layout
+    from terminal import menu
     from terminal.ui import bindings, taskbar
     from terminal.ui.scroll import HUD_WIDTH
     from terminal.views import humanoid_keys
@@ -58,11 +62,18 @@ def test_tab_and_help_in_any_mode(report):
         typed(humanoid_keys.PAD, 'a?\t', st)
         helped = [typed(keys.PAD, '?', {}) or bindings.UX['help'] for _ in range(2)]
         rest = bindings.act_on(keys.PAD, ['up', 'down', 'w'], {'send': lambda **_c: None})[1]
+        body = menu.compose(menu.PORT, 0, {})['body'].renderable
+        board = body['board'] if isinstance(body, Layout) else None
+        typed(menu.FRONT, '\t', {'who': None, 'picked': 0})
+        front = bindings.UX['column']
     finally:
         bindings.UX.update(column=False, help=False)
     report.check("folded to its rail at first, out on Tab, folded on Tab with her prompt open, the prompt's the rest",
                  folded == (False, taskbar.RAIL) and out == (True, HUD_WIDTH) and not bindings.UX['column']
                  and st['llm_prompt']['text'] == 'a?', (folded, out, st))
+    report.check("the front page's board its column: the rail folded, out on its Tab",
+                 board is not None and board.size == taskbar.RAIL and type(board.renderable) is type(taskbar.rail())
+                 and front, (board and board.size, board and type(board.renderable).__name__, front))
     report.check('? the keys up, ? again down; up and down handed back to page the column',
                  helped == [True, False] and rest == ['up', 'down'], (helped, rest))
 
