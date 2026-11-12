@@ -1,8 +1,10 @@
 """The atlas's mirror world: what flows between its files, drawn as a schematic of the data's way.
 
-M turns the page to it: of the nodes shown, those a flow joins (tools/dev/atlas_flow.py, a flow's ends taken
-to the nearest node shown) and nothing else, laid out by the flow in the terminal's own cells and drawn in
-box-drawing lines (atlas/schematic.py), knife sharp. Her loop is a rectangle in heavy lines - of her pass
+M turns the page to it: of the nodes the tree names at the node open - its children, those above it, the
+layers -, those a flow joins (tools/dev/atlas_flow.py, a flow's ends taken to the nearest of them) and
+nothing else, each written as the tree writes it, its key before, so the two match, laid out by the flow in
+the terminal's own cells and drawn in box-drawing lines (atlas/schematic.py), knife sharp. Each word of her
+pass is made by a function the tree holds, named beside it in the panel. Her loop is a rectangle in heavy lines - of her pass
 and what comes back through the world, the longest run back to where it began: its first half along the top
 left to right, the rest back along the bottom, the last up the left side to the first; each stage its sign
 on the line, its name inside, what passes written in the line on its way -, the rest of her pass hanging
@@ -20,6 +22,8 @@ import math
 
 from terminal.views.atlas import leaves, panel, scene, schematic
 from terminal.views.atlas.panel import fit
+from tools.dev import atlas_flow
+from tools.dev.atlas_tree import LAYERS
 
 #: Each kind's ink (atlas_flow.KINDS: her pass, the wire, what comes back).
 INKS = (scene.TITLE, scene.NOTE, scene.HIT)
@@ -56,22 +60,32 @@ def _sign(tree, node):
     return '●'
 
 
-def mirrored(placed, flow, room):
+def _made(tree, node):
+    """Where a word is made, as the tree writes it: its file and its function's name."""
+    return '%s › %s' % (scene.short(tree, tree.up[node]), tree.id[node].rpartition('::')[2]) if node >= 0 else ''
+
+
+def mirrored(placed, flow, room, kin=(), keys=None):
     """The flow world of the scene `placed` (show_atlas.placed) for a drawing `room` (cols, rows, the panel's
     width) - side by side or her loop over the wire, beside the panel where either fits (`beside` the room
-    kept for it), else on the whole width -, the module's head: `marks` {node: its sign's cell}, `lanes` [(a,
-    b, corners, ink, head in, head out, heavy)], `texts` [(x, y, across, down, text, ink, node)] - each by a
-    cell and its offset in the terminal's cells, `node` the one it names -, in its cells; `dots` [(lane,
-    forward)] a flow; its nodes' dots as `scene.picture` reads them (`flat`, none of its own names, all in
-    focus), `anchors` the cells the camera places and `points` their middles in the world; `flows_out` and
-    `flows_in` {node: flows} the chosen node's flows reach and come from; `rings` {node: its flows [(arrow,
-    what passes, the name at the other end)]}; `loop` her loop's stages in order; `center` and `extent`."""
+    kept for it), else on the whole width -, the module's head; its nodes those the tree names at the node
+    open - its children `kin`, those above it, the layers -, a flow's ends taken to the nearest of them,
+    each named as the tree names it, its key (`keys` {node: its key}) before. `marks` {node: its sign's
+    cell}, `lanes` [(a, b, corners, ink, head in, head out, heavy)], `texts` [(x, y, across, down, text, ink,
+    node)] - each by a cell and its offset in the terminal's cells, `node` the one it names -, in its cells;
+    `dots` [(lane, forward)] a flow; its nodes' dots as `scene.picture` reads them (`flat`, none of its own
+    names, all in focus), `anchors` the cells the camera places and `points` their middles in the world;
+    `flows_out` and `flows_in` {node: flows} the chosen node's flows reach and come from; `rings` {node: its
+    flows [(arrow, what passes, the name at the other end, where it is made)]}; `loop` her loop's stages in
+    order; `center` and `extent`."""
     from coaxial.model.blocks import numpy as np
-    tree, focus, shown, back = placed['tree'], placed['focus'], placed['at'], len(INKS) - 1
-    lit = set(scene.chain(tree, focus) + [n for n in shown if focus in scene.chain(tree, n)]) if focus >= 0 else set()
+    tree, focus, back, keys = placed['tree'], placed['focus'], len(INKS) - 1, keys or {}
+    named = set(kin) | set(scene.chain(tree, focus)) | set(range(len(LAYERS)))
+    lit = {n for n in named if focus in scene.chain(tree, n)} if focus >= 0 else set()
+    made = {label: _made(tree, node) for label, node in atlas_flow.makers(tree).items()}
     passed, stages = {}, []
     for a, b, kind, label in flow:
-        a, b = scene.shown_of(tree, shown, a), scene.shown_of(tree, shown, b)
+        a, b = scene.shown_of(tree, named, a), scene.shown_of(tree, named, b)
         if a >= 0 and b >= 0 and a != b:
             passed.setdefault((a, b, kind), []).append(label)
             stages += [n for n in (a, b) if kind == 0 and n not in stages]
@@ -81,11 +95,12 @@ def mirrored(placed, flow, room):
     hung = schematic.hanging(loop, stages, ahead | home) if loop else {}
     ringed = set(loop) | set(hung)
     among = sorted({n for a, b, _k in passed for n in (a, b)} - ringed)
-    names, index, n = _names(tree, ringed | set(among)), {s: k for k, s in enumerate(loop)}, len(loop)
+    own, index, n = _names(tree, ringed | set(among)), {s: k for k, s in enumerate(loop)}, len(loop)
+    names = {nd: ('%s %s' % (keys[nd], name) if nd in keys else name) for nd, name in own.items()}
     asks = [(a, b) for a, b, kind in passed if kind != back and a in among and b in among]
     depth, links, flows = schematic.depths(among, asks), {}, []
     for (a, b, kind), labels in sorted(passed.items()):   # each flow on the lane it runs, laid a to b
-        text = ', '.join(sorted(set(labels)))
+        text, by = ', '.join(sorted(set(labels))), ', '.join(sorted({made[w] for w in labels if made.get(w)}))
         if a in index and b in index and (index[b] - index[a]) % n == 1:
             key = (a, b)
         elif a in index and b in index and n > 2 and (index[a] - index[b]) % n == 1:
@@ -97,7 +112,7 @@ def mirrored(placed, flow, room):
         else:
             key = (a, b) if depth.get(a, -1) < depth.get(b, -1) else (b, a)
         links.setdefault(key, ([], []))[key != (a, b)].append((kind, text))
-        flows.append((a, b, kind, text, key))
+        flows.append((a, b, kind, text, key, by))
 
     def said(a, b):
         return tuple(', '.join(('↺ ' if kind == back else '') + s for kind, s in way) for way in links.get((a, b), ((), ())))
@@ -130,10 +145,10 @@ def mirrored(placed, flow, room):
               inked(links[(a, b)][1]), heavy) for a, b, cs, heavy in routes]
     which = {(a, b): k for k, (a, b, *_rest) in enumerate(lanes)}
     rings, out, into = {nd: [] for nd in marks}, {}, {}
-    for a, b, kind, text, _key in flows:
+    for a, b, kind, text, _key, by in flows:
         arrows = ('↺', '↺') if kind == back else ('→', '←')
-        rings[a].append((arrows[0], text, names[b]))
-        rings[b].append((arrows[1], text, names[a]))
+        rings[a].append((arrows[0], text, names[b], by))
+        rings[b].append((arrows[1], text, names[a], by))
         if b in lit and a not in lit:
             into[a] = into.get(a, 0) + 1
         elif a in lit and b not in lit:
@@ -143,7 +158,10 @@ def mirrored(placed, flow, room):
             if nd in out or nd in into else scene.NODE if nd in lit else scene.EDGE for nd in nodes}
     texts = [(x + ro[0], y + ro[1], dx, dy, s, ink, None) for x, y, dx, dy, s, ink in rtexts]
     texts += [(*marks[nd], 0, 0, _sign(tree, nd), inks[nd], nd) for nd in nodes]
-    texts += [(*marks[nd], *rnamed.get(nd, (2, 0)), names[nd], scene.TOLD if nd == focus else scene.NAME, nd) for nd in nodes]
+    for nd in nodes:   # its key in the keys' ink, as the tree writes it, then its name
+        (dx, dy), key = rnamed.get(nd, (2, 0)), keys.get(nd, '')
+        texts += [(*marks[nd], dx, dy, key, scene.KEY, None)] if key else []
+        texts.append((*marks[nd], dx + len(key) + bool(key), dy, own[nd], scene.TOLD if nd == focus else scene.NAME, nd))
 
     def world(cell):
         return ((cell[0] + 0.5 - width / 2) * CELL, -DEPTH - (2 * cell[1] + 1 - height) * CELL, 0.0)
@@ -153,7 +171,7 @@ def mirrored(placed, flow, room):
     anchors = sorted({c for lane in lanes for c in lane[2]} | set(marks.values()) | {(x, y) for x, y, *_t in texts})
     return {**placed, 'at': {nd: world(c) for nd, c in marks.items()}, 'out': {}, 'into': {}, 'flows_out': out,
             'flows_in': into, 'rings': rings, 'faint': [], 'flat': flat, 'loop': loop, 'marks': marks, 'lanes': lanes,
-            'texts': texts, 'dots': [(which[key], key == (a, b)) for a, b, _k, _s, key in flows], 'anchors': anchors,
+            'texts': texts, 'dots': [(which[key], key == (a, b)) for a, b, _k, _s, key, _by in flows], 'anchors': anchors,
             'points': np.array([world(c) for c in anchors], float).reshape(-1, 3), 'groups': ((), ()),
             'field': math.inf, 'center': (0.0, -DEPTH, 0.0), 'extent': (width, height), 'beside': beside, 'kept': {}}
 
@@ -246,11 +264,14 @@ def room(mirror, sight, cols):
 
 def lines(_tree, flows, wide, tall, active):
     """A mirror panel's lines, `wide` cells and `tall` lines at most: a flow a line - its arrow and the name
-    at its other end, what passes beside -, what does not fit counted on the last."""
+    at its other end, what passes, where that is made in the tree -, what does not fit counted on the last."""
     shown = flows if len(flows) <= tall else flows[:tall - 1]
-    named = min(max((len(name) + 2 for _a, _s, name in shown), default=0), wide // 2)
-    out = [[(fit('%s %s' % (arrow, name), named).ljust(named + 1), scene.NAME if active
-             else scene.NAME_DIM), (fit(said, wide - named - 1), scene.BRIEF)] for arrow, said, name in shown]
+    named = min(max((len(name) + 2 for _a, _s, name, _b in shown), default=0), wide // 2)
+    said = min(max((len(s) + 1 for _a, s, _n, _b in shown), default=0), wide - named - 1)
+    out = [[(fit('%s %s' % (arrow, name), named).ljust(named + 1), scene.NAME if active else scene.NAME_DIM),
+            (fit(s, said).ljust(said + 1), scene.BRIEF)] + ([(fit(by, wide - named - said - 2), scene.NAME_DIM)]
+                                                             if by and wide - named - said > 4 else [])
+           for arrow, s, name, by in shown]
     return out + ([[('+%d more' % (len(flows) - len(shown)), scene.BRIEF)]] if len(shown) < len(flows) else [])
 
 

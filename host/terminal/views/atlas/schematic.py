@@ -135,7 +135,7 @@ def ring(loop, hung, chords, said, names):
     [(x, y, across, down, text, ink)] what passes - each by a cell of the layout and its offset from it in
     the terminal's cells -, (width, height)): its first half along the top left to right in heavy lines, the
     rest back along the bottom, the last up the left side to the first, LEAD line cells at least before a
-    head, a stage's name inside, what passes in the line on its way - on a side beside it -; `hung`
+    head, a stage's name inside, what passes in the line on its way - a side's on its run to the corner -; `hung`
     (`hanging`) straight out SPUR rows, each word beside its own head; `chords` [(a, b)] across it on rows
     of their own inside, a row clear either side; `said` (a, b) -> (what goes a to b, what comes back)."""
     n, t = len(loop), (len(loop) + 1) // 2
@@ -152,10 +152,12 @@ def ring(loop, hung, chords, said, names):
     gaps = [max(len(side[i]) + lead, len(names[top[i]]) + 4, right[top[i]] + left[top[i + 1]] + 3) for i in range(t - 1)]
     backs = [max(len(side[t + j]) + lead, len(names[bottom[j + 1]]) + 4, right[bottom[j + 1]] + left[bottom[j]] + 3)
              for j in range(len(bottom) - 1)]
-    tl, tr = max(LEAD + 2, left[top[0]] + 2), max(LEAD + 2, len(names[top[-1]]) + 4, right[top[-1]] + 2)
-    bl, br = max(LEAD + 2, left[bottom[-1]] + 2), max(LEAD + 2, len(names[bottom[0]]) + 4, right[bottom[0]] + 2)
+    tl = max(LEAD + 2, left[top[0]] + 2)
+    tr = max(LEAD + 2, len(names[top[-1]]) + 4, right[top[-1]] + 2, len(side[t - 1]) + lead)
+    bl = max(LEAD + 2, left[bottom[-1]] + 2, len(side[-1]) + lead)
+    br = max(LEAD + 2, len(names[bottom[0]]) + 4, right[bottom[0]] + 2)
     inner = max(tl + sum(gaps) + tr, bl + sum(backs) + br)
-    x0 = len(side[-1]) + 2
+    x0 = 0
     x1 = x0 + inner
     xt = [x0 + tl + (inner - tl - sum(gaps) - tr) // 2 + sum(gaps[:i]) for i in range(t)]
     xb = [x1 - br - (inner - bl - sum(backs) - br) // 2 - sum(backs[:j]) for j in range(len(bottom))]
@@ -169,10 +171,10 @@ def ring(loop, hung, chords, said, names):
     routes.append((top[-1], bottom[0], [(xt[-1] + 1, y0), (x1, y0), (x1, y1), (xb[0] + 1, y1)], True))
     routes += [(bottom[j], bottom[j + 1], [(xb[j] - 1, y1), (xb[j + 1] + 1, y1)], True) for j in range(len(bottom) - 1)]
     routes.append((bottom[-1], top[0], [(xb[-1] - 1, y1), (x0, y1), (x0, y0), (xt[0] - 1, y0)], True))
-    mid = (y0 + y1) // 2
     texts = [_said(side[i], (xt[i] + xt[i + 1]) // 2, y0) for i in range(t - 1) if side[i]]
     texts += [_said(side[t + j], (xb[j] + xb[j + 1]) // 2, y1) for j in range(len(bottom) - 1) if side[t + j]]
-    texts += [(x1, mid, 2, 0, side[t - 1], scene.BRIEF), (x0, mid, -1 - len(side[-1]), 0, side[-1], scene.BRIEF)]
+    texts += [_said(side[t - 1], (xt[-1] + x1) // 2, y0)] if side[t - 1] else []
+    texts += [_said(side[-1], (x0 + xb[-1]) // 2, y1)] if side[-1] else []
     for m, (p, _hops) in hung.items():
         (px, py), (mx, my), o = marks[p], marks[m], -1 if root[m] in top else 1
         routes.append((p, m, [(px, py + o), (px, py + 2 * o), (mx, py + 2 * o), (mx, my - o)], False))

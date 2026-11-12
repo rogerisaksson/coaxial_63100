@@ -137,8 +137,9 @@ def placed(state):
     if not state['mirror']:
         return upright
     width, height = sized(state)
-    room_ = (width, height, leaves.width(width))   # laid for the drawing, beside the panel where it fits
-    return _memo(state, ('mirror', focus, room_), lambda: mirror.mirrored(upright, flowing(state), room_))
+    room_, kin, keys = (width, height, leaves.width(width)), context(state), keyed(state)
+    return _memo(state, ('mirror', focus, room_, tuple(keys.items())),
+                 lambda: mirror.mirrored(upright, flowing(state), room_, kin, keys))
 
 
 def hits(state):
@@ -240,7 +241,7 @@ def eased(state, now):
 
 def turned(state, dx, dy):
     """A left drag of (dx, dy) cells, or an arrow's: the tree turned with it, tipped within TIP_DEG - the
-    mirror's flat world moved with it (`moved`)."""
+    mirror's flat world moved (`moved`)."""
     cam = state['cam']
     if state['mirror']:
         return moved(state, dx, dy)

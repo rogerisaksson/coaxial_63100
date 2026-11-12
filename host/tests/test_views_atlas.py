@@ -84,27 +84,39 @@ def test_the_mirror_closes_her_loop(report):
 
 
 def test_the_mirror_faces_what_flows(report):
-    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): her pass and the wire flow; M faces the world of
-    the nodes a flow joins - none other drawn -, framed whole; M back: the tree as it was seen."""
+    """The atlas's mirror (atlas/mirror.py, atlas_flow.py): her pass and the wire flow, each of her pass's words
+    made by a function the tree holds; M faces the world of the nodes the tree names at the node open - its
+    children, those above it, the layers - that a flow joins, none other drawn, each written as the tree
+    writes it, its key before, framed whole, a flow's word with where it is made; M back: the tree as seen."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import mirror, scene
     from tools.dev import atlas_flow, atlas_tree
     tree = atlas_tree.build()
-    flows = atlas_flow.flows(tree)
+    flows, made = atlas_flow.flows(tree), atlas_flow.makers(tree)
     said = {(kind, label.partition('_')[0]) for _a, _b, kind, label in flows}
     state = show_atlas.opened(tree)
     show_atlas.focused(state, next(i for i, row in enumerate(atlas_tree.LAYERS) if row[0] == 'executive'))
     up, seen = show_atlas.placed(state)['at'], (dict(state['goal']), state['cam']['yaw'], state['cam']['pitch'])
-    ends = [(scene.shown_of(tree, up, a), scene.shown_of(tree, up, b)) for a, b, _k, _l in flows]
+    named, keys = set(show_atlas.context(state)) | set(scene.chain(tree, state['focus'])) | set(range(len(atlas_tree.LAYERS))), \
+        show_atlas.keyed(state)
+    ends = [(scene.shown_of(tree, named, a), scene.shown_of(tree, named, b)) for a, b, _k, _l in flows]
     joined = {n for a, b in ends if min(a, b) >= 0 and a != b for n in (a, b)}
     bindings.act_on(show_atlas.PAD, ['m'], state)
     over, goal = show_atlas.placed(state), state['goal']
     framed = mirror.framed(over, *show_atlas.sized(state))
-    report.check('the flows; M: the nodes a flow joins drawn, none other, faced whole',
-                 {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and set(over['at']) == joined < set(up)
-                 and set(over['flat']['nodes'].tolist()) == joined and state['cam']['yaw'] == state['cam']['pitch'] == 0
-                 and (goal['target'], goal['distance']) == framed, '%d of %d nodes drawn' % (len(joined), len(up)))
+    sight = scene.view(scene.camera(0.0, 0.0, framed[1], framed[0]), *show_atlas.sized(state))
+    cells = mirror.laid(over, sight, *show_atlas.sized(state))[0]
+    rows = {''.join(cells.get((c, r), ' ')[0] for c in range(show_atlas.sized(state)[0])) for r in range(show_atlas.sized(state)[1])}
+    unkeyed = [k for n, k in keys.items() if n in joined and not any('%s %s' % (k, scene.short(tree, n)) in r for r in rows)]
+    law = next(n for n in joined if scene.short(tree, n) == 'law/')
+    report.check('the flows, her words made in the tree; M: the nodes the tree names that a flow joins, none other, '
+                 'keyed as the tree keys them, faced whole; a word by where it is made',
+                 {(0, 'heard'), (0, 'read'), (1, 'CMD')} <= said and min(made.values()) >= 0 and set(over['at']) == joined
+                 and set(over['flat']['nodes'].tolist()) == joined and not unkeyed
+                 and ('drives', 'motion.py › drives') in {(s, by) for _a, s, _n, by in over['rings'][law]}
+                 and state['cam']['yaw'] == state['cam']['pitch'] == 0 and (goal['target'], goal['distance']) == framed,
+                 '%d nodes drawn, %d of them keyed, unkeyed %s' % (len(joined), len(set(keys) & joined), unkeyed))
     bindings.act_on(show_atlas.PAD, ['m'], state)
     report.check('M back: the tree as it was seen', show_atlas.placed(state)['at'] == up
                  and (dict(state['goal']), state['cam']['yaw'], state['cam']['pitch']) == seen, '')
@@ -128,7 +140,8 @@ def test_the_mirror_lays_the_flow_out(report):
     looped, onward, smudged, unnamed, crossed = [], [], [], [], {}
     for focus in [-1] + list(range(len(atlas_tree.LAYERS))):
         show_atlas.focused(state, focus)
-        over, up = show_atlas.placed(state), state['memo'][('placed', focus)]['at']
+        over = show_atlas.placed(state)
+        up = set(show_atlas.context(state)) | set(scene.chain(tree, focus)) | set(range(len(atlas_tree.LAYERS)))
         at, loop, where = over['marks'], over['loop'], scene.short(tree, focus) if focus >= 0 else 'trunk'
         ends = {(scene.shown_of(tree, up, a), scene.shown_of(tree, up, b), kind) for a, b, kind, _l in flows}
         if loop:

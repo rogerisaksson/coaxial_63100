@@ -1,6 +1,7 @@
 """What the code says flows between the atlas's files: her pass's streams, the wire's commands.
 
     rows = atlas_flow.flows(atlas)       # [(from node, to node, kind, label)], the atlas's file nodes
+    made = atlas_flow.makers(atlas)      # {stream: the atlas's node of the function making it}
 
 Her pass (machine/rig/streams.py, STREAMS): each stream made by a function, in the order one instant's
 records keep - the file making a stream hands on to the file making the next, the stream's name on it -,
@@ -10,6 +11,7 @@ the host's end of the wire to its handler and from the handler to each of the bo
 reaches, and fed back, what it read, from the handler to the host's end - the command's code on each.
 """
 import ast
+import functools
 import os
 
 from tools.dev import target_map
@@ -43,6 +45,17 @@ def _file(atlas, dotted):
     """The atlas's node of the host module `dotted`: its file, or its package's __init__.py; -1 for none."""
     base = 'host/' + dotted.replace('.', '/')
     return atlas.at.get(base + '.py', atlas.at.get(base + '/__init__.py', -1))
+
+
+@functools.lru_cache(maxsize=2)
+def makers(atlas):
+    """{stream: the atlas's node of the function making it (STREAMS' 'module:function'), -1 where it has
+    none}: where each of her pass's words is made, in the tree."""
+    out = {}
+    for name, by, _end, _edge in streams():
+        module, _, function = by.partition(':')
+        out[name] = atlas.at.get('host/%s.py::%s' % (module.replace('.', '/'), function), -1)
+    return out
 
 
 def flows(atlas):
