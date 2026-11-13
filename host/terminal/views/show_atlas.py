@@ -5,20 +5,18 @@
     python terminal/views/show_atlas.py --frames 30 --keys f4,.,f1
 
 The terminal stands at the trunk's foot and the shunts at its crown: tools/dev/atlas_tree.py's tree, read
-from the files as they stand when the page opens, drawn by terminal/views/atlas/scene.py. The page holds the
-mouse from its start: a left drag turns the tree, a right drag moves it, the wheel brings it near. The nodes
-F1 to F12 offer (1 to 9 and 0 where a terminal keeps a function key) are open, their children laid out
-ahead, dim with the rest; the key choosing one lights it, those above it and all laid out below it - at the
-trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve, BKSP the node above, a click the node
-under it, ENTER the child nearest the viewport. The farther a thing from the point the view turns about, the
-more out of focus. A key's leaves are a panel on the viewport, the branch nearest it the active one
-(terminal/views/atlas/leaves.py); Python's package plumbing is left out, its ties landing on its folder.
-Along the viewport's top the child nearest it says its name and its brief; the panel beside names what it
-holds, the deeper the nearer - Tab folds it, as every page's column. M turns the page to its mirror world:
-the files a flow joins as a schematic of the data's way, a node opening nearer (atlas/mirror.py). A lays the
-atlas by application: the terminal out to its pages and up through their subsystems, a page's key lighting
-its branch and keeping the mirror to it (atlas/apps.py). Each again: the tree as it was. W lays the same
-atlas as a page (tools/dev/atlas.py --html) and opens it.
+when the page opens, drawn by terminal/views/atlas/scene.py. A left drag turns the tree, a right drag moves
+it, the wheel brings it near. The nodes F1 to F12 offer (1 to 9 and 0 where a terminal keeps a function key)
+are open, their children laid out ahead, dim with the rest; the key choosing one lights it, those above it
+and all laid out below it - at the trunk the twelve layers, the terminal F1 -, PGUP PGDN the next twelve,
+BKSP the node above, a click the node under it, ENTER the child nearest the viewport. Out of focus the
+farther from the point the view turns about. A key's leaves are a panel on the viewport (atlas/leaves.py);
+Python's package plumbing is left out, its ties landing on its folder. Along the top the child nearest the
+viewport says its name and its brief; the panel beside names what it holds - Tab folds it. The terminal
+opens on its applications, on the branches they part along, the keys down them, a page's lighting its
+subsystems and keeping the mirror to it - A its folders and back (atlas/apps.py). M turns the page to its
+mirror world: the files a flow joins as a schematic of the data's way (atlas/mirror.py); M again, the tree
+as it was. W lays the same atlas as a page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import functools
@@ -54,9 +52,8 @@ LISTS_AT, CLICK_DOTS = 1.3, 10.0
 
 
 def opened(tree):
-    """The page's state over `tree` (atlas_tree.build): its columns - Python's package plumbing left out,
-    the ties into it landing on its folder -, the ties between layers, the node open (-1 the trunk), the
-    camera and the frame it eases to, the word found, the band's origin."""
+    """The page's state over `tree` (atlas_tree.build): its columns, the plumbing out, the ties between
+    layers, the node open (-1 the trunk), the camera and its goal, the word found, the band's origin."""
     hidden = atlas.plumbing(tree)
     kids, below = atlas.tree_of(tree, [not h for h in hidden])
     own = atlas.owners(tree)
@@ -68,7 +65,7 @@ def opened(tree):
             ('ties', str(len(tree.src)))]
     return {'tree': tree, 'kids': kids, 'below': below, 'hidden': hidden, 'own': own, 'between': between,
             'focus': -1, 'page': 0, 'cam': scene.camera(), 'goal': scene.camera(), 'then': None, 'orbit': False,
-            'mirror': False, 'apps': False, 'app': None, 'upright': None, 'flow': None, 'flowing': None,
+            'mirror': False, 'apps': True, 'app': None, 'upright': None, 'flow': None, 'flowing': None,
             'find': None, 'typing': False, 'said': '', 'memo': {}, 'sums': sums, 'fell': {}, 'view': None,
             'size': (120, 40), 'origin': Origin(False, 'tree', 0, 'tree',
                                                  'THE TREE AT %s' % atlas.told(atlas.commit()), 'tree', 0)}
@@ -84,7 +81,7 @@ def _memo(state, key, make):
 
 
 def flowing(state):
-    """What flows between the tree's files (atlas_flow.flows), read once a page beside its first frames."""
+    """What flows between the tree's files (atlas_flow.flows), read once beside the first frames."""
     reading = state.get('reading')
     if reading is not None and reading is not threading.current_thread():
         reading.join()
@@ -95,12 +92,12 @@ def flowing(state):
 
 @functools.lru_cache(maxsize=None)
 def painted(key):
-    """The style of a drawn run by its key (scene.cells, scene.shaded), as the marquee reads it."""
+    """The style of a drawn run by its key (scene.shaded), as the marquee reads it."""
     return styled(scene.shaded(key))
 
 
 def drawing(rows):
-    """The scene's rows (scene.cells) as the viewport's lines, a blank one above: styled Segments, widths known."""
+    """The scene's rows (scene.cells) as the viewport's lines, a blank one above, widths known."""
     lines = [[Segment(line[a:b], painted(k)) for a, b, k in zip(go, go[1:] + [len(line)], keys)]
              for line, go, keys in rows]
     return Marquee([[]] + lines, centred=True, widths=[0] + [len(line) for line, _go, _keys in rows])
@@ -108,8 +105,8 @@ def drawing(rows):
 
 def placed(state):
     """The scene at the node open (scene.layout, scene.tied): where each node shown stands, the stubs, the
-    reaches, its ties to the nodes shown; at the trunk the faint ties between layers, the most first - its
-    mirror world (`mirror.mirrored`) while M holds."""
+    reaches, its ties; at the trunk the faint ties between layers - the terminal's applications where it
+    shows them (`_apping`), its mirror world while M holds."""
     focus, tree, between = state['focus'], state['tree'], state['between']
 
     def make():
@@ -121,7 +118,7 @@ def placed(state):
                 'out': out, 'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
     upright, app = _memo(state, ('placed', focus), make), state['app']
     if not state['mirror']:
-        return _memo(state, ('apps', app), lambda: apps.placed(tree, upright['at'], app)) if state['apps'] else upright
+        return _memo(state, ('apps', app), lambda: apps.placed(tree, upright, app)) if _apping(state) else upright
     width, height = sized(state)
     room_, kin, keys = (width, height, leaves.width(width)), context(state), keyed(state)
     return _memo(state, ('mirror', focus, app, room_, tuple(keys.items())),
@@ -129,8 +126,7 @@ def placed(state):
 
 
 def hits(state):
-    """{layer: [(node, named)]} of the word found (atlas.found), the plumbing the page leaves out not among
-    them; none under two letters."""
+    """{layer: [(node, named)]} of the word found (atlas.found), no plumbing; none under two letters."""
     word, hidden = state['find'] or '', state['hidden']
 
     def make():
@@ -142,11 +138,11 @@ def hits(state):
 
 def context(state):
     """The nodes the keys open, in order: a word's hits while one is found, the twelve layers at the
-    trunk (the terminal F1), else the open node's children as its ring or cap lays them."""
+    trunk, the terminal's applications (apps.offered), else the open node's children as laid."""
     if state['find'] is not None:
         return [node for layer in sorted(hits(state)) for node, _named in hits(state)[layer]]
-    if state['apps'] and not state['mirror']:
-        return list(apps.ordered(state['tree']))
+    if _apping(state):
+        return apps.offered(state['tree'], state['app'])
     if state['focus'] < 0:
         return list(range(len(LAYERS)))
     return scene.children(state['tree'], state['kids'], state['below'], state['focus'])
@@ -161,14 +157,14 @@ def keyed(state):
 
 
 def sized(state):
-    """(cells across, rows) of the drawing on the terminal's size, the column's room left beside it."""
+    """(cells across, rows) of the drawing, the column's room left beside it."""
     return max(40, room(state['size'][0])), max(12, state['size'][1] - 6)
 
 
 def frame(state, node):
-    """(target, distance) that frames `node` and what it opens - the trunk whole at none -; in the mirror
-    its flow world whole (mirror.framed)."""
-    if state['mirror'] or state['apps']:
+    """(target, distance) that frames `node` and what it opens - the trunk whole at none -; the mirror's
+    world whole, the applications what they light (mirror.framed, apps.framed)."""
+    if state['mirror'] or _apping(state):
         return mirror.framed(placed(state), *sized(state)) if state['mirror'] else apps.framed(placed(state))
     if node < 0:
         home = scene.camera()
@@ -185,7 +181,7 @@ def frame(state, node):
 
 def _mirrored(state, _key, _now):
     """M: the mirror world faced whole; M again, the tree as it was seen (framed anew where another node
-    opened meanwhile)."""
+    opened)."""
     cam, goal = state['cam'], state['goal']
     state['mirror'] = not state['mirror']
     if state['mirror']:
@@ -198,10 +194,23 @@ def _mirrored(state, _key, _now):
         else frame(state, state['focus'])
 
 
+def _apping(state):
+    """Whether the terminal open shows its applications (atlas/apps.py): A's way, the mirror away."""
+    return state['apps'] and state['focus'] == 0 and not state['mirror']
+
+
 def _apps(state, _key, _now):
-    """A: the atlas by application (atlas/apps.py), framed whole; A again, the tree as it was."""
-    state['apps'], state['page'] = not state['apps'], 0
-    state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
+    """A: the terminal open on its applications; at it, its folders and back."""
+    state['apps'] = state['focus'] != 0 or not state['apps']
+    focused(state, 0)
+
+
+def opening(state, node):
+    """`node` opened (`focused`): in the terminal's applications the terminal, a branch or a page chosen."""
+    chose = _apping(state) and (node == 0 or node in apps.clades(state['tree'])['up'])
+    if chose:
+        state['app'] = None if node == 0 else node
+    focused(state, 0 if chose else node)
 
 
 def focused(state, node):
@@ -212,9 +221,8 @@ def focused(state, node):
 
 
 def listing(state, mid):
-    """The node whose children the panel lists: the deepest of the middle node's chain - shown, each, as
-    only an open node's children are - the camera is as near as LISTS_AT its frame; -1 (the layers) where
-    it is near none."""
+    """The node whose children the panel lists: the deepest of the middle node's chain the camera is as
+    near as LISTS_AT its frame; -1 (the layers) where it is near none."""
     tree, distance = state['tree'], state['cam']['distance']
     for node in reversed(scene.chain(tree, mid) if mid is not None else []):
         if tree.kind[node] < SYMBOL and state['kids'][node] and distance <= LISTS_AT * frame(state, node)[1]:
@@ -244,8 +252,8 @@ def turned(state, dx, dy):
 
 
 def moved(state, dx, dy):
-    """A right drag of (dx, dy) cells: what was under it stays under it - the target moved in the view's
-    plane by the drag's dots at its distance."""
+    """A right drag of (dx, dy) cells: what was under it stays under it, the target moved in the view's
+    plane."""
     v, cam = state['view'], state['cam']
     if v is None:
         return
@@ -268,9 +276,8 @@ def wheeled(state, _keys, moved_by):
 
 
 def mouse(state):
-    """`run_view`'s mouse for the page, held from its start (the terminal's own selection took a page's
-    clicks): a left drag turns the tree, a right drag moves it, the wheel brings it near, a left click on
-    the drawing opens the node under it."""
+    """`run_view`'s mouse for the page, held from its start: a left drag turns the tree, a right drag moves
+    it, the wheel brings it near, a left click opens the node under it."""
     return {'mouse': True, 'select': frozenset(),
             'on_input': lambda keys, moved_by: wheeled(state, keys, moved_by),
             'on_click': lambda col, row: clicked(state, col, row) if col < room(state['size'][0]) + 2 else None,
@@ -286,18 +293,15 @@ def clicked(state, col, row):
     fell = state['fell']
     near = min(fell, key=lambda n: (fell[n][0] - x) ** 2 + (fell[n][1] - y) ** 2, default=None)
     if near is not None and math.hypot(fell[near][0] - x, fell[near][1] - y) <= CLICK_DOTS:
-        focused(state, near)
+        opening(state, near)
 
 
 def _keyed(state, key, _now):
     """F1 to F12, 1 to 9 and 0: the node whose name carries the key opened."""
     k = (FKEYS.index(key) if key in FKEYS else DIGITS.index(key))
     nodes = list(keyed(state))
-    if k < len(nodes) and state['apps'] and not state['mirror']:   # a page chosen or let go
-        state['app'] = None if state['app'] == nodes[k] else nodes[k]
-        state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
-    elif k < len(nodes):
-        focused(state, nodes[k])
+    if k < len(nodes):
+        opening(state, nodes[k])
 
 
 def _paged(state, key, _now):
@@ -306,19 +310,20 @@ def _paged(state, key, _now):
 
 
 def _upped(state, _key, _now):
-    """BKSP: the node open closed, the one above it open."""
-    if state['find'] is None and state['focus'] >= 0:
+    """BKSP: the node open closed, the one above it open - in the applications the branch above."""
+    if _apping(state) and state['app'] is not None and state['find'] is None:
+        opening(state, apps.clades(state['tree'])['up'][state['app']] or 0)
+    elif state['find'] is None and state['focus'] >= 0:
         focused(state, state['tree'].up[state['focus']])
 
 
 def _middled(state, _key, _now):
-    """ENTER: the child nearest the viewport opened (`panel.middle`), whichever page of keys holds it - in
-    the mirror the node lit (mirror.middle)."""
+    """ENTER: the child nearest the viewport opened (`panel.middle`) - in the mirror the node lit."""
     v, fell = state['view'], state['fell']
     mid = None if v is None else mirror.middle(placed(state), fell, v, state['art'][0]) if state['mirror'] \
         else panel.middle(fell, v, set(context(state)))
     if mid is not None:
-        focused(state, mid)
+        opening(state, mid)
 
 
 def _turned(state, key, _now):
@@ -341,7 +346,7 @@ def _finding(state, _key, _now):
 
 def _typed(state, key, _now):
     """The page's mode while a word is typed: a character into it, BKSP one back, ENTER it kept, ESC it let
-    go - and ESC lets a kept word go before it leaves the page. The rest to their rows."""
+    go - and a kept word before it leaves the page. The rest to their rows."""
     if not state['typing']:
         if key == '\x1b' and state['find'] is not None:
             state['find'] = None
@@ -387,8 +392,8 @@ ROWS = (
      bindings.cased('o', lambda s, _k, _n: s.update(orbit=not s['orbit']))),
     ('ATLAS', 'M', 'the mirror world: what flows between the files, laid out the way it goes; and back',
      (('M', 'MIRROR'),), bindings.cased('m', _mirrored)),
-    ('ATLAS', 'A', 'by application: the terminal out to its pages and their subsystems, the one keyed lit, '
-     'the mirror kept to it', (('A', 'APPS'),), bindings.cased('a', _apps)),
+    ('ATLAS', 'A', "the terminal's applications on their branches, a page's subsystems lit and the mirror "
+     'kept to it; at the terminal its folders and back', (('A', 'APPS'),), bindings.cased('a', _apps)),
     ('ATLAS', '/', 'a word found in every name, signature, brief and text; its hits on the keys',
      (('/', 'FIND'),), {'/': _finding}),
     ('ATLAS', 'W', 'the same atlas as a page, in the browser', (('W', 'WEB'),), bindings.cased('w', _web)),
@@ -399,11 +404,13 @@ PAD = bindings.page(ROWS, take=_typed)
 def titled(state, mid, width):
     """The viewport's title along its top: TREE, then the child nearest the viewport (`panel.middle`) by its
     name and its brief (its kind where it has none), as wide as the frame lets it."""
-    head = 'FLOW' if state['mirror'] else 'APPS' if state['apps'] else 'TREE'
+    head = 'FLOW' if state['mirror'] else 'APPS' if _apping(state) else 'TREE'
     if mid is None:
         return head
-    tree = state['tree']
-    return panel.fit('%s  %s  %s' % (head, scene.short(tree, mid), tree.brief[mid] or KINDS[tree.kind[mid]]), width - 2)
+    tree, placing = state['tree'], placed(state)
+    name = placing.get('names', {}).get(mid) or scene.short(tree, mid)
+    brief = placing.get('briefs', {}).get(mid) or tree.brief[mid] or KINDS[tree.kind[mid]]
+    return panel.fit('%s  %s  %s' % (head, name, brief), width - 2)
 
 
 def draw_of(view, state, keys=''):
@@ -431,20 +438,20 @@ def draw_of(view, state, keys=''):
         rows, state['fell'], state['view'] = scene.picture(
             placing, state['cam'], width, height, marks, found,
             lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken, now)
-            if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken))
+            if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken,
+                                              names=placing.get('names')))
         state['art'] = (width, height)
         fell = state['fell']
         mid = (mirror.middle(placing, fell, sight, width) if turned_over
-               else state['apps'] and state['app'] or panel.middle(fell, sight, named))
-        boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state))
+               else _apping(state) and state['app'] or panel.middle(fell, sight, named))
+        boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state), placing.get('names'))
         return frame_of(view, state['origin'], TITLE, drawing(rows), boxes, bindings.shown(PAD, state),
                         art_title=titled(state, mid, width))
     return draw
 
 
 def main(argv=None):
-    """The page until ESC or Q: its answer to the loader. The panel beside the viewport is the instruments'
-    column, out or folded as Tab left it, as on every page."""
+    """The page until ESC or Q: its answer to the loader."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default=PORT, help="the loader's; the atlas reads no board")
     parser.add_argument('--simulated', action='store_true', help="the loader's; nothing here is simulated")

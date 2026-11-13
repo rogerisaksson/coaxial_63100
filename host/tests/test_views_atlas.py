@@ -29,7 +29,7 @@ def test_the_nearest_child_past_the_keys(report):
     from tools.dev import atlas_tree
     tree = atlas_tree.build()
     state = show_atlas.opened(tree)
-    show_atlas.focused(state, next(n for n in range(len(atlas_tree.LAYERS)) if len(state['kids'][n]) > 12))
+    show_atlas.focused(state, max(range(len(atlas_tree.LAYERS)), key=lambda n: len(state['kids'][n])))
     state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])
     placing, keys = show_atlas.placed(state), show_atlas.keyed(state)
     named = {n: keys.get(n, '') for n in show_atlas.context(state)}

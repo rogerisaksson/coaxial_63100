@@ -80,10 +80,11 @@ def here(state):
     return hud('HERE', rows + brief[:BRIEF] + ([CUT] if len(brief) > BRIEF else []))
 
 
-def listed(state, base, mid, keyed):
+def listed(state, base, mid, keyed, names=None):
     """`base`'s children (`in_view`), a row a node - its key where one opens it, else what it holds, the
-    key nearest the viewport marked -, and the keys whose nodes it leaves out."""
-    tree = state['tree']
+    key nearest the viewport marked -, and the keys whose nodes it leaves out, by a scene's `names` where
+    it has them (atlas/apps.py: a branch, a page)."""
+    tree, names = state['tree'], names or {}
     title, nodes = in_view(state, base)
     shown = nodes[:ROWS]
     rows = [(keyed.get(n, held(state, n)), fit((MIDDLE if n == mid else '') + scene.short(tree, n), WIDE))
@@ -91,7 +92,7 @@ def listed(state, base, mid, keyed):
     out = [hud(title, rows or ['nothing beneath'])]
     rest = [n for n in keyed if n not in shown]
     if rest:
-        out.append(hud('KEYS', [(keyed[n], fit(scene.short(tree, n), WIDE)) for n in rest]))
+        out.append(hud('KEYS', [(keyed[n], fit(names.get(n) or scene.short(tree, n), WIDE)) for n in rest]))
     return out
 
 
@@ -122,12 +123,12 @@ def ties(state):
     return out
 
 
-def boxes(state, base, mid, keyed, hits):
-    """The column: HERE, `base`'s children (`listed`), the keys, the ties - a word's `hits` ({layer: [(node,
-    named)]}) a layer while one is found - and the atlas's sums under the legend."""
+def boxes(state, base, mid, keyed, hits, names=None):
+    """The column: HERE, `base`'s children (`listed`, a scene's `names`), the keys, the ties - a word's `hits`
+    ({layer: [(node, named)]}) a layer while one is found - and the atlas's sums under the legend."""
     out = [here(state)]
     if state['find'] is not None:
         out.append(hud('FOUND %s' % fit(state['find'], 16), [(str(len(hits[layer])), LAYERS[layer][0])
                                                             for layer in sorted(hits)] or ['none yet']))
-    out += listed(state, base, mid, keyed) + ties(state)
+    out += listed(state, base, mid, keyed, names) + ties(state)
     return out + [hud('ATLAS', state['sums'] + LEGEND + [state['said'] or 'W lays it as a page'])]

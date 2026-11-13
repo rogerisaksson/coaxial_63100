@@ -37,21 +37,22 @@ def _fit(text, wide):
     return text if len(text) <= wide else text[:max(0, wide - 1)] + CUT
 
 
-def lines_of(tree, leaves, wide, tall, active):
+def lines_of(tree, leaves, wide, tall, active, names=None):
     """A panel's lines, [(text, ink)] runs each, `wide` cells and `tall` lines at most: active a leaf a line
-    with its brief beside it, idle two names a line; what does not fit counted on the last."""
-    room = tall if active else 2 * tall
+    with its brief beside it, idle two names a line - a scene's `names` where it has them -; what does not
+    fit counted on the last."""
+    room, said = tall if active else 2 * tall, names or {}
     shown = len(leaves) if len(leaves) <= room else room - 1
     rest = ['+%d more' % (len(leaves) - shown)] if shown < len(leaves) else []
     if active:
-        names = [short(tree, n) for n in leaves[:shown]]
+        names = [said.get(n) or short(tree, n) for n in leaves[:shown]]
         named = min(max(map(len, names), default=0), wide // 2)
         briefed = wide - named - 2
         out = [[(_fit(name, named).ljust(named + 2), NAME)]
                + ([(_fit(tree.brief[n], briefed), BRIEF)] if briefed > 1 else []) for name, n in zip(names, leaves)]
         return out + [[(text, BRIEF)] for text in rest]
     half = (wide - 1) // 2
-    words = [_fit(short(tree, n), half) for n in leaves[:shown]] + rest
+    words = [_fit(said.get(n) or short(tree, n), half) for n in leaves[:shown]] + rest
     return [[(' '.join(word.ljust(half) for word in words[k:k + 2]), NAME_DIM)] for k in range(0, len(words), 2)]
 
 
@@ -89,10 +90,12 @@ def _laid(out, left, top, wide, lines, title, note, active):
     _put(out, left + wide + 1 - len(note), top + tall + 1, [(note, NOTE if active else FRAME_DIM)], left + wide + 1)
 
 
-def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None, most=MOST, docked=False):
+def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None, most=MOST, docked=False,
+           names=None):
     """{(col, row): (char, ink)}: the branches with leaves as panels on a drawing `cols` by `rows` cells
     (`ranked`; `rings` {node: its children as laid}, its lines by `say` and its note by `noted` - `lines_of`
-    and its leaves' count where None, the mirror's flows its own) - the first laid active, the rest idle,
+    and its leaves' count where None, the mirror's flows its own; a scene's `names` where it has them, a
+    page's headline (atlas/apps.py)) - the first laid active, the rest idle,
     `most` at most -, each at the edge on the side its node stands - the active one on the other where its
     own has no room -, or `docked` all at the right,
     stacked down from the top in rows free of a cell `taken` (the keys' names): the active one in the
@@ -110,7 +113,8 @@ def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, no
             runs = [run for run in _runs(busy, tops[right], rows - FOOT) if run[1] >= (4 if active else 3)]
             if runs:   # the active one in the longest run free, its lines as many as it holds; an idle the first
                 top, room = max(runs, key=lambda run: (run[1], -run[0])) if active else runs[0]
-                lines = (say or lines_of)(tree, leaves, wide, min(room - 2, len(leaves) if active else IDLE_ROWS), active)
+                tall = min(room - 2, len(leaves) if active else IDLE_ROWS)
+                lines = say(tree, leaves, wide, tall, active) if say else lines_of(tree, leaves, wide, tall, active, names)
                 break
         else:
             continue
@@ -119,7 +123,7 @@ def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, no
             else ' %d leaves ' % len(leaves)
         key = keyed.get(node)   # none for a child past the keys' page
         title = ([(' %s ' % key, KEY)] if key else [(' ', KEY)]) \
-            + [(short(tree, node) + ' ', TITLE if active else NAME_DIM)]
+            + [(((names or {}).get(node) or short(tree, node)) + ' ', TITLE if active else NAME_DIM)]
         _laid(out, left, top, wide, lines, title, note, active)
         tops[right], laid = top + len(lines) + 2, laid + 1
     return out
