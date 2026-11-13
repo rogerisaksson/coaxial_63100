@@ -8,7 +8,7 @@
     build     both images, Debug and Release, zero warnings                  setup\build.ps1
     emulate   the Debug image on Renode, answering the library               setup\build.ps1
     notebooks the papers behind their sources, written and run               setup\build.ps1
-    Areas: machine, python, toolchain, emulator, ollama. Exit 0: nothing outstanding.
+    Areas: machine, python, toolchain, emulator, ollama, linux. Exit 0: nothing outstanding.
     Every shell afterwards: . .\env.ps1
 .PARAMETER Check
     Report only: no pull, no install, no build.
@@ -28,6 +28,8 @@
     What the automatic model choice optimises for.
 .PARAMETER SkipOllama
     Leave the model side alone - a machine that only builds and flashes.
+.PARAMETER SkipLinux
+    Leave the gate on Linux out: no container engine, no runner images (run_tests.py --linux).
 .PARAMETER SkipRenode
     Leave the emulator out.
 .PARAMETER SkipCubeMX
@@ -65,6 +67,7 @@ param(
     [ValidateSet('speed', 'capability')]
     [string]$Prefer = 'speed',
     [switch]$SkipOllama,
+    [switch]$SkipLinux,
     [switch]$SkipRenode,
     [switch]$SkipCubeMX,
     [switch]$SkipDriver,
@@ -88,7 +91,7 @@ $script:Python = $null
 $script:Packages = $false
 $script:Argv = $PSBoundParameters
 
-foreach ($part in 'report', 'machine', 'python', 'toolchain', 'emulator', 'ollama', 'checks',
+foreach ($part in 'report', 'machine', 'python', 'toolchain', 'emulator', 'ollama', 'linux', 'checks',
                   'update', 'build') {
     . (Join-Path $Root "setup\$part.ps1")
 }
@@ -111,6 +114,7 @@ function Invoke-Dependencies {
     Install-Renode
     Install-Simulations
     if (-not $SkipOllama) { Install-Ollama -Python $script:Python }
+    if (-not $SkipLinux) { Install-Linux -Python $script:Python }
 }
 
 Write-Banner

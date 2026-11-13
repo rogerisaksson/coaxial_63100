@@ -47,6 +47,8 @@ _THROTTLING, _SPEED, _EXISTS, _SYNCHRONIZE = 4, 0x1, 183, 0x00100000
 _INTERACTIVE = 0x21
 #: Linux's processors, as its sysfs tells them.
 SYSFS = '/sys/devices/system/cpu'
+#: Linux's control groups from a root: a process's cpuset - a container's processors - told in them.
+CGROUPS = ('sys', 'fs', 'cgroup')
 #: Set (by a benchmark's relay, inherited by every process of hers it starts), her processes run above normal priority:
 #: Windows' ABOVE_NORMAL class - over the host's other loads, short of HIGH, which a baton a core could starve the
 #: desktop with.
@@ -150,12 +152,48 @@ def sysfs(root=SYSFS):
     return sorted((klass, mask) for mask, klass in found.items()), sorted(mask for level, mask in caches if level == last)
 
 
+def given(root=os.sep):
+    """The logical processors this process's control group is given, a mask: Linux's cpuset - a container's (its
+    --cpuset-cpus), not its host's - of its group or the nearest above it that tells one, cgroup v2's or v1's, under
+    `root`; 0 where none is told (another system, no cpuset)."""
+    try:
+        with open(os.path.join(root, 'proc', 'self', 'cgroup'), encoding='ascii') as f:
+            groups = [line.split(':', 2) for line in f.read().splitlines() if line.count(':') >= 2]
+    except OSError:
+        return 0
+    for _number, controllers, path in groups:
+        if controllers and 'cpuset' not in controllers.split(','):
+            continue
+        base = os.path.join(root, *CGROUPS, *(('cpuset',) if controllers else ()))
+        name = 'cpuset.effective_cpus' if controllers else 'cpuset.cpus.effective'
+        parts = [part for part in path.split('/') if part]
+        for depth in range(len(parts), -1, -1):
+            try:
+                with open(os.path.join(base, *parts[:depth], name), encoding='ascii') as f:
+                    text = f.read().strip()
+            except OSError:
+                continue
+            if text:
+                return listed(text)
+    return 0
+
+
+def held(found, caches, mask):
+    """(cores, caches) as a host tells them (`topology`) held to the processors `mask` holds - a control group's
+    (`given`) -: each by its processors there, those with none there left out; as they are where `mask` is 0."""
+    if not mask:
+        return found, caches
+    return ([(klass, core & mask) for klass, core in found if core & mask],
+            sorted({cache & mask for cache in caches if cache & mask}))
+
+
 def topology():
     """([(class, each physical core's logical processors, a mask)], [each last-level cache's]) as this host tells
-    them - Windows, Linux -; ([], []) on another system."""
+    them - Windows, Linux held to the processors its control group is given (`held`: a container's) -; ([], []) on
+    another system."""
     if sys.platform == 'win32':
         return _windows()
-    return sysfs() if sys.platform.startswith('linux') else ([], [])
+    return held(*sysfs(), given()) if sys.platform.startswith('linux') else ([], [])
 
 
 def cores():

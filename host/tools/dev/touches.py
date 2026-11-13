@@ -278,6 +278,7 @@ TOUCHES = (
     # The jobs' inputs from outside, pinned and kept (test_ci holds the table to its fetcher).
     ('.github/',                               (CI, STRUCTURE)),
     ('host/tools/dev/machine_detector.py',     (CI, STRUCTURE)),
+    ('host/tools/dev/linux.py',                (CI, STRUCTURE)),
     # The README, laid out of its source and the tree: test_layout holds it, a structural suite.
     ('host/tools/dev/readme.py',               (STRUCTURE, 'test_ollama_runner.py')),
     # The atlas, the maps it composes and the page it lays: test_atlas holds them to the tree.

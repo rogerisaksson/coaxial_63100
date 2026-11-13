@@ -204,11 +204,31 @@ def test_the_jobs_take_their_inputs_kept(report):
     report.check("every fetcher's fallbacks checked, whenever it changes", not unchecked, str(unchecked))
 
 
+def test_the_runner_here_is_host_yml_s(report):
+    """`tools.dev.linux` on host.yml and on engines laid here: its image is of the release, the Pythons, the apt
+    packages and the gate's environment host.yml names; a container takes whole cores to the runner's four
+    processors - two of two threads, four of one -, apart from the first core and from each other, one set where
+    the engine has too few, none where it holds fewer than four; and this host counts what its group is given."""
+    from tools.dev import focus, linux
+    info = linux.workflow()
+    report.check("host.yml's own: an Ubuntu release, its matrix, its apt packages, its gate's environment and folder",
+                 bool(info['release']) and bool(info['pythons'])
+                 and all(re.fullmatch(r'\d+\.\d+', minor) for minor in info['pythons'])
+                 and 'libegl1' in info['apt'] and 'MUJOCO_GL' in info['env'] and info['directory'] == 'host', str(info))
+    smt, single = [0b11 << 2 * k for k in range(32)], [1 << k for k in range(8)]
+    took = [linux.shaped(smt, 2), linux.shaped(single, 2), linux.shaped(smt[:2], 2), linux.shaped(smt[:1], 1)]
+    report.check('two cores of two threads a container, apart; four of one, the first core last; one set of two '
+                 'cores; none of one core', took == [[0x3c, 0x3c0], [0x1e, 0xe1], [0xf], []], str(took))
+    told = focus.counted()
+    report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
+                 told is None or told == (focus.physical_cores(), focus.threads()), str(told))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
-          test_the_jobs_take_their_inputs_kept)
+          test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s)
 
 
 def main(argv=None):

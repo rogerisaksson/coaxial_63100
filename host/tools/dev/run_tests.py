@@ -127,7 +127,15 @@ def _options(argv):
     parser.add_argument('--params',
                         help='JSON/TOML file, inline JSON, or key=value overrides '
                              'forwarded via COAXIAL_PARAMS to simulation suites.')
+    parser.add_argument('--linux', action='store_true',
+                        help="this run on Linux: the offline gate in a container shaped as CI's runner "
+                             '(tools/dev/linux.py) - its Ubuntu, its Pythons, two cores of two threads, 16 GB -, '
+                             "a container a Python of host.yml's matrix, side by side")
+    parser.add_argument('--python', action='append',
+                        help="with --linux: this Python of host.yml's matrix alone (repeatable)")
     args = parser.parse_args(argv)
+    if args.python and not args.linux:
+        parser.error('--python goes with --linux')
     if args.params:
         import json
         import tomllib
@@ -245,6 +253,9 @@ def main(argv=None):
         if reconfigure is not None:
             reconfigure(errors='replace')
     args = _options(argv)
+    if args.linux:
+        from tools.dev import linux
+        return linux.main([arg for arg in (sys.argv[1:] if argv is None else argv) if arg != '--linux'])
     if not args.bench:
         # a benchmark's run is not held below the pages: its job object would hold every suite's process there,
         # whatever priority the relay starts it at

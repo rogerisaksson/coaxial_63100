@@ -26,7 +26,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.dev import background, counts
-from tools.dev.focus import physical_cores
+from tools.dev.focus import physical_cores, threads
 from tools.dev.suites import ROOT
 
 #: Each suite's work, kernels, by its name: laid by `--keep`, read where a tree has no record of its own.
@@ -82,7 +82,7 @@ def host(width=None):
     cores = physical_cores()
     paces = {wide: paced(wide) for wide in ((width,) if width else background.widths())}
     width = chosen(paces)
-    return {'runner': background.runner(), 'cores': cores, 'threads': os.cpu_count() or cores,
+    return {'runner': background.runner(), 'cores': cores, 'threads': threads(),
             'machine': platform.machine(), 'system': platform.system(), 'width': width, 'pace': paces[width],
             'paces': paces}
 

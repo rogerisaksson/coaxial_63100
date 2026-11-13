@@ -97,6 +97,15 @@ Evaluate the prompt and working tree before invoking any tool:
     (`python -X utf8 host/tools/dev/run_tests.py` `--conformance` `--live`)
     with the complete suite to establish a quantitative existing test failure(s)
     metrics of the system.
+  + Empirical Linux baseline (mandatory when CI is red, or a fault may differ
+    between the operating systems: glibc, GCC, libm, MuJoCo's build, Mesa): the
+    relay's selector runs the same gate here on Windows (default) or in local
+    Linux containers shaped as CI's runner (its Ubuntu and Pythons, 2 cores of
+    2 threads, 16 GB), a Python each, side by side
+    (`python -X utf8 host/tools/dev/run_tests.py` `--linux` `[--python 3.12]`
+    `[--file test_x.py]`, or `.\host\run_tests.ps1` `-Linux` `[-Scope ...]`).
+    Its images and engine come with `setup.ps1` (area `linux`). Reproduce a
+    Linux-only fault there, A/B against Windows on the same tree, before a fix.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -227,6 +236,10 @@ Evaluate the prompt and working tree before invoking any tool:
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
      No monkeypatching allowed on file or in memory.
+  7. If CI is red, or the change touches C builds, numerics, rendering, or what
+     the operating system decides (paths, processes, libraries, processors),
+     rerun the same narrow suites in the Linux containers (`--linux`) and quote
+     both tallies, Windows and Linux, verbatim.
   **Per-Cycle Ephemeral Artifact Purge:**
   Immediately after completing each test, introspection, or visual capture
   cycle, delete all temporary diagnostic artifacts generated during the run

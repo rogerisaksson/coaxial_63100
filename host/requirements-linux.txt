@@ -1,0 +1,10 @@
+# The offline gate on Linux, here (tools/dev/linux.py, run_tests.py --linux): GitHub's runner as a container
+# on this host's engine. Imported where it is called; a machine without an engine never needs it, so not in
+# requirements.txt - setup.ps1 installs it where an engine answers:
+#
+#   pip install -r host/requirements-linux.txt
+#
+#   docker   the engine's API from Python (Apache-2.0): a container of the runner's processors and memory,
+#            the tree copied in, its output read as it comes, its images asked after. On Windows it reaches
+#            the engine's named pipe through pywin32, which it brings.
+docker>=7.1

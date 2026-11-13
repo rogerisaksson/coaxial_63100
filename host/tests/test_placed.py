@@ -101,6 +101,32 @@ def test_linux_tells_its_topology_in_sysfs(report):
     report.check("a sysfs list of processors read", placed.listed('0-3,8,10-11\n') == 0xd0f and placed.listed('5') == 0x20)
 
 
+def test_a_container_s_processors_are_its_cpuset(report):
+    """`placed.given` on control groups laid in a folder - cgroup v2's at a container's root, a group telling none
+    walked up to one that does, v1's cpuset, none at all -; `placed.held`: a host of four cores of two threads held
+    to two of them, both threads, their cache with them."""
+    from machine.process import placed
+    told = []
+    for files in ({'proc/self/cgroup': '0::/', 'sys/fs/cgroup/cpuset.cpus.effective': '2-3,6-7'},
+                  {'proc/self/cgroup': '0::/user.slice/a.scope', 'sys/fs/cgroup/user.slice/cpuset.cpus.effective': '0-1'},
+                  {'proc/self/cgroup': '4:cpuset:/docker/x\n3:memory:/docker/x',
+                   'sys/fs/cgroup/cpuset/cpuset.effective_cpus': '1,3'},
+                  {'proc/self/cgroup': '0::/'}):
+        with tempfile.TemporaryDirectory() as root:
+            for path, text in files.items():
+                full = os.path.join(root, *path.split('/'))
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, 'w', encoding='ascii') as f:
+                    f.write(text + '\n')
+            told.append(placed.given(root))
+    report.check("a control group's processors: v2's at a container's root, walked up to, v1's; none told: 0",
+                 told == [0xcc, 0x3, 0xa, 0], str(['%x' % mask for mask in told]))
+    found, caches = [(0, 0x11), (0, 0x22), (0, 0x44), (0, 0x88)], [0x33, 0xcc]
+    report.check('a host held to two of its cores, both threads, their cache with them; told none: as it is',
+                 placed.held(found, caches, 0xcc) == ([(0, 0x44), (0, 0x88)], [0xcc])
+                 and placed.held(found, caches, 0) == (found, caches), str(placed.held(found, caches, 0xcc)))
+
+
 def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
     """Live, where this host tells its topology and holds a thread or a process to its processors: two processes
     placed as her loop's, a third as another, all alive at once - each loop's processors within one cache group
@@ -137,7 +163,7 @@ def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
 
 
 ROSTER = (test_her_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes, test_linux_tells_its_topology_in_sysfs,
-          test_two_loops_take_each_a_cache_and_another_process_leaves_both)
+          test_a_container_s_processors_are_its_cpuset, test_two_loops_take_each_a_cache_and_another_process_leaves_both)
 
 
 def main(argv=None):

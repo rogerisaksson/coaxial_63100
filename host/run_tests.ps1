@@ -3,9 +3,12 @@
     Runs the test suites and reports what passed, what did not, and how
     long.
 .DESCRIPTION
-    Coverage tiers, as a percentage of every check there is.
+    Coverage tiers, as a percentage of every check there is. Where they run: here on this host, or -Linux in
+    containers shaped as CI's runner (tools/dev/linux.py: its Ubuntu, its Pythons, 2 cores, 16 GB).
 .EXAMPLE
     .\run_tests.ps1                      # ~25 %, the default
+.EXAMPLE
+    .\run_tests.ps1 -Linux -Scope test_errands.py -Python 3.12    # a suite on Linux; no scope: the offline gate
 #>
 [CmdletBinding(DefaultParameterSetName = 'AutomaticMinimal')]
 param(
@@ -22,7 +25,9 @@ param(
     [string[]]$Scope,
     [string]$Model = 'auto',
     [switch]$Bench,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Linux,
+    [string[]]$Python
 )
 
 # Continue, not Stop: a native exe writing to stderr becomes a
@@ -62,6 +67,19 @@ if ($Scope) {
 if ($Tags)   { $runArgs += @('--tags', ($Tags -join ',')) }
 if ($DryRun) { $runArgs += '--dry-run' }
 $runArgs += @('--model', $Model)
+# On Linux: the board, the model and a benchmark's priority are this host's, and a tier's pick reads this
+# host's changes - a container runs the scope named, the structure suite, or the whole offline gate as CI does.
+if ($Linux) {
+    $runArgs = @('--linux')
+    foreach ($minor in @($Python -split ',' | Where-Object { $_ })) { $runArgs += @('--python', $minor.Trim()) }
+    foreach ($f in $Scope) { $runArgs += @('--file', $f) }
+    if ($Structure -and -not $Scope) { $runArgs += '--structure' }
+    $mode = 'Linux, ' + $(if ($Scope) { 'scope ' + ($Scope -join ', ') } elseif ($Structure) { 'structure' }
+                          else { 'the offline gate' })
+} elseif ($Python) {
+    Write-Host '-Python names a Python of the containers: it goes with -Linux' -ForegroundColor Red
+    exit 2
+}
 
 Write-Rule $mode
 
@@ -76,24 +94,30 @@ Pop-Location
 $rows = @()
 $failures = @()
 $crashes = @()
-$total = $null
+$total = @()
 
 foreach ($line in $output) {
     $text = [string]$line
+    # A container's lines, its Python ahead of each where several run side by side ('3.12| '): kept with them.
+    $on = ''
+    if ($text -match '^(?<py>\d+\.\d+)\| (?<rest>.*)$') { $on = $Matches.py + ' '; $text = $Matches.rest }
     if ($text -match '^(?<name>\S+\.py)\s+(?<pass>\d+) passed, (?<fail>\d+) failed\s+(?<secs>[\d.]+)s$') {
         $rows += [pscustomobject]@{
-            Suite   = $Matches.name
+            Suite   = $on + $Matches.name
             Passed  = [int]$Matches.pass
             Failed  = [int]$Matches.fail
             Seconds = [double]$Matches.secs
         }
     }
     elseif ($text -match '^(?<name>\S+\.py)\s+CRASHED exit=(?<code>\S+)\s+(?<secs>[\d.]+)s$') {
-        $crashes += [pscustomobject]@{ Suite = $Matches.name; Exit = $Matches.code; Seconds = [double]$Matches.secs }
+        $crashes += [pscustomobject]@{ Suite = $on + $Matches.name; Exit = $Matches.code; Seconds = [double]$Matches.secs }
     }
-    elseif ($text -match '^Total:') { $total = $text }
+    elseif ($text -match '^Total:') { $total += $on + $text }
     elseif ($text -match '^\s{2}(?<suite>\S+\.py): (?<what>.+)$') {
-        $failures += [pscustomobject]@{ Suite = $Matches.suite; Check = $Matches.what }
+        $failures += [pscustomobject]@{ Suite = $on + $Matches.suite; Check = $Matches.what }
+    }
+    elseif ($text -match '^(linux|host):') {
+        Write-Host ($on + $text) -ForegroundColor DarkGray
     }
     elseif ($text -match '^\s*(suites|subjects):|% tier:') {
         Write-Host $text -ForegroundColor Cyan
@@ -132,7 +156,7 @@ if ($failures) {
 }
 
 Write-Host ''
-if ($total) { Write-Host $total -ForegroundColor White }
+foreach ($line in $total) { Write-Host $line -ForegroundColor White }
 Write-Host ('{0} in {1:N1}s' -f $mode, $elapsed.TotalSeconds) -ForegroundColor DarkGray
 
 # 130 is run_tests.py's STOPPED: Ctrl+C, not a suite saying no.

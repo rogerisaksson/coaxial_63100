@@ -295,6 +295,7 @@ it has.
 cube-cmake --build --preset Debug              # zero warnings; two images (app + bootloader)
 python host/tools/target/build_and_flash.py    # --boot flashes the bootloader first
 .\host\run_tests.ps1                           # ~25 %; -All the gate; -DryRun what a change reaches
+.\host\run_tests.ps1 -Linux                    # the same on Linux: CI's runner as local containers
 python host/tools/dev/cover.py --readme        # the gate under coverage, into docs/RESULTS.md
 python -X utf8 docs/structure.py               # every folder's purpose; a folder: its files' synopses
 ```

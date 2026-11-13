@@ -89,9 +89,31 @@ def environment():
 
 
 @functools.lru_cache(maxsize=None)
+def counted():
+    """(physical cores, logical processors) of those Linux gives this process's control group - a container's, not
+    its host's: its cores as sysfs pairs their threads (`placed.given`, `placed.topology`) -; None where none is told:
+    another system, no cpuset."""
+    from machine.process import placed
+    mask = placed.given()
+    found = placed.topology()[0] if mask else []
+    return (len(found), bin(mask).count('1')) if found else None
+
+
+@functools.lru_cache(maxsize=None)
+def threads():
+    """The machine's logical processors: its control group's where Linux tells them (`counted`), else the system's
+    count."""
+    told = counted()
+    return told[1] if told else (os.cpu_count() or 1)
+
+
+@functools.lru_cache(maxsize=None)
 def physical_cores():
-    """The machine's physical cores: psutil's count where it is installed, Windows' own
-    (Win32_Processor), else the logical count."""
+    """The machine's physical cores: its control group's where Linux tells them (`counted`), else psutil's count
+    where it is installed, Windows' own (Win32_Processor), else the logical count."""
+    told = counted()
+    if told:
+        return told[0]
     try:
         import psutil
         return psutil.cpu_count(logical=False) or os.cpu_count() or 1

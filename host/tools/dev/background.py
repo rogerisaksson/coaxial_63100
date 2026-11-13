@@ -54,10 +54,10 @@ def kept(cores=None, on_runner=None):
 def widths(cores=None, threads=None, on_runner=None):
     """The jobs at once a batch may run here, the narrowest first: a desk's cores less those kept; a
     runner's cores and, where it has more threads than cores, its every thread - which does more work a
-    run measures as it starts (`machine_detector.host`). This host's unless told."""
-    from tools.dev.focus import physical_cores
-    cores = physical_cores() if cores is None else cores
-    threads = (os.cpu_count() or cores) if threads is None else threads
+    run measures as it starts (`machine_detector.host`). This host's unless told - a container's its own."""
+    from tools.dev import focus
+    cores = focus.physical_cores() if cores is None else cores
+    threads = focus.threads() if threads is None else threads
     on_runner = runner() if on_runner is None else on_runner
     batch = cores - kept(cores, on_runner)
     return (batch, threads) if on_runner and threads > cores else (batch,)
