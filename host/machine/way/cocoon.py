@@ -5,8 +5,8 @@
 
 proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on her walk: her things (her registry's boxes)
 she may not stand in (`voxels.STAND_M`) - a building's shell's not (`classes.SHELL`: her touch and her arms' yield
-hold walls, windows and doors; held off a jamb she stood short of every doorway) -, each grown by her trunk's half width (`figure.HIP_HALF`: her
-arms yield on a jamb, grown by them or her planner's radius a doorway closed before her); her stop
+hold walls, windows and doors; held off a jamb she stood short of every doorway) -, each grown by her half width, her arms' (`figure.WIDE_HALF`:
+by her trunk's alone her arm went 0.15 m into the bed); her stop
 v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her braking (`route.BRAKE`) - against
 the room to the nearest along it less the text's skin (`wayfinder.MARGIN`). Blocked, her keys are let go
 (`machine.process.worker`) and she stands by her own stop; turning and backing off are hers. Her twist held to it
@@ -72,7 +72,7 @@ def _boxes(things):
                 and t[1][1] - t[2][1] < voxels.STAND_M[1]]
         c = np.array([(t[1][0], t[1][2]) for t in kept], float).reshape(-1, 2)
         axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in kept], float).reshape(-1, 2, 2)
-        half = np.array([(t[2][0], t[2][2]) for t in kept], float).reshape(-1, 2) + figure.HIP_HALF
+        half = np.array([(t[2][0], t[2][2]) for t in kept], float).reshape(-1, 2) + figure.WIDE_HALF
         _KEPT[:] = things, (c, axes, half)
     return _KEPT[1]
 
