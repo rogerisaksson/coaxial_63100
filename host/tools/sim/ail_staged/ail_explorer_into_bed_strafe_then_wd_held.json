@@ -1,0 +1,29 @@
+{
+ "seed": 107,
+ "eyes": false,
+ "held": true,
+ "until": 7.45,
+ "fault": {
+  "kind": "into",
+  "t": 6.01,
+  "detail": "0.03 m into bed on 'wd'"
+ },
+ "words": [
+  [
+   "e",
+   2.39
+  ],
+  [
+   "",
+   1.17
+  ],
+  [
+   "wd",
+   2.89
+  ],
+  [
+   "",
+   1.0
+  ]
+ ]
+}

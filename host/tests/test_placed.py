@@ -75,6 +75,74 @@ def test_her_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
                  ' '.join('%x' % m for m in held))
 
 
+def test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes(report):
+    """`placed.core` on hosts laid here: each process a core of its own, every cache's first before any's second,
+    the last cache first, the fast before the slow, none where all are taken; a host held to a batch's processors
+    keeps every core of them - only the system's first, processor 0's, is left -; who starts her tells them
+    (`told`)."""
+    from machine.process import placed
+    found, caches = _host([0] * 16, 2, [range(4), range(4, 8), range(8, 12), range(12, 16)])
+    own, _fast = placed.apart(found)
+    taken = []
+    for _ in range(16):
+        taken.append(placed.core(found, caches, own, lambda mask: mask not in taken))
+    cores = [next(k for k, (_c, m) in enumerate(found) if m == mask) if mask else None for mask in taken]
+    report.check('four caches of four cores: each cache\'s first core, the last cache first, then each\'s second; '
+                 'the system\'s first core none\'s, a sixteenth none',
+                 cores == [12, 8, 4, 1, 13, 9, 5, 2, 14, 10, 6, 3, 15, 11, 7, None]
+                 and taken[0] == 0x3000000, ' '.join(map(str, cores)))
+    found, caches = _host([1, 1, 1, 1, 4, 4, 4, 4], 1, [range(4), range(4, 8)])
+    own, _fast = placed.apart(found)
+    taken = []
+    for _ in range(8):
+        taken.append(placed.core(found, caches, own, lambda mask: mask not in taken))
+    report.check('fast and slow cores: the fast taken first, the slow after, the first none\'s',
+                 taken == [0x10, 0x20, 0x40, 0x80, 0x2, 0x4, 0x8, 0], ' '.join('%x' % m for m in taken))
+    found, caches = _host([0] * 8, 2, [range(4), range(4, 8)])
+    held = placed.held(found, caches, 0xfff0)
+    report.check("a host held to a batch's processors, the pages' first two cores kept: all six of its cores hers",
+                 placed.apart(held[0])[0] == 0x5550 and placed.apart(found)[0] == 0x5554,
+                 '%x' % placed.apart(held[0])[0])
+    report.check('who starts her tells her processors in hex; none told or none read: 0',
+                 placed.told({placed.GIVEN: 'fff0'}) == 0xfff0 and placed.told({}) == 0
+                 and placed.told({placed.GIVEN: 'none'}) == 0)
+
+
+def test_a_batch_binds_its_jobs_each_to_a_core(report):
+    """Live, where this host tells its topology and binds a process: two cores claimed at once are two, a process
+    started bound to each holds its core's processors alone; a claim held is told held, let go none's - asked in a
+    name of this run's own, a batch's batons claiming the host's cores beside it."""
+    from machine.process import placed
+    first, held_first = placed.claim()
+    second, held_second = placed.claim()
+    if not (first and second):
+        placed.free(held_first)
+        placed.free(held_second)
+        report.check('a batch binds its jobs each to a core (this host tells none to bind, or none is free)', True,
+                     '%x %x' % (first, second))
+        return
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    said = []
+    try:
+        for mask in (first, second):
+            child = subprocess.Popen([sys.executable, '-X', 'utf8', '-c', 'import sys; from machine.process import '
+                                      'placed; sys.stdin.readline(); print("%x" % placed.now(), flush=True)'],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env)
+            bound = placed.bind(child.pid, mask)
+            said.append((bound, int(child.communicate('\n')[0].strip() or '0', 16)))
+    finally:
+        placed.free(held_first)
+        placed.free(held_second)
+    kind = 'probe-%d' % os.getpid()
+    probe = placed._take(first, kind)
+    told = probe is not None and placed._taken(first, kind) and placed._take(first, kind) is None
+    placed.free(probe)
+    report.check("two claimed at once, two cores; each process bound to its own alone; a claim held told held and "
+                 "none's once let go",
+                 first != second and not first & second and said == [(True, first), (True, second)]
+                 and told and not placed._taken(first, kind), '%x %x %s held %s' % (first, second, said, told))
+
+
 def test_linux_tells_its_topology_in_sysfs(report):
     """`placed.sysfs` on a tree laid in a folder: four cores of two threads, the last two of twice the capacity, a
     last-level cache a pair of cores; its lists of processors read (`listed`)."""
@@ -162,8 +230,10 @@ def test_two_loops_take_each_a_cache_and_another_process_leaves_both(report):
                  'loops %x %x, another %x' % (now_a, now_b, now_c))
 
 
-ROSTER = (test_her_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes, test_linux_tells_its_topology_in_sysfs,
-          test_a_container_s_processors_are_its_cpuset, test_two_loops_take_each_a_cache_and_another_process_leaves_both)
+ROSTER = (test_her_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes,
+          test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes, test_a_batch_binds_its_jobs_each_to_a_core,
+          test_linux_tells_its_topology_in_sysfs, test_a_container_s_processors_are_its_cpuset,
+          test_two_loops_take_each_a_cache_and_another_process_leaves_both)
 
 
 def main(argv=None):

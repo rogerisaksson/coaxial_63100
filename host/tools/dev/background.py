@@ -1,7 +1,10 @@
 """A batch below the pages: below-normal priority, off the cores a page keeps.
 
-This process and every process it starts, held so on Windows by a job: Renode raises itself above
-normal and, inheriting below normal, ran there over the page.
+This process and every process it starts, held below so on Windows by a job: Renode raises itself above
+normal and, inheriting below normal, ran there over the page. Off the page's cores by this process's own
+processors, which those it starts inherit, and by telling her placement them (`placed.GIVEN`): each of her
+processes takes a core of its own among them. The job's own affinity held every process on all of them, none
+able to take one - the system moved each nine times a second among 40 of them.
 
 A terminal page the user runs keeps the CPU it wants while suites and searches run on what is
 left. That on a desk, where its user is; a CI runner (`runner`) is nobody's: its batch has the
@@ -27,8 +30,8 @@ BELOW_NORMAL, NICE = 0x4000, 10
 PAGE_CORES = 4
 #: What a CI service sets true in the environment of its jobs.
 RUNNER = 'CI'
-#: A job's limits (JOB_OBJECT_LIMIT_AFFINITY, _PRIORITY_CLASS) and its basic limits' information class.
-LIMIT_AFFINITY, LIMIT_PRIORITY, BASIC_LIMITS = 0x10, 0x20, 2
+#: A job's limit of its priority (JOB_OBJECT_LIMIT_PRIORITY_CLASS) and its basic limits' information class.
+LIMIT_PRIORITY, BASIC_LIMITS = 0x20, 2
 
 
 class _Limits(ctypes.Structure):
@@ -71,13 +74,16 @@ def cores():
 
 def lower():
     """This process below the pages and off the cores they keep (`kept`): the first's threads, a core's
-    numbered beside each other; the processes it starts held to both. A runner's batch is left as it was
-    started: nobody's pages are there."""
+    numbered beside each other; the processes it starts held to both - below by its job, off by its own
+    processors and her placement told them (`placed.GIVEN`). A runner's batch is left as it was started:
+    nobody's pages are there."""
+    from machine.process import placed
     from tools.dev.focus import physical_cores
     if runner():
         return
     threads = os.cpu_count() or 1
     spare = kept() * max(1, threads // physical_cores())
+    given = ((1 << threads) - 1) & ~((1 << spare) - 1)
     if sys.platform == 'win32':
         kernel = getattr(ctypes, 'windll').kernel32
         # The pseudo-handle is a pointer's width: taken as ctypes' default int it came out 32 bits
@@ -86,13 +92,17 @@ def lower():
         kernel.SetPriorityClass.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
         kernel.SetInformationJobObject.argtypes = (ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32)
         kernel.AssignProcessToJobObject.argtypes = (ctypes.c_void_p, ctypes.c_void_p)
+        kernel.SetProcessAffinityMask.argtypes = (ctypes.c_void_p, ctypes.c_size_t)
         kernel.SetPriorityClass(kernel.GetCurrentProcess(), BELOW_NORMAL)
-        limits = _Limits(flags=LIMIT_PRIORITY | (LIMIT_AFFINITY if spare else 0), priority=BELOW_NORMAL,
-                         affinity=((1 << threads) - 1) & ~((1 << spare) - 1))
+        limits = _Limits(flags=LIMIT_PRIORITY, priority=BELOW_NORMAL)
         job = kernel.CreateJobObjectW(None, None)
         kernel.SetInformationJobObject(job, BASIC_LIMITS, ctypes.byref(limits), ctypes.sizeof(limits))
         kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess())
+        if spare:
+            kernel.SetProcessAffinityMask(kernel.GetCurrentProcess(), given)
     else:
         os.nice(NICE)
         if spare:
             os.sched_setaffinity(0, set(range(spare, threads)))
+    if spare:
+        os.environ[placed.GIVEN] = '%x' % given

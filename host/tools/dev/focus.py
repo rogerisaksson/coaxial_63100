@@ -334,9 +334,11 @@ def watchdog(seconds):
 
 
 def run(job, env=None, ledger=None, bench=False, procs=None):
-    """One job in a process of its own, stdout and stderr in one, killed with its tree at its
-    time: (output, exit code - None out of time -, seconds); `ledger` its booking, its process
-    named in it while it runs; `bench`, above normal priority from its start (Windows')."""
+    """One job in a process of its own on a core of its own while it runs (`placed.claim`: moved among the batch's
+    cores by the system, a job of 28 touched 40 in 5 s, nine moves a second, a tenth less work done), stdout and
+    stderr in one, killed with its tree at its time: (output, exit code - None out of time -, seconds); `ledger` its
+    booking, its process named in it while it runs; `bench`, above normal priority from its start (Windows')."""
+    from machine.process import placed
     started = time.monotonic()
     group = {'start_new_session': True} if os.name != 'nt' else {}
     if bench and os.name == 'nt':
@@ -344,6 +346,8 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
     proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding='utf-8',
                             errors='replace', **group)
+    cored, held = placed.claim()
+    placed.bind(proc.pid, cored)
     if procs is not None:
         procs.add(proc.pid)
     if ledger is not None:
@@ -356,6 +360,7 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
         out, _ = last_words(proc)
         code = None
     finally:
+        placed.free(held)
         if procs is not None:
             procs.discard(proc.pid)
     return out or '', code, time.monotonic() - started

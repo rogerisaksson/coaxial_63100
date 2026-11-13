@@ -182,6 +182,20 @@ def apply(s, command):
         s['refused'] = str(error)
 
 
+def spawned(here=False):
+    """(her planner, her vision - in this process where `here` -, her peeks' planner, her wear) apart, spawned and
+    booting, before her laying (`session`) and beside it: spawned after it, her vision's boot held her first pass
+    (`readied`), a third of her cold start."""
+    told, peeker = planner.Planner(), planner.Planner()
+    told.start()
+    peeker.start()
+    if here:
+        return told, vision.Here(), peeker, worn.Apart(DT).start()
+    seen = vision.Apart()
+    seen.start()
+    return told, seen, peeker, worn.Apart(DT).start()
+
+
 def readied(s):
     """Her processes apart booted before her first pass - her vision's C warm (`vision.Apart.ready`), her camera's model
     and renderer laid (`camera.Camera.ready`) -, beside her laying: her vision's boot held her first pass 0.66 s."""
@@ -305,12 +319,9 @@ def run(commands, states, shown, heard=None, every=sprung.STACK_EVERY, walks=Fal
     her vision (`vision.Apart`) spawned warm, her vision and her camera waited for warm before her first pass
     (`readied`); placed as a loop's by the process it is run in (`apart.looped`)."""
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 1.0, 1.0
+    booting = spawned()
     s = session(every, walks, heard.put if heard is not None else None, ber=ber)
-    s['g']['planner'], s['g']['vision'], s['peeker'] = planner.Planner(), vision.Apart(), planner.Planner()
-    s['g']['planner'].start()
-    s['peeker'].start()
-    s['g']['vision'].start()
-    s['worn'] = worn.Apart(DT).start()
+    s['g']['planner'], s['g']['vision'], s['peeker'], s['worn'] = booting
     s['worn'].laid(s['wear'])
     readied(s)
     if os.environ.get(TELEMETRY):

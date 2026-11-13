@@ -33,9 +33,9 @@ LAYERS = (
     ('agents', 'trunk', "What speaks for the user: the local model's runner, the MCP server, the board's "
                         'chat, the test plan.',
      ('host/coaxial_ollama/', 'host/coaxial_mcp/', 'host/board_chat', 'host/testline/')),
-    ('texts', 'trunk', "What she is told: the language's texts, her G-code, their reading and voicing.",
+    ('texts', 'trunk', "What the robot is told: the language's texts, its G-code, their reading and voicing.",
      ('host/lisp/', 'host/gcode/', 'host/machine/texts/')),
-    ('executive', 'trunk', "Her loop and the crafts': processes, way, moves, the latent law, the whole-body "
+    ('executive', 'trunk', "The robot's loop and the crafts': processes, way, moves, the latent law, the whole-body "
                            'step, senses, eyes, body.',
      ('host/machine/',)),
     ('rig', 'trunk', "Machines over IO nodes: boards and their loops, the inverter's library, the motors.",
@@ -52,7 +52,7 @@ LAYERS = (
     ('sensing', 'trunk', 'The power stage and the analog front end up to the phase shunts: schematic, BOM, '
                         'SPICE models, datasheets.',
      ('electronics/', 'electronic_simulations', 'datasheets/')),
-    ('twin', 'stand-in', 'What stands in for the hardware: her world in MuJoCo, the simulated board, the C '
+    ('twin', 'stand-in', "What stands in for the hardware: the robot's world in MuJoCo, the simulated board, the C "
                          "plant, the board's fakes and emulator.",
      ('host/machine/world/', 'host/coaxial/simulated/', 'world/', 'board/fake/', 'board/native/',
       'board/emu/')),

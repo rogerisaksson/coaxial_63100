@@ -36,6 +36,9 @@ SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (0.0, 1e-3 *
 #: is a backrest; a stair's riser under it is none.
 LUMBAR_M = (next(seg for seg in figure.SEGMENTS if seg[0] == 'torso')[3][1]
             + next(c for c in figure.BODY if c[0] == 'torso')[2][1] - (figure.SEAT_Y - figure.SEAT_R))
+#: A rectangle's half extents along any axes reach its circle's radius at most: the rectangle round it on them, so
+#: much of that radius its own circle's.
+ROOT2 = math.sqrt(2.0)
 
 
 def top(box):
@@ -71,29 +74,37 @@ def support(box, heading):
     return float(np.abs(axes @ np.array([math.sin(heading), math.cos(heading)])) @ h)
 
 
-def _within(box, other):
-    """`other`'s footprint in `box`'s floor frame: (its reach either way along each of box's axes (2, 2))."""
-    c, axes, _h = footprint(box)
+def _within(box, other, fb=None):
+    """`other`'s footprint in `box`'s floor frame - `box`'s `fb` where told (`footprint`) -: (its reach either way
+    along each of box's axes (2, 2))."""
+    c, axes, _h = fb or footprint(box)
     oc, oaxes, oh = footprint(other)
     corners = oc + np.array([[sx, sz] for sx in (-1, 1) for sz in (-1, 1)]) * oh @ oaxes
     local = (corners - c) @ axes.T
     return np.column_stack([local.min(axis=0), local.max(axis=0)])
 
 
-def covered(box, other):
+def covered(box, other, fb=None):
     """The area of `box`'s footprint under `other`'s, m^2 (`other`'s as the rectangle round it in `box`'s
-    frame)."""
-    _c, _axes, h = footprint(box)
-    reach = _within(box, other)
+    frame) - `box`'s footprint `fb` where told: `clear` lays it once for all, three a pair were the same."""
+    fb = fb or footprint(box)
+    h = fb[2]
+    reach = _within(box, other, fb)
     sides = np.minimum(reach[:, 1], h) - np.maximum(reach[:, 0], -h)
     return float(np.prod(np.maximum(sides, 0.0)))
 
 
 def clear(box, things, slab):
-    """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2."""
-    _c, _axes, h = footprint(box)
-    over = [t for t in things if t is not box and top(box) + slab[0] <= bottom(t) <= top(box) + slab[1]]
-    return float(4.0 * h[0] * h[1]) - sum(covered(box, t) for t in over)
+    """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2: one whose
+    footprint's circle misses `box`'s covers none of it - `covered` reads the rectangle round it in `box`'s frame,
+    within ROOT2 of its circle -, 0.0 its sum's same bits unread: 87 of 108 over her lodge's beds, their every
+    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), her seats' 10.2 ms."""
+    fb = footprint(box)
+    c, _axes, h = fb
+    lo, hi, reach = top(box) + slab[0], top(box) + slab[1], math.hypot(h[0], h[1])
+    over = [t for t in things if t is not box and lo <= bottom(t) <= hi and math.hypot(
+        float(t[1][0]) - c[0], float(t[1][2]) - c[1]) <= reach + ROOT2 * math.hypot(t[2][0], t[2][2]) + 1e-9]
+    return float(4.0 * h[0] * h[1]) - sum(covered(box, t, fb) for t in over)
 
 
 def sits(box, things):
@@ -103,10 +114,12 @@ def sits(box, things):
 
 def lies(box, things):
     """Whether `box` beds her among `things`: its top in BED_M_WIN, its long side BED_M or more, its width
-    her shoulders' (`figure.ASIDE`) or more, BED_M2 of it clear above."""
-    _c, _axes, h = footprint(box)
-    return (surface(box) and BED_M_WIN[0] <= top(box) <= BED_TOP_M and 2.0 * float(h.max()) >= BED_M
-            and float(h.min()) >= figure.ASIDE and clear(box, things, BED_CLEAR) >= BED_M2)
+    her shoulders' (`figure.ASIDE`) or more, BED_M2 of it clear above - its footprint laid past its top's window
+    alone, which most of her things are not in."""
+    if not (surface(box) and BED_M_WIN[0] <= top(box) <= BED_TOP_M):
+        return False
+    h = footprint(box)[2]
+    return 2.0 * float(h.max()) >= BED_M and float(h.min()) >= figure.ASIDE and clear(box, things, BED_CLEAR) >= BED_M2
 
 
 def back_of(box, things):

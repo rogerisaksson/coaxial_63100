@@ -54,6 +54,7 @@
   [state &key (source-manifold :ischial-bilateral)
               (target-manifold :plantar-bilateral)
               (ascent-duration-ms 950.0)
+              (ascent-curve :logarithmic-settle)
               (pre-pitch-thorax-rad +0.74)
               (liftoff-fz-threshold 0.82)]
   (-> state
@@ -65,7 +66,7 @@
         :joint-targets '((:talocrural 0.36))
         :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad pre-pitch-thorax-rad))
 
-      ;; Stage B: Unlatch source manifold when plantar normal force exceeds 82% mg
+      ;; Stage B: Unlatch source manifold when plantar normal force exceeds threshold
       (on-contact-threshold
         :sensor-bus target-manifold
         :trigger-fz-ratio liftoff-fz-threshold
@@ -81,7 +82,7 @@
         (trigger-one-shot-envelope
           :mode :concentric-drive
           :duration-ms ascent-duration-ms
-          :curve :logarithmic-settle
+          :curve ascent-curve
           :joint-targets '((:tibiofemoral 0.1047) (:coxofemoral 0.0) (:talocrural 0.0524)) ; her stand: knee 6 deg, ankle 3
           :axial-counterweight (:node :c7-t12-thoracic :dc-offset-rad 0.04)))))
 

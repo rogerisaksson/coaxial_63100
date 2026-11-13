@@ -284,6 +284,9 @@ def errand(seconds=20.0, still=False):
 
 
 def main(argv=None):
+    from machine.process import placed
+    # her looks timed where her loop is (`placed`): a cache group of its own, this thread on one core
+    placed.placed(True)
     ap = argparse.ArgumentParser()
     ap.add_argument('--looks', type=int, default=25)
     ap.add_argument('--errand', action='store_true')
@@ -329,8 +332,9 @@ def main(argv=None):
             for label, things in (('her map', told), ('her buses', boxes)):
                 print('%s round (%.2f, %.2f):' % (label, x, z))
                 near(things, x, z)
-        print('%d looks, %.1f ms each; %d props her eyes could take in, %d things told, %d slots taken by her buses (%d live)'
-              % (a.looks, 1e3 * float(np.median(took)), len(props), len(told), len(boxes),
+        print('%d looks, %.1f ms each hot, the first %.1f cold; %d props her eyes could take in, %d things told, '
+              '%d slots taken by her buses (%d live)'
+              % (a.looks, 1e3 * float(np.median(took[1:] or took)), 1e3 * took[0], len(props), len(told), len(boxes),
                  int((slots['rows']['on'] > 0.0).sum())))
         print('%-8s %-24s %-8s %8s %8s %8s' % ('prop', 'at', 'told', 'off m', 'sizes m', 'turn deg'))
         rows = matched(props, told)

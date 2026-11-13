@@ -1,0 +1,28 @@
+{
+ "seed": 104,
+ "eyes": false,
+ "until": 5.56,
+ "fault": {
+  "kind": "into",
+  "t": 4.56,
+  "detail": "0.03 m into stairs on ''"
+ },
+ "words": [
+  [
+   "wa",
+   2.3
+  ],
+  [
+   "",
+   0.57
+  ],
+  [
+   "we",
+   0.73
+  ],
+  [
+   "",
+   1.5
+  ]
+ ]
+}

@@ -7,9 +7,11 @@ sysfs, on any processor of theirs; macOS binds no thread to a core, there her lo
 of one cache for all its cores, of a cache a core, of fast and slow cores or of several memory nodes is placed by the
 same lines.
 
-A core apart: each process on one logical processor of each physical core but the first (the system's
-interrupts'). Two of her processes on one core's two threads ran at about half pace each: her vision apart on her
-law's sibling thread slowed her law's pass 0.41 ms, on a core of its own 0.04 ms.
+A core of its own: each process on a physical core it takes among her processes on the host (`core`), not the
+system's first (its interrupts'); a batch's job on one its relay takes for it (`claim`, `bind`); all taken, on one
+processor of each core none holds. Moved by the system, a process of a batch of 28 touched 40 cores in 5 s; on a
+core of its own, none, and did a tenth more work. Two of her processes on one core's two threads ran at half pace
+each (her law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts her gives her (GIVEN).
 Her loop's on a cache of its own (`placed(True)`): the cores that share a last-level cache are a group; her
 loop's process takes one for itself among her loops on the host (`_claim`) - one of its fastest cores' where they
 differ -, its thread held to the group's first fast core where the system holds a thread apart from its process
@@ -22,15 +24,17 @@ Not throttled: Windows' power throttling of a process whose window is not the us
 Above normal priority under a benchmark's relay (BENCH set, `tools.dev.focus.relay`): her pace measured beside a
 peer's suites flickered 8-17 % between runs of the same tree.
 
-    placed.placed()      # this process: True where it now runs a core apart, off her loops' caches
+    placed.placed()      # this process: True where it now runs on a core of its own, off her loops' caches
     placed.placed(True)  # her loop's: on a cache group of its own where one is free, its thread on its first core
     placed.placed(cache=True)  # her camera's, her vision's: a group of its own, its threads free, kept by later calls
+    mask, held = placed.claim()   # a core for a job this one starts: bind(pid, mask), then free(held)
     placed.raised()      # this process above normal priority where BENCH is set: True where it now does
     placed.cores()       # [each physical core's logical processors, a mask] where the host tells them, else []
     placed.groups()      # [each last-level cache's logical processors, a mask], else []
     placed.topology()    # ([(class, a core's mask)], [a last-level cache's mask]) as the host tells them
     placed.now()         # this process's logical processors as the system holds it now, a mask
     placed.chosen(caches, own, free, fast)   # her loop's processors of the group it takes, 0 where none fits
+    placed.core(found, caches, own, free)    # a core of its own, 0 where none
     placed.left(caches, own, taken)          # another process's: `own` off the groups taken
 """
 import ctypes
@@ -53,8 +57,17 @@ CGROUPS = ('sys', 'fs', 'cgroup')
 #: Windows' ABOVE_NORMAL class - over the host's other loads, short of HIGH, which a baton a core could starve the
 #: desktop with.
 BENCH = 'COAXIAL_BENCH'
+#: Set by who starts her processes (a desk's batch, `tools.dev.background.lower`): the processors they are given, a
+#: hex mask, placed within as a container's cpuset (`given`); unset, all.
+GIVEN = 'COAXIAL_GIVEN'
+#: Set (not '0'), her processes are left where the system schedules them, none bound: a run's `--float`.
+FLOAT = 'COAXIAL_FLOAT'
+#: Windows' rights on another process enough to set its processors and read them back.
+_SET_INFORMATION, _QUERY_LIMITED = 0x0200, 0x1000
 #: Her loop's cache group once taken: what holds it while this process lives, its processors of hers.
 _MINE: list = []
+#: This process's core once taken (`core`): what holds it while this process lives, its logical processors.
+_CORED: list = []
 
 
 class _Throttling(ctypes.Structure):
@@ -76,6 +89,8 @@ def _kernel():
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
     kernel.SetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
     kernel.SetThreadAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
     kernel.GetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p]
     kernel.SetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
@@ -187,13 +202,21 @@ def held(found, caches, mask):
             sorted({cache & mask for cache in caches if cache & mask}))
 
 
+def told(environ=None):
+    """The logical processors who started this process gives her (GIVEN), a mask; 0 where none is told."""
+    try:
+        return int((os.environ if environ is None else environ).get(GIVEN, '0'), 16)
+    except ValueError:
+        return 0
+
+
 def topology():
     """([(class, each physical core's logical processors, a mask)], [each last-level cache's]) as this host tells
-    them - Windows, Linux held to the processors its control group is given (`held`: a container's) -; ([], []) on
-    another system."""
+    them - Windows, Linux held to the processors its control group is given (`held`: a container's) -, held to
+    those who started it gives her (`told`: a desk's batch's); ([], []) on another system."""
     if sys.platform == 'win32':
-        return _windows()
-    return held(*sysfs(), given()) if sys.platform.startswith('linux') else ([], [])
+        return held(*_windows(), told())
+    return held(*held(*sysfs(), given()), told()) if sys.platform.startswith('linux') else ([], [])
 
 
 def cores():
@@ -208,8 +231,9 @@ def groups():
 
 def apart(found):
     """(her processors, the fast of them) of the cores `found` [(class, mask)]: one logical processor of each
-    physical core but the first, and those of them on cores of the highest class - all, where every core is one."""
-    kept = sorted(found, key=lambda core: core[1])[1:]
+    physical core but the system's first (processor 0's, its interrupts'), and those of them on cores of the highest
+    class - all, where every core is one."""
+    kept = [core for core in sorted(found, key=lambda core: core[1]) if not core[1] & 1]
     best = max((klass for klass, _mask in kept), default=0)
     return sum(m & -m for _k, m in kept), sum(m & -m for k, m in kept if k == best)
 
@@ -226,6 +250,18 @@ def chosen(caches, own, free, fast=0):
     return 0
 
 
+def core(found, caches, own, free):
+    """A process's core of its own: of `found`'s [(class, mask)] with a processor in `own`, the fast first, each of
+    `caches`' first core before any's second, the last cache first, the first `free` (mask -> bool) takes; 0, none."""
+    mine = [(klass, mask) for klass, mask in found if mask & own]
+    ranked = []
+    for klass, mask in mine:
+        group = next((g for g in caches if g & mask), 0)
+        rank = sum(1 for _k, other in mine if other < mask and other & group)
+        ranked.append((-klass, rank, -group, mask))
+    return next((mask for *_key, mask in sorted(ranked) if free(mask)), 0)
+
+
 def left(caches, own, taken):
     """Another process's processors: `own` less every cache group of `caches` that `taken` (a group -> bool) says
     one of her loops holds; less those loops' first cores alone where that leaves none - a host of one cache for all
@@ -235,46 +271,93 @@ def left(caches, own, taken):
     return own & ~sum(held) or own & ~firsts or own
 
 
-def _claim(group, keep):
-    """Whether cache `group` is none of her loops' on this host - a named mutex there (Windows), a locked file
-    (elsewhere) -, taken and kept while this process lives where `keep`, else only asked."""
-    name = 'coaxial-loop-%x' % group
+def _locked(name):
+    """A descriptor holding lock file `name` (not Windows); None where another holds it or it cannot open."""
     if sys.platform == 'win32':
-        kernel = _kernel()
-        held = (kernel.CreateMutexW(None, False, 'Local\\' + name) if keep
-                else kernel.OpenMutexW(_SYNCHRONIZE, False, 'Local\\' + name))
-        free = bool(held) and ctypes.get_last_error() != _EXISTS if keep else not held
-        if held and not (keep and free):
-            kernel.CloseHandle(held)
-        if keep and free:
-            _MINE.append(held)
-        return free
+        return None
     import fcntl
     import tempfile
     try:
         fd = os.open(os.path.join(tempfile.gettempdir(), name + '.lock'), os.O_CREAT | os.O_RDWR, 0o666)
     except OSError:
-        return False
+        return None
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         os.close(fd)
-        return False
-    if keep:
-        _MINE.append(fd)
+        return None
+    return fd
+
+
+def _take(mask, kind='loop'):
+    """What holds `mask` (a cache group's, or a core's: `kind`) for this process where none of hers on the host does:
+    a named mutex (Windows), a locked file (elsewhere), till it ends or `free`; None where another holds it."""
+    name = 'coaxial-%s-%x' % (kind, mask)
+    if sys.platform != 'win32':
+        return _locked(name)
+    kernel = _kernel()
+    held = kernel.CreateMutexW(None, False, 'Local\\' + name)
+    if held and ctypes.get_last_error() != _EXISTS:
+        return held
+    if held:
+        kernel.CloseHandle(held)
+    return None
+
+
+def _taken(mask, kind='loop'):
+    """Whether one of hers holds `mask` (`_take`'s), only asked; held where it cannot be told."""
+    name = 'coaxial-%s-%x' % (kind, mask)
+    if sys.platform != 'win32':
+        fd = _locked(name)
+        if fd is not None:
+            os.close(fd)
+        return fd is None
+    kernel = _kernel()
+    held = kernel.OpenMutexW(_SYNCHRONIZE, False, 'Local\\' + name)
+    if held:
+        kernel.CloseHandle(held)
+    return bool(held)
+
+
+def free(held):
+    """What `_take` or `claim` took let go; None, nothing."""
+    if held is None:
+        return
+    if sys.platform == 'win32':
+        _kernel().CloseHandle(held)
     else:
-        os.close(fd)
-    return True
+        os.close(held)
+
+
+def _group(group, found):
+    """Whether her loop takes `group`, none holding it or a core of it (`found`'s): kept in `_MINE`."""
+    if any(_taken(mask, 'core') for _klass, mask in found if mask & group):
+        return False
+    held = _take(group)
+    if held is not None:
+        _MINE.append(held)
+    return held is not None
+
+
+def _cored(mask):
+    """Whether this process takes core `mask`: kept in `_CORED`."""
+    held = _take(mask, 'core')
+    if held is not None:
+        _CORED.append(held)
+    return held is not None
 
 
 def _given():
     """Her loop's cache group given back: taken where this process cannot be held to it - a job's own affinity, a
     test's runner's -, it is none's again."""
-    if sys.platform == 'win32':
-        _kernel().CloseHandle(_MINE[0])
-    else:
-        os.close(_MINE[0])
+    free(_MINE[0])
     _MINE.clear()
+
+
+def _ungiven():
+    """This process's core given back, as `_given` its group."""
+    free(_CORED[0])
+    _CORED.clear()
 
 
 def _bound(mask, thread):
@@ -326,15 +409,13 @@ def raised():
 
 
 def placed(loop=False, host=None, cache=False):
-    """This process on the lowest logical processor of each physical core but the first: none of her processes
-    on another's sibling thread, the scheduler free among the rest - above normal priority where a benchmark asks
-    (`raised`), its speed not throttled as a background window's (Windows). Her `loop`'s process on those of a cache
-    group it takes for itself (`chosen`), this thread - her loop's - held to its first fast one (`_bound`), or told
-    the user's own where no thread is bound (`_keen`, macOS); a `cache` process (a working set of its own: her
-    camera's, her vision's) on a group of its own alike, its threads free among its cores - held to one, a peer's
-    load on it held her eyes and her errands' pace fell 6-10 %; another process off every group so taken (`left`).
-    False where it cannot be placed (two cores or fewer, another system); results are untouched either way - only where
-    her processes run."""
+    """This process on a core of its own (`core`) off her loops' groups - all taken, on the lowest processor of each
+    none holds -, above normal priority where a benchmark asks (`raised`), not throttled as a background window's
+    (Windows). Her `loop`'s on a cache group it takes (`chosen`, none of its cores held), this thread - her loop's -
+    on its first fast core (`_bound`), or the user's own where none is bound (`_keen`, macOS); a `cache` process (her
+    camera's, her vision's) on a group alike, its threads free in it - held to one, a peer's load there cut her pace
+    6-10 %; either on a core where no group is free. False where it cannot be placed (two cores or fewer, another
+    system); results untouched either way."""
     if host is None:
         raised()
         if sys.platform == 'darwin':
@@ -345,15 +426,66 @@ def placed(loop=False, host=None, cache=False):
     if sys.platform == 'win32':
         kernel, state = _kernel(), _Throttling(1, _SPEED, 0)
         kernel.SetProcessInformation(kernel.GetCurrentProcess(), _THROTTLING, ctypes.byref(state), ctypes.sizeof(state))
+    if os.environ.get(FLOAT, '0') != '0':
+        return False
     own, fast = apart(found)
     if (loop or cache) and len(_MINE) < 2:
-        mine = chosen(caches, own, lambda group: _claim(group, True), fast)
+        mine = chosen(caches, own, lambda group: _group(group, found), fast)
         if mine:
             _MINE.append(mine)
-    # a group once taken is kept: an aside's own call after it (`aside.serve`) binds it there again
+            if _CORED:
+                _ungiven()
+    # a group or a core once taken is kept: an aside's own call after it (`aside.serve`) binds it there again
     mine = _MINE[1] if len(_MINE) > 1 else 0
-    first = (mine & fast or mine) & -(mine & fast or mine) if loop else 0
-    held = _bound(mine or left(caches, own, lambda group: not _claim(group, False)), first)
+    rest = left(caches, own, _taken)
+    if not mine and len(_CORED) < 2:
+        cored = core(found, caches, rest, _cored)
+        if cored:
+            _CORED.append(cored)
+    cored = 0 if mine else (_CORED[1] if len(_CORED) > 1 else 0)
+    to = mine or cored or rest & ~sum(mask for _klass, mask in found if _taken(mask, 'core')) or rest
+    first = (to & fast or to) & -(to & fast or to) if loop and (mine or cored) else 0
+    held = _bound(to, first)
     if mine and not held:
         _given()
+    if cored and not held:
+        _ungiven()
     return held
+
+
+def claim(host=None):
+    """(A core's processors, what holds it) for a process this one starts (a batch's job, `tools.dev.focus.run`),
+    taken as `placed` takes one (`core`), held till `free`; (0, None) where none is free or none placed."""
+    found, caches = topology() if host is None else host
+    if len(found) < 3 or os.environ.get(FLOAT, '0') != '0':
+        return 0, None
+    held = [None]
+
+    def take(mask):
+        held[0] = _take(mask, 'core')
+        return held[0] is not None
+    mask = core(found, caches, left(caches, apart(found)[0], _taken), take)
+    return (mask, held[0]) if mask else (0, None)
+
+
+def bind(pid, mask):
+    """Process `pid` (this one's child) on processors `mask`: whether it now is - Linux's main thread, its later
+    threads its own."""
+    if not mask:
+        return False
+    if sys.platform != 'win32':
+        try:
+            os.sched_setaffinity(pid, [cpu for cpu in range(mask.bit_length()) if mask >> cpu & 1])
+        except (AttributeError, OSError):
+            return False
+        return True
+    kernel, mine, every = _kernel(), ctypes.c_size_t(0), ctypes.c_size_t(0)
+    handle = kernel.OpenProcess(_SET_INFORMATION | _QUERY_LIMITED, False, pid)
+    if not handle:
+        return False
+    try:
+        kernel.SetProcessAffinityMask(handle, mask)
+        kernel.GetProcessAffinityMask(handle, ctypes.byref(mine), ctypes.byref(every))
+    finally:
+        kernel.CloseHandle(handle)
+    return mine.value == mask

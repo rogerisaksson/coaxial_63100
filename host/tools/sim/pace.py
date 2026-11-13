@@ -12,7 +12,10 @@
 Laid as `worker.run` lays her - this process placed (`placed`), her lodge, her fake camera, her
 planner and her vision apart -, her state said each SAY_S of her world's time, run flat out: a line
 an errand, each second's pace (her world's seconds a wall second, 1.0 real time), the worst and what
-she was doing, the mean, her qpos's hash at its end. `--profile` samples her main thread's stack
+she was doing, the mean, her qpos's hash at its end - her hot pace: its first second, cold, is its
+tail's with her laying's time, a cold start to cut apart from a hot pace to raise; a profile's samples
+and a clock's calls the hot ones, `--cold` the cold ones (WARM). `--float` leaves her processes
+where the system moves them, unplaced. `--profile` samples her main thread's stack
 every SAMPLE_S from a thread of its own (cProfile on this interpreter mixes threads): each function's
 own share of the samples and its share with what it calls - a sample waits on the interpreter's lock,
 so a C call holding it is under-counted. `--time` wraps each function named (a module's, or a class's
@@ -40,6 +43,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 WALK, HELD_S = (0.69, 0.0, 0.0), 3.0
 #: The sampler's period, s; the functions a profile lists, by own and by inclusive share.
 SAMPLE_S, LISTED = 0.0005, 24
+#: Set once an errand's first second has passed (`warmed`). Before it her cold start - her laying, its imports a tenth
+#: of a profile's samples, her first looks, her planner's first answer, cold caches -, after it her hot pace: her line
+#: tells each apart (its seconds hot, its tail cold: laid in, the first second's pace), and a profile's samples
+#: (`sampled`) and a clock's calls (`timed`) are the hot ones, the cold ones where COLD is set (`--cold`). The first
+#: second was the worst of every errand, x0.74-1.00.
+WARM, WARM_AT, COLD = threading.Event(), [0.0], [False]
+#: Set as an errand closes: its processes apart waited out, none of either - 4 % of a walk's hot samples were it.
+SHUT = threading.Event()
 #: The crafts flown as errands, each its page's flight; how long of its card each is flown, s.
 CRAFTS, FLOWN_S = ('quad', 'helicopter', 'ornithopter', 'aerobat'), 20.0
 
@@ -49,22 +60,16 @@ class Run:
     `worker.Her` steps her, each second's wall time kept with what she was doing."""
 
     def __init__(self, here=False, blind=False):
-        from machine.eyes import vision
-        from machine.process import placed, sprung, worker, worn
-        from machine.way import planner
+        from machine.process import placed, sprung, worker
         from machine.world import physics
         placed.placed(True)
         # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
         physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)
         self.passed = hashlib.sha1() if blind else None
+        # her processes apart spawned before her laying, booting beside it, as her worker spawns them
+        booting = worker.spawned(here)
         s = self.s = worker.session(sprung.STACK_EVERY, False, None)
-        s['g']['planner'], s['peeker'] = planner.Planner(), planner.Planner()
-        s['g']['vision'] = vision.Here() if here else vision.Apart()
-        s['g']['planner'].start()
-        s['peeker'].start()
-        if not here:
-            s['g']['vision'].start()
-        s['worn'] = worn.Apart(worker.DT).start()
+        s['g']['planner'], s['g']['vision'], s['peeker'], s['worn'] = booting
         s['worn'].laid(s['wear'])
         worker.readied(s)
         self.seconds: list = []
@@ -105,6 +110,7 @@ class Run:
                 now = time.perf_counter()
                 self.seconds.append((self.doing(), 1.0 / (now - self.wall)))
                 self.wall, self.second = now, math.floor(self.t)
+                warmed(now)
             if until is not None and until(self):
                 return round(self.t - t0, 2)
         return None
@@ -182,6 +188,7 @@ class Flown:
                 now = time.perf_counter()
                 self.seconds.append((str(self.flight.flight.get('stage')), (math.floor(self.t) - self.second) / (now - self.wall)))
                 self.wall, self.second = now, math.floor(self.t)
+                warmed(now)
 
     def close(self):
         self.flight.close()
@@ -194,23 +201,39 @@ def _flown(r):
 ERRANDS = dict({'stand': _stand, 'walk': _walk, 'door': _door, 'chair': _chair, 'bed': _bed}, **dict.fromkeys(CRAFTS, _flown))
 
 
+def warmed(now):
+    """An errand's first second past at wall time `now`: what is timed from here (WARM)."""
+    if not WARM.is_set():
+        WARM_AT[0] = now
+        WARM.set()
+
+
 def paced(name, here=False, blind=False):
     """Errand `name` run flat out from her laying, her vision in this process where `here`, her eyes not hers and
-    every pass hashed where `blind` - a craft's flight (CRAFTS) from its card's start, its every step hashed -: its line."""
+    every pass hashed where `blind` - a craft's flight (CRAFTS) from its card's start, its every step hashed -: its line,
+    its seconds hot - its first, cold, apart (WARM) -, its tail its cold start: laid in, its first second's pace."""
+    WARM.clear()
+    SHUT.clear()
+    began = time.perf_counter()
     r = Flown(name, blind) if name in CRAFTS else Run(here, blind)
     try:
         r.go(0.5)
         r.seconds.clear()
+        WARM.clear()
+        laid = time.perf_counter() - began
         ERRANDS[name](r)
     finally:
+        SHUT.set()
         r.close()
-    xs = [x for _d, x in r.seconds] or [0.0]
-    worst = min(r.seconds, key=lambda d: d[1]) if r.seconds else ('-', 0.0)
+    hot = r.seconds[1:]
+    xs = [x for _d, x in hot] or [0.0]
+    worst = min(hot, key=lambda d: d[1]) if hot else ('-', 0.0)
     h = hashlib.sha1(r.data.qpos.tobytes()).hexdigest()[:12]
     return ('%-6s worst x%.2f (%s) mean x%.2f | %s | qpos %s at t %.2f%s'
             % (name, worst[1], worst[0][:14], sum(xs) / len(xs), ' '.join('%.2f' % x for x in xs), h, r.t,
                r.ended)
-            + ('' if r.passed is None else ', passes %s' % r.passed.hexdigest()[:16]))
+            + ('' if r.passed is None else ', passes %s' % r.passed.hexdigest()[:16])
+            + ', cold: laid in %.2f s, first second x%.2f' % (laid, r.seconds[0][1] if r.seconds else 0.0))
 
 
 def sampled(fn):
@@ -223,7 +246,7 @@ def sampled(fn):
     def sample():
         while not done.wait(SAMPLE_S):
             frame = sys._current_frames().get(main)
-            if frame is None:
+            if frame is None or SHUT.is_set() or WARM.is_set() == COLD[0]:
                 continue
             count[0] += 1
             seen = set()
@@ -261,8 +284,9 @@ def timed(names):
             try:
                 return _fn(*a, **kw)
             finally:
-                _tally[0] += 1
-                _tally[1] += time.perf_counter() - t0
+                if not SHUT.is_set() and WARM.is_set() != COLD[0]:
+                    _tally[0] += 1
+                    _tally[1] += time.perf_counter() - t0
         setattr(owner, parts[-1], wrapped)
     return kept
 
@@ -302,12 +326,20 @@ def main(argv=None):
     p.add_argument('--time', nargs='+', default=(), help='functions by dotted name, each its wall time')
     p.add_argument('--here', action='store_true', help='her vision in this process, not apart')
     p.add_argument('--blind', action='store_true', help='her eyes not hers, no camera: a sha1 over every pass told')
+    p.add_argument('--float', action='store_true',
+                   help='her processes where the system schedules them, none held to a core or a cache (FLOAT)')
+    p.add_argument('--cold', action='store_true',
+                   help="--profile's samples and --time's calls her cold start's - her laying, her first second - "
+                        'not her hot pace\'s after it (COLD)')
     args = p.parse_args(argv)
+    from machine.process.placed import BENCH, FLOAT
+    COLD[0] = args.cold
+    if args.float:
+        os.environ[FLOAT] = '1'
     if not args.names:
         for _name, line in relayed(list(ERRANDS)):
             print(line, flush=True)
         return 0
-    from machine.process.placed import BENCH
     from tools.dev import background
     if not background.runner():
         # an errand run here is a benchmark's or a profile's: on a desk her processes above normal priority
@@ -317,7 +349,9 @@ def main(argv=None):
         if not args.profile:
             kept, t0 = timed(args.time), time.perf_counter()
             line = paced(name, args.here, args.blind)
-            wall = time.perf_counter() - t0
+            end = time.perf_counter()
+            # a clock's share of the phase it counts: her cold start's wall time to her first second, her hot pace's after
+            wall = max((WARM_AT[0] - t0 if COLD[0] else end - WARM_AT[0]) if WARM.is_set() else end - t0, 1e-9)
             for fn, (calls, s) in kept.items():
                 print('  %5.1f%%  %8.1f us x %6d  %s' % (100.0 * s / wall, 1e6 * s / max(calls, 1), calls, fn))
             print(line, flush=True)

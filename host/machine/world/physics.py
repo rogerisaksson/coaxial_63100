@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 from machine.body import dclink, drives, gearbox, heat, linkage
-from machine.world import floor, harness, passing, room, steps
+from machine.world import floor, harness, loose, passing, room, steps
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
 from machine.rig.controller import Batch
@@ -141,6 +141,10 @@ class World:
         self.pelvis = m.body('pelvis').id
         self.torso = m.body('torso').id
         self.head = m.body('head').id
+        #: Her room's loose things, their joints and feet: their feet's grip switched each pass (`loose.stick`); posed
+        #: where they stand before her first step (her room's props read a loose thing live: unposed, all at naught).
+        self.furnished = loose.free(m)
+        mujoco.mj_kinematics(m, self.data)
         #: Each body's sole, a column a side (left, right): its contacts bear on that side.
         self.soles = np.zeros((m.nbody, 2), bool)
         for k, side in enumerate(('left', 'right')):
@@ -238,6 +242,7 @@ class World:
         d.qvel[self.vadr] = np.radians([(rates or {}).get(j, 0) for j in JOINTS])
         d.qpos[0:3], d.qpos[3:7], d.qvel[0:3] = where, turn, speed
         self._park()
+        loose.home(self.model, d, self.furnished)
         self._mj.mj_forward(self.model, d)
         self.shorted[:] = self.cut[:] = False
         self.testing[:] = 0.0
@@ -280,7 +285,9 @@ class World:
             return
         d = self.data
         if steps.alone(self):
-            return steps.advanced(self, now, ROOM)
+            steps.advanced(self, now, ROOM)
+            loose.stick(self.model, d, self.furnished)
+            return
         steps.behind(self)
         np = self._np
         if self.buses is not None:
@@ -345,6 +352,7 @@ class World:
         self.effort, self.work, self.brake, self.heat = p.effort, p.work, p.brake, p.heat
         if self.buses is not None:
             self.buses.drain()
+        loose.stick(self.model, d, self.furnished)
 
     def _stroked(self):
         """The joints a rod drives (`linkage.RODS`) as their angles have them: the ratio

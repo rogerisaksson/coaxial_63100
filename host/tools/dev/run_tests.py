@@ -124,6 +124,10 @@ def _options(argv):
                              'limit and none stopping the run - the table of each suite\'s work laid '
                              'from its log (machine_detector.py --keep --tail): a limit from another '
                              "host's work cut a suite the runner renders on its processor.")
+    parser.add_argument('--float', action='store_true',
+                        help='every suite\'s processes where the system schedules them, none held to a core of '
+                             'its own (placed.FLOAT): held is the default - moved by the system, a job of 28 '
+                             'touched 40 cores in 5 s and did a sixth less work.')
     parser.add_argument('--params',
                         help='JSON/TOML file, inline JSON, or key=value overrides '
                              'forwarded via COAXIAL_PARAMS to simulation suites.')
@@ -136,6 +140,9 @@ def _options(argv):
     args = parser.parse_args(argv)
     if args.python and not args.linux:
         parser.error('--python goes with --linux')
+    if args.float:
+        from machine.process.placed import FLOAT
+        os.environ[FLOAT] = '1'
     if args.params:
         import json
         import tomllib
@@ -184,6 +191,11 @@ def _run(args, tags, live_sections):
         for name, result, ran_whole in _results(suites, args, tags, live_sections):
             if result is None:
                 print('%-20s MISSING %s' % (name, ROOT / 'tests' / name))
+                ok = False
+                continue
+            if isinstance(result, str):
+                print('%-20s NOT RUN%s' % (name, result and ' - the run stopped at its first red suite, %s '
+                                                             '(--measure runs on)' % result))
                 ok = False
                 continue
             tally, code, failing, elapsed, crash, groups = result

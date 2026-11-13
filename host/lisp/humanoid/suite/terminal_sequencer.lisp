@@ -147,9 +147,11 @@
       (master-anti-spasm-insert)))
 
 ;; Composite 4: Precharge from the chair's settled rest and stand up - off a seat over her popliteal height down onto
-;; her feet on her arms, as the kernel's egress morphs by the seat's height; from one her feet reach, where she sits.
-;; Scooted there (`transfer-egress-scoot`, off a seat too high for her feet), her flat soles were told none: on the low
-;; chair her right foot left the floor, the left rolled onto its heel and she never bore more than 0.18 of her on them
+;; her feet on her arms, as the kernel's egress morphs by the seat's height (already on her soles at 0.44 rad shins,
+;; a 0.56 rad lean clears her palms and capture point over her soles without pitching her hips back onto the seat edge
+;; as 0.74 did, whereas 0.28 left her capture point behind her heels); from one her feet reach, where she sits
+;; (0.74 rad lean, 0.82 liftoff), an S-curve drive uncurls her trunk in phase with her knees instead of snapping her
+;; upright over her heels at liftoff.
 (defpatch patch-rise-chair [seated-state &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat her eyes see, her knees' height
   (-> seated-state
       (when-modifier (> seat-z-mm popliteal-mm)
@@ -158,7 +160,10 @@
       (transfer-concentric-handover
         :source-manifold :ischial-bilateral
         :target-manifold :plantar-bilateral
-        :ascent-duration-ms 950.0)
+        :ascent-duration-ms 950.0
+        :ascent-curve :hermite-s-curve
+        :pre-pitch-thorax-rad (if (> seat-z-mm popliteal-mm) 0.56 0.74)
+        :liftoff-fz-threshold (if (> seat-z-mm popliteal-mm) 0.65 0.82))
       (master-anti-spasm-insert)))
 
 ;; -----------------------------------------------------------------------------

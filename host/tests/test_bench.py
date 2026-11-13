@@ -23,7 +23,11 @@ WINDOW = 6.0
 
 
 def round_trips(rig, window=WINDOW):
-    """Modbus request/reply per second, on the cheapest call there is."""
+    """Modbus request/reply per second, on the cheapest call there is - its first, cold, out of the window."""
+    try:
+        rig.board.afe.is_on()
+    except (NoReplyError, RigError):
+        pass
     done, quiet, end = 0, 0, time.time() + window
     while time.time() < end:
         try:

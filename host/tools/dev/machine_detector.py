@@ -53,20 +53,31 @@ def work(turns=TURNS):
 
 
 def paced(width):
-    """Kernels a second a baton does with `width` at once, as the relay's jobs run - a process each, OpenBLAS
-    on one thread -: every one stood ready before any begins, all begun as one, the median's."""
+    """Kernels a second a baton does with `width` at once, as the relay's jobs run - a process each on a core of
+    its own (`placed.claim`), OpenBLAS on one thread -: every one stood ready before any begins, all begun as one,
+    the median's."""
+    from machine.process import placed
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(filter(None, [str(ROOT), os.environ.get('PYTHONPATH')])))
     env.setdefault('OPENBLAS_NUM_THREADS', '1')
     going = [subprocess.Popen([sys.executable, '-X', 'utf8', '-c', BATON], stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, text=True, env=env, cwd=ROOT) for _ in range(width)]
-    for baton in going:
-        if baton.stdout is not None:
-            baton.stdout.readline()
-    for baton in going:
-        if baton.stdin is not None:
-            baton.stdin.write('\n')
-            baton.stdin.flush()
-    return 1.0 / statistics.median(float(baton.communicate()[0]) for baton in going)
+    held = []
+    try:
+        for baton in going:
+            cored, claim = placed.claim()
+            placed.bind(baton.pid, cored)
+            held.append(claim)
+        for baton in going:
+            if baton.stdout is not None:
+                baton.stdout.readline()
+        for baton in going:
+            if baton.stdin is not None:
+                baton.stdin.write('\n')
+                baton.stdin.flush()
+        return 1.0 / statistics.median(float(baton.communicate()[0]) for baton in going)
+    finally:
+        for claim in held:
+            placed.free(claim)
 
 
 def chosen(paces):

@@ -22,14 +22,16 @@ from terminal.ui.stage import THEME
 
 
 def timed(fn, seconds=1.0):
-    """Mean milliseconds per call over `seconds` of calling it."""
-    fn()                                     # warm caches out of the timing
+    """(mean milliseconds per call over `seconds` of calling it - hot -, the first call's - cold, out of the mean)."""
+    began = time.perf_counter()
+    fn()
+    cold = 1000.0 * (time.perf_counter() - began)
     began = time.perf_counter()
     calls = 0
     while time.perf_counter() - began < seconds:
         fn()
         calls += 1
-    return 1000.0 * (time.perf_counter() - began) / calls
+    return 1000.0 * (time.perf_counter() - began) / calls, cold
 
 
 def surface_menu():
@@ -69,22 +71,25 @@ SURFACES = {
 
 
 def main(argv=None):
+    from machine.process import placed
+    # timed where its loop is (`placed`): a cache group of its own, this thread on one core, not moved among them
+    placed.placed(True)
     wanted = [a for a in (argv or sys.argv[1:]) if not a.startswith('-')]
     court = Console(theme=THEME, width=110, height=40, file=io.StringIO(),
                     force_terminal=True, highlight=False)
 
-    print('%-12s %9s %9s %9s %7s' % ('surface', 'compose', 'print',
-                                     'frame', 'fps'))
+    print('%-12s %9s %9s %9s %7s %10s' % ('surface', 'compose', 'print',
+                                          'frame', 'fps', 'cold'))
     for name, build in SURFACES.items():
         if wanted and name not in wanted:
             continue
         fn = build()
-        compose = timed(fn)
+        compose, compose_cold = timed(fn)
         made = fn()
-        spend = timed(lambda: court.print(made))
+        spend, spend_cold = timed(lambda: court.print(made))
         frame = compose + spend
-        print('%-12s %7.1f ms %7.1f ms %7.1f ms %7.0f'
-              % (name, compose, spend, frame, 1000.0 / frame))
+        print('%-12s %7.1f ms %7.1f ms %7.1f ms %7.0f %7.1f ms'
+              % (name, compose, spend, frame, 1000.0 / frame, compose_cold + spend_cold))
     return 0
 
 
