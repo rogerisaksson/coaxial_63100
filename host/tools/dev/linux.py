@@ -218,7 +218,9 @@ def ran(client, tag, info, cpus, argv, say, checkout, name):
     from docker.errors import APIError
     from docker.types import Mount
     listed =','.join(str(cpu) for cpu in range(cpus.bit_length()) if cpus >> cpu & 1)
-    with tempfile.NamedTemporaryFile('w', suffix='.online', delete=False, encoding='ascii') as online:
+    # an LF alone, as Linux writes it: text mode wrote a CR on Windows, glibc's parse stopped at it and counted the
+    # engine's processors instead (os.cpu_count 64 or 5, not 4)
+    with tempfile.NamedTemporaryFile('w', suffix='.online', delete=False, encoding='ascii', newline='\n') as online:
         online.write(listed + '\n')
     env = dict(info['env'], EDITABLE=info['editable'], DIRECTORY=info['directory'], GITLINKS=links)
     container = None

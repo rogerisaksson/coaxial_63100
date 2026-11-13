@@ -208,7 +208,9 @@ def test_the_runner_here_is_host_yml_s(report):
     """`tools.dev.linux` on host.yml and on engines laid here: its image is of the release, the Pythons, the apt
     packages and the gate's environment host.yml names; a container takes whole cores to the runner's four
     processors - two of two threads, four of one -, apart from the first core and from each other, one set where
-    the engine has too few, none where it holds fewer than four; and this host counts what its group is given."""
+    the engine has too few, none where it holds fewer than four; and this host counts what its group is given - the
+    system's own count too (glibc's, os.cpu_count): a container shown its processors online as Linux writes them,
+    an LF alone (with a CR glibc read the engine's 64)."""
     from tools.dev import focus, linux
     info = linux.workflow()
     report.check("host.yml's own: an Ubuntu release, its matrix, its apt packages, its gate's environment and folder",
@@ -222,6 +224,8 @@ def test_the_runner_here_is_host_yml_s(report):
     told = focus.counted()
     report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
                  told is None or told == (focus.physical_cores(), focus.threads()), str(told))
+    report.check("and the system's own count the same: os.cpu_count, its group's processors online",
+                 told is None or os.cpu_count() == told[1], '%s of %s' % (os.cpu_count(), told))
 
 
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
