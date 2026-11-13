@@ -32,7 +32,8 @@ def step(st, snap):
         out = _closed(st, t)
         st['doing'], st['since'], st['worst'], st['past'], st['spasmed'] = body['doing'], t, (0.0, None), set(), set()
     for joint, peak in body['peaks'].items():
-        st['worst'] = max(st['worst'], (float(peak), joint))
+        # the faster alone: a peak tied with the phase's seed (0.0, None) compared a name with None and threw (fallen still)
+        st['worst'] = (float(peak), joint) if float(peak) > st['worst'][0] else st['worst']
         rated = st['rated'].get(joint)
         if rated is not None and peak > rated and joint not in st['past']:
             st['past'].add(joint)
