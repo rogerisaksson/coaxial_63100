@@ -241,7 +241,7 @@ def test_the_mirror_zooms_and_pans(report):
         sign, name = mirror.laid(over, sight, w, h)[2][mid]
         panel = [''.join(cells[(c, r)][0] for c in range(w - leaves.width(w), w) if cells.get((c, r), ' ')[1:] == (scene.TITLE,))
                  for r in range(h)]
-        agreed.append(show_atlas.titled(state, mid, w).startswith('FLOW  ' + scene.short(tree, mid))
+        agreed.append(show_atlas.titled(state, mid, w).startswith('DATAFLOW HUMANOID  ' + scene.short(tree, mid))
                       and (not over['beside'] or any(scene.short(tree, mid) in t for t in panel)) and cells[sign][1] == scene.OPEN
                       and all(cells[c][1] == scene.TOLD for c in name if c in cells))
     report.check('an arrow moves the flat world, never turns it; the node nearest the viewport one, lit, on top, '

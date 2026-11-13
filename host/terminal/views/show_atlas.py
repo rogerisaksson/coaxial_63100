@@ -12,11 +12,12 @@ and all laid out below it - at the trunk the twelve layers, the terminal F1 -, P
 BKSP the node above, a click the node under it, ENTER the child nearest the viewport. Out of focus the
 farther from the point the view turns about. A key's leaves are a panel on the viewport (atlas/leaves.py);
 Python's package plumbing is left out, its ties landing on its folder. Along the top the child nearest the
-viewport says its name and its brief; the panel beside names what it holds - Tab folds it. The terminal
-opens on its applications, on the branches they part along, the keys down them, a page's lighting its
-subsystems and keeping the mirror to it - A its folders and back (atlas/apps.py). M turns the page to its
-mirror world: the files a flow joins as a schematic of the data's way (atlas/mirror.py); M again, the tree
-as it was. W lays the same atlas as a page (tools/dev/atlas.py --html) and opens it.
+viewport says its name and its brief; the panel beside names what it holds - Tab folds it. The trunk is the
+applications' tree: what every page shares up it, branches of what pages share, a page's own on its twig, the
+keys down them, a page's lighting its folders - A the layers and their folders and back (atlas/apps.py). D
+turns the page to a system's dataflow - the page or branch chosen, the robot's where none is -, a schematic
+of the data's way (atlas/mirror.py), D again the next system; M the tree as it was. W lays the same atlas as
+a page (tools/dev/atlas.py --html) and opens it.
 """
 import argparse
 import functools
@@ -123,7 +124,8 @@ def placed(state):
     width, height = sized(state)
     room_, kin, keys = (width, height, leaves.width(width)), context(state), keyed(state)
     return _memo(state, ('mirror', focus, app, room_, tuple(keys.items())),
-                 lambda: mirror.mirrored(upright, flowing(state), room_, kin, keys, apps.reach(tree, app)))
+                 lambda: mirror.mirrored(upright, apps.dataflow(tree, app, flowing(state)), room_, kin, keys,
+                                         apps.reach(tree, apps.system(tree, app))))
 
 
 def hits(state):
@@ -178,8 +180,7 @@ def frame(state, node):
 
 
 def _mirrored(state, _key, _now):
-    """M: the mirror world faced whole; M again, the tree as it was seen (framed anew where another node
-    opened)."""
+    """M: the dataflow faced whole; M again, the tree as it was seen (framed anew where another node opened)."""
     cam, goal = state['cam'], state['goal']
     state['mirror'] = not state['mirror']
     if state['mirror']:
@@ -193,22 +194,30 @@ def _mirrored(state, _key, _now):
 
 
 def _apping(state):
-    """Whether the terminal open shows its applications: A's way, the mirror away."""
-    return state['apps'] and state['focus'] == 0 and not state['mirror']
+    """Whether the trunk shows the applications' tree (atlas/apps.py): A's way, the dataflow away."""
+    return state['apps'] and state['focus'] < 0 and not state['mirror']
 
 
 def _apps(state, _key, _now):
-    """A: the terminal open on its applications; at it, its folders and back."""
-    state['apps'] = state['focus'] != 0 or not state['apps']
-    focused(state, 0)
+    """A: the trunk, the applications' tree; at it, the layers and back."""
+    state['apps'] = state['focus'] >= 0 or not state['apps']
+    focused(state, -1)
+
+
+def _flowed(state, key, now):
+    """D: the dataflow (`_mirrored`); in it, the next system's (apps.following)."""
+    if not state['mirror']:
+        return _mirrored(state, key, now)
+    state['app'] = apps.following(state['tree'], state['app'])
+    state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
 
 
 def opening(state, node):
-    """`node` opened (`focused`): in the terminal's applications the terminal, a branch or a page chosen."""
+    """`node` opened (`focused`): in the applications' tree the terminal, a branch or a page chosen."""
     chose = _apping(state) and (node == 0 or node in apps.clades(state['tree'])['up'])
     if chose:
         state['app'] = None if node == 0 else node
-    focused(state, 0 if chose else node)
+    focused(state, -1 if chose else node)
 
 
 def focused(state, node):
@@ -342,27 +351,6 @@ def _finding(state, _key, _now):
     state['find'], state['typing'], state['page'] = '', True, 0
 
 
-def _typed(state, key, _now):
-    """The page's mode while a word is typed: a character into it, BKSP one back, ENTER it kept, ESC it let
-    go - and a kept word before it leaves the page. The rest to their rows."""
-    if not state['typing']:
-        if key == '\x1b' and state['find'] is not None:
-            state['find'] = None
-            return None
-        return bindings.PASS
-    if key in ENTER_KEYS:
-        state['typing'] = False
-    elif key == '\x1b':
-        state['find'], state['typing'] = None, False
-    elif key in ('\x08', '\x7f'):
-        state['find'] = state['find'][:-1]
-    elif len(key) == 1 and key.isprintable():
-        state['find'] += key
-    else:
-        return bindings.PASS
-    return None
-
-
 def _web(state, _key, _now):
     """W: the same atlas as a page (tools/dev/atlas.py --html), opened in the browser."""
     path = atlas.page(state['tree'])
@@ -388,24 +376,27 @@ ROWS = (
     ('ATLAS', 'HOME', 'the view turned back, the node open framed', (), {'home': _homed}),
     ('ATLAS', 'O', 'the tree orbits, or stops', (('O', 'ORBIT'),),
      bindings.cased('o', lambda s, _k, _n: s.update(orbit=not s['orbit']))),
-    ('ATLAS', 'M', 'the mirror world: what flows between the files, laid out the way it goes; and back',
-     (('M', 'MIRROR'),), bindings.cased('m', _mirrored)),
-    ('ATLAS', 'A', "the terminal's applications on their branches, a page's subsystems lit and the mirror "
-     'kept to it; at the terminal its folders and back', (('A', 'APPS'),), bindings.cased('a', _apps)),
+    ('ATLAS', 'D', "a system's dataflow - the page or branch chosen, the robot's where none is -, laid out "
+     'the way it goes; D again the next system', (('D', 'DATAFLOW'),), bindings.cased('d', _flowed)),
+    ('ATLAS', 'M', 'the dataflow, and back to the tree', (), bindings.cased('m', _mirrored)),
+    ('ATLAS', 'A', "the applications' tree at the trunk, a page's folders lit; at it the layers and back",
+     (('A', 'APPS'),), bindings.cased('a', _apps)),
     ('ATLAS', '/', 'a word found in every name, signature, brief and text; its hits on the keys',
      (('/', 'FIND'),), {'/': _finding}),
     ('ATLAS', 'W', 'the same atlas as a page, in the browser', (('W', 'WEB'),), bindings.cased('w', _web)),
 )
-PAD = bindings.page(ROWS, take=_typed)
+PAD = bindings.page(ROWS, take=panel.typed)
 
 
 def titled(state, mid, width):
     """The viewport's title along its top: TREE, then the child nearest the viewport (`panel.middle`) by its
     name and its brief (its kind where it has none), as wide as the frame lets it."""
-    head = 'FLOW' if state['mirror'] else 'APPS' if _apping(state) else 'TREE'
+    tree = state['tree']
+    head = ('DATAFLOW ' + apps.named(tree, apps.system(tree, state['app']))) if state['mirror'] else \
+        'APPS' if _apping(state) else 'TREE'
     if mid is None:
         return head
-    tree, placing = state['tree'], placed(state)
+    placing = placed(state)
     name = placing.get('names', {}).get(mid) or scene.short(tree, mid)
     brief = placing.get('briefs', {}).get(mid) or tree.brief[mid] or KINDS[tree.kind[mid]]
     return panel.fit('%s  %s  %s' % (head, name, brief), width - 2)

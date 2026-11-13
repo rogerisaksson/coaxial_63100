@@ -163,6 +163,7 @@ def test_the_terminal_page_walks_the_tree(report):
     from terminal.views.atlas import panel, scene
     tree = built()
     state = show_atlas.opened(tree)
+    state['apps'] = False   # layers (A)
 
     def typed(*keys):
         return bindings.act_on(show_atlas.PAD, list(keys), state)[0]

@@ -8,6 +8,8 @@ nearer, whether the node is open or not.
 """
 import textwrap
 
+from terminal.ui import bindings
+from terminal.ui.screen import ENTER_KEYS
 from terminal.ui.stage import hud
 from terminal.views.atlas import scene
 from tools.dev import atlas
@@ -132,3 +134,24 @@ def boxes(state, base, mid, keyed, hits, names=None):
                                                             for layer in sorted(hits)] or ['none yet']))
     out += listed(state, base, mid, keyed, names) + ties(state)
     return out + [hud('ATLAS', state['sums'] + LEGEND + [state['said'] or 'W lays it as a page'])]
+
+
+def typed(state, key, _now):
+    """The page's mode while a word is typed (its FOUND box here): a character into it, BKSP one back, ENTER it
+    kept, ESC it let go - and a kept word before it leaves the page. The rest to their rows."""
+    if not state['typing']:
+        if key == '\x1b' and state['find'] is not None:
+            state['find'] = None
+            return None
+        return bindings.PASS
+    if key in ENTER_KEYS:
+        state['typing'] = False
+    elif key == '\x1b':
+        state['find'], state['typing'] = None, False
+    elif key in ('\x08', '\x7f'):
+        state['find'] = state['find'][:-1]
+    elif len(key) == 1 and key.isprintable():
+        state['find'] += key
+    else:
+        return bindings.PASS
+    return None

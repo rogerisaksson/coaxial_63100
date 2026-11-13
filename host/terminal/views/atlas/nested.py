@@ -16,8 +16,8 @@ from terminal.views.atlas import detail, scene, schematic
 from tools.dev import atlas_flow
 from tools.dev.atlas_tree import FILE, TIES
 
-#: Each kind's ink (atlas_flow.KINDS: her pass, the wire, what comes back); a part's use of another's.
-INKS, USES = (scene.TITLE, scene.NOTE, scene.HIT), scene.EDGE
+#: Each kind's ink (atlas_flow.KINDS: her pass, the wire, a call, what comes back); a part's use of another's.
+INKS, USES = (scene.TITLE, scene.NOTE, scene.TIE_OUT, scene.HIT), scene.EDGE
 #: A node's sign by the first word of its path naming what it is, its own name first: an estimator or an
 #: observer, her eyes, her senses, her law, her drives, the world, the wire, the board, a process, what
 #: wears; a dot for the rest.

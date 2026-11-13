@@ -1,15 +1,17 @@
-"""What the code says flows between the atlas's files: her pass's streams, the wire's commands.
+"""What the code says flows between the atlas's files: her pass, the wire's commands, the calls.
 
     rows = atlas_flow.flows(atlas)       # [(from node, to node, kind, label)], the atlas's file nodes
     made = atlas_flow.makers(atlas)      # {stream: the atlas's node of the function making it}
     took = atlas_flow.takers(atlas)      # {(kind, stream): [the atlas's nodes of the functions taking it]}
+    asked = atlas_flow.called(atlas, files)  # [(from node, to node, kind, label)], what files call of each other
 
 Her pass (machine/rig/streams.py, STREAMS): each stream made by a function, in the order one instant's
 records keep - the file making a stream hands on to the file making the next, the stream's name on it -,
 and fed back: what the pass ends with (a stream on its end's clock, the world it left) is what her edge
 reads the next pass (a stream laid off her edge). The wire (tools/dev/target_map.py, `ops`): a command from
 the host's end of the wire to its handler and from the handler to each of the board's functions it
-reaches, and fed back, what it read, from the handler to the host's end - the command's code on each.
+reaches, and fed back, what it read, from the handler to the host's end - the command's code on each. Where
+no pass is told, what a system's functions call of each other's carries what it runs (`called`).
 """
 import ast
 import functools
@@ -18,8 +20,8 @@ import os
 from tools.dev import target_map
 from tools.dev.atlas_tree import REPO, TIES
 
-#: The kinds of flow: her pass, the wire, what comes back; where her pass's streams are told.
-KINDS, STREAMS = ('pass', 'wire', 'feedback'), os.path.join(REPO, 'host', 'machine', 'rig', 'streams.py')
+#: The kinds of flow: her pass, the wire, a call, what comes back - the last; where her pass's streams are told.
+KINDS, STREAMS = ('pass', 'wire', 'call', 'feedback'), os.path.join(REPO, 'host', 'machine', 'rig', 'streams.py')
 
 
 def streams(path=STREAMS):
@@ -73,7 +75,7 @@ def takers(atlas):
 def flows(atlas):
     """[(from node, to node, kind, label)]: her pass's hand-ons and its loop, the wire's commands and what they
     bring back, between the atlas's files (KINDS), none from a file to itself."""
-    passed, wire, back = (KINDS.index(kind) for kind in KINDS)
+    passed, wire, back = (KINDS.index(kind) for kind in ('pass', 'wire', 'feedback'))
     made = [(name, _file(atlas, by.partition(':')[0]), end, edge) for name, by, end, edge in streams()]
     out = [(a, b, passed, name) for (name, a, _e, _d), (_n, b, _f, _g) in zip(made, made[1:])
            if a >= 0 and b >= 0 and a != b]
@@ -93,3 +95,19 @@ def flows(atlas):
         out += [(handler, atlas.at[where[c]], wire, code) for c in calls
                 if where.get(c) in atlas.at and atlas.at[where[c]] != handler]
     return out
+
+
+def called(atlas, files):
+    """[(from node, to node, kind, label)]: what the functions of `files` - the atlas's file nodes - call of each
+    other's (the atlas's calls, symbol to symbol), file to file, the function called on each, none from a file to
+    itself - kind 'call' (KINDS)."""
+    call, out = KINDS.index('call'), set()
+    for key, callees in atlas.calls.items():
+        a = atlas.at.get(key.partition('::')[0], -1)
+        if a in files:
+            for k in callees:
+                path, _, name = k.partition('::')
+                b = atlas.at.get(path, -1)
+                if b in files and b != a:
+                    out.add((a, b, call, name or path.rpartition('/')[2]))
+    return sorted(out)
