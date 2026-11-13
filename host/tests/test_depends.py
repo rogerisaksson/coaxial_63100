@@ -90,6 +90,25 @@ def test_a_requirement_is_asked_by_the_name_it_writes(report):
                  held == [True, True, True, True, False, True, False, False, True], held)
 
 
+def test_the_lock_pins_what_is_asked(report):
+    """The lock (host/constraints.txt, `tools.dev.pinned`) pins every requirement and what the package's build asks
+    at a version each allows; `depends.unpinned` says a distribution here at another version than a lock pins, both
+    versions, and passes over one the lock pins that is not here - another platform's."""
+    from tools.dev import depends, pinned
+    left = pinned.check()
+    report.check('every requirement and the build pinned, each at a version it allows', not left, left)
+    with tempfile.TemporaryDirectory() as top:
+        requirements, lock = os.path.join(top, 'requirements.txt'), os.path.join(top, 'constraints.txt')
+        _written(requirements, 'depends-fake>=1\n')
+        with Laid(top):
+            _written(lock, 'depends-fake==1.5\ndepends-fake-absent==2.0\n')
+            off = depends.unpinned(requirements, lock)
+            _written(lock, 'depends-fake==1.4\ndepends-fake-absent==2.0\n')
+            on = depends.unpinned(requirements, lock)
+    report.check('here at another version than pinned: said with both; pinned and not here: passed over',
+                 off == ['depends-fake 1.4 (locked 1.5)'] and on == [], (off, on))
+
+
 def test_a_module_s_distribution_is_written(report):
     """`depends.told` and `faults` on a tree laid here: what it imports and seeks, written and named or not."""
     from tools.dev import depends
@@ -142,8 +161,8 @@ def test_a_commit_removes_every_recording(report):
                  (got, left))
 
 
-ROSTER = (test_a_requirement_is_asked_by_the_name_it_writes, test_a_module_s_distribution_is_written,
-          test_the_tree_writes_what_it_asks, test_a_commit_removes_every_recording)
+ROSTER = (test_a_requirement_is_asked_by_the_name_it_writes, test_the_lock_pins_what_is_asked,
+          test_a_module_s_distribution_is_written, test_the_tree_writes_what_it_asks, test_a_commit_removes_every_recording)
 
 
 def main(argv=None):

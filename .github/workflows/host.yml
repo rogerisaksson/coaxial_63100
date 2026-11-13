@@ -40,6 +40,7 @@ jobs:
         with:
           apt: libegl1 libgl1-mesa-dri
           requirements: host/requirements.txt
+          constraints: host/constraints.txt     # one version a distribution, as on the desk and in the Linux containers
           editable: host
       - run: python tools/dev/run_tests.py --offline ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash

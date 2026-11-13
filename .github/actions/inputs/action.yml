@@ -14,6 +14,9 @@ inputs:
   requirements:
     description: a pip requirements file the job's Python environment is made from
     default: ''
+  constraints:
+    description: a pip constraints file that environment is held to, a version a distribution (tools/dev/pinned.py)
+    default: ''
   editable:
     description: a package folder installed into that environment as it stands (pip -e), offline
     default: ''
@@ -27,13 +30,14 @@ runs:
       env:
         APT: ${{ inputs.apt }}
         REQUIREMENTS: ${{ inputs.requirements }}
+        CONSTRAINTS: ${{ inputs.constraints }}
         EDITABLE: ${{ inputs.editable }}
       run: |
         echo "image=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
         echo "apt=$(printf '%s' "$APT" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
         if [ -n "$REQUIREMENTS" ]; then
           echo "python=$(python -c 'import sys; print(sys.version.split()[0], sys.executable)' | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
-          echo "deps=$(cat "$REQUIREMENTS" ${EDITABLE:+"$EDITABLE/pyproject.toml"} | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          echo "deps=$(cat "$REQUIREMENTS" ${EDITABLE:+"$EDITABLE/pyproject.toml"} ${CONSTRAINTS:+"$CONSTRAINTS"} | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
         fi
 
     - if: inputs.tools == 'true'
@@ -75,11 +79,13 @@ runs:
         path: ~/.ci-venv
         key: venv-${{ steps.keys.outputs.image }}-${{ steps.keys.outputs.python }}-${{ steps.keys.outputs.deps }}
     # Made where not kept: the requirements and what the editable package's own build asks
-    # (pyproject's build-system), so its install below needs no index.
+    # (pyproject's build-system), so its install below needs no index - each at the version the
+    # constraints pin where given, the desk's and the Linux containers' too.
     - if: inputs.requirements != '' && steps.venv.outputs.cache-hit != 'true'
       shell: bash
       env:
         REQUIREMENTS: ${{ inputs.requirements }}
+        CONSTRAINTS: ${{ inputs.constraints }}
         EDITABLE: ${{ inputs.editable }}
       run: |
         python -m venv ~/.ci-venv
@@ -87,7 +93,7 @@ runs:
         if [ -n "$EDITABLE" ]; then
           mapfile -t build < <(~/.ci-venv/bin/python -c "import sys, tomllib; print('\n'.join(tomllib.load(open(sys.argv[1], 'rb'))['build-system']['requires']))" "$EDITABLE/pyproject.toml")
         fi
-        ~/.ci-venv/bin/python -m pip install --retries 10 --timeout 60 -r "$REQUIREMENTS" "${build[@]}"
+        ~/.ci-venv/bin/python -m pip install --retries 10 --timeout 60 -r "$REQUIREMENTS" ${CONSTRAINTS:+-c "$CONSTRAINTS"} "${build[@]}"
     - if: inputs.requirements != '' && steps.venv.outputs.cache-hit != 'true'
       uses: actions/cache/save@v6
       with:

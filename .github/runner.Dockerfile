@@ -44,11 +44,13 @@ RUN . /etc/os-release; \
     rm -rf /tmp/python
 
 # Its environment as the inputs action (.github/actions/inputs) makes it: a virtual environment of the
-# requirements and what the package's build asks; the package itself is installed at each run.
-COPY --chown=${USER} requirements.txt pyproject.toml /tmp/inputs/
+# requirements and what the package's build asks, each at the version host.yml's lock pins (host/constraints.txt,
+# tools/dev/pinned.py) as the desk's and CI's are; the package itself is installed at each run.
+COPY --chown=${USER} requirements.txt constraints.txt pyproject.toml /tmp/inputs/
 RUN python=$(ls -d "${RUNNER_TOOL_CACHE}/Python/${PYTHON}".*/x64/bin/python3 | sort -V | tail -1); \
     "${python}" -m venv "/home/${USER}/.ci-venv"; \
     build=$("/home/${USER}/.ci-venv/bin/python" -c "import sys, tomllib; print(' '.join(tomllib.load(open(sys.argv[1], 'rb'))['build-system']['requires']))" /tmp/inputs/pyproject.toml); \
-    "/home/${USER}/.ci-venv/bin/python" -m pip install -q --retries 10 --timeout 60 -r /tmp/inputs/requirements.txt ${build}
+    "/home/${USER}/.ci-venv/bin/python" -m pip install -q --retries 10 --timeout 60 -r /tmp/inputs/requirements.txt \
+      -c /tmp/inputs/constraints.txt ${build}
 ENV PATH=/home/${USER}/.ci-venv/bin:${PATH} VIRTUAL_ENV=/home/${USER}/.ci-venv CI=true
 WORKDIR /home/${USER}

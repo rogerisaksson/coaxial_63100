@@ -100,7 +100,8 @@ function Install-Linux {
     if (($LASTEXITCODE -eq 0) -and [string]::IsNullOrWhiteSpace($absent)) {
         Write-Item 'requirements-linux' 'ok' 'all present'
     } elseif (Confirm-Step 'pip install -r host/requirements-linux.txt ?') {
-        & $Python -m pip install --disable-pip-version-check -r $requirements
+        # through the lock, so what it brings that the host has already stays at its pinned version
+        & $Python -m pip install --disable-pip-version-check -r $requirements -c (Join-Path $Host_ 'constraints.txt')
         if ($LASTEXITCODE -ne 0) {
             Write-Item 'requirements-linux' 'failed' "pip exit $LASTEXITCODE"
             Add-Todo 'pip install -r host/requirements-linux.txt failed - read the output above'

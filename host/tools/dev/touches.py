@@ -272,6 +272,8 @@ TOUCHES = (
     ('setup/',                                 (STRUCTURE, DEPENDS)),
     # What the tree asks of a new machine, written where setup reads it.
     ('host/requirements',                      (DEPENDS, STRUCTURE)),
+    ('host/constraints.txt',                   (DEPENDS, CI)),
+    ('host/tools/dev/pinned.py',               (DEPENDS, STRUCTURE)),
     ('host/tools/dev/depends.py',              (DEPENDS, STRUCTURE)),
     ('host/tools/dev/pre_commit.py',           (DEPENDS, STRUCTURE)),
     ('host/tools/dev/ci.py',                   (CI, STRUCTURE)),

@@ -1,4 +1,6 @@
-# Host-side dependencies, each one here for a reason:
+# Host-side dependencies, each one here for a reason - each a floor here, installed everywhere at the one version
+# host/constraints.txt pins: the desk (setup.ps1), the Linux containers and CI alike. That lock is laid by
+# tools/dev/pinned.py from this file; an edit here is followed by laying it anew (test_depends holds the two).
 #
 #   pyserial   the only way to the board. Nothing else in this tree talks to a
 #              COM port.

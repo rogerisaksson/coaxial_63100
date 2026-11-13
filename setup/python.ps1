@@ -1,4 +1,5 @@
-# python.ps1 - host/requirements.txt, the editable install of host/, the notebook kernel.
+# python.ps1 - host/requirements.txt at the versions host/constraints.txt pins, the editable install of host/,
+# the notebook kernel.
 
 function Install-PythonDeps {
     param([string]$Python)
@@ -20,7 +21,13 @@ function Install-PythonDeps {
     # name guessed from it said pillow and fonttools missing where both stood -,
     # the standard library alone, so a python with no package runs it.
     $probe = @('-X', 'utf8', 'tools/dev/depends.py', '--absent')
-    $absent = Invoke-Host -Python $Python -Arguments ($probe + $requirements)
+    # One version of each distribution on every machine and on CI (host/constraints.txt, tools/dev/pinned.py): the
+    # probe asks the requirements at the versions it pins and the distributions here it pins at another, and pip
+    # installs through it.
+    $constraints = Join-Path $Host_ 'constraints.txt'
+    $pinned, $through = @(), @()
+    if (Test-Path $constraints) { $pinned, $through = @('--pinned', $constraints), @('-c', $constraints) }
+    $absent = Invoke-Host -Python $Python -Arguments ($probe + $requirements + $pinned)
     $probed = ($LASTEXITCODE -eq 0)
 
     $present = $probed -and [string]::IsNullOrWhiteSpace($absent)
@@ -31,8 +38,8 @@ function Install-PythonDeps {
         Write-Item 'requirements' 'ok' 'all present'
     } else {
         Write-Item 'requirements' 'missing' $absent
-        if (Confirm-Step "pip install -r host/requirements.txt ?") {
-            & $Python -m pip install --disable-pip-version-check -r $requirements
+        if (Confirm-Step "pip install -r host/requirements.txt -c host/constraints.txt ?") {
+            & $Python -m pip install --disable-pip-version-check -r $requirements @through
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'requirements' 'done' 'installed'
                 $present = $true
@@ -41,7 +48,7 @@ function Install-PythonDeps {
                 Add-Todo "pip install -r host/requirements.txt failed - read the output above"
             }
         } else {
-            Add-Todo "python -m pip install -r host/requirements.txt"
+            Add-Todo "python -m pip install -r host/requirements.txt -c host/constraints.txt"
         }
     }
 
@@ -54,7 +61,7 @@ function Install-PythonDeps {
             Write-Item 'requirements-gpu' 'ok' 'all present'
         } else {
             Write-Item 'requirements-gpu' 'missing' ('optional - her eyes on the card: ' + $lacks)
-            Add-Todo -Optional 'python -m pip install -r host/requirements-gpu.txt   (her eyes on the CUDA card here)'
+            Add-Todo -Optional 'python -m pip install -r host/requirements-gpu.txt -c host/constraints.txt   (her eyes on the CUDA card here)'
         }
     }
 

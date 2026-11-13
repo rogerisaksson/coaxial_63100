@@ -3,6 +3,7 @@
 
     python tools/dev/depends.py                  # the tree's faults, one a line; 1 where any
     python tools/dev/depends.py --absent FILE    # a requirements file's distributions absent here
+    python tools/dev/depends.py --absent FILE --pinned LOCK   # and those here at another version than LOCK pins
 
 A new machine learns what it lacks by lacking it. Asked of the tree's own text instead:
 
@@ -118,6 +119,21 @@ def absent(path):
     it asks: setup's probe, by the names the file writes."""
     return [dist + ('[%s]' % ','.join(extras) if extras else '')
             for dist, extras, spec in asked(path) if lacking(dist, extras, spec)]
+
+
+def unpinned(path, lock):
+    """`absent`'s, and each distribution the lock `lock` pins (tools/dev/pinned.py) that is here at another version -
+    a requirement's or one it brought -: what setup installs anew through it. One the lock pins that is not here is
+    passed over: another platform's (pywin32, pexpect), or one nothing here asks for."""
+    off = []
+    for dist, _extras, spec in asked(lock):
+        try:
+            have = metadata.version(dist)
+        except metadata.PackageNotFoundError:
+            continue
+        if not met(have, spec):
+            off.append('%s %s (locked %s)' % (dist, have, spec.lstrip('=')))
+    return absent(path) + off
 
 
 def files(root):
@@ -258,10 +274,11 @@ def faults(root=REPO, texts=None):
 
 
 def main(argv=None):
-    """`--absent FILE`: its distributions absent here, comma-joined, 0; else the tree's faults, 1 where any."""
+    """`--absent FILE [--pinned LOCK]`: its distributions absent here (and those LOCK pins here at another version),
+    comma-joined, 0; else the tree's faults, 1 where any."""
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ['--absent']:
-        print(','.join(absent(argv[1])))
+        print(','.join(unpinned(argv[1], argv[3]) if argv[2:3] == ['--pinned'] else absent(argv[1])))
         return 0
     found, counted = faults(argv[0] if argv else REPO)
     for fault in found:

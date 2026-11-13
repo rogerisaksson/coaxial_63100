@@ -64,8 +64,9 @@ LIVE = []
 
 def workflow(path=WORKFLOW):
     """What host.yml's gate runs on and runs: {'release': its runner's Ubuntu ('latest' of ubuntu-latest),
-    'pythons': its matrix, 'apt': the packages, 'requirements' and 'editable': what its inputs action is given,
-    'env': the gate's step's environment, 'directory': where that step runs}."""
+    'pythons': its matrix, 'apt': the packages, 'requirements', 'constraints' (its lock, tools/dev/pinned.py) and
+    'editable': what its inputs action is given, 'env': the gate's step's environment, 'directory': where that step
+    runs}."""
     import yaml
     with open(path, encoding='utf-8') as f:
         job = next(iter(yaml.safe_load(f)['jobs'].values()))
@@ -76,7 +77,7 @@ def workflow(path=WORKFLOW):
     gate = next(step for step in steps if 'run_tests.py' in step.get('run', ''))
     return {'release': runs.split('-', 1)[1], 'pythons': [str(p) for p in job['strategy']['matrix']['python']],
             'apt': str(given.get('apt', '')).split(), 'requirements': given['requirements'],
-            'editable': given['editable'], 'env': {k: str(v) for k, v in gate.get('env', {}).items()},
+            'constraints': given.get('constraints') or None, 'editable': given['editable'], 'env': {k: str(v) for k, v in gate.get('env', {}).items()},
             'directory': gate.get('working-directory', '.')}
 
 
@@ -98,7 +99,7 @@ def engine():
 
 def built(info, minor, fresh=False):
     """The runner's image for Python `minor`, built by the engine's command line (BuildKit, each step kept; from
-    scratch where `fresh`) of the Dockerfile, the requirements and the package's build: its tag."""
+    scratch where `fresh`) of the Dockerfile, the requirements, their lock and the package's build: its tag."""
     program = shutil.which('docker')
     if program is None:
         raise SystemExit("linux: the engine's command line (docker) is not on PATH - a shell opened after its install")
@@ -110,6 +111,11 @@ def built(info, minor, fresh=False):
         for name, path in (('Dockerfile', DOCKERFILE), ('requirements.txt', REPO / info['requirements']),
                            ('pyproject.toml', REPO / info['editable'] / 'pyproject.toml')):
             tar.add(str(path), arcname=name)
+        lock = REPO / info['constraints'] if info['constraints'] else None
+        if lock is not None and lock.is_file():
+            tar.add(str(lock), arcname='constraints.txt')
+        else:       # no lock yet (before its first laying): every version as the requirements allow
+            tar.addfile(tarfile.TarInfo('constraints.txt'))
     told = {'RELEASE': info['release'], 'PYTHON': minor, 'APT': ' '.join(info['apt']), 'USER': USER, 'UID': UID}
     argv = [program, 'build', '--progress', 'plain', '--tag', tag] + (['--pull', '--no-cache'] if fresh else [])
     for key, value in told.items():

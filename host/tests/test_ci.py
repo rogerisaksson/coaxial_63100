@@ -226,6 +226,13 @@ def test_the_runner_here_is_host_yml_s(report):
                  told is None or told == (focus.physical_cores(), focus.threads()), str(told))
     report.check("and the system's own count the same: os.cpu_count, its group's processors online",
                  told is None or os.cpu_count() == told[1], '%s of %s' % (os.cpu_count(), told))
+    action = (linux.REPO / '.github' / 'actions' / 'inputs' / 'action.yml').read_text(encoding='utf-8')
+    image = linux.DOCKERFILE.read_text(encoding='utf-8')
+    held = [bool(info['constraints']) and (linux.REPO / str(info['constraints'])).is_file(),
+            '${CONSTRAINTS:+-c "$CONSTRAINTS"}' in action, '${CONSTRAINTS:+"$CONSTRAINTS"}' in action,
+            '-c /tmp/inputs/constraints.txt' in image]
+    report.check("host.yml's environment held to its lock: the file there, CI installing through it and keying its "
+                 "cached environment by it, the runner's image installing through it", all(held), held)
 
 
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
