@@ -111,7 +111,7 @@ def test_the_tree_grows_as_a_tree(report):
     from coaxial.model.blocks import numpy as np
     from terminal.ui import bindings
     from terminal.views import show_atlas
-    from terminal.views.atlas import apps, scene
+    from terminal.views.atlas import apps, growth, scene
     from tools.dev import atlas_tree
     tree = atlas_tree.build()
     state = show_atlas.opened(tree)
@@ -153,12 +153,12 @@ def test_the_tree_grows_as_a_tree(report):
         order_ = sorted((k for k in kids if k != leader), key=lambda k: (-held(k), k)) + [leader] * bool(branches)
         above, last = held(fork) if fork else len(order), None
         for j, k in enumerate(order_, steps - len(kids) + 1):
-            at, way = apps.along(stem, j / steps)
+            at, way = growth.along(stem, j / steps)
             off['step'] = max(off['step'], math.dist(at, grown[k][0]), math.dist(way, grown[k][1]))
-            chord = np.subtract(apps.along(grown[k], 1.0)[0], grown[k][0])
+            chord = np.subtract(growth.along(grown[k], 1.0)[0], grown[k][0])
             chord /= np.linalg.norm(chord)
             angle = math.acos(min(1.0, float(chord @ np.array(way))))
-            off['murray'] = max(off['murray'], abs(angle - apps.murray(above, held(k))), angle * (k == leader))
+            off['murray'] = max(off['murray'], abs(angle - growth.murray(above, held(k))), angle * (k == leader))
             across = chord - (chord @ np.array(way)) * np.array(way)
             if np.linalg.norm(across) > 1e-6:   # round the stem from the last by the golden angle
                 across /= np.linalg.norm(across)
@@ -170,7 +170,7 @@ def test_the_tree_grows_as_a_tree(report):
         mine = sorted((f for f in users if own[f] == n), key=lambda f: (apps.layer(tree, f), f))
         spots = [(f, (j + 1) / apps.slots(tree, n)) for j, f in enumerate(mine)] + ([(n, 1.0)] if n else [])
         for m, t in spots:
-            off['laid'] = max(off['laid'], math.dist(laid['at'][m], np.add(base, apps.along(b, t)[0])))
+            off['laid'] = max(off['laid'], math.dist(laid['at'][m], np.add(base, growth.along(b, t)[0])))
     upright = grown[0][1] == (0.0, 1.0, 0.0) and grown[0][3] == 0.0
     report.check("grown as a tree: the trunk upright; each bough out of its stem at its step along its way, the "
                  "leader straight on, each other's chord at Murray's angle, round the stem by the golden angle "

@@ -45,9 +45,9 @@ TITLE = 'SYSTEM ATLAS'
 #: terminal that keeps a function key to itself (F11 its full screen); a page of them.
 FKEYS, DIGITS, PAGE = tuple('f%d' % k for k in range(1, 13)), tuple('1234567890'), 12
 #: A left drag's degrees a cell across and a row down, the tip's bounds; an arrow's turn and tip; a key's
-#: zoom, the distance's bounds; the ease's time constant, s; O's orbit, degrees a second.
+#: zoom, the distance's bounds (the ease and the orbit atlas/aim.py's).
 DRAG_DEG, TIP_DEG, KEY_DEG = (2.0, 3.0), (-80.0, 85.0), (10.0, 5.0)
-ZOOM_KEY, DISTANCE, EASE_S, ORBIT_DEG_S = scene.ZOOM, (0.25, 40.0), 0.2, 9.0
+ZOOM_KEY, DISTANCE = scene.ZOOM, (0.25, 40.0)
 #: How near a node's frame the camera is when the panel lists its children; a click's reach, dots.
 LISTS_AT, CLICK_DOTS = 1.3, 10.0
 
@@ -119,8 +119,8 @@ def placed(state):
                 'out': out, 'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
     upright, app = _memo(state, ('placed', focus), make), state['app']
     if not state['mirror']:
-        return apps.facing(_memo(state, ('apps', app), lambda: apps.placed(tree, upright, app)), state['cam']) \
-            if _apping(state) else upright
+        return apps.facing(_memo(state, ('apps', app, focus), lambda: apps.placed(tree, upright, app, None, focus)),
+                           state['cam']) if _apping(state) else upright
     width, height = sized(state)
     room_, kin, keys = (width, height, leaves.width(width)), context(state), keyed(state)
     return _memo(state, ('mirror', focus, app, room_, tuple(keys.items())),
@@ -194,8 +194,9 @@ def _mirrored(state, _key, _now):
 
 
 def _apping(state):
-    """Whether the trunk shows the applications' tree (atlas/apps.py): A's way, the dataflow away."""
-    return state['apps'] and state['focus'] < 0 and not state['mirror']
+    """Whether the applications' tree shows (atlas/apps.py): A's way, no dataflow, the node open none or one that
+    grows in it (apps.anchor) - its subtree -, else the layers'."""
+    return state['apps'] and not state['mirror'] and (state['focus'] < 0 or apps.anchor(state['tree'], state['focus']) >= 0)
 
 
 def _apps(state, _key, _now):
@@ -235,17 +236,6 @@ def listing(state, mid):
         if tree.kind[node] < SYMBOL and state['kids'][node] and distance <= LISTS_AT * frame(state, node)[1]:
             return node
     return -1
-
-
-def eased(state, now):
-    """The camera a frame on: its target and distance eased to the frame asked (EASE_S), O's orbit."""
-    then, state['then'] = state['then'], now
-    dt = 0.0 if then is None else min(0.25, max(0.0, now - then))
-    cam, goal, k = state['cam'], state['goal'], 1.0 - math.exp(-dt / EASE_S)
-    cam['target'] = tuple(c + (g - c) * k for c, g in zip(cam['target'], goal['target']))
-    cam['distance'] *= (goal['distance'] / cam['distance']) ** k
-    if state['orbit'] and not state['mirror']:
-        cam['yaw'] += ORBIT_DEG_S * dt
 
 
 def turned(state, dx, dy):
@@ -317,11 +307,13 @@ def _paged(state, key, _now):
 
 
 def _upped(state, _key, _now):
-    """BKSP: the node open closed, the one above it open - in the applications the branch above."""
-    if _apping(state) and state['app'] is not None and state['find'] is None:
-        opening(state, apps.clades(state['tree'])['up'][state['app']] or 0)
-    elif state['find'] is None and state['focus'] >= 0:
-        focused(state, state['tree'].up[state['focus']])
+    """BKSP: the node open closed, the one above it open - in the applications up a subtree to the tree, then
+    the branch above."""
+    tree, focus = state['tree'], state['focus']
+    if state['find'] is None and focus >= 0:
+        focused(state, -1 if _apping(state) and apps.anchor(tree, focus) == focus else tree.up[focus])
+    elif _apping(state) and state['app'] is not None and state['find'] is None:
+        opening(state, apps.clades(tree)['up'][state['app']] or 0)
 
 
 def _middled(state, _key, _now):
@@ -416,7 +408,7 @@ def draw_of(view, state, keys=''):
         turned_over = state['mirror']
         if turned_over and state.get('art') != (width, height):   # the mirror world framed for this drawing
             state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
-        eased(state, time.monotonic())
+        aim.eased(state, time.monotonic())
         placing, marks = placed(state), keyed(state)
         # The child nearest the viewport, whichever page of keys holds it: its panel, its mark, its brief.
         named = {n: marks.get(n, '') for n in context(state)}
@@ -432,7 +424,8 @@ def draw_of(view, state, keys=''):
         state['art'] = (width, height)
         fell = state['fell']
         mid = (mirror.middle(placing, fell, sight, width) if turned_over
-               else _apping(state) and state['app'] or panel.middle(fell, sight, named))
+               else _apping(state) and (state['app'] if state['focus'] < 0 else state['focus'])
+               or panel.middle(fell, sight, named))
         boxes = panel.boxes(state, listing(state, mid), mid, marks, hits(state), placing.get('names'))
         return frame_of(view, state['origin'], TITLE, drawing(rows), boxes, bindings.shown(PAD, state),
                         art_title=titled(state, mid, width))
