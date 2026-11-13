@@ -201,13 +201,19 @@ def _hop_held(state, now, held):
             state['body'].send(charge=round(ch, 3))
 
 
+def keyboard(state):
+    """The keys that move her held now, as a keyboard tells them: the page's own where it has one
+    (`state['keyboard']`, AIL's), else the console's (`console.held`); None where none tells."""
+    return (state.get('keyboard') or console.held)()
+
+
 def steered(state, now, heading):
-    """Each frame: the keys held - the console's, else those typed within
+    """Each frame: the keys held - a keyboard's (`keyboard`), else those typed within
     `console.HOLD_WINDOW_S` - as her twist, sent when it changes and again as she reports a scene
     laid anew, her twist zeroed with it; a key that moves her ends the tour. `now` the wall clock."""
     if (state.get('llm_prompt') or {}).get('open'):
         return
-    raw_held = console.held()
+    raw_held = keyboard(state)
     _hop_held(state, now, raw_held)
     held = state.setdefault('pad', pad())
     keys = polled((), held, now, raw_held)
@@ -409,7 +415,7 @@ def _take(state, key, _now):
 def _held(state, keys, now):
     """`keys` that move her, typed together, into her pad; the tour ended."""
     gym.cancel_tour(state)
-    polled(keys, state.setdefault('pad', pad()), now, console.held())
+    polled(keys, state.setdefault('pad', pad()), now, keyboard(state))
 
 
 #: Her page's keys for `run_view`: its rows, the terminal's after them, its modes and its pad.

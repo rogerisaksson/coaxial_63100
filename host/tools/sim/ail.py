@@ -4,10 +4,13 @@
     python tools/sim/ail.py drive --seeds 8 --stage 5              # and the first 5 faults of their own kinds kept
     python tools/sim/ail.py replay                                 # each staged case again: PASS where it is gone
     python tools/sim/ail.py run CASE.json --trace 4 9              # a key script (a case's), a line a frame 4-9 s
+    python tools/sim/ail.py run A.json '[["w", 1.3], ["", 4]]' --held --jobs 8   # scripts, files or inline, side by side
 
 A session: the lodge laid (ROOM), her page's keys held and let go as a hand does - W, S, A, D, Q, E and their pairs,
 each held 0.4-3 s, pauses between (`bindings.act_on` each repeat, `humanoid_keys.steered` each frame: her page's
-own path, test_wasd's) - and F now and then, her page's first offer docked; a seed's the same session each run.
+own path, test_wasd's) - and F now and then, her page's first offer docked; a seed's the same session each run. Its
+keys typed as a terminal types them (a key typed renews those held beside it), or --held as a keyboard tells them
+held (her page on Windows' console, `humanoid_keys.keyboard`).
 It ends where she does: fallen, stuck (W held and no way made), crashed, or its seconds run. Her faults: a fall, a
 stumble, a spasm (`watch.Watch`'s), her body into a thing on her keys (her place against the lodge's own boxes,
 `world.props()`, grown by her half width), stuck, a crash. A fault staged is a case of its own (ail_staged/*.json:
@@ -72,7 +75,8 @@ def _near(lodge, at, half):
 
 def _traced(g, word, fast, gap, name):
     """A frame of her session said short: her key, doing, errand's phase, speed, twist asked (! her cocoon blocked),
-    soles' loads, surety, her fastest joint since the last, the most her skin feels and where, her nearest thing."""
+    soles' loads, surety, her fastest driven joint since the last, the most her skin feels and where, her nearest
+    thing."""
     import numpy as np
     from machine.process import sprung
     from machine.senses import edge
@@ -86,13 +90,14 @@ def _traced(g, word, fast, gap, name):
         felt[k], edge.SKIN[k], name, gap)
 
 
-def drive(seed, seconds, eyes=False, words=None, trace=None):
+def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, room=1.0):
     """A seed's session (`script`, or `words`) in the lodge: {seed, words, faults [{kind, t, detail}], end, t}; a line
-    a frame said (`_traced`) between `trace`'s (from, to) s."""
+    a frame said (`_traced`) between `trace`'s (from, to) s; its keys typed, or `keyboard` held as a keyboard tells;
+    `room` 0 on an open floor (a stop's own measure, nothing in her way)."""
     from types import SimpleNamespace as SN
     from machine.body import figure
     from machine.world import physics
-    physics.ROOM, physics.SIGHT = 1.0, float(eyes)
+    physics.ROOM, physics.SIGHT = float(room), float(eyes)
     from machine.process import introspect, sprung, watch, worker
     from machine.way import cocoon
     from terminal.ui import bindings
@@ -105,10 +110,15 @@ def drive(seed, seconds, eyes=False, words=None, trace=None):
     # her page's scanner (test_errands'): without it F had no offer and docked nothing
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
-    tap, watched, fast = introspect.Tap(), watch.Watch(), (0.0, '')
+    word_now = ['']
+    if keyboard:
+        st['keyboard'] = lambda: set(word_now[0])
+    # her driven joints, the spasm judge's (`analyzers.motion`): her toes and wrists no drive turns
+    tap, watched, fast, driven = introspect.Tap(), watch.Watch(), (0.0, ''), set(watch.meta()['rated'])
     frame, typed_at, deepest = 0.0, -math.inf, 0.0
     try:
         for word, held in words:
+            word_now[0] = word
             t0, x0 = float(g['t']), (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
             while g['t'] - t0 < held and s['fallen_at'] is None:
                 for cmd in sent:
@@ -135,10 +145,11 @@ def drive(seed, seconds, eyes=False, words=None, trace=None):
                 if snap is not None:
                     if trace:
                         peaks = snap['body']['peaks']
-                        fast = max(fast, max((v, k) for k, v in peaks.items()))
+                        fast = max(fast, max((v, k) for k, v in peaks.items() if k in driven))
                     for e in watched.step(snap):
                         if e['event'] in ('stumble', 'fall', 'spasm'):
-                            faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g)})
+                            faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g) + (
+                                ' %s %.0f deg/s' % (e['joint'], e['deg_s']) if 'joint' in e else '')})
             # W refused short of a thing is her cocoon's (`machine.way.cocoon`), not stuck
             if word == 'w' and held >= 2.0 and s['fallen_at'] is None and cocoon.refused(g, (1.0, 0.0, 0.0))[0] and math.hypot(
                     float(g['world'].data.qpos[0]) - x0[0], float(g['world'].data.qpos[2]) - x0[1]) < 0.05:
@@ -152,27 +163,58 @@ def drive(seed, seconds, eyes=False, words=None, trace=None):
     except Exception:
         faults.append({'kind': 'crash', 't': round(float(g['t']), 2), 'detail': traceback.format_exc(limit=3)[-400:]})
         end = 'crashed'
-    return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes}
+    return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes,
+            'held': keyboard}
+
+
+def _relayed(calls, jobs):
+    """(label, run) of `calls` [(label, `drive`'s arguments)]: here one after another, or `jobs` side by side on the
+    relay (`tools.dev.focus.relay`), each a process of its own driving one and saying its run whole."""
+    if jobs <= 1:
+        for label, args in calls:
+            yield label, drive(*args)
+        return
+    from tools.dev import focus
+    here = os.path.dirname(os.path.abspath(__file__))
+    work = [focus.Job(label, [sys.executable, '-X', 'utf8', '-c', 'import json, sys; sys.path.insert(0, %r); import ail; '
+                              'print("AIL " + json.dumps(ail.drive(*%r)))' % (here, args)], timeout=60.0 + 20.0 * args[1])
+            for label, args in calls]
+    for job, text, _code, _seconds in focus.relay(work, batons=jobs):
+        line = next((ln for ln in (text or '').splitlines() if ln.startswith('AIL ')), None)
+        yield job.name, json.loads(line[4:]) if line else {'words': [], 'end': 'crashed', 't': 0.0, 'faults': [
+            {'kind': 'crash', 't': 0.0, 'detail': (text or '')[-300:]}]}
 
 
 def _driven(a):
-    """(seed, run) of `a`'s seeds: here one after another, or `a.jobs` side by side on the relay
-    (`tools.dev.focus.relay`), each a process of its own driving one seed and saying its run whole."""
-    seeds = range(a.first, a.first + a.seeds)
-    if a.jobs <= 1:
-        for seed in seeds:
-            yield seed, drive(seed, a.seconds, a.eyes)
-        return
-    from tools.dev import focus
-    code = ('import json, sys; sys.path.insert(0, %r); import ail; '
-            'print("AIL " + json.dumps(ail.drive(%%d, %r, %r)))' % (os.path.dirname(os.path.abspath(__file__)), a.seconds, a.eyes))
-    jobs = [focus.Job('ail_%d' % seed, [sys.executable, '-X', 'utf8', '-c', code % seed], timeout=60.0 + 20.0 * a.seconds)
-            for seed in seeds]
-    for job, text, _code, _seconds in focus.relay(jobs, batons=a.jobs):
-        line = next((ln for ln in (text or '').splitlines() if ln.startswith('AIL ')), None)
-        run = json.loads(line[4:]) if line else {'seed': int(job.name[4:]), 'words': [], 'end': 'crashed', 't': 0.0,
-                                                  'faults': [{'kind': 'crash', 't': 0.0, 'detail': (text or '')[-300:]}]}
-        yield run['seed'], run
+    """(seed, run) of `a`'s seeds (`_relayed`)."""
+    calls = [('ail_%d' % seed, (seed, a.seconds, a.eyes, None, None, a.held)) for seed in range(a.first, a.first + a.seeds)]
+    for label, run in _relayed(calls, a.jobs):
+        yield int(label[4:]), run
+
+
+def _literal(text):
+    """JSON `text`, else the Python literal it is."""
+    import ast
+    try:
+        return json.loads(text)
+    except ValueError:
+        return ast.literal_eval(text)
+
+
+def _scripts(paths):
+    """[(label, words, eyes, held)] of key scripts `paths`, each a file's or inline JSON: {"words": [[keys, s], ..],
+    "eyes": .., "held": ..} (a staged case's, an explorer's), or its words alone."""
+    out = []
+    for k, path in enumerate(paths):
+        if path.lstrip().startswith(('[', '{')):
+            # a shell's quoting may leave it in single quotes: a Python literal then
+            case, label = _literal(path), 'inline_%d' % k
+        else:
+            with open(path, encoding='utf-8-sig') as f:
+                case, label = json.load(f), os.path.splitext(os.path.basename(path))[0]
+        case = case if isinstance(case, dict) else {'words': case}
+        out.append((label, [tuple(w) for w in case['words']], case.get('eyes', False), case.get('held', False)))
+    return out
 
 
 def _staged():
@@ -182,20 +224,23 @@ def _staged():
 def main(argv=None):
     p = argparse.ArgumentParser(description='AIL, her AI in the loop: drive her about the lodge, stage her faults')
     p.add_argument('what', choices=('drive', 'replay', 'run'))
-    p.add_argument('path', nargs='?', help='run: a key script, {"words": [[keys, s], ...]} (an explorer\'s)')
-    p.add_argument('--jobs', type=int, default=1, help='drive: seeds side by side (`tools.dev.focus.relay`)')
+    p.add_argument('path', nargs='*', help='run: key scripts, files or inline JSON - {"words": [[keys, s], ...]}')
+    p.add_argument('--jobs', type=int, default=1, help='seeds or scripts side by side (`tools.dev.focus.relay`)')
     p.add_argument('--seeds', type=int, default=4)
     p.add_argument('--first', type=int, default=0, help='the first seed')
     p.add_argument('--seconds', type=float, default=60.0)
     p.add_argument('--eyes', action='store_true', help='on her eyes (SIGHT 1), not the world\'s boxes')
     p.add_argument('--stage', type=int, default=0, help='keep the first N faults of kinds not yet kept')
     p.add_argument('--trace', type=float, nargs=2, metavar=('FROM', 'TO'), help='run: a line a frame between, s')
+    p.add_argument('--held', action='store_true', help='keys held as a keyboard tells them (Windows\' console), not typed')
+    p.add_argument('--kind', nargs='+', help='drive: stage only faults of these kinds (fall, stumble, spasm, into, ..)')
+    p.add_argument('--room', type=float, default=1.0, help='run: 0 an open floor, nothing in her way')
     a = p.parse_args(argv)
     if a.what == 'run':
-        with open(a.path, encoding='utf-8-sig') as f:
-            words = [tuple(w) for w in json.load(f)['words']]
-        run = drive(0, sum(s for _w, s in words), a.eyes, words, a.trace)
-        print(json.dumps({k: run[k] for k in ('end', 't', 'faults')}))
+        calls = [(label, (0, sum(s for _w, s in words), a.eyes or eyes, words, a.trace, a.held or held, a.room))
+                 for label, words, eyes, held in _scripts(a.path)]
+        for label, run in _relayed(calls, a.jobs):
+            print(json.dumps({'script': label} | {k: run[k] for k in ('end', 't', 'faults')}))
         return 0
     if a.what == 'drive':
         kept, kinds = 0, set()
@@ -203,13 +248,13 @@ def main(argv=None):
             print(json.dumps({k: run[k] for k in ('seed', 'end', 't')} | {'faults': run['faults'][:6]}))
             for f in run['faults']:
                 key = (f['kind'], f['detail'].split(' on ')[0].split(' m into ')[-1] if f['kind'] == 'into' else f['detail'])
-                if kept < a.stage and key not in kinds:
+                if kept < a.stage and key not in kinds and (not a.kind or f['kind'] in a.kind):
                     kinds.add(key)
                     kept += 1
                     os.makedirs(STAGED, exist_ok=True)
-                    name = 'ail_%s_%d_%s' % (f['kind'], seed, str(f['t']).replace('.', '_'))
+                    name = 'ail_%s_%s%d_%s' % (f['kind'], 'held' if a.held else '', seed, str(f['t']).replace('.', '_'))
                     with open(os.path.join(STAGED, name + '.json'), 'w', encoding='utf-8', newline='\n') as out:
-                        json.dump({'seed': seed, 'eyes': a.eyes, 'until': f['t'] + 1.0, 'fault': f,
+                        json.dump({'seed': seed, 'eyes': a.eyes, 'held': a.held, 'until': f['t'] + 1.0, 'fault': f,
                                    'words': run['words']}, out, indent=1)
                     print('staged', name)
         return 0
@@ -223,7 +268,7 @@ def main(argv=None):
             left -= held
             if left <= 0:
                 break
-        run = drive(case['seed'], case['until'], case['eyes'], words)
+        run = drive(case['seed'], case['until'], case['eyes'], words, keyboard=case.get('held', False))
         # into: into the same thing (a window brushed is her shell's, not the bed she walked into)
         thing = case['fault']['detail'].split(' into ')[-1].split(' ')[0] if case['fault']['kind'] == 'into' else ''
         again = [f for f in run['faults'] if f['kind'] == case['fault']['kind'] and (' into %s' % thing) in ' into ' + f['detail'].split(' into ')[-1]]
