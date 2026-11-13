@@ -22,7 +22,7 @@ import functools
 import math
 import os
 
-from terminal.views.atlas import nested, scene
+from terminal.views.atlas import aim, nested, scene
 from tools.dev import atlas_calls
 from tools.dev.atlas_tree import FILE, LAYERS, REPO, TIES
 
@@ -224,9 +224,10 @@ def placed(tree, upright, chosen=None, cam=None):
         spots.setdefault((layer(tree, f), ps), []).append(f)
     for (lay_, ps), fs in spots.items():   # the farther out the fewer pages it serves, round toward the open ones
         x, z = sum(math.cos(toward[p]) for p in ps & held or ps), sum(math.sin(toward[p]) for p in ps & held or ps)
-        r, a = max(APART, OUT * (every - len(ps)) / max(1, every - 1)), math.atan2(z, x)
+        r, a = OUT * (every - len(ps)) / max(1, every - 1), math.atan2(z, x)
+        r *= r >= APART   # nearer the trunk than the room between two, on the trunk: those all share
         for j, f in enumerate(fs):   # those that would stand as one spread along the way round, APART
-            aa = a + (j - (len(fs) - 1) / 2) * APART / r
+            aa = a + (j - (len(fs) - 1) / 2) * APART / r if r else a
             place[f] = (lay[lay_][0] + r * math.cos(aa), lay[lay_][1], lay[lay_][2] + r * math.sin(aa))
     path, node = [], chosen
     while node is not None:
@@ -307,8 +308,11 @@ def spread(points):
     return middle, 1.2 * max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)) + 1.0
 
 
-def framed(scene_):
+def framed(scene_, cam=None):
     """(target, distance) that frames what the scene (`placed`) lights - the terminal its branches, a branch
-    its own and their subsystems, a page its subsystems, grown out or not (`spread`)."""
+    its own and their subsystems, a page its subsystems, grown out or not -: as far as their box (`spread`),
+    the target where they stand in the middle of `cam`'s view (aim.centred; the opening view's where None)."""
     lit = scene_['flat']['lit']
-    return spread([p for n, p in scene_['at'].items() if n in lit])
+    points = [p for n, p in scene_['at'].items() if n in lit]
+    distance = spread(points)[1]
+    return aim.centred(points, cam or scene.camera(), distance), distance

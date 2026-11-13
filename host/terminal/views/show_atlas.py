@@ -35,7 +35,7 @@ from terminal.ui.marquee import Marquee, styled
 from terminal.ui.screen import ENTER_KEYS, FPS_CAP, PORT, run_view, say
 from terminal.ui.stage import boot, frame_of, stage
 from terminal.ui.taskbar import room
-from terminal.views.atlas import apps, leaves, mirror, panel, scene
+from terminal.views.atlas import aim, apps, leaves, mirror, panel, scene
 from tools.dev import atlas, atlas_flow
 from tools.dev.atlas_tree import FILE, FOLDER, KINDS, LAYER, LAYERS, SYMBOL, build
 
@@ -104,7 +104,7 @@ def drawing(rows):
 
 
 def placed(state):
-    """The scene at the node open (scene.layout, scene.tied): where each node shown stands, the stubs, the
+    """The scene at the node open (scene.layout): where each node shown stands, the stubs, the
     reaches, its ties; at the trunk the faint ties between layers - the terminal's applications where it
     shows them, its mirror world while M holds."""
     focus, tree, between = state['focus'], state['tree'], state['between']
@@ -163,21 +163,18 @@ def sized(state):
 
 
 def frame(state, node):
-    """(target, distance) that frames `node` and what it opens - the trunk whole at none -; the mirror's
-    world whole, the applications what they light (mirror.framed, apps.framed)."""
+    """(target, distance) that frames `node` and what it opens - the trunk whole at none -, standing in the
+    view's middle (aim.centred); the mirror's world whole, the applications what they light."""
     if state['mirror'] or _apping(state):
-        return mirror.framed(placed(state), *sized(state)) if state['mirror'] else apps.framed(placed(state))
+        return mirror.framed(placed(state), *sized(state)) if state['mirror'] else apps.framed(placed(state), state['cam'])
     if node < 0:
         home = scene.camera()
         return home['target'], home['distance']
-    tree, p = state['tree'], placed(state)['at'][node]
-    n, kind = len(state['kids'][node]), tree.kind[node]
-    if kind == LAYER:
-        return p, 2.8 * (scene.RING[0] + scene.RING[1] * n) + 1.0
-    if kind in (FOLDER, FILE) and n:
-        r = scene.CAP[kind][0] + scene.CAP[kind][1] * math.sqrt(n)
-        return (p[0], p[1] - 0.55 * r, p[2]), 2.8 * r + 0.5
-    return p, 0.8
+    tree, n = state['tree'], len(state['kids'][node])
+    kind = tree.kind[node]
+    far = 2.8 * (scene.RING[0] + scene.RING[1] * n) + 1.0 if kind == LAYER else 2.8 * (
+        scene.CAP[kind][0] + scene.CAP[kind][1] * math.sqrt(n)) + 0.5 if kind in (FOLDER, FILE) and n else 0.8
+    return aim.centred([p for m, p in placed(state)['at'].items() if node in scene.chain(tree, m)], state['cam'], far), far
 
 
 def _mirrored(state, _key, _now):
@@ -196,7 +193,7 @@ def _mirrored(state, _key, _now):
 
 
 def _apping(state):
-    """Whether the terminal open shows its applications (atlas/apps.py): A's way, the mirror away."""
+    """Whether the terminal open shows its applications: A's way, the mirror away."""
     return state['apps'] and state['focus'] == 0 and not state['mirror']
 
 
@@ -244,7 +241,7 @@ def eased(state, now):
 
 def turned(state, dx, dy):
     """A left drag of (dx, dy) cells, or an arrow's: the tree turned with it, tipped within TIP_DEG - the
-    mirror's flat world moved (`moved`)."""
+    mirror's moved (`moved`)."""
     cam = state['cam']
     if state['mirror']:
         return moved(state, dx, dy)
@@ -264,7 +261,7 @@ def moved(state, dx, dy):
 
 
 def zoomed(state, k):
-    """The camera `k` times nearer, within DISTANCE - in the mirror no farther than its framing -; held there."""
+    """The camera `k` times nearer, within DISTANCE - in the mirror no farther than its frame -; held."""
     cam, far = state['cam'], frame(state, state['focus'])[1] if state['mirror'] else DISTANCE[1]
     cam['distance'] = state['goal']['distance'] = max(DISTANCE[0], min(far, cam['distance'] / k))
 
@@ -306,7 +303,7 @@ def _keyed(state, key, _now):
 
 
 def _paged(state, key, _now):
-    """PGUP PGDN: the keys on the context's twelve before or after."""
+    """PGUP PGDN: the keys on the twelve before or after."""
     state['page'] = max(0, state['page'] + (1 if key == 'pagedown' else -1))
 
 
@@ -334,7 +331,7 @@ def _turned(state, key, _now):
 
 
 def _homed(state, _key, _now):
-    """HOME: the view turned back - in the mirror to face its world -, the node open framed."""
+    """HOME: the view turned back - the mirror's to face it -, the node open framed."""
     home = scene.camera(0.0, 0.0) if state['mirror'] else scene.camera()
     state['cam']['yaw'], state['cam']['pitch'] = home['yaw'], home['pitch']
     state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])

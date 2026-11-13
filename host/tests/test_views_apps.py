@@ -1,4 +1,4 @@
-"""The terminal's applications: each page's system by what it calls, their branches, the mirror kept to one."""
+"""The atlas by application: each page's system, their branches, the mirror kept to one, frames in the middle."""
 import sys
 
 from tools.dev.focus import chosen
@@ -177,7 +177,8 @@ def test_the_terminal_opens_on_its_applications(report):
             return x / z, -y / z
         t0, t1 = dots(laid['at'][0]), dots(laid['at'][top])
         cut = sum(1 for a, b in ((dots(laid['at'][u]), dots(laid['at'][f])) for u, f in laid['ways'])
-                  if side(t0, t1, a) * side(t0, t1, b) < 0 and side(a, b, t0) * side(a, b, t1) < 0)
+                  if side(t0, t1, a) * side(t0, t1, b) < -1e-12   # one on the trunk's own line a float's hair off
+                  and side(a, b, t0) * side(a, b, t1) < 0)
         rest = laid['groups'][1]
         grey = [k for k, n in enumerate(rest) if (n < -1 or n in order) and n not in laid['flat']['lit']]
         plain = seen(goal())[0]
@@ -265,8 +266,37 @@ def test_the_mirror_keeps_to_a_page(report):
                  '%d flows' % len(flown['flow']))
 
 
+def test_each_frame_stands_in_the_middle(report):
+    """A node opened stands in the middle of the view (atlas/aim.py): the camera's target worked out so the
+    projection of what its frame frames - in the tree the node and all laid out under it, in the applications
+    what is lit - has its middle on the drawing's middle, as the view is turned, not guessed in the world."""
+    from terminal.ui import bindings
+    from terminal.views import show_atlas
+    from terminal.views.atlas import scene
+    from tools.dev import atlas_tree
+    tree, off = atlas_tree.build(), {}
+    for label, keys, turn in (('a layer', ['f4'], 0), ('a layer turned', ['f4'], 60), ('a folder', ['f4', 'f1'], 0),
+                              ('a file', ['f4', 'f1', 'f1'], 0), ('the terminal', ['f1'], 0),
+                              ('the robot', ['f1', 'f5', 'f3', 'f2', 'f2', 'f1'], 0),
+                              ('the flyers', ['f1', 'f5', 'f3', 'f2', 'f2', 'f2'], 0)):
+        state = show_atlas.opened(tree)
+        state['size'], state['cam']['yaw'] = (150, 44), state['cam']['yaw'] + turn
+        bindings.act_on(show_atlas.PAD, keys, state)
+        state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])   # eased to it
+        laid, focus = show_atlas.placed(state), state['focus']
+        lit = scene.flat(laid)['lit']
+        sight = scene.view(state['cam'], *show_atlas.sized(state))
+        seen = [tuple(sum((p[k] - sight['eye'][k]) * sight[a][k] for k in range(3)) for a in ('r', 'u', 'f'))
+                for n, p in laid['at'].items() if (n in lit if show_atlas._apping(state) else focus in scene.chain(tree, n))]
+        xs, ys = [x / z for x, _y, z in seen], [y / z for _x, y, z in seen]
+        off[label] = sight['focal'] * max(abs(max(xs) + min(xs)), abs(max(ys) + min(ys))) / 2   # dots
+    report.check("each node opened framed with its projection's middle on the drawing's middle - a layer, turned "
+                 "too, a folder, a file, the terminal's applications, a page, a branch", all(d < 1e-9 for d in off.values()),
+                 ', '.join('%s %.1e dots off' % kv for kv in off.items()))
+
+
 ROSTER = (test_each_page_comes_to_its_own, test_the_terminal_opens_on_its_applications,
-          test_the_mirror_keeps_to_a_page)
+          test_the_mirror_keeps_to_a_page, test_each_frame_stands_in_the_middle)
 
 
 def main(argv=None):
