@@ -47,6 +47,28 @@ deterministic, polymath and truthful Finite State Machine governed by Section 0.
    banners, dates, or author attributions anywhere in the project, code,
    comments, documentation, or commit messages.
 
+### New Machine Bootstrap (From Zero)
+
+A machine without the toolchain, Python, packages, container engine or images
+is set up by the repository's own setup, never by installs picked by hand:
+
+1. Clone the repository (its submodule where access allows) and read the
+   plan: `powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check`, every
+   area (`machine`, `python`, `toolchain`, `emulator`, `ollama`, `linux`)
+   checked, nothing fetched.
+2. Install it: `.\setup.ps1 -AllowScripts` (one yes for the whole plan;
+   `-Yes` none; `-SkipOllama`, `-SkipLinux` leave those areas out). It takes
+   Python as CI's matrix names it, the host's packages at the versions
+   `host/constraints.txt` pins, the toolchain, the emulator, the model, WSL 2
+   with the container engine and CI's runner images, then builds both
+   firmware images and answers on the emulator. Installs that need an
+   administrator (WSL, the engine, drivers) ask on the user's screen: say so
+   before starting them; a new group membership (`docker-users`) holds after
+   a sign-out.
+3. Every shell afterwards: `. .\env.ps1`. The machine is ready when
+   `.\setup.ps1 -Check` exits 0 and `test_depends` passes here and with
+   `--linux` (the same modules as CI).
+
 ---
 
 ### STATE 0 -- INTENT CLASSIFICATION & WORKTREE GUARD
@@ -106,6 +128,11 @@ Evaluate the prompt and working tree before invoking any tool:
     `[--file test_x.py]`, or `.\host\run_tests.ps1` `-Linux` `[-Scope ...]`).
     Its images and engine come with `setup.ps1` (area `linux`). Reproduce a
     Linux-only fault there, A/B against Windows on the same tree, before a fix.
+    First hold every host to the same modules: `test_depends`
+    (`--file test_depends.py`, here and with `--linux`) checks that this host
+    runs the versions `host/constraints.txt` pins (laid by
+    `host/tools/dev/pinned.py`); a difference between the operating systems
+    is one only where the modules match.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -196,17 +223,20 @@ Evaluate the prompt and working tree before invoking any tool:
 ### STATE 3 -- SURGICAL MUTATION & BLAST-RADIUS LOCK
 
 - **Permitted Actions:** `Create`, `Edit`, `Write` (limit to the proven target
-  files, only create new files and systems if existing solutions deemed insufficient).
-  If edits exist with a dirty main, create or reuse a worktree register and make it visible 
-  in Visual Studio Code `Source Control` panel. Make your edits in the new worktree.
-- **Scope Lock:** Modify only the exact lines in the exact existing, or newly added 
-  file(s) proven in State 2. Never leave untracked temporary or backup files in the tree.
+  files, only create new files and systems if existing solutions deemed
+  insufficient). If edits exist with a dirty main, create or reuse a worktree
+  register and make it visible in Visual Studio Code `Source Control` panel.
+  Make your edits in the new worktree.
+- **Scope Lock:** Modify only the exact lines in the exact existing, or newly
+  added file(s) proven in State 2. Never leave untracked temporary or backup
+  files in the tree.
 - **Generator Rule:** Never hand-edit machine-generated files (manifests,
   static reach/footprint tables, C figure arrays, generated SVGs, or executed
   notebooks) -- edit their generator script and run it.
 - **Banned Actions:** Speculative refactoring, renaming unrelated symbols,
-  formatting untouched lines, breaching the per-file token budget, or
-  inserting corporate, client, or author references anywhere in the project.
+  formatting untouched lines (a linter's fault excepted: fixed wherever it
+  stands, STATE 4), breaching the per-file token budget, or inserting
+  corporate, client, or author references anywhere in the project.
 - **Exit Gate (Emit immediately after mutation before verification):**
   `[STATE 3 GATE: Mutated=[files] Lines=[count] Attempt=[1 to 5]]`
 - **Immediate Transition:** Proceed directly to **STATE 4**.
@@ -232,7 +262,9 @@ Evaluate the prompt and working tree before invoking any tool:
   4. If terminal UI or 3D graphics were touched, dump a single-frame capture
      to a PNG raster and visually inspect it at nominal and scaled sizes.
   5. Run the repository linter (`--changed`) to verify zero Markdown or static
-     type faults, and zero compiler warnings on target C builds.
+     type faults, and zero compiler warnings on target C builds. Fix every
+     fault it reports, whether it was there before or came with the change:
+     none is left as pre-existing.
   6. Run the targeted live debugger/introspection covering the modifications.
      Never execute a state and dynamic introspection directly outside the tool.
      No monkeypatching allowed on file or in memory.
@@ -240,6 +272,10 @@ Evaluate the prompt and working tree before invoking any tool:
      the operating system decides (paths, processes, libraries, processors),
      rerun the same narrow suites in the Linux containers (`--linux`) and quote
      both tallies, Windows and Linux, verbatim.
+  8. If the requirements, their lock or setup's installs were touched, lay the
+     lock anew (`python -X utf8 host/tools/dev/pinned.py`) and run
+     `test_depends` here and in the Linux containers: every host held to the
+     same modules, both tallies quoted verbatim.
   **Per-Cycle Ephemeral Artifact Purge:**
   Immediately after completing each test, introspection, or visual capture
   cycle, delete all temporary diagnostic artifacts generated during the run
