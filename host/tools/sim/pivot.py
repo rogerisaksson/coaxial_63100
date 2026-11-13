@@ -4,7 +4,8 @@
     python tools/sim/pivot.py --way spin --trace   # and a line a frame through the turn
 
 A way of turning (WAYS): `spin` - her walk's stop, then her keys' turn in place till she faces back; `heading` -
-her walk let go and her heading told back at once (`target_heading`, its slew, as an errand tells it). It says the
+her walk let go and her heading told back at once (`target_heading`, its slew, as an errand tells it); `turn`,
+`turn2` - straight out of her walk into her turn in place, no stop first, at her keys' yaw rate and twice it. It says the
 seconds from the turn's start to facing back (within `modal.LIST_RAD`), how far she went meanwhile, the most a
 standing sole turned on the floor while it bore her (rad: a heel's pivot turns it, a planted sole holds), her
 lowest surety, her hardest landing (N), her fastest driven joint (deg/s, the spasm judge's), her stumbles, a fall -
@@ -19,7 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: Her walk to her pace, then the turn's time at most, s; her page's frame for a trace, s.
 WALK_S, OVER_S, FRAME_S = 4.0, 10.0, 0.05
-WAYS = ('spin', 'heading')
+#: The ways and, for a turn straight out of her walk (no stop first), its yaw rate in her keys' (`se2.YAW_RATE`).
+WAYS = ('spin', 'heading', 'turn', 'turn2')
+RATES = {'turn': 1.0, 'turn2': 2.0}
 
 
 def _yaw(d, body):
@@ -45,7 +48,7 @@ def turned(way, walk_s=WALK_S, over_s=OVER_S, trace=False):
         worker.stepped(s)
     t0, back = float(g['t']), _yaw(d, pelvis) + math.pi
     at0, was = (float(d.qpos[0]), float(d.qpos[2])), [_yaw(d, f) for f in feet]
-    worker.apply(s, {'twist': (0.0, 0.0, 0.0)})
+    worker.apply(s, {'twist': (0.0, 0.0, RATES[way] * se2.YAW_RATE) if way in RATES else (0.0, 0.0, 0.0)})
     if way == 'heading':
         g['has_heading'], g['target_heading'] = 1.0, math.remainder(back, math.tau)
     tap, watched, driven = introspect.Tap(), watch.Watch(), set(watch.meta()['rated'])
