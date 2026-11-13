@@ -4,6 +4,7 @@
     python tools/sim/house.py                      # sit_chair from every spot and heading, as F says it
     python tools/sim/house.py lie_bed --said       # said as the prompt says it, seen or not
     python tools/sim/house.py --one 0.32 1.01 1.37 sit_chair [--said] [--rise] [--trace]   # one spot, here
+    python tools/sim/house.py --one 0.5 0.2 4.712 exit_door --said --record NAME           # and her loop recorded
     python tools/sim/house.py --docks              # the chair's sit and rise laid at its dock, off by a grid
     python tools/sim/house.py lie_bed --docked --said --rise   # at her dock on each face, her back to it
 
@@ -25,120 +26,21 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from tools.sim.house_watch import FURNITURE, Watch, named
+
 #: Each verb's goal, the rise said after it held REST_S, the seconds it may take and its rise may (from the bed's
-#: end she stands 18-22 s after it is said; F's errand test gives it 30).
-GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0, 12.0), 'lie_bed': ('bed_rest', 'rise_bed', 45.0, 30.0)}
-#: The furniture her bumps are counted on, and the lodge's own boxes that are not.
-FURNITURE = ('seat', 'back', 'chair_leg', 'bed', 'table', 'lamp', 'loft', 'stair')
-SCENERY = ('floor', 'wall', 'roof', 'deck', 'door', 'pane', 'mullion', 'rail', 'post', 'stone', 'switch', 'shade')
-#: Her joint groups a spasm is read on, and her walk's seconds they are judged against.
-GROUPS = {'arms': ('left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow'), 'neck': ('neck', 'head'),
-          'trunk': ('spine', 'spine_roll', 'waist')}
+#: end she stands 18-22 s after it is said; F's errand test gives it 30); the door's out past its line (`_out`).
+GOALS = {'sit_chair': ('seated', 'rise_chair', 35.0, 12.0), 'lie_bed': ('bed_rest', 'rise_bed', 45.0, 30.0),
+         'exit_door': ('out', None, 40.0, 0.0)}
+#: Her walk's seconds her joint groups' swings are judged against (`house_watch.GROUPS`).
 WALK_S = 8.0
 #: The groups a spasm is judged on: her trunk's motion is the maneuver's own lean.
 SPASM = ('arms', 'neck')
-#: Her spots: a grid this fine, this clear of the furniture, four headings; a goal held this long; her
-#: joints read this often, s.
-GRID_M, CLEAR_M, REST_S, EVERY_S = 0.6, 0.45, 3.0, 0.01
-#: A rise's doings traced with --trace (those they begin), a row this often, s (`_row`).
-TRACED, TRACE_S = ('sit_edge', 'bed_rest', 'sit_up', 'plant', 'lean', 'thrust', 'stand', 'rest'), 0.1
+#: Her spots: a grid this fine, this clear of the furniture, four headings; a goal held this long, s.
+GRID_M, CLEAR_M, REST_S = 0.6, 0.45, 3.0
 HEADINGS = tuple(0.5 * math.pi * k for k in range(4))
 #: The chair's dock sweep: off along its edge, her root off it, her heading off it.
 DOCK_GRID = ((-0.06, -0.03, 0.0, 0.03, 0.06), (0.14, 0.19), (-0.1, -0.05, 0.0, 0.05, 0.1))
-
-
-def _named(m, i, heads):
-    return any(m.geom(i).name.startswith(h) for h in heads)
-
-
-class Watch:
-
-    """Her session stepped: each joint group's fastest swing (deg/s) and widest sweep (deg), her phases,
-    what of hers bumped the furniture in which."""
-
-    def __init__(self, x, z, yaw):
-        from machine.world import physics
-        from machine.process import sprung, worker
-        from machine.body.figure import JOINTS
-        physics.ROOM, physics.SIGHT = 1.0, 0.0
-        self.s = s = worker.session()
-        sprung.relaid(s['g'], (x, z), yaw)
-        self.g, self.world = s['g'], s['g']['world']
-        m = self.world.model
-        self.furn = {i for i in range(m.ngeom) if _named(m, i, FURNITURE) and float(self.world.data.geom_xpos[i][1]) > -0.5}
-        self.hers = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in self.furn and not _named(m, i, SCENERY)}
-        self.last, self.read, self.fast, self.lo, self.hi, self.when, self.held = None, -1.0, {}, {}, {}, {}, {}
-        self.phases, self.bumps = [], {}
-        self.trace: list | None = None
-        self.driven = [JOINTS[j] for j in self.g['joints']]
-        self.go(0.5)
-        self.fast, self.lo, self.hi, self.when, self.held = {}, {}, {}, {}, {}
-
-    def go(self, seconds, until=None):
-        """`seconds` of passes, or to her fall or `until(self)`: whether `until` came."""
-        from machine.process import sprung, worker
-        g, t0 = self.g, self.g['t']
-        while g['t'] - t0 < seconds and self.s['fallen_at'] is None:
-            worker.stepped(self.s)
-            self._read()
-            er = g.get('_errand') or {}
-            tag = '%s/%s' % (er.get('phase'), sprung.doing(g))
-            q = self.world.data.qpos
-            self.phases += [(round(g['t'], 2), tag, round(float(q[0]), 2), round(float(q[2]), 2))] if not self.phases or self.phases[-1][1] != tag else []
-            if until is not None and until(self):
-                return True
-        return False
-
-    def _read(self):
-        from machine.process import sprung, worker
-        g, d, m = self.g, self.world.data, self.world.model
-        if g['t'] - self.read < EVERY_S:
-            return
-        angles, dt = worker.told(self.s)['angles'], g['t'] - self.read
-        for name, joints in GROUPS.items():
-            for j in joints:
-                v = float(angles.get(j, 0.0))
-                if self.last is not None and abs(v - self.last.get(j, v)) / dt > self.fast.get(name, 0.0):
-                    self.fast[name] = abs(v - self.last.get(j, v)) / dt
-                    self.when[name] = (round(g['t'], 2), j, sprung.doing(g), (g.get('_errand') or {}).get('phase'))
-                self.lo[name], self.hi[name] = min(self.lo.get(name, v), v), max(self.hi.get(name, v), v)
-        held = dict(zip(self.driven, g['bus'][2]['alpha']))
-        for name, joints in GROUPS.items():
-            self.held[name] = self.held.get(name, 0.0) + dt * float(max((held.get(j, 0.0) for j in joints), default=0.0) > 0.0)
-        self.last, self.read = {j: float(angles.get(j, 0.0)) for js in GROUPS.values() for j in js}, g['t']
-        if self.trace is not None and str(sprung.doing(g)).startswith(TRACED) and (
-                not self.trace or g['t'] - self.trace[-1][0] >= TRACE_S):
-            self.trace.append(_row(g, d, m))
-        phase = (g.get('_errand') or {}).get('phase')
-        for k in range(d.ncon):
-            a, b = int(d.contact[k].geom1), int(d.contact[k].geom2)
-            for f, o in ((a, b), (b, a)):
-                if f in self.furn and o in self.hers:
-                    self.bumps.setdefault('%s@%s' % (m.geom(f).name, phase), round(g['t'], 2))
-
-    def spasm(self):
-        return {name: (round(self.fast.get(name, 0.0)), round(self.hi.get(name, 0.0) - self.lo.get(name, 0.0)),
-                       self.when.get(name), round(self.held.get(name, 0.0), 2)) for name in GROUPS}
-
-
-def _row(g, d, m):
-    """Her rise traced (`TRACED`): t, her doing, her centre of mass (x, z, height) and its speed (x, z), each sole's
-    place (x, z, height) and load (N), the line of her hips off square (deg) - her law's state, her thighs the world's -,
-    the move she plays and its phase, what her moves sense (her pitch, deg, her fists' and feet's shares, her pelvis off
-    the bed's middle, m), her pelvis's, fists' and left foot's heights (m) and her left knee, hip and shoulder (deg)."""
-    from machine.law import modal
-    from machine.process import joints, sprung
-    y = g['y']
-    c, v, so = y[modal.COM], y[modal.VCOM], y[modal.SOLE].reshape(2, 3)
-    lt, rt = d.xpos[m.body('left_thigh').id], d.xpos[m.body('right_thigh').id]
-    p, felt = g.get('played') or {}, joints._felt(g)
-    played = None if p.get('state') is None else [p['name'], int(p['state'][0])]
-    return (round(g['t'], 2), sprung.doing(g), [round(float(c[i]), 2) for i in (0, 2, 1)],
-            [round(float(v[i]), 2) for i in (0, 2)], [[round(float(so[k, i]), 3) for i in (0, 2, 1)] for k in (0, 1)],
-            [round(float(n)) for n in y[modal.LOAD]], round(math.degrees(math.atan2(float(lt[2] - rt[2]), float(lt[0] - rt[0]))), 1),
-            played, [round(felt[k], 3) for k in ('pitch', 'hands', 'left_foot', 'right_foot', 'along')],
-            [round(float(d.xpos[m.body(b).id][1]), 3) for b in ('pelvis', 'left_hand', 'right_hand', 'left_foot')],
-            [round(math.degrees(float(d.qpos[m.joint(k).qposadr[0]]))) for k in ('left_knee', 'left_hip', 'left_shoulder')])
 
 
 def walked():
@@ -215,9 +117,22 @@ def _goal(w, goal, rise, limit, rise_s, t0, judged=None):
     return reached, held, up
 
 
-def one(x, z, yaw, verb, said=False, rise=False, trace=False):
+def _out(w, limit, t0):
+    """(seconds to her pelvis out past the door's line `room.TO` and her errand ended, whether she is out and up REST_S
+    on, None: no rise) from `t0` - the door's goal."""
+    from machine.world import room
+    g = w.g
+    out = w.go(limit - (g['t'] - t0), lambda q: float(q.world.data.qpos[2]) > room.TO and not g.get('_errand'))
+    reached = round(g['t'] - t0, 2) if out else None
+    if out:
+        w.go(REST_S)
+    return reached, out and w.s['fallen_at'] is None, None
+
+
+def one(x, z, yaw, verb, said=False, rise=False, trace=False, record=None):
     """Her errand `verb` from (x, z, `yaw`), as F says it or `said` as a prompt does: a line's fields, her rise's
-    rows (`_row`) with them where `trace`."""
+    rows (`house_watch._row`) with them where `trace`; her loop recorded from her say to the run's end where `record` names it
+    (`watch.recorded`: recordings/NAME.jsonl)."""
     from types import SimpleNamespace as SN
     from machine.senses import edge
     from machine.process import worker
@@ -231,6 +146,8 @@ def one(x, z, yaw, verb, said=False, rise=False, trace=False):
     pick = [k for k, o in enumerate(offers) if o[1] == verb]
     if not said and not pick:
         return dict(out, result='not offered')
+    if record:
+        worker.apply(w.s, {'record': record})
     if said:
         worker.apply(w.s, {'say': verb})
     else:
@@ -250,11 +167,15 @@ def one(x, z, yaw, verb, said=False, rise=False, trace=False):
         return not g.get('_errand')
     w.go(limit, docked)
     lies = verb.startswith('lie')
-    reached, held, up = _goal(w, goal, rise_verb if rise else None, limit, rise_s, t0, _on if lies else None)
+    reached, held, up = (_out(w, limit, t0) if goal == 'out' else
+                         _goal(w, goal, rise_verb if rise else None, limit, rise_s, t0, _on if lies else None))
     fell = None if w.s['fallen_at'] is None else round(w.s['fallen_at'] - t0, 2)
     ok = held and fell is None and (up is not None or not rise)
+    if record:
+        from tools.sim import scenarios
+        scenarios.ended(w.s)
     return dict(out, dock=dock or None, reached=reached, held=held, up=up, fell=fell, spasm=w.spasm(), bumps=w.bumps,
-                phases=w.phases[-12:], lain=getattr(w, 'lain', None) if lies else None, on=getattr(w, 'on', None) if lies else None,
+                phases=w.phases[-12:], stops=w.stops, lain=getattr(w, 'lain', None) if lies else None, on=getattr(w, 'on', None) if lies else None,
                 result='ok' if ok else ('fell' if fell is not None else 'short'), **({'trace': w.trace} if trace else {}))
 
 
@@ -279,7 +200,7 @@ def spots():
     world = worker.session()['g']['world']
     m, d = world.model, world.data
     boxes = [(float(d.geom_xpos[i][0]), float(d.geom_xpos[i][2]), float(m.geom_size[i][0]), float(m.geom_size[i][2]))
-             for i in range(m.ngeom) if _named(m, i, FURNITURE) and float(d.geom_xpos[i][1]) > -0.5]
+             for i in range(m.ngeom) if named(m, i, FURNITURE) and float(d.geom_xpos[i][1]) > -0.5]
     xs = [round(-room.WIDE + 0.5 + GRID_M * k, 2) for k in range(int((2.0 * room.WIDE - 1.0) / GRID_M) + 1)]
     zs = [round(room.FROM + 0.5 + GRID_M * k, 2) for k in range(int((room.TO - room.FROM - 1.0) / GRID_M) + 1)]
     return [(x, z) for x in xs for z in zs
@@ -330,7 +251,8 @@ def main(argv=None):
     p.add_argument('--rise', action='store_true', help='its rise said once it held')
     p.add_argument('--walked', action='store_true', help='her walk\'s fastest swings, here')
     p.add_argument('--every', action='store_true', help='every run\'s line, not only the short, fallen or spasmed')
-    p.add_argument('--trace', action='store_true', help='her rise traced (TRACED, each TRACE_S)')
+    p.add_argument('--trace', action='store_true', help='her rise traced (house_watch.TRACED, each TRACE_S)')
+    p.add_argument('--record', help='with --one: her loop recorded from her say, recordings/NAME.jsonl (`watch.recorded`)')
     args = p.parse_args(argv)
     flags = ['--said'] * args.said + ['--rise'] * args.rise + ['--trace'] * args.trace
     if args.walked:
@@ -338,7 +260,7 @@ def main(argv=None):
         return 0
     if args.one:
         print(json.dumps(one(float(args.one[0]), float(args.one[1]), float(args.one[2]), args.one[3], args.said, args.rise,
-                             args.trace)), flush=True)
+                             args.trace, args.record)), flush=True)
         return 0
     if args.dock:
         print(json.dumps(dock(*args.dock)), flush=True)
