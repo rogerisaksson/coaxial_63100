@@ -1,0 +1,182 @@
+"""AIL, her AI in the loop: she driven about the lodge on her keys, her faults judged by the truth.
+
+    python tools/sim/ail.py drive --seeds 8 --seconds 60          # sessions of held keys, each one's faults
+    python tools/sim/ail.py drive --seeds 8 --stage 5              # and the first 5 faults of their own kinds kept
+    python tools/sim/ail.py replay                                 # each staged case again: PASS where it is gone
+
+A session: the lodge laid (ROOM), her page's keys held and let go as a hand does - W, S, A, D, Q, E and their pairs,
+each held 0.4-3 s, pauses between (`bindings.act_on` each repeat, `humanoid_keys.steered` each frame: her page's
+own path, test_wasd's) - and F now and then, her page's first offer docked; a seed's the same session each run.
+It ends where she does: fallen, stuck (W held and no way made), crashed, or its seconds run. Her faults: a fall, a
+stumble, a spasm (`watch.Watch`'s), her body into a thing on her keys (her place against the lodge's own boxes,
+`world.props()`, grown by her half width), stuck, a crash. A fault staged is a case of its own (ail_staged/*.json:
+its seed, its keys, its kind) that `replay` runs anew - red till fixed; no suite of CI's runs them.
+"""
+import argparse
+import json
+import math
+import os
+import random
+import sys
+import traceback
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+#: Her page's frame and its key repeat, s (test_wasd's); the words a hand holds, and how long, s.
+FRAME_S, REPEAT_S = 0.05, 0.033
+WORDS = ('w', 'w', 'w', 'wa', 'wd', 'a', 'd', 's', 'q', 'e', 'wq', 'we')
+HELD_S, PAUSE_S = (0.4, 3.0), (0.3, 1.5)
+#: Where staged cases are kept.
+STAGED = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ail_staged')
+
+
+def script(seed, seconds):
+    """[(word, s)] a seed's session: holds and pauses, an 'f' now and then."""
+    rng, out, t = random.Random(seed), [], 0.0
+    while t < seconds:
+        word = 'f' if rng.random() < 0.08 else rng.choice(WORDS)
+        held = rng.uniform(*HELD_S) if word != 'f' else 0.1
+        out += [(word, held), ('', rng.uniform(*PAUSE_S) if word != 'f' else 30.0)]
+        t += held + out[-1][1]
+    return out
+
+
+def _lodge(g):
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of the lodge's things she may not stand in, a door's not."""
+    import numpy as np
+    from machine.eyes import classes, voxels
+    w = g['world']
+    w._mj.mj_forward(w.model, w.data)
+    props = w.props()
+    names = classes.of(*classes.stacked(props))[0]
+    kept = [p for p, n in zip(props, names) if n not in ('door', 'floor', 'ground') and p[1][1] + p[2][1] > voxels.STAND_M[0]
+            and p[1][1] - p[2][1] < voxels.STAND_M[1]]
+    c = np.array([(p[1][0], p[1][2]) for p in kept], float).reshape(-1, 2)
+    axes = np.array([((p[3][0][0], p[3][2][0]), (p[3][0][2], p[3][2][2])) for p in kept], float).reshape(-1, 2, 2)
+    return c, axes, np.array([(p[2][0], p[2][2]) for p in kept], float).reshape(-1, 2), [n for p, n in zip(props, names) if p in kept]
+
+
+def _into(lodge, at, half):
+    """(the deepest a body `half` m wide at `at` (x, z) stands in one of `lodge`'s things, m - 0 none -, its name)."""
+    import numpy as np
+    c, axes, halves, names = lodge
+    if not len(c):
+        return 0.0, ''
+    o = np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c)
+    over = halves + half - np.abs(o)
+    depth = np.where((over > 0.0).all(axis=1), over.min(axis=1), 0.0)
+    k = int(np.argmax(depth))
+    return float(depth[k]), names[k]
+
+
+def drive(seed, seconds, eyes=False, words=None):
+    """A seed's session (`script`, or `words`) in the lodge: {seed, words, faults [{kind, t, detail}], end, t}."""
+    from types import SimpleNamespace as SN
+    from machine.body import figure
+    from machine.world import physics
+    physics.ROOM, physics.SIGHT = 1.0, float(eyes)
+    from machine.process import introspect, sprung, watch, worker
+    from machine.way import cocoon
+    from terminal.ui import bindings
+    from terminal.views import humanoid_keys
+    words = words or script(seed, seconds)
+    faults, sent, end = [], [], 'seconds'
+    s = worker.session()
+    g = s['g']
+    lodge = _lodge(g)
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
+          'pad': humanoid_keys.pad(), 'now': worker.told(s)}
+    tap, watched = introspect.Tap(), watch.Watch()
+    frame, typed_at, deepest = 0.0, -math.inf, 0.0
+    try:
+        for word, held in words:
+            t0, x0 = float(g['t']), (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2]))
+            while g['t'] - t0 < held and s['fallen_at'] is None:
+                for cmd in sent:
+                    worker.apply(s, cmd)
+                sent.clear()
+                worker.stepped(s)
+                t = float(g['t'])
+                if word and t - typed_at >= REPEAT_S:
+                    typed_at = t
+                    bindings.act_on(humanoid_keys.PAD, list(word), st, t)
+                if t - frame >= FRAME_S:
+                    frame = t
+                    st['now'] = worker.told(s)
+                    humanoid_keys.steered(st, t, 0.0)
+                    depth, name = _into(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
+                                        figure.WIDE_HALF)
+                    if depth > deepest + 0.02 and g.get('_errand') is None:
+                        deepest = depth
+                        faults.append({'kind': 'into', 't': round(t, 2), 'detail': '%.2f m into %s on %r' % (depth, name, word)})
+                snap = tap.passed(s)
+                if snap is not None:
+                    for e in watched.step(snap):
+                        if e['event'] in ('stumble', 'fall', 'spasm'):
+                            faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g)})
+            # W refused short of a thing is her cocoon's (`machine.way.cocoon`), not stuck
+            if word == 'w' and held >= 2.0 and s['fallen_at'] is None and cocoon.refused(g, (1.0, 0.0, 0.0))[0] and math.hypot(
+                    float(g['world'].data.qpos[0]) - x0[0], float(g['world'].data.qpos[2]) - x0[1]) < 0.05:
+                faults.append({'kind': 'stuck', 't': round(float(g['t']), 2), 'detail': 'W held %.1f s, no way made' % held})
+                end = 'stuck'
+                break
+            if s['fallen_at'] is not None:
+                faults.append({'kind': 'fall', 't': round(s['fallen_at'], 2), 'detail': sprung.doing(g)})
+                end = 'fallen'
+                break
+    except Exception:
+        faults.append({'kind': 'crash', 't': round(float(g['t']), 2), 'detail': traceback.format_exc(limit=3)[-400:]})
+        end = 'crashed'
+    return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes}
+
+
+def _staged():
+    return sorted(f for f in os.listdir(STAGED) if f.endswith('.json')) if os.path.isdir(STAGED) else []
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description='AIL, her AI in the loop: drive her about the lodge, stage her faults')
+    p.add_argument('what', choices=('drive', 'replay'))
+    p.add_argument('--seeds', type=int, default=4)
+    p.add_argument('--first', type=int, default=0, help='the first seed')
+    p.add_argument('--seconds', type=float, default=60.0)
+    p.add_argument('--eyes', action='store_true', help='on her eyes (SIGHT 1), not the world\'s boxes')
+    p.add_argument('--stage', type=int, default=0, help='keep the first N faults of kinds not yet kept')
+    a = p.parse_args(argv)
+    if a.what == 'drive':
+        kept, kinds = 0, set()
+        for seed in range(a.first, a.first + a.seeds):
+            run = drive(seed, a.seconds, a.eyes)
+            print(json.dumps({k: run[k] for k in ('seed', 'end', 't')} | {'faults': run['faults'][:6]}))
+            for f in run['faults']:
+                key = (f['kind'], f['detail'].split(' on ')[0].split(' m into ')[-1] if f['kind'] == 'into' else f['detail'])
+                if kept < a.stage and key not in kinds:
+                    kinds.add(key)
+                    kept += 1
+                    os.makedirs(STAGED, exist_ok=True)
+                    name = 'ail_%s_%d_%s' % (f['kind'], seed, str(f['t']).replace('.', '_'))
+                    with open(os.path.join(STAGED, name + '.json'), 'w', encoding='utf-8', newline='\n') as out:
+                        json.dump({'seed': seed, 'eyes': a.eyes, 'until': f['t'] + 1.0, 'fault': f,
+                                   'words': run['words']}, out, indent=1)
+                    print('staged', name)
+        return 0
+    failed = 0
+    for name in _staged():
+        with open(os.path.join(STAGED, name), encoding='utf-8') as f:
+            case = json.load(f)
+        words, left = [], case['until']
+        for word, held in case['words']:
+            words.append((word, min(held, left)))
+            left -= held
+            if left <= 0:
+                break
+        run = drive(case['seed'], case['until'], case['eyes'], words)
+        again = [f for f in run['faults'] if f['kind'] == case['fault']['kind']]
+        failed += bool(again)
+        print('%s %s: %s' % ('FAIL' if again else 'PASS', name, again[0]['detail'] if again else 'gone'))
+    print('staged: %d passed, %d failed' % (len(_staged()) - failed, failed))
+    return 1 if failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

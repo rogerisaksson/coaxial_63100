@@ -61,7 +61,8 @@ def heard(g, gym, command):
     elif not errand_step and any(k in command for k in ('say', 'entries', 'scenario')):
         joints.ended(g)
     if 'twist' in command and ('say' in command or not joints.scooted(g, command['twist'])):
-        se2.heard_twist(g, gym, command['twist'], 'say' in command, gaits.heard_say)
+        tw = command['twist'] if 'say' in command or command['twist'] is None else _cocoon().refused(g, command['twist'])
+        se2.heard_twist(g, gym, tw, 'say' in command, gaits.heard_say)
     by = {e[0]: e for e in gym}
     if 'charge' in command:
         g['_hop_charge'] = max(0.0, min(1.0, float(command['charge'])))
@@ -196,6 +197,12 @@ def _errand():
     return errand
 
 
+def _cocoon():
+    """`machine.way.cocoon`, as `_errand`."""
+    from machine.way import cocoon
+    return cocoon
+
+
 def stepped(s):
     """A pass of her world, judged: fallen, she lies RECOVER_S, then a new epoch is laid; shut down
     by a bus (`edge.held`), her drives stay off till a restart."""
@@ -212,6 +219,9 @@ def stepped(s):
             gaits.halted(g, s['gym'])
             _errand().step_errand(g, s['gym'], heard, gaits.heard_say)
             gaits.govern_twist(g, s['gym'], DT)
+            if _cocoon().blocked(g):
+                # short of a thing: her keys let go (`machine.way.cocoon`), her turn kept - she stands by her own stop
+                se2.heard_twist(g, s['gym'], (0.0, 0.0, g['asked'][2]), False, gaits.heard_say)
             sprung.passed(g, DT)
             if s['worn'].put(g['sense'], world.motor):
                 s['worn'].shut(s['passes'])
