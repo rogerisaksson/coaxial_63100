@@ -259,11 +259,77 @@ def test_the_planner_and_errand_rows_do_not_toggle(report):
     g['est']['vel'][0], g['est']['vel'][2] = 0.25 * er['tx'], 0.25 * er['tz']
     errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
     kept_settle = er['phase']
-    er.update(phase='done')
+    er.update(phase='settle', through=True, x_dock=float(g['est']['pos'][0]) - 1.20 * er['nx'],
+              z_dock=float(g['est']['pos'][2]) - 1.20 * er['nz'])
+    errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
+    kept_out = er['phase']
+    was_loads = g['loads']
+    g['st'][latent.NOW][latent.GAIN], g['loads'] = 0.0, (240.0, 70.0)
+    er.pop('alike_at', None)
+    er.pop('split_was', None)
+    errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
+    kept_uneven = er['phase']
+    g['st'][latent.NOW][latent.GAIN], g['loads'] = 0.05, was_loads
+    er.update(phase='done', through=False, x_dock=float(g['est']['pos'][0]) - 0.17 * er['nx'],
+              z_dock=float(g['est']['pos'][2]) - 0.17 * er['nz'])
     errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
     kept_done = g.get('_errand') is not None and er['phase']
-    report.check('settle and done ignore standing sway lead s_perp_side within lat_tol and wait for still in done',
-                 kept_settle == 'settle' and kept_done == 'done', (kept_settle, kept_done))
+    report.check('settle, out and done ignore sway lead s_perp_side within lat_tol and wait for still and even',
+                 kept_settle == 'settle' and kept_out == 'settle' and kept_uneven == 'settle' and kept_done == 'done',
+                 (kept_settle, kept_out, kept_uneven, kept_done))
+    from machine.senses import edge
+    from machine.way import steer
+    told_tw = []
+    g['asked'], g['has_heading'], g['st'][latent.NOW][latent.GAIN] = None, 1.0, 1.0
+    g['heading'] = float(edge.yaw(g['sense'])) + 0.38
+    steer.steer(g, s['gym'], lambda _g, _gym, cmd: told_tw.append(cmd['twist']), 0.38, 1.0, 0.8, 0.38)
+    d = g['world'].data
+    was_q0, was_q2, was_hd, was_vel = float(d.qpos[0]), float(d.qpos[2]), g['heading'], g['est']['vel'].copy()
+    er.update(phase='door', through=True, hdd=0.0, nx=0.0, nz=-1.0, tx=-1.0, tz=0.0, d_stage=1.2,
+              x_dock=0.74, z_dock=3.48, way=[(0.74, 4.68)], curve=())
+    d.qpos[0], d.qpos[2], g['heading'] = 0.50, 2.60, 0.0
+    errand.step_errand(g, s['gym'], lambda *_a: None, lambda *_a: None)
+    in_hd = float(g['target_heading'])
+    d.qpos[0], d.qpos[2], g['heading'] = 0.92, 3.80, 0.0
+    errand.step_errand(g, s['gym'], lambda *_a: None, lambda *_a: None)
+    out_hd = float(g['target_heading'])
+    d.qpos[0], d.qpos[2], g['heading'] = was_q0, was_q2, was_hd
+    report.check('steer measures CONE from held walking heading, and door aims in before threshold and holds hdd past',
+                 told_tw == [(0.8, 0.0, 0.0)] and in_hd > 0.10 and abs(out_hd) < 1e-6, (told_tw, in_hd, out_hd))
+    er.update(phase='side', stepped=False, side_from=0.12, lat_tol=0.15,
+              x_dock=float(d.qpos[0]) - 0.12 * er['tx'], z_dock=float(d.qpos[2]) - 0.12 * er['tz'])
+    g['est']['vel'][0], g['est']['vel'][2] = -0.35 * er['tx'], -0.35 * er['tz']
+    errand.step_errand(g, s['gym'], worker.heard, lambda *_a: None)
+    g['est']['vel'][:] = was_vel
+    curve, _last = route.rounded(np.ones(route._grid()[1], bool), [(0.0, 0.0), (0.0, 1.5), (1.5, 1.5)])
+    speeds = np.asarray(curve)[:, 3]
+    report.check('side waits for a real foot lift even inside lat_tol, and rounded corner pace stays above spin threshold',
+                 er['phase'] == 'side' and float(speeds.min()) >= route.CORNER_SPEED > route.SLOWEST,
+                 (er['phase'], float(speeds.min())))
+    from machine.texts import maneuver
+    from machine.way import furniture, words
+    from machine.world import room
+    ident = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    boxes = [('stool', (0.0, 0.35, -0.30), (0.25, 0.05, 0.20), ident, 97),
+             ('chair', (3.5, 0.40, 0.0), (0.25, 0.05, 0.20), ident, 8),
+             ('wall', (3.8, 0.80, 0.0), (0.05, 0.80, 0.30), ident, 9)]
+    held_edge = furniture.nearest(g, 'sit_chair', (0.0, -0.10), things=boxes, thing=97)
+    report.check('nearest with a held slot keeps the docked stool over a distant backed chair',
+                 held_edge[4] == 97 and held_edge[0] < 0.5, (held_edge[4], round(held_edge[0], 3)))
+    eye = np.eye(3)
+    g['eyes'], g['inekf']['p'][:] = 1, (room.CHAIR_LOW_AT[0] + 0.35, 0.85, room.CHAIR_LOW_AT[1])
+    g['things'] = [('seat', np.array([room.CHAIR_LOW_AT[0], 0.18, room.CHAIR_LOW_AT[1]]), np.array([0.22, 0.18, 0.22]), eye, 3, 1.0),
+                   ('chair', np.array([room.CHAIR_AT[0], 0.22, room.CHAIR_AT[1]]), np.array([0.22, 0.22, 0.22]), eye, 9, 1.0),
+                   ('prop', np.array([room.CHAIR_AT[0] + 0.20, 0.62, room.CHAIR_AT[1]]), np.array([0.03, 0.20, 0.22]), eye, 10, 1.0)]
+    stale = {'kind': 'sit_chair', 'through': False, 'thing': 3, 'nx': 1.0, 'nz': 0.0, 'tx': 0.0, 'tz': -1.0,
+             'x_dock': -2.34, 'z_dock': room.CHAIR_LOW_AT[1]}
+    words._refreshed(g, stale)
+    by = {e[0]: e for e in s['gym']}
+    maneuver.said(g, by['sit_chair'], room.CHAIR_LOW_AT, thing=3)
+    risen = maneuver.said(g, by['rise_chair'])
+    report.check('arrival refreshes stale sight dock to live slot and rise keeps sat_thing across room',
+                 abs(stale['x_dock'] - (room.CHAIR_LOW_AT[0] + 0.22)) < 1e-6 and risen[0] == 'rise_chair',
+                 (stale['x_dock'], risen[0]))
 
 
 ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart,

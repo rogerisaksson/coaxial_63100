@@ -74,8 +74,9 @@ def test_a_stop_settles_and_f_is_heard(report):
     _flips, seated = _run(s, 5.0, until='seated')
     worker.apply(s, {'say': 'rise_chair'})
     _flips, stand = _run(s, 6.0, until='stand')
-    report.check('F sits her within 5 s and rises her within 6 s',
-                 seated is not None and stand is not None, (seated, stand))
+    report.check('F sits her within 5 s and rises her within 6 s, no fall',
+                 seated is not None and stand is not None and s['fallen_at'] is None and s['epoch'] == 0,
+                 (seated, stand, s['fallen_at'], s['epoch']))
     worker.apply(s, {'scenario': 'bed'})
     worker.apply(s, {'twist': WALK})
     _flips, walking = _run(s, 1.0, until='init_walk')
@@ -319,6 +320,7 @@ def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
     worker.apply(s, {'say': 'sit_chair', 'at': room.CHAIR_LOW_AT})
     _flips, seated = _run(s, 40.0, until='seated')
     _run(s, 2.0)
+    sat_x = float(s['g']['world'].data.qpos[0])
     worker.apply(s, {'say': 'rise_chair'})
     _flips, stood = _run(s, 10.0, until='stand')
     _run(s, 1.0)
@@ -335,11 +337,12 @@ def test_from_the_low_chair_she_rounds_the_bed_to_the_door(report):
             nearest = min(nearest, math.hypot(dx, dz))
     _run(s, 3.0)
     g, d = s['g'], s['g']['world'].data
-    report.check('from the low chair, risen, she rounds the bed to the door and is out past its line, no fall',
-                 seated is not None and stood is not None and s['fallen_at'] is None and not g.get('_errand')
+    report.check('from the low chair, seated past its edge and risen, she rounds the bed to the door, no fall',
+                 seated is not None and sat_x < room.CHAIR_LOW_AT[0] + room.SEAT[2] - 0.05 and stood is not None
+                 and s['fallen_at'] is None and s['epoch'] == 0 and not g.get('_errand')
                  and float(d.qpos[2]) > room.TO and bed is not None and nearest > figure.HIP_HALF,
-                 'seated %s, stood %s, out at (%.2f, %.2f) after %.1f s, nearest the bed %.2f m, fallen %s'
-                 % (seated, stood, float(d.qpos[0]), float(d.qpos[2]), g['t'] - t0, nearest, s['fallen_at']))
+                 'seated %s (x=%.2f), stood %s, out at (%.2f, %.2f) after %.1f s, nearest the bed %.2f m, fallen %s'
+                 % (seated, sat_x, stood, float(d.qpos[0]), float(d.qpos[2]), g['t'] - t0, nearest, s['fallen_at']))
 
 
 def test_multi_pose_bed_settle_and_randomized_scenarios(report):

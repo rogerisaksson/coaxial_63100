@@ -177,9 +177,33 @@ def _fixed(g, gym, er, c, heard_fn, _say_fn):
     gaze.fix(g, _docking(er), er['curve'], gaze.HELD * sight.LOOK_S + planner.WATCH_S + planner.LATENCY_S + route.RUN_OUT_S)
 
 
+def _refreshed(g, er):
+    """Her dock's edge on its thing as her eyes hold it close (`_arrived`, `_faced`): laid from afar, its depth
+    firms up as she walks in under `gaze.fix` - unrefreshed, a low chair glimpsed 0.09 m shallow left her 0.24 m
+    off its real edge, her knees' HEELS cap holding her hips on its lip."""
+    if not g.get('eyes') or er['through'] or er.get('thing') is None:
+        return
+    from machine.body import figure
+    from machine.law import stride
+    from machine.moves import seated
+    from machine.way import affordance, dock, furniture, peek
+    box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er['thing'])[6]
+    if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
+        return
+    over = er['kind'] == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
+    hn, across = math.atan2(er['nx'], er['nz']), seated.placed(seated.ON, 0.0)[2] if over else dock.docks()[er['kind']][0]
+    edge, span = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi)
+    lat = max(0.0, span - (min(across, span) if span >= figure.HIP_HALF else across))
+    mx, mz = float(box[1][0]) + edge * er['nx'], float(box[1][2]) + edge * er['nz']
+    off = max(-lat, min(lat, (er['x_dock'] - mx) * er['tx'] + (er['z_dock'] - mz) * er['tz']))
+    er.update(x_dock=mx + off * er['tx'], z_dock=mz + off * er['tz'], lat_tol=lat, top=peek.level(er['kind'], box),
+              thing=box[4] if len(box) > 4 else er['thing'])
+
+
 def _arrived(g, gym, er, c, heard_fn, _say_fn):
     """Walked to her stage (`_stood`), her gaze let go (`gaze.rest`): her dock her body's now."""
     from machine.eyes import gaze
+    _refreshed(g, er)
     _stood(g, gym, er, c, heard_fn, _say_fn)
     gaze.rest(g)
 
@@ -231,6 +255,7 @@ def _halted(g, gym, er, c, heard_fn, _say_fn):
 
 def _faced(g, gym, er, c, heard_fn, _say_fn):
     """Faced away from the prop with the dock's heading."""
+    _refreshed(g, er)
     er['turn_dir'] = 0.0
     tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': STOP})
 
@@ -307,7 +332,8 @@ def _retreat(g, gym, er, c, heard_fn, _say_fn):
 
 def _to_line(g, gym, er, c, heard_fn, _say_fn):
     """Sidestepping toward the dock's line, facing away from the prop."""
-    from machine.law import se2
+    from machine.law import modal, se2
+    er['stepped'] = bool(er.get('stepped') or float(g['a'][modal.STANCE].min()) < 0.5)
     g['has_heading'], g['target_heading'] = 1.0, er['hdd']
     tell(g, gym, heard_fn, {'heading': er['hdd'], 'twist': (0.0, math.copysign(se2.STRAFE_SPEED, c['way_left']), 0.0)})
 

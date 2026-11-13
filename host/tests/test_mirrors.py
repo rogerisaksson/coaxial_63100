@@ -88,6 +88,9 @@ MIRRORS = (
      'drive/src/drive_math.c', 'HALF_SQRT3', 1.0),
     ('motor.pmsm', 'TWO_PI',
      'drive/src/drive_math.c', 'TWO_PI', 1.0),
+    ('tools.cores.sensed', 'P', 'wbc/inc/wbc_move.h', 'WBC_SENSED_PHASES', 1.0),
+    ('tools.cores.sensed', 'Q', 'wbc/inc/wbc_move.h', 'WBC_SENSED_PARTS', 1.0),
+    ('tools.cores.sensed', 'M', 'wbc/inc/wbc_move.h', 'WBC_SENSED_MOVED', 1.0),
 )
 
 

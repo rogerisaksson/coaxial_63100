@@ -33,9 +33,10 @@ from machine.moves import anatomy
 #: middle of the furniture she is on along its length (m) and that half length (m), her trunk's pitch (deg, forward
 #: +), her pelvis's speed (m/s) - her place and speed as a look takes her.
 SENSED = ('soles', 'along', 'half', 'pitch', 'speed')
-#: The parts it moves, the first SIDED a side each - shoulders, elbows, hips, knees, ankles, her legs' rolls and
-#: yaws -, then her spine, waist and neck; each joint of theirs and its part.
-PARTS, SIDED = ('shoulder', 'elbow', 'hip', 'knee', 'ankle', 'hip_roll', 'hip_yaw', 'spine', 'waist', 'neck'), 7
+#: The parts it moves, the first SIDED a side each - shoulders, elbows, hips, knees, ankles and their rolls, her
+#: legs' rolls and yaws -, then her spine, waist and neck; each joint of theirs and its part.
+PARTS, SIDED = (
+    'shoulder', 'elbow', 'hip', 'knee', 'ankle', 'ankle_roll', 'hip_roll', 'hip_yaw', 'spine', 'waist', 'neck'), 8
 JOINT = np.array([JOINTS.index(side + p) for p in PARTS[:SIDED] for side in ('left_', 'right_')]
                  + [JOINTS.index(p) for p in PARTS[SIDED:]])
 PART = np.repeat(np.arange(len(PARTS)), [2] * SIDED + [1] * (len(PARTS) - SIDED))

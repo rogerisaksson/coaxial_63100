@@ -234,6 +234,14 @@ def test_a_sidestep_lifts_its_leading_sole_and_closes_neutral(report):
                      res['fell_at'] is None and not told and moved >= 0.25 and sprung.doing(g) in ('stand', 'rest')
                      and list(g['a'][modal.STANCE]) == [1.0, 1.0] and 0.14 <= span <= 0.23 and spd < 0.05,
                      (res['fell_at'], told, round(moved, 3), round(span, 3), round(spd, 3), sprung.doing(g)))
+    plan, secs = played('q1.0 -0.15 q1.2 -2.0')
+    scenarios.SCENARIOS['sidestep_repress'] = ('flat', plan, secs, 'stands', None)
+    try:
+        res = scenarios.ran('sidestep_repress')
+    finally:
+        scenarios.SCENARIOS.pop('sidestep_repress', None)
+    report.check('Q released 0.15 s and pressed again finishes brake without falling',
+                 res['fell_at'] is None and res['met'], (res['fell_at'], res['met']))
 
 
 ROSTER = [test_the_keys_that_move_her_are_one_twist, test_the_pages_keys_drive_her,

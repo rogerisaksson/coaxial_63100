@@ -138,11 +138,12 @@
 ;; the concentric handover's 0.82): her palms bore up to 284 N, her pelvis 0.18 m forward, her soles 0.96 of her.
 ;; Her text's rows wait while it plays.
 (defmove chair-dismount []
-  (let [;; her soles' share planted, as her rise unlatches its seat; a goal reached within tol deg
-        plant 0.82 tol 1e-6]
+  (let [;; her soles' share planted, as her rise unlatches its seat; a goal reached within tol deg; her legs squared
+        plant 0.82 tol 1e-6
+        square (:hip-roll [0.0 30.0] :hip-yaw [0.0 30.0] :ankle-roll [0.0 30.0])]
     (:constants (:plant plant :tol tol)
      :holds true
-     :phases [(:name :place :ends :reached :next :press
+     :phases [(:name :place :ends :reached :next :press :with [square]
                :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
               (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0]))

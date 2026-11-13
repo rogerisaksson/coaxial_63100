@@ -122,11 +122,11 @@ double wbc_scoot_step(const wbc_scoot_t *s, double *state, double *cmd, double d
 
 /** Her moves whose phases end by what she senses (machine.moves.sensed: a table each of the suite's lisp - her way
     into a bed over its end to its middle, up onto a seat too high for her feet): its phases at most, the parts it
-    moves (shoulders, elbows, hips, knees, ankles, the legs' rolls and yaws a side each, the spine, waist and neck) and
-    their joints. */
+    moves (shoulders, elbows, hips, knees, ankles and their rolls, the legs' rolls and yaws a side each, the spine,
+    waist and neck) and their joints. */
 #define WBC_SENSED_PHASES 15
-#define WBC_SENSED_PARTS  10
-#define WBC_SENSED_MOVED  17
+#define WBC_SENSED_PARTS  11
+#define WBC_SENSED_MOVED  19
 
 /** Its state's slots: the phase, the strokes, her side of the furniture's middle (0 till her first pass). */
 enum

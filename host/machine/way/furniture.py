@@ -116,12 +116,12 @@ def _found(g, verb, at=None, thing=None, things=None):
     return min(hits, key=lambda h: (not h[3], h[0], h[1]))
 
 
-def nearest(g, verb, at=None, where=(0.0, 0.0), things=None):
+def nearest(g, verb, at=None, where=(0.0, 0.0), things=None, thing=None):
     """`(dist_edge, px, pz, top, thing, faces, box)` of the thing `verb` goes to nearest `at` (x, z) - her
-    without one - among `things` (hers without): its edge's distance from her, its centre, its top's
-    height, its slot, the headings of the faces she docks at (GOES), its box; `where`, no top, no slot,
-    no faces and no box with none seen."""
-    hit = _found(g, verb, at, things=things)
+    without one - among `things` (hers without), the thing of slot `thing` where given: its edge's distance
+    from her, its centre, its top's height, its slot, the headings of the faces she docks at (GOES), its box;
+    `where`, no top, no slot, no faces and no box with none seen."""
+    hit = _found(g, verb, at, thing=thing, things=things)
     if hit is None:
         return math.inf, where[0], where[1], None, None, None, None
     edge, p = hit[1], hit[2]

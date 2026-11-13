@@ -36,6 +36,7 @@ TURN = se2.YAW_RATE * se2.STEER['stance_turn']
 #: walk, m/s: told slower she turns on the spot (`[gait.rhythm]` spin_still_m_s).
 BRAKE, RUN_OUT_S = se2.WALK_SPEED ** 2 / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
 SLOWEST = rhythm.R['spin_still_m_s']
+CORNER_SPEED = SLOWEST + rhythm.R['edge_m_s']
 
 
 def _cell(x, z):
@@ -214,7 +215,7 @@ def rounded(cells, pts):
     ds = np.hypot(*np.diff(q[:, :2], axis=0).T)
     s, stop = np.r_[0.0, np.cumsum(ds)], stride.STRIDE_M + voxels.CELL_M * float(last < n)
     v = q[:, 2].copy()
-    v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], SLOWEST)
+    v[s >= s[-1] - stop] = np.minimum(v[s >= s[-1] - stop], CORNER_SPEED)
     for k in range(1, len(v)):
         v[k] = min(v[k], math.sqrt(v[k - 1] ** 2 + 2.0 * BRAKE * ds[k - 1]))
     for k in range(len(v) - 2, -1, -1):
