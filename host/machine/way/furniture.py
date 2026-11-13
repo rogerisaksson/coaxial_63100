@@ -58,10 +58,39 @@ def _afforded(g, verb, things=None):
             affords, itself, _faces = GOES.get(verb, _NONE)
             index = [k for k, p in enumerate(source) if _boxlike(p)]
             boxes = [source[k] for k in index]
-            chosen = [(j, itself(p, boxes)) for j, p in enumerate(boxes) if affords(p, boxes)]
+            near, was = _near(kept, source, index), dict(kept[3]) if kept is not None else {}
+            chosen = [(j, itself(p, boxes) if near is None or near[j] else was[j]) for j, p in enumerate(boxes)
+                      if (affords(p, boxes) if near is None or near[j] else j in was)]
         boxes = [source[k] for k in index]
         kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen], {})
     return kept[4], kept[5]
+
+
+def _near(kept, things, index):
+    """(n,) whether each of `things`' boxes at `index` is to be told anew by a verb (`GOES`) as `things` - a look's
+    (`registry.Things`) - follow those `kept` told: it moved, or one that moved stands near it, its circle and the
+    other's within one cell (`voxels.CELL_M`) - all a box's seat, bed and back read of another (`affordance.clear`'s
+    circles, `back_of`'s cell); the rest as told before. None where it cannot be told: another count, no arrays.
+    Each look of a bed awake under her renewed all, 70 boxes' affordances 23 % of her lying."""
+    import numpy as np
+    from machine.eyes.voxels import CELL_M
+    if kept is None or kept[2] != index:
+        return None
+    arrays, before = getattr(things, 'arrays', None), getattr(kept[0], 'arrays', None)
+    if arrays is None or before is None or len(arrays[0]) != len(before[0]):
+        return None
+    at = np.asarray(index, int)
+    now, was = [a[at].reshape(len(at), -1) for a in arrays], [a[at].reshape(len(at), -1) for a in before]
+    moved = np.any(np.hstack(now) != np.hstack(was), axis=1) | np.array(
+        [things[k][0] != kept[0][k][0] or things[k][5:6] != kept[0][k][5:6] for k in index], bool)
+    if not moved.any():
+        return moved
+    near = moved.copy()
+    for c, h in ((now[0], now[1]), (was[0], was[1])):
+        plan, r = c[:, [0, 2]], np.hypot(h[:, 0], h[:, 2])
+        gap = np.hypot(*(plan[:, None, :] - plan[None, moved, :]).transpose(2, 0, 1))
+        near |= (gap <= r[:, None] + affordance.ROOT2 * r[None, moved] + CELL_M + 1e-9).any(axis=1)
+    return near
 
 
 def _faced(g, verb, things, box):
