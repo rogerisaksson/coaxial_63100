@@ -145,7 +145,7 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
     esos = [parts.Eso(float(s['M'][d, d]), ESO_WO) for d in body.act] if inner == 'eso' else []
     mid = (s['feet'][0]['sole'][[0, 2]] + s['feet'][1]['sole'][[0, 2]]) / 2.0
     st = state(s)
-    pushed, tilt, drift, top, cost, passes, worst = False, 0.0, 0.0, 0.0, 0.0, 0, 0.0
+    pushed, tilt, drift, top, cost, cold, passes, worst = False, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0
     failed, down, force, bears = None, None, np.zeros(6), (0.0, 0.0)
     a = math.radians(way)
     seconds = at + TO_S if seconds is None else seconds
@@ -161,7 +161,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
         except MachineError as exc:
             failed = '%s at %.3f s' % (exc, now[0])
             break
-        cost += time.perf_counter() - t0
+        # her first pass cold, its own (`cold_us`); the rest hot, a pass's mean (`us`)
+        cold, cost = (time.perf_counter() - t0, cost) if not passes else (cold, cost + time.perf_counter() - t0)
         passes += 1
         world.feed[body.driven] = _torques(esos, world, body, out)
         guarded = [a + b for a, b in zip(guarded, out.get('guarded', guarded))]
@@ -200,7 +201,8 @@ def stand(push=0.0, way=0.0, seconds=None, trace=False, wep=True, at=AT_S,
             'creep_mm_s': None if creep is None else round(1e3 * creep, 2),
             'disturbance_nm': round(float(np.mean([abs(e.j * e.d) for e in esos])), 2) if esos
             else None, 'guarded': guarded,
-            'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes)), 'slack': worst,
+            'top': round(top, 2), 'us': round(1e6 * cost / max(1, passes - 1)), 'cold_us': round(1e6 * cold),
+            'slack': worst,
             't': round(now[0], 3), 'wep_s': round(WEP_S - left, 3) if wep else 0.0, 'down': down}
 
 
@@ -266,6 +268,9 @@ def polar(forces, wep=True, spread=1, core=False, inner='pd', wrench=False):
 
 def main(argv=None):
     global ESO_WO
+    from machine.process import placed
+    # its cost timed where her loop is (`placed`): a cache group of its own, this thread on one core
+    placed.placed(True)
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--polar', nargs='*', type=float, metavar='N')
     parser.add_argument('--one', nargs=2, type=float, metavar=('N', 'WAY'))

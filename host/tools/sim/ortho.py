@@ -57,7 +57,8 @@ def went(plan, to=TO_S, trace=0, every=None):
     rec = {'far': np.zeros(n), 'asked': np.zeros(n), 'ended': np.zeros(n), 'z': np.zeros(n), 'up': 0.0,
            'air': 0.0, 'rows': [], 'loads': (0.0, 0.0), 'track': [], 'landings': 0,
            'stood': (True, True), 'tilt': 0.0, 'failed': None}
-    along, began = g['fr'][modal.ROT][:3], time.perf_counter()
+    # her first pass cold, its own; the rest hot, a pass's mean (`us`)
+    along, began, cold = g['fr'][modal.ROT][:3], time.perf_counter(), None
     while g['t'] < last + to and rec['tilt'] <= HELD_DEG and g['y'][modal.COM][1] > LOW * home:
         now = g['t']
         try:
@@ -76,6 +77,8 @@ def went(plan, to=TO_S, trace=0, every=None):
         rec['landings'] += sum(bool(stands) and not was for stands, was in zip(ask['stance'], rec['stood']))
         rec['stood'] = ask['stance']
         rec['track'].append(float(s['com'] @ along))
+        if cold is None:
+            cold, began = time.perf_counter() - began, time.perf_counter()
         if trace and int(round(now * 1000)) % trace == 0:
             rec['rows'].append('%6.3f %-10s asked %s | is %s | y %.3f vy %+5.2f | N %4.0f %4.0f %s | v %+.2f' % (
                 now, sprung.doing(g), ' '.join('%+.2f' % v for v in out[latent.REF]),
@@ -85,7 +88,7 @@ def went(plan, to=TO_S, trace=0, every=None):
     tail = track[-int(GOING_S * 1000):]
     return {'stood': rec['failed'] is None and g['t'] >= last + to - 1e-6, 'failed': rec['failed'],
             't': round(g['t'], 3), 'tilt': round(rec['tilt'], 1),
-            'us': round(1e6 * (time.perf_counter() - began) / max(1, len(track))),
+            'us': round(1e6 * (time.perf_counter() - began) / max(1, len(track) - 1)), 'cold_us': round(1e6 * (cold or 0.0)),
             'modes': {m: tuple(round(float(v), 3) for v in row) for m, *row in zip(
                 ortho.MODES, rec['asked'], rec['far'], rec['ended'], rec['z'])},
             'loads': tuple(round(v) for v in rec['loads']), 'rest': tuple(round(v) for v in loads),
@@ -160,7 +163,7 @@ def planned(asked, text=None):
         label, _, when = word.partition('@')
         label = sprung.ALIASES.get(label, label)
         if label not in gym:
-            raise KeyError('no entry %s: %s' % (label, ', '.join(gym)))
+            raise KeyError('no entry %s: %s' % (label, ', '.join(str(name) for name in gym)))
         at = float(when) if when else at
         plan.append((at,) + gym[label])
         at += 2.0
@@ -168,6 +171,9 @@ def planned(asked, text=None):
 
 
 def main(argv=None):
+    from machine.process import placed
+    # its steps timed where her loop is (`placed`): a cache group of its own, this thread on one core
+    placed.placed(True)
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('what', nargs='*', help="entries: a behaviour's name or '#' and a payload's id, "
                         'each alone or @ its second')

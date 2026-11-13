@@ -239,7 +239,9 @@ def whole(jobs, got):
 def _results(suites, args, tags, live_sections):
     """(suite, its result, whether it ran whole) in the order the report lists them, stopping at once on the first
     failing job: structural checks first, previously failed suites next, then longest expected
-    first, a baton a physical core.
+    first, a baton a physical core. Its result None where it is no file; the red suite the run stopped at where
+    none of its jobs ran - not left out: asked after a red one, three suites of seven went unsaid, the tally's
+    skipped counting them by their last run's.
     """
     known = counts.load()
     # a suite's seconds as this host runs them: the tree's own record by the pace it was run at, the table's
@@ -260,7 +262,7 @@ def _results(suites, args, tags, live_sections):
         return jobs_took.get(job.name, took.get(suite, float('inf')) / len(plan[suite]))
     queue = sorted((job for jobs in plan.values() for job in jobs),
                    key=lambda j: (*_priority(j, prior_failed), -expected(j)))
-    got, seconds, dirs = {}, {}, _init_run_dirs()
+    got, seconds, dirs, red = {}, {}, _init_run_dirs(), ''
     for job, out, code, took_s in relay(queue, args.jobs, bench=getattr(args, 'bench', False)):
         parsed = _parse(out, code, took_s, job.timeout)
         got[job.name] = parsed
@@ -272,6 +274,7 @@ def _results(suites, args, tags, live_sections):
         if crash is not None or jcode is None or jcode != 0 or tally is None or tally[1] > 0:
             counts.record('failed', {suite: int(time.time())})
             if not getattr(args, 'measure', False):
+                red = suite
                 break
     counts.record('jobs', seconds)
     for name in suites:
@@ -279,3 +282,5 @@ def _results(suites, args, tags, live_sections):
             yield name, None, False
         elif any(job.name in got for job in plan[name]):
             yield name, _merged([got[job.name] for job in plan[name] if job.name in got]), whole(plan[name], got)
+        else:
+            yield name, red, False
