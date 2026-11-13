@@ -130,23 +130,50 @@ def drive(seed, seconds, eyes=False, words=None):
     return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes}
 
 
+def _driven(a):
+    """(seed, run) of `a`'s seeds: here one after another, or `a.jobs` side by side on the relay
+    (`tools.dev.focus.relay`), each a process of its own driving one seed and saying its run whole."""
+    seeds = range(a.first, a.first + a.seeds)
+    if a.jobs <= 1:
+        for seed in seeds:
+            yield seed, drive(seed, a.seconds, a.eyes)
+        return
+    from tools.dev import focus
+    code = ('import json, sys; sys.path.insert(0, %r); import ail; '
+            'print("AIL " + json.dumps(ail.drive(%%d, %r, %r)))' % (os.path.dirname(os.path.abspath(__file__)), a.seconds, a.eyes))
+    jobs = [focus.Job('ail_%d' % seed, [sys.executable, '-X', 'utf8', '-c', code % seed], timeout=60.0 + 20.0 * a.seconds)
+            for seed in seeds]
+    for job, text, _code, _seconds in focus.relay(jobs, batons=a.jobs):
+        line = next((ln for ln in (text or '').splitlines() if ln.startswith('AIL ')), None)
+        run = json.loads(line[4:]) if line else {'seed': int(job.name[4:]), 'words': [], 'end': 'crashed', 't': 0.0,
+                                                  'faults': [{'kind': 'crash', 't': 0.0, 'detail': (text or '')[-300:]}]}
+        yield run['seed'], run
+
+
 def _staged():
     return sorted(f for f in os.listdir(STAGED) if f.endswith('.json')) if os.path.isdir(STAGED) else []
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description='AIL, her AI in the loop: drive her about the lodge, stage her faults')
-    p.add_argument('what', choices=('drive', 'replay'))
+    p.add_argument('what', choices=('drive', 'replay', 'run'))
+    p.add_argument('path', nargs='?', help='run: a key script, {"words": [[keys, s], ...]} (an explorer\'s)')
+    p.add_argument('--jobs', type=int, default=1, help='drive: seeds side by side (`tools.dev.focus.relay`)')
     p.add_argument('--seeds', type=int, default=4)
     p.add_argument('--first', type=int, default=0, help='the first seed')
     p.add_argument('--seconds', type=float, default=60.0)
     p.add_argument('--eyes', action='store_true', help='on her eyes (SIGHT 1), not the world\'s boxes')
     p.add_argument('--stage', type=int, default=0, help='keep the first N faults of kinds not yet kept')
     a = p.parse_args(argv)
+    if a.what == 'run':
+        with open(a.path, encoding='utf-8-sig') as f:
+            words = [tuple(w) for w in json.load(f)['words']]
+        run = drive(0, sum(s for _w, s in words), a.eyes, words)
+        print(json.dumps({k: run[k] for k in ('end', 't', 'faults')}))
+        return 0
     if a.what == 'drive':
         kept, kinds = 0, set()
-        for seed in range(a.first, a.first + a.seeds):
-            run = drive(seed, a.seconds, a.eyes)
+        for seed, run in _driven(a):
             print(json.dumps({k: run[k] for k in ('seed', 'end', 't')} | {'faults': run['faults'][:6]}))
             for f in run['faults']:
                 key = (f['kind'], f['detail'].split(' on ')[0].split(' m into ')[-1] if f['kind'] == 'into' else f['detail'])
@@ -162,7 +189,7 @@ def main(argv=None):
         return 0
     failed = 0
     for name in _staged():
-        with open(os.path.join(STAGED, name), encoding='utf-8') as f:
+        with open(os.path.join(STAGED, name), encoding='utf-8-sig') as f:
             case = json.load(f)
         words, left = [], case['until']
         for word, held in case['words']:
@@ -171,7 +198,9 @@ def main(argv=None):
             if left <= 0:
                 break
         run = drive(case['seed'], case['until'], case['eyes'], words)
-        again = [f for f in run['faults'] if f['kind'] == case['fault']['kind']]
+        # into: into the same thing (a window brushed is her shell's, not the bed she walked into)
+        thing = case['fault']['detail'].split(' into ')[-1].split(' ')[0] if case['fault']['kind'] == 'into' else ''
+        again = [f for f in run['faults'] if f['kind'] == case['fault']['kind'] and (' into %s' % thing) in ' into ' + f['detail'].split(' into ')[-1]]
         failed += bool(again)
         print('%s %s: %s' % ('FAIL' if again else 'PASS', name, again[0]['detail'] if again else 'gone'))
     print('staged: %d passed, %d failed' % (len(_staged()) - failed, failed))

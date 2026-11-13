@@ -122,6 +122,15 @@ Evaluate the prompt and working tree before invoking any tool:
     `--all`). Compare fidelity between the captured motion and the solver
     solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
     `--save`, `--against`).
+  + AI in the loop, AIL (mandatory with keys, docking, locomotion near things or
+    her map's consistency): drive her about the lodge on her page's own keys
+    (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N --jobs N`,
+    `--eyes`, `--stage K`), run a key script (`ail.py run SCRIPT.json`), and
+    replay the staged cases (`ail.py replay`). Faults are judged by the world's
+    truth and staged outside CI (`host/tools/sim/ail_staged/`). Cheap explorer
+    subagents write key scripts adversarially; AIL alone judges; the stronger
+    model fixes five staged clusters a round, then asks to continue. Every fix
+    widens her margins and room to act, never narrows them.
   + Read only the relevant source files as identified by the mapper, test and
     runtime measurements, and other associated and relevant data.
   + Use existing selective probes or tests, or create new, for use with the tools
