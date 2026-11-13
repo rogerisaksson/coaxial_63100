@@ -4,15 +4,16 @@
     tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing her stop cannot spare taken off
 
 proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on her walk: her things (her registry's boxes)
-she may not stand in (`voxels.STAND_M`), a door's not (she pushes it aside), each grown by her half width
-(`figure.WIDE_HALF`: by her hips' alone her arm went 0.15 m into the bed) - a building's walls and windows
-(`classes.SHELL`) where her way runs into their face, less her half width: one brushed past is her touch's and her
-arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, she walked into a pane at 1.1 m/s and fell);
-her stop v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her braking (`route.BRAKE`) -
-against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`). Blocked, her keys are let go
-(`machine.process.worker`) and she stands by her own stop; turning and backing off are hers. Her twist held to it
-outran it - 1.2 m/s to a chair's skin - and a zero cap threw her. On an errand none: its dock is hers to reach
-(`gate-affordance-contact-permeability`), F's errands as they were.
+she may not stand in (`voxels.STAND_M`), a door's or a slope's not (she pushes a door aside and walks a ramp), each
+grown by her half width (`figure.WIDE_HALF`: by her hips' alone her arm went 0.15 m into the bed) - a building's
+walls and windows (`classes.SHELL`) where her way runs into their face, less her half width: one brushed past is her
+touch's and her arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, she walked into a pane at
+1.1 m/s and fell); her stop v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her
+braking (`route.BRAKE`) - against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`).
+Blocked, her keys are let go (`machine.process.worker`) and she stands by her own stop; turning and backing off are
+hers. Her twist held to it outran it - 1.2 m/s to a chair's skin - and a zero cap threw her. On an errand or blind
+on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock is hers to reach
+(`gate-affordance-contact-permeability`), an open floor's unannounced props her touch's and her situation's.
 """
 import math
 
@@ -20,6 +21,7 @@ from machine.body import figure
 from machine.eyes import classes, voxels
 from machine.law import schema
 from machine.way import furniture, route, wayfinder
+from machine.world import physics
 
 #: The things last laid as boxes (`_boxes`): those things and their arrays.
 _KEPT: list = [None, None]
@@ -45,9 +47,9 @@ def refused(g, tw):
 
 
 def _way(g, tw):
-    """The unit way (x, z) of twist `tw` along her heading; None on an errand, for no way or no things."""
+    """The unit way (x, z) of twist `tw` along her heading; None outside a room or sight, on an errand, or still."""
     v = math.hypot(tw[0], tw[1])
-    if g.get('_errand') or v < 1e-6 or not g.get('things'):
+    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not g.get('things'):
         return None
     h = float(g['heading'])
     return (tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v, (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v
@@ -67,12 +69,12 @@ def _room(g, way):
 
 def _boxes(things):
     """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` she may not stand
-    in, a door's not: a thing grown by her half width, a building's shell (`classes.SHELL`) as it is and her half width
-    off its face's distance - both in one pass (`ahead`), as two 139 us a pass of her keys, as one 67 -: laid once a
-    look."""
+    in, doors and slopes out: a thing grown by her half width, a building's shell (`classes.SHELL`) as it is and her
+    half width off its face's distance - both in one pass (`ahead`), as two 139 us a pass of her keys, as one 67 -:
+    laid once a look."""
     import numpy as np
     if _KEPT[0] is not things:
-        kept = [t for t in things if t[0] != 'door' and t[1][1] + t[2][1] > voxels.STAND_M[0]
+        kept = [t for t in things if t[0] not in ('door', 'slope') and t[1][1] + t[2][1] > voxels.STAND_M[0]
                 and t[1][1] - t[2][1] < voxels.STAND_M[1]]
         shell = np.array([t[0] in classes.SHELL for t in kept], bool)
         c = np.array([(t[1][0], t[1][2]) for t in kept], float).reshape(-1, 2)

@@ -284,9 +284,10 @@ class World:
         if now <= self.at + 1e-9:
             return
         d = self.data
-        loose.stick(self.model, d, self.furnished)
         if steps.alone(self):
-            return steps.advanced(self, now, ROOM)
+            steps.advanced(self, now, ROOM)
+            loose.stick(self.model, d, self.furnished)
+            return
         steps.behind(self)
         np = self._np
         if self.buses is not None:
@@ -351,6 +352,7 @@ class World:
         self.effort, self.work, self.brake, self.heat = p.effort, p.work, p.brake, p.heat
         if self.buses is not None:
             self.buses.drain()
+        loose.stick(self.model, d, self.furnished)
 
     def _stroked(self):
         """The joints a rod drives (`linkage.RODS`) as their angles have them: the ratio
