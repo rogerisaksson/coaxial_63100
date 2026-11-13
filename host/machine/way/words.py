@@ -307,13 +307,13 @@ def _to_aim(g, gym, er, c, heard_fn, _say_fn):
     modal = _modal()
     err_w, behind = c['err_w'], abs(c['err_w']) > math.pi - modal.LIST_RAD
     er['turn_dir'] = (er['turn_dir'] or math.copysign(1.0, err_w)) if behind else math.copysign(1.0, err_w)
-    steer(g, gym, heard_fn, err_w, er['turn_dir'], c['pace'], c['off_w'], c['bend'], c['aim_m'])
+    steer(g, gym, heard_fn, err_w, er['turn_dir'], c['pace'], c['off_w'], c['aim_m'], er['phase'] == 'door')
 
 
 def _to_face(g, gym, er, c, heard_fn, _say_fn):
     """Turning in place to face away from the prop, the way that clears her things, held once begun."""
     er['turn_dir'] = er['turn_dir'] or math.copysign(1.0, c['err_yaw'])
-    steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'], 0.0)
+    steer(g, gym, heard_fn, c['err_yaw'], er['turn_dir'], 0.0, c['err_yaw'])
 
 
 def _turning(g, gym, er, c, heard_fn, _say_fn):

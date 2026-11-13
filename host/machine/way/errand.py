@@ -230,7 +230,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     door_push = e['phase'] == 'door' and len(e['way']) <= 1
     way_hd = e['hdd'] if door_push else math.atan2(stop[0] - gx, stop[1] - gz)
     aim = (gx + math.sin(way_hd), gz + math.cos(way_hd)) if door_push and s_par <= 0.0 else stop
-    e['k'], (ax, az), along, _there, pace, bend = (
+    e['k'], (ax, az), along, _there, pace, _bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
         else (e['k'], aim, way_hd, pyaw, walk_pace, 0.0))
     # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
@@ -250,7 +250,7 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         'corner': bool(e['way']) and gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
         + voxels.CELL_M * float(len(e['way']) > 1),
         'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),
-        'bend': bend, 'aim_m': math.hypot(ax - gx, az - gz), 'pace': pace,
+        'aim_m': math.hypot(ax - gx, az - gz), 'pace': pace,
         'err_yaw': se2.wrap_angle(e['hdd'] - pyaw),
         'off': abs(se2.wrap_angle(e['hdd'] - pyaw)) > modal.LIST_RAD,
         'facing': e['nx'] * math.sin(pyaw) + e['nz'] * math.cos(pyaw) < -math.cos(dock.ARRIVALS[1]),
