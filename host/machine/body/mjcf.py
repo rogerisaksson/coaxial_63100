@@ -84,15 +84,16 @@ LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
 
 
 
-def mjcf():
+def mjcf(free=True):
     """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts,
     her skeleton colliding with itself, the floor and her skins but its segment's neighbours' - in
     the squat a hip's yaw stood 45 mm into the thigh's capsule, the boom 56 (`machine.body.skeleton`) -
     MuJoCo's parent filter off, which takes a welded part for its segment, each segment kept from
     its parent by name, what touches standing or in the squat she lands in too - there her arms
-    stood 3-8 mm in her knees' drums and boards, the kick felling her walk."""
+    stood 3-8 mm in her knees' drums and boards, the kick felling her walk. Her room's loose things
+    `free` (her world's), else welded where they stand (her law's body: their freedom none of hers)."""
     from machine.world.physics import SKELETON
-    xml = _mjcf(SKELETON)
+    xml = _mjcf(SKELETON, free)
     kin = [(s[0], s[1]) for s in SEGMENTS if s[1]]
     if not SKELETON:
         return _apart(xml, kin)
@@ -145,7 +146,7 @@ def _joint(joint, axis, sign):
             if BACKDRIVE and not spring else ''))
 
 
-def _mjcf(bones):
+def _mjcf(bones, free=True):
     from machine.eyes import gimbal, sight
     from machine.world.physics import CAMERA, PLACED, ROOM, SIGHT, STEP_S
     eyed = bool(CAMERA or SIGHT)
@@ -248,9 +249,11 @@ def _mjcf(bones):
             out += body(kid)
         return out + ['</body>'] * (1 + len(stages))
 
+    # her constraints' Jacobian dense, as MuJoCo's auto laid it for her alone: her room's loose things' 36 dofs took
+    # her past its 60 to sparse, her step's constraint solve 34 us where 28 - asleep, they take no row
     return '\n'.join(
         ['<mujoco model="gynoid">',
-         '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast" cone="%s" '
+         '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast" cone="%s" jacobian="dense" '
          'impratio="%g"%s' % (STEP_S, CONE, IMPRATIO, '><flag filterparent="disable"/></option>'
                               if bones else '/>'),
          '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
@@ -259,7 +262,7 @@ def _mjcf(bones):
          ] + (sight.lights() if eyed else []) + floor.ground(contacts, give, TORSION_M)
         + body(SEGMENTS[0])
         + floor.rug(give, FRICTION, TORSION_M)
-        + (room.furnish(contacts, textured=eyed) if ROOM else [])
+        + (room.furnish(contacts, textured=eyed, free=free) if ROOM else [])
         + ['</worldbody>', '<contact/>', '<actuator>']
         + ['<motor joint="%s" ctrlrange="%g %g"/>' % (j, -max(SERVO[kind(j)][0], drives.peak(j)),
                                                       max(SERVO[kind(j)][0], drives.peak(j)))

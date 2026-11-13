@@ -45,12 +45,15 @@ def script(seed, seconds):
     return out
 
 
-def _lodge(g):
-    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of the lodge's things she may not stand in, a door's not."""
+def _lodge(g, forward=False):
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of the lodge's things she may not stand in, a door's not: as
+    her world's last step posed them, or `forward` posed first (before her first step) - each frame posed anew, its
+    solver's warm start went with it and her run was another."""
     import numpy as np
     from machine.eyes import classes, voxels
     w = g['world']
-    w._mj.mj_forward(w.model, w.data)
+    if forward:
+        w._mj.mj_forward(w.model, w.data)
     props = w.props()
     names = classes.of(*classes.stacked(props))[0]
     kept = [p for p, n in zip(props, names) if n not in ('door', 'floor', 'ground') and p[1][1] + p[2][1] > voxels.STAND_M[0]
@@ -99,6 +102,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     from machine.world import physics
     physics.ROOM, physics.SIGHT = float(room), float(eyes)
     from machine.law import se2
+    from machine.world import loose
     from machine.process import introspect, sprung, watch, worker
     from machine.way import cocoon
     from terminal.ui import bindings
@@ -107,7 +111,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     faults, sent, end = [], [], 'seconds'
     s = worker.session()
     g = s['g']
-    lodge = _lodge(g)
+    lodge = _lodge(g, forward=True)
     # her page's scanner (test_errands'): without it F had no offer and docked nothing
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
@@ -134,6 +138,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                     frame = t
                     st['now'] = worker.told(s)
                     humanoid_keys.steered(st, t, 0.0)
+                    lodge = _lodge(g)      # read each frame: her loose things move (`machine.world.loose`)
                     gap, name = _near(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
                                       figure.WIDE_HALF)
                     # on an errand or in its stunt her thing is hers to reach and sit or lie on (permeable)
@@ -165,8 +170,11 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     except Exception:
         faults.append({'kind': 'crash', 't': round(float(g['t']), 2), 'detail': traceback.format_exc(limit=3)[-400:]})
         end = 'crashed'
+    # her room's loose things (`machine.world.loose`), how far each went from where her world stood it, m
+    m, d = g['world'].model, g['world'].data
+    moved = {m.body(b).name: round(math.dist(d.xpos[b], m.body_pos[b]), 3) for b, _j in loose.things(m)}
     return {'seed': seed, 'words': words, 'faults': faults, 'end': end, 't': round(float(g['t']), 2), 'eyes': eyes,
-            'held': keyboard}
+            'held': keyboard, 'moved': moved}
 
 
 def _relayed(calls, jobs):
@@ -242,7 +250,7 @@ def main(argv=None):
         calls = [(label, (0, sum(s for _w, s in words), a.eyes or eyes, words, a.trace, a.held or held, a.room))
                  for label, words, eyes, held in _scripts(a.path)]
         for label, run in _relayed(calls, a.jobs):
-            print(json.dumps({'script': label} | {k: run[k] for k in ('end', 't', 'faults')}))
+            print(json.dumps({'script': label} | {k: run.get(k) for k in ('end', 't', 'moved', 'faults')}))
         return 0
     if a.what == 'drive':
         kept, kinds = 0, set()

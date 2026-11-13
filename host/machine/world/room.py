@@ -18,6 +18,7 @@ import re
 
 from machine.world.chair import CHAIR_LEG_IN, CHAIR_SEAT, SEAT_GRIP
 from machine.world.floor import CHAIR_LOW_H, FOAM, RISE_M, RUN_M, STEPS, core
+from machine.world import loose
 
 #: The room, m: x half width, z from .. to, the walls' height at the eaves and thickness.
 WIDE, FROM, TO, HIGH, THICK = 3.0, -1.5, 3.5, 2.4, 0.05
@@ -74,6 +75,14 @@ LAMP_AT, POST_H, SHADE = (-2.5, -1.0), 0.75, (0.15, 0.12, 0.15)
 SWITCH_AT, SWITCH = (1.05, -0.5), (0.03, 0.04, 0.02)
 #: A touch of the switch toggles the lamp, and not again for this long, s.
 SWITCH_S = 0.6
+#: Her furniture's weights, kg, loose on the floor (`loose`): a wooden chair's 5 (seat, back, a leg), a stool's 3
+#: (seat, a leg), a table's 25 (top, a leg), a bed's 60 (frame, core, mattress), a floor lamp's 5.5 (its weighted
+#: foot, post, shade); the lamp's foot, half across and half high, m - on its post alone it fell at 3.6 deg.
+CHAIR_KG, STOOL_KG, TABLE_KG, BED_KG, LAMP_KG = (2.0, 1.0, 0.5), (1.4, 0.4), (17.0, 2.0), (30.0, 10.0, 20.0), (4.0, 1.0, 0.5)
+LAMP_FOOT = (0.14, 0.01)
+#: A glide under each leg, the bed frame's corners and the lamp foot's rim, its radius, m: the floor met at a point
+#: (one contact; a leg's box on the floor's met at up to four - 96 contacts where 20, MuJoCo's step 172 us where 79).
+FOOT_R = 0.01
 
 
 def _box(name, at, half, contacts, extra=''):
@@ -85,15 +94,6 @@ def _round(name, at, radius, half, contacts, extra=''):
     """An upright cylinder's body: its axis along y, `half` its half height."""
     return '<body name="%s" pos="%g %g %g"><geom name="%s" type="cylinder" size="%g %g" zaxis="0 1 0"%s%s/></body>' % (
         (name,) + tuple(at) + (name, radius, half, contacts, extra))
-
-
-def _stool(contacts):
-    """The stool's round seat, its top at her popliteal height, the chairs' grip on it, on four round legs."""
-    leg, reach = (CHAIR_LOW_H - 2.0 * CHAIR_SEAT[1]) / 2.0, (STOOL_R - CHAIR_LEG_IN) / math.sqrt(2.0)
-    return [_round('stool_seat', (STOOL_AT[0], CHAIR_LOW_H - CHAIR_SEAT[1], STOOL_AT[1]), STOOL_R, CHAIR_SEAT[1],
-                   contacts, SEAT_GRIP)] + [
-        _round('stool_leg_%d' % k, (STOOL_AT[0] + dx * reach, leg, STOOL_AT[1] + dz * reach), STOOL_LEG, leg, contacts)
-        for k, (dx, dz) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1)))]
 
 
 def roof_y(x):
@@ -160,11 +160,11 @@ def _loft(contacts):
     return out
 
 
-def furnish(contacts, textured=False):
+def furnish(contacts, textured=False, free=True):
     """The lodge's bodies, after the floor: the timber walls, the glass gable with the door on its
     hinge, the roof, the deck with its rail and the stone terrace, the loft stair, the furniture,
     the lamp and its switch; `contacts` the floor's contact attributes; `textured`, each in its
-    kind's material for her eyes (`sight.LOOKS`)."""
+    kind's material for her eyes (`sight.LOOKS`); its loose things `free`, else welded where they stand."""
     mid = (FROM + TO) / 2.0
     out = [
         _box('timber_left', (-WIDE, HIGH / 2.0, mid), (THICK, HIGH / 2.0, (TO - FROM) / 2.0), contacts),
@@ -176,41 +176,73 @@ def furnish(contacts, textured=False):
         '<geom name="door" type="box" size="%g %g %g" pos="%g 0 0" mass="%g"%s/></body></body>' % (
             DOOR_X[0], TO, DOOR[1], DOOR_DEG, DOOR_C, DOOR[0], DOOR[1], DOOR[2],
             DOOR[0], DOOR_KG, contacts),
-        _box('seat', (CHAIR_AT[0], SEAT_H, CHAIR_AT[1]), SEAT, contacts, SEAT_GRIP),
-        _box('back', (CHAIR_AT[0], SEAT_H + BACK[1] + 0.02, CHAIR_AT[1] + SEAT[2]), BACK, contacts),
-        _box('seat_low', (CHAIR_LOW_AT[0], CHAIR_LOW_H - SEAT[1], CHAIR_LOW_AT[1]), (SEAT[2], SEAT[1], SEAT[0]), contacts,
-             SEAT_GRIP),
-        _box('back_low', (CHAIR_LOW_AT[0] - SEAT[2], CHAIR_LOW_H + BACK[1], CHAIR_LOW_AT[1]), (BACK[2], BACK[1], BACK[0]), contacts),
-        '<body name="bed" pos="%g %g %g"><geom name="bed" type="box" size="%g %g %g" pos="0 %g 0"%s%s/>%s'
-        '<geom name="bedframe" type="box" size="%g %g %g" pos="0 %g 0"%s/></body>' % (
-            BED_AT[0], BED[1], BED_AT[1], BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2], BED_FRAME_H / 2.0, FOAM, contacts,
-            core('bedcore', (BED[0], BED[1] - BED_FRAME_H / 2.0, BED[2]), BED_FRAME_H / 2.0, contacts),
-            BED[0] + BED_PROUD, BED_FRAME_H / 2.0, BED[2] + BED_PROUD, BED_FRAME_H / 2.0 - BED[1], contacts),
-        _box('table', (TABLE_AT[0], TOP_H, TABLE_AT[1]), TOP, contacts),
-        _box('post', (LAMP_AT[0], POST_H, LAMP_AT[1]), (0.02, POST_H, 0.02), contacts),
-        _box('shade', (LAMP_AT[0], 2.0 * POST_H + SHADE[1], LAMP_AT[1]), SHADE, contacts),
         _box('switch', (-WIDE + THICK + SWITCH[2], SWITCH_AT[0], SWITCH_AT[1]),
              (SWITCH[2], SWITCH[1], SWITCH[0]), contacts),
     ]
-    for dx in (-1.0, 1.0):
-        for dz in (-1.0, 1.0):
-            out.append(_box('chair_leg_%d_%d' % (dx > 0, dz > 0),
-                            (CHAIR_AT[0] + dx * (SEAT[0] - CHAIR_LEG_IN), SEAT_H / 2.0,
-                             CHAIR_AT[1] + dz * (SEAT[2] - CHAIR_LEG_IN)),
-                            (0.02, SEAT_H / 2.0, 0.02), contacts))
-            out.append(_box('chair_low_leg_%d_%d' % (dx > 0, dz > 0),
-                            (CHAIR_LOW_AT[0] + dx * (SEAT[2] - CHAIR_LEG_IN), CHAIR_LOW_H / 2.0,
-                             CHAIR_LOW_AT[1] + dz * (SEAT[0] - CHAIR_LEG_IN)),
-                            (0.02, CHAIR_LOW_H / 2.0, 0.02), contacts))
-            out.append(_box('table_leg_%d_%d' % (dx > 0, dz > 0),
-                            (TABLE_AT[0] + dx * 0.55, TOP_H / 2.0, TABLE_AT[1] + dz * 0.3),
-                            (0.02, TOP_H / 2.0, 0.02), contacts))
-    out += _stool(contacts)
     if textured:
         out = [re.sub(r'type="(box|cylinder)"', r'type="\1" material="%s"' % next(
             (k for head, k in KINDS.items() if s.split('name="')[1].startswith(head)), 'wood'), s)
                for s in out]
-    return out
+    return out + _loose(textured, free)
+
+
+def _geom(name, half, at, kg, grip='', textured=False, shape='box'):
+    """A loose thing's geom (`loose.MEETS`), in its body: its kind's material for her eyes where `textured`."""
+    look = ' material="%s"' % next((k for head, k in KINDS.items() if name.startswith(head)), 'wood') if textured else ''
+    return '<geom name="%s" type="%s" size="%s" pos="%g %g %g" mass="%g"%s%s%s/>' % (
+        (name, shape, ' '.join('%g' % h for h in half)) + tuple(at) + (kg, look, loose.MEETS, grip))
+
+
+def _loose(textured, free=True):
+    """The room's loose things (`loose`), each a free body on the floor its feet's grip alone holds, where they
+    stood welded to her world: the chair and the low chair, the stool, the table, the bed, the lamp."""
+    def legs(name, high, across, along, kg):
+        return [g for dx in (-1.0, 1.0) for dz in (-1.0, 1.0) for g in (
+            _geom('%s_%d_%d' % (name, dx > 0, dz > 0), (0.02, (high - FOOT_R) / 2.0, 0.02),
+                  (dx * across, (high + FOOT_R) / 2.0, dz * along), kg, '', textured),
+            _glide('%s_%d_%d' % (name, dx > 0, dz > 0), dx * across, FOOT_R, dz * along, 'wood'))]
+    (seat, back, leg), (top, t_leg), (frame, core_kg, mattress), (foot, post, shade) = CHAIR_KG, TABLE_KG, BED_KG, LAMP_KG
+    s_leg, reach = (CHAIR_LOW_H - 2.0 * CHAIR_SEAT[1]) / 2.0, (STOOL_R - CHAIR_LEG_IN) / math.sqrt(2.0)
+    up, bed_h, lamp_top = ' zaxis="0 1 0"', BED[1] - BED_FRAME_H / 2.0, FOOT_R + 2.0 * LAMP_FOOT[1]
+    corners = lambda name, x, y, z, what: [_glide('%s_%d' % (name, k), dx * x, y, dz * z, what)
+                                           for k, (dx, dz) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1)))]
+    stool_legs = [_geom('stool_leg_%d' % k, (STOOL_LEG, s_leg - FOOT_R / 2.0), (dx * reach, s_leg + FOOT_R / 2.0, dz * reach),
+                        STOOL_KG[1], up, textured, 'cylinder') for k, (dx, dz) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1)))]
+    return [
+        loose.body('lodge_chair', free, (CHAIR_AT[0], 0.0, CHAIR_AT[1]), [
+            _geom('seat', SEAT, (0.0, SEAT_H, 0.0), seat, SEAT_GRIP, textured),
+            _geom('back', BACK, (0.0, SEAT_H + BACK[1] + 0.02, SEAT[2]), back, '', textured)]
+            + legs('chair_leg', SEAT_H, SEAT[0] - CHAIR_LEG_IN, SEAT[2] - CHAIR_LEG_IN, leg)),
+        loose.body('lodge_chair_low', free, (CHAIR_LOW_AT[0], 0.0, CHAIR_LOW_AT[1]), [
+            _geom('seat_low', (SEAT[2], SEAT[1], SEAT[0]), (0.0, CHAIR_LOW_H - SEAT[1], 0.0), seat, SEAT_GRIP, textured),
+            _geom('back_low', (BACK[2], BACK[1], BACK[0]), (-SEAT[2], CHAIR_LOW_H + BACK[1], 0.0), back, '', textured)]
+            + legs('chair_low_leg', CHAIR_LOW_H, SEAT[2] - CHAIR_LEG_IN, SEAT[0] - CHAIR_LEG_IN, leg)),
+        loose.body('stool', free, (STOOL_AT[0], 0.0, STOOL_AT[1]), [
+            _geom('stool_seat', (STOOL_R, CHAIR_SEAT[1]), (0.0, CHAIR_LOW_H - CHAIR_SEAT[1], 0.0), STOOL_KG[0],
+                  up + SEAT_GRIP, textured, 'cylinder')] + stool_legs
+            + corners('stool', reach, FOOT_R, reach, 'wood')),
+        loose.body('table', free, (TABLE_AT[0], 0.0, TABLE_AT[1]), [_geom('table', TOP, (0.0, TOP_H, 0.0), top, '', textured)]
+                   + legs('table_leg', TOP_H, 0.55, 0.3, t_leg)),
+        loose.body('bed', free, (BED_AT[0], BED[1], BED_AT[1]), [
+            '<geom name="bed" type="box" size="%g %g %g" pos="0 %g 0" mass="%g"%s%s%s/>' % (
+                BED[0], bed_h, BED[2], BED_FRAME_H / 2.0, mattress, ' material="bed"' if textured else '', FOAM, loose.MEETS),
+            core('bedcore', (BED[0], bed_h, BED[2]), BED_FRAME_H / 2.0,
+                 loose.MEETS + ' mass="%g"' % core_kg + (' material="bed"' if textured else '')),
+            _geom('bedframe', (BED[0] + BED_PROUD, (BED_FRAME_H - FOOT_R) / 2.0, BED[2] + BED_PROUD),
+                  (0.0, (BED_FRAME_H + FOOT_R) / 2.0 - BED[1], 0.0), frame, '', textured)]
+            + corners('bed', BED[0] + BED_PROUD - FOOT_R, FOOT_R - BED[1], BED[2] + BED_PROUD - FOOT_R, 'wood')),
+        loose.body('lamp', free, (LAMP_AT[0], 0.0, LAMP_AT[1]), [
+            _geom('post_foot', (LAMP_FOOT[0], LAMP_FOOT[1], LAMP_FOOT[0]), (0.0, FOOT_R + LAMP_FOOT[1], 0.0), foot, '', textured),
+            _geom('post', (0.02, POST_H - lamp_top / 2.0, 0.02), (0.0, POST_H + lamp_top / 2.0, 0.0), post, '', textured),
+            _geom('shade', SHADE, (0.0, 2.0 * POST_H + SHADE[1], 0.0), shade, '', textured)]
+            + corners('lamp', LAMP_FOOT[0] - FOOT_R, FOOT_R, LAMP_FOOT[0] - FOOT_R, 'felt'))]
+
+
+def _glide(name, x, y, z, what):
+    """A glide (`FOOT_R`) at (`x`, `y`, `z`) in its loose thing, gripping as `what` grips (`loose.foot`): its one
+    contact with the floor - no prop of the page's (its name no kind's)."""
+    return '<geom name="glide_%s" type="sphere" size="%g" pos="%g %g %g" mass="0.01"%s%s/>' % (
+        name, FOOT_R, x, y, z, loose.MEETS, loose.foot(what))
 
 
 #: Each body's prop kind for the page, by its name's head, a number off it (the loft's `stair0`).
@@ -224,14 +256,26 @@ def props(world):
     """The lodge's boxes for the page: [(kind, centre, half sizes, turn 3x3)], the door where it
     swings, the lamp 'lit' while it is on; a still box told by the same tuple each call (`_told_props`),
     the door's read anew - each built anew, 35.8 us a call."""
-    d, lit = world.data, bool(getattr(world, 'lamp', False))
-    out = []
-    for still, g, kinds in _told_props(world):
-        out += still[lit]
-        box = _box_of(world.model, d, g) if g >= 0 else None
-        if box:
-            out.append((kinds[lit],) + box)
-    return out
+    m, d, lit, told = world.model, world.data, bool(getattr(world, 'lamp', False)), _told_props(world)
+    # what moves - the door, her loose things - told by the same tuples while it all stands where it stood (her
+    # vision's changed things: told anew each call, the loose things were classed every look, 0.4 s of 2)
+    live = world.__dict__.get('_room_live')
+    if live is None or live[0] is not told:
+        moving = sorted({int(m.geom_bodyid[g]) for _still, g, _kinds in told if g >= 0})
+        live = world._room_live = [told, moving, None, {}]
+    pose = d.xpos[live[1]].tobytes() + d.xquat[live[1]].tobytes()
+    if live[2] != pose:
+        live[2], live[3] = pose, {}
+    if lit not in live[3]:
+        out = []
+        for still, g, kinds in told:
+            out += still[lit]
+            # a round one (the stool's) the box round it, as a still one's: read as a box, its legs were stairs
+            box = _box_of(m, d, g, m.geom_type[g] == world._mj.mjtGeom.mjGEOM_BOX) if g >= 0 else None
+            if box:
+                out.append((kinds[lit],) + box)
+        live[3][lit] = out
+    return list(live[3][lit])
 
 
 def _told_props(world):

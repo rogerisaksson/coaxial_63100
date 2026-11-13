@@ -118,7 +118,7 @@ class Body:
     def __init__(self, xml=None, identified=True):
         from machine.body import mjcf, servos
         mj = self.mj = importlib.import_module('mujoco')
-        m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf())
+        m = self.m = mj.MjModel.from_xml_string(xml or mjcf.mjcf(free=False))
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)
         self.pelvis, self.torso, self.head = m.body('pelvis').id, m.body('torso').id, m.body('head').id
@@ -188,7 +188,9 @@ def sense(b, qpos, qvel):
     k (angular momentum about the centre of mass), feet [{R, quat, pts, Jc, J6, dJv, sole}],
     turns [{quat, Jr, dJr, w}] (pelvis, trunk), head {pos, v, quat, w}}, world frame."""
     m, d, mj, n = b.m, b.d, b.mj, b.n
-    d.qpos[:len(qpos)], d.qvel[:len(qvel)] = qpos, qvel
+    # her world's coordinates as far as her body's go: her room's loose things past them, welded in hers (`mjcf`)
+    nq, nv = min(len(qpos), m.nq), min(len(qvel), m.nv)
+    d.qpos[:nq], d.qvel[:nv] = qpos[:nq], qvel[:nv]
     mj.mj_fwdPosition(m, d)
     mj.mj_fwdVelocity(m, d)
     mj.mj_fullM(m, d, b._M)

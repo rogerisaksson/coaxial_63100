@@ -36,6 +36,9 @@ SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (0.0, 1e-3 *
 #: is a backrest; a stair's riser under it is none.
 LUMBAR_M = (next(seg for seg in figure.SEGMENTS if seg[0] == 'torso')[3][1]
             + next(c for c in figure.BODY if c[0] == 'torso')[2][1] - (figure.SEAT_Y - figure.SEAT_R))
+#: A rectangle's half extents along any axes reach its circle's radius at most: the rectangle round it on them, so
+#: much of that radius its own circle's.
+ROOT2 = math.sqrt(2.0)
 
 
 def top(box):
@@ -90,9 +93,14 @@ def covered(box, other):
 
 
 def clear(box, things, slab):
-    """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2."""
-    _c, _axes, h = footprint(box)
-    over = [t for t in things if t is not box and top(box) + slab[0] <= bottom(t) <= top(box) + slab[1]]
+    """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2: one whose
+    footprint's circle misses `box`'s covers none of it - `covered` reads the rectangle round it in `box`'s frame,
+    within ROOT2 of its circle -, 0.0 its sum's same bits unread: 87 of 108 over her lodge's beds, their every
+    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), her seats' 10.2 ms."""
+    c, _axes, h = footprint(box)
+    lo, hi, reach = top(box) + slab[0], top(box) + slab[1], math.hypot(h[0], h[1])
+    over = [t for t in things if t is not box and lo <= bottom(t) <= hi and math.hypot(
+        float(t[1][0]) - c[0], float(t[1][2]) - c[1]) <= reach + ROOT2 * math.hypot(t[2][0], t[2][2]) + 1e-9]
     return float(4.0 * h[0] * h[1]) - sum(covered(box, t) for t in over)
 
 
