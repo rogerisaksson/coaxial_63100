@@ -259,21 +259,34 @@ def props(world):
     m, d, lit, told = world.model, world.data, bool(getattr(world, 'lamp', False)), _told_props(world)
     # what moves - the door, her loose things - told by the same tuples while it all stands where it stood (her
     # vision's changed things: told anew each call, the loose things were classed every look, 0.4 s of 2)
+    # a body moved, its boxes alone told anew: a bed awake under her rebuilt all 60 each call, her vision sent them
     live = world.__dict__.get('_room_live')
     if live is None or live[0] is not told:
         moving = sorted({int(m.geom_bodyid[g]) for _still, g, _kinds in told if g >= 0})
-        live = world._room_live = [told, moving, None, {}]
+        owned = {b: [g for _still, g, _kinds in told if g >= 0 and m.geom_bodyid[g] == b] for b in moving}
+        live = world._room_live = [told, moving, None, {}, {}, {}, owned]
     pose = d.xpos[live[1]].tobytes() + d.xquat[live[1]].tobytes()
     if live[2] != pose:
         live[2], live[3] = pose, {}
+        for b in live[1]:
+            at = d.xpos[b].tobytes() + d.xquat[b].tobytes()
+            if live[4].get(b) != at:
+                live[4][b] = at
+                for g in live[6][b]:
+                    live[5].pop(g, None)
     if lit not in live[3]:
         out = []
         for still, g, kinds in told:
             out += still[lit]
-            # a round one (the stool's) the box round it, as a still one's: read as a box, its legs were stairs
-            box = _box_of(m, d, g, m.geom_type[g] == world._mj.mjtGeom.mjGEOM_BOX) if g >= 0 else None
-            if box:
-                out.append((kinds[lit],) + box)
+            if g < 0:
+                continue
+            built = live[5].setdefault(g, {})
+            if lit not in built:
+                # a round one (the stool's) the box round it, as a still one's: read as a box, its legs were stairs
+                box = _box_of(m, d, g, m.geom_type[g] == world._mj.mjtGeom.mjGEOM_BOX)
+                built[lit] = (kinds[lit],) + box if box else None
+            if built[lit]:
+                out.append(built[lit])
         live[3][lit] = out
     return list(live[3][lit])
 
