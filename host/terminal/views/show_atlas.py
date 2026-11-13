@@ -140,12 +140,12 @@ def hits(state):
 
 
 def context(state):
-    """The nodes the keys open, in order: a word's hits while one is found, the twelve layers at the
-    trunk, the terminal's applications (apps.offered), else the open node's children as laid."""
+    """The nodes the keys open, in order: a word's hits while one is found, those named in view in the
+    applications' tree (apps.seen), the layers at the trunk, else the open node's children as laid."""
     if state['find'] is not None:
         return [node for layer in sorted(hits(state)) for node, _named in hits(state)[layer]]
     if _apping(state):
-        return apps.offered(state['tree'], state['app'])
+        return apps.seen(placed(state), state['cam'], *sized(state), PAGE)
     if state['focus'] < 0:
         return list(range(len(LAYERS)))
     return scene.children(state['tree'], state['kids'], state['below'], state['focus'])
@@ -451,6 +451,7 @@ def main(argv=None):
     with boot('READING THE TREE', view):
         tree = build()
     state = opened(tree)
+    focused(state, -1)
     # What flows between the files, read beside the first frames: M finds it read (`flowing`).
     state['reading'] = threading.Thread(target=flowing, args=(state,), daemon=True)
     state['reading'].start()

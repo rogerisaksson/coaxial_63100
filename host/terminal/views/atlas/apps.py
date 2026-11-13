@@ -2,15 +2,19 @@
 
 Each page of the terminal (terminal/pages/: its HEADLINE, its KEY) is an application; what it comes to is
 what its `run` names, followed through the atlas's ties from symbol to symbol (tools/dev/atlas_calls.py) -
-not a module's every import: a page asking one function of a module takes in none of its other users -,
-and the C a file it comes to names or answers on the wire (`systems`). A folder is a subsystem of the pages
+not a module's every import: a page asking one function of a module takes in none of its other users -, the
+loop of each tick it flies, its runner's where no call names it (`reached`), and the C a file it comes to
+names or answers on the wire (`systems`). A folder is a subsystem of the pages
 that come to it, of one alone or shared (`served`). The pages part along branches (`clades`): each set of
 pages a folder serves alone, those sharing the most code first, kept where it nests in those kept, named by
-its heaviest folder - aircraft/ the flyers'. `placed` lays the tree the atlas draws (scene.picture): the
-terminal at its foot, the trunk up from it carrying what every page shares, at its top the crown (`crown`),
-its branches carrying what their pages share alone (`owners`), a page's own on its twig, the page at its
-tip, all facing the camera (`facing`); the node open lit, its keys `offered`. The dataflow (atlas/mirror.py)
-draws one system a time (`dataflow`): a page's, a branch's pages' together, the robot's where none is chosen.
+its heaviest folder - aircraft/ the flyers'. `placed` lays the tree the atlas draws (scene.picture) as a
+tree grows (`boughs`, laid once in the world by `grove`): the terminal at its foot, the trunk up from it
+carrying what every page shares, the branch holding most pages leading on up, the rest arcs out round it by
+the golden angle at Murray's angles, each bough carrying what its pages share alone (`owners`), a page's own
+on its twig, the page at its tip; the node open lit, a fork named on the way open alone, the keys on the
+nodes named in view (`seen`). The dataflow (atlas/mirror.py) draws one system a time (`dataflow`) - a page's,
+a branch's pages' together, the robot's where none is chosen -, each its own loop: the robot's streams, a
+craft's tick (tools/dev/atlas_flow.py).
 """
 import ast
 import functools
@@ -56,10 +60,24 @@ def systems(tree):
         if TIES[t] in ('names', 'wire') and tree.id[s].endswith('.py') and tree.id[d].endswith(('.c', '.h')):
             into.setdefault(s, set()).add(d)
     out = {}
-    for page, *_said in pages(tree):
-        files = {tree.at[k.partition('::')[0]] for k in atlas_calls.reach(tree, [tree.id[page] + '::run'])
-                 if k.partition('::')[0] in tree.at}
+    for page, keys in reached(tree).items():
+        files = {tree.at[k.partition('::')[0]] for k in keys if k.partition('::')[0] in tree.at}
         out[page] = frozenset(files | {d for f in files for d in into.get(f, ())})
+    return out
+
+
+@functools.lru_cache(maxsize=2)
+def reached(tree):
+    """{page: the symbols its `run` comes to} (atlas_calls.reach), and those the ticks it flies come to, run by
+    its runner where no call names them (atlas_flow.flying, stepped): what it runs, a function at a time."""
+    flies, steps, out = atlas_flow.flying(tree), atlas_flow.stepped(tree), {}
+    for page, *_said in pages(tree):
+        keys, flown = set(atlas_calls.reach(tree, [tree.id[page] + '::run'])), set()
+        while {t for k in keys for t in flies.get(k, ())} - flown:
+            new = {t for k in keys for t in flies.get(k, ())} - flown
+            flown |= new
+            keys |= atlas_calls.reach(tree, [s for t in sorted(new) for s in steps[t]])
+        out[page] = frozenset(keys)
     return out
 
 
@@ -156,77 +174,107 @@ def owners(tree):
     return out
 
 
+def lean(way, turn):
+    """The unit way across the unit `way`, turned `turn` round it from a side of its own."""
+    side = (0.0, way[2], -way[1]) if abs(way[0]) < 0.9 else (-way[2], 0.0, way[0])
+    norm = math.sqrt(sum(v * v for v in side))
+    side = tuple(v / norm for v in side)
+    other = (way[1] * side[2] - way[2] * side[1], way[2] * side[0] - way[0] * side[2], way[0] * side[1] - way[1] * side[0])
+    return tuple(math.cos(turn) * side[k] + math.sin(turn) * other[k] for k in range(3))
+
+
+def along(bough, t):
+    """(where, which way) a bough (`boughs`) stands `t` of its length out: an arc turning back to its stem's way by
+    its angle, its chord at its angle - out of the stem half as far again, at its tip half -, as a bough sags out
+    of its stem and its tip rises to the light; straight at none. A circle's arc: its chord as long as the arc by
+    sinc of half the turn, along the way it heads halfway."""
+    from coaxial.model.blocks import numpy as np
+    start, way, across, angle, length, _leads = bough
+    halfway, heads = angle * (1.5 - t / 2), angle * (1.5 - t)
+    chord = float(length * t * np.sinc(angle * t / 2 / math.pi))
+    return (tuple(start[k] + chord * (math.cos(halfway) * way[k] + math.sin(halfway) * across[k]) for k in range(3)),
+            tuple(math.cos(heads) * way[k] + math.sin(heads) * across[k] for k in range(3)))
+
+
+def murray(above, held):
+    """The angle off its stem of a bough holding `held` of the `above` pages the stem carries where it leaves, by
+    Murray's law - each bough's radius cubed as what it carries, the stem going on with the rest -: cos =
+    (r0^4 + r1^4 - r2^4) / (2 r0^2 r1^2); 0 where it carries all, the stem going on as it."""
+    r0, r1, r2 = (math.pow(n, 2.0 / 3.0) for n in (above, held, above - held))   # radii squared
+    return math.acos((r0 * r0 + r1 * r1 - r2 * r2) / (2 * r0 * r1))
+
+
+def slots(tree, n):
+    """How many steps a bough `n` (0 the trunk) is laid in: one for each folder it carries (`owners`), then one
+    for each kid out of it - the last at its end -, a page's tip one."""
+    c = clades(tree)
+    return sum(1 for o in owners(tree).values() if o == n) + max(1, len(c['kids'].get(None if n == 0 else n, ())))
+
+
 @functools.lru_cache(maxsize=2)
-def crown(tree):
-    """{branch or page: (radius, angle)} in the crown round its hub, the angle from its right toward its top: a
-    page on the rim, the pages in their order (`ordered`) clockwise from the trunk, a page's room left open below
-    where the trunk comes in; a branch a ring in by its depth, at the middle of its own's angles."""
-    c, order, depth = clades(tree), ordered(tree), {}
+def boughs(tree):
+    """{0, a branch or a page: (start, way, across, angle, length, whether it leads)}: the tree's boughs, each an arc
+    (`along`), the terminal at the origin, as a tree grows: the trunk (0) straight up, APART a step (`slots`); a
+    bough's folders along it from its start, its kids out of it above them, a step each - the biggest lowest, as a
+    tree's oldest -, the branch holding the most pages last, at its end, leading; each round the stem by the golden
+    angle from the last (scene.GOLDEN, as leaves stand round a stem, none over another), out of it along its way
+    and turning till it stands at the angle Murray's law gives what it holds of the pages the stem carries there
+    (`murray`) - the leader, the rest, straight on, as the leader of a tree goes on -; as long as its own steps
+    need, each other as far as the crown is wide where it leaves if that is further - a paraboloid's, RING times
+    the root of the share of the pages from there up."""
+    c, every = clades(tree), len(pages(tree))
+    turn, out = [0], {0: ((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), 0.0, APART * slots(tree, 0), True)}
 
-    def deepen(node, d):
-        for k in c['kids'][node]:
-            depth[k] = d + 1
-            if k < -1:
-                deepen(k, d + 1)
-    deepen(None, 0)
-    rim, out = max(depth[p] for p in order), {}
-    out.update((p, (RING, -math.pi / 2 - 2 * math.pi * (k + 1) / (len(order) + 1))) for k, p in enumerate(order))
+    def held(n):
+        return len(c['pages'].get(n, (n,)))
 
-    def middle(node):
-        for k in c['kids'][node]:
+    def grow(node, bough):
+        branches = [k for k in c['kids'][node] if k < -1]
+        leader = max(branches, key=lambda k: (held(k), -k)) if branches else None
+        kids = sorted((k for k in c['kids'][node] if k != leader), key=lambda k: (-held(k), k)) + [leader] * bool(branches)
+        steps, above = slots(tree, 0 if node is None else node), held(node) if node else every
+        for j, k in enumerate(kids, steps - len(kids) + 1):
+            at, way = along(bough, j / steps)
+            turn[0] += k != leader   # the leader no organ round the stem, the stem going on
+            out[k] = (at, way, lean(way, turn[0] * scene.GOLDEN), murray(above, held(k)),
+                      max(RING * math.sqrt(above / every) * (k != leader), APART * slots(tree, k)), k == leader)
+            above -= held(k)
             if k < -1:
-                middle(k)
-        a = [out[k][1] for k in c['kids'][node]]
-        out[node] = (RING * depth[node] / rim, math.atan2(sum(map(math.sin, a)), sum(map(math.cos, a))))
-    for b in c['kids'][None]:
-        if b < -1:
-            middle(b)
+                grow(k, out[k])
+    grow(None, out[0])
     return out
 
 
-def along(start, end, t):
-    """The point `t` of the way from `start` to `end`, (radius, angle) in the crown: out at an even pace, round
-    eased in and out, so it leaves the one it hangs from and reaches its own along their radii - from the hub
-    straight out."""
-    (r0, a0), (r1, a1) = start, end
-    turn = math.atan2(math.sin(a1 - a0), math.cos(a1 - a0)) if r0 else 0.0
-    return r0 + (r1 - r0) * t, a1 - turn + turn * t * t * (3 - 2 * t)
-
-
-def curve(start, end):
-    """The way from `start` to `end` in STEPS (`along`)."""
-    return [along(start, end, k / STEPS) for k in range(STEPS + 1)]
+@functools.lru_cache(maxsize=2)
+def grove(tree):
+    """({node: where it stands}, [(from, to, bough, whether it leads)]): the tree laid as it grows (`boughs`), the
+    terminal at the origin - a branch at its bough's end, a page at its twig's tip, each folder along the bough
+    that carries it (`owners`) by its layer, the terminal's first -, each bough in STEPS straight pieces."""
+    grown, own, users = boughs(tree), owners(tree), served(tree)
+    at = {n: along(b, 1.0)[0] for n, b in grown.items() if n != 0}
+    for n, b in grown.items():   # what each bough carries along it
+        mine = sorted((f for f in users if own[f] == n), key=lambda f: (layer(tree, f), f))
+        at.update((f, along(b, (j + 1) / slots(tree, n))[0]) for j, f in enumerate(mine))
+    return at, [(along(b, i / STEPS)[0], along(b, (i + 1) / STEPS)[0], n, b[5]) for n, b in grown.items()
+                for i in range(STEPS)]
 
 
 def placed(tree, upright, chosen=None, cam=None):
     """The scene the atlas draws by application (scene.picture), the tree's terminal (`upright`'s) its foot,
-    `chosen` the branch or page open (None: none): the trunk up from the terminal carrying what every page
-    shares - each folder no branch holds (`owners`) - by its layer, the terminal's first, APART a folder; at its
-    top the crown (`crown`), each branch a curve out of the one it hangs from carrying what its pages share alone,
-    a page's own on its twig, the page at its tip - all in the plane `cam` sees square on (the view the page
-    opens with where None), so no branch crosses another nor is seen edge on. Lit: a branch with its pages and
-    their folders, a page with its folders, named; the folders of none lit grown in a zoom key's step nearer than
-    the frame. `at` {node: where it stands}, `flat`, `rings` {page: its folders, its own first}, `names` - a
-    page its headline, a branch its heaviest folder's -, `briefs`, `groups`, `lefts` named on their left, the
-    trunk's top its `hub`."""
+    `chosen` the branch or page open (None: none): the tree as it grows (`grove`), in the world - turned, the
+    view goes round it. Lit: a branch with its pages and their folders, a page
+    with its folders, named; the folders of none lit grown in a zoom key's step nearer than the frame. `at`
+    {node: where it stands}, `flat`, `rings` {page: its folders, its own first}, `names` - a page its headline, a
+    branch its heaviest folder's -, `briefs`, `groups`, `lefts` named on their left - left of the trunk as `cam`
+    sees it -, and the trunk's top its `hub`."""
     from coaxial.model.blocks import numpy as np
-    c, users, order, pol, own = clades(tree), served(tree), ordered(tree), crown(tree), owners(tree)
+    c, users, order, (laid, pieces) = clades(tree), served(tree), ordered(tree), grove(tree)
     root, sight = 0, cam or scene.camera()
-    view = scene.view(sight, 1, 1)
-    right, up, base = view['r'], view['u'], upright['at'][root]
+    base, right = upright['at'][root], scene.view(sight, 1, 1)['r']
 
-    def on(origin, r, a):
-        return tuple(origin[k] + r * (math.cos(a) * right[k] + math.sin(a) * up[k]) for k in range(3))
-
-    def hung(n):   # what hangs on the trunk or a branch, the nearest the terminal's layer first
-        return sorted((f for f in users if own[f] == n), key=lambda f: (layer(tree, f), f))
-    trunk = hung(root)
-    hub = on(base, APART * (len(trunk) + 1), math.pi / 2)
-    place = {root: base, **{n: on(hub, *ra) for n, ra in pol.items()}}
-    place.update((f, on(base, APART * (j + 1), math.pi / 2)) for j, f in enumerate(trunk))
-    for n, ra in pol.items():   # each branch's own along it
-        mine, start = hung(n), (0.0, ra[1]) if c['up'][n] is None else pol[c['up'][n]]
-        place.update((f, on(hub, *along(start, ra, (j + 1) / (len(mine) + 1)))) for j, f in enumerate(mine))
+    def at(p):
+        return tuple(base[k] + p[k] for k in range(3))
+    place = {root: base, **{n: at(p) for n, p in laid.items()}}
     held = c['pages'].get(chosen, frozenset(order) if chosen is None else {chosen})   # the pages open
     path, node = [], chosen
     while node is not None:
@@ -237,10 +285,7 @@ def placed(tree, upright, chosen=None, cam=None):
     # key's 1 / 0.8 is no binary fraction.
     steps = round(math.log(spread([place[n] for n in lit])[1] / sight['distance']) / math.log(scene.ZOOM), 9)
     drawn = [f for f in sorted(users) if f in lit or steps > 0]
-    parts = [(base, hub, scene.EDGE, True)]   # the trunk
-    for n, ra in pol.items():   # each branch a curve from the one it hangs from
-        way = [on(hub, *q) for q in curve((0.0, ra[1]) if c['up'][n] is None else pol[c['up'][n]], ra)]
-        parts += [(p, q, scene.EDGE if n in lit else scene.DIM_EDGE, False) for p, q in zip(way, way[1:])]
+    parts = [(at(a), at(b), scene.EDGE if n == root or n in lit else scene.DIM_EDGE, leads) for a, b, n, leads in pieces]
     focus, forks = root if chosen is None else chosen, sorted(c['pages'], reverse=True)
     nodes = [root] + forks + order + drawn
     ink = [scene.OPEN if n == focus else scene.NODE if n in lit else scene.DIM_NODE for n in nodes]
@@ -249,21 +294,38 @@ def placed(tree, upright, chosen=None, cam=None):
     ends = np.array([s[0] for s in parts] + [s[1] for s in parts], float).reshape(2, -1, 3)
     names = {**nested.names(tree, sorted(users)), **{page: headline for page, headline, *_said in pages(tree)}}
     names.update((b, names[fs[0]]) for b, fs in c['by'].items())
-    keys = offered(tree, chosen)
-    lefts = {n for n, (_r, a) in pol.items() if math.cos(a) < 0} | set(trunk[1::2]) \
-        | {f for f in users if own[f] in pol and sum((place[f][k] - hub[k]) * right[k] for k in range(3)) < 0}
+    keys = [n for n in offered(tree, chosen) if n in nodes and n not in c['pages']]   # its own, no fork
+    lefts = {n for n, p in place.items() if (p[0] - base[0]) * right[0] + (p[2] - base[2]) * right[2] < 0}
     named = sorted((f for f in drawn if f in lit), key=lambda f: (len(users[f]), f))
     return {'tree': tree, 'focus': focus, 'at': place, 'out': {}, 'into': {}, 'names': names, 'lefts': lefts,
-            'field': FIELD, 'panels': 1, 'upright': upright, 'chosen': chosen, 'hub': hub,
+            'field': FIELD, 'panels': 1, 'upright': upright, 'chosen': chosen, 'hub': at(along(boughs(tree)[root], 1.0)[0]),
             'faced': (sight['yaw'], sight['pitch'], sight['distance']), 'rings': {page: offered(tree, page) for page in order},
             'briefs': {**{b: 'theirs alone: ' + ' '.join(names[f] for f in fs) for b, fs in c['by'].items()},
                        **{page: what for page, _headline, _key, what in pages(tree) if what}},
-            'groups': ([focus] + [k for k in keys if k in nodes] + path + [root],   # the keys' panels between
-                       [n for n in forks + order if n in lit] + named + [n for n in forks + order if n not in lit]),
+            'groups': ([focus] + keys + path + [root],   # the panels between; a fork named on the way open alone
+                       [n for n in order if n in lit] + named + [n for n in order if n not in lit]),
             'flat': {'nodes': np.array(nodes, np.intp), 'pos': np.array([place[n] for n in nodes], float).reshape(-1, 3),
                      'disc': np.array(discs, float), 'ink': np.array(ink, np.uint8), 'lit': lit, 'from': ends[0],
                      'to': ends[1], 'segink': np.array([s[2] for s in parts], np.uint8),
                      'thick': np.array([s[3] for s in parts], bool)}}
+
+
+def seen(scene_, cam, cols, rows, keys):
+    """The nodes the keys take as `cam` shows the scene on a drawing `cols` x `rows`: those named within it, the
+    nearest its middle first, `keys` a page, each page in reading order - down its rows, along each."""
+    from coaxial.model.blocks import numpy as np
+    sight, flat = scene.view(cam, cols, rows), scene_['flat']
+    rel = flat['pos'] - np.array(sight['eye'])
+    x, y, z = (rel @ np.array(sight[a]) for a in ('r', 'u', 'f'))
+    with np.errstate(divide='ignore', invalid='ignore'):
+        across, down = sight['w'] / 2 + x * sight['focal'] / z, sight['h'] / 2 - y * sight['focal'] / z
+    inside = (z > scene.NEAR) & (across >= 0) & (across < sight['w']) & (down >= 0) & (down < sight['h']) \
+        & np.isin(flat['nodes'], sorted(set().union(*scene_['groups'])))   # named: a key never without its name
+    near = sorted(np.flatnonzero(inside).tolist(),
+                  key=lambda k: (across[k] - sight['w'] / 2) ** 2 + (down[k] - sight['h'] / 2) ** 2)
+    nodes = flat['nodes'].tolist()
+    return [nodes[k] for start in range(0, len(near), keys)
+            for k in sorted(near[start:start + keys], key=lambda k: (int(down[k] // 4), across[k]))]
 
 
 def facing(scene_, cam):
@@ -293,7 +355,7 @@ def framed(scene_, cam=None):
 
 @functools.lru_cache(maxsize=2)
 def robot(tree):
-    """The page whose system runs her pass (atlas_flow.makers): the dataflow drawn where none is chosen."""
+    """The page whose system runs the robot's streams (atlas_flow.makers): the dataflow drawn where none is chosen."""
     hers = {tree.up[n] for n in atlas_flow.makers(tree).values() if n >= 0}
     return next(p for p, files in systems(tree).items() if hers <= files)
 
@@ -304,12 +366,21 @@ def system(tree, app):
 
 
 def dataflow(tree, app, flows):
-    """The flows of `app`'s system (`system`) between its files (`reach`): her pass and what comes back of it where
-    it runs hers, else what its functions call of each other's (atlas_flow.called) - no pass told there -, and the
-    wire it speaks."""
-    files = reach(tree, system(tree, app))
-    own = [f for f in flows if f[0] in files and f[1] in files]
-    return own if any(f[2] == atlas_flow.KINDS.index('pass') for f in own) else own + atlas_flow.called(tree, files)
+    """The flows of `app`'s system (`system`) between its files (`reach`): its loop and what comes back of it - the
+    robot's streams where it runs them, a craft's tick where it flies one (atlas_flow.flying) or comes to it, not
+    one handed on to where it comes to the one handing it (atlas_flow.ticks, handing) -, else what its functions
+    call of each other's (atlas_flow.called), and the wire it speaks."""
+    held, files = clades(tree)['pages'].get(system(tree, app), (system(tree, app),)), reach(tree, system(tree, app))
+    keys = frozenset().union(*(reached(tree)[p] for p in held))
+    ticks, hands, flies = atlas_flow.ticks(tree), atlas_flow.handing(tree), atlas_flow.flying(tree)
+    flown = {t for k in keys for t in flies.get(k, ())}
+    came = flown | {k for k in ticks if k in keys}
+    run = [k for k in ticks if k in flown or (k in keys and not any(hands.get(h) == k for h in came))]
+    passed, wire = (atlas_flow.KINDS.index(kind) for kind in ('pass', 'wire'))
+    mine = [f for f in flows if f[0] in files and f[1] in files]
+    streams = any(f[2] == passed for f in mine)   # what comes back of the robot's streams where it runs them
+    own = [f for f in mine if streams or f[2] == wire] + [f for k in run for f in ticks[k]]
+    return own if any(f[2] == passed for f in own) else own + atlas_flow.called(tree, files)
 
 
 def following(tree, app):

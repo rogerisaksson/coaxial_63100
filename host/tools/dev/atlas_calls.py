@@ -4,23 +4,43 @@ A module's rows (atlas_tree._file) keep, a def or a class a row, the names its b
 imports or its own defs bind (`named`) - read once a file, kept in the atlas's cache -; the build joins
 them (`join`): an imported name to the symbol its module defines there, or to the module it is; a module's
 own name to its own symbol; `self.x` in a method to its class's `x`; a class to its methods; a symbol to
-its module's own code, what importing it runs. `reach` follows them from where a page starts: what it can
-touch, not all its imports could - a module imported for one function does not bring its every user along.
+its module's own code, what importing it runs - a script's guard not, run as a script alone (SCRIPT). `reach`
+follows them from where a page starts: what it can touch, not all its imports could - a module imported for
+one function does not bring its every user along, nor what it runs as a script.
 """
 import ast
 
+SCRIPT = '__main__'
+
+
+def _script(statement):
+    """Whether `statement` is a script's guard, `if __name__ == '__main__':`: what running the module runs."""
+    test = statement.test if isinstance(statement, ast.If) else None
+    if not (isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.ops[0], ast.Eq)):
+        return False
+    sides = {('name', n.id) if isinstance(n, ast.Name) else ('text', n.value) if isinstance(n, ast.Constant)
+             else None for n in (test.left, test.comparators[0])}
+    return sides == {('name', '__name__'), ('text', SCRIPT)}
+
 
 def named(tree):
-    """[(symbol, names)] of a module's syntax `tree`: '' its own code at the top, a def or class its name, a
-    method 'Class.method' - private ones too, a public one's way on -; the names each uses that an import
-    of the module or a def of its own binds: 'x', 'x.y' an attribute of one, '.y' a method's `self.y`."""
+    """[(symbol, names)] of a module's syntax `tree`: '' its own code at the top - what importing it runs -,
+    SCRIPT what its guard runs as a script, a def or class its name, a method 'Class.method' - private ones
+    too, a public one's way on -; the names each uses that an import of the module or a def of its own binds:
+    'x', 'x.y' an attribute of one, '.y' a method's `self.y`."""
     bound = set()
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             bound.update((a.asname or a.name).partition('.')[0] for a in node.names)
     defs = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
     bound.update(s.name for s in tree.body if isinstance(s, defs))
-    rows = [('', [s for s in tree.body if not isinstance(s, defs)])]
+    top, script = [], []
+    for s in tree.body:   # a guard's body run as a script, its else on import
+        if _script(s):
+            script, top = script + s.body, top + s.orelse
+        elif not isinstance(s, defs):
+            top.append(s)
+    rows = [('', top)] + ([(SCRIPT, script)] if script else [])
     for s in tree.body:
         if isinstance(s, ast.ClassDef):   # its own statements; its methods rows of their own
             rows.append((s.name, [m for m in s.body if not isinstance(m, defs)] + s.bases + s.decorator_list))
@@ -32,7 +52,7 @@ def named(tree):
         nodes = [n for top in body for n in ast.walk(top)]
         own = {n.id for n in nodes if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)} | \
             {a.arg for n in nodes if isinstance(n, ast.arguments) for a in n.posonlyargs + n.args + n.kwonlyargs
-             + [n.vararg, n.kwarg] if a} if name else set()   # what a def binds itself hides the module's
+             + [n.vararg, n.kwarg] if a} if name not in ('', SCRIPT) else set()   # a def's own hide the module's
         own -= {(a.asname or a.name).partition('.')[0] for n in nodes if isinstance(n, (ast.Import, ast.ImportFrom))
                 for a in n.names}
         said = set()
