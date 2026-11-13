@@ -9,12 +9,13 @@ pages a folder serves alone, those sharing the most code first, kept where it ne
 its heaviest folder - aircraft/ the flyers'. `placed` lays the scene the atlas draws at the terminal
 (scene.picture): the trunk as the tree has it, the terminal at its foot the root, and under it on a taproot
 the flower of its pages (`flower`) - one flat disc, so no branch crosses another, turned to the camera
-wherever it looks from (`facing`), so never edge on nor mirrored: the branches ring in by their depth, each at the middle of its own, the
-pages round the rim in their order, the rim open where the taproot comes in, a branch drawn as a curve from
-the one it hangs from. The node open lit - a branch with its pages, a page with its subsystems, each up at
-its layer's height toward the pages it serves, the farther out the fewer, each page's way up through them,
-each hung from the nearest of its own below -, none other drawn; its keys `offered`; `reach` what the
-mirror (atlas/mirror.py) keeps to.
+wherever it looks from (`facing`), so never edge on nor mirrored: the branches ring in by their depth, each
+at the middle of its own, the pages round the rim in their order, the rim open where the taproot comes in, a
+branch drawn as a curve from the one it hangs from. The node open lit - a branch with its pages, a page with
+its subsystems, each up at its layer's height on its pages' side, the farther out the fewer pages it
+serves, one tree of ways up to them, each hung once from the nearest below of its own, grown out by its
+order as the camera nears: at its frame all but the twigs, a zoom key's step in all -, none other drawn;
+its keys `offered`; `reach` what the mirror (atlas/mirror.py) keeps to.
 """
 import ast
 import functools
@@ -201,8 +202,9 @@ def placed(tree, upright, chosen=None, cam=None):
     own (its layers where they stand, its stubs), `chosen` the branch or page open (None: the terminal), its
     flower facing `cam` (`faced`), its subsystems toward the pages as the flower turned that way round holds
     them (at the opening view's tip, so a tip moves none), each on its pages' side of the trunk: `at` {node:
-    where it stands} - every subsystem's, drawn where lit -, `flat` its nodes and its branches, `ways` the
-    ways up, one to each subsystem lit, `rings` {page: its subsystems, its own first}, `names` {node: its
+    where it stands} - every subsystem's, drawn where lit and grown out -, `flat` its nodes and its branches,
+    `ways` the ways up, one to each subsystem lit, their `orders` (Horton-Strahler) and how far each has
+    `grown` out at `cam`'s distance, `rings` {page: its subsystems, its own first}, `names` {node: its
     name} - a page its headline, a branch its heaviest folder's, a folder its own or its parent's with it
     where two share one -, `briefs` - a branch's folders, what a page is -, `groups` their order - the lit
     first, the open one's subsystems its own first -, `lefts` those named outward on their left, the `field`
@@ -248,44 +250,65 @@ def placed(tree, upright, chosen=None, cam=None):
         below = [p for p in order if p in held and p in users[f]] \
             + [g for _u, g in ways if place[g][1] < place[f][1] and users[g] & users[f] & held]
         ways.append((min(below, key=lambda g: sum((a - b) ** 2 for a, b in zip(still.get(g) or place[g], place[f]))), f))
-    parts += [(place[u], place[f], scene.EDGE, False) for u, f in ways]
-    focus, forks = root if chosen is None else chosen, sorted(c['pages'], reverse=True)
-    nodes = list(range(len(LAYERS))) + forks + order + shown
-    ink = [scene.OPEN if n == focus else scene.NODE if n in lit else scene.DIM_NODE for n in nodes]
+    orders = {}
+    for _u, f in reversed(ways):   # its order in the tree (Horton-Strahler): a twig 1, two of one order meeting the next
+        above = sorted((orders[g] for u, g in ways if u == f), reverse=True)
+        orders[f] = above[0] + (len(above) > 1 and above[0] == above[1]) if above else 1
+    # Each order grows out of the one it hangs from over a zoom key's step: at the open node's frame all but the
+    # twigs, a step in the twigs too, each step out an order less - its highest standing. The steps to a billionth:
+    # a key's 1 / 0.8 is no binary fraction, and its exact step lands on an order's edge.
+    steps = round(math.log(spread([place[n] for n in lit])[1] / sight['distance']) / math.log(scene.ZOOM), 9)
+    grown = {f: 1.0 if k == max(orders.values()) else min(1.0, max(0.0, steps + k - 1)) for f, k in orders.items()}
+    tip = dict(place)   # where each is drawn: grown out along its way from where the one it hangs from is drawn
+    for u, f in ways:
+        tip[f] = tuple(tip[u][k] + grown[f] * (place[f][k] - place[u][k]) for k in range(3))
+    parts += [(tip[u], tip[f], scene.EDGE, False) for u, f in ways if grown[f]]
+    focus, forks, drawn = root if chosen is None else chosen, sorted(c['pages'], reverse=True), [f for f in shown if grown[f]]
+    nodes = list(range(len(LAYERS))) + forks + order + drawn
+    ink = [scene.OPEN if n == focus else scene.NODE if n in lit and grown.get(n, 1.0) == 1.0 else scene.DIM_NODE
+           for n in nodes]
     discs = [scene.DISC[0]] * len(LAYERS) + [FORK_DISC] * len(forks) + [PAGE_DISC] * every \
-        + [DISC + GROWTH * len(users[f]) for f in shown]
+        + [DISC + GROWTH * len(users[f]) for f in drawn]
     ends = np.array([s[0] for s in parts] + [s[1] for s in parts], float).reshape(2, -1, 3)
     names = {**nested.names(tree, sorted(users)), **{page: headline for page, headline, *_said in pages(tree)}}
     names.update((b, names[fs[0]]) for b, fs in c['by'].items())
     keys = offered(tree, chosen)
     lefts = {n for n, (_r, a) in pol.items() if math.cos(a) < 0} \
         | {f for f in shown if sum((place[f][k] - lay[layer(tree, f)][k]) * right[k] for k in range(3)) < 0}
+    named = [f for f in drawn if grown[f] == 1.0]   # a twig named once grown out
     return {'tree': tree, 'focus': focus, 'at': place, 'out': {}, 'into': {}, 'names': names, 'lefts': lefts,
-            'field': FIELD, 'panels': 1, 'upright': upright, 'chosen': chosen, 'faced': (sight['yaw'], sight['pitch']),
-            'ways': ways, 'rings': {page: offered(tree, page) for page in order},
+            'field': FIELD, 'panels': 1, 'upright': upright, 'chosen': chosen,
+            'faced': (sight['yaw'], sight['pitch'], sight['distance']), 'ways': ways, 'orders': orders, 'grown': grown,
+            'rings': {page: offered(tree, page) for page in order},
             'briefs': {**{b: 'theirs alone: ' + ' '.join(names[f] for f in fs) for b, fs in c['by'].items()},
                        **{page: what for page, _headline, _key, what in pages(tree) if what}},
-            'groups': ([focus] + keys + path + [root],   # the keys' panels between
-                       [n for n in forks + order if n in lit] + sorted(shown, key=lambda f: (len(users[f]), f))
+            'groups': ([focus] + [k for k in keys if grown.get(k, 1.0) == 1.0] + path + [root],   # the keys' panels between
+                       [n for n in forks + order if n in lit] + sorted(named, key=lambda f: (len(users[f]), f))
                        + list(range(len(LAYERS))) + [n for n in forks + order if n not in lit]),
-            'flat': {'nodes': np.array(nodes, np.intp), 'pos': np.array([place[n] for n in nodes], float).reshape(-1, 3),
+            'flat': {'nodes': np.array(nodes, np.intp), 'pos': np.array([tip[n] for n in nodes], float).reshape(-1, 3),
                      'disc': np.array(discs, float), 'ink': np.array(ink, np.uint8), 'lit': lit, 'from': ends[0],
                      'to': ends[1], 'segink': np.array([s[2] for s in parts], np.uint8),
                      'thick': np.array([s[3] for s in parts], bool)}}
 
 
 def facing(scene_, cam):
-    """The scene (`placed`) with its flower facing `cam`: laid anew where the camera turned since (a lay is a
-    millisecond or two, so it follows a drag or an orbit frame by frame)."""
-    if scene_['faced'] != (cam['yaw'], cam['pitch']):
+    """The scene (`placed`) with its flower facing `cam` and its ways grown to its distance: laid anew where the
+    camera turned or came nearer since (a lay is a millisecond or two, so it follows a drag, an orbit or a zoom
+    frame by frame)."""
+    if scene_['faced'] != (cam['yaw'], cam['pitch'], cam['distance']):
         scene_.update(placed(scene_['tree'], scene_['upright'], scene_['chosen'], cam))
     return scene_
 
 
-def framed(scene_):
-    """(target, distance) that frames what the scene (`placed`) lights - the terminal its branches, a branch
-    its own and their subsystems, a page its subsystems -: its middle, as far as its widest."""
-    lit = scene_['flat']['lit']
-    xs, ys, zs = zip(*(p for n, p in scene_['at'].items() if n in lit))
+def spread(points):
+    """(target, distance) that frames `points`: their middle, as far as their widest."""
+    xs, ys, zs = zip(*points)
     middle = ((max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, (max(zs) + min(zs)) / 2)
     return middle, 1.2 * max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)) + 1.0
+
+
+def framed(scene_):
+    """(target, distance) that frames what the scene (`placed`) lights - the terminal its branches, a branch
+    its own and their subsystems, a page its subsystems, grown out or not (`spread`)."""
+    lit = scene_['flat']['lit']
+    return spread([p for n, p in scene_['at'].items() if n in lit])

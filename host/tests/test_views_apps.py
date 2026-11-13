@@ -182,9 +182,33 @@ def test_the_terminal_opens_on_its_applications(report):
         grey = [k for k, n in enumerate(rest) if (n < -1 or n in order) and n not in laid['flat']['lit']]
         plain = seen(goal())[0]
         return (sorted(f for _u, f in laid['ways']) == sorted(its), cut,
-                all(rest.index(f) < min(grey, default=len(rest)) for f in its), sum(laid['names'][f] in plain for f in its),
+                all(rest.index(f) < min(grey, default=len(rest)) for f in its if f in rest), sum(laid['names'][f] in plain for f in its),
                 len(its))
-    climbs = {'robot': climbing()}
+    climbs, kept, frame = {'robot': climbing()}, dict(state['cam']), state['goal']['distance']
+
+    def drawn_now():
+        """The open node's subsystems drawn now."""
+        return {n for n in show_atlas.placed(state)['flat']['nodes'].tolist() if n in users}
+    state['cam'].update(target=state['goal']['target'], distance=frame)   # eased to its frame, as the page eases
+    orders, at_frame = show_atlas.placed(state)['orders'], drawn_now()
+    bindings.act_on(show_atlas.PAD, ['-'], state)
+    stepped_out = drawn_now()
+    bindings.act_on(show_atlas.PAD, ['+', '+'], state)
+    stepped_in = drawn_now()
+    state['cam']['distance'] = frame / scene.ZOOM ** 0.5
+    laid = show_atlas.placed(state)
+    row = {n: k for k, n in enumerate(laid['flat']['nodes'].tolist())}
+    half = [math.dist(laid['flat']['pos'][row[f]], laid['flat']['pos'][row[u]]) / math.dist(laid['at'][f], laid['at'][u])
+            for u, f in laid['ways'] if orders[f] == 1]
+    state['cam'].update(kept)
+    state['goal']['distance'] = frame
+    report.check("the branching thinned far and grown out near: at an open page's frame all but its twigs, a zoom "
+                 "key's step in the twigs too, half a step half grown out, a step out its highest order alone",
+                 at_frame == {f for f, k in orders.items() if k > 1} and stepped_in == set(orders) and half
+                 and stepped_out == {f for f, k in orders.items() if k == max(orders.values())}
+                 and all(abs(r - 0.5) < 1e-9 for r in half),
+                 'orders %s: %d a step out, %d at the frame, %d a step in; twigs at %.3f of their length half a step in'
+                 % (sorted(set(orders.values())), len(stepped_out), len(at_frame), len(stepped_in), sum(half) / max(1, len(half))))
     climbed = []
     for _ in path:
         bindings.act_on(show_atlas.PAD, ['\x08'], state)
