@@ -3,7 +3,7 @@
 The mirror (atlas/mirror.py) lays each lane in its cells; here what it carries is written into them where
 it fits (`detailed`): in the lane's own run - cells it alone passes straight through, no head nor text on
 one (schematic.laid) -, a hung stage's beside the head each way goes into. Each lane's writing has levels
-(`_written`): her pass's words, then where each is made, then where it is taken, each on its side as it
+(`_written`): the pass's words, then where each is made, then where it is taken, each on its side as it
 flows; the wire's asks and readings counted, then the commands asked; long lists cut to what fits, '+n'
 after (`_cut`). The richest level that fits is written; what it adds to the one before comes out of the
 background as its room grows by a zoom key's step (`faded`). Each node's brief beside its name likewise.
@@ -43,7 +43,7 @@ def _chain(mark, word, maker, taken, level, right):
 
 
 def _written(flows, level, right):
-    """A lane's `flows` one way at `level` as items [[(text, the level it shows from)]]: her pass's words, from
+    """A lane's `flows` one way at `level` as items [[(text, the level it shows from)]]: the pass's words, from
     level 1 each with where it is made, from 2 where it is taken (`_chain`); the wire's counted from 1, the
     commands it asks from 2; what comes back marked ↺."""
     items = []

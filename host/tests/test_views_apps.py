@@ -12,6 +12,15 @@ def page_of(tree, name):
     return tree.at['host/terminal/pages/%s.py' % name]
 
 
+def drawn_lit(laid):
+    """What an applications' scene lights as it is drawn, points: its lit nodes, its lit boughs' pieces' ends."""
+    from terminal.views.atlas import scene
+    flat = laid['flat']
+    bright = flat['segink'] == scene.EDGE
+    return [p for n, p in zip(flat['nodes'].tolist(), flat['pos'].tolist()) if n in flat['lit']] \
+        + flat['from'][bright].tolist() + flat['to'][bright].tolist()
+
+
 def test_each_page_comes_to_its_own(report):
     """The atlas's ties from symbol to symbol (tools/dev/atlas_calls.py) take a page's `run` to what it calls,
     none to the menu that starts every page nor to what a module imported runs as a script: her pass's makers all
@@ -310,10 +319,11 @@ def test_each_frame_stands_in_the_middle(report):
     """A node opened stands in the middle of the view (atlas/aim.py): the camera's target worked out so the
     projection of what its frame frames - in the layers the node and all laid out under it, in the applications'
     tree what stands drawn and lit at the frame - has its middle on the drawing's middle, as the view is turned,
-    not guessed in the world."""
+    not guessed in the world; the applications' tree in the middle of the room its panel leaves, half a panel off
+    (atlas/leaves.py), fitting it."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
-    from terminal.views.atlas import apps, scene
+    from terminal.views.atlas import apps, leaves, scene
     from tools.dev import atlas_tree
     tree, off = atlas_tree.build(), {}
     held = apps.clades(tree)['pages']
@@ -331,15 +341,17 @@ def test_each_frame_stands_in_the_middle(report):
         eased(state)
         laid, focus = show_atlas.placed(state), state['focus']
         flat, sight = scene.flat(laid), scene.view(state['cam'], *show_atlas.sized(state))
-        framed = [p for n, p in zip(flat['nodes'].tolist(), flat['pos'].tolist()) if n in flat['lit']] \
-            if show_atlas._apping(state) else [p for n, p in laid['at'].items() if focus in scene.chain(tree, n)]
+        framed = drawn_lit(laid) if show_atlas._apping(state) \
+            else [p for n, p in laid['at'].items() if focus in scene.chain(tree, n)]
         seen = [tuple(sum((p[k] - sight['eye'][k]) * sight[a][k] for k in range(3)) for a in ('r', 'u', 'f'))
                 for p in framed]
         xs, ys = [x / z for x, _y, z in seen], [y / z for _x, y, z in seen]
-        off[label] = sight['focal'] * max(abs(max(xs) + min(xs)), abs(max(ys) + min(ys))) / 2   # dots
+        aside = leaves.width(show_atlas.sized(state)[0]) * show_atlas._apping(state)   # half the panel, dots
+        off[label] = max(abs(abs(sight['focal'] * (max(xs) + min(xs)) / 2) - aside), sight['focal'] * abs(max(ys) + min(ys)) / 2,
+                         sight['focal'] * (max(xs) - min(xs)) - (sight['w'] - 2 * aside))   # dots
     report.check("each node opened framed with its projection's middle on the drawing's middle - a layer, turned "
-                 "too, a folder, a file, the applications' tree, a page, a branch", all(d < 1e-9 for d in off.values()),
-                 ', '.join('%s %.1e dots off' % kv for kv in off.items()))
+                 "too, a folder, a file -, in the applications' room beside its panel - the tree, a page, a branch",
+                 all(d < 1e-6 for d in off.values()), ', '.join('%s %.1e dots off' % kv for kv in off.items()))
 
 
 ROSTER = (test_each_page_comes_to_its_own, test_the_tree_grows_as_a_tree, test_the_dataflow_draws_one_system,

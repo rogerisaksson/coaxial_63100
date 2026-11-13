@@ -3,21 +3,21 @@
 M turns the page to it: of the nodes the tree names at the node open - its children, those above it, the
 layers -, those a flow joins (tools/dev/atlas_flow.py, a flow's ends taken to the nearest of them) and
 nothing else, each written as the tree writes it, its key before, so the two match, laid out by the flow in
-the terminal's own cells and drawn in box-drawing lines (atlas/schematic.py), knife sharp. Each word of her
-pass is made by a function the tree holds, named beside it in the panel. Her loop is a rectangle in heavy lines - of her pass
+the terminal's own cells and drawn in box-drawing lines (atlas/schematic.py), knife sharp. Each word of the
+pass is made by a function the tree holds, named beside it in the panel. The loop is a rectangle in heavy lines - of the pass
 and what comes back through the world, the longest run back to where it began: its first half along the top
 left to right, the rest back along the bottom, the last up the left side to the first; each stage its sign
-on the line, its name inside, what passes written in the line on its way -, the rest of her pass hanging
+on the line, its name inside, what passes written in the line on its way -, the rest of the pass hanging
 straight off it, a flow across it inside it. The wire is columns left to right - the host's end, the
 command handlers, the board's functions -, each node its sign and its name; its lanes run square along
 tracks between the columns, a fan one track and its teeth, a lane past a column straight through it; where
-nothing comes back her pass is columns too. A node's sign says what it is (SIGNS): her eyes, her senses,
-her law, her drives, the world, the wire, the board. A lane carries both ways: a head where each of its
+nothing comes back the pass is columns too. A node's sign says what it is (SIGNS): the robot's eyes, senses,
+law and drives, the world, the wire, the board. A lane carries both ways: a head where each of its
 flows goes in. The camera faces it a world cell a terminal cell (`framed`), nearer as far as one likes, the
 words beside what they name whatever the zoom; packets run every flow from its maker to its taker, the
 taker's sign lit as one comes home (`drawn`); the node nearest the viewport (`middle`) is lit, named on top
 and its flows listed in the panel at the right (`over`). Nearer, each lane tells more as it finds room in
-its own run (`laid`, atlas/detail.py): her pass's words, then where each is made, then where it is taken;
+its own run (`laid`, atlas/detail.py): the pass's words, then where each is made, then where it is taken;
 the wire's asks and readings counted, then the commands; each node its brief - each out of the background
 as its room grows by a zoom key's step.
 """
@@ -30,14 +30,14 @@ from tools.dev import atlas_flow
 from tools.dev.atlas_tree import LAYERS
 
 #: The flow world in the world: how far under the trunk's foot its plane stands; a terminal cell's width
-#: there, world units - a row two of them, braille's dots square, a cell two across and four down; her loop
+#: there, world units - a row two of them, braille's dots square, a cell two across and four down; the loop
 #: and the wire apart, cells.
 DEPTH, CELL, APART = 6.0, 0.1, 6
 
 
 def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
     """The flow world of the scene `placed` (show_atlas.placed) for a drawing `room` (cols, rows, the panel's
-    width) - side by side or her loop over the wire, beside the panel where either fits (`beside` the room
+    width) - side by side or the loop over the wire, beside the panel where either fits (`beside` the room
     kept for it), else on the whole width -, the module's head; its nodes those the tree names at the node
     open - its children `kin`, those above it, the layers -, a flow's ends taken to the nearest of them,
     each named as the tree names it, its key (`keys` {node: its key}) before; kept to the files `reach`
@@ -49,7 +49,7 @@ def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
     cells, by lane; `dots` [(lane, forward)] a flow; its nodes' dots as `scene.picture` reads them (`flat`, none
     of its own names, all in focus), `anchors` the cells the camera places; `flows_out` and `flows_in` {node:
     flows} the chosen node's flows reach and come from; `rings` {node: its flows [(arrow, what passes, the name
-    at the other end, where it is made)]}; `loop` her loop's stages in order; `center` and `extent`; a level
+    at the other end, where it is made)]}; `loop` the loop's stages in order; `center` and `extent`; a level
     its nodes open in (atlas/nested.py): `own`, `named`, `inks`, `owner`, `flow`, `nests`."""
     from coaxial.model.blocks import numpy as np
     tree, focus, back, keys = placed['tree'], placed['focus'], len(INKS) - 1, keys or {}
@@ -100,7 +100,7 @@ def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
         else ({}, {}, [], [], (0, 0))
     wmarks, wroutes, (ww, wh) = schematic.wire(among, [k for k in links if k[0] in depth and k[1] in depth], asks, names) \
         if among else ({}, [], (0, 0))
-    # Side by side or her loop over the wire, beside the panel where it fits, else on the whole width.
+    # Side by side or the loop over the wire, beside the panel where it fits, else on the whole width.
     cols, rows, beside = room
     gap = APART if rw and ww else 0
     shapes = {True: (rw + gap + ww, max(rh, wh)), False: (max(rw, ww), rh + 2 + wh)}
@@ -162,7 +162,7 @@ def mirrored(placed, flow, room, kin=(), keys=None, reach=None):
 def framed(mirror, cols, rows):
     """(target, distance) facing the flow world on a drawing `cols` by `rows` cells, a world cell a terminal
     cell (CELL): its middle in the middle of the room left of the panel at the right where room was kept for
-    it (`mirrored`'s `beside`) - one wider than the drawing from its left edge, where her loop begins and
+    it (`mirrored`'s `beside`) - one wider than the drawing from its left edge, where the loop begins and
     closes -, every world cell's middle in the middle of a terminal cell, whatever the sizes; the zoom's
     farthest, its words the size they are."""
     (x, y, z), (width, height), panel_ = mirror['center'], mirror['extent'], mirror['beside']

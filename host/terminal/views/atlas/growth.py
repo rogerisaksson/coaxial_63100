@@ -7,15 +7,18 @@ golden angle from the last (scene.GOLDEN), as leaves stand round a stem, none ov
 angle Murray's law gives what it holds of what the stem carries where it leaves (`murray`); as long as its
 own steps need, APART a step, or as far as the crown is wide there where that is further - a paraboloid's,
 RING times the root of the share of what the stem carries from there up -; a leader its steps alone, the
-stem going on. The applications' tree grows so (atlas/apps.py), and so does a subtree out of a node opened
-in it: the same tree, inherited down.
+stem going on. Which kids a stem has is what its leaves share (`nest`): each set of them a thing is shared
+by a branch, kept where it nests in those kept; the kid holding most leads (`grow`), down to the leaves. The
+applications' tree grows so (atlas/apps.py), and so does a subtree out of a node opened in it
+(atlas/subtree.py): the same tree, inherited down.
 """
 import math
 
 from terminal.views.atlas import scene
 
-#: A step along a bough - a folder carried, a kid out of it -, the crown's widest reach, world units.
-APART, RING = 0.22, 3.0
+#: A step along a bough - a folder carried, a kid out of it -, the crown's widest reach, world units; a
+#: bough's straight pieces drawn.
+APART, RING, STEPS = 0.22, 3.0, 12
 
 
 def lean(way, turn):
@@ -62,3 +65,51 @@ def sprout(stem, steps, kids, turn, every):
                     max(RING * math.sqrt(above / every) * (not leads), APART * own), leads)
         above -= held
     return out
+
+
+def nest(items, uses, weigh, first=-2):
+    """The branches `items` part along, as a tree's do: each set of them a thing is shared by (`uses` {thing: the
+    items sharing it}) - two or more, not all -, the most shared first (`weigh` of its things), kept where it
+    nests in those kept. {'up': {branch or item: the branch it hangs from, None the root}, 'kids': {None or a
+    branch: its items, then its branches, the most first}, 'held': {branch: its items}, 'by': {branch: its
+    things, the heaviest first}}; a branch an id from `first` down, the one holding most first."""
+    items, sets = frozenset(items), {}
+    for thing, users in uses.items():
+        shared = frozenset(users) & items
+        if 1 < len(shared) < len(items):
+            sets.setdefault(shared, []).append(thing)
+    kept = []
+    for s in sorted(sets, key=lambda s: (-sum(weigh(x) for x in sets[s]), -len(s), sorted(s))):
+        if all(s <= k or k <= s or not s & k for k in kept):
+            kept.append(s)
+    kept.sort(key=lambda s: (-len(s), sorted(s)))
+    ids = {s: first - k for k, s in enumerate(kept)}
+    up = {ids[s]: next((ids[k] for k in reversed(kept) if s < k), None) for s in kept}
+    up.update((i, next((ids[k] for k in reversed(kept) if i in k), None)) for i in items)
+    kids = {None: [], **{b: [] for b in ids.values()}}
+    for node in sorted(up, key=lambda n: (n not in items, -len(kept[first - n]) if n not in items else n)):
+        kids[up[node]].append(node)
+    return {'up': up, 'kids': kids, 'held': {ids[s]: s for s in kept},
+            'by': {ids[s]: sorted(sets[s], key=lambda x: (-weigh(x), x)) for s in kept}}
+
+
+def grow(stem, node, nested, held, steps, every, turn, out):
+    """Into `out` {kid: its bough}: `node`'s kids (`nested` {node: its kids}) out of its bough `stem` laid in
+    steps(node), each holding held(kid) - the kid with kids of its own holding the most last, leading on, the
+    rest round the stem (`sprout`, `every` all the root holds) -, each kid's own out of its bough so, down to the
+    leaves."""
+    kids = nested.get(node, ())
+    boughs = [k for k in kids if nested.get(k)]
+    leader = max(boughs, key=lambda k: (held(k), -k)) if boughs else None
+    order = sorted((k for k in kids if k != leader), key=lambda k: (-held(k), k)) + [leader] * bool(boughs)
+    out.update(sprout(stem, steps(node), [(k, held(k), steps(k), k == leader) for k in order], turn, every))
+    for k in order:
+        if nested.get(k):
+            grow(out[k], k, nested, held, steps, every, turn, out)
+
+
+def pieces(grown):
+    """[(from, to, bough, whether it leads)]: the boughs `grown` {bough: (start, way, across, angle, length,
+    leads)} each in STEPS straight pieces (`along`)."""
+    return [(along(b, i / STEPS)[0], along(b, (i + 1) / STEPS)[0], n, b[5]) for n, b in grown.items()
+            for i in range(STEPS)]

@@ -1,6 +1,6 @@
 """The mirror's schematic in the terminal's cells: laid out, in box-drawing lines, its words over.
 
-What the mirror shows (atlas/mirror.py), knife sharp: no line cut into dots, none between two cells. Her
+What the mirror shows (atlas/mirror.py), knife sharp: no line cut into dots, none between two cells. The
 loop is laid round a rectangle in heavy lines (`ring`), the wire in columns whose lanes run square along
 tracks between them (`wire`); a lane runs through its corners cell by cell (`walked`); where lanes join one
 glyph carries every way out of the cell (a comb's teeth), where one only passes across another the upright
@@ -11,8 +11,8 @@ A word keeps its place beside what it names in the terminal's cells, whatever th
 """
 from collections import Counter
 
-#: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded - her loop's
-#: heavy -; a lane's head by the way it points, her loop's filled.
+#: The ways a line leaves a cell, bits; the glyph each set of them draws, the corners rounded - the loop's
+#: heavy -; a lane's head by the way it points, the loop's filled.
 UP, DOWN, LEFT, RIGHT = 1, 2, 4, 8
 GLYPHS = {UP | DOWN: '│', LEFT | RIGHT: '─', DOWN | RIGHT: '╭', DOWN | LEFT: '╮', UP | RIGHT: '╰',
           UP | LEFT: '╯', UP | DOWN | RIGHT: '├', UP | DOWN | LEFT: '┤', DOWN | LEFT | RIGHT: '┬',
@@ -24,13 +24,13 @@ HEADS, FILLED = {RIGHT: '▸', LEFT: '◂', DOWN: '▾', UP: '▴'}, {RIGHT: '�
 #: The seconds a flow's packet takes along its lane, how far apart the flows' packets start, a share of the
 #: way (the golden one, so no two run together), its cells; a stage hanging off the loop from the one it
 #: hangs from, rows - two line cells between the heads of a lane both ways -; the sweeps that order the
-#: wire's columns; the line cells at least before a head on her loop.
+#: wire's columns; the line cells at least before a head on the loop.
 TRAVEL_S, PHASE, TRAIL, SPUR, SWEEPS, LEAD = 2.0, 0.618, 3, 5, 4, 3
 
 
 def looped(stages, edges, back):
-    """Her loop: of the runs of `edges` {(a, b)} among `stages` back to where they began, the longest - one
-    through what comes back (`back`) first among equals -, its stages in order from its earliest in her
+    """The loop: of the runs of `edges` {(a, b)} among `stages` back to where they began, the longest - one
+    through what comes back (`back`) first among equals -, its stages in order from its earliest in the
     pass; none where no run comes back."""
     after, rank, best = {n: sorted(b for a, b in edges if a == n) for n in stages}, {n: k for k, n in enumerate(stages)}, ()
     for s in stages:   # each run once, from its earliest stage
@@ -124,7 +124,7 @@ def _tracked(hops, key, y):
 
 
 def ring(loop, hung, chords, said, names):
-    """Her loop laid in cells from (0, 0): (marks {node: its dot's cell}, named {node: its name's offset from
+    """The loop laid in cells from (0, 0): (marks {node: its dot's cell}, named {node: its name's offset from
     its dot}, routes [(a, b, corners, heavy)] - from the cell beside a's dot to the cell beside b's -, slots
     [(x, y, across, down, (a, b), way, grows)] where a hung stage's lane is written each way (0 a to b) - by
     a cell of the layout and its offset from it in the terminal's cells, the side it grows to -, (width,

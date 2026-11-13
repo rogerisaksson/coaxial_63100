@@ -168,7 +168,8 @@ def frame(state, node):
     """(target, distance) that frames `node` and what it opens - the trunk whole at none -, standing in the
     view's middle (aim.centred); the mirror's world whole, the applications what they light."""
     if state['mirror'] or _apping(state):
-        return mirror.framed(placed(state), *sized(state)) if state['mirror'] else apps.framed(placed(state), state['cam'])
+        return mirror.framed(placed(state), *sized(state)) if state['mirror'] \
+            else apps.framed(placed(state), state['cam'], sized(state))
     if node < 0:
         home = scene.camera()
         return home['target'], home['distance']
@@ -194,8 +195,7 @@ def _mirrored(state, _key, _now):
 
 
 def _apping(state):
-    """Whether the applications' tree shows (atlas/apps.py): A's way, no dataflow, the node open none or one that
-    grows in it (apps.anchor) - its subtree -, else the layers'."""
+    """Whether the applications' tree shows (atlas/apps.py): A's, no dataflow, a node open none or anchored."""
     return state['apps'] and not state['mirror'] and (state['focus'] < 0 or apps.anchor(state['tree'], state['focus']) >= 0)
 
 
@@ -214,8 +214,10 @@ def _flowed(state, key, now):
 
 
 def opening(state, node):
-    """`node` opened (`focused`): in the applications' tree the terminal, a branch or a page chosen."""
-    chose = _apping(state) and (node == 0 or node in apps.clades(state['tree'])['up'])
+    """`node` opened (`focused`): in the applications' tree the terminal, a branch or a page chosen - the page
+    chosen opened again, its own subtree grown out of it."""
+    chose = _apping(state) and (node == 0 or node in apps.clades(state['tree'])['up']) \
+        and not (node == state['app'] and node >= 0)
     if chose:
         state['app'] = None if node == 0 else node
     focused(state, -1 if chose else node)
@@ -408,7 +410,8 @@ def draw_of(view, state, keys=''):
         turned_over = state['mirror']
         if turned_over and state.get('art') != (width, height):   # the mirror world framed for this drawing
             state['goal']['target'], state['goal']['distance'] = frame(state, state['focus'])
-        aim.eased(state, time.monotonic())
+        aim.eased(state, time.monotonic(),
+                  lambda: _apping(state) and ((state['app'], state['focus']), *frame(state, state['focus'])))
         placing, marks = placed(state), keyed(state)
         # The child nearest the viewport, whichever page of keys holds it: its panel, its mark, its brief.
         named = {n: marks.get(n, '') for n in context(state)}
@@ -420,7 +423,8 @@ def draw_of(view, state, keys=''):
             placing, state['cam'], width, height, marks, found,
             lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken, now)
             if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken,
-                                              most=placing.get('panels', leaves.MOST), names=placing.get('names')))
+                                              most=placing.get('panels', leaves.MOST), names=placing.get('names'),
+                                              side=placing.get('side')))
         state['art'] = (width, height)
         fell = state['fell']
         mid = (mirror.middle(placing, fell, sight, width) if turned_over

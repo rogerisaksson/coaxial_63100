@@ -26,6 +26,16 @@ def ranked(fell, keyed, rings, cols, rows):
                   if rings.get(n) and n in fell and 0 <= fell[n][0] < 2 * cols and 0 <= fell[n][1] < 4 * rows)
 
 
+def _side(fell, taken, cols, rows, wide, node):
+    """Whether a panel `wide` cells in its frame stands at the right: where it covers less of what is drawn - the
+    nodes fallen under it, the names taken there -, away from its node between equals."""
+    def covers(right):
+        left = cols - wide - 2 if right else 0
+        return sum(1 for x, y, _z in fell.values() if left <= x / 2 <= left + wide + 1 and 0 <= y < 4 * rows) \
+            + sum(1 for c, _r in taken if left <= c <= left + wide + 1)
+    return (covers(True), fell[node][0] >= cols) < (covers(False), fell[node][0] < cols)
+
+
 def width(cols, active=True):
     """A panel's width on a drawing `cols` cells across, its frame's cells in: active or idle (ACTIVE, IDLE)."""
     share, least, most = ACTIVE if active else IDLE
@@ -91,23 +101,25 @@ def _laid(out, left, top, wide, lines, title, note, active):
 
 
 def panels(tree, rings, fell, keyed, cols, rows, taken=frozenset(), say=None, noted=None, most=MOST, docked=False,
-           names=None):
+           names=None, side=None):
     """{(col, row): (char, ink)}: the branches with leaves as panels on a drawing `cols` by `rows` cells
     (`ranked`; `rings` {node: its children as laid}, its lines by `say` and its note by `noted` - `lines_of`
     and its leaves' count where None, the mirror's flows its own; a scene's `names` where it has them, a
     page's headline (atlas/apps.py)) - the first laid active, the rest idle,
-    `most` at most -, each at the edge on the side its node stands - the active one on the other where its
-    own has no room -, or `docked` all at the right,
+    `most` at most -, each at the edge where it covers less of what is drawn (`_side`), the active one at `side`
+    where told (right or not: the side its frame left it, atlas/apps.py), on the other where that has no room -,
+    or `docked` all at the right,
     stacked down from the top in rows free of a cell `taken` (the keys' names): the active one in the
     longest such run, as many of its leaves as it holds, an idle one in the first; none where its edge has no
     room left above the foot, none wider than half the drawing."""
     out, tops, laid = {}, {False: 0, True: 0}, 0
     for _off, node in ranked(fell, keyed, rings, cols, rows):
         active, leaves = not laid, rings[node]
-        wide, own = width(cols, active) - 2, docked or fell[node][0] >= cols
+        wide = width(cols, active) - 2
+        own = docked or (side if side is not None and active else _side(fell, taken, cols, rows, wide, node))
         if laid == most or wide + 2 > cols // 2:
             continue
-        for right in (own, not own) if active and not docked else (own,):
+        for right in (own, not own) if not docked else (own,):
             left = cols - wide - 2 if right else 0
             busy = {r for c, r in taken if left <= c <= left + wide + 1}
             runs = [run for run in _runs(busy, tops[right], rows - FOOT) if run[1] >= (4 if active else 3)]

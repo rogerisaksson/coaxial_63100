@@ -6,8 +6,8 @@ opens where its frame fits clear of all else (`scale`): its children the data pa
 into its user -, each hung from the nearest already in it, laid in columns as the wire is (schematic.wire);
 its ports on its frame where its lanes meet it - left and right on its row, top and bottom on its column -,
 the data on through them to the part that takes it (`nest`). An open node's parts open in turn: a layer its
-folders, a folder its files (`opened`). A node's sign says what it is (SIGNS): an estimator, her eyes, her
-senses, her law, her drives, the world, the wire, the board, a process, what wears.
+folders, a folder its files (`opened`). A node's sign says what it is (SIGNS): an estimator, the robot's eyes,
+senses, law and drives, the world, the wire, the board, a process, what wears.
 """
 import functools
 import math
@@ -16,10 +16,10 @@ from terminal.views.atlas import detail, scene, schematic
 from tools.dev import atlas_flow
 from tools.dev.atlas_tree import FILE, TIES
 
-#: Each kind's ink (atlas_flow.KINDS: her pass, the wire, a call, what comes back); a part's use of another's.
+#: Each kind's ink (atlas_flow.KINDS: the pass, the wire, a call, what comes back); a part's use of another's.
 INKS, USES = (scene.TITLE, scene.NOTE, scene.TIE_OUT, scene.HIT), scene.EDGE
 #: A node's sign by the first word of its path naming what it is, its own name first: an estimator or an
-#: observer, her eyes, her senses, her law, her drives, the world, the wire, the board, a process, what
+#: observer, the robot's eyes, senses, law and drives, the world, the wire, the board, a process, what
 #: wears; a dot for the rest.
 SIGNS = (('ekf', '◈'), ('estimat', '◈'), ('observ', '◈'), ('kalman', '◈'), ('filter', '◈'),
          ('eye', '◉'), ('sight', '◉'), ('registry', '◉'), ('vision', '◉'), ('camera', '◉'),
@@ -179,7 +179,7 @@ def nest(level, node):
     cx, cy = (x0 + x1) // 2, marks_[L if L in col else R][1] if {L, R} & set(col) else (y0 + y1) // 2
     port = {g: (x0, cy) if g == L else (x1, cy) if g == R else (marks_[g][0] if g in marks_ else cx, y0 if g == T else y1)
             for g in set(ports.values())}   # every side a lane meets it by, a port
-    # Each lane its flows each way (her pass's heavy) and what it carries; a part's use of another's in its ink.
+    # Each lane its flows each way (the pass's heavy) and what it carries; a part's use of another's in its ink.
     lanes, said, dots, rings, named = [], [], [], {n: [] for n in parts}, {n: (2, 0) for n in parts}
     shown = {**own, **{g: _beyond(level, node, ports, g) for g in gates}}
 
