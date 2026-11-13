@@ -62,7 +62,9 @@ def test_the_terminal_opens_on_its_applications(report):
     named by what its pages share alone - the flyers on aircraft/, side by side -, each subsystem up at its
     layer's height, the more pages it serves the nearer the trunk; the keys go down the branches, a page's
     lights it and its subsystems, frames them and offers them, its own first; BKSP climbs back, past the
-    terminal to the trunk; A at the terminal its folders and back."""
+    terminal to the trunk; A at the terminal its folders and back. The flower lies flat, so no branch crosses
+    another; nothing unlit stands up the trunk; each page is named outward."""
+    import itertools
     import math
     from terminal.ui import bindings
     from terminal.views import show_atlas
@@ -88,6 +90,38 @@ def test_the_terminal_opens_on_its_applications(report):
                  'the terminal its root', state['focus'] == 0 and show_atlas.titled(state, None, 100) == 'APPS'
                  and shown['focus'] == 0 and len(named) == len(atlas_tree.LAYERS) and shown['flat']['lit'] <= fell
                  and show_atlas.context(state) == c['kids'][None], '%d named: %s' % (len(named), named))
+    pol, (hub, right, up) = apps.flower(tree), apps.faced(shown['at'][0])
+    normal = (right[1] * up[2] - right[2] * up[1], right[2] * up[0] - right[0] * up[2], right[0] * up[1] - right[1] * up[0])
+    flat = all(abs(sum((shown['at'][n][k] - hub[k]) * normal[k] for k in range(3))) < 1e-9 for n in pol)
+    sight = scene.view(goal(), 150, 44)
+
+    def dots(p):
+        x, y, z = (sum((p[k] - sight['eye'][k]) * sight[a][k] for k in range(3)) for a in ('r', 'u', 'f'))
+        return x / z, -y / z
+
+    def on(r, a):
+        return tuple(hub[k] + r * (math.cos(a) * right[k] + math.sin(a) * up[k]) for k in range(3))
+    ways = {n: [dots(on(*q)) for q in apps.curve((0.0, ra[1]) if c['up'][n] is None else pol[c['up'][n]], ra)]
+            for n, ra in pol.items()}
+
+    def side(u, v, w):
+        return (v[0] - u[0]) * (w[1] - u[1]) - (v[1] - u[1]) * (w[0] - u[0])
+    crossed = [(a, b) for a, b in itertools.combinations(ways, 2) if len({a, b, c['up'][a], c['up'][b]}) == 4
+               and any(side(p, q, r) * side(p, q, s) < 0 and side(r, s, p) * side(r, s, q) < 0
+                       for p, q in zip(ways[a], ways[a][1:]) for r, s in zip(ways[b], ways[b][1:]))]
+    lines = scene.picture(show_atlas.placed(state), goal(), 150, 44, show_atlas.keyed(state), set())[0]
+    texts, cells = [row[0] for row in lines], scene.picture(shown, goal(), 150, 44, {}, set())[1]
+    outward = []
+    for page in order:   # its name on the row it falls on or one near, on the side away from the hub
+        col, row = int(cells[page][0] // 2), int(cells[page][1] // 4)
+        at = [(abs(r - row), texts[r].index(shown['names'][page]), r) for r in range(max(0, row - 2), min(len(texts), row + 3))
+              if shown['names'][page] in texts[r]]
+        start = min(at)[1] if at else None
+        outward.append(start is not None and ((start + len(shown['names'][page]) <= col) == (math.cos(pol[page][1]) < 0)))
+    report.check("the flower one flat disc leaning to the home view, no branch crossing another on screen, nothing "
+                 "unlit drawn up the trunk, each page named outward", flat and abs(normal[1] - math.cos(math.radians(apps.LEAN))) < 1e-9
+                 and not crossed and set(shown['flat']['nodes'].tolist()) == set(range(len(atlas_tree.LAYERS))) | set(pol)
+                 and all(outward), '%d crossed, %d of %d named outward' % (len(crossed), sum(outward), len(outward)))
     flyers = frozenset(tree.at['host/terminal/pages/%s.py' % f] for f in FLYERS)
     flown = next((b for b, ps in c['pages'].items() if ps == flyers), None)
     runs = all(max(map(order.index, ps)) - min(map(order.index, ps)) == len(ps) - 1 for ps in c['pages'].values())

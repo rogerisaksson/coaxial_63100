@@ -439,7 +439,7 @@ def draw_of(view, state, keys=''):
             placing, state['cam'], width, height, marks, found,
             lambda fell, cols, rows, taken: mirror.over(placing, sight, marks, fell, cols, rows, taken, now)
             if turned_over else leaves.panels(state['tree'], placing['rings'], fell, named, cols, rows, taken,
-                                              names=placing.get('names')))
+                                              most=placing.get('panels', leaves.MOST), names=placing.get('names')))
         state['art'] = (width, height)
         fell = state['fell']
         mid = (mirror.middle(placing, fell, sight, width) if turned_over

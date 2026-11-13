@@ -6,11 +6,9 @@ node chosen and those above it are open, and so are the nodes its keys offer - i
 the layers -, their own children laid out ahead: a layer's folders ring it level, a folder's files and a
 file's symbols hang under it as a cap, the heaviest at its foot, the rest spiralling out by the golden
 angle. The chosen node, those above it and all laid out below it are lit - before any is chosen, the
-trunk -, the rest grey; the chosen node's ties are bowed out from the trunk, so those along it are
-not lost in it. Named in the tree, by a scene's own `names` where it has them, are the chosen node, its
-keys, those above it, the layers, its ties' ends and a word's hits; its leaves in panels on the viewport
-(`over`, atlas/leaves.py). The farther a thing from the point the view turns about, the more out of
-focus: its dots fewer, scattered and darker.
+trunk -, the rest grey; the chosen node's ties are bowed out from the trunk, not lost along it. Named in the tree (by a scene's own `names` where it has them): the chosen node, its keys,
+those above it, the layers, its ties' ends and a word's hits; its leaves in panels (`over`, atlas/leaves.py).
+Out of focus the farther from the point the view turns about: its dots fewer, scattered and darker.
 
 Drawn as data: a focus's nodes and segments are laid once as flat arrays (`flat`); a frame projects them
 all at once, cuts them at the near plane and the drawing's edge, rasters every segment's and disc's dots
@@ -38,7 +36,7 @@ DISC, DOTS, NAMES, FAINT_TIES, TIES_SHOWN = (0.11, 0.05, 0.022, 0.011), (0.8, 4.
 HALO, SIDES = 0.24, 24
 TURNS = tuple((math.cos(2 * math.pi * k / SIDES), math.sin(2 * math.pi * k / SIDES)) for k in range(SIDES + 1))
 #: Out of focus (`blur`) a thing's distance from the point the view turns about, a share of the camera's to
-#: it, makes half out at FOCUS - a framed node's reach (show_atlas.frame stands the camera 2.8 off). Out of
+#: it, makes half out at FOCUS - a framed node's reach (show_atlas.frame stands 2.8 off). Out of
 #: focus a dot keeps of its share down to SPARSE, darkens to DARK of its ink in SHADES steps and strays up to
 #: STRAY dots; a screen door picks which keep - a dot's threshold of 16 along a line from its start (DOOR,
 #: the bit-reversed count) or round a node's middle (BAYER, the ordered dither) - and STRAYS its way (/3).
@@ -332,10 +330,10 @@ def _label(text, col, row, runs, cols, rows):
 
 def picture(scene, cam, width, height, keyed, found, over=None):
     """The scene from `cam` on `width` x `height` cells, as rows (`cells`), where each node fell ({node:
-    (x, y, depth)}, dots) and the view: `keyed` {node: the key choosing it}, `found` the nodes shown a
-    word's hits lie under; `over` (fell, cols, rows, the cells the keys' names took) -> {(col, row): (char,
-    ink)} laid after the chosen node's, its keys' and its chain's names, before the rest's - a scene's own
-    `groups` of names where it has them."""
+    (x, y, depth)}, dots) and the view: `keyed` {node: its key}, `found` the nodes a word's hits lie under;
+    `over` (fell, cols, rows, the cells the keys' names took) -> {(col, row): (char, ink)} laid after the
+    chosen node's, its keys' and its chain's names, before the rest's - a scene's `groups` where it has
+    them, its `lefts` named on their left."""
     from coaxial.model.blocks import numpy as np
     tree, f, focus = scene['tree'], flat(scene), scene['focus']
     v = view(cam, width, height)
@@ -401,7 +399,8 @@ def picture(scene, cam, width, height, keyed, found, over=None):
             name = name if len(name) <= 28 else name[:27] + CUT
             runs = ([(key + ' ', KEY)] if key else []) + [(name, TOLD if node == focus else NAME if node in lit else NAME_DIM)]
             right, left, row = int((nx + r) // 2) + 1, int((nx - r) // 2) - sum(len(t) for t, _ in runs), int(ny // 4)
-            # Right of its node, left of it, then a row or two above or below: a key's name finds its room.
-            if any(_label(text, col, row + step, runs, cols, rows) for step in (0, -1, 1, -2, 2) for col in (right, left)):
+            sides = (left, right) if node in scene.get('lefts', ()) else (right, left)
+            # Its side (right, a scene's `lefts` left), the other, then a row or two up or down.
+            if any(_label(text, col, row + step, runs, cols, rows) for step in (0, -1, 1, -2, 2) for col in sides):
                 named += 1
     return cells(dots, text, w, h, shade), fell, v
