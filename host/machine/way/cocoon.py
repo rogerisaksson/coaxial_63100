@@ -4,11 +4,12 @@
     tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing her stop cannot spare taken off
 
 proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on her walk: her things (her registry's boxes)
-she may not stand in (`voxels.STAND_M`) - a building's shell's not (`classes.SHELL`: her touch and her arms' yield
-hold walls, windows and doors; held off a jamb she stood short of every doorway) -, each grown by her half width, her arms' (`figure.WIDE_HALF`:
-by her trunk's alone her arm went 0.15 m into the bed); her stop
-v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her braking (`route.BRAKE`) - against
-the room to the nearest along it less the text's skin (`wayfinder.MARGIN`). Blocked, her keys are let go
+she may not stand in (`voxels.STAND_M`), a door's not (she pushes it aside), each grown by her half width
+(`figure.WIDE_HALF`: by her hips' alone her arm went 0.15 m into the bed) - a building's walls and windows
+(`classes.SHELL`) where her way runs into their face, less her half width: one brushed past is her touch's and her
+arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, she walked into a pane at 1.1 m/s and fell);
+her stop v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her braking (`route.BRAKE`) -
+against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`). Blocked, her keys are let go
 (`machine.process.worker`) and she stands by her own stop; turning and backing off are hers. Her twist held to it
 outran it - 1.2 m/s to a chair's skin - and a zero cap threw her. On an errand none: its dock is hers to reach
 (`gate-affordance-contact-permeability`), F's errands as they were.
@@ -58,22 +59,28 @@ def _stop(v):
 
 
 def _room(g, way):
-    """The room along `way` from her place to her nearest thing, less the text's skin, m."""
-    q = furniture.where(g)
-    return ahead(_boxes(g['things']), (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
+    """The room along `way` from her place to her nearest thing, less the text's skin, m: to a thing grown by her
+    half width, to a wall's or a window's face her way runs into less it."""
+    q, (things, shell) = furniture.where(g), _boxes(g['things'])
+    at = (float(q[0]), float(q[2]))
+    return min(ahead(things, at, way), ahead(shell, at, way) - figure.WIDE_HALF) - wayfinder.MARGIN
 
 
 def _boxes(things):
-    """(centres (n, 2), axes (n, 2, 2), halves (n, 2)) of `things` she may not stand in, grown by her radius: laid
-    once a look."""
+    """((centres (n, 2), axes (n, 2, 2), halves (n, 2)) of `things` she may not stand in, a door's not, grown by her
+    half width, those of a building's shell (`classes.SHELL`) as they are): laid once a look."""
     import numpy as np
     if _KEPT[0] is not things:
-        kept = [t for t in things if t[0] not in classes.SHELL and t[1][1] + t[2][1] > voxels.STAND_M[0]
+        kept = [t for t in things if t[0] != 'door' and t[1][1] + t[2][1] > voxels.STAND_M[0]
                 and t[1][1] - t[2][1] < voxels.STAND_M[1]]
-        c = np.array([(t[1][0], t[1][2]) for t in kept], float).reshape(-1, 2)
-        axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in kept], float).reshape(-1, 2, 2)
-        half = np.array([(t[2][0], t[2][2]) for t in kept], float).reshape(-1, 2) + figure.WIDE_HALF
-        _KEPT[:] = things, (c, axes, half)
+        laid = []
+        for shell in (False, True):
+            part = [t for t in kept if (t[0] in classes.SHELL) == shell]
+            c = np.array([(t[1][0], t[1][2]) for t in part], float).reshape(-1, 2)
+            axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in part], float).reshape(-1, 2, 2)
+            half = np.array([(t[2][0], t[2][2]) for t in part], float).reshape(-1, 2) + (0.0 if shell else figure.WIDE_HALF)
+            laid.append((c, axes, half))
+        _KEPT[:] = things, tuple(laid)
     return _KEPT[1]
 
 

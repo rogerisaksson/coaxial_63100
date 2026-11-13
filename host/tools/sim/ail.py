@@ -3,6 +3,7 @@
     python tools/sim/ail.py drive --seeds 8 --seconds 60          # sessions of held keys, each one's faults
     python tools/sim/ail.py drive --seeds 8 --stage 5              # and the first 5 faults of their own kinds kept
     python tools/sim/ail.py replay                                 # each staged case again: PASS where it is gone
+    python tools/sim/ail.py run CASE.json --trace 4 9              # a key script (a case's), a line a frame 4-9 s
 
 A session: the lodge laid (ROOM), her page's keys held and let go as a hand does - W, S, A, D, Q, E and their pairs,
 each held 0.4-3 s, pauses between (`bindings.act_on` each repeat, `humanoid_keys.steered` each frame: her page's
@@ -56,21 +57,38 @@ def _lodge(g):
     return c, axes, np.array([(p[2][0], p[2][2]) for p in kept], float).reshape(-1, 2), [n for p, n in zip(props, names) if p in kept]
 
 
-def _into(lodge, at, half):
-    """(the deepest a body `half` m wide at `at` (x, z) stands in one of `lodge`'s things, m - 0 none -, its name)."""
+def _near(lodge, at, half):
+    """(how far a body `half` m wide at `at` (x, z) stands off the nearest of `lodge`'s things, m - within one less
+    than 0, as deep -, its name)."""
     import numpy as np
     c, axes, halves, names = lodge
     if not len(c):
-        return 0.0, ''
-    o = np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c)
-    over = halves + half - np.abs(o)
-    depth = np.where((over > 0.0).all(axis=1), over.min(axis=1), 0.0)
-    k = int(np.argmax(depth))
-    return float(depth[k]), names[k]
+        return math.inf, ''
+    over = halves + half - np.abs(np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c))
+    gap = np.where((over > 0.0).all(axis=1), -over.min(axis=1), np.linalg.norm(np.maximum(-over, 0.0), axis=1))
+    k = int(np.argmin(gap))
+    return float(gap[k]), names[k]
 
 
-def drive(seed, seconds, eyes=False, words=None):
-    """A seed's session (`script`, or `words`) in the lodge: {seed, words, faults [{kind, t, detail}], end, t}."""
+def _traced(g, word, fast, gap, name):
+    """A frame of her session said short: her key, doing, errand's phase, speed, twist asked (! her cocoon blocked),
+    soles' loads, surety, her fastest joint since the last, the most her skin feels and where, her nearest thing."""
+    import numpy as np
+    from machine.process import sprung
+    from machine.senses import edge
+    from machine.way import cocoon
+    d, er, ask = g['world'].data, g.get('_errand') or {}, g.get('asked') or (0.0, 0.0, 0.0)
+    felt = np.linalg.norm(np.asarray(g['sense'][edge.TOUCH], float).reshape(-1, 3), axis=1)
+    k = int(np.argmax(felt))
+    return 't %5.2f %-4r %-11s %-6s v %.2f ask %+.1f/%+.1f/%+.1f%s soles %s sure %.2f fast %s %.0f felt %.1f %s near %s %+.2f' % (
+        float(g['t']), word, sprung.doing(g), er.get('phase', '-'), math.hypot(float(d.qvel[0]), float(d.qvel[2])), *ask,
+        '!' if cocoon.blocked(g) else ' ', '/'.join('%.0f' % v for v in g['loads']), float(g['surety']), fast[1], fast[0],
+        felt[k], edge.SKIN[k], name, gap)
+
+
+def drive(seed, seconds, eyes=False, words=None, trace=None):
+    """A seed's session (`script`, or `words`) in the lodge: {seed, words, faults [{kind, t, detail}], end, t}; a line
+    a frame said (`_traced`) between `trace`'s (from, to) s."""
     from types import SimpleNamespace as SN
     from machine.body import figure
     from machine.world import physics
@@ -87,7 +105,7 @@ def drive(seed, seconds, eyes=False, words=None):
     # her page's scanner (test_errands'): without it F had no offer and docked nothing
     st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
-    tap, watched = introspect.Tap(), watch.Watch()
+    tap, watched, fast = introspect.Tap(), watch.Watch(), (0.0, '')
     frame, typed_at, deepest = 0.0, -math.inf, 0.0
     try:
         for word, held in words:
@@ -105,13 +123,19 @@ def drive(seed, seconds, eyes=False, words=None):
                     frame = t
                     st['now'] = worker.told(s)
                     humanoid_keys.steered(st, t, 0.0)
-                    depth, name = _into(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
-                                        figure.WIDE_HALF)
-                    if depth > deepest + 0.02 and g.get('_errand') is None:
-                        deepest = depth
-                        faults.append({'kind': 'into', 't': round(t, 2), 'detail': '%.2f m into %s on %r' % (depth, name, word)})
+                    gap, name = _near(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
+                                      figure.WIDE_HALF)
+                    if -gap > deepest + 0.02 and g.get('_errand') is None:
+                        deepest = -gap
+                        faults.append({'kind': 'into', 't': round(t, 2), 'detail': '%.2f m into %s on %r' % (-gap, name, word)})
+                    if trace and trace[0] <= t <= trace[1]:
+                        print(_traced(g, word, fast, gap, name))
+                        fast = (0.0, '')
                 snap = tap.passed(s)
                 if snap is not None:
+                    if trace:
+                        peaks = snap['body']['peaks']
+                        fast = max(fast, max((v, k) for k, v in peaks.items()))
                     for e in watched.step(snap):
                         if e['event'] in ('stumble', 'fall', 'spasm'):
                             faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g)})
@@ -165,11 +189,12 @@ def main(argv=None):
     p.add_argument('--seconds', type=float, default=60.0)
     p.add_argument('--eyes', action='store_true', help='on her eyes (SIGHT 1), not the world\'s boxes')
     p.add_argument('--stage', type=int, default=0, help='keep the first N faults of kinds not yet kept')
+    p.add_argument('--trace', type=float, nargs=2, metavar=('FROM', 'TO'), help='run: a line a frame between, s')
     a = p.parse_args(argv)
     if a.what == 'run':
         with open(a.path, encoding='utf-8-sig') as f:
             words = [tuple(w) for w in json.load(f)['words']]
-        run = drive(0, sum(s for _w, s in words), a.eyes, words)
+        run = drive(0, sum(s for _w, s in words), a.eyes, words, a.trace)
         print(json.dumps({k: run[k] for k in ('end', 't', 'faults')}))
         return 0
     if a.what == 'drive':
