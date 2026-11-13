@@ -140,13 +140,19 @@ def stick(m, d, things):
 
 
 def _touched(d, held):
-    """Which things asleep (`held`) something awake that moves now touches: the twin of `_alone`."""
-    n, by_geom, live = d.ncon, held[5], held[6]
+    """Which things asleep (`held`) something awake that moves now touches: the twin of `_alone` - none on a pass whose
+    contacts hold none of theirs, told by one look at its pairs (each column and each partner looked up apart, 27 us
+    of her walk's every pass)."""
+    n = d.ncon
     if not n:
         return ()
-    g1, g2 = d.contact.geom1[:n], d.contact.geom2[:n]
-    k1, k2 = by_geom[g1], by_geom[g2]
-    return set(k1[(k1 >= 0) & live[g2] & (k2 < 0)].tolist() + k2[(k2 >= 0) & live[g1] & (k1 < 0)].tolist())
+    pairs = d.contact.geom[:n]
+    k = held[5][pairs]
+    if not (k >= 0).any():
+        return ()
+    live = held[6][pairs]
+    return set(k[:, 0][(k[:, 0] >= 0) & live[:, 1] & (k[:, 1] < 0)].tolist()
+               + k[:, 1][(k[:, 1] >= 0) & live[:, 0] & (k[:, 0] < 0)].tolist())
 
 
 def _alone(m, d, things, k):
