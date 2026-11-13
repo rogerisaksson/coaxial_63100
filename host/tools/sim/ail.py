@@ -98,6 +98,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
     from machine.body import figure
     from machine.world import physics
     physics.ROOM, physics.SIGHT = float(room), float(eyes)
+    from machine.law import se2
     from machine.process import introspect, sprung, watch, worker
     from machine.way import cocoon
     from terminal.ui import bindings
@@ -135,7 +136,8 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                     humanoid_keys.steered(st, t, 0.0)
                     gap, name = _near(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
                                       figure.WIDE_HALF)
-                    if -gap > deepest + 0.02 and g.get('_errand') is None:
+                    # on an errand or in its stunt her thing is hers to reach and sit or lie on (permeable)
+                    if -gap > deepest + 0.02 and g.get('_errand') is None and g.get('active_entry') not in se2.STUNT_MODES:
                         deepest = -gap
                         faults.append({'kind': 'into', 't': round(t, 2), 'detail': '%.2f m into %s on %r' % (-gap, name, word)})
                     if trace and trace[0] <= t <= trace[1]:
