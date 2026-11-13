@@ -310,9 +310,11 @@ def spread(points):
 
 def framed(scene_, cam=None):
     """(target, distance) that frames what the scene (`placed`) lights - the terminal its branches, a branch
-    its own and their subsystems, a page its subsystems, grown out or not -: as far as their box (`spread`),
-    the target where they stand in the middle of `cam`'s view (aim.centred; the opening view's where None)."""
-    lit = scene_['flat']['lit']
-    points = [p for n, p in scene_['at'].items() if n in lit]
-    distance = spread(points)[1]
-    return aim.centred(points, cam or scene.camera(), distance), distance
+    its own and their subsystems, a page its subsystems -: as far as their box, twigs and all (`spread`, what
+    the ways grow by), the target where what stands grown out at that distance - all but the twigs - is in the
+    middle of `cam`'s view (aim.centred; the opening view's where None)."""
+    lit, orders = scene_['flat']['lit'], scene_['orders']
+    top = max(orders.values(), default=1)
+    distance = spread([p for n, p in scene_['at'].items() if n in lit])[1]
+    grown = [p for n, p in scene_['at'].items() if n in lit for k in [orders.get(n, top)] if k > 1 or k == top]
+    return aim.centred(grown, cam or scene.camera(), distance), distance

@@ -269,7 +269,8 @@ def test_the_mirror_keeps_to_a_page(report):
 def test_each_frame_stands_in_the_middle(report):
     """A node opened stands in the middle of the view (atlas/aim.py): the camera's target worked out so the
     projection of what its frame frames - in the tree the node and all laid out under it, in the applications
-    what is lit - has its middle on the drawing's middle, as the view is turned, not guessed in the world."""
+    what stands drawn and lit at the frame, its twigs not yet grown out - has its middle on the drawing's middle,
+    as the view is turned, not guessed in the world."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import scene
@@ -284,10 +285,11 @@ def test_each_frame_stands_in_the_middle(report):
         bindings.act_on(show_atlas.PAD, keys, state)
         state['cam'].update(target=state['goal']['target'], distance=state['goal']['distance'])   # eased to it
         laid, focus = show_atlas.placed(state), state['focus']
-        lit = scene.flat(laid)['lit']
-        sight = scene.view(state['cam'], *show_atlas.sized(state))
+        flat, sight = scene.flat(laid), scene.view(state['cam'], *show_atlas.sized(state))
+        framed = [p for n, p in zip(flat['nodes'].tolist(), flat['pos'].tolist()) if n in flat['lit']] \
+            if show_atlas._apping(state) else [p for n, p in laid['at'].items() if focus in scene.chain(tree, n)]
         seen = [tuple(sum((p[k] - sight['eye'][k]) * sight[a][k] for k in range(3)) for a in ('r', 'u', 'f'))
-                for n, p in laid['at'].items() if (n in lit if show_atlas._apping(state) else focus in scene.chain(tree, n))]
+                for p in framed]
         xs, ys = [x / z for x, _y, z in seen], [y / z for _x, y, z in seen]
         off[label] = sight['focal'] * max(abs(max(xs) + min(xs)), abs(max(ys) + min(ys))) / 2   # dots
     report.check("each node opened framed with its projection's middle on the drawing's middle - a layer, turned "
