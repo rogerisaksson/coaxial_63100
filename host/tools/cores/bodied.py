@@ -13,7 +13,7 @@ reads of her body a constant of the trace, the same objects or it stays numpy's.
 At its first call traced on copies - her body's a twin of it - and written in C; built in a thread,
 gcc's process its work; at the first call after, held bit for bit on copies at that call's
 arguments and fresh draws, its result and every argument after; then the C. Not held, it stays
-numpy's own, said once on stderr.
+numpy's own, said once on stderr. A part laid anew takes one held (`kept`).
 """
 import ctypes
 import sys
@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 
-from tools.cores import emit, glue, held, layout, quick, trace, trace_mj
+from tools.cores import emit, glue, held, kept, layout, quick, trace, trace_mj
 from tools.cores.glue import F64
 from tools.cores.wbc import address
 
@@ -59,6 +59,8 @@ class Compiled(_PART):
         self.job: dict | None = None
         self.c: Bound | None = None
         self.why: Exception | None = None
+        self.looked = False
+        kept.warm(self)
 
     @property
     def last(self):
@@ -95,6 +97,8 @@ class Compiled(_PART):
     def _advance(self, args, paced):
         due = time.perf_counter() - _LAST[0] >= SPREAD_S or not paced
         if self.made is None:
+            if self._taken(args):
+                return
             if due:
                 self._trace(args)
                 _LAST[0] = time.perf_counter()
@@ -115,6 +119,7 @@ class Compiled(_PART):
             for e in prog.externs:
                 e.root = None
             self.made = (prog, info, None, specs)
+            kept.store(self, prog, info, specs, lib, cfn)
         if self.body is not None:
             b = args[self.body]
             if any(getattr(b, k, None) is not v for k, v in prog.consts.items()):
@@ -123,6 +128,17 @@ class Compiled(_PART):
             self.c.bind(b)
         if self.c.fits(args) is None:
             raise trace.Untraced('%s given what it was not traced on' % self.name)
+
+    def _taken(self, args):
+        """Whether a held program fits `args`, asked at its first call alone (each call: 34 Bounds built for none)."""
+        if self.looked:
+            return False
+        self.looked = True
+        got = kept.taken(self, args, Bound)
+        if got is not None:
+            prog, info, specs, self.c = got
+            self.made = (prog, info, None, specs)
+        return got is not None
 
     def _trace(self, args):
         """Traced on copies - her body's a twin -, written in C, its build begun."""
