@@ -103,7 +103,8 @@ def mjcf():
         import importlib
         model = importlib.import_module('mujoco').MjModel.from_xml_string(_apart(xml, kin))
         _APART[xml] = sorted(set(skeleton.overlapping(model, figure.stand()))
-                             | set(skeleton.overlapping(model, figure.SQUAT)))
+                             | set(skeleton.overlapping(model, figure.SQUAT))
+                             | set(skeleton.overlapping(model, figure.squat((60.0, 30.0, 0.0, 80.0)))))
     return _apart(xml, kin + _APART[xml])
 
 

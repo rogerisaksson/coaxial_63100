@@ -90,7 +90,6 @@
 (defblock aero_surfaces unlimited_3d_monoplane
   (wing_span 1.40m)
   (wing_chord 0.28m)
-  (wing_area 0.392)
   (prop_radius 0.2159m)
   (prop_z 0.356m)
   (tail_arm 0.484m)

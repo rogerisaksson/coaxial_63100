@@ -10,10 +10,7 @@
 
 (defblock rigid_body aerobat_monoplane_body_heavy
   (use aerobat_monoplane_body)
-  (mass 2.3kg)
-  (inertia_xx 0.0805)
-  (inertia_yy 0.0529)
-  (inertia_zz 0.10695))
+  (mass 2.3kg))
 
 (defvehicle aerobat_3d_heavy
   (use monoplane_airframe)

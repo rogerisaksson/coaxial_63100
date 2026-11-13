@@ -79,7 +79,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
     entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
-    from machine.body import bends, figure, heat, servos
+    from machine.body import bends, figure, gait, heat, servos
     from machine.law import latent, melt, modal, motion, statics
     from machine.world import physics
     from machine.eyes import registry
@@ -104,8 +104,15 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
                      float(m.body_subtreemass[m.body('left_upper_arm').id]), float(m.body_subtreemass[m.body('left_forearm').id]),
                      float(np.mean(s['q'][list(body.knees)])), 0.001 * every)
     rest = statics.rest(fr)
-    rest[latent.K][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (8000.0, 4500.0, 1500.0)
-    rest[latent.D][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (1000.0, 500.0, 350.0)
+    modes_g = gait.table('modes')
+    k_g = float(fr[modal.WEIGHT] / fr[modal.H0])
+    k_ax = float(round(modes_g['rest_axial_w'] ** 2 * k_g))
+    k_lat, k_sag = modes_g['rest_lateral_share'] * k_ax, modes_g['rest_sagittal_share'] * k_ax
+    d_ax = float(round(2.0 * modes_g['rest_axial_zeta'] * math.sqrt(k_ax * body.mass)))
+    d_sag = float(round(2.0 * modes_g['rest_sagittal_zeta'] * math.sqrt(k_sag * body.mass)))
+    rest[latent.K][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (k_ax, k_lat, k_sag)
+    rest[latent.D][[modal.AXIAL, modal.LATERAL, modal.SAGITTAL]] = (
+        d_ax, modes_g['rest_lateral_d_share'] * d_ax, d_sag)
     st, tab = latent.state(rest), np.zeros((0, latent.TABLE))
     out = latent.step(st.copy(), tab, 0.0, 0.001 * every, np.zeros(latent.OUT))
     joints = np.flatnonzero(body.driven)

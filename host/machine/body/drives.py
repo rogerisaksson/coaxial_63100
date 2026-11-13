@@ -23,6 +23,7 @@ wave generator pushing rollers in a cage against a lobed ring, rolling where a c
 many rollers sharing a blow - backdrivable at the ratios here.
 """
 import math
+from typing import Any
 
 from machine.body import linkage, mechatronics
 from machine.body.figure import HIP_DROP, HIP_HALF
@@ -31,7 +32,8 @@ from motor.pmsm import TORQUE_FACTOR
 #: The parts library and her build of it (machine/library, machine/humanoids): the tables below are
 #: theirs, read once.
 _LIB, _BUILD = mechatronics.library(), mechatronics.robot()
-PACK_V = _BUILD['pack_v']
+_PACK = _BUILD['pack']
+PACK_V = float(_BUILD.get('pack_v', _PACK['series'] * _PACK.get('cell_v_min', 3.2)))
 
 
 class Size:
@@ -57,27 +59,33 @@ class Size:
 #: (disc D m, amps, kg, its laminate's K/W to the air, its height m). Each kind's stack: (motor,
 #: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's
 #: inertia, its wind-up's damping ratio, its play and its mesh's friction.
-FRAMES = {k: (m['can_m'], m['height_m'], m['kg'], m['ohm'], m['peak_nm'], m['rotor_kgm2'])
+def _rotor_j(m):
+    """Outrunner rotor inertia, kg m^2, from can radius, mass and KV flux-ring scaling."""
+    j = 0.39 * min(1.0, (120.0 / m['kv']) ** 0.155) * m['kg'] * (0.5 * m['can_m']) ** 2
+    return round(j, -int(math.floor(math.log10(j))) + 2)
+
+
+FRAMES = {k: (m['can_m'], m['height_m'], m['kg'], m['ohm'], m['peak_nm'],
+              float(m.get('rotor_kgm2', _rotor_j(m))))
           for k, m in _LIB['motors'].items()}
 KV = {k: m['kv'] for k, m in _LIB['motors'].items()}
 BOXES = {k: b['diameter_m'] for k, b in _LIB['gearboxes'].items()}
-BOX_K = {k: b['stiffness_nm_rad'] for k, b in _LIB['gearboxes'].items()}
-INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'], v['laminate_k_w'], v['height_m'])
+BOX_K = {k: float(b.get('stiffness_nm_rad', round(2.20e6 * b['diameter_m'] ** 2, -2)))
+         for k, b in _LIB['gearboxes'].items()}
+INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'],
+                 float(v.get('laminate_k_w', round(1.0 / (35.4 * math.pi * (0.5 * v['disc_m']) ** 2), 1))),
+                 v['height_m'])
              for k, v in _LIB['inverters'].items()}
-LOOP_HZ = {k: v['loop_hz'] for k, v in _LIB['inverters'].items()}
+LOOP_HZ = {k: float(v.get('loop_hz', 0.05 * v.get('pwm_hz', 50000.0)))
+           for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
 RATIO, GEAR_J, BOX_ZETA = _BOX['ratio'], _BOX['input_j_share'], _BOX['zeta']
 BACKLASH_DEG, BOX_FRICTION = _BOX['backlash_deg'], _BOX['friction_share']
-COOLING, RIGID_PLAY_DEG = _BUILD['cooling'], _BUILD['rigid_play_deg']
-AHEAD_WIND, AHEAD_PLAY = _BUILD['ahead_wind'], _BUILD['ahead_play']
-#: Each kind's structure wound up a N m, mrad (`flex`).
-WIND = dict(_BUILD['wind'])
-#: Each kind's series spring between its drive and its joint, N m/rad at the joint (`series`): the ankle's pitch
-#: leaf (`linkage.LEAF`, `[series]`); the world steps those joints' rotors against it (`machine.body.gearbox`).
-SERIES = {k: v for k, v in _BUILD.get('series', {}).items() if k != 'track'}
-#: The series springs' torque loop on the rotor (`gearbox.TRACK`), the build's: 0 at the 1040 leaf, 12 at 143-256.
-TRACK = float(_BUILD.get('series', {}).get('track', 0.0))
+COOLING = float(_BUILD.get('cooling', 1.0))
+RIGID_PLAY_DEG = float(_BUILD.get('rigid_play_deg', 0.2 * BACKLASH_DEG))
+AHEAD_WIND = float(_BUILD.get('ahead_wind', 0.0))
+AHEAD_PLAY = float(_BUILD.get('ahead_play', 0.0))
 
 #: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
 #: else in its stack. The knee's and the ankle's split, two discs facing
@@ -99,7 +107,7 @@ BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
 def flex(joint):
     """rad a N m its gearbox and the structure on to its limb wind up."""
     k = kind(joint)
-    return 1.0 / BOX_K[STACKS[k][1]] + WIND[k] * 1e-3
+    return 1.0 / BOX_K[STACKS[k][1]] + _structural()[0][k] * 1e-3
 
 
 def play(joint):
@@ -117,7 +125,7 @@ def wind(joint):
 def series(joint):
     """N m/rad of the spring in series between the joint's drive and the joint (SERIES), at the
     joint; 0 none, and none undriven."""
-    return 0.0 if passive(joint) else float(SERIES.get(kind(joint), 0.0))
+    return 0.0 if passive(joint) else float(_structural()[1].get(kind(joint), 0.0))
 
 
 def mesh(joint):
@@ -141,7 +149,7 @@ def _stack(kind):
     kv = KV[frame]
     rotor, can, kg, ohm, top, inertia = FRAMES[frame]
     # N m an amp of q current, a sine's peak; a phase's ohm, half the pair's
-    kt = 8.27 / kv
+    kt = round(TORQUE_FACTOR * 30.0 / (math.pi * math.sqrt(3.0)), 2) / kv
     disc, amps, b_kg, laminate, tall = INVERTERS[inverter]
     scale = (BOXES[box] / 0.08) ** 3
     parts = ((() if kind in BOARDS else (('board', disc / 2.0, tall),))
@@ -424,13 +432,17 @@ def speed(joint):
 #: Clothing's insulation over bare air by kind (ISO 9920); each motor's housing's thermal mass,
 #: J/K, and a board's K/W to its stator on its axis and off it.
 CLOTH_AIR = dict(_BUILD['cloth'])
-STATOR_J_K = {k: m['stator_j_k'] for k, m in _LIB['motors'].items()}
-MOUNT_K_W, OFF_MOUNT_K_W = _BUILD['mount_k_w'], _BUILD['off_mount_k_w']
+STATOR_J_K = {k: float(m.get('stator_j_k', round(1100.0 * m['kg']))) for k, m in _LIB['motors'].items()}
+_DISC_M = INVERTERS[STACKS['knee'][2]][0]
+_CONTACT_M2 = math.pi * (0.5 * _DISC_M) ** 2 / 3.0
+MOUNT_K_W = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(0.5e-3 / (0.318 * _CONTACT_M2), 2)
+OFF_MOUNT_K_W = (float(_BUILD['off_mount_k_w']) if 'off_mount_k_w' in _BUILD
+                 else round(MOUNT_K_W + float(_BUILD['shell']['wall_m']) / (0.4775 * _CONTACT_M2), 2))
 
 
 def cloth_air(joint=None):
     """Clothing thermal insulation multiplier (`>= 1.0`) for `joint` (or mean dressed factor)."""
-    return 1.35 if joint is None else CLOTH_AIR.get(kind(joint), 1.20)
+    return sum(CLOTH_AIR.values()) / len(CLOTH_AIR) if joint is None else CLOTH_AIR.get(kind(joint), 1.20)
 
 
 def stator(joint):
@@ -445,3 +457,25 @@ def heat(joint):
     s = of(joint)[1]
     return (kt(joint), r_ohm(joint), 100.0 / s.rated, s.winding[0], s.winding[1] * COOLING,
             s.housing_k_w * COOLING)
+
+
+_STRUCTURAL = None
+
+
+def _structural():
+    global _STRUCTURAL
+    if _STRUCTURAL is None:
+        from machine.body import structural
+        wind_map = dict(_BUILD['wind']) if 'wind' in _BUILD else structural.wind_mrad()
+        ser_map = ({k: v for k, v in _BUILD['series'].items() if k != 'track'}
+                   if 'series' in _BUILD else structural.leaf_series(_BUILD.get('leaf')))
+        trk = (float(_BUILD['series'].get('track', 0.0))
+               if 'series' in _BUILD else structural.leaf_track(ser_map, armature))
+        _STRUCTURAL = (wind_map, ser_map, trk)
+    return _STRUCTURAL
+
+
+def __getattr__(name: str) -> Any:
+    if name in ('WIND', 'SERIES', 'TRACK'):
+        return _structural()[('WIND', 'SERIES', 'TRACK').index(name)]
+    raise AttributeError(name)

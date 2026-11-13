@@ -1,30 +1,19 @@
-# Inverters: disc diameter (m), phase amps, mass (kg), its laminate's K/W to the air through the
-# housing it is bolted to, its height with its parts (m), its supply's top (V), its current loop's
-# bandwidth (Hz) as commissioning lays it with the winding's inductance unpublished - its sampling
-# bound, 0.05 of 50 kHz (`coaxial.model.sensorless.current_loop`).
-#
-# The 63100 as built: 100 mm, 100 A, 0.2 kg, 3.6 K/W (parts' centres 92 x 93 mm, the housing's
-# skin at 10 W/m^2 K still and the pad 0.3), 14.7 mm over all by its model (docs/HARDWARE.md).
-# A motor's peak is under its amps: the clamp is the motor's. Boards and gearboxes in variants
-# are the pain, motors are bought.
+# Inverters: disc diameter (m), phase amps, mass (kg), axial height with parts (m), bus ceiling (V)
+# and PWM switching frequency (Hz). Laminate K/W to air (from disc area) and current-loop bandwidth
+# (0.05 of PWM frequency, `coaxial.model.sensorless.current_loop`) are derived (`machine.body.drives`).
 
 [coaxial_63100]
 disc_m = 0.100
 amps = 100.0
 kg = 0.2
-laminate_k_w = 3.6
 height_m = 0.015
 volts = 63.0
-loop_hz = 2500.0
-
-# A 50 A board on a 70 mm disc, estimated from the 63100's size class (stacks.md's frame B):
-# its laminate's K/W as the disc's area, its parts the 63100's at half the amps.
+pwm_hz = 50000.0
 
 [coaxial_63050]
 disc_m = 0.070
 amps = 50.0
 kg = 0.12
-laminate_k_w = 7.3
 height_m = 0.015
 volts = 63.0
-loop_hz = 2500.0
+pwm_hz = 50000.0

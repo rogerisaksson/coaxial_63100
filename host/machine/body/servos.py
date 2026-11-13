@@ -2,17 +2,12 @@
 
     from machine.body.servos import CLAMPED, SERVO      # SERVO[kind] = (N m, N m/rad, N m s/rad, kg m^2)
 
-Her build's file holds them (machine/humanoids, `machine.body.mechatronics`).
+Derived by `machine.body.compile` from her subtree inertias, gravity levers and actuator stacks.
 """
-import math
-
-from machine.body import drives, mechatronics
-from machine.body.figure import JOINTS
+from machine.body import compile, mechatronics
 
 _BUILD = mechatronics.robot()
-#: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2); a peak said nan its
-#: stack's (`drives.peak`), its strength said once.
-SERVO = {kind: (drives.peak(next(j for j in JOINTS if drives.kind(j) == kind)) if math.isnan(servo[0]) else servo[0],
-                *servo[1:]) for kind, servo in _BUILD['servo'].items()}
+#: A drive by its joint's kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2).
+SERVO = compile.servos(_BUILD.get('servo'))
 #: Whether a joint's clamp is its drive's peak where that is less (`drives.peak`), 0 or 1.
-CLAMPED = _BUILD['clamped']
+CLAMPED = float(_BUILD.get('clamped', 1.0))

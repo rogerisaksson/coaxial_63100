@@ -279,7 +279,7 @@ def step(b, s, ask):
     # at 0.2 of their clamp and her height at its band's floor
     knee_rate = np.asarray(ask.get('knee_rate', (0.0, 0.0)), float)
     lay(stance @ full[knees], float(stance @ (want[KNEES] + POSTURE_KD[1] * knee_rate)) + left, W_KNEE * grounded, left, group=5)
-    for k, (knee, rate, acc) in ask.get('fold', {}).items():
+    for k, (knee, rate, acc) in sorted(ask.get('fold', {}).items()):
         j = knees[k]
         lay(full[j], acc + SWING_KD[0] * (knee - s['q'][KNEES[k]]) + SWING_KD[1] * (rate - v[j]) - full0[j], W_FOLD,
             -full0[j], group=6)

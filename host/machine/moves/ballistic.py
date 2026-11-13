@@ -16,8 +16,9 @@ from machine.body import bemf, drives, figure
 
 #: Gravity, m/s^2.
 G = 9.81
-#: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, 1/s^2 (the stride leap's table's).
-THROW_K = 21600.0
+#: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, N/m (the stride leap's table's, scaled
+#: with her weight over her leg).
+THROW_K = round(54.0 * figure.mass() * G / (figure.THIGH + figure.SHANK), -2)
 KNEE = bemf.DRIVEN.index('left_knee')
 
 

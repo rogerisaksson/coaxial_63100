@@ -2,16 +2,16 @@
 ;; Units: m, kg, s, N; a mode's unit m or rad, its mass kg, its stiffness N/m and damping
 ;; N s/m of that mass; a drive's peak N m at its joint, speed deg/s, its travel deg where it stops.
 (defrobot gynoid_mesomorph_medium_packs
-  (body (mass 33.68) (weight 330.4) (com_height 0.9223) (omega 3.261) (leg 0.77) (stance_width 0.19) (knee 6))
-  (mode mode_axial_compression (unit 0.115) (mass 33.68) (stiffness 8000) (damping 1000))
-  (mode mode_lateral_shift (unit 0.095) (mass 33.68) (stiffness 4500) (damping 500))
+  (body (mass 33.72) (weight 330.8) (com_height 0.9226) (omega 3.261) (leg 0.77) (stance_width 0.19) (knee 6))
+  (mode mode_axial_compression (unit 0.115) (mass 33.72) (stiffness 8357) (damping 1054))
+  (mode mode_lateral_shift (unit 0.095) (mass 33.72) (stiffness 4701) (damping 527))
   (mode mode_sagittal_drive (unit 0.3) (mass 6.216) (stiffness 2486) (damping 248.6))
-  (mode mode_pitch_attitude (unit 0.5) (mass 16.58) (stiffness 1658) (damping 331.6))
-  (mode mode_sagittal_shift (unit 0.086) (mass 33.68) (stiffness 1500) (damping 350))
+  (mode mode_pitch_attitude (unit 0.5) (mass 16.62) (stiffness 1662) (damping 332.4))
+  (mode mode_sagittal_shift (unit 0.086) (mass 33.72) (stiffness 1567) (damping 369))
   (mode mode_limb_lift (unit 0.01) (mass 6.216) (stiffness 2486) (damping 248.6))
   (mode mode_stance_width (unit 0.095) (mass 6.216) (stiffness 2486) (damping 248.6))
-  (mode mode_pelvis_list (unit 0.15) (mass 16.58) (stiffness 1658) (damping 331.6))
-  (mode mode_pelvis_turn (unit 0.2) (mass 16.58) (stiffness 1658) (damping 331.6))
+  (mode mode_pelvis_list (unit 0.15) (mass 16.62) (stiffness 1662) (damping 332.4))
+  (mode mode_pelvis_turn (unit 0.2) (mass 16.62) (stiffness 1662) (damping 332.4))
   (mode mode_arm_swing (unit 0.35) (mass 1.198) (stiffness 119.8) (damping 23.95))
   (mode mode_foot_rock (unit 0.5) (mass 6.216) (stiffness 621.6) (damping 124.3))
   (mode mode_arm_reach (unit 0.35) (mass 1.198) (stiffness 119.8) (damping 23.95))

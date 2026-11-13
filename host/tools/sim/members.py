@@ -18,191 +18,18 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Materials: E GPa, G GPa, allowable MPa. Roll-wrapped carbon tube (its ultimate ~600 in
-#: bending) and the high-modulus one - every tube of hers, one grade: the
-#: femur 50 -> 40 mm in it -, pultruded carbon rod, printed PAHT-CF in its layers'
-#: plane (92 tensile, 44 across: parts loaded in-plane, printed flat),
-#: steel plate. Printed parts hold and join: short and stout, every one an extrusion along its
-#: print axis (2.5D, no overhang in any print pose); the long members carbon tubes
-#: cut to length (TUBES).
-CARBON, HM_CARBON, ROD, PAHT_CF, STEEL = ((70.0, 20.0, 300.0), (130.0, 30.0, 300.0),
-                                           (130.0, 5.0, 600.0), (4.5, 1.6, 50.0),
-                                           (200.0, 80.0, 250.0))
-#: A tube's wall, of its radius; the flex judged at FLEX_AT of the load, FLEX_DEG at most; the
-#: clamp's margin (1.5x).
-WALL, FLEX_AT, FLEX_DEG, MARGIN = 0.1, 0.6, 0.25, 1.5
-#: A four-bar's plates: PLATE_R thick (`linkage`), this wide in their plane, printed PAHT-CF; the
-#: hip fork's crown a carbon plate CROWN_R thick (`skeleton`), this wide.
-PLATE_W, CROWN_W = 0.050, 0.040
-#: Stock roll-wrapped carbon tubes, (outer radius, wall) m: 1 mm walls to 25 mm round, 2 mm from
-#: 30 (the makers' lists); her tubes cut from as few of them as her members allow 
-#: (minimal variants), each within ROOM of its radius now, carbon CF_KG_M3.
-TUBES = tuple((d / 2e3, 0.001 if d < 30 else 0.002)
-              for d in (8, 10, 12, 14, 16, 18, 20, 22, 25, 30, 35, 40, 50))
-ROOM, CF_KG_M3 = 0.0025, 1550.0
-#: Each joint's wind-up: the members its torque passes on its way to the limb, their flex a
-#: N m summed in series (`wind`); a rod's its stretch over its horn.
-PATH = {'spine': ('spine frame 0', 'pelvis frame 0'), 'spine_roll': ('spine_roll crank',
-                                                                      'spine_roll horn',
-                                                                      'spine_roll rod'),
-        'waist': ('torso frame 0',), 'neck': ('neck frame 0',), 'head': ('neck frame 0',),
-        'shoulder': ('torso frame 1', 'upper_arm run 0'), 'elbow': ('upper_arm run 2',
-                                                                    'forearm run 0'),
-        'wrist': ('forearm run 1',), 'hip_yaw': ('hip fork 0', 'hip fork 1', 'hip fork 2'),
-        'hip_roll': ('hip cradle 0', 'hip fork 3'), 'hip': ('thigh run 0', 'thigh run 1'),
-        'knee': ('shank run 0', 'shank run 1'), 'ankle': ('ankle rod', 'foot run 2'),
-        'ankle_roll': ('ankle_roll rod',), 'foot': ('foot run 2',)}
-
-
-def _tube(r, t):
-    """(I, J, A) m^4, m^4, m^2 of a tube r round, t thick."""
-    ri = r - t
-    return (math.pi * (r ** 4 - ri ** 4) / 4.0, math.pi * (r ** 4 - ri ** 4) / 2.0,
-            math.pi * (r * r - ri * ri))
-
-
-def tube(r):
-    """(I, J, A) of a carbon tube r round: a stock size's wall (TUBES), else WALL of r (1 mm at
-    least)."""
-    return _tube(r, next((t for rr, t in TUBES if math.isclose(rr, r)), max(WALL * r, 0.001)))
-
-
-def plate(t, w):
-    """I m^4 of a plate t thick, w wide, bent in its plane."""
-    return t * w ** 3 / 12.0
+from machine.body import structural
+from machine.body.structural import (CARBON, CF_KG_M3, FLEX_AT, FLEX_DEG, HM_CARBON, MARGIN, ROOM,
+                                     TUBES, judge, tube_section, wind)
 
 
 def members():
-    """[(name, kind, length m, load, (I, J, A), material, c)]: kind 'bend' with a moment N m,
-    'twist' with one, 'pull' with a rod's newtons; c the section's outer fibre, m."""
-    from machine.body import drives, linkage, skeleton
+    """[(name, kind, length m, load, (I, J, A), material, c)] loaded at each drive's bounded peak."""
+    from machine.body import drives
     from machine.body.servos import SERVO
-    out = []
-    # The design load: the drive's deliverable peak, or MARGIN times the controller's clamp where
-    # that is less (one frame on the wrist delivers 120 N m it is never asked).
     peak = {k: min(drives.peak(k if k in ('spine', 'spine_roll', 'waist', 'neck', 'head')
                                else 'left_' + k), MARGIN * SERVO[k][0]) for k in drives.STACKS}
-    # The bones: a bone's main runs bent by the larger of its ends' joints; the shank's yoke and
-    # cheeks and the foot's keel carry the ankle's rods' pull (`linkage.RODS`), as does the
-    # tibia's lower run along with the knee's bending.
-    ends = {'thigh': ('hip', 'knee'), 'shank': ('knee', 'ankle'), 'upper_arm': ('shoulder', 'elbow'),
-            'forearm': ('elbow', 'wrist'), 'foot': ('ankle', 'foot')}
-    rods_n = sum(peak[k] / drives.motors('left_' + k) / min(g[2], g[4])
-                 for k, (g, _s) in linkage.RODS.items())
-    for seg, (a, b) in ends.items():
-        for k, (p, q, r) in enumerate(skeleton.runs(seg)):
-            length = math.dist(p, q)
-            if seg == 'foot' or (seg == 'shank' and k >= 2):
-                out.append(('%s run %d' % (seg, k), 'pull', length, rods_n, tube(r), CARBON, r))
-                continue
-            out.append(('%s run %d' % (seg, k), 'bend', length, max(peak[a], peak[b]), tube(r),
-                        HM_CARBON, r))
-    # The trunk's frame: the pitch's torque is a couple on the roll's bearings 66 mm out, each
-    # fork leg a cantilever under its share of it (the front bearing's two legs, the back's one),
-    # the roll's trunnions steel pins under it over their 9 mm; the pitch's bracket takes the
-    # pitch's torque, the column the waist's and a shoulder's, the girdle a shoulder's over its
-    # half, the neck's bracket the neck's.
-    couple = peak['spine'] / 0.132
-    for frame, (runs, _rings) in skeleton.TRUNK.items():
-        for k, pts in enumerate(runs):
-            r = skeleton.TRUNK_R[frame][min(k, len(skeleton.TRUNK_R[frame]) - 1)]
-            length = sum(math.dist(p, q) for p, q in zip(pts, pts[1:]))
-            mat = STEEL if frame == 'spine_roll' else HM_CARBON
-            i, j, area = tube(r) if frame != 'spine_roll' else (
-                math.pi * r ** 4 / 4.0, math.pi * r ** 4 / 2.0, math.pi * r * r)
-            if frame == 'pelvis':
-                length = math.dist(pts[0], pts[-1])     # a cantilever's arm to its bearing
-            load = {'pelvis': couple * (0.5 if k < 2 else 1.0) * length,
-                    'spine_roll': couple * length, 'spine': peak['spine'],
-                    'torso': peak['waist'] + peak['shoulder'] if k == 0 else peak['shoulder'],
-                    'neck': peak['neck']}[frame]
-            if frame == 'torso' and k == 1:
-                length /= 2.0
-            out.append(('%s frame %d' % (frame, k), 'bend', length, load, (i, j, area), mat, r))
-    # The boom twisted by a hip's pitch; the hip's gimbal: the steerer twisted by the yaw, the
-    # legs bent by the pitch's couple on the roll's bearings, the arms by the roll's.
-    r, pts = skeleton.BOOM
-    out.append(('boom', 'twist', math.dist(pts[0], pts[1]), peak['hip'], tube(r), HM_CARBON, r))
-    tubes, _rings = skeleton.gimbal('hip_yaw')
-    for k, (a, b, r) in enumerate(tubes):
-        mode, load_nm = ('twist', peak['hip_yaw']) if k == 0 else (
-            'bend', peak['hip'] * 0.5 if r >= 0.01 else peak['hip_yaw'])
-        if k and r <= skeleton.CROWN_R:
-            # The crown's plate, drawn as tubes of its half thickness.
-            i = plate(2.0 * r, CROWN_W)
-            out.append(('hip fork %d' % k, mode, math.dist(a, b), load_nm,
-                        (i, i, 2.0 * r * CROWN_W), HM_CARBON, CROWN_W / 2.0))
-            continue
-        out.append(('hip fork %d' % k, mode, math.dist(a, b), load_nm, tube(r), CARBON, r))
-    # The cradle's trunnions: steel pins under the pitch's couple on the roll's bearings 60 mm
-    # out, bent over their length.
-    tubes, _rings = skeleton.gimbal('hip_roll')
-    for k, (a, b, r) in enumerate(tubes):
-        length = math.dist(a, b)
-        out.append(('hip cradle %d' % k, 'bend', length, peak['hip'] / 0.12 * length,
-                    (math.pi * r ** 4 / 4.0, math.pi * r ** 4 / 2.0, math.pi * r * r), STEEL, r))
-    # The holders' struts, printed solids: a drum's torque as a couple over the strut's lever
-    # from the axis.
-    for name, _rides, shape in skeleton.held('left_'):
-        if shape[0] != 'tube':
-            continue
-        kind = drives.kind(name.replace('left_', '').rstrip('+'))
-        _t, a, b, r = shape
-        arm = max(0.02, math.hypot(a[1], a[2]))
-        out.append((name.replace('left_', '') + ' strut', 'pull', math.dist(a, b),
-                    peak.get(kind, 0.0) / arm,
-                    (math.pi * r ** 4 / 4.0, 0.0, math.pi * r * r), PAHT_CF, r))
-    # The four-bars' cranks and horns, plates in their plane; their rods.
-    for kind, (a, b, r_c, _t0, horn, _b0, _z, _s) in linkage.PLANAR.items():
-        pull = peak[kind] / horn
-        for part, arm in (('crank', r_c), ('horn', horn)):
-            i = plate(2.0 * linkage.PLATE_R, PLATE_W)
-            out.append(('%s %s' % (kind, part), 'bend', arm, pull * arm,
-                        (i, i, 2.0 * linkage.PLATE_R * PLATE_W), PAHT_CF, PLATE_W / 2.0))
-        length = math.dist(linkage.planar(kind, 0.0)[0], linkage.planar(kind, 0.0)[1])
-        out.append(('%s rod' % kind, 'pull', length, pull, tube(linkage.ROD_R), ROD, 0.0))
-    for kind, (geo, _stroke) in linkage.RODS.items():
-        length, _x, crank, _t, horn, _b = geo
-        pull = peak[kind] / drives.motors('left_' + kind) / min(crank, horn)
-        out.append(('%s rod' % kind, 'pull', length, pull,
-                    (math.pi * linkage.ROD_R ** 4 / 4.0, 0.0, math.pi * linkage.ROD_R ** 2),
-                    ROD, 0.0))
-    return out
-
-
-def judge(name, kind, length, load, section, material, c):
-    """(stress ratio, flex deg): bending sigma = M c / I, twist tau = T c / J, a pull its
-    axial stress and Euler's buckling as the ratio; flex the angle over the length at FLEX_AT."""
-    i, j, area = section
-    e, g, allow = material[0] * 1e9, material[1] * 1e9, material[2] * 1e6
-    if kind == 'bend':
-        return load * c / i / allow, math.degrees(FLEX_AT * load * length / (e * i))
-    if kind == 'twist':
-        return load * c / j / (allow * 0.6), math.degrees(FLEX_AT * load * length / (g * j))
-    euler = math.pi ** 2 * e * i / max(length, 0.02) ** 2
-    return max(load / area / allow, load / euler), 0.0
-
-
-def compliance(name, kind, length, load, section, material, c):
-    """rad a N m of torque at the joint this member winds up: bending L/(E I), twist L/(G J),
-    a rod's stretch over its horn, L/(E A h^2) - the horn PATH's joint's (`linkage`)."""
-    from machine.body import linkage
-    i, j, area = section
-    e, g, _allow = material[0] * 1e9, material[1] * 1e9, material[2]
-    if kind == 'bend':
-        return length / (e * i)
-    if kind == 'twist':
-        return length / (g * j)
-    horn = min(linkage.RODS[name.split()[0]][0][2:5:2]) if name.split()[0] in linkage.RODS \
-        else linkage.PLANAR.get(name.split()[0], (0, 0, 0, 0, 0.02))[4]
-    return length / (e * area * horn * horn)
-
-
-def wind(rows):
-    """{joint kind: rad a N m} the structure on its path winds up (PATH), its members' in
-    series."""
-    by = {m[0]: compliance(*m) for m, _j in rows}
-    return {kind: sum(by.get(n, 0.0) for n in names) for kind, names in PATH.items()}
+    return structural.members(peak)
 
 
 def tubes(rows):
@@ -213,7 +40,7 @@ def tubes(rows):
 
 def _passes(row, r, t):
     name, kind, length, load, _s, material, _c = row
-    stress, flex = judge(name, kind, length, load, _tube(r, t), material, r)
+    stress, flex = judge(name, kind, length, load, tube_section(r, t), material, r)
     return stress <= 1.0 and flex <= FLEX_DEG
 
 
@@ -241,7 +68,7 @@ def families(served, most=6):
                 k = next((k for k in family if first <= k <= last), None)
                 if k is None:
                     break
-                kg += CF_KG_M3 * _tube(*TUBES[k])[2] * length
+                kg += CF_KG_M3 * tube_section(*TUBES[k])[2] * length
             else:
                 best = (family, kg) if best is None or kg < best[1] else best
         out.append(best)

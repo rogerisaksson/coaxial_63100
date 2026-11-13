@@ -7,10 +7,7 @@
 
 (defblock rigid_body quad_x_body_heavy
   (use quad_x_body)
-  (mass 2.5kg)
-  (inertia_xx 0.05625)
-  (inertia_yy 0.1125)
-  (inertia_zz 0.05625))
+  (mass 2.5kg))
 
 (defvehicle quadcopter_heavy
   (use standard_airframe)

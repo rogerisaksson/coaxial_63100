@@ -1,19 +1,17 @@
-"""Her gait's numbers of her build: each as it works on her, Froude-similar on another's leg and mass.
+"""Her gait's numbers of her build: each derived on her, Froude-similar on another's leg and mass.
 
     STRIDE = gait.table('stride')     # {name: number} of `[gait.stride]` at this build's leg and mass
 
-Her build's `[gait]` (`machine.body.mechatronics`) states each number as it works on her, at the leg
-`leg_m` (thigh and shank) and the mass as built `mass_kg` (`machine.body.build`), with what it was found
-at. A build of another leg and mass has it Froude-similar: it goes as the powers of the leg and the mass
-its unit's dimensions are (Alexander & Jayes 1983) - a length as the leg, a time or a speed as its root,
-a rate as its inverse root, a stiffness per kg as its inverse, a force or a mass as the mass, a torque as
-both, an angle or a share as it is -, nothing of it tuned to that build. Her law reads them here, its C
-twin through `tools/cores/motion.py`.
+`machine.body.compile` derives her tables at this build's leg `leg_m` (thigh and shank) and mass as
+built `mass_kg` (`machine.body.build`), merged with any `[gait]` overrides in her build file. Where
+an override states another `leg_m` or `mass_kg`, each number goes as the powers of the leg and the
+mass its unit's dimensions are (Alexander & Jayes 1983). Her law reads them here, its C twin through
+`tools/cores/motion.py`.
 """
-from machine.body import figure, mechatronics
+from machine.body import compile, figure, mechatronics
 from machine.body.figure import SHANK, THIGH
 
-_G = mechatronics.robot()['gait']
+_G = compile.gait(mechatronics.robot().get('gait'))
 #: This build's leg and mass as built over those her numbers are stated at: 1 and 1 on her.
 SIMILAR = (THIGH + SHANK) / float(_G['leg_m'])
 MASSY = figure.mass() / float(_G['mass_kg'])

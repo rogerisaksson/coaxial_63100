@@ -7,10 +7,7 @@
 
 (defblock rigid_body heli_pod_boom_body_heavy
   (use heli_pod_boom_body)
-  (mass 2.5kg)
-  (inertia_xx 0.0425)
-  (inertia_yy 0.05875)
-  (inertia_zz 0.02875))
+  (mass 2.5kg))
 
 (defvehicle helicopter_3d_heavy
   (use standard_airframe)

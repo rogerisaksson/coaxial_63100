@@ -178,7 +178,7 @@ def tasks(b, s, ask, regime):
             rhs.append(regime.turn * (ax[0] * (regime.tkp * float(err[0]) - regime.tkd * float(w[0]) - float(dJr[0]))
                                       + ax[1] * (regime.tkp * float(err[1]) - regime.tkd * float(w[1]) - float(dJr[1]))
                                       + ax[2] * (regime.tkp * float(err[2]) - regime.tkd * float(w[2]) - float(dJr[2]))))
-    for k, (at, speed, acc, quat) in ask.get('swing', {}).items():
+    for k, (at, speed, acc, quat) in sorted(ask.get('swing', {}).items()):
         f = s['feet'][k]
         twist = f['J6'] @ v
         err = turn_error(np.asarray(quat, float), f['quat'])

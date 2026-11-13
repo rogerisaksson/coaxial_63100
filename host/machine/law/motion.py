@@ -17,7 +17,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.law import barrier, brace, composer, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
-from machine.body import bemf, capsules
+from machine.body import bemf, capsules, figure
 from machine.senses import estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import cascade, emancipation, leap, seated
 from machine.stack import chain
@@ -31,9 +31,9 @@ from machine.law.upper import step_modal
 #: Her arms' modes, her hold's (`ask['hold']`).
 ARMED = np.array([modal.ARMS, modal.REACH, modal.ELBOWS])
 #: Her axial stiffness in her latent state, where it goes and where it comes from; past HOP_K
-#: (N/m) a hop's.
+#: (N/m, scaled with her weight over her leg) a hop's.
 _AXIAL_K = tuple(block.start + latent.K.start + modal.AXIAL for block in (latent.TO, latent.FROM))
-HOP_K = 15000.0
+HOP_K = round(37.5 * figure.mass() * modal.G / modal.LEG_M, -2)
 #: Her surety her brace takes her over below (`bw`): a stumble.
 BRACE_SURETY = 0.58
 #: A joint none of what bears her needs, of its clamp: the suite's passive cone (-32 dB). Her ankles

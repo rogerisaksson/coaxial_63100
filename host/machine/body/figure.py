@@ -26,9 +26,6 @@ ANKLE_H, BALL, HEEL = (SCALE * _F[k] for k in ('ankle_h', 'ball', 'heel'))
 TOE_RY, TOE_M = SCALE * _F['toe_ry'], SCALE * _F['toe_m']
 #: A stand's soft knee, degrees; the hip and the ankle take half of it each way, the shin upright.
 STAND_KNEE = float(_F['stand_knee'])
-#: Her deep squat, deg: what of her touches in it is kept apart as what touches standing
-#: (`machine.body.mjcf`).
-SQUAT = {joint: float(deg) for joint, deg in _F['squat'].items()}
 
 #: Her weight as a woman, kg, at SCALE as its cube; each segment's share of it de Leva's (`SEGMENTS`).
 MASS_KG = _F['mass_kg'] * SCALE ** 3
@@ -390,3 +387,29 @@ def palm(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
             low = min((add(at, apply(here, a)), add(at, apply(here, b))), key=lambda p: p[1])
             lows.append((low[0], low[1] - r, low[2]))
     return min(lows, key=lambda p: p[1])
+
+
+def squat(arm=(35.0, 70.0, 10.0, 30.0)):
+    """Static-equilibrium deep squat pose, deg, with CoM balanced over the sole's midpoint."""
+    out = {name: 0.0 for name in JOINTS}
+    out.update(spine=45.0, neck=35.0)
+    for side in ('left', 'right'):
+        for k, v in zip(('shoulder', 'elbow', 'wrist', 'gripper'), arm):
+            out[side + '_' + k] = float(v)
+    turn = rx(math.radians(25.0))
+    yp = ANKLE_H + HIP_DROP + 0.5 * math.cos(math.pi / 5.0) * (THIGH + SHANK)
+    xa, zp = 0.85 * HIP_HALF, -0.16 * SCALE
+    seg_shares = {s[0]: (s[5], s[6]) for s in SEGMENTS}
+    for _ in range(6):
+        for side, sgn in (('left', 1.0), ('right', -1.0)):
+            angles = leg(sgn, (0.0, yp, zp), turn, (sgn * xa, ANKLE_H, 0.0), IDENT)
+            for k, a in zip(LEG, angles):
+                out[side + k] = round(math.degrees(a), 3)
+        placed = frames(out, (0.0, yp, zp), turn)
+        cz = sum(w * add(placed[n][0], apply(placed[n][1], c))[2] for n, (w, c) in seg_shares.items())
+        zp += 0.5 * (BALL - HEEL) - cz
+    return out
+
+
+#: Her deep squat, deg: what of her touches in it is kept apart as what touches standing (`machine.body.mjcf`).
+SQUAT = ({joint: float(deg) for joint, deg in _F['squat'].items()} if 'squat' in _F else squat())

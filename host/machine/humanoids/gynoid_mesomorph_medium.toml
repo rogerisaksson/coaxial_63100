@@ -1,45 +1,26 @@
-# The gynoid mesomorph medium's mechatronics: her pack, each joint kind's stack of parts from the
-# library (machine/library), the servos her boards run, the structure between a gearbox and its
-# limb, the joints without a drive, her clothes over her drives. host/tools/cores/manifest.py
-# writes her orthokinematic manifest of it (lisp/humanoid/builds/gynoid_mesomorph_medium.manifest.lisp).
+# The gynoid mesomorph medium's physical, electromechanical and electronic construction:
+# her battery packs, each joint kind's stack of parts from the library (machine/library), her ankle's
+# carbon leaf spring, joints without a drive, clothing over her drives, carbon-epoxy shells, internal
+# payloads, limb quick-releases and anthropometric figure. All servo gains, structural wind-up, leaf
+# stiffness, deep-squat equilibrium and Froude-scaled gait laws are derived by the static meta-compiler
+# (`machine.body.structural`, `machine.body.drives`, `machine.body.figure`, `machine.body.compile`).
 
-# The supply's lowest, V: 48-63, the boards' top 63.
-pack_v = 48.0
-# Each winding's and laminate's K/W to the air times this - 1 in air. Her joints air-cooled, a
-# board's back on an aluminium holder over a third of it, on its motor or gearbox, its only
-# cooling (0.3 in oil).
-cooling = 1.0
-# Whether a joint's clamp is its drive's peak where that is less (`drives.peak`), 0 or 1.
-clamped = 1.0
-# Rigid (`physics.BOXED` 0) the boards' encoders see the joint held within this, deg, a wave
-# drive's few arcmin, as her walk's band was measured.
-rigid_play_deg = 0.1
-# The wind-up and the play a board asks its rotor ahead of its setpoint by
-# (`gearbox.Boxes.ahead`): both, her toes dragged 16 mm at lift for 19, the walk 730 J/m for 607;
-# the wind-up's alone 8-14 mm at 0.1-0.3 deg of play.
-ahead_wind = 0.0
-ahead_play = 0.0
-# A board's thermal resistance to its stator, K/W: on its axis, and split off-axis on a limb's
-# shell (`drives.BOARDS`).
-mount_k_w = 0.60
-off_mount_k_w = 2.20
-
-# Each kind's stack: [motor, gearbox, inverter]. The U8 where a joint asks over 50 N m - the
-# legs, the trunk -, the MN6007 for the arms and the head: 15 and 6 of her 21; her 30.8 kg where
-# 28.4, a hip's rotor 0.177 kg m^2 at its joint where 0.071. What they replaced and why each
-# stood: docs/findings/stacks.md.
-
-# Her two packs, in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`): each cell's DC
-# resistance, ohm, and the most its BMS charges it with, A - the cell's datasheet class,
-# estimated; each board's DC link, F: the 63100's 33 x 10 uF X7S 1210 (its BOM), nominal.
+# Her two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
+# voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell (A),
+# per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso (m).
 [pack]
 packs = 2
 series = 15
 parallel = 2
+cell_v_min = 3.2
+cell_kg = 0.068
+case_kg = 0.36
 cell_ohm = 0.020
 cell_charge_a = 4.9
 board_link_f = 330e-6
+mounts = [[0.065, 0.17, -0.005], [-0.065, 0.17, -0.005]]
 
+# Each kind's stack: [motor, gearbox, inverter] (`docs/findings/stacks.md`).
 [stacks]
 spine = ["U8", "B", "coaxial_63100"]
 spine_roll = ["U8", "B", "coaxial_63100"]
@@ -58,90 +39,27 @@ wrist = ["MN6007", "B", "coaxial_63100"]
 gripper = ["MN6007", "B", "coaxial_63100"]
 foot = ["MN6007", "B", "coaxial_63100"]
 
-# A drive by its joint's kind: [peak N m, kp N m/rad, kd N m s/rad, armature kg m^2]. The ankles
-# stiffer than the body leaning on them (m g h, 490 N m/rad). The neck under a 3.3 kg head
-# 0.18 m up (0.13 kg m^2), damped at half critical: at 60 N m/rad it nodded 6.1 degrees a step
-# to her surge; 150, 300, 600: 3.0, 2.2, 1.7. The peaks her controller's own, at the drives'
-# clamps before the stacks: her stacks grew to 1.5x them; nan, its stack's (`servos`).
-[servo]
-spine = [142.5, 800.0, 30.0, 0.05]
-spine_roll = [77.4, 800.0, 30.0, 0.05]
-waist = [77.4, 400.0, 20.0, 0.02]
-neck = [15.0, 300.0, 6.0, 0.02]
-head = [8.0, 30.0, 1.0, 0.02]
-shoulder = [40.0, 150.0, 6.0, 0.02]
-elbow = [25.0, 80.0, 3.0, 0.02]
-wrist = [11.3, 150.0, 5.0, 0.02]
-gripper = [10.0, 40.0, 1.0, 0.02]
-hip_yaw = [51.6, 300.0, 10.0, 0.05]
-hip_roll = [128.9, 900.0, 40.0, 0.05]
-hip = [171.0, 900.0, 40.0, 0.05]
-knee = [171.0, 900.0, 35.0, 0.05]
-ankle = [140.0, 1500.0, 40.0, 0.05]
-ankle_roll = [100.0, 1500.0, 40.0, 0.05]
-foot = [11.6, 40.0, 1.0, 0.02]
+# Pre-curved unidirectional carbon leaf spring standing in for the ankle pitch rod (`structural.leaf_series`):
+# rectangular laminate width and 50-ply cured thickness, m; arc length and crown follow `linkage.RODS`/`BENDS`.
+[leaf]
+joint = "ankle"
+width_m = 0.03673
+thick_m = 0.00625
 
-# Each joint's structure between its gearbox and its limb wound up a N m, mrad, its members in
-# series (`tools/sim/members.py`: the pitch's bracket at 12 mm gave the spine 3.3, 27 deg at its
-# clamp; sized, 0.085). With the box's own a board sees its joint wound by its last torque
-# (`drives.flex`, `physics.WOUND`). The ankle's leaf is its own, stepped (`[series]`).
-[wind]
-spine = 0.085
-spine_roll = 0.148
-waist = 0.035
-neck = 0.239
-head = 0.239
-shoulder = 0.122
-elbow = 0.128
-wrist = 0.173
-gripper = 0.173
-hip_yaw = 0.116
-hip_roll = 0.085
-hip = 0.061
-knee = 0.051
-ankle = 0.218
-ankle_roll = 0.032
-foot = 0.155
-
-# A spring in series between a drive and its joint, N m/rad at the joint: the world steps that joint's
-# rotor against it (`machine.body.gearbox`, the rest rigid as before). The ankle's pitch rod is a
-# pre-curved leaf of carbon (`linkage.LEAF`): a series elastic actuator, the knee-mounted drive winding
-# it through mid-stance, its recoil the push-off, the landing's blow taken in it and not in her knee.
-[series]
-ankle = 1040.0
-# The rotor's torque loop on the leaf (`gearbox.TRACK`, its drive TRACK times the feed's error over the observed
-# torque): 0 at this leaf, 12 for 143-256 N m/rad - set as a module constant it reached every build that extends this.
-track = 0.0
-
-# Joints without a drive, a kind's way: on a spring, 1 - its stiffness N m/rad and damping
-# N m s/rad about its rest, deg, a kind not given 40, 1 and 0 -; held at it, 2, between stops
-# (`mjcf.HELD_DEG`). Any kind, for the fewest drives; the toes and the fingers to begin with: on
-# the scoreboard, their four drives' 0.88 kg gone, the fingers held open at 20 deg 212 -> 349,
-# held 79.5 -> 68.0 %, every rise down at 7.1 s; held a fist, 238 and 81.0 %; the toes sprung,
-# 622 and 11.4 %, every walk down within 0.8 s - the walker's push-off asks them and its legs'
-# reach counts on them. Each of the rest held in turn against 730 and 74.1 %: the wrists 602 and
-# 74.2, every rise and walk standing - held; the head's turn 699 and 69.4 (a walk fell), the
-# neck 628 and 71.2 (a rise), the waist 727 and 71.6 (a rise), the spine's roll 1293 and 23.0,
-# the hips' yaw 1337 and 12.1.
+# Joints without a drive: way 1 on a passive spring, way 2 held between stops (`mjcf.HELD_DEG`).
 [passive]
 foot = { way = 1.0 }
 gripper = { way = 2.0, stiffness = 40.0, damping = 1.0, rest = 80.0 }
 wrist = { way = 2.0 }
 
-# The toes' spring about flat, N m/rad, and its damping: a sneaker's forefoot, 0.2-0.5 N m a
-# degree (a plated one's past 200 stood her on her toe tips) - a thin carbon-fibre sandwich with
-# a TPU core, or TPU printed round carbon rods glued in with silicone: springy but damped, the
-# TPU's loss factor `loss` at the push-off's `rad_s`, c = loss k / omega (`drives.passive`). The
-# motors off them. `rest` deg its rest, toes up under 0 - a sneaker's toe spring
-# (docs/findings/feet.md).
+# Forefoot TPU-carbon sandwich toe spring (`drives.passive`, `docs/findings/feet.md`).
 [toes]
 stiffness = 10.0
 loss = 0.3
 rad_s = 20.0
 rest = 0.0
 
-# Clothing thermal insulation over bare-air convection (ISO 9920): 1.0 bare, 1.20 under a cotton
-# T-shirt (0.15 clo, torso and arms), 1.45 under denim jeans (0.38 clo, pelvis and legs).
+# Clothing thermal insulation over bare-air convection (ISO 9920): 1.0 bare, 1.20 cotton tee, 1.45 denim.
 [cloth]
 hip_yaw = 1.45
 hip_roll = 1.45
@@ -160,12 +78,7 @@ wrist = 1.0
 gripper = 1.0
 foot = 1.0
 
-# Service (`machine.identify.wear`): a drift from the build past these raises an alarm - a drive's
-# Coulomb friction up this share of its own and at least this, N m; its viscous friction, N m
-# s/rad; its torque an amp down this share; a box's play up this share, its wind-up down this
-# (the ankles' read 0.35 low on the stand); an encoder's zero slipped past this, rad; a load
-# past this, kg -; the hours between services, and the hours from one before a drift's trend
-# counts toward the next.
+# Service wear alarm thresholds (`machine.identify.wear`).
 [service]
 friction = [0.5, 0.5]
 viscous = [0.5, 0.3]
@@ -177,20 +90,16 @@ load_kg = 3.0
 hours = 500.0
 trend_h = 1.0
 
-# Her shells (machine/body/build.py): a laminate of carbon in epoxy over her capsules, its wall, m, and
-# its density, kg/m^3.
+# Carbon-epoxy shells over her capsules (`machine/body/build.py`): wall thickness (m) and density (kg/m^3).
 [shell]
 wall_m = 0.002
 kg_m3 = 1600.0
 
-# What a segment holds besides its shell and its drives (machine/body/build.py), each [kg, x, y, z] where in
-# its frame, m at her figure's scale - estimated: in the torso two 15S2P packs of 21700 cells, 48-63 V,
-# 540 Wh each with its BMS and case, one in each flank of her lower ribs, and the computer and the
-# harness; the pelvis's power distribution; the head's cameras and IMU; the ankle's roll rod down the
-# shin and its pitch's leaf spring behind it (`linkage`: 45 x 15 x 300 mm of carbon, 0.32 kg, less the
-# rod it stands in for); her clothes and her sneakers.
+# Internal non-drive, non-pack payloads [kg, x, y, z] in each segment's frame (`machine/body/build.py`):
+# compute & harness in torso (packs come from `[pack]`), power distribution in pelvis, cameras & IMU in
+# head, rods/leaf/garments in limbs and sneakers on feet.
 [holds]
-torso = [[2.4, 0.065, 0.17, -0.005], [2.4, -0.065, 0.17, -0.005], [1.2, 0.0, 0.26, 0.02], [0.1, 0.0, 0.2, 0.0]]
+torso = [[1.2, 0.0, 0.26, 0.02], [0.1, 0.0, 0.2, 0.0]]
 pelvis = [[0.5, 0.0, 0.0, 0.0], [0.2, 0.0, -0.02, 0.0]]
 head = [[0.4, 0.0, 0.09, 0.03]]
 upper_arm = [[0.05, 0.0, -0.14, 0.0]]
@@ -198,21 +107,14 @@ thigh = [[0.15, 0.0, -0.2, 0.0]]
 shank = [[0.06, 0.0, -0.2, -0.03], [0.05, 0.0, -0.1, 0.0], [0.27, 0.0, -0.17, -0.03]]
 foot = [[0.25, 0.0, -0.03, 0.03]]
 
-# Each limb's quick-release by its segment (machine/body/build.py): a printed-polymer collar with pogo pins
-# for its power and its bus at its root, clear of the drive above it - the arm's under the shoulder's 70 mm,
-# the leg's under the hip's 100 -: [its centre down the segment, radius, length, m at her figure's scale; kg].
+# Limb quick-release collars (`machine/body/build.py`): [centre_y, radius, length m, mass kg].
 [releases]
 upper_arm = [-0.05, 0.03, 0.02, 0.12]
 thigh = [-0.065, 0.04, 0.015, 0.2]
 
-# Her figure (machine/body/figure.py): her lengths, metres of hers at `scale` times their own (1 her 165 cm),
-# her angles, deg, her weight as a woman, kg, de Leva's shares of it (`segments`), her pads' gel (`pad_m`) as
-# it is.
+# Anthropometric geometry, collision capsules and impact gel pads (`machine/body/figure.py`).
 [figure]
 scale = 1.0
-# Her legs: the hips apart (half) and below the pelvis's centre, thigh and shank, the ankle over the sole, the
-# ball ahead of it (the toes' joint) and the heel behind - a 24 cm sole with the toes, a sneaker in size 37-38
-# (27 cm read as boats; a 38's, 237) -; the toes' joint over the sole and the toes' length from it.
 hip_half = 0.095
 hip_drop = 0.055
 thigh = 0.39
@@ -222,34 +124,20 @@ ball = 0.117
 heel = 0.055
 toe_ry = 0.014
 toe_m = 0.065
-# A stand's soft knee, deg.
 stand_knee = 6.0
-# Her weight, kg, at 165 cm: chosen so the structural chassis is robust rather than overly fragile, while
-# providing sufficient internal and external envelope for all structural 3D prints, actuators, harmonic drives,
-# battery packs, TPU gel pads, and clothing.
 mass_kg = 55.0
-# Her jeans' wide legs hang this far under the knees; her hair's fall from here on her head, its frame: at the
-# back of her skull, level with her ears.
 hem_at = 0.12
 hair_at = [0.0, 0.075, -0.02]
-# Her upper arm and forearm - 0.27 and 0.24 until a little longer to push herself up by -; her forearm's
-# carrying angle, deg: out from the upper arm's line straight, none bent 90, a woman's 10-16.
 upper_arm = 0.28
 forearm = 0.25
 carry_deg = 12.0
-# The sole's half-width and its box's half-height; the toes' box's half-width, half-height and its centre's rise
-# over the toes' joint; a point foot's radius.
 sole_half = 0.045
 sole_box = 0.03
 toes_box = [0.045, 0.015, 0.001]
 point_r = 0.01
-# The seat's two buttocks, capsules along her way: their radius, across, up, from and to along her; the fist's
-# radius and where in the hand's frame; a pad's stand proud of the skin (its gel, not at scale).
 seat = [0.07, 0.068, -0.058, -0.078, 0.0]
 fist = [0.03, 0.0, -0.07, 0.01]
 pad_m = 0.005
-# Her body on the floor and on itself: [segment, radius, from, to] in its frame; ["seat"] the buttocks,
-# ["fist"] the fist, [segment, radius, inset] a limb's capsule along it, inset from either joint.
 body = [
     ["seat"],
     ["pelvis", 0.095, [-0.07, -0.012, -0.02], [0.07, -0.012, -0.02]],
@@ -271,8 +159,6 @@ body = [
     ["shank", 0.05, [0.0, -0.04, 0.0], [0.0, -0.25, 0.0]],
     ["shank", 0.036, [0.0, -0.25, 0.0], [0.0, -0.33, 0.0]],
 ]
-# Her pads, the left side's: [segment, from its "joint" or its far joint ("end"), the point of its capsule's axis
-# under it, the capsule's radius, toward where the landings cluster, the pad's radius, its half-width across].
 pads = [
     ["upper_arm", "end", [0.0, 0.02, 0.0], 0.034, [0.01, 0.0, -0.01], 0.028, 0.0],
     ["forearm", "joint", [0.0, -0.02, 0.0], 0.025, [0.0, -0.01, -0.01], 0.02, 0.0],
@@ -282,46 +168,13 @@ pads = [
     ["shank", "joint", [0.0, -0.04, 0.0], 0.05, [0.0, -0.03, 0.04], 0.025, 0.025],
 ]
 
-# Her rest, deg: the elbows soft, the wrists, the fingers curled (her knees `stand_knee`).
+# Nominal standing arm rest angles, deg (`stand_knee` sets the legs).
 [figure.stand]
 elbow = 10.0
 wrist = 5.0
 gripper = 18.0
 
-# Her deep squat, deg: what of her touches in it is kept apart as what touches standing (machine/body/mjcf.py).
-[figure.squat]
-spine_roll = 0.0
-spine = 45.0
-waist = 0.0
-neck = 35.0
-head = 0.0
-left_shoulder = 35.0
-left_elbow = 70.0
-left_wrist = 10.0
-left_gripper = 30.0
-left_hip_yaw = -1.107
-left_hip_roll = -2.372
-left_hip = -115.939
-left_knee = 123.069
-left_ankle = -32.153
-left_ankle_roll = 2.617
-left_foot = 0.0
-right_shoulder = 60.0
-right_elbow = 30.0
-right_wrist = 0.0
-right_gripper = 80.0
-right_hip_yaw = -1.198
-right_hip_roll = -2.567
-right_hip = -115.935
-right_knee = 123.061
-right_ankle = -32.153
-right_ankle_roll = 2.832
-right_foot = 0.0
-
-# Her segments' own numbers (machine/body/figure.py's SEGMENTS holds their chain): where one sits on its parent
-# where its parent's length does not say (`at`, the left side's), its rest turn about z (`turn`, deg, the left
-# side's), its share of her weight (de Leva's), its centre of mass (`com`, or `com_along`: its length's share
-# down it) and its radii of gyration x y z.
+# Anthropometric segment chain attachments and de Leva mass/gyration shares (`machine/body/figure.py`).
 [figure.segments]
 pelvis = {share = 0.1247, com = [0.0, 0.0, 0.0], gyration = [0.09, 0.07, 0.08]}
 torso = {at = [0.0, 0.12, 0.0], share = 0.301, com = [0.0, 0.17, 0.0], gyration = [0.12, 0.09, 0.11]}
@@ -335,384 +188,3 @@ thigh = {share = 0.1478, com_along = -0.36, gyration = [0.144, 0.065, 0.144]}
 shank = {share = 0.0481, com_along = -0.44, gyration = [0.103, 0.035, 0.103]}
 foot = {share = 0.011, com = [0.0, -0.045, 0.03], gyration = [0.055, 0.03, 0.055]}
 toes = {share = 0.0019, com = [0.0, 0.0, 0.03], gyration = [0.02, 0.01, 0.02]}
-
-# Her gait (machine.body.gait): her law's numbers as they work on her, each with what it was found
-# at, stated at her leg `leg_m` (thigh and shank, m) and her mass as built `mass_kg` (machine.body.build,
-# to the last digit: a body changed restates it). A build of another leg and mass has each Froude-
-# similar by its unit - a length as the leg, a time or a speed as its root, a rate as its inverse root,
-# per s^2 as its inverse, a force as the mass, an angle or a share as it is -, nothing of them tuned to it.
-[gait]
-leg_m = 0.77
-mass_kg = 31.382862262971106
-
-# Her modes' units and her limbs' rest (machine.law.modal).
-[gait.modes]
-# A unit of her centre of mass down, m - to her ankles' stroke, her trunk upright over her soles: asked
-# 0.15 m she came down 0.117 and stood there; of her trunk's pitch, rad; of a sole clear of the floor, m
-# - at 3 cm her walk fell within 20 s in 10 of 12 settings, at 2 cm in 5 of 12 (45 s each).
-axial_m = 0.115
-pitch_rad = 0.5
-clear_m = 0.02
-# And of her turns, rad: her pelvis's list, a hip up, and its turn, a hip forward; a shoulder's reach,
-# the other as far back, and an elbow's bend.
-list_rad = 0.15
-turn_rad = 0.2
-arm_rad = 0.35
-# At rest: along the floor the capture point's law, its ZMP this over omega past her capture point
-# from where it is asked - a spring this times omega and a damper omega and this over her mass, 1/s.
-rest_1_s = 2.0
-# A limb in the air at rest, 1/s^2 and 1/s. One sole bears what moves it: her weight on a sole 9 cm
-# wide turns her 13 N m at most, a limb thrown across at 4 m/s^2 or lifted at 8. Held at the loop's
-# own 1 600 and 80, a sole 6 cm off its width asked 163 m/s^2 across, the loop planned -10 - the
-# lift's 23 m/s^2 took the moment - and threw her neck at three times its clamp for the rest.
-limb_1_s2 = 400.0
-limb_1_s = 40.0
-
-# Her rhythm under a twist told (machine.law.rhythm): her twist's blends from one gait to the next.
-[gait.rhythm]
-# Her rhythm on while her drive's amplitude, her sidestep or her turn tells past `moving` (blended in
-# over `moving_edge`) and her rhythm's gain past `gain_on` (over `gain_edge`); at rest with her drive
-# between `rest_lo` and `rest_hi`, a walk told faster than hers raises it to `rest_drive`.
-moving = 0.02
-moving_edge = 0.02
-gain_on = 0.02
-gain_edge = 0.03
-rest_lo = 0.05
-rest_hi = 0.30
-rest_drive = 0.60
-# A twist's speed and turn blended in over these.
-edge_m_s = 0.01
-edge_rad_s = 0.01
-# Told no turn under `still_rad_s` and no sidestep under `edge_m_s`, a walk told faster than hers runs
-# her; a sidestep told past `side_m_s`; a turn past `turn_rad_s` (over `turn_edge_rad_s`); a spin on
-# the spot past `spin_rad_s` while told on slower than `spin_still_m_s`; backing past `backing_m_s`.
-still_rad_s = 0.05
-side_m_s = 0.04
-turn_rad_s = 0.025
-turn_edge_rad_s = 0.005
-spin_rad_s = 0.04
-spin_still_m_s = 0.05
-backing_m_s = 0.05
-# A turn told at her turn's rate holds her pelvis's turn `turn_dc` of its unit ahead, `turn_dc_side`
-# less sidestepping, blended in at `turn_blend` a pass; her turn's mode on past `turning` (over
-# `turning_edge`), its sway `turn_sway` of its unit, her sidestep's own turn sidestepping.
-turn_dc = 0.40
-turn_dc_side = 0.12
-turn_blend = 0.18
-turning = 0.008
-turning_edge = 0.004
-turn_sway = 0.14
-# Spun on the spot her drive's amplitude `spin_drive`, from `spin_fast_m_s` of her own speed (over
-# `spin_fast_edge_m_s`) `spin_drive_s_m` of it past `spin_drive_from_m_s`; her lift's sway `spin_lift`.
-spin_fast_m_s = 0.75
-spin_fast_edge_m_s = 0.05
-spin_drive = 0.035
-spin_drive_s_m = 0.35
-spin_drive_from_m_s = 0.15
-spin_lift = 0.95
-# Her soles' grip under `slip_grip` where she knew it more (over `slip_grip_edge`), told on past
-# `slip_m_s`: she slips, her rhythm at `slip_hz`; spun, turned past her turn's rate or told faster
-# than her walk at `brisk_hz`; any gait past hers at `quick_hz`.
-slip_grip = 0.25
-slip_grip_edge = 0.02
-slip_m_s = 0.04
-slip_hz = 1.05
-brisk_hz = 0.98
-quick_hz = 0.95
-# Run: her drive's sway `run_boost` times on to `run_drive` - her march's own, not cut below it (at 1.0 her
-# march fell setting out, 3.4 s) -, her arms' to `run_arms`; backed faster than her walk back, her drive's
-# `back_boost` times on to `back_drive`; sidestepped faster than hers, her lateral shift `side_shift` of its
-# unit her sidestep's way.
-run_drive = 0.85
-run_boost = 1.08
-run_arms = 1.00
-back_drive = 0.28
-back_boost = 1.25
-side_shift = 0.105
-
-# Her heading and her look under a twist told (machine.law.se2.twisted).
-[gait.steer]
-# A heading told turned to at `slew_rad_s` at most; a sidestep and a turn told from `side_told_m_s` and
-# `turn_told_rad_s` (over as much again); her actual twist meaned over `along_s` along, `across_s`
-# across and turning, `told_s` less while told.
-slew_rad_s = 1.6
-side_told_m_s = 0.005
-turn_told_rad_s = 0.005
-along_s = 0.06
-across_s = 0.10
-told_s = 0.03
-# Her heading turned as told, `stance_turn` of the turn while her soles bear alike, `stance_turn_load`
-# less or more as the sole on the turn's side bears more (by tanh of `stance_turn_k` times the share);
-# not while her pelvis lags it past `lag_rad`, and led on to her pelvis ahead of it at `lead_1_s`.
-stance_turn = 0.75
-stance_turn_load = 0.30
-stance_turn_k = 3.0
-lag_rad = 0.10
-lead_1_s = 10.0
-# Told on past `align_m_s` with no sidestep past `align_side_m_s`, going past `align_speed_m_s` and on
-# past `align_own_m_s` of her own, her heading turned to her path past `align_rad` of it at `align_1_s`;
-# her heading kept within `slack_rad` of her pelvis.
-align_m_s = 0.05
-align_side_m_s = 0.05
-align_speed_m_s = 0.32
-align_own_m_s = 0.15
-align_rad = 0.32
-align_1_s = 12.0
-slack_rad = 0.10
-# Her rhythm flipped half a turn where her sway leads the other way while her rhythm's gain is past
-# `flip_gain` or her drive's sway past `flip_drive`.
-flip_gain = 0.05
-flip_drive = 0.02
-# Her look into a turn: on as her drive's sway passes her stride's own by `look_drive`, from `look_on`
-# of it; backing, round to the turn's side past `look_back_rad_s`; turning past `look_turn_rad_s`,
-# `look_rad` at her turn's rate and no more; at `look_1_s`, `look_back_1_s` less backing; her waist
-# `waist_share` of it, her head `head_share`. A twist's sole swung clear of the other by `clear_m`.
-look_drive = 0.04
-look_on = 0.1
-look_back_rad_s = 0.05
-look_turn_rad_s = 0.03
-look_rad = 0.35
-look_1_s = 5.0
-look_back_1_s = 0.5
-waist_share = 0.38
-head_share = 0.72
-clear_m = 0.115
-
-# Her poise (machine.law.poise).
-[gait.poise]
-# Her ZMP kept this far inside a sole's edge, and her capture point let toward an edge no faster than
-# its room there over `capture_s`: on the ZMP's polygon alone a spring of 3 000 N/m took her centre of
-# mass a quarter of the way past her sole's middle and she fell over it; 5 mm in, the edge was past
-# where the loop's own margin lets her soles press.
-margin_m = 0.018
-capture_s = 0.2
-# A sole stands by `leap.standing`, unless it is asked up: over `lift_eps` of the lift's unit, it
-# leaves the floor once her ZMP as her springs ask it lies in the other sole's box, `gate_m` past its
-# edge at most. Let go by its own load, it never went: the loop keeps a third of her weight on a sole
-# her ZMP is 0.6 of the way off, a twelfth at its furthest.
-lift_eps = 0.02
-gate_m = 0.005
-# A sole this of its sweep ahead of her that bears is down, wherever its swing is.
-early = 0.3
-
-# Her upper body's support (machine.law.support): its velocity lead; its disturbance observer's
-# floor and scale; its shrinkage knee; its bleed, 1/rad^2.
-[gait.support]
-tau_s = 0.08
-eso_rad_s2 = 12.0
-eso_scale_rad_s2 = 25.0
-sigma_rad = 0.38
-bleed = 35.0
-
-# Her springs on her body (machine.law.impedance).
-[gait.impedance]
-# A sole asked up leaves only while she sways as asked, within this of her lateral shift and of its
-# rate: a sway asked past what her soles' width gives (0.35 at 1.1 Hz: her ZMP 1.9 of the way to a
-# sole) crossed the other's box off its beat, a sole left and she went over its side in 3 s.
-on_shift = 0.1
-on_shift_1_s = 1.0
-# Her going: her soles' speed along her way, meaned over this.
-going_s = 0.28
-# Her posture's knees are bent no more than this ahead of her height, of the axial unit.
-ahead = 0.15
-# Her yaw momentum past its limit is bled this fast.
-yaw_1_s = 50.0
-# Her centre of mass is asked up no harder than this (`tools/sim/hop.py`: thrown at 10 to 18 she flew
-# and stood): the stiffest spring said asked 630, the loop gave 33 with every drive it has, and her
-# trunk went back 0.22 rad in the 45 ms of it.
-throw_m_s2 = 14.0
-# Her height no lower than this for omega; a hip no lower over its ankle than this of its leg.
-low_m = 0.3
-low_leg = 0.5
-# Borne off her soles this share of her weight, she is supported there wholly: her support region
-# spans where, her centre of mass asked of her springs, not let fall.
-prop_on = 0.15
-
-# Her whole-body loop (machine.stack.wbc).
-[gait.loop]
-# The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a standing
-# corner presses at least `f_min_n`.
-mu = 0.6
-f_min_n = 0.0
-# A contact slides past this slip: a sole's grip reads it so (`grip`), a pressing contact's point its
-# regime (`rounds.pushed`) - on the ice a sole pushing off slid back 0.3 m in 0.05 s before her law
-# asked less.
-slide_m_s = 0.15
-# A sole's centre of pressure `margin_m` inside its edge, softly (weight `slack` against the centre of
-# mass's m/s^2).
-margin_m = 0.015
-slack = 1e3
-# Her vertical acceleration within this of her height's ask on the balance's level, her height itself
-# under the turns and a swing.
-height_band_m_s2 = 3.0
-# A stop met no nearer than `stop_rad`, `limit_s` ahead at the acceleration asked.
-limit_s = 0.05
-stop_rad = 0.01
-# A standing sole's slip bled at `contact_1_s`; a held joint's (`drives.passive` None) at `held_1_s`.
-contact_1_s = 20.0
-held_1_s = 50.0
-# A drive asked no more than `clamp_share` of its clamp as its board derates it - past it, to the
-# stack's own peak at its board's amps (`drives.peak`), only granted war emergency power (the board's
-# derate held off, `thermal.wep`) and only where the centre of mass asks it; the soft rows laid for
-# the drives that bore more than `near` of their clamps the step before.
-clamp_share = 0.95
-near = 0.6
-# The turns', the posture's and a swinging sole's springs and dampers, 1/s^2 and 1/s (a swinging
-# sole's at 400 and 40 a 0.2 s step lagged its path 11 cm, 100 N); the angular momentum bled at
-# `momentum_1_s` - at 10 on the level under the centre of mass it pinned both soles' centres of
-# pressure to their edges, flipping each 50 ms (a 60 N shove); her centre of mass's height held by
-# its own.
-turn_1_s2 = 100.0
-turn_1_s = 20.0
-posture_1_s2 = 100.0
-posture_1_s = 20.0
-swing_1_s2 = 1600.0
-swing_1_s = 80.0
-momentum_1_s = 3.0
-height_1_s2 = 100.0
-height_1_s = 20.0
-# The turns' weight against a swinging sole's m/s^2; her form's against the posture's rad/s^2: the
-# angular momentum's N m, the torques' (a clamp's share), the corners' forces (her weight's share),
-# her height's m/s^2; a swinging knee's fold's against its sole's m/s^2.
-turn_w = 3.0
-momentum_w = 0.3
-posture_w = 1.0
-torque_w = 3.0
-force_w = 1.0
-height_w = 1.0
-fold_w = 0.3
-
-# Her touch and her leaps (machine.moves.leap).
-[gait.leap]
-# A sole bears at `touch_n`, lies on the floor within `touch_m`; she rests under `rest_m_s`. Kept
-# standing within its sole's give instead (5 mm, a sole that stood only too) the run's leap fell 0.69
-# -> 0.30 m and the seats went: a sole 2 mm up has left. Near alone, the stack pressed a sole 1 mm over
-# the floor onto it as she left: 648 N on it, 23 deg over. All or none while she rises flickered on
-# one sole: 21 deg over three hops.
-touch_n = 15.0
-touch_m = 0.002
-rest_m_s = 0.1
-# A sole in the air waits for the floor with its hip `land_drop_m` under the leg's length over it -
-# the knee 25 deg -, no straighter than `land_short_m` short of that length where drawn.
-land_drop_m = 0.018
-land_short_m = 0.004
-# Her standing jump as the human's (`takes.jump`, test_leap holds them to it): the s his crouch takes
-# and his take-off comes at; the crouch he pushes from and his trunk's lean there, axial and pitch;
-# his stand at take-off, axial, and his legs' lengthening there, axial/s.
-crouch_s = 0.465
-takeoff_s = 0.745
-crouch = 2.18
-lean = 1.70
-straight = 0.11
-leaves_1_s = 11.7
-
-# Her stride (machine.law.stride).
-[gait.stride]
-# A unit of her drive, a limb's place from her centre of mass along her way, m; of her soles' rock,
-# a sole's pitch, rad.
-stride_m = 0.3
-rock_rad = 0.5
-# Her drive's amplitude over `stirs`, she strides: a limb swings `swing` of a turn, a woman's 38 to
-# 40 %. Let go only with her ZMP in the other sole, a step was no longer than a sole - 0.23 legs at
-# 0.28 m/s, a shuffle by name (`tools.sim.normal`).
-stirs = 0.02
-swing = 0.4
-# And at her march's pace and past it, `swing_fast` of a turn (a power walk's duty 0.51): the swing's
-# acceleration asks go as 1 over its time squared, and at 1.25 Hz her hip passed its clamp 12 times in 6 s
-# at 0.48 for 1.41 m/s (p99 102 N m) where 0.40 at 1.3 Hz passed 190-460 times. From her walk's pace to her
-# march's, `pace_m_s` to `pace_fast_m_s` (her drive's, STRIDE_M 2/pi |drive| turns: 1.17 and 1.28), the share
-# goes in line: her walk at 0.43 went 1.06 m/s for 1.19 and at 0.46 fell in its stop.
-swing_fast = 0.48
-pace_m_s = 1.18
-pace_fast_m_s = 1.27
-# Her sway a quarter turn behind her drive, past `back` of it, she goes the other way.
-back = 0.5
-# Her centre of mass asked no more than this faster or slower than her soles have made of late, m/s.
-# At 0.36 her 1.16 m/s walk told to stand went on 1.4-2.3 m over 3.1-5.7 s, braked no faster than
-# her going came down, and fell in 1 of 6; at 0.6, told 0.69 m/s and then to stand, she fell in 2 of
-# 6; at 0.8 none in 16 from either; at 1.0 none, but stood from her march she fell (play_moves).
-ahead_m_s = 0.8
-# A striding sole lands no further than `reach_m` from her along her way, `apart_m` and more its own
-# side of the other; its spring stiffens till `soon_s` before it is there. It is up over the first
-# `rise_u` of its swing, comes down over the last `fall_u` and is over its landing `arrive_u` through it.
-reach_m = 0.35
-apart_m = 0.1
-soon_s = 0.02
-rise_u = 0.2
-fall_u = 0.25
-arrive_u = 0.9
-# A landing further on by this of her speed past her cruise, over omega. A step's push - her centre
-# of mass past the standing sole's ball till the next lands - is 0.14 m/s more than its landing's
-# brake at any speed, and the landing's blow took that: on a step that lands softer she was down at
-# 19 s with no lead, at 36 s with 0.25. With 0.5 a step leaves 0.42 of its speed's error to the
-# next, with 1 it turns it -0.09.
-leads = 0.5
-# A sole lands this share of the linear inverted pendulum's step offset short of her capture point: at
-# 1 the walk's centre of mass passes over the sole it lands, 0.21 m ahead of it at 1.17 m/s while the
-# sole behind leaves 0.34 m back - the step a woman's lands as far ahead as it leaves behind -; her
-# pelvis 5 cm down at the handover, the leading knee bent 38 deg to reach the floor from there.
-land_share = 1.0
-# Past its swing a sole not down reaches on down at `reach_m_s`, for `reach_s` at most.
-reach_m_s = 0.45
-reach_s = 0.25
-# A standing sole is turned about the edge it stands on, 1/s^2: flat, or over its ball as its stride
-# has it. The loop's own hold on a standing sole damps its turn at 20 /s: stood on with its heel 4
-# deg up, it stayed on its ball for 3 s. At 100 /s^2 and her ZMP let anywhere under it, a heel asked
-# 6 deg up under all of her stayed down till the other sole landed.
-flat_1_s2 = 400.0
-# A standing sole's heel rises no further than `heel_deg`, a woman's as her toes leave (the
-# reference take's heel at lift, `tools/sim/mocap.py tests/takes/walk.fbx`) - at 0.6 rad, a swung
-# leg damped as the master insert has it, she walked on stilts; at the band's 62 deg her sprint,
-# stutter, rug and snow fell -, no faster than `heel_rad_s`, as her hip goes ahead of it: her hip
-# let `dip_m` down from where it stood over a sole first. It is on its edge in full from `edge_rad`
-# of pitch. Striding only: her soles stand 0.5 deg toes up, and held on their heels for that she
-# went over them 0.7 s after a hop's landing; let 1.1 deg before an edge counts, her walk was down
-# in 17 s.
-heel_deg = 36.2
-heel_rad_s = 6.0
-dip_m = 0.006
-edge_rad = 0.03
-# A standing sole its stride has off folds its knee as its load leaves it, this with none on it,
-# rad - its leg that much shorter for its heel's rise, her knees' row told. Asked by nothing, the leg
-# stayed at its length till its toes left, 18 deg where a woman's is 30: on stilts by name. At 0.17
-# stiff 0.41; at 0.35 her head nods 7 deg and she strikes 489 N; at 0.52 down at 14 s. Its heel
-# alone asked up, down within 32 s. Asked its own row of the stack in pre-swing (`modal.given`), at
-# 0.45 her hip turns 43 deg/s at toe-off where 82 at 0.26 - a woman's flexes there, her knee at 40 -,
-# and her 1.16 m/s walk's hip passes past its clamp 30 -> 27 of 2000, its worst 123 -> 122 N m; her
-# march's 98 -> 74, its shrinks 29 -> 4.
-fold_rad = 0.45
-# A swinging sole's pitch is its rock's: its heel this further up behind her, its toes as much less
-# up ahead.
-heel_up = 0.5
-
-# Her twist (machine.law.se2).
-[gait.twist]
-# Her twists' speeds: a walk - a woman's normal pace at her leg, her rhythm's (gait_base.lisp's walk)
-# -, her march (the gym's jog, a power walk's cadence), a walk back, a sidestep, m/s; a turn, rad/s.
-walk_m_s = 1.16
-run_m_s = 1.35
-back_m_s = 0.35
-strafe_m_s = 0.50
-yaw_rad_s = 0.70
-# Her gym's other walks: on stairs, on ice, up a slope, the ballistic walk, m/s; round a circle, m/s
-# and rad/s.
-stairs_m_s = 0.50
-ice_m_s = 0.35
-slope_m_s = 0.55
-ballistic_m_s = 0.75
-circle_m_s = 0.55
-circle_rad_s = 0.45
-# Her walk's stopping distance: told to stand she goes on 0.84-1.11 m, under 0.02 m/s 2.1-3.2 s
-# later (eight phases of her stride) - she has the one walk; her walk back's 0.05 m on, her
-# sidestep's 0.11-0.15; half her walk's stop's spread.
-stop_m = 0.98
-back_stop_m = 0.05
-side_stop_m = 0.15
-stop_spread_m = 0.13
-# Her walk's rhythm (gait_base.lisp's walk), and her brake's blend one stride of it, both soles
-# braking her - over 0.5 s her plan stopped before a sole could, she walked on at 0.6-0.85 m/s and
-# one landing took 0.85 to 0.10 m/s in 0.2 s, her trunk 13 deg ahead and her arms at 344 deg/s.
-walk_hz = 1.15
-# Her stand's blend (gait_base.lisp's stand): no brake shorter - braked over a stride, her turns on
-# the spot fell in 41 more errands of 336, her chair's settle and turn.
-stand_s = 0.5

@@ -26,10 +26,16 @@ _BUILT = mechatronics.robot()
 #: The laminate (its `[shell]`): its wall, m, and density, kg/m^3.
 WALL_M, CF_KG_M3 = float(_BUILT['shell']['wall_m']), float(_BUILT['shell']['kg_m3'])
 
-#: What a segment holds besides its shell and its drives (its `[holds]`), (kg, where in its frame, m): each
-#: where at her figure's SCALE, its kg as it is.
+#: What a segment holds besides its shell and its drives (its `[holds]` and `[pack]`), (kg, where in its frame, m):
+#: each where at her figure's SCALE, its kg as it is; each battery pack synthesized from its cell count and case.
+_PACK = _BUILT.get('pack', {})
+_PACK_KG = (round(_PACK['series'] * _PACK['parallel'] * _PACK['cell_kg'] + _PACK.get('case_kg', 0.0), 4)
+            if 'cell_kg' in _PACK else 0.0)
+_PACK_HOLDS = tuple((_PACK_KG, tuple(SCALE * float(m) for m in at)) for at in _PACK.get('mounts', ()))
 HOLDS = {segment: tuple((float(kg), tuple(SCALE * float(m) for m in at)) for kg, *at in held)
          for segment, held in _BUILT['holds'].items()}
+if _PACK_HOLDS:
+    HOLDS['torso'] = _PACK_HOLDS + HOLDS.get('torso', ())
 
 #: Walking she drew 691 W at 0.76 m/s (work 197, copper 424, her boards 70) and 439 at 0.48 (96,
 #: 273, 70): 253 Wh a km either way - on the two packs' 972 Wh used (90 %) 3.8 km, on one 1.9;

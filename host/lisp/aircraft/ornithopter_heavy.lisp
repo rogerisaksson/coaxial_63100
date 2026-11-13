@@ -7,10 +7,7 @@
 
 (defblock rigid_body ornithopter_carapace_body_heavy
   (use ornithopter_carapace_body)
-  (mass 2.5kg)
-  (inertia_xx 0.03)
-  (inertia_yy 0.04)
-  (inertia_zz 0.0225))
+  (mass 2.5kg))
 
 (defvehicle ornithopter_dune_heavy
   (use standard_airframe)

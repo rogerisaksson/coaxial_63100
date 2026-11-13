@@ -19,13 +19,11 @@
 (defblock vertical vertical_climb_brake
   (climb_speed 4.0m_s)
   (descent_speed 2.0m_s)
-  (settle_kp 6.4)
-  (settle_kd 12.8))
+  (settle_kp 6.4))
 
 (defblock horizontal orbit_circle
   (orbit_radius 2.0m)
   (orbit_speed 3.0m_s)
-  (lap_duration 4.1887902047863905s)
   (spot_kp 1.95)
   (spot_kd 2.94))
 

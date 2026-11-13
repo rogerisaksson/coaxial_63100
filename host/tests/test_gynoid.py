@@ -298,9 +298,30 @@ def test_every_build_runs_her(report):
 
 
 def test_her_gait_is_stated_on_her(report):
-    """Her build's `[gait]` states her law's numbers at her own leg and mass as built (`machine.body.gait`):
-    on her each is as stated, to the last digit - a body changed restates them."""
-    from machine.body import gait
+    """Her build's `.toml` holds only physical, electromechanical and electronic construction; `machine.body.compile`,
+    `drives`, `structural` and `figure` derive her servo gains, structural wind-up, leaf stiffness, deep squat and
+    gait laws directly at her own leg length and built mass."""
+    import os
+    import tomllib
+    from machine.body import build, drives, figure, gait, mechatronics, servos
+    with open(os.path.join(mechatronics.ROBOTS, mechatronics.HERS + '.toml'), 'rb') as f:
+        raw = tomllib.load(f)
+    banned = {'servo', 'wind', 'series', 'gait', 'pack_v', 'cooling', 'clamped',
+              'rigid_play_deg', 'ahead_wind', 'ahead_play', 'mount_k_w', 'off_mount_k_w'}
+    lib = mechatronics.library()
+    lib_banned = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
+                  | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
+                  | {k for v in lib['inverters'].values() for k in v} & {'laminate_k_w', 'loop_hz'})
+    report.check('library and humanoid .toml files hold pure physical construction only',
+                 not (banned & set(raw)) and 'squat' not in raw['figure'] and not lib_banned,
+                 'robot=%s lib=%s' % (sorted(banned & set(raw)), sorted(lib_banned)))
+    report.check('meta-compiler derives pack volts, pack mass, leaf stiffness, servos, wind and squat',
+                 drives.PACK_V == 48.0 and abs(build.mass() - 31.3829) < 0.05
+                 and 950.0 <= drives.SERIES['ankle'] <= 1100.0 and drives.TRACK == 0.0
+                 and len(servos.SERVO) == len(drives.STACKS) and len(drives.WIND) == len(drives.STACKS)
+                 and -36.0 <= figure.SQUAT['left_ankle'] <= -28.0,
+                 'm=%.3f kg leaf=%.1f squat_ank=%.2f' % (
+                     build.mass(), drives.SERIES['ankle'], figure.SQUAT['left_ankle']))
     report.check('her leg and her mass are those her gait is stated at', gait.SIMILAR == 1.0 and gait.MASSY == 1.0,
                  'leg %r, mass %r of hers' % (gait.SIMILAR, gait.MASSY))
 

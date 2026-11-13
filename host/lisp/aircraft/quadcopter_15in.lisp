@@ -9,11 +9,7 @@
 
 (defblock rotors quad_x_15x13
   (use quad_x_16x14)
-  (disc_radius 0.1905m)
-  (disc_half_height 0.0075m)
-  (k_thrust 8.49338e-05)
-  (k_drag 2.99528e-06)
-  (blade_pitch 0.3334m))
+  (disc_radius 0.1905m))
 
 (defvehicle quadcopter_15in
   (use standard_airframe)

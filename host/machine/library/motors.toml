@@ -1,7 +1,7 @@
 # Motors as bought: can diameter and height (m), mass (kg), line-to-line resistance (ohm), peak
-# (N m), rotor inertia (kg m^2), winding (KV, rpm/V), and the thermal mass of the coaxial housing
-# and ring gear round it (J/K). Winding heat 310 J/K per kg and 5230SL's 2.2 K/W over 60 x 45 mm
-# scaled as 1/(D H) (machine.body.drives). docs/HARDWARE.md, docs/findings/stacks.md.
+# (N m), and winding (KV, rpm/V). Rotor inertia (0.39 m r^2), stator housing thermal mass
+# (1100 J/K per kg), winding heat (310 J/K per kg) and thermal resistance (scaled as 1/(D H)) are
+# derived from geometry and mass (`machine.body.drives`). docs/HARDWARE.md, docs/findings/stacks.md.
 #
 # KV100 turns the knee 960 deg/s at 48 V where it asks 860-1007; KV85 would 816 - a joint's torque
 # times its speed over the pack's volts is its amps whatever the winding.
@@ -13,9 +13,7 @@ height_m = 0.0270
 kg = 0.253
 ohm = 0.1375
 peak_nm = 4.0
-rotor_kgm2 = 1.87e-4
 kv = 100.0
-stator_j_k = 280.0
 
 [MN6007]
 name = "T-Motor MN6007 II KV160"
@@ -24,16 +22,12 @@ height_m = 0.0261
 kg = 0.159
 ohm = 0.178
 peak_nm = 1.9
-rotor_kgm2 = 0.67e-4
 kv = 160.0
-stator_j_k = 180.0
 
 # Bought but not built in: the rest of docs/findings/stacks.md's table, each as its page has it
-# (mm, g, KV, line-to-line mohm, peak N m where a page gives one). Their rotors are estimated as
-# the U8 II's share of its mass at its can's radius (0.39 m r^2), their windings' heat 1.1 J/K a
-# gram; the U8 Lite's and the LA8308's peaks as their stators' class, 4.0 and 3.5 N m. A build
-# names them in `machine/humanoids`; her own keeps the two above (motors cost, variants of boards
-# and gearboxes cost more).
+# (mm, g, KV, line-to-line mohm, peak N m where a page gives one). A build names them in
+# `machine/humanoids`; her own keeps the two above (motors cost, variants of boards and gearboxes
+# cost more).
 
 [U8_LITE]
 name = "T-Motor U8 Lite KV85"
@@ -42,9 +36,7 @@ height_m = 0.0270
 kg = 0.243
 ohm = 0.225
 peak_nm = 4.0
-rotor_kgm2 = 1.80e-4
 kv = 85.0
-stator_j_k = 267.0
 
 [R80]
 name = "CubeMars R80 KV110"
@@ -53,9 +45,7 @@ height_m = 0.0275
 kg = 0.354
 ohm = 0.125
 peak_nm = 4.0
-rotor_kgm2 = 2.6e-4
 kv = 110.0
-stator_j_k = 390.0
 
 [RO80]
 name = "CubeMars RO80 KV105, a kit"
@@ -64,9 +54,7 @@ height_m = 0.0260
 kg = 0.352
 ohm = 0.120
 peak_nm = 4.0
-rotor_kgm2 = 2.97e-4
 kv = 105.0
-stator_j_k = 387.0
 
 [LA8308]
 name = "EaglePower LA8308 KV90"
@@ -75,9 +63,7 @@ height_m = 0.0285
 kg = 0.336
 ohm = 0.186
 peak_nm = 3.5
-rotor_kgm2 = 2.77e-4
 kv = 90.0
-stator_j_k = 370.0
 
 [R60]
 name = "CubeMars R60 KV115"
@@ -86,14 +72,11 @@ height_m = 0.0260
 kg = 0.248
 ohm = 0.300
 peak_nm = 2.4
-rotor_kgm2 = 1.15e-4
 kv = 115.0
-stator_j_k = 273.0
 
 # For the performance build (machine/humanoids/gynoid_mesomorph_medium_performance.toml): the U12
 # II's 7.9 N m is its page's test point at 48 V (94.3 A, 4742 rpm, 4.5 kW, 95 A for 180 s), the
-# U10 II's peak its stator's class (1.6 kW, 32 A for 180 s); rotors and windings' heat estimated
-# as the others above.
+# U10 II's peak its stator's class (1.6 kW, 32 A for 180 s).
 
 [U12]
 name = "T-Motor U12 II KV120"
@@ -102,9 +85,7 @@ height_m = 0.0476
 kg = 0.778
 ohm = 0.022
 peak_nm = 7.9
-rotor_kgm2 = 8.65e-4
 kv = 120.0
-stator_j_k = 856.0
 
 [U10]
 name = "T-Motor U10 II KV100"
@@ -113,6 +94,4 @@ height_m = 0.0331
 kg = 0.415
 ohm = 0.101
 peak_nm = 6.0
-rotor_kgm2 = 3.9e-4
 kv = 100.0
-stator_j_k = 457.0
