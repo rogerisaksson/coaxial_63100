@@ -38,8 +38,14 @@ function Install-PythonDeps {
         Write-Item 'requirements' 'ok' 'all present'
     } else {
         Write-Item 'requirements' 'missing' $absent
-        if (Confirm-Step "pip install -r host/requirements.txt -c host/constraints.txt ?") {
-            & $Python -m pip install --disable-pip-version-check -r $requirements @through
+        # Beside them what the package's own build asks (pyproject's build-system), as CI's environment and the Linux
+        # containers' hold it: the lock pins it too.
+        $build = @(Invoke-Python -Python $Python -Code @'
+import tomllib
+print('\n'.join(tomllib.load(open(r'HOST_PATH\pyproject.toml', 'rb'))['build-system']['requires']))
+'@.Replace('HOST_PATH', $Host_) | Where-Object { $_ })
+        if (Confirm-Step "pip install -r host/requirements.txt $($build -join ' ') -c host/constraints.txt ?") {
+            & $Python -m pip install --disable-pip-version-check -r $requirements @build @through
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'requirements' 'done' 'installed'
                 $present = $true

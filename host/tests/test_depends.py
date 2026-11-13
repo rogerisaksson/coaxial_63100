@@ -109,6 +109,16 @@ def test_the_lock_pins_what_is_asked(report):
                  off == ['depends-fake 1.4 (locked 1.5)'] and on == [], (off, on))
 
 
+def test_windows_linux_and_ci_run_the_same_modules(report):
+    """This host's Python runs the lock's versions: every requirement here, and every distribution the lock pins that
+    is here at its pin (`depends.unpinned`). The desk (setup installs through the lock), the Linux containers and CI
+    (their environments made through it) each run this suite, so where all three pass they run the same modules."""
+    from tools.dev import depends, pinned
+    off = depends.unpinned(str(pinned.REQUIREMENTS), str(pinned.LOCK))
+    report.check("this host's modules the lock's versions, as the desk's, the Linux containers' and CI's", not off,
+                 ', '.join(off) + ' - setup.ps1 installs them through host/constraints.txt')
+
+
 def test_a_module_s_distribution_is_written(report):
     """`depends.told` and `faults` on a tree laid here: what it imports and seeks, written and named or not."""
     from tools.dev import depends
@@ -162,7 +172,8 @@ def test_a_commit_removes_every_recording(report):
 
 
 ROSTER = (test_a_requirement_is_asked_by_the_name_it_writes, test_the_lock_pins_what_is_asked,
-          test_a_module_s_distribution_is_written, test_the_tree_writes_what_it_asks, test_a_commit_removes_every_recording)
+          test_windows_linux_and_ci_run_the_same_modules, test_a_module_s_distribution_is_written,
+          test_the_tree_writes_what_it_asks, test_a_commit_removes_every_recording)
 
 
 def main(argv=None):
