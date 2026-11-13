@@ -78,13 +78,14 @@ def drive(seed, seconds, eyes=False, words=None):
     from machine.process import introspect, sprung, watch, worker
     from machine.way import cocoon
     from terminal.ui import bindings
-    from terminal.views import humanoid_keys
+    from terminal.views import humanoid_keys, scanner
     words = words or script(seed, seconds)
     faults, sent, end = [], [], 'seconds'
     s = worker.session()
     g = s['g']
     lodge = _lodge(g)
-    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': None, 'tour': None, 'yaw': 180.0,
+    # her page's scanner (test_errands'): without it F had no offer and docked nothing
+    st = {'body': SN(send=lambda **cmd: sent.append(cmd)), 'scanner': scanner.VisionScanner(), 'tour': None, 'yaw': 180.0,
           'pad': humanoid_keys.pad(), 'now': worker.told(s)}
     tap, watched = introspect.Tap(), watch.Watch()
     frame, typed_at, deepest = 0.0, -math.inf, 0.0
