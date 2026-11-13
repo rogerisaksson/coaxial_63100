@@ -49,6 +49,8 @@ SAMPLE_S, LISTED = 0.0005, 24
 #: (`sampled`) and a clock's calls (`timed`) are the hot ones, the cold ones where COLD is set (`--cold`). The first
 #: second was the worst of every errand, x0.74-1.00.
 WARM, WARM_AT, COLD = threading.Event(), [0.0], [False]
+#: Set as an errand closes: its processes apart waited out, none of either - 4 % of a walk's hot samples were it.
+SHUT = threading.Event()
 #: The crafts flown as errands, each its page's flight; how long of its card each is flown, s.
 CRAFTS, FLOWN_S = ('quad', 'helicopter', 'ornithopter', 'aerobat'), 20.0
 
@@ -58,22 +60,16 @@ class Run:
     `worker.Her` steps her, each second's wall time kept with what she was doing."""
 
     def __init__(self, here=False, blind=False):
-        from machine.eyes import vision
-        from machine.process import placed, sprung, worker, worn
-        from machine.way import planner
+        from machine.process import placed, sprung, worker
         from machine.world import physics
         placed.placed(True)
         # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
         physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)
         self.passed = hashlib.sha1() if blind else None
+        # her processes apart spawned before her laying, booting beside it, as her worker spawns them
+        booting = worker.spawned(here)
         s = self.s = worker.session(sprung.STACK_EVERY, False, None)
-        s['g']['planner'], s['peeker'] = planner.Planner(), planner.Planner()
-        s['g']['vision'] = vision.Here() if here else vision.Apart()
-        s['g']['planner'].start()
-        s['peeker'].start()
-        if not here:
-            s['g']['vision'].start()
-        s['worn'] = worn.Apart(worker.DT).start()
+        s['g']['planner'], s['g']['vision'], s['peeker'], s['worn'] = booting
         s['worn'].laid(s['wear'])
         worker.readied(s)
         self.seconds: list = []
@@ -217,6 +213,7 @@ def paced(name, here=False, blind=False):
     every pass hashed where `blind` - a craft's flight (CRAFTS) from its card's start, its every step hashed -: its line,
     its seconds hot - its first, cold, apart (WARM) -, its tail its cold start: laid in, its first second's pace."""
     WARM.clear()
+    SHUT.clear()
     began = time.perf_counter()
     r = Flown(name, blind) if name in CRAFTS else Run(here, blind)
     try:
@@ -226,6 +223,7 @@ def paced(name, here=False, blind=False):
         laid = time.perf_counter() - began
         ERRANDS[name](r)
     finally:
+        SHUT.set()
         r.close()
     hot = r.seconds[1:]
     xs = [x for _d, x in hot] or [0.0]
@@ -248,7 +246,7 @@ def sampled(fn):
     def sample():
         while not done.wait(SAMPLE_S):
             frame = sys._current_frames().get(main)
-            if frame is None or WARM.is_set() == COLD[0]:
+            if frame is None or SHUT.is_set() or WARM.is_set() == COLD[0]:
                 continue
             count[0] += 1
             seen = set()
@@ -286,7 +284,7 @@ def timed(names):
             try:
                 return _fn(*a, **kw)
             finally:
-                if WARM.is_set() != COLD[0]:
+                if not SHUT.is_set() and WARM.is_set() != COLD[0]:
                     _tally[0] += 1
                     _tally[1] += time.perf_counter() - t0
         setattr(owner, parts[-1], wrapped)

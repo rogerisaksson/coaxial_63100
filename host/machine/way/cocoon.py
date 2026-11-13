@@ -61,45 +61,45 @@ def _stop(v):
 def _room(g, way):
     """The room along `way` from her place to her nearest thing, less the text's skin, m: to a thing grown by her
     half width, to a wall's or a window's face her way runs into less it."""
-    q, (things, shell) = furniture.where(g), _boxes(g['things'])
-    at = (float(q[0]), float(q[2]))
-    return min(ahead(things, at, way), ahead(shell, at, way) - figure.WIDE_HALF) - wayfinder.MARGIN
+    q = furniture.where(g)
+    return ahead(_boxes(g['things']), (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
 
 
 def _boxes(things):
-    """((centres (n, 2), axes (n, 2, 2), halves (n, 2)) of `things` she may not stand in, a door's not, grown by her
-    half width, those of a building's shell (`classes.SHELL`) as they are): laid once a look."""
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` she may not stand
+    in, a door's not: a thing grown by her half width, a building's shell (`classes.SHELL`) as it is and her half width
+    off its face's distance - both in one pass (`ahead`), as two 139 us a pass of her keys, as one 67 -: laid once a
+    look."""
     import numpy as np
     if _KEPT[0] is not things:
         kept = [t for t in things if t[0] != 'door' and t[1][1] + t[2][1] > voxels.STAND_M[0]
                 and t[1][1] - t[2][1] < voxels.STAND_M[1]]
-        laid = []
-        for shell in (False, True):
-            part = [t for t in kept if (t[0] in classes.SHELL) == shell]
-            c = np.array([(t[1][0], t[1][2]) for t in part], float).reshape(-1, 2)
-            axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in part], float).reshape(-1, 2, 2)
-            half = np.array([(t[2][0], t[2][2]) for t in part], float).reshape(-1, 2) + (0.0 if shell else figure.WIDE_HALF)
-            laid.append((c, axes, half))
-        _KEPT[:] = things, tuple(laid)
+        shell = np.array([t[0] in classes.SHELL for t in kept], bool)
+        c = np.array([(t[1][0], t[1][2]) for t in kept], float).reshape(-1, 2)
+        axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in kept], float).reshape(-1, 2, 2)
+        half = (np.array([(t[2][0], t[2][2]) for t in kept], float).reshape(-1, 2)
+                + np.where(shell, 0.0, figure.WIDE_HALF)[:, None])
+        _KEPT[:] = things, (c, axes, half, np.where(shell, figure.WIDE_HALF, 0.0))
     return _KEPT[1]
 
 
 def ahead(boxes, at, way):
-    """How far from `at` (x, z) along `way` (a unit (x, z)) the nearest of `boxes` begins, m: 0 within one and going
-    deeper, inf none ahead."""
+    """How far from `at` (x, z) along `way` (a unit (x, z)) the nearest of `boxes` (`_boxes`') begins less its
+    distance off, m: 0 within one and going deeper, inf none ahead. Its division where its way crosses an axis alone
+    (`where`): no warnings to hush, each a context of numpy's."""
     import numpy as np
-    c, axes, half = boxes
+    c, axes, half, off = boxes
     if not len(c):
         return math.inf
     o = np.einsum('nij,nj->ni', axes, np.asarray(at, float) - c)
     d = axes @ np.asarray(way, float)
     flat, within = np.abs(d) > 1e-12, np.abs(o) <= half
-    with np.errstate(divide='ignore', invalid='ignore'):
-        t1, t2 = (-half - o) / d, (half - o) / d
+    t1 = np.divide(-half - o, d, out=np.zeros_like(o), where=flat)
+    t2 = np.divide(half - o, d, out=np.zeros_like(o), where=flat)
     lo = np.where(flat, np.minimum(t1, t2), np.where(within, -np.inf, np.inf)).max(axis=1)
     hi = np.where(flat, np.maximum(t1, t2), np.where(within, np.inf, -np.inf)).min(axis=1)
     inside = within.all(axis=1)
-    k = np.argmax(np.abs(o) / half, axis=1)
-    deeper = np.take_along_axis(o * d, k[:, None], axis=1)[:, 0] < 0.0
+    far, od = np.abs(o) / half, o * d
+    deeper = np.where(far[:, 1] > far[:, 0], od[:, 1], od[:, 0]) < 0.0
     hit = ((lo <= hi) & (hi >= 0.0) & ~inside) | (inside & deeper)
-    return float(np.where(inside, 0.0, np.maximum(lo, 0.0))[hit].min()) if hit.any() else math.inf
+    return float((np.where(inside, 0.0, np.maximum(lo, 0.0)) - off)[hit].min()) if hit.any() else math.inf
