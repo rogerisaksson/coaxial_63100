@@ -34,11 +34,12 @@ def test_each_page_comes_to_its_own(report):
 
 def down_to(state, page):
     """The terminal open on its applications (A where it is not), BKSP up its branches, then the key of each
-    branch holding `page` and its own: the keys pressed."""
+    branch holding `page` - a page, or a branch - and its own: the keys pressed."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
     from terminal.views.atlas import apps
     held, pressed = apps.clades(state['tree'])['pages'], []
+    mine = held.get(page, {page})
     if not show_atlas._apping(state):
         bindings.act_on(show_atlas.PAD, ['a'], state)
     for _ in range(len(held) + 1):   # up its branches to the terminal
@@ -46,7 +47,7 @@ def down_to(state, page):
             bindings.act_on(show_atlas.PAD, ['\x08'], state)
     for _ in range(len(held) + 1):
         keys = show_atlas.keyed(state)
-        key = keys.get(page) or next((keys[b] for b in keys if b < -1 and page in held[b]), None)
+        key = keys.get(page) or next((keys[b] for b in keys if b < -1 and mine <= held[b]), None)
         if key is None:
             break
         pressed.append(key.lower())
@@ -64,7 +65,7 @@ def test_the_terminal_opens_on_its_applications(report):
     lights it and its subsystems, frames them and offers them, its own first; BKSP climbs back, past the
     terminal to the trunk; A at the terminal its folders and back. The flower lies flat and faces the camera
     from wherever it looks, so no branch crosses another and each page is named outward from every side;
-    nothing unlit stands up the trunk."""
+    nothing unlit stands up the trunk; an open page's or branch's ways up are one tree on its side."""
     import itertools
     import math
     from terminal.ui import bindings
@@ -163,6 +164,27 @@ def test_the_terminal_opens_on_its_applications(report):
                  and [len(users[f]) for f in rings] == sorted(len(users[f]) for f in rings)
                  and lit <= drawn and state['goal'] != framed,
                  '%s: %d lit, %d drawn, %d offered' % (pressed, len(lit), len(lit & drawn), len(rings)))
+    top = max(i for i, row in enumerate(atlas_tree.LAYERS) if row[1] == 'trunk')
+
+    def climbing():
+        """The open node's ways up, seen from the camera the page eases to: (one way to each of its subsystems,
+        ways cutting the trunk on screen, its subsystems named before the grey flower, of them named, of them)."""
+        laid, sight = show_atlas.placed(state), scene.view(goal(), 150, 44)
+        its = {f for f, ps in users.items() if ps & c['pages'].get(state['app'], {state['app']})}
+
+        def dots(p):
+            x, y, z = (sum((p[k] - sight['eye'][k]) * sight[a][k] for k in range(3)) for a in ('r', 'u', 'f'))
+            return x / z, -y / z
+        t0, t1 = dots(laid['at'][0]), dots(laid['at'][top])
+        cut = sum(1 for a, b in ((dots(laid['at'][u]), dots(laid['at'][f])) for u, f in laid['ways'])
+                  if side(t0, t1, a) * side(t0, t1, b) < 0 and side(a, b, t0) * side(a, b, t1) < 0)
+        rest = laid['groups'][1]
+        grey = [k for k, n in enumerate(rest) if (n < -1 or n in order) and n not in laid['flat']['lit']]
+        plain = seen(goal())[0]
+        return (sorted(f for _u, f in laid['ways']) == sorted(its), cut,
+                all(rest.index(f) < min(grey, default=len(rest)) for f in its), sum(laid['names'][f] in plain for f in its),
+                len(its))
+    climbs = {'robot': climbing()}
     climbed = []
     for _ in path:
         bindings.act_on(show_atlas.PAD, ['\x08'], state)
@@ -178,6 +200,12 @@ def test_the_terminal_opens_on_its_applications(report):
                  'again its folders, and back', climbed == path[-2::-1] + [None] and trunk == -1
                  and there == (0, True) and folders and 'names' in show_atlas.placed(state),
                  '%s, trunk %d' % (climbed, trunk))
+    down_to(state, flown)   # the flyers' branch open
+    climbs['aircraft/'] = climbing()
+    report.check("an open page's or branch's ways one tree - a way up to each of its subsystems, once -, none "
+                 "across the trunk, its subsystems named before the grey flower",
+                 state['app'] == flown and all(one and not cut and first for one, cut, first, _n, _of in climbs.values()),
+                 '; '.join('%s: one way each %s, %d across, named first %s, %d of %d named' % ((k,) + v) for k, v in climbs.items()))
 
 
 def test_the_mirror_keeps_to_a_page(report):
