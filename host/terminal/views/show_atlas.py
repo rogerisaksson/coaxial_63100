@@ -106,7 +106,7 @@ def drawing(rows):
 def placed(state):
     """The scene at the node open (scene.layout, scene.tied): where each node shown stands, the stubs, the
     reaches, its ties; at the trunk the faint ties between layers - the terminal's applications where it
-    shows them (`_apping`), its mirror world while M holds."""
+    shows them, its mirror world while M holds."""
     focus, tree, between = state['focus'], state['tree'], state['between']
 
     def make():
@@ -118,7 +118,8 @@ def placed(state):
                 'out': out, 'into': into, 'faint': [(a, b) for n, a, b in pairs[:scene.FAINT_TIES] if n]}
     upright, app = _memo(state, ('placed', focus), make), state['app']
     if not state['mirror']:
-        return _memo(state, ('apps', app), lambda: apps.placed(tree, upright, app)) if _apping(state) else upright
+        return apps.facing(_memo(state, ('apps', app), lambda: apps.placed(tree, upright, app)), state['cam']) \
+            if _apping(state) else upright
     width, height = sized(state)
     room_, kin, keys = (width, height, leaves.width(width)), context(state), keyed(state)
     return _memo(state, ('mirror', focus, app, room_, tuple(keys.items())),
@@ -366,7 +367,7 @@ def _typed(state, key, _now):
 
 
 def _web(state, _key, _now):
-    """W: the same atlas laid as a page (tools/dev/atlas.py --html) and opened in the browser."""
+    """W: the same atlas as a page (tools/dev/atlas.py --html), opened in the browser."""
     path = atlas.page(state['tree'])
     webbrowser.open('file:///' + path.replace('\\', '/'))
     state['said'] = 'page: ' + panel.fit(path, 30, tail=True)
@@ -451,7 +452,7 @@ def draw_of(view, state, keys=''):
 
 
 def main(argv=None):
-    """The page until ESC or Q: its answer to the loader."""
+    """The page until ESC or Q: its answer."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default=PORT, help="the loader's; the atlas reads no board")
     parser.add_argument('--simulated', action='store_true', help="the loader's; nothing here is simulated")

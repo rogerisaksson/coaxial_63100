@@ -8,8 +8,8 @@ that come to it, of one alone or shared (`served`). The pages part along branche
 pages a folder serves alone, those sharing the most code first, kept where it nests in those kept, named by
 its heaviest folder - aircraft/ the flyers'. `placed` lays the scene the atlas draws at the terminal
 (scene.picture): the trunk as the tree has it, the terminal at its foot the root, and under it on a taproot
-the flower of its pages (`flower`) - one flat disc, so no branch crosses another from any side, leaning to
-face the view the page opens with: the branches ring in by their depth, each at the middle of its own, the
+the flower of its pages (`flower`) - one flat disc, so no branch crosses another, turned to the camera
+wherever it looks from (`facing`), so never edge on nor mirrored: the branches ring in by their depth, each at the middle of its own, the
 pages round the rim in their order, the rim open where the taproot comes in, a branch drawn as a curve from
 the one it hangs from. The node open lit - a branch with its pages, a page with its subsystems, each up at
 its layer's height toward the pages it serves, the farther out the fewer, each page's way up through them,
@@ -26,14 +26,15 @@ from tools.dev import atlas_calls
 from tools.dev.atlas_tree import FILE, LAYERS, REPO, TIES
 
 #: Where the terminal's pages are; how far out a subsystem of one page stands and the flower's rim, how far
-#: under the terminal it hangs, world units; a subsystem's disc and its growth a page it serves, a page's, a
-#: branch's; the room between subsystems that would stand as one.
-PAGES, OUT, RING, ROOT = 'host/terminal/pages/', 2.6, 3.0, 3.0
+#: under the terminal it hangs - its rim and a layer's step, its crown under the terminal from any side -,
+#: world units; a subsystem's disc and its growth a page it serves, a page's, a branch's; the room between
+#: subsystems that would stand as one.
+PAGES, OUT, RING = 'host/terminal/pages/', 2.6, 3.0
+ROOT = RING + scene.STEP
 DISC, GROWTH, PAGE_DISC, FORK_DISC, APART = 0.04, 0.008, 0.08, 0.06, 0.22
-#: How far the flower leans from lying toward the view the page opens with, degrees - half way to standing:
-#: round from that view, edge on from none near it -; its depth of field, a share of the camera's distance
-#: (scene.blur: the rim sharp, the trunk's crown out of focus); a branch's curve, its steps.
-LEAN, FIELD, STEPS = 45.0, 2.0, 12
+#: The flower's depth of field, a share of the camera's distance (scene.blur: the rim sharp, the trunk's crown
+#: out of focus); a branch's curve, its steps.
+FIELD, STEPS = 2.0, 12
 
 
 @functools.lru_cache(maxsize=2)
@@ -179,15 +180,11 @@ def flower(tree):
     return out
 
 
-def faced(at):
-    """(hub, right, up) of the flower's disc under the terminal standing at `at`: ROOT under it, leaning LEAN
-    toward the view the page opens with (scene.camera) - `right` level across that view, `up` up the disc."""
-    yaw, lean = math.radians(scene.camera()['yaw']), math.radians(LEAN)
-    normal = (math.sin(yaw) * math.sin(lean), math.cos(lean), math.cos(yaw) * math.sin(lean))
-    right = (math.cos(yaw), 0.0, -math.sin(yaw))
-    up = (normal[1] * right[2] - normal[2] * right[1], normal[2] * right[0] - normal[0] * right[2],
-          normal[0] * right[1] - normal[1] * right[0])
-    return (at[0], at[1] - ROOT, at[2]), right, up
+def faced(at, cam=None):
+    """(hub, right, up) of the flower's disc under the terminal standing at `at`: ROOT under it, in the plane
+    `cam` sees square on (scene.view's right and up; the view the page opens with where None)."""
+    sight = scene.view(cam or scene.camera(), 1, 1)
+    return (at[0], at[1] - ROOT, at[2]), sight['r'], sight['u']
 
 
 def curve(start, end):
@@ -199,10 +196,11 @@ def curve(start, end):
     return [(r0 + (r1 - r0) * t, a1 - turn + turn * t * t * (3 - 2 * t)) for t in (k / STEPS for k in range(STEPS + 1))]
 
 
-def placed(tree, upright, chosen=None):
+def placed(tree, upright, chosen=None, cam=None):
     """The scene the atlas draws at the terminal by application (scene.picture), over `upright` the tree's
-    own (its layers where they stand, its stubs), `chosen` the branch or page open (None: the terminal):
-    `at` {node: where it stands} - every subsystem's, drawn where lit -, `flat` its nodes and its branches,
+    own (its layers where they stand, its stubs), `chosen` the branch or page open (None: the terminal), its
+    flower facing `cam` (`faced`) - the rest where the view the page opens with lays it, its subsystems toward
+    the pages as that view's flower holds them -: `at` {node: where it stands} - every subsystem's, drawn where lit -, `flat` its nodes and its branches,
     `rings` {page: its subsystems, its own first}, `names` {node: its name} - a page its headline, a branch
     its heaviest folder's, a folder its own or its parent's with it where two share one -, `briefs` - a
     branch's folders, what a page is -, `groups` their order, `lefts` those named outward on their left,
@@ -210,12 +208,13 @@ def placed(tree, upright, chosen=None):
     from coaxial.model.blocks import numpy as np
     c, users, order, pol = clades(tree), served(tree), ordered(tree), flower(tree)
     lay, every, root = upright['at'], len(order), 0
-    hub, right, up = faced(lay[root])
+    (hub, right, up), home = faced(lay[root], cam), faced(lay[root])
 
-    def on(r, a):
-        return tuple(hub[k] + r * (math.cos(a) * right[k] + math.sin(a) * up[k]) for k in range(3))
+    def on(r, a, axes=(right, up)):
+        return tuple(hub[k] + r * (math.cos(a) * axes[0][k] + math.sin(a) * axes[1][k]) for k in range(3))
     place = {**{n: lay[n] for n in range(len(LAYERS))}, **{n: on(*ra) for n, ra in pol.items()}}
-    toward = {p: math.atan2(place[p][2] - lay[root][2], place[p][0] - lay[root][0]) for p in order}
+    still = {p: on(pol[p][0], pol[p][1], home[1:]) for p in order}   # a page where the opening view's flower holds it
+    toward = {p: math.atan2(still[p][2] - lay[root][2], still[p][0] - lay[root][0]) for p in order}
     spots = {}
     for f, ps in sorted(users.items()):
         spots.setdefault((layer(tree, f), ps), []).append(f)
@@ -248,7 +247,7 @@ def placed(tree, upright, chosen=None):
         mine = sorted((f for f in shown if page in users[f]), key=lambda f: place[f][1])
         for k, f in enumerate(mine):
             below = [page] + [g for g in mine[:k] if place[g][1] < place[f][1]]
-            under = min(below, key=lambda g: sum((a - b) ** 2 for a, b in zip(place[g], place[f])))
+            under = min(below, key=lambda g: sum((a - b) ** 2 for a, b in zip(still[g] if g in still else place[g], place[f])))
             parts.append((place[under], place[f], scene.EDGE, False))
     focus, forks = root if chosen is None else chosen, sorted(c['pages'], reverse=True)
     nodes = list(range(len(LAYERS))) + forks + order + shown
@@ -261,8 +260,9 @@ def placed(tree, upright, chosen=None):
     keys = offered(tree, chosen)
     lefts = {n for n, (_r, a) in pol.items() if math.cos(a) < 0} \
         | {f for f in shown if sum((place[f][k] - lay[layer(tree, f)][k]) * right[k] for k in range(3)) < 0}
+    sight = cam or scene.camera()
     return {'tree': tree, 'focus': focus, 'at': place, 'out': {}, 'into': {}, 'names': names, 'lefts': lefts,
-            'field': FIELD, 'panels': 1, 'rings': {page: offered(tree, page) for page in order},
+            'field': FIELD, 'panels': 1, 'upright': upright, 'chosen': chosen, 'faced': (sight['yaw'], sight['pitch']), 'rings': {page: offered(tree, page) for page in order},
             'briefs': {**{b: 'theirs alone: ' + ' '.join(names[f] for f in fs) for b, fs in c['by'].items()},
                        **{page: what for page, _headline, _key, what in pages(tree) if what}},
             'groups': ([focus] + keys + path + [root],   # the keys' panels between
@@ -271,6 +271,14 @@ def placed(tree, upright, chosen=None):
                      'disc': np.array(discs, float), 'ink': np.array(ink, np.uint8), 'lit': lit, 'from': ends[0],
                      'to': ends[1], 'segink': np.array([s[2] for s in parts], np.uint8),
                      'thick': np.array([s[3] for s in parts], bool)}}
+
+
+def facing(scene_, cam):
+    """The scene (`placed`) with its flower facing `cam`: laid anew where the camera turned since (a lay is a
+    millisecond or two, so it follows a drag or an orbit frame by frame)."""
+    if scene_['faced'] != (cam['yaw'], cam['pitch']):
+        scene_.update(placed(scene_['tree'], scene_['upright'], scene_['chosen'], cam))
+    return scene_
 
 
 def framed(scene_):
