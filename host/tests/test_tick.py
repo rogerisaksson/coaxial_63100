@@ -302,57 +302,96 @@ def test_her_step_begun_beside_her_law_as_whole(report, _c):
                  '%(apart)d apart' % tally)
 
 
-CONTROL_ARRAYS = ('y', 'fr', 'a', 'st', 'out', 'posture', 'jeff', 'leg_kp', 'release', 'seat_f', 'words', 'twisted', 'tab')
+CONTROL_ARRAYS = ('y', 'fr', 'a', 'st', 'out', 'posture', 'jeff', 'leg_kp', 'release', 'seat_f', 'words', 'twisted',
+                  'tab')
 CONTROL_NUMBERS = ('heading', 'surety', 'surety_probe', 'chained', '_w_back', '_backing_yaw', '_twist_clear')
+CONTROL_SKIP = frozenset({'world', 'body', 'drives', 'bus', 'cmd', 'tick', 'beat', 'gym', 'situations', 'planner',
+                          'vision', 'keep', 'heat', 'schema_body', 'got', 'ask', 'solve_in', 's'})
 
 
-def _control_pair(make):
-    """Two identical sessions from `make()`, the second rebound to `c_motion.twins` and garbage-collected."""
-    import gc
-    from tools.cores import motion as c_motion
-    s1, s2 = make(), make()
-    c_motion.twins(s2['g'])
-    gc.collect()
-    return s1, s2
+def _sync_control(g1, g2, skip):
+    """Copy `motion.control`'s live input state from `g1` into `g2` before a paired control pass."""
+    import copy
+    for k, v in g1.items():
+        if k in skip:
+            continue
+        if isinstance(v, np.ndarray):
+            if k in g2 and isinstance(g2[k], np.ndarray) and g2[k].shape == v.shape:
+                g2[k][...] = v
+            else:
+                g2[k] = v.copy()
+        elif isinstance(v, dict):
+            if k not in g2 or not isinstance(g2[k], dict):
+                g2[k] = {}
+            for dk, dv in v.items():
+                if isinstance(dv, np.ndarray):
+                    if dk in g2[k] and isinstance(g2[k][dk], np.ndarray) and g2[k][dk].shape == dv.shape:
+                        g2[k][dk][...] = dv
+                    else:
+                        g2[k][dk] = dv.copy()
+                elif ctypes.Structure in getattr(type(dv), '__mro__', ()):
+                    ctypes.memmove(ctypes.addressof(g2[k][dk]), ctypes.addressof(dv), ctypes.sizeof(dv))
+                elif isinstance(dv, (int, float, bool, str, tuple, list, dict, type(None))):
+                    g2[k][dk] = copy.deepcopy(dv)
+        elif isinstance(v, list):
+            g2[k] = copy.deepcopy(v)
+        else:
+            g2[k] = v
+    for dk, dv in g1['drives'][1].items():
+        g2['drives'][1][dk][...] = dv
+    g2['cmd']['limit'][...] = g1['cmd']['limit']
 
 
 def test_her_motion_control_in_c_is_her_python_twins(report, _c):
-    """Two lockstep sessions - one on `motion.laid`'s C and compiled hooks, one rebound to `tools.cores.motion.twins`
-    after `gc.collect()` - stepped through an open-chain walk and a closed-chain bed lie (`chained` 0 and 1): every
-    array and scalar `motion.control` writes matches bit for bit (`exact_host`) or within 1e-11."""
+    """Each pass of `motion.control` on `motion.laid`'s C and compiled hooks beside a twin session rebound to
+    `tools.cores.motion.twins` after `gc.collect()` from the same state - through an open-chain walk and a closed-chain
+    bed lie (`chained` 0 and 1): every array and scalar written matches bit for bit (`exact_host`) or within 1e-11."""
+    import gc
+    from machine.law import motion
     from machine.process import worker
     from tools.cores import motion as c_motion
     from tools.sim import told
+    skip = CONTROL_SKIP | set(c_motion.HOOKS)
+    tally, chains, pair, real = {'passes': 0, 'apart': 0, 'err': 0.0}, set(), [], motion.control
 
-    def lie_session():
-        r = told.Run('bed_behind')
-        r.tell(say='lie_bed')
-        r.go(5.8)
-        return r.s
-    tally, chains = {'passes': 0, 'apart': 0, 'err': 0.0}, set()
-    for steps_n, make in ((900, lambda: worker.session(walks=True)), (2400, lie_session)):
-        s1, s2 = _control_pair(make)
-        for _ in range(steps_n):
+    def beside(g, dt):
+        if not pair or g is not pair[0]:
+            return real(g, dt)
+        g2 = pair[1]
+        _sync_control(g, g2, skip)
+        real(g, dt)
+        real(g2, dt)
+        chains.add(int(g.get('chained', 0)))
+        tally['passes'] += 1
+        arrs = [(g[k], g2[k]) for k in CONTROL_ARRAYS] + [
+            (g['drives'][1]['tau'], g2['drives'][1]['tau']), (g['drives'][1]['qacc'], g2['drives'][1]['qacc']),
+            (g['cmd']['feed'], g2['cmd']['feed'])]
+        for a, b in arrs:
+            tally['apart'] += _apart(a, b)
+            d = np.abs(a - b)
+            tally['err'] = max(tally['err'], float(np.nanmax(d)) if np.any(~np.isnan(d)) else 0.0)
+        for k in CONTROL_NUMBERS:
+            v1, v2 = float(g.get(k, 0.0)), float(g2.get(k, 0.0))
+            tally['apart'] += repr(v1) != repr(v2)
+            tally['err'] = max(tally['err'], abs(v1 - v2))
+    motion.control = beside
+    try:
+        s1, s2 = worker.session(walks=True), worker.session(walks=True)
+        c_motion.twins(s2['g'])
+        gc.collect()
+        pair[:] = [s1['g'], s2['g']]
+        for _ in range(900):
             worker.stepped(s1)
-            worker.stepped(s2)
-            g1, g2 = s1['g'], s2['g']
-            chains.add(int(g1.get('chained', 0)))
-            if s1['passes'] % g1['every']:
-                continue
-            tally['passes'] += 1
-            arrs = [(g1[k], g2[k]) for k in CONTROL_ARRAYS] + [
-                (g1['drives'][1]['tau'], g2['drives'][1]['tau']), (g1['drives'][1]['qacc'], g2['drives'][1]['qacc']),
-                (g1['cmd']['feed'], g2['cmd']['feed'])]
-            for a, b in arrs:
-                tally['apart'] += _apart(a, b)
-                d = np.abs(a - b)
-                tally['err'] = max(tally['err'], float(np.nanmax(d)) if np.any(~np.isnan(d)) else 0.0)
-            for k in CONTROL_NUMBERS:
-                v1, v2 = float(g1.get(k, 0.0)), float(g2.get(k, 0.0))
-                tally['apart'] += repr(v1) != repr(v2)
-                tally['err'] = max(tally['err'], abs(v1 - v2))
+        r1, r2 = told.Run('bed_behind'), told.Run('bed_behind')
+        c_motion.twins(r2.s['g'])
+        gc.collect()
+        pair[:] = [r1.s['g'], r2.s['g']]
+        r1.tell(say='lie_bed')
+        r1.go(8.2)
+    finally:
+        motion.control = real
     exact = c_motion.exact_host()
-    ok = tally['passes'] >= 1000 and {0, 1} <= chains and (not tally['apart'] if exact else tally['err'] <= 1e-11)
+    ok = tally['passes'] >= 3000 and {0, 1} <= chains and (not tally['apart'] if exact else tally['err'] <= 1e-11)
     report.check('her motion.control in C is her python twins, %d passes (chained %s)'
                  % (tally['passes'], sorted(chains)), ok, '%(apart)d apart, %(err).3g max' % tally)
 
