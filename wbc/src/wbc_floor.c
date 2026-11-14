@@ -2,6 +2,7 @@
     her centre keeps over its incline - numpy's arithmetic operation for operation (wbc_np.h). Portable
     C11, the host's alone. */
 #include "wbc_imp.h"
+#include "wbc_stride.h"
 #include "wbc_np.h"
 
 #include <math.h>
@@ -120,7 +121,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   }
   /* the told floor over the felt one, anchored under her standing soles */
   wbc_imp_shares(k, stood, w);
-  gap = -npdot(w, 1, under, 1, 2);
+  gap = -wbc_dot(&k->blas, w, 1, under, 1, 2);
   for (int b = 0; b < 2; b++)
   {
     left_s[b] = step_s * (1.0 - u[b] * flying[b]);

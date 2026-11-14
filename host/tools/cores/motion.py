@@ -106,8 +106,8 @@ def laid():
     Imp, ask = _typed(tuple([(name, ctypes.c_int) for name, _v in ints]
                             + [('free_by', ctypes.c_int * 3), ('hands', ctypes.c_void_p)]
                             + [(name, ctypes.c_double * len(v) if many else ctypes.c_double)
-                               for name, many, v in doubles]))
-    k = Imp(**{name: int(v) for name, v in ints})
+                               for name, many, v in doubles] + [('blas', Blas)]))
+    k = Imp(**{name: int(v) for name, v in ints}, blas=numpy_blas())
     k.free_by[:] = [int(i) for i in impedance.FREE_BY]
     k.kept = np.array(modal.HANDS, dtype=np.float64)
     k.hands = wbc.pointer(k.kept)

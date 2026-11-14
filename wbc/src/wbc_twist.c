@@ -55,7 +55,7 @@ static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
   }
   total = npsum(bear, 2);
   kf = (total / (total + 1e-9)) * npmin(1.0, t->floor_hz * dt);
-  under = npdot(bear, 1, y + k->y_lowest, 1, 2) / npmax(total, 1e-9);
+  under = wbc_dot(&k->blas, bear, 1, y + k->y_lowest, 1, 2) / npmax(total, 1e-9);
   fr[k->f_floor] += kf * (under - fr[k->f_floor]);
   /* the soles' x and z picked out of y are F-ordered to numpy: its (2, 2) @ (2,) form, dgemv_t's
      tail contracted (npmv2) */

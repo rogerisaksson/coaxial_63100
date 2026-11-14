@@ -149,7 +149,7 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
       {
         pushed[s][j][c] = npmv3(rs + 3 * c, ts);
       }
-      sizes[s][j] = sqrt(npdot(pushed[s][j], 1, pushed[s][j], 1, 3));
+      sizes[s][j] = sqrt(wbc_dot(&k->blas, pushed[s][j], 1, pushed[s][j], 1, 3));
     }
     for (int p = 0; p < 2; p++)
     {

@@ -42,11 +42,16 @@ jobs:
           requirements: host/requirements.txt
           constraints: host/constraints.txt     # one version a distribution, as on the desk and in the Linux containers
           editable: host
+      # numpy's AVX2 paths on every runner, as on the desk and the EPYC 7763: on AVX-512 (Xeon 8370C/8573C,
+      # EPYC 9V45/9V74) numpy sent tan, asin, acos, atan2, exp and log to SVML, a last bit apart from the libm
+      # her C calls, and her wrench magnified it past her twins' bounds (5.33e-05 N m of tau at test_tick's pass
+      # 2298); OpenBLAS's kernel her C takes as numpy does (wbc_dot, wbc_matmul) - forced, it crashed Zen 4/5
       - run: python tools/dev/run_tests.py --offline ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
+          NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
       # A red run must be readable without the Actions UI: the tail of the
       # runner's own output lands as a commit comment, public like the repo.
       - if: failure()

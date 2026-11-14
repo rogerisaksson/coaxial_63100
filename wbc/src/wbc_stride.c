@@ -2,6 +2,7 @@
     beat, landings, rocks and heels - numpy's arithmetic operation for operation (wbc_np.h). Her soles'
     boxes and stance are wbc_poise.c's. Portable C11, the host's alone. */
 #include "wbc_imp.h"
+#include "wbc_stride.h"
 #include "wbc_np.h"
 
 #include <math.h>
@@ -27,8 +28,8 @@ void wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rat
   double w[2];
 
   wbc_imp_shares(k, stance, w);
-  axial[0] = (fr[k->f_reach0] - npdot(w, 1, len, 1, 2)) / (k->axial_m * fr[k->f_hips_by]);
-  axial[1] = -npdot(w, 1, rate, 1, 2) / (k->axial_m * fr[k->f_hips_by]);
+  axial[0] = (fr[k->f_reach0] - wbc_dot(&k->blas, w, 1, len, 1, 2)) / (k->axial_m * fr[k->f_hips_by]);
+  axial[1] = -wbc_dot(&k->blas, w, 1, rate, 1, 2) / (k->axial_m * fr[k->f_hips_by]);
 }
 
 /** machine.law.modal.under: the floor under each sole's middle, its rise along her way. */
@@ -41,7 +42,7 @@ double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, cons
   wbc_imp_pitched(k, fr + k->f_ground, pitched);
   pitched[0] = -tan(pitched[0]);
   pitched[1] = -tan(pitched[1]);
-  rise = npdot(bears, 1, pitched, 1, 2);
+  rise = wbc_dot(&k->blas, bears, 1, pitched, 1, 2);
   for (int b = 0; b < 2; b++)
   {
     const double d[2] = {y[k->y_sole + 3 * b] - fr[k->f_floor_at], y[k->y_sole + 3 * b + 2] - fr[k->f_floor_at + 1]};
@@ -119,9 +120,9 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   }
   arm[0] = y[k->y_arm] - fr[k->f_arm0];
   arm[1] = y[k->y_arm + 1] - fr[k->f_arm0 + 1];
-  tl = npdot(k->limbs, 1, y + k->y_tilt, 1, 2);
-  al = npdot(k->limbs, 1, arm, 1, 2);
-  rl = npdot(k->limbs, 1, y + k->y_tilt_rate, 1, 2);
+  tl = wbc_dot(&k->blas, k->limbs, 1, y + k->y_tilt, 1, 2);
+  al = wbc_dot(&k->blas, k->limbs, 1, arm, 1, 2);
+  rl = wbc_dot(&k->blas, k->limbs, 1, y + k->y_tilt_rate, 1, 2);
   ar = arm[0] + arm[1];
   el = (y[k->y_elbow] - fr[k->f_elbow0]) + (y[k->y_elbow + 1] - fr[k->f_elbow0 + 1]);
   for (int m = 0; m < k->n; m++)
@@ -425,5 +426,19 @@ void wbc_imp_goes(const wbc_imp_t *k, const double meet[2][2], const double flat
       acc[b][j] = rise * (npmin(6.0 / (to_go * to_go), kp[j]) * (meet[b][j] - flat[b][j])
                           - npmin(4.0 / to_go, kd[j]) * (shod[b][j] - v[j]));
     }
+  }
+}
+
+void wbc_imp_flown(const double strode[2], const double off[2], const double stood[2], const double u[2], double thrown,
+                   double up, double flown[2])
+{
+  const double lone[2] = {(thrown * strode[0]) * (1.0 - strode[1]), (thrown * strode[1]) * (1.0 - strode[0])};
+  const double first[2] = {(((thrown * up) * off[0]) * (1.0 - stood[0])) * stood[1],
+                           (((thrown * up) * off[1]) * (1.0 - stood[1])) * stood[0]};
+
+  for (int b = 0; b < 2; b++)
+  {
+    flown[b] = lone[b] + (1.0 - npmax(lone[0], lone[1]))
+                             * (first[b] + (1.0 - npmax(first[0], first[1])) * (double)(u[b] > u[1 - b]));
   }
 }
