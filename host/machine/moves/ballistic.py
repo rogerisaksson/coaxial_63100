@@ -150,7 +150,7 @@ def bound(fr, turns, now, label):
     off = t_dip + dip_s + push_s
     land = off + 2.0 * v / G
     at = np.concatenate([[t_dip], t_dip + dip_s + push_s * np.arange(n) / n, [off, land, land + dip_s]])
-    blend = np.concatenate([[dip_s], np.full(n, push_s / n), [1e-3 * leap.PUSH_MS, dip_s, dip_s]])
+    blend = np.concatenate([[dip_s], np.full(n, push_s / n), [1e-3 * leap.PUSH_MS, 1e-3 * leap.PUSH_MS, dip_s]])
     rows = np.zeros(n + 4, latent.WIRE)
     rows['p'], rows['flags'] = np.nan, ortho.CURVE
     rows['flags'][0], rows['flags'][n + 2:] = 0, 0

@@ -190,10 +190,13 @@ def _relayed(calls, jobs):
     work = [focus.Job(label, [sys.executable, '-X', 'utf8', '-c', 'import json, sys; sys.path.insert(0, %r); import ail; '
                               'print("AIL " + json.dumps(ail.drive(*%r)))' % (here, args)], timeout=60.0 + 20.0 * args[1])
             for label, args in calls]
+    by_name = dict(calls)
     for job, text, _code, _seconds in focus.relay(work, batons=jobs):
         line = next((ln for ln in (text or '').splitlines() if ln.startswith('AIL ')), None)
-        yield job.name, json.loads(line[4:]) if line else {'words': [], 'end': 'crashed', 't': 0.0, 'faults': [
-            {'kind': 'crash', 't': 0.0, 'detail': (text or '')[-300:]}]}
+        args = by_name.get(job.name, ())
+        yield job.name, json.loads(line[4:]) if line else {
+            'seed': args[0] if args else 0, 'words': [], 'end': 'crashed', 't': 0.0,
+            'faults': [{'kind': 'crash', 't': 0.0, 'detail': (text or '')[-300:]}]}
 
 
 def _driven(a):

@@ -113,8 +113,8 @@ def propped(s, way):
         return float(len(hands) > 0)
     at, palm = way @ np.mean(seat, axis=0), way @ np.mean(hands, axis=0)
     c, v = np.asarray(s['com'], float), np.asarray(s['vcom'], float)
-    xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(np.mean(seat, axis=0)[1]), TINY))
-    return float(CLIP((at - way @ xi) / np.maximum(at - palm, TINY), 0.0, 1.0))
+    xi = c + v / np.sqrt(modal.G / max(float(c[1]) - float(np.mean(seat, axis=0)[1]), ANKLE_H))
+    return float(CLIP((at - way @ xi) / np.maximum(at - palm, 1e-3), 0.0, 1.0))
 
 
 def lever(s, way, weight):

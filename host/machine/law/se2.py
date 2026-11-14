@@ -14,8 +14,8 @@ WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('wa
 MARCH_FROM = 0.5 * (WALK_SPEED + RUN_SPEED)
 #: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
 STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
-#: Her walk's rhythm, Hz, and her brake's and stand's blends, s.
-WALK_HZ, STAND_S = _G['walk_hz'], _G['stand_s']
+#: Her walk's rhythm, Hz, her brake's and stand's blends, s, and the speed under which a brake has halted her, m/s.
+WALK_HZ, STAND_S, HALT_M_S = _G['walk_hz'], _G['stand_s'], 0.25
 BRAKE_S = 1.0 / WALK_HZ
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
@@ -102,7 +102,11 @@ def said(g, label, wire, names=(), at=None, reset=False):
         new[0, latent.SAID] = 1.0
     t_eat = g['t'] - 0.001 * ((g['n'] - 1) % g['every'] + 1) + 1e-6 if g.get('n', 0) > 0 else -1.0
     g['tab'] = np.concatenate([g['tab'][g['tab'][:, latent.AT] > t_eat], new])
-    g['labels'] = g['labels'][-16:] + [(float(w), names[i] if i < len(names) else label) for i, w in enumerate(new[:, latent.AT])]
+    now = g.get('t_law', g['t']) + 1e-9
+    past = [p for p in g['labels'] if p[0] <= now]
+    ahead = [p for p in g['labels'] if p[0] > max(now, t_eat)]
+    kept = ([max(past)] + ahead) if past else ahead
+    g['labels'] = kept + [(float(w), names[i] if i < len(names) else label) for i, w in enumerate(new[:, latent.AT])]
 
 
 def _dropped(g):
@@ -113,9 +117,7 @@ def _dropped(g):
 
 def doing(g):
     """What she is doing: the name of her table's row that last came by her law's last pass, 'rest'
-    with none. Read at the world's own passes between, a row her law holds came and went every
-    pass, 596 flips in a stop. Kept while her labels are the same list and her law's time the same (`g['_doing']`):
-    each writer of her labels lays a new list."""
+    with none; cached on `(labels, t_law)` (`g['_doing']`)."""
     labels, now = g['labels'], g.get('t_law', g['t'])
     kept = g.get('_doing')
     if kept is None or kept[0] is not labels or kept[1] != now:
@@ -126,21 +128,14 @@ def doing(g):
 
 @functools.cache
 def _mods():
-    """machine.law's latent, modal and stride, imported at a first pass and not looked up again each."""
+    """machine.law's latent, modal and stride, imported once at a first pass."""
     from machine.law import latent, modal, stride
     return latent, modal, stride
 
 
 def limp(g):
-    """How far she rests limp, 0 to 1: a doing in LIMP, or her back told to bear her, and her row's blend done - lain
-    flat on a bed or the floor and still -, easing to 1 over as long as that row blended; her clamps go to zero by it
-    over the bus (`motion.drives`), what bears her holds her. Measured on the bed: told at bed_rest's start her clamps
-    dropped mid-blend; dropped in a pass at its blend's end (1.4 s in) her neck fell 64 deg at 138 deg/s, her spine 52
-    at 153, her arms 109 at 142 - a flop, not a rest. A twist told her where no program plays wakes her: her law
-    carries her pelvis along it (limp, her law's 1.4 m/s^2 back moved her 0.000 m), woken and let rest again as
-    the limp eases (`g['_wake']`: its way, when it turned, from where) - woken in a pass her right elbow swung
-    309 deg/s, her walk's arms 128. A doing in LIMP eases as her back's does: limp at floor_rest's first pass she
-    went down slack at 188-327 deg/s, an arm came to rest in balance on an edge and fell 8 s on at 128 deg/s."""
+    """How far she rests limp, 0 to 1: a doing in LIMP or her back told to bear her, eased to 1 after
+    her row's blend (`motion.drives`), woken smoothly when a twist is told outside a program."""
     latent = _mods()[0]
     blend, now = max(float(g['st'][latent.BLEND]), 1e-3), g.get('t_law', g['t'])
     eased = min(1.0, max(0.0, (now - float(g['st'][latent.T0]) - blend) / blend))
@@ -320,12 +315,16 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     out[latent.ACC] *= 1.0 - 2.0 * w_flip
     state[LAST_WAY] = cw
     rhythm.modulated(st, out, held, prior, state, float(words[W_ACTIVE]), vx, vy, wz, vxp)
-    drive_sway = abs(float(out[latent.SWAY][modal.DRIVE]))
+    lat_on = (1.0 - has_thd) * float(abs(vy) > rhythm.R['side_m_s'])
+    drv_abs = abs(float(out[latent.SWAY][modal.DRIVE]))
+    drive_sway = max(drv_abs, lat_on * abs(float(out[latent.SWAY][modal.LATERAL])))
     active = min(1.0, max(0.0, (drive_sway - stride.STIRS) / s['look_drive'])) * unborne
-    w_back = float(active > s['look_on']) * max(float(cw < 0.0), float(vx < -back))
+    w_back = float(active > s['look_on']) * max(float(cw < 0.0) * float(drv_abs > stride.STIRS), float(vx < -back))
     tl_back = math.copysign(1.0, wz + s['look_back_rad_s'])
-    tl_fwd = float(abs(wz) > s['look_turn_rad_s']) * max(-s['look_rad'], min(s['look_rad'], s['look_rad'] * wz / YAW_RATE))
-    tl = active * (w_back * tl_back + (1.0 - w_back) * tl_fwd)
+    tl_fwd = float(abs(wz) > s['look_turn_rad_s']) * ((s['look_rad'] * wz) / YAW_RATE)
+    tl_side = lat_on * ((s['look_rad'] * vy) / STRAFE_SPEED)
+    tl_way = max(-s['look_rad'], min(s['look_rad'], tl_fwd + tl_side))
+    tl = active * (w_back * tl_back + (1.0 - w_back) * tl_way)
     look = state[LOOK_YAW] = float(state[LOOK_YAW]) + min(1.0, (s['look_1_s'] - s['look_back_1_s'] * w_back) * dt) * (tl - float(state[LOOK_YAW]))
     posture[waist] = s['waist_share'] * look * unborne
     posture[head] = s['head_share'] * look * unborne
@@ -354,6 +353,7 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     ae = g.get('active_entry') or (cur_d if cur_d in SE2_GAITS else None)
     striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                 or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or float(g['st'][latent.NOW][latent.GAIN]) > 0.02)
+    spin_gaits = ('spin_left', 'spin_right')
     if (active and not has_say and g.get('_errand') is None and striding and cur_d not in ('brake', 'stand', 'init_walk')
             and g.get('_jump_until', 0.0) <= g['t'] and ae in SE2_GAITS and target in SE2_GAITS):
         g['governed'] = g['governed'] if was_tw else NOMINAL_TWIST.get(str(ae), g['asked'])
@@ -362,7 +362,10 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
             g['_jog_until'] = g['t'] + 0.5 * BRAKE_S
         g['twist'] = touch.against(g, g['governed'])
         return
-    g['governed'], g['twist'] = g['asked'], (vx, vy, wz)
+    hold_tw = (not has_say and g.get('_errand') is None
+               and ((cur_d == 'brake' and target in spin_gaits) or cur_d in RISE_OF
+                    or (g.get('_jump_until', 0.0) > g['t'] and not g.get('_leap'))))
+    g['governed'], g['twist'] = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)) if hold_tw else (g['asked'], (vx, vy, wz))
     if target is not None:
         g['_twist_active'], g['_twist_stop_until'] = active, g['t'] + 2.5
     if not has_say and target in by:

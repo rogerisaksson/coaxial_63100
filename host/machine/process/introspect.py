@@ -232,10 +232,13 @@ class Snap(dict):
     s: typing.Any = None
 
     def __missing__(self, key):
+        if key not in LAYERS:
+            raise KeyError(key)
         if key == 'ground':
             from machine.world import struck
             self['ground'] = struck.touching(self.s['g']['world'])
-        self.update(_layers(self.s) if key in LAYERS and key != 'ground' else {})
+            return self['ground']
+        self.update(_layers(self.s))
         return dict.__getitem__(self, key)
 
     def whole(self):

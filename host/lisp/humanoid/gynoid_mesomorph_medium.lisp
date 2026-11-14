@@ -66,6 +66,7 @@
     (cpg_config
       (frequency 0.90Hz)
       (amplitude mode_lateral_shift 0.04) (amplitude mode_sagittal_drive 0.05)
+      (amplitude mode_limb_lift 0.72)
       (amplitude mode_pelvis_list 0.12) (amplitude mode_arm_swing 0.35)
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))

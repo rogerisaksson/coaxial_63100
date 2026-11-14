@@ -116,23 +116,25 @@ class Here:
     apart = False
 
     def __init__(self):
-        self.pending, self._things = False, None
+        self.pending, self._things, self._boxed = False, None, {}
 
     def start(self, g, looks, head, dt, everywhere, at=None):
         """Her registry (`g['registry']`) `dt` s on and the look `looks` into it from her `head`, taken `at` s
         (`g['t']` without)."""
         registry.passed(g['registry'], head, dt)
         registry.seen(g['registry'], looks, head, g['t'] if at is None else at, everywhere=everywhere)
-        self._things, self.pending = registry.boxes(g['registry']), True
+        self._things, self.pending, self._boxed = registry.boxes(g['registry']), True, {}
 
     def join(self):
         self.pending = False
         return self._things
 
     def boxes(self, g, least):
-        """Her registry's boxes at `least` salience (`registry.boxes`), a look in flight joined first."""
+        """Her registry's boxes at `least` salience (`registry.boxes`), a look in flight joined first, cached a look."""
         joined(g)
-        return registry.boxes(g['registry'], least)
+        if least not in self._boxed:
+            self._boxed[least] = registry.boxes(g['registry'], least)
+        return self._boxed[least]
 
     def ready(self):
         """Nothing to wait for: her looks are hers here."""

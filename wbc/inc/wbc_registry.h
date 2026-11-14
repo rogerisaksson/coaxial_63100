@@ -9,8 +9,8 @@
 
 #include "wbc_blas.h"
 
-/** The boxes a look passes at most: its things, its live slots (the text's 256 slots). */
-#define WBC_REGISTRY_BOXES 256
+/** The boxes a look passes at most: its things, its live slots. */
+#define WBC_REGISTRY_BOXES 1024
 
 /** Her registry: its slots' fields as the host lays them, its constants, numpy's sums here, a look's answer and its
     scratch laid once. */

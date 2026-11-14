@@ -74,8 +74,9 @@ def _bearings(head, point):
     R = _frame(head['quat'])
     d = R.T @ (np.asarray(point, float) - np.asarray(head['pos'], float)) - np.asarray(EYES, float)
     across = [math.atan2(d[0] + dx, d[2]) for dx in (0.0, BASELINE_M)]
+    diff = math.remainder(across[1] - across[0], math.tau)
     down = math.atan2(-d[1], math.hypot(d[0] + BASELINE_M / 2.0, d[2])) - math.radians(DOWN_DEG)
-    return 0.5 * (across[0] + across[1]), down, across[1] - across[0]
+    return math.remainder(across[0] + 0.5 * diff, math.tau), down, diff
 
 
 def toward(head, point, told=None):
@@ -180,18 +181,31 @@ def _aim(g, st, told=(None, None)):
 
 def _anchored(g):
     """(x, y, z) the ground she walks onto: where her twist asked (`g['twist']`: ahead, to her left, m/s, turning
-    rad/s) takes her from her head's place and heading HELD looks on - what a look shows there hers by the time she
-    stands on it -, on her floor; out of her eyes' reach, None."""
+    rad/s) takes her from her head's place along her body's heading HELD looks on - what a look shows there hers by
+    the time she stands on it -, on her floor; past her eyes' direct reach, clamped onto her near floor along her way."""
     from machine.eyes.sight import LOOK_S
     head, T = _head(g), HELD * LOOK_S
     vx, vy, wz = (float(v) for v in g.get('twist', (0.0, 0.0, 0.0)))
-    a = _heading(head)
+    a = (math.atan2(float(g['inekf']['R'][0, 2]), float(g['inekf']['R'][2, 2])) if g.get('eyes') and 'inekf' in g
+         else (float(g['heading']) if 'heading' in g else _heading(head)))
     b = a + wz * T
     # her heading's sine and cosine walked over T: a turn's arc, or a line
     sn, cs = ((math.cos(a) - math.cos(b)) / wz, (math.sin(b) - math.sin(a)) / wz) if abs(wz) * T > 1e-9 else (math.sin(a) * T, math.cos(a) * T)
     p = (float(head['pos'][0]) + vx * sn + vy * cs, _floor(g),
          float(head['pos'][2]) + vx * cs - vy * sn)
-    return p if _reached(head, p) else None
+    if _reached(head, p):
+        return p
+    if math.hypot(vx, vy) <= 1e-6:
+        return None
+    np = _np()
+    a_c, _, _ = _bearings(head, p)
+    a_c, down = max(-0.95 * YAW, min(0.95 * YAW, a_c)), math.radians(DOWN_DEG) + 0.95 * PITCH[1]
+    R = _frame(head['quat'])
+    mid = np.asarray(head['pos'], float) + R @ (np.asarray(EYES, float) - np.array([0.5 * BASELINE_M, 0.0, 0.0]))
+    ray = R @ np.array([math.sin(a_c) * math.cos(down), -math.sin(down), math.cos(a_c) * math.cos(down)])
+    dist = (float(mid[1]) - _floor(g)) / max(-float(ray[1]), 0.25)
+    q = tuple(map(float, mid + min(FAR_M, max(NEAR_M + 0.35, dist)) * ray))
+    return q if _reached(head, q) else None
 
 
 def _shows(head, gz, point):
@@ -313,7 +327,8 @@ def asked(g, gz):
     elif st['walking']:
         # her anchor held while a look at it shows the ground she walks onto, else a saccade on to it: a sawtooth
         head, a, ahead = _head(g), st['anchor'], _anchored(g)
-        if a is None or ahead is None or not _reached(head, a) or not _shows(head, toward(head, a), ahead):
+        if (a is None or ahead is None or not _reached(head, a) or not _shows(head, toward(head, a), ahead)
+                or math.dist(a, ahead) > 0.35 and abs(_bearings(head, ahead)[0]) >= 0.9 * YAW):
             st['anchor'], st['jump'] = ahead, True
     elif st['fix'] is None and st['exploring']:
         _told_of(g, st, gz)

@@ -282,7 +282,9 @@ def _picked(state, key, _now):
 
 
 def _hopped(state, _key, now):
-    """A hop said (`gym.hopped`), its charge from now."""
+    """A hop said (`gym.hopped`), syncing her pad's twist first when keys are active, its charge from now."""
+    if 'pad' in state and state['pad'].get('at'):
+        steered(state, now, state.get('_heading', 0.0))
     if gym.hopped(state) == 'hop':
         state['hop_hold'] = {'began': now, 'last': now, 'sent': 0.0}
 
@@ -294,7 +296,7 @@ def _hop(state, key, now):
     """Space: a hop once a press, its repeats while she loads it charging it (`_hop_held`), none said while one is under
     way (HOPPING): held on, it said one in her flight and her landing and felled her."""
     hh, doing = state.get('hop_hold'), (state.get('now') or {}).get('doing')
-    if hh and now - hh['began'] <= HOP_HOLD_S and doing in ('load', 'push', 'hop'):
+    if hh and now - hh['began'] <= HOP_HOLD_S and doing in ('brake', 'stand', 'load', 'push', 'hop'):
         hh['last'], hh['repeats'] = now, hh.get('repeats', 0) + 1
         return _hop_held(state, now, (' ',))
     if doing in HOPPING:
@@ -440,6 +442,7 @@ def frame(state, now, heading):
     """Each frame: F's choice lapsed (`lapsed`); the keys held - the console's, else those typed
     within `console.HOLD_WINDOW_S` - her twist and Space's charge (`steered`); P let go shoves her
     along the view. `now` the wall clock."""
+    state['_heading'] = heading
     lapsed(state, now)
     steered(state, now, heading)
     pushed = released(state, now)

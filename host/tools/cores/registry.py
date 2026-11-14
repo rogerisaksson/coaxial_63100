@@ -18,7 +18,7 @@ from tools.cores import orders, wbc
 
 _i, _d, _q, _vp = ctypes.c_int, ctypes.c_double, ctypes.c_int64, ctypes.c_void_p
 #: wbc_registry.h's boxes a look passes at most.
-BOXES = 256
+BOXES = 1024
 #: The slots' fields wbc_registry_t points at, in its order.
 FIELDS = ('on', 'centre', 'half', 'R', 'var', 'salience', 'vel', 'last', 'seen_at', 'swell', 'drift', 'moving',
           'shown', 'clear', 'id', 'kind')

@@ -141,18 +141,20 @@ def _found(g, verb, at=None, thing=None, things=None):
     one still (an errand's, chosen when it was seen whole); None with none seen. What affords it told as her things
     change (`_afforded`); its edge's distance (`affordance.distance`) only where it decides - the nearest's, and those
     as near to the hair -, the first least by (not itself, distance, edge's) as among all."""
+    from machine.law import stride
     q = where(g)
     gx, gz = float(q[0]), float(q[2])
     ax, az = at if at is not None else (gx, gz)
     things, afforded = _afforded(g, verb, things)
     held = [p for p in things if len(p) > 4 and p[4] == thing] if thing is not None else []
     itself = GOES.get(verb, _NONE)[1]
-    near = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az), p, own)
+    near = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
+             not held and at is not None and affordance.distance(p, at) <= stride.STRIDE_M, p, own)
             for p, own in ([(p, itself(p, things)) for p in held] if held else afforded)]
     if not near:
         return None
-    least = min((not own, d) for d, _p, own in near)
-    hits = [(d, affordance.distance(p, (gx, gz)), p, own) for d, p, own in near if (not own, d) == least]
+    least = min((not on_at, not own, d) for d, on_at, _p, own in near)
+    hits = [(d, affordance.distance(p, (gx, gz)), p, own) for d, on_at, p, own in near if (not on_at, not own, d) == least]
     return min(hits, key=lambda h: (not h[3], h[0], h[1]))
 
 

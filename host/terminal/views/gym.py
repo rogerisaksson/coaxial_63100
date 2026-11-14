@@ -8,11 +8,9 @@
 She stands on the loop (`machine.process.sprung`); the keys that move her are a twist (`humanoid_keys`).
 A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers only what she
 has identified, a balloon on it: rising from the thing that bears her, else each thing and its
-verb; from the floor alone her rise, no thing and no balloon. A gym entry is said
-by its place in the gym's text (`sprung.entries`) in place of what was to come, the gym's other
-text (`sprung.GYMS`) read anew each time - an edit to lisp/humanoid/gynoid_mesomorph_medium.lisp is two
-presses away -; the scenes stepped through and laid again, shoves along the view, the tour of the
-scenes. LATENT shows each mode as it is asked and as she is, and its spring.
+verb; from the floor alone her rise, no thing and no balloon. A gym entry is said by its place in
+the gym's text (`sprung.entries`), the other text (`sprung.GYMS`) read anew each time; scenes are
+stepped through, shoves sent along the view, and LATENT shows each mode, its reading, and its spring.
 """
 import math
 import time
@@ -95,7 +93,11 @@ _BEARS = {'hop_down_chair': 'sit_chair', 'rise_chair': 'sit_chair', 'rise_bed': 
 def _propped(now, scenario=None):
     """The verb taking her up from a thing (`_RISE_TABLE`); None on her feet or floor."""
     doing, scen = now.get('doing', ''), scenario or now.get('scenario') or 'open'
-    if (now.get('where') or (0.0, 0.90, 0.0))[1] > ON_CHAIR_M:
+    x, y, z = now.get('where') or (0.0, 0.90, 0.0)
+    src = now.get('things') if now.get('things') is not None else now.get('props')
+    if y > ON_CHAIR_M and (src is None or any(
+            t[0] in ('chair', 'armchair', 'stool', 'bench', 'sofa')
+            and math.hypot(t[1][0] - x, t[1][2] - z) <= max(t[2][0], t[2][2]) + ONTO_M for t in src)):
         return 'hop_down_chair'
     return next((move for phases, scens, move in _RISE_TABLE
                  if any(doing == p or doing.startswith(p + '_') for p in phases)
@@ -156,12 +158,9 @@ def _middle(lo, hi):
 
 
 def offers(now, seen):
-    """[(verb, word, at (x, y, z) or None, thing, its footprint (lo, hi) or None)] F offers now, each a
-    thing she has identified (`seen`, `scanner.identified`'s), never one she has not: on a thing, its
-    rise alone, at that thing (`_BEARS`) within REACH_M; on the floor alone, its rise at none - no
-    thing, no balloon -; on her feet, each thing with a verb - one she walks to (`errand.errands`)
-    wherever it stands, one she does where she stands within REACH_M -, at its middle, the one she
-    faces most nearly first, the nearer of two in line."""
+    """[(verb, word, at (x, y, z) or None, thing, its footprint (lo, hi) or None)] F offers now from
+    things she has identified (`scanner.identified`): on a prop its rise alone within REACH_M; on the
+    floor its rise at none; on her feet each reachable or walked-to affordance, nearest to heading first."""
     if not now:
         return []
     things = [(kind, dist, lo, hi) for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES]

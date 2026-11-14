@@ -226,8 +226,8 @@ def step(b, s, ask):
     n, M, h, v, feet, act, mass = b.n, s['M'], s['h'], s['v'], s['feet'], b.act, b.mass
     k3, nu = 3 * len(contacts), NU + 3 * len(contacts)
     each, grounded = np.repeat(stance, 6), max(float(stance.max()), float(k3 > 0))
-    turns = ask.get('turns', ())
-    turned = float(len(turns) > 0)
+    turns, a = ask.get('turns', ()), np.asarray(ask['com_acc'], float)
+    turned, kdot = float(len(turns) > 0), ask.get('kdot')
     want = POSTURE_KD[0] * (np.asarray(ask['posture']) - s['q']) - POSTURE_KD[1] * v[act]
     T, E, t0, a6, asked = _maps(b, s, ask, want)
     if k3:
@@ -263,7 +263,6 @@ def step(b, s, ask):
         sumf[:, at] = _EYE3
         about[:, at] = np.array([[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]])
     still, caps, slips = patches(contacts, nu, full, full0, v, ask, W_PIN * float(stance.max()) / (mass * G))
-    a = np.asarray(ask['com_acc'], float)
     lay(sumf[[0, 2]] / mass, a[[0, 2]], (W_COM + (W_TURN - W_COM) * float(ask.get('sat', 0.0))) * grounded, group=0)
     lay(sumf[1] / mass, a[1] + G, W_HEIGHT * grounded, G, group=1)
     for t, turn in zip(s['turns'], turns):
@@ -288,12 +287,9 @@ def step(b, s, ask):
         j, depth = act[i], side * (stop - s['q'][i]) + width
         lay(full[j], stiff * side * max(depth, 0.0) - damp * v[j] - full0[j],
             W_STOP * np.clip((depth + reach * max(-side * v[j], 0.0)) / width, 0.0, 1.0), -full0[j], group=7)
-    kdot = ask.get('kdot')
     lay(about, -MOMENTUM_K * s['k'] if kdot is None else np.asarray(kdot), W_MOMENT * grounded, group=8)
     part, inv_mg, inv_mgr = np.zeros(nu), 1.0 / (mass * G), 1.0 / (mass * G * ROOM[0])
-    part[:12] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2
-    if k3:
-        part[NU:] = inv_mg
+    part[:12], part[NU:] = (inv_mgr, inv_mgr, inv_mgr, inv_mg, inv_mg, inv_mg) * 2, inv_mg
     spare = W_PART * np.concatenate([each, np.zeros(NU - 12), np.ones(k3)]) * part + W_AIR * np.concatenate([1.0 - each, np.zeros(nu - 12)])
     lay(np.diag(spare), np.zeros(nu), 1.0, group=9)
     R0, up = np.vstack(rows), sumf[1] / mass

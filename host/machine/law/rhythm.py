@@ -26,6 +26,7 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     from machine.law import latent, modal, se2
     r = R
     gain = float(st[latent.NOW][latent.GAIN])
+    g_sw = min(1.0, max(0.0, gain))
     amp_d = abs(float(st[latent.TO][latent.AMP][modal.DRIVE]))
     w_gait = min(1.0, max(0.0, (max(amp_d, abs(vy), abs(wz)) - r['moving']) / r['moving_edge']))
     w_on = tw_on * min(1.0, max(0.0, (gain - r['gain_on']) / r['gain_edge'])) * w_gait
@@ -45,7 +46,7 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     w_turn = w_on * max(w_wz, min(1.0, max(0.0, (abs(ts) - r['turning']) / r['turning_edge'])))
     bt_d, w = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.DRIVE]), float(out[latent.TURNS])
     w_vxp = min(1.0, max(0.0, (abs(vxp) - r['spin_fast_m_s']) / r['spin_fast_edge_m_s']))
-    drv = (1.0 - w_vxp) * r['spin_drive'] + w_vxp * max(r['spin_drive'], r['spin_drive_s_m'] * (abs(vxp) - r['spin_drive_from_m_s']))
+    drv = g_sw * ((1.0 - w_vxp) * r['spin_drive'] + w_vxp * max(r['spin_drive'], r['spin_drive_s_m'] * (abs(vxp) - r['spin_drive_from_m_s'])))
     # told on slower than her walk, past the spot's stillness, her stride is her speed's share of her walk's at her
     # cadence, her drive's sway cut so: kept, told 0.2-0.5 m/s she walked 0.68-0.73 and turned 1.41 m round - her
     # arc is her speed over her turn
@@ -59,8 +60,8 @@ def modulated(st, out, held, prior, state, tw_on, vx, vy, wz, vxp):
     out[latent.REF][modal.DRIVE] += w_spin * (drv * math.sin(bt_d) - float(out[latent.REF][modal.DRIVE]))
     out[latent.RATE][modal.DRIVE] += w_spin * (drv * w * math.cos(bt_d) - float(out[latent.RATE][modal.DRIVE]))
     out[latent.ACC][modal.DRIVE] += w_spin * (-drv * w * w * math.sin(bt_d) - float(out[latent.ACC][modal.DRIVE]))
-    out[latent.SWAY][modal.LIFT] += w_spin * max(0.0, r['spin_lift'] - float(out[latent.SWAY][modal.LIFT]))
-    amp_t = w_vy * abs(ts) + (1.0 - w_vy) * r['turn_sway']
+    out[latent.SWAY][modal.LIFT] += w_spin * max(0.0, g_sw * r['spin_lift'] - float(out[latent.SWAY][modal.LIFT]))
+    amp_t = g_sw * (w_vy * abs(ts) + (1.0 - w_vy) * r['turn_sway'])
     bt = float(st[latent.THETA] + st[latent.NOW][latent.PHASE][modal.TURN])
     out[latent.SWAY][modal.TURN] += w_turn * (amp_t - float(out[latent.SWAY][modal.TURN]))
     out[latent.REF][modal.TURN] += w_turn * (ts + amp_t * math.sin(bt) - float(out[latent.REF][modal.TURN]))

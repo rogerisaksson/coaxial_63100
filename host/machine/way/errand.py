@@ -18,8 +18,8 @@ import math
 from machine.way.tour import STOP
 from machine.way.words import (
     _arrived, _asked, _at_hand, _begun, _cornered, _ended, _faced, _fixed, _glimpsed, _halted, _held, _laid, _looking,
-    _near, _nothing, _out, _passed, _ran, _reported, _retreat, _scanning, _seen, _stood, _stunt, _to_aim, _to_edge,
-    _to_face, _to_line, _to_look, _told, _turning, _within,
+    _near, _nothing, _out, _passed, _ran, _refreshed, _reported, _retreat, _scanning, _seen, _stood, _stunt, _to_aim,
+    _to_edge, _to_face, _to_line, _to_look, _told, _turning, _within,
 )
 
 
@@ -42,7 +42,7 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
     if seen is None:
         sprung.looked(g)
         seen = _seen(g, sc, at)
-    if seen is not None and not _within(sc, seen):
+    if seen is not None and not _within(sc, seen, g, at):
         return False
     laid = _looking(g, sc, at) if seen is None else _laid(g, sc, seen, at)
     g['st'][latent.THETA] *= float(g['st'][latent.NOW][latent.GAIN] >= 1e-6)
@@ -70,8 +70,8 @@ def _on_rows():
     from machine.law import modal, poise, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
     return {
-        'look': (((lambda c, er: c['seen'] is not None and _within(er['kind'], c['seen']), 'plan', _begun),
-                  (lambda c, er: c['seen'] is not None and _near(c['seen']), 'done', _at_hand),
+        'look': (((lambda c, er: c['seen'] is not None and _within(er['kind'], c['seen'], c.g, er.get('at')), 'plan', _begun),
+                  (lambda c, er: c['seen'] is not None and _near(c['seen'], c.g, er['kind'], er.get('at')), 'done', _at_hand),
                   (lambda c, er: c['seen'] is not None or er['swept'] >= math.tau, 'done', _ended),
                   (lambda c, er: c['glimpse'], 'look', _held)), _to_look),
         'plan': (((lambda c, er: c['answer'] is not None and c['answer'].get('laid', True) is None, 'done', _ended),
@@ -96,11 +96,14 @@ def _on_rows():
                    (lambda c, er: c['idle'] and abs(c['s_perp']) > er['lat_tol'], 'side', _nothing),
                    (lambda c, er: c['idle'] and c['still'] and c['even'] and er['through'], 'out', _out),
                    (lambda c, er: c['idle'] and not er['through'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'back', _told(back)),
-                   (lambda c, er: c['idle'] and c['still'] and not er['through'], 'done', _stunt)), _halted),
+                   (lambda c, er: c['idle'] and c['still'] and c['even'] and not er['through'], 'done', _stunt)), _halted),
         'clear': (((lambda c, er: c['turns'] != 0.0 or c['s_par'] > er['d_stage'] + stride.STRIDE_M, 'settle', _stood),), _nothing),
         'side': (((lambda c, er: er.get('stepped') and c['s_perp_side'] * er.get('side_from', c['s_perp']) <= 0.0, 'settle', _told(STOP)),), _to_line),
         'back': (((lambda c, er: c['s_par'] <= poise.HALF_M + er['standoff'] + se2.BACK_STOP_M, 'done', _told(STOP)),), _to_edge),
-        'done': (((lambda c, er: c['idle'] and c['still'] and (abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp']) > er['lat_tol']), 'settle', _nothing), (lambda c, er: c['idle'] and c['still'], 'done', _stunt)), _nothing),
+        'done': (((lambda c, er: c['idle'] and c['still'] and c['even'] and (
+            abs(c['err_yaw']) > modal.LIST_RAD or abs(c['s_perp']) > er['lat_tol']
+            or not er['through'] and c['s_par'] > poise.HALF_M + er['standoff'] + se2.BACK_STOP_M), 'settle', _nothing),
+                  (lambda c, er: c['idle'] and c['still'] and c['even'], 'done', _stunt)), _nothing),
     }
 
 
@@ -205,6 +208,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
         start_errand(g, gym, er['kind'], heard_fn, heard_say_fn, er.get('at'))
         return
     dock, route, edge, latent, modal, se2, stride, voxels, _planner, _gaze, furniture = _parts()
+    if er['phase'] in ('settle', 'done'):
+        _refreshed(g, er)
     rows, meanwhile = _on_rows()[er['phase']]
     q = furniture.where(g)
     gx, gz = float(q[0]), float(q[2])
@@ -219,15 +224,16 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     s_perp_side = s_perp + (vx_w * e['tx'] + vz_w * e['tz']) * se2.SIDE_STOP_M / se2.STRAFE_SPEED
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
-    rem = max(0.0, e['d_stage'] - 1.5 * stride.STRIDE_M + s_par)
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
     # her straight leg braked into an intermediate corner as her curve is into its end (`route.rounded`, the
     # wayfinder's centripetal governor): at BRAKE to her CORNER_SPEED a stride and a cell off it, where `corner` stands her;
-    # at her stage (`len(e['way']) <= 1`) `corner` and `stops_in` already time her STOP_M run-out from WALK_SPEED
-    off = rem if e['phase'] == 'door' else max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
-    walk_pace = (min(se2.WALK_SPEED, math.sqrt(route.CORNER_SPEED ** 2 + 2.0 * route.BRAKE * off))
-                 if e['phase'] == 'door' or len(e['way']) > 1 else se2.WALK_SPEED)
+    # at her stage (`len(e['way']) <= 1`) `corner` and `stops_in` already time her STOP_M run-out from WALK_SPEED;
+    # pushing a door (`door_push`), eased to a steady walk before the panel so she neither slams it nor stalls on its spring
     door_push = e['phase'] == 'door' and len(e['way']) <= 1
+    off = max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
+    door_pace = math.sqrt((0.65 * se2.WALK_SPEED) ** 2 + 2.0 * route.BRAKE * max(0.0, s_par - stride.STRIDE_M))
+    walk_pace = min(se2.WALK_SPEED, door_pace if door_push
+                    else (math.sqrt(route.CORNER_SPEED ** 2 + 2.0 * route.BRAKE * off) if len(e['way']) > 1 else se2.WALK_SPEED))
     way_hd = e['hdd'] if door_push else math.atan2(stop[0] - gx, stop[1] - gz)
     aim = (gx + math.sin(way_hd), gz + math.cos(way_hd)) if door_push and s_par <= 0.0 else stop
     e['k'], (ax, az), along, _there, pace, _bend = (
@@ -238,7 +244,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
                      max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
     ctx = _Context(g, {
-        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop, 's_perp_side': s_perp_side,
+        'gx': gx, 'gz': gz, 'pyaw': pyaw, 's_par': s_par, 's_perp': s_perp, 's_perp_stop': s_perp_stop,
+        's_perp_side': s_perp_side,
         'way_left': -e.get('side_from', s_perp) * (e['tx'] * math.cos(pyaw) - e['tz'] * math.sin(pyaw)),
         'door_out': (s_par < -min(stride.STRIDE_M, e['d_stage'] - 1.5 * stride.STRIDE_M)
                      and e['d_stage'] + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),

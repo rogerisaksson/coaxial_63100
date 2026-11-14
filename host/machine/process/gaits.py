@@ -85,6 +85,8 @@ def _queue_post_jump(g, by, entry):
     _sync_nominal_twist(g, name)
     leap_brake = name == 'stand' and g.get('_leap') and '_brake_wire' in g and 'stand' in by
     if leap_brake:
+        g['labels'] = [(w, 'land' if w > g.get('_jump_throw', 0.0) and n not in ('load', 'throw', 'flight', 'land') else n)
+                       for w, n in g['labels']]
         sprung.said(g, 'brake', g['_brake_wire'], ('brake',), at=t_res - 0.01, reset=True)
         return sprung.said(g, *by['stand'], at=t_res + 0.54, reset=True)
     # the run resumed on its own rows: on the walk's (`_WALK_ON_WIRE` labelled jog) a run's leap ran on at the walk's
@@ -123,11 +125,38 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
         return start_mode(g, by, entry, at=t0 + tg)
     g['st'][latent.NOW][latent.GAIN] = max(float(g['st'][latent.NOW][latent.GAIN]), 0.04)
     dt_b = se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
-    if name == 'jog' and 'init_walk' in by:
-        sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0 + dt_b, reset=True)
-        return sprung.said(g, *entry, at=t0 + dt_b + se2.init_lead(g))
     nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+    lat_spin = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right')
+    if (name == 'jog' or (name in se2.INIT_GAITS and g['_brake_from'] in lat_spin)) and 'init_walk' in by:
+        sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t0 + dt_b, reset=True)
+        return sprung.said(g, *nxt, at=t0 + dt_b + se2.init_lead(g))
     return sprung.said(g, *nxt, at=t0 + dt_b, reset=True)
+
+
+def _retarget_brake(g, by, entry, spd):
+    from machine.law import latent, se2
+    bf, name = g.get('_brake_from'), entry[0]
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t']]
+    g['labels'] = [(w, n) for w, n in g['labels'] if w <= g['t']]
+    g['_halt_at'], g['active_entry'] = None, name
+    _sync_nominal_twist(g, name)
+    ts, tg = se2.stand_lead(spd)
+    t_s = g['t'] + ts
+    if name == 'stand':
+        g['_halt_at'] = (t_s, g['t'] + tg)
+        return None
+    lat_spin = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right')
+    if name not in (sprung._FWD_GAITS + sprung._BACK_GAITS) or name in ('spin_left', 'spin_right'):
+        sprung.said(g, *by['stand'], at=t_s, reset=True)
+        start_mode(g, by, entry, at=max(t_s + 0.15, g['t'] + tg))
+        g['_brake_from'] = bf
+        return None
+    t_sw = g['t'] + se2.brake_lead(spd, float(name in sprung._BACK_GAITS))
+    nxt = ('walk', se2._WALK_ON_WIRE, ('walk',)) if name == 'walk' else entry
+    if (name == 'jog' or (name in se2.INIT_GAITS and bf in lat_spin)) and 'init_walk' in by:
+        sprung.said(g, 'init_walk', by['init_walk'][1][:ortho.ROW.size], ('init_walk',), at=t_sw, reset=True)
+        return sprung.said(g, *nxt, at=t_sw + se2.init_lead(g))
+    return sprung.said(g, *nxt, at=t_sw, reset=True)
 
 
 def _splice_fwd(g, entry, t_end, cur_d):
@@ -150,6 +179,8 @@ def heard_say(g, gym, entry):
     by, name = {e[0]: e for e in gym}, entry[0]
     if g.get('_jump_until', 0.0) > g['t']:
         return _queue_post_jump(g, by, entry)
+    if name == 'hop' and in_stunt_transient(g):
+        return
     if name == g.get('active_entry') and (
             (sprung.doing(g) in ('rest', 'stand', 'brake') or g.get('_halt_at') is not None) if name == 'stand'
             else (sprung.doing(g) not in ('rest', 'stand') or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any()))):
@@ -158,8 +189,9 @@ def heard_say(g, gym, entry):
     back_now = g.get('active_entry') in sprung._BACK_GAITS
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
-    striding = not (cur_d == 'stand' and spd < HALT_M_S) and (
-        abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
+    swung = float(g['a'][modal.SWINGS].max()) > 0.5
+    striding = (swung or not (cur_d == 'stand' and spd < HALT_M_S)) and (
+        swung or abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
         or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
     off_c = not striding and cur_d not in ('stand', 'rest') and (
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
@@ -175,13 +207,25 @@ def heard_say(g, gym, entry):
     # other back turn was braked again - a brake row reset, the turn 0.9 s later - for a splice (brake, brake, turn
     # for brake, turn on the page's WD, SD, SA)
     queued = g.get('active_entry') if cur_d == 'brake' else None
-    same_dir = any((d in sprung._FWD_GAITS and name in sprung._FWD_GAITS) or (d in sprung._BACK_GAITS and name in sprung._BACK_GAITS)
+    lat_spin = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right')
+    same_dir = any(((d in sprung._FWD_GAITS and name in sprung._FWD_GAITS
+                     and (d in lat_spin) == (name in lat_spin) and (d not in lat_spin or d == name))
+                    or (d in sprung._BACK_GAITS and name in sprung._BACK_GAITS))
                    for d in (ae_dir, queued))
     # the splice's time: the first row ahead, else the pending stand's earliest (`halted`)
     t_end = float(future[0, latent.AT]) if len(future) else (g['_halt_at'][0] if g.get('_halt_at') else None)
+    sure = float(g.get('surety', 1.0)) >= 0.65
     if (cur_d in ('brake', 'stand', 'init_walk') and same_dir and t_end is not None
+            and (cur_d != 'brake' or sure)
             and (cur_d != 'init_walk' or abs(float(g.get('twist', (0.0,))[0])) >= 0.05)):
         return _splice_fwd(g, entry, t_end, cur_d)
+    if cur_d == 'brake' and not same_dir and spd < HALT_M_S and name in se2.INIT_GAITS:
+        sprung._dropped(g)
+        return start_mode(g, by, entry, at=t0)
+    if (cur_d == 'brake' and (not same_dir or not sure) and spd >= HALT_M_S and 'stand' in by
+            and name not in ('hop', 'parry_shove', 'controlled_fall')
+            and ((not same_dir and (braked in sprung._BACK_GAITS) == back_now) or not sure)):
+        return _retarget_brake(g, by, entry, spd)
     hold = cur_d in se2.HOLD_PHASES and len(g['tab']) > 0
     g['tab'] = g['tab'][g['tab'][:, latent.AT] <= g['t'] + 1.5] if hold else g['tab']
     if not hold:
@@ -214,7 +258,7 @@ def heard_say(g, gym, entry):
         sprung.said(g, 'touch', sprung._TOUCH_WIRE, ('touch',), at=t0)
         sprung.said(g, *by['stand'], at=t0 + 0.80, reset=True)
         return start_mode(g, by, entry, at=t0 + 2.00) if name != 'stand' else None
-    if cur_d in se2.RISE_OF and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISE_OF[cur_d] in by:
+    if cur_d in se2.RISE_OF and name in (sprung._FWD_GAITS + sprung._BACK_GAITS + ('hop',)) and se2.RISE_OF[cur_d] in by:
         from machine.errors import MachineError
         from machine.moves import clocked
         from machine.texts import maneuver
@@ -226,8 +270,9 @@ def heard_say(g, gym, entry):
         except MachineError:
             r_entry = by[rm]
         sprung.said(g, *r_entry, at=t0, reset=True)
-        start_mode(g, by, entry, at=t0 + se2.rise_lead(r_entry[1]))
-        g['_post_stunt'] = entry[0]
+        post_entry = by.get('stand', entry) if name == 'hop' else entry
+        start_mode(g, by, post_entry, at=t0 + se2.rise_lead(r_entry[1]))
+        g['_post_stunt'] = post_entry[0]
         g['active_entry'] = rm
         return None
     if off_c and 'stand' in by and name not in (('stand', 'hop') + tuple(sprung.STUNT_MODES)):
@@ -259,7 +304,8 @@ def halted(g, gym):
 def _gov_mods():
     from machine.law import rhythm, se2
     from machine.senses import touch
-    return rhythm, se2, touch
+    from machine.way import cocoon
+    return rhythm, se2, touch, cocoon
 
 
 def _slew(val, goal, step):
@@ -271,21 +317,33 @@ def govern_twist(g, gym, dt):
     forward and spin gaits (`se2.SE2_GAITS`), switching gait polytopes without zero-crossing chatter."""
     if not g.get('_twist_active') or g.get('_errand') is not None or g.get('_jump_until', 0.0) > g['t']:
         return
-    rhythm, se2, touch = _gov_mods()
+    rhythm, se2, touch, cocoon = _gov_mods()
     if in_stunt_transient(g):
         return
-    if g.get('_post_stunt') is not None and sprung.doing(g) not in se2.RISE_OF:
+    rise_ae = g['active_entry'] if g.get('_post_stunt') is not None and sprung.doing(g) not in se2.RISE_OF else None
+    if rise_ae is not None:
         g['active_entry'] = g.pop('_post_stunt')
     ae = g.get('active_entry')
-    if ae not in se2.SE2_GAITS or sprung.doing(g) in ('brake', 'stand', 'init_walk'):
+    if sprung.doing(g) in ('brake', 'stand', 'init_walk'):
+        if rise_ae is not None and not cocoon.clear_of_rise(g):
+            g['_post_stunt'], g['active_entry'] = ae, rise_ae
+        return
+    ax, ay, az = g.get('asked', (0.0, 0.0, 0.0))
+    if ae not in se2.SE2_GAITS:
+        if g.get('governed') == (0.0, 0.0, 0.0) and max(abs(ax), abs(ay), abs(az)) > 0.01:
+            g['governed'] = (ax, ay, az)
+            g['twist'] = touch.against(g, g['governed'])
+        if rise_ae is not None and not cocoon.clear_of_rise(g):
+            g['_post_stunt'], g['active_entry'] = ae, rise_ae
         return
     if ae == 'jog':
         g['_jog_until'] = g['t'] + 0.5 * se2.BRAKE_S
-    ax, ay, az = g.get('asked', (0.0, 0.0, 0.0))
     vx, vy, wz = g.get('governed', (ax, ay, az))
     still_wz = rhythm.R['still_rad_s']
     if abs(ay) > 0.01 or (vx == ax and vy == ay and wz == az and abs(az) <= still_wz
                           and se2.gait_for_twist(vx, vy, wz) == ae):
+        if rise_ae is not None and not cocoon.clear_of_rise(g):
+            g['_post_stunt'], g['active_entry'] = ae, rise_ae
         return
     prior = max(min(float(g['grip_prior'][0]), float(g['grip_prior'][1])), 1e-6)
     held = g.get('held', g['grip_prior'])
@@ -320,3 +378,5 @@ def govern_twist(g, gym, dt):
         by = {e[0]: e for e in gym}
         if target in by:
             heard_say(g, gym, by[target])
+    if rise_ae is not None and g.get('active_entry') not in se2.STUNT_MODES and not cocoon.clear_of_rise(g):
+        g['_post_stunt'], g['active_entry'] = g['active_entry'], rise_ae

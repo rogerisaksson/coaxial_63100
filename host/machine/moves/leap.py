@@ -337,16 +337,20 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     share of its swing left at its rhythm's rate), the leap, the gait resumed."""
     import numpy as np
     from machine.law import latent, modal, se2, stride
-    prev = (g.get('active_entry') if g.get('active_entry') in (fwd_gaits + back_gaits)
+    tw = g.get('twist', (0.0, 0.0, 0.0))
+    tw_on = max(abs(float(v)) for v in tw) > 0.01
+    prev = ('stand' if not tw_on else g.get('active_entry') if g.get('active_entry') in (fwd_gaits + back_gaits)
             else ('stand' if not g.get('_twist_active') else ('walk_back' if back_now else ('jog' if g.get('asked', (0.0,))[0] > se2.MARCH_FROM else 'walk'))))
-    in_fwd = prev in fwd_gaits and not back_now
+    flat = abs(float(g['fr'][modal.FLOOR]) - float(g.get('floor0', 0.0))) < 0.05
+    in_fwd = prev in ('walk', 'jog') and not back_now and flat and abs(float(tw[1])) < 0.05 and abs(float(tw[2])) < 0.05
     moving = in_fwd or prev != 'stand' or spd > 0.15
     out, a = g['out'], g['a']
     _st, _way, _sw, _phi, on, _off, u, _fl, swung = stride.beat(
         out[latent.SWAY][modal.DRIVE], out[latent.PSI][modal.DRIVE], out[latent.SWAY][modal.LATERAL],
         out[latent.PSI][modal.LATERAL], float(out[latent.TURNS]), a[modal.SWINGS], a[modal.NEED], a[modal.LEAD],
         a[modal.SPLIT], a[modal.BEGUN], a[modal.STANCE], stride.swings(out[latent.SWAY][modal.DRIVE], float(out[latent.TURNS]), a[modal.GOING]))
-    t0 = t0 + float(moving) * float((on * (1.0 - u) * (1.0 - a[modal.BEGUN])).max()) / max(float(swung), stride.TINY)
+    t0 = t0 + (float((on * (1.0 - u) * (1.0 - a[modal.BEGUN])).max()) / float(swung)
+               if in_fwd and float(swung) > 0.5 else 0.0)
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
     dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving and not in_fwd)
     if dt_b > 0.0 and '_brake_wire' in g:
@@ -366,6 +370,8 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
     t_res = t_hop + dur
     g['_jump_t0'], g['_jump_throw'], g['_jump_until'] = t_hop, t_hop + dt_load_ms * 0.001, t_res
     g['_leap'], g['active_entry'] = in_fwd, prev
+    if not in_fwd:
+        g['governed'] = g['twist'] = (0.0, 0.0, 0.0)
     if 'stand' in by and not in_fwd:
         said_fn(g, *by['stand'], at=t_res + 0.01, reset=True)
     if not in_fwd:

@@ -41,17 +41,32 @@ def _there(box, at, swept=0.0):
     return at is None or swept >= math.tau or affordance.distance(box, at) <= stride.STRIDE_M
 
 
-def _within(sc, hit):
-    """Whether a thing found is within her reach: past a stride, within three rooms' widths; the door anywhere."""
+def _ready_here(g, sc, hit, at):
+    """Whether `hit` within a stride is already behind her heels on a dockable face so the stunt can run in place."""
+    from machine.law import se2, stride
+    from machine.senses import edge
+    from machine.way import furniture
+    from machine.world import physics
+    if hit[0] > stride.STRIDE_M:
+        return False
+    if g is None or sc is None or not (physics.ROOM or g.get('eyes')):
+        return True
+    sf = furniture.seen(g, sc, at, hit[4])
+    if sf is None or not (0.0 <= sf[1] <= stride.STRIDE_M and abs(sf[2]) <= 0.5 * sf[5] and abs(sf[3]) < 0.6):
+        return False
+    yaw = edge.yaw(g['sense'])
+    return not hit[5] or any(abs(se2.wrap_angle(fh + _FACES.get(sc, 0.0) - yaw)) < 0.6 for fh in hit[5])
+
+
+def _within(sc, hit, g=None, at=None):
+    """Whether a thing found is within her reach: within three rooms' widths and not yet poised at hand; the door anywhere."""
     from machine.world import room
-    from machine.law import stride
-    return sc == 'exit_door' or stride.STRIDE_M < hit[0] < 3.0 * room.WIDE
+    return sc == 'exit_door' or (not _ready_here(g, sc, hit, at) and hit[0] < 3.0 * room.WIDE)
 
 
-def _near(hit):
-    """Whether a thing found is at hand: within a stride."""
-    from machine.law import stride
-    return hit[0] <= stride.STRIDE_M
+def _near(hit, g=None, sc=None, at=None):
+    """Whether a thing found is poised at hand: within a stride behind her heels."""
+    return _ready_here(g, sc, hit, at)
 
 
 def _glimpsed(g, sc, at):
@@ -178,26 +193,32 @@ def _fixed(g, gym, er, c, heard_fn, _say_fn):
 
 
 def _refreshed(g, er):
-    """Her dock's edge on its thing as her eyes hold it close (`_arrived`, `_faced`): laid from afar, its depth
-    firms up as she walks in under `gaze.fix` - unrefreshed, a low chair glimpsed 0.09 m shallow left her 0.24 m
-    off its real edge, her knees' HEELS cap holding her hips on its lip."""
-    if not g.get('eyes') or er['through'] or er.get('thing') is None:
+    """Her dock's edge on its thing as her map holds it close (`_arrived`, `_faced`, `settle`): laid from afar or
+    nudged loose as she arrives, its edge and heading update before she backs and sits - unrefreshed, a low chair
+    glimpsed 0.09 m shallow or a loose chair turned and nudged 0.09 m deeper left her hips on its lip."""
+    if not g.get('things') or er['through']:
         return
     from machine.body import figure
-    from machine.law import stride
+    from machine.law import se2, stride
     from machine.moves import seated
     from machine.way import affordance, dock, furniture, peek
-    box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er['thing'])[6]
+    box = furniture.nearest(g, er['kind'], (er['x_dock'], er['z_dock']), thing=er.get('thing'))[6]
     if box is None or affordance.distance(box, (er['x_dock'], er['z_dock'])) > stride.STRIDE_M:
         return
+    hn0 = math.atan2(er['nx'], er['nz'])
+    faces = furniture.GOES.get(er['kind'], furniture._NONE)[2](box, g['things'])
+    hn = min(faces, key=lambda h: abs(se2.wrap_angle(h - hn0))) if faces else hn0
+    nx, nz = math.sin(hn), math.cos(hn)
+    tx, tz = nz, -nx
     over = er['kind'] == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
-    hn, across = math.atan2(er['nx'], er['nz']), seated.placed(seated.ON, 0.0)[2] if over else dock.docks()[er['kind']][0]
+    across = seated.placed(seated.ON, 0.0)[2] if over else dock.docks()[er['kind']][0]
     edge, span = affordance.support(box, hn), affordance.support(box, hn + 0.5 * math.pi)
     lat = max(0.0, span - (min(across, span) if span >= figure.HIP_HALF else across))
-    mx, mz = float(box[1][0]) + edge * er['nx'], float(box[1][2]) + edge * er['nz']
-    off = max(-lat, min(lat, (er['x_dock'] - mx) * er['tx'] + (er['z_dock'] - mz) * er['tz']))
-    er.update(x_dock=mx + off * er['tx'], z_dock=mz + off * er['tz'], lat_tol=lat, top=peek.level(er['kind'], box),
-              thing=box[4] if len(box) > 4 else er['thing'])
+    mx, mz = float(box[1][0]) + edge * nx, float(box[1][2]) + edge * nz
+    off = max(-lat, min(lat, (er['x_dock'] - mx) * tx + (er['z_dock'] - mz) * tz))
+    er.update(x_dock=mx + off * tx, z_dock=mz + off * tz, nx=nx, nz=nz, tx=tx, tz=tz,
+              hdd=se2.wrap_angle(hn + _FACES.get(er['kind'], 0.0)), lat_tol=max(0.0, lat - abs(off)),
+              top=peek.level(er['kind'], box), thing=box[4] if len(box) > 4 else er.get('thing'))
 
 
 def _arrived(g, gym, er, c, heard_fn, _say_fn):

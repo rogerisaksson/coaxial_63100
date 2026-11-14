@@ -160,7 +160,7 @@ def control(g, dt):
     _, _, d_ax, d_lat = g['surety_vec']
     w_hop = float((axial_k(g['st']) > HOP_K) & (g['st'][latent.TO][latent.AMP][modal.DRIVE] < 0.1))
     q_post = g['sured'](imp, g['posture'], dq, g['brace'], sw, bw, d_ax, d_lat)
-    # her legs as what bears her, felt, holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
+    # her legs as what bears her holds them, as far as she is sure of it: toppling, the tuck's (`brace`)
     posed = g['poses'](imp, y, g['fr'], q_post, g['bend'], g['arms'], g['reaches'], g['folds'], body.knees,
                        weighed * sw, g.get('_twist_clear', 0.0) * sw)
     ask = g['ask'] = modal.given(imp, y, posed, body.knees, g['bend'], g['fr'], g['pitched'])
@@ -183,29 +183,21 @@ def control(g, dt):
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
     foot = min(1.0, max(0.0, float(g['out'][latent.HELD]) - 1.0))
-    # a sole up while what bears her bears her is no stride: counted one, lying back her neck let
-    # go 0.36 s and flexed 64 deg at 1034 deg/s
+    # a sole up while borne is no stride: counted one, lying back her neck let go and flexed at 1034 deg/s
     rest = (1.0 - float(g['a'][modal.STRIDES]) * (1.0 - float(g['a'][modal.BORNE]))) * w_gait
     w_base = sw * max(w_hop, rest)
-    # her neck holds her head's pitch itself also while her rhythm is told to run, held to her
-    # landings' footprint, but told no drive - a brake: coupled, her step's rounds threw her head
-    # 101-105 deg as her last landing let her strides go; her head's yaw turns with her. Seated
-    # too: let go there, a rise's lean whipped her head 71-98 deg back and asked her neck 10 times
-    # its clamp, the whole ask shrunk to 0.04 and she collapsed onto the seat
-    brake = foot * (1.0 - w_drive) * float(g['st'][latent.TO][latent.GAIN])
+    # her neck holds pitch through a brake and its blend into stand (`NOW[GAIN]`), and when seated
+    g_on = max(float(g['st'][latent.TO][latent.GAIN]), float(g['st'][latent.NOW][latent.GAIN]))
+    brake = foot * (1.0 - w_drive) * g_on
     w_neck = sw * max(w_hop, max(rest, brake))
     w_up = np.array([w_neck, w_base, w_hop * w_base, w_hop * w_base])
     M = g['braced'].scaled(s['M'], w_up)
     lo, hi = g['bounds'](s['v'][body.act], float(y_in[edge.LINK][0]))
-    # her rise's gate keeps her closed chains as they leave her, never takes her into them: her chair's seat is in her
-    # upright step's cone, and held in her chains from her seat she sat on through every rise
+    # her rise's gate keeps closed chains only as they leave her, never taking her into them
     ask['outside'] = gated(g, s, ask)
     ask['lean'] = chain.rise()[0] * ask['outside']
     chained = g['chained'] = chain.chained(ask)
-    # her legs' touch on the seat is the chains' alone while she sits - her pelvis bears, not reclined - and her hands
-    # are told to bear: the kernel's cone for the upright step (soles, ischia, palms). The sit tells the palms from
-    # `seated` on (4.2 s), after the landing, through the hands' vault: with the thighs in the cone she sat at the seat's
-    # middle leaning 16 deg back, fists in the air till the scoot; without them upright, 4 cm back, fists on the seat
+    # thighs join the cone only while seated upright with hands bearing (soles, ischia, palms)
     sat = any(int(c.get('body', -1)) == body.pelvis for c in s.get('contacts', ()))
     told = (g.get('palmar', 0.0) > 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
     legs = body.legs[:int(sat & told) * len(body.legs)]

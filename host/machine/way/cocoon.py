@@ -18,48 +18,118 @@ on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock 
 import math
 
 from machine.body import figure
-from machine.eyes import classes, voxels
+from machine.eyes import classes, registry, voxels
 from machine.law import schema, se2
 from machine.way import furniture, route, wayfinder
 from machine.world import physics
 
-#: The things last laid as boxes (`_boxes`): those things and their arrays.
-_KEPT: list = [None, None]
+#: The things last laid as boxes (`_boxes`): those things and their arrays, without and with doors.
+_KEPT: list = [None, None, None, None]
+
+
+def _seen(g):
+    """Her things for braking: under her eyes, boxes confirmed by stereo (`0.5 * registry.HIT`) before routing."""
+    if g.get('eyes') and g.get('vision') is not None:
+        return g['vision'].boxes(g, 0.5 * registry.HIT)
+    return g.get('things')
+
+
+def _rising(g):
+    """Whether she rests on a thing (`RISE_OF`) or is still in the rise stunt off it: it is hers to stand from."""
+    from machine.process import gaits
+    cur = se2.doing(g)
+    return cur in se2.RISE_OF or (
+        g.get('_post_stunt') is not None and g.get('active_entry') in se2.RISE_OF.values()
+        and (cur == 'init_walk' or gaits.in_stunt_transient(g)))
+
+
+def clear_of_rise(g):
+    """Whether a completed rise has carried her pelvis outside her things' half-width halo (or she steps deeper in)."""
+    if _rising(g):
+        return False
+    things = _seen(g)
+    if not (physics.ROOM or g.get('eyes')) or not things:
+        return True
+    import numpy as np
+    c, axes, half, _off = _boxes(things)
+    if not len(c):
+        return True
+    q = furniture.where(g)
+    o = np.einsum('nij,nj->ni', axes, np.array([float(q[0]), float(q[2])]) - c)
+    inside = (np.abs(o) <= half).all(axis=1)
+    if not inside.any():
+        return True
+    tw = g.get('asked', (0.0, 0.0, 0.0))
+    v = math.hypot(tw[0], tw[1])
+    if v <= 1e-6:
+        return False
+    h = float(g['heading'])
+    d = axes @ np.array([(tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v,
+                         (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v])
+    far, od = np.abs(o) / half, o * d
+    return bool((inside & (np.where(far[:, 1] > far[:, 0], od[:, 1], od[:, 0]) < 0.0)).any())
+
+
+def _vel_blocked(g):
+    """Whether her current horizontal velocity carries her into a thing before she can stop."""
+    things = _seen(g)
+    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
+        return False
+    vel = g['est']['vel']
+    vx, vz = float(vel[0]), float(vel[2])
+    vh = math.hypot(vx, vz)
+    cut = bool(g.get('_cocoon_cut'))
+    return vh > se2.HALT_M_S and _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= _room(
+        g, (vx / vh, vz / vh), things)
+
+
+def hop_blocked(g):
+    """Whether an in-stride leap along her current velocity cannot land and stop short of her things or a closed door."""
+    things = _seen(g)
+    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
+        return False
+    vel = g['est']['vel']
+    vx, vz = float(vel[0]), float(vel[2])
+    vh = math.hypot(vx, vz)
+    q = furniture.where(g)
+    room = ahead(_boxes(things, True), (float(q[0]), float(q[2])), (vx / max(vh, 1e-9), vz / max(vh, 1e-9))) - wayfinder.MARGIN
+    return vh > se2.HALT_M_S and _stop(vh) + 0.35 * vh >= room
 
 
 def blocked(g):
-    """Whether her stop along her asked way (`g['asked']`) or turning arc from her speed no longer fits short of her
-    things: never on an errand, standing or with none seen."""
+    """Whether her stop along her asked way (`g['asked']`), turning arc, or momentum while spinning no longer fits
+    short of her things: never on an errand, already braking or standing, or with none seen."""
     tw = g.get('asked', (0.0, 0.0, 0.0))
     way = _way(g, tw)
     if way is None:
-        return False
+        return se2.doing(g) not in ('brake', 'stand', 'rest') and abs(float(tw[2])) > 1e-4 and _vel_blocked(g)
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
-    return _stop(v_along) >= _arc_room(g, tw, v_along)
+    side = se2.SIDE_STOP_M if abs(float(tw[1])) > 1e-4 and se2.doing(g) not in ('brake', 'stand', 'rest') else 0.0
+    return max(_stop(v_along), side) >= _arc_room(g, tw, v_along)
 
 
 def refused(g, tw):
     """Twist `tw` (her body's), its way taken off where her stop along it or its turning arc cannot fit short of her
-    things."""
+    things; her spin held off while her unsteered momentum into a thing has not yet halted."""
     way = _way(g, tw)
     v = math.hypot(tw[0], tw[1])
     if way is None:
-        return tw
+        return (0.0, 0.0, 0.0) if abs(float(tw[2])) > 1e-4 and _vel_blocked(g) else tw
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
     v_chk = max(v, v_along)
-    margin = 2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0
-    if _stop(v_chk) + margin < _arc_room(g, tw, v_chk):
+    cut = bool(g.get('_cocoon_cut'))
+    if _stop(v_chk) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) < _arc_room(g, tw, v_chk):
         return tw
-    return (0.0, 0.0, tw[2])
+    return (0.0, 0.0, 0.0 if _vel_blocked(g) else tw[2])
 
 
 def _way(g, tw, dh=0.0):
     """The unit way (x, z) of twist `tw` along her heading turned by `dh`; None outside a room or sight, on an errand,
-    or still."""
+    rising off a thing, or still."""
     v = math.hypot(tw[0], tw[1])
-    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not g.get('things'):
+    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not _seen(g) or _rising(g):
         return None
     h = float(g['heading']) + dh
     return (tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v, (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v
@@ -87,29 +157,31 @@ def _stop(v):
     return v * schema.HORIZON + v * v / (2.0 * route.BRAKE)
 
 
-def _room(g, way):
+def _room(g, way, things=None):
     """The room along `way` from her place to her nearest thing, less the text's skin, m: to a thing grown by her
     half width, to a wall's or a window's face her way runs into less it."""
     q = furniture.where(g)
-    return ahead(_boxes(g['things']), (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
+    boxes = _boxes(_seen(g) if things is None else things)
+    return ahead(boxes, (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
 
 
-def _boxes(things):
+def _boxes(things, doors=False):
     """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` she may not stand
-    in, doors and slopes out: a thing grown by her half width, a building's shell (`classes.SHELL`) as it is and her
-    half width off its face's distance - both in one pass (`ahead`), as two 139 us a pass of her keys, as one 67 -:
-    laid once a look."""
+    in, slopes (and doors unless `doors`) out: a thing grown by her half width, a building's shell (`classes.SHELL`)
+    as it is and her half width off its face's distance - laid once a look."""
     import numpy as np
-    if _KEPT[0] is not things:
-        kept = [t for t in things if t[0] not in ('door', 'slope') and t[1][1] + t[2][1] > voxels.STAND_M[0]
+    slot = 2 if doors else 0
+    if _KEPT[slot] is not things:
+        skip = ('slope',) if doors else ('door', 'slope')
+        kept = [t for t in things if t[0] not in skip and t[1][1] + t[2][1] > voxels.STAND_M[0]
                 and t[1][1] - t[2][1] < voxels.STAND_M[1]]
         shell = np.array([t[0] in classes.SHELL for t in kept], bool)
         c = np.array([(t[1][0], t[1][2]) for t in kept], float).reshape(-1, 2)
         axes = np.array([((t[3][0][0], t[3][2][0]), (t[3][0][2], t[3][2][2])) for t in kept], float).reshape(-1, 2, 2)
         half = (np.array([(t[2][0], t[2][2]) for t in kept], float).reshape(-1, 2)
                 + np.where(shell, 0.0, figure.WIDE_HALF)[:, None])
-        _KEPT[:] = things, (c, axes, half, np.where(shell, figure.WIDE_HALF, 0.0))
-    return _KEPT[1]
+        _KEPT[slot:slot + 2] = things, (c, axes, half, np.where(shell, figure.WIDE_HALF, 0.0))
+    return _KEPT[slot + 1]
 
 
 def ahead(boxes, at, way):
