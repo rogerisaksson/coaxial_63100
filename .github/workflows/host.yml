@@ -1,60 +1,35 @@
-# The offline gate, on every push: the suites that need no board, no ollama
-# daemon and no bench - the same set `run_tests.py --offline` has always named.
+# A runner probe on a temporary branch, never merged: where her motion.control's C parts from its python
+# twins on each runner this matrix lands on (host/tools/dev/probe_twins.py).
 name: host
 
 on:
   push:
-    branches: [main]
-  pull_request:
-  # Asked by hand with measure: every suite to its end on the runner - none cut at a limit, none
-  # stopping the run (run_tests.py --measure) -, the run's log the runner's measure of each suite's
-  # work, laid in tests/work.json by `machine_detector.py --keep --tail`.
-  workflow_dispatch:
-    inputs:
-      measure:
-        description: every suite to its end, none cut - the runner's measure
-        type: boolean
-        default: false
+    branches: [probe-twins]
 
 permissions:
-  contents: write        # the failure step posts the log tail as a commit comment
+  contents: read
 
 jobs:
-  offline:
+  probe:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        python: ['3.12', '3.14']   # the declared floor, and the one it is developed on
+        python: ['3.12', '3.14']
+        seat: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      # What the suites take from outside, kept in the Actions cache (.github/actions/inputs): their
-      # environment, and Mesa's EGL in software for her eyes' renderer (machine.eyes.sight, MuJoCo's) -
-      # the runner has no display; without it mjr_makeContext raised and test_sight crashed. Fetched
-      # afresh every run, apt's mirrors not resolving failed the gate before a suite ran (f97eab6b,
-      # c3a6174a, 074c24b0).
       - uses: ./.github/actions/inputs
         with:
           apt: libegl1 libgl1-mesa-dri
           requirements: host/requirements.txt
-          constraints: host/constraints.txt     # one version a distribution, as on the desk and in the Linux containers
+          constraints: host/constraints.txt
           editable: host
-      - run: python tools/dev/run_tests.py --offline ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
+      - run: python -X utf8 tools/dev/probe_twins.py
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
-      # A red run must be readable without the Actions UI: the tail of the
-      # runner's own output lands as a commit comment, public like the repo.
-      - if: failure()
-        working-directory: host
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
-          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-            -f body="$(printf 'CI offline (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}'; cat tail.log; printf '\n~~~\n')" \
-            || true
