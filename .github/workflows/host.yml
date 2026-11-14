@@ -1,5 +1,5 @@
-# A runner probe on a temporary branch, never merged: each runner made AVX2's - numpy's AVX-512 dispatch off (A),
-# and OpenBLAS's kernel Haswell's too (B) - and her C beside her python twins there (host/tools/dev/probe_twins.py).
+# A runner probe on a temporary branch, never merged: numpy's AVX-512 dispatch off and OpenBLAS's kernel forced
+# to Zen's, SandyBridge's or Haswell's on one thread - her C beside her python twins there, and her wear's matmul.
 name: host
 
 on:
@@ -34,28 +34,42 @@ jobs:
         run: |
           python -X utf8 -c "import numpy._core._multiarray_umath as m; print('dispatch:', ' '.join(m.__cpu_dispatch__))"
           python -X utf8 -c "from tools.dev import probe_twins as p; p.processor()"
-      - name: A numpy AVX2
+      - name: Zen 
         continue-on-error: true
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
+          OPENBLAS_CORETYPE: Zen
+          OPENBLAS_NUM_THREADS: ''
         run: |
-          export NPY_DISABLE_CPU_FEATURES="$(python -c "import numpy._core._multiarray_umath as m; print(' '.join(t for t in m.__cpu_dispatch__ if t.startswith(('AVX512', 'X86_V4'))))" 2>/dev/null)"
-          echo "NPY_DISABLE_CPU_FEATURES=$NPY_DISABLE_CPU_FEATURES"
-          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()"
-          python -X utf8 tests/test_tick.py twins | tail -3 || echo "test_tick exit $?"
-          python -X utf8 tests/test_wear.py | tail -3 || echo "test_wear exit $?"
-      - name: B numpy AVX2 and OpenBLAS Haswell
+          export NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()" | grep -E "corename|probe 4|pow 2|exact_host" || echo "probe exit $?"
+          python -X utf8 tests/test_tick.py twins | tail -2 || echo "test_tick exit $?"
+          python -X utf8 tests/test_wear.py | tail -1 || echo "test_wear exit $?"
+      - name: SandyBridge 
+        continue-on-error: true
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          OPENBLAS_CORETYPE: SandyBridge
+          OPENBLAS_NUM_THREADS: ''
+        run: |
+          export NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()" | grep -E "corename|probe 4|pow 2|exact_host" || echo "probe exit $?"
+          python -X utf8 tests/test_tick.py twins | tail -2 || echo "test_tick exit $?"
+          python -X utf8 tests/test_wear.py | tail -1 || echo "test_wear exit $?"
+      - name: Haswell 1
         continue-on-error: true
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
           OPENBLAS_CORETYPE: Haswell
+          OPENBLAS_NUM_THREADS: '1'
         run: |
-          export NPY_DISABLE_CPU_FEATURES="$(python -c "import numpy._core._multiarray_umath as m; print(' '.join(t for t in m.__cpu_dispatch__ if t.startswith(('AVX512', 'X86_V4'))))" 2>/dev/null)"
-          echo "NPY_DISABLE_CPU_FEATURES=$NPY_DISABLE_CPU_FEATURES"
-          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()"
-          python -X utf8 tests/test_tick.py twins | tail -3 || echo "test_tick exit $?"
-          python -X utf8 tests/test_wear.py | tail -3 || echo "test_wear exit $?"
+          export NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()" | grep -E "corename|probe 4|pow 2|exact_host" || echo "probe exit $?"
+          python -X utf8 tests/test_tick.py twins | tail -2 || echo "test_tick exit $?"
+          python -X utf8 tests/test_wear.py | tail -1 || echo "test_wear exit $?"
