@@ -242,9 +242,9 @@ Evaluate the prompt and working tree before invoking any tool:
 
 - **Permitted Actions:** `Create`, `Edit`, `Write` (limit to the proven target
   files, only create new files and systems if existing solutions deemed
-  insufficient). If edits exist with a dirty main, create or reuse a worktree
-  register and make it visible in Visual Studio Code `Source Control` panel.
-  Make your edits in the new worktree.
+  insufficient). Create or reuse an existing worktree, register it and make it 
+  visible in Visual Studio Code `Source Control` panel.
+  Make your edits in a new worktree.
 - **Scope Lock:** Modify only the exact lines in the exact existing, or newly
   added file(s) proven in State 2. Never leave untracked temporary or backup
   files in the tree.
