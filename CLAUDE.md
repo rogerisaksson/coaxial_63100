@@ -150,6 +150,23 @@ Evaluate the prompt and working tree before invoking any tool:
     runs the versions `host/constraints.txt` pins (laid by
     `host/tools/dev/pinned.py`); a difference between the operating systems
     is one only where the modules match.
+  + Empirical ISA baseline (mandatory when C cores, their target flags, sum
+    orders or streaming kernels are touched, or CI's `arch` jobs are red):
+    her cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
+    `avx`, `avx2`, `avx512`, `sve2`, `sme2`). CI's `arch` jobs run the C
+    parity suites on GitHub's arm64 runner (Neoverse N2, `sve2`) and with
+    `avx512` where the x86 runner has it. Arm here is QEMU only, in the
+    Linux containers (binfmt and the arm64 images from `setup.ps1`, area
+    `linux`): `python -X utf8 host/tools/dev/run_tests.py --linux --arch
+    arm64 --isa sme2 --cpu max,sve-default-vector-length=64,`
+    `sme-default-vector-length=64 --python 3.12 --measure --file test_x.py`
+    (`--isa sve2` likewise; x86 targets `--isa avx2` etc. where this
+    processor runs them). Emulation runs 50-100 times slower: `--measure`
+    keeps a red suite from stopping the run, and host-time checks (test_qp's
+    solve, test_wbc_core's tick) and test_mirrors' subprocess timeout fail
+    there only - judge the parity tallies. A fault only a runner shows is
+    probed on a branch of its own: the suite in a matrix (16 jobs, six runs
+    each), judged by its count of reds, the branch deleted after.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -242,7 +259,7 @@ Evaluate the prompt and working tree before invoking any tool:
 
 - **Permitted Actions:** `Create`, `Edit`, `Write` (limit to the proven target
   files, only create new files and systems if existing solutions deemed
-  insufficient). Create or reuse an existing worktree, register it and make it 
+  insufficient). Create or reuse an existing worktree, register it and make it
   visible in Visual Studio Code `Source Control` panel.
   Make your edits in the new or reused worktree.
 - **Scope Lock:** Modify only the exact lines in the exact existing, or newly
@@ -289,7 +306,9 @@ Evaluate the prompt and working tree before invoking any tool:
   7. If CI is red, or the change touches C builds, numerics, rendering, or what
      the operating system decides (paths, processes, libraries, processors),
      rerun the same narrow suites in the Linux containers (`--linux`) and quote
-     both tallies, Windows and Linux, verbatim.
+     both tallies, Windows and Linux, verbatim. Where C cores or their ISA
+     flags were touched, also the arm64 targets under QEMU (`--arch arm64
+     --isa sve2`, `--isa sme2`, `--measure`), their parity tallies quoted.
   8. If the requirements, their lock or setup's installs were touched, lay the
      lock anew (`python -X utf8 host/tools/dev/pinned.py`) and run
      `test_depends` here and in the Linux containers: every host held to the
