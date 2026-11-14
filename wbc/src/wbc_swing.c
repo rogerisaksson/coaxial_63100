@@ -65,10 +65,9 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
   wbc_imp_shares(k, stance, bears);
   for (int r = 0; r < 3; r++)
   {
-    for (int j = 0; j < 3; j++)
-    {
-      bo[r][j] = npdot(bears, 1, &off3[r][0][j], 3, 2);
-    }
+    const wbc_view_t bv = {bears, 2, 1}, ov = {&off3[r][0][0], 3, 1};
+
+    wbc_matmul(&k->blas, bv, ov, bo[r], 3, 1, 1, 2, 3);
   }
   for (int r = 0; r < 3; r++)
   {
@@ -87,10 +86,10 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
     along[b] = sr[b][0];
     ds[b] = soles[3 * b + 1] - y[k->y_lowest + b];
   }
-  d1 = npdot(bears, 1, ds, 1, 2);
-  d2 = npdot(bears, 1, along, 1, 2);
-  d3 = npdot(bears, 1, &shod[0][2], 3, 2);
-  d4 = npdot(bears, 1, &shod[0][0], 3, 2);
+  d1 = wbc_dot(&k->blas, bears, 1, ds, 1, 2);
+  d2 = wbc_dot(&k->blas, bears, 1, along, 1, 2);
+  d3 = wbc_dot(&k->blas, bears, 1, &shod[0][2], 3, 2);
+  d4 = wbc_dot(&k->blas, bears, 1, &shod[0][0], 3, 2);
   for (int b = 0; b < 2; b++)
   {
     off3[0][b][2] -= aloft[b] * (d1 - rise * (along[b] - d2));

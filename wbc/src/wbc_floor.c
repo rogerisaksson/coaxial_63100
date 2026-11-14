@@ -121,7 +121,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
   }
   /* the told floor over the felt one, anchored under her standing soles */
   wbc_imp_shares(k, stood, w);
-  gap = -npdot(w, 1, under, 1, 2);
+  gap = -wbc_dot(&k->blas, w, 1, under, 1, 2);
   for (int b = 0; b < 2; b++)
   {
     left_s[b] = step_s * (1.0 - u[b] * flying[b]);
