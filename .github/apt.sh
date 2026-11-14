@@ -68,7 +68,13 @@ if [ "$(cat "$KEPT/.asked" 2>/dev/null)" != "$*" ]; then
   if [ -f /etc/apt/apt-mirrors.txt ]; then
     mapfile -t own < <(awk '/^[a-z]/ {print $1}' /etc/apt/apt-mirrors.txt)
   fi
-  mirrors=( "${own[@]}" "${INDEPENDENT[@]}" )
+  # and those its own sources name: an arm64 runner's apt-mirrors.txt names the amd64 archive (azure.archive,
+  # archive, security), its ports are in ubuntu.sources
+  if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+    mapfile -t -O "${#own[@]}" own < <(awk '/^URIs:/ {for (i = 2; i <= NF; i++) if ($i ~ /^https?:/) print $i}' \
+      /etc/apt/sources.list.d/ubuntu.sources)
+  fi
+  mapfile -t mirrors < <(printf '%s\n' "${own[@]}" "${INDEPENDENT[@]}" | awk '!seen[$0]++')
   answered=$(mktemp -d)
   for i in "${!mirrors[@]}"; do (serves "${mirrors[$i]}" && touch "$answered/$i") & done
   wait
