@@ -146,7 +146,7 @@
      :phases [(:name :place :ends :reached :next :press :with [square]
                :goals (:shoulder [-35.5 60.0] :elbow [63.9 120.0] :hip [-90.0 11.0] :knee [90.0 15.0]))
               (:name :press :ends :reached :next :vault :goals (:shoulder [-23.3 30.0] :elbow [41.2 30.0]))
-              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0]))
+              (:name :vault :ends :feet :next :done :goals (:shoulder [-45.0 14.0] :elbow [-5.0 30.0] :hip [-102.0 20.0]))
               (:name :done :ends :reached :next :done)])))
 
 ;; Her scoot on the floor as her twist tells it (machine.moves.scoot, wbc_scoot.c): a crab on her seat, heels in turn,

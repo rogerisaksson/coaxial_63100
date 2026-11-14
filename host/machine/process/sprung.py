@@ -242,6 +242,8 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
         if idx is not None:
             g['posture'][idx] = 0.0
     _dropped(g)
+    g['labels'] = []
+    g.pop('_post_stunt', None)
 
 
 def looked(g):

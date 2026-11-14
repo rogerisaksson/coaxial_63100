@@ -19,7 +19,7 @@ import math
 
 from machine.body import figure
 from machine.eyes import classes, voxels
-from machine.law import schema
+from machine.law import schema, se2
 from machine.way import furniture, route, wayfinder
 from machine.world import physics
 
@@ -28,31 +28,58 @@ _KEPT: list = [None, None]
 
 
 def blocked(g):
-    """Whether her stop along her asked way (`g['asked']`) from her speed along it no longer fits short of her things:
-    never on an errand, standing or with none seen."""
+    """Whether her stop along her asked way (`g['asked']`) or turning arc from her speed no longer fits short of her
+    things: never on an errand, standing or with none seen."""
     tw = g.get('asked', (0.0, 0.0, 0.0))
     way = _way(g, tw)
     if way is None:
         return False
     vel = g['est']['vel']
-    return _stop(max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])) >= _room(g, way)
+    v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
+    return _stop(v_along) >= _arc_room(g, tw, v_along)
 
 
 def refused(g, tw):
-    """Twist `tw` (her body's), its way taken off where her stop at its own speed cannot fit short of her things."""
+    """Twist `tw` (her body's), its way taken off where her stop along it or its turning arc cannot fit short of her
+    things."""
     way = _way(g, tw)
-    if way is None or _stop(math.hypot(tw[0], tw[1])) < _room(g, way):
+    v = math.hypot(tw[0], tw[1])
+    if way is None:
+        return tw
+    vel = g['est']['vel']
+    v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
+    v_chk = max(v, v_along)
+    margin = 2.0 * se2.STOP_SPREAD_M if g.get('_cocoon_cut') else 0.0
+    if _stop(v_chk) + margin < _arc_room(g, tw, v_chk):
         return tw
     return (0.0, 0.0, tw[2])
 
 
-def _way(g, tw):
-    """The unit way (x, z) of twist `tw` along her heading; None outside a room or sight, on an errand, or still."""
+def _way(g, tw, dh=0.0):
+    """The unit way (x, z) of twist `tw` along her heading turned by `dh`; None outside a room or sight, on an errand,
+    or still."""
     v = math.hypot(tw[0], tw[1])
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not g.get('things'):
         return None
-    h = float(g['heading'])
+    h = float(g['heading']) + dh
     return (tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v, (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v
+
+
+def _arc_room(g, tw, v_ref):
+    """Minimum room along her straight or yaw-curved braking horizon."""
+    way0 = _way(g, tw)
+    if way0 is None:
+        return math.inf
+    room = _room(g, way0)
+    wz = float(tw[2])
+    if abs(wz) <= 1e-4:
+        return room
+    t_arc = schema.HORIZON + 0.5 * v_ref / route.BRAKE
+    for frac in (0.5, 1.0):
+        w_k = _way(g, tw, frac * wz * t_arc)
+        if w_k is not None:
+            room = min(room, _room(g, w_k))
+    return room
 
 
 def _stop(v):

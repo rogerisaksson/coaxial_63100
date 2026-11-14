@@ -15,6 +15,17 @@ from machine.texts import ortho
 
 TURN_GAITS = ('turn_left', 'turn_right', 'spin_left', 'spin_right')
 TURN_ALL = TURN_GAITS + ('turn_back_left', 'turn_back_right')
+STUNT_TRANSIENT = ('approach', 'lower', 'seated_', 'sit_edge', 'recline', 'bed_rest_',
+                   'scoot', 'sit_up', 'swing_out', 'plant', 'lean', 'thrust',
+                   'kneel', 'tip', 'push_arms', 'half_kneel', 'cushion', 'descent',
+                   'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'step_off', 'drop', 'absorb')
+
+
+def in_stunt_transient(g):
+    """Whether she is in a transient stunt phase or joint program (neither standing nor settled at rest)."""
+    cur = sprung.doing(g)
+    return g.get('played') is not None or any(
+        cur.startswith(p) if p.endswith('_') else (cur == p or cur.startswith(p + '_')) for p in STUNT_TRANSIENT)
 #: She has halted after a stop's brake: slower than HALT_M_S along her way with both soles touching (`leap.TOUCH_N`);
 #: her stand is said then, or at the brake's doubled horizon unmet. Each sole at a quarter of her weight instead
 #: waited out the horizon: stopped, she rests 43 N on one sole and 251 on the other.
@@ -139,15 +150,17 @@ def heard_say(g, gym, entry):
     by, name = {e[0]: e for e in gym}, entry[0]
     if g.get('_jump_until', 0.0) > g['t']:
         return _queue_post_jump(g, by, entry)
-    if name == g.get('active_entry') and (name == 'stand' or sprung.doing(g) not in ('rest', 'stand')
-                                          or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any())):
+    if name == g.get('active_entry') and (
+            (sprung.doing(g) in ('rest', 'stand', 'brake') or g.get('_halt_at') is not None) if name == 'stand'
+            else (sprung.doing(g) not in ('rest', 'stand') or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any()))):
         return
     # her gait's direction is the one she was told, not her sway's phase: a spin's read as a backward walk
     back_now = g.get('active_entry') in sprung._BACK_GAITS
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
-    striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
-                or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
+    striding = not (cur_d == 'stand' and spd < HALT_M_S) and (
+        abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
+        or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or g['st'][latent.NOW][latent.GAIN] > 0.02)
     off_c = not striding and cur_d not in ('stand', 'rest') and (
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
         or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
@@ -202,13 +215,29 @@ def heard_say(g, gym, entry):
         sprung.said(g, *by['stand'], at=t0 + 0.80, reset=True)
         return start_mode(g, by, entry, at=t0 + 2.00) if name != 'stand' else None
     if cur_d in se2.RISE_OF and name in (sprung._FWD_GAITS + sprung._BACK_GAITS) and se2.RISE_OF[cur_d] in by:
+        from machine.errors import MachineError
+        from machine.moves import clocked
+        from machine.texts import maneuver
         rm = se2.RISE_OF[cur_d]
-        sprung.said(g, *by[rm], at=t0, reset=True)
-        return start_mode(g, by, entry, at=t0 + se2.rise_lead(by[rm][1]))
+        if rm in clocked.BOUND:
+            g['programs'] = dict(clocked.BOUND[rm])
+        try:
+            r_entry = maneuver.said(g, by[rm])
+        except MachineError:
+            r_entry = by[rm]
+        sprung.said(g, *r_entry, at=t0, reset=True)
+        start_mode(g, by, entry, at=t0 + se2.rise_lead(r_entry[1]))
+        g['_post_stunt'] = entry[0]
+        g['active_entry'] = rm
+        return None
     if off_c and 'stand' in by and name not in (('stand', 'hop') + tuple(sprung.STUNT_MODES)):
         sprung.said(g, *by['stand'], at=t0, reset=True)
         return start_mode(g, by, entry, at=t0 + (0.55 if cur_d == 'down' else 1.35))
-    return start_mode(g, by, entry, at=t0) if not striding else sprung.said(g, *entry, at=t0)
+    if not striding:
+        return start_mode(g, by, entry, at=t0)
+    g['active_entry'], g['_brake_from'], g['_halt_at'] = name, None, None
+    _sync_nominal_twist(g, name)
+    return sprung.said(g, *entry, at=t0)
 
 
 def halted(g, gym):
@@ -243,6 +272,10 @@ def govern_twist(g, gym, dt):
     if not g.get('_twist_active') or g.get('_errand') is not None or g.get('_jump_until', 0.0) > g['t']:
         return
     rhythm, se2, touch = _gov_mods()
+    if in_stunt_transient(g):
+        return
+    if g.get('_post_stunt') is not None and sprung.doing(g) not in se2.RISE_OF:
+        g['active_entry'] = g.pop('_post_stunt')
     ae = g.get('active_entry')
     if ae not in se2.SE2_GAITS or sprung.doing(g) in ('brake', 'stand', 'init_walk'):
         return
@@ -250,18 +283,26 @@ def govern_twist(g, gym, dt):
         g['_jog_until'] = g['t'] + 0.5 * se2.BRAKE_S
     ax, ay, az = g.get('asked', (0.0, 0.0, 0.0))
     vx, vy, wz = g.get('governed', (ax, ay, az))
-    if abs(ay) > 0.01 or (vx == ax and vy == ay and wz == az and se2.gait_for_twist(vx, vy, wz) == ae):
-        return
     still_wz = rhythm.R['still_rad_s']
+    if abs(ay) > 0.01 or (vx == ax and vy == ay and wz == az and abs(az) <= still_wz
+                          and se2.gait_for_twist(vx, vy, wz) == ae):
+        return
     prior = max(min(float(g['grip_prior'][0]), float(g['grip_prior'][1])), 1e-6)
-    mu = min(1.0, max(0.25, min(float(g['held'][0]), float(g['held'][1])) / prior))
+    held = g.get('held', g['grip_prior'])
+    mu = min(1.0, max(0.25, min(float(held[0]), float(held[1])) / prior))
     a_brake = se2.WALK_SPEED * se2.WALK_HZ * mu
     a_accel, dwz_wind = 2.0 * a_brake, 2.0 * se2.WALK_HZ * se2.YAW_RATE * mu
     dwz_unwind = 2.0 * dwz_wind
+    h = float(g['heading'])
+    vxp = max(0.0, float(g['est']['vel'][0]) * math.sin(h) + float(g['est']['vel'][2]) * math.cos(h))
     fast = abs(az) > still_wz and (vx > se2.MARCH_FROM or ae == 'jog' or g.get('_jog_until', 0.0) > g['t'])
     wz_goal = 0.0 if fast else az
     vx_goal = se2.WALK_SPEED if (fast or (ax > se2.WALK_SPEED and abs(wz) > still_wz)) else ax
-    vx = _slew(vx, vx_goal, (a_brake if vx_goal < vx else a_accel) * dt)
+    if (vx_goal <= rhythm.R['spin_still_m_s'] and abs(az) > still_wz
+            and ae not in ('spin_left', 'spin_right') and vxp > rhythm.R['spin_fast_m_s']):
+        vx_goal = rhythm.R['spin_still_m_s'] + rhythm.R['edge_m_s']
+    a_vx = (a_accel if ax == 0.0 and abs(az) > still_wz else a_brake) if vx_goal < vx else a_accel
+    vx = _slew(vx, vx_goal, a_vx * dt)
     vy = _slew(vy, ay, a_accel * dt)
     if wz * (wz_goal - wz) < 0.0:
         step_0 = min(abs(wz), dwz_unwind * dt)

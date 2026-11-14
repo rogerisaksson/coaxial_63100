@@ -86,7 +86,7 @@
 (defbehavior init_walk
   (phase init (use stride_spring)
     (duration 700ms) (blend_duration 350ms)
-    (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.02))
+    (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.02) (mode_lateral_shift -0.012))
     (impedance (stiffness mode_axial_compression 3200))
     (cpg_config
       (enable true) (frequency 0.92Hz)

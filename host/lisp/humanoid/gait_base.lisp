@@ -32,7 +32,8 @@
   (latent_targets
     (mode_axial_compression 0.04)
     (mode_pitch_attitude 0.0)
-    (mode_sagittal_shift 0.0)))
+    (mode_sagittal_shift 0.0)
+    (mode_lateral_shift 0.0)))
 
 ;; Composite reverse / lateral gait prototype
 (deftrait reverse_gait (extends stride_spring)
@@ -107,7 +108,7 @@
 (stream_inject
   (sequence_id 204)
   (blend_duration 2000ms)
-  (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.0))
+  (latent_targets (mode_axial_compression 0.03) (mode_pitch_attitude 0.0) (mode_lateral_shift 0.0))
   (cpg_config
     (frequency 1.15Hz)
     (amplitude mode_sagittal_drive 0.85)

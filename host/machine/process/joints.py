@@ -342,6 +342,14 @@ def played(g, world):
                 else p['move'].step(p['state'], p['cmd'], np.degrees(g['sense'][edge.Q]), g['t'], dt, *senses))
         p['last'] = g['t']
         if done:
+            if p['holds'] and len(g['tab']):
+                from machine.law import latent
+                fut = np.flatnonzero(g['tab'][:, latent.AT] > g['t'])
+                if (len(fut) and float(g['tab'][fut[0], latent.LATCH]) > 0.5
+                        and float(g['st'][latent.TO][latent.MANIFOLD.start]) > 0.9):
+                    pull = max(0.0, float(g['tab'][fut[0], latent.AT]) - (g['t'] + 0.001))
+                    g['tab'][fut, latent.AT] -= pull
+                    g['labels'] = [(w - pull * (w > g['t']), n) for w, n in g['labels']]
             ended(g)
             return
         if p['holds']:

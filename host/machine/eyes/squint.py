@@ -155,12 +155,16 @@ def _followed(g, lw, y, x, slope):
     within a pixel of where it began: a correlation's parabola placed 66 of 182 rows within a fifth of a pixel of a
     whole one, and her squint read on them 0.2-0.7 of its turn."""
     np = _np()
+    h, w_img = g.shape
     r0, (y0, x0) = WINDOW // 2, (y.copy(), x.copy())
     o = np.arange(-r0, r0 + 1)
     lean = -slope[:, 0, None, None] * o[None, :, None] + (1.0 - slope[:, 1, None, None]) * o[None, None, :]
+    flat = np.zeros(len(y), dtype=bool)
     for _ in range(WINDOW):
         yy, xx = y[:, None, None] + o[None, :, None] + 0.0 * lean, x[:, None, None] + lean
-        iy, ix = np.floor(yy).astype(np.int64), np.floor(xx).astype(np.int64)
+        inside = ((yy >= 0.0) & (yy <= h - 1.001) & (xx >= 0.0) & (xx <= w_img - 1.001)).all(axis=(1, 2))
+        iy = np.clip(np.floor(yy).astype(np.int64), 0, h - 2)
+        ix = np.clip(np.floor(xx).astype(np.int64), 0, w_img - 2)
         fy, fx = yy - iy, xx - ix
         a, b, c, d = g[iy, ix], g[iy, ix + 1], g[iy + 1, ix], g[iy + 1, ix + 1]
         top, low = a + (b - a) * fx, c + (d - c) * fx
@@ -170,7 +174,7 @@ def _followed(g, lw, y, x, slope):
         sxx, syy, sxy = (gx * gx).sum(axis=(1, 2)), (gy * gy).sum(axis=(1, 2)), (gx * gy).sum(axis=(1, 2))
         bx, by = (gx * e).sum(axis=(1, 2)), (gy * e).sum(axis=(1, 2))
         det = sxx * syy - sxy * sxy
-        flat = det > 0.0
+        flat = (det > 0.0) & inside
         det = np.where(flat, det, 1.0)
         sx, sy = np.where(flat, (syy * bx - sxy * by) / det, 0.0), np.where(flat, (sxx * by - sxy * bx) / det, 0.0)
         y, x = np.clip(y + sy, y0 - 1.0, y0 + 1.0), np.clip(x + sx, x0 - 1.0, x0 + 1.0)

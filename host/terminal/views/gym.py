@@ -93,13 +93,13 @@ _BEARS = {'hop_down_chair': 'sit_chair', 'rise_chair': 'sit_chair', 'rise_bed': 
 
 
 def _propped(now, scenario=None):
-    """The verb that takes her up from a thing bearing her - a chair's seat, a bed, a mattress
-    (`_RISE_TABLE`) -; None on her feet or on the floor alone."""
+    """The verb taking her up from a thing (`_RISE_TABLE`); None on her feet or floor."""
     doing, scen = now.get('doing', ''), scenario or now.get('scenario') or 'open'
     if (now.get('where') or (0.0, 0.90, 0.0))[1] > ON_CHAIR_M:
         return 'hop_down_chair'
     return next((move for phases, scens, move in _RISE_TABLE
-                 if doing in phases and (scens is None or scen in scens)), None)
+                 if any(doing == p or doing.startswith(p + '_') for p in phases)
+                 and (scens is None or scen in scens)), None)
 
 
 def _floored(now):

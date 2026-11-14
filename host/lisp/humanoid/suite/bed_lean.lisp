@@ -93,14 +93,23 @@
 ;; rise from her back then asked her trunk upside down.
 (defmaneuver specialize-recline-long-side [state]
   (-> state
+      (stage-sequential-manifold                       ; the scoot: her feet push her hips back over her fists
+        :duration-ms 450.0
+        :contact-chain [:palmar-carpal-bilateral -> :ischial-sacral]
+        :torso-pitch-ramp [0.0 -> 0.0]
+        :axial-yaw-ramp [0.0 -> 0.0]
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.25] :limb-lift 0.0)
+        :talocrural-rad -0.05
+        :carpal-ahead-m -0.14
+        :manifold-pan '((:plantar-bilateral 0.30) (:ischial-bilateral 0.35) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.35)))
       (stage-sequential-manifold                       ; landed: the take's lie from its first tick
         :duration-ms 3350.0
-        :contact-chain [:palmar-carpal-bilateral -> :ischial-bilateral]
+        :contact-chain [:ischial-sacral -> :ischial-bilateral]
         :joint-program :lying-down-from-sitting
         :joint-keep :legs
         :torso-pitch-ramp [0.0 -> -0.10]
         :axial-yaw-ramp [0.0 -> 0.0]
-        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.45 -> 1.45] :limb-lift 0.0)
+        :counterweight-limb-sweep (:tibiofemoral-flex-rad [1.25 -> 1.45] :limb-lift 0.0)
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.65) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.35)))
       (stage-sequential-manifold                       ; flat under the program: her back told to bear, her rest
         :duration-ms 2000.0                            ; limps her as the program ends

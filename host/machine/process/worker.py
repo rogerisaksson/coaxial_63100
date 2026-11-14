@@ -60,9 +60,27 @@ def heard(g, gym, command):
         joints.said(g, command)
     elif not errand_step and any(k in command for k in ('say', 'entries', 'scenario')):
         joints.ended(g)
+    if errand_step or any(k in command for k in ('scenario', 'say', 'walk', 'entries')):
+        g['_key_twist'], g['_cocoon_cut'] = (0.0, 0.0, 0.0), False
     if 'twist' in command and ('say' in command or not joints.scooted(g, command['twist'])):
-        tw = command['twist'] if 'say' in command or command['twist'] is None else _cocoon().refused(g, command['twist'])
-        se2.heard_twist(g, gym, tw, 'say' in command, gaits.heard_say)
+        if not errand_step and 'say' not in command:
+            raw = command['twist']
+            kt = (0.0, 0.0, 0.0) if raw is None else (float(raw[0]), float(raw[1]), float(raw[2]))
+            g['_key_twist'], g['_cocoon_cut'] = kt, False
+        if not errand_step and 'say' not in command and gaits.in_stunt_transient(g):
+            if g.get('_post_stunt') is not None:
+                tw_c = (0.0, 0.0, 0.0) if command['twist'] is None else _cocoon().refused(g, command['twist'])
+                g['_cocoon_cut'] = command['twist'] is not None and tw_c != g['_key_twist']
+                g['asked'] = g['governed'] = (float(tw_c[0]), float(tw_c[1]), float(tw_c[2]))
+                g['_twist_active'] = max(abs(tw_c[0]), abs(tw_c[1]), abs(tw_c[2])) > 0.01
+        else:
+            if g.get('_post_stunt') is not None and sprung.doing(g) not in se2.RISE_OF:
+                g['active_entry'] = g.pop('_post_stunt')
+            tw = (command['twist'] if errand_step or 'say' in command or command['twist'] is None
+                  else _cocoon().refused(g, command['twist']))
+            if not errand_step and 'say' not in command and command['twist'] is not None:
+                g['_cocoon_cut'] = tw != g['_key_twist']
+            se2.heard_twist(g, gym, tw, 'say' in command, gaits.heard_say)
     by = {e[0]: e for e in gym}
     if 'charge' in command:
         g['_hop_charge'] = max(0.0, min(1.0, float(command['charge'])))
@@ -233,9 +251,15 @@ def stepped(s):
             gaits.halted(g, s['gym'])
             _errand().step_errand(g, s['gym'], heard, gaits.heard_say)
             gaits.govern_twist(g, s['gym'], DT)
-            if _cocoon().blocked(g):
-                # short of a thing: her keys let go (`machine.way.cocoon`), her turn kept - she stands by her own stop
-                se2.heard_twist(g, s['gym'], (0.0, 0.0, g['asked'][2]), False, gaits.heard_say)
+            kt = g.get('_key_twist', (0.0, 0.0, 0.0))
+            if g.get('_cocoon_cut') and g.get('_errand') is None and not gaits.in_stunt_transient(g):
+                tw_c = _cocoon().refused(g, kt)
+                if tw_c == kt or math.hypot(kt[0], kt[1]) <= 1e-6:
+                    g['_cocoon_cut'] = False
+                    se2.heard_twist(g, s['gym'], tw_c, False, gaits.heard_say)
+            elif _cocoon().blocked(g):
+                g['_cocoon_cut'] = g.get('_errand') is None and math.hypot(kt[0], kt[1]) > 1e-6
+                se2.heard_twist(g, s['gym'], _cocoon().refused(g, g['asked']), False, gaits.heard_say)
             sprung.passed(g, DT)
             if s['worn'].put(g['sense'], world.motor):
                 s['worn'].shut(s['passes'])

@@ -137,7 +137,7 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                 if t - frame >= FRAME_S:
                     frame = t
                     st['now'] = worker.told(s)
-                    humanoid_keys.steered(st, t, 0.0)
+                    humanoid_keys.frame(st, t, 0.0)
                     lodge = _lodge(g)      # read each frame: her loose things move (`machine.world.loose`)
                     gap, name = _near(lodge, (float(g['world'].data.qpos[0]), float(g['world'].data.qpos[2])),
                                       figure.WIDE_HALF)
@@ -158,7 +158,8 @@ def drive(seed, seconds, eyes=False, words=None, trace=None, keyboard=False, roo
                             faults.append({'kind': e['event'], 't': round(e['t'], 2), 'detail': sprung.doing(g) + (
                                 ' %s %.0f deg/s' % (e['joint'], e['deg_s']) if 'joint' in e else '')})
             # W refused short of a thing is her cocoon's (`machine.way.cocoon`), not stuck
-            if word == 'w' and held >= 2.0 and s['fallen_at'] is None and cocoon.refused(g, (1.0, 0.0, 0.0))[0] and math.hypot(
+            if word == 'w' and held >= 2.0 and s['fallen_at'] is None and cocoon.refused(
+                    g, (se2.WALK_SPEED, 0.0, 0.0))[0] and math.hypot(
                     float(g['world'].data.qpos[0]) - x0[0], float(g['world'].data.qpos[2]) - x0[1]) < 0.05:
                 faults.append({'kind': 'stuck', 't': round(float(g['t']), 2), 'detail': 'W held %.1f s, no way made' % held})
                 end = 'stuck'
@@ -268,17 +269,19 @@ def main(argv=None):
                                    'words': run['words']}, out, indent=1)
                     print('staged', name)
         return 0
-    failed = 0
+    failed, cases, calls = 0, {}, []
     for name in _staged():
         with open(os.path.join(STAGED, name), encoding='utf-8-sig') as f:
-            case = json.load(f)
+            case = cases[name] = json.load(f)
         words, left = [], case['until']
         for word, held in case['words']:
             words.append((word, min(held, left)))
             left -= held
             if left <= 0:
                 break
-        run = drive(case['seed'], case['until'], case['eyes'], words, keyboard=case.get('held', False))
+        calls.append((name, (case['seed'], case['until'], case['eyes'], words, None, case.get('held', False))))
+    for name, run in _relayed(calls, a.jobs):
+        case = cases[name]
         # into: into the same thing (a window brushed is her shell's, not the bed she walked into)
         thing = case['fault']['detail'].split(' into ')[-1].split(' ')[0] if case['fault']['kind'] == 'into' else ''
         again = [f for f in run['faults'] if f['kind'] == case['fault']['kind'] and (' into %s' % thing) in ' into ' + f['detail'].split(' into ')[-1]]
