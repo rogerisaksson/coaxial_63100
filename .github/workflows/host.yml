@@ -1,5 +1,5 @@
-# A runner probe on a temporary branch, never merged: where her motion.control's C parts from its python
-# twins on each runner this matrix lands on (host/tools/dev/probe_twins.py).
+# A runner probe on a temporary branch, never merged: each runner made AVX2's - numpy's AVX-512 dispatch off (A),
+# and OpenBLAS's kernel Haswell's too (B) - and her C beside her python twins there (host/tools/dev/probe_twins.py).
 name: host
 
 on:
@@ -28,8 +28,34 @@ jobs:
           requirements: host/requirements.txt
           constraints: host/constraints.txt
           editable: host
-      - run: python -X utf8 tools/dev/probe_twins.py
+      - name: as it is
+        shell: bash
+        working-directory: host
+        run: |
+          python -X utf8 -c "import numpy._core._multiarray_umath as m; print('dispatch:', ' '.join(m.__cpu_dispatch__))"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor()"
+      - name: A numpy AVX2
+        continue-on-error: true
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
+        run: |
+          export NPY_DISABLE_CPU_FEATURES="$(python -c "import numpy._core._multiarray_umath as m; print(' '.join(t for t in m.__cpu_dispatch__ if t.startswith(('AVX512', 'X86_V4'))))" 2>/dev/null)"
+          echo "NPY_DISABLE_CPU_FEATURES=$NPY_DISABLE_CPU_FEATURES"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()"
+          python -X utf8 tests/test_tick.py twins | tail -3 || echo "test_tick exit $?"
+          python -X utf8 tests/test_wear.py | tail -3 || echo "test_wear exit $?"
+      - name: B numpy AVX2 and OpenBLAS Haswell
+        continue-on-error: true
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          OPENBLAS_CORETYPE: Haswell
+        run: |
+          export NPY_DISABLE_CPU_FEATURES="$(python -c "import numpy._core._multiarray_umath as m; print(' '.join(t for t in m.__cpu_dispatch__ if t.startswith(('AVX512', 'X86_V4'))))" 2>/dev/null)"
+          echo "NPY_DISABLE_CPU_FEATURES=$NPY_DISABLE_CPU_FEATURES"
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()"
+          python -X utf8 tests/test_tick.py twins | tail -3 || echo "test_tick exit $?"
+          python -X utf8 tests/test_wear.py | tail -3 || echo "test_wear exit $?"
