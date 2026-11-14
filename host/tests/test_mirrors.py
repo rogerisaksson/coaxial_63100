@@ -53,6 +53,8 @@ MIRRORS = (
     ('coaxial.simulated.values', 'RING_BYTES',
      'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
     ('coaxial.devices.boot', 'CHUNK', 'boot/inc/boot.h', 'BOOT_CHUNK_BYTES', 1.0),
+    ('coaxial.devices.angle', 'IDLE_HZ', 'board/inc/board_limits.h', 'ANGLE_IDLE_HZ', 1.0),
+    ('coaxial.devices.angle', 'STALE_READS', 'board/src/board_angle.c', 'ANGLE_STALE', 1.0),
     ('machine.stack.wbc', 'MU', 'wbc/inc/wbc.h', 'WBC_MU', 1.0),
     ('machine.stack.wrench', 'ROUNDS', 'wbc/inc/wbc.h', 'WBC_ROUNDS', 1.0),
     ('machine.stack.wrench', 'PAST', 'wbc/inc/wbc.h', 'WBC_PAST', 1.0),

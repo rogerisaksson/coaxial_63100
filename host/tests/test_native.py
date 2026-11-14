@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import EMULATED, Coaxial63100
 from coaxial.control.commission import Commissioning
 from coaxial.comm.session import standing
+from coaxial.devices.angle import IDLE_HZ, STALE_READS
 from coaxial.devices.imu import ACCELEROMETER
 from coaxial.node import discover
 from coaxial.model.inverter import GATE_UVLO_V
@@ -134,9 +135,12 @@ def test_the_parts_answer(report, rig):
     b.afe.on()
     try:
         b.transport.sleep(0.05)
-        # Read between two looks at the shaft: the bench's flywheel coasts on after a drive.
+        # Read between two looks at the shaft: the bench's flywheel coasts on after a drive. What
+        # the loop saw was taken up to STALE_READS + 1 reads before it is asked: the board runs
+        # that long past the first look, so the reading follows it.
         with limb.lock:
             before = limb.boards[0].lib.native_shaft_degrees() % 360.0
+        b.transport.sleep((STALE_READS + 1) / IDLE_HZ)
         read = b.angle.state().get('degrees')
         with limb.lock:
             shaft = limb.boards[0].lib.native_shaft_degrees() % 360.0

@@ -42,6 +42,13 @@ resolution. 360/4096 is 0.0879 degrees a count."""
 TSEN_COUNTS_PER_KELVIN = 8
 """TSEN counts eighths of a kelvin."""
 
+IDLE_HZ = 1000
+"""The poll's reads a second while no drive or DAQ runs (ANGLE_IDLE_HZ)."""
+
+STALE_READS = 2
+"""The reads a reply lags the read that asked for it (ANGLE_STALE): what the loop saw
+was taken up to STALE_READS + 1 idle reads before the board is asked."""
+
 
 def degrees(value):
     """`value`'s low twelve bits as degrees, 0 to 360."""
