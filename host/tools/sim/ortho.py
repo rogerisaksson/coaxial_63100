@@ -36,10 +36,12 @@ AIR_N = 5.0
 
 def went(plan, to=TO_S, trace=0, every=None):
     """{stood, t, tilt, modes {mode: (asked, furthest, as the last asked ended, at the end)},
-    loads then and at the end (N), up m/s, air s, went m, speed m/s, landings, us a pass,
-    rows}: `plan` [(s, label, wire, names)] (`sprung.entries`) - each begun at its second -
-    from a stand on the loop, followed `to` s past the last; `trace` a row every that many ms;
-    the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none."""
+    strode {mode: its mean over her whole strides past the last asked blended in - a sole's first
+    landing to its last -}, strides, loads then and at the end (N), up m/s, air s, went m, speed m/s,
+    landings, us a pass, rows}: `plan` [(s, label, wire, names)] (`sprung.entries`) - each begun at
+    its second - from a stand on the loop, followed `to` s past the last; `trace` a row every that
+    many ms; the loop solved every `every` passes, the page's (`sprung.STACK_EVERY`) with none. A
+    mode walking swings within each stride: its value at the end is the stride's phase there."""
     import time
     import numpy as np
     from machine.law import latent, modal
@@ -56,7 +58,7 @@ def went(plan, to=TO_S, trace=0, every=None):
     n, first, home = ortho.N, min(item[0] for item in plan), float(g['y'][modal.COM][1])
     rec = {'far': np.zeros(n), 'asked': np.zeros(n), 'ended': np.zeros(n), 'z': np.zeros(n), 'up': 0.0,
            'air': 0.0, 'rows': [], 'loads': (0.0, 0.0), 'track': [], 'landings': 0,
-           'stood': (True, True), 'tilt': 0.0, 'failed': None}
+           'stood': (True, True), 'tilt': 0.0, 'failed': None, 'after': [], 'landed': ([], [])}
     # her first pass cold, its own; the rest hot, a pass's mean (`us`)
     along, began, cold = g['fr'][modal.ROT][:3], time.perf_counter(), None
     while g['t'] < last + to and rec['tilt'] <= HELD_DEG and g['y'][modal.COM][1] > LOW * home:
@@ -75,6 +77,11 @@ def went(plan, to=TO_S, trace=0, every=None):
         rec['up'] = max(rec['up'], float(s['vcom'][1]))
         rec['air'] += 0.001 * (max(loads) < AIR_N)
         rec['landings'] += sum(bool(stands) and not was for stands, was in zip(ask['stance'], rec['stood']))
+        if now >= last:
+            rec['after'].append((now, z.copy()))
+            for times, stands, was in zip(rec['landed'], ask['stance'], rec['stood']):
+                if stands and not was:
+                    times.append(now)
         rec['stood'] = ask['stance']
         rec['track'].append(float(s['com'] @ along))
         if cold is None:
@@ -86,11 +93,19 @@ def went(plan, to=TO_S, trace=0, every=None):
                 ''.join('S' if stands else '-' for stands in ask['stance']), float(s['vcom'] @ along)))
     track, loads = rec['track'], g['loads']
     tail = track[-int(GOING_S * 1000):]
+    # her whole strides: the sole whose landings past the last asked span the longest, first to last
+    spans = [(times[-1] - times[0], times[0], times[-1], len(times) - 1) for times in rec['landed'] if len(times) > 1]
+    strode, strides = {}, 0
+    if spans:
+        _, start, end, strides = max(spans)
+        held = np.array([z for at, z in rec['after'] if start <= at < end])
+        strode = {m: round(float(v), 3) for m, v in zip(ortho.MODES, held.mean(axis=0))}
     return {'stood': rec['failed'] is None and g['t'] >= last + to - 1e-6, 'failed': rec['failed'],
             't': round(g['t'], 3), 'tilt': round(rec['tilt'], 1),
             'us': round(1e6 * (time.perf_counter() - began) / max(1, len(track) - 1)), 'cold_us': round(1e6 * (cold or 0.0)),
             'modes': {m: tuple(round(float(v), 3) for v in row) for m, *row in zip(
                 ortho.MODES, rec['asked'], rec['far'], rec['ended'], rec['z'])},
+            'strode': strode, 'strides': strides,
             'loads': tuple(round(v) for v in rec['loads']), 'rest': tuple(round(v) for v in loads),
             'up': round(rec['up'], 3), 'air': round(rec['air'], 3),
             'went': round(track[-1] - track[0], 3) if track else 0.0,

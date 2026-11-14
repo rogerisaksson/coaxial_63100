@@ -7,18 +7,22 @@ ROOT = Path(__file__).resolve().parents[2]           # host/
 STRUCTURE = 'test_structure.py'
 #: The whole tree on one trunk, the terminal up to the shunts, its ties read off the code (tools.dev.atlas).
 ATLAS = 'test_atlas.py'
+#: Orthokinematics' texts: compiled to rows, what is no text refused, her law's code branchless (test_ortho's once).
+ORTHO_TEXTS = 'test_ortho_texts.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
-#: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk.
+#: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk;
+#: her texts compiling and her law's code branchless.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
-              'test_wire_requests.py', 'test_protocol_doc.py', ATLAS)
+              'test_wire_requests.py', 'test_protocol_doc.py', ATLAS, ORTHO_TEXTS)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_ortho.py', 'test_errands.py', 'test_tick.py', 'test_wasd.py', 'test_dsp.py',
-                'test_kernel.py', 'test_wayfinder.py', 'test_introspect.py', 'test_views_grove.py',
-                'test_wbc_core.py', 'test_floor.py', 'test_camera.py', 'test_docks.py',
-                'test_sight.py', 'test_gaze.py', 'test_replays.py', 'test_scenarios.py',
-                'test_bedside.py', 'test_substrate.py', 'test_vault.py', 'test_emulator.py')
+FAILED_FIRST = ('test_ortho.py', 'test_native.py', 'test_errands.py', 'test_tick.py',
+                'test_wasd.py', 'test_dsp.py', 'test_kernel.py', 'test_wayfinder.py',
+                'test_introspect.py', 'test_views_grove.py', 'test_wbc_core.py', 'test_floor.py',
+                'test_camera.py', 'test_docks.py', 'test_sight.py', 'test_gaze.py',
+                'test_replays.py', 'test_scenarios.py', 'test_bedside.py', 'test_substrate.py',
+                'test_vault.py', 'test_emulator.py')
 
 CORE = 'test_modbus_core.py'
 
@@ -147,7 +151,7 @@ PORTED = 'test_ported.py'
 BORNE = 'test_borne.py'
 #: Her map's look in C beside its numpy twin, drawn looks and her lodge's (tools.cores.registry).
 REGISTRY = 'test_registry.py'
-#: Orthokinematics: a text compiled, her latent loop, her walk on it, the page's gym.
+#: Orthokinematics on her: her latent loop, her walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
 #: Her posture as what bears her holds her: the seat's chain, the blend, the kernel's atlas, her ask sat.
 POSTURES = 'test_postures.py'

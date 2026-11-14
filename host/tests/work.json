@@ -59,6 +59,7 @@
  "test_ollama_runner.py": 56.7,
  "test_ollama_tools.py": 43.4,
  "test_ortho.py": 338.6,
+ "test_ortho_texts.py": 0.3,
  "test_paint.py": 66.4,
  "test_placed.py": 10.4,
  "test_ported.py": 431.9,
