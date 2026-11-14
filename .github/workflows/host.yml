@@ -34,14 +34,10 @@ jobs:
         run: |
           python -X utf8 -c "import numpy._core._multiarray_umath as m; print('dispatch:', ' '.join(m.__cpu_dispatch__))"
           python -X utf8 -c "from tools.dev import probe_twins as p; p.processor()"
-      - name: twins
+      - name: hooks
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
           NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
-        run: |
-          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()" | grep -E "corename|probe 4|pow 2|exact_host"
-          python -X utf8 tests/test_tick.py | grep -E "FAIL|passed, " || true
-          python -X utf8 tests/test_ported.py | grep -E "FAIL|passed, " || true
-          python -X utf8 tests/test_wbc_core.py | grep -E "FAIL|passed, " || true
+        run: python -X utf8 tools/dev/probe_twins.py
