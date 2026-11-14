@@ -1,4 +1,4 @@
-/** quick.c - her compiled parts' glue as an extension of this interpreter (tools.cores.quick): a part's
+/** quick.c - its compiled parts' glue as an extension of this interpreter (tools.cores.quick): a part's
  * leaves walked and laid in its table, its C called, an array's data read - a call each. The host's
  * alone, against CPython's and numpy's headers: an array's layout read, none of numpy's arithmetic. */
 #include "quick.h"
@@ -281,7 +281,7 @@ static PyMethodDef methods[] = {
    "missing(miss, slow): what a part's runner gives back where it misses, held for Part's calls (quick_part.c)."},
   {NULL, NULL, 0, NULL}};
 
-static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Her compiled parts' glue (tools.cores.quick).", -1,
+static struct PyModuleDef quick = {PyModuleDef_HEAD_INIT, "_quick", "Its compiled parts' glue (tools.cores.quick).", -1,
                                    methods, NULL, NULL, NULL, NULL};
 
 PyMODINIT_FUNC PyInit__quick(void)

@@ -1,19 +1,19 @@
-"""Her braking cocoon on her keys: she stops short of a thing as a let-go key stops her.
+"""The robot's braking cocoon on its keys: it stops short of a thing as a let-go key stops it.
 
-    cocoon.blocked(g)          # a pass: whether her stop along her asked way no longer fits short of her things
-    tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing her stop cannot spare taken off
+    cocoon.blocked(g)          # a pass: whether its stop along its asked way no longer fits short of its things
+    tw = cocoon.refused(g, tw)  # a key's twist, its way into a thing its stop cannot spare taken off
 
-proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on her walk: her things (her registry's boxes)
-she may not stand in (`voxels.STAND_M`), a door's or a slope's not (she pushes a door aside and walks a ramp), each
-grown by her half width (`figure.WIDE_HALF`: by her hips' alone her arm went 0.15 m into the bed) - a building's
-walls and windows (`classes.SHELL`) where her way runs into their face, less her half width: one brushed past is her
-touch's and her arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, she walked into a pane at
-1.1 m/s and fell); her stop v T + v^2 / (2 a) along her way - T the text's horizon (`law.schema.HORIZON`), a her
+proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on its walk: its things (its registry's boxes)
+it may not stand in (`voxels.STAND_M`), a door's or a slope's not (it pushes a door aside and walks a ramp), each
+grown by it half width (`figure.WIDE_HALF`: by its hips' alone its arm went 0.15 m into the bed) - a building's
+walls and windows (`classes.SHELL`) where its way runs into their face, less it half width: one brushed past is its
+touch's and its arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, it walked into a pane at
+1.1 m/s and fell); its stop v T + v^2 / (2 a) along its way - T the text's horizon (`law.schema.HORIZON`), a its
 braking (`route.BRAKE`) - against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`).
-Blocked, her keys are let go (`machine.process.worker`) and she stands by her own stop; turning and backing off are
-hers. Her twist held to it outran it - 1.2 m/s to a chair's skin - and a zero cap threw her. On an errand or blind
-on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock is hers to reach
-(`gate-affordance-contact-permeability`), an open floor's unannounced props her touch's and her situation's.
+Blocked, its keys are let go (`machine.process.worker`) and it stands by its own stop; turning and backing off are
+its own. Its twist held to it outran it - 1.2 m/s to a chair's skin - and a zero cap threw it. On an errand or blind
+on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock is its own to reach
+(`gate-affordance-contact-permeability`), an open floor's unannounced props its touch's and its situation's.
 """
 import math
 
@@ -28,14 +28,14 @@ _KEPT: list = [None, None, None, None]
 
 
 def _seen(g):
-    """Her things for braking: under her eyes, boxes confirmed by stereo (`0.5 * registry.HIT`) before routing."""
+    """Its things for braking: under its eyes, boxes confirmed by stereo (`0.5 * registry.HIT`) before routing."""
     if g.get('eyes') and g.get('vision') is not None:
         return g['vision'].boxes(g, 0.5 * registry.HIT)
     return g.get('things')
 
 
 def _rising(g):
-    """Whether she rests on a thing (`RISE_OF`) or is still in the rise stunt off it: it is hers to stand from."""
+    """Whether it rests on a thing (`RISE_OF`) or is still in the rise stunt off it: it is its own to stand from."""
     from machine.process import gaits
     cur = se2.doing(g)
     return cur in se2.RISE_OF or (
@@ -44,7 +44,7 @@ def _rising(g):
 
 
 def clear_of_rise(g):
-    """Whether a completed rise has carried her pelvis outside her things' half-width halo (or she steps deeper in)."""
+    """Whether a completed rise has carried its pelvis outside its things' half-width halo (or it steps deeper in)."""
     if _rising(g):
         return False
     things = _seen(g)
@@ -71,7 +71,7 @@ def clear_of_rise(g):
 
 
 def _vel_blocked(g):
-    """Whether her current horizontal velocity carries her into a thing before she can stop."""
+    """Whether its current horizontal velocity carries it into a thing before it can stop."""
     things = _seen(g)
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
         return False
@@ -84,7 +84,7 @@ def _vel_blocked(g):
 
 
 def hop_blocked(g):
-    """Whether an in-stride leap along her current velocity cannot land and stop short of her things or a closed door."""
+    """Whether an in-stride leap along its current velocity cannot land and stop short of its things or a closed door."""
     things = _seen(g)
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
         return False
@@ -97,8 +97,8 @@ def hop_blocked(g):
 
 
 def blocked(g):
-    """Whether her stop along her asked way (`g['asked']`), turning arc, or momentum while spinning no longer fits
-    short of her things: never on an errand, already braking or standing, or with none seen."""
+    """Whether its stop along its asked way (`g['asked']`), turning arc, or momentum while spinning no longer fits
+    short of its things: never on an errand, already braking or standing, or with none seen."""
     tw = g.get('asked', (0.0, 0.0, 0.0))
     way = _way(g, tw)
     if way is None:
@@ -110,8 +110,8 @@ def blocked(g):
 
 
 def refused(g, tw):
-    """Twist `tw` (her body's), its way taken off where her stop along it or its turning arc cannot fit short of her
-    things; her spin held off while her unsteered momentum into a thing has not yet halted."""
+    """Twist `tw` (its body's), its way taken off where its stop along it or its turning arc cannot fit short of its
+    things; its spin held off while its unsteered momentum into a thing has not yet halted."""
     way = _way(g, tw)
     v = math.hypot(tw[0], tw[1])
     if way is None:
@@ -126,7 +126,7 @@ def refused(g, tw):
 
 
 def _way(g, tw, dh=0.0):
-    """The unit way (x, z) of twist `tw` along her heading turned by `dh`; None outside a room or sight, on an errand,
+    """The unit way (x, z) of twist `tw` along its heading turned by `dh`; None outside a room or sight, on an errand,
     rising off a thing, or still."""
     v = math.hypot(tw[0], tw[1])
     if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or v < 1e-6 or not _seen(g) or _rising(g):
@@ -136,7 +136,7 @@ def _way(g, tw, dh=0.0):
 
 
 def _arc_room(g, tw, v_ref):
-    """Minimum room along her straight or yaw-curved braking horizon."""
+    """Minimum room along its straight or yaw-curved braking horizon."""
     way0 = _way(g, tw)
     if way0 is None:
         return math.inf
@@ -153,22 +153,22 @@ def _arc_room(g, tw, v_ref):
 
 
 def _stop(v):
-    """Her stop from `v` m/s, m: the text's horizon's run and her braking's."""
+    """The robot's stop from `v` m/s, m: the text's horizon's run and its braking's."""
     return v * schema.HORIZON + v * v / (2.0 * route.BRAKE)
 
 
 def _room(g, way, things=None):
-    """The room along `way` from her place to her nearest thing, less the text's skin, m: to a thing grown by her
-    half width, to a wall's or a window's face her way runs into less it."""
+    """The room along `way` from its place to its nearest thing, less the text's skin, m: to a thing grown by it
+    half width, to a wall's or a window's face its way runs into less it."""
     q = furniture.where(g)
     boxes = _boxes(_seen(g) if things is None else things)
     return ahead(boxes, (float(q[0]), float(q[2])), way) - wayfinder.MARGIN
 
 
 def _boxes(things, doors=False):
-    """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` she may not stand
-    in, slopes (and doors unless `doors`) out: a thing grown by her half width, a building's shell (`classes.SHELL`)
-    as it is and her half width off its face's distance - laid once a look."""
+    """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` it may not stand
+    in, slopes (and doors unless `doors`) out: a thing grown by it half width, a building's shell (`classes.SHELL`)
+    as it is and it half width off its face's distance - laid once a look."""
     import numpy as np
     slot = 2 if doors else 0
     if _KEPT[slot] is not things:

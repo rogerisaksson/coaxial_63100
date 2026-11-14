@@ -1,15 +1,15 @@
-"""Her wear's windows beside her loop: each read and filtered, its load laid LAND passes on.
+"""The robot's wear's windows beside its loop: each read and filtered, its load laid LAND passes on.
 
-A window's parts stood her loop's thread 3 to 13 ms each, twenty a window (`wear.wearing`). Here (`Here`, a
-run's) they run one a pass as they did; apart (`Apart`, her page's worker's) a process of its own reads the
-window off a ring both map, told only where it lies - her loop's share a row a pass. Either way `wear`'s own
-arithmetic on the same rows, and her load laid (`wear.landed`) LAND passes after its window shut, not when
+A window's parts stood its loop's thread 3 to 13 ms each, twenty a window (`wear.wearing`). Here (`Here`, a
+run's) they run one a pass as they did; apart (`Apart`, its page's worker's) a process of its own reads the
+window off a ring both map, told only where it lies - its loop's share a row a pass. Either way `wear`'s own
+arithmetic on the same rows, and its load laid (`wear.landed`) LAND passes after its window shut, not when
 its last part ran: the same pass here and apart, so the same bits.
 
-    worn = Here(dt) | Apart(dt).start()     # beside her loop, the process spawned warm
-    worn.laid(w)                            # her wear as laid on her body (`wear.laid`), its window empty
+    worn = Here(dt) | Apart(dt).start()     # beside its loop, the process spawned warm
+    worn.laid(w)                            # its wear as laid on its body (`wear.laid`), its window empty
     if worn.put(y, tau): worn.shut(at)      # a pass's edge array and drives' torques; a window whole at `at`
-    told = worn.due(at, g)                  # a part a pass; at its landing her load laid: `wear.told`, else None
+    told = worn.due(at, g)                  # a part a pass; at its landing its load laid: `wear.told`, else None
 """
 import os
 import queue
@@ -21,10 +21,10 @@ from machine.process import aside
 from machine.senses import edge
 from machine.errors import MachineError
 
-#: Passes from a window shut to its load laid on her: its twenty-odd parts here, or its 0.12 s read apart,
+#: Passes from a window shut to its load laid on it: its twenty-odd parts here, or its 0.12 s read apart,
 #: done well within it flat out or paced.
 LAND = 500
-#: A ring's row: her edge array, then her drives' torques.
+#: A ring's row: its edge array, then its drives' torques.
 WIDTH = edge.SENSED + len(JOINTS)
 
 
@@ -61,22 +61,22 @@ class Ring:
         self.n += 1
         return self.n > self.steps
 
-    def window(self, start=None, n=None):
-        """(her edge arrays, her drives' torques but the last) of the window at `start`, `n` rows - the one at
-        hand where not given -, lists as her worker's were: each a row of a copy of its own."""
+    def window(self, start=None, n=0):
+        """(its edge arrays, its drives' torques but the last) of the window at `start`, `n` rows - the one at
+        hand where not given -, lists as its worker's were: each a row of a copy of its own."""
         import numpy as np
         start, n = (self.start, self.n) if start is None else (start, n)
         rows = self.rows[(start + np.arange(n)) % self.cap]
         return list(rows[:, :edge.SENSED]), list(rows[:-1, edge.SENSED:])
 
     def next(self):
-        """The next window begun at this one's last row, as her worker's lists began it."""
+        """The next window begun at this one's last row, as its worker's lists began it."""
         self.start, self.n = (self.start + self.n - 1) % self.cap, 1
 
     def close(self):
         """Its block let go, unlinked where it was made here."""
         if self.block is not None:
-            self.rows = None
+            del self.rows
             self.block.close()
             if self.made:
                 self.block.unlink()
@@ -96,7 +96,7 @@ def _read(w, ys, taus, dt):
 
 class Here:
 
-    """Her wear's windows in her loop's process: a window's parts one a pass, its load laid at its landing."""
+    """Its wear's windows in its loop's process: a window's parts one a pass, its load laid at its landing."""
 
     apart = False
 
@@ -105,7 +105,7 @@ class Here:
         self.w = self.parts = self.got = self.due_at = None
 
     def laid(self, w):
-        """Her wear as laid on her body (`wear.laid`) at an epoch: its window empty, none in flight."""
+        """Its wear as laid on its body (`wear.laid`) at an epoch: its window empty, none in flight."""
         self.w, self.parts, self.got, self.due_at = w, None, None, None
         self.ring.n = 0
 
@@ -114,7 +114,7 @@ class Here:
         return self.ring.put(y, tau)
 
     def emptied(self):
-        """The window begun anew - she fell, a scene was laid -; one in flight lands as it would."""
+        """The window begun anew - it fell, a scene was laid -; one in flight lands as it would."""
         self.ring.n = 0
 
     def shut(self, at):
@@ -125,9 +125,10 @@ class Here:
 
     def due(self, at, g):
         """At pass `at` a part of the window in flight; at its landing - any part left run first - its load
-        laid on her (`wear.landed`, `g`): her wear told, else None."""
+        laid on it (`wear.landed`, `g`): its wear told, else None."""
         if self.due_at is None:
             return None
+        assert self.parts is not None
         while self.got is None:
             try:
                 next(self.parts)
@@ -150,16 +151,16 @@ class Here:
 
 class Apart(Here):
 
-    """Her wear's windows on a process of their own (`main`), spawned warm at `start`: a window told where it
-    lies on the ring both map, read and filtered there, its load laid here at its landing. Her wear's filter
-    is its process's; a lay refused there - a body not hers - or its end said once, her windows are read here
-    again (`Here`), on her wear as laid here."""
+    """Its wear's windows on a process of their own (`main`), spawned warm at `start`: a window told where it
+    lies on the ring both map, read and filtered there, its load laid here at its landing. Its wear's filter
+    is its process's; a lay refused there - a body not its own - or its end said once, its windows are read here
+    again (`Here`), on its wear as laid here."""
 
     apart = True
 
     def __init__(self, dt):
         super().__init__(dt, Ring(_steps(dt), shared=True))
-        self.aside, self.answers, self.asked, self.flight = aside.Aside('machine.process.worn', 'her wear'), None, 0, None
+        self.aside, self.answers, self.asked, self.flight = aside.Aside('machine.process.worn', 'its wear'), None, 0, None
 
     def start(self):
         """Its process spawned, its answers heard as they come; itself."""
@@ -202,8 +203,10 @@ class Apart(Here):
         return told
 
     def _ask(self, ask):
+        held = self.start().aside
+        assert held is not None
         try:
-            self.start().aside.send(ask)
+            held.send(ask)
             self.asked += 1
         except (MachineError, OSError) as e:
             self._ended(e)
@@ -212,8 +215,9 @@ class Apart(Here):
         """Its answers taken as they come - a lay said, refused, a read, its end -; blocking, up to the read in
         flight's: its (moved, told), None where it was not read there."""
         got = None
-        while self.aside is not None and self.asked and (block or not self.answers.empty()):
-            answer = self.answers.get()
+        answers = self.answers
+        while self.aside is not None and answers is not None and self.asked and (block or not answers.empty()):
+            answer = answers.get()
             if answer is None:
                 self._ended('its process ended')
                 return None
@@ -225,9 +229,9 @@ class Apart(Here):
         return got
 
     def _ended(self, why):
-        """Her windows read here from now on: said once, its process let go."""
+        """The robot's windows read here from now on: said once, its process let go."""
         if self.aside is not None:
-            print('her wear apart ended, her windows read here: %s' % why, file=sys.stderr)
+            print('its wear apart ended, its windows read here: %s' % why, file=sys.stderr)
             self.aside.close(0.2)
             self.aside, self.asked = None, 0
 
@@ -239,9 +243,9 @@ class Apart(Here):
 
 
 def main():
-    """Her wear apart (`aside.serve`): her body built and her wear laid as her loop's - refused where its
-    nominal is not hers -, each window read off the ring both map: its load laid on its own body, its
-    corrections and her wear told."""
+    """Its wear apart (`aside.serve`): its body built and its wear laid as its loop's - refused where its
+    nominal is not its own -, each window read off the ring both map: its load laid on its own body, its
+    corrections and its wear told."""
     kept = {}
 
     def answered(ask):
@@ -253,7 +257,7 @@ def main():
             w = wear.laid(wbc.Body())
             same = w['nominal'].shape == nominal.shape and w['nominal'].tobytes() == nominal.tobytes()
             kept['w'], kept['dt'] = (w if same else None), dt
-            return True if same else 'laid on a body not hers: its nominal %s, hers %s' % (w['nominal'].shape, nominal.shape)
+            return True if same else 'laid on a body not its own: its nominal %s, its own %s' % (w['nominal'].shape, nominal.shape)
         w = kept.get('w')
         if w is None:
             return False

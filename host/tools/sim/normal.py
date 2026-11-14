@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """A woman's normal walk: a walk's measures from its joints' places, and how far off it is.
 
-    measures = normal.measured(times, joints)     # a take's (`fbx.take`), her rows' (`fbx.joints`)
+    measures = normal.measured(times, joints)     # a take's (`fbx.take`), its rows' (`fbx.joints`)
     off, out = normal.off(measures)               # 0.0 on BAND, else what is out of it
     normal.said(measures)                         # in words: [('stiff', 2.4), ('wide', 0.4)]
     far, most = normal.apart(measures, other)     # two walks, a law's and a reference's
 
-Places alone, so her rows, a recording, a mocap take and an animation read alike: a knee the
+Places alone, so its rows, a recording, a mocap take and an animation read alike: a knee the
 thigh's line to the shank's, an elbow the upper arm's to the forearm's, an arm the upper arm
-ahead of plumb, the pelvis's roll and turn its hips' line off level and off her path. A foot
-lands with its ankle furthest ahead of her hips and lifts with its toes furthest behind them
+ahead of plumb, the pelvis's roll and turn its hips' line off level and off its path. A foot
+lands with its ankle furthest ahead of its hips and lifts with its toes furthest behind them
 (Zeni 2008): over ground, on a treadmill and in place alike. Lengths in legs (hip to knee to
 ankle), times in sqrt(leg / g): a walker's size out of them.
 """
@@ -23,17 +23,17 @@ from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 from machine.body.compile import G_M_S2 as G
 
 #: A woman's normal walk, slow to brisk: (measure, unit, least, most). Textbook gait - a knee
-#: all but straight as it lands, 15-20 deg bent under her weight, 35-45 as its toes leave at
+#: all but straight as it lands, 15-20 deg bent under its weight, 35-45 as its toes leave at
 #: 60 % of the stride, 60-70 swinging; the pelvis turning 6-10 deg - and what tells a woman's
-#: from a man's: her pelvis rolls more (8-10 deg where 6-7), her cadence is higher on a shorter
-#: step, her feet nearer her line. Held against takes' walks through this module, a mocap suit's
+#: from a man's: its pelvis rolls more (8-10 deg where 6-7), its cadence is higher on a shorter
+#: step, its feet nearer its line. Held against takes' walks through this module, a mocap suit's
 #: or a studio's: three of four a suit's on it, the fourth a foot's width off; a
-#: runway's catwalk 1.3 off - its arms 82 deg, its roll 23; her walk as built 2.0 - its knee
+#: runway's catwalk 1.3 off - its arms 82 deg, its roll 23; its walk as built 2.0 - its knee
 #: lands at 30 deg, both feet bear 25 % of a stride a step, its step is short for its time; the
 #: one law's 4.0, on stilts: the swinging knee 26 deg, no heel's rise, the pelvis
-#: level, her feet 22 cm apart. Zeni's lift reads 3-6 % of a stride late: `stance` to 70.
-#: `walk ratio` is a step, legs, times its seconds, sqrt(leg / g): her step for its time,
-#: whatever her pace. `vault` is the pelvis over the standing foot above where it was as that
+#: level, its feet 22 cm apart. Zeni's lift reads 3-6 % of a stride late: `stance` to 70.
+#: `walk ratio` is a step, legs, times its seconds, sqrt(leg / g): its step for its time,
+#: whatever its pace. `vault` is the pelvis over the standing foot above where it was as that
 #: foot landed: a walk's rises over its leg, a run's sinks onto it.
 BAND = (
     ('pace', 'sqrt(g leg)', 0.15, 0.55),
@@ -92,10 +92,10 @@ WORDS = (
 SAID = 0.1
 
 #: A gait by name: (name, the words it is, the words it is not, how far each of its words at
-#: the least) - a run first, a walk's words not its own. Stilts and Groucho's are what her
+#: the least) - a run first, a walk's words not its own. Stilts and Groucho's are what its
 #: walk is not to be (CLAUDE.md), a catwalk and a run what it may be asked. On stilts from
 #: stiff 0.5: the one law's first walk 2.38, its second 0.31 - the heel 20 deg up as its toes
-#: leave where 28 -, no stilts; Groucho's from crouched 0.4: her standing knee at 24 deg 0.56.
+#: leave where 28 -, no stilts; Groucho's from crouched 0.4: its standing knee at 24 deg 0.56.
 GAITS = (('a run', ('flying',), (), 0.25), ('on stilts', ('stiff',), ('flying',), 0.5),
          ("Groucho's", ('crouched',), ('flying',), 0.4),
          ('a catwalk', ('swaying',), ('wide', 'flying'), 0.3),
@@ -140,7 +140,7 @@ def signals(times, joints):
     hips, mid = j['LeftUpLeg'] - j['RightUpLeg'], (j['LeftUpLeg'] + j['RightUpLeg']) / 2.0
     flat = hips * [1.0, 0.0, 1.0]
     flat /= np.maximum(1e-9, np.linalg.norm(flat, axis=1))[:, None]
-    side = _mean(flat, 2 * max(1, int(0.6 * rate)) + 1)      # to her left, her path's
+    side = _mean(flat, 2 * max(1, int(0.6 * rate)) + 1)      # to its left, its path's
     side /= np.maximum(1e-9, np.linalg.norm(side, axis=1))[:, None]
     ahead = np.cross(side, up)
     if ((j['LeftToeBase'] - j['LeftFoot']) * ahead).sum() < 0.0:
@@ -205,7 +205,7 @@ def measured(times, joints):
             o_lift = max((x for x in lifts[o] if o_land is not None and x < o_land), default=None)
             if lift is None or o_land is None or o_lift is None:
                 continue
-            # the foot alone under her: a walk's from the other's lift to its landing, a run's
+            # the foot alone under it: a walk's from the other's lift to its landing, a run's
             # from this one's landing to its lift
             o_lift, last = max(a, o_lift), min(lift, o_land)
             if last <= o_lift:
@@ -310,7 +310,7 @@ def table(walks):
             cells += '%9s' % ('-' if v != v else ('%.3g' % v) + ('' if least <= v <= most else '*'))
         lines.append(('%s, %s' % (name, unit)).rstrip(', ').ljust(wide)
                      + '%13s' % ('%g..%g' % (least, most)) + cells)
-    lines.append('off her band'.ljust(wide + 13) + ''.join('%9.2f' % off(m)[0] for _l, m in walks))
+    lines.append('off its band'.ljust(wide + 13) + ''.join('%9.2f' % off(m)[0] for _l, m in walks))
     for label, m in walks:
         lines.append('%s: %s%s' % (label, ', '.join('%s %.2f' % w for w in said(m)) or 'no word',
                                    ''.join(' - ' + n for n in named(m))))

@@ -1,14 +1,14 @@
-"""The HUMANOID page's gym: her verbs, her latent loop's moves said by digit, her modes shown.
+"""The HUMANOID page's gym: its verbs, its latent loop's moves said by digit, its modes shown.
 
     gym.said(state, verb)        # a verb, what an agent sends; the page's keys bind them (`humanoid_keys`)
     gym.offered(state)           # what F offers now, keyed: the balloons, the plate, the prompt
     gym.boxes(now)               # the side column's LATENT and SAY boxes
-    gym.status(now)              # what she is doing, in a line
+    gym.status(now)              # what it is doing, in a line
 
-She stands on the loop (`machine.process.sprung`); the keys that move her are a twist (`humanoid_keys`).
-A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers only what she
-has identified, a balloon on it: rising from the thing that bears her, else each thing and its
-verb; from the floor alone her rise, no thing and no balloon. A gym entry is said by its place in
+It stands on the loop (`machine.process.sprung`); the keys that move its are a twist (`humanoid_keys`).
+A hop, a crouch, a balloon's offer are verbs, each one an agent would send. F offers only what it
+has identified, a balloon on it: rising from the thing that bears it, else each thing and its
+verb; from the floor alone its rise, no thing and no balloon. A gym entry is said by its place in
 the gym's text (`sprung.entries`), the other text (`sprung.GYMS`) read anew each time; scenes are
 stepped through, shoves sent along the view, and LATENT shows each mode, its reading, and its spring.
 """
@@ -28,7 +28,7 @@ from terminal.views import fkeys, scanner, viewpoint
 
 #: A digit says the gym's entry of its place: 1 the first, 0 the tenth.
 DIGITS = '1234567890'
-#: P and N shove her along the view, the bench's 80 N she parries and 200 N she falls to
+#: P and N shove it along the view, the bench's 80 N it parries and 200 N it falls to
 #: (`tools/sim/scenarios.py`, SHOVES), sprung.SHOVE_S long.
 SHOVES_N = {'P': 80.0, 'N': 200.0}
 #: Each scene's objective (`machine.world.floor.SCENARIOS`).
@@ -57,8 +57,8 @@ SCENARIO_DESC = {
     'rug': 'loose rug // walk over',
     'edge_behind': "step's edge behind // back off it",
 }
-#: A thing near enough for a verb she does where she stands, m from her pelvis over the floor; a
-#: chair she hops onto, m ahead and within a quarter turn of her heading; her pelvis over this, m,
+#: A thing near enough for a verb it does where it stands, m from its pelvis over the floor; a
+#: chair it hops onto, m ahead and within a quarter turn of its heading; its pelvis over this, m,
 #: on a chair's seat.
 REACH_M, ONTO_M, ON_CHAIR_M = 1.2, 0.7, 1.12
 #: The crouch's phase (`postures_base.lisp`).
@@ -86,12 +86,12 @@ _RISE_TABLE = (
     (('approach', 'lower'), None, 'rise_chair'),
     (('cushion',), None, 'rise_floor'),
 )
-#: The thing a rise takes her up from, by the verb that put her on it (`scanner.AFFORDANCES`).
+#: The thing a rise takes it up from, by the verb that put it on it (`scanner.AFFORDANCES`).
 _BEARS = {'hop_down_chair': 'sit_chair', 'rise_chair': 'sit_chair', 'rise_bed': 'lie_bed', 'rise_floor': 'lie_floor'}
 
 
 def _propped(now, scenario=None):
-    """The verb taking her up from a thing (`_RISE_TABLE`); None on her feet or floor."""
+    """The verb taking it up from a thing (`_RISE_TABLE`); None on its feet or floor."""
     doing, scen = now.get('doing', ''), scenario or now.get('scenario') or 'open'
     x, y, z = now.get('where') or (0.0, 0.90, 0.0)
     src = now.get('things') if now.get('things') is not None else now.get('props')
@@ -105,21 +105,21 @@ def _propped(now, scenario=None):
 
 
 def _floored(now):
-    """The verb that takes her up from the floor alone - down, fallen, crouched -; None else."""
+    """The verb that takes it up from the floor alone - down, fallen, crouched -; None else."""
     if now.get('stage') in ('down', 'fallen', 'floor'):
         return 'rise_floor'
     return 'stand' if (now.get('doing') == CROUCHED or now.get('fallen')) else None
 
 
 def contextual_rise(now, scenario=None):
-    """The verb that takes her up from what bears her - a thing (`_propped`), else the floor
+    """The verb that takes it up from what bears it - a thing (`_propped`), else the floor
     (`_floored`) -; None standing."""
     return (_propped(now, scenario) or _floored(now)) if now else None
 
 
 def hop(now, seen):
     """What Space says now: down from a chair's seat, up onto a chair close ahead (`seen`,
-    `scanner.scan`'s), else a hop; None before her first state."""
+    `scanner.scan`'s), else a hop; None before its first state."""
     if not now:
         return None
     x, _y, z = now.get('where') or (0.0, 0.9, 0.0)
@@ -130,7 +130,7 @@ def hop(now, seen):
 
 
 def _things(seen):
-    """`seen` (`scanner.scan`'s) joined into things: a kind's boxes within her map's cell of each
+    """`seen` (`scanner.scan`'s) joined into things: a kind's boxes within its map's cell of each
     other one (`sight.lumps`) - a chair's seat and its back -; each (kind, its nearest box's dist,
     lo, hi), its bounds."""
     things = []
@@ -146,7 +146,7 @@ def _things(seen):
 
 
 def _turn(now, at):
-    """How far she turns to face `at` (x, y, z), rad."""
+    """How far it turns to face `at` (x, y, z), rad."""
     x, _y, z = now.get('where') or (0.0, 0.9, 0.0)
     off = math.atan2(at[0] - x, at[2] - z) - float(now.get('heading') or 0.0)
     return abs((off + math.pi) % math.tau - math.pi)
@@ -159,8 +159,8 @@ def _middle(lo, hi):
 
 def offers(now, seen):
     """[(verb, word, at (x, y, z) or None, thing, its footprint (lo, hi) or None)] F offers now from
-    things she has identified (`scanner.identified`): on a prop its rise alone within REACH_M; on the
-    floor its rise at none; on her feet each reachable or walked-to affordance, nearest to heading first."""
+    things it has identified (`scanner.identified`): on a prop its rise alone within REACH_M; on the
+    floor its rise at none; on its feet each reachable or walked-to affordance, nearest to heading first."""
     if not now:
         return []
     things = [(kind, dist, lo, hi) for kind, dist, lo, hi in _things(seen) if kind in scanner.AFFORDANCES]
@@ -171,7 +171,7 @@ def offers(now, seen):
         return [(propped, NAMED.get(propped, propped), _middle(lo, hi), '%s %.1fm' % (kind, dist), None)
                 for dist, kind, lo, hi in bearing[:1]]
     if floored:
-        return [(floored, NAMED.get(floored, floored), None, 'her', None)]
+        return [(floored, NAMED.get(floored, floored), None, 'robot', None)]
     walked = errand.errands()
     got = [(verb, word, _middle(lo, hi), '%s %.1fm' % (kind, dist), (lo, hi), dist) for kind, dist, lo, hi in things
            for verb, word in (scanner.AFFORDANCES[kind],) if verb in walked or dist < REACH_M]
@@ -184,8 +184,8 @@ def keyed(n):
 
 
 def offered(state):
-    """[(key, verb, word, at, thing)] F offers as the page shows them: what she has identified
-    (`offers`), a rise F1, a thing at its own key while she keeps it (`fkeys.slotted`)."""
+    """[(key, verb, word, at, thing)] F offers as the page shows them: what it has identified
+    (`offers`), a rise F1, a thing at its own key while it keeps it (`fkeys.slotted`)."""
     now, sc = state.get('now'), state.get('scanner')
     got = offers(now, sc.identified(now) if sc is not None and now else [])
     if not got:
@@ -207,7 +207,7 @@ def prompt(state):
 def ballooned(state, offer, width, height, travel, docked=()):
     """The viewport's balloons: each of `offer` (`offered`'s) at a thing its key and word on it, on
     a drawing `width` by `height` of the page's view over `travel`, out of the `docked` picture's
-    cells; framed lit while F's choice is open; her errand's between its docks (`dock.shown`, `spokes`)."""
+    cells; framed lit while F's choice is open; its errand's between its docks (`dock.shown`, `spokes`)."""
     on = fkeys.shown(state, offer, _propped(state.get('now') or {}))
     docks = fkeys.paired(on, (state.get('now') or {}).get('docks') or [], REACH_M, ONTO_M)
     places = gynoid.cells([o[3] for o in on] + [at for d in docks for at in d['at']], width, height, yaw=state['yaw'],
@@ -217,13 +217,13 @@ def ballooned(state, offer, width, height, travel, docked=()):
 
 
 def touring(state):
-    """Whether the tour (`machine.way.tour`) is commanding her."""
+    """Whether the tour (`machine.way.tour`) is commanding it."""
     tour = state.get('tour')
     return tour is not None and not tour.done
 
 
 def cancel_tour(state):
-    """The tour ended by a key that acts on her; the keys' twist sent again on the next frame."""
+    """The tour ended by a key that acts on it; the keys' twist sent again on the next frame."""
     if touring(state):
         state['tour'] = None
         state.setdefault('pad', {})['setpoint'] = None
@@ -262,7 +262,7 @@ def crouched(state):
 
 
 def run_scenario(state, scen=None):
-    """Scene `scen` laid round her, the one she is in again with none."""
+    """Scene `scen` laid round it, the one it is in again with none."""
     cancel_tour(state)
     scen = scen or state.get('scenario', 'flat')
     state['scenario'] = scen
@@ -277,7 +277,7 @@ def next_text(state):
 
 
 def step_scenario(state, delta):
-    """The scene `delta` on through `floor.SCENARIOS` laid, the one she is in with 0."""
+    """The scene `delta` on through `floor.SCENARIOS` laid, the one it is in with 0."""
     from machine.world import floor
     scens = floor.SCENARIOS
     cur = state.get('scenario', 'flat')
@@ -390,7 +390,7 @@ def drain_plan(state):
 
 
 def _dispatch(state, plan):
-    """A plan into her body and the chat: the tour begun, else each command sent."""
+    """A plan into its body and the chat: the tour begun, else each command sent."""
     rows: list = list(state.get('chat_rows') or ())
     if plan.get('tour'):
         tr = state['tour'] = tour.HouseTour(loop=True)
@@ -428,7 +428,7 @@ def refused_told(state, now):
 
 
 def status(now):
-    """Her status: what she is doing; down, counting to her landing again; a text or a command
+    """Its status: what it is doing; down, counting to its landing again; a text or a command
     refused, why."""
     if now is None:
         return 'STARTING'
@@ -448,7 +448,7 @@ def _mode_row(name, row):
 
 
 def boxes(now, tour=None):
-    """The side column's boxes: each mode asked and as she is, its spring's N/m; the scene, what
+    """The side column's boxes: each mode asked and as it is, its spring's N/m; the scene, what
     each digit says (the keys' bar and help say the rest, `humanoid_keys`)."""
     if not now:
         return []
@@ -472,14 +472,14 @@ def boxes(now, tour=None):
             hud('SAY  ' + gym_name.upper(), say_rows)]
 
 
-#: Her chat's lines, its prompt's among them; its braille's steps a second.
+#: The robot's chat's lines, its prompt's among them; its braille's steps a second.
 CHAT_ROWS, SPIN_HZ = 4, 8.0
 CHAT_GREETING = ('name', 'GYNOID LLM AGENT - press / to prompt, H for autonomous house tour')
 
 
 def drawer(state, now):
-    """The rows her chat takes under the viewport at the clock `now`: CHAT_ROWS and its frame as
-    much as is up, slid as ?'s help (`taskbar.slid`) - up while her prompt is open and HELP_S
+    """The rows its chat takes under the viewport at the clock `now`: CHAT_ROWS and its frame as
+    much as is up, slid as ?'s help (`taskbar.slid`) - up while its prompt is open and HELP_S
     after its last line, the greeting's as the page opens."""
     held = state.setdefault('drawer', {'up': 0.0, 'framed': now, 'last': None, 'said': now})
     last = (state.get('chat_rows') or [None])[-1]
@@ -491,7 +491,7 @@ def drawer(state, now):
 
 
 def chat_box(state, width=80):
-    """Her chat's transcript and prompt, its lead a braille turning (`recorder.SPIN`)."""
+    """The robot's chat's transcript and prompt, its lead a braille turning (`recorder.SPIN`)."""
     from terminal.ui.recorder import SPIN
     rows: list = list(state.get('chat_rows') or (CHAT_GREETING,))
     tail = rows[-(CHAT_ROWS - 1):]

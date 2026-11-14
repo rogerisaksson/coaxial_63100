@@ -60,7 +60,7 @@ static void bounded(const wbc_step_t *p, const wbc_geo_t *g, const double *u, do
 }
 
 /** machine.stack.rounds.pushed: each contact's force pressing, no more than GROW_N over what it bears nor
-    its cap, of that geo->give her own to plan, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
+    its cap, of that geo->give its own to plan, in its pyramid - a point sliding (geo->slips: sliding, its slip along the world's x and
     z) has its friction the kinetic one against its slip, given -; which parts moved. */
 static void pushed(const wbc_step_t *p, const wbc_geo_t *g, const double *u, const double *bears, double *out,
                    double *kept)
@@ -149,8 +149,8 @@ static int solved(const wbc_step_t *p, double *K, int nu, wbc_view_t rhs, int m,
   return wbc_solve(&p->blas, VIEW(K, nu, 1), rhs, nu, m, x, work);
 }
 
-/** machine.stack.wrench._taken: striding, what the floor cannot give her inertia takes - `u0` brought
-    to the faces her soles' wrenches are past by the least change in her kinetic energy's metric. */
+/** machine.stack.wrench._taken: striding, what the floor cannot give its inertia takes - `u0` brought
+    to the faces its soles' wrenches are past by the least change in its kinetic energy's metric. */
 static int taken(const wbc_step_t *p, const wbc_geo_t *g, const double *u0, double lo, double hi, double *at,
                  double *work)
 {
@@ -347,7 +347,7 @@ int wbc_rounds(wbc_step_t *p, const wbc_geo_t *g, const double *H0, const double
       {
         memcpy(first, un, (size_t)nu * sizeof(double));
       }
-      /* her height's band: past an edge, held to it */
+      /* its height's band: past an edge, held to it */
       ay = wbc_dot(&p->blas, g->lift, 1, un, 1, nu) / g->mass - p->g;
       past = pymin(pymax(ay, lo), hi) + p->g;
       was = band;

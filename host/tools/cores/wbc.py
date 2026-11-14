@@ -1,4 +1,4 @@
-"""wbc/ through ctypes: her poses, Jacobians, mass matrix and bias on the static model.
+"""wbc/ through ctypes: its poses, Jacobians, mass matrix and bias on the static model.
 
 The chain the firmware runs, on the arrays `tools.cores.model` writes; one library a process.
 """
@@ -78,7 +78,7 @@ _vp = ctypes.c_void_p
 
 class Drives(ctypes.Structure):
 
-    """wbc_drives_t: her law's drive-side step, pointing at her law's arrays (`machine.law.laid`)."""
+    """wbc_drives_t: its law's drive-side step, pointing at its law's arrays (`machine.law.laid`)."""
 
     _fields_ = [('n', _i), ('q_at', _i), ('qd_at', _i), ('qm_at', _i), ('knee', _i * 2), ('cervical', _i * 2),
                 ('knee_nm', _d), ('knee_soft', _d), ('leak_s', _d), ('wep_hold_s', _d),
@@ -90,7 +90,7 @@ class Drives(ctypes.Structure):
 
 class World(ctypes.Structure):
 
-    """wbc_world_t: her world's pass, pointing at the world's arrays and MuJoCo's (`physics.World`)."""
+    """wbc_world_t: its world's pass, pointing at the world's arrays and MuJoCo's (`physics.World`)."""
 
     _fields_ = [('n', _i), ('npairs', _i), ('pelvis', _i), ('spare', _i), ('wound', _d),
                 ('qadr', _vp), ('vadr', _vp), ('pairs', _vp), ('qpos', _vp), ('qvel', _vp), ('qacc', _vp),
@@ -102,19 +102,19 @@ class World(ctypes.Structure):
 
 class Contacts(ctypes.Structure):
 
-    """wbc_contacts_t: her soles' and skin's contacts read, pointing at the edge's bins (`machine.senses.edge.laid`)."""
+    """wbc_contacts_t: its soles' and skin's contacts read, pointing at the edge's bins (`machine.senses.edge.laid`)."""
 
     _fields_ = [('nbody', _i), ('nskin', _i), ('ninsoles', _i), ('nfeet', _i), ('stride', _i), ('off_geom', _i),
                 ('off_frame', _i), ('off_dim', _i), ('off_efc', _i), ('off_friction', _i),
                 ('middle_m', _d),
-                ('gb', _vp), ('hers', _vp), ('sole_side', _vp), ('insole', _vp), ('foot', _vp), ('skin', _vp),
+                ('gb', _vp), ('its_own', _vp), ('sole_side', _vp), ('insole', _vp), ('foot', _vp), ('skin', _vp),
                 ('xmat', _vp), ('xpos', _vp), ('loads', _vp), ('touch', _vp), ('pressed', _vp), ('at', _vp),
                 ('cells', _vp), ('felt_n', _vp), ('felt_at', _vp), ('felt_give', _vp), ('felt_nrm', _vp)]
 
 
 class Heat(ctypes.Structure):
 
-    """wbc_heat_t: her drives' heat, pointing at `machine.body.heat.Heat`'s arrays."""
+    """wbc_heat_t: its drives' heat, pointing at `machine.body.heat.Heat`'s arrays."""
 
     _fields_ = [('n', _i), ('spare', _i), ('at', _d), ('haste', _d), ('ambient_c', _d), ('rds_ohm', _d), ('rds_alpha', _d),
                 ('rds_beta', _d), ('shunt_ohm', _d), ('switching_w', _d), ('into_k_w', _d), ('rth_jc', _d),
@@ -135,7 +135,7 @@ def plain(a):
 
 #: The address of an ndarray's first element: read by the quick extension where it is built (`quick.data`, one C
 #: call), else off its object through ctypes (`arrays.address`) - the same pointer. Through ctypes, a ctypes object
-#: made each, her pointers' 27 reads a pass of her world were 2.4% of it.
+#: made each, its pointers' 27 reads a pass of its world were 2.4% of it.
 address = quick.addressing()
 
 
@@ -270,7 +270,7 @@ def typed(lib):
 
 @functools.lru_cache(maxsize=None)
 def library():
-    """The core built once a process for its sources' bytes, its model her build's (`model.built`)."""
+    """The core built once a process for its sources' bytes, its model its build's (`model.built`)."""
     return typed(ctypes.CDLL(cached(built(SOURCES), INCLUDES, 'wbc', FLAGS)[0]))
 
 
@@ -348,7 +348,7 @@ class Core:
         return out
 
     def com(self):
-        """Her centre of mass in the world and its Jacobian over u, ((3,), (3, n))."""
+        """The robot's centre of mass in the world and its Jacobian over u, ((3,), (3, n))."""
         com, j = np.zeros(3), np.zeros((3, self.n))
         self.lib.wbh_com(_ptr(com), _ptr(j))
         return com, j
@@ -360,7 +360,7 @@ class Core:
         return out
 
     def momentum(self, com):
-        """Her angular momentum about `com`, world, (3,); after `mass` and `bias`."""
+        """The robot's angular momentum about `com`, world, (3,); after `mass` and `bias`."""
         com, out = _arr(com), np.zeros(3)
         self.lib.wbh_momentum(_ptr(com), _ptr(out))
         return out
@@ -420,7 +420,7 @@ class Core:
 
 
 def state_of(b):
-    """(base, q, u, T) of her `wbc.Body` as its MjData stands: the pelvis's frame, the hinges'
+    """(base, q, u, T) of its `wbc.Body` as its MjData stands: the pelvis's frame, the hinges'
     rad, u with the pelvis's twist in its own frame; T taking u to MuJoCo's qvel."""
     qpos, qvel, n = b.d.qpos, b.d.qvel, b.n
     R = rotation(qpos[3:7])
@@ -440,7 +440,7 @@ def shared():
 
 
 def stack_step(b, s, ask, core=None):
-    """`machine.stack.wbc.step`'s answer from the loop in C, on her `wbc.Body` as `sense` left it:
+    """`machine.stack.wbc.step`'s answer from the loop in C, on its `wbc.Body` as `sense` left it:
     {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, passes, wrench, load,
     jeff}; `held` the rows held at a bound this tick, `passes` the solves after the first."""
     core = core or shared()
@@ -462,7 +462,7 @@ def stack_step(b, s, ask, core=None):
 
 
 def wrench_step(b, s, ask, core=None):
-    """`machine.stack.wrench.step`'s answer from wbc_wrench.c, on her `wbc.Body` as `sense` left it:
+    """`machine.stack.wrench.step`'s answer from wbc_wrench.c, on its `wbc.Body` as `sense` left it:
     {tau, qacc (MuJoCo's qvel order), bears, cop, over, slack, held, scale, borne}."""
     core = core or shared()
     qpos, qvel, n = b.d.qpos, b.d.qvel, b.n

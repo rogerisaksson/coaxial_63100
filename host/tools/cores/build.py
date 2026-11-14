@@ -18,9 +18,9 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
-#: Her cores' targets by name (COAXIAL_ISA), each one's flags: AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as
+#: Its cores' targets by name (COAXIAL_ISA), each one's flags: AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as
 #: x86-64-v3, AVX-512 as x86-64-v4 (their FMA unused: nothing contracted); SVE2 as Armv9-A, SME2 over Armv9.2-A -
-#: her generated programs that call nothing streaming there (`emit.STREAMING`); a processor running them as isa.c
+#: its generated programs that call nothing streaming there (`emit.STREAMING`); a processor running them as isa.c
 #: reads it (`held`).
 TARGETS = {'avx': ('-march=x86-64-v2', '-mavx'), 'avx2': ('-march=x86-64-v3',), 'avx512': ('-march=x86-64-v4',),
            'sve2': ('-march=armv9-a',), 'sme2': ('-march=armv9.2-a+sme2',)}
@@ -36,14 +36,14 @@ def held(isa):
 
 
 def native():
-    """The compiler's flags for her cores' target, nothing contracted: COAXIAL_ISA's (`TARGETS`) where it is set -
+    """The compiler's flags for its cores' target, nothing contracted: COAXIAL_ISA's (`TARGETS`) where it is set -
     one this processor runs -, else this host's own instruction sets: -march=native on x86, -mcpu=native on ARM
     (clang's -march takes no native there), none on another processor; -ffp-contract=off with them - gcc's ISO C
     contracts nothing, clang's does within an expression, and a fused multiply-add is not numpy's bits."""
     isa = os.environ.get('COAXIAL_ISA', '')
     if isa:
         if isa not in TARGETS:
-            raise RuntimeError('COAXIAL_ISA=%s is none of her targets: %s' % (isa, ', '.join(TARGETS)))
+            raise RuntimeError('COAXIAL_ISA=%s is none of its targets: %s' % (isa, ', '.join(TARGETS)))
         if not held(isa):
             raise RuntimeError('COAXIAL_ISA=%s is a target this processor does not run (isa.c)' % isa)
         return ('-ffp-contract=off',) + TARGETS[isa]
@@ -129,7 +129,7 @@ def headers(includes):
 def beside(sources, includes):
     """`includes` and, after them, the folders of `sources` that are none of them: a quoted include is sought beside
     the file that names it before any -I, so a header there is the library's too (`cached`) - aero_bits.h, beside
-    aero's sources and read by her native board's build, was in no digest, and a change of it built nothing."""
+    aero's sources and read by its native board's build, was in no digest, and a change of it built nothing."""
     known = {os.path.normcase(os.path.abspath(d)) for d in includes}
     folders = dict.fromkeys(os.path.dirname(os.path.abspath(p)) for p in sources)
     return list(includes) + [d for d in folders if os.path.normcase(d) not in known]
@@ -140,8 +140,8 @@ def cached(sources, includes, name, extra=(), heads=None):
     flags' bytes, shared by every process that asks - a stand-in opened in each of a gate's
     suites built it once -, a compiler sought only where none is built yet; built by one process
     at a time, the others waiting for it (`_claimed`). `heads` its headers' bytes where a round of
-    builds read them once (`headers`): read for each of her law's 33 parts, 23 files a part in a
-    thread beside her loop, they held her builds 0.63 s of her first second."""
+    builds read them once (`headers`): read for each of its law's 33 parts, 23 files a part in a
+    thread beside its loop, they held its builds 0.63 s of its first second."""
     digest = hashlib.sha1(' '.join(FLAGS + list(extra)).encode())
     digest.update(str(bool(os.environ.get('COAXIAL_GCOV'))).encode())
     digest.update((_host() if any(flag.endswith('=native') for flag in extra) else '').encode())
@@ -219,9 +219,9 @@ def _claimed(lib):
         return True
 
 
-#: A world run here: -O3 on this host's own instruction sets (`native`, her cores' too: one set of them for
+#: A world run here: -O3 on this host's own instruction sets (`native`, its cores' too: one set of them for
 #: every loop's C) - an x86's roundss for floorf and nearbyintf, exact -; on Windows ucrt's fminf and fmaxf inline
-#: (world_libm.h). The stand-in's drive period 448 -> 277 ns, its state the same bits at -O0 to -O3; her twenty
+#: (world_libm.h). The stand-in's drive period 448 -> 277 ns, its state the same bits at -O0 to -O3; its twenty
 #: native boards 2.03 -> 1.81 CPU s a wall s. Laid after `cached`: a target's probe (`held`) is built by it.
 FAST = (['-O3', '-fno-math-errno'] + list(native())
         + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h')] if os.name == 'nt' else []))

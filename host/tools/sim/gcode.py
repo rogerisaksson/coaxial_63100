@@ -1,13 +1,13 @@
-"""A mocap take as humanoid G-code: the general rig's program written, and hers converted beside it.
+"""A mocap take as humanoid G-code: the general rig's program written, and its own converted beside it.
 
     python tools/sim/gcode.py lying/Lying\\ Down\\ from\\ Sitting      # programs/lying_down_from_sitting[.general].gcode
     python tools/sim/gcode.py --report lying/Sitting\\ on\\ Bed        # the calibration and the conversion's report
 
 The take's joints (`fbx.take`) go through `machine.texts.gcode.rig` to the general rig's words a frame, written
-with the take's name, rate and leg; `gcode.hers` converts that to her joints within her ranges and speeds, the
-report in her program's header (dropped words, clamped joints, the slowest move's stretch). A program is named
+with the take's name, rate and leg; `gcode.its_own` converts that to its joints within its ranges and speeds, the
+report in its program's header (dropped words, clamped joints, the slowest move's stretch). A program is named
 as a stunt is (`scenarios.STUNTS`): the take's file name in lower case with underscores. `--program` writes one
-of her own programs (`joints.PROGRAMS`) as G-code, a move a beat's end; `--all` every take under stunts/, a line
+of its own programs (`joints.PROGRAMS`) as G-code, a move a beat's end; `--all` every take under stunts/, a line
 each, into the host's gcode/.
 """
 import argparse
@@ -38,21 +38,21 @@ def general(take):
 
 
 def written(take, out=gcode.DIR):
-    """Both programs of `take` written under `out`: (the general's path, hers)."""
+    """Both programs of `take` written under `out`: (the general's path, its own)."""
     os.makedirs(out, exist_ok=True)
     header, times, rows = general(take)
     name = named(take)
     paths = (os.path.join(out, name + '.general.gcode'), os.path.join(out, name + '.gcode'))
     with open(paths[0], 'w', encoding='utf-8', newline='\n') as f:
         f.write(gcode.text(header, times, gcode.WORDS, rows))
-    mine, t, joints, deg = gcode.hers(header, times, rows)
+    mine, t, joints, deg = gcode.its_own(header, times, rows)
     with open(paths[1], 'w', encoding='utf-8', newline='\n') as f:
         f.write(gcode.text(mine, t, joints, deg))
     return paths
 
 
 def exported(name, out=gcode.DIR):
-    """Her program `name` (`joints.PROGRAMS`) written as G-code under `out`: a move a beat's end, its pose the
+    """Its program `name` (`joints.PROGRAMS`) written as G-code under `out`: a move a beat's end, its pose the
     beat's joints; the path."""
     from machine.process import joints
     os.makedirs(out, exist_ok=True)
@@ -66,7 +66,7 @@ def exported(name, out=gcode.DIR):
         rows.append([pose.get(j, float('nan')) for j in names])
     path = os.path.join(out, name + '.gcode')
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(gcode.text({'humanoid': 'gcode 1', 'rig': 'hers', 'program': name}, times, names, np.array(rows)))
+        f.write(gcode.text({'humanoid': 'gcode 1', 'rig': 'its_own', 'program': name}, times, names, np.array(rows)))
     return path
 
 
@@ -93,20 +93,20 @@ def line(take, out=gcode.DIR):
 
 
 def report(take):
-    """Lines: the calibration (a word, her joint, its gain) and the conversion's header of `take`."""
+    """Lines: the calibration (a word, its joint, its gain) and the conversion's header of `take`."""
     table, at, _base = gcode.calibrated()
     lines = ['%-4s %-16s gain %6.2f  at base %7.2f' % (w, j, g, at[gcode.WORDS.index(w)]) for w, (j, g) in table.items()]
     header, times, rows = general(take)
-    mine, t, joints, deg = gcode.hers(header, times, rows)
+    mine, t, joints, deg = gcode.its_own(header, times, rows)
     lines += ['%s %s' % kv for kv in mine.items()]
-    lines += ['%d moves, %.2f s (the take %.2f s), %d of her joints' % (len(t), t[-1] if len(t) else 0.0, times[-1] if len(times) else 0.0, len(joints))]
+    lines += ['%d moves, %.2f s (the take %.2f s), %d of its joints' % (len(t), t[-1] if len(t) else 0.0, times[-1] if len(times) else 0.0, len(joints))]
     return lines
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     parser.add_argument('takes', nargs='*', help='takes, folder/Name (under stunts/)')
-    parser.add_argument('--program', action='append', default=[], help='one of her programs written as G-code')
+    parser.add_argument('--program', action='append', default=[], help='one of its programs written as G-code')
     parser.add_argument('--all', action='store_true', help='every take under stunts/, a line each')
     parser.add_argument('--out', default=gcode.DIR, help='where the programs are written')
     parser.add_argument('--report', action='store_true', help='the calibration and the conversion, no files')

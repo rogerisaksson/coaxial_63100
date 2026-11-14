@@ -1,15 +1,15 @@
-# Her eyes on a CUDA card. Every package here is imported where it is called: without them - or
-# without a card - her stereo matches on wgpu or the CPU and her map tells her things alone. Gigabytes
+# Its eyes on a CUDA card. Every package here is imported where it is called: without them - or
+# without a card - its stereo matches on wgpu or the CPU and its map tells its things alone. Gigabytes
 # a bench PC or CI never uses, so not in requirements.txt:
 #
 #   pip install -r host/requirements.txt -r host/requirements-gpu.txt
 #
-#   cupy-cuda13x   her stereo's block match on the card (machine.eyes.stereo, 95.6 ms -> 1.6 ms at
+#   cupy-cuda13x   its stereo's block match on the card (machine.eyes.stereo, 95.6 ms -> 1.6 ms at
 #                  320x240) and the aircraft's SE(3) MPC (machine.aircraft.se3mpc). Its [ctk] extra is
 #                  CUDA's own runtime as wheels - nvrtc, cublas, cufft, curand, cusolver, cusparse -,
 #                  which CuPy loads from there where no CUDA toolkit is installed (CUDA_PATH unset):
 #                  written, since no other package here brings them.
-#   torch          her segmenter's Mask R-CNN (machine.eyes.instances, COAXIAL_SEGMENT=1), its weights
+#   torch          its segmenter's Mask R-CNN (machine.eyes.instances, COAXIAL_SEGMENT=1), its weights
 #   torchvision    torchvision's COCO ones, fetched into torch's cache at its first use. The CUDA 13.0
 #                  builds: the package index's are the CPU's on Windows, hence the index below.
 #   tensorrt-cu13  its backbone as an engine at half precision, built once a card into torch's cache

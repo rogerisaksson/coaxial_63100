@@ -1375,14 +1375,14 @@ def test_the_alphabet(report):
 
 
 def test_the_gynoid(report):
-    """The gynoid stands on the floor at her height, a stride shows, and her dots are the same
+    """The gynoid stands on the floor at its height, a stride shows, and its dots are the same
     cells on the GPU as splatted here - where a card answers."""
     from coaxial.graphics import card, gpu, gynoid
     from machine.body import figure
     body = gynoid.body()
-    stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # her left leg ahead
+    stride = dict(figure.stand(), left_hip=-22.0, right_hip=16.0)   # its left leg ahead
     still, _normals = body.pose(figure.stand())
-    report.check('gynoid: her soles on the floor, 1.60 to 1.75 m tall',
+    report.check('gynoid: its soles on the floor, 1.60 to 1.75 m tall',
                  abs(still[:, 1].min()) < 1e-9 and 1.60 < still[:, 1].max() < 1.75,
                  '%.3f m' % still[:, 1].max())
     feet = [i for i, part in enumerate(body.parts) if part[0] in ('left_foot', 'right_foot')]
@@ -1391,7 +1391,7 @@ def test_the_gynoid(report):
     report.check('gynoid: as a foot lands the feet are a step apart, the left ahead',
                  reach[0] - reach[1] > 0.3, '%.2f m' % (reach[0] - reach[1]))
     here = gynoid.render(stride, 48, 22, colour=False)
-    report.check('gynoid: drawn here, 22 lines of 48 cells, her dots in them',
+    report.check('gynoid: drawn here, 22 lines of 48 cells, its dots in them',
                  len(here) == 22 and all(len(line) == 48 for line in here)
                  and sum(ch not in ' ' for line in here for ch in line) > 100,
                  sum(ch not in ' ' for line in here for ch in line))

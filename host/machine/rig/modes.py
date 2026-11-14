@@ -1,6 +1,6 @@
-"""Where a machine's boards run: the hardware, a stand-in, their images emulated, or none. Her page's tiers.
+"""Where a machine's boards run: the hardware, a stand-in, their images emulated, or none. Its page's tiers.
 
-    modes.chosen(os.cpu_count(), boards)    # the richest tier her body is wired to that fits the cores
+    modes.chosen(os.cpu_count(), boards)    # the richest tier its body is wired to that fits the cores
     modes.told(cores, boards)               # one line: the tier chosen, what each other would take
 """
 import enum
@@ -26,12 +26,12 @@ EMULATED = ExecutionMode.EMULATED
 VIRTUAL = ExecutionMode.VIRTUAL
 DYNAMIC = ExecutionMode.DYNAMIC
 
-#: Where her boards can run under her page in real time: each tier's cores a board on this
+#: Where its boards can run under its page in real time: each tier's cores a board on this
 #: host's kind of core (docs/findings/emulation.md: a native board's layer 2.2 cores for 20 in a
-#: limb's lockstep, Renode 4.2 a board under the drive; her own process's SIL frames cost her
-#: boards none), and whether her body is wired to it (docs/todo/host.md, native://).
+#: limb's lockstep, Renode 4.2 a board under the drive; its own process's SIL frames cost its
+#: boards none), and whether its body is wired to it (docs/todo/host.md, native://).
 TIERS = (('in-process', 0.0, True), ('native', 0.11, False), ('emulated', 4.2, False))
-#: The cores her law's process and her page take beside her boards'.
+#: The cores its law's process and its page take beside its boards'.
 TAKEN = 2.0
 
 
@@ -41,8 +41,8 @@ def afforded(cores, boards):
 
 
 def chosen(cores, boards):
-    """The last tier of TIERS her body is wired to whose boards fit `cores` (`afforded`); the first,
-    her own process, where none does."""
+    """The last tier of TIERS its body is wired to whose boards fit `cores` (`afforded`); the first,
+    its own process, where none does."""
     return ([TIERS[0][0]] + [name for (name, _c, fits), (_n, _a, wired) in zip(afforded(cores, boards), TIERS)
                              if fits and wired])[-1]
 

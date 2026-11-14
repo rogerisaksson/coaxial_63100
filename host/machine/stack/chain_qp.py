@@ -1,4 +1,4 @@
-"""The closed chains' step as one QP: her tasks and the contacts' forces as one within friction.
+"""The closed chains' step as one QP: its tasks and the contacts' forces as one within friction.
 
     width, S, mu, bears, sled, mode, st = chain_qp.unknowns(patch, body, felt, Q, slide, free, regime, Jv)   # zeta's blocks
     holds = [not loose[i] and keys[i] not in let for i in range(k)]                        # keys = chain_qp.keyed(..)
@@ -16,7 +16,7 @@ import math
 from machine.senses.borne import CARPAL, LET
 
 #: Level 1's affine maps in u = (x, zeta): the dofs no drive holds qdd_P = p0 + Px x + Pz zeta, the contacts'
-#: accelerations in their frames a0 + Ax x + Az zeta, her tasks Rx x + Rz zeta = rr, her torques t0 + Tx x + Tz zeta.
+#: accelerations in their frames a0 + Ax x + Az zeta, its tasks Rx x + Rz zeta = rr, its torques t0 + Tx x + Tz zeta.
 Maps = collections.namedtuple('Maps', 'p0 Px Pz a0 Ax Az Rx Rz rr t0 Tx Tz')
 #: The friction pyramid's eight directions on the tangents (k pi / 4) and its faces' cos(pi / 8): inscribed in the cone.
 ROOT_HALF = math.sqrt(0.5)
@@ -26,7 +26,7 @@ COS8 = math.sqrt(0.5 + 0.5 * ROOT_HALF)
 
 
 def freed(patch, body, free):
-    """Whether a contact is on a foot told free (`free`, left and right: her heels stepping in turn): a let-go foot's
+    """Whether a contact is on a foot told free (`free`, left and right: its heels stepping in turn): a let-go foot's
     patch (`borne.LET`'s) or a standing sole (`body` below 0)."""
     foot = patch // LET - 1 if patch >= LET else (-1 - body if body < 0 else -1)
     return foot >= 0 and bool(free[foot])
@@ -34,14 +34,14 @@ def freed(patch, body, free):
 
 def unknowns(patch, body, felt, Q, slide, free, regime, Jv):
     """(width (k), S (3k, nz), mu (k), bears (k), sled (k), mode (k), st (k, 2)): each contact's unknowns in zeta -
-    three in its frame, or one for her sled (a body of hers, a patch under CARPAL: what she sits or lies on) told a
+    three in its frame, or one for its sled (a body of its own, a patch under CARPAL: what it sits or lies on) told a
     twist (`slide`, unit) on a level slide - its normal up within 45 deg and along the way under `regime.tilt`; a back
     against a tilted rest braces, no slide rows - and sliding past `regime.slide` along it (`Jv`): kinetic (`mode` 2),
     it brakes at its friction's edge against its slip, z = z_n (n - mu sign(v . s_t) s_t), s_t the way's unit tangent
     in its frame (`st`); at rest such a sled is static (`mode` 1: its shear within the pyramid, dissipative, drawn to
-    the edge by `level1`'s soft pin); `mode` 0 any other -; the map zeta -> z in frames; its friction (her sled's
+    the edge by `level1`'s soft pin); `mode` 0 any other -; the map zeta -> z in frames; its friction (its sled's
     `regime.mu`, an anchor's `regime.anchor`); whether it bears - its patch `regime.hold`, its points together, and its
-    foot not told free (`freed`): an anchor's tangents stick then - and whether it is her sled."""
+    foot not told free (`freed`): an anchor's tangents stick then - and whether it is its sled."""
     import numpy as np
     k = len(Q)
     width, mu, held, sleds, mode, cols = [], [], [], [], [], []
@@ -118,10 +118,10 @@ def framed(Q, M):
 
 
 def affine(Minv, Mpg, rhs0, held_q, Jp, Jg, dJv, Q, S, RP, RG, r, M_A, h_A, J_A, nd):
-    """The `Maps` of u = (x, zeta): her dynamics on the dofs no drive holds (M_PP qdd_P + M_PG qg + h_P = J_P^T z, qg =
+    """The `Maps` of u = (x, zeta): its dynamics on the dofs no drive holds (M_PP qdd_P + M_PG qg + h_P = J_P^T z, qg =
     (x, `held_q`) with the held joints' accelerations known) make qdd_P affine in u, and with it the contacts'
-    accelerations in their frames (`framed`), her tasks' rows (RP on P, RG on the given) and her drives' torques
-    (`M_A` her mass matrix's driven rows over (P, given), `h_A`, `J_A` the contacts' Jacobians' driven columns). The C
+    accelerations in their frames (`framed`), its tasks' rows (RP on P, RG on the given) and its drives' torques
+    (`M_A` its mass matrix's driven rows over (P, given), `h_A`, `J_A` the contacts' Jacobians' driven columns). The C
     twin spells every product in this order."""
     import numpy as np
     k3 = len(dJv)
@@ -146,11 +146,11 @@ def affine(Minv, Mpg, rhs0, held_q, Jp, Jg, dJv, Q, S, RP, RG, r, M_A, h_A, J_A,
 
 
 def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, bounds, stops, mass):
-    """(H1, g1, G1, A, b): level 1's least squares - her tasks' rows; each held contact's normal stick row at
+    """(H1, g1, G1, A, b): level 1's least squares - its tasks' rows; each held contact's normal stick row at
     `regime.stick`, al_n + give (z_n - f_n) = -bleed v_n (its support giving as the force grows past what is felt);
-    an anchor's tangents' al_t = -bleed v_t where it bears (`stick`), its slip bled - her sled's tangents are its
-    friction's within the pyramid, no lock (held still on a mattress her thighs locked her hip and knee against a leg
-    swing and she fell) -; a static sled's (`mode` 1) soft pin at `regime.pin` over her `mass`, z_t . s_t = -mu z_n:
+    an anchor's tangents' al_t = -bleed v_t where it bears (`stick`), its slip bled - its sled's tangents are its
+    friction's within the pyramid, no lock (held still on a mattress its thighs locked its hip and knee against a leg
+    swing and it fell) -; a static sled's (`mode` 1) soft pin at `regime.pin` over its `mass`, z_t . s_t = -mu z_n:
     drawn to the cone's edge against the way (`st`), the hands push and the seat unloads until it goes; the forces
     regularised: each contact's tangents toward none at `regime.reg`, its normal toward what is felt at `regime.nreg`
     (a force is a state, changing it is what costs: toward none a touching hand was unloaded and its give lifted it
@@ -163,12 +163,12 @@ def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, b
     way dissipative alone, z_t . s_t <= 0 (the seat never helps), and never planned to slide against the way, al_t .
     s_t >= 0 - with the pin's soft row that is static friction: z_t . s_t = -F while the hands' F is under the cone,
     a = 0, no backward motor and no reaction wheel (a soft pin alone gives z = (m a* - F - w mu N) / (1 + w), a
-    motor again); a kinetic sled (`mode` 2, one unknown) brakes at the edge against its slip and may slow -; her
-    torques within `bounds` (lo, hi); her joints' stops (`stops`: rows on x, bounds) where asked; the static sleds'
-    brake together no more than her anchors' friction can drive, -sum z_t . s_t <= sum mu_a z_n over the anchors whose
-    tangents stick (a static friction is a reaction: pinned at the cone with her hands bearing 7 N the plan had a
-    -165 N motor, asked -5.6 m/s^2 backward and pitched her 28 deg onto the backrest). Rows a contact: 2 held, 3 free,
-    its pyramid's 8 where its tangents are unknown, a static sled's 2; then her torques', her stops', the brake's."""
+    motor again); a kinetic sled (`mode` 2, one unknown) brakes at the edge against its slip and may slow -; its
+    torques within `bounds` (lo, hi); its joints' stops (`stops`: rows on x, bounds) where asked; the static sleds'
+    brake together no more than its anchors' friction can drive, -sum z_t . s_t <= sum mu_a z_n over the anchors whose
+    tangents stick (a static friction is a reaction: pinned at the cone with its hands bearing 7 N the plan had a
+    -165 N motor, asked -5.6 m/s^2 backward and pitched its 28 deg onto the backrest). Rows a contact: 2 held, 3 free,
+    its pyramid's 8 where its tangents are unknown, a static sled's 2; then its torques', its stops', the brake's."""
     import numpy as np
     nd, nz, k = maps.Px.shape[1], S.shape[1], len(Q)
     nu, bleed = nd + nz, regime.bleed
@@ -228,8 +228,8 @@ def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, b
         A.append(np.hstack([stops[0], np.zeros((len(stops[1]), nz))]))
         b.append(stops[1])
     if any(m == 1 for m in mode):
-        # the static sleds' brake together no more than her anchors' friction can drive: a static friction is a reaction
-        # (pinned at the cone with her hands bearing 7 N the plan had a -165 N motor and pitched her onto the backrest)
+        # the static sleds' brake together no more than its anchors' friction can drive: a static friction is a reaction
+        # (pinned at the cone with its hands bearing 7 N the plan had a -165 N motor and pitched it onto the backrest)
         cap = np.zeros(nu)
         for i in range(k):
             if mode[i] == 1:
@@ -241,8 +241,8 @@ def level1(maps, S, width, mu, held, stick, mode, st, gives, Jv, f, Q, regime, b
     return H1, g1, G1, np.vstack([np.atleast_2d(a) for a in A]), np.concatenate([np.atleast_1d(v) for v in b])
 
 def projector(Jg, hands, nd, lam2):
-    """P (nd, nd): her posture's rows off her held hands' motion, I - J^T (J J^T + lam2 I)^-1 J, J the held hand
-    contacts' (`hands`, their rows of `Jg`) linear Jacobians on her driven joints; I with none."""
+    """P (nd, nd): its posture's rows off its held hands' motion, I - J^T (J J^T + lam2 I)^-1 J, J the held hand
+    contacts' (`hands`, their rows of `Jg`) linear Jacobians on its driven joints; I with none."""
     import numpy as np
     if not len(hands):
         return np.eye(nd)
@@ -256,7 +256,7 @@ def projector(Jg, hands, nd, lam2):
 
 def solved(H1, g1, G1, A, b, maps, S, Jg, hands, want, regime, warm):
     """(u, (held1, held2), met): level 1 by the dual active set warm from `warm`'s rows (`qp.solve`; none meeting the
-    laws, the least squares alone, `met` False), level 2 - her posture, `regime.posture` weighed, its rows through
+    laws, the least squares alone, `met` False), level 2 - its posture, `regime.posture` weighed, its rows through
     `projector` - in level 1's damped null space N = I - H1^-1 G1 under the laws shifted."""
     import numpy as np
     from machine.stack import qp

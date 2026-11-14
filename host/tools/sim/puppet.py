@@ -1,24 +1,24 @@
-"""Her moves found as puppets: sensed phases on the servos played in a scene in memory and measured.
+"""Its moves found as puppets: sensed phases on the servos played in a scene in memory and measured.
 
-The method that found her way up the bed (the heel strokes open loop, the lazy crab regulated):
+The method that found its way up the bed (the heel strokes open loop, the lazy crab regulated):
 
     python tools/sim/puppet.py crab --scene bed_foot_behind --say lie_bed --trunk 55 --gain 30
     python tools/sim/puppet.py heel --plant 0.18,0.22 --bridge 0.06,0.10 --reach 0.45      # a grid: the gain a stroke
-    python tools/sim/puppet.py crab --gcode crab_bed            # what she was told, as gcode/crab_bed.gcode (open loop)
+    python tools/sim/puppet.py crab --gcode crab_bed            # what it was told, as gcode/crab_bed.gcode (open loop)
     python tools/sim/puppet.py take lying_down_from_sitting --trunk 55 --slow 1.5 --gcode danced_lie   # a take danced
 
-A puppet is a session placed in `--scene` and told `--say`; once her text's program ends (`--from` s without one) a
+A puppet is a session placed in `--scene` and told `--say`; once its text's program ends (`--from` s without one) a
 Regime drives every joint on the boards' servos as `joints.played` does. A regime is phases, each a method
 `p_<name>(el, sense)` returning the next phase's name or None, with `set` (a pose), `ramp` (a joint at a rate),
 `hold` (joints ramped by an angle's error: the trunk by the anchored hips) and `sense`: loads by body, places along
 the furniture's axis, the trunk's elevation. `reach` solves a two-link limb (thigh/shank, upper arm/forearm) for an
-end point in the sagittal plane, so poses come from her lengths; `Beats` plays a (name, s, pose) program as a
+end point in the sagittal plane, so poses come from its lengths; `Beats` plays a (name, s, pose) program as a
 regime; `search` plays a stroke family over a grid and tabulates the gain a stroke, the slip across and the fall;
-`count` is her text's rule (`maneuver._program`). `Danced` plays a take's program (mocap -> `tools/sim/gcode.py` ->
+`count` is its text's rule (`maneuver._program`). `Danced` plays a take's program (mocap -> `tools/sim/gcode.py` ->
 gcode/<take>.gcode) in a situation it was not recorded in, the trunk held by hip offsets over the take's own targets
-and its pace scaled: lying_down_from_sitting (recorded on the bed's side) at its foot end rolled her off the side raw,
-off the end held at full pace, and at 2/3 pace held 55 deg lay her flat on the bed at -0.49 (the shipped pull and
-lie's landing); the danced result written back is a program her text binds. Found so far: the heel stroke (plant 0.22 m, bridge 0.10, reach
+and its pace scaled: lying_down_from_sitting (recorded on the bed's side) at its foot end rolled it off the side raw,
+off the end held at full pace, and at 2/3 pace held 55 deg lay its flat on the bed at -0.49 (the shipped pull and
+lie's landing); the danced result written back is a program its text binds. Found so far: the heel stroke (plant 0.22 m, bridge 0.10, reach
 0.45: 0.14-0.16 m a stroke supine) and the crab (the trunk held 55-60 deg by the hips while the hands bear behind,
 one leg at a time over the edge, the heels set by their felt load, a push sized to the mark, the lie with the heels
 lifted: no fall, flat within 8 deg, +-0.15 m of the mark); every open-loop crab fell back or pitched off the end.
@@ -57,7 +57,7 @@ def side(s, **deg):
 
 def reach(x, y, a=figure.THIGH, b=figure.SHANK):
     """(elevation, bend) deg of a two-link limb whose end sits `x` ahead and `y` up of its root: the first link
-    `a` long raised `elevation` above the x axis, the second `b` bent `bend` back (0 straight, her knee's sign);
+    `a` long raised `elevation` above the x axis, the second `b` bent `bend` back (0 straight, its knee's sign);
     the bend-up branch (the knee over the heel). None out of reach."""
     r = math.hypot(x, y)
     if not (abs(a - b) < r < a + b):
@@ -74,14 +74,14 @@ def end(elevation, bend, a=figure.THIGH, b=figure.SHANK):
 
 
 def count(deep, landed, short, stroke):
-    """How many strokes bring her middle `short` m short of the furniture's middle from `landed` m in, `stroke` m
-    each, by the depth her eyes saw (`maneuver._program`)."""
+    """How many strokes bring its middle `short` m short of the furniture's middle from `landed` m in, `stroke` m
+    each, by the depth its eyes saw (`maneuver._program`)."""
     return max(0, math.floor((0.5 * deep - landed - short) / stroke + 0.5))
 
 
 class Scene:
     """What the puppet senses of the world: the furniture `prop` (its biggest geom's middle, axis and half length),
-    her bodies' places along/across/up it, the loads she bears by body."""
+    its bodies' places along/across/up it, the loads it bears by body."""
 
     def __init__(self, world, prop):
         self.world, self.m, self.d = world, world.model, world.data
@@ -92,7 +92,7 @@ class Scene:
         big = max((k for k in range(m.ngeom) if m.geom_bodyid[k] == self.bed), key=lambda k: m.geom_size[k].max())
         self.centre, self.half = d.geom_xpos[big].copy(), float(m.geom_size[big].max())
         self.ids = {m.body(i).name: i for i in range(m.nbody)}
-        self.hers = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
+        self.its_own = np.array([edge._rooted(m, b, world.pelvis) for b in range(m.nbody)], int)
         self.force = np.zeros(6)
 
     def along(self, body):
@@ -110,13 +110,13 @@ class Scene:
         return math.degrees(math.asin(abs(float(v[1] / np.linalg.norm(v)))))
 
     def loads(self):
-        """{her body: N} of what she bears on the furniture now."""
+        """{its body: N} of what it bears on the furniture now."""
         m, d, out = self.m, self.d, {}
         for i in range(d.ncon):
             c = d.contact[i]
             a, b = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
-            if (m.body_rootid[a] == self.bed and self.hers[b]) or (m.body_rootid[b] == self.bed and self.hers[a]):
-                mine = b if self.hers[b] else a
+            if (m.body_rootid[a] == self.bed and self.its_own[b]) or (m.body_rootid[b] == self.bed and self.its_own[a]):
+                mine = b if self.its_own[b] else a
                 self.world._mj.mj_contactForce(m, d, i, self.force)
                 out[m.body(mine).name] = out.get(m.body(mine).name, 0.0) + abs(float(self.force[0]))
         return out
@@ -236,7 +236,7 @@ class Danced(Beats):
 
 
 class Crab(Regime):
-    """The lazy crab from her sit at the furniture's end: the hands behind, the trunk held `trunk` deg by the
+    """The lazy crab from its sit at the furniture's end: the hands behind, the trunk held `trunk` deg by the
     anchored hips (`gain`), a leg at a time up and over the edge, the heels set by their felt load, the push sized
     to `mark` m along, the lie with the heels lifted."""
     first = 'sit'
@@ -347,9 +347,9 @@ class Crab(Regime):
 
 
 def heel(plant=0.22, bridge=0.10, reach_m=0.45, hip=0.055):
-    """The supine heel stroke's beats from her figure: the heels planted `plant` m ahead of the hips `hip` m
+    """The supine heel stroke's beats from its figure: the heels planted `plant` m ahead of the hips `hip` m
     under them, the pelvis bridged `bridge` m, the heels pushed to `reach_m`, the pelvis set down; None where a
-    pose is out of her legs' reach."""
+    pose is out of its legs' reach."""
     asked = [reach(plant, -hip), reach(plant + 0.04, -hip - bridge), reach(reach_m, -hip - bridge), reach(reach_m, -hip)]
     poses = [p for p in asked if p is not None]
     if len(poses) < len(asked):
@@ -360,7 +360,7 @@ def heel(plant=0.22, bridge=0.10, reach_m=0.45, hip=0.055):
 
 
 class only_pull:
-    """Her `bed_pull` program cut to its first beat (the text's pull) while a regime takes over after it."""
+    """Its `bed_pull` program cut to its first beat (the text's pull) while a regime takes over after it."""
 
     def __enter__(self):
         programs = cast(dict, joints.PROGRAMS)
@@ -375,9 +375,9 @@ class only_pull:
 
 
 def play(scene, say, regime, prop='prop_bed', start=None, settle=0.1, until=30.0, rows=None, texts=None):
-    """`regime` played on her in `scene` told `say`: from `settle` s after her text's program ends (or from
-    `start` s; taken over at the end itself she rolled off the crab), every joint hers on the servos; rows (t, phase, pelvis along/across/up, trunk, hands N, feet N) a phase change and
-    each 0.25 s, until `until` s or the regime ends or she falls."""
+    """`regime` played on it in `scene` told `say`: from `settle` s after its text's program ends (or from
+    `start` s; taken over at the end itself it rolled off the crab), every joint its own on the servos; rows (t, phase, pelvis along/across/up, trunk, hands N, feet N) a phase change and
+    each 0.25 s, until `until` s or the regime ends or it falls."""
     from machine.process import worker
     from machine.world import physics
     from tools.sim import scenarios
@@ -392,7 +392,7 @@ def play(scene, say, regime, prop='prop_bed', start=None, settle=0.1, until=30.0
 
     def puppet(gg, w):
         if gg.get('played') is not None:
-            regime.armed = gg['t'] + settle  # her text's program plays: the regime follows its end, settled
+            regime.armed = gg['t'] + settle  # its text's program plays: the regime follows its end, settled
         if gg.get('played') is not None or regime.ended:
             return played(gg, w)
         if not regime.on:
@@ -433,7 +433,7 @@ def gains(rows, beat='plant'):
 
 
 def search(scene, say, family, grid, strokes=3, prefix=None):
-    """`family(**params)` beats played `strokes` times after `prefix` beats (her shipped program up to its strokes
+    """`family(**params)` beats played `strokes` times after `prefix` beats (its shipped program up to its strokes
     by default) in `scene` told `say`, over `grid` {param: [values]}: a table of the gain a stroke, the slip across,
     the end and the fall for each combination."""
     import itertools
@@ -456,14 +456,14 @@ def search(scene, say, family, grid, strokes=3, prefix=None):
 
 
 def written(name, regime, hz=10.0, out=gcode.DIR):
-    """What `regime` told her, as her G-code `name` under `out` (a move a 1/`hz` s), the file's path."""
+    """What `regime` told it, as its G-code `name` under `out` (a move a 1/`hz` s), the file's path."""
     times, values, last = [], [], -1.0
     for t, cmd in regime.record:
         if t - last >= 1.0 / hz:
             times.append(t - regime.record[0][0])
             values.append(cmd)
             last = t
-    header = {'humanoid': 'gcode 1', 'rig': 'hers', 'take': 'puppet/' + name, 'hz': '%.3f' % hz}
+    header = {'humanoid': 'gcode 1', 'rig': 'its_own', 'take': 'puppet/' + name, 'hz': '%.3f' % hz}
     path = os.path.join(out, name + '.gcode')
     with open(path, 'w', encoding='utf-8', newline='') as f:
         f.write(gcode.text(header, times, J, values))
@@ -486,7 +486,7 @@ def main(argv=None):
     ap.add_argument('--strokes', type=int, default=3)
     ap.add_argument('--gcode', default=None)
     ap.add_argument('--until', type=float, default=30.0)
-    ap.add_argument('--start', type=float, default=None, help="the s the regime takes over; the end of her program otherwise")
+    ap.add_argument('--start', type=float, default=None, help="the s the regime takes over; the end of its program otherwise")
     a = ap.parse_args(argv)
     if a.regime == 'heel':
         grid = {'plant': [float(v) for v in a.plant.split(',')], 'bridge': [float(v) for v in a.bridge.split(',')],

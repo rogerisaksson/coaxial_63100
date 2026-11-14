@@ -1,18 +1,18 @@
-"""Her wayfinder apart: her dock and way planned in a process of their own, as her camera's map is.
+"""Its wayfinder apart: its dock and way planned in a process of their own, as its camera's map is.
 
 A peek - a thing's dock foreseen (`machine.way.peek`) - is taken when it is ready, never waited for.
-A watch asked at t is answered at t + LATENCY_S (`run-wayfinder-apart`), a dock or a plan she stands for at
-once, whatever the wall's pace: her loop waits on one only where the planner is slower than that, and a run
-is the same at any pace - a dock told 0.25 s on shifted her walk's onset after her turn in place and she
-fell where she had walked on. An ask is a dock - the
-face of a thing she docks at and her stage before it (`dock.docked`), then her way there -, a plan - her way
-to a place from where she stands among her things (`route.planned` over `route.costs`) - or a watch: her way
-left checked against her things as she now holds them (`route.barred`), planned anew where they bar it, else
-nothing. A new ask lets the one in flight go. `python -m machine.way.planner`, a process beside hers
-(`machine.process.aside`), as her camera's map is.
+A watch asked at t is answered at t + LATENCY_S (`run-wayfinder-apart`), a dock or a plan it stands for at
+once, whatever the wall's pace: its loop waits on one only where the planner is slower than that, and a run
+is the same at any pace - a dock told 0.25 s on shifted its walk's onset after its turn in place and it
+fell where it had walked on. An ask is a dock - the
+face of a thing it docks at and its stage before it (`dock.docked`), then its way there -, a plan - its way
+to a place from where it stands among its things (`route.planned` over `route.costs`) - or a watch: its way
+left checked against its things as it now holds them (`route.barred`), planned anew where they bar it, else
+nothing. A new ask lets the one in flight go. `python -m machine.way.planner`, a process beside its own
+(`machine.process.aside`), as its camera's map is.
 
-    planner = Planner()                     # her page's: spawned at its first ask (`start` sooner)
-    planner = Here()                        # a run's off her page, in its own process: as Planner answers
+    planner = Planner()                     # its page's: spawned at its first ask (`start` sooner)
+    planner = Here()                        # a run's off its page, in its own process: as Planner answers
     planner.ask(t, ask)                     # {kind, at, yaw, still, to, things, floor, seen, slot, face, dock, warm, passed, way}
     told = planner.answer(t)                # None till LATENCY_S after an ask, then {laid, stops, curve, held}, or {}
     planner.close()
@@ -25,15 +25,15 @@ from machine.way import obstacles
 from machine.errors import MachineError
 
 _APART = obstacles.laws()['wayfinder-apart']
-#: A watch's answer reaches her this long after it, s; her way is watched this often as she walks it, s.
+#: A watch's answer reaches it this long after it, s; its way is watched this often as it walks it, s.
 LATENCY_S, WATCH_S = _APART['watch-latency-s'], _APART['watch-period-s']
-#: What an ask tells of her things where they are the ask before's (`Planner.ask`): those her planner apart kept.
-SAME = 'her things as last asked'
+#: What an ask tells of its things where they are the ask before's (`Planner.ask`): those its planner apart kept.
+SAME = 'its things as last asked'
 
 
 def answered(ask):
     """An ask's answer: a dock's {laid, stops, curve, held}, `laid` (`dock.docked`) None alone where no
-    face fits her; a plan's {stops, curve, held}; a watch's that where her way left is barred, else {}."""
+    face fits it; a plan's {stops, curve, held}; a watch's that where its way left is barred, else {}."""
     import numpy as np
     from machine.way import dock, route
     if ask['kind'] == 'peek':
@@ -50,9 +50,9 @@ def answered(ask):
 
 
 def main():
-    """Her planner apart: each ask answered (`aside.serve`), her things those of the ask before where it tells them
-    SAME (`Planner.ask`). On a cache group of its own (`placed`): her page's peeker in it planned docks 0.83 of a
-    core over six caches, her vision's among them."""
+    """Its planner apart: each ask answered (`aside.serve`), its things those of the ask before where it tells them
+    SAME (`Planner.ask`). On a cache group of its own (`placed`): its page's peeker in it planned docks 0.83 of a
+    core over six caches, its vision's among them."""
     placed.placed(cache=True)
     from machine.way import dock, route  # noqa: F401 - warm before the first ask
     kept: dict = {}
@@ -67,10 +67,10 @@ def main():
 
 class Planner:
 
-    """Her planner on its process (`main`, this tree's own), spawned at its first ask or `start`."""
+    """Its planner on its process (`main`, this tree's own), spawned at its first ask or `start`."""
 
     def __init__(self):
-        self._aside, self._told_q = aside.Aside('machine.way.planner', 'her planner'), queue.Queue()
+        self._aside, self._told_q = aside.Aside('machine.way.planner', 'its planner'), queue.Queue()
         self.asked_at, self._wait, self._things = None, 0.0, None
 
     def start(self):
@@ -81,9 +81,9 @@ class Planner:
         self._aside.start().heard(self._told_q)
 
     def ask(self, now, ask):
-        """`ask` sent at `now`, the one in flight let go (its answer read and dropped); her things told SAME where they
+        """`ask` sent at `now`, the one in flight let go (its answer read and dropped); its things told SAME where they
         are the very ones of the ask before - kept there (`main`) -: pickled with every ask they were 0.8 to 1.8 ms of
-        each, her peeks' one after another, her things new at a look alone."""
+        each, its peeks' one after another, its things new at a look alone."""
         self.start()
         if self.asked_at is not None:
             self._told()
@@ -122,7 +122,7 @@ class Planner:
 
 class Here:
 
-    """Her planner as `Planner` answers it, in the process that asks: a run off her page, one process a
+    """Its planner as `Planner` answers it, in the process that asks: a run off its page, one process a
     baton (`focus.relay`)."""
 
     def __init__(self):

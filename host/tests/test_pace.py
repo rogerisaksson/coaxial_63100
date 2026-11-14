@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Does her loop still run as fast as it did? Her errands' pace at a benchmark's priority, against a recorded floor.
+"""Does its loop still run as fast as it did? Its errands' pace at a benchmark's priority, against a recorded floor.
 
     .\run_tests.ps1 -Bench                      # with the board's bench, each suite above normal priority
     python -X utf8 tests/test_pace.py --record  # this host's pace written as its floor
 
-Each errand (`tools.sim.pace`: stand, walk, door, chair, bed) runs as the worker runs her - her lodge, her camera, her
-planner and her vision apart -, flat out, alone on the relay at a benchmark's priority (`focus.relay`'s bench: her
-processes above normal, the host's other loads under them): its mean pace, her world's seconds a wall second, at least
+Each errand (`tools.sim.pace`: stand, walk, door, chair, bed) runs as the worker runs it - its lodge, its camera, its
+planner and its vision apart -, flat out, alone on the relay at a benchmark's priority (`focus.relay`'s bench: its
+processes above normal, the host's other loads under them): its mean pace, its world's seconds a wall second, at least
 SLACK of this host's recorded one (BASELINE, the host's own, kept out of the tree). Real time is 1.0; past it with a
-margin is the aim, read off each line. Under a plain run's runner, held below normal (`background.lower`), her pace is
-not hers: skipped there.
+margin is the aim, read off each line. Under a plain run's runner, held below normal (`background.lower`), its pace is
+not its own: skipped there.
 """
 import ctypes
 import json
@@ -22,11 +22,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pace.json')
 
-#: The share of a host's recorded mean pace below which an errand has regressed: at a benchmark's priority her pace
+#: The share of a host's recorded mean pace below which an errand has regressed: at a benchmark's priority its pace
 #: flickers a few percent between runs, a pass's 10 % lost is caught.
 SLACK = 0.85
 
-#: A pace line (`pace.paced`): its errand, its worst second and what she did, its mean, its qpos, where it ended.
+#: A pace line (`pace.paced`): its errand, its worst second and what it did, its mean, its qpos, where it ended.
 LINE = re.compile(r'^(\S+)\s+worst x([\d.]+) \((.*?)\) mean x([\d.]+) \| .*? \| qpos (\w+) at t ([\d.]+)(.*)$')
 
 
@@ -65,7 +65,7 @@ def report(now, was):
 
 def lowered():
     """Whether this process runs below normal priority - a plain run's runner holds its suites there
-    (`background.lower`), her pace measured so not hers. False on another system."""
+    (`background.lower`), its pace measured so not its own. False on another system."""
     if sys.platform != 'win32':
         return False
     kernel = ctypes.WinDLL('kernel32')
@@ -79,7 +79,7 @@ def main():
     from tools.cores.build import find_cc
     if find_cc() is None or lowered():
         print('  SKIP  %s' % ('no host C compiler; setup.ps1 installs one' if find_cc() is None else
-                              "held below normal priority: her pace is a benchmark's (run_tests.ps1 -Bench)"))
+                              "held below normal priority: its pace is a benchmark's (run_tests.ps1 -Bench)"))
         print('\n0 passed, 0 failed, 1 skipped')
         return 0
     was = {}

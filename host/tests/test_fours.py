@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Her limbs on all fours (`machine.moves.fours`; the kernel's multimodal_*.lisp): the texts read whole, the torus clock
-locked to each symmetry and turned between them, the fifth limb bearing through her limbs' swing, her legs levelled
-to her arms on her figure, the truss meeting her weight."""
+"""Its limbs on all fours (`machine.moves.fours`; the kernel's multimodal_*.lisp): the texts read whole, the torus clock
+locked to each symmetry and turned between them, the fifth limb bearing through its limbs' swing, its legs levelled
+to its arms on its figure, the truss meeting its weight."""
 import math
 import os
 import sys
@@ -73,7 +73,7 @@ def test_the_texts_read_whole(report):
 
 def test_each_symmetry_locks_from_anywhere(report):
     """The torus clock (`fours.clock`, the text's coupling 8.5/s) from 64 random phases a symmetry: each limb within
-    1e-6 rad of its lag; then a turn of it bears as the symmetry pairs her limbs - the crawl never fewer than three,
+    1e-6 rad of its lag; then a turn of it bears as the symmetry pairs its limbs - the crawl never fewer than three,
     landing left hind, left fore, right hind, right fore; the trot's diagonals as one, the pace's sides as one, the
     bound's girdles a twentieth of a turn apart."""
     import numpy as np
@@ -94,15 +94,15 @@ def test_each_symmetry_locks_from_anywhere(report):
                   ':diagonal-trot': np.array_equal(on[:, 0], on[:, 3]) and np.array_equal(on[:, 1], on[:, 2]),
                   ':ipsilateral-pace': np.array_equal(on[:, 0], on[:, 1]) and np.array_equal(on[:, 2], on[:, 3]),
                   ':synchronous-bound': abs((lands[2] - lands[0]) * DT - 0.05) < 2 * DT}[symmetry]
-        report.check('%s: locked in %.2f s at most, %.0e rad off; it bears as it pairs her limbs' % (
+        report.check('%s: locked in %.2f s at most, %.0e rad off; it bears as it pairs its limbs' % (
             symmetry[1:], slowest, worst), worst < MET and bool(paired),
             'bearing %d-%d limbs, duty %.2f' % (on.sum(axis=1).min(), on.sum(axis=1).max(), duty))
 
 
-def test_a_morph_turns_her_lags_continuously(report):
-    """The schedule's morph, the trot to the crawl over its 2 bars (`phase-locked-multiband-morph`, its s-curve), her
-    lags turned along the torus's shortest arc (`fours.toward`) and her duty ramped under the clock, a beat half a
-    turn: no limb's phase steps past twice what the clock turns it in a tick, her limbs trail their lags by at most
+def test_a_morph_turns_its_lags_continuously(report):
+    """The schedule's morph, the trot to the crawl over its 2 bars (`phase-locked-multiband-morph`, its s-curve), its
+    lags turned along the torus's shortest arc (`fours.toward`) and its duty ramped under the clock, a beat half a
+    turn: no limb's phase steps past twice what the clock turns it in a tick, its limbs trail their lags by at most
     the fastest lag's rate over the clock's pull (4 x 8.5/s), and two or more bear throughout."""
     import numpy as np
     from machine.texts import dsp, kernel
@@ -127,8 +127,8 @@ def test_a_morph_turns_her_lags_continuously(report):
                  steps < 2.0 * fours.TAU * hz * DT and trail <= 1.05 * rate / (4.0 * k) and fewest >= 2.0)
 
 
-def test_the_fifth_bears_while_her_limbs_swing(report):
-    """The crab's scoot (`specialize-supine-peristaltic-underbed-scoot`): its fifth limb locked antiphase to her
+def test_the_fifth_bears_while_its_limbs_swing(report):
+    """The crab's scoot (`specialize-supine-peristaltic-underbed-scoot`): its fifth limb locked antiphase to its
     limbs' swing (`fours.fifth`) bears through every limb's swing when they advance as one, its flag; under the trot
     its topology lays, through half of it - one diagonal's swing."""
     import numpy as np
@@ -150,9 +150,9 @@ def test_the_fifth_bears_while_her_limbs_swing(report):
 
 
 def _stance(origin, pitch, hind_point):
-    """Her figure on all fours (deg, turn, contacts (4, 3) [LH LF RH RF] on the floor, centre of mass, knee rad, frames):
+    """Its figure on all fours (deg, turn, contacts (4, 3) [LH LF RH RF] on the floor, centre of mass, knee rad, frames):
     the text's ankle, elbow, spine and neck; each limb plumb from its hip or shoulder; the knee the equalizer bends
-    (`fours.bend`) for her shoulders `pitch` rad over her hips; the contacts a sole's `hind_point` and a fist's
+    (`fours.bend`) for its shoulders `pitch` rad over its hips; the contacts a sole's `hind_point` and a fist's
     lowest."""
     import numpy as np
     from machine.body import figure
@@ -198,16 +198,16 @@ def _stance(origin, pitch, hind_point):
 
 
 def _share(points, com):
-    """Her legs' share of her weight as her centre's place along her stance makes it."""
+    """The robot's legs' share of its weight as its centre's place along its stance makes it."""
     hind, fore = points[[0, 2], 2].mean(), points[[1, 3], 2].mean()
     return (fore - com[2]) / (fore - hind)
 
 
-def test_her_legs_levelled_to_her_arms(report):
-    """On her figure, the text's pronograde origin on her toes and fists with her limbs plumb: the knee bent by the
-    equalizer (`fours.bend`) for the dog trot's trunk pitch sets her soles and fists on one floor to 1e-9 m and her
-    shoulders over her hips at that pitch, the knee within her travel; her hips' height, her legs' share and how far
-    back the text's share wants her centre as that stance makes them."""
+def test_its_legs_levelled_to_its_arms(report):
+    """On its figure, the text's pronograde origin on its toes and fists with its limbs plumb: the knee bent by the
+    equalizer (`fours.bend`) for the dog trot's trunk pitch sets its soles and fists on one floor to 1e-9 m and its
+    shoulders over its hips at that pitch, the knee within its travel; its hips' height, its legs' share and how far
+    back the text's share wants its centre as that stance makes them."""
     import numpy as np
     from machine.body import drives
     from machine.texts import kernel
@@ -224,17 +224,17 @@ def test_her_legs_levelled_to_her_arms(report):
     at = math.atan2(sh[1] - hips[1], sh[2] - hips[2])
     low, high = drives.TRAVEL['knee']
     legs, length = _share(points, com), points[[1, 3], 2].mean() - points[[0, 2], 2].mean()
-    report.check('one floor, %.0e m; shoulders at %.3f rad; knee %.2f rad (the text %.2f), hips %.3f m up (%.3f), her '
-                 'legs %.2f of her: %.2f wants her centre %.3f m back' % (
+    report.check('one floor, %.0e m; shoulders at %.3f rad; knee %.2f rad (the text %.2f), hips %.3f m up (%.3f), it '
+                 'legs %.2f of it: %.2f wants its centre %.3f m back' % (
                      floor, at, kappa, origin['tibiofemoral'], hips[1] - points[:, 1].mean(), told['nominal-pelvis-z-m'],
                      legs, share['hind-to-fore-weight-ratio'], (share['hind-to-fore-weight-ratio'] - legs) * length),
                  floor < 1e-9 and abs(at - pitch) < 1e-9 and low <= deg['left_knee'] <= high)
 
 
-def test_the_truss_meets_her_weight_and_squeezes_nothing(report):
-    """`fours.truss` on her levelled pronograde stance under her weight: the wrench met to 1e-9, every edge squeezed
-    0 N as told; her legs' share her centre's place alone, the same to 1e-9 N under her drives' held torques as the
-    metric (`heat.held`: arms 22.3 N m, legs 43.0); the scramble's 32 N wedge on all six edges, her hands a riser up."""
+def test_the_truss_meets_its_weight_and_squeezes_nothing(report):
+    """`fours.truss` on its levelled pronograde stance under its weight: the wrench met to 1e-9, every edge squeezed
+    0 N as told; its legs' share its centre's place alone, the same to 1e-9 N under its drives' held torques as the
+    metric (`heat.held`: arms 22.3 N m, legs 43.0); the scramble's 32 N wedge on all six edges, its hands a riser up."""
     import numpy as np
     from machine.body import figure, heat
     from machine.moves import fours
@@ -250,24 +250,24 @@ def test_the_truss_meets_her_weight_and_squeezes_nothing(report):
         met = float(np.abs(fours.grasp(points) @ f.ravel() - weight).max())
         squeezed = float(np.abs(fours.squeezes(points) @ f.ravel()).max())
         shares.append((f[0, 1] + f[2, 1]) / weight[1])
-        report.check('metric %s: met to %.0e, squeezed %.0e N, her legs %.4f of her' % (
+        report.check('metric %s: met to %.0e, squeezed %.0e N, its legs %.4f of it' % (
             np.round(metric / metric.max(), 2).tolist(), met, squeezed, shares[-1]), met < 1e-9 and squeezed < 1e-9)
-    report.check('the metric moves no weight between her legs and arms: %.0e of her' % abs(shares[1] - shares[0]),
+    report.check('the metric moves no weight between its legs and arms: %.0e of it' % abs(shares[1] - shares[0]),
                  abs(shares[1] - shares[0]) < 1e-9 and abs(shares[0] - _share(points, com)) < 1e-9)
     wedge = kernel.node('specialize-quad-steep-grade-scramble', 'virtual-truss')['nullspace-internal-wrench-law']
     three, told = points[:3], np.full(3, wedge['edge-tension-target-n'])
     f = fours.truss(three, weight, np.ones(3), told)
     four = fours.truss(points, weight, np.ones(4), np.full(6, told[0]))
-    report.check('three bearing, her right fore aloft: every edge squeezed %.0f N to %.0e; four on one plane, %.1f N '
+    report.check('three bearing, its right fore aloft: every edge squeezed %.0f N to %.0e; four on one plane, %.1f N '
                  'short (a braced quadrilateral\'s self-stress)' % (
                      told[0], float(np.abs(fours.squeezes(three) @ f.ravel() - told).max()),
                      float(np.abs(fours.squeezes(points) @ four.ravel() - told[0]).max())),
                  np.abs(fours.squeezes(three) @ f.ravel() - told).max() < 1e-9)
 
 
-ROSTER = [test_the_texts_read_whole, test_each_symmetry_locks_from_anywhere, test_a_morph_turns_her_lags_continuously,
-          test_the_fifth_bears_while_her_limbs_swing, test_her_legs_levelled_to_her_arms,
-          test_the_truss_meets_her_weight_and_squeezes_nothing]
+ROSTER = [test_the_texts_read_whole, test_each_symmetry_locks_from_anywhere, test_a_morph_turns_its_lags_continuously,
+          test_the_fifth_bears_while_its_limbs_swing, test_its_legs_levelled_to_its_arms,
+          test_the_truss_meets_its_weight_and_squeezes_nothing]
 
 
 def main(argv=None):

@@ -1,12 +1,12 @@
-"""What her eyes take a thing for: its class by its look and its box (the text's semantic classifier).
+"""What its eyes take a thing for: its class by its look and its box (the text's semantic classifier).
 
     names, whole = classes.of(kinds, centre, half, R, clear)   # each one's class, the thing each is a piece of
     names, ones, built = classes.read(things)                   # each box's class, the one thing it is of, buildings
 
-A thing is a box with a kind (`registry`'s): her eyes' look - the palette's nearest colour (`sight.LOOKS`) -, the
-stand-in's (`world.props()`), or a class already - a scene's chair, her registry's slot -, which stays. A look that
+A thing is a box with a kind (`registry`'s): its eyes' look - the palette's nearest colour (`sight.LOOKS`) -, the
+stand-in's (`world.props()`), or a class already - a scene's chair, its registry's slot -, which stays. A look that
 tells its class alone is it (LOOKED: a door's, a bed's, a lamp's); a material many things are made of - wood,
-timber, stone, glass - is told by its box against her figure and the text's slabs and kernels
+timber, stone, glass - is told by its box against its figure and the text's slabs and kernels
 (`lie_group_slam_core.lisp`'s `:semantic-affordance-classifier`), every thing's arrays at once, each table in its
 order, the first that holds: a top seen clear over it by its height and what it meets (TOPS: a floor, a stair, a
 step, a platform, a sofa, a chair, a table, a bench, a stool, a cabinet, a shelf), the rest by its faces (FACES: a
@@ -14,10 +14,10 @@ window and the posts framing it, a railing, a ceiling, a wall, a post); a piece 
 chair's back on its edge, a leg or a face under it - the top's class, the top its whole. What none tells is a
 thing, named none.
 
-Of what she tells, a building (`houses`): its shell - walls, windows and doors, joined across what her eyes may not
+Of what it tells, a building (`houses`): its shell - walls, windows and doors, joined across what its eyes may not
 have seen of it - with an opening in it, enclosing a floor, and what roofs it over; a cabin of one storey, else a
 house. Outside it what lies by it is its
-veranda - a floor - or its terrace - a platform -; a floor apart from it or a top sunk under her floor the ground.
+veranda - a floor - or its terrace - a platform -; a floor apart from it or a top sunk under its floor the ground.
 
 What is one thing, many to one (`grouped`): what of one class touches, slabs across each other apart - a window's
 panes and the posts between them, a stair's treads, not two walls at a corner -; a building's walls on one side one
@@ -48,32 +48,32 @@ LOOKED = {'glass': None, 'wood': None, 'timber': None, 'stone': None, 'bed': 'be
 #: A face seen from one side fills a voxel across, from both two: a wall, a pane, a chair's back or a leg is no
 #: thicker, a seat (0.44 m) is - m.
 THIN = 2.0 * CELL_M
-#: Over the floor, m: flush, under her ankle, she walks on it (`voxels.STAND_M`); in the text's lowest slab, her
-#: feet's, she steps onto it, and onto a rise of it from one she does; a top's piece stands on it with its foot no
-#: higher over it than the mid-pelvic slab; past the highest, her head's, a thing is overhead.
+#: Over the floor, m: flush, under its ankle, it walks on it (`voxels.STAND_M`); in the text's lowest slab, its
+#: feet's, it steps onto it, and onto a rise of it from one it does; a top's piece stands on it with its foot no
+#: higher over it than the mid-pelvic slab; past the highest, its head's, a thing is overhead.
 FLUSH, STEP, OVER, OVERHEAD = figure.ANKLE_H, _SLAB_TOPS[0], _SLAB_TOPS[1], _SLAB_TOPS[2]
-#: A seat's top (`:sit-on-fixture`) and a bed's (`:lie-supine-on-fixture`), m; past what she braces on
+#: A seat's top (`:sit-on-fixture`) and a bed's (`:lie-supine-on-fixture`), m; past what it braces on
 #: (`:recruit-brace-support`) a face parts the room and a top is a cabinet's or a shelf's.
 SEAT, BED, BRACE = _WINDOWS[':sit-on-fixture'], _WINDOWS[':lie-supine-on-fixture'], _WINDOWS[':recruit-brace-support'][1]
-#: Her lap sat at her popliteal height (`floor.CHAIR_LOW_H`), her knee and her thigh's radius - a table's top is over
-#: it, a seat's under -; her lumbar over that seat (`affordance.LUMBAR_M`), a chair's back reaching it - m.
+#: Its lap sat at its popliteal height (`floor.CHAIR_LOW_H`), its knee and its thigh's radius - a table's top is over
+#: it, a seat's under -; its lumbar over that seat (`affordance.LUMBAR_M`), a chair's back reaching it - m.
 LAP = figure.ANKLE_H + figure.SHANK + [c for c in figure.BODY if c[0] == 'thigh'][-1][1]
 LUMBAR = (next(s for s in figure.SEGMENTS if s[0] == 'torso')[3][1]
           + next(c for c in figure.BODY if c[0] == 'torso')[2][1] - (figure.SEAT_Y - figure.SEAT_R))
-#: Two of her soles (heel, ball and toes, 24 cm), m: a top shallower takes one foot - a stair's tread -, one as deep
-#: she stands on whole - a platform -, a seat as deep seats none alone - a low table's.
+#: Two of its soles (heel, ball and toes, 24 cm), m: a top shallower takes one foot - a stair's tread -, one as deep
+#: it stands on whole - a platform -, a seat as deep seats none alone - a low table's.
 STANCE = 2.0 * (figure.HEEL + figure.BALL + figure.TOE_M)
 #: A look that tells its class only where its box (top, bottom) bears it out, and the material it is taken for where
-#: not: a door's standing from the lowest slab past her brace - shaded timber reads as one, pixel by pixel -; a bed's
-#: lying under her brace - a glass gable reads as one against the room behind it.
+#: not: a door's standing from the lowest slab past its brace - shaded timber reads as one, pixel by pixel -; a bed's
+#: lying under its brace - a glass gable reads as one against the room behind it.
 BORNE = {'door': (lambda top, bottom: bottom <= OVER and top > BRACE, 'timber'),
          'bed': (lambda top, bottom: BED[0] <= top <= BED[1], 'glass')}
 
-#: A top's class by its features (`of`), the first that holds: flush with the floor; a shallow top she steps onto, a
-#: rise off another - a stair's tread - or alone; one she stands on whole, or as deep and solid under it within her
+#: A top's class by its features (`of`), the first that holds: flush with the floor; a shallow top it steps onto, a
+#: rise off another - a stair's tread - or alone; one it stands on whole, or as deep and solid under it within its
 #: brace - its body, or a face under it along half its length; a seat with a back, twice as long as deep for more
-#: than her; a top over her lap she braces on, or one at a seat's height too deep to sit on alone; a seat twice as
-#: long as deep; a seat; past her brace a solid top, else one held up.
+#: than it; a top over its lap it braces on, or one at a seat's height too deep to sit on alone; a seat twice as
+#: long as deep; a seat; past its brace a solid top, else one held up.
 TOPS = (('floor', lambda f: np.abs(f['top']) <= FLUSH),
         ('stairs', lambda f: f['steps'] & (f['short'] < STANCE) & f['flight']),
         ('step', lambda f: f['steps'] & (f['short'] < STANCE)),
@@ -86,9 +86,9 @@ TOPS = (('floor', lambda f: np.abs(f['top']) <= FLUSH),
         ('stool', lambda f: f['wide'] & f['seat']),
         ('cabinet', lambda f: f['wide'] & f['solid'] & (f['top'] > BRACE)),
         ('shelf', lambda f: f['wide'] & (f['top'] > BRACE)))
-#: The class of a thing no top by its faces, the first that holds: seen through past her brace, or a post thin both
-#: ways framing such a pane; seen through under it; overhead and wider than THIN; past her brace, longer than THIN
-#: or a sliver beside an opaque one standing through her brace - a wall's fragment of another colour -, else as thin
+#: The class of a thing no top by its faces, the first that holds: seen through past its brace, or a post thin both
+#: ways framing such a pane; seen through under it; overhead and wider than THIN; past its brace, longer than THIN
+#: or a sliver beside an opaque one standing through its brace - a wall's fragment of another colour -, else as thin
 #: both ways.
 FACES = (('window', lambda f: (f['see'] | (f['framed'] & (f['long'] <= THIN + 1e-9))) & (f['top'] > BRACE)),
          ('railing', lambda f: f['see']),
@@ -98,9 +98,9 @@ FACES = (('window', lambda f: (f['see'] | (f['framed'] & (f['long'] <= THIN + 1e
 #: The tops that are furniture: a piece of one other than its top - a chair's back, a leg - is no thing of its own.
 FURNITURE = ('sofa', 'chair', 'table', 'bench', 'stool', 'cabinet', 'shelf')
 #: A building's shell, joined where its things meet; an opening in it makes it one - a garden's wall has none -; what
-#: roofs it over beside it its too; what stands it a storey high, a cabin's walls and doors under two of her.
+#: roofs it over beside it its too; what stands it a storey high, a cabin's walls and doors under two of it.
 SHELL, OPENINGS, ROOFS, STOREY = ('wall', 'window', 'door'), ('window', 'door'), ('roof', 'ceiling'), ('wall', 'door')
-#: What she sees through, in her map in pieces where her eyes met its glass: one in one plane where no wall stands between.
+#: What it sees through, in its map in pieces where its eyes met its glass: one in one plane where no wall stands between.
 THROUGH = ('window', 'railing')
 
 
@@ -121,7 +121,7 @@ def _instances(names, whole, beside, lo, hi, built):
     """(n,) the one thing each of `n` things told `names` is of, many to one - their `whole`s, which meet (`beside`),
     their boxes' corners `lo`, `hi` (n, 3), the buildings `built` (`_houses`') -: its lowest index. A piece of
     furniture its top's, two chairs side by side two; a building's walls on one side, its openings between them, one
-    wall; what she sees through (THROUGH) in one plane within her map's reach, no wall wider than THIN standing from her
+    wall; what it sees through (THROUGH) in one plane within its map's reach, no wall wider than THIN standing from its
     floor between - a glass wall's panes, a door set in it, a rail either side of a stair -, one, two windows a wall
     apart two; the rest what of one class touches - a window's panes and the posts between them, a stair's treads a
     rise (STEP) apart, a lamp's post and shade, a rail along a side -, slabs across each other apart, as two walls at a
@@ -137,7 +137,7 @@ def _instances(names, whole, beside, lo, hi, built):
     one = np.array([k not in FURNITURE and k != 'thing' for k in names], bool)
     link = (names[:, None] == names[None, :]) & beside & level & ~across & one[:, None] & one[None, :]
     plane = _plane(lo, hi)
-    # what she sees through in one plane within her map's reach, no wall wider than THIN standing from her floor between
+    # what it sees through in one plane within its map's reach, no wall wider than THIN standing from its floor between
     u = np.where(flat[:, 1], 0, 2)
     a_lo, a_hi = lo[np.arange(n), u], hi[np.arange(n), u]
     start, end = np.minimum(a_hi[:, None], a_hi[None, :]), np.maximum(a_lo[:, None], a_lo[None, :])
@@ -162,11 +162,11 @@ def _instances(names, whole, beside, lo, hi, built):
 
 def _houses(names, beside, lo, hi):
     """[(class, low corner (3,), high corner (3,), members (k,))] of the buildings things told `names` make - `beside`
-    (n, n) which meet, `lo`, `hi` (n, 3) their boxes' corners -: each its SHELL's things joined across what her eyes may
-    not have seen of it, her map's reach (`voxels.FAR_M`: a door's gap, a wall's far end), or in one wall's plane, an
+    (n, n) which meet, `lo`, `hi` (n, 3) their boxes' corners -: each its SHELL's things joined across what its eyes may
+    not have seen of it, its map's reach (`voxels.FAR_M`: a door's gap, a wall's far end), or in one wall's plane, an
     opening among them and more - an opening alone, a lone door, is in nothing -, enclosing a floor - its box deeper
     than THIN both ways: a facade alone has no inside -, what roofs them over (ROOFS beside them) its too; a cabin where
-    its STOREY stands under two of her (OVERHEAD twice), else a house; its box its shell's."""
+    its STOREY stands under two of it (OVERHEAD twice), else a house; its box its shell's."""
     n = len(names)
     shell, opening, roof, storey = (np.array([k in kinds for k in names], bool) for kinds in (SHELL, OPENINGS, ROOFS, STOREY))
     middle, half = 0.5 * (lo + hi)[:, ::2], 0.5 * (hi - lo)[:, ::2]
@@ -219,14 +219,14 @@ def of(kinds, centre, half, R, clear):
     pair = (wood & ~see & ~top_)[:, None] & top_[None, :] & (look[:, None] == look[None, :])
     on = pair & beside & (bottom[:, None] >= top[None, :] - CELL_M - 1e-9) & (bottom[:, None] <= top[None, :] + OVER)
     under = pair & within & (top[:, None] <= bottom[None, :] + CELL_M + 1e-9)
-    # her backrest at a seat's edge, the text's (`:verify-high-thoracic-slab-occupancy`, `affordance.back_of`'s): a
-    # piece of its look beside it from no more than a cell over its top past her lumbar, its foot anywhere under - a
+    # its backrest at a seat's edge, the text's (`:verify-high-thoracic-slab-occupancy`, `affordance.back_of`'s): a
+    # piece of its look beside it from no more than a cell over its top past its lumbar, its foot anywhere under - a
     # chair's back is one with its rear legs, a low chair's with the wall it stands against
     backs = (pair & beside & (bottom[:, None] <= top[None, :] + CELL_M + 1e-9)
              & (top[:, None] >= top[None, :] + LUMBAR) & (top[:, None] <= BRACE + 0.5 * CELL_M)
              & (long[:, None] <= long[None, :] + CELL_M + 1e-9))
     held = on | under | backs
-    # what she steps onto: a top no piece in the lowest slab, then each beside one she does a rise of it off it
+    # what it steps onto: a top no piece in the lowest slab, then each beside one it does a rise of it off it
     free = surface & ~held.any(axis=1)
     rise = beside & free[:, None] & free[None, :] & (np.abs(top[:, None] - top[None, :]) <= STEP)
     steps = free & (top <= STEP)
@@ -281,8 +281,8 @@ def grouped(names, whole, centre, half, R):
 
 
 def read(things):
-    """What her eyes read of boxes `things` - `registry.boxes`' or `world.props()` -, at once: (each one's class, None
-    for what she cannot tell and for a piece of furniture other than its top - one of FURNITURE's not seen clear over
+    """What its eyes read of boxes `things` - `registry.boxes`' or `world.props()` -, at once: (each one's class, None
+    for what it cannot tell and for a piece of furniture other than its top - one of FURNITURE's not seen clear over
     it or THIN across, a chair's back or legs -; the one thing each is of, its lowest index (`grouped`); the buildings
     they make [(class, centre, half sizes)])."""
     kinds, centre, half, R, clear = stacked(things)
@@ -295,7 +295,7 @@ def read(things):
 
 
 def named(things):
-    """Each of boxes `things` by its class, None for what she cannot tell and a piece of furniture (`read`)."""
+    """Each of boxes `things` by its class, None for what it cannot tell and a piece of furniture (`read`)."""
     return read(things)[0]
 
 

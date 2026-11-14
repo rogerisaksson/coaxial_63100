@@ -1,10 +1,10 @@
-"""Her limbs on all fours: a torus clock, a truss, a limb bent to a length.
+"""The robot's limbs on all fours: a torus clock, a truss, a limb bent to a length.
 
     lag, duty, bpm, k = fours.clock_of(g)              # a gait's torus clock as the kernel's texts lay it
     phi = fours.clock(phi, lag, hz, k, dt)             # (n,) rad: each limb turned, pulled to its lag
     lag = fours.toward(lag, to, s)                     # a morph's lags, s of the way on the torus
     on = fours.bearing(phi, duty)                      # (n,) 1 while a limb stands
-    lags = fours.fifth(lag, duty, together)            # (n + 1,): her limbs', then the axial patch's
+    lags = fours.fifth(lag, duty, together)            # (n + 1,): its limbs', then the axial patch's
     f = fours.truss(points, wrench, metric, told)      # (n, 3) N: the wrench met, each edge squeezed as told
     kappa = fours.bend(upper, lower, length)           # rad: a two-link limb's middle joint at that length
 
@@ -49,14 +49,14 @@ def bearing(phi, duty):
 
 
 def fifth(lag, duty, together):
-    """(n + 1,) lags: her limbs' drawn to her first's by `together` (1: advanced as one), and the axial patch's,
-    landing as her first limb lifts - antiphase to their swing (`splice-fifth-peristaltic-oscillator`)."""
+    """(n + 1,) lags: its limbs' drawn to its first's by `together` (1: advanced as one), and the axial patch's,
+    landing as its first limb lifts - antiphase to their swing (`splice-fifth-peristaltic-oscillator`)."""
     limbs = lag + together * (lag[0] - lag)
     return np.append(limbs, limbs[0] + TAU * duty)
 
 
 def held(com, newtons, up):
-    """(6,) what her contacts give to hold `newtons` at `com` against gravity along -`up`: force, moment about the
+    """(6,) what its contacts give to hold `newtons` at `com` against gravity along -`up`: force, moment about the
     origin."""
     force = newtons * np.asarray(up, float)
     return np.concatenate([force, np.cross(com, force)])
@@ -87,7 +87,7 @@ def squeezes(points):
 
 def truss(points, wrench, metric, told):
     """(n, 3) N: forces at `points` (n, 3) meeting `wrench` (`held`), each edge squeezed (`squeezes`) `told` (m,)
-    as near as the points allow, the rest the least of sum_a metric_a |f_a|^2 - the kernel's virtual truss on her
+    as near as the points allow, the rest the least of sum_a metric_a |f_a|^2 - the kernel's virtual truss on its
     contacts' costs (`modulate-nullspace-inertia-metric`)."""
     root = np.repeat(1.0 / np.sqrt(metric), 3)
     a, e = grasp(points) * root, squeezes(points) * root

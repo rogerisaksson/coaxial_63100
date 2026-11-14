@@ -22,7 +22,7 @@
            #:compile-full-lifecycle-soa))
 (in-package :ortho-dsp.terminals)
 
-;; Sat on a seat over her shins: her fists sought onto it beside her hips, bearing her (the kernel's carpal seat boost)
+;; Sat on a seat over its shins: its fists sought onto it beside its hips, bearing it (the kernel's carpal seat boost)
 (defmaneuver transfer-carpal-seat-boost
   [seated-state &key (max-arm-push-share 0.20)]
   (-> seated-state
@@ -32,13 +32,13 @@
         :surface-normal [0.0 0.0 1.0] :mu 0.65 :bilateral-grasp-pull false
         :weight-law (:wrench-proportional :max-share max-arm-push-share))))
 
-;; Up onto a seat too high for her feet, as the kernel's arm vault (`xform-overheight-arm-vault-ingress`): sat on its
-;; front edge, her fists on it beside her hips, her joints play her way up onto it (`:joint-program`, moves.lisp's
-;; `chair-mount`) - her shoulders flexed against her fists vault her pelvis off the edge and draw it back on
-;; her arms, then let her down onto the seat's middle -; her law then holds her there, the seat and her fists bearing
-;; her - her fists kept where they bore as her hips went back past them (`seated.kept`) -, her knees and ankles asked
-;; the kernel's hang (`specialize-posture-dangling-crural-hang`'s origin). Left to the sit's own targets her arms drew
-;; her back to its front edge (0.05 m behind its middle to 0.16 ahead in 5 s); her arms let go to their rest, her trunk
+;; Up onto a seat too high for its feet, as the kernel's arm vault (`xform-overheight-arm-vault-ingress`): sat on its
+;; front edge, its fists on it beside its hips, its joints play its way up onto it (`:joint-program`, moves.lisp's
+;; `chair-mount`) - its shoulders flexed against its fists vault its pelvis off the edge and draw it back on
+;; its arms, then let it down onto the seat's middle -; its law then holds it there, the seat and its fists bearing
+;; it - its fists kept where they bore as its hips went back past them (`seated.kept`) -, its knees and ankles asked
+;; the kernel's hang (`specialize-posture-dangling-crural-hang`'s origin). Left to the sit's own targets its arms drew
+;; its back to its front edge (0.05 m behind its middle to 0.16 ahead in 5 s); its arms let go to their rest, its trunk
 ;; sank 85 -> 57 deg in 12 s.
 (defmaneuver specialize-mount-overheight-seat [seated-state]
   (-> seated-state
@@ -52,12 +52,12 @@
         :talocrural-rad -0.24
         :manifold-pan '((:plantar-bilateral 0.0) (:ischial-bilateral 0.80) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.20)))))
 
-;; Down from a seat too high for her feet to its front edge, as the kernel's arm-dip egress scoots her
-;; (`xform-overheight-arm-dip-egress`): her legs let go, her fists boosting her, her seat slid ahead at the kernel's
-;; tangent speed - her sled's twist in her closed chains' step, as far as her soles do not yet bear what her legs
-;; weigh - till they bear it, then those soles told it and her slide over: the sit-to-stand take's start, her feet on
-;; the floor under her knees. Risen from the seat's middle her soles bore 0 N through her lean and thrust: locked 5.2 s;
-;; stroked open on her arms and knees, a puppet slid 0.29 m a stroke past the edge onto the floor.
+;; Down from a seat too high for its feet to its front edge, as the kernel's arm-dip egress scoots it
+;; (`xform-overheight-arm-dip-egress`): its legs let go, its fists boosting it, its seat slid ahead at the kernel's
+;; tangent speed - its sled's twist in its closed chains' step, as far as its soles do not yet bear what its legs
+;; weigh - till they bear it, then those soles told it and its slide over: the sit-to-stand take's start, its feet on
+;; the floor under its knees. Risen from the seat's middle its soles bore 0 N through its lean and thrust: locked 5.2 s;
+;; stroked open on its arms and knees, a puppet slid 0.29 m a stroke past the edge onto the floor.
 (defmaneuver transfer-egress-scoot [seated-state &key (slide-speed-mps 0.15) (reach-fz-ratio 0.15)]
   (-> seated-state
       (stage-sequential-manifold
@@ -82,12 +82,12 @@
           :slide-speed-mps 0.0
           :manifold-pan '((:plantar-bilateral 0.15) (:ischial-bilateral 0.65) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.20))))))
 
-;; Down from a seat too high for her feet onto them, as the kernel's egress from it lowers her on her arms
-;; (`specialize-for-overheight-seat` :egress, `xform-overheight-arm-dip-egress`): her joints play her dismount
-;; (moves.lisp `chair-dismount`), her text's rows waiting, till her soles bear her; what bears her then all her soles,
-;; her shins 0.44 rad ahead of plumb where her dismount lands them, as the kernel's homotopy pans her seat onto her
-;; feet and her wake latches her where her dismount left her. Told plumb ankles instead, her scoot and lean asked her
-;; centre of mass 14 cm behind her soles' middle, pulling her back onto the chair's edge or into a step at stand.
+;; Down from a seat too high for its feet onto them, as the kernel's egress from it lowers it on its arms
+;; (`specialize-for-overheight-seat` :egress, `xform-overheight-arm-dip-egress`): its joints play its dismount
+;; (moves.lisp `chair-dismount`), its text's rows waiting, till its soles bear it; what bears it then all its soles,
+;; its shins 0.44 rad ahead of plumb where its dismount lands them, as the kernel's homotopy pans its seat onto its
+;; feet and its wake latches it where its dismount left it. Told plumb ankles instead, its scoot and lean asked its
+;; centre of mass 14 cm behind its soles' middle, pulling it back onto the chair's edge or into a step at stand.
 (defmaneuver transfer-egress-dip [seated-state]
   (-> seated-state
       (stage-sequential-manifold
@@ -100,12 +100,12 @@
         :talocrural-rad 0.44
         :manifold-pan '((:plantar-bilateral 1.0) (:ischial-bilateral 0.0) (:scapular-dorsal 0.0) (:palmar-carpal-bilateral 0.0)))))
 
-;; Composite 1: Dock and sit on a rigid chair, her hands on it where it stands over her shins, then up onto it where
-;; it is too high for her feet - over her popliteal height -, as the kernel's sit morphs by the seat's height
-;; (`xform-sit-on-chair-or-stool`). Mounted on her low chair, at her popliteal height, her pelvis went 0.22 m back
-;; along its seat as her feet stayed at its edge, her ankles asked the hang tipped her soles 0.27 rad onto their heels
-;; and she sat on her sacrum, her soles bearing 0.45 of her.
-(defpatch patch-sit-rigid-chair [approach-gait &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat her eyes see, her knees' height
+;; Composite 1: Dock and sit on a rigid chair, its hands on it where it stands over its shins, then up onto it where
+;; it is too high for its feet - over its popliteal height -, as the kernel's sit morphs by the seat's height
+;; (`xform-sit-on-chair-or-stool`). Mounted on its low chair, at its popliteal height, its pelvis went 0.22 m back
+;; along its seat as its feet stayed at its edge, its ankles asked the hang tipped its soles 0.27 rad onto their heels
+;; and it sat on its sacrum, its soles bearing 0.45 of it.
+(defpatch patch-sit-rigid-chair [approach-gait &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat its eyes see, its knees' height
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 85.0 :target-yaw-rad 3.14159)
       (substrate-rigid-fixture)
@@ -120,7 +120,7 @@
       (master-anti-spasm-insert)))
 
 ;; Composite 2: Dock at bed, sit on mattress edge, roll to supine, and gate off inverters
-(defpatch patch-supine-mattress-sleep [approach-gait &key (seat-z-mm 450.0)] ; the bed her eyes see
+(defpatch patch-supine-mattress-sleep [approach-gait &key (seat-z-mm 450.0)] ; the bed its eyes see
   (-> approach-gait
       (dock-terminal-stance :standoff-x-mm 70.0 :target-yaw-rad 3.14159)
       (substrate-viscoelastic-mattress :eigenfreq-hz 1.80)
@@ -146,13 +146,13 @@
       (ignite-cyclic-clock target-walk-gait :bars 2)
       (master-anti-spasm-insert)))
 
-;; Composite 4: Precharge from the chair's settled rest and stand up - off a seat over her popliteal height down onto
-;; her feet on her arms, as the kernel's egress morphs by the seat's height (already on her soles at 0.44 rad shins,
-;; a 0.56 rad lean clears her palms and capture point over her soles without pitching her hips back onto the seat edge
-;; as 0.74 did, whereas 0.28 left her capture point behind her heels); from one her feet reach, where she sits
-;; (0.74 rad lean, 0.82 liftoff), an S-curve drive uncurls her trunk in phase with her knees instead of snapping her
-;; upright over her heels at liftoff.
-(defpatch patch-rise-chair [seated-state &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat her eyes see, her knees' height
+;; Composite 4: Precharge from the chair's settled rest and stand up - off a seat over its popliteal height down onto
+;; its feet on its arms, as the kernel's egress morphs by the seat's height (already on its soles at 0.44 rad shins,
+;; a 0.56 rad lean clears its palms and capture point over its soles without pitching its hips back onto the seat edge
+;; as 0.74 did, whereas 0.28 left its capture point behind its heels); from one its feet reach, where it sits
+;; (0.74 rad lean, 0.82 liftoff), an S-curve drive uncurls its trunk in phase with its knees instead of snapping its
+;; upright over its heels at liftoff.
+(defpatch patch-rise-chair [seated-state &key (seat-z-mm 450.0) (popliteal-mm 397.0)] ; the seat its eyes see, its knees' height
   (-> seated-state
       (when-modifier (> seat-z-mm popliteal-mm)
         (transfer-egress-dip))

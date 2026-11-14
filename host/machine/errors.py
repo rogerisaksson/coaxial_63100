@@ -6,4 +6,4 @@ class MachineError(Exception):
 
 
 class BusFault(MachineError):
-    """A bus whose frames are refused systematically: her drives shut down."""
+    """A bus whose frames are refused systematically: its drives shut down."""

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""The autotuner at runtime: her walk tuned while she walks, her loop in a process of its own.
+"""The autotuner at runtime: its walk tuned while it walks, its loop in a process of its own.
 
-    python tools/sim/runtime.py                      # her walk: windows, a Jacobian, a step judged
+    python tools/sim/runtime.py                      # its walk: windows, a Jacobian, a step judged
     python tools/sim/runtime.py --steps 3 --write    # converged and held elsewhere: written
 
-Her loop (`loop`) walks linked (`tap.attached`), never waiting on this core: it drains her raw
-passes and looks and publishes tables (`tap.table`) of her walk's row compiled from her texts with
-a state's literals spliced (`row`), laid at her barrier. A run (`window`) is WINDOW_S of her
-passes from SETTLE_S past a table's laying: its six residuals and her form as offline
+Its loop (`loop`) walks linked (`tap.attached`), never waiting on this core: it drains its raw
+passes and looks and publishes tables (`tap.table`) of its walk's row compiled from its texts with
+a state's literals spliced (`row`), laid at its barrier. A run (`window`) is WINDOW_S of its
+passes from SETTLE_S past a table's laying: its six residuals and its form as offline
 (`telemetry.scored`); the Jacobian, the step, its verdicts and the write offline's
 (`tools.sim.tune.tuned`), its runs these windows one after another.
 """
@@ -21,15 +21,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from tools.sim import suite, telemetry, tune as tuner
 
-#: Her walk's root; a window's settling past a table's laying and its length, s - whole strides
-#: of her walk and its blend's transient past (`gait.BLEND_S`); her rings' seconds.
+#: Its walk's root; a window's settling past a table's laying and its length, s - whole strides
+#: of its walk and its blend's transient past (`gait.BLEND_S`); its rings' seconds.
 ROOT, SETTLE_S, WINDOW_S, RING_S = 'walk', 2.0, 6.0, 8.0
 #: How long this core sleeps between drains, s; how long a window may take on the wall, s.
 NAP_S, WALL_S = 0.005, 600.0
 
 
 def loop(name):
-    """Her loop, linked to `name`: her walk told, each new epoch's too, till the tuner says halt."""
+    """Its loop, linked to `name`: its walk told, each new epoch's too, till the tuner says halt."""
     from machine.process import worker
     from tools.sim import scenarios
     s = worker.session()
@@ -45,22 +45,22 @@ def loop(name):
 
 
 def row(c, state):
-    """Her walk's row in its reached slots (`c['slots']`) compiled from her texts with `state`'s
-    literals ({span: value}) spliced: her gym re-read, her walk voiced (`voicing.walk`)."""
+    """Its walk's row in its reached slots (`c['slots']`) compiled from its texts with `state`'s
+    literals ({span: value}) spliced: its gym re-read, its walk voiced (`voicing.walk`)."""
     from machine.texts import tune, voicing
     walked = voicing.walk(c['fr'], tune.evaluated(tune.given(state, c['texts']))[1])
     return {k: float(walked[k]) for k in c['slots']}
 
 
 def window(c, seq):
-    """Her run of the table `seq` (`telemetry.scored`'s dict): her passes from SETTLE_S past its
-    laying for WINDOW_S, or where she fell first, her fall."""
+    """Its run of the table `seq` (`telemetry.scored`'s dict): its passes from SETTLE_S past its
+    laying for WINDOW_S, or where it fell first, its fall."""
     from machine.law import gait
     from machine.process import tap
     raws, looks, began, link = [], [], time.time(), c['link']
     while True:
-        if not c['her'].is_alive() or time.time() - began > WALL_S:
-            return {'error': 'her loop %s' % ('gone' if not c['her'].is_alive() else 'silent')}
+        if not c['robot'].is_alive() or time.time() - began > WALL_S:
+            return {'error': 'its loop %s' % ('gone' if not c['robot'].is_alive() else 'silent')}
         got, seen = link.drained(0), link.drained(1)
         raws += [x for x in got if x[tap.HE['laid']] == seq]
         looks += list(seen)
@@ -82,11 +82,11 @@ def window(c, seq):
 
 
 def walking(c):
-    """Drained till she walks: her epoch past the suite's settling (`suite.SETTLE_S`), standing - a
-    table laid at rest turns her rhythm on under her stand."""
+    """Drained till it walks: its epoch past the suite's settling (`suite.SETTLE_S`), standing - a
+    table laid at rest turns its rhythm on under its stand."""
     from machine.process import tap
     began = time.time()
-    while time.time() - began < WALL_S and c['her'].is_alive():
+    while time.time() - began < WALL_S and c['robot'].is_alive():
         got = c['link'].drained(0)
         c['link'].drained(1)
         if len(got) and got[-1][tap.HE['t']] >= suite.SETTLE_S and not math.isfinite(got[-1][tap.HE['fell']]):
@@ -95,8 +95,8 @@ def walking(c):
 
 
 def runs(c):
-    """The offline tuner's runs (`tools.sim.tune.runs`) as windows on her loop, one after another:
-    each state's table published once she walks (`walking`), laid, its window measured."""
+    """The offline tuner's runs (`tools.sim.tune.runs`) as windows on its loop, one after another:
+    each state's table published once it walks (`walking`), laid, its window measured."""
     from machine.law import gait
     from machine.process import tap
 
@@ -113,29 +113,29 @@ def runs(c):
 
 
 def main(argv=None):
-    """Her loop started linked, her walk tuned on it, the kept state written where asked."""
+    """The robot's loop started linked, its walk tuned on it, the kept state written where asked."""
     import multiprocessing
     from machine.law import modal
     from machine.process import tap
     from machine.texts import tune
-    p = argparse.ArgumentParser(description='The autotuner at runtime, on her walk.')
+    p = argparse.ArgumentParser(description='The autotuner at runtime, on its walk.')
     p.add_argument('--steps', type=int, default=1)
     p.add_argument('--write', action='store_true', help='the kept texts written, converged and held elsewhere')
     args = p.parse_args(argv)
-    gr, tx, fr = tune.grammar(), tune.texts(), suite._her()
+    gr, tx, fr = tune.grammar(), tune.texts(), suite._robot()
     table = tune.walked(ROOT, gr, tx)
     cols, _refused = tune.reach(ROOT, table, tx, fr)
     got = tune.evaluated(tx)[0]
     c = {'gr': gr, 'texts': tx, 'fr': fr, 'got': got, 'weight': float(fr[modal.WEIGHT]), 'seq': 0,
          'slots': sorted({key[1] for col in cols.values() for key in col if key[0] == 'slot'}),
          'link': tap.made(RING_S)}
-    c['her'] = multiprocessing.get_context('spawn').Process(target=loop, args=(c['link'].name,), daemon=True)
-    c['her'].start()
+    c['robot'] = multiprocessing.get_context('spawn').Process(target=loop, args=(c['link'].name,), daemon=True)
+    c['robot'].start()
     try:
         state, converged = tuner.tuned(ROOT, args.steps, runs(c))
     finally:
         c['link'].said('halt', 1)
-        c['her'].join(10.0)
+        c['robot'].join(10.0)
         c['link'].closed()
     tuner.kept(ROOT, state, converged, args.write)
     return 0

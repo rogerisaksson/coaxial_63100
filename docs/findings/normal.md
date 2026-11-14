@@ -3,7 +3,7 @@
 A normal feminine walk as a band of measures, a reference take (.fbx), and a
 test of what broke: `tools/sim/normal.py`, `tools/sim/gvs.py`,
 `tests/takes/walk.fbx`. Mocap packs stay outside git, reference and test only.
-Her walk on the loop: [orthokinematics](orthokinematics.md).
+The robot's walk on the loop: [orthokinematics](orthokinematics.md).
 
 ## The band
 
@@ -42,7 +42,7 @@ FileId one.
 
 ## Tests
 
-- `tests/test_ortho.py`: her walk on the loop measured against `normal.BAND`
+- `tests/test_ortho.py`: its walk on the loop measured against `normal.BAND`
   and `tools/sim/gvs.py`.
 - `tools/sim/gvs.py`: Hof-scaled geodesic Lie-algebraic SO(3) diff engine
   against biological ground truth, enforcing the CI guillotine gate (GPS).

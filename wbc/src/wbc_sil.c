@@ -1,4 +1,4 @@
-/** wbc_sil.c - her 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards
+/** wbc_sil.c - its 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards
     (machine.senses.edge.LIMBS, machine.senses.edge.drive), executing firmware modbus_rtu + modbus_slave state
     machines and CRC-16/MODBUS on every frame, through a line that flips bits (`wbc_sil_noise`,
     `wbc_sil_burst`): a frame a board refuses leaves its last setpoint, the next pass sends anew.

@@ -7,12 +7,12 @@ ROOT = Path(__file__).resolve().parents[2]           # host/
 STRUCTURE = 'test_structure.py'
 #: The whole tree on one trunk, the terminal up to the shunts, its ties read off the code (tools.dev.atlas).
 ATLAS = 'test_atlas.py'
-#: Orthokinematics' texts: compiled to rows, what is no text refused, her law's code branchless (test_ortho's once).
+#: Orthokinematics' texts: compiled to rows, what is no text refused, its law's code branchless (test_ortho's once).
 ORTHO_TEXTS = 'test_ortho_texts.py'
 
 #: The structure family, first in every run: host/ holding together, the tree's shape, the
 #: firmware and the host agreeing - one 17 k-token file before; every path on the atlas's trunk;
-#: her texts compiling and her law's code branchless.
+#: its texts compiling and its law's code branchless.
 STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.py',
               'test_wire_requests.py', 'test_protocol_doc.py', ATLAS, ORTHO_TEXTS)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
@@ -93,7 +93,7 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in TAGS)
 
 BENCH = 'test_bench.py'
 
-#: Her loop's pace, each errand alone at a benchmark's priority, against this host's recorded floor.
+#: Its loop's pace, each errand alone at a benchmark's priority, against this host's recorded floor.
 PACE = 'test_pace.py'
 
 BROKER = 'test_broker.py'
@@ -121,91 +121,91 @@ VIEWS = ('test_views_terminal.py', 'test_views_front.py', 'test_views_rotor.py',
 #: The composed controller and its parts, against a toy rotor and the stand-in.
 CONTROLLER = 'test_controller.py'
 
-#: The gynoid's body on fantasy boards, their SOA never binding: her clothes, her look, her
-#: skeleton, her drives' mounts and gearboxes; the whole-body stack; her eyes; her fake camera; her gaze.
+#: The gynoid's body on fantasy boards, their SOA never binding: its clothes, its look, its
+#: skeleton, its drives' mounts and gearboxes; the whole-body stack; its eyes; its fake camera; its gaze.
 GYNOID, WBC, SIGHT, CAMERA, GAZE = 'test_gynoid.py', 'test_wbc.py', 'test_sight.py', 'test_camera.py', 'test_gaze.py'
 REACH, TERMS = 'test_reach.py', 'test_terms.py'
 #: The loop in C against MuJoCo and the python stack (wbc/); leaps on both; `machine.stack.wrench`; the closed chains'.
 WBC_CORE, LEAP, WRENCH, CHAIN = 'test_wbc_core.py', 'test_leap.py', 'test_wrench.py', 'test_chain.py'
-#: WASD on her: the page's keys drive her, and the player's plays from each start stand without a stumble.
+#: WASD on it: the page's keys drive it, and the player's plays from each start stand without a stumble.
 WASD = 'test_wasd.py'
 #: The stack's dual active set in C beside its python on random QPs (tools.cores.qp).
 QP = 'test_qp.py'
-#: Her body identified of her edge alone, on the stand (machine.identify.sysid).
+#: The robot's body identified of its edge alone, on the stand (machine.identify.sysid).
 SYSID, SYSID_LIVE = 'test_sysid.py', 'test_sysid_live.py'
-#: Her numpy compiled to C beside numpy's own (tools.cores.trace, emit, held, bodied).
+#: The robot's numpy compiled to C beside numpy's own (tools.cores.trace, emit, held, bodied).
 COMPILED = 'test_compiled.py'
-#: Her compiled parts called whole in C beside their Python glue, call by call walking (tools.cores.quick's runner).
+#: Its compiled parts called whole in C beside their Python glue, call by call walking (tools.cores.quick's runner).
 QUICK = 'test_quick.py'
-#: Her drives' pass in one C call beside its python, lying into a bed, resting limp, rising and walking (tools.cores.tick).
+#: Its drives' pass in one C call beside its python, lying into a bed, resting limp, rising and walking (tools.cores.tick).
 TICK = 'test_tick.py'
-#: Her processes placed by her host's topology, on hosts of other shapes and live on this one (machine.process.placed).
+#: Its processes placed by its host's topology, on hosts of other shapes and live on this one (machine.process.placed).
 PLACED = 'test_placed.py'
 #: A new machine's needs written where setup reads them: modules, requirements, programs (tools.dev.depends).
 DEPENDS = 'test_depends.py'
 #: What CI left red leads the suites that run first: a log tail read, FAILED_FIRST laid (tools.dev.ci).
 CI = 'test_ci.py'
-#: Her law's hand ports in C beside their python at every pass of her walk (tools.cores.surety, touch, twist, wait, brace).
+#: Its law's hand ports in C beside their python at every pass of its walk (tools.cores.surety, touch, twist, wait, brace).
 PORTED = 'test_ported.py'
-#: What bears her off her soles in C beside its python, lying into a bed and walking (tools.cores.borne).
+#: What bears it off its soles in C beside its python, lying into a bed and walking (tools.cores.borne).
 BORNE = 'test_borne.py'
-#: Her map's look in C beside its numpy twin, drawn looks and her lodge's (tools.cores.registry).
+#: Its map's look in C beside its numpy twin, drawn looks and its lodge's (tools.cores.registry).
 REGISTRY = 'test_registry.py'
-#: Orthokinematics on her: her latent loop, her walk on it, the page's gym.
+#: Orthokinematics on it: its latent loop, its walk on it, the page's gym.
 ORTHO = 'test_ortho.py'
-#: Her posture as what bears her holds her: the seat's chain, the blend, the kernel's atlas, her ask sat.
+#: Its posture as what bears it holds it: the seat's chain, the blend, the kernel's atlas, its ask sat.
 POSTURES = 'test_postures.py'
-#: Her limbs on all fours: the kernel's multimodal texts read, the torus clock, the fifth limb, the levelled stance, the truss.
+#: Its limbs on all fours: the kernel's multimodal texts read, the torus clock, the fifth limb, the levelled stance, the truss.
 FOURS = 'test_fours.py'
-#: Her body on the floor: the kernel's groundwork texts read, the roll's ring and girdles, her roll and its trough, the ground postures on her figure.
+#: Its body on the floor: the kernel's groundwork texts read, the roll's ring and girdles, its roll and its trough, the ground postures on its figure.
 GROUNDWORK = 'test_groundwork.py'
-#: What she stands on when it gives: the kernel's deformable texts read, the work loop's regimes, her patches' pressures, the tamp, a bed.
+#: What it stands on when it gives: the kernel's deformable texts read, the work loop's regimes, its patches' pressures, the tamp, a bed.
 SUBSTRATE = 'test_substrate.py'
-#: Her gaits off her feet: the kernel's terrestrial texts read, her hinges sideways, a sled's anchors, the origins, the ratchet.
+#: Its gaits off its feet: the kernel's terrestrial texts read, its hinges sideways, a sled's anchors, the origins, the ratchet.
 CRAWL = 'test_crawl.py'
-#: At a seat's or a bed's edge: the kernel's bedside texts read, what meets a fixture behind her, a stool, the bed's pendulum, her roll on it.
+#: At a seat's or a bed's edge: the kernel's bedside texts read, what meets a fixture behind it, a stool, the bed's pendulum, its roll on it.
 BEDSIDE = 'test_bedside.py'
-#: Onto and off a stool over her hips: the kernel's overheight texts read, her dip hung from her fists, the stool, her way down.
+#: Onto and off a stool over its hips: the kernel's overheight texts read, its dip hung from its fists, the stool, its way down.
 VAULT = 'test_vault.py'
-#: Walk to run, a brake, a jump and a leap: the kernel's ballistic texts read, their regimes on her leg, her launches from her drives.
+#: Walk to run, a brake, a jump and a leap: the kernel's ballistic texts read, their regimes on its leg, its launches from its drives.
 BALLISTIC = 'test_ballistic.py'
-#: The ortho-DSP suite read, voiced on her walk and refused by name; a take converted to a modifier.
+#: The ortho-DSP suite read, voiced on its walk and refused by name; a take converted to a modifier.
 DSP = 'test_dsp.py'
-#: The dual-domain kernel on her loop: her momentum observer against her skin.
+#: The dual-domain kernel on its loop: its momentum observer against its skin.
 KERNEL = 'test_kernel.py'
-#: The dual-domain kernel's mechanisms apart from her scenes: its lowering and bank, her body schema
-#: and its shield, her drives' back-EMF box, the phase-margin probe, the wayfinder.
+#: The dual-domain kernel's mechanisms apart from its scenes: its lowering and bank, its body schema
+#: and its shield, its drives' back-EMF box, the phase-margin probe, the wayfinder.
 SHIELD = 'test_shield.py'
-#: Her shield on the room and her wayfinder: the room's boxes and their affordances, her limbs held off
-#: them, her route's flow bent, a gap's width and the twist through it.
+#: Its shield on the room and its wayfinder: the room's boxes and their affordances, its limbs held off
+#: them, its route's flow bent, a gap's width and the twist through it.
 WAYFINDER = 'test_wayfinder.py'
-#: Her say catalog, scanned from the sources and served as JSON.
+#: The robot's say catalog, scanned from the sources and served as JSON.
 SAYS = 'test_says.py'
-#: Her loop's latent, impedance and wrench served live to a client attached.
+#: The robot's loop's latent, impedance and wrench served live to a client attached.
 INTROSPECT = 'test_introspect.py'
-#: Her streams gated to a file on a trigger, each section as her passes made it.
+#: The robot's streams gated to a file on a trigger, each section as its passes made it.
 GATE = 'test_gate.py'
-#: The autotuner on her texts: its text read, her texts given, every literal walked and its reach on
-#: her, its step, a run's residuals and the verdicts on a step.
+#: The autotuner on its texts: its text read, its texts given, every literal walked and its reach on
+#: it, its step, a run's residuals and the verdicts on a step.
 TUNE = 'test_tune.py'
-#: Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm.
+#: Its floor: the plane under its soles, its grip as it feels it, the situations that cap its rhythm.
 FLOOR = 'test_floor.py'
-#: Her situation read from her sensors: her text's bounds and caps, each entered unannounced told
+#: Its situation read from its sensors: its text's bounds and caps, each entered unannounced told
 #: within a second.
 SITUATION = 'test_situation.py'
-#: Her buses under faults: a burst inside her horizon ridden, one past it her drives off.
+#: The robot's buses under faults: a burst inside its horizon ridden, one past it its drives off.
 BUSES = 'test_buses.py'
-#: Her drift from her build and a load in a hand read off her rows on-line (machine.identify.wear).
+#: Its drift from its build and a load in a hand read off its rows on-line (machine.identify.wear).
 WEAR = 'test_wear.py'
-#: Her errands on her loop: a stop that settles, F heard, a scene laid anew and walked at once.
+#: Its errands on its loop: a stop that settles, F heard, a scene laid anew and walked at once.
 ERRANDS = 'test_errands.py'
-#: Her docks foreseen on her page: the bed's long side and its foot, on the world's boxes and on her eyes.
+#: Its docks foreseen on its page: the bed's long side and its foot, on the world's boxes and on its eyes.
 DOCKS = 'test_docks.py'
-#: Her motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
+#: The robot's motion's measures in a dimensionless frame on SO(3) (tools/sim/gvs.py).
 GVS = 'test_gvs.py'
-#: Her recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
+#: The robot's recorded runs replayed, each without a fall (tests/replays, tools/sim/replay.py).
 REPLAYS = 'test_replays.py'
-#: Her scenarios that hold, each placed and commanded as a player would (tools/sim/scenarios.py).
+#: Its scenarios that hold, each placed and commanded as a player would (tools/sim/scenarios.py).
 SCENES = 'test_scenarios.py'
 #: The frame's core (aero/) in a vacuum: its form, its share, its impedance; a text's streams
 #: compiled and flown on it.
@@ -244,7 +244,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
 CONFORMANCE = 'test_conformance.py'
 
 LIVE = 'test_live_model.py'
-#: Her prompt through the local model on her loop, judged under the surface.
+#: The robot's prompt through the local model on its loop, judged under the surface.
 LIVE_GYNOID = 'test_live_gynoid.py'
 
 #: The benchmarking suites (`run_tests.ps1 -Bench`): what they time, timed at a benchmark's priority on the relay - each
@@ -338,8 +338,8 @@ JOINS = (
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
 
-    # The bench guards the board's loop rates against a recorded baseline; the pace her loop's, this host's, a
-    # whole run's alone: her five errands one after another, 3-4 min.
+    # The bench guards the board's loop rates against a recorded baseline; the pace its loop's, this host's, a
+    # whole run's alone: its five errands one after another, 3-4 min.
     (70, BENCH),
     (100, PACE),
 )
@@ -376,7 +376,7 @@ def plan_for(percent):
 NEEDS_BOARD = (CONFORMANCE, 'test_parity.py', BENCH)
 
 #: Suites that time the link or hold the model on the card: the host to themselves - the bench
-#: suite measures the link's own rates, conformance its frame gaps, the pace her loop's.
+#: suite measures the link's own rates, conformance its frame gaps, the pace its loop's.
 ALONE = (BENCH, PACE, CONFORMANCE, LIVE)
 
 #: Suites that hold a board to the wall's time, a page drawing beside it: alone where the host

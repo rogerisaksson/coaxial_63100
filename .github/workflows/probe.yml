@@ -17,7 +17,7 @@ on:
         description: the suite (run_tests.py --file), words after a colon its tests
         default: test_native.py
       isa:
-        description: her cores' target (COAXIAL_ISA); none - the gate's, sve2 on an Arm
+        description: its cores' target (COAXIAL_ISA); none - the gate's, sve2 on an Arm
         default: ''
       jobs:
         description: runners side by side
@@ -65,7 +65,7 @@ jobs:
           requirements: host/requirements.txt
           constraints: host/constraints.txt
           editable: host
-      # As the gate runs on each: on an x86 numpy's AVX2 paths and her C for AVX2 (host.yml), on an Arm her C for
+      # As the gate runs on each: on an x86 numpy's AVX2 paths and its C for AVX2 (host.yml), on an Arm its C for
       # SVE2 (its arch job); `isa` another target.
       - shell: bash
         working-directory: host

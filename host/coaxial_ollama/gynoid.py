@@ -1,4 +1,4 @@
-"""Her prompt in the operator's own words: the local chat model picks one row of her catalog.
+"""Its prompt in the operator's own words: the local chat model picks one row of its catalog.
 
 Any language; the catalog `machine.texts.says` - errands, stunts, behaviours, gaits, takes, the page's
 programs, every one generated from the code that plays it -, the answer held to them by a JSON
@@ -49,7 +49,7 @@ def release(name, timeout=5.0):
 
 
 def choices(rows=None):
-    """{op: its row} a prompt may choose: every row of her catalog but the loop's raw words."""
+    """{op: its row} a prompt may choose: every row of its catalog but the loop's raw words."""
     from machine.texts import says
     return {r['op']: r for r in (says.catalog() if rows is None else rows) if r['kind'] != 'word'}
 
@@ -62,22 +62,22 @@ def command(row):
 
 
 def plan(text, doing, name, rows=None, timeout=60.0):
-    """The page's plan {'thought', 'cmds', 'tour'} of the operator's `text`, her `doing` now, as the
+    """The page's plan {'thought', 'cmds', 'tour'} of the operator's `text`, its `doing` now, as the
     model `name` chooses among `choices`; null chosen, nothing moves."""
     from coaxial_ollama.client import Ollama
     rows = choices(rows)
     # null in the op's enum, the sources' own words a line each; a fits flag before the op, the kinds
-    # beside the lines, the request put in English first no better. Takes in one list with her own rows
+    # beside the lines, the request put in English first no better. Takes in one list with its own rows
     # stood in for them ('go forward' running_forward, 'stand up from the chair' sit_to_stand): named after.
     schema = {'type': 'object', 'properties': {'op': {'enum': list(rows) + [None]}}, 'required': ['op']}
     own = '; '.join('%s: %s' % (op, r['said']) for op, r in rows.items() if r['kind'] != 'take')
-    system = ('You map what an operator tells a humanoid robot, in any language, to exactly one of her '
-              'operations. A request for anything she cannot do with her body - cooking, a question, '
-              'chatter - is null. Her operations: ' + own + ". Mocap takes, a person's recorded motion "
-              'she replays, only when the operator asks for that take: '
+    system = ('You map what an operator tells a humanoid robot, in any language, to exactly one of it '
+              'operations. A request for anything it cannot do with its body - cooking, a question, '
+              'chatter - is null. Its operations: ' + own + ". Mocap takes, a person's recorded motion "
+              'it replays, only when the operator asks for that take: '
               + ', '.join(op for op, r in rows.items() if r['kind'] == 'take') + '. Answer JSON {"op": ...}.')
     reply = Ollama(name, fmt=schema, timeout=timeout, num_ctx=NUM_CTX, think=False, keep_alive=KEEP).chat(
-        [{'role': 'system', 'content': system}, {'role': 'user', 'content': '%s (she is now: %s)' % (text, doing)}])
+        [{'role': 'system', 'content': system}, {'role': 'user', 'content': '%s (it is now: %s)' % (text, doing)}])
     row = rows.get(json.loads(reply.get('content') or '{}').get('op'))
     if row is None:
         return {'thought': 'Nothing of mine fits that.', 'cmds': [], 'tour': False}

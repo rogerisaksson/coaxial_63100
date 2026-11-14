@@ -1,5 +1,5 @@
-/** harness_world.c - her world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
-    calls; a stage of MuJoCo's step on a thread of the host's beside her law (machine.world.steps.ahead). */
+/** harness_world.c - its world's steps (wbc_world.c) through ctypes beside harness.c: tools.cores.world's
+    calls; a stage of MuJoCo's step on a thread of the host's beside its law (machine.world.steps.ahead). */
 #include "wbc_world.h"
 
 #ifdef _WIN32

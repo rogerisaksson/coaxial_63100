@@ -1,13 +1,13 @@
-"""Her subsystems' streams, each on its own clock: what a gate (`machine.rig.gate`) records of her.
+"""Its subsystems' streams, each on its own clock: what a gate (`machine.rig.gate`) records of it.
 
-STREAMS, a row a stream in her pass's order - the order one instant's records keep -: its name;
+STREAMS, a row a stream in its pass's order - the order one instant's records keep -: its name;
 `by`, what makes it ('module:function'), its words; `due(s, c)`, the key and time of its newest
-sample on its subsystem's own clock (`clock`: a pass's start for what her edge read and her law
+sample on its subsystem's own clock (`clock`: a pass's start for what its edge read and its law
 made of it, its end for the world it left), None where the pass made none; `laid(s)`, a vector's
-width and fields laid once from her code's own layouts (`introspect.layout`, `introspect.counted`),
+width and fields laid once from its code's own layouts (`introspect.layout`, `introspect.counted`),
 None a record's; `take(s, lay, row)`, its sample - a vector's into its ring's row, a record's
-returned, its arrays copied -; `period(s)`, s, None where it comes as it comes. The commands she
-hears and her analyzers' events are handed in as they happen (`gate.Scope`), never polled.
+returned, its arrays copied -; `period(s)`, s, None where it comes as it comes. The commands it
+hears and its analyzers' events are handed in as they happen (`gate.Scope`), never polled.
 """
 import ast
 import collections
@@ -20,10 +20,10 @@ Stream = collections.namedtuple('Stream', 'name by due laid take period')
 
 
 def clock(s, last):
-    """This pass's clock in her session `s`, `last` the last pass's (`seen`) or None: {'fresh': none
+    """This pass's clock in its session `s`, `last` the last pass's (`seen`) or None: {'fresh': none
     to compare with - a new epoch, the first pass seen, passes unseen between -, 't0': its start,
-    't1': its end, 'felt': her edge read, 'passed': her law's pass ran (her drives told), 'law': her
-    law ran, 'moved': her world stepped}. A pass that raised is not recorded."""
+    't1': its end, 'felt': its edge read, 'passed': its law's pass ran (its drives told), 'law': its
+    law ran, 'moved': its world stepped}. A pass that raised is not recorded."""
     g = s['g']
     t1, n = float(g['t']), int(g['n'])
     fresh = last is None or last[0] != s['epoch'] or last[3] + 1 != s['passes']
@@ -34,7 +34,7 @@ def clock(s, last):
 
 
 def seen(s):
-    """This pass as the next one's clock compares with it: (epoch, its end, her law's passes, her passes)."""
+    """This pass as the next one's clock compares with it: (epoch, its end, its law's passes, its passes)."""
     return s['epoch'], float(s['g']['t']), int(s['g']['n']), int(s['passes'])
 
 
@@ -75,7 +75,7 @@ def _law(s):
 
 
 def _refresh(s):
-    """Her things' period: the first law pass `schema.REFRESH_S` after the last (`sprung.passed`)."""
+    """Its things' period: the first law pass `schema.REFRESH_S` after the last (`sprung.passed`)."""
     from machine.law import schema
     return _law(s) * math.ceil(schema.REFRESH_S / _law(s))
 
@@ -89,8 +89,8 @@ def _fields(name, size, end=None, base=0, prefix=''):
 
 
 def _edge(fn):
-    """A read of her edge's array (`edge.felt`, `edge.contacted`): the layout's fields its definition in
-    her edge's source names - not whatever stands in its place at the time -, packed."""
+    """A read of its edge's array (`edge.felt`, `edge.contacted`): the layout's fields its definition in
+    its edge's source names - not whatever stands in its place at the time -, packed."""
     def laid(s):
         import numpy as np
         from machine.senses import edge
@@ -111,7 +111,7 @@ def _sensed(s, lay, row):
 
 
 def _latent(s):
-    """Her latent state - each row of it by the row's layout - and her latent out after it."""
+    """Its latent state - each row of it by the row's layout - and its latent out after it."""
     from machine.law import latent
     rows = _fields('machine.law.latent', 'P', 'NOW')
     fields = {}
@@ -126,7 +126,7 @@ def _latent_take(s, lay, row):
 
 
 def _grip(s):
-    """Her soles' grip as her law reads it (`grip.felt`) and the slip it read it by: a slide told from a held push."""
+    """Its soles' grip as its law reads it (`grip.felt`) and the slip it read it by: a slide told from a held push."""
     from machine.senses import grip
     return {'n': grip.READ, 'fields': _fields('machine.senses.grip', 'READ')}
 
@@ -138,8 +138,8 @@ def _grip_take(s, lay, row):
 
 
 def _modal(s):
-    """Her edge as her law reads it (`modal.sensed`): her soles, hips and centre of mass and their speeds, her
-    loads, her tilts - a flight's soles against her capture point are read here, not in her edge's arrays."""
+    """Its edge as its law reads it (`modal.sensed`): its soles, hips and centre of mass and their speeds, its
+    loads, its tilts - a flight's soles against its capture point are read here, not in its edge's arrays."""
     from machine.law import modal
     return {'n': modal.SENSED, 'fields': _fields('machine.law.modal', 'SENSED')}
 
@@ -149,8 +149,8 @@ def _modal_take(s, lay, row):
 
 
 def _frame(s):
-    """Her frame as her law lays it (`modal.FRAME`, up to the floor told her): her way's turn and her heading, her
-    floor, her stance's numbers, the floor's pitch under each sole - her heading against her pelvis and her going."""
+    """Its frame as its law lays it (`modal.FRAME`, up to the floor told it): its way's turn and its heading, its
+    floor, its stance's numbers, the floor's pitch under each sole - its heading against its pelvis and its going."""
     import numpy as np
     from machine.law import modal
     fields = _fields('machine.law.modal', 'FRAME', end='MAP_K')
@@ -175,7 +175,7 @@ def _impedance_take(s, lay, row):
 
 
 def _copied(v):
-    """`v` with its arrays copied, in its tuples, lists and dicts too: this pass's, as the next leaves it - her
+    """`v` with its arrays copied, in its tuples, lists and dicts too: this pass's, as the next leaves it - its
     turns are a compiled part's block's, written anew passes on (`bodied`)."""
     import numpy as np
     if isinstance(v, np.ndarray):
@@ -192,7 +192,7 @@ def _wrench_take(s, lay, row):
 
 
 def _drives(s):
-    """Each of her drives' setpoint, feed and clamp, by her driven joints' names."""
+    """Each of its drives' setpoint, feed and clamp, by its driven joints' names."""
     from machine.body.figure import JOINTS
     g = s['g']
     keys, n = list(g['cmd']), len(g['joints'])

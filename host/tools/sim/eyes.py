@@ -1,14 +1,14 @@
-"""Her eyes against the room: her map's things and her slots against the props, her way to the chair.
+"""Its eyes against the room: its map's things and its slots against the props, its way to the chair.
 
 A look round the lodge standing; each prop's nearest told thing, its centre, its sizes and its long
-axis' turn off the prop's; her registry's slots; her way to the chair's stage planned on her things
+axis' turn off the prop's; its registry's slots; its way to the chair's stage planned on its things
 against the props'.
 
-    python -X utf8 tools/sim/eyes.py [--looks 25]       # a look round standing, her things against the props
-    python -X utf8 tools/sim/eyes.py --camera           # her fake camera's frames (`sight.Eyes.shot`), not her stereo's
-    python -X utf8 tools/sim/eyes.py --at 0 0 --at 1.5 0.3 --column 0.55 -0.8   # round from where she walks
-    python -X utf8 tools/sim/eyes.py --objects --near 1.5 0.8                    # her segmenter's objects in her things
-    python -X utf8 tools/sim/eyes.py --errand           # her loop: a turn in place, then told to sit, then to lie
+    python -X utf8 tools/sim/eyes.py [--looks 25]       # a look round standing, its things against the props
+    python -X utf8 tools/sim/eyes.py --camera           # its fake camera's frames (`sight.Eyes.shot`), not its stereo's
+    python -X utf8 tools/sim/eyes.py --at 0 0 --at 1.5 0.3 --column 0.55 -0.8   # round from where it walks
+    python -X utf8 tools/sim/eyes.py --objects --near 1.5 0.8                    # its segmenter's objects in its things
+    python -X utf8 tools/sim/eyes.py --errand           # its loop: a turn in place, then told to sit, then to lie
 """
 import argparse
 import itertools
@@ -63,7 +63,7 @@ def axis(half, R):
 
 
 def visible(props, eye, floor_m, ceil_m, far_m):
-    """The props her eyes could take in from `eye`: standing above `floor_m`, under `ceil_m`, their nearest
+    """The props its eyes could take in from `eye`: standing above `floor_m`, under `ceil_m`, their nearest
     point within `far_m`."""
     from machine.eyes import registry
     out = []
@@ -78,7 +78,7 @@ def visible(props, eye, floor_m, ceil_m, far_m):
 
 
 def column(chart, x, z, r=0.2):
-    """Her map's evidence over the floor within `r` m of (x, z), a layer a row up to a metre: the points in its
+    """Its map's evidence over the floor within `r` m of (x, z), a layer a row up to a metre: the points in its
     voxels, the looks that told them and that saw through them, how many are occupied - where a thing is lost."""
     from machine.eyes import voxels
     cx = voxels.X_M[0] + (np.arange(chart.nx) + 0.5) * chart.voxel
@@ -93,8 +93,8 @@ def column(chart, x, z, r=0.2):
 
 
 def near(things, x, z, r=0.6):
-    """Her things whose footprint lies within `r` m of (x, z): each one's kind, class (`classes.named`), box, top and
-    bottom, whether it is seen clear over, seats her, has a back (`affordance`)."""
+    """Its things whose footprint lies within `r` m of (x, z): each one's kind, class (`classes.named`), box, top and
+    bottom, whether it is seen clear over, seats it, has a back (`affordance`)."""
     from machine.eyes import classes
     from machine.way import affordance
     names = classes.named(things)
@@ -133,9 +133,9 @@ def matched(props, told):
 
 
 def _dock_why(at, things, floor, sc, box, standoff):
-    """Why her dock on `box` from `at` is laid or not, `dock.docked`'s steps in turn: its seat past her legs' reach,
-    each face's middle - how many of its stages her walk back and her turns from each arrival leave clear, the first
-    both do, its cell free, her walk to it, m -; 'no face' without one."""
+    """Why its dock on `box` from `at` is laid or not, `dock.docked`'s steps in turn: its seat past its legs' reach,
+    each face's middle - how many of its stages its walk back and its turns from each arrival leave clear, the first
+    both do, its cell free, its walk to it, m -; 'no face' without one."""
     from machine.body import footprint
     from machine.law import poise, se2
     from machine.moves import seated
@@ -144,7 +144,7 @@ def _dock_why(at, things, floor, sc, box, standoff):
     across = dock.docks()[sc][0]
     over = sc == 'sit_chair' and affordance.top(box) > seated.POPLITEAL
     if over and not seated.reaches(affordance.top(box)):
-        return 'its seat %.2f m up, her legs reach no floor from it' % affordance.top(box)
+        return 'its seat %.2f m up, its legs reach no floor from it' % affordance.top(box)
     across = seated.placed(seated.ON, 0.0)[2] if over else across
     cells = route.blocked(things, floor)
     far, s_dock = dock.walked(at, cells), poise.HALF_M + standoff
@@ -181,15 +181,15 @@ def _dock_why(at, things, floor, sc, box, standoff):
             None if s is None else round(s, 2), 'free' if free else 'barred', round(float(far[cell]), 2) if free else None,
             outs[-1], worst))
     print_ = affordance.footprint(box)
-    return out or 'no face', 'her floor %.3f, its bottom %.3f top %.3f, its footprint %s' % (
+    return out or 'no face', 'its floor %.3f, its bottom %.3f top %.3f, its footprint %s' % (
         floor, float(box[1][1]) - float(box[2][1]), float(box[1][1]) + float(box[2][1]),
         [np.round(np.asarray(p, float), 2).tolist() for p in print_])
 
 
 def errand(seconds=20.0, still=False):
-    """Her loop under SIGHT (the page's worker, her lodge): a turn in place for a look round - her gaze exploring as
-    she wakes, or held at rest (`still`, `gaze.rest`) -, then `sit_chair`, then `lie_bed`, each from the room's middle:
-    what she finds, where she ends, whether she sits or lies."""
+    """Its loop under SIGHT (the page's worker, its lodge): a turn in place for a look round - its gaze exploring as
+    it wakes, or held at rest (`still`, `gaze.rest`) -, then `sit_chair`, then `lie_bed`, each from the room's middle:
+    what it finds, where it ends, whether it sits or lies."""
     from machine.way import affordance, dock, furniture, route, words
     from machine.law import modal, se2
     from machine.world import physics
@@ -218,27 +218,27 @@ def errand(seconds=20.0, still=False):
         here, floor = (float(world.data.qpos[0]), float(world.data.qpos[2])), min(float(f['sole'][1]) for f in g['s']['feet'])
         cells = route.blocked(g['things'], floor)
         far = dock.walked(here, cells)
-        print('%s goes to %s %.2f m off (its edge), within her reach %s; her map %.0f %% blocked, %.0f %% walked to from her' % (
+        print('%s goes to %s %.2f m off (its edge), within its reach %s; its map %.0f %% blocked, %.0f %% walked to from it' % (
             verb, None if hit[6] is None else hit[6][0], hit[0], words._within(verb, hit), 100.0 * cells.mean(),
             100.0 * np.isfinite(far).mean()))
         widest = sorted(g['things'], key=lambda t: -float(t[2][0]) * float(t[2][2]))[:4]
         nearest = sorted(g['things'], key=lambda t: math.dist((float(t[1][0]), float(t[1][2])), here))[:4]
         kinds = sorted({t[0] for t in g['things']})
-        for label, those in (('widest', widest), ('nearest her', nearest)):
-            print('   her %s things (kind, x, z, half x, half z, bottom, top): %s' % (label, [
+        for label, those in (('widest', widest), ('nearest it', nearest)):
+            print('   it %s things (kind, x, z, half x, half z, bottom, top): %s' % (label, [
                 (t[0], *(round(float(v), 2) for v in (t[1][0], t[1][2], t[2][0], t[2][2], t[1][1] - t[2][1], t[1][1] + t[2][1])))
                 for t in those]))
-        print('   her things by kind: %s' % {k: sum(1 for t in g['things'] if t[0] == k) for k in kinds})
+        print('   its things by kind: %s' % {k: sum(1 for t in g['things'] if t[0] == k) for k in kinds})
         if hit[6] is not None:
             standoff = maneuver.standoff(verb, g['suite']) if verb in maneuver.PLAYED else 0.0
             alone = dock.docked(here, [hit[6]], floor, verb, hit[6], standoff)
             laid = dock.docked(here, g['things'], floor, verb, hit[6], standoff)
             bars = [t for t in g['things'] if t is not hit[6] and alone is not None
                     and dock.docked(here, [hit[6], t], floor, verb, hit[6], standoff) is None] if laid is None else []
-            print('   its dock among her things %s, alone %s; barred alone by %s' % (
+            print('   its dock among its things %s, alone %s; barred alone by %s' % (
                 None if laid is None else laid['stage'], None if alone is None else alone['stage'],
                 [(t[0], *(round(float(v), 2) for v in (t[1][0], t[1][2], t[2][0], t[2][2], t[1][1] + t[2][1]))) for t in bars]))
-            for label, those in (('alone', [hit[6]]), ('among her things', g['things'])):
+            for label, those in (('alone', [hit[6]]), ('among its things', g['things'])):
                 print('   why, %s: %s' % (label, _dock_why(here, those, floor, verb, hit[6], standoff)))
         swells = np.array([float(t[6]) for t in g['things'] if len(t) > 6])
         print('   their swells: median %.3f m, most %.3f, %d past a blind spot\'s most (%.2f m: moving)' % (
@@ -265,8 +265,8 @@ def errand(seconds=20.0, still=False):
             let_go = g['t'] if let_go is None and phase == 'settle' else let_go
             if let_go is not None and stood is None and math.hypot(g['est']['vel'][0], g['est']['vel'][2]) < 0.05:
                 stood = g['t']
-        print('   her looks (phase/gaze): %s' % ', '.join('%s x%d' % (k, sum(1 for _ in grp)) for k, grp in itertools.groupby(trail)))
-        print('   her gaze let go at %s s, she stood at %s s' % (None if let_go is None else round(let_go - t0, 2),
+        print('   its looks (phase/gaze): %s' % ', '.join('%s x%d' % (k, sum(1 for _ in grp)) for k, grp in itertools.groupby(trail)))
+        print('   its gaze let go at %s s, it stood at %s s' % (None if let_go is None else round(let_go - t0, 2),
                                                                None if stood is None else round(stood - t0, 2)))
         d = world.data
         print('   at %.1f s: doing %s%s, fallen %s, at (%.2f %.2f %.2f), prop bears %.2f, loads %s' % (
@@ -285,24 +285,24 @@ def errand(seconds=20.0, still=False):
 
 def main(argv=None):
     from machine.process import placed
-    # her looks timed where her loop is (`placed`): a cache group of its own, this thread on one core
+    # its looks timed where its loop is (`placed`): a cache group of its own, this thread on one core
     placed.placed(True)
     ap = argparse.ArgumentParser()
     ap.add_argument('--looks', type=int, default=25)
     ap.add_argument('--errand', action='store_true')
-    ap.add_argument('--still', action='store_true', help='errand: her gaze held at rest through her look round')
+    ap.add_argument('--still', action='store_true', help='errand: its gaze held at rest through its look round')
     ap.add_argument('--seconds', type=float, default=20.0, help='errand: each verb\'s seconds at most')
     ap.add_argument('--camera', action='store_true')
-    ap.add_argument('--column', type=float, nargs=2, metavar=('X', 'Z'), help="her map's evidence over (x, z)")
-    ap.add_argument('--objects', action='store_true', help="her looks' objects boxed by her segmenter (`instances`)")
+    ap.add_argument('--column', type=float, nargs=2, metavar=('X', 'Z'), help="its map's evidence over (x, z)")
+    ap.add_argument('--objects', action='store_true', help="its looks' objects boxed by its segmenter (`instances`)")
     ap.add_argument('--near', type=float, nargs=2, action='append', metavar=('X', 'Z'),
-                    help='her things round (x, z), her map\'s and her buses\'')
+                    help='its things round (x, z), its map\'s and its buses\'')
     ap.add_argument('--at', type=float, nargs=2, action='append', metavar=('X', 'Z'),
-                    help='a place she looks round from, where she walks (the room\'s middle without)')
+                    help='a place it looks round from, where it walks (the room\'s middle without)')
     ap.add_argument('--turn', type=float, default=0.0, metavar='DEG',
-                    help='her headings looking round turned on by this: her looks laid another way, the same round')
+                    help='its headings looking round turned on by this: its looks laid another way, the same round')
     ap.add_argument('--gaze', type=float, nargs=3, default=(0.0, 0.0, 0.0), metavar=('ACROSS', 'DOWN', 'VERGE'),
-                    help='deg: her eyes turned so in her head each look (`gaze.aimed`), her stereo laid by it')
+                    help='deg: its eyes turned so in its head each look (`gaze.aimed`), its stereo laid by it')
     a = ap.parse_args(argv)
     if a.objects:
         import os
@@ -324,16 +324,16 @@ def main(argv=None):
             eyes.append(eye)
         props = visible(world.props(), np.mean(eyes, axis=0), voxels.FLOOR_M, voxels.CEIL_M, voxels.FAR_M)
         if a.column:
-            print('her eyes %.2f m up; her map over (%.2f, %.2f):' % (float(np.mean(eyes, axis=0)[1]), *a.column))
+            print('its eyes %.2f m up; its map over (%.2f, %.2f):' % (float(np.mean(eyes, axis=0)[1]), *a.column))
             column(keep.map, *a.column)
         told = sight.told(keep)
         boxes = registry.boxes(slots)
         for x, z in a.near or ():
-            for label, things in (('her map', told), ('her buses', boxes)):
+            for label, things in (('its map', told), ('its buses', boxes)):
                 print('%s round (%.2f, %.2f):' % (label, x, z))
                 near(things, x, z)
-        print('%d looks, %.1f ms each hot, the first %.1f cold; %d props her eyes could take in, %d things told, '
-              '%d slots taken by her buses (%d live)'
+        print('%d looks, %.1f ms each hot, the first %.1f cold; %d props its eyes could take in, %d things told, '
+              '%d slots taken by its buses (%d live)'
               % (a.looks, 1e3 * float(np.median(took[1:] or took)), 1e3 * took[0], len(props), len(told), len(boxes),
                  int((slots['rows']['on'] > 0.0).sum())))
         print('%-8s %-24s %-8s %8s %8s %8s' % ('prop', 'at', 'told', 'off m', 'sizes m', 'turn deg'))
@@ -355,11 +355,11 @@ def main(argv=None):
             by.setdefault(kind, []).append(t[0])
         print('kinds told by prop kind: %s' % {k: sorted(set(v)) for k, v in by.items()})
         for name, affords in (('seats', affordance.sits), ('beds', affordance.lies)):
-            for label, things in (('her map', told), ('her buses', boxes), ('the props', world.props())):
+            for label, things in (('its map', told), ('its buses', boxes), ('the props', world.props())):
                 mine = [t for t in things if len(t) >= 4 and affords(t, things)]
                 print("%s among %s: %d (%s)" % (name, label, len(mine), ', '.join(
                     '%s (%.1f %.1f)%s' % (t[0], t[1][0], t[1][2], '+back' if affordance.backed(t, things) else '') for t in mine)))
-        # her way to the chair's stage on her things and on the props
+        # its way to the chair's stage on its things and on the props
         at = (0.0, 0.0)
         from machine.world import room
         props = list(world.props())
@@ -369,17 +369,17 @@ def main(argv=None):
         out = (math.sin(hn), math.cos(hn))
         dock = (seat[1][0] + affordance.support(seat, hn) * out[0], seat[1][2] + affordance.support(seat, hn) * out[1])
         ways = {}
-        for name, things in (('props', world.props()), ('her things', boxes)):
+        for name, things in (('props', world.props()), ('its things', boxes)):
             cells = route.blocked(list(things), 0.0)
             d = route.staged(dock, out, route.STRAIGHT_M, cells)
             stage = (dock[0] + d * out[0], dock[1] + d * out[1])
             ways[name] = (route.way(at, stage, np.where(cells, np.inf, 1.0)), cells)
         truth = ways['props'][1]
-        hers = ways['her things'][0]
-        crossed = sum(int(truth[route._cell(x, z)]) for x, z in hers if 0 <= route._cell(x, z)[0] < truth.shape[0])
-        print('her way to the chair on the props: %s' % ' -> '.join('(%+.2f %+.2f)' % w for w in ways['props'][0]))
-        print('her way on her things:             %s; %d of its corners in the props\' grown cells; blocked cells %d of %d'
-              % (' -> '.join('(%+.2f %+.2f)' % w for w in hers), crossed, int(ways['her things'][1].sum()), int(truth.sum())))
+        its_own = ways['its things'][0]
+        crossed = sum(int(truth[route._cell(x, z)]) for x, z in its_own if 0 <= route._cell(x, z)[0] < truth.shape[0])
+        print('its way to the chair on the props: %s' % ' -> '.join('(%+.2f %+.2f)' % w for w in ways['props'][0]))
+        print('its way on its things:             %s; %d of its corners in the props\' grown cells; blocked cells %d of %d'
+              % (' -> '.join('(%+.2f %+.2f)' % w for w in its_own), crossed, int(ways['its things'][1].sum()), int(truth.sum())))
     finally:
         body.close()
     return 0

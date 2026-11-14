@@ -18,7 +18,7 @@
 ;;                                  enough internal and external envelope for a robust
 ;;                                  rather than fragile chassis: structural 3D prints,
 ;;                                  actuators, gearboxes, battery packs, TPU gel pads and
-;;                                  clothing. [ACTIVE: her numbers are her manifest's]
+;;                                  clothing. [ACTIVE: its numbers are its manifest's]
 ;;   * gynoid_hourglass_full      - Hyper-gynoid geometry (WHR <= 0.70); introduces a
 ;;                                  severe structural bottleneck for power buses and spinal
 ;;                                  actuators at the waist, while offering generous
@@ -38,7 +38,7 @@
 ;;   [1] gait_base.lisp      - Base traits, core gaits & stride progressions (#201-#205, trip, jog)
 ;;   [2] postures_base.lisp  - Athletic & calisthenic gym (crouch, hop, one_sole, weight_shift, bow)
 ;;   [3] motion.lisp         - Daily stunts & terrain traversal (chair, bed, floor, stairs, ice, slope)
-;;   [3b] situations.lisp    - Where she is, read from her sensors, and the caps laid there (defsituation)
+;;   [3b] situations.lisp    - Where it is, read from its sensors, and the caps laid there (defsituation)
 ;;   [4] Planar SE(2)        - Curvilinear & omnidirectional gaits (strafe, turn, circle, reverse arcs)
 ;; ============================================================================
 
@@ -76,8 +76,8 @@
   (phase shift
     (latent_targets (mode_lateral_shift -0.08))))
 
-;; spin in place: the turn's stepping on her stand - no lean into a curve, no cruise -, her
-;; yaw her twist's: on the walking turn a half turn in place crept her 0.45-0.58 m
+;; spin in place: the turn's stepping on its stand - no lean into a curve, no cruise -, its
+;; yaw its twist's: on the walking turn a half turn in place crept its 0.45-0.58 m
 (defbehavior spin_left
   (phase turn (use reverse_gait)
     (duration 60s) (blend_duration 360ms)
@@ -87,7 +87,7 @@
       (amplitude mode_lateral_shift 0.27) (amplitude mode_sagittal_drive 0.04)
       (amplitude mode_limb_lift 1.02))))
 
-;; spin right: the same stepping, her twist's yaw the other way
+;; spin right: the same stepping, its twist's yaw the other way
 (derive spin_right spin_left
   (phase turn))
 

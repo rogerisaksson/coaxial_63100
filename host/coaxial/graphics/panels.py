@@ -1,4 +1,4 @@
-"""Her bare look: printable panels over her skeleton, the joints left open.
+"""The robot's bare look: printable panels over its skeleton, the joints left open.
 
 Each limb's shell a light panel, its ends open and dark at the joints where the skeleton, the
 drives and the rods show, the neck and the waist open too.

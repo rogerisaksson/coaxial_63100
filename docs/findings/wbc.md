@@ -2,7 +2,7 @@
 
 The whole-body stack (`machine/stack/wbc.py`) on its solver (`machine/stack/qp.py`),
 measured by `tools/sim/wbc.py` in a world without buses. The board's
-findings: [FINDINGS](../FINDINGS.md); her steps on the latent loop:
+findings: [FINDINGS](../FINDINGS.md); its steps on the latent loop:
 [orthokinematics](orthokinematics.md), [wrench](wrench.md).
 
 ## Solver
@@ -123,9 +123,9 @@ configurations (`tests/test_wbc_core.py`):
 `wbc_stack.c` over the chain: the torques of the drives and the held joints
 the unknowns; the soles standing still and the dynamics make every
 acceleration and each sole's wrench affine in them (M's Cholesky, the
-contacts' Schur complement); the levels of `machine.stack.wbc` in the null space of
-those above - a small level by its Gram matrix damped at 1e-6, the last by its
-normal equations; the polytope on the drives' loads, the lowest level scaled
+contacts' Schur complement); the levels of `machine.stack.wbc` in the null space
+of those above - a small level by its Gram matrix damped at 1e-6, the last by
+its normal equations; the polytope on the drives' loads, the lowest level scaled
 back first, then a hard clamp.
 
 | Measure | Result |
@@ -241,13 +241,13 @@ broken by up to 1 600 (unit rows); at 80 changes a level the bounds hold
 ### The loop in the stack's own space
 
 The loop reformulated with the python stack's variables - every acceleration
-and each standing sole's corner forces in shares of her weight - the dynamics'
+and each standing sole's corner forces in shares of its weight - the dynamics'
 undriven rows, the held joints and the standing soles exact as level 0, the
 levels under them in an orthonormal null-space basis cut per level, each
 solved by Goldfarb and Idnani's dual active set (a bound in the span of those
 held moves the duals alone), with the stack's two rules: the levels below
 weighed 1e-3 into a level's flat directions, and a bound held with a dual over
-1e-2 kept as an equality below (1e-7 felled her at 38 N, 1e-1 felled the
+1e-2 kept as an equality below (1e-7 felled it at 38 N, 1e-1 felled the
 walk).
 
 | Measure | Loop | The python stack |
@@ -262,7 +262,7 @@ walk).
 - What each change bought, measured on the loop's own walk: the stack's
   variables alone (the torque space left) quietened the arms' structure but
   fell at 4 steps; level 0 all but unregularised and the forces in shares of
-  her weight, 7 steps at 0.39 m/s; the null basis in place of the leaky
+  its weight, 7 steps at 0.39 m/s; the null basis in place of the leaky
   projector, exact levels but an explosion where a bound's reduced row vanished;
   Goldfarb-Idnani, convergence but 6 steps; the tie-break, the arms following
   the trunk (shoulders 4 N m, 1 % at the clamp, where 10-20 N m at 16-42 %)
@@ -307,11 +307,11 @@ The loop's walk, 8 s at 0.5 m/s asked, with each inner loop under it
 Under 100 N the stack and the loop part at 1.08 s on the same state: the
 loop's head, neck and shoulders at their peaks (51 N m, the sign turning
 every 10 ms), its active set 34-41 bounds to the stack's 22-29, the turns
-unmet by 5-60 rad/s^2 - and she stays in double support on one sole's edge
+unmet by 5-60 rad/s^2 - and it stays in double support on one sole's edge
 where the stack steps. The stack's centre-of-pressure margins are soft (a
 slack each on the turns' level, weighed 1e3); the loop's were hard, so with
 the centre of pressure at its margin only the head and the arms were left
-to turn her. The margins soft the same way (WBC_S slacks), the
+to turn it. The margins soft the same way (WBC_S slacks), the
 band hard as before:
 
 | | Hard margins | Soft margins | Stack |
@@ -329,8 +329,8 @@ band hard as before:
   longer fight the margin every step.
 - The slacks' own non-negativity (ids 5000+) sits at zero whenever a margin
   is slack-free: left out of the bounds counted at their edge.
-- At 120 N she falls 7 of 8 where the stack 5: open.
-- The slacks' rows weigh sqrt(1e3) and set the level's scale, so her form
+- At 120 N it falls 7 of 8 where the stack 5: open.
+- The slacks' rows weigh sqrt(1e3) and set the level's scale, so its form
   below enters the turns' level at a swinging sole's own weight where the
   stack has it at 1e-3. Standing on one sole the loop meets 15 of 115
   m/s^2 of a sole asked back, the stack 97. The slack scaled to a unit row
@@ -343,7 +343,7 @@ band hard as before:
 | WEP over the 100 N polar | 1.4 s | 21.1 s |
 | Three hops at 10 m/s^2 | 10.3 deg | 17.7 deg |
 
-- Her walk's economy on the loop is her form's weight on the turns' level,
+- Its walk's economy on the loop is its form's weight on the turns' level,
   not the margins' softness: the stack's own walk is 792 J/m. Not kept; the
   hops at 14 and 18 m/s^2 fall either way.
 - On the gearboxes with their play (drives.md, A printed box's play) the loop
@@ -394,9 +394,9 @@ below.
 ## The Schlesinger transport against the support polygon
 
 The Hitchin bus's sliding-contact transport (TODO 16) run offline on 8 s of
-her walk: each insole patch a pole z_i = lever arm times exp(j bearing)
-about her CoM on the ground plane, its residue the patch's MuJoCo wrench in
-units of her weight (306 N; raw newtons diverge - the brackets are
+its walk: each insole patch a pole z_i = lever arm times exp(j bearing)
+about its CoM on the ground plane, its residue the patch's MuJoCo wrench in
+units of its weight (306 N; raw newtons diverge - the brackets are
 bilinear), d mu_i = 0.98 sum_j [mu_i, mu_j] Re d log(z_i - z_j) with
 se(3)* read as twists by the Plucker pairing ((m, f) <-> (f, m)), poles
 within 0.025 clamped, |d log| capped 0.2 a pass, Jacobi (updating in

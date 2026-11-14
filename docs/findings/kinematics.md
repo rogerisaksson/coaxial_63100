@@ -115,23 +115,23 @@ by `machine/body/reach.py`, a limb an index; tests/test_reach.py holds them.
 | under 0.505 | the hip behind its ankle, 4-99 mm |
 
 - Across, 0.268 of the hip's height either side: 0.20 m at 0.76.
-- A flat foot at her walking height reaches 0.124 m: her steps of 0.49 m
+- A flat foot at its walking height reaches 0.124 m: its steps of 0.49 m
   are on a risen heel and a landing toes up (`stride.heels`). `land` lays a
   foot flat; a pitched one is read in its own frame (`over`).
-- Rising from the squat and walking, 16 s at 0.85 m/s, her joints ran:
+- Rising from the squat and walking, 16 s at 0.85 m/s, its joints ran:
   ankle -41.3..10.8, its roll -0.8..4.2, knee -0.8..128.6, hip's yaw
   -6.7..1.8. Over 9 s every pass inside the rows: 50 mm at the least
-  (rising, 1.22 s), the yaw 18.3 deg inside, the leg at its length as she
+  (rising, 1.22 s), the yaw 18.3 deg inside, the leg at its length as it
   stands up (3.63 s).
 - The rows, 109 from 0.10 to 0.64 m: none of 60 000 hips they hold is past
   a stop; of what the stops allow 3.5 % is left out (a row's caution, and
-  all under 0.10 m: sat on her heels), at the leg's length 23 % (the strip
+  all under 0.10 m: sat on its heels), at the leg's length 23 % (the strip
   beyond the island). 2 768 places landed stand in MuJoCo to 1e-15 m, every
-  stopped joint inside its stop; her right is her left mirrored to 0.
-- Not in it: her legs above their soles clear of each other (`clear` is the
+  stopped joint inside its stop; its right is its left mirrored to 0.
+- Not in it: its legs above their soles clear of each other (`clear` is the
   soles'), a hip's roll and pitch (no stop), a landing pitched.
 
-## Her movements' orthopaedic terms
+## The robot's movements' orthopaedic terms
 
 Static rows (`machine/body/term_rows.py`, laid by `tools/cores/terms.py`) read by
 `machine/body/terms.py`; tests/test_terms.py holds them.
@@ -139,7 +139,7 @@ Static rows (`machine/body/term_rows.py`, laid by `tools/cores/terms.py`) read b
 - Anatomy says what a movement does - hip flexion brings the knee forward,
   abduction takes it from the midline, dorsiflexion raises the toes; which
   joint makes it, and with which sign, is found by turning each joint of
-  the segment in her figure and keeping the one nine tenths of whose motion
+  the segment in its figure and keeping the one nine tenths of whose motion
   goes that way. A limb's terms are found on both limbs and agree: a limb
   is an index, its joints' names data.
 
@@ -153,10 +153,10 @@ Static rows (`machine/body/term_rows.py`, laid by `tools/cores/terms.py`) read b
 | neck, head | flexion +neck; rotation toward limb 0's side +head | 60, extension 45; 80 (the whole-body stack's own) |
 | shoulder, elbow | flexion +shoulder, +elbow | none; 160, extension 5 |
 
-- 23 movements; 21 that anatomy names are absent, no driven joint of hers
-  making them: her shoulder's abduction and rotation, her forearm's
-  pronation, her wrist's (held), her fingers' (held), her toes' (sprung),
-  her neck's lateral flexion.
+- 23 movements; 21 that anatomy names are absent, no driven joint of its own
+  making them: its shoulder's abduction and rotation, its forearm's
+  pronation, its wrist's (held), its fingers' (held), its toes' (sprung),
+  its neck's lateral flexion.
 - Held to MuJoCo: 46 asks of 10 deg, either limb, each term and its
   opposite - 0.995 of the motion goes the term's way at the least. The
   leg's own IK (`figure.leg`) bends each joint its term's way, 12 of 12.

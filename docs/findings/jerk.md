@@ -1,7 +1,7 @@
 # Findings: jerk
 
-Each segment's peak jerk through her transitions (`tools/sim/jerk.py`, the
-referee's 20 ms windows; the scenes in [scenarios](scenarios.md)) against her
+Each segment's peak jerk through its transitions (`tools/sim/jerk.py`, the
+referee's 20 ms windows; the scenes in [scenarios](scenarios.md)) against its
 steady walk's - pelvis 553, torso 590, head 597, hands 1398-1840, feet
 4109-4159 m/s^3: back 1.3, a start and stop 1.4, a sprint 1.8, moves 2.6,
 strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
@@ -9,71 +9,71 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
 
 - A start's spikes sit on its first landings, the trailing sole leaving 9 ms
   after the other lands: its toe's 13-65 N stood it and let it go each law pass,
-  her asked acceleration 1.2 m/s^2 across and back every 3 ms. Her asked jerk
+  its asked acceleration 1.2 m/s^2 across and back every 3 ms. Its asked jerk
   is no higher there than walking (p99 343 against 439 m/s^3); the weave's is
   4 times (1767).
 - At the window's switch, a start's and a steady step's are alike: 21 ms after
-  the other landed, it bearing about half her load. Out of her support region
-  in one pass, her weight swung between the soles every 10 ms and her head
+  the other landed, it bearing about half its load. Out of its support region
+  in one pass, its weight swung between the soles every 10 ms and its head
   went 22 m/s^2 across.
-- That sole's share let go over her rhythm's double support: starts 4.0 -> 2.5,
-  her walk 412 -> 448 J/m, 2.61 -> 2.78 off a woman's. A released sole kept
+- That sole's share let go over its rhythm's double support: starts 4.0 -> 2.5,
+  its walk 412 -> 448 J/m, 2.61 -> 2.78 off a woman's. A released sole kept
   down until its swing: `play_about` 11 of 13 wobbles, walking shoves 28, but
-  at the tree she stepped in place for good - need 1 each step, no double
-  support to settle in: her stop rests on that sole standing again.
-- Under it, her step: in double support its striding projection planned her
+  at the tree it stepped in place for good - need 1 each step, no double
+  support to settle in: its stop rests on that sole standing again.
+- Under it, its step: in double support its striding projection planned its
   weight's split flipping a pass - [0, 379], [382, 0], [0, 384] N - and at
-  times [0, 0]. Her soles on their ball and heel, each one's room a line, the
-  projection met it through her soles pushed against each other - 926 N along
-  one, -906 along the other: in her kinetic energy's metric 1e-7 per N^2
-  against 0.03 for a push that moves her -, drove one to pull and let both go:
-  11 times in 12 s of her walk, 7 in a start and stop.
-- Each standing sole's wrench kept in that metric, W_KEEP 3 of its share of her
-  weight: none let go walking; her walk's peaks 553, 590, 597, 1398-1840 m/s^3
+  times [0, 0]. Its soles on their ball and heel, each one's room a line, the
+  projection met it through its soles pushed against each other - 926 N along
+  one, -906 along the other: in its kinetic energy's metric 1e-7 per N^2
+  against 0.03 for a push that moves it -, drove one to pull and let both go:
+  11 times in 12 s of its walk, 7 in a start and stop.
+- Each standing sole's wrench kept in that metric, W_KEEP 3 of its share of its
+  weight: none let go walking; its walk's peaks 553, 590, 597, 1398-1840 m/s^3
   (pelvis, torso, head, hands); a start 1.6 of them, turns 6.5, a spin 5.9, the
-  weave 13, the chair 13.4, a hop down 18.7; her walk 408 J/m, 2.55 off a
+  weave 13, the chair 13.4, a hop down 18.7; its walk 408 J/m, 2.55 off a
   woman's (412, 2.61); the bench 62 of 87, 80 N walking 29 (28), 200 N standing
   15 met (14), walking 17 (21). At 10 the tree and the hole fell at two
   wobbles; at 30 2.84 off; at 100 let go 187 times.
-- A seat she rose from: a contact let go in a pass, its point still held,
+- A seat it rose from: a contact let go in a pass, its point still held,
   asked 5134 N of a sole; let go when the step would have it pull, 488 N at
   most - the bed 7 -> 9 of 13 wobbles.
-- Not kept: a support's push weighed by its distance from her ZMP - no seat
-  used till she is over it, the chair fell at 4.7 s; the blend eased, its rate
+- Not kept: a support's push weighed by its distance from its ZMP - no seat
+  used till it is over it, the chair fell at 4.7 s; the blend eased, its rate
   and acceleration nothing at its ends - a spin 4.6 -> 1.7, turns 2.8 -> 8.5,
-  her head 35.4 mm aside (35); a swing asked as far as its sole no longer
+  its head 35.4 mm aside (35); a swing asked as far as its sole no longer
   bears - 401 J/m, 2.64 off, the weave as it was; a standing leg's servos
   softened by its load - every digit the same.
 - Left: a sole let go at 60 N on its toes, the other then 715 N where the step
-  planned 192 (turns, the weave); a seat's touch flickering as she rises; a
+  planned 192 (turns, the weave); a seat's touch flickering as it rises; a
   hop's landing.
 - The let-go itself: held still standing, the trailing sole is asked about 35
   m/s^2 its first pass swinging - its toes' need (half a sole and its toes by
   its tilt) whole at once, the clearance's cubic rise -, its hip 8 -> -158 N m,
-  the other hip -1 -> 115, her centre of mass -3.0 -> +2.3 m/s^2 up. Not kept:
+  the other hip -1 -> 115, its centre of mass -3.0 -> +2.3 m/s^2 up. Not kept:
   the rise quintic and the toes' need eased in with it - 780 m/s^2 its third
   pass, 600 J/m; the toes' need eased into its place alone - 100 m/s^2 its
   second pass, 2.92 off.
-- In the weave a sole let go bearing 63 N jumped her upper body's feed 133 N m
+- In the weave a sole let go bearing 63 N jumped its upper body's feed 133 N m
   in the pass, the swing's first ask 89 m/s^2 - the steady walk's let-go 56 N,
   13 N m, 35 m/s^2. Before it the right sole, in its stance phase on its toes
   and read by its corners 24-37 mm over the floor, bore 30-39 N and nothing a
   pass about and stood and was let go each. Its lowest point read with its toes'
-  tip: let-gos 35 -> 60, her walk 2.52 -> 2.60 off: not kept.
-- A sole's push capped in her step over its pre-swing, nothing left as its swing
-  begins: her step planned 0 N on it the pass before every let-go of her walk
+  tip: let-gos 35 -> 60, its walk 2.52 -> 2.60 off: not kept.
+- A sole's push capped in its step over its pre-swing, nothing left as its swing
+  begins: its step planned 0 N on it the pass before every let-go of its walk
   and of the weave - and planned about that already -, and it bore 47-58 N as it
   was let go, its upper body's jump the same (12-16 N m walking, 130 N m in the
-  weave). Its leg holds it to the floor through her drives' tracking and their
-  observer, not her step's push: not kept.
+  weave). Its leg holds it to the floor through its drives' tracking and their
+  observer, not its step's push: not kept.
 - The swing along and across on the least-jerk path from the sole's
   acceleration, none if it stood: the let-go's upper-body jump 12.6 -> 7.2 N m
-  walking and 133 -> 59 in the weave, its first ask 35 -> 25 m/s^2; but her walk
-  2.52 -> 3.52 off, her knee landing at 42 deg - the old spring was the limb's
+  walking and 133 -> 59 in the weave, its first ask 35 -> 25 m/s^2; but its walk
+  2.52 -> 3.52 off, its knee landing at 42 deg - the old spring was the limb's
   own stiffness through the whole swing, and the path's horizon held to it
-  lagged. The old spring's ask changing no faster than 4 000 m/s^3 (her steady
-  walk's feet): the jump 7.8 N m walking and 113 in the weave, her walk 2.56
-  off, every segment's jerk peak and her hips at their clamps 3.3 % of passes as
+  lagged. The old spring's ask changing no faster than 4 000 m/s^3 (its steady
+  walk's feet): the jump 7.8 N m walking and 113 in the weave, its walk 2.56
+  off, every segment's jerk peak and its hips at their clamps 3.3 % of passes as
   before: not kept.
 - The weave's worst, a hand's 18 181 m/s^3 at 4.49 s: the trailing sole let go
   as the swing goes 3.3 times its rhythm (`stride.hurried`), its clearance 0 to
@@ -86,11 +86,11 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   drop 11.5 times; the spin 2.5; turns' worst under its clamps (0.1).
 - Not kept: the drives' limits in the step - a torque past its limit pinned as
   a row in the standing rounds and a face in the striding projection: the
-  weave's other sole 235-322 N where 764, but her walk's own peaks rose (head
+  weave's other sole 235-322 N where 764, but its walk's own peaks rose (head
   597 -> 3046, a hand 1840 -> 11002) and moves, reverse and the weave fell, the
   pins on and off a pass; the clearance on a quintic and the swing's spring
-  eased in from its release - her walk's peaks 0.85-0.9 of before, the weave's
-  hand 13 -> 8.5, but a stop's head 836 -> 6276 m/s^3 and her walk 3.25 off,
+  eased in from its release - its walk's peaks 0.85-0.9 of before, the weave's
+  hand 13 -> 8.5, but a stop's head 836 -> 6276 m/s^3 and its walk 3.25 off,
   on stilts.
 - A row's blend is a straight line (`latent.step`): its rate steps at both
   ends and the damper's ask with it - at the sit's command the trunk's turn
@@ -107,105 +107,105 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
   | quintic, neither | 12.7 | 1.8 | 13.0 | 13.1 | 18.8 |
 
   Its rate not asked: the bench 63 -> 65 of 93 scenes (the slick patch 3 of
-  3), walking shoves 29 -> 30, her walk the same to the digit, but
+  3), walking shoves 29 -> 30, its walk the same to the digit, but
   `walk_turn_right_at_0.69` 12 of 13 wobbles - stepping in place after its
   push, a landing at 912 N bounced both soles off the floor. Not kept; the
   turns' peak is its let-go, moved by each.
-- Her head and arms are her step's reaction masses for her pelvis's and
+- The robot's head and arms are its step's reaction masses for its pelvis's and
   trunk's turns (W_TURN 30, W_POSTURE 1; at W_TURN 0 the neck's worst error
   1.82 -> 0.16 rad). Seated, the neck 1.74 rad off its posture for 6 s, its
   drive asked 2.1-3.9 times its clamp, 40 % of the chair scene's passes; at a
-  hop's takeoff 2.11 rad at 33 rad/s. Her walk asks no upper drive past 0.3 of
+  hop's takeoff 2.11 rad at 33 rad/s. Its walk asks no upper drive past 0.3 of
   its clamp. Not kept: the neck and head held as turns - the shoulders took it,
   3.3-3.9 % of the passes past their clamps, 69.6 times at worst, a hand's
   peak on the chair 22 091 -> 37 818 m/s^3.
-  Seated it is her pelvis's turn: without her trunk's the neck still 1.73 rad
-  off; without her pelvis's she fell before she sat.
-- Seated, only her thighs bear, their touch points side by side (`borne`: a
-  point each): the seat gives her step no pitch moment, her turns' asks met by
+  Seated it is its pelvis's turn: without its trunk's the neck still 1.73 rad
+  off; without its pelvis's it fell before it sat.
+- Seated, only its thighs bear, their touch points side by side (`borne`: a
+  point each): the seat gives its step no pitch moment, its turns' asks met by
   the plan's opposite, -3 to -15 rad/s^2 asked, +2 to +5 planned.
-- Kept: an ask her drives cannot carry shrunk as one toward asking nothing
-  (her weight borne, every acceleration zero: the same rows solved again,
+- Kept: an ask its drives cannot carry shrunk as one toward asking nothing
+  (its weight borne, every acceleration zero: the same rows solved again,
   `wrench.shrunk`, wbc_shrunk.c) as far as brings every torque within its
   clamp, in place of the clip after the solve - the largest s in [0, 1] along
-  u0 + s (u1 - u0) with every drive within its limit, closed form a drive; her
-  `over` and WEP's grant the ask's, before it. Her walk the same (0.70 m/s,
+  u0 + s (u1 - u0) with every drive within its limit, closed form a drive; it
+  `over` and WEP's grant the ask's, before it. Its walk the same (0.70 m/s,
   408 J/m, 2.51 off; 12 of 16 001 solves shrunk, to 0.21 at the least); the 22
   held scenes 66 of 66 at three wobbles; a hop down's hand 18.7 -> 11.1, the
   chair's 9.3 -> 5.7, turns 6.5 -> 3.8, a spin 5.9 -> 4.4, a start 1.6 -> 1.4,
   the chair's head 11.6 as it was; the weave's hand 13.0 -> 17.9: at 4.48 s
-  its hurried swing asks the left hip 10.7 times its clamp and her balance's
+  its hurried swing asks the left hip 10.7 times its clamp and its balance's
   ask goes with it, 0.09-0.5 of itself over 60 ms (its 99th percentiles
   856/1353 -> 810/1259). A hop down's shrink is the neck's 19 of 19 passes,
-  the head her turns' reaction mass, 5 of them to 0. A pass 1.14 -> 1.70 ms
+  the head its turns' reaction mass, 5 of them to 0. A pass 1.14 -> 1.70 ms
   in python, the C tick 25 -> 35 us a sole swung, standing the same.
 - Not kept: a contact's hold in the step grown with its felt force, nothing at
-  5 N to whole at a tenth of her weight, in place of the switch at 5 N: the
+  5 N to whole at a tenth of its weight, in place of the switch at 5 N: the
   chair's 99th percentiles the same (pelvis 291, head 1109 m/s^3), the bed's
-  up (634 -> 893, 962 -> 1468); her walk the same.
+  up (634 -> 893, 962 -> 1468); its walk the same.
 - The chair's worst head jerk (6945 m/s^3 at 1.10 s, the sit's first passes)
   sits on the neck at 1.04-1.14 of its clamp, the head the step's reaction
-  mass; the law's setpoints and feeds are smooth through it, her soles' loads
+  mass; the law's setpoints and feeds are smooth through it, its soles' loads
   swing 125/90 -> 91/138 N a pass. Not kept: each drive drawn to its clamp in
   the rounds by a row whose weight grows with the overshoot (nothing at the
-  clamp, whole a tenth past it): her head nodded 8 deg walking where 2, the
+  clamp, whole a tenth past it): its head nodded 8 deg walking where 2, the
   weave's 99th percentiles 856/1353 -> 1155/2263, the turns' 391/430 ->
   446/648, the chair's the same.
-- Her head at a stop (the stop ending her walk, a reverse, a sprint): her neck
+- Its head at a stop (the stop ending its walk, a reverse, a sprint): its neck
   nods 101-105 deg in 0.15 s, its drive at 25 N m, at its WEP's 51.3
-  chattering 50 either way at its end. At her brake's last landing her
-  capture point is inside her soles, her step's strides 1 to 0 in a law pass,
-  its rounds' answer her neck at 268 rad/s^2 where its projection's was -0.3;
-  her turns' rows asked 4-7 rad/s^2 then. Not it: the law's 3 ms hold (solved
-  every pass, the same peaks), her drawing (her head within 1 mm and 0.65 deg
-  of MuJoCo's), her floor's boxes (the slab's top a plane, bit for bit).
-- Who pays at a stop: her rounds solve round what her soles' bounds clip and
-  trade it among the rows, the cheapest her neck (W_POSTURE among W_TURN and
+  chattering 50 either way at its end. At its brake's last landing its
+  capture point is inside its soles, its step's strides 1 to 0 in a law pass,
+  its rounds' answer its neck at 268 rad/s^2 where its projection's was -0.3;
+  its turns' rows asked 4-7 rad/s^2 then. Not it: the law's 3 ms hold (solved
+  every pass, the same peaks), its drawing (its head within 1 mm and 0.65 deg
+  of MuJoCo's), its floor's boxes (the slab's top a plane, bit for bit).
+- Who pays at a stop: its rounds solve round what its soles' bounds clip and
+  trade it among the rows, the cheapest its neck (W_POSTURE among W_TURN and
   W_COM). At the reverse's stop the rows ask the landed sole to pull, -71 to
-  -224 N in 0.1 s - her knees' row the most (-210 -> -44 N without it), her
-  turns' and her posture's next (-90, -91), her settle, contact damping,
-  momentum and height none -; the clip lets it go and the moment left is her
-  neck's at 268 rad/s^2, her arms' 15-38, her spine's 0. On the python twin,
-  whose errands are the C's to the digit (her neck's widest nod walk, reverse,
+  -224 N in 0.1 s - its knees' row the most (-210 -> -44 N without it), its
+  turns' and its posture's next (-90, -91), its settle, contact damping,
+  momentum and height none -; the clip lets it go and the moment left is its
+  neck's at 268 rad/s^2, its arms' 15-38, its spine's 0. On the python twin,
+  whose errands are the C's to the digit (its neck's widest nod walk, reverse,
   sprint, spin, weave, deg; a hand's peak walking, m/s^3; errands of 19):
 
-  | what her soles cannot give | neck | hand | errands |
+  | what its soles cannot give | neck | hand | errands |
   | --- | --- | --- | --- |
   | traded among the rows (as it is) | 101/105/102/52/62 | 3 679 | 19 |
-  | the rows', her strides handed over at omega (C) | 22/92/53/-/- | - | 18 |
-  | her inertia's while her soles alone bear her (C) | 0/15/0/0/17 | - | 14 |
-  | her neck and head at W_TURN | 0/3/1/0/3 | 13 332 | - |
-  | her upper body kept as first asked, soles alone | 0/1/0/0/16 | 2 334 | 16 |
+  | the rows', its strides handed over at omega (C) | 22/92/53/-/- | - | 18 |
+  | its inertia's while its soles alone bear it (C) | 0/15/0/0/17 | - | 14 |
+  | its neck and head at W_TURN | 0/3/1/0/3 | 13 332 | - |
+  | its upper body kept as first asked, soles alone | 0/1/0/0/16 | 2 334 | 16 |
   | that, a prop's bearing held over 1/omega | 0/1/0/0/16 | 2 334 | 16 |
-  | her neck and head alone kept | 0/2/1/0/16 | 13 521 | 15 |
+  | its neck and head alone kept | 0/2/1/0/16 | 13 521 | 15 |
 
-  Handed over, her backing to the bed drifts 0.75 m aside in 2.75 s; her
+  Handed over, its backing to the bed drifts 0.75 m aside in 2.75 s; its
   inertia's, W from a stop takes 1.02-1.03 s (1.0) and a chair's seat bears
-  0.35 of her. Her upper body kept, her walk as it was (ortho 50 of 50):
-  backing, her yaw yields where her arms bore it - her heading -2.35 -> -1.82
+  0.35 of it. The robot's upper body kept, its walk as it was (ortho 50 of 50):
+  backing, its yaw yields where its arms bore it - its heading -2.35 -> -1.82
   rad, 0.22 m/s for 0.15, into the chair's side -; lying back, the bed's
-  touch lost two passes and her soles took 225/116 N; kept with a seat
-  bearing her, its two points side by side giving no pitch, she slid off it.
-- The stop's nod bisected (`play_walk` on her law in C, her head against her
+  touch lost two passes and its soles took 225/116 N; kept with a seat
+  bearing it, its two points side by side giving no pitch, it slid off it.
+- The stop's nod bisected (`play_walk` on its law in C, its head against its
   torso): 0.1 deg at 1c05786f, 101.2 at 1f1d039d, the branchless control pass -
-  its neck cut from her step only under 0.05 of her rhythm's gain, a brake's
-  1.000 all through. Before it `no_stride` let her neck go in a brake by name.
-- Her neck let go through a brake (`motion.control`: her rhythm told to run,
-  held to her landings' footprint, told no drive) and a sole asked up off the
-  floor only once the other bears as much of her (`poise.stands`,
-  wbc_stride.c): her head's widest nod, walk 101 -> 1.3 deg, sprint 102 -> 1.4,
+  its neck cut from its step only under 0.05 of its rhythm's gain, a brake's
+  1.000 all through. Before it `no_stride` let it neck go in a brake by name.
+- Its neck let go through a brake (`motion.control`: its rhythm told to run,
+  held to its landings' footprint, told no drive) and a sole asked up off the
+  floor only once the other bears as much of it (`poise.stands`,
+  wbc_stride.c): its head's widest nod, walk 101 -> 1.3 deg, sprint 102 -> 1.4,
   the reverse's stop 105 -> none (36.7 mid-gait, as before), start and stop
-  6.6 -> 4.1, a spin 53 -> 34, bed 29 -> 0.3, bed_rise 29 -> 7; her walk the
+  6.6 -> 4.1, a spin 53 -> 34, bed 29 -> 0.3, bed_rise 29 -> 7; its walk the
   same (0.70 m/s, 409 J/m, 2.55 off). Without the guard play_about's stop let
-  go a sole bearing 196 N of her, the other 43, and she fell at 8.8 s. Not kept:
-  let go wherever her rhythm was told no drive - a hop's stand sank her in a
-  replay; her head's yaw let go with it - the chair's dock put her hand on the
+  go a sole bearing 196 N of it, the other 43, and it fell at 8.8 s. Not kept:
+  let go wherever its rhythm was told no drive - a hop's stand sank it in a
+  replay; its head's yaw let go with it - the chair's dock put its hand on the
   loft, 0 of 5 starts.
-- Her friction by heading: walking straight 45, -45 and -135 deg her head's
+- Its friction by heading: walking straight 45, -45 and -135 deg its head's
   peaks are 2 499, 2 276 and 2 252 m/s^3 where 0, 90 and 180 deg give 585, 597
-  and 576 - her step's friction pyramid the world's x and z. Along each sole's
+  and 576 - its step's friction pyramid the world's x and z. Along each sole's
   floor axes 577, 578 and 593; that table's chair missed its goal.
 
 ## The anti-spasm insert
 
-Its stages measured on her: [insert](insert.md).
+Its stages measured on it: [insert](insert.md).

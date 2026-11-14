@@ -1,6 +1,6 @@
 /** wbc_soa.h - the kernel's SoA ABI (ast_to_soa_lowering.lisp, machine.texts.lowering): a bank of floats on
-    64-byte lines a tuner lowers a gait into and her loop reads. The text's fields at its offsets, SI;
-    a float a node where a field is each node's (her nominal gait's nodes, in its order); a biquad a
+    64-byte lines a tuner lowers a gait into and its loop reads. The text's fields at its offsets, SI;
+    a float a node where a field is each node's (its nominal gait's nodes, in its order); a biquad a
     node, a column a coefficient or state; the manifolds' weights; the body schema's capsules, a
     column a coordinate. A bank rides machine.process.rcu's table as its words. */
 #ifndef WBC_SOA_H
@@ -16,8 +16,8 @@
 
 typedef struct
 {
-  _Alignas(WBC_SOA_LINE) float hz; /**< her clock, Hz */
-  float duty;                      /**< her stance's share of a stride */
+  _Alignas(WBC_SOA_LINE) float hz; /**< its clock, Hz */
+  float duty;                      /**< its stance's share of a stride */
   float clock_[14];
   float sole_stack; /**< m */
   float plantar_[15];
@@ -25,7 +25,7 @@ typedef struct
   float tarsal_[13];
   float free_[16];
   float dc_offset[4 * WBC_SOA_NODES]; /**< rad, a node each */
-  float gamma;                        /**< her capture point's barrier, 1/s */
+  float gamma;                        /**< its capture point's barrier, 1/s */
   float capture_margin;               /**< m */
   float barrier_[14];
   float eta;            /**< the wayfinder's ECBF pullback */
@@ -54,7 +54,7 @@ _Static_assert(offsetof(wbc_soa_t, b0) % WBC_SOA_LINE == 0 && offsetof(wbc_soa_t
                    && offsetof(wbc_soa_t, p0) % WBC_SOA_LINE == 0 && sizeof(wbc_soa_t) % WBC_SOA_LINE == 0,
                "each column on its own lines");
 
-/** Her loop's pass of node `k`'s biquad of bank `b` on `x`, direct form II transposed: its output,
+/** Its loop's pass of node `k`'s biquad of bank `b` on `x`, direct form II transposed: its output,
     its states advanced. */
 float wbc_soa_biquad(wbc_soa_t *b, int k, float x);
 

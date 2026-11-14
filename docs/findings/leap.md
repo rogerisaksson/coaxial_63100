@@ -1,69 +1,69 @@
 # Findings: leap
 
-Her soles off the floor on the whole-body stack ([wbc](wbc.md)): which
+The robot's soles off the floor on the whole-body stack ([wbc](wbc.md)): which
 stand, the others asked to their landing.
 
 `machine/moves/leap.py` stands between a motion pass's ask and the stack's step;
-`tools/sim/hop.py` throws her; tests/test_leap.py holds it.
+`tools/sim/hop.py` throws it; tests/test_leap.py holds it.
 
 - The stack and the loop both solve a step with no sole standing: no force,
-  her centre of mass at -9.81 m/s^2, the drives at 0 N m. What they are asked
+  its centre of mass at -9.81 m/s^2, the drives at 0 N m. What they are asked
   was missing: asked to stand on both soles 0.2 m over the floor the stack
   lays 153 N a sole on nothing.
 - Which soles stand is told from one pass, nothing kept
   (`leap.standing`): a sole stands that bears 15 N; one that bears
   nothing stands within 2 mm of the floor beside one that bears, or with
-  her centre of mass under 0.1 m/s. What fell on the way:
+  its centre of mass under 0.1 m/s. What fell on the way:
   + By its load alone: the first sole to lighten was lifted and the other
     left the whole throw - 648 N for 50 ms -, 19 deg over.
   + Within 2 mm alone: the stack pressed a sole 1 mm over the floor down
-    onto it as she left, 648 N: 23 deg over on the loop in C, down at the
+    onto it as it left, 648 N: 23 deg over on the loop in C, down at the
     second of three hops on the python stack.
-  + All soles or none while she rises over 0.1 m/s: the one she stood on
+  + All soles or none while it rises over 0.1 m/s: the one it stood on
     after a landing flipped at that speed for 0.2 s, 21.2 deg over three
     hops.
-  + An unloaded sole stood near the floor as she falls too: three hops
-    stood at 2 mm and fell at 0.5; with her at rest the numbers are the
+  + An unloaded sole stood near the floor as it falls too: three hops
+    stood at 2 mm and fell at 0.5; with it at rest the numbers are the
     same at 0.5, 1 and 2 mm.
-  + Her centre of pressure brought 25 mm inside the standing soles' box:
+  + Its centre of pressure brought 25 mm inside the standing soles' box:
     three hops 13.1 deg over against 9.8. Not there.
-- Her soles' loads cross 15 N twice in the 3 ms they leave the floor in:
-  no sole stands for 1 ms, both for 2, none from there. She flies while
+- The robot's soles' loads cross 15 N twice in the 3 ms they leave the floor in:
+  no sole stands for 1 ms, both for 2, none from there. The robot flies while
   neither bears 15 N; `tools/sim/hop.py` counts a flight of 20 ms or
   more.
-- A sole that does not stand is asked to its landing: under her capture
-  point, drawn in to her leg's reach (`reach.land`), the knee 25 deg. The
+- A sole that does not stand is asked to its landing: under its capture
+  point, drawn in to its leg's reach (`reach.land`), the knee 25 deg. The
   stack brakes a knee going out 9.2 rad/s to rest in 40 ms at its clamp,
   108 N m.
 - With no sole standing no turn is asked. Asked - even as they were, their
-  rates alone bled - the stack spun her legs to hold her trunk still: the
+  rates alone bled - the stack spun its legs to hold its trunk still: the
   knees out at 3 rad/s with no torque in them, on their stops at the
   landing, 1.9 kN, down.
-- The throw. Her height asked down alone, the posture held her knees: 10 mm
+- The throw. Its height asked down alone, the posture held its knees: 10 mm
   of 60; crouched by the posture too (hip, knee and ankle by their terms),
-  her pelvis straight down over her ankles, her centre of mass lay 26 mm
-  behind her soles' middle. Her trunk asked upright through the throw, the
-  stack put her weight on her heels' edges - 16 mm past the soles' margin -
-  to turn her legs under it: 4.7 kg m^2/s about her at lift-off, 14.9 deg
-  over at the landing; her trunk unasked, 5.4 deg.
-- Her legs follow her up to knees of 22-31 deg: 9-12 rad/s at the knee, of
-  its drive's 16.8 with no load. She leaves there whatever is asked: 11 mm
-  under her standing height at 0.7 m/s, 21 at 1.05; a push of 22 m/s^2
+  its pelvis straight down over its ankles, its centre of mass lay 26 mm
+  behind its soles' middle. Its trunk asked upright through the throw, the
+  stack put its weight on its heels' edges - 16 mm past the soles' margin -
+  to turn its legs under it: 4.7 kg m^2/s about it at lift-off, 14.9 deg
+  over at the landing; its trunk unasked, 5.4 deg.
+- Its legs follow it up to knees of 22-31 deg: 9-12 rad/s at the knee, of
+  its drive's 16.8 with no load. The robot leaves there whatever is asked: 11 mm
+  under its standing height at 0.7 m/s, 21 at 1.05; a push of 22 m/s^2
   flies 2 mm higher than 18. Asked to its time's end, 1.8-2.6 of the
-  4.3-5.0 kg m^2/s about her at lift-off came in the last 20 ms, her
-  soles' loads falling from 730 N to none. Her throw is a spring instead,
-  to 17.5 mm under her standing height, 700 1/s^2, no stronger than the
-  push: 0.4-0.7 in those 20 ms, 2.7-3.1 as she leaves. Twelve springs
+  4.3-5.0 kg m^2/s about it at lift-off came in the last 20 ms, its
+  soles' loads falling from 730 N to none. Its throw is a spring instead,
+  to 17.5 mm under its standing height, 700 1/s^2, no stronger than the
+  push: 0.4-0.7 in those 20 ms, 2.7-3.1 as it leaves. Twelve springs
   (12.5-20 mm, 500-900) over the four hardest rows: 46 of 48 stood; at 10
   mm the loop was 14-15 deg over as before.
 
-| Let down, thrown, for | On | Flown | Under her soles | Struck | Tilt | To its time's end |
+| Let down, thrown, for | On | Flown | Under its soles | Struck | Tilt | To its time's end |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0.10 m, 10 m/s^2, 0.15 s | the python stack | 0.129 s | 16.3 mm | 1 848 N | 6.1 deg | 21.5 mm, 7.1 deg |
 | 0.10 m, 14, 0.15 | python | 0.145 | 21.5 | 1 966 | 4.9 | 26.8, 5.4 |
 | 0.12 m, 18, 0.2 | python | 0.215 | 46.4 | 2 553 | 6.1 | 46.3, 8.0 |
 | 0.10 m, 14, 0.15, three in a row | python | 0.447 in all | 23.1 | 2 031 | 5.7 | 28.2, 11.5 |
-| 0.10 m, 14, 0.15, her soles never released | python | 0.103 | 9.4 | 745 | 4.9 | 8.7, 4.5 |
+| 0.10 m, 14, 0.15, its soles never released | python | 0.103 | 9.4 | 745 | 4.9 | 8.7, 4.5 |
 | 0.10 m, 10, 0.15 | the loop in C | 0.128 | 16.3 | 1 766 | 5.5 | 23.4, 10.3 |
 | 0.10 m, 14, 0.15 | C | 0.145 | 21.5 | 1 933 | 4.6 | 30.8, 13.6 |
 | 0.10 m, 10, 0.15, three in a row | C | 0.397 in all | 17.8 | 1 910 | 7.0 | 24.5, 10.3 |
@@ -72,7 +72,7 @@ stand, the others asked to their landing.
 | 0.12 m, 22, 0.2 | python | 0.216 | 48.4 | 2 664 | 7.2 | - |
 | 0.12 m, 22, 0.2 | C | 0.221 | 49.2 | 2 795 | 16.5 | - |
 
-She stood every row as thrown now.
+The robot stood every row as thrown now.
 
 - The loop in C, two changes. A turn of all zeros is unasked. The soles'
   margins are laid for standing soles only: laid for a sole in the air too,
@@ -80,52 +80,52 @@ She stood every row as thrown now.
   as a swinging sole's own ask - with no sole standing it met 33 of 115
   m/s^2 where the python stack met 110; now 110, 0.006 m/s^2 apart. Its walk
   (8 s at 0.5 m/s: 2.47 m, 0.41 m/s, 259 J/m, 15 steps, tilt 1.8) and four
-  shoves (38 N from her left, 60 from ahead and behind, 80 from her right)
+  shoves (38 N from its left, 60 from ahead and behind, 80 from its right)
   are as before to the digit.
-- Open. The strike, 1.8-2.8 kN at 0.8 m/s: not her height's law's (at a
+- Open. The strike, 1.8-2.8 kN at 0.8 m/s: not its height's law's (at a
   quarter of it 1 735 N; the torque as asked under it 1 414), nor the sole's
   speed onto the floor (eased onto the floor it left over the last 30 mm,
   2 244 N). Standing on one sole the loop meets 15 of 115 m/s^2 of a sole
-  asked back where the python stack meets 97: her form's weight on the
-  turns' level, which her walk's 259 J/m is ([wbc](wbc.md), The margins
+  asked back where the python stack meets 97: its form's weight on the
+  turns' level, which its walk's 259 J/m is ([wbc](wbc.md), The margins
   soft).
-  A hop on one sole is untried. The large throw leaves 21 mm under her
+  A hop on one sole is untried. The large throw leaves 21 mm under its
   standing height, under the spring's zero: the loop 15-17 deg over there.
 - tests/test_wbc_core.py stood in no suite list: the loop's suite ran in no
   gate. It is in the default set now, 21 of 21.
 - The stride leap said after 1.8-2.3 s of walking, four leaps (walk and run,
-  tapped and held): 17 of 24 stand, its outcome her stride's phase at the
-  word. Its gather braked over her stand's blend (`se2.STAND_S`) - over her
-  stop's stride the hop's stand cut it at 0.4 - her held leap goes further
-  than her tap again: walk -0.05 -> 0.35 m, run 0.42 -> 0.97. Landed, her
-  capture point runs on at 1.6 m/s while her rhythm is still, and a swing
-  at that rhythm's pace took 0.40 s as she went over a sole's ball: hurried
-  along her way too while her rhythm is still, the run's held leap falls at
+  tapped and held): 17 of 24 stand, its outcome its stride's phase at the
+  word. Its gather braked over its stand's blend (`se2.STAND_S`) - over its
+  stop's stride the hop's stand cut it at 0.4 - its held leap goes further
+  than its tap again: walk -0.05 -> 0.35 m, run 0.42 -> 0.97. Landed, its
+  capture point runs on at 1.6 m/s while its rhythm is still, and a swing
+  at that rhythm's pace took 0.40 s as it went over a sole's ball: hurried
+  along its way too while its rhythm is still, the run's held leap falls at
   1 of 6 walk times for 2. Left: no flight at 1.8-1.9 s in every tree; a
-  split stance 27 cm long after the parry's step, the stand centring her
-  between it, she drifts back on the leading sole. Her gait resumed from the
+  split stance 27 cm long after the parry's step, the stand centring it
+  between it, it drifts back on the leading sole. Its gait resumed from the
   landing, no stand between: 16 of 24, other phases down.
-- The gather laid as her swinging sole lands (`stride.beat`'s share of its
+- The gather laid as its swinging sole lands (`stride.beat`'s share of its
   swing left at its rhythm's rate) instead of on the clock: 21 of 24, the
-  suite's four at its 2.0 s all flying (0.17-0.42 s), her walk to the digit.
+  suite's four at its 2.0 s all flying (0.17-0.42 s), its walk to the digit.
   Left: no flight at the run's 2.3 s (both soles never off), the held run at
   2.1 s down after its landing. Measured, not kept: the leap derived from the
   human's running jump (`takes.jump('running_jump')`: his gather over one
-  stride to his crouch, axial 1.98 leant 1.16, the drives' push from it, her
+  stride to his crouch, axial 1.98 leant 1.16, the drives' push from it, its
   rhythm his limbs' lift through the gather) - 3, 0 and 1 of 24. His is a
-  sprinter's at 4.7 m/s, hips 1.7 half-soles behind his plant; told them she
-  went backward and sank on 40-90 N, her hips hers the throws flung her off
-  her feet (air 1.3-3.4 s). Similarity scales his lengths and times to hers,
+  sprinter's at 4.7 m/s, hips 1.7 half-soles behind his plant; told them it
+  went backward and sank on 40-90 N, its hips its own the throws flung it off
+  its feet (air 1.3-3.4 s). Similarity scales his lengths and times to its own,
   not his speed.
-- The stride leap's flight told by what she senses a pass, no memory
-  (`swing.flew`): thrown, no sole standing, and her centre going up or no
+- The stride leap's flight told by what it senses a pass, no memory
+  (`swing.flew`): thrown, no sole standing, and its centre going up or no
   sole left lying on the floor (within `leap.TOUCH_M` of it, not coming
-  down past `leap.REST_M_S`). Thrown with none standing alone, her dip's
-  passes flew - her stance sole under a touch (0-13 N) still lay on the
-  floor as she sank 0.57-0.83 m/s -, her swing was asked to the floor's
-  speed there, 52.8 m/s^2 back, and she bounced off her dip: 0.336 s aloft
+  down past `leap.REST_M_S`). Thrown with none standing alone, its dip's
+  passes flew - its stance sole under a touch (0-13 N) still lay on the
+  floor as it sank 0.57-0.83 m/s -, its swing was asked to the floor's
+  speed there, 52.8 m/s^2 back, and it bounced off its dip: 0.336 s aloft
   for 0.24. Aloft the sole that trails hangs level and the one that leads
-  lands at the floor's speed (`swing.hung`), her stride the sole's that
+  lands at the floor's speed (`swing.hung`), its stride the sole's that
   lands first (`stride.flown`), a swing begun before its window counted
   from there (`stride.begins`); the push's rows on their plan's clock,
   damped critically (`ballistic.bound`). A walk's tap flies 0.195 s, 51 mm
@@ -135,15 +135,15 @@ She stood every row as thrown now.
   a jog 9 of 9 each where 0-9, the run's leap on the run grid 9 where 3.
   Left: the stutter and the sprint's grid 7 of 9 as before; the leading
   sole meets the floor at 0.95-1.17 m/s along; the hold's charge has no
-  lever in stride - dipped 1.35 times deeper she flies no further (0.14 and
-  0.25 m): her stance sole behind her bears a third of her, she sinks
+  lever in stride - dipped 1.35 times deeper it flies no further (0.14 and
+  0.25 m): its stance sole behind its bears a third of it, it sinks
   0.16-0.21 m for the 0.11-0.15 told, outruns a push laid on the clock and
-  coasts, her knee at 37-106 of its 171 N m.
-- Her launch from her drives (`ballistic.launch`, test_ballistic): both
-  knees at their back-EMF bounds, their rotors (0.177 kg m^2) spun with her,
+  coasts, its knee at 37-106 of its 171 N m.
+- The robot's launch from its drives (`ballistic.launch`, test_ballistic): both
+  knees at their back-EMF bounds, their rotors (0.177 kg m^2) spun with it,
   leave the floor at 15.8-15.9 of their 16.8 rad/s: 2.03-2.07 m/s from a
   crouch of 176-185 mm, an apex of 210-219 mm (the ballistic texts' 320-360
-  at their 0.89 m leg, 304-342 at hers). One knee from 109 mm: 1.21 m/s,
-  75 mm. Her ankles' heel rise reaches 2.15 m/s at most (18.4 rad/s on 117
-  mm). Her run at the texts' Froude 1.93, 4.00 m/s: a sole's half-sine
-  peaks at 743 N, her knee 59.6 of 108 N m at 0.42 rad.
+  at their 0.89 m leg, 304-342 at its own). One knee from 109 mm: 1.21 m/s,
+  75 mm. Its ankles' heel rise reaches 2.15 m/s at most (18.4 rad/s on 117
+  mm). The robot's run at the texts' Froude 1.93, 4.00 m/s: a sole's half-sine
+  peaks at 743 N, its knee 59.6 of 108 N m at 0.42 rad.

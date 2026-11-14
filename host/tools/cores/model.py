@@ -1,14 +1,14 @@
-"""Her figure's physics as static arrays: a link a degree of freedom, from the compiled figure.
+"""Its figure's physics as static arrays: a link a degree of freedom, from the compiled figure.
 
     python tools/cores/model.py --write     # wbc/inc/wbc_model.h, wbc/src/wbc_model.c
     rows = model.links()                    # what the C holds, a dict a link
 
-Link 0 is her pelvis, floating; each hinge after it a link in MuJoCo's order: its parent link,
+Link 0 is its pelvis, floating; each hinge after it a link in MuJoCo's order: its parent link,
 its frame at rest in the parent's (R, p), its screw in its own frame (w, v), the mass it
 carries (nothing for the first joint of a body with two), its centre and its inertia about it,
 the rotor's armature, its stops, its spring and damper, whether a drive turns it, a stop holds it
 or nothing does, the drive's clamp, peak and kt, the drive it shares its rods with. The soles'
-points, the knees, the trunk, her mass and the master insert's buffers (`wbc.Body`'s) go with them. Her chain is the body form of the
+points, the knees, the trunk, its mass and the master insert's buffers (`wbc.Body`'s) go with them. Its chain is the body form of the
 product of exponentials, T = T_parent X exp([S] q); the firmware runs it (`wbc/`), MuJoCo stays
 the reference (tests/test_wbc_core.py).
 """
@@ -25,7 +25,7 @@ from tools import REPO
 WBC = os.path.join(REPO, 'wbc')
 HEADER = os.path.join(WBC, 'inc', 'wbc_model.h')
 SOURCE = os.path.join(WBC, 'src', 'wbc_model.c')
-NOTICE = 'her figure as static arrays: written by host/tools/cores/model.py, not by hand.'
+NOTICE = 'its figure as static arrays: written by host/tools/cores/model.py, not by hand.'
 
 #: A link's kind, as the C reads it.
 FREE, DRIVEN, HELD = 0, 1, 2
@@ -137,7 +137,7 @@ def _table(name, width, rows, cells):
 
 
 def standing(b):
-    """(base, q) of her stand on the floor: the pelvis's frame (R by rows, then p) and the
+    """(base, q) of its stand on the floor: the pelvis's frame (R by rows, then p) and the
     hinges' rad, as test_wbc_core's standing state."""
     from machine.body import figure
     from machine.world import physics
@@ -157,7 +157,7 @@ def standing(b):
 
 
 def render(rows, b, stand=None):
-    """(header, source) for `rows`, her `wbc.Body`'s."""
+    """(header, source) for `rows`, its `wbc.Body`'s."""
     from machine.body import gait
     n = 5 + len(rows)
     stand = stand or standing(b)
@@ -170,7 +170,7 @@ def render(rows, b, stand=None):
     header = '\n'.join([
         '/** wbc_model.h - %s */' % NOTICE,
         '#ifndef WBC_MODEL_H', '#define WBC_MODEL_H', '',
-        '/** Links, link 0 the floating pelvis; her degrees of freedom, 6 of them the pelvis\'s:',
+        '/** Links, link 0 the floating pelvis; its degrees of freedom, 6 of them the pelvis\'s:',
         '    link k > 0 is u[5 + k]; the drives and the held joints, as links. */',
         '#define WBC_LINKS %d' % len(rows),
         '#define WBC_N %d' % n,
@@ -210,7 +210,7 @@ def render(rows, b, stand=None):
         'extern const double wbc_sole_corner[4][3];   /**< its corners */',
         'extern const double wbc_total_mass;          /**< kg */',
         'extern const double wbc_gravity[3];          /**< m/s^2, world frame */',
-        'extern const double wbc_stand_base[12];     /**< her stand: the pelvis\'s frame, R by rows, then p */',
+        'extern const double wbc_stand_base[12];     /**< its stand: the pelvis\'s frame, R by rows, then p */',
         'extern const double wbc_stand_q[WBC_N - 6]; /**< and the hinges\' angles, rad */',
         'extern const char *const wbc_name[WBC_LINKS]; /**< the joint\'s name */', '',
         '#endif', ''])
@@ -292,18 +292,18 @@ def write(b=None):
     return rows
 
 
-#: The builds' models laid in this process, a build's None while its render lays her stand (`standing`'s world).
+#: The builds' models laid in this process, a build's None while its render lays its stand (`standing`'s world).
 _LAID = {}
 
 
 def compiled():
-    """wbc_model.c as this process's build compiles it: the committed one for her own build (`mechatronics.HERS`,
-    tests/test_wbc_core.py holds it her render), another build's render laid in the build directory. Its render's
-    world (`standing`) is the committed one's: her stand there is MuJoCo's, no drive of it. Every build shares
+    """wbc_model.c as this process's build compiles it: the committed one for its own build (`mechatronics.ITS OWN`,
+    tests/test_wbc_core.py holds it its render), another build's render laid in the build directory. Its render's
+    world (`standing`) is the committed one's: its stand there is MuJoCo's, no drive of it. Every build shares
     wbc_model.h: a build laying another one, of other sizes, is refused."""
     from machine.body import mechatronics
     robot = mechatronics.ROBOT
-    if robot == mechatronics.HERS or (robot in _LAID and _LAID[robot] is None):
+    if robot == mechatronics.STOCK or (robot in _LAID and _LAID[robot] is None):
         return SOURCE
     if robot in _LAID:
         return _LAID[robot]

@@ -152,7 +152,7 @@ Evaluate the prompt and working tree before invoking any tool:
     is one only where the modules match.
   + Empirical ISA baseline (mandatory when C cores, their target flags, sum
     orders or streaming kernels are touched, or CI's `arch` jobs are red):
-    her cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
+    its cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
     `avx`, `avx2`, `avx512`, `sve2`, `sme2`). CI's `arch` jobs run the C
     parity suites on GitHub's arm64 runner (Neoverse N2, `sve2`) and with
     `avx512` where the x86 runner has it. Arm here is QEMU only, in the
@@ -194,23 +194,23 @@ Evaluate the prompt and working tree before invoking any tool:
     solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
     `--save`, `--against`).
   + AI in the loop, AIL (mandatory with keys, docking, locomotion near things or
-    her map's consistency): drive her about the lodge on her page's own keys
+    its map's consistency): drive it about the lodge on its page's own keys
     (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N --jobs N`,
     `--eyes`, `--stage K`), run a key script (`ail.py run SCRIPT.json`), and
     replay the staged cases (`ail.py replay`). Faults are judged by the world's
     truth and staged outside CI (`host/tools/sim/ail_staged/`). Cheap explorer
     subagents write key scripts adversarially; AIL alone judges; the stronger
     model fixes five staged clusters a round, then asks to continue. Every fix
-    widens her margins and room to act, never narrows them.
+    widens its margins and room to act, never narrows them.
   + Read only the relevant source files as identified by the mapper, test and
     runtime measurements, and other associated and relevant data.
   + Use existing selective probes or tests, or create new, for use with the tools
     (such as profilers, introspection, test suites), to establish reliable
     detectors and sieves for effectively discovering and rejecting solutions.
     Probes live in the repo, ensembles on the relay, `--against TREE` for an
-    A/B: `host/tools/sim/falls.py` (her falls by the world's truth: what
-    struck, how hard, her spasms), `offered.py` (F's errands walked into),
-    `wearing.py` (her wear filter's step response), `inertias.py` (her
+    A/B: `host/tools/sim/falls.py` (its falls by the world's truth: what
+    struck, how hard, its spasms), `offered.py` (F's errands walked into),
+    `wearing.py` (its wear filter's step response), `inertias.py` (its
     figure's inertias as bits), `python -m tools.cores.orders` (numpy's
     einsum orders on this processor).
 

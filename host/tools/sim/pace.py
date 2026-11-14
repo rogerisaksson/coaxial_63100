@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-"""Her loop's pace as her worker runs her, a craft's as its page flies it: flat out, an errand.
+"""Its loop's pace as its worker runs it, a craft's as its page flies it: flat out, an errand.
 
-    python tools/sim/pace.py                   # her errands and the crafts' flights one at a time on the relay: a line each
+    python tools/sim/pace.py                   # its errands and the crafts' flights one at a time on the relay: a line each
     python tools/sim/pace.py walk door         # those named, here (COAXIAL_BENCH=1: above normal priority too)
     python tools/sim/pace.py quad helicopter ornithopter aerobat   # a craft's flight: its card's first FLOWN_S
-    python tools/sim/pace.py walk --profile    # and where her main thread spends its time, sampled
+    python tools/sim/pace.py walk --profile    # and where its main thread spends its time, sampled
     python tools/sim/pace.py door --time machine.law.motion.control tools.cores.bodied.Bound.__call__
-    python tools/sim/pace.py door --here --time machine.eyes.registry.seen   # her vision in this process
-    python tools/sim/pace.py door --blind      # her eyes not hers: a sha1 over every pass, her bits' oracle
+    python tools/sim/pace.py door --here --time machine.eyes.registry.seen   # its vision in this process
+    python tools/sim/pace.py door --blind      # its eyes not its own: a sha1 over every pass, its bits' oracle
 
-Laid as `worker.run` lays her - this process placed (`placed`), her lodge, her fake camera, her
-planner and her vision apart -, her state said each SAY_S of her world's time, run flat out: a line
-an errand, each second's pace (her world's seconds a wall second, 1.0 real time), the worst and what
-she was doing, the mean, her qpos's hash at its end - her hot pace: its first second, cold, is its
-tail's with her laying's time, a cold start to cut apart from a hot pace to raise; a profile's samples
-and a clock's calls the hot ones, `--cold` the cold ones (WARM). `--float` leaves her processes
-where the system moves them, unplaced. `--profile` samples her main thread's stack
+Laid as `worker.run` lays it - this process placed (`placed`), its lodge, its fake camera, its
+planner and its vision apart -, its state said each SAY_S of its world's time, run flat out: a line
+an errand, each second's pace (its world's seconds a wall second, 1.0 real time), the worst and what
+it was doing, the mean, its qpos's hash at its end - its hot pace: its first second, cold, is its
+tail's with its laying's time, a cold start to cut apart from a hot pace to raise; a profile's samples
+and a clock's calls the hot ones, `--cold` the cold ones (WARM). `--float` leaves its processes
+where the system moves them, unplaced. `--profile` samples its main thread's stack
 every SAMPLE_S from a thread of its own (cProfile on this interpreter mixes threads): each function's
 own share of the samples and its share with what it calls - a sample waits on the interpreter's lock,
 so a C call holding it is under-counted. `--time` wraps each function named (a module's, or a class's
-in it, where her code calls it through its module or its object) in a wall clock: its calls, its
-seconds with what it calls, its share of the errand's wall time; `--here` keeps her vision in this
+in it, where its code calls it through its module or its object) in a wall clock: its calls, its
+seconds with what it calls, its share of the errand's wall time; `--here` keeps its vision in this
 process (`vision.Here`, a run's), its look's own parts timed so - its bits the same either way. `--blind` lays
-her with her eyes not hers - her registry on the world's boxes, no camera - and tells a sha1 over every pass's
-qpos, qvel and ctrl: her bits the same at any pace and on any host's load, as her errands' ends with her eyes
-hers are not - the card's multisampling tells her camera's frames by the wall's time (`machine.eyes.camera`).
+it with its eyes not its own - its registry on the world's boxes, no camera - and tells a sha1 over every pass's
+qpos, qvel and ctrl: its bits the same at any pace and on any host's load, as its errands' ends with its eyes
+its own are not - the card's multisampling tells its camera's frames by the wall's time (`machine.eyes.camera`).
 A craft (CRAFTS) is laid as its page lays it (`terminal.views.quad.flying`: its stand-in boards, its sky, its law, its
-card), placed as a loop's as her worker is, each step said as its page hears it; `--blind` hashes its every step.
+card), placed as a loop's as its worker is, each step said as its page hears it; `--blind` hashes its every step.
 """
 import argparse
 import collections
@@ -43,8 +43,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 WALK, HELD_S = (0.69, 0.0, 0.0), 3.0
 #: The sampler's period, s; the functions a profile lists, by own and by inclusive share.
 SAMPLE_S, LISTED = 0.0005, 24
-#: Set once an errand's first second has passed (`warmed`). Before it her cold start - her laying, its imports a tenth
-#: of a profile's samples, her first looks, her planner's first answer, cold caches -, after it her hot pace: her line
+#: Set once an errand's first second has passed (`warmed`). Before it its cold start - its laying, its imports a tenth
+#: of a profile's samples, its first looks, its planner's first answer, cold caches -, after it its hot pace: its line
 #: tells each apart (its seconds hot, its tail cold: laid in, the first second's pace), and a profile's samples
 #: (`sampled`) and a clock's calls (`timed`) are the hot ones, the cold ones where COLD is set (`--cold`). The first
 #: second was the worst of every errand, x0.74-1.00.
@@ -56,17 +56,17 @@ CRAFTS, FLOWN_S = ('quad', 'helicopter', 'ornithopter', 'aerobat'), 20.0
 
 
 class Run:
-    """Her session laid as the worker lays her (`worker.run`), stepped flat out a pass at a time as
-    `worker.Her` steps her, each second's wall time kept with what she was doing."""
+    """Its session laid as the worker lays it (`worker.run`), stepped flat out a pass at a time as
+    `worker.Robot` steps it, each second's wall time kept with what it was doing."""
 
     def __init__(self, here=False, blind=False):
         from machine.process import placed, sprung, worker
         from machine.world import physics
         placed.placed(True)
-        # her eyes hers, as her page's worker lays her (`worker.run`, since 0808daf1): her registry on her stereo's map
+        # its eyes its own, as its page's worker lays it (`worker.run`, since 0808daf1): its registry on its stereo's map
         physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, float(not blind), float(not blind)
         self.passed = hashlib.sha1() if blind else None
-        # her processes apart spawned before her laying, booting beside it, as her worker spawns them
+        # its processes apart spawned before its laying, booting beside it, as its worker spawns them
         booting = worker.spawned(here)
         s = self.s = worker.session(sprung.STACK_EVERY, False, None)
         s['g']['planner'], s['g']['vision'], s['peeker'], s['worn'] = booting
@@ -92,7 +92,7 @@ class Run:
         return sprung.doing(self.s['g'])
 
     def go(self, seconds, until=None):
-        """`seconds` of passes, or to her fall or `until(self)`: the seconds until then, or None."""
+        """`seconds` of passes, or to its fall or `until(self)`: the seconds until then, or None."""
         from machine.process import sprung, worker
         from machine.way import peek
         t0 = self.t
@@ -209,7 +209,7 @@ def warmed(now):
 
 
 def paced(name, here=False, blind=False):
-    """Errand `name` run flat out from her laying, her vision in this process where `here`, her eyes not hers and
+    """Errand `name` run flat out from its laying, its vision in this process where `here`, its eyes not its own and
     every pass hashed where `blind` - a craft's flight (CRAFTS) from its card's start, its every step hashed -: its line,
     its seconds hot - its first, cold, apart (WARM) -, its tail its cold start: laid in, its first second's pace."""
     WARM.clear()
@@ -270,7 +270,7 @@ def sampled(fn):
 
 def timed(names):
     """Each function of its dotted name in `names` (a module's, or a class's in it) wrapped in a wall
-    clock where it is found: {name: [calls, seconds]}, counted as her code calls them."""
+    clock where it is found: {name: [calls, seconds]}, counted as its code calls them."""
     kept = {}
     for name in names:
         parts = name.split('.')
@@ -310,7 +310,7 @@ def _named(frame):
 
 def relayed(names):
     """[(errand, its line)] of `names`, each its own process on the relay's batons at a benchmark's priority
-    (`focus.relay`'s bench: hers above normal, the host's other loads under them), alone - her pace is wall time,
+    (`focus.relay`'s bench: its own above normal, the host's other loads under them), alone - its pace is wall time,
     and a job beside it, with its four processes apart, takes its cores -, in order."""
     from tools.dev import focus
     jobs = [focus.Job(name, [sys.executable, '-X', 'utf8', os.path.abspath(__file__), name], 1.5, 900.0, 'alone')
@@ -322,15 +322,15 @@ def relayed(names):
 def main(argv=None):
     p = argparse.ArgumentParser(description=(__doc__ or '').split('\n\n')[0])
     p.add_argument('names', nargs='*', help='errands: %s' % ', '.join(ERRANDS))
-    p.add_argument('--profile', action='store_true', help='where her main thread spends its time, sampled')
+    p.add_argument('--profile', action='store_true', help='where its main thread spends its time, sampled')
     p.add_argument('--time', nargs='+', default=(), help='functions by dotted name, each its wall time')
-    p.add_argument('--here', action='store_true', help='her vision in this process, not apart')
-    p.add_argument('--blind', action='store_true', help='her eyes not hers, no camera: a sha1 over every pass told')
+    p.add_argument('--here', action='store_true', help='its vision in this process, not apart')
+    p.add_argument('--blind', action='store_true', help='its eyes not its own, no camera: a sha1 over every pass told')
     p.add_argument('--float', action='store_true',
-                   help='her processes where the system schedules them, none held to a core or a cache (FLOAT)')
+                   help='its processes where the system schedules them, none held to a core or a cache (FLOAT)')
     p.add_argument('--cold', action='store_true',
-                   help="--profile's samples and --time's calls her cold start's - her laying, her first second - "
-                        'not her hot pace\'s after it (COLD)')
+                   help="--profile's samples and --time's calls its cold start's - its laying, its first second - "
+                        'not its hot pace\'s after it (COLD)')
     args = p.parse_args(argv)
     from machine.process.placed import BENCH, FLOAT
     COLD[0] = args.cold
@@ -342,7 +342,7 @@ def main(argv=None):
         return 0
     from tools.dev import background
     if not background.runner():
-        # an errand run here is a benchmark's or a profile's: on a desk her processes above normal priority
+        # an errand run here is a benchmark's or a profile's: on a desk its processes above normal priority
         # (`placed.raised`), the user's other loads under what is timed; a runner has none
         os.environ.setdefault(BENCH, '1')
     for name in args.names:
@@ -350,7 +350,7 @@ def main(argv=None):
             kept, t0 = timed(args.time), time.perf_counter()
             line = paced(name, args.here, args.blind)
             end = time.perf_counter()
-            # a clock's share of the phase it counts: her cold start's wall time to her first second, her hot pace's after
+            # a clock's share of the phase it counts: its cold start's wall time to its first second, its hot pace's after
             wall = max((WARM_AT[0] - t0 if COLD[0] else end - WARM_AT[0]) if WARM.is_set() else end - t0, 1e-9)
             for fn, (calls, s) in kept.items():
                 print('  %5.1f%%  %8.1f us x %6d  %s' % (100.0 * s / wall, 1e6 * s / max(calls, 1), calls, fn))

@@ -1,19 +1,19 @@
-"""Her body's footprint as static arrays: her reach each way by height, standing, walking, turning.
+"""Its body's footprint as static arrays: its reach each way by height, standing, walking, turning.
 
     python tools/cores/footprint.py --write     # machine/body/footprint_rows.py
-    laid = footprint.laid()                     # what the file holds, laid anew on her loop
+    laid = footprint.laid()                     # what the file holds, laid anew on its loop
 
-Her own motions on her loop in the open (`physics.ROOM` 0). Each pass every geom of her body, its
-shape's extreme points, into each band of BAND_M - her map's cell - it spans over the floor: the support
+Its own motions on its loop in the open (`physics.ROOM` 0). Each pass every geom of its body, its
+shape's extreme points, into each band of BAND_M - its map's cell - it spans over the floor: the support
 h(phi) = max p . (cos phi forward + sin phi left) + its radius at K directions, the most over the motion.
-Standing, walking, her walk back and her sidesteps, each with its stop: about her pelvis in her own
-heading's frame. A turn in place by each of TURN_DEG either way, from still after a walk's stop - her
-soles bearing alike - as an errand turns: about her pelvis's place and heading as the turn began, its
+Standing, walking, its walk back and its sidesteps, each with its stop: about its pelvis in its own
+heading's frame. A turn in place by each of TURN_DEG either way, from still after a walk's stop - its
+soles bearing alike - as an errand turns: about its pelvis's place and heading as the turn began, its
 stop's settling with it, the
-most over WALKS walked before; its carry the mean of her pelvis's end there. `machine.body.footprint`
+most over WALKS walked before; its carry the mean of its pelvis's end there. `machine.body.footprint`
 reads them.
 
-STEP_M: the least her swinging soles clear the floor at the top of a swing over her steady walk.
+STEP_M: the least its swinging soles clear the floor at the top of a swing over its steady walk.
 """
 import itertools
 import math
@@ -29,12 +29,12 @@ from tools import REPO
 from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'footprint_rows.py')
-NOTICE = "Her body's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."
+NOTICE = "Its body's footprint as static arrays: written by host/tools/cores/footprint.py, not by hand."
 
-#: Directions about her, bands over the floor, m; her bodies (`mjcf`'s, the pelvis down).
+#: Directions about it, bands over the floor, m; its bodies (`mjcf`'s, the pelvis down).
 K, BAND_M = 32, voxels.CELL_M
-HERS = ('pelvis', 'spine_roll', 'torso', 'neck', 'head', 'hair', 'left_', 'right_')
-#: Her motions in her own frame, by mode: (seconds, twist told) in turn, after SETTLE_S standing.
+STOCK = ('pelvis', 'spine_roll', 'torso', 'neck', 'head', 'hair', 'left_', 'right_')
+#: Its motions in its own frame, by mode: (seconds, twist told) in turn, after SETTLE_S standing.
 SETTLE_S = 1.0
 MOTIONS = {
     'stand': ((2.0, (0.0, 0.0, 0.0)),),
@@ -43,10 +43,10 @@ MOTIONS = {
     'side': ((2.0, (0.0, se2.STRAFE_SPEED, 0.0)), (2.0, (0.0, 0.0, 0.0)), (2.0, (0.0, -se2.STRAFE_SPEED, 0.0)),
              (2.0, (0.0, 0.0, 0.0))),
 }
-#: Her steady walk's swings read for STEP_M: from this many seconds into the walk to its stop.
+#: Its steady walk's swings read for STEP_M: from this many seconds into the walk to its stop.
 STEADY_S = 1.5
-#: Her turns in place, deg; the walks before each - seconds, and straight or on her arc either way -, her
-#: gait's phase and her heading's swing at its stop varied; the most a turn and its settling may take, s.
+#: Its turns in place, deg; the walks before each - seconds, and straight or on its arc either way -, its
+#: gait's phase and its heading's swing at its stop varied; the most a turn and its settling may take, s.
 TURN_DEG, TURN_MOST_S = (45, 90, 135, 180), 16.0
 WALKS = ((1.0, 0.0), (1.4, 0.0), (1.8, 0.0), (1.0, se2.YAW_RATE), (1.4, -se2.YAW_RATE))
 
@@ -69,23 +69,23 @@ def _session():
     sprung.relaid(s['g'], (0.0, 0.0), 0.0)
     m = s['g']['world'].model
     body = [m.body(int(m.geom_bodyid[i])).name for i in range(m.ngeom)]
-    return s, [i for i in range(m.ngeom) if body[i].startswith(HERS)], body
+    return s, [i for i in range(m.ngeom) if body[i].startswith(STOCK)], body
 
 
 def _frame(g, d):
-    """(her pelvis (x, z), her heading)."""
+    """(its pelvis (x, z), its heading)."""
     import numpy as np
     from machine.senses import edge
     return np.array([float(d.qpos[0]), float(d.qpos[2])]), edge.yaw(g['sense'])
 
 
-def _reach(m, d, hers, root, yaw, h):
-    """`h` (bands, K) widened by her body about `root` facing `yaw`, bands added as her body spans them."""
+def _reach(m, d, its_own, root, yaw, h):
+    """`h` (bands, K) widened by its body about `root` facing `yaw`, bands added as its body spans them."""
     import numpy as np
     phi = 2.0 * np.pi * np.arange(K) / K
     f, left = np.array([math.sin(yaw), math.cos(yaw)]), np.array([math.cos(yaw), -math.sin(yaw)])
     dirs = np.cos(phi)[:, None] * f + np.sin(phi)[:, None] * left
-    for i in hers:
+    for i in its_own:
         pts, r = _points(m, d, i)
         lo, hi = float(pts[:, 1].min()) - r, float(pts[:, 1].max()) + r
         first, last = max(0, int(math.floor(lo / BAND_M))), int(math.floor(max(hi, 0.0) / BAND_M))
@@ -106,7 +106,7 @@ def _go(s, seconds, each=lambda: None, until=lambda: False):
 
 
 def _still(s):
-    """Still as an errand turns her: settled, her rhythm still, her soles bearing alike (`dock.even`)."""
+    """Still as an errand turns it: settled, its rhythm still, its soles bearing alike (`dock.even`)."""
     from machine.way import dock, errand
     from machine.law import latent
     g = s['g']
@@ -114,13 +114,13 @@ def _still(s):
 
 
 def moved(mode):
-    """((bands, K) her reach about her pelvis in her own frame over `mode`'s motion, [each swing's top
-    over her steady walk, m])."""
+    """((bands, K) its reach about its pelvis in its own frame over `mode`'s motion, [each swing's top
+    over its steady walk, m])."""
     import numpy as np
     from machine.process import worker
-    s, hers, body = _session()
+    s, its_own, body = _session()
     g, m, d = s['g'], s['g']['world'].model, s['g']['world'].data
-    feet = {side: [i for i in hers if body[i] in ('%s_foot' % side, '%s_toes' % side)] for side in ('left', 'right')}
+    feet = {side: [i for i in its_own if body[i] in ('%s_foot' % side, '%s_toes' % side)] for side in ('left', 'right')}
     out = {'h': np.full((1, K), -np.inf)}
     lows = {side: [] for side in feet}
     _go(s, SETTLE_S)
@@ -129,7 +129,7 @@ def moved(mode):
         t0 = g['t']
 
         def each():
-            out['h'] = _reach(m, d, hers, *_frame(g, d), out['h'])
+            out['h'] = _reach(m, d, its_own, *_frame(g, d), out['h'])
             steady = mode == 'walk' and k == 0 and g['t'] - t0 >= STEADY_S
             for side, ids in feet.items():
                 lows[side] += [min(float(p[:, 1].min()) - r for p, r in (_points(m, d, i) for i in ids))] * steady
@@ -141,12 +141,12 @@ def moved(mode):
 
 
 def turned(deg, way, walked_s, arc=0.0):
-    """((bands, K) her reach over a turn in place by `deg` toward `way` (+1 left) and its settling, about
-    her pelvis's place and heading as it began - walked `walked_s` turning `arc` rad/s, and still -,
-    (forward, left) m her pelvis's end there, s it took)."""
+    """((bands, K) its reach over a turn in place by `deg` toward `way` (+1 left) and its settling, about
+    its pelvis's place and heading as it began - walked `walked_s` turning `arc` rad/s, and still -,
+    (forward, left) m its pelvis's end there, s it took)."""
     import numpy as np
     from machine.process import worker
-    s, hers, _body = _session()
+    s, its_own, _body = _session()
     g, m, d = s['g'], s['g']['world'].model, s['g']['world'].data
     _go(s, SETTLE_S)
     worker.apply(s, {'heading': 0.0, 'twist': (se2.WALK_SPEED, 0.0, arc)})
@@ -159,7 +159,7 @@ def turned(deg, way, walked_s, arc=0.0):
     worker.apply(s, {'twist': (0.0, 0.0, way * se2.YAW_RATE)})
 
     def each():
-        out['h'] = _reach(m, d, hers, root, yaw, out['h'])
+        out['h'] = _reach(m, d, its_own, root, yaw, out['h'])
         near = abs(se2.wrap_angle(to - _frame(g, d)[1])) <= modal.LIST_RAD
         _ = near and not out['told'] and (worker.apply(s, {'heading': to, 'twist': (0.0, 0.0, 0.0)}) or out.update(told=True))
     t0 = g['t']
@@ -188,7 +188,7 @@ def _relayed(specs):
 
 def laid():
     """{'K', 'BAND_M', 'STEP_M', 'TURN_DEG', 'STAND', 'WALK', 'BACK', 'SIDE', 'LEFT', 'RIGHT', 'CARRY_*', 'TOOK_*'}:
-    her footprint on her loop, as the file holds it."""
+    its footprint on its loop, as the file holds it."""
     import numpy as np
     out = {'K': K, 'BAND_M': BAND_M, 'TURN_DEG': TURN_DEG}
     swings = []
@@ -217,20 +217,20 @@ def _rows(h):
 def text(rows):
     """The file `rows` (`laid`) is written as."""
     lines = ['"""%s"""' % NOTICE, '',
-             '#: Directions about her, K: the k-th at 2 pi k / K from her heading toward her left; her bands',
-             '#: BAND_M m apart over the floor; her turns in place, deg.',
+             '#: Directions about it, K: the k-th at 2 pi k / K from its heading toward its left; its bands',
+             '#: BAND_M m apart over the floor; its turns in place, deg.',
              'K, BAND_M, TURN_DEG = %d, %r, %r' % (rows['K'], rows['BAND_M'], rows['TURN_DEG']),
-             "#: The least her swinging soles clear the floor at a swing's top over her steady walk, m.",
+             "#: The least its swinging soles clear the floor at a swing's top over its steady walk, m.",
              'STEP_M = %r' % rows['STEP_M']]
-    for name, what in (('STAND', 'Standing'), ('WALK', 'Walking and its stop'), ('BACK', 'Her walk back and its stop'),
-                       ('SIDE', 'Her sidesteps either way and their stops')):
-        lines += ['#: %s: each band from the floor up, her reach about her pelvis along each direction, m.' % what,
+    for name, what in (('STAND', 'Standing'), ('WALK', 'Walking and its stop'), ('BACK', 'Its walk back and its stop'),
+                       ('SIDE', 'Its sidesteps either way and their stops')):
+        lines += ['#: %s: each band from the floor up, its reach about its pelvis along each direction, m.' % what,
                   '%s = (' % name] + ['    %s,' % (row,) for row in _rows(rows[name])] + [')']
     for name in ('LEFT', 'RIGHT'):
-        lines += ['#: A turn in place to her %s by each of TURN_DEG and its settling: each band, her reach about her' % name.lower(),
+        lines += ['#: A turn in place to it %s by each of TURN_DEG and its settling: each band, its reach about it' % name.lower(),
                   "#: pelvis's place and heading as it began, m.", '%s = (' % name]
         lines += ['    (%s),' % ''.join('\n        %s,' % (row,) for row in _rows(h)) for h in rows[name]]
-        lines += [')', "#: Her pelvis's end after each, forward and left of where it began, m.",
+        lines += [')', "#: Its pelvis's end after each, forward and left of where it began, m.",
                   'CARRY_%s = %r' % (name, rows['CARRY_' + name]),
                   '#: The most an end lay off that mean, m.', 'SPREAD_%s = %r' % (name, rows['SPREAD_' + name]),
                   '#: The most seconds each took from its word to still.', 'TOOK_%s = %r' % (name, rows['TOOK_' + name])]

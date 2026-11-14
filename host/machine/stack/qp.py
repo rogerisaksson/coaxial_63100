@@ -31,7 +31,7 @@ LOOSE = 1e-5
 #: A level's tie-break, of its largest curvature: the levels below it at LOWER, and EPS of
 #: every direction. At 1e-8 alone a level of 9 rows over 30 directions (condition 1.6e8) was
 #: found infeasible with z = 0 meeting every row, from 1e-6 it solves, its optimum unmoved; on
-#: the least norm alone the balance's level bore her on corners at their friction's edges, the
+#: the least norm alone the balance's level bore it on corners at their friction's edges, the
 #: rows frozen, and no sole could rise (shoves).
 EPS, LOWER = 1e-6, 1e-3
 

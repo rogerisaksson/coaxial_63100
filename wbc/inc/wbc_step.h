@@ -1,5 +1,5 @@
-/** wbc_step.h - her whole body's step on the host (wbc_step.c, wbc_rounds.c): machine.stack.wrench.step,
-    numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation - her law's
+/** wbc_step.h - its whole body's step on the host (wbc_step.c, wbc_rounds.c): machine.stack.wrench.step,
+    numpy's arithmetic and numpy's own OpenBLAS (wbc_blas.h) operation for operation - its law's
     step the same bit for bit, where wbc_wrench.c is the firmware's own. Portable C11, the
     host's alone. */
 #ifndef WBC_STEP_H
@@ -8,7 +8,7 @@
 #include "wbc_blas.h"
 #include "wbc_qp.h"
 
-/** The most dofs, driven joints, contacts bearing her; unknowns and rows. */
+/** The most dofs, driven joints, contacts bearing it; unknowns and rows. */
 #define WBC_STEP_N 48
 #define WBC_STEP_D 32
 #define WBC_STEP_C 12
@@ -20,16 +20,16 @@
                        + 3 * WBC_STEP_D + WBC_STEP_N + WBC_QP_WORK(WBC_STEP_U, WBC_QP_M)                             \
                        + 24 * WBC_STEP_U * WBC_STEP_U + 3 * WBC_QP_M * WBC_STEP_U)
 
-/** The step: her body and machine.stack.wrench's constants laid once; what is sensed of her
+/** The step: its body and machine.stack.wrench's constants laid once; what is sensed of it
     (machine.stack.wbc.sense) and what is asked (machine.stack.wbc.step's ask) pointed at or copied each
     call; what it answers. */
-/** Her rows' groups, in the order they are laid (machine.stack.wrench.GROUPS). */
+/** The robot's rows' groups, in the order they are laid (machine.stack.wrench.GROUPS). */
 #define WBC_STEP_GROUPS 10
 
 typedef struct
 {
-  /* her body, laid once: dofs, driven, unknowns before the contacts (NU), each driven joint's
-     dof, each leg's six and each knee among the driven, her upper body's, the held dofs, the
+  /* its body, laid once: dofs, driven, unknowns before the contacts (NU), each driven joint's
+     dof, each leg's six and each knee among the driven, its upper body's, the held dofs, the
      passive and the active, the parallel pairs; the master insert's buffers (machine.stack.wbc.Body's
      buffers): each one's driven joint, stop rad and side, 1 a low end; their width rad,
      stiffness 1/s^2, damping 1/s and reach s */
@@ -37,7 +37,7 @@ typedef struct
   int           act[WBC_STEP_D], legs[2][6], knees[2], upper[WBC_STEP_D];
   int           held[WBC_STEP_N], passive[WBC_STEP_N], active[WBC_STEP_N], pairs[WBC_STEP_D][2];
   int           rounds, past, buffer_at[2 * WBC_STEP_D];
-  int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.stack.wrench.SIDES); her hands' first patch
+  int           sides[WBC_STEP_D], carpal; /**< each upper drive's side (machine.stack.wrench.SIDES); its hands' first patch
                                                 (machine.senses.borne.CARPAL), a side's CARPAL on */
   double        buffer_stop[2 * WBC_STEP_D], buffer_side[2 * WBC_STEP_D], buffer[4];
   double        mass, moment[WBC_STEP_U], room[2], arms[WBC_STEP_D], yaw_m, damp2;
@@ -56,11 +56,11 @@ typedef struct
   /* asked */
   int           stance[2], nturns, kdot_given, swing[2], fold[2], wep, let_go[2];
   double        com_acc[3], turn[2][4], kdot[3], settle[2][6], edge[2], strides, borne, hold, sat, mus[2], rests[2];
-  double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide her contacts may take, world m/s; what bears her
-                                                          off her soles' cap, N; a sliding contact's, the slide's
-                                                          governor's; each of her hands' contacts' */
+  double        slide[3], fz_cap, slid_cap, hand_cap; /**< the slide its contacts may take, world m/s; what bears it
+                                                          off its soles' cap, N; a sliding contact's, the slide's
+                                                          governor's; each of its hands' contacts' */
   double        residual; /**< the closed chains' step's complementarity residual answered (wbc_chain.c) */
-  double        let_cap[2]; /**< each let-go foot's push's cap, N, her left's first (machine.moves.emancipation) */
+  double        let_cap[2]; /**< each let-go foot's push's cap, N, its left's first (machine.moves.emancipation) */
   double        let_hold[2], freed[2], open_kp, open_kd; /**< each let-go foot held still, each leg's share free on
                                                             its open chain's stiffness and damping (ask['open']) */
   double        swing_at[2][3], swing_speed[2][3], swing_acc[2][3], swing_quat[2][4];
@@ -75,23 +75,23 @@ typedef struct
   double        work[WBC_STEP_WORK];
   /* the closed chains' step's regime (wbc_chain.c, closed_chain_qp.lisp), after the workspace so its offset keeps
      numpy's alignment: level 2's damping m and level 1's on x, a contact's softness m/s^2 a N, a sticking contact's
-     slip bled 1/s, her sled's friction, a patch held from N, an anchor's friction, a held contact's stick rows'
+     slip bled 1/s, its sled's friction, a patch held from N, an anchor's friction, a held contact's stick rows'
      weight, the forces regularised toward none rad/s^2 a N */
   double        chain_lam, chain_task_lam, chain_soft, chain_bleed, chain_mu, chain_hold_n;
   double        chain_anchor_mu, chain_w_stick, chain_reg, chain_nreg;
-  int           cbody[WBC_STEP_C]; /**< each contact's body of hers (machine.senses.borne) */
+  int           cbody[WBC_STEP_C]; /**< each contact's body of its own (machine.senses.borne) */
   double        chain_w_turn, chain_w_swing, chain_w_posture; /**< its tasks' weights */
   double        chain_turn_kp, chain_turn_kd, chain_posture_kp, chain_posture_kd; /**< its own gains */
-  double        chain_w_twist, chain_twist_kd, chain_vx; /**< the twist told her: its weight, its gain 1/s, its speed m/s */
-  int           chain_free[2]; /**< her feet told free, her heels stepping in turn (machine.law.somatic) */
-  double        cgive[WBC_STEP_C]; /**< each contact's give, m/s^2 a N: what bears it as firm as her skin feels it (borne) */
+  double        chain_w_twist, chain_twist_kd, chain_vx; /**< the twist told it: its weight, its gain 1/s, its speed m/s */
+  int           chain_free[2]; /**< its feet told free, its heels stepping in turn (machine.law.somatic) */
+  double        cgive[WBC_STEP_C]; /**< each contact's give, m/s^2 a N: what bears it as firm as its skin feels it (borne) */
   double        hang[2], hang_rate; /**< each let-go leg's share hung off a seat - its knee and ankle as gravity
                                          swings them -, damped at hang_rate 1/s (machine.moves.cascade) */
   const double *cn[WBC_STEP_C]; /**< each contact's normal of what bears it, world (machine.senses.borne._normal) */
   int           chain_held[2][WBC_QP_M], chain_nheld[2]; /**< the rows each level held last pass, warm for the next */
   int           chain_let[WBC_STEP_C][3], chain_nlet, chain_let_pad; /**< the contacts (body, patch, ordinal) the plan let
                                                                         go last pass (wbc_chain_qp.c); padded explicit */
-  double        chain_slide_m_s, chain_w_pin, chain_tilt; /**< her sled's slide past this speed (kinetic), the static
+  double        chain_slide_m_s, chain_w_pin, chain_tilt; /**< its sled's slide past this speed (kinetic), the static
                                                              sled's soft pin's weight, a slide's normal along the way
                                                              under this (closed-chain-regime) */
   double        rows_free[WBC_STEP_GROUPS]; /**< each row group's summed squared weighted residual in the first
@@ -99,30 +99,30 @@ typedef struct
   double        soles_free[2][6], soles[2][6]; /**< each sole's six unknowns - its wrench where it stands, its
                                                   acceleration where not - in the first answer, the floor
                                                   unbounded, and in the last (machine.stack.wrench.step) */
-  double        lean; /**< her rise's centre of mass task's weight where her rise's gate holds her closed chains, 0 else
+  double        lean; /**< its rise's centre of mass task's weight where its rise's gate holds its closed chains, 0 else
                            (machine.stack.chain.leaned, closed-chain-regime's com-weight) */
 } wbc_step_t;
 
 /** The step on `p`'s laid, sensed and asked: 0, or 1 where numpy would raise LinAlgError. */
 int wbc_step(wbc_step_t *p);
 
-/** machine.stack.chain.step (wbc_chain.c): her step in closed chains on `p`'s laid, sensed and asked - no sole
-    standing, her tasks and the contacts' forces one QP within friction (wbc_chain_qp.c), her posture in its null
+/** machine.stack.chain.step (wbc_chain.c): its step in closed chains on `p`'s laid, sensed and asked - no sole
+    standing, its tasks and the contacts' forces one QP within friction (wbc_chain_qp.c), its posture in its null
     space: 0, or 1 where numpy would raise. */
 int wbc_chain(wbc_step_t *p);
-/** machine.stack.chain.tasks (wbc_chain_tasks.c): the rows above posture into R (m x n) and r (m), m returned - her
-    pelvis's turn about its own way and up, her trunk's whole, a sole's swing -; the posture's want (nd); jv a 6 scratch. */
+/** machine.stack.chain.tasks (wbc_chain_tasks.c): the rows above posture into R (m x n) and r (m), m returned - its
+    pelvis's turn about its own way and up, its trunk's whole, a sole's swing -; the posture's want (nd); jv a 6 scratch. */
 int wbc_chain_tasks(const wbc_step_t *p, double *R, double *r, double *want, double *jv);
-/** machine.stack.chain_qp (wbc_chain_qp.c): her step's QP on the matrices wbc_chain.c lays - Minv (np x np), Mpg
+/** machine.stack.chain_qp (wbc_chain_qp.c): its step's QP on the matrices wbc_chain.c lays - Minv (np x np), Mpg
     (np x ng), rhs0 (np), the contacts' Jp (3k x np), Jg (3k x ng), Jv and dJv (3k), their frames Q (9k), the tasks'
-    RP (m1 x np), RG (m1 x ng) and r, the posture's want (nd), her sled's way `slide` (3, unit level or 0), her mass
-    matrix's driven rows over (P, given) MA (nd x (np + ng)), hA (nd), the contacts' driven columns JA (3k x nd), her
+    RP (m1 x np), RG (m1 x ng) and r, the posture's want (nd), its sled's way `slide` (3, unit level or 0), its mass
+    matrix's driven rows over (P, given) MA (nd x (np + ng)), hA (nd), the contacts' driven columns JA (3k x nd), its
     torques' bounds lo and hi (nd) - into x (nd), qddP (np), z (3k, world), tau (nd), the complementarity's residual
-    and whether the laws were met, and with nothing asked of her joints (x = 0, the forces kept) qddP0 and tau0, the
+    and whether the laws were met, and with nothing asked of its joints (x = 0, the forces kept) qddP0 and tau0, the
     shrink's other end; the rows held kept on p, warm for the next pass; carved from *w on. 0, or 1 where numpy would
     raise. */
 /** machine.stack.chain_qp.Maps: level 1's affine maps in u = (x, zeta) - the dofs no drive holds qdd_P = p0 + Px x +
-    Pz zeta, the contacts' accelerations in their frames a0 + Ax x + Az zeta, her tasks Rx x + Rz zeta = rr, her
+    Pz zeta, the contacts' accelerations in their frames a0 + Ax x + Az zeta, its tasks Rx x + Rz zeta = rr, its
     torques t0 + Tx x + Tz zeta - and the sizes they are laid on. */
 typedef struct
 {
@@ -133,7 +133,7 @@ typedef struct
 /** machine.stack.chain_qp.level1 (wbc_chain_rows.c): into H1, g1, G1 (nu x nu, nu), the laws A (m x nu) and b (m),
     m returned - S (k3 x nz) zeta -> z, each contact's unknowns' width, friction, whether its normal is held and its
     tangents stick, its mode (1 a static sled, 2 a kinetic) and the way's tangent in its frame (st, 2), give, Jv and f
-    (3k), frames Q, her torques' bounds lo and hi; stops none. -1 where the rows would pass WBC_QP_M. */
+    (3k), frames Q, its torques' bounds lo and hi; stops none. -1 where the rows would pass WBC_QP_M. */
 int wbc_chain_rows(const wbc_step_t *p, const wbc_maps_t *m, const double *S, const int *width, const double *mu,
                    const int *held, const int *stick, const int *mode, const double *st, const double *Jv, const double *f,
                    const double *Q, const double *lo, const double *hi, double *H1, double *g1, double *G1, double *A,
@@ -164,12 +164,12 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
 
 /** machine.stack.wrench._rounds: the unknowns `at` (nu) for the rows' normal matrix H0 and right-hand
     side g0, the contacts' held rows (S (3, nu) and r (3) each, nc of them) pressing on what they
-    bear, her height's band lo to hi; geo and stride as machine.stack.wrench lays them. 0 or 1 raised. */
+    bear, its height's band lo to hi; geo and stride as machine.stack.wrench lays them. 0 or 1 raised. */
 typedef struct
 {
   int           nu, k3;
   const double *moment, *part, *up, *lift, *stance, *kinetic, *caps, *slips, *frames[2];
-  double        mass, grounded, strides, edges[2], mu[2], give; /**< give: the share of a contact's push hers to plan */
+  double        mass, grounded, strides, edges[2], mu[2], give; /**< give: the share of a contact's push its own to plan */
 } wbc_geo_t;
 
 /** machine.stack.wrench._patch: each contact's four rows (S, 4 a contact, r and r0): its point held still, along its
@@ -180,8 +180,8 @@ typedef struct
 void wbc_patch_rows(const wbc_step_t *p, int n, int nu, int nc, const double *full, const double *full0, double *S,
                     double *r, double *r0, double *felt, double *slips);
 
-/** machine.stack.wrench._patches' caps: what bears her off her soles capped as asked (fz_cap), a sliding contact by
-    the slide's governor too (slid_cap), each contact at its share of it as felt (`felt`) over every patch; her
+/** machine.stack.wrench._patches' caps: what bears it off its soles capped as asked (fz_cap), a sliding contact by
+    the slide's governor too (slid_cap), each contact at its share of it as felt (`felt`) over every patch; its
     hands' each at hand_cap, and each side whose hand bears told (`borne`, 3: left, right, none). */
 void wbc_patch_caps(const wbc_step_t *p, int nc, const double *felt, const double *slips, double *caps, double *borne);
 

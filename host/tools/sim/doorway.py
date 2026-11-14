@@ -1,11 +1,11 @@
-"""Test 1's doorway (docs/todo/protocol.md): her exit through the lodge's door held ajar, its sill.
+"""Test 1's doorway (docs/todo/protocol.md): its exit through the lodge's door held ajar, its sill.
 
     python tools/sim/doorway.py [--gap 0.8] [--seconds 20]
 
-The lodge's door locked open as far as leaves `gap` of her shoulders (`wayfinder.NOMINAL`) between its
-free edge and the far post, her exit said from inside; each 10 ms: how far from the doorway's line,
-her trunk's twist off her heading (her waist), her forearms' and upper arms' least clearance to the
-door; her fall.
+The lodge's door locked open as far as leaves `gap` of its shoulders (`wayfinder.NOMINAL`) between its
+free edge and the far post, its exit said from inside; each 10 ms: how far from the doorway's line,
+its trunk's twist off its heading (its waist), its forearms' and upper arms' least clearance to the
+door; its fall.
 """
 import argparse
 import math

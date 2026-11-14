@@ -266,7 +266,7 @@ def _parents():
 
 
 def processes(pids):
-    """The live processes in the trees `pids` root: a job's children - her planner, an emulator's
+    """The live processes in the trees `pids` root: a job's children - its planner, an emulator's
     Renode - are cores it holds too; counted by its own process alone, a batch of 28 batons held 282."""
     parents = _parents()
     kids = collections.defaultdict(list)
@@ -374,7 +374,7 @@ def relay(jobs, batons=None, bench=False):
     an idle host fits anything -, while every relay's jobs with their children hold fewer processes
     than the batch's widest (`processes`, `background.widths`), OpenBLAS on one thread in each; a job ending
     hands its baton to the next at once. `bench` a benchmark's, on a desk: each job above normal priority
-    from its start and `placed.BENCH` set for every process of hers it starts (`placed.raised`), its wall
+    from its start and `placed.BENCH` set for every process of its own it starts (`placed.raised`), its wall
     times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
     (job, output, exit code - None out of time -, seconds) as each ends."""
     bench = bench and not background.runner()

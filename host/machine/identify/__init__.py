@@ -1,1 +1,1 @@
-"""Her identification: her body and drives identified, her wear, the stand campaign."""
+"""The robot's identification: its body and drives identified, its wear, the stand campaign."""

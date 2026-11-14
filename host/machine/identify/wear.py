@@ -1,19 +1,19 @@
-"""On-line identification under a load: her drift from her build read as she goes, a load told apart.
+"""On-line identification under a load: its drift from its build read as it goes, a load told apart.
 
     w = wear.laid(body)                                  # what may move: a load a site, a drive's f, b, kt
-    got = wear.window(w, ys, taus, dt)                   # a window's rows where her model holds
+    got = wear.window(w, ys, taus, dt)                   # a window's rows where its model holds
     wear.step(w, got)                                    # the filter walked the window on and corrected
-    wear.boxed(w, ys, taus, dt)                          # her boxes' play, wind-up and zero off the window
-    wear.loaded(w, g)                                    # the load laid onto her law's model and frame
+    wear.boxed(w, ys, taus, dt)                          # its boxes' play, wind-up and zero off the window
+    wear.loaded(w, g)                                    # the load laid onto its law's model and frame
     wear.landed(w, wear.deltas(w), g)                    # the same apart: read, then laid (`worn`)
     wear.told(w)                                         # the load, each drift, the alarms, the service
 
-A load rides a SITE as a mass and where it hangs (a first moment), or her torso as her insoles
+A load rides a SITE as a mass and where it hangs (a first moment), or its torso as its insoles
 bear it (`torso_load`); a drive's Coulomb and viscous friction move and its torque an amp
 scales: the movers, each in its UNIT, walking PACE of it a root second - a load comes and goes
-in seconds, a drift over hours. Each window's rows are read where her model holds (`sysid.rows`,
-`sysid.free`) against her build's prediction, each drive's rows weighed by their misfit the
-window before, and a Kalman filter on that random walk keeps every mover with its doubt. Her
+in seconds, a drift over hours. Each window's rows are read where its model holds (`sysid.rows`,
+`sysid.free`) against its build's prediction, each drive's rows weighed by their misfit the
+window before, and a Kalman filter on that random walk keeps every mover with its doubt. The robot's
 build's [service] (`mechatronics`) says the bands: an alarm names a drift past its band by
 SIGMAS of its doubt; service is due at the interval's hours or where a drift's trend from the
 last service meets its band. The same rows off a robot's boards, its currents its torques.
@@ -28,8 +28,8 @@ from machine.moves import leap
 from machine.law import modal, statics
 from machine.errors import MachineError
 
-#: Where a load may ride on her limbs: her hands. Her back's load is seen by her drives only
-#: when she leans: her insoles' rows (`sysid.borne`, `torso_load`) read it while she stands on both.
+#: Where a load may ride on its limbs: its hands. The robot's back's load is seen by its drives only
+#: when it leans: its insoles' rows (`sysid.borne`, `torso_load`) read it while it stands on both.
 SITES = ('left_hand', 'right_hand')
 #: The movers, in this order: each site's mass and first moment, kg and kg m; each drive's
 #: Coulomb friction, N m, and viscous, N m s/rad; each drive's torque an amp, of itself. Each
@@ -61,7 +61,7 @@ def laid(body, build=None):
     nominal, table = sysid.truth(lay, body.m), service(build)
     sites = lay['col'][[body.m.body(site).id for site in SITES]]
     if (sites < 0).any():
-        raise MachineError('%s is no link of hers to load' % SITES[int(np.argmin(sites))])
+        raise MachineError('%s is no link of its own to load' % SITES[int(np.argmin(sites))])
     at, names_d = lay['drive'], lay['drives']
     n_d, n_s = len(names_d), len(SITES)
     names = (['%s.%s' % (site, kind) for site in SITES for kind in LOAD]
@@ -96,9 +96,9 @@ def laid(body, build=None):
 
 
 def _hems(w, ys, dt, every):
-    """((qadr, vadr, q, qd, qdd), free) her limb pendulums (`w['hems']`) integrated at `dt` over `ys`
-    as 2-DoF pendulums with their stops, sampled every `every`th: what she does not measure on her
-    shanks, following them from her IMU and her legs' encoders."""
+    """((qadr, vadr, q, qd, qdd), free) its limb pendulums (`w['hems']`) integrated at `dt` over `ys`
+    as 2-DoF pendulums with their stops, sampled every `every`th: what it does not measure on its
+    shanks, following them from its IMU and its legs' encoders."""
     return sysid.done(_hemming(w, ys, dt, every))
 
 
@@ -109,19 +109,19 @@ def _hemming(w, ys, dt, every):
 
 
 def window(w, ys, taus, dt):
-    """A window's rows against her build: {A (R, movers), left (R,) N m, drive (R,) each row's
-    drive, zero (driven,) rad, seconds} - her edge arrays `ys` (N + 1, SENSED) and her drives'
-    torques `taus` (N, JOINTS) a step `dt` apart, every EVERYth step read where her model holds,
+    """A window's rows against its build: {A (R, movers), left (R,) N m, drive (R,) each row's
+    drive, zero (driven,) rad, seconds} - its edge arrays `ys` (N + 1, SENSED) and its drives'
+    torques `taus` (N, JOINTS) a step `dt` apart, every EVERYth step read where its model holds,
     a torque's misfit the target and each mover's column its share of it: a kt's its drive's
     predicted torque short of its friction, less - whole, it told nothing from the friction's own
-    columns. While both soles bear weight through the window, her back's load is read off her
+    columns. While both soles bear weight through the window, its back's load is read off its
     insoles (`torso_load`)."""
     return sysid.done(windowing(w, ys, taus, dt))
 
 
 def windowing(w, ys, taus, dt):
-    """`window` a part at a time, yielding between its parts - her hems, her rows a part at a time
-    (`sysid.rowing`), what the model holds, her movers' columns, the load riding her torso: its
+    """`window` a part at a time, yielding between its parts - its hems, its rows a part at a time
+    (`sysid.rowing`), what the model holds, its movers' columns, the load riding its torso: its
     result its return."""
     import numpy as np
     lay = w['lay']
@@ -153,10 +153,10 @@ def windowing(w, ys, taus, dt):
 
 
 def wearing(w, ys, taus, dt, g=None):
-    """A window's whole wear a part a pass (`worker.stepped`): `window`, the filter's `step`, her
-    `boxed` gearboxes and the load laid over her (`loaded`, onto `g`) - the arithmetic of the four
+    """A window's whole wear a part a pass (`worker.stepped`): `window`, the filter's `step`, its
+    `boxed` gearboxes and the load laid over it (`loaded`, onto `g`) - the arithmetic of the four
     in one pass, the load laid as its last part; the links touched its return. In one pass the
-    window held her world 0.12 s."""
+    window held its world 0.12 s."""
     got = yield from windowing(w, ys, taus, dt)
     step(w, got)
     yield
@@ -187,7 +187,7 @@ def step(w, got):
 
 
 def boxed(w, ys, taus, dt):
-    """Her boxes off the window (`campaign.boxes`, her build's armature the rotors'): each read
+    """Its boxes off the window (`campaign.boxes`, its build's armature the rotors'): each read
     eased into `boxes` over BOX_WINDOWS where a box wound up, and each encoder's zero read;
     rigid, only `zero`."""
     import numpy as np
@@ -200,13 +200,13 @@ def boxed(w, ys, taus, dt):
 
 
 def loaded(w, g=None):
-    """The load identified in `w` (`deltas`) laid over her (`landed`): the links touched."""
+    """The load identified in `w` (`deltas`) laid over it (`landed`): the links touched."""
     return landed(w, deltas(w), g)
 
 
 def deltas(w):
-    """{name: correction} of the load identified in `w` - her hands' where past SIGMAS of their doubt,
-    her torso's where past HUNG_KG - over `w['body']` as it stands, from her build: what `landed` lays."""
+    """{name: correction} of the load identified in `w` - its hands' where past SIGMAS of their doubt,
+    its torso's where past HUNG_KG - over `w['body']` as it stands, from its build: what `landed` lays."""
     import numpy as np
     lay, body, nominal = w['lay'], w['body'], w['nominal']
     theta = w['z'] * w['unit']
@@ -236,7 +236,7 @@ def deltas(w):
 
 def landed(w, moved, g=None):
     """`moved` ({name: correction}, `deltas`) laid over `w['body']` (`identified.correct`), and onto
-    `g['fr']` (her weight, her hips' share and her modal masses) when `g` is given; the links touched."""
+    `g['fr']` (its weight, its hips' share and its modal masses) when `g` is given; the links touched."""
     body = w['body']
     touched = identified.correct(body, moved)
     if g is not None and moved:
@@ -307,8 +307,8 @@ def told(w):
 
 
 def torso_load(w, ys, dt):
-    """(mass kg, (hx, hy, hz) m) of a load riding her torso, read off her insoles' rows
-    (`sysid.borne`) against her build's prediction on the samples her insoles bear her."""
+    """(mass kg, (hx, hy, hz) m) of a load riding its torso, read off its insoles' rows
+    (`sysid.borne`) against its build's prediction on the samples its insoles bear it."""
     return sysid.done(torso_loading(w, ys, dt))
 
 

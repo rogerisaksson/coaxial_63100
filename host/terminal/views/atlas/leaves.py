@@ -1,4 +1,4 @@
-"""The atlas's leaves in panels on its viewport, framed as her eyes' picture is.
+"""The atlas's leaves in panels on its viewport, framed as its eyes' picture is.
 
 A panel a key's branch: the nodes F1 to F12 offer hold leaves laid out ahead - at the trunk a layer's folders, under a layer a
 folder's files, under a folder a file's symbols -, named in no word of the tree. Each branch with leaves is
@@ -88,7 +88,7 @@ def _put(out, col, row, runs, stop):
 
 
 def _laid(out, left, top, wide, lines, title, note, active):
-    """`lines` framed from (left, top) in `out` {(col, row): (char, ink)}, `wide` cells inside: her eyes'
+    """`lines` framed from (left, top) in `out` {(col, row): (char, ink)}, `wide` cells inside: its eyes'
     frame - the instruments' rounded corners -, `title` runs in its top edge and `note` in its bottom one."""
     frame, tall = FRAME if active else FRAME_DIM, len(lines)
     for row, (a, b) in ((top, FRAME_CORNERS[:2]), (top + tall + 1, FRAME_CORNERS[2:])):

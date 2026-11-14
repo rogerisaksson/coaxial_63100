@@ -1,31 +1,31 @@
-"""Her right eye's turn past her calibration's model of it, told look by look from her pictures.
+"""Its right eye's turn past its calibration's model of it, told look by look from its pictures.
 
-    sq = squint.Squint()                            # what she knows of it: her church's, nothing past it
-    right_R = told_R @ sq.turn()                    # her right eye's turn as she holds it now
+    sq = squint.Squint()                            # what it knows of it: its church's, nothing past it
+    right_R = told_R @ sq.turn()                    # its right eye's turn as it holds it now
     sq.told(laid, a, b, disp, kept, left_R, right_R, line)   # a look's matches told on it
 
-Her eyes' line is held to their build (`gimbal.place`): what a squint moves is her right eye's turn off her left's,
-`w` in its own frame. A point matched in both of her pictures lies on one plane with her eyes' line - its rays'
+Its eyes' line is held to their build (`gimbal.place`): what a squint moves is its right eye's turn off its left's,
+`w` in its own frame. A point matched in both of its pictures lies on one plane with its eyes' line - its rays'
 triple product with it nought, (q x b) . (R p) -, a turn of the model by `d` moving that by (R p) x (q x b) . d.
-Points a look: in her left eye's laid picture the most textured of each TILE (Shi-Tomasi's least eigenvalue), each
-matched in her right eye's laid picture about her stereo's disparity REACH rows and SIDE columns either way by
+Points a look: in its left eye's laid picture the most textured of each TILE (Shi-Tomasi's least eigenvalue), each
+matched in its right eye's laid picture about its stereo's disparity REACH rows and SIDE columns either way by
 normalised correlation, placed within a pixel by a parabola each way, read back on each eye's own picture (`Laid.at`)
-as its ray. Weighed against what she knew before the look - a Kalman's step on a turn her pushrods play between
-looks -, robust (Huber's, HUBER times a misfit's spread), STEPS of Gauss-Newton's a look. Pitch and roll misfit her
-rows at once; her squint across, her vergence, shows only at her pictures' corners: held to her church's word on it
-and her pushrods' play, it moves as her pictures show it and no further.
+as its ray. Weighed against what it knew before the look - a Kalman's step on a turn its pushrods play between
+looks -, robust (Huber's, HUBER times a misfit's spread), STEPS of Gauss-Newton's a look. Pitch and roll misfit its
+rows at once; its squint across, its vergence, shows only at its pictures' corners: held to its church's word on it
+and its pushrods' play, it moves as its pictures show it and no further.
 """
 import math
 
 from machine.eyes import epipolar, gimbal
 from machine.eyes.stereo import H, W, WINDOW, _boxed, _grey, _np, indices
 
-#: A point a TILE x TILE of her left eye's laid picture, px; matched REACH rows and SIDE columns either way of her
-#: stereo's match (`stereo.CENSUS`' rows' half), its window her stereo's (`stereo.WINDOW`).
+#: A point a TILE x TILE of its left eye's laid picture, px; matched REACH rows and SIDE columns either way of its
+#: stereo's match (`stereo.CENSUS`' rows' half), its window its stereo's (`stereo.WINDOW`).
 TILE, REACH, SIDE = 32, 3, 2
 #: Huber's constant, a misfit's spread's (95 % of least squares' efficiency on normal misfits); Gauss-Newton's steps a look.
 HUBER, STEPS = 1.345, 3
-#: Her pictures blurred by a normal SMOOTH px wide for their matches' places (`_smoothed`), px.
+#: Its pictures blurred by a normal SMOOTH px wide for their matches' places (`_smoothed`), px.
 SMOOTH = 1.0
 
 
@@ -39,12 +39,12 @@ def _vee(R):
 
 
 def _known():
-    """((3, 3) what her church told her of her right eye's turn off her left's, as a covariance in its frame - each
-    axis its squint's CHURCH share, rad squared -, (3, 3) what her pushrods' play moves of it past her word on it when
-    her servos turn: each axis' play's CHURCH share)."""
+    """((3, 3) what its church told its of its right eye's turn off its left's, as a covariance in its frame - each
+    axis its squint's CHURCH share, rad squared -, (3, 3) what its pushrods' play moves of it past its word on it when
+    its servos turn: each axis' play's CHURCH share)."""
     np = _np()
     sq = {s: np.radians(np.abs(np.asarray(gimbal.SQUINT[s]))) * abs(gimbal.CHURCH[s]) for s in ('left', 'right')}
-    # her camera's x the pitch's axis (down), its y the across's: each gimbal's play she tells (`gimbal.played`)
+    # its camera's x the pitch's axis (down), its y the across's: each gimbal's play it tells (`gimbal.played`)
     play = {s: np.radians(np.asarray(gimbal.PLAY[s])) * abs(gimbal.CHURCH[s]) for s in ('left', 'right')}
     both = np.array([play['left'][1] + play['right'][1], play['left'][0] + play['right'][0], 0.0])
     return np.diag((sq['left'] + sq['right']) ** 2), np.diag(both ** 2)
@@ -83,7 +83,7 @@ def _smoothed(g, xp=None):
 
 
 def matches(laid, a, b, disp, kept):
-    """((n,) rows, (n,) columns of her left eye's laid picture, (n,) rows, (n,) columns of her right's they matched,
+    """((n,) rows, (n,) columns of its left eye's laid picture, (n,) rows, (n,) columns of its right's they matched,
     each within a pixel) of a look's laid pictures `a`, `b` (H, W, 3) matched at `disp` where `kept`: the pictures'
     blur and texture on `laid`'s array module (the card's where one answers), each tile's match on the CPU."""
     np, xp = _np(), laid.xp
@@ -123,7 +123,7 @@ def matches(laid, a, b, disp, kept):
 
 
 def _ncc(gr, lw, yy, xx):
-    """(n, rows, columns) each left window `lw` (n, w, w, its mean off) matched on her right picture `gr` at the
+    """(n, rows, columns) each left window `lw` (n, w, w, its mean off) matched on its right picture `gr` at the
     windows `yy`, `xx` reach: their normalized cross-correlation."""
     rw = gr[yy, xx]
     rw = rw - rw.mean(axis=(3, 4), keepdims=True)
@@ -134,7 +134,7 @@ def _ncc(gr, lw, yy, xx):
 def _slopes(disp, kept, rows, cols, o):
     """(n, 2) each window's disparities' slope a row and a column on, a plane through its kept matches about (`rows`,
     `cols`) (`o` the window's offsets): a wall aslant moves a window's right half sideways past its left's, 0.45 px
-    over hers, and a window followed whole read her squint across on it 0.3 of its turn."""
+    over its own, and a window followed whole read its squint across on it 0.3 of its turn."""
     np = _np()
     r, c = rows[:, None, None] + o[None, :, None], cols[:, None, None] + o[None, None, :]
     k = kept[r, c].astype(float)
@@ -153,7 +153,7 @@ def _followed(g, lw, y, x, slope):
     `g` from (`y`, `x`) by Lucas-Kanade both ways - each step its window bilinear where it stands, laid along its
     matches' `slope` (n, 2), moved by its own fall against `lw` - till each moves a 2^BITS'th of a pixel or less, held
     within a pixel of where it began: a correlation's parabola placed 66 of 182 rows within a fifth of a pixel of a
-    whole one, and her squint read on them 0.2-0.7 of its turn."""
+    whole one, and its squint read on them 0.2-0.7 of its turn."""
     np = _np()
     h, w_img = g.shape
     r0, (y0, x0) = WINDOW // 2, (y.copy(), x.copy())
@@ -185,31 +185,31 @@ def _followed(g, lw, y, x, slope):
 
 class Squint:
 
-    """Her right eye's turn past her calibration's model of it, `w` (3,) rad in its own frame, and what she knows of it
-    (`P`, its covariance): her church's word at first (`_known`), told on look by look (`told`)."""
+    """Its right eye's turn past its calibration's model of it, `w` (3,) rad in its own frame, and what it knows of it
+    (`P`, its covariance): its church's word at first (`_known`), told on look by look (`told`)."""
 
     def __init__(self):
         np = _np()
         self.w, (self.P, self.Q), self.gz = np.zeros(3), _known(), None
 
     def turn(self):
-        """(3, 3) her right eye's turn past her calibration's model of it as she holds it now, in its own frame."""
+        """(3, 3) its right eye's turn past its calibration's model of it as it holds it now, in its own frame."""
         return epipolar.turn(-self.w)
 
     def told(self, laid, a, b, disp, kept, left_R, right_R, line, gz, start=None):
-        """(the look's start, whether to lay it anew): her squint told on by a look's laid pictures `a`, `b` matched at
-        `disp` where `kept` (`epipolar.matched`), its eyes held turned `left_R`, `right_R` (her right one's this
-        squint's) and `line` apart at her servos' gaze `gz`: what its matches' planes say (`matches`) weighed against
-        what she knew before the look (`start`, (w, P): her pushrods' play `Q` past `P` where her servos moved since -
+        """(the look's start, whether to lay it anew): its squint told on by a look's laid pictures `a`, `b` matched at
+        `disp` where `kept` (`epipolar.matched`), its eyes held turned `left_R`, `right_R` (its right one's this
+        squint's) and `line` apart at its servos' gaze `gz`: what its matches' planes say (`matches`) weighed against
+        what it knew before the look (`start`, (w, P): its pushrods' play `Q` past `P` where its servos moved since -
         held still, it plays not -, a look laid anew on its own word weighing its pictures once); laid anew where the
-        step moved her matches past their own misfits' spread - read on pictures laid off by a misfit, a match's rows
+        step moved its matches past their own misfits' spread - read on pictures laid off by a misfit, a match's rows
         came 13 % short of it. Nothing where a look tells fewer than three."""
         np = _np()
         if start is None:
             moved, self.gz = self.gz is not None and tuple(gz) != self.gz, tuple(gz)
             start = self.w.copy(), self.P + self.Q * float(moved)
         lr, lc, rr, rc = matches(laid, a, b, disp, kept)
-        # her eyes told her square to the bit - no squint, no play - her pictures tell her nothing past it
+        # its eyes told its square to the bit - no squint, no play - its pictures tell its nothing past it
         if len(lr) <= 3 or not bool((np.linalg.eigvalsh(start[1]) > 0.0).all()):
             return start, False
         p, q = _rays(laid.at[0], lr.astype(float), lc.astype(float)), _rays(laid.at[1], rr, rc)

@@ -1,8 +1,8 @@
-"""Her drives' servos by their joints' kind: each one's peak, stiffness, damping and armature.
+"""Its drives' servos by their joints' kind: each one's peak, stiffness, damping and armature.
 
     from machine.body.servos import CLAMPED, SERVO      # SERVO[kind] = (N m, N m/rad, N m s/rad, kg m^2)
 
-Derived by `machine.body.compile` from her subtree inertias, gravity levers and actuator stacks.
+Derived by `machine.body.compile` from its subtree inertias, gravity levers and actuator stacks.
 """
 from machine.body import compile, mechatronics
 

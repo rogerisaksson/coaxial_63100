@@ -4,10 +4,10 @@
 
 #include <stdint.h>
 
-/** Her latent modes (machine.texts.ortho.N) and a row's parameters (machine.texts.ortho.P): each mode's
-    target, stiffness, damping, amplitude and phase (rad), then her rhythm's gain and Hz, her
-    ZMP's polygon and her yaw momentum's limit, her sidechain's duck, attack and release, her
-    contact manifolds' weights (machine.texts.ortho.MANIFOLDS), her slide over what bears her, m/s
+/** Its latent modes (machine.texts.ortho.N) and a row's parameters (machine.texts.ortho.P): each mode's
+    target, stiffness, damping, amplitude and phase (rad), then its rhythm's gain and Hz, its
+    ZMP's polygon and its yaw momentum's limit, its sidechain's duck, attack and release, its
+    contact manifolds' weights (machine.texts.ortho.MANIFOLDS), its slide over what bears it, m/s
     (machine.texts.ortho.SLIDE). */
 #define ORTHO_MODES 13
 #define ORTHO_MANIFOLDS 5
@@ -25,12 +25,12 @@
 #define ORTHO_MANIFOLD 72
 #define ORTHO_SLIDE 77
 
-/** A row's flag: every parameter back to her rest, blended ORTHO_REST_MS (machine.texts.ortho). */
+/** A row's flag: every parameter back to its rest, blended ORTHO_REST_MS (machine.texts.ortho). */
 #define ORTHO_REST 1U
 #define ORTHO_REST_MS 200U
 
 /** A row on the wire (`<4I79f`, 332 bytes, `machine.texts.ortho.ROW` / `machine.law.latent.WIRE`):
-    its sequence id, the ms from the behaviour's start it is injected at, how long her state
+    its sequence id, the ms from the behaviour's start it is injected at, how long its state
     takes to blend to it, its flags, and its parameters (NaN where unsaid). */
 typedef struct
 {

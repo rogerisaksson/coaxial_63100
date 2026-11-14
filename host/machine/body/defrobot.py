@@ -1,4 +1,4 @@
-"""Her manifest's numbers: the (defrobot NAME ..) her gym's text includes, `tools/cores/manifest.py`'s.
+"""Its manifest's numbers: the (defrobot NAME ..) its gym's text includes, `tools/cores/manifest.py`'s.
 
     r = defrobot.read()      # {name, body, modes, drives}: the one named `mechatronics.ROBOT`
 """
@@ -9,7 +9,7 @@ from machine.texts import ortho
 
 
 def read(text=None, here=None):
-    """Her manifest's (defrobot ..) in `text` (or her gym's file, `ortho._FILE`, and its includes), read: {name, body
+    """Its manifest's (defrobot ..) in `text` (or its gym's file, `ortho._FILE`, and its includes), read: {name, body
     {key: n}, modes {mode: {key: n}}, drives {joint: {key: v}}}; the one named ROBOT where a
     text extends another robot's, else the first; None with none."""
     here = here or os.path.dirname(ortho._FILE)

@@ -1,4 +1,4 @@
-"""The gynoid on her latent loop, in a process of her own: the page's gym for orthokinematics.
+"""The gynoid on its latent loop, in a process of its own: the page's gym for orthokinematics.
 
     body = sprung.Running(); body.send(say=2); now = body.latest(); body.close()
     g = sprung.laid(); s, loads, ask, out = sprung.passed(g)
@@ -19,16 +19,16 @@ from machine.process.sensed import sensed
 from machine.world import steps
 
 LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP_HOLD_S, se2.WEP_FILL
-#: Her registry's looks by `physics.SIGHT` off or on: her stand-in the world's boxes, the whole room's at a look;
-#: her fake camera's things (`camera.Camera`, under CAMERA or SIGHT: a look from her head as her invariant EKF
-#: places it LOOK_S apart into her map apart), told a look later, what its frustum shows.
+#: Its registry's looks by `physics.SIGHT` off or on: its stand-in the world's boxes, the whole room's at a look;
+#: its fake camera's things (`camera.Camera`, under CAMERA or SIGHT: a look from its head as its invariant EKF
+#: places it LOOK_S apart into its map apart), told a look later, what its frustum shows.
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
 _sprung_bus = peripherals.bus()
 RATE_HZ, SLICE_S, SAY_S, AVERAGE_S = round(1.0 / _sprung_bus['lockstep_s'], 1), 0.05, 1.0 / 60.0, 0.05
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
-#: Her state as her page hears it (`page`): her stage, her tilt, her things named.
+#: The robot's state as its page hears it (`page`): its stage, its tilt, its things named.
 named, tilt, staged, state = page.named, page.tilt, page.staged, page.state
 WALK_M_S, STEP_S, RECOVER_S = page.WALK_M_S, page.STEP_S, page.RECOVER_S
 HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'restart', 'scenario', 'heading', 'twist',
@@ -67,9 +67,9 @@ GYMS = (mechatronics.ROBOT, 'examples')
 
 
 def entries(text=None, name=GYMS[0], texts=None, suite=None):
-    """[(label, wire, names)]: the gym's entries of `text` - lisp/humanoid/`name`.lisp's, hers with the
+    """[(label, wire, names)]: the gym's entries of `text` - lisp/humanoid/`name`.lisp's, its own with the
     ortho-DSP suite's stunts played on it (`maneuver.texts`) and the kernel's clocked gaits (`clocked.texts`) -, of
-    her texts `texts` ({key: text}) and the suite `suite` where given, else their files'."""
+    its texts `texts` ({key: text}) and the suite `suite` where given, else their files'."""
     if text is None:
         from machine.moves import clocked
         from machine.texts import maneuver
@@ -84,8 +84,8 @@ def entries(text=None, name=GYMS[0], texts=None, suite=None):
 
 
 def laid(every=1, inner=None, solver=None, texts=None, suite=None):
-    """She stands on the floor on the loop, at rest: one dict of what a run holds - her gym's
-    entries of her texts `texts` and the suite `suite` where given (`entries`), both kept."""
+    """The robot stands on the floor on the loop, at rest: one dict of what a run holds - its gym's
+    entries of its texts `texts` and the suite `suite` where given (`entries`), both kept."""
     import numpy as np
     from machine.body import bends, figure, gait, heat, servos
     from machine.law import latent, melt, modal, motion, statics
@@ -180,7 +180,7 @@ def walked(g):
 
 
 def reset_for_scenario(g, scen):
-    """Scene `scen` laid round her, she laid anew where it has her (`floor.lay`) unless she stands
+    """Scene `scen` laid round it, it laid anew where it has it (`floor.lay`) unless it stands
     there at rest already."""
     from machine.world import floor
     from machine.law import modal
@@ -194,9 +194,9 @@ def reset_for_scenario(g, scen):
 
 
 def relaid(g, where=(0.0, 0.0), yaw=0.0):
-    """She stands anew at `where` (x, z, m) facing `yaw` (rad), still, every state of hers laid
-    with her: her estimate and grip, her senses, her frame's heading and rotation, her latent
-    state, her heat, nothing asked."""
+    """It stands anew at `where` (x, z, m) facing `yaw` (rad), still, every state of its own laid
+    with it: its estimate and grip, its senses, its frame's heading and rotation, its latent
+    state, its heat, nothing asked."""
     import numpy as np
     from machine.body import figure
     from machine.law import latent, melt, modal
@@ -207,7 +207,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
     g['est'], g['grip'], g['grip_prior'] = estimate.laid(body, d.qpos[0:3]), grip.laid(), grip.laid()
     from machine.eyes import registry
     g['inekf'], g['registry'], g['things'], g['things_at'] = inekf.laid(d.qpos[0:3], d.qpos[3:7]), registry.laid(), (), -math.inf
-    g['beat'] = _beat().laid(g)     # her world's link and her filter laid anew
+    g['beat'] = _beat().laid(g)     # its world's link and its filter laid anew
     g['grip_seen'][:], g['grip_settled'][:] = 0.0, 0.0
     s = g['s'] = sensed(body, g['est'], edge.read(world, g['sense']), g['limbs'])
     hw, q0 = 0.5 * float(g['fr'][modal.WEIGHT]), g['sense'][edge.Q][g['joints']]
@@ -226,7 +226,7 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
         False, 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
     g['active_entry'], g['n'], g['_halt_at'], g['_jog_until'] = None, 0, None, 0.0
     g['twisted'][se2.LOOK_YAW], g['twisted'][se2.TURN_DC] = 0.0, 0.0
-    g['touched'][:] = touch.REST       # what she felt stood in the world laid away
+    g['touched'][:] = touch.REST       # what it felt stood in the world laid away
     g['_w_back'], g['_backing_yaw'] = 0.0, 0.0
     g['emancipated'], g['unanchored'], g['let_cap'], g['freed'] = np.zeros(2), np.ones(2), np.full(2, np.inf), np.zeros(2)
     g['emancipation'] = {'iota': np.zeros(2)}
@@ -247,31 +247,31 @@ def relaid(g, where=(0.0, 0.0), yaw=0.0):
 
 
 def looked(g):
-    """A look (`vision.LOOKS`): her eyes' map's things, or the world's boxes as their stand-in, into her registry
-    at `g['t']`, her things its boxes (`vision.looked`); the step's at the kernel's SDF refresh, an errand's when
-    told. Her vision apart, the step's joined in her law's pass instead (`passed`)."""
+    """A look (`vision.LOOKS`): its eyes' map's things, or the world's boxes as their stand-in, into its registry
+    at `g['t']`, its things its boxes (`vision.looked`); the step's at the kernel's SDF refresh, an errand's when
+    told. The robot's vision apart, the step's joined in its law's pass instead (`passed`)."""
     vision.looked(g)
 
 
 @functools.cache
 def _law():
-    """Her law's modules a pass reads, imported at her first: not by the page, nor again each pass."""
+    """Its law's modules a pass reads, imported at its first: not by the page, nor again each pass."""
     from machine.law import modal, motion, schema
     return modal, motion, schema
 
 
 @functools.cache
 def _beat():
-    """Her pass's C (`tools.cores.beat`), imported at her first lay."""
+    """The robot's pass's C (`tools.cores.beat`), imported at its first lay."""
     from tools.cores import beat
     return beat
 
 
 def passed(g, dt=0.001):
-    """A pass: (sensed, her soles' loads, the loop's ask, the latent out) - and her world a `dt` on: felt through
-    her edge, her motion pass at her law's (`machine.law.motion`), her drives' pass and her law's joints told her
-    boards in one C call, her felt in it between her law's passes (`tools.cores.beat`), a program over them; her
-    world's step's first half begun beside her law (`steps.ahead`), joined here where her pass raised before it."""
+    """A pass: (sensed, its soles' loads, the loop's ask, the latent out) - and its world a `dt` on: felt through
+    its edge, its motion pass at its law's (`machine.law.motion`), its drives' pass and its law's joints told its
+    boards in one C call, its felt in it between its law's passes (`tools.cores.beat`), a program over them; its
+    world's step's first half begun beside its law (`steps.ahead`), joined here where its pass raised before it."""
     import numpy as np
     modal, motion, schema = _law()
     world, y, ev = g['world'], g['sense'], g['every']
@@ -298,7 +298,7 @@ def passed(g, dt=0.001):
             step = both
         motion.drives(g, dt, step)
         joints.played(g, world)
-        # a bus refusing her setpoints longer than her balance's horizon 1/omega is no longer sporadic
+        # a bus refusing its setpoints longer than its balance's horizon 1/omega is no longer sporadic
         edge.held(world, 1.0 / (float(g['fr'][modal.OMEGA]) * dt))
         g['t'], g['n'] = g['t'] + dt, g['n'] + 1
         world.advance()
@@ -356,7 +356,7 @@ def boot_humanoid(state, boot, say, ahead_cls, limb_cls):
 
 class Running:
 
-    """Her worker process on the loop (`worker.Running`)."""
+    """The robot's worker process on the loop (`worker.Running`)."""
 
     def __new__(cls, *args, **kwargs):
         from machine.process.worker import Running as _Running

@@ -1,28 +1,28 @@
-"""Her session watched through a lodge errand: her joints' swings, her phases, bumps and brakes.
+"""Its session watched through a lodge errand: its joints' swings, its phases, bumps and brakes.
 
-    w = house_watch.Watch(x, z, yaw)        # her session laid there in the lodge, stepped half a second
-    w.go(seconds, until)                    # stepped on, to her fall or `until(w)`
+    w = house_watch.Watch(x, z, yaw)        # its session laid there in the lodge, stepped half a second
+    w.go(seconds, until)                    # stepped on, to its fall or `until(w)`
     w.spasm(), w.phases, w.bumps, w.stops   # what a run's line tells (`tools/sim/house.py`)
 
-Each joint group's fastest swing (deg/s), widest sweep (deg) and the seconds her master bus held it; her
-errand's phase and her doing as they change, with her place; what of hers bumped the furniture in which
-phase; a rise's rows (`_row`) where traced; and each brake as it begins - her speed along and across her
-heading, what steered her the half second before (`Watch._stopped`).
+Each joint group's fastest swing (deg/s), widest sweep (deg) and the seconds its master bus held it; its
+errand's phase and its doing as they change, with its place; what of its own bumped the furniture in which
+phase; a rise's rows (`_row`) where traced; and each brake as it begins - its speed along and across its
+heading, what steered it the half second before (`Watch._stopped`).
 """
 import collections
 import math
 
-#: The furniture her bumps are counted on, and the lodge's own boxes that are not.
+#: The furniture its bumps are counted on, and the lodge's own boxes that are not.
 FURNITURE = ('seat', 'back', 'chair_leg', 'bed', 'table', 'lamp', 'loft', 'stair')
 SCENERY = ('floor', 'wall', 'roof', 'deck', 'door', 'pane', 'mullion', 'rail', 'post', 'stone', 'switch', 'shade')
-#: Her joint groups a spasm is read on.
+#: The robot's joint groups a spasm is read on.
 GROUPS = {'arms': ('left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow'), 'neck': ('neck', 'head'),
           'trunk': ('spine', 'spine_roll', 'waist')}
-#: Her joints read this often, s.
+#: The robot's joints read this often, s.
 EVERY_S = 0.01
 #: A rise's doings traced (those they begin), a row this often, s (`_row`).
 TRACED, TRACE_S = ('sit_edge', 'bed_rest', 'sit_up', 'plant', 'lean', 'thrust', 'stand', 'rest'), 0.1
-#: A brake's row reads this long before it, s: her phases begun, what steered her (`Watch._stopped`).
+#: A brake's row reads this long before it, s: its phases begun, what steered it (`Watch._stopped`).
 FLIPS_S = 0.5
 
 
@@ -33,8 +33,8 @@ def named(m, i, heads):
 
 class Watch:
 
-    """Her session stepped: each joint group's fastest swing (deg/s) and widest sweep (deg), her phases,
-    what of hers bumped the furniture in which, each brake as it begins (`_stopped`)."""
+    """Its session stepped: each joint group's fastest swing (deg/s) and widest sweep (deg), its phases,
+    what of its own bumped the furniture in which, each brake as it begins (`_stopped`)."""
 
     def __init__(self, x, z, yaw):
         from machine.world import physics
@@ -46,7 +46,7 @@ class Watch:
         self.g, self.world = s['g'], s['g']['world']
         m = self.world.model
         self.furn = {i for i in range(m.ngeom) if named(m, i, FURNITURE) and float(self.world.data.geom_xpos[i][1]) > -0.5}
-        self.hers = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in self.furn and not named(m, i, SCENERY)}
+        self.its_own = {i for i in range(m.ngeom) if int(m.geom_bodyid[i]) > 0 and i not in self.furn and not named(m, i, SCENERY)}
         self.last, self.read, self.fast, self.lo, self.hi, self.when, self.held = None, -1.0, {}, {}, {}, {}, {}
         self.phases, self.bumps, self.stops = [], {}, []
         self.steered = collections.deque(maxlen=int(FLIPS_S / EVERY_S))
@@ -56,7 +56,7 @@ class Watch:
         self.fast, self.lo, self.hi, self.when, self.held = {}, {}, {}, {}, {}
 
     def go(self, seconds, until=None):
-        """`seconds` of passes, or to her fall or `until(self)`: whether `until` came."""
+        """`seconds` of passes, or to its fall or `until(self)`: whether `until` came."""
         from machine.process import sprung, worker
         g, t0 = self.g, self.g['t']
         while g['t'] - t0 < seconds and self.s['fallen_at'] is None:
@@ -76,10 +76,10 @@ class Watch:
         return False
 
     def _stopped(self, tag):
-        """A brake begun: (t, its phase/doing, her speed along and across her heading, m/s - across to her left -, her
-        pelvis's yaw off her heading, rad, her phases begun in the FLIPS_S before it, and over them the fastest turn
-        told her, rad/s, the share of them her heading was held to a target, and how fast her heading turned, rad/s):
-        what her stop finds her in and what steered her into it."""
+        """A brake begun: (t, its phase/doing, its speed along and across its heading, m/s - across to its left -, its
+        pelvis's yaw off its heading, rad, its phases begun in the FLIPS_S before it, and over them the fastest turn
+        told it, rad/s, the share of them its heading was held to a target, and how fast its heading turned, rad/s):
+        what its stop finds it in and what steered it into it."""
         from machine.senses import edge
         g = self.g
         h, v = float(g['heading']), g['est']['vel']
@@ -115,7 +115,7 @@ class Watch:
         for k in range(d.ncon):
             a, b = int(d.contact[k].geom1), int(d.contact[k].geom2)
             for f, o in ((a, b), (b, a)):
-                if f in self.furn and o in self.hers:
+                if f in self.furn and o in self.its_own:
                     self.bumps.setdefault('%s@%s' % (m.geom(f).name, phase), round(g['t'], 2))
 
     def spasm(self):
@@ -124,10 +124,10 @@ class Watch:
 
 
 def _row(g, d, m):
-    """Her rise traced (`TRACED`): t, her doing, her centre of mass (x, z, height) and its speed (x, z), each sole's
-    place (x, z, height) and load (N), the line of her hips off square (deg) - her law's state, her thighs the world's -,
-    the move she plays and its phase, what her moves sense (her pitch, deg, her fists' and feet's shares, her pelvis off
-    the bed's middle, m), her pelvis's, fists' and left foot's heights (m) and her left knee, hip and shoulder (deg)."""
+    """Its rise traced (`TRACED`): t, its doing, its centre of mass (x, z, height) and its speed (x, z), each sole's
+    place (x, z, height) and load (N), the line of its hips off square (deg) - its law's state, its thighs the world's -,
+    the move it plays and its phase, what its moves sense (its pitch, deg, its fists' and feet's shares, its pelvis off
+    the bed's middle, m), its pelvis's, fists' and left foot's heights (m) and its left knee, hip and shoulder (deg)."""
     from machine.law import modal
     from machine.process import joints, sprung
     y = g['y']

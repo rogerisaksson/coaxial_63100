@@ -1,24 +1,24 @@
-"""Her eyes' gaze: three servos turn her eyes by pushrods, across, down and against each other.
+"""Its eyes' gaze: three servos turn its eyes by pushrods, across, down and against each other.
 
-    gz = gaze.moved(g)               # her gaze now (across, down, vergence): a saccade's or her fixation held
-    gaze.settled(g)                  # whether her eyes stand on what they look at: a look only so (no saccade's blur)
-    gaze.aimed(world, gz)            # her eyes' cameras turned and placed so on her head, as built (`gimbal`)
+    gz = gaze.moved(g)               # its gaze now (across, down, vergence): a saccade's or its fixation held
+    gaze.settled(g)                  # whether its eyes stand on what they look at: a look only so (no saccade's blur)
+    gaze.aimed(world, gz)            # its eyes' cameras turned and placed so on its head, as built (`gimbal`)
     gaze.swung(world, gz); gaze.placed(world)     # the same in two: swung each pass, placed where a look is due
-    held = gaze.held(g, gz)          # her gimbals as she holds them, each command through her play as told her
-    head = gaze.gazed(head, gz)      # the head her eyes look from: hers turned by her gaze about her eye
+    held = gaze.held(g, gz)          # its gimbals as it holds them, each command through its play as told its
+    head = gaze.gazed(head, gz)      # the head its eyes look from: its own turned by its gaze about its eye
     gaze.asked(g, gz)                # a look taken at it: the next fixation asked where it is due
     gaze.scan(g, points)             # each of `points` (x, y, z) looked at in turn, HELD looks each
     gaze.scanned(g)                  # whether they all were, what they showed in hand
-    gaze.fix(g, point, way, lead)    # held on a world point wherever she stands; walking `way`, led by its ground
-    gaze.rest(g)                     # let go: her eyes at rest, held there
+    gaze.fix(g, point, way, lead)    # held on a world point wherever it stands; walking `way`, led by its ground
+    gaze.rest(g)                     # let go: its eyes at rest, held there
 
-Three servos turn her eyes - across (version, left +), down past rest (`DOWN_DEG` +) and vergence
-(converging +), each eye on its gimbal by pushrods (`gimbal`) - so stereo rectifies by her calibrated
+Three servos turn its eyes - across (version, left +), down past rest (`DOWN_DEG` +) and vergence
+(converging +), each eye on its gimbal by pushrods (`gimbal`) - so stereo rectifies by its calibrated
 turns (`sight.Eyes.stereo`, `squint`). Gaze moves in saccades - a minimum-jerk quintic over `MAIN` or
 `RATE` - then holds world fixations via 120 Hz VOR while vergence lags by `TAU`. Looks fire only when
-`settled`. Standing idle, she explores unseen `SECTORS` and glimpses by information rate (`_next`)
-until `rest` (`_arrived`); walking free, she anchors `HELD` looks ahead (`_anchored`); on a way, she
-scans waypoints (`scan`) then holds her target (`fix`) and lead ground (`_ahead`) before `rest`.
+`settled`. Standing idle, it explores unseen `SECTORS` and glimpses by information rate (`_next`)
+until `rest` (`_arrived`); walking free, it anchors `HELD` looks ahead (`_anchored`); on a way, it
+scans waypoints (`scan`) then holds its target (`fix`) and lead ground (`_ahead`) before `rest`.
 """
 import math
 
@@ -29,21 +29,21 @@ from machine.eyes.gimbal import DOWN_DEG, EYES, turned
 from machine.eyes.stereo import BASELINE_M, H, W, _np
 from machine.eyes.voxels import FAR_M, NEAR_M
 
-#: Her eyes' reach, rad: across either way, and down past their rest from up - a person's eyes'; her vergence's, from
-#: parallel to NEAR_M's (`voxels.NEAR_M`, 0.7 m: what she matches no nearer, 9.8 deg).
+#: Its eyes' reach, rad: across either way, and down past their rest from up - a person's eyes'; its vergence's, from
+#: parallel to NEAR_M's (`voxels.NEAR_M`, 0.7 m: what it matches no nearer, 9.8 deg).
 YAW, PITCH, VERGE = math.radians(50.0), (math.radians(-25.0), math.radians(35.0)), 2.0 * math.atan(BASELINE_M / 2.0 / 0.7)
 #: A servo's pace, rad/s: an ordinary one's, 60 deg in 0.1 s.
 RATE = math.radians(60.0) / 0.1
-#: A saccade's time: the main sequence's, s and s a degree - a person's 25 ms and 2.2 ms a degree -; her vergence's lag, s.
+#: A saccade's time: the main sequence's, s and s a degree - a person's 25 ms and 2.2 ms a degree -; its vergence's lag, s.
 MAIN, TAU = (0.025, 0.0022), 0.13
-#: Her gaze at rest, rad.
+#: The robot's gaze at rest, rad.
 REST = (0.0, 0.0, 0.0)
-#: Looks a place of a way she scans is held for: what it shows hers by then, her registry's HIT a look to its TAKEN.
+#: Looks a place of a way it scans is held for: what it shows its own by then, its registry's HIT a look to its TAKEN.
 HELD = math.ceil(registry.TAKEN / registry.HIT)
-#: Her view's half across and half up, rad (`stereo.W`, `stereo.H`, `epipolar.F`).
+#: The robot's view's half across and half up, rad (`stereo.W`, `stereo.H`, `epipolar.F`).
 HALF = (math.atan(W / 2.0 / F), math.atan(H / 2.0 / F))
-#: What she explores: the world round her in bearings a view's half apart, two rows - at rest and a view's half
-#: down past it -, each a look's fixation FAR_M off (`voxels.FAR_M`, her map's reach) till a look has shown it.
+#: What it explores: the world round it in bearings a view's half apart, two rows - at rest and a view's half
+#: down past it -, each a look's fixation FAR_M off (`voxels.FAR_M`, its map's reach) till a look has shown it.
 SECTORS = tuple((math.tau * k / math.ceil(math.tau / HALF[0]), row) for row in (0.0, HALF[1])
                 for k in range(math.ceil(math.tau / HALF[0])))
 
@@ -67,9 +67,9 @@ def _quat(R):
 
 
 def _bearings(head, point):
-    """(across, down, vergence) rad her eyes look at world `point` with from her `head` {pos, quat}, past their reach
-    too: each eye's bearing across from its own middle - her version their mean, her vergence her right's past her
-    left's -, down from between them past her eyes' rest."""
+    """(across, down, vergence) rad its eyes look at world `point` with from its `head` {pos, quat}, past their reach
+    too: each eye's bearing across from its own middle - its version their mean, its vergence its right's past its
+    left's -, down from between them past its eyes' rest."""
     np = _np()
     R = _frame(head['quat'])
     d = R.T @ (np.asarray(point, float) - np.asarray(head['pos'], float)) - np.asarray(EYES, float)
@@ -80,26 +80,26 @@ def _bearings(head, point):
 
 
 def toward(head, point, told=None):
-    """(across, down, vergence) rad her eyes look at world `point` (x, y, z) with from her `head` {pos, quat}, within
+    """(across, down, vergence) rad its eyes look at world `point` (x, y, z) with from its `head` {pos, quat}, within
     their reach (`_bearings`, or `told` of them)."""
     a, d, v = told or _bearings(head, point)
     return max(-YAW, min(YAW, a)), max(PITCH[0], min(PITCH[1], d)), max(0.0, min(VERGE, v))
 
 
 def _reached(head, point, told=None):
-    """Whether her eyes reach world `point` from her `head` (`_bearings`, or `told` of them, in YAW and PITCH)."""
+    """Whether its eyes reach world `point` from its `head` (`_bearings`, or `told` of them, in YAW and PITCH)."""
     a, d, _v = told or _bearings(head, point)
     return abs(a) <= YAW and PITCH[0] <= d <= PITCH[1]
 
 
 def _heading(head):
-    """rad: her `head`'s bearing across the floor, the world's (its z's)."""
+    """rad: its `head`'s bearing across the floor, the world's (its z's)."""
     R = _frame(head['quat'])
     return math.atan2(R[0, 2], R[2, 2])
 
 
 def _shown(head, sector):
-    """(3,) a sector's (`SECTORS`) fixation: FAR_M from her eye along its bearing, its row down past her eyes' rest."""
+    """(3,) a sector's (`SECTORS`) fixation: FAR_M from its eye along its bearing, its row down past its eyes' rest."""
     np = _np()
     down = math.radians(DOWN_DEG) + sector[1]
     eye = np.asarray(head['pos'], float) + _frame(head['quat']) @ np.asarray(EYES, float)
@@ -107,19 +107,19 @@ def _shown(head, sector):
 
 
 def _head(g):
-    """Her head {pos, quat} in her things' frame: her filter's (`inekf.head`) under her eyes, her sense's without."""
+    """Its head {pos, quat} in its things' frame: its filter's (`inekf.head`) under its eyes, its sense's without."""
     return inekf.head(g['inekf'], g['body']) if g.get('eyes') and 'inekf' in g else g['s']['head']
 
 
 def _floor(g):
-    """Her lower sole's height (m) in her things' frame."""
+    """The robot's lower sole's height (m) in its things' frame."""
     off = float(g['inekf']['p'][1]) - float(g['est']['pos'][1]) if g.get('eyes') and 'inekf' in g else 0.0
     return min(float(f['sole'][1]) for f in g['s']['feet']) + off
 
 
 def _laid(g):
-    """Her gaze's memory, laid at its first read: at rest, exploring where she stands, nothing scanned or fixed. Laid
-    there alone: a default handed `setdefault` was laid at every read, her heading with it, 61 us a law pass."""
+    """Its gaze's memory, laid at its first read: at rest, exploring where it stands, nothing scanned or fixed. Laid
+    there alone: a default handed `setdefault` was laid at every read, its heading with it, 61 us a law pass."""
     st = g.get('_gaze')
     if st is None:
         head = _head(g)
@@ -132,8 +132,8 @@ def _laid(g):
 
 
 def _glimpses(g):
-    """[(slot, centre)] her registry's live slots not yet hers (`registry.TAKEN`): its things at any salience
-    (`g['vision'].boxes`) but her things' (`g['things']`); none without her vision."""
+    """[(slot, centre)] its registry's live slots not yet its own (`registry.TAKEN`): its things at any salience
+    (`g['vision'].boxes`) but its things' (`g['things']`); none without its vision."""
     if g.get('vision') is None:
         return []
     taken = {t[4] for t in g.get('things') or () if len(t) > 4}
@@ -141,8 +141,8 @@ def _glimpses(g):
 
 
 def _next(g, st):
-    """What she explores next: of the sectors she has not seen from here and her glimpses not yet looked at, those her
-    eyes reach, the one whose look tells most a second - each one's word on what she has not seen, a sector's a look
+    """What it explores next: of the sectors it has not seen from here and its glimpses not yet looked at, those its
+    eyes reach, the one whose look tells most a second - each one's word on what it has not seen, a sector's a look
     and a glimpse's HELD (`registry.TAKEN` over its HIT), over its saccade's time and its looks' -; none, None."""
     from machine.eyes.sight import LOOK_S
     head, at = _head(g), st['at']
@@ -160,9 +160,9 @@ def _next(g, st):
 
 
 def _told_of(g, st, gz):
-    """The sectors a look at gaze `gz` showed her whole from her head (`_head`): each one's bearings and rows -
-    its half the sectors' spacing either way - within her view's half across and up of where her eyes looked, seen
-    from here; a sector's neighbour in her view's edge shown in part, not seen."""
+    """The sectors a look at gaze `gz` showed its whole from its head (`_head`): each one's bearings and rows -
+    its half the sectors' spacing either way - within its view's half across and up of where its eyes looked, seen
+    from here; a sector's neighbour in its view's edge shown in part, not seen."""
     view, wide = _heading(_head(g)) + gz[0], math.tau / len({s[0] for s in SECTORS}) / 2.0
     for s in SECTORS:
         if (abs(math.remainder(s[0] - view, math.tau)) + wide <= HALF[0] + 1e-9
@@ -171,8 +171,8 @@ def _told_of(g, st, gz):
 
 
 def _aim(g, st, told=(None, None)):
-    """(across, down, vergence) rad of what she looks at now: a way's place she scans, the ground her way takes her to
-    or the place she fixes, the ground she walks onto, what she explores - from her head in her things' frame
+    """(across, down, vergence) rad of what it looks at now: a way's place it scans, the ground its way takes it to
+    or the place it fixes, the ground it walks onto, what it explores - from its head in its things' frame
     (`_head`) -, else rest; `told` (a point, its bearings) those `moved` told this pass already."""
     point = next((p for p in (st['points'][0] if st['points'] else None, st['ground'], st['fix'], st['anchor'],
                               (st['explore'] or {}).get('point')) if p is not None), None)
@@ -180,16 +180,16 @@ def _aim(g, st, told=(None, None)):
 
 
 def _anchored(g):
-    """(x, y, z) the ground she walks onto: where her twist asked (`g['twist']`: ahead, to her left, m/s, turning
-    rad/s) takes her from her head's place along her body's heading HELD looks on - what a look shows there hers by
-    the time she stands on it -, on her floor; past her eyes' direct reach, clamped onto her near floor along her way."""
+    """(x, y, z) the ground it walks onto: where its twist asked (`g['twist']`: ahead, to its left, m/s, turning
+    rad/s) takes it from its head's place along its body's heading HELD looks on - what a look shows there its own by
+    the time it stands on it -, on its floor; past its eyes' direct reach, clamped onto it near floor along its way."""
     from machine.eyes.sight import LOOK_S
     head, T = _head(g), HELD * LOOK_S
     vx, vy, wz = (float(v) for v in g.get('twist', (0.0, 0.0, 0.0)))
     a = (math.atan2(float(g['inekf']['R'][0, 2]), float(g['inekf']['R'][2, 2])) if g.get('eyes') and 'inekf' in g
          else (float(g['heading']) if 'heading' in g else _heading(head)))
     b = a + wz * T
-    # her heading's sine and cosine walked over T: a turn's arc, or a line
+    # its heading's sine and cosine walked over T: a turn's arc, or a line
     sn, cs = ((math.cos(a) - math.cos(b)) / wz, (math.sin(b) - math.sin(a)) / wz) if abs(wz) * T > 1e-9 else (math.sin(a) * T, math.cos(a) * T)
     p = (float(head['pos'][0]) + vx * sn + vy * cs, _floor(g),
          float(head['pos'][2]) + vx * cs - vy * sn)
@@ -209,7 +209,7 @@ def _anchored(g):
 
 
 def _shows(head, gz, point):
-    """Whether a look at gaze `gz` from her `head` shows world `point`: ahead of her left eye, within its view."""
+    """Whether a look at gaze `gz` from its `head` shows world `point`: ahead of its left eye, within its view."""
     np = _np()
     eye = gazed(head, gz)
     d = gimbal.mounted().T @ (_frame(eye['quat']).T @ (np.asarray(point, float) - eye['pos']) - np.asarray(EYES, float))
@@ -217,15 +217,15 @@ def _shows(head, gz, point):
 
 
 def _ahead(g, st):
-    """(x, y, z) the ground her way (`fix`'s) takes her to `lead` s on from its place nearest her at its pace, on her
-    floor, where her eyes reach it and a look at what she fixes shows it not; else None."""
+    """(x, y, z) the ground its way (`fix`'s) takes it to `lead` s on from its place nearest it at its pace, on its
+    floor, where its eyes reach it and a look at what it fixes shows it not; else None."""
     np = _np()
     head, way = _head(g), st['way']
     here = np.array([float(head['pos'][0]), float(head['pos'][2])])
     a, ab, s, v = way[:-1, :2], np.diff(way[:, :2], axis=0), way[:, 2], way[:, 3]
     u = np.clip(np.einsum('ij,ij->i', here - a, ab) / np.maximum(np.einsum('ij,ij->i', ab, ab), 1e-300), 0.0, 1.0)
     k = int(np.argmin(np.linalg.norm(a + u[:, None] * ab - here, axis=1)))
-    # her way's time walked to each of its places, each leg at its ends' pace's mean
+    # its way's time walked to each of its places, each leg at its ends' pace's mean
     t = np.r_[0.0, np.cumsum(np.diff(s) / np.maximum(0.5 * (v[:-1] + v[1:]), 1e-300))]
     to = float(np.interp(float(np.interp(s[k] + u[k] * (s[k + 1] - s[k]), s, t)) + st['lead'], t, s))
     p = (float(np.interp(to, s, way[:, 0])), _floor(g), float(np.interp(to, s, way[:, 1])))
@@ -233,10 +233,10 @@ def _ahead(g, st):
 
 
 def _arrived(g, st):
-    """Her gaze where nothing tells it - no way scanned, no place fixed, her errand none -: walking (her twist asked
-    ahead or aside), what she explored dropped and her eyes on the ground she walks onto (`_anchored`), let go as she
-    stops; her twist asked none and her head past NEAR_M from where she last explored (what she sees nearer her
-    stereo matches not), exploring anew - nothing seen from there, nothing looked at -; turned a sector on, what she
+    """Its gaze where nothing tells it - no way scanned, no place fixed, its errand none -: walking (its twist asked
+    ahead or aside), what it explored dropped and its eyes on the ground it walks onto (`_anchored`), let go as it
+    stops; its twist asked none and its head past NEAR_M from where it last explored (what it sees nearer its
+    stereo matches not), exploring anew - nothing seen from there, nothing looked at -; turned a sector on, what it
     had not reached from here explored."""
     if st['points'] or st['fix'] is not None or (g.get('_errand') or {}).get('phase') not in (None, 'look'):
         return
@@ -247,7 +247,7 @@ def _arrived(g, st):
     if walking and st['anchor'] is None:
         st['anchor'] = _anchored(g)
         st['jump'] = st['jump'] or st['anchor'] is not None
-    # exploring or walking neither row below reads her head: her heading told each law pass was 20 us of it
+    # exploring or walking neither row below reads its head: its heading told each law pass was 20 us of it
     if st['exploring'] or walking:
         return
     head = _head(g)
@@ -266,17 +266,17 @@ def _quintic(u):
 
 def saccade(a):
     """s: a saccade's time over `a` rad - the main sequence's (MAIN), no shorter than a minimum jerk's peak (1.875 of
-    its mean pace) her servos reach (RATE)."""
+    its mean pace) its servos reach (RATE)."""
     return max(MAIN[0] + MAIN[1] * math.degrees(a), 1.875 * a / RATE)
 
 
 def moved(g):
-    """Her gaze now (across, down, vergence) rad: a saccade asked (`jump`) launched toward what she looks at from where
-    her eyes stand and flown its quintic; else her fixation held on it, her servos' RATE the time since at most;
-    her vergence lagged TAU toward its depth either way; `on` while her eyes stand on it, no saccade in flight."""
+    """Its gaze now (across, down, vergence) rad: a saccade asked (`jump`) launched toward what it looks at from where
+    its eyes stand and flown its quintic; else its fixation held on it, its servos' RATE the time since at most;
+    its vergence lagged TAU toward its depth either way; `on` while its eyes stand on it, no saccade in flight."""
     st = _laid(g)
     _arrived(g, st)
-    # what she explores told its bearings once a pass, her reach of it and her aim at it both theirs: 23 us each
+    # what it explores told its bearings once a pass, its reach of it and its aim at it both theirs: 23 us each
     point, head = (None if st['explore'] is None else st['explore']['point']), _head(g)
     told = (point, None if point is None else _bearings(head, point))
     if st['explore'] is not None and not _reached(head, point, told[1]):
@@ -302,14 +302,14 @@ def moved(g):
 
 
 def settled(g):
-    """Whether her eyes stand on what they look at: no saccade in flight, her fixation held (`moved`'s `on`)."""
+    """Whether its eyes stand on what they look at: no saccade in flight, its fixation held (`moved`'s `on`)."""
     return bool((g.get('_gaze') or {}).get('on', False))
 
 
 def asked(g, gz):
-    """A look taken at gaze `gz` (her eyes settled: `settled`): a way's place counts HELD looks; led by a way, its
-    ground's and her dock's in turn; walking, her anchor held or moved on; exploring, what the look showed seen
-    (`_told_of`), what she explores counted its looks and, done, the next asked (`_next`) - none left, she holds still."""
+    """A look taken at gaze `gz` (its eyes settled: `settled`): a way's place counts HELD looks; led by a way, its
+    ground's and its dock's in turn; walking, its anchor held or moved on; exploring, what the look showed seen
+    (`_told_of`), what it explores counted its looks and, done, the next asked (`_next`) - none left, it holds still."""
     st = _laid(g)
     if st['points']:
         st['held'] += 1
@@ -325,7 +325,7 @@ def asked(g, gz):
             st['ground'] = None if was is not None else _ahead(g, st)
             st['jump'] = was is not None or st['ground'] is not None
     elif st['walking']:
-        # her anchor held while a look at it shows the ground she walks onto, else a saccade on to it: a sawtooth
+        # its anchor held while a look at it shows the ground it walks onto, else a saccade on to it: a sawtooth
         head, a, ahead = _head(g), st['anchor'], _anchored(g)
         if (a is None or ahead is None or not _reached(head, a) or not _shows(head, toward(head, a), ahead)
                 or math.dist(a, ahead) > 0.35 and abs(_bearings(head, ahead)[0]) >= 0.9 * YAW):
@@ -342,7 +342,7 @@ def asked(g, gz):
 
 
 def _over(g, **told):
-    """Her gaze told to look as an errand asks (`told`), her exploring and her walk's anchor over, no way led but one
+    """Its gaze told to look as an errand asks (`told`), its exploring and its walk's anchor over, no way led but one
     told."""
     head = _head(g)
     _laid(g).update(dict(held=0, after=None, exploring=False, explore=None, jump=True, way=None, lead=0.0, ground=None,
@@ -350,48 +350,48 @@ def _over(g, **told):
 
 
 def scan(g, points):
-    """Her eyes on each of `points` [(x, y, z)] in turn, HELD looks each (`asked`), her exploring over."""
+    """Its eyes on each of `points` [(x, y, z)] in turn, HELD looks each (`asked`), its exploring over."""
     _over(g, points=[tuple(map(float, p)) for p in points], fix=None)
 
 
 def scanned(g):
-    """Whether her eyes have looked at each place they were told to scan (`scan`), and a look on: their things hers."""
+    """Whether its eyes have looked at each place they were told to scan (`scan`), and a look on: their things its own."""
     st = g.get('_gaze') or {}
     return not st.get('points') and (st.get('after') or 0) >= 1
 
 
 def fix(g, point, way=None, lead=0.0):
-    """Her gaze held on world `point` (x, y, z) wherever she stands (`moved`), her exploring over; walking her `way`
-    ((n, 4+) rows x, z, its length walked to each and her pace there: her planner's curve), led by it: HELD looks at a
-    time on `point`, then on the ground it takes her to `lead` s on where a look at `point` shows it not (`_ahead`)."""
+    """Its gaze held on world `point` (x, y, z) wherever it stands (`moved`), its exploring over; walking its `way`
+    ((n, 4+) rows x, z, its length walked to each and its pace there: its planner's curve), led by it: HELD looks at a
+    time on `point`, then on the ground it takes it to `lead` s on where a look at `point` shows it not (`_ahead`)."""
     np = _np()
     _over(g, points=[], fix=tuple(map(float, point)), lead=float(lead),
           way=None if way is None or len(way) < 2 else np.array(np.asarray(way, float)[:, :4]))
 
 
 def rest(g):
-    """Her gaze let go: her eyes at rest and held there till she stands somewhere new (`_arrived`)."""
+    """Its gaze let go: its eyes at rest and held there till it stands somewhere new (`_arrived`)."""
     _over(g, points=[], fix=None)
 
 
 def aimed(world, gz):
-    """Her eyes' cameras on her head at her servos' gaze `gz`: her gimbals swung to it (`swung`), her cameras placed
+    """Its eyes' cameras on its head at its servos' gaze `gz`: its gimbals swung to it (`swung`), its cameras placed
     on them (`placed`)."""
     swung(world, gz)
     placed(world)
 
 
 def swung(world, gz):
-    """Her gimbals swung to her servos' gaze `gz`, each through its pushrods and behind their play (`gimbal.played`,
-    from where it was: `world.gimbals`) - each pass of her gaze, her play's side its path."""
+    """Its gimbals swung to its servos' gaze `gz`, each through its pushrods and behind their play (`gimbal.played`,
+    from where it was: `world.gimbals`) - each pass of its gaze, its play's side its path."""
     was = getattr(world, 'gimbals', None) or {s: (0.0, 0.0) for s in ('left', 'right')}
     world.gimbals = {s: gimbal.played(was[s], gimbal.angles(s, gz), s) for s in ('left', 'right')}
 
 
 def placed(world):
-    """Her eyes' cameras on her head as her gimbals stand (`swung`): each turned and its middle placed on its gimbal
-    as built (`gimbal.eye`, `gimbal.place`), their poses laid anew (`mj_camlight`): what her eyes draw next looks so.
-    Read at a look alone (`camera.POSES`, `sight.Eyes.see`), her world's step laying them again after: placed each
+    """Its eyes' cameras on its head as its gimbals stand (`swung`): each turned and its middle placed on its gimbal
+    as built (`gimbal.eye`, `gimbal.place`), their poses laid anew (`mj_camlight`): what its eyes draw next looks so.
+    Read at a look alone (`camera.POSES`, `sight.Eyes.see`), its world's step laying them again after: placed each
     law pass they were 100 us of it."""
     for side, a in world.gimbals.items():
         i, R = world.model.camera('eye_' + side).id, gimbal.eye(side, a)
@@ -400,10 +400,10 @@ def placed(world):
 
 
 def held(g, gz):
-    """{side: (across, down) rad} her gimbals as she holds them at her servos' gaze `gz`: each command she gives, as her
-    gimbals take each (`aimed`), through her pushrods' play as her calibration told her it (`gimbal.played`'s told) -
-    sent with a look, her pictures laid by it (`sight.Eyes.stereo`). Told from a look's gaze alone, the play's side
-    a saccade's path and her vergence turn left her eyes 0.2-0.5 deg apart off as built and her depth 5-21 % off."""
+    """{side: (across, down) rad} its gimbals as it holds them at its servos' gaze `gz`: each command it gives, as its
+    gimbals take each (`aimed`), through its pushrods' play as its calibration told it it (`gimbal.played`'s told) -
+    sent with a look, its pictures laid by it (`sight.Eyes.stereo`). Told from a look's gaze alone, the play's side
+    a saccade's path and its vergence turn left its eyes 0.2-0.5 deg apart off as built and its depth 5-21 % off."""
     st = _laid(g)
     was = st.get('gimbals') or {s: (0.0, 0.0) for s in ('left', 'right')}
     st['gimbals'] = {s: gimbal.played(was[s], gimbal.angles(s, gz, True), s, True) for s in ('left', 'right')}
@@ -411,8 +411,8 @@ def held(g, gz):
 
 
 def gazed(head, gz):
-    """The head her eyes look from at gaze `gz`: `head` {pos, quat} turned by its version about her eye - its rotation
-    hers turned so, its place where her eye stays where it is."""
+    """The head its eyes look from at gaze `gz`: `head` {pos, quat} turned by its version about its eye - its rotation
+    its own turned so, its place where its eye stays where it is."""
     np = _np()
     R = _frame(head['quat'])
     turn = R @ turned(gz[:2])

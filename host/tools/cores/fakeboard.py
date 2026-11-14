@@ -45,7 +45,7 @@ ANSWER = 4096
 
 #: The library a parent process built, loaded by its children as it is: Windows refuses to
 #: overwrite a DLL a live process holds. A build of its own (COAXIAL_ROBOT) under its own name: its model.
-BUILT = 'COAXIAL_FAKEBOARD' + ('' if mechatronics.ROBOT == mechatronics.HERS else '_' + mechatronics.ROBOT.upper())
+BUILT = 'COAXIAL_FAKEBOARD' + ('' if mechatronics.ROBOT == mechatronics.STOCK else '_' + mechatronics.ROBOT.upper())
 
 _LIB = []
 

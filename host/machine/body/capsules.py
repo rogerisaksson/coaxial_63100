@@ -1,20 +1,20 @@
-"""The kernel's capsules on her skin (proprioceptive_body_schema.lisp): its 18, their clearances.
+"""The kernel's capsules on its skin (proprioceptive_body_schema.lisp): its 18, their clearances.
 
     caps = capsules.laid(body.d, at)         # each capsule's ends and radii in the world as `body.d` is posed
     near = capsules.nearest(caps, PAIRS)     # each pair's clearance, its normal and points
     d = capsules.smooth(near['d'])           # the text's log-sum-exp at ALPHA, under the least
     J, rate = capsules.rows(body, d, near, PAIRS, which, at, v)   # each pair's clearance Jacobian, its rate
-    own = capsules.Own(body)                 # her law's body on the shield's own data, laid once
+    own = capsules.Own(body)                 # its law's body on the shield's own data, laid once
     near = capsules.felt(own, s, at)         # every pair's clearance and its Jacobian, `own` posed at `s`
 
-The text's 18 capsules by its names, frames and 13 self-collision pairs, each on her segment and her
-skin there (`figure.BODY`: the first of its capsules there to the last, tapering; her sole and knee of
-her figure's numbers): its own are another body's - its shank 0.41 m long and 68 mm round where hers
-0.38 and 50, its thighs 95 mm round 145 mm off her middle, through each other at her hips. A capsule
+The text's 18 capsules by its names, frames and 13 self-collision pairs, each on its segment and its
+skin there (`figure.BODY`: the first of its capsules there to the last, tapering; its sole and knee of
+its figure's numbers): its own are another body's - its shank 0.41 m long and 68 mm round where its own
+0.38 and 50, its thighs 95 mm round 145 mm off its middle, through each other at its hips. A capsule
 tapers from r0 at p0 to r1 at p1; two capsules' clearance is their axes' nearest points' distance
 less each's radius there. Each pair's floor is its barrier's (`configure-self-collision-barriers`, 0 a
 pair it names in no group), its evading joints its barrier's DOF on its sides; each capsule's against
-Her shield on them: `machine.law.schema`.
+The robot's shield on them: `machine.law.schema`.
 """
 import os
 
@@ -29,32 +29,32 @@ from machine.body.figure import ANKLE_H, BALL, BODY, HEEL, SOLE_HALF
 _LAID = kernel.read()['anatomical-capsule-schema']
 #: The text's capsules, its order.
 NAMES = tuple(_LAID['capsules'])
-#: A side's suffix in the text's names, its prefix in her segments'.
+#: A side's suffix in the text's names, its prefix in its segments'.
 SIDES = {'l': 'left_', 'r': 'right_'}
-#: Her frame's axes of the text's: her lateral, up and forward its y, z and x.
+#: The robot's frame's axes of the text's: its lateral, up and forward its y, z and x.
 AXES = (1, 2, 0)
 
 
 def _skin(part, ks):
-    """(p0, p1, r0, r1) of her skin's capsules `ks` on `part` (`figure.BODY`'s order there) as one."""
+    """(p0, p1, r0, r1) of its skin's capsules `ks` on `part` (`figure.BODY`'s order there) as one."""
     caps = [c for c in BODY if c[0] == part]
     a, b = caps[ks[0]], caps[ks[-1]]
     return a[2], b[3], a[1], b[1]
 
 
 def _sole():
-    """Her sole as a capsule: as wide as it, from her heel to her ball, its underside her sole."""
+    """Its sole as a capsule: as wide as it, from its heel to its ball, its underside its sole."""
     y = SOLE_HALF - ANKLE_H
     return (0.0, y, SOLE_HALF - HEEL), (0.0, y, BALL - SOLE_HALF), SOLE_HALF, SOLE_HALF
 
 
 def _knee():
-    """Her knee where the text lays it on its frame, her shank's top's round."""
+    """The robot's knee where the text lays it on its frame, its shank's top's round."""
     c, r = _LAID['capsules']['knee-patellar-l'], _skin('shank', (0,))[2]
     return tuple(c['p0'][k] for k in AXES), tuple(c['p1'][k] for k in AXES), r, r
 
 
-#: Each of the text's capsules (its name less its side) on her: her segment, her skin there.
+#: Each of the text's capsules (its name less its side) on it: its segment, its skin there.
 SKIN = {'foot-shell': ('foot', _sole()), 'shank-crural': ('shank', _skin('shank', (0, 1))),
         'thigh-femoral': ('thigh', _skin('thigh', (0, 1))), 'pelvic-girdle': ('pelvis', _skin('pelvis', (2,))),
         'lumbar-column': ('torso', _skin('torso', (0,))), 'thoracic-ribcage': ('torso', _skin('torso', (2,))),
@@ -64,7 +64,7 @@ SKIN = {'foot-shell': ('foot', _sole()), 'shank-crural': ('shank', _skin('shank'
 
 
 def _sided(name):
-    """(the text's capsule less its side, her segment's side prefix)."""
+    """(the text's capsule less its side, its segment's side prefix)."""
     base, side = name.rsplit('-', 1)
     return (base, SIDES[side]) if side in SIDES else (name, '')
 
@@ -86,8 +86,8 @@ FLOOR = np.array([max([g['min-clearance-m'] for g in _GROUPS
 ALPHA = kernel.node('xform-universal-spatial-awareness', 'clearance-field')['aggregation-kernel'].args['alpha']
 #: The text's limb retraction: its influence (`machine.law.schema`).
 RETRACTION = kernel.node('specialize-with-nullspace-limb-retraction', 'limb-retraction')
-#: The text's evasion DOFs (its barriers' `evasion-dof`, its synergies' `repulsion-mapping`) as her
-#: joints' kinds: her shoulder only flexes, no glenohumeral abduction or adduction - a row only those
+#: The text's evasion DOFs (its barriers' `evasion-dof`, its synergies' `repulsion-mapping`) as its
+#: joints' kinds: its shoulder only flexes, no glenohumeral abduction or adduction - a row only those
 #: evade by is spilled whole.
 DOFS = {'swing-circumduction-bow': ('hip_roll',), 'coxofemoral-external-rotation': ('hip_yaw',),
         'glenohumeral-abduction': (), 'glenohumeral-adduction': (), 'cubital-flexion': ('elbow',),
@@ -96,19 +96,19 @@ DOFS = {'swing-circumduction-bow': ('hip_roll',), 'coxofemoral-external-rotation
 
 
 def _joints(dofs, sides):
-    """Her driven joints (`bemf.DRIVEN` indices) of the text's DOFs `dofs` on `sides` (prefixes)."""
+    """Its driven joints (`bemf.DRIVEN` indices) of the text's DOFs `dofs` on `sides` (prefixes)."""
     kinds = {k for d in dofs for k in DOFS[str(d).lstrip(':')]}
     return {bemf.DRIVEN.index(k if k in bemf.DRIVEN else side + k) for k in kinds for side in sides}
 
 
 def _pair_evades(a, b):
-    """Her joints a pair of capsules evades by: its barriers' DOFs (`configure-self-collision-barriers`,
+    """Its joints a pair of capsules evades by: its barriers' DOFs (`configure-self-collision-barriers`,
     each group holding either), on the sides of its sided capsules, on both where neither is."""
     sides = {_sided(n)[1] for n in (a, b)} - {''} or set(SIDES.values())
     return _joints([g['evasion-dof'] for g in _GROUPS if {':' + a, ':' + b} & set(g['capsules'])], sides)
 
 
-#: Each pair's evading joints, a row a pair over her driven joints.
+#: Each pair's evading joints, a row a pair over its driven joints.
 EVADES = np.array([[i in _pair_evades(NAMES[a], NAMES[b]) for i in range(len(bemf.DRIVEN))] for a, b in PAIRS])
 
 
@@ -118,7 +118,7 @@ def ids(m):
 
 
 def laid(d, at):
-    """{p0, p1 (n, 3), r0, r1 (n,), ids}: each capsule in the world on her model's data `d` as
+    """{p0, p1 (n, 3), r0, r1 (n,), ids}: each capsule in the world on its model's data `d` as
     posed, its segments' ids `at` (`ids`)."""
     R, o = d.xmat[at].reshape(-1, 3, 3), d.xpos[at]
     return {'p0': o + np.einsum('nij,nj->ni', R, P0), 'p1': o + np.einsum('nij,nj->ni', R, P1),
@@ -158,7 +158,7 @@ def smooth(d, alpha=ALPHA):
 
 def rows(body, d, near, pairs, which, at, v):
     """(J, d') of pairs `which`: each one's clearance's Jacobian (k, n) along its normal, its points'
-    segments' (`at`), on her law's `body`'s model as `d` is posed; d' its rate at her velocity `v`."""
+    segments' (`at`), on its law's `body`'s model as `d` is posed; d' its rate at its velocity `v`."""
     m, mj, n = body.m, body.mj, body.n
     jp, jq = np.zeros((3, m.nv)), np.zeros((3, m.nv))
     J = np.zeros((len(which), n))
@@ -170,8 +170,8 @@ def rows(body, d, near, pairs, which, at, v):
 
 
 def posed(body, d, s):
-    """`d`, data of her law's `body`'s model of the shield's own, posed at the pass's sensed state
-    `s` (its `qpos` and `v`): its frames and its Jacobians' terms - her law's own data the pass's
+    """`d`, data of its law's `body`'s model of the shield's own, posed at the pass's sensed state
+    `s` (its `qpos` and `v`): its frames and its Jacobians' terms - its law's own data the pass's
     steps pose as they need."""
     m, mj = body.m, body.mj
     d.qpos[:len(s['qpos'])], d.qvel[:body.n] = s['qpos'], s['v']
@@ -182,14 +182,14 @@ def posed(body, d, s):
 
 class Own:
 
-    """Her law's `body` on data of its own, `d` (the shield's): every other attribute read off hers as
-    it is - traced as her body (`tools.cores.bodied.on_body`), what it reads of hers held the same."""
+    """Its law's `body` on data of its own, `d` (the shield's): every other attribute read off its own as
+    it is - traced as its body (`tools.cores.bodied.on_body`), what it reads of its own held the same."""
 
     def __init__(self, body):
         self.body, self.d = body, body.mj.MjData(body.m)
 
     def __getattr__(self, name):
-        """Her body's `name`; a protocol's dunder probe (copy's, before its state) AttributeError."""
+        """Its body's `name`; a protocol's dunder probe (copy's, before its state) AttributeError."""
         if name.startswith('__'):
             raise AttributeError(name)
         return getattr(self.body, name)
@@ -197,7 +197,7 @@ class Own:
 
 def felt(body, s, at):
     """{d, J}: every pair's clearance and its clearance's Jacobian (`nearest`, `rows`), `body` (`Own`)
-    posed at `s` on its own data (`posed`), its capsules' segments `at` (`ids`) - shapes fixed, her
+    posed at `s` on its own data (`posed`), its capsules' segments `at` (`ids`) - shapes fixed, its
     loop's compiled (`machine.law.motion.laid`)."""
     d = posed(body, body.d, s)
     near = nearest(laid(d, at), PAIRS)

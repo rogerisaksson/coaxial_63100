@@ -1,18 +1,18 @@
-"""Her latent modes on her body: what is sensed read as modes, the loop's ask laid flat.
+"""The robot's latent modes on its body: what is sensed read as modes, the loop's ask laid flat.
 
-    y = modal.sensed(s, loads, y)                       # flat, of `wbc.sense`'s s and her soles' N
-    z, rate = modal.read(y, fr, a[modal.STANCE])        # her modes as she is, and their rates
+    y = modal.sensed(s, loads, y)                       # flat, of `wbc.sense`'s s and its soles' N
+    z, rate = modal.read(y, fr, a[modal.STANCE])        # its modes as it is, and their rates
     posed = modal.poses(a, y, fr, posture, bend, arms, reaches, folds, knees)  # the stack's ask's arithmetic
     ask = modal.given(a, y, posed, knees, bend, fr)     # the stack's ask (`wbc.step`) of `a`
 
 Flat arrays and arithmetic on them; a choice is a mask, a limit a minimum or a maximum, a
-change a blend. A limb's place is its sole's from her centre of mass, along her way, to her
-left and up. Her modes are those places' sums and differences (HANDS): of the sum, her centre
-of mass over her soles' middle - its place across and along; of the difference, her limbs
-against each other - the drive along, the lift, the width. Her height is her standing legs'
-compression: how much shorter they are, hip to ankle, than she stood on - over one leg held
-at its length she rises and comes down as its arc does. Her trunk's pitch, her pelvis's list
-and turn, her arms' swing, reach and fold and her soles' rock are turns. `machine.law.impedance` renders their
+change a blend. A limb's place is its sole's from its centre of mass, along its way, to its
+left and up. Its modes are those places' sums and differences (HANDS): of the sum, its centre
+of mass over its soles' middle - its place across and along; of the difference, its limbs
+against each other - the drive along, the lift, the width. The robot's height is its standing legs'
+compression: how much shorter they are, hip to ankle, than it stood on - over one leg held
+at its length it rises and comes down as its arc does. The robot's trunk's pitch, its pelvis's list
+and turn, its arms' swing, reach and fold and its soles' rock are turns. `machine.law.impedance` renders their
 springs into `a`, the loop's ask.
 """
 import os
@@ -40,24 +40,24 @@ N = ortho.N
 #: Of the pelvis and the trunk, the pelvis.
 PELVIS = np.array([1.0, 0.0])
 
-#: What is sensed, world frame: her centre of mass and its speed; each sole's middle and its
-#: speed; each sole's load, N; the pelvis's and the trunk's quaternions and spins; her angular
-#: momentum about her centre of mass; each sole's lowest corner's height; each hip's joint;
+#: What is sensed, world frame: its centre of mass and its speed; each sole's middle and its
+#: speed; each sole's load, N; the pelvis's and the trunk's quaternions and spins; its angular
+#: momentum about its centre of mass; each sole's lowest corner's height; each hip's joint;
 #: each sole's pitch, its heel up, rad, and its rate; each shoulder's reach forward, rad; the
-#: share of her weight borne off her soles, and the box it is borne on (low, high; world); each
-#: sole's grip, the floor's friction under it as she has felt it (`machine.senses.grip`); each elbow's
-#: bend, rad; the share of her weight each hand bears (`borne`).
+#: share of its weight borne off its soles, and the box it is borne on (low, high; world); each
+#: sole's grip, the floor's friction under it as it has felt it (`machine.senses.grip`); each elbow's
+#: bend, rad; the share of its weight each hand bears (`borne`).
 COM, VCOM, SOLE, VSOLE = slice(0, 3), slice(3, 6), slice(6, 12), slice(12, 18)
 LOAD, QUAT, SPIN, MOMENT = slice(18, 20), slice(20, 28), slice(28, 34), slice(34, 37)
 LOWEST, HIP, TILT, TILT_RATE, ARM = slice(37, 39), slice(39, 45), slice(45, 47), slice(47, 49), slice(49, 51)
 PROP, PROP_LO, PROP_HI, GRIP = 51, slice(52, 55), slice(55, 58), slice(58, 60)
 VHEAD, HQUAT, HSPIN, CELLS, ELBOW, PALMS = slice(60, 63), slice(63, 67), slice(67, 70), slice(70, 74), slice(74, 76), slice(76, 78)
 SENSED = 78
-#: Her statics: her way's frame (3 x 3: along, left, up in the world); her centre of mass over
-#: her soles and her soles' half width as she stood; the floor; omega; her weight, N; her knees'
-#: bend standing, rad; the pelvis's and the trunk's pitch then; her heading, rad; a hip from
-#: its ankle as she stood, m; how far her hips come down a metre of her centre of mass - her
-#: limbs' own mass comes half as far; her shoulders then; each mode's unit on her (m, a
+#: Its statics: its way's frame (3 x 3: along, left, up in the world); its centre of mass over
+#: its soles and its soles' half width as it stood; the floor; omega; its weight, N; its knees'
+#: bend standing, rad; the pelvis's and the trunk's pitch then; its heading, rad; a hip from
+#: its ankle as it stood, m; how far its hips come down a metre of its centre of mass - its
+#: limbs' own mass comes half as far; its shoulders then; each mode's unit on it (m, a
 #: turn's rad), its reading where its coordinate is 0, the mass it moves, kg.
 ROT, H0, W0, FLOOR, OMEGA, WEIGHT, KNEE = slice(0, 9), 9, 10, 11, 12, 13, 14
 PITCH0, HEADING, DT, REACH0, HIPS_BY, ARM0 = slice(15, 17), 17, 18, 19, 20, slice(21, 23)
@@ -66,80 +66,80 @@ UNIT, Z0, MASS = (slice(23 + i * N, 23 + (i + 1) * N) for i in range(3))
 #: point its height is read at, world x and z, m.
 GROUND = slice(23 + 3 * N, 25 + 3 * N)
 FLOOR_AT = slice(25 + 3 * N, 27 + 3 * N)
-#: And a floor told her (`worker.told_floor`), MAP_K breakpoints at most: where she stood when
-#: told and her way then, world x and z; each breakpoint along that way, m, and its height; how
-#: many were told, 0 none. Its heights are read over the floor felt under her standing soles
-#: (`impedance._landings`): her observer's height drifts, 1.2 cm/s on a landing.
+#: And a floor told it (`worker.told_floor`), MAP_K breakpoints at most: where it stood when
+#: told and its way then, world x and z; each breakpoint along that way, m, and its height; how
+#: many were told, 0 none. Its heights are read over the floor felt under its standing soles
+#: (`impedance._landings`): its observer's height drifts, 1.2 cm/s on a landing.
 MAP_K = 16
 MAP_AT, MAP_WAY = slice(27 + 3 * N, 29 + 3 * N), slice(29 + 3 * N, 31 + 3 * N)
 MAP_ALONG, MAP_RISE = slice(31 + 3 * N, 31 + 3 * N + MAP_K), slice(31 + 3 * N + MAP_K, 31 + 3 * N + 2 * MAP_K)
 MAP_N = 31 + 3 * N + 2 * MAP_K
-#: And her elbows as she stood.
+#: And its elbows as it stood.
 ELBOW0 = slice(MAP_N + 1, MAP_N + 3)
-#: And her way's turn since each sole was planted, rad (`se2.twisted`), naught for one in the air: a standing sole's
-#: side is read on her way as it lay when it was planted (`stride.meets`).
+#: And its way's turn since each sole was planted, rad (`se2.twisted`), naught for one in the air: a standing sole's
+#: side is read on its way as it lay when it was planted (`stride.meets`).
 PLANTED = slice(MAP_N + 3, MAP_N + 5)
 FRAME = MAP_N + 5
-#: The loop's ask, flat: each sole standing (1) or not; her centre of mass's acceleration and
+#: The loop's ask, flat: each sole standing (1) or not; its centre of mass's acceleration and
 #: each sole's, world; the pelvis's and the trunk's pitch wanted, rad; each knee's fold over its
-#: posture and its rate; whether a turn is asked; her knees' bend with her height; her angular
+#: posture and its rate; whether a turn is asked; its knees' bend with its height; its angular
 #: momentum's rate.
 STANCE, COM_ACC, SOLE_ACC = slice(0, 2), slice(2, 5), slice(5, 11)
 WANT, FOLD, FOLD_RATE = slice(11, 13), slice(13, 15), slice(15, 17)
 TURNED, BEND, KDOT = 17, 18, slice(19, 22)
-#: Kept in the ask from pass to pass: her going, the speed her soles have made along her way
+#: Kept in the ask from pass to pass: its going, the speed its soles have made along its way
 #: of late, m/s.
 GOING = 22
-#: And: the pelvis's and the trunk's roll and turn wanted, the turn from her heading; each
-#: sole's pitch wanted; her arms' swing; which soles' knees are asked a fold.
+#: And: the pelvis's and the trunk's roll and turn wanted, the turn from its heading; each
+#: sole's pitch wanted; its arms' swing; which soles' knees are asked a fold.
 ROLLED, HEADED, TIPPED, SWUNG, FOLDS = slice(23, 25), slice(25, 27), slice(27, 29), 29, slice(30, 32)
 #: And each standing sole's own turn and its middle's acceleration, world: flat again, or
 #: over its ball; how far each stands on an edge, 1 its ball and -1 its heel; and, kept, the
 #: heel's rise asked of each the pass before.
 SETTLE, EDGE, HEELED = slice(32, 44), slice(44, 46), slice(46, 48)
-#: And how far she strides, 0 to 1; each standing knee's fold before its swing, rad; kept,
-#: how far each limb's stride has it off, 0 to 1, and how much higher her swings clear the
-#: floor for what a sole met, m; how far her capture point steps her, 0 to 1; how far each
-#: swing has gone ahead of its rhythm, of its share; how far her capture point is past a lone
-#: standing sole's own side, m - where no swing reaches; how far what bears her off her soles
-#: supports her, 0 to 1.
+#: And how far it strides, 0 to 1; each standing knee's fold before its swing, rad; kept,
+#: how far each limb's stride has it off, 0 to 1, and how much higher its swings clear the
+#: floor for what a sole met, m; how far its capture point steps it, 0 to 1; how far each
+#: swing has gone ahead of its rhythm, of its share; how far its capture point is past a lone
+#: standing sole's own side, m - where no swing reaches; how far what bears it off its soles
+#: supports it, 0 to 1.
 STRIDES, PREFOLD, SWINGS, RAISE, NEED, LEAD, OUTSIDE, BORNE = 48, slice(49, 51), slice(51, 53), 53, 54, slice(55, 57), 57, 58
-#: And her knees' bend's rate, rad/s: the stack's knee rows damp against it, not against still.
+#: And its knees' bend's rate, rad/s: the stack's knee rows damp against it, not against still.
 BEND_RATE = 59
-#: And, kept, the tread of a floor told her each swing lands on (`treads.footholds`), -1 none.
+#: And, kept, the tread of a floor told it each swing lands on (`treads.footholds`), -1 none.
 CELL = slice(60, 62)
-#: And her sidechain's latch and envelope (`impedance._ducked`).
+#: And its sidechain's latch and envelope (`impedance._ducked`).
 DUCKING = slice(62, 64)
-#: And how far each sole rests where it is, 0 to 1 - her step's swing rows weigh so.
+#: And how far each sole rests where it is, 0 to 1 - its step's swing rows weigh so.
 RESTS = slice(64, 66)
-#: And, kept, her support's comparator (`borne.latched`): latched, the s it has been under its
+#: And, kept, its support's comparator (`borne.latched`): latched, the s it has been under its
 #: release, the s since its strike; its box's corners along and across, low then high.
 PROPPED, PROPPED_BELOW, PROPPED_SINCE, PROPPED_BOX = 66, 67, 68, slice(69, 73)
-#: And her arms' reach and fold.
+#: And its arms' reach and fold.
 REACHED, ELBOWED = 73, 74
-#: And whether each leg is let go: off the floor while a seat or a bed bears her, its sole is no swing - it
-#: hangs from its hip (`wrench._maps`). Swung, a seated sole that left the floor at 2e-4 rad stepped her up
+#: And whether each leg is let go: off the floor while a seat or a bed bears it, its sole is no swing - it
+#: hangs from its hip (`wrench._maps`). Swung, a seated sole that left the floor at 2e-4 rad stepped it up
 #: onto one leg off the chair.
 LET_GO = slice(75, 77)
-#: And each limb's own shift of its place in her rhythm, rad: 0 but in a leap (`impedance`, the split).
+#: And each limb's own shift of its place in its rhythm, rad: 0 but in a leap (`impedance`, the split).
 SPLIT = slice(77, 79)
 #: And, kept, the share of each limb's rhythm's swing its own began at: 0 there, less where its toes left first.
 BEGUN = slice(79, 81)
 #: And each leg's hold's dip, m: its hip under the height its heel rises for (`rocker.heels`' reach, `vault.vaults`
 #: holds it there) - the leg's bend past its asked length, and past the heel's need its hip's fall under the arc.
 DIP = slice(81, 83)
-#: And each sole's landing (`stride.meets`) and its aim this pass (`stride.guarded`), on her way, m.
+#: And each sole's landing (`stride.meets`) and its aim this pass (`stride.guarded`), on its way, m.
 MEET, AIM = slice(83, 87), slice(87, 91)
-#: And how far each sole strides to its aim, against hanging under her (`swing.free`), 0 to 1.
+#: And how far each sole strides to its aim, against hanging under it (`swing.free`), 0 to 1.
 STRODE = slice(91, 93)
 ASK = 93
 
-#: Her modes' numbers, her build's (`[gait.modes]`, `machine.body.gait`).
+#: The robot's modes' numbers, its build's (`[gait.modes]`, `machine.body.gait`).
 _G = gait.table('modes')
-#: A unit of each mode on her: her centre of mass down, m; her trunk's pitch, rad; a sole clear of
-#: the floor, m. Her legs' length is her figure's.
+#: A unit of each mode on it: its centre of mass down, m; its trunk's pitch, rad; a sole clear of
+#: the floor, m. The robot's legs' length is its figure's.
 AXIAL_M, PITCH_RAD, CLEAR_M = _G['axial_m'], _G['pitch_rad'], _G['clear_m']
-#: And of her turns, rad: her pelvis's list, a hip up, and its turn, a hip forward; a
+#: And of its turns, rad: its pelvis's list, a hip up, and its turn, a hip forward; a
 #: shoulder's reach, the other as far back, and an elbow's bend.
 LIST_RAD, TURN_RAD, ARM_RAD = _G['list_rad'], _G['turn_rad'], _G['arm_rad']
 LEG_M = THIGH + SHANK
@@ -152,15 +152,15 @@ HANDS[DRIVE, :, ALONG] = -LIMBS
 HANDS[LIFT, :, UP] = LIMBS
 HANDS[WIDTH, :, LEFT] = LIMBS
 HOT = np.eye(N)
-#: At rest: along the floor the capture point's law, its ZMP REST_K / omega past her capture
-#: point from where it is asked - a spring REST_K omega and a damper omega + REST_K over her
-#: mass; her height's, her turns' and a swinging sole's as the loop has them, 1/s^2 and 1/s.
+#: At rest: along the floor the capture point's law, its ZMP REST_K / omega past its capture
+#: point from where it is asked - a spring REST_K omega and a damper omega + REST_K over its
+#: mass; its height's, its turns' and a swinging sole's as the loop has them, 1/s^2 and 1/s.
 REST_K = _G['rest_1_s']
 #: A limb in the air at rest, 1/s^2 and 1/s.
 LIMB_KD = (_G['limb_1_s2'], _G['limb_1_s'])
-#: Her ZMP's polygon: none, her support's, the dynamic footprint. No limit on her yaw momentum.
+#: Its ZMP's polygon: none, its support's, the dynamic footprint. No limit on its yaw momentum.
 NONE, SUPPORT, FOOTPRINT, FREE = 0.0, 1.0, 2.0, 1e9
-#: Each leg's hip's yaw, roll and pitch among her driven joints (`rounds.LEGS`); its sagittal chain, the
+#: Each leg's hip's yaw, roll and pitch among its driven joints (`rounds.LEGS`); its sagittal chain, the
 #: hip's pitch, the knee and the ankle, and a radian of each's flexion on its joint - the ankle's
 #: dorsiflexion (`terms`).
 HIPS = np.array([leg[:3] for leg in rounds.LEGS])
@@ -170,15 +170,15 @@ ISCHIAL = ortho.MANIFOLDS.index('ischial')
 
 
 def pitched(y, rot):
-    """The pelvis's and the trunk's pitch along her way, rad (2,): `_turns`' first row alone."""
+    """The pelvis's and the trunk's pitch along its way, rad (2,): `_turns`' first row alone."""
     w, x, j, k = y[QUAT].reshape(2, 4).T
     up = np.stack([2.0 * (x * j - w * k), 1.0 - 2.0 * (x * x + k * k), 2.0 * (j * k + w * x)], axis=1)
     return np.arctan2(up @ rot[ALONG], up[:, 1])
 
 
 def _turns(y, rot):
-    """The pelvis's and the trunk's pitch along her way (`pitched`), roll - the left up - and turn
-    to her left, rad, and their rates: (3, 2) each."""
+    """The pelvis's and the trunk's pitch along its way (`pitched`), roll - the left up - and turn
+    to its left, rad, and their rates: (3, 2) each."""
     w, x, j, k = y[QUAT].reshape(2, 4).T
     left = np.stack([1.0 - 2.0 * (j * j + k * k), 2.0 * (x * j + w * k), 2.0 * (x * k - w * j)], axis=1)
     on = np.stack([2.0 * (x * k + w * j), 2.0 * (j * k - w * x), 1.0 - 2.0 * (x * x + j * j)], axis=1)
@@ -197,15 +197,15 @@ def _turned(yaw, pitch, roll):
 
 
 def _legs(y, rot):
-    """Each leg, its hip from its ankle in her way's frame (2, 3), its length and that's
-    rate: her hips go as her centre of mass does, an ankle as its sole."""
+    """Each leg, its hip from its ankle in its way's frame (2, 3), its length and that's
+    rate: its hips go as its centre of mass does, an ankle as its sole."""
     leg = _leg(y, rot)
     long = np.linalg.norm(leg, axis=1)
     return leg, long, ((y[VCOM] - y[VSOLE].reshape(2, 3)) @ rot.T * leg).sum(axis=1) / long
 
 
 def _leg(y, rot):
-    """`_legs`'s first: each leg, its hip from its ankle in her way's frame (2, 3)."""
+    """`_legs`'s first: each leg, its hip from its ankle in its way's frame (2, 3)."""
     tilt = y[TILT]
     spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
     inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
@@ -213,17 +213,17 @@ def _leg(y, rot):
 
 
 def under(y, fr, stance):
-    """(the floor under each sole's middle, m; its rise a metre along her way): a plane through
+    """(the floor under each sole's middle, m; its rise a metre along its way): a plane through
     the floor's height at its point, pitched as the soles in `stance` stand on it - level under
     half `stride.EDGE_RAD`. Read level, each swing up a 10 deg ramp came down on it early, 0.05
-    to 0.09 m behind her centre of mass, and she ran on to 1.7 m/s and fell at 5.1 s."""
+    to 0.09 m behind its centre of mass, and it ran on to 1.7 m/s and fell at 5.1 s."""
     bears = (stance + TINY) / (stance.sum() + 2.0 * TINY)
     rise = bears @ -np.tan(rocker.pitched(fr[GROUND]))
     return fr[FLOOR] + rise * ((y[SOLE].reshape(2, 3)[:, [0, 2]] - fr[FLOOR_AT]) @ fr[ROT][[0, 2]]), rise
 
 
 def shortened(legs, fr, stance):
-    """Her axial compression and its rate: how much shorter than she stood on the legs in
+    """The robot's axial compression and its rate: how much shorter than it stood on the legs in
     `stance` are - none in it, both. Each by the load it bears (not kept): the chairs fell 3 of
     3 laid, snow 2, the run leap lost its flight and the viewport's errands fell."""
     w = (stance + TINY) / (stance.sum() + 2.0 * TINY)
@@ -231,8 +231,8 @@ def shortened(legs, fr, stance):
 
 
 def reading(y, fr, stance):
-    """(her modes, their rates, her legs, her turns and their rates) as she is, the soles in
-    `stance` her standing ones."""
+    """(its modes, their rates, its legs, its turns and their rates) as it is, the soles in
+    `stance` its standing ones."""
     rot = fr[ROT].reshape(3, 3)
     place = (y[SOLE].reshape(2, 3) - y[COM]) @ rot.T
     speed = (y[VSOLE].reshape(2, 3) - y[VCOM]) @ rot.T
@@ -252,14 +252,14 @@ def reading(y, fr, stance):
 
 
 def read(y, fr, stance):
-    """(her modes, their rates) as she is (`ortho.MODES`' order), in the units they are asked
+    """(its modes, their rates) as it is (`ortho.MODES`' order), in the units they are asked
     in; `stance` the soles that stand (the ask's STANCE)."""
     return reading(y, fr, stance)[:2]
 
 
 def sensed(s, loads, y):
-    """`y` filled of `wbc.sense`'s `s` - with her hips' joints (`hips`, world), her shoulders'
-    reach forward and her elbows' bend (`arms`, `elbows`, rad) beside it - and her soles' `loads`, N."""
+    """`y` filled of `wbc.sense`'s `s` - with its hips' joints (`hips`, world), its shoulders'
+    reach forward and its elbows' bend (`arms`, `elbows`, rad) beside it - and its soles' `loads`, N."""
     feet, turns, head = s['feet'], s['turns'], s['head']
     y[COM], y[VCOM], y[LOAD], y[MOMENT] = s['com'], s['vcom'], loads, s['k']
     y[SOLE] = np.concatenate([f['sole'] for f in feet])
@@ -278,8 +278,8 @@ def sensed(s, loads, y):
 
 def seat(y, fr, pose):
     """Each leg's hip pitch, knee and ankle (2, 3), rad, as a seat holds them: the knee as `pose` bends
-    it, the hip as high over the ankle and as far aside as she is (`_legs`), the sole flat - the ankle
-    where that chain puts it (`seated.legs`), the hip off her pelvis's pitch (`pitched`)."""
+    it, the hip as high over the ankle and as far aside as it is (`_legs`), the sole flat - the ankle
+    where that chain puts it (`seated.legs`), the hip off its pelvis's pitch (`pitched`)."""
     rot = fr[ROT].reshape(3, 3)
     leg = _legs(y, rot)[0]
     knee = FLEX[1] * pose[CHAIN[:, 1]]
@@ -290,14 +290,14 @@ def seat(y, fr, pose):
 
 
 def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
-    """(each sole's place asked as it swings (2, 3), her posture (driven), her turns (pelvis,
+    """(each sole's place asked as it swings (2, 3), its posture (driven), its turns (pelvis,
     trunk) and a swinging sole's quaternion (2, 4)) of `a`, the stack's ask's arithmetic
-    (`given`): `posture` her driven joints standing, rad; `bend` how each goes with her knees'
-    (`bends.crouch`), `arms` with her arms' swing (`bends.swing`), `reaches` with their reach (`bends.reach`),
-    `folds` with their fold (`bends.fold`); `knees` each knee's index among them; `w` what bears her
-    (`latent.MANIFOLDED`). Her legs as it holds them: her soles, her side and her back each hip on a
+    (`given`): `posture` its driven joints standing, rad; `bend` how each goes with its knees'
+    (`bends.crouch`), `arms` with its arms' swing (`bends.swing`), `reaches` with their reach (`bends.reach`),
+    `folds` with their fold (`bends.fold`); `knees` each knee's index among them; `w` what bears it
+    (`latent.MANIFOLDED`). Its legs as it holds them: its soles, its side and its back each hip on a
     line with its ankle - the crouch's column -, a seat its thigh (`seat`); a leg let go on the same, an open
-    chain (`machine.moves.emancipation`): hung with its thigh level, on the floor its foot pressed her pelvis up off it.
+    chain (`machine.moves.emancipation`): hung with its thigh level, on the floor its foot pressed its pelvis up off it.
     A palm told to bear its arm a column."""
     soles, speeds = y[SOLE].reshape(2, 3), y[VSOLE].reshape(2, 3)
     q0, q2 = y[QUAT][0], y[QUAT][2]
@@ -316,22 +316,22 @@ def poses(a, y, fr, posture, bend, arms, reaches, folds, knees, w, clear=0.0):
     return sw_at, pose, turns, tips
 
 
-#: Borne, her trunk sensed this far back, rad, is a recline: the chain's step holds her (`chain.chained`). On the
-#: walking step the bed's long side slid her off its edge onto the floor at 4.8 s; on the chain, its hands' and
-#: soles' push capped, the bed bore her through the run, 12.5 s, and she lay square on it.
+#: Borne, its trunk sensed this far back, rad, is a recline: the chain's step holds it (`chain.chained`). On the
+#: walking step the bed's long side slid it off its edge onto the floor at 4.8 s; on the chain, its hands' and
+#: soles' push capped, the bed bore it through the run, 12.5 s, and it lay square on it.
 RECLINED_RAD = 0.35
 
 
 def given(a, y, posed, knees, bend, fr, pitched_=pitched):
-    """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by her stance: a sole
+    """The stack's ask (`wbc.step`) of `a` and its poses (`posed`, `poses`), by its stance: a sole
     that does not stand is asked its acceleration where it is; no turn is asked with none standing;
-    each knee's posture goes at its share (`bend`, `crouch`) of her knees' bend's rate; `reclined`
-    borne with her trunk sensed past RECLINED_RAD back along her way (`fr`; `pitched_` its C). A
-    standing knee her stride has off (pre-swing) is asked its fold (`poses`' PREFOLD) as a row of its
-    own: through the knees' summed row and her posture alone it stayed at 30 deg and her hip was still
-    extending, 82 deg/s, as her toes left - a woman's flexes there."""
+    each knee's posture goes at its share (`bend`, `crouch`) of its knees' bend's rate; `reclined`
+    borne with its trunk sensed past RECLINED_RAD back along its way (`fr`; `pitched_` its C). A
+    standing knee its stride has off (pre-swing) is asked its fold (`poses`' PREFOLD) as a row of its
+    own: through the knees' summed row and its posture alone it stayed at 30 deg and its hip was still
+    extending, 82 deg/s, as its toes left - a woman's flexes there."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
-    # her two soles' sets read as numbers: three flatnonzeros of two were 20 us a law pass
+    # it two soles' sets read as numbers: three flatnonzeros of two were 20 us a law pass
     stood, let, folds, swings = a[STANCE].tolist(), a[LET_GO].tolist(), a[FOLDS].tolist(), a[SWINGS].tolist()
     soles = range(len(stood))
     free = list(compress(soles, [(st < 0.5) * (lg < 0.5) for st, lg in zip(stood, let)]))

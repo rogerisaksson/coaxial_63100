@@ -1,5 +1,5 @@
-/** wbc_wait.c - the rows of her table that wait, and those that wake her (wbc_imp.h):
-    machine.law.waits.held_rows, risen_rows, borne_rows, played_rows, latched_rows and woken_rows on her law's arrays, numpy's
+/** wbc_wait.c - the rows of its table that wait, and those that wake it (wbc_imp.h):
+    machine.law.waits.held_rows, risen_rows, borne_rows, played_rows, latched_rows and woken_rows on its law's arrays, numpy's
     and Python's
     arithmetic operation for operation (wbc_np.h, wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -70,7 +70,7 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   unsigned char rises[WBC_WAIT_ROWS] = {0};
   const double *rot = fr + k->f_rot;
   const int     rows = n < WBC_WAIT_ROWS ? n : WBC_WAIT_ROWS;
-  /* what bears her off her soles, her hands' share with it (wbc_imp.c's latch) */
+  /* what bears it off its soles, its hands' share with it (wbc_imp.c's latch) */
   const double  bears = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]);
   const double  has_prop = (double)(bears > 0.0);
   const double  until = has_prop * (t + 0.06) + (1.0 - has_prop) * prop_until;
@@ -92,7 +92,7 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
     tilt[b] = y[k->y_tilt + b];
   }
   wbc_imp_boxes(k, flat, edge, tilt, lo, hi);
-  /* over the soles that stand: a sole being placed, in the air, holds her capture point up nowhere; along her way over
+  /* over the soles that stand: a sole being placed, in the air, holds its capture point up nowhere; along its way over
      their middle (their boxes meaned by how each stands), across over either */
   {
     const double off[2] = {k->big * (1.0 - a[k->a_stance]), k->big * (1.0 - a[k->a_stance + 1])};
@@ -105,7 +105,7 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
     hmax[1] = npmaximum(hi[0][1] - off[0], hi[1][1] - off[1]);
   }
   outside = (double)((xi[0] < lmin[0]) || (xi[1] < lmin[1]) || (xi[0] > hmax[0]) || (xi[1] > hmax[1]));
-  /* a row raises her onto her soles (ZMP in her support) with its centre of mass from her heels' edge on */
+  /* a row raises it onto its soles (ZMP in its support) with its centre of mass from its heels' edge on */
   for (int r = 0; r < rows; r++)
   {
     const double *row = tab + r * w->table;

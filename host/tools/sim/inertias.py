@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Her figure's inertias as MuJoCo compiles them here: each body's iquat and inertia, bit for bit.
+"""Its figure's inertias as MuJoCo compiles them here: each body's iquat and inertia, bit for bit.
 
     python tools/sim/inertias.py              # a body a line: its iquat and principal inertia as hex
     python tools/sim/inertias.py --values     # the same as floats
 
-Two hosts' lines diffed tell whether her figure is the same bits on both: her principal frames are her own
+Two hosts' lines diffed tell whether its figure is the same bits on both: its principal frames are its own
 arithmetic (`mjcf.principal`, a Jacobi of SWEEPS), given MuJoCo to keep - its own diagonalisation of a full
 inertia parted an Arm's aarch64 build from an x86's.
 """
@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 
 def lines(values=False):
-    """A line a body of her law's model (`wbc.Body`): its index, iquat and inertia, hex or floats."""
+    """A line a body of its law's model (`wbc.Body`): its index, iquat and inertia, hex or floats."""
     import numpy as np
     from machine.stack import wbc
     m = wbc.Body().m

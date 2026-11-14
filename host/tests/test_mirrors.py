@@ -262,18 +262,18 @@ def test_dimensions_page_is_the_drives(r):
             'python tools/sim/dimensions.py --write')
 
 
-def test_her_manifest_is_her_build(r):
-    """Her orthokinematic manifest is what `tools/cores/manifest.py` writes of her build's file
-    and her figure, and her text compiles it; her build names only the library's parts."""
+def test_its_manifest_is_its_build(r):
+    """Its orthokinematic manifest is what `tools/cores/manifest.py` writes of its build's file
+    and its figure, and its text compiles it; its build names only the library's parts."""
     from machine.body import defrobot, mechatronics
     from machine.texts import ortho
     from machine.errors import MachineError
     from tools.cores import manifest
     with open(manifest.path(), encoding='utf-8') as f:
         page = f.read()
-    r.check("her manifest is its tool's output", page == manifest.text(), 'python tools/cores/manifest.py --write')
+    r.check("its manifest is its tool's output", page == manifest.text(), 'python tools/cores/manifest.py --write')
     read = defrobot.read()
-    r.check('her text includes it: her mass, her modes, her drives', read is not None
+    r.check('its text includes it: its mass, its modes, its drives', read is not None
             and read['name'] == mechatronics.ROBOT and len(read['modes']) == ortho.N and 'left_knee' in read['drives'],
             read and (read['body'].get('mass'), len(read['drives'])))
     build, lib = mechatronics.robot(), mechatronics.library()
@@ -304,13 +304,13 @@ def test_her_manifest_is_her_build(r):
     def peaks(robot):
         with open(os.path.join(mechatronics.LISP, 'humanoid', 'builds', robot + '.manifest.lisp'), encoding='utf-8') as f:
             return {d: float(p) for d, p in re.findall(r'\(drive (\S+) .*?\(peak ([-\d.]+)\)', f.read())}
-    hers, faster = peaks(mechatronics.ROBOT), peaks(mechatronics.ROBOT + '_performance')
-    weaker = {d: (p, faster.get(d)) for d, p in hers.items() if faster.get(d, -1.0) < p}
-    r.check('her performance build is no weaker than hers at any drive', bool(hers) and not weaker, weaker)
+    its_own, faster = peaks(mechatronics.ROBOT), peaks(mechatronics.ROBOT + '_performance')
+    weaker = {d: (p, faster.get(d)) for d, p in its_own.items() if faster.get(d, -1.0) < p}
+    r.check('its performance build is no weaker than its own at any drive', bool(its_own) and not weaker, weaker)
 
 
 ROSTER = (test_subsystem_calls_resolve, test_limits_live_in_one_file, test_mirrors_agree,
-          test_dimensions_page_is_the_drives, test_her_manifest_is_her_build)
+          test_dimensions_page_is_the_drives, test_its_manifest_is_its_build)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

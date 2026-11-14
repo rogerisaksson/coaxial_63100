@@ -1,18 +1,18 @@
-"""Where her pelvis is and how fast, of what she measures alone (`machine.senses.edge`).
+"""Where its pelvis is and how fast, of what it measures alone (`machine.senses.edge`).
 
 A bearing insole's centre of pressure is a point of the floor that does not move.
 
-    est = estimate.laid(body, where)          # where she was laid: the one thing she is told
-    qpos, qvel = estimate.step(est, body, y, dt)   # her law's state of her array, a pass on
+    est = estimate.laid(body, where)          # where it was laid: the one thing it is told
+    qpos, qvel = estimate.step(est, body, y, dt)   # its law's state of its array, a pass on
 
-Her turn, her spin and her joints are her IMU's and her encoders'. Her pelvis's speed is carried
-on by her IMU's specific force and gravity, and drawn to what each bearing insole's centre of
+Its turn, its spin and its joints are its IMU's and its encoders'. Its pelvis's speed is carried
+on by its IMU's specific force and gravity, and drawn to what each bearing insole's centre of
 pressure says of it - the insoles weighed by their loads. From the soles' lowest corners alone it
-erred 0.165 m/s at the 99th percentile of a walk, 0.41 at worst, where a sole rolled. Her height and place are where she was laid,
-carried on: drift is her own, as on a robot. What that draw has added up to, forgotten over
+erred 0.165 m/s at the 99th percentile of a walk, 0.41 at worst, where a sole rolled. Its height and place are where it was laid,
+carried on: drift is its own, as on a robot. What that draw has added up to, forgotten over
 SLIP_S, is how fast they slide (`est['slip']`, world): walking a level floor 0.071 m/s at most,
 turning 0.127; on ice 1.36 at the 90th percentile. Dropped at a pass no sole bore, a swing's
-toes' scuff drew her and its return read a slide of the sole that held.
+toes' scuff drew it and its return read a slide of the sole that held.
 """
 import os
 
@@ -24,13 +24,13 @@ from machine.senses import edge
 from machine.body.figure import JOINTS
 from machine.moves.leap import TOUCH_N
 
-#: Her speed as her IMU carries it on, drawn to what her bearing soles say over HOLD_S; her soles'
+#: Its speed as its IMU carries it on, drawn to what its bearing soles say over HOLD_S; its soles'
 #: slide forgotten over SLIP_S.
 HOLD_S, SLIP_S = 0.03, 0.3
 
 
 def laid(body, where):
-    """Her estimate laid at `where`, her pelvis (m, world), still."""
+    """The robot's estimate laid at `where`, its pelvis (m, world), still."""
     m = body.m
     qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
     vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
@@ -50,7 +50,7 @@ def _rot(q):
 
 
 def step(est, body, y, dt):
-    """(qpos, qvel) of her model as `y` has her, `est` carried on `dt` s."""
+    """(qpos, qvel) of its model as `y` has it, `est` carried on `dt` s."""
     m, d, mj = body.m, body.d, body.mj
     qpos, qvel, jp = est['qpos'], est['qvel'], est['jp']
     qpos[0:3], qpos[3:7], qpos[est['qadr']] = 0.0, y[edge.QUAT], y[edge.Q]

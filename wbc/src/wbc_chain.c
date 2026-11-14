@@ -1,5 +1,5 @@
-/** wbc_chain.c - machine.stack.chain.step in C (wbc_step.h): her tasks and the contacts' forces one QP within
-    friction (wbc_chain_qp.c), her torques those forces', shrunk where no answer met the laws - numpy's arithmetic
+/** wbc_chain.c - machine.stack.chain.step in C (wbc_step.h): its tasks and the contacts' forces one QP within
+    friction (wbc_chain_qp.c), its torques those forces', shrunk where no answer met the laws - numpy's arithmetic
     and its OpenBLAS (wbc_blas.h) operation for operation; carved 64-byte aligned from the step's workspace. Portable
     C11. */
 #include "wbc_np.h"
@@ -185,7 +185,7 @@ int wbc_chain(wbc_step_t *p)
   }
   if (p->chain_vx != 0.0)
   {
-    /* the twist told her: her sled's way, level (machine.stack.chain.step) */
+    /* the twist told it: its sled's way, level (machine.stack.chain.step) */
     const double *q = p->tquat[0];
     const double  hx = 2.0 * (q[1] * q[3] + q[0] * q[2]), hz = 1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]);
     const double  level = sqrt(hx * hx + hz * hz), sign = p->chain_vx > 0.0 ? 1.0 : -1.0;
@@ -196,7 +196,7 @@ int wbc_chain(wbc_step_t *p)
       slide[2] = sign * (hz / level);
     }
   }
-  /* 1. the QP: her driven joints, the contacts' forces and her torques as one */
+  /* 1. the QP: its driven joints, the contacts' forces and its torques as one */
   if (wbc_chain_qp(p, np_, ng, k3, held, Minv, Mpg, rhsh, Jp, Jg, Jv, dJv, Q, RP, RG, r, m1, want, slide, MA, hA, JA, lo, hi, x,
                    qddP, z, tau1, &p->residual, &met, qddP0, tau0, &w))
   {

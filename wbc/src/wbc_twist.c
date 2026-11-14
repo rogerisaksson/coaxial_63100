@@ -1,5 +1,5 @@
-/** wbc_twist.c - her twist on the loop (wbc_imp.h): machine.law.se2.twisted on her law's arrays - the
-    floor under her, her heading, her rhythm flipped, her gait modulated, her look - numpy's and
+/** wbc_twist.c - its twist on the loop (wbc_imp.h): machine.law.se2.twisted on its law's arrays - the
+    floor under it, its heading, its rhythm flipped, its gait modulated, its look - numpy's and
     Python's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_np.h"
@@ -40,7 +40,7 @@ static double wrap(double angle)
   return atan2(sin(angle), cos(angle));
 }
 
-/** machine.law.se2.floored: the floor under her bearing soles' lowest corners, where it is along her
+/** machine.law.se2.floored: the floor under its bearing soles' lowest corners, where it is along its
     way, its pitch under each sole. */
 static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
 {
@@ -75,7 +75,7 @@ static void floored(const wbc_imp_t *k, const wbc_twist_t *t, double dt)
   }
 }
 
-/** machine.law.rhythm.modulated: her gait's rhythm, drive, turn and arms under a twist told. */
+/** machine.law.rhythm.modulated: its gait's rhythm, drive, turn and arms under a twist told. */
 static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double vy, double wz, double vxp,
                      const double *held, const double *prior)
 {
@@ -106,7 +106,7 @@ static void modulate(const wbc_imp_t *k, const wbc_twist_t *t, double vx, double
   w = out[k->o_turns];
   w_vxp = npmin(1.0, npmax(0.0, (fabs(vxp) - t->spin_fast_m_s) / t->spin_fast_edge_m_s));
   drv = g_sw * ((1.0 - w_vxp) * t->spin_drive + w_vxp * npmax(t->spin_drive, t->spin_drive_s_m * (fabs(vxp) - t->spin_drive_from_m_s)));
-  /* told on slower than her walk, past the spot's stillness: her stride her speed's share of her walk's */
+  /* told on slower than its walk, past the spot's stillness: its stride its speed's share of its walk's */
   w_short = (w_on * (1.0 - npmin(1.0, npmax(0.0, (t->spin_still_m_s - vx) / t->edge_m_s)))) * npmax(0.0, 1.0 - vx / t->walk_m_s);
   sw = out[k->o_sway + k->drive];
   out[k->o_ref + k->drive] -= (w_short * sw) * sin(bt_d);
@@ -206,12 +206,12 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   fr[k->f_rot + 6] = 0.0;
   fr[k->f_rot + 7] = 1.0;
   fr[k->f_rot + 8] = 0.0;
-  /* each standing sole's turn of her way since it was planted, naught for one in the air (machine.law.se2.twisted) */
+  /* each standing sole's turn of its way since it was planted, naught for one in the air (machine.law.se2.twisted) */
   for (int b = 0; b < 2; b++)
   {
     fr[k->f_planted + b] = a[k->a_stance + b] * (fr[k->f_planted + b] + wrap(heading - w[t->w_heading]));
   }
-  /* her rhythm flipped half a turn where her sway leads the other way */
+  /* its rhythm flipped half a turn where its sway leads the other way */
   l_psi = out[k->o_psi + k->lateral];
   d_psi = out[k->o_psi + k->drive];
   l_sgn = copysign(1.0, out[k->o_sway + k->lateral]);
@@ -234,7 +234,7 @@ void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const d
   }
   state[t->s_last_way] = cw;
   modulate(k, t, vx, vy, wz, vxp, held, prior);
-  /* her look into a turn or lateral step, her waist and her head with it */
+  /* its look into a turn or lateral step, its waist and its head with it */
   lat_on = (1.0 - has_thd) * (double)(fabs(vy) > t->side_m_s);
   drv_abs = fabs(out[k->o_sway + k->drive]);
   drive_sway = npmax(drv_abs, lat_on * fabs(out[k->o_sway + k->lateral]));

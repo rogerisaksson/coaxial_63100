@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""Her hip through each handover: its height, her landing knee, her trailing leg's heel and length.
+"""Its hip through each handover: its height, its landing knee, its trailing leg's heel and length.
 
-Her walk on the flat (the player's `w12 -3`), measured from 6 to 12 s at every landing - a sole's
-load crossing LANDED of her weight -: her hips' height a stance before, 0.10 s before and then; her
-centre's climb and the lift her loop asked; the trailing leg's load, its hip-to-ankle length, its
+Its walk on the flat (the player's `w12 -3`), measured from 6 to 12 s at every landing - a sole's
+load crossing LANDED of its weight -: its hips' height a stance before, 0.10 s before and then; its
+centre's climb and the lift its loop asked; the trailing leg's load, its hip-to-ankle length, its
 knee, its heel's pitch and the pitch asked of it, its torques; the landing knee, the least it bends
-to after, the sole's fall and how far ahead it is; the load's peak; her hip's passes over its clamp.
+to after, the sole's fall and how far ahead it is; the load's peak; its hip's passes over its clamp.
 
-    python tools/sim/handover.py                          # her walk as built, here: a JSON row
+    python tools/sim/handover.py                          # its walk as built, here: a JSON row
     python tools/sim/handover.py --specs '' k=12000 heelrate=12,flatk=800   # variants, a relay job each
     python tools/sim/handover.py --specs '' sea=143,track=12 --ensemble    # each over 3 x 3 starts: median, worst
 
 A spec is `key=value` pairs: `ax` the walk's axial target (init_walk's and WALK_ON's), `rock` a
 factor on the walk stream's foot rock, `drive` its drive, `k` the stride spring's stiffness (`c` its
 damping, 0.2 k unsaid), `heel` deg, `heelrate` rad/s, `flatk`, `fold`, `dip`, `ls`, `rise`, `edge` rad the stride's; `mhz`,
-`mdrive`, `mturn`, `max` (its axial target) the march's (the jog behaviour's two phases); `sea` her ankle's series
+`mdrive`, `mturn`, `max` (its axial target) the march's (the jog behaviour's two phases); `sea` its ankle's series
 spring, N m/rad, `track` its rotor's torque loop (`gearbox.TRACK`), `wfold` the stack's knee fold weight
-(`wrench.W_FOLD`). `--play 'W12 -3'` marches her. `--ensemble` runs each spec over ENSEMBLE's grid of the walk's
+(`wrench.W_FOLD`). `--play 'W12 -3'` marches it. `--ensemble` runs each spec over ENSEMBLE's grid of the walk's
 drive and axial target - the gait is on an edge where one run measures its phase's luck, not its margin - and
 prints a summary a spec: how many stood, the hip clamp passes' median and worst, the landing knee's and the
 plan's load error's medians. A row also carries the double support's load planning against the sensed loads:
 `plan_err_land`/`plan_err_trail` the mean |planned - real| share over the 150 ms from a landing (the landing
 and the trailing sole), `plan_zero_ms` when the plan zeroes the trailing sole, `trail_off_ms` when its load leaves;
-and `grip_min`, the least grip her soles felt over the run (`grip.felt`).
+and `grip_min`, the least grip its soles felt over the run (`grip.felt`).
 """
 import argparse
 import json
@@ -35,13 +35,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools.sim.handovers import planned, ran_special, run_specs, run_sweep
 from tools.sim.knobs import arranged, merged, parse_spec
 
-#: A sole has landed at this share of her weight; the window measured, s; a stance before, s.
+#: A sole has landed at this share of its weight; the window measured, s; a stance before, s.
 LANDED, FROM_S, TO_S, STANCE_S = 0.2, 6.0, 12.0, 0.45
 
 
 def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), at=None, right=False, record=None, wobble=0.0):
-    """Her walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at`
-    instead, given; `record`, her loop recorded over the window (`watch.recorded`: recordings/`record`.jsonl, her
+    """Its walk under `spec`, measured: a row (dict); `trace`, the passes round one landing in it - round the second `at`
+    instead, given; `record`, its loop recorded over the window (`watch.recorded`: recordings/`record`.jsonl, its
     layers named, `tools/sim/recording.py` tells it)."""
     import numpy as np
     from machine.law import modal
@@ -62,7 +62,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
     scenarios.SCENARIOS['handover'] = ('flat', plan, secs, 'stands', None)
     log = {k: [] for k in ('t', 'ld', 'knee', 'tilt', 'heeled', 'hip', 'along', 'tau_h', 'tau_a', 'tau_k', 'vs', 'vcom', 'acc', 'leg', 'st', 'bend', 'pre', 'ank', 'tau_hs', 'begun', 'lead', 'off', 'pitch', 'qp', 'sw', 'low', 'tilt_g', 'leaf', 'leaf_k', 'hips', 'dip', 'zmp', 'vx', 'ahead', 'drive', 'loop')}
     seen = {'ix': None, 'pos': {}, 'clamp': {}}
-    # her analyzers over the run (`machine.process.watch`, `introspect.Tap`): a stumble, a fall, a spasm told
+    # its analyzers over the run (`machine.process.watch`, `introspect.Tap`): a stumble, a fall, a spasm told
     from machine.process import introspect, watch
     tap, watched, told = introspect.Tap(), watch.Watch(), []
 
@@ -102,7 +102,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         log['hip'].append(float(hips[:, 1].mean() - fr[modal.FLOOR]))
         log['hips'].append(list(hips[:, 1] - fr[modal.FLOOR]))
         log['dip'].append(list(a[modal.DIP]))
-        # the ask's ZMP along her way against each sole: -acc_along / omega^2 from her centre, less the sole's place
+        # the ask's ZMP along its way against each sole: -acc_along / omega^2 from its centre, less the sole's place
         om2 = modal.G / max(float(c[1]) - float(fr[modal.FLOOR]), 0.3)
         zmp_rel = -float(np.asarray(a[modal.COM_ACC]) @ rot[0]) / om2
         log['zmp'].append([zmp_rel - float(((soles - c) @ rot.T)[b, 0]) for b in (0, 1)] + [float(np.asarray(a[modal.COM_ACC]) @ rot[0])])
@@ -111,7 +111,7 @@ def ran(spec, trace=False, play='w12 -3', entries=None, window=(FROM_S, TO_S), a
         log['vs'].append(list(np.asarray(y[modal.VSOLE]).reshape(2, 3)[:, 1]))
         log['vcom'].append(float(y[modal.VCOM][1]))
         log['vx'].append(float(np.asarray(y[modal.VCOM]) @ rot[0]))
-        # her drive's amplitude, her going, the cruise it asks (stride.cruises, unsigned) and the vault's push (vault.vaults)
+        # its drive's amplitude, its going, the cruise it asks (stride.cruises, unsigned) and the vault's push (vault.vaults)
         from machine.law import latent, stride
         drv, trn, gng = abs(float(np.asarray(g['out'][latent.SWAY])[modal.DRIVE])), float(g['out'][latent.TURNS]), float(a[modal.GOING])
         crz = float(np.clip(2.0 / np.pi * stride.STRIDE_M * drv * np.sin(float(stride.swings(drv, trn, gng))) * trn,
@@ -262,18 +262,18 @@ def parsed(text):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--spec', default=None, help='one run here (k=v, JSON, or .json/.toml file), its row as JSON')
-    parser.add_argument('--specs', nargs='*', default=None, help="variants, a relay job each ('' her walk as built)")
+    parser.add_argument('--specs', nargs='*', default=None, help="variants, a relay job each ('' its walk as built)")
     parser.add_argument('--params', default=None, help='JSON/TOML sweep or override file/string (grid, variants, plays, wobbles)')
     parser.add_argument('--wobble', type=float, default=0.0, help='initial yaw perturbation, rad')
     parser.add_argument('--trace', action='store_true', help='the passes round one landing, a line each')
-    parser.add_argument('--trace-at', type=float, default=None, help='the trace round this second instead of a landing (sole o her left)')
-    parser.add_argument('--trace-right', action='store_true', help='with --trace-at: sole o her right')
+    parser.add_argument('--trace-at', type=float, default=None, help='the trace round this second instead of a landing (sole o its left)')
+    parser.add_argument('--trace-right', action='store_true', help='with --trace-at: sole o its right')
     parser.add_argument('--play', default='w12 -3', help="the player's moves, 'driven', or 'scenario:<name>'")
     parser.add_argument('--entries', default=None, help="the gym's entries instead, 'stand@0.5 sway@2 step@5 walk@9' (tools/sim/ortho.planned)")
     parser.add_argument('--window', default='%g,%g' % (FROM_S, TO_S), help='the seconds measured, from,to')
     parser.add_argument('--ensemble', action='store_true', help="each spec over ENSEMBLE's starts (drive x axial), a summary a spec")
     parser.add_argument('--rows', action='store_true', help="with --ensemble/--params: print each individual run row before the summary")
-    parser.add_argument('--record', default=None, help="with --spec: her loop recorded over the window, recordings/NAME.jsonl (`watch.recorded`)")
+    parser.add_argument('--record', default=None, help="with --spec: its loop recorded over the window, recordings/NAME.jsonl (`watch.recorded`)")
     args = parser.parse_args(argv)
     if args.params is not None:
         cfg = parse_spec(args.params)

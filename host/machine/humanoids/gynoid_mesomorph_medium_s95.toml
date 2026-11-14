@@ -1,4 +1,4 @@
-# The gynoid mesomorph medium at 0.95 of her anthropometric scale (157 cm): every length, shell, hold offset,
+# The gynoid mesomorph medium at 0.95 of its anthropometric scale (157 cm): every length, shell, hold offset,
 # deep-squat equilibrium, subtree inertia, servo gain and Froude-similar gait law derived automatically.
 extends = "gynoid_mesomorph_medium"
 

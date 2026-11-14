@@ -1,6 +1,6 @@
-"""Her identification campaign on the stand, run and tabled; its corrections on her build written.
+"""Its identification campaign on the stand, run and tabled; its corrections on its build written.
 
-Each drive's friction and armature, the base parameters trusted, the corrections on her build.
+Each drive's friction and armature, the base parameters trusted, the corrections on its build.
 
     python tools/sim/sysid.py [--seconds 24] [--payload 0.5] [--boxed] [--write machine/humanoids/X.identified.toml]
 """
@@ -21,12 +21,12 @@ mjcf.STAND = 1.0
 def main(argv=None):
     from machine.identify import campaign, identified, sysid
     from machine.stack import wbc
-    p = argparse.ArgumentParser(description='Her identification campaign on the stand, run and tabled.')
+    p = argparse.ArgumentParser(description='Its identification campaign on the stand, run and tabled.')
     p.add_argument('--seconds', type=float, default=24.0, help='the campaign, s')
-    p.add_argument('--payload', type=float, default=0.0, help='kg in her left hand, the world\'s')
+    p.add_argument('--payload', type=float, default=0.0, help='kg in its left hand, the world\'s')
     p.add_argument('--every', type=int, default=10, help='every how many steps a row is read')
     p.add_argument('--seed', type=int, default=1)
-    p.add_argument('--write', help='the corrections on her build, TOML (`identified.IDENTIFIED` for her law)')
+    p.add_argument('--write', help='the corrections on its build, TOML (`identified.IDENTIFIED` for its law)')
     p.add_argument('--boxed', action='store_true', help='the world with its gearboxes: each box read too')
     args = p.parse_args(argv)
     physics.BOXED = float(args.boxed)
@@ -73,7 +73,7 @@ def main(argv=None):
     if args.write:
         deltas = identified.save(args.write, identified.correction(lay, body, Y, tau), got)
         applied = identified.correct(wbc.Body(identified=False), deltas)
-        print('\n%d corrections to %s; laid over her law\'s model: %d links and drives'
+        print('\n%d corrections to %s; laid over its law\'s model: %d links and drives'
               % (len(deltas), args.write, len(applied)))
     return 0
 

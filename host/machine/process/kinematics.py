@@ -1,11 +1,11 @@
-"""Her measured modes, way-frame kinematics and drive commands named for introspection.
+"""The robot's measured modes, way-frame kinematics and drive commands named for introspection.
 
     modes = kinematics.modes(y, fr, a, out)       # z, zd, ref, rate, acc, err, rate_err, kp, kd, sway, asked
-    way = kinematics.way(y, fr, a)                # CoM, capture point, soles, legs and turns in her way's frame
+    way = kinematics.way(y, fr, a)                # CoM, capture point, soles, legs and turns in its way's frame
     drv = kinematics.drives(s)                    # driven joint commands, clamp shares, knee and ankle angles
 
 Read beside `introspect.snapshot` (`snap['modes']`, `snap['kinematics']`, `snap['drives']`) and reconstructed
-from `gate.Scope`'s vector streams in `tools/sim/recording.py` without touching her control loop.
+from `gate.Scope`'s vector streams in `tools/sim/recording.py` without touching its control loop.
 """
 import math
 from typing import Any
@@ -18,7 +18,7 @@ def _by_mode(vec: Any) -> dict[str, float]:
 
 
 def modes(y: Any, fr: Any, a: Any, out: Any) -> dict[str, Any]:
-    """Her modes as she is (`modal.reading`) beside what `latent.step` asked of them (`out`), by mode name."""
+    """Its modes as it is (`modal.reading`) beside what `latent.step` asked of them (`out`), by mode name."""
     import numpy as np
     from machine.law import latent, modal
     y_a, fr_a, a_a, out_a = (np.asarray(v, float).ravel() for v in (y, fr, a, out))
@@ -36,7 +36,7 @@ def modes(y: Any, fr: Any, a: Any, out: Any) -> dict[str, Any]:
 
 
 def _sole_entry(i: int, place: Any, vsole: Any, y: Any, fr: Any, a: Any, floors: Any, c_way: Any) -> dict[str, Any]:
-    """One sole's spatial state in her way's frame (`i`: 0 left, 1 right)."""
+    """One sole's spatial state in its way's frame (`i`: 0 left, 1 right)."""
     from machine.law import modal
     meet = a[modal.MEET].reshape(2, 2)[i] - c_way[:2]
     aim = a[modal.AIM].reshape(2, 2)[i] - c_way[:2]
@@ -52,7 +52,7 @@ def _sole_entry(i: int, place: Any, vsole: Any, y: Any, fr: Any, a: Any, floors:
 
 
 def way(y: Any, fr: Any, a: Any) -> dict[str, Any]:
-    """Her CoM, capture point, angular momentum, pelvis/trunk turns, soles and legs in her way's frame."""
+    """Its CoM, capture point, angular momentum, pelvis/trunk turns, soles and legs in its way's frame."""
     import numpy as np
     from machine.law import modal
     from machine.process import introspect
@@ -90,7 +90,7 @@ def way(y: Any, fr: Any, a: Any) -> dict[str, Any]:
 
 
 def drives(s: dict[str, Any]) -> dict[str, Any]:
-    """Her driven joints' commands (`g['cmd']`), clamp shares, and bilateral knee and ankle angles (deg)."""
+    """Its driven joints' commands (`g['cmd']`), clamp shares, and bilateral knee and ankle angles (deg)."""
     import numpy as np
     from machine.body.figure import JOINTS
     g = s['g']

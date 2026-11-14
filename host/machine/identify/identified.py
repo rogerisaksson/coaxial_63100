@@ -1,12 +1,12 @@
-"""Her corrections as identified, over her build: the least move that fits a campaign, kept, laid.
+"""Its corrections as identified, over its build: the least move that fits a campaign, kept, laid.
 
     deltas = identified.correction(lay, body, Y, tau)   # {name: correction} on body's model
-    identified.save(path, deltas, got)                  # kept as TOML; IDENTIFIED her law's
-    identified.correct(body, identified.load(path))     # laid over her law's model, whole
+    identified.save(path, deltas, got)                  # kept as TOML; IDENTIFIED its law's
+    identified.correct(body, identified.load(path))     # laid over its law's model, whole
 
 Each link's mass and first moment and each drive's armature and friction move; a link's
 inertia about its centre stays as built and follows them about its origin, so every link stays
-a body. `wbc.Body` lays IDENTIFIED over her law's model when the file is there.
+a body. `wbc.Body` lays IDENTIFIED over its law's model when the file is there.
 """
 import os
 import tomllib
@@ -19,7 +19,7 @@ from machine.identify.sysid import FRICTION, INERTIAL, following, laid, shifted,
 #: minimum retained link mass share (`peripherals.identify()['identified']`).
 _ident = peripherals.identify()['identified']
 UNITS, RIDGE, KEPT = dict(_ident['units']), _ident['ridge'], _ident['kept']
-#: Her corrections as identified, over her build (`save`, `load`, `correct`): her law's model
+#: Its corrections as identified, over its build (`save`, `load`, `correct`): its law's model
 #: reads them when the file is there (`wbc.Body`).
 IDENTIFIED = os.path.join(mechatronics.ROBOTS, mechatronics.ROBOT + '.identified.toml')
 
@@ -128,7 +128,7 @@ def correct(body, deltas):
     theta = truth(lay, m)
     for name, delta in deltas.items():
         if name not in lay['names']:
-            raise MachineError('no parameter %s of hers to correct' % name)
+            raise MachineError('no parameter %s of its own to correct' % name)
         theta[lay['names'].index(name)] += delta
     touched = {name.rsplit('.', 1)[0] for name in deltas}
     links = [row for row in _links(lay, m, theta) if m.body(row[0]).name in touched]

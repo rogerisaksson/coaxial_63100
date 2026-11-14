@@ -1,10 +1,10 @@
-"""Her step in closed chains (`machine.stack.chain`) in C beside its python, one QP within friction.
+"""Its step in closed chains (`machine.stack.chain`) in C beside its python, one QP within friction.
 
-No sole standing, her pelvis (two points, one patch), shanks and hands bearing, her pelvis and trunk asked a
+No sole standing, its pelvis (two points, one patch), shanks and hands bearing, its pelvis and trunk asked a
 turn and a sole a swing: wbc_chain.c's torques, accelerations and contact forces are the python step's bit
-for bit; wherever the QP met its laws the forces press alone within their friction's cones and her torques
-within their clamps; the QP turns her toward the ask through her drives; told a twist her seat slides at
-its friction's edge and still bears her; a tick's time."""
+for bit; wherever the QP met its laws the forces press alone within their friction's cones and its torques
+within their clamps; the QP turns it toward the ask through its drives; told a twist its seat slides at
+its friction's edge and still bears it; a tick's time."""
 import os
 import sys
 import time
@@ -28,7 +28,7 @@ def _product(a, b):
 
 
 def _lawful(contacts, got, regime, limit):
-    """How far the step's forces and torques break its laws, N and N m: a pull, a tangent past its cone (her sled's
+    """How far the step's forces and torques break its laws, N and N m: a pull, a tangent past its cone (its sled's
     `regime.mu`, an anchor's `regime.anchor`), a torque past its clamp."""
     import numpy as np
     from machine.senses.borne import CARPAL
@@ -42,7 +42,7 @@ def _lawful(contacts, got, regime, limit):
 
 
 def test_the_chain_step_in_c_is_the_steps(report):
-    """wbc_chain.c beside `machine.stack.chain.step` on her stand's pose under random velocities, six contacts felt."""
+    """wbc_chain.c beside `machine.stack.chain.step` on its stand's pose under random velocities, six contacts felt."""
     import numpy as np
     from machine.body import figure
     from machine.stack import chain, wbc
@@ -59,7 +59,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
         b.chain_warm, solve.args[0].chain_nheld[0], solve.args[0].chain_nheld[1] = ((), ()), 0, 0
         b.chain_let, solve.args[0].chain_nlet = set(), 0
         return chain.step(b, sc, ask, regime), solve(b, sc, ask)
-    # her pelvis and right shank on a foam as her skin feels it (borne's give: 21 m/s^2 a N), her hands and forearms on
+    # its pelvis and right shank on a foam as its skin feels it (borne's give: 21 m/s^2 a N), its hands and forearms on
     # what is firm (none): the C the same
     gives, apart_g = (21.0, 21.0, 0.0, 0.0, 0.0, 21.0, 0.0, 0.0), 0.0
     jp, jr = np.zeros((3, b.m.nv)), np.zeros((3, b.m.nv))
@@ -76,16 +76,16 @@ def test_the_chain_step_in_c_is_the_steps(report):
             J = jp[:, :b.n].copy()
             b.mj.mj_jacDot(b.m, b.d, jp, jr, p, body)
             f = np.array([0.3, 1.0, 0.2]) * (60.0 + 80.0 * rng.random()) + 10.0 * rng.normal(size=3)
-            # her left shank's patch a let-go left foot's (borne.LET's), told free every other state
+            # its left shank's patch a let-go left foot's (borne.LET's), told free every other state
             contacts.append({'p': p, 'f': f, 'n': f / np.linalg.norm(f), 'J': J, 'dJv': jp[:, :b.n] @ s['v'], 'patch': 2 * patch if patch != 2 else 20, 'side': 0,
                              'body': body})
-        # a turn of 0.2 rad about her pelvis's patch normal, the torsion its points leave free
+        # a turn of 0.2 rad about its pelvis's patch normal, the torsion its points leave free
         axis = contacts[0]['f'] + contacts[1]['f']
         axis = axis / np.linalg.norm(axis)
         spin = np.array([np.cos(0.1), *(np.sin(0.1) * axis)])
         turns = tuple(_product(spin, t['quat']) for t in s['turns'])
         f1 = s['feet'][1]
-        # every other state her rise's centre of mass task asked (`chain.leaned`): its rows on the contacts' forces
+        # every other state its rise's centre of mass task asked (`chain.leaned`): its rows on the contacts' forces
         ask = {'stance': (False, False), 'com_acc': np.array([0.3, 0.0, -0.2]) * (nth % 2), 'lean': float(nth % 2),
                'turns': turns, 'wep': False,
                'swing': {1: (f1['sole'] + (0.0, 0.05, 0.0), np.zeros(3), np.zeros(3), f1['quat'])},
@@ -102,10 +102,10 @@ def test_the_chain_step_in_c_is_the_steps(report):
         if ours['met']:
             met += 1
             lawless = max(lawless, _lawful(contacts, ours, regime, box(b, ask)[0]))
-        # the QP answers a turn through her drives and the contacts it holds: still, nothing else asked, a turn of
-        # 0.5 rad about her pelvis's normal, what it foresees of her base goes the asked way (on her pelvis's two points
-        # alone it foresees none: pinned, they slide only past their cone, and no lever asks that of them - her shank
-        # and hands are the levers, and how far they take her is the state's)
+        # the QP answers a turn through its drives and the contacts it holds: still, nothing else asked, a turn of
+        # 0.5 rad about its pelvis's normal, what it foresees of its base goes the asked way (on its pelvis's two points
+        # alone it foresees none: pinned, they slide only past their cone, and no lever asks that of them - its shank
+        # and hands are the levers, and how far they take it is the state's)
         still = wbc.sense(b, world.data.qpos, np.zeros(len(world.data.qvel)))
         wide = np.array([np.cos(0.25), *(np.sin(0.25) * axis)])
         want = tuple(_product(wide, t['quat']) for t in still['turns'])
@@ -119,13 +119,13 @@ def test_the_chain_step_in_c_is_the_steps(report):
         turned = max(turned, 1.0 - float((t0['Jr'] @ fore + t0['dJr']) @ asked) / float(asked @ asked))
     report.check("the closed chains' step in C is machine.stack.chain's over %d states" % STEPS, bool((worst < APART).all()),
                  '%.1e N m, %.1e rad/s^2, %.1e N apart at most' % tuple(worst))
-    report.check("what bears her giving as her skin feels it, the C the same", apart_g < APART,
+    report.check("what bears its giving as its skin feels it, the C the same", apart_g < APART,
                  '%.1e apart at most' % apart_g)
-    report.check("where the QP met its laws, its forces press alone within their cones and her torques within their clamps",
+    report.check("where the QP met its laws, its forces press alone within their cones and its torques within their clamps",
                  met > 0 and lawless < 1e-6, '%d of %d states met, the laws broken by %.1e at most' % (met, STEPS, lawless))
-    report.check("the QP turns her pelvis the asked way through her drives and the contacts it holds",
+    report.check("the QP turns its pelvis the asked way through its drives and the contacts it holds",
                  turned < 1.0, 'the turn short of the ask by %.2f at worst' % turned)
-    # told a twist, her seat slides at its friction's edge against the way told and still bears her, her hands beside it
+    # told a twist, its seat slides at its friction's edge against the way told and still bears it, its hands beside it
     left, up, way = chain.ways(still['turns'][0]['quat'])
     weight, sled = float(b.m.body_subtreemass[b.m.body('pelvis').id]) * 9.81, []
     for name, off, share, patch in ([('pelvis', s * 0.07 * left - 0.08 * up - 0.03 * way, 0.40, 0) for s in (1.0, -1.0)]
@@ -143,7 +143,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
         ours, theirs = paired(sc, sat)
         apart = max(apart, float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(ours['borne'] - theirs['borne']).max()))
         seats.append(sum(float(up @ z) for z in ours['borne'][:2]))
-    report.check("told a twist, her seat slides at its friction's edge, bearing her still, the C the same",
+    report.check("told a twist, its seat slides at its friction's edge, bearing it still, the C the same",
                  seats[1] >= 0.5 * seats[0] and apart < APART, 'held %.0f N, sliding %.0f N; C %.1e apart' % (seats[0], seats[1], apart))
     t = time.perf_counter()
     for _ in range(200):
@@ -152,7 +152,7 @@ def test_the_chain_step_in_c_is_the_steps(report):
     report.check('a tick of it on this host', us < 5000.0, '%.1f us' % us)
 
 
-def test_the_step_is_hers_by_her_release(report):
+def test_the_step_is_its_own_by_its_release(report):
     """`chain.chained`: a leg let go or no sole standing, and no sole asked to land; a sit or a rise on both soles and a
     bounce asked to land stay the upright step's. `chain.bearing` hands the chain a standing sole as a patch."""
     import numpy as np
@@ -160,7 +160,7 @@ def test_the_step_is_hers_by_her_release(report):
     picks = [chain.chained({'stance': st, 'let_go': lg, 'swing': sw}) for st, lg, sw in (
         ((True, False), (False, True), {}), ((False, False), (False, False), {}), ((False, False), (True, True), {}),
         ((True, True), (False, False), {}), ((False, False), (False, False), {0: None, 1: None}), ((True, False), (False, False), {1: None}))]
-    report.check("hers with a leg let go, none standing or both let go; the upright step's on both soles or a landing asked",
+    report.check("its own with a leg let go, none standing or both let go; the upright step's on both soles or a landing asked",
                  picks == [1, 1, 1, 0, 0, 0], str(picks))
     n = 20
     feet = [{'sole': np.zeros(3), 'J6': np.arange(6.0 * n).reshape(6, n), 'dJv': np.arange(6.0)} for _k in range(2)]
@@ -171,11 +171,11 @@ def test_the_step_is_hers_by_her_release(report):
                  str([(c.get('body'), c['f'][1] if 'f' in c else None) for c in got]))
 
 
-def test_her_rise_waits_on_her_capture_point(report):
-    """`chain.outside`, her rise's gate: risen onto her soles - her text telling them more of her than all else - with
-    something else bearing her, it holds her closed chains while her capture point lies behind her soles' hull or they
-    bear less than her comparators' engage share, and lets her go over them; sitting, lying or borne by nothing else,
-    never. `chain.chained` keeps her chains while it holds."""
+def test_its_rise_waits_on_its_capture_point(report):
+    """`chain.outside`, its rise's gate: risen onto its soles - its text telling them more of it than all else - with
+    something else bearing it, it holds its closed chains while its capture point lies behind its soles' hull or they
+    bear less than its comparators' engage share, and lets it go over them; sitting, lying or borne by nothing else,
+    never. `chain.chained` keeps its chains while it holds."""
     import numpy as np
     from machine.stack import chain
     from machine.texts import ortho
@@ -192,13 +192,13 @@ def test_her_rise_waits_on_her_capture_point(report):
     never = [gate((-0.30, 0.9, 0.0), (20.0, 20.0), sitting), gate((-0.30, 0.9, 0.0), (20.0, 20.0), rising, (False, False)),
              gate((-0.30, 0.9, 0.0), (20.0, 20.0), rising, propped=False)]
     kept = [chain.chained({'stance': (True, True), 'outside': o}) for o in (1.0, 0.0)]
-    report.check("her rise's gate holds her chains behind her soles or on soles bearing too little, lets her go over them",
+    report.check("its rise's gate holds its chains behind its soles or on soles bearing too little, lets it go over them",
                  held == [1.0, 1.0, 0.0] and never == [0.0, 0.0, 0.0] and kept == [1, 0], '%s %s %s' % (held, never, kept))
 
 
-def test_her_lean_leans_her_on_what_bears_her(report):
-    """`chain.leaned`: her rise's centre of mass task on the contacts' forces - m c'' = sum f + m g - brings what her
-    closed chains plan to bear her nearer her text's lean than without it, on her stand's pose under its contacts."""
+def test_its_lean_leans_it_on_what_bears_it(report):
+    """`chain.leaned`: its rise's centre of mass task on the contacts' forces - m c'' = sum f + m g - brings what its
+    closed chains plan to bear its nearer its text's lean than without it, on its stand's pose under its contacts."""
     import numpy as np
     from machine.body import figure
     from machine.stack import chain, wbc
@@ -230,12 +230,12 @@ def test_her_lean_leans_her_on_what_bears_her(report):
             off.append(float(np.linalg.norm(np.asarray(got['borne']).sum(axis=0) / m + np.array([0.0, -wbc.G, 0.0]) - a)))
         nearer += off[1] < off[0]
         far.append(off)
-    report.check("her lean brings what bears her nearer her text's lean in %d of %d states" % (nearer, STEPS),
+    report.check("its lean brings what bears its nearer its text's lean in %d of %d states" % (nearer, STEPS),
                  nearer == STEPS, 'off without, with: %s' % ', '.join('%.2f/%.2f' % tuple(o) for o in far[:4]))
 
 
-ROSTER = (test_the_chain_step_in_c_is_the_steps, test_the_step_is_hers_by_her_release, test_her_rise_waits_on_her_capture_point,
-          test_her_lean_leans_her_on_what_bears_her)
+ROSTER = (test_the_chain_step_in_c_is_the_steps, test_the_step_is_its_own_by_its_release, test_its_rise_waits_on_its_capture_point,
+          test_its_lean_leans_it_on_what_bears_it)
 
 
 def main(argv=None):

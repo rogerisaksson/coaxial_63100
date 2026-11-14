@@ -75,14 +75,14 @@
 (defmodifier xform-sit-on-chair-or-stool
   [state &key (slide-speed-mps 0.15) (use-carpal-hand-boost true)]
   (-> state
-      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; her leg, hip to sole
+      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; its leg, hip to sole
       (enforce-backless-stool-rim-zcbf :rim-safety-margin-mm 38.0 :auto-detect-missing-backrest true)
       (xform-somatic-sit-ingress)
       (specialize-for-overheight-seat :direction :ingress :slide-speed-mps slide-speed-mps)
       (when-modifier use-carpal-hand-boost
         (specialize-with-carpal-seat-boost :max-arm-push-share 0.22))
       (specialize-posture-dangling-crural-hang :passive-ankle-droop-rad -0.24
-                                               :pendulum-natural-freq-hz 0.93)))  ; her shank's swing
+                                               :pendulum-natural-freq-hz 0.93)))  ; its shank's swing
 
 ;; 2. Stand Up from Normal Chair, Overheight Chair, or Backless Stool
 (defmodifier xform-stand-from-chair-or-stool
@@ -218,8 +218,8 @@
 ;; 3. Explicit Shrimp / Hip-Escape Amplitude Specializer (For Ultra-Narrow Cots/Bunks)
 ;; Tunes the stroke length of the contralateral hip-escape so the robot can roll
 ;; 180 deg inside a narrow 700 mm camping cot or bunk bed without touching the rails.
-;; Her stroke to her spine's lateral stop against her shoulders; her arms at her sides
-;; make her 609 mm wide, her elbows folded 0.95 rad more she lies within the rails' margins.
+;; The robot's stroke to its spine's lateral stop against its shoulders; its arms at its sides
+;; make its 609 mm wide, its elbows folded 0.95 rad more it lies within the rails' margins.
 (defmodifier specialize-with-shrimp-centerline-recentering
   [bed-roll-state &key (cot-width-mm 720.0) (shrimp-stroke-mm 186.0)]
   (-> bed-roll-state

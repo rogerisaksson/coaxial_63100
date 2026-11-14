@@ -1,8 +1,8 @@
-"""Her maneuver horizon, drawn from her law's own reading: an externality each.
+"""The robot's maneuver horizon, drawn from its law's own reading: an externality each.
 
 Each sole's room - the floor its leg reaches with it flat (`machine.body.reach`), dim, and the room
-her law lets it land in (`stride.meets`: REACH_M about her centre of mass, APART_M its own side
-of the other sole), bright while it swings -, her capture point; each arm's band, its hand from
+its law lets it land in (`stride.meets`: REACH_M about its centre of mass, APART_M its own side
+of the other sole), bright while it swings -, its capture point; each arm's band, its hand from
 its elbow's stop to straight over its shoulder's range. The reading is `sprung.state`'s
 'horizon'; a mode of MODES says which are drawn, Z cycles them.
 
@@ -16,18 +16,18 @@ from machine.body.figure import ANKLE_H, FOREARM, UPPER_ARM, frames, quat
 from machine.body.drives import TRAVEL
 from machine.law.stride import APART_M, REACH_M
 
-#: What is drawn: nothing, the soles' rooms and her capture point, the arms' bands, all.
+#: What is drawn: nothing, the soles' rooms and its capture point, the arms' bands, all.
 MODES = ('off', 'soles', 'arms', 'all')
 #: The floor a leg reaches, a swinging sole's room, a standing sole's - off the floor grid's
-#: blue -, her capture point, an arm's band.
+#: blue -, its capture point, an arm's band.
 REACH_INK, SWING_INK, ROOM_INK = (110, 110, 140), (255, 184, 72), (170, 160, 100)
 CAPTURE_INK, ARM_INK = (255, 96, 128), (150, 120, 220)
-#: Points to a half ring; her capture point's ring, m; the farthest a leg is searched, m.
+#: Points to a half ring; its capture point's ring, m; the farthest a leg is searched, m.
 RING_N, CAPTURE_M, FAR_M = 24, 0.04, 1.0
 
 
 def _turn(heading):
-    """A flat foot headed `heading`, a 3x3 of rows: across to her left, up, along the toes."""
+    """A flat foot headed `heading`, a 3x3 of rows: across to its left, up, along the toes."""
     sh, ch = math.sin(heading), math.cos(heading)
     return ((ch, 0.0, sh), (0.0, 1.0, 0.0), (-sh, 0.0, ch))
 
@@ -57,8 +57,8 @@ def reachable(limb, hip, heading, props=()):
 
 
 def room(c, other, side, heading, props=()):
-    """A sole's landing room's outline on the floor (segments): the arc REACH_M about her
-    centre of mass `c` (x, z) on its `side` (1 her left), cut APART_M its own side of the
+    """A sole's landing room's outline on the floor (segments): the arc REACH_M about its
+    centre of mass `c` (x, z) on its `side` (1 its left), cut APART_M its own side of the
     `other` sole (x, z); none where the cut is past the arc."""
     sh, ch = math.sin(heading), math.cos(heading)
     out_x, out_z = side * ch, -side * sh
@@ -76,7 +76,7 @@ def room(c, other, side, heading, props=()):
 
 
 def band(shoulder, heading, low, high):
-    """An arm's band in her sagittal plane (segments): its hand's arc straight over the
+    """An arm's band in its sagittal plane (segments): its hand's arc straight over the
     shoulder's range `low` to `high` (rad of flexion, hanging 0), the arc at the elbow's stop
     inside it, the two closed at the range's ends."""
     sh, ch = math.sin(heading), math.cos(heading)
@@ -93,7 +93,7 @@ def band(shoulder, heading, low, high):
 
 def segments(now, props=(), show='all'):
     """[(segments, ink)] of `show` (MODES): each leg's reach and each sole's landing room -
-    bright while it swings -, her capture point; each arm's band; none without her law's
+    bright while it swings -, its capture point; each arm's band; none without its law's
     reading."""
     seen = (now or {}).get('horizon')
     if not seen or show == 'off':

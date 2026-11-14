@@ -340,9 +340,9 @@ A dive pushed inverted, no level flight kept.
   observers read on the flight's clock: one flight whatever the wall, 14.24
   and 14.98 s, every tip 0.25 m inside.
 
-## Thrusts shared as her torques
+## Thrusts shared as its torques
 
-The collective and the torques shared over the rotors by her whole-body
+The collective and the torques shared over the rotors by its whole-body
 law's levels under bounds (`machine.stack.qp.stack`) flew the race 0.3 s a lap
 slower on the boards than shared by hand, a strike more in 12 flights. A row
 of K_DRAG / K_THRUST, 0.04, fell under the stack's tie-break and the

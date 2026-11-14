@@ -1,12 +1,12 @@
-"""What of her strikes what she falls on, how hard and how fast: the world's truth (`struck`).
+"""What of its strikes what it falls on, how hard and how fast: the world's truth (`struck`).
 
-From her stumble (her surety under where her brace takes her over, `meta['brace']`) or her fall, each of her parts
-but her soles' (FEET) told as it first touches what is not hers - the force on it and how fast it closed on it -,
-the fall's first captured; each part's hardest kept, and once she is borne off her soles her natural time
-(`meta['natural_s']`) her landing told: her parts in the order they struck, each its hardest force and speed.
+From its stumble (its surety under where its brace takes it over, `meta['brace']`) or its fall, each of its parts
+but its soles' (FEET) told as it first touches what is not its own - the force on it and how fast it closed on it -,
+the fall's first captured; each part's hardest kept, and once it is borne off its soles its natural time
+(`meta['natural_s']`) its landing told: its parts in the order they struck, each its hardest force and speed.
 """
 
-#: Her soles' bodies: what bears her standing, no landing's.
+#: The robot's soles' bodies: what bears its standing, no landing's.
 FEET = ('left_foot', 'left_toes', 'right_foot', 'right_toes')
 
 

@@ -2,7 +2,7 @@
 
 The rotor runs free across the play, winds the box and the structure up past it against the
 mesh's friction, and the link is turned by that wind-up alone - every driven joint's box while
-`physics.BOXED`, else the joints' with a spring in series (`drives.series`: her ankle's leaf), the
+`physics.BOXED`, else the joints' with a spring in series (`drives.series`: its ankle's leaf), the
 rest rigid (`sprung`). A sprung joint's board closes its torque loop on what it has - its rotor's
 encoder, its phase current and the link's rate as the law's chain has it, nothing across the leaf -:
 an observer of the torque its box passes on.
@@ -30,12 +30,12 @@ PLAY_NM = _bus['play_nm']
 #: box's own c/k); the pass's own PD on the motor's angle goes straight on the rotor - a free joint's
 #: spring winds nothing: looped on the whole command a released sole's leaf snapped its foot 75 deg
 #: toe-down and the march's stop fell; the drive clipped to the board's peak. 0 the drive's torque alone on the rotor,
-#: the built leaf's (1040 N m/rad; under 1.24 of her weight in a walking turn it unwound as the load
-#: left and threw her into the air). 12 the leaf at the text's 0.55 M g L (143 N m/rad): a P loop on
+#: the built leaf's (1040 N m/rad; under 1.24 of its weight in a walking turn it unwound as the load
+#: left and threw it into the air). 12 the leaf at the text's 0.55 M g L (143 N m/rad): a P loop on
 #: the leaf alone at 3 had the push-off's 60 N m 60-75 ms late (the rotor winding 17.6 deg at 6
-#: rad/s, her hip past its clamp 197 times in 6 s) and fell at 5-15 unclipped; at 12 she walks (29
+#: rad/s, its hip past its clamp 197 times in 6 s) and fell at 5-15 unclipped; at 12 it walks (29
 #: passes, v 1.25, the drive at its peak 53 % of the time: the leaf asks more of the rotor than 197 N m
-#: on 0.293 kg m^2 gives) and marches (93, v 1.40), her leaf storing 10-12 J a step; 3 and 6 fall
+#: on 0.293 kg m^2 gives) and marches (93, v 1.40), its leaf storing 10-12 J a step; 3 and 6 fall
 #: (237, 179), 18 and 24 fall (299, 95) and the moves play falls at every gain: the law's ankle asks
 #: and heel rise are a stiff joint's. Subtracting the box's own damping and mesh at the rotor's rate
 #: from the observed torque, to loop on the spring's alone, flipped 2 x 3.9 N m x TRACK at every sign
@@ -44,7 +44,7 @@ TRACK = drives.TRACK
 #: The board's observer of the torque its box passes on runs this many times faster than the loop's
 #: own mode (sqrt(k (1 + TRACK) / J)), 1/s: its rotor's generalized momentum J w against the integral
 #: of its own drive less that estimate, no rate of w differenced. At 143 N m/rad and TRACK 12 that is
-#: 180 1/s: at 1500 the ask's 3 ms steps went through to her hip (203 passes, she fell) and the lead
+#: 180 1/s: at 1500 the ask's 3 ms steps went through to its hip (203 passes, it fell) and the lead
 #: that cancels the observer's pole (0.6 of it) 82; slower, 100 fell in the walk's stop and 60 was 54.
 #: On the built leaf 180 fell at 4.7 s (its mode 174 1/s lagged into a swing), 400 walked, 1500 53.
 OBSERVE_X = _bus['observe_x']
@@ -104,7 +104,7 @@ class Boxes:
     def ahead(self, np, torque):
         """How far past its setpoint a board on the motor's encoder asks its rotor, rad, so the
         link lands on it: the box wound up by `torque` and the play that torque has taken up.
-        On the play alone her toes dragged 20 mm at lift where 1 rigid."""
+        On the play alone its toes dragged 20 mm at lift where 1 rigid."""
         k = np.where(self.sprung, self.k, 1.0)
         return np.where(self.sprung, drives.AHEAD_WIND * torque / k
                         + drives.AHEAD_PLAY * self.gap * np.tanh(torque / PLAY_NM), 0.0)
@@ -123,7 +123,7 @@ class Boxes:
         command itself unsaid), and the box's damping at the spring's winding rate that torque's rate
         (RATE_S) asks less the rotor's rate past the link's (`qd` the law's), within its peak; the
         command's rest, the pass's PD on the motor's angle, goes on the rotor as it is. `moved` sets
-        each rotor's angle past its link right after. Its state stepped in place: her world's steps in C
+        each rotor's angle past its link right after. Its state stepped in place: its world's steps in C
         step the same arrays (wbc_world.c, `tools.cores.world.boxed`)."""
         feed = ctrl if feed is None else feed
         on = self.sprung

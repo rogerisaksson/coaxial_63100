@@ -1,19 +1,19 @@
-"""Her step in closed chains: her tasks and the contacts' forces solved as one QP, within friction.
+"""Its step in closed chains: its tasks and the contacts' forces solved as one QP, within friction.
 
-No sole standing and none asked to land - her legs let go of the floor onto a bed, a seat's edge, the
-floor under her knees and hands -, her inverted pendulum is gone: the physics is a parallel chain with
+No sole standing and none asked to land - its legs let go of the floor onto a bed, a seat's edge, the
+floor under its knees and hands -, its inverted pendulum is gone: the physics is a parallel chain with
 contacts that stick, slide or lift (closed_chain_qp.lisp). The upright step (`machine.stack.wrench`)
 holds every bearing point still at W_STILL and plans its push; on a yielding support both are asks it
-cannot meet (lying back on a bed she spasmed at the foam's 1.9 Hz and rolled 19 deg). This step asks no
-balance of what bears her. Its QP (`chain_qp`) takes her driven joints' accelerations and the contacts'
-forces as one unknown, every other quantity affine in them through her dynamics: level 1 answers her
-pelvis's and trunk's turns, a sole's swing and the twist told her with the anchors held still and the
+cannot meet (lying back on a bed it spasmed at the foam's 1.9 Hz and rolled 19 deg). This step asks no
+balance of what bears it. Its QP (`chain_qp`) takes its driven joints' accelerations and the contacts'
+forces as one unknown, every other quantity affine in them through its dynamics: level 1 answers its
+pelvis's and trunk's turns, a sole's swing and the twist told it with the anchors held still and the
 forces least, under the laws no answer may break - a contact presses alone and never sinks into its
-support faster than its give says, friction within its pyramid, her torques within their clamps -;
-level 2 lays her posture in level 1's damped null space, its arm columns projected off her held hands;
-her torques are those forces' - a plan that welded the contacts and a Gauss-Seidel that re-solved them
-apart squeezed her fists 570 N into each other and starved them. wbc_chain.c is it in C, bit for bit;
-`motion.control` picks it by her release alone (`chained`), never by a text's name, and hands it her
+support faster than its give says, friction within its pyramid, its torques within their clamps -;
+level 2 lays its posture in level 1's damped null space, its arm columns projected off its held hands;
+its torques are those forces' - a plan that welded the contacts and a Gauss-Seidel that re-solved them
+apart squeezed its fists 570 N into each other and starved them. wbc_chain.c is it in C, bit for bit;
+`motion.control` picks it by its release alone (`chained`), never by a text's name, and hands it its
 standing soles as contacts (`bearing`).
 """
 import collections
@@ -32,31 +32,31 @@ from machine.stack.shrunk import box, shrunk
 from machine.stack.wbc import G, HELD_K, LIMIT_S, STOP_RAD, SWING_KD, turn_error
 
 #: The regime as its text says it (`closed-chain-regime`): level 2's damping m and level 1's on x, a contact's
-#: softness m/s^2 a N, a sticking contact's slip bled 1/s, her sled's friction and an anchor's, a patch held from N;
+#: softness m/s^2 a N, a sticking contact's slip bled 1/s, its sled's friction and an anchor's, a patch held from N;
 #: a held contact's stick rows' weight, the shear and the normals regularised toward none (rad/s^2 a N); the tasks' weights - a
-#: turn, a swing, her posture -; its own gains, a turn's and the posture's (kp, kd): lying down is slow, the gait's
+#: turn, a swing, its posture -; its own gains, a turn's and the posture's (kp, kd): lying down is slow, the gait's
 #: asked tens of rad/s^2; a twist's weight and gain.
 Regime = collections.namedtuple('Regime', 'lam task soft bleed mu anchor hold stick reg nreg turn swing posture tkp tkd pkp '
                                           'pkd twist vkd slide pin tilt')
 
 
 def chained(ask):
-    """1 where the step is hers: a leg let go, no sole standing, or borne reclined (`modal.given`), and no sole asked
-    to land unless she lies on no sole (`motion.control`): lying on her side, her leg swung over the bed's edge, the
-    upright step took her, shrank her torques to 0.01-0.09 of its ask and whipped her elbow 731 deg/s; this step swings
-    it. A sole standing keeps a swing the upright step's: taken here, her rise off the chair never stood; and lying is
-    something bearing her now (`propped`, `somatic.asked`), not her support's latch: tipping onto the floor's mattress
-    she was reclined in the air with both soles asked to land, and taken here for 3 passes she landed beside it."""
+    """1 where the step is its own: a leg let go, no sole standing, or borne reclined (`modal.given`), and no sole asked
+    to land unless it lies on no sole (`motion.control`): lying on its side, its leg swung over the bed's edge, the
+    upright step took it, shrank its torques to 0.01-0.09 of its ask and whipped its elbow 731 deg/s; this step swings
+    it. A sole standing keeps a swing the upright step's: taken here, its rise off the chair never stood; and lying is
+    something bearing it now (`propped`, `somatic.asked`), not its support's latch: tipping onto the floor's mattress
+    it was reclined in the air with both soles asked to land, and taken here for 3 passes it landed beside it."""
     reclined, standing = ask.get('reclined', 0.0) > 0.5, any(ask['stance'])
     lying = reclined and bool(ask.get('propped', True))
-    # risen onto her soles her chains keep her till her capture point is in over them (`outside`, the rise's gate)
+    # risen onto its soles its chains keep it till its capture point is in over them (`outside`, the rise's gate)
     return int((not ask.get('swing') or (lying and not standing))
                and (any(ask.get('let_go', ())) or not standing or reclined or ask.get('outside', 0.0) > 0.0))
 
 
 @functools.lru_cache(maxsize=None)
 def rise():
-    """(her rise's centre of mass task's weight, her comparators' engage share of her weight): the kernel's
+    """(its rise's centre of mass task's weight, its comparators' engage share of its weight): the kernel's
     `com-weight` (`closed-chain-regime`) and `schmitt-high-engage-fz` (`configure-contact-comparators`)."""
     from machine.law import supervisor
     from machine.texts import kernel
@@ -65,13 +65,13 @@ def rise():
 
 
 def outside(s, ask, loads, om, weight, told):
-    """1.0 while her rise's gate holds her in her closed chains (`chained`): a sole standing (`ask['stance']`),
-    something else bearing her (`ask['propped']`) and her text telling her soles more of her than all else together
-    (`told`: her rise onto them - sat on a bed's edge her soles are told a quarter and her upright step holds her on its
-    seat: gated where they were told more than they bore, her leg onto the bed fell), her capture point xi = c +
-    c'/omega not yet her barrier's margin in of her standing soles' hull (`barrier`), or those soles bearing less than
-    her comparators' engage share of her `weight`; else 0.0 - lying, no sole standing, sitting, or over her soles as
-    they bear her."""
+    """1.0 while its rise's gate holds it in its closed chains (`chained`): a sole standing (`ask['stance']`),
+    something else bearing it (`ask['propped']`) and its text telling its soles more of it than all else together
+    (`told`: its rise onto them - sat on a bed's edge its soles are told a quarter and its upright step holds it on its
+    seat: gated where they were told more than they bore, its leg onto the bed fell), its capture point xi = c +
+    c'/omega not yet its barrier's margin in of its standing soles' hull (`barrier`), or those soles bearing less than
+    its comparators' engage share of its `weight`; else 0.0 - lying, no sole standing, sitting, or over its soles as
+    they bear it."""
     from machine.law import barrier
     from machine.senses import observer
     from machine.texts import ortho
@@ -92,9 +92,9 @@ def outside(s, ask, loads, om, weight, told):
 
 
 def leaned(maps, Q, S, ask, mass, nd):
-    """`maps` with her rise's centre of mass task at its weight (`ask['lean']`: `com-weight` where her rise's gate holds
-    her, `outside`): three rows on the contacts' forces alone - all that bears her outside, m c'' = sum f + m g -,
-    (lean / m) sum Q^T S zeta = lean (a* - g), a* her text's lean as the upright step is asked it (`ask['com_acc']`,
+    """`maps` with its rise's centre of mass task at its weight (`ask['lean']`: `com-weight` where its rise's gate holds
+    it, `outside`): three rows on the contacts' forces alone - all that bears it outside, m c'' = sum f + m g -,
+    (lean / m) sum Q^T S zeta = lean (a* - g), a* its text's lean as the upright step is asked it (`ask['com_acc']`,
     world, y up); wbc_chain_qp.c's in its order."""
     w = float(ask.get('lean', 0.0))
     if w <= 0.0 or not len(Q):
@@ -108,13 +108,13 @@ def leaned(maps, Q, S, ask, mass, nd):
 
 
 def bearing(s, loads, stance, chained, shed=(0.0, 0.0), legs=()):
-    """Her contacts with each standing sole one more patch where the step is hers (`chained`): its load up (felt) as far
-    as her text keeps its leg (`shed`, the release `emancipation` asks of each), its Jacobian's translation, a body
-    below 0 - an anchor within its friction's pyramid, never planned as a push. Felt whole, the leg her text lifted took
-    82 -> 112 N as the other sole unloaded to 22, that one lost its stance, and she fell off the bed's end at 10.35 s.
-    Her legs' touch on what she sits on (`legs`, their bodies, given while she sits and her hands are told to bear -
-    `motion`) is the chains' sled alone: the upright step bears her on the kernel's cone, her soles, her hands and her
-    seat; with her thighs' points in it its seated balance never asked for her hands and the scoot began on none."""
+    """Its contacts with each standing sole one more patch where the step is its own (`chained`): its load up (felt) as far
+    as its text keeps its leg (`shed`, the release `emancipation` asks of each), its Jacobian's translation, a body
+    below 0 - an anchor within its friction's pyramid, never planned as a push. Felt whole, the leg its text lifted took
+    82 -> 112 N as the other sole unloaded to 22, that one lost its stance, and it fell off the bed's end at 10.35 s.
+    Its legs' touch on what it sits on (`legs`, their bodies, given while it sits and its hands are told to bear -
+    `motion`) is the chains' sled alone: the upright step bears it on the kernel's cone, its soles, its hands and its
+    seat; with its thighs' points in it its seated balance never asked for its hands and the scoot began on none."""
     soles = [{'p': f['sole'], 'f': np.array([0.0, float(loads[k]) * (1.0 - float(shed[k])), 0.0]),
               'n': np.array([0.0, 1.0, 0.0]), 'J': np.ascontiguousarray(f['J6'][3:6]),
               'dJv': np.asarray(f['dJv'][3:6], float), 'patch': 0, 'side': k, 'body': -1 - k}
@@ -145,13 +145,13 @@ def frame(f0, f1, f2):
 
 
 def frames(f):
-    """Each contact's `frame` of the normals of what bears it `f` (3k, `borne._normal`'s; her floor's up): (k, 3, 3).
-    Of the felt forces instead, her fists' shear tilted it 36-44 deg off her seat's and her plan held them at 7-21 N."""
+    """Each contact's `frame` of the normals of what bears it `f` (3k, `borne._normal`'s; its floor's up): (k, 3, 3).
+    Of the felt forces instead, its fists' shear tilted it 36-44 deg off its seat's and its plan held them at 7-21 N."""
     return np.array([frame(float(f[3 * i]), float(f[3 * i + 1]), float(f[3 * i + 2])) for i in range(len(f) // 3)]).reshape(-1, 3, 3)
 
 
 def ways(q):
-    """Her pelvis's left, its up and its way, world (3, 3), of its quaternion `q` (w, x, y, z): its turn's rows about
+    """Its pelvis's left, its up and its way, world (3, 3), of its quaternion `q` (w, x, y, z): its turn's rows about
     its up and its way, without its pitch about its left; its error the turn taking its left to the asked left."""
     w, x, y, z = (float(v) for v in q)
     return np.array([[1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y + w * z), 2.0 * (x * z - w * y)],
@@ -160,12 +160,12 @@ def ways(q):
 
 
 def tasks(b, s, ask, regime):
-    """(R (m, n), r (m), want (nd)): the tasks above her posture, weighed - her pelvis's turn about its own up and
+    """(R (m, n), r (m), want (nd)): the tasks above its posture, weighed - its pelvis's turn about its own up and
     way, its error the turn taking its left to the asked left (`ways`: the log map's way and up parts carried
-    0.04-0.09 rad of a 35 deg pitch mismatch, and the way part left her 17 deg off the bed's line), her trunk's whole
-    as asked (`regime.turn`; the text's pitch is her trunk's, her pelvis's is her posture's to make, rolling on its
-    ischia as a scoot leaves it: asked of the pelvis it hauled her forward 37 deg at the bed's handover), a sole
-    asked to swing (`regime.swing`), her pelvis along its level way at the twist told her (`regime.twist`) -, and her
+    0.04-0.09 rad of a 35 deg pitch mismatch, and the way part left its 17 deg off the bed's line), its trunk's whole
+    as asked (`regime.turn`; the text's pitch is its trunk's, its pelvis's is its posture's to make, rolling on its
+    ischia as a scoot leaves it: asked of the pelvis it hauled its forward 37 deg at the bed's handover), a sole
+    asked to swing (`regime.swing`), its pelvis along its level way at the twist told it (`regime.twist`) -, and its
     driven joints' posture acceleration, at the regime's own gains."""
     n, v, act = b.n, s['v'], np.asarray(b.act, int)
     rows, rhs = [], []
@@ -198,7 +198,7 @@ def tasks(b, s, ask, regime):
         rhs.append(regime.twist * (regime.vkd * (vx - (float(row[0]) * float(v[0]) + float(row[2]) * float(v[2])))))
     want = regime.pkp * (np.asarray(ask['posture'], float) - s['q']) - regime.pkd * v[act]
     # hung off a seat (`ask['hang']`, each leg's share): its knee, ankle and their roll (`rounds.LEGS`' last three) as
-    # gravity swings them, damped at `ask['hang_rate']` - her drives hold none of it (`wrench._maps`' PASSIVE)
+    # gravity swings them, damped at `ask['hang_rate']` - its drives hold none of it (`wrench._maps`' PASSIVE)
     rate = float(ask.get('hang_rate', 0.0))
     for k, leg in enumerate(LEGS):
         j = np.asarray(leg[3:])
@@ -209,7 +209,7 @@ def tasks(b, s, ask, regime):
 
 
 def stop_rows(b, s, nd):
-    """(rows (2j, nd), bounds (2j)): her driven joints' stops on her plan's accelerations as her upright QP bounds them
+    """(rows (2j, nd), bounds (2j)): its driven joints' stops on its plan's accelerations as its upright QP bounds them
     (`wbc`): each met no nearer than STOP_RAD, LIMIT_S ahead at the acceleration asked."""
     k = np.asarray(b.stops, int)
     rows = np.zeros((2 * len(k), nd))
@@ -221,17 +221,17 @@ def stop_rows(b, s, nd):
 
 def gives_of(b, contacts, regime, compliant, tc=None):
     """Each contact's give for the QP's stick rows and its law of no sinking (`chain_qp.level1`): None, all rigid,
-    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as her skin has it, its support's
-    impedance over her mass (`borne.read`'s give, edge.GIVE), 'material' each as her world has what bears it, the
-    python twin's measure alone (`tc` {her
-    body's name: the time constant of what it touches}, read off her world: over the foam's, squared, of
+    unless `compliant` - True each at the foam's `regime.soft`, 'sensed' each as its skin has it, its support's
+    impedance over its mass (`borne.read`'s give, edge.GIVE), 'material' each as its world has what bears it, the
+    python twin's measure alone (`tc` {its
+    body's name: the time constant of what it touches}, read off its world: over the foam's, squared, of
     `regime.soft`; MuJoCo's default rigid)."""
     if not compliant:
         return None
     if compliant is True:
         return np.full(len(contacts), regime.soft)
     if compliant == 'sensed':
-        # as much more as what bears her gives than her floor, as her skin feels it (`borne.read`'s give); a floor none
+        # as much more as what bears its gives than its floor, as its skin feels it (`borne.read`'s give); a floor none
         return np.array([float(c.get('give', 0.0)) for c in contacts])
     from machine.world.floor import FOAM
     foam, out = float(FOAM.split('solref="')[1].split()[0]), []
@@ -245,16 +245,16 @@ def gives_of(b, contacts, regime, compliant, tc=None):
 def step(b, s, ask, regime, stopped=False, compliant='sensed'):
     """{tau, qacc, bears, cop, over, slack, held, holds, modes, borne, scale, residual, foreseen, met, al}: `ask` as
     `wrench.step` takes it, no sole standing; `borne` each contact's force (k, 3), world; `modes` each contact's
-    (`chain_qp.unknowns`: 1 a static sled, 2 a kinetic one); `scale` what her drives carry of the ask,
+    (`chain_qp.unknowns`: 1 a static sled, 2 a kinetic one); `scale` what its drives carry of the ask,
     1 where the QP met its laws; `residual` the complementarity's; `foreseen` the base's and passive joints'
     accelerations the QP counted on, `al` the contacts' in their frames (3k); `held` the rows it held, warm for the
     next pass (`b.chain_warm`); `holds` which
     contacts' normals it held (every touching one but a foot told free and those it let go last pass, `b.chain_let`:
     a held contact it would have pulled on, a let one it still lifts - `chain_qp.letting`; an anchor's tangents stick
-    where its patch bears `regime.hold`). Her driven joints' accelerations, the
-    contacts' forces and so her torques solved as one (`chain_qp`); `stopped`: her joints' stops among the laws
-    (`stop_rows`); `compliant`: what she holds giving (`gives_of`). Where no answer meets the laws, the least squares
-    alone and her torques shrunk as the upright step's: toward nothing asked of her joints, then toward 0."""
+    where its patch bears `regime.hold`). The robot's driven joints' accelerations, the
+    contacts' forces and so its torques solved as one (`chain_qp`); `stopped`: its joints' stops among the laws
+    (`stop_rows`); `compliant`: what it holds giving (`gives_of`). Where no answer meets the laws, the least squares
+    alone and its torques shrunk as the upright step's: toward nothing asked of its joints, then toward 0."""
     n, M, h, v = b.n, s['M'], s['h'], s['v']
     contacts = s.get('contacts', ())
     A, H = np.asarray(b.act, int), np.asarray(b.held, int)

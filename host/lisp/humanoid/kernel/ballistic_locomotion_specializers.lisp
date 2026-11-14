@@ -43,7 +43,7 @@
   [state &key (regime :normal-walk)              ; :normal-walk | :brisk-walk | :sprangmarsch | :slip-run
               (custom-speed-mps nil)]
   (let [[default-speed bpm-target posture-key]
-        (case regime                             ; the text's Froude numbers on her leg:
+        (case regime                             ; the text's Froude numbers on its leg:
           (:normal-walk  '(1.218 112.9 :plantar-upright))         ; (1.25 110.0)
           (:brisk-walk   '(1.803 135.5 :locomotion-brisk-walk))   ; (1.85 132.0)
           (:sprangmarsch '(2.582 158.0 :locomotion-sprangmarsch)) ; (2.65 154.0)
@@ -62,7 +62,7 @@
 ;; B. SUBSTRATE-GATED RAPID BRAKING (A FAST BRAKE TO A WALK IF THE GROUND ALLOWS)
 ;; =============================================================================
 (defmodifier xform-substrate-gated-rapid-brake
-  [running-or-jogging-state &key (target-walk-speed-mps 1.169)] ; at her size (1.20)
+  [running-or-jogging-state &key (target-walk-speed-mps 1.169)] ; at its size (1.20)
   (-> running-or-jogging-state
       (configure-momentum-observer :observer-bandwidth-hz 48.0)
       ;; Evaluates live friction cone mu_eff, deformable snow/mattress sinkage, and
@@ -78,9 +78,9 @@
 ;; C. STANDING TWO-FOOTED JUMP (FROM A STANDSTILL, FEET TOGETHER)
 ;; =============================================================================
 (defmodifier xform-standing-bilateral-jump
-  [static-or-walking-state &key (jump-height-z-mm 212.0) ; her knees' launch from her crouch (340.0)
+  [static-or-walking-state &key (jump-height-z-mm 212.0) ; its knees' launch from its crouch (340.0)
                                 (jump-distance-x-mm 0.0) ; 0 = vertical hop; >0 = standing broad jump!
-                                (countermovement-crouch-mm 180.4)] ; at her size (190.0)
+                                (countermovement-crouch-mm 180.4)] ; at its size (190.0)
   (-> static-or-walking-state
       ;; 1. If walking, center ZMP in double-support and lock left/right phase offsets to 0.0:
       (xform-balance-biped-zmp)
@@ -100,15 +100,15 @@
 ;; =============================================================================
 (defmodifier xform-in-stride-unilateral-leap
   [gait-state &key (takeoff-leg :auto-next-stance)
-                   (leap-apex-z-mm 73.0)         ; one knee's launch, hers (260.0)
-                   (leap-span-x-mm 631.0)]       ; from her double-time march's 2.58 m/s (1350.0)
+                   (leap-apex-z-mm 73.0)         ; one knee's launch, its own (260.0)
+                   (leap-span-x-mm 631.0)]       ; from its double-time march's 2.58 m/s (1350.0)
   (-> gait-state
       ;; Wait for penultimate single-support on `takeoff-leg` without stopping the PLL clock!
       (drive-stretch-shortening-ballistic-impulse
         :launch-topology :unilateral-split-leap
         :target-apex-height-dz-mm leap-apex-z-mm
         :target-horizontal-span-dx-mm leap-span-x-mm
-        :countermovement-depth-mm 109.2          ; Fast elastic SLIP compression during single stance. Hers (115.0)
+        :countermovement-depth-mm 109.2          ; Fast elastic SLIP compression during single stance. Its own (115.0)
         :arm-flywheel-assist true)
       (conserve-aerial-centroidal-momentum
         :raibert-velocity-gain 0.16
@@ -124,7 +124,7 @@
 ;; Adjusts the mid-air knee tuck and shifts the expected touchdown Z-plane upward
 ;; by `+platform-elevation-z-mm` so the Momentum Observer latches on the elevated surface!
 (defmodifier specialize-jump-onto-elevated-platform
-  [jump-state &key (platform-elevation-z-mm +74.0)    ; her launch at the text's angle, 194 up less 120 (+380.0)
+  [jump-state &key (platform-elevation-z-mm +74.0)    ; its launch at the text's angle, 194 up less 120 (+380.0)
                    (platform-forward-x-mm 202.0)]     ; and 202 ahead (520.0)
   (-> jump-state
       (drive-stretch-shortening-ballistic-impulse
@@ -137,7 +137,7 @@
 ;; Monitors `sub-tarsal-slab` along the geodesic streamline: if an untraversable
 ;; gap, puddle, or low obstacle of length [350, 1450] mm is detected ahead during
 ;; walking or running, automatically triggers `xform-in-stride-unilateral-leap`
-;; scaled to clear the obstacle with 120 mm margin! Hers [350, 398]: her leap's 638
+;; scaled to clear the obstacle with 120 mm margin! Its own [350, 398]: its leap's 638
 ;; less the margins, its apex 75 a flat gap's.
 (defmodifier specialize-leap-over-sdf-gap-or-hurdle
   [locomotion-state &key (safety-margin-x-mm 120.0) (safety-margin-z-mm 85.0)]
@@ -148,7 +148,7 @@
           (-> locomotion-state
               (xform-in-stride-unilateral-leap
                 :leap-span-x-mm (+ gap-dx (* 2.0 safety-margin-x-mm))
-                :leap-apex-z-mm (+ (max -10.0 obs-dz) safety-margin-z-mm))))))) ; her apex 75 less 85 (180.0)
+                :leap-apex-z-mm (+ (max -10.0 obs-dz) safety-margin-z-mm))))))) ; its apex 75 less 85 (180.0)
 
 ;; 3. High-Speed Braking Arm-Counterweight & Pitch Arrestor Specializer
 ;; During an aggressive 2-step stop from running, thrusts both arms forward/downward

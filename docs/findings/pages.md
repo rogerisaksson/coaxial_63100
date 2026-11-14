@@ -6,31 +6,32 @@ The terminal's pages and what they draw. The host's other findings:
 - A `Feed` slept its period after the read: a 20 ms read at 50 ms fed 14
   readings a second to a 20 fps page. Start to start now.
 - HUMANOID rendered under `--keys` (a key a frame, `tools/render/page.py`):
-  O turns the view, X puts her at the other side, Shift+W runs her at 0.90
-  m/s, W+A walks her an arc the chase follows, C has her down with `[F]
-  #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. Her
+  O turns the view, X puts it at the other side, Shift+W runs it at 0.90
+  m/s, W+A walks it an arc the chase follows, C has it down with `[F]
+  #201 stand` offered, the chair scene offers `[F] sit chair` at 0.8 m. Its
   process ran at 0.2-0.3 of real time on four cores, 8-10 frames a second.
   A frame at 15 a second showed the same state again 65 times in 235, the
-  rest 0.036 s of her time apart with 0.022 of spread, her process at 0.7 of
+  rest 0.036 s of its time apart with 0.022 of spread, its process at 0.7 of
   real time in slices of 0.05 s (`terminal/views/playback.py`).
-- HUMANOID's balloons (`gym.offered`, `coaxial.graphics.balloons`): from her
+- HUMANOID's balloons (`gym.offered`, `coaxial.graphics.balloons`): from its
   lay in the lodge facing +z the door 3.6 m at 12 deg, the bed 2.5 m at 45,
   the chair 1.7 m at 62 - F1 go out, F2 lie down, F3 sit -, at 150 x 44 the
   bed behind the docked eyes and its balloon at their edge. Numbered nearest
-  first, F alone sent her from (0.12, 0.28) to the chair 56 deg aside, not
-  the door ahead, and she fell at 5.19 s (scenarios item 10): numbered by
-  her turn to them, F alone keeps what she faces. Lying on the bed her one
-  offer read F where three had read F1-F3, and backing to it the door at her
+  first, F alone sent it from (0.12, 0.28) to the chair 56 deg aside, not
+  the door ahead, and it fell at 5.19 s (scenarios item 10): numbered by
+  its turn to them, F alone keeps what it faces. Lying on the bed it one
+  offer read F where three had read F1-F3, and backing to it the door at its
   sight's edge came and went four times in 1.5 s: one alone is F1 too, a
-  thing once seen kept till her scene or her epoch is laid anew.
+  thing once seen kept till its scene or its epoch is laid anew.
 - The crafts' pages flew on a `Feed` thread in the page's process and drew
   the newest of its 20 ms steps: on a 200 x 56 truecolor terminal 13.4-18.7
   frames a second, gaps p95 80-115 ms, the longest 484-639, the flight's
   Python sharing the GIL with a frame's 3D (16-33 ms) and rich's update
-  (21-28 ms). Run apart as hers is (`machine.process.apart`, `quad/flying.py`) and
-  played back no further than 0.15 s behind what it said, a frame 0.1 s of
-  its time at the most: 18.7-19.3 frames a second, p95 66-77 ms, the longest
-  75-89, its time on at the wall's (1.00). HUMANOID on the same loop: 17.2.
+  (21-28 ms). Run apart as its own is (`machine.process.apart`,
+  `quad/flying.py`) and played back no further than 0.15 s behind what it said,
+  a frame 0.1 s of its time at the most: 18.7-19.3 frames a second, p95 66-77 ms,
+  the longest 75-89, its time on at the wall's (1.00). HUMANOID on the same
+  loop: 17.2.
 - Played back at a frame's start, the flight reached the terminal 35-80 ms
   later, rich's update 24 ms and 51 at p95 - a collection of the whole heap
   in it (28 at p95 with none): on screen the helicopter flew 0.67-1.48 of
@@ -50,16 +51,16 @@ The terminal's pages and what they draw. The host's other findings:
   On its course lap at 12.6 m/s the craft on screen is off smooth motion
   0.04 dots (0.38 at p95), its path in the world 9 mm at p95; the chase
   holds it 15 dots off the middle, 43 at p95.
-- HUMANOID drew a frame every 68 ms, her motion on screen 0.59-1.07 of its
-  speed: her playback eased to her process's ratio and caught up after it.
+- HUMANOID drew a frame every 68 ms, its motion on screen 0.59-1.07 of its
+  speed: its playback eased to its process's ratio and caught up after it.
   Held to what the page shows (`apart.LEAD_S`) and played back steady
-  (`Playback.steady`, as the flights are): 0.92-1.03, her wear window's
-  passes a slowing, not a burst. Her frame was 57 ms: her room's edges 413
+  (`Playback.steady`, as the flights are): 0.92-1.03, its wear window's
+  passes a slowing, not a burst. Its frame was 57 ms: its room's edges 413
   `line` calls (13 ms; `props.lines` an ink a call), the braille's runs a
-  scan of every cell, rich 20. Her 3D drawn a frame ahead in a process of its
+  scan of every cell, rich 20. Its 3D drawn a frame ahead in a process of its
   own (`terminal.ui.ahead`, the flights' too), the viewport two passes
   flatter (`Marquee` centres, `Chrome` takes the rate): a frame every 36.6 ms
-  (27.3 a second), what is left rich's layout of her instruments (12 ms);
+  (27.3 a second), what is left rich's layout of its instruments (12 ms);
   the flights 33.8 (29.6), on the cap.
 - HUMANOID's R crashed the page at once with no traceback
   kept; headless it took R and saved 97 rows then, and R starting, three
@@ -141,9 +142,9 @@ The terminal's pages and what they draw. The host's other findings:
 - A shaded cell keeps 0.4 of its dots at the least (`lit.braille`, 0.40 + 0.60
   of its light against the blue noise): on 0.04 + 0.96 of its light to the
   1.5 the crafts' mid-grey shells and the gynoid's clothes read as clouds of
-  points beside the glTF and FBX models they were judged against. Her jeans
+  points beside the glTF and FBX models they were judged against. Its jeans
   (70, 98, 150), 0.062-0.068 m a thigh where 0.072-0.088, 0.052 m a hem where
-  0.074; her shoulders' rings 0.118 m at 0.344 m where 0.14.
+  0.074; its shoulders' rings 0.118 m at 0.344 m where 0.14.
 - The helicopter after the T-REX 700 beside the repo: its canopy a 0.57 m
   teardrop over the frames, red over black; a loft's fourth number drops a
   ring, and the lime canopy had sat under the frames, unseen from the side.
@@ -166,7 +167,7 @@ The terminal's pages and what they draw. The host's other findings:
 
 - The terminal's keys from one table (`terminal/ui/bindings.py`): HUMANOID's
   bound in five places, each page its own way; where they met, the arrows
-  lifted her view and paged the column, Esc in her prompt left the page, F's
+  lifted its view and paged the column, Esc in its prompt left the page, F's
   choice outlived the keys after it, the rotor's keys took lower case alone,
   SESSION's + - were unbound. At 150 x 44 the 13 pages open with the column
   a rail - its arrow breathing with the screen's sweep, a key's ink to (28,

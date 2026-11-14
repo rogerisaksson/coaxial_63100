@@ -1,6 +1,6 @@
-"""A picture in the viewport's corner, framed as the tty's instruments: her eyes' view, a camera's.
+"""A picture in the viewport's corner, framed as the tty's instruments: its eyes' view, a camera's.
 
-    cells = inset.eyes(seen, width, height)                  # her look, its things hulled
+    cells = inset.eyes(seen, width, height)                  # its look, its things hulled
     cells = inset.docked(inset.dotted(dots, ink, ground), width, height, 'GIMBAL', note)
 
 A body is rows of cells [(codepoint, key)]: `pixels` an image, two pixel rows a cell; `dotted`
@@ -16,7 +16,7 @@ from machine.eyes import sight
 #: plate.
 TITLE_INK, NOTE_INK, PLATE = (0, 215, 215), (255, 175, 0), (8, 14, 16)
 
-#: Her eyes' picture: its title, and the share of a hull's ink laid over what it covers and
+#: The robot's eyes' picture: its title, and the share of a hull's ink laid over what it covers and
 #: along its edge.
 EYES, TINT, EDGE = 'VISION', 0.15, 0.7
 
@@ -87,7 +87,7 @@ def _laid(labels, rows, wide):
 
 
 def eyes(seen, width, height):
-    """Her eyes' picture docked (`docked`): `seen` (thumbnail (2 * rows, wide, 3) uint8, hulls
+    """Its eyes' picture docked (`docked`): `seen` (thumbnail (2 * rows, wide, 3) uint8, hulls
     [(kind, ink, [(col, row), ..] in the eye's image)]) - each hull's ink along its edge, where
     the picture's own edge does not cut it, and lightly over what it covers; its kind a label
     at its top left, the smallest hull's first."""

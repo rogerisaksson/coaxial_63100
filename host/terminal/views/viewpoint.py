@@ -1,9 +1,9 @@
-"""The HUMANOID page's viewpoint: a chase camera over her shoulder, turned by keys and the mouse.
+"""The HUMANOID page's viewpoint: a chase camera over its shoulder, turned by keys and the mouse.
 
-    viewpoint.turned(state, dx, dy)           # a left drag's cells: round her and over her
+    viewpoint.turned(state, dx, dy)           # a left drag's cells: round it and over its
     viewpoint.moved(state, dx, dy, w, h)      # a right drag's cells: what was under it stays
     viewpoint.zoomed(state, 1.1)              # the zoom times k, within ZOOM
-    viewpoint.chased(state, heading, going, now)   # eased behind her while she goes
+    viewpoint.chased(state, heading, going, now)   # eased behind it while it goes
     viewpoint.looks(state)                    # the heading it looks along, rad
     run_view(.., **viewpoint.mouse(state, size, click))   # the page's mouse
 
@@ -15,7 +15,7 @@ import time
 from coaxial.graphics import engine, gynoid
 from terminal.ui import console
 
-#: Where it starts - straight behind her (`yaw` 180°), tipped down a little -, degrees a
+#: Where it starts - straight behind it (`yaw` 180°), tipped down a little -, degrees a
 #: key turns it, the orbit's degrees a second, the zoom's bounds: at 8 a knee's linkage fills it.
 YAW, PITCH, TURN_DEG, ORBIT_DEG_S, ZOOM = 180.0, 8.0, 10.0, 12.0, (0.6, 8.0)
 HOME = {'yaw': YAW, 'pitch': PITCH, 'zoom': 1.0, 'pan': (0.0, 0.0), 'shoulder': 1.0}
@@ -23,8 +23,8 @@ HOME = {'yaw': YAW, 'pitch': PITCH, 'zoom': 1.0, 'pan': (0.0, 0.0), 'shoulder': 
 #: A left drag's degrees a cell across and a row down; the tip's bounds, deg.
 DRAG_DEG, TIP_DEG = (2.0, 4.0), (-30.0, 85.0)
 
-#: The chase: RECENTRE_S after the view was last turned, while she goes, its yaw eases behind
-#: her heading, LAG_S its time constant; it looks past her SHOULDER_M aside, X the other side.
+#: The chase: RECENTRE_S after the view was last turned, while it goes, its yaw eases behind
+#: its heading, LAG_S its time constant; it looks past its SHOULDER_M aside, X the other side.
 RECENTRE_S, LAG_S, SHOULDER_M = 1.5, 0.8, 0.22
 
 
@@ -35,7 +35,7 @@ def turned(state, dx, dy):
 
 
 def dragged(state, dx, dy):
-    """Turned by a left mouse drag: free to orbit while held, returning behind her on release."""
+    """Turned by a left mouse drag: free to orbit while held, returning behind it on release."""
     state['yaw'] += dx * DRAG_DEG[0]
     state['pitch'] = max(TIP_DEG[0], min(TIP_DEG[1], state['pitch'] + dy * DRAG_DEG[1]))
     state['dragging'] = True
@@ -55,14 +55,14 @@ def moved(state, dx, dy, width, height):
 
 
 def orbited(state, t):
-    """Turned ORBIT_DEG_S a second of her time `t` while O orbits."""
+    """Turned ORBIT_DEG_S a second of its time `t` while O orbits."""
     if state['orbit'] and state['last_t'] is not None:
         state['yaw'] += ORBIT_DEG_S * max(0.0, t - state['last_t'])
     state['last_t'] = t
 
 
 def looks(state):
-    """The heading the view looks along, rad: hers when it is straight behind her."""
+    """The heading the view looks along, rad: its own when it is straight behind it."""
     return math.radians(state['yaw'] - YAW)
 
 
@@ -72,7 +72,7 @@ def along(state):
 
 
 def chased(state, heading, going, now):
-    """Its yaw eased behind her `heading` (rad) while she is `going` (or returning from a
+    """Its yaw eased behind its `heading` (rad) while it is `going` (or returning from a
     released left-drag), RECENTRE_S on from the view's last key turn; held steady while the
     left mouse button is down; `now` the wall clock, s."""
     then, state['chased'] = state.get('chased', now), now
@@ -101,7 +101,7 @@ def shouldered(state):
 
 
 def panned(state):
-    """Where the drawing is centred: the drags' pan, SHOULDER_M aside of her."""
+    """Where the drawing is centred: the drags' pan, SHOULDER_M aside of it."""
     x, y = state['pan']
     return (x + SHOULDER_M * state.get('shoulder', 1.0), y)
 
@@ -109,7 +109,7 @@ def panned(state):
 def mouse(state, size, click):
     """`run_view`'s mouse: held throughout, F the page's pace; a left click on the viewport -
     left of the right-hand HUD column - `click` (state), a left drag turns - across, the other
-    way round her than the arrows, and returns behind her on release -, a right drag moves,
+    way round it than the arrows, and returns behind it on release -, a right drag moves,
     `size` () -> the drawing's (width, height); the wheel zooms through `on_input`."""
     return {'mouse': True, 'select': frozenset(),
             'on_click': lambda col, _row: click(state) if not size()[0] or col <= size()[0] + 4 else None,

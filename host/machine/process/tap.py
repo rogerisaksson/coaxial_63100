@@ -1,48 +1,48 @@
-"""Her loop's side of a tuner apart: her raw passes tapped, a table taken and laid at her barrier.
+"""Its loop's side of a tuner apart: its raw passes tapped, a table taken and laid at its barrier.
 
     state = tap.fresh()                          # a tap's state, held between passes
-    x = tap.raw(s, state)                        # a pass of her session `s`, raw (RAW): her loop's copy
+    x = tap.raw(s, state)                        # a pass of its session `s`, raw (RAW): its loop's copy
     samples = tap.cooked(raws)                   # passes as samples (SAMPLE): the tuner's work, in bulk
     m = tap.measured(samples, weight)            # a window's measures of its samples
-    hook, link = tap.attached(name)              # her loop linked: `worker` calls hook(s) each pass
+    hook, link = tap.attached(name)              # its loop linked: `worker` calls hook(s) each pass
 
-Her loop copies, the tuner computes: a raw pass is what the autotuner's classes need of her world,
-copied as it stands - her contacts with whatever bears her, in C beside her contacts' read
+Its loop copies, the tuner computes: a raw pass is what the autotuner's classes need of its world,
+copied as it stands - its contacts with whatever bears it, in C beside its contacts' read
 (`wbc_pass.c`; CONTACT, CONTACTS of them: each one's place and frame, its force and tangential
-velocity the solver's rows, her cones elliptic, its friction), her centre of mass, her master bus's
-tank, her drives' watts, her feet's gap every ROW_S. Cooked, a sample holds the world's force on her, the centroidal pivot's margin in her contacts'
-hull, her contacts' slip and their friction cone's use. A table the tuner publishes (`rcu`: a row a
-column, `ortho.ROW`'s fields) is laid where it cannot jerk her (`due`): at her lateral voice's zero
-crossing with both soles locked and her last blend done, or at rest her last blend done - its own
-blend the minimum-jerk quintic (SHAPE), her voices' targets C2 through it.
+velocity the solver's rows, its cones elliptic, its friction), its centre of mass, its master bus's
+tank, its drives' watts, its feet's gap every ROW_S. Cooked, a sample holds the world's force on it, the centroidal pivot's margin in its contacts'
+hull, its contacts' slip and their friction cone's use. A table the tuner publishes (`rcu`: a row a
+column, `ortho.ROW`'s fields) is laid where it cannot jerk it (`due`): at its lateral voice's zero
+crossing with both soles locked and its last blend done, or at rest its last blend done - its own
+blend the minimum-jerk quintic (SHAPE), its voices' targets C2 through it.
 """
 import ctypes
 import math
 
-#: A raw pass's head: its time and the sequence laid, the tank (J), her drives' watts, her centre of
-#: mass (m), her feet's gap (mm, nan between its ROW_S), how many contacts she had, when she fell (s,
-#: nan standing; her session's).
+#: A raw pass's head: its time and the sequence laid, the tank (J), its drives' watts, its centre of
+#: mass (m), its feet's gap (mm, nan between its ROW_S), how many contacts it had, when it fell (s,
+#: nan standing; its session's).
 HEAD = ('t', 'laid', 'tank', 'watts', 'cx', 'cy', 'cz', 'gap', 'n', 'fell')
-#: A raw contact: whether it is her first geom's, its place, its frame (normal, two tangents), its
+#: A raw contact: whether it is its first geom's, its place, its frame (normal, two tangents), its
 #: force in it (N), its friction, its tangential velocity (m/s, the second geom's on the first's).
 CONTACT = ('hers1', 'px', 'py', 'pz', 'nx', 'ny', 'nz', 'ax', 'ay', 'az', 'bx', 'by', 'bz', 'fn', 'fa', 'fb',
            'mu', 'va', 'vb')
-#: Her contacts a raw pass holds: more are cut, their count kept in `n`.
+#: The robot's contacts a raw pass holds: more are cut, their count kept in `n`.
 CONTACTS = 16
 RAW = len(HEAD) + CONTACTS * len(CONTACT)
 HE, C = {name: i for i, name in enumerate(HEAD)}, {name: i for i, name in enumerate(CONTACT)}
-#: Where `wbc_pass_tapped` writes a contact's fields: hers first, place, frame, force, friction, velocity.
+#: Where `wbc_pass_tapped` writes a contact's fields: its own first, place, frame, force, friction, velocity.
 AT = (C['hers1'], C['px'], C['nx'], C['fn'], C['mu'], C['va'])
-#: A sample's fields: its time and the sequence laid, the world's force on her (N), her centre of
-#: mass (m), the pivot's margin (mm, nan unborne), slip (m/s), the cone's use, the tank (J), her drives'
-#: watts, her feet's gap (mm, nan between its ROW_S).
+#: A sample's fields: its time and the sequence laid, the world's force on it (N), its centre of
+#: mass (m), the pivot's margin (mm, nan unborne), slip (m/s), the cone's use, the tank (J), its drives'
+#: watts, its feet's gap (mm, nan between its ROW_S).
 SAMPLE = ('t', 'laid', 'fx', 'fy', 'fz', 'cx', 'cy', 'cz', 'pivot', 'slip', 'cone', 'tank', 'watts', 'gap')
 S = {name: i for i, name in enumerate(SAMPLE)}
 #: A gap's and a look's sampling, s: the page's rows' (`look.RATE_HZ`).
 ROW_S = 0.01
 #: The feet a gap is between (`look`'s).
 FEET = (('left_foot', 'left_toes'), ('right_foot', 'right_toes'))
-#: A look's fields, the second ring's: what her page's row is made of (`humanoid_keys.row`) - her time,
+#: A look's fields, the second ring's: what its page's row is made of (`humanoid_keys.row`) - its time,
 #: speed, soles' loads, place and turn, each joint's angle (deg, `figure.JOINTS`).
 LOOK = ('t', 'speed', 'left_load', 'right_load', 'x', 'y', 'z', 'qw', 'qx', 'qy', 'qz')
 #: A table's blend: the minimum-jerk quintic, its rate and bend 0 at both ends (`curves.QUINTICS`).
@@ -64,14 +64,14 @@ def margin(p, points):
 
 
 def fresh():
-    """A tap's state: her world, its contacts' read and the C tap (bound at a world's first pass: a
+    """A tap's state: its world, its contacts' read and the C tap (bound at a world's first pass: a
     fall lays another), its gap's last time, the sequence laid."""
     return {'world': None, 'gap_t': -math.inf, 'laid': 0}
 
 
 def raw(s, state, x=None):
-    """A pass of her session `s` as it stands (RAW), into `x` where given, its tap's `state`
-    (`fresh`) carried on: copies, nothing computed but her feet's gap every ROW_S."""
+    """A pass of its session `s` as it stands (RAW), into `x` where given, its tap's `state`
+    (`fresh`) carried on: copies, nothing computed but its feet's gap every ROW_S."""
     import numpy as np
     from machine.senses import edge
     g = s['g']
@@ -97,10 +97,10 @@ def raw(s, state, x=None):
 
 
 def cooked(raws):
-    """Raw passes (n, RAW) as samples (n, SAMPLE), in bulk: the world's force on her, each contact's
-    force out of its frame, signed to her side; slip her contacts' tangential speed and the cone's use
-    |F_t| over mu F_n, each weighed by the normal forces; the pivot - her centre of mass's line along
-    that force to her contacts' height - its margin in their hull."""
+    """Raw passes (n, RAW) as samples (n, SAMPLE), in bulk: the world's force on it, each contact's
+    force out of its frame, signed to its side; slip its contacts' tangential speed and the cone's use
+    |F_t| over mu F_n, each weighed by the normal forces; the pivot - its centre of mass's line along
+    that force to its contacts' height - its margin in their hull."""
     import numpy as np
     x = np.atleast_2d(np.asarray(raws, float))
     head, c = x[:, :len(HEAD)], x[:, len(HEAD):].reshape(len(x), CONTACTS, len(CONTACT))
@@ -122,7 +122,7 @@ def cooked(raws):
 
 
 def look(s):
-    """Her look now (LOOK, then each joint's angle in `figure.JOINTS`' order)."""
+    """The robot's look now (LOOK, then each joint's angle in `figure.JOINTS`' order)."""
     import numpy as np
     g = s['g']
     world = g['world']
@@ -132,10 +132,10 @@ def look(s):
 
 
 def measured(samples, weight):
-    """A window's measures of its `samples` (n, SAMPLE), her weight `weight` N: the pivot's margins
-    (mm, borne), her load over her weight least and most, the friction cone's use (mean, borne), her
-    slip (mm), her feet's least gap (mm), the tank's bleed (J: what drew it down), her drives' energy a
-    metre of her centre of mass's way (J/m)."""
+    """A window's measures of its `samples` (n, SAMPLE), its weight `weight` N: the pivot's margins
+    (mm, borne), its load over its weight least and most, the friction cone's use (mean, borne), its
+    slip (mm), its feet's least gap (mm), the tank's bleed (J: what drew it down), its drives' energy a
+    metre of its centre of mass's way (J/m)."""
     import numpy as np
     x = np.asarray(samples, float)
     dt = np.diff(x[:, S['t']], prepend=x[0, S['t']])
@@ -149,8 +149,8 @@ def measured(samples, weight):
 
 
 def due(g, at):
-    """(whether a table is laid now, the time to look from): at rest - her rhythm off - once her last
-    blend is done; walking, past her lateral voice's zero crossing `at` with both soles locked and her
+    """(whether a table is laid now, the time to look from): at rest - its rhythm off - once its last
+    blend is done; walking, past its lateral voice's zero crossing `at` with both soles locked and its
     last blend done (`patch.locked`), past its double support unlocked the next crossing."""
     from machine.law import latent
     from machine.texts import patch
@@ -166,8 +166,8 @@ def due(g, at):
 
 
 def table(row, blend_s, rid):
-    """A one-row table (`rcu`'s: `ortho.ROW`'s fields a column) of `row` ({slot: value}) over her walk,
-    id `rid`, her rhythm on, blended over `blend_s` minimum-jerk (SHAPE)."""
+    """A one-row table (`rcu`'s: `ortho.ROW`'s fields a column) of `row` ({slot: value}) over its walk,
+    id `rid`, its rhythm on, blended over `blend_s` minimum-jerk (SHAPE)."""
     import numpy as np
     from machine.texts import ortho
     p = np.full(ortho.P, np.nan)
@@ -178,16 +178,16 @@ def table(row, blend_s, rid):
 
 
 def wire(table):
-    """A published table's rows (`ortho.ROW`) as her table's wire: its columns id, at ms, blend ms,
+    """A published table's rows (`ortho.ROW`) as its table's wire: its columns id, at ms, blend ms,
     flags and the parameters."""
     from machine.texts import ortho
     return b''.join(ortho.ROW.pack(*(int(v) for v in row[:4]), *(float(v) for v in row[4:])) for row in table.T)
 
 
 def made(seconds, rows=1):
-    """The tuner's link to her loop (`rcu.Link.made`): rings for `seconds` of her raw passes, one a
-    pass, and of her looks, one a ROW_S - the time the tuner may take between its drains -; banks of
-    `rows` rows of her row's fields."""
+    """The tuner's link to its loop (`rcu.Link.made`): rings for `seconds` of its raw passes, one a
+    pass, and of its looks, one a ROW_S - the time the tuner may take between its drains -; banks of
+    `rows` rows of its row's fields."""
     from machine.texts import ortho
     from machine.process import rcu
     from machine.body.figure import JOINTS
@@ -196,9 +196,9 @@ def made(seconds, rows=1):
 
 
 def attached(name):
-    """(her loop's hook - `worker` calls it each pass -, its link): her raw pass tapped onto the link
-    `name`'s first ring (`rcu`), her look onto its second with her gap, every ROW_S; a table taken,
-    laid when `due` from her next lateral crossing on, its laying said in the link and in her passes."""
+    """(its loop's hook - `worker` calls it each pass -, its link): its raw pass tapped onto the link
+    `name`'s first ring (`rcu`), its look onto its second with its gap, every ROW_S; a table taken,
+    laid when `due` from its next lateral crossing on, its laying said in the link and in its passes."""
     from machine.law import latent
     from machine.texts import patch
     from machine.process import rcu, worker

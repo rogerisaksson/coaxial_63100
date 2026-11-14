@@ -1,15 +1,15 @@
-"""Walk to run, a brake, a jump and a leap (the kernel's ballistic texts) on her body and her drives.
+"""Walk to run, a brake, a jump and a leap (the kernel's ballistic texts) on its body and its drives.
 
     fr = ballistic.froude(v, leg)                  # 1: v^2 / g leg
     beta = ballistic.duty(fr, knots, values)       # 1: a stance's share of a stride, the text's Hermite map
     dv = ballistic.braked(mu, cap, period)         # m/s: the most one step's stance brakes on a floor's friction
     n = ballistic.steps(v, v_walk, dv)             # steps from a run's speed to a walk's
-    z = ballistic.crouch(fr)                       # axial: her deepest crouch to jump from, the text's
-    wire, names, s, ms = ballistic.bound(fr, turns, now, label)       # her leap in stride, a table's rows
-    v, t, w = ballistic.launch(depth, legs)        # m/s, s, rad/s: her hips leaving the floor, her knees then
+    z = ballistic.crouch(fr)                       # axial: its deepest crouch to jump from, the text's
+    wire, names, s, ms = ballistic.bound(fr, turns, now, label)       # its leap in stride, a table's rows
+    v, t, w = ballistic.launch(depth, legs)        # m/s, s, rad/s: its hips leaving the floor, its knees then
     h, x = ballistic.parabola(vz, vx)              # m: a flight's apex and span, landing as high as it left
 
-The kernel's ballistic_*.lisp. Her legs' line as `leap._a_z` lays it (thigh, shank, the knee's lever to it); her
+The kernel's ballistic_*.lisp. Its legs' line as `leap._a_z` lays it (thigh, shank, the knee's lever to it); its
 drives' bounds `bemf`'s at `drives.PACK_V`. Flat arrays and arithmetic: no branch.
 """
 import math
@@ -17,8 +17,8 @@ import math
 from machine.body import bemf, drives, figure, servos
 from machine.body.compile import G_M_S2 as G
 
-#: Her knee among her drives (`bemf.DRIVEN`); unilateral throw height spring, N/m, from knee servo
-#: stiffness mapped through her countermovement crouch lever.
+#: Its knee among its drives (`bemf.DRIVEN`); unilateral throw height spring, N/m, from knee servo
+#: stiffness mapped through its countermovement crouch lever.
 _CROUCH_LEVER = 0.5 * (figure.THIGH + figure.SHANK) * math.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
 THROW_K = round(servos.SERVO['knee'][1] / (_CROUCH_LEVER * _CROUCH_LEVER), -2)
 KNEE = bemf.DRIVEN.index('left_knee')
@@ -46,8 +46,8 @@ def duty(fr, knots, values):
 
 
 def braked(mu, cap, period):
-    """m/s: the most a step's stance takes off her speed, `cap` of the friction `mu` her soles meet (the text's
-    cone-utilization cap): over a step of `period` s her soles bear her weight on average, so mu cap g period."""
+    """m/s: the most a step's stance takes off its speed, `cap` of the friction `mu` its soles meet (the text's
+    cone-utilization cap): over a step of `period` s its soles bear its weight on average, so mu cap g period."""
     import numpy as np
     return np.asarray(mu, float) * cap * G * period
 
@@ -59,8 +59,8 @@ def steps(v, v_walk, dv):
 
 
 def _push(depth, legs, n):
-    """Her push from `depth` m under her straight legs (`launch`): (her rise from the crouch along her legs' line, m,
-    her speed there, m/s, the sample she leaves at, her knees' levers, m)."""
+    """Its push from `depth` m under its straight legs (`launch`): (its rise from the crouch along its legs' line, m,
+    its speed there, m/s, the sample it leaves at, its knees' levers, m)."""
     import numpy as np
     straight = figure.THIGH + figure.SHANK
     x = np.linspace(straight - depth, straight, n + 1)[:-1]
@@ -81,9 +81,9 @@ def _push(depth, legs, n):
 
 
 def launch(depth, legs=2.0, n=4000):
-    """(m/s, s, rad/s): her hips' speed leaving the floor, the push's seconds and her knees' speed then, pushed from
-    `depth` m under her straight legs by `legs` knees at their back-EMF bounds, their rotors spun with them, her
-    weight against them. Her kinetic energy, her rotors' with it, gains the push's work and loses her weight's; she
+    """(m/s, s, rad/s): its hips' speed leaving the floor, the push's seconds and its knees' speed then, pushed from
+    `depth` m under its straight legs by `legs` knees at their back-EMF bounds, their rotors spun with them, its
+    weight against them. Its kinetic energy, its rotors' with it, gains the push's work and loses its weight's; it
     leaves where the floor's push would turn to a pull, or straight."""
     import numpy as np
     up, v, k, lever = _push(depth, legs, n)
@@ -91,7 +91,7 @@ def launch(depth, legs=2.0, n=4000):
 
 
 def rise(depth, legs, at):
-    """m: her hips' rise from the crouch `depth` m under her straight legs at `at` s into her push (`launch`'s), her
+    """m: its hips' rise from the crouch `depth` m under its straight legs at `at` s into its push (`launch`'s), its
     leaving's from its end on."""
     import numpy as np
     up, v, k, _lever = _push(depth, legs, 4000)
@@ -107,9 +107,9 @@ def parabola(vz, vx):
 
 
 def crouch(fr):
-    """Axial: her deepest crouch to jump from (`leap.standing_leap`), the text's countermovement at her size
-    (`xform-standing-bilateral-jump`) over her axial metre in her frame `fr` - from the human's crouch (`leap.CROUCH`)
-    leant 55 deg she fell 36 ms free into it, 343 mm deep, onto one sole, and left 74 mm under her standing height."""
+    """Axial: its deepest crouch to jump from (`leap.standing_leap`), the text's countermovement at its size
+    (`xform-standing-bilateral-jump`) over its axial metre in its frame `fr` - from the human's crouch (`leap.CROUCH`)
+    leant 55 deg it fell 36 ms free into it, 343 mm deep, onto one sole, and left 74 mm under its standing height."""
     from machine.texts import kernel
     from machine.law import modal
     return 1e-3 * figure.SCALE * kernel.said('xform-standing-bilateral-jump', 'countermovement-crouch-mm') / (
@@ -117,20 +117,20 @@ def crouch(fr):
 
 
 def bound(fr, turns, now, label):
-    """(wire, names, seconds, the ms its push begins) of her leap in stride (`xform-in-stride-unilateral-leap`) from
+    """(wire, names, seconds, the ms its push begins) of its leap in stride (`xform-in-stride-unilateral-leap`) from
     the sole landing now: its stance dipped by the text's countermovement and pushed straight by one knee at its bound
-    (`launch`, one leg) to leave as her other sole's swing ends - half a turn of her rhythm `turns` rad/s on -, her
-    flight in place of her double support, her rhythm untouched: the other sole lands meant to stand, this one swings
-    at its own time. The push's spring held into the flight (let go at its curve's end she stood on, 0.28 m/s up), her
-    other swing held through the push (ZMP none), her hold and her drive as she had them (`now`) throughout, her
-    landing waiting on her soles; her gait's height, spring and support as she had them after, the last row named
-    `label`. Each push row is the curve's height at its blend's end, its spring damped critically on her mass,
-    undamped in flight. Planned to leave at 1.16-1.18 m/s she flies 0.195 s walking (0.69 m/s) and 0.219 s running
-    (1.40), her soles 51 and 68 mm clear, 0.13 and 0.27 m along her way. Her hold thrown 0.35-0.53 m ahead and her
-    drive swept x1.66 through the leap she fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as
-    the other sole landed. The hold's charge has no lever here: dipped 1.35 times the text's she stands and flies no
-    further (0.14 and 0.25 m) - the stance sole behind her bears a third of her and she sinks 0.16-0.21 m for the
-    0.11-0.15 told, then outruns a push laid on the clock (0.76 m/s on its 0.38) and coasts, her knee at 37-106 of
+    (`launch`, one leg) to leave as its other sole's swing ends - half a turn of its rhythm `turns` rad/s on -, its
+    flight in place of its double support, its rhythm untouched: the other sole lands meant to stand, this one swings
+    at its own time. The push's spring held into the flight (let go at its curve's end it stood on, 0.28 m/s up), its
+    other swing held through the push (ZMP none), its hold and its drive as it had them (`now`) throughout, its
+    landing waiting on its soles; its gait's height, spring and support as it had them after, the last row named
+    `label`. Each push row is the curve's height at its blend's end, its spring damped critically on its mass,
+    undamped in flight. Planned to leave at 1.16-1.18 m/s it flies 0.195 s walking (0.69 m/s) and 0.219 s running
+    (1.40), its soles 51 and 68 mm clear, 0.13 and 0.27 m along its way. Its hold thrown 0.35-0.53 m ahead and its
+    drive swept x1.66 through the leap it fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as
+    the other sole landed. The hold's charge has no lever here: dipped 1.35 times the text's it stands and flies no
+    further (0.14 and 0.25 m) - the stance sole behind its bears a third of it and it sinks 0.16-0.21 m for the
+    0.11-0.15 told, then outruns a push laid on the clock (0.76 m/s on its 0.38) and coasts, its knee at 37-106 of
     its 171 N m."""
     import math
     import numpy as np
@@ -162,7 +162,7 @@ def bound(fr, turns, now, label):
     rows['p'][0:n + 2, zmp] = modal.NONE
     rows['p'][n + 1, z] = leap.STRAIGHT
     rows['flags'][1] |= ortho.RISE
-    # her drive as she had it through the leap, her hold untouched
+    # its drive as it had it through the leap, its hold untouched
     drive = latent.AMP.start + modal.DRIVE
     rows['p'][0:n + 3, drive] = now[drive]
     landing = next(r[2] for r in leap._leap_specs() if r[:2] == (2, d))

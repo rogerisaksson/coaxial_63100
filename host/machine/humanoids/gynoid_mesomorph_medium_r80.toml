@@ -1,4 +1,4 @@
-# The gynoid mesomorph medium's mechatronics on CubeMars motors: her build (`extends`) with R80 where she has
+# The gynoid mesomorph medium's mechatronics on CubeMars motors: its build (`extends`) with R80 where it has
 # U8 II and R60 where MN6007 (`swap`), box B and coaxial_63100 on every drive; mass, rotor inertia, servo gains
 # and gait laws are derived automatically (`machine.body.drives`, `machine.body.compile`).
 extends = "gynoid_mesomorph_medium"

@@ -1,4 +1,4 @@
-"""Her surety field in C through ctypes (wbc_surety.c), her python's bit for bit.
+"""The robot's surety field in C through ctypes (wbc_surety.c), its python's bit for bit.
 
     k, ask = motion.laid()
     field = surety.laid(k, y_in, y, fr, a, st, out)    # surety.field of them, laid once
@@ -14,7 +14,7 @@ from tools.cores import wbc
 
 class Surety(ctypes.Structure):
 
-    """wbc_surety_t: her surety field's reading of her law's arrays, laid once."""
+    """wbc_surety_t: its surety field's reading of its law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('quat_at', 'gyro_at', 'accel_at', 'load_at', 'k_to', 'k_from',
                                                    'gain_now', 'zmp_out', 'held_out', 'spare')]
@@ -34,8 +34,8 @@ def _typed():
 
 
 def laid(k, y_in, y, fr, a, st, out):
-    """Her surety field in C on her law's arrays, pointed at once - `machine.law.surety.field` of
-    her edge's `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its `out` -: a step (prev, dt,
+    """Its surety field in C on its law's arrays, pointed at once - `machine.law.surety.field` of
+    its edge's `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its `out` -: a step (prev, dt,
     ct, t) -> (cur, vec), `vec` its (5,) laid once; `k` the ask's (`tools.cores.motion.laid`)."""
     from machine.senses import edge
     from machine.law import latent, modal
@@ -51,5 +51,5 @@ def laid(k, y_in, y, fr, a, st, out):
 
     def field(prev, dt, ct, t):
         return step(at, sp, prev, dt, ct, t, vp), vec
-    field.laid = (at, ctypes.addressof(s), s)     # its ask's and its own, for her drives' pass in C (`tick`)
+    field.laid = (at, ctypes.addressof(s), s)     # its ask's and its own, for its drives' pass in C (`tick`)
     return field

@@ -1,4 +1,4 @@
-/** wbc_gmo.c - her generalized momentum observer (wbc_gmo.h). */
+/** wbc_gmo.c - its generalized momentum observer (wbc_gmo.h). */
 #include "wbc_gmo.h"
 #include "wbc_solve.h"
 
@@ -9,7 +9,7 @@
 
 #define NF WBC_GMO_F
 
-/* Her observer's hot block first and on whole 64-byte lines, each of its rows too (wbc_gmo.h). */
+/* Its observer's hot block first and on whole 64-byte lines, each of its rows too (wbc_gmo.h). */
 _Static_assert(offsetof(wbc_gmo_t, a) == 0U, "the split's matrices first");
 _Static_assert(((size_t)WBC_GMO_LD * sizeof(double)) % 64U == 0U, "a row of them whole 64-byte lines");
 _Static_assert((offsetof(wbc_gmo_t, h) % 64U == 0U) && (offsetof(wbc_gmo_t, k) % 64U == 0U), "h and k on lines");
@@ -149,9 +149,9 @@ static void own(const wbc_body_t *b, int link, const double x[3], double out[3])
   }
 }
 
-/** Her pairs staged (`list`, `listed`) in their order: those whose capsules' spheres - about each axis's
-    middle, half its length and its radius - come within her envelope, every one where `whole` says so;
-    her capsules' ends `ends` kept as staged. A sphere holds its capsule: a pair left out is an envelope
+/** Its pairs staged (`list`, `listed`) in their order: those whose capsules' spheres - about each axis's
+    middle, half its length and its radius - come within its envelope, every one where `whole` says so;
+    its capsules' ends `ends` kept as staged. A sphere holds its capsule: a pair left out is an envelope
     apart. */
 static void stage(wbc_gmo_t *o, double ends[][2][3])
 {
@@ -181,9 +181,9 @@ static void stage(wbc_gmo_t *o, double ends[][2][3])
   o->stagings++;
 }
 
-/** Her capsules touching, the deepest WBC_GMO_TOUCH: each one's column, pushed apart along the line
+/** Its capsules touching, the deepest WBC_GMO_TOUCH: each one's column, pushed apart along the line
     between their axes' closest points at the middle of their overlap. Searched among the pairs staged
-    (`stage`), restaged once any capsule's end has moved a quarter of her envelope: a pair left out stays
+    (`stage`), restaged once any capsule's end has moved a quarter of its envelope: a pair left out stays
     half of it apart, so the touches are every pair's. */
 static void touches(wbc_gmo_t *o)
 {
@@ -266,10 +266,10 @@ static void touches(wbc_gmo_t *o)
   }
 }
 
-/** Each point's push as gravity would have it, N (`prior`): her weight over the points as far as
+/** Each point's push as gravity would have it, N (`prior`): its weight over the points as far as
     each presses up (`upright` of its pushes' mean's cosine with the vertical), lies low (less its
-    height over her lowest point in `reach`s) and stands still (less its speed in `still`s), a
-    softmax; even over a point's edges into `expected` - her soles' points there their last pass's
+    height over its lowest point in `reach`s) and stands still (less its speed in `still`s), a
+    softmax; even over a point's edges into `expected` - its soles' points there their last pass's
     pushes. */
 static void expect(wbc_gmo_t *o)
 {
@@ -315,7 +315,7 @@ static void expect(wbc_gmo_t *o)
   }
 }
 
-/** Her working set this pass (`live`, `lives`), the unknowns that can push in their order: every
+/** Its working set this pass (`live`, `lives`), the unknowns that can push in their order: every
     point's, a hinge's on its stop, a touch found; all of them where `whole` says so. A column of zeros
     never joins the split nor moves a sum: the rest left out, the same bits. */
 static void scoped(wbc_gmo_t *o)
@@ -335,7 +335,7 @@ static void scoped(wbc_gmo_t *o)
 }
 
 /** Each unknown's column of J': a point's edges along their directions; a hinge on its stop pushed
-    off it; her capsules touching. */
+    off it; its capsules touching. */
 static void columns(wbc_gmo_t *o, const double q[NH])
 {
   static double j[6][WBC_N];
@@ -374,15 +374,15 @@ static void columns(wbc_gmo_t *o, const double q[NH])
 }
 
 /** The least squares of A f = r over the rows `weight` keeps, each shifted by `shift`, every unknown of
-    her working set (`scoped`) pushing, in its order (Lawson-Hanson on the normal equations over it alone,
-    the tie-break toward `expected` on their diagonal: what the rows cannot tell, her soles' last pass and
+    its working set (`scoped`) pushing, in its order (Lawson-Hanson on the normal equations over it alone,
+    the tie-break toward `expected` on their diagonal: what the rows cannot tell, its soles' last pass and
     gravity elsewhere do): a push joins the set where it lowers the residual past rounding, one not felt
     (`gated`) or moving past `still` only where none else would, the set solved, a push it would pull
     stepped back to none and out. */
 /** Push `b` joined to the `n` pushing `at` (in the order they joined): `o->k`'s factor L of K = H over them
     grown a row by forward substitution, the rows before it as they were, its new diagonal's square no less
     than `least` - eps top lies on K's diagonal, so no Schur complement of it is smaller. 53 factorizations
-    of 26 a step from scratch were half her observer's time. */
+    of 26 a step from scratch were half its observer's time. */
 static int joined(wbc_gmo_t *o, int at[NF], int n, int b, double least)
 {
   double d = o->h[b][b];
@@ -434,7 +434,7 @@ static int left(wbc_gmo_t *o, int at[NF], int n, int p)
 
 /** Row `x` of `h` from `x` to `m` its gathered row `k`'s times `c` more; the gradient to `m` row `c` of `h` times `fc`
     less: one product and one sum an element, each element apart - its lanes independent, along memory, the fields
-    apart in her observer's struct. */
+    apart in its observer's struct. */
 static void added(wbc_gmo_t *o, int x, int m, int k, double c)
 {
   for (int y = x; y < m; y++)
@@ -473,7 +473,7 @@ static void pushes(wbc_gmo_t *o, const double weight[WBC_N], const double shift[
       gated[o->col[p] + e] = o->gated[p] || (o->speed[p] > o->still);
     }
   }
-  /* her working set gathered, x an unknown's place in it, f[x] its push: its weighed rows along memory */
+  /* its working set gathered, x an unknown's place in it, f[x] its push: its weighed rows along memory */
   for (int x = 0; x < m; x++)
   {
     gate[x] = gated[o->live[x]];

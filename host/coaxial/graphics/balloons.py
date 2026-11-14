@@ -15,7 +15,7 @@ from coaxial.graphics.raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y
 #: A balloon's word's ink (the instruments' label); its tail, the notch it leaves the frame by,
 #: its tip on the thing, and by the side the thing is on where it is out of sight.
 WORD_INK, TAIL, NOTCH, TIP, TIPS = (214, 220, 228), '│', '┬', '▾', {-1: '◂', 1: '▸'}
-#: A dock's ring, one she may take and the one taken.
+#: A dock's ring, one it may take and the one taken.
 RING, TAKEN = '○', '◉'
 
 

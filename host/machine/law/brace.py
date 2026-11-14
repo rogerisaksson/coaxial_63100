@@ -1,10 +1,10 @@
-"""Her brace on the solve: the tuck she contracts into on a topple, her cervical joints held.
+"""Its brace on the solve: the tuck it contracts into on a topple, its cervical joints held.
 
     Ms = brace.scaled(M, acv, w_up)                      # the solve's M, four dofs' rows scaled off
     jeff, leg_kp = brace.braced(M, Ms, q, v, h, ...)     # the solve's answer blended with the tuck's
-    q_post = brace.sured(imp, posture, dq, rows, ...)    # her ask as far as she is sure, the tuck's as far as not
+    q_post = brace.sured(imp, posture, dq, rows, ...)    # its ask as far as it is sure, the tuck's as far as not
 
-The python of `wbc_brace.c` (`tools.cores.brace`), held bit for bit (test_ported); her loop runs
+The python of `wbc_brace.c` (`tools.cores.brace`), held bit for bit (test_ported); its loop runs
 the C (`machine.law.motion.laid`).
 """
 import os
@@ -16,7 +16,7 @@ import numpy as np
 from machine.law import modal, se2
 from machine.stack import wbc
 
-#: The tuck's posture, rad, and its lean along (AX) and across (LAT) her surety's direction.
+#: The tuck's posture, rad, and its lean along (AX) and across (LAT) its surety's direction.
 TUCK = {'spine': 0.45, 'neck': 0.35, 'left_hip_roll': 0.12, 'right_hip_roll': -0.12,
         'left_hip': -1.05, 'right_hip': -1.05, 'left_knee': 1.45, 'right_knee': 1.45,
         'left_ankle': -0.45, 'right_ankle': -0.45, 'left_shoulder': 0.80, 'right_shoulder': 0.80,
@@ -27,9 +27,9 @@ LAT = {'left_shoulder_roll': 0.45, 'right_shoulder_roll': 0.45, 'left_hip_roll':
 
 
 def sured(imp, posture, dq, brace, sw, bw, d_ax, d_lat):
-    """(her posture asked): her loop's ask `imp` (modal's `a`, in place) and her `posture` with its coupling `dq` as
-    far as she is sure of her stance (`sw`), the tuck's (`brace`'s rows by its direction `d_ax`, `d_lat`) and its
-    fall as far as she is not (`bw`). Numpy's alone on her law's arrays, so compiled (`g['sured']`,
+    """(its posture asked): its loop's ask `imp` (modal's `a`, in place) and its `posture` with its coupling `dq` as
+    far as it is sure of its stance (`sw`), the tuck's (`brace`'s rows by its direction `d_ax`, `d_lat`) and its
+    fall as far as it is not (`bw`). Numpy's alone on its law's arrays, so compiled (`g['sured']`,
     `machine.law.motion.laid`): its nine lines' fourteen calls were 36 us a law pass."""
     imp[modal.BEND] *= sw
     imp[modal.SWUNG] *= sw
@@ -55,10 +55,10 @@ def scaled(M, acv, w_up):
 def braced(M, Ms, q, v, h, posture, qacc, tau, over, sw, bw, d_ax, d_lat, w_hop, w_up, stance, brace, act, acv, cv,
            clamp, free_kp, legs):
     """(jeff, leg_kp): the solve's `qacc`, `tau` and `over` blended in place with the tuck's torques
-    by her surety's `sw` and `bw` - the tuck's posture `brace` (3, driven) by its direction `d_ax`,
-    `d_lat`, through her inertia `M` (`act` the driven dofs) -, the cervical and shoulder joints
-    `cv` (dofs `acv`) held to their `posture` as far as `w_up` through the solve's `Ms`; her
-    drives' inertia and her `legs`' stiffness off `free_kp` by their `stance`."""
+    by its surety's `sw` and `bw` - the tuck's posture `brace` (3, driven) by its direction `d_ax`,
+    `d_lat`, through its inertia `M` (`act` the driven dofs) -, the cervical and shoulder joints
+    `cv` (dofs `acv`) held to their `posture` as far as `w_up` through the solve's `Ms`; its
+    drives' inertia and its `legs`' stiffness off `free_kp` by their `stance`."""
     q_brace = np.array([1.0, d_ax, d_lat]) @ brace
     qdd_br = np.clip(3.5 * wbc.POSTURE_KD[0] * (q_brace - q) - 1.8 * wbc.POSTURE_KD[1] * v[act], -180.0, 180.0)
     tau_br = np.clip(M[act, :][:, act] @ qdd_br + M[act, :6] @ qacc[:6] + h[act], -clamp, clamp)

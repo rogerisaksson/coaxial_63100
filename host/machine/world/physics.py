@@ -8,7 +8,7 @@ moved - on its board, on its limb's bus (`machine.rig.buses`), a process a limb 
 world, the host's setpoints and its readings Modbus RTU frames on a socket a bus; a world with
 no buses runs the drives itself. The world advances when the loop reads it, to the loop's time,
 on the setpoints written the pass before. The floor is y 0, a slab over a plane a hole deep, its
-events parked till placed (`World.terrain`); her soles, toes, knees and knuckles alone touch it.
+events parked till placed (`World.terrain`); its soles, toes, knees and knuckles alone touch it.
 """
 import atexit
 import ctypes
@@ -57,7 +57,7 @@ class World:
 
     """The body in MuJoCo, advanced to `clock()` on the drives' setpoints (radians)."""
 
-    #: Her pass's C calls and their fixed arguments, laid on her by `machine.world.passing`.
+    #: The robot's pass's C calls and their fixed arguments, laid on it by `machine.world.passing`.
     _ctrl: Any
     _motor: Any
     _metered: Any
@@ -94,7 +94,7 @@ class World:
         #: joint's speed against it, N m s/rad: the joint's own damping while shorted, MuJoCo's,
         #: integrated implicitly - as a torque each step against the speed, 140 N m s/rad on an
         #: ankle's 0.05 kg m^2 flipped its speed each step, +-140 N m at 500 Hz, drawing 794 W
-        #: as she lay still.
+        #: as it lay still.
         self.shorted = np.zeros(len(JOINTS), bool)
         #: The drives cut (`off`): gates off, no torque, nothing switched; a cut board's check
         #: current (`test`), A, and its winding's copper an amp squared (1.5 r), ohm.
@@ -124,8 +124,8 @@ class World:
         self.pelvis = m.body('pelvis').id
         self.torso = m.body('torso').id
         self.head = m.body('head').id
-        #: Her room's loose things, their joints and feet: their feet's grip switched each pass (`loose.stick`); posed
-        #: where they stand before her first step (her room's props read a loose thing live: unposed, all at naught).
+        #: Its room's loose things, their joints and feet: their feet's grip switched each pass (`loose.stick`); posed
+        #: where they stand before its first step (its room's props read a loose thing live: unposed, all at naught).
         self.furnished = loose.free(m)
         mujoco.mj_kinematics(m, self.data)
         #: Each body's sole, a column a side (left, right): its contacts bear on that side.
@@ -137,7 +137,7 @@ class World:
         self.keys, self.named = [], []
         self.batch = Batch(self.drives)
         self.push_n, self.push_until, self.pushed = np.zeros(3), -1.0, False
-        #: Her pelvis's place and turn hung in a harness (`hang`), or None.
+        #: The robot's pelvis's place and turn hung in a harness (`hang`), or None.
         self.hung: Any = None
         #: The lace (`lace`), and whether it is snagged.
         self.lace_at, self.laced = m.tendon('lace').id, False
@@ -153,7 +153,7 @@ class World:
         #: The gearboxes (BOXED, `machine.body.gearbox`), their rotors' inertia off the joints'
         #: armature; the motors' torques this step.
         self.boxes = gearbox.Boxes(np, bool(BOXED))
-        #: Whether any joint's box is stepped (`gearbox.Boxes.sprung`): every driven one BOXED, else her ankle's
+        #: Whether any joint's box is stepped (`gearbox.Boxes.sprung`): every driven one BOXED, else its ankle's
         #: leaf's; stepped, a joint's rotor is the box's, its armature the servo's.
         self.sprung = bool(self.boxes.sprung.any())
         self.motor = np.zeros(len(JOINTS))
@@ -169,7 +169,7 @@ class World:
         #: The pass in C (wbc_pass.c, `tools.cores.wbc.World`): its struct pointing at the
         #: arrays above and MuJoCo's once, its calls bound.
         self.passing = passing.laid(self, WOUND)
-        #: Her steps between MuJoCo's in C where nothing else is asked of them (`steps`), laid at the first; False
+        #: Its steps between MuJoCo's in C where nothing else is asked of them (`steps`), laid at the first; False
         #: in `in_c` keeps them here (test_tick's twin).
         self._steps, self._ahead, self.in_c = None, False, True
         self._park()
@@ -261,7 +261,7 @@ class World:
     def advance(self):
         """On to the clock, a step at a time: the pass's setpoints broadcast on each bus and
         every board polled, the boards' loops a lockstep, the world stepped on their torques;
-        where nothing else is asked of the steps, between MuJoCo's in C (`steps.advanced`), her
+        where nothing else is asked of the steps, between MuJoCo's in C (`steps.advanced`), its
         gearboxes with them."""
         now = self.clock()
         if now <= self.at + 1e-9:
@@ -354,7 +354,7 @@ class World:
                                                   and not self.boxes.sprung[i] else 0.0)
 
     def dents(self):
-        """Where her mattress gives under her (`floor.dents`)."""
+        """Where its mattress gives under it (`floor.dents`)."""
         return floor.dents(self, self._np)
 
     def props(self):
@@ -373,7 +373,7 @@ class World:
         return [False] * (len(props) - len(lodge) - laced) + lodge + [False] * laced
 
     def lace(self):
-        """Her left shoe's lace snagged on her right shoe: LACE_M of it between them, or as far
+        """Its left shoe's lace snagged on its right shoe: LACE_M of it between them, or as far
         apart as they are now."""
         self.model.tendon_range[self.lace_at] = (
             0.0, max(LACE_M, float(self.data.ten_length[self.lace_at])))
@@ -395,13 +395,13 @@ class World:
         self.push_until = self.data.time + seconds
 
     def hang(self):
-        """Her pelvis hung where it is in a harness (`machine.world.harness`): springs to its place
+        """Its pelvis hung where it is in a harness (`machine.world.harness`): springs to its place
         and its turn."""
         self.hung = (self.data.qpos[0:3].copy(), self.data.qpos[3:7].copy())
 
     def pull(self):
-        """What a load cell in the harness reads (`harness.pull`): its force on her pelvis, world, N,
-        and its moment about her pelvis's origin, world, N m."""
+        """What a load cell in the harness reads (`harness.pull`): its force on its pelvis, world, N,
+        and its moment about its pelvis's origin, world, N m."""
         return harness.pull(self.data, self._np, self.hung, self.pelvis)
 
     def glitch(self, joint, kind, seconds=0.0, celsius=WARM_C):
@@ -450,7 +450,7 @@ class World:
         self.testing[index] = amps
 
     def drawn(self):
-        """What her drives draw now, W: the work they do - braking gives nothing back -, their
+        """What its drives draw now, W: the work they do - braking gives nothing back -, their
         copper's heat and their boards' own, housekeeping each, switching neither shorted nor
         cut but checking (`test`), and that check's copper."""
         p = self.passing
@@ -507,8 +507,8 @@ class World:
                    for a in self._of(names) for b in slab)
 
     def loose(self):
-        """{hinge: degrees} of what hangs loose on her (`LOOSE`): the jeans' legs from her
-        shins, her hair from her head."""
+        """{hinge: degrees} of what hangs loose on it (`LOOSE`): the jeans' legs from its
+        shins, its hair from its head."""
         return dict(zip(LOOSE, map(math.degrees, self.data.qpos[self.loose_at])))
 
     def pose(self):

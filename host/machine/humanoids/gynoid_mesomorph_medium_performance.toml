@@ -1,4 +1,4 @@
-# The gynoid mesomorph medium's performance build: her build (`extends`) with U12 II KV120 motors on box A
+# The gynoid mesomorph medium's performance build: its build (`extends`) with U12 II KV120 motors on box A
 # (84 mm) for the spine, hips, knees and ankles; mass, inertia, structural wind-up, servo clamps/gains and
 # gait laws are derived automatically (`machine.body.drives`, `machine.body.compile`).
 extends = "gynoid_mesomorph_medium"

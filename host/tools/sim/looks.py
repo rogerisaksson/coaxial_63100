@@ -1,20 +1,20 @@
-"""Her walk's form and its price, of a steady walk's measures (`strides.measured`).
+"""The robot's walk's form and its price, of a steady walk's measures (`strides.measured`).
 
     looks.broken(measures)      # [(measure, value, bound)]: what of FORM it does not meet
     looks.priced(measures)      # its energy a metre and what it is off its form, one number
 """
 import math
 
-#: No stagger: her soles bear no more than LANDS of her weight about a landing and no less
-#: than EASES after it - a woman's 1.1 to 1.2 and 0.7 to 0.8 -; her head nods NODS_DEG at
+#: No stagger: its soles bear no more than LANDS of its weight about a landing and no less
+#: than EASES after it - a woman's 1.1 to 1.2 and 0.7 to 0.8 -; its head nods NODS_DEG at
 #: most.
 LANDS, EASES, NODS_DEG = 1.25, 0.75, 6.0
 
-#: Her walk's form on a flat, smooth floor: a condition, never weighed against a fall -
+#: The robot's walk's form on a flat, smooth floor: a condition, never weighed against a fall -
 #: (measure, least, most), `strides.measured`'s names. The stance leg a strut, its knee all but
-#: straight while her foot bears her alone behind the plumb line; the leg on behind the plumb
-#: line; the pelvis rolled up over the standing hip; the toes not back as they lift; her head
-#: still, her feet quiet, no stagger. The landing knee stands 1-3 deg on a take of a woman's
+#: straight while its foot bears it alone behind the plumb line; the leg on behind the plumb
+#: line; the pelvis rolled up over the standing hip; the toes not back as they lift; its head
+#: still, its feet quiet, no stagger. The landing knee stands 1-3 deg on a take of a woman's
 #: (`mocap.py`): its bound comes down as the landing does (docs/TODO.md).
 FORM = (('knee behind plumb', None, 10.0), ('knee at landing', None, 30.0),
         ('leg behind plumb', 12.0, None), ('hip over stance', 3.0, None),

@@ -1,7 +1,7 @@
 # Findings: stairs
 
-A flight told her (`worker.told_floor`, `modal.MAP_*`): each swing onto a tread
-(`stride.footholds`, `impedance._landings`), her height over its incline, the
+A flight told it (`worker.told_floor`, `modal.MAP_*`): each swing onto a tread
+(`stride.footholds`, `impedance._landings`), its height over its incline, the
 scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
 [scenarios](scenarios.md).
 
@@ -9,59 +9,59 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
 
 - Told the flight (not kept): each landing onto the nearest tread held from its
   lift-off and cleared over the highest floor between - the first sole on the
-  first tread at 2.66 s, the second swing 0.54 m to the second as her centre of
-  mass ran to 0.94 m/s and lifted her standing sole, down at 3.23 s; chosen
-  nearest her capture point each pass, the landing flipped between treads a pass
+  first tread at 2.66 s, the second swing 0.54 m to the second as its centre of
+  mass ran to 0.94 m/s and lifted its standing sole, down at 3.23 s; chosen
+  nearest its capture point each pass, the landing flipped between treads a pass
   before it touched and its toes met the next riser.
-- Kept, measured on the stairs scene, her walk unmoved (0.70 m/s, 409 J/m, 2.56
-  off): the flight told at 0 s where she starts (told at 0.5 s from her place the
-  first riser stood 2.4 cm nearer than told); her height over the floor's integral
-  mean a stride behind her centre (`stride.floor_mean`: two heights' mean stepped
-  7.5 cm a nosing; the mean ahead and behind read her legs 7.5 cm short at the
-  telling, 45 and 23 N on her soles at 0.75 s, 0.5 m off the stairs' side); a
+- Kept, measured on the stairs scene, its walk unmoved (0.70 m/s, 409 J/m, 2.56
+  off): the flight told at 0 s where it starts (told at 0.5 s from its place the
+  first riser stood 2.4 cm nearer than told); its height over the floor's integral
+  mean a stride behind its centre (`stride.floor_mean`: two heights' mean stepped
+  7.5 cm a nosing; the mean ahead and behind read its legs 7.5 cm short at the
+  telling, 45 and 23 N on its soles at 0.75 s, 0.5 m off the stairs' side); a
   foothold the band's point nearest the natural landing (its middle pulled a swing
   bound 4 mm past the flat's end 21 cm back behind its own sole); its tread by
-  where the sole will touch down, the natural landing carried her cruise over the
+  where the sole will touch down, the natural landing carried its cruise over the
   swing's time left (`meets` sits at the stance sole at lift-off: held from there
   the right stepped 3 cm beside the left at the stairs' foot; e^(omega t) from
-  her ZMP foresaw 0.44-0.75 m and lunged onto the tread 4 cm past her capture
+  its ZMP foresaw 0.44-0.75 m and lunged onto the tread 4 cm past its capture
   point);
   a swing on only as its lowest point clears the highest floor between it and its
   landing (0.57 m on and 0.3 m up in one 0.43 s swing ran the knee to 18.9 rad/s,
   past the drive's 16.8, and came down 20 cm short with its toes on the nosing).
-- Not kept: her height by the legs' loads (the chairs fell 3 of 3 laid, snow 2,
+- Not kept: its height by the legs' loads (the chairs fell 3 of 3 laid, snow 2,
   the run leap lost its flight, the viewport's errands fell); the trailing sole
-  let go only with her capture point in the landed one (0.64 m/s, 450 J/m); a
-  swing's own lowest point held clear (491 J/m, her pelvis rolling 4.3 deg).
+  let go only with its capture point in the landed one (0.64 m/s, 450 J/m); a
+  swing's own lowest point held clear (491 J/m, its pelvis rolling 4.3 deg).
 - Kept after them: a landing drawn to its tread's end by how near that end lies
   within a step (by its natural landing alone a sole came down 6-9 cm ahead of
-  her centre where the takes' feet land 14-25, and the pull-up pushed her past
+  its centre where the takes' feet land 14-25, and the pull-up pushed it past
   the stance toe at 1.0 m/s: three treads, down on the fourth); the told map's
   last cell open past its end (at the top landing's told end the landing was
-  drawn 37 cm back to the last band and she stumbled at 8.5 s); the told floor
-  read over the floor felt under her standing soles each pass (anchored at the
-  telling, her observer's height drifted 1.2 cm/s on the landing - dead
+  drawn 37 cm back to the last band and it stumbled at 8.5 s); the told floor
+  read over the floor felt under its standing soles each pass (anchored at the
+  telling, its observer's height drifted 1.2 cm/s on the landing - dead
   reckoning, by design -, the told treads sank under the felt floor with it,
-  each swing was driven under the floor, 549 N at a landing, and she stepped
+  each swing was driven under the floor, 549 N at a landing, and it stepped
   off the landing's side at 14.4 s).
 - Stands: the flight of five, 0.747 m, walked on to 5.2 m and stopped on the
   landing, rolled 0.3 deg, laid 0.2 mrad either way the same (3 of 3; the scene
-  is the bench's, not test_scenarios'); her walk unmoved. The takes at her size
+  is the bench's, not test_scenarios'); its walk unmoved. The takes at its size
   (Ascending Stairs, Walking Up The Stairs): a run a step at 0.57-0.70 s, the
   hips 0.30-0.36 m/s and 0.6-0.7 m/s up at most, the foot up first then on, 5-9
   cm over its tread, the knee 75-90 deg at landing and 7-11 rad/s at most, the
   hips 0.1-0.14 m behind the stance foot at toe-off, 0.14-0.25 behind the
-  landing one; hers climb at her walk's 0.54 s step.
+  landing one; its own climb at its walk's 0.54 s step.
 - `stairs_walk` said over the flight instead of the walk's twist (the say path
   as it is): the committed text falls at the third tread (3.56 s, the sole
-  landing 0.30 m behind her centre); with the takes' numbers (0.77 Hz, drive
+  landing 0.30 m behind its centre); with the takes' numbers (0.77 Hz, drive
   0.53, lift 2.5, the axial spring 1200/380) at the second (2.77 s), its beat
-  still the walk's 0.55 s: a text's frequency does not reach her loop by `say`.
+  still the walk's 0.55 s: a text's frequency does not reach its loop by `say`.
   The climb's cadence, lift and pull-up belong to the steering table's rise axis
   (se2, in rebuild), a tread a beat.
-- The stairs takes judged on their own flight at her size (`floor.TAKE_RISE_M`
-  0.21, `TAKE_RUN_M` 0.225, the window from her first tread,
-  `scenarios.STAIRS_TAKE_S`): she climbs its five treads 0.25-0.3 m low (her
+- The stairs takes judged on their own flight at its size (`floor.TAKE_RISE_M`
+  0.21, `TAKE_RUN_M` 0.225, the window from its first tread,
+  `scenarios.STAIRS_TAKE_S`): it climbs its five treads 0.25-0.3 m low (its
   legs read 1.4-2.2 units short the whole way, knees 85-135 deg where the takes'
   land at 75-90), both knees at 168 of 171 N m and 20-23 rad/s past the drive's
   16.8 unloaded, the shoulders at their 51 N m 3-6 % of the climb; on the fifth
@@ -72,11 +72,11 @@ scene `stairs` (0.15 x 0.30 m treads); the bench and the blind scenes:
   wants the takes' tempo and lean a beat: the sequencer's.
 - The takes' flight climbed by the walk with its modifiers (`gait.modified`,
   scratchpad stairs_mod.py): the plain walk falls on the fifth tread at 5.2
-  s, her knees at 168 of 171 N m and 21-23 rad/s (the no-load 16.8) over
+  s, its knees at 168 of 171 N m and 21-23 rad/s (the no-load 16.8) over
   the climb, the step shrunk 222 passes; the pace alone (0.86 Hz) falls at
   5.0 s, the stride alone (0.38, a tread a step) at 4.5 s with both soles
-  on the third tread, the lean alone (7 deg) at 3.8 s with her centre ahead
+  on the third tread, the lean alone (7 deg) at 3.8 s with its centre ahead
   of the landing sole, all three at 3.8 s. On the performance build (the
-  U12 knees, 250 N m) she stumbles on the third tread at 4.2 s: the swing
-  rises 0.18 m in place against the riser and lands where it left. Her
+  U12 knees, 250 N m) it stumbles on the third tread at 4.2 s: the swing
+  rises 0.18 m in place against the riser and lands where it left. The robot's
   centre lands 0.09-0.24 m behind each landing sole, the takes' 0.14-0.25.

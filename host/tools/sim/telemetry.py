@@ -1,13 +1,13 @@
-"""The autotuner's telemetry: a root run on her, the text's six classes sampled as residuals.
+"""The autotuner's telemetry: a root run on it, the text's six classes sampled as residuals.
 
     out = telemetry.ran('sit_chair', {(path, start, end): value})   # {r, kind, measures, form, ..}
     r = telemetry.residuals(measures, tune.grammar(), bounds)       # the text's order, each dimensionless
 
-A run (RUNS) is a gait on her walk (`suite.played`, 20 s), her walk or a behaviour of her gym said
+A run (RUNS) is a gait on its walk (`suite.played`, 20 s), its walk or a behaviour of its gym said
 on it, a stunt in the first scenario that says it (`scenarios.ran`), a schedule to its first
-refusal (`suite.schedule`): of her texts with the run's literals spliced, passed to the session it
-lays (`worker.session`). From SETTLE_S, or the stunt's saying, her world is copied each pass
-(`tap.raw`), cooked and measured after (`tap.cooked`, `tap.measured`): her runtime tuner's
+refusal (`suite.schedule`): of its texts with the run's literals spliced, passed to the session it
+lays (`worker.session`). From SETTLE_S, or the stunt's saying, its world is copied each pass
+(`tap.raw`), cooked and measured after (`tap.cooked`, `tap.measured`): its runtime tuner's
 measures, one definition; each class a residual in its dimension (CHANNELS, `bounds`).
 """
 import time
@@ -16,7 +16,7 @@ from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 
 from tools.sim import looks, strides, suite
 
-#: Each class's measure of hers, how it is a residual, and the bound it is over: None the class's
+#: Each class's measure of its own, how it is a residual, and the bound it is over: None the class's
 #: invariant (the manifold's), else a name of BOUNDS'.
 CHANNELS = {'com-wrench-balance': ('pivot', 'short', None), 'normal-force-floor': ('load', 'short', None),
             'tangential-shear-slip': ('cone', 'over', 'friction-cone-edge'),
@@ -31,7 +31,7 @@ HOW = {'short': lambda x, b: float(np.mean(np.maximum(0.0, b - np.atleast_1d(x))
 
 def bounds(got):
     """{name: value} a residual is bounded by: the suite's invariants and plantar boundary, the
-    friction cone's edge (|F_t| = mu F_n), her form's landing (`looks.LANDS`), her master bus's tank
+    friction cone's edge (|F_t| = mu F_n), its form's landing (`looks.LANDS`), its master bus's tank
     (`supervisor.insert`)."""
     from machine.law import supervisor
     return dict(got['nominal-biped-manifold']['plantar-boundary'], **got['physical-invariants'],
@@ -40,7 +40,7 @@ def bounds(got):
 
 
 def sampler(rec, since):
-    """Each pass from `since` s on, her raw pass (`tap.raw`) into `rec`, her weight beside it."""
+    """Each pass from `since` s on, its raw pass (`tap.raw`) into `rec`, its weight beside it."""
     from machine.law import modal
     from machine.process import tap
 
@@ -52,7 +52,7 @@ def sampler(rec, since):
 
 
 def residuals(measures, gr, bounds):
-    """The text's six residuals of her `measures`, in its order, each in its dimension (CHANNELS)."""
+    """The text's six residuals of its `measures`, in its order, each in its dimension (CHANNELS)."""
     out = []
     for name, r in gr.items():
         measure, how, bound = CHANNELS[name]
@@ -61,18 +61,18 @@ def residuals(measures, gr, bounds):
 
 
 def _gait(root, got, gym, texts, rec):
-    """A gait of the suite on her walk, sampled from SETTLE_S: (rows, fell s or None, its scene, her
+    """A gait of the suite on its walk, sampled from SETTLE_S: (rows, fell s or None, its scene, its
     form's condition)."""
     from machine.texts import voicing
-    row, told = voicing.voiced(got[root], got['nominal-biped-manifold'], suite._her(), gym)
+    row, told = voicing.voiced(got[root], got['nominal-biped-manifold'], suite._robot(), gym)
     scene = suite.scene_of(got[root])
     rows, fell = suite.played(row, told, scene, laid=sampler(rec, suite.SETTLE_S), texts=texts)
     return rows, fell, scene, {'formed': scene == 'flat'}
 
 
 def _behaviour(root, got, gym, texts, rec):
-    """Her walk (`tune.WHOLE`) told her walk's twist, or a behaviour of her gym said, on a flat floor,
-    sampled from SETTLE_S: her walk's form its condition."""
+    """Its walk (`tune.WHOLE`) told its walk's twist, or a behaviour of its gym said, on a flat floor,
+    sampled from SETTLE_S: its walk's form its condition."""
     from machine.texts import tune
     from tools.sim import scenarios
     told = {'twist': scenarios.WALK} if root in tune.WHOLE else {'twist': (0.0, 0.0, 0.0), 'say': root}
@@ -81,7 +81,7 @@ def _behaviour(root, got, gym, texts, rec):
 
 
 def _stunt(root, got, gym, texts, rec):
-    """A stunt she plays in the first scenario that says it, sampled from its saying: (no rows, fell
+    """A stunt it plays in the first scenario that says it, sampled from its saying: (no rows, fell
     s or None, its scene, its goal met by the world's truth)."""
     from machine.errors import MachineError
     from tools.sim import scenarios
@@ -94,7 +94,7 @@ def _stunt(root, got, gym, texts, rec):
 
 
 def _schedule(root, got, gym, texts, rec):
-    """A schedule to its first refusal on her walk, sampled from SETTLE_S: (rows, fell, 'flat',
+    """A schedule to its first refusal on its walk, sampled from SETTLE_S: (rows, fell, 'flat',
     {plan})."""
     plan, rows, fell = suite.schedule(root, sampler(rec, suite.SETTLE_S), texts)
     return rows, fell, 'flat', {'plan': [list(p) for p in plan], 'formed': False}
@@ -105,7 +105,7 @@ RUNS = {'gait': _gait, 'behaviour': _behaviour, 'stunt': _stunt, 'schedule': _sc
 
 
 def ran(root, said):
-    """{r, kind, measures, form, broken, fell, scene, wall s, ..} of `root` run on her (RUNS), her
+    """{r, kind, measures, form, broken, fell, scene, wall s, ..} of `root` run on it (RUNS), its
     texts with `said` ({(path, start, end): value}) at those spans."""
     from machine.process import tap
     from machine.texts import tune
@@ -116,14 +116,14 @@ def ran(root, said):
     began, kind = time.time(), tune.kind(root, got, gym)
     rows, fell, scene, extra = RUNS[kind](root, got, gym, texts, rec)
     if not rec['raws']:
-        raise MachineError('%s: nothing sampled, she fell at %s s, before its window' % (root, fell))
+        raise MachineError('%s: nothing sampled, it fell at %s s, before its window' % (root, fell))
     return dict(scored(got, tap.measured(tap.cooked(rec['raws']), rec['weight']), rows, extra), kind=kind, fell=fell,
                 scene=scene, wall=round(time.time() - began, 1))
 
 
 def scored(got, measures, rows, extra):
-    """A run's {r, measures, form, broken, ..extra} of its `measures` (`tap.measured`) and her look's
-    `rows` - her form measured where `extra` says it is formed -, bounded by the suite `got`'s."""
+    """A run's {r, measures, form, broken, ..extra} of its `measures` (`tap.measured`) and its look's
+    `rows` - its form measured where `extra` says it is formed -, bounded by the suite `got`'s."""
     from machine.texts import tune
     form = strides.measured(rows) if extra['formed'] else {}
     limits, pivot = bounds(got), measures['pivot']
@@ -134,7 +134,7 @@ def scored(got, measures, rows, extra):
 
 
 def rows(seen):
-    """Her looks (`tap.look`'s, n) as the page's rows (`humanoid_keys.row`), as `scenarios._row` lays them."""
+    """Its looks (`tap.look`'s, n) as the page's rows (`humanoid_keys.row`), as `scenarios._row` lays them."""
     from machine.process import tap
     from machine.body.figure import JOINTS
     from terminal.views.humanoid_keys import HEADER, row

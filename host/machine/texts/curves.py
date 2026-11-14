@@ -1,9 +1,9 @@
-"""The ortho-DSP suite's curves as shares of the way, and as quintics for a row's blend on her loop.
+"""The ortho-DSP suite's curves as shares of the way, and as quintics for a row's blend on its loop.
 
     share = curves.CURVES['equal-power'](u)              # the curve itself, by the suite's name, u in [0, 1]
     c1, c2, c3, c4, c5 = curves.QUINTICS['equal_power']  # its blend's coefficients on u..u^5 (`latent.SHAPES`)
 
-A morph's bands take the curves (`patch.morph`), her rows' blends the quintics (`ortho.SHAPES`).
+A morph's bands take the curves (`patch.morph`), its rows' blends the quintics (`ortho.SHAPES`).
 """
 import math
 
@@ -54,12 +54,12 @@ def _from_rest(f):
 
 _LINE, _JERK = (1.0, 0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 10.0, -15.0, 6.0)
 _SETTLE = _from_rest(_damped(SWELL_DB / 20.0 * math.log(10.0)))
-#: Each curve as a row's blend on her loop (`ortho.SHAPES`, in this order), a quintic's coefficients
+#: Each curve as a row's blend on its loop (`ortho.SHAPES`, in this order), a quintic's coefficients
 #: on u..u^5, leaving still: a line, Hermite's smoothstep and the minimum jerk's exact - a soft
 #: landing Hermite's quintic, unaccelerated at both ends -; the equal-power and the swell least
 #: squares; the exponential and the settle as a critically damped step's response (`_damped`) -
-#: leaving at their own slope, a rise's preload asked her centre of mass 1.8 m/s at its first pass
-#: and lifted her off the chair in 50 ms.
+#: leaving at their own slope, a rise's preload asked its centre of mass 1.8 m/s at its first pass
+#: and lifted it off the chair in 50 ms.
 QUINTICS = {
     'linear': _LINE, 'linear_fast': _LINE, 'hermite_soft_landing': _JERK, 'hermite_s_curve': (0.0, 3.0, -2.0, 0.0, 0.0),
     'minimum_jerk_deceleration': _JERK, 'equal_power': _from_rest(CURVES['equal-power']),

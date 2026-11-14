@@ -1,17 +1,17 @@
-"""Her body's one edge: what a robot of her build measures of the world, what her drives are told.
+"""Its body's one edge: what a robot of its build measures of the world, what its drives are told.
 
     y = edge.laid(world)                 # (SENSED,), its layout once
-    edge.felt(world, y)                  # her pelvis's IMU and her joints' encoders, every pass
-    edge.read(world, y)                  # and her soles' loads and her segments' contacts (`contacted`)
-    edge.drive(world, joints, target=, feed=, kp=, limit=)    # her boards told, the next pass
-    edge.noise(world, LINE_BER); edge.burst(world, 'left_leg', 8)   # her buses' line, a test's burst
+    edge.felt(world, y)                  # its pelvis's IMU and its joints' encoders, every pass
+    edge.read(world, y)                  # and its soles' loads and its segments' contacts (`contacted`)
+    edge.drive(world, joints, target=, feed=, kp=, limit=)    # its boards told, the next pass
+    edge.noise(world, LINE_BER); edge.burst(world, 'left_leg', 8)   # its buses' line, a test's burst
     edge.held(world, passes)             # BusFault past `passes` setpoints refused in a row
-    edge.off(world)                      # her drives off
+    edge.off(world)                      # its drives off
 
-Her law reads this array alone - an IMU on her pelvis (its turn as a rotation vector, its spin and
+Its law reads this array alone - an IMU on its pelvis (its turn as a rotation vector, its spin and
 its specific force, its own frame), each joint's angle and rate and each motor's angle through its
 gearbox, each drive's torque, each sole's load cell, each segment's skin: the force on it of whatever it touches that
-is not her, in its own frame -, each insole's centre of pressure, never the world's state; and writes her drives' setpoints, feed,
+is not it, in its own frame -, each insole's centre of pressure, never the world's state; and writes its drives' setpoints, feed,
 stiffness and clamps alone (test_structure).
 """
 import ctypes
@@ -29,9 +29,9 @@ from machine.body.figure import BALL, HEEL, JOINTS, SEGMENTS
 _ENV, _BUS = mechatronics.environment(), peripherals.bus()
 G = np.array([0.0, -_compile.G_M_S2, 0.0])
 J = len(JOINTS)
-#: Her segments with skin, `SEGMENTS`' order.
+#: The robot's segments with skin, `SEGMENTS`' order.
 SKIN = tuple(seg[0] for seg in SEGMENTS)
-#: Her soles' segments, each with an insole: (left foot, left toes, right foot, right toes).
+#: The robot's soles' segments, each with an insole: (left foot, left toes, right foot, right toes).
 INSOLES = ('left_foot', 'left_toes', 'right_foot', 'right_toes')
 #: A foot's insole's cells: its heel's half and its ball's, split at the sole's middle.
 FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
@@ -40,8 +40,8 @@ FEET, MIDDLE_M = ('left_foot', 'right_foot'), 0.5 * (BALL - HEEL)
 #: its gearbox (rad); each sole's load (N); each segment's touch (N, its frame); each insole's
 #: centre of pressure (m, its segment's frame) and its load (N); each foot's heel and ball cell's
 #: load (N); where on each segment its touch is, its centre (m, its frame); each joint's drive's
-#: torque as its current says it (N m, kt i through its box); her boards' DC link (V); how much more
-#: what bears each segment gives than her floor (s^2, its contacts' soft compliance by their force past
+#: torque as its current says it (N m, kt i through its box); its boards' DC link (V); how much more
+#: what bears each segment gives than its floor (s^2, its contacts' soft compliance by their force past
 #: the floor's: a foam's 5.4e-3, a floor's and a chair's none).
 QUAT, GYRO, ACCEL = slice(0, 4), slice(4, 7), slice(7, 10)
 Q, QD, QM = (slice(10 + k * J, 10 + (k + 1) * J) for k in range(3))
@@ -54,26 +54,26 @@ AT = slice(CELLS.stop, CELLS.stop + 3 * len(SKIN))
 TAU = slice(AT.stop, AT.stop + J)
 LINK = slice(TAU.stop, TAU.stop + 1)
 #: Each segment's support's give: the solver's impedance R on its contacts' normal rows (a_n = a_ref - R f_n), force-
-#: weighted, m/s^2 a N - one law on a chair and a bed (the foam's softness is in a_ref, its force building as she
+#: weighted, m/s^2 a N - one law on a chair and a bed (the foam's softness is in a_ref, its force building as it
 #: sinks); a chair's is small, never none (machine.senses.borne.read, machine.stack.chain_qp.level1).
 GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
 #: Each segment's touch's normal, its frame: the way its support pushes it, force-weighted over its contacts (unit
-#: where one touches, 0 where none; her skin's own estimate, the capsule's radial at the touch, stands in where it
-#: has none - a fist's capsule normal on a seat read 49 of 50 N across, her pelvis's on a bed 111 across on 84 up).
+#: where one touches, 0 where none; its skin's own estimate, the capsule's radial at the touch, stands in where it
+#: has none - a fist's capsule normal on a seat read 49 of 50 N across, its pelvis's on a bed 111 across on 84 up).
 NORMAL = slice(GIVE.stop, GIVE.stop + 3 * len(SKIN))
 SENSED = NORMAL.stop
 TOUCHED_N = float(_ENV['touched_n'])
 
 
 def laid(world):
-    """Her array for `world`, read: and the world's ids it reads by, kept on the world."""
+    """The robot's array for `world`, read: and the world's ids it reads by, kept on the world."""
     m = world.model
-    hers = np.array([_rooted(m, b, world.pelvis) for b in range(m.nbody)])
+    its_own = np.array([_rooted(m, b, world.pelvis) for b in range(m.nbody)])
     world.skin = np.full(m.nbody, -1, int)
     for k, name in enumerate(SKIN):
         world.skin[m.body(name).id] = k
     world.skin_bodies = np.array([m.body(name).id for name in SKIN])
-    world.hers = hers
+    world.its_own = its_own
     world.insole = np.full(m.nbody, -1, int)
     for k, name in enumerate(INSOLES):
         world.insole[m.body(name).id] = k
@@ -82,7 +82,7 @@ def laid(world):
         world.foot[m.body(name).id] = k
     from tools.cores import wbc as cores
     kept = {'gb': np.ascontiguousarray(m.geom_bodyid, dtype=np.int32),
-            'hers': np.ascontiguousarray(hers, dtype=np.bool_),
+            'its_own': np.ascontiguousarray(its_own, dtype=np.bool_),
             'sole_side': np.array([int(s[1]) if s.any() else -1 for s in world.soles], dtype=np.int32),
             'insole': np.ascontiguousarray(world.insole, dtype=np.int32),
             'foot': np.ascontiguousarray(world.foot, dtype=np.int32),
@@ -93,7 +93,7 @@ def laid(world):
     c = cores.Contacts(nbody=m.nbody, nskin=len(SKIN), ninsoles=len(INSOLES), nfeet=len(FEET), middle_m=MIDDLE_M)
     for name in ('gb', 'sole_side', 'insole', 'foot', 'skin'):
         setattr(c, name, cores.pointer(kept[name], np.int32))
-    c.hers = cores.pointer(kept['hers'], np.bool_)
+    c.its_own = cores.pointer(kept['its_own'], np.bool_)
     for name, a in (('xmat', world.data.xmat), ('xpos', world.data.xpos)):
         setattr(c, name, cores.pointer(a))
     for name in ('loads', 'touch', 'pressed', 'at', 'cells', 'felt_n', 'felt_at', 'felt_give', 'felt_nrm'):
@@ -138,20 +138,20 @@ def layout(c, con):
 
 
 def read(world, y):
-    """`y` whole: the IMU and encoders (`felt`), her soles' loads, her segments' touch and
+    """`y` whole: the IMU and encoders (`felt`), its soles' loads, its segments' touch and
     where on each it is (`contacted`)."""
     felt(world, y)
     return contacted(world, y)
 
 
 def contacted(world, y):
-    """`y`'s soles' loads, her segments' touch and where on each it is, as the world stands now."""
+    """`y`'s soles' loads, its segments' touch and where on each it is, as the world stands now."""
     d = world.data
     c, kept, contacts, sensed = world.contacts
-    # the contacts between a body of hers and one not, in C off MuJoCo's data: each's force its rows of the
+    # the contacts between a body of its own and one not, in C off MuJoCo's data: each's force its rows of the
     # solver's (the cone elliptic, `mjcf.CONE`), a bin a segment in the contacts' order - its contacts', forces' and
-    # impedances' views made here each law pass, and its shoves sought in numpy, were 30 of her read's 38 us.
-    # A shove is a hand on her: what the world applies to her bodies, her skin feels - at
+    # impedances' views made here each law pass, and its shoves sought in numpy, were 30 of its read's 38 us.
+    # A shove is a hand on it: what the world applies to its bodies, its skin feels - at
     # their centres of mass, where the world applies it
     if contacts(d._address, ctypes.byref(c)):
         touch, felt_n, felt_at = kept['touch'], kept['felt_n'], kept['felt_at']
@@ -176,13 +176,13 @@ def touched(y):
 
 
 def tilt(y):
-    """Her pelvis's tilt from upright as her IMU has it, deg."""
+    """The robot's pelvis's tilt from upright as its IMU has it, deg."""
     q = y[QUAT]
     return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * float(q[1] ** 2 + q[3] ** 2)))))
 
 
 def yaw(y):
-    """Her pelvis's turn about up as her IMU has it, rad."""
+    """The robot's pelvis's turn about up as its IMU has it, rad."""
     q = y[QUAT]
     return 2.0 * math.atan2(float(q[2]), float(q[0]))
 
@@ -219,7 +219,7 @@ class LimbBus:
                                 ctypes.byref(self._buf), ctypes.byref(self._len))
 
     def stats(self):
-        """(frames, comm_errors, tx_bytes, stale) at once: one read of its counts (her page's state, `page.state`)."""
+        """(frames, comm_errors, tx_bytes, stale) at once: one read of its counts (its page's state, `page.state`)."""
         self._pull()
         c = self._counts
         return int(c[1]), int(c[2]), int(c[0]), int(c[4])
@@ -282,7 +282,7 @@ def _cores():
 
 
 def buses(world):
-    """Her world's extremity buses (`LIMBS`), their SIL boards laid at the first ask."""
+    """The robot's world's extremity buses (`LIMBS`), their SIL boards laid at the first ask."""
     laid = getattr(world, 'limb_buses', None)
     if laid is None:
         lib = _cores().library()
@@ -304,7 +304,7 @@ def _c_arr(arr):
 
 
 def drive(world, joints, target=None, feed=None, kp=None, limit=None):
-    """Her SIL boards told for the next pass over each extremity's 10 Mbit/s RS485 Modbus RTU bus
+    """Its SIL boards told for the next pass over each extremity's 10 Mbit/s RS485 Modbus RTU bus
     (`LIMBS`), each at `joints` (indices of JOINTS): their setpoints (rad), torques fed forward
     (N m), stiffness (N m/rad) and clamps (N m)."""
     buses(world)
@@ -322,8 +322,8 @@ def drive(world, joints, target=None, feed=None, kp=None, limit=None):
 
 def bound(world, joints, target=None, feed=None, kp=None, limit=None):
     """`drive` laid once on these arrays - each contiguous float64, written in place pass to pass -: a call of no
-    arguments, her buses' pointers and the joints' indices laid with it; None where one is not so laid (its pointer
-    would be a copy's). Found and checked each pass by `drive`, her boards' told setpoints took 14 us of its 32."""
+    arguments, its buses' pointers and the joints' indices laid with it; None where one is not so laid (its pointer
+    would be a copy's). Found and checked each pass by `drive`, its boards' told setpoints took 14 us of its 32."""
     buses(world)
     arrays = (target, feed, kp, limit)
     if any(a is not None and not (isinstance(a, np.ndarray) and a.dtype == np.float64 and a.flags.c_contiguous)
@@ -340,7 +340,7 @@ def bound(world, joints, target=None, feed=None, kp=None, limit=None):
 
 
 def noise(world, ber, seed=1):
-    """Her buses' line flipping a bit at `ber` (LINE_BER on a run), drawn from `seed`."""
+    """The robot's buses' line flipping a bit at `ber` (LINE_BER on a run), drawn from `seed`."""
     buses(world)
     _cores().library().wbh_sil_noise(float(ber), int(seed))
 
@@ -352,24 +352,24 @@ def burst(world, bus, frames):
 
 
 def held(world, passes):
-    """Her buses still steering her: BusFault where one's setpoints were refused more than
+    """The robot's buses still steering it: BusFault where one's setpoints were refused more than
     `passes` in a row - a fault no longer sporadic."""
     stalest, at = _stalest()
     run = stalest()
     if run > passes:
         from machine.errors import BusFault
-        raise BusFault('%s: %d setpoints refused in a row, past her horizon: drives off' % (LIMBS[at.value][0], run))
+        raise BusFault('%s: %d setpoints refused in a row, past its horizon: drives off' % (LIMBS[at.value][0], run))
 
 
 @functools.cache
 def _stalest():
-    """Her buses' longest run refused read (wbc_sil_stalest), bound once to the int its bus goes in: built and
-    imported each pass, her check was 3.9 us of it."""
+    """Its buses' longest run refused read (wbc_sil_stalest), bound once to the int its bus goes in: built and
+    imported each pass, its check was 3.9 us of it."""
     at = ctypes.c_int(-1)
     return functools.partial(_cores().library().wbh_sil_stalest, ctypes.byref(at)), at
 
 
 def off(world):
-    """Her drives off: every board's clamp at zero."""
+    """The robot's drives off: every board's clamp at zero."""
     buses(world)
     _cores().library().wbh_sil_off(ctypes.byref(world.passing))

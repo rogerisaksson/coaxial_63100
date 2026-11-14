@@ -1,14 +1,14 @@
-"""What the room's things afford her (affordance_funnel_calculus.lisp): a seat, a bed, a chair's back.
+"""What the room's things afford it (affordance_funnel_calculus.lisp): a seat, a bed, a chair's back.
 
     affordance.sits(box, things)     # a seat: its top in the text's window, SEAT_M2 of it clear above
     affordance.lies(box, things)     # a bed: its top under the text's, its long side BED_M or more, clear above
-    affordance.backed(box, things)   # a chair: a back of its kind on its edge, no longer, reaching her lumbar
+    affordance.backed(box, things)   # a chair: a back of its kind on its edge, no longer, reaching its lumbar
 
-A thing is a box (kind, centre, half sizes, turn, its slot, clear) as her registry holds them
-(`machine.eyes.registry`), her eyes' or the stand-in's alike - `clear` whether the space over its top is seen
+A thing is a box (kind, centre, half sizes, turn, its slot, clear) as its registry holds them
+(`machine.eyes.registry`), its eyes' or the stand-in's alike - `clear` whether the space over its top is seen
 clear: a seat or a bed is such a surface, a structure's top unknown is neither; the windows are the text's
-`evaluate-situational-affordances` kernels on its SDF slabs (`configure-foliated-sdf-bands`), her
-lumbar's height over a seat her figure's.
+`evaluate-situational-affordances` kernels on its SDF slabs (`configure-foliated-sdf-bands`), its
+lumbar's height over a seat its figure's.
 """
 import math
 import os
@@ -31,8 +31,8 @@ BED_TOP_M = BED_M_WIN[1]
 BED_M = 1e-3 * _KERNELS[':lie-supine-on-fixture']['min-major-axis-length-mm']
 BED_M2 = BED_M * 2.0 * figure.ASIDE
 SEAT_CLEAR, BED_CLEAR = (1e-3 * _SLABS[1][0], 1e-3 * _SLABS[2][1]), (0.0, 1e-3 * _SLABS[2][1])
-#: Her lumbar's height over her seat, sat upright, m: the torso's first dorsal point (`figure.BODY`, the
-#: observer's `dorsal-supine-continuum`) over her ischial capsules' underside - a seat's back reaching it
+#: Its lumbar's height over its seat, sat upright, m: the torso's first dorsal point (`figure.BODY`, the
+#: observer's `dorsal-supine-continuum`) over its ischial capsules' underside - a seat's back reaching it
 #: is a backrest; a stair's riser under it is none.
 LUMBAR_M = (next(seg for seg in figure.SEGMENTS if seg[0] == 'torso')[3][1]
             + next(c for c in figure.BODY if c[0] == 'torso')[2][1] - (figure.SEAT_Y - figure.SEAT_R))
@@ -107,10 +107,10 @@ def covered(box, other, fb=None):
 def clear(box, things, slab):
     """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2: one whose
     footprint's circle misses `box`'s covers none of it - `covered` reads the rectangle round it in `box`'s frame,
-    within ROOT2 of its circle -, 0.0 its sum's same bits unread: 87 of 108 over her lodge's beds, their every
-    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), her seats' 10.2 ms. Boxes
-    with their arrays (`Boxes`) all at once (`_covers`), the same bits: a bed awake under her renewed it each look, 14 %
-    of her lying."""
+    within ROOT2 of its circle -, 0.0 its sum's same bits unread: 87 of 108 over its lodge's beds, their every
+    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), its seats' 10.2 ms. Boxes
+    with their arrays (`Boxes`) all at once (`_covers`), the same bits: a bed awake under its renewed it each look, 14 %
+    of its lying."""
     fb = footprint(box)
     c, _axes, h = fb
     lo, hi, reach = top(box) + slab[0], top(box) + slab[1], math.hypot(h[0], h[1])
@@ -140,14 +140,14 @@ def _covers(box, things, fb, slab, reach):
 
 
 def sits(box, things):
-    """Whether `box` seats her among `things`: its top in SEAT_M, SEAT_M2 of it clear above."""
+    """Whether `box` seats it among `things`: its top in SEAT_M, SEAT_M2 of it clear above."""
     return surface(box) and SEAT_M[0] <= top(box) <= SEAT_M[1] and clear(box, things, SEAT_CLEAR) >= SEAT_M2
 
 
 def lies(box, things):
-    """Whether `box` beds her among `things`: its top in BED_M_WIN, its long side BED_M or more, its width
-    her shoulders' (`figure.ASIDE`) or more, BED_M2 of it clear above - its footprint laid past its top's window
-    alone, which most of her things are not in."""
+    """Whether `box` beds it among `things`: its top in BED_M_WIN, its long side BED_M or more, its width
+    its shoulders' (`figure.ASIDE`) or more, BED_M2 of it clear above - its footprint laid past its top's window
+    alone, which most of its things are not in."""
     if not (surface(box) and BED_M_WIN[0] <= top(box) <= BED_TOP_M):
         return False
     h = footprint(box)[2]

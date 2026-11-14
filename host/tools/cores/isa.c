@@ -1,4 +1,4 @@
-/** isa.c - which of her cores' targets this processor runs (tools/cores/build.py's TARGETS), as the compiler's own
+/** isa.c - which of its cores' targets this processor runs (tools/cores/build.py's TARGETS), as the compiler's own
  * runtime reads it on x86 (its cpuid and the state the system saves) and Linux tells it on ARM (its hwcaps: what an
  * emulator's processor has too). 1 where it runs one, else 0; 0 on another processor or system. The host's alone. */
 #ifdef _WIN32

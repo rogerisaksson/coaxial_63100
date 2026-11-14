@@ -9,7 +9,7 @@ dialect (runway.lisp, `tools/sim/identify.py`'s) says the same by ALIASES. Stage
 modifiers, limiters, maneuvers, a patch with parameters - are functions of a gait threaded by `->`.
 A gait keeps the stages and transitions it went through in
 order ('_trace') and a maneuver's acts ('_events': an envelope, a contact's threshold and the acts
-it releases). `machine.texts.voicing` plays a gait on her walk, `machine.texts.maneuver` a maneuver on her.
+it releases). `machine.texts.voicing` plays a gait on its walk, `machine.texts.maneuver` a maneuver on it.
 """
 import collections
 import copy
@@ -27,12 +27,12 @@ from machine.errors import MachineError
 SUITE = modules('suite')
 KERNEL = modules('kernel')
 #: An op on a param, `(:scale 1.2)`; a bare value sets. Clamped, an unset param takes the bound;
-#: scaled or added, it keeps the op for her own value.
+#: scaled or added, it keeps the op for its own value.
 Op = collections.namedtuple('Op', 'name value')
 OPS = {'set': lambda old, v: v, 'scale': operator.mul, 'add': operator.add,
        'clamp-min': lambda old, v: v if old is None else max(old, v),
        'clamp-max': lambda old, v: v if old is None else min(old, v)}
-#: A law or a datum her world resolves as she goes, `(:wrench-proportional :max-share 0.18)`,
+#: A law or a datum its world resolves as it goes, `(:wrench-proportional :max-share 0.18)`,
 #: `(:active-obstacle-handle-se3)`: its name and its params ({key: value}) or values (a tuple).
 Law = collections.namedtuple('Law', 'name args')
 #: Stage forms threaded from the gait they are given later: `(-> (lock-horizon-gaze) ..)`.
@@ -156,7 +156,7 @@ def _event(op):
 EVENTS = tuple('''trigger-one-shot-envelope on-contact-threshold crossfade-support-manifold stage-sequential-manifold
     configure-contact-compliance on-manifold-equilibrium cascade-actuator-gates latch-current-encoders
     stage-coupled-pendulum absorb-and-rebound-manifold cascade-impedance-envelope seek-auxiliary-manifold'''.split())
-#: The anti-spasm insert's ops (anti_spasm_supervisor.lisp), each its node's params: her loop's
+#: The anti-spasm insert's ops (anti_spasm_supervisor.lisp), each its node's params: its loop's
 #: (`machine.law.supervisor`).
 GUARDS = {'apply-velocity-noise-gate': 'velocity-gate', 'filter-derivative-channel': 'derivative-channel',
           'limit-torque-transients': 'torque-transients', 'configure-jacobian-solver': 'jacobian-solver',
@@ -179,7 +179,7 @@ def _keyed_on(at, key):
 
 def _gated(op):
     """A gate: its forms threaded on the gait unless its condition is false, the nodes they moved
-    held as gated by it (`_gates`) where her world decides it as she goes."""
+    held as gated by it (`_gates`) where its world decides it as it goes."""
     def gate(g, args, env):
         cond = value(args[0], env)
         if cond is False or cond is None:
@@ -220,7 +220,7 @@ def _param(g, key):
 COERCE = {'single-float': lambda x: struct.unpack('<f', struct.pack('<f', x))[0], 'double-float': float}
 #: The language's constants, every text's.
 CONSTANTS = {'pi': math.pi}
-#: The lisp's functions, their arguments evaluated; arithmetic on a Law of her world a Law.
+#: The lisp's functions, their arguments evaluated; arithmetic on a Law of its world a Law.
 FUNCS = {**{k: (lambda k, f: lambda *a: Law(k, a) if Law in map(type, a) else f(*a))(k, f) for k, f in {
              '+': lambda *a: sum(a), '-': lambda a, *b: a - sum(b) if b else -a, '*': lambda *a: math.prod(a),
              '/': operator.truediv, 'abs': abs, 'max': max, 'min': min}.items()}, 'not': operator.not_, 'tan': math.tan,
@@ -464,7 +464,7 @@ DEFINE = {
     'define-residual-grammar': lambda env, f: {f[1]: tuple(_plist(c, env) for c in f[2:])},
     'defdaemon': lambda env, f: {f[1]: dict(_pairs(f[3:]), params=f[2])},
     'defparameter': lambda env, f: {f[1]: value(f[2], env)}, 'defun': lambda env, f: {f[1]: Defun(f[1], f[2], f[3:])},
-    # a move: a function of her body's numbers to its table (`machine.moves.anatomy.move`)
+    # a move: a function of its body's numbers to its table (`machine.moves.anatomy.move`)
     'defmove': lambda env, f: {f[1]: Defun(f[1], f[2], f[3:])},
 }
 

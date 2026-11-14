@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her buses under faults (`machine.senses.edge`, wbc_sil.c, Renode): a burst within her horizon ridden, past it drives off."""
+"""Its buses under faults (`machine.senses.edge`, wbc_sil.c, Renode): a burst within its horizon ridden, past it drives off."""
 import os
 import sys
 
@@ -8,16 +8,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: The bus a test's burst hits, and the passes she stands before it.
+#: The bus a test's burst hits, and the passes it stands before it.
 BUS, SETTLE = 'left_leg', 200
-#: Her run under the line's noise (`edge.LINE_BER`), passes, and its draw.
+#: The robot's run under the line's noise (`edge.LINE_BER`), passes, and its draw.
 NOISY, SEED = 10_000, 3
 #: A limb on Renode, and the echoes through it: a request among them corrupted.
 RENODE_NODES, RENODE_ECHOES = 3, 24
 
 
 def _laid():
-    """Her session standing SETTLE passes, the bus BUS, her horizon 1/omega in passes, its frames a pass."""
+    """Its session standing SETTLE passes, the bus BUS, its horizon 1/omega in passes, its frames a pass."""
     from machine.senses import edge
     from machine.law import modal
     from machine.process import worker
@@ -32,23 +32,23 @@ def _laid():
     return s, bus, horizon, (bus.frames - f0) / SETTLE, edge
 
 
-def test_a_burst_within_her_horizon_is_ridden(report):
-    """Half her horizon's frames corrupted on one bus: each refused once, the boards hold their
-    last setpoints, the next pass sends anew - she stands, her drives on."""
+def test_a_burst_within_its_horizon_is_ridden(report):
+    """Half its horizon's frames corrupted on one bus: each refused once, the boards hold their
+    last setpoints, the next pass sends anew - it stands, its drives on."""
     from machine.process import worker
     s, bus, horizon, per_pass, edge = _laid()
     frames, e0 = int(horizon * per_pass / 2), bus.comm_errors
     edge.burst(s['g']['world'], BUS, frames)
     for _ in range(int(horizon)):
         worker.stepped(s)
-    report.check('%d frames corrupted on %s, half her horizon: each refused once, she stands' % (frames, BUS),
+    report.check('%d frames corrupted on %s, half its horizon: each refused once, it stands' % (frames, BUS),
                  bus.comm_errors - e0 == frames and bus.stale == 0 and s['shutdown'] is None and s['fallen_at'] is None,
                  'refused %d, stale %d, shutdown %s, fell %s' % (bus.comm_errors - e0, bus.stale, s['shutdown'], s['fallen_at']))
 
 
-def test_a_systematic_fault_shuts_her_down(report):
-    """A bus refusing every frame: past her horizon her drives off, no new epoch while she lies,
-    a restart lays her anew."""
+def test_a_systematic_fault_shuts_it_down(report):
+    """A bus refusing every frame: past its horizon its drives off, no new epoch while it lies,
+    a restart lays its anew."""
     from machine.process import sprung, worker
     s, _bus, horizon, _per_pass, edge = _laid()
     world, epoch = s['g']['world'], s['epoch']
@@ -63,13 +63,13 @@ def test_a_systematic_fault_shuts_her_down(report):
     kept = s['epoch'] == epoch and s['shutdown'] is not None
     told = worker.told(s)['shutdown']
     worker.apply(s, {'restart': True})
-    report.check('shut down within her horizon of %.0f passes, drives off, held past RECOVER_S, a restart lays her anew'
+    report.check('shut down within its horizon of %.0f passes, drives off, held past RECOVER_S, a restart lays its anew'
                  % horizon, s['shutdown'] is None and kept and limp and horizon < passes <= horizon + 1 and BUS in (told or ''),
                  'after %d passes: %s; limp %s, kept %s' % (passes, told, limp, kept))
 
 
 def test_the_line_noise_is_sporadic(report):
-    """Her buses at the line's noise a run's while she stands: frames refused, counted once each,
+    """Its buses at the line's noise a run's while it stands: frames refused, counted once each,
     none systematic."""
     from machine.process import worker
     s, _bus, _horizon, _per_pass, edge = _laid()
@@ -79,12 +79,12 @@ def test_the_line_noise_is_sporadic(report):
     for _ in range(NOISY):
         worker.stepped(s)
     refused = sum(b.comm_errors for b in world.limb_buses) - r0
-    report.check('%.0e on her buses %.0f s: %d frames refused, she stands, drives on' % (edge.LINE_BER, NOISY * worker.DT, refused),
+    report.check('%.0e on its buses %.0f s: %d frames refused, it stands, drives on' % (edge.LINE_BER, NOISY * worker.DT, refused),
                  refused > 0 and s['shutdown'] is None and s['fallen_at'] is None, 'shutdown %s fell %s' % (s['shutdown'], s['fallen_at']))
 
 
 def test_the_plate_tells_crc_wear_and_shutdown(report):
-    """The RS485 plate's foot: CRC OK or its count, her wear's drift alarms apart, SHUTDOWN."""
+    """The RS485 plate's foot: CRC OK or its count, its wear's drift alarms apart, SHUTDOWN."""
     from terminal.views import scanner
 
     def foot(now, width=40):
@@ -127,7 +127,7 @@ def test_a_corrupt_request_on_renode_is_one_lost(report):
                  lost == [(0, 'NoReplyError')] and all(n >= 1 for n in seen), 'lost %s, comm errors %s' % (lost, seen))
 
 
-ROSTER = [test_a_burst_within_her_horizon_is_ridden, test_a_systematic_fault_shuts_her_down, test_the_line_noise_is_sporadic,
+ROSTER = [test_a_burst_within_its_horizon_is_ridden, test_a_systematic_fault_shuts_it_down, test_the_line_noise_is_sporadic,
           test_the_plate_tells_crc_wear_and_shutdown, test_a_corrupt_request_on_renode_is_one_lost]
 
 

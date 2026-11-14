@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Orthokinematics (`machine.texts.ortho`) run on her latent loop as the page's gym runs it, traced.
+"""Orthokinematics (`machine.texts.ortho`) run on its latent loop as the page's gym runs it, traced.
 
     python tools/sim/ortho.py hop_asymmetric              # an entry of lisp/humanoid/gynoid_mesomorph_medium.lisp
     python tools/sim/ortho.py crouch -v                   # a row every 25 ms; -v 5, every 5
     python tools/sim/ortho.py "#101" "#102@3" "#103@6" --to 8    # each at its second
-    python tools/sim/ortho.py --walk --to 40 --look              # her walk from rest (`sprung.WALK`): its look
+    python tools/sim/ortho.py --walk --to 40 --look              # its walk from rest (`sprung.WALK`): its look
     python tools/sim/ortho.py --file my.lisp hop --every 4       # a file's; the loop every 4th pass
 
-She stands AT_S at rest on the loop (`machine.process.sprung`: sensed, `machine.law.latent`, `machine.law.impedance`,
+It stands AT_S at rest on the loop (`machine.process.sprung`: sensed, `machine.law.latent`, `machine.law.impedance`,
 `wrench.step`); each entry named - a payload '#' and its id, a behaviour by its name - is begun at
-its second, AT_S and then 2 s apart where none is given; she is followed `--to` s past the last.
-A row: what she is doing, each mode as asked and as she is, her centre of mass's height and
-speed up, each sole's load, which soles stand, her speed along. The last line: whether she
-stood; each mode as asked, at its furthest, as the last asked ended and at the run's end; her
-soles' loads then; her greatest speed up; her seconds off the floor; how far she went, how fast
-over her last GOING_S, and her soles' landings. `--look`: her walk from the last entry's blend
+its second, AT_S and then 2 s apart where none is given; it is followed `--to` s past the last.
+A row: what it is doing, each mode as asked and as it is, its centre of mass's height and
+speed up, each sole's load, which soles stand, its speed along. The last line: whether it
+stood; each mode as asked, at its furthest, as the last asked ended and at the run's end; its
+soles' loads then; its greatest speed up; its seconds off the floor; how far it went, how fast
+over its last GOING_S, and its soles' landings. `--look`: its walk from the last entry's blend
 on as tools/sim/look.py measures one - its speed and J/m, how far off a woman's band it is and
-what of it is out (`normal.BAND`), its words and the gaits it is by name, what of her form it
+what of it is out (`normal.BAND`), its words and the gaits it is by name, what of its form it
 breaks (`looks.FORM`) -; `--fbx` writes it a take (tools/sim/mocap.py).
 """
 import argparse
@@ -26,9 +26,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: She stands this long before anything is asked, s; followed TO_S past the last asked; her
-#: speed along is hers over her last GOING_S. Fallen past HELD_DEG of her pelvis's tilt, or
-#: with her centre of mass under LOW of where it stood.
+#: The robot stands this long before anything is asked, s; followed TO_S past the last asked; its
+#: speed along is its own over its last GOING_S. Fallen past HELD_DEG of its pelvis's tilt, or
+#: with its centre of mass under LOW of where it stood.
 AT_S, TO_S, GOING_S, HELD_DEG, LOW = 1.0, 2.0, 3.0, 25.0, 0.5
 #: A sole bears nothing under this, N.
 AIR_N = 5.0
@@ -36,7 +36,7 @@ AIR_N = 5.0
 
 def went(plan, to=TO_S, trace=0, every=None):
     """{stood, t, tilt, modes {mode: (asked, furthest, as the last asked ended, at the end)},
-    strode {mode: its mean over her whole strides past the last asked blended in - a sole's first
+    strode {mode: its mean over its whole strides past the last asked blended in - a sole's first
     landing to its last -}, strides, loads then and at the end (N), up m/s, air s, went m, speed m/s,
     landings, us a pass, rows}: `plan` [(s, label, wire, names)] (`sprung.entries`) - each begun at
     its second - from a stand on the loop, followed `to` s past the last; `trace` a row every that
@@ -59,7 +59,7 @@ def went(plan, to=TO_S, trace=0, every=None):
     rec = {'far': np.zeros(n), 'asked': np.zeros(n), 'ended': np.zeros(n), 'z': np.zeros(n), 'up': 0.0,
            'air': 0.0, 'rows': [], 'loads': (0.0, 0.0), 'track': [], 'landings': 0,
            'stood': (True, True), 'tilt': 0.0, 'failed': None, 'after': [], 'landed': ([], [])}
-    # her first pass cold, its own; the rest hot, a pass's mean (`us`)
+    # its first pass cold, its own; the rest hot, a pass's mean (`us`)
     along, began, cold = g['fr'][modal.ROT][:3], time.perf_counter(), None
     while g['t'] < last + to and rec['tilt'] <= HELD_DEG and g['y'][modal.COM][1] > LOW * home:
         now = g['t']
@@ -93,7 +93,7 @@ def went(plan, to=TO_S, trace=0, every=None):
                 ''.join('S' if stands else '-' for stands in ask['stance']), float(s['vcom'] @ along)))
     track, loads = rec['track'], g['loads']
     tail = track[-int(GOING_S * 1000):]
-    # her whole strides: the sole whose landings past the last asked span the longest, first to last
+    # its whole strides: the sole whose landings past the last asked span the longest, first to last
     spans = [(times[-1] - times[0], times[0], times[-1], len(times) - 1) for times in rec['landed'] if len(times) > 1]
     strode, strides = {}, 0
     if spans:
@@ -114,11 +114,11 @@ def went(plan, to=TO_S, trace=0, every=None):
 
 
 def looked(plan, to=TO_S, take=None, every=None):
-    """Her walk on the loop as the eye sees it: {stood, t, speed m/s, energy J/m, off (a woman's
+    """Its walk on the loop as the eye sees it: {stood, t, speed m/s, energy J/m, off (a woman's
     band), out [(measure, value, bound)], words [(word, how far)], named [gait], broken [(measure,
     value, bound)] of `looks.FORM`, measures (`strides.WALK`'s), band (`normal.BAND`'s)} - the
     rows the page records (`humanoid_keys.row`), `look.RATE_HZ` a second, walking from the last
-    of `plan` blended in; written a take at `take`. Empty of measures where she walked under
+    of `plan` blended in; written a take at `take`. Empty of measures where it walked under
     3 s."""
     import math
     from machine.law import latent
@@ -187,19 +187,19 @@ def planned(asked, text=None):
 
 def main(argv=None):
     from machine.process import placed
-    # its steps timed where her loop is (`placed`): a cache group of its own, this thread on one core
+    # its steps timed where its loop is (`placed`): a cache group of its own, this thread on one core
     placed.placed(True)
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('what', nargs='*', help="entries: a behaviour's name or '#' and a payload's id, "
                         'each alone or @ its second')
-    parser.add_argument('--walk', action='store_true', help='her walk from rest (`sprung.WALK`)')
+    parser.add_argument('--walk', action='store_true', help='its walk from rest (`sprung.WALK`)')
     parser.add_argument('--file', help="a text's entries, not lisp/humanoid/gynoid_mesomorph_medium.lisp's")
     parser.add_argument('--to', type=float, default=TO_S, help='s followed past the last asked')
     parser.add_argument('--every', type=int, help='the loop solved every that many passes; the page has its own')
     parser.add_argument('-v', nargs='?', type=int, const=25, default=0, metavar='MS',
                         help='a row every MS ms (25)')
-    parser.add_argument('--look', action='store_true', help="her walk's look: its band, its words, its form")
-    parser.add_argument('--fbx', help='with --look: her walk written a take here')
+    parser.add_argument('--look', action='store_true', help="its walk's look: its band, its words, its form")
+    parser.add_argument('--fbx', help='with --look: its walk written a take here')
     args = parser.parse_args(argv)
     text = None
     if args.file:
@@ -221,9 +221,9 @@ def main(argv=None):
             print("  off a woman's walk %.2f%s" % (got['off'], ''.join(' | %s %.3g (%g)' % o for o in got['out'])))
             print('  in words: %s%s' % (', '.join('%s %.2f' % w for w in got['words']) or 'none',
                                         ''.join(' - ' + n for n in got['named'])))
-            print('  her form: %s' % (', '.join('%s %.3g (%g)' % b for b in got['broken']) or 'held'))
+            print('  its form: %s' % (', '.join('%s %.3g (%g)' % b for b in got['broken']) or 'held'))
             m = got['measures']
-            print('  a landing: %.2f of her weight, %.2f after, a fall of %.0f mm; her head nods %.0f deg' % (
+            print('  a landing: %.2f of its weight, %.2f after, a fall of %.0f mm; its head nods %.0f deg' % (
                 m['landing load'], m['unloading'], m['dip'], m['head nod']))
         return 0 if got['stood'] else 1
     got = went(plan, args.to, args.v, args.every)

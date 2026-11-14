@@ -152,7 +152,7 @@ static int stepped(wbc_step_t *p)
   {
     return 1;
   }
-  /* the base's rows of her dynamics: A base = Gm u - M_b E u - d */
+  /* the base's rows of its dynamics: A base = Gm u - M_b E u - d */
   memset(Gm, 0, (size_t)(6 * nu) * sizeof(double));
   for (int i = 0; i < 6; i++)
   {
@@ -207,7 +207,7 @@ static int stepped(wbc_step_t *p)
   {
     full0[i] = full0[i] + t0[i];
   }
-  /* her centre of mass, her angular momentum, each contact's point held still */
+  /* its centre of mass, its angular momentum, each contact's point held still */
   memset(sumf, 0, (size_t)(6 * nu) * sizeof(double));
   for (int k = 0; k < 2; k++)
   {
@@ -250,7 +250,7 @@ static int stepped(wbc_step_t *p)
   }
   c[0] = p->com_acc[0];
   c[1] = p->com_acc[2];
-  /* sat, her centre of mass's rows weigh as her turns' (machine.stack.wrench) */
+  /* sat, its centre of mass's rows weigh as its turns' (machine.stack.wrench) */
   mark[0] = at;
   at = lay(R0, rhs, rhs0, at, nu, VIEW(row, 2 * nu, 1), 2, c, (p->w_com + (p->w_turn - p->w_com) * p->sat) * grounded, NULL);
   c[0] = p->com_acc[1] + G;
@@ -275,7 +275,7 @@ static int stepped(wbc_step_t *p)
   mark[3] = at;
   for (int i = 0; i < p->nupper; i++)
   {
-    /* her arms' rows as her text stiffens them, but an arm whose hand bears */
+    /* its arms' rows as its text stiffens them, but an arm whose hand bears */
     const double held = p->sides[i] < 0 ? 0.0 : borne[p->sides[i]];
     const double w = p->w_posture * (1.0 + (p->hold - 1.0) * (p->arms[i] * (1.0 - held)));
 

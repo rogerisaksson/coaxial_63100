@@ -1,7 +1,7 @@
-"""Her world's props drawn as lines over her.
+"""The robot's world's props drawn as lines over it.
 
 A box each - a sill, a chair, a wall -, a round one a wire cylinder in its box - a stool -, a lace from shoe
-to shoe, a bed's mattress a grid sagging where she presses it.
+to shoe, a bed's mattress a grid sagging where it presses it.
 
     layers = props.lines(props, m, cam, centre, travel, dents, rounds)   # [(dots, ink)] for `lit.braille`
 """

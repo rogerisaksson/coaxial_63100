@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A hop on the whole-body stack: thrown, airborne, landed, her soles released by `machine.moves.leap`.
+"""A hop on the whole-body stack: thrown, airborne, landed, its soles released by `machine.moves.leap`.
 
     python tools/sim/hop.py                  # one hop standing: leap, apex, landing, stood
     python tools/sim/hop.py --push 18 -v     # the throw's ask, m/s^2; traced 10 ms a row
@@ -7,16 +7,16 @@
     python tools/sim/hop.py --wrench         # on the step without an active set (`machine.stack.wrench`)
     python tools/sim/hop.py --hops 3         # that many, one after another
     ... --load 0.12 0.6 --push-s 0.2         # the load's depth m and time s, the throw's s
-    ... --held                               # her soles never released: the stack as it was
-    ... --timed                              # her throw asked to its time's end, no spring
-    ... --upright                            # her trunk asked upright through the throw
+    ... --held                               # its soles never released: the stack as it was
+    ... --timed                              # its throw asked to its time's end, no spring
+    ... --upright                            # its trunk asked upright through the throw
 
-The ask is the stack's own (`wbc.step`): her stand's law (`tools.sim.wbc.law`) about her soles'
-middle; her height let down LOAD_M over LOAD_S, her posture crouched with it and leant until
-her centre of mass is over her soles (`crouched`); then thrown PUSH_S - her centre of mass on
-a spring to RELEASE_M under her standing height, no stronger than `--push` m/s^2 -, her
-posture back the way it came, her trunk's turn unasked; then her stand's law again. Nothing of it names the leap: her soles leave the floor bearing nothing,
-`leap.step` asks each to its landing and stands it again as it bears. She is airborne while
+The ask is the stack's own (`wbc.step`): its stand's law (`tools.sim.wbc.law`) about its soles'
+middle; its height let down LOAD_M over LOAD_S, its posture crouched with it and leant until
+its centre of mass is over its soles (`crouched`); then thrown PUSH_S - its centre of mass on
+a spring to RELEASE_M under its standing height, no stronger than `--push` m/s^2 -, its
+posture back the way it came, its trunk's turn unasked; then its stand's law again. Nothing of it names the leap: its soles leave the floor bearing nothing,
+`leap.step` asks each to its landing and stands it again as it bears. The robot is airborne while
 neither bears `leap.TOUCH_N`.
 `tools.sim.wbc.stand`'s world, no buses.
 """
@@ -28,16 +28,16 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: The hop's phases: stood AT_S, her height let down LOAD_M over LOAD_S, thrown PUSH_S, and
-#: SETTLE_S to land and stand before the next; her throw asked PUSH m/s^2 up.
+#: The hop's phases: stood AT_S, its height let down LOAD_M over LOAD_S, thrown PUSH_S, and
+#: SETTLE_S to land and stand before the next; its throw asked PUSH m/s^2 up.
 AT_S, LOAD_M, LOAD_S, PUSH_S, SETTLE_S, PUSH = 0.5, 0.10, 0.5, 0.15, 1.5, 14.0
 
-#: Her throw is a spring to RELEASE_M under her standing height, RELEASE_K 1/s^2: her legs
-#: follow her to knees of 22-31 deg (9-12 rad/s there). Asked to its time's end she left with
-#: 4.3-5.0 kg m^2/s about her - the loop in C 13.6 deg over, down at 56 mm; the spring 4.6.
+#: The robot's throw is a spring to RELEASE_M under its standing height, RELEASE_K 1/s^2: its legs
+#: follow it to knees of 22-31 deg (9-12 rad/s there). Asked to its time's end it left with
+#: 4.3-5.0 kg m^2/s about it - the loop in C 13.6 deg over, down at 56 mm; the spring 4.6.
 RELEASE_M, RELEASE_K = 0.0175, 700.0
 
-#: A leap is one that lasts LEAPT passes: her soles' loads cross `leap.TOUCH_N` twice
+#: A leap is one that lasts LEAPT passes: its soles' loads cross `leap.TOUCH_N` twice
 #: in the 3 ms they leave the floor in.
 LEAPT = 20
 
@@ -48,7 +48,7 @@ def _eased(u):
 
 
 def _ahead(posture, names):
-    """Her centre of mass ahead of her ankles along her soles, m, in a posture (rad, `names`)."""
+    """Its centre of mass ahead of its ankles along its soles, m, in a posture (rad, `names`)."""
     from machine.body import figure
     degrees = {n: math.degrees(float(q)) for n, q in zip(names, posture)}
     placed = figure.frames(degrees, (0.0, 0.0, 0.0), figure.IDENT)
@@ -58,8 +58,8 @@ def _ahead(posture, names):
 
 
 def crouched(posture, names, deg):
-    """`posture` with each knee flexed `deg`, its hip and its ankle half that - her pelvis let
-    down over her ankles -, then leant at the ankles until her centre of mass is over her soles
+    """`posture` with each knee flexed `deg`, its hip and its ankle half that - its pelvis let
+    down over its ankles -, then leant at the ankles until its centre of mass is over its soles
     where it was: straight down it lay 26 mm behind their middle at a 46 deg crouch. The
     movements by their terms (`machine.body.terms`)."""
     from machine.body import terms
@@ -87,8 +87,8 @@ def crouched(posture, names, deg):
 def hop(push=PUSH, hops=1, core=False, trace=False, release=True, inner='pd', free=True, stack=False,
         spring=True, wrench=False):
     """{stood, leaps, air_s, apex_mm, clear_mm, landed_n, tilt, stances, ..}: `hops` hops
-    standing, her throw `push` m/s^2. `release` False, her soles are never released - the stack as
-    it was; `free` False, her trunk is asked upright through the throw; `spring` False, her throw
+    standing, its throw `push` m/s^2. `release` False, its soles are never released - the stack as
+    it was; `free` False, its trunk is asked upright through the throw; `spring` False, its throw
     is asked to its time's end; `wrench`, on `machine.stack.wrench`'s step; `trace` a row every 10 ms,
     `stack` the stand's own rows."""
     from machine.moves import leap
@@ -115,9 +115,9 @@ def hop(push=PUSH, hops=1, core=False, trace=False, release=True, inner='pd', fr
                       - wbc.HEIGHT_KD[1] * s['vcom'][1])
             ask['posture'] = crouched(st['posture'], sim.NAMES, knee * u)
         elif LOAD_S <= t < LOAD_S + PUSH_S:
-            # her posture back up the way it came down; her trunk's turn unasked: asked upright
-            # the stack put her weight on her heels' edges to turn her legs under it, and she
-            # left the floor with 4.7 kg m^2/s about her, 14 deg over as she landed
+            # its posture back up the way it came down; its trunk's turn unasked: asked upright
+            # the stack put its weight on its heels' edges to turn its legs under it, and it
+            # left the floor with 4.7 kg m^2/s about it, 14 deg over as it landed
             let = RELEASE_K * (st['height'] - RELEASE_M - s['com'][1])
             acc[1] = max(-leap.G, min(push, let)) if spring else push
             ask['posture'] = crouched(st['posture'], sim.NAMES,
@@ -171,14 +171,14 @@ def main(argv=None):
     parser.add_argument('--push', type=float, default=PUSH, metavar='M_S2')
     parser.add_argument('--hops', type=int, default=1)
     parser.add_argument('--load', nargs=2, type=float, metavar=('M', 'S'),
-                        help='the load: how far her height is let down, over how long')
+                        help='the load: how far its height is let down, over how long')
     parser.add_argument('--push-s', type=float, metavar='S')
     parser.add_argument('--core', action='store_true', help='the loop in C')
     parser.add_argument('--wrench', action='store_true', help='the step without an active set')
-    parser.add_argument('--held', action='store_true', help='her soles never released: the stack as it was')
-    parser.add_argument('--timed', action='store_true', help="her throw asked to its time's end")
+    parser.add_argument('--held', action='store_true', help='its soles never released: the stack as it was')
+    parser.add_argument('--timed', action='store_true', help="its throw asked to its time's end")
     parser.add_argument('--upright', action='store_true',
-                        help='her trunk asked upright through the throw, as the stand has it')
+                        help='its trunk asked upright through the throw, as the stand has it')
     parser.add_argument('--inner', default='pd', choices=('pd', 'eso', 'none'),
                         help="the drives' own loop under the stack (tools/sim/wbc.py)")
     parser.add_argument('-v', '--verbose', action='store_true')

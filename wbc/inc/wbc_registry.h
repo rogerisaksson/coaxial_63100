@@ -1,4 +1,4 @@
-/** wbc_registry.h - her map's look in C (wbc_registry.c): machine.eyes.registry's passed and seen past its things'
+/** wbc_registry.h - its map's look in C (wbc_registry.c): machine.eyes.registry's passed and seen past its things'
     classes, over its slots' fields as the host lays them (`registry.Rows`: an array a field, each on 64-byte lines),
     numpy's arithmetic operation for operation (wbc_np.h), its OpenBLAS for each product (wbc_blas.h). Portable C11,
     the host's alone. */
@@ -12,7 +12,7 @@
 /** The boxes a look passes at most: its things, its live slots. */
 #define WBC_REGISTRY_BOXES 1024
 
-/** Her registry: its slots' fields as the host lays them, its constants, numpy's sums here, a look's answer and its
+/** Its registry: its slots' fields as the host lays them, its constants, numpy's sums here, a look's answer and its
     scratch laid once. */
 typedef struct
 {
@@ -44,13 +44,13 @@ typedef struct
   double            d2[WBC_REGISTRY_BOXES * WBC_REGISTRY_BOXES];
 } wbc_registry_t;
 
-/** registry.passed past its slots' kinds: its live slots `live` (nl), each movable or not (`movable`), `dt` s on, her
-    head at `pos` turned by `quat` (w, x, y, z): a movable's variance diffused, a slot out of her frustum swollen. */
+/** registry.passed past its slots' kinds: its live slots `live` (nl), each movable or not (`movable`), `dt` s on, its
+    head at `pos` turned by `quat` (w, x, y, z): a movable's variance diffused, a slot out of its frustum swollen. */
 void wbc_registry_passed(wbc_registry_t *r, const int64_t *live, int nl, const double *movable, const double *pos,
                          const double *quat, double dt);
 
 /** registry.seen past its things' classes: `n` things (centre, half (n, 3), R (n, 3, 3), ids, clear, their classes'
-    codes), its live slots `live` (nl) and their classes' codes (-1 none of the look's), at `t` s from her head
+    codes), its live slots `live` (nl) and their classes' codes (-1 none of the look's), at `t` s from its head
     (`pos`, `quat`), the whole room looked at where `everywhere`: each thing looked at (`looked`), the slot each of
     them took (`slot_of`, in their order) - matched or new -, every live slot's salience moved, the pruned let go.
     Those looked at, or -1 past WBC_REGISTRY_BOXES. */

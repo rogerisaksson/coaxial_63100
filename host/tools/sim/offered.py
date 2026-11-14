@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""F's errand walked into as test_errands judges it, an ensemble: met or not, her time, her phases.
+"""F's errand walked into as test_errands judges it, an ensemble: met or not, its time, its phases.
 
     python tools/sim/offered.py                          # the chair: headings x walks about the test's own
     python tools/sim/offered.py bed door --jobs 4        # those
     python tools/sim/offered.py --against C:/sources/coaxial_ab     # each run on another tree too, beside
 
-Her session in the lodge walked toward a thing at a heading for some seconds (OFFERED, the test's own), F's first
-offer said as the page says it, her passes run to its goal, her fall or PASSES (`walked_up`); judged as test_errands'
-viewport test judges it (`reached`). The chair's with her sight on (`physics.SIGHT`, her stereo each frame): its 40 s
-took 916 s of the wall here. A run's line: met, her time, where she ends, her phases in order. A run a job on the
-relay (`tools.dev.focus.relay`), its commit COMMIT_GB, its wall WALL_X times her bound.
+Its session in the lodge walked toward a thing at a heading for some seconds (OFFERED, the test's own), F's first
+offer said as the page says it, its passes run to its goal, its fall or PASSES (`walked_up`); judged as test_errands'
+viewport test judges it (`reached`). The chair's with its sight on (`physics.SIGHT`, its stereo each frame): its 40 s
+took 916 s of the wall here. A run's line: met, its time, where it ends, its phases in order. A run a job on the
+relay (`tools.dev.focus.relay`), its commit COMMIT_GB, its wall WALL_X times its bound.
 """
 import argparse
 import json
@@ -19,25 +19,25 @@ import sys
 HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HOST)
 
-#: F's errands walked into (test_errands' viewport test's): its thing, her heading, her walk's seconds, its verb,
+#: F's errands walked into (test_errands' viewport test's): its thing, its heading, its walk's seconds, its verb,
 #: the phase its goal is.
 OFFERED = (('chair', 1.0, 0.6, 'sit_chair', 'seated_crossfade'), ('bed', -0.65, 1.0, 'lie_bed', 'bed_rest'),
            ('door', 0.22, 1.5, 'exit_door', 'stand'))
-#: Her passes to an errand's goal at most (40 s at `worker.DT`).
+#: The robot's passes to an errand's goal at most (40 s at `worker.DT`).
 PASSES = 40000
-#: Her walk's twist toward it, and a stop's.
+#: The robot's walk's twist toward it, and a stop's.
 WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 #: The ensemble about the test's own: headings off it, rad, and walks off it, s.
 SPREAD = ((-0.02, 0.0, 0.02), (-0.05, 0.0, 0.05))
-#: A run's commit, GB - its tree's private bytes 1.74 at most, measured -, and its wall over her bound: 22.6 times
-#: her time measured alone, twice that beside others.
+#: A run's commit, GB - its tree's private bytes 1.74 at most, measured -, and its wall over its bound: 22.6 times
+#: its time measured alone, twice that beside others.
 COMMIT_GB, WALL_X = 1.8, 45.0
 
 
 def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
-    """(her session, the page's state, whether F's first offer was the verb's and shown, the prompt shown, the
-    prompt asked, the most a prop bore of her) of her walked toward `label` and F said; `said(doing, t)` told
-    each change of what she does."""
+    """(its session, the page's state, whether F's first offer was the verb's and shown, the prompt shown, the
+    prompt asked, the most a prop bore of it) of its walked toward `label` and F said; `said(doing, t)` told
+    each change of what it does."""
     from types import SimpleNamespace as SN
     from machine.law import modal
     from machine.world import physics
@@ -77,7 +77,7 @@ def walked_up(label, hd0, walk_s, verb, goal_phase, sc, said=None):
 
 
 def reached(label, goal_phase, s, shown, max_prop):
-    """Whether her errand met its goal as the test judges it: out the door, or in its phase, borne by its prop,
+    """Whether its errand met its goal as the test judges it: out the door, or in its phase, borne by its prop,
     on it, sure and not fallen."""
     from machine.process import sprung
     g = s['g']
@@ -90,7 +90,7 @@ def reached(label, goal_phase, s, shown, max_prop):
 
 
 def described(label, s, shown_prompt, max_prop):
-    """What the test says of a run: its prompt, where she is, what bore her, fallen."""
+    """What the test says of a run: its prompt, where it is, what bore it, fallen."""
     from machine.process import sprung
     g = s['g']
     q = g['world'].data.qpos

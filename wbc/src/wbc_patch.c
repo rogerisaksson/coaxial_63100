@@ -3,7 +3,7 @@
     (machine.senses.borne's cpatch): each contact's point held still, up alone where it slides along the floor's plane
     along the slide its text says it may (p->slide); and the
     patch's normal force split as it is felt - each contact's, along the patch's normal, its share of the forces
-    felt along it - pinned at w_pin in shares of her weight, as a clipped force is held. */
+    felt along it - pinned at w_pin in shares of its weight, as a clipped force is held. */
 #include "wbc_np.h"
 #include "wbc_step.h"
 

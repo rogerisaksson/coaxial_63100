@@ -4,20 +4,20 @@
     angles = leg(1.0, pelvis, turn, ankle, foot)   # the left leg's six joints, radians
     at = ball(1.0, pelvis, turn, angles)           # where its ball stands, world
 
-Frames: x her left, y up, z ahead; a turn a 3x3 of rows. A joint turns its segment by sign x
+Frames: x its left, y up, z ahead; a turn a 3x3 of rows. A joint turns its segment by sign x
 angle about its axis.
 """
 import math
 
 from machine.body import mechatronics
 
-#: Her figure in her build (`[figure]`, `machine.body.mechatronics`), metres of hers: every length of hers `scale`
-#: times its own (1 her 165 cm), her angles, her mass shares and her pads' gel as they are; her masses as built
-#: follow her capsules (`machine.body.build`).
+#: Its figure in its build (`[figure]`, `machine.body.mechatronics`), metres of its own: every length of its own `scale`
+#: times its own (1 its 165 cm), its angles, its mass shares and its pads' gel as they are; its masses as built
+#: follow its capsules (`machine.body.build`).
 _F = mechatronics.robot()['figure']
 SCALE = float(_F['scale'])
 
-#: Her legs, metres (`coaxial.graphics.gynoid` is built on them): the hips apart (half) and
+#: The robot's legs, metres (`coaxial.graphics.gynoid` is built on them): the hips apart (half) and
 #: below the pelvis's centre, thigh and shank, the ankle over the sole, the ball ahead of it
 #: (the toes' joint) and the heel behind.
 HIP_HALF, HIP_DROP, THIGH, SHANK = (SCALE * _F[k] for k in ('hip_half', 'hip_drop', 'thigh', 'shank'))
@@ -27,24 +27,24 @@ TOE_RY, TOE_M = SCALE * _F['toe_ry'], SCALE * _F['toe_m']
 #: A stand's soft knee, degrees; the hip and the ankle take half of it each way, the shin upright.
 STAND_KNEE = float(_F.get('stand_knee', round(math.degrees(math.atan2(ANKLE_H, THIGH + SHANK)))))
 
-#: Her weight as a woman, kg, at SCALE as its cube; each segment's share of it de Leva's (`SEGMENTS`).
+#: Its weight as a woman, kg, at SCALE as its cube; each segment's share of it de Leva's (`SEGMENTS`).
 MASS_KG = _F['mass_kg'] * SCALE ** 3
 
-#: Her jeans' wide legs hang from HEM_AT under the knees, metres (`mjcf.HEMS`); her hair's fall from
-#: HAIR_AT on her head, its frame (`mjcf.HAIRS`).
+#: Its jeans' wide legs hang from HEM_AT under the knees, metres (`mjcf.HEMS`); its hair's fall from
+#: HAIR_AT on its head, its frame (`mjcf.HAIRS`).
 HEM_AT = SCALE * _F['hem_at']
 HAIR_AT = tuple(SCALE * m for m in _F['hair_at'])
 
-#: Her upper arm and forearm, shoulder to elbow and elbow to wrist, m; her forearm's carrying angle, deg.
+#: Its upper arm and forearm, shoulder to elbow and elbow to wrist, m; its forearm's carrying angle, deg.
 UPPER_ARM, FOREARM = SCALE * _F['upper_arm'], SCALE * _F['forearm']
 CARRY_DEG = float(_F['carry_deg'])
 #: Each limb's length by its segment: what a capsule or a pad along it is measured from its far joint by.
 _LONG = {'upper_arm': UPPER_ARM, 'forearm': FOREARM, 'thigh': THIGH, 'shank': SHANK}
-#: Her segments' own numbers by name (`[figure.segments]`), the left side's.
+#: The robot's segments' own numbers by name (`[figure.segments]`), the left side's.
 _SEG = _F['segments']
 
 def _m(*lengths):
-    """`lengths`, metres of hers, at SCALE."""
+    """`lengths`, metres of its own, at SCALE."""
     return tuple(SCALE * m for m in lengths)
 
 
@@ -80,8 +80,8 @@ def _sides():
 
 #: (segment, parent, joints ((joint, axis, sign), ..) applied in order, offset from the parent's
 #: frame, rest turn about z (deg), mass share, centre of mass, radii of gyration x y z (m)): parents
-#: first. The spine bends forward positive, its roll to her right, the roll first - its drive on
-#: the pelvis on a spur pair (`machine.body.drives`), she leans aside in her pelvis's frame, then bends;
+#: first. The spine bends forward positive, its roll to its right, the roll first - its drive on
+#: the pelvis on a spur pair (`machine.body.drives`), it leans aside in its pelvis's frame, then bends;
 #: a hip's yaw and roll turn the leg out positive, an ankle's roll the sole out.
 SEGMENTS = tuple([
     ('pelvis', None, (), (0.0, 0.0, 0.0), 0.0, _SEG['pelvis']['share'], _m(*_SEG['pelvis']['com']),
@@ -105,8 +105,8 @@ CONTACTS = (('foot', 'box', (SOLE_HALF, SCALE * _F['sole_box'], (BALL + HEEL) / 
             ('toes', 'box', (SCALE * _F['toes_box'][0], SCALE * _F['toes_box'][1], TOE_M / 2.0),
              (0.0, SCALE * _F['toes_box'][2], TOE_M / 2.0)))
 
-#: Her feet as point contacts, a sphere POINT_R under each sole's centre alone (`contacts`): the
-#: stilts her standing counts on (`machine.stand`), 1 to build her so.
+#: Its feet as point contacts, a sphere POINT_R under each sole's centre alone (`contacts`): the
+#: stilts its standing counts on (`machine.stand`), 1 to build it so.
 POINT_FEET, POINT_R = 0.0, SCALE * _F['point_r']
 
 def contacts():
@@ -121,16 +121,16 @@ def sole_torsion_m():
     rim_r = (SOLE_HALF + 0.5 * (BALL + HEEL)) / math.sqrt(3.0)
     return round(math.hypot(rim_r, 0.5 * (BALL - HEEL)) / SCALE, 2) * SCALE
 
-#: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
-#: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;
-#: on these she sat. The fist, FIST_R at FIST_AT, the knuckles to lean on.
+#: The seat's two buttocks, capsules along its way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
+#: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, it rolled onto its back;
+#: on these it sat. The fist, FIST_R at FIST_AT, the knuckles to lean on.
 SEAT_R, SEAT_X, SEAT_Y, SEAT_Z = (SCALE * _F['seat'][0], SCALE * _F['seat'][1], SCALE * _F['seat'][2],
                                   _m(*_F['seat'][3:]))
 FIST_R, FIST_AT = SCALE * _F['fist'][0], _m(*_F['fist'][1:])
 
 
 def _capsules(row):
-    """BODY's rows of a `[figure] body` row: ['seat'] her buttocks, ['fist'] her fist, [segment, radius, inset] a
+    """BODY's rows of a `[figure] body` row: ['seat'] its buttocks, ['fist'] its fist, [segment, radius, inset] a
     limb's along its length from either joint, else [segment, radius, from, to]."""
     if row[0] == 'seat':
         return [('pelvis', SEAT_R, (x, SEAT_Y, SEAT_Z[0]), (x, SEAT_Y, SEAT_Z[1])) for x in (SEAT_X, -SEAT_X)]
@@ -141,15 +141,15 @@ def _capsules(row):
     return [(row[0], SCALE * row[1], _m(*row[2]), _m(*row[3]))]
 
 
-#: Her body, on the floor and on itself: (segment, radius, from, to), its frame - a capsule, a
+#: Its body, on the floor and on itself: (segment, radius, from, to), its frame - a capsule, a
 #: sphere where the ends meet - the drawn skin, the clothes not: the hips across, the waist, the
 #: ribs, the chest and the shoulders across, the bust, the neck, the skull and the jaw, every
-#: limb its length. A sphere or two a segment, lying her arms went 40-43 mm into the floor, her
-#: head 40, her shins 100 through each other and her hand 41 into its upper arm; on these, 2-9.
+#: limb its length. A sphere or two a segment, lying its arms went 40-43 mm into the floor, its
+#: head 40, its shins 100 through each other and its hand 41 into its upper arm; on these, 2-9.
 BODY = tuple(capsule for row in _F['body'] for capsule in _capsules(row))
 
-#: Her widest half across, m: her trunk's capsules' reach along x (BODY's hips row), what an
-#: aperture must clear each side of her - her arms hang within it.
+#: The robot's widest half across, m: its trunk's capsules' reach along x (BODY's hips row), what an
+#: aperture must clear each side of it - its arms hang within it.
 WIDE_HALF = max(max(abs(fro[0]), abs(to[0])) + r for seg, r, fro, to in BODY
                 if seg in ('pelvis', 'torso', 'neck', 'head'))
 
@@ -163,12 +163,12 @@ def _padded(row):
     return seg, at(axis), SCALE * radius, at(toward), SCALE * size, SCALE * wide
 
 
-#: Pads where her falls land, 5 mm of gel in TPU under her skin and clothes (`mjcf.PAD_*`):
+#: Pads where its falls land, 5 mm of gel in TPU under its skin and clothes (`mjcf.PAD_*`):
 #: (segment, the point of its capsule's axis under it, the capsule's radius, toward where the
 #: landings cluster, the pad's radius and half-width across), the left side's. Over 26 bare falls,
 #: each segment's first 0.2 s on the floor: the elbow's point 3068 N s, 7.2 kN at most; the hip's
-#: front and side 2800, 8.4; the knee 1300, 7.4; the rest of her under 240 N s. The
-#: knee's across its front: on a sphere there, and one at the thigh's end, knees under rolled her
+#: front and side 2800, 8.4; the knee 1300, 7.4; the rest of it under 240 N s. The
+#: knee's across its front: on a sphere there, and one at the thigh's end, knees under rolled its
 #: 22-84 degrees, 5 of 12 falls up.
 PADS = tuple(_padded(row) for row in _F['pads'])
 #: A pad stands PAD_M proud of the skin.
@@ -324,7 +324,7 @@ def frames(degrees, pelvis, turn):
 
 
 def com(degrees, pelvis, turn):
-    """Her centre of mass, world, for every joint at {joint: degrees} and the pelvis placed."""
+    """Its centre of mass, world, for every joint at {joint: degrees} and the pelvis placed."""
     placed = frames(degrees, pelvis, turn)
     total = [0.0, 0.0, 0.0]
     for name, (share, centre) in shares().items():
@@ -335,7 +335,7 @@ def com(degrees, pelvis, turn):
 
 
 def shares():
-    """{segment: (share of her mass, centre in its frame)}: as built (`machine.body.build`) or a
+    """{segment: (share of its mass, centre in its frame)}: as built (`machine.body.build`) or a
     woman's."""
     from machine.body import build
     if not build.SHELLS:
@@ -366,35 +366,35 @@ def stand():
 
 
 def pelvis_at(knee):
-    """Her pelvis's height on flat soles with her knees bent `knee` rad, m: her legs' geometry."""
+    """Its pelvis's height on flat soles with its knees bent `knee` rad, m: its legs' geometry."""
     return ANKLE_H + math.sqrt(THIGH ** 2 + SHANK ** 2 + 2.0 * THIGH * SHANK * math.cos(knee)) + HIP_DROP
 
 
 def standing():
-    """Her pelvis's height at a stand, m: both feet flat under her hips, the knees as `stand`
+    """Its pelvis's height at a stand, m: both feet flat under its hips, the knees as `stand`
     bends them."""
     return pelvis_at(math.radians(STAND_KNEE))
 
 
 def mass():
-    """Her weight, kg: as built (`machine.body.build`) or MASS_KG."""
+    """The robot's weight, kg: as built (`machine.body.build`) or MASS_KG."""
     from machine.body import build
     return build.mass() if build.SHELLS else MASS_KG
 
 
 def fist(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
-    """Her fist's centre, world, at {joint: degrees}, the pelvis placed: what her hand bears on."""
+    """Its fist's centre, world, at {joint: degrees}, the pelvis placed: what its hand bears on."""
     at, here = frames(degrees, pelvis, turn)[side + '_hand']
     return add(at, apply(here, FIST_AT))
 
 
-#: Her fist's centre aside from her middle, m, her arm hanging as she stands.
+#: The robot's fist's centre aside from its middle, m, its arm hanging as it stands.
 ASIDE = fist(stand())[0]
 
 
 def palm(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
-    """Her hand's lowest point, world, at {joint: degrees}, the pelvis placed: of its fist's and its
-    fingers' segments (`BODY`), what of it meets what she reaches down to - curled, her fingers."""
+    """Its hand's lowest point, world, at {joint: degrees}, the pelvis placed: of its fist's and its
+    fingers' segments (`BODY`), what of it meets what it reaches down to - curled, its fingers."""
     placed, lows = frames(degrees, pelvis, turn), []
     for seg, r, a, b in BODY:
         if seg in ('hand', 'fingers'):
@@ -428,5 +428,5 @@ def squat(arm=(35.0, 70.0, 10.0, 30.0)):
     return out
 
 
-#: Her deep squat, deg: what of her touches in it is kept apart as what touches standing (`machine.body.mjcf`).
+#: Its deep squat, deg: what of its touches in it is kept apart as what touches standing (`machine.body.mjcf`).
 SQUAT = ({joint: float(deg) for joint, deg in _F['squat'].items()} if 'squat' in _F else squat())

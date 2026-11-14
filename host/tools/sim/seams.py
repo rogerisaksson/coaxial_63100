@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Her shell past her clothes, standing: where a seam would catch.
+"""The robot's shell past its clothes, standing: where a seam would catch.
 
     python tools/sim/seams.py
 
-Each covered part of her drawn shell (`coaxial.graphics.gynoid`, bare) against the clothes over
+Each covered part of its drawn shell (`coaxial.graphics.gynoid`, bare) against the clothes over
 it (COVERED, a side's its own): the worst reach of its corners past a cloth's rings
 (`fit._excess`), m - a seam catches where a cloth is tighter than the shell beneath; a corner no
 cloth covers does not count. The cheeks stood 19 mm out of the jeans between the seat and the
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from coaxial.model.blocks import numpy as np
 from tools.sim.fit import _excess, _rings
 
-#: Her shell's parts and the clothes over each (`gynoid._wear`).
+#: The robot's shell's parts and the clothes over each (`gynoid._wear`).
 COVERED = {'pelvis': ('seat',), 'torso': ('tee', 'bust'), 'upper_arm': ('sleeve',),
            'thigh': ('thigh', 'seat'), 'shank': ('shin', 'leg'), 'bust': ('bust', 'tee'),
            'cheek': ('seat', 'thigh'), 'inner': ('inner', 'thigh')}
@@ -56,7 +56,7 @@ def seams():
 
 
 def main():
-    print('her shell past her clothes standing, mm: ' + ', '.join(
+    print('its shell past its clothes standing, mm: ' + ', '.join(
         '%s %+.0f' % (p, v * 1e3) for p, v in sorted(seams().items(), key=lambda kv: -kv[1])))
     return 0
 

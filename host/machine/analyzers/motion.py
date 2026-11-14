@@ -1,14 +1,14 @@
-"""Her joints' motion a phase, on the peaks held between snapshots.
+"""The robot's joints' motion a phase, on the peaks held between snapshots.
 
 The spasm probes' and `told.Run.arms`' reduction: at each phase's end its fastest joint and how fast
 against its drive's rated speed; a joint past its drive's rating told as it happens, once a joint a
-phase, captured - no drive turns it so: it is thrown; a driven joint swung faster than her own walk
-swings any (WALK_DEG_S), once a joint a phase, captured - a spasm, a jerk: no gait of hers asks it.
-Her toes, wrists and grippers no drive turns: a footfall throws her toes 870 deg/s.
+phase, captured - no drive turns it so: it is thrown; a driven joint swung faster than its own walk
+swings any (WALK_DEG_S), once a joint a phase, captured - a spasm, a jerk: no gait of its own asks it.
+The robot's toes, wrists and grippers no drive turns: a footfall throws its toes 870 deg/s.
 """
 
-#: The fastest her own walk swings a driven joint, deg/s: her knee over 8 s of a flat walk, 465.3, measured
-#: (`test_introspect`); a slip's arms 620, an obstacle's 1027, her bed's legs 422.
+#: The fastest its own walk swings a driven joint, deg/s: its knee over 8 s of a flat walk, 465.3, measured
+#: (`test_introspect`); a slip's arms 620, an obstacle's 1027, its bed's legs 422.
 WALK_DEG_S = 466.0
 
 

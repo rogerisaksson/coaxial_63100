@@ -70,7 +70,7 @@ Python 3.12 to 3.14 is what CI runs the host on. The host is one package,
 
 `.\system_terminal.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
 ends it after N frames. The 3D pages raster on the GPU where a card answers
-(wgpu); `COAXIAL_GPU=0` keeps them on the CPU. Her C cores are built for this
+(wgpu); `COAXIAL_GPU=0` keeps them on the CPU. Its C cores are built for this
 host's processor (`-march=native`); `COAXIAL_ISA=avx`, `avx2`, `avx512`, `sve2`
 or `sme2` builds them for that target instead (`host/tools/cores/build.py`).
 `run_tests.py --linux --arch arm64 --isa sme2` runs the gate on an emulated Arm.
@@ -223,7 +223,7 @@ with Coaxial63100(port='native://', execution_mode=EMULATED) as rig:
 | `atlas` | SYSTEM ATLAS | the system as a tree in 3D, the terminal up to the shunts, opened a node at a time |
 | `chat` | BOARD CHAT | the local llm, or claude with the board over MCP - the second question |
 | `helicopter` | HELICOPTER | two coaxial boards flying a 3D helicopter, its aerobatic stunts and gates |
-| `humanoid` | HUMANOID | a slender gynoid walking, her twenty joints on virtual actuators |
+| `humanoid` | HUMANOID | a slender gynoid walking, its twenty joints on virtual actuators |
 | `imu` | BOARD ATTITUDE | the board turned by the IMU, drawn from the STL |
 | `motor` | MOTOR CONTROLLER | the gate drivers, or the rotor observer - the second question |
 | `ornithopter` | ORNITHOPTER | two coaxial boards flying a 4-wing Dune ornithopter, its stunts and gates |

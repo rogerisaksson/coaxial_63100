@@ -1,5 +1,5 @@
-/** wbc_floor.c - under the ask (wbc_imp.h): a floor told her, machine.law.stride's footholds and the height
-    her centre keeps over its incline - numpy's arithmetic operation for operation (wbc_np.h). Portable
+/** wbc_floor.c - under the ask (wbc_imp.h): a floor told it, machine.law.stride's footholds and the height
+    its centre keeps over its incline - numpy's arithmetic operation for operation (wbc_np.h). Portable
     C11, the host's alone. */
 #include "wbc_imp.h"
 #include "wbc_stride.h"
@@ -9,8 +9,8 @@
 
 #define PI 3.14159265358979323846
 
-/** machine.law.stride.footholds: each landing moved onto the nearest flat tread of a floor told her its whole sole fits
-    within her reach, the tread it left from kept (hold, -1 none); the highest floor between each sole and its landing;
+/** machine.law.stride.footholds: each landing moved onto the nearest flat tread of a floor told it its whole sole fits
+    within its reach, the tread it left from kept (hold, -1 none); the highest floor between each sole and its landing;
     the landing's height over the floor felt; each tread's run; the tread landed on (-1 none). */
 void wbc_imp_footholds(const wbc_imp_t *k, const double *along, const double *rise, int told, const double s_meet[2],
                        const double s_fore[2], const double s_now[2], double s_com, double reach, const double hold[2],
@@ -98,7 +98,7 @@ double wbc_imp_interp(double x, const double *along, const double *rise, int n)
   return rise[n - 1];
 }
 
-/** machine.law.impedance._landings: her cruise no faster than a tread a step, each landing onto its tread, the highest floor
+/** machine.law.impedance._landings: its cruise no faster than a tread a step, each landing onto its tread, the highest floor
     between and the landing's height; the tread a swing left from kept in a[cell]. */
 void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, double *a, const double *rot, const double c[3],
                       const double flat[2][2], const double xi[2], double *cruise, double om, double turns, double wide,
@@ -119,7 +119,7 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
     hold[b] = stood[b] > 0.5 ? -1.0 : a[k->a_cell + b];
     under[b] = wbc_imp_floor_at(along, rise, told, s_now[b]);
   }
-  /* the told floor over the felt one, anchored under her standing soles */
+  /* the told floor over the felt one, anchored under its standing soles */
   wbc_imp_shares(k, stood, w);
   gap = -wbc_dot(&k->blas, w, 1, under, 1, 2);
   for (int b = 0; b < 2; b++)

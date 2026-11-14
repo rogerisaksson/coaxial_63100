@@ -1,4 +1,4 @@
-"""Her say catalog (`machine.texts.says`): scanned from the sources, served as JSON, nothing registered by hand."""
+"""Its say catalog (`machine.texts.says`): scanned from the sources, served as JSON, nothing registered by hand."""
 import json
 import sys
 
@@ -6,7 +6,7 @@ from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 
-def test_the_catalog_scans_her_sources(report):
+def test_the_catalog_scans_its_sources(report):
     """`says.catalog()` carries every dock verb, every suite stunt, every gym entry and every take,
     each row from its source, once; the whole serves as JSON; its counts are the sources' own, so a
     say added to a source appears with no hand on the catalog."""
@@ -71,7 +71,7 @@ def test_a_chosen_row_is_what_hears_it(report):
                  {k: (v['cmds'][0] if v['cmds'] else v['tour']) for k, v in got.items() if k != 'backflip'})
 
 
-ROSTER = (test_the_catalog_scans_her_sources, test_a_chosen_row_is_what_hears_it)
+ROSTER = (test_the_catalog_scans_its_sources, test_a_chosen_row_is_what_hears_it)
 
 
 def main(argv=None):

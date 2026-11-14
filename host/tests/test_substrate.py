@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""What she stands on when it gives (`machine.world.substrate`; the kernel's deformable_substrate_core.lisp,
+"""What it stands on when it gives (`machine.world.substrate`; the kernel's deformable_substrate_core.lisp,
 deformable_groundwork_specializers.lisp, deformable_groundwork_patches.lisp): the texts read whole, the work loop's
-regimes as a contact's damping, her patches' pressures, the tamp's gate, a bed under her still centre, the kip."""
+regimes as a contact's damping, its patches' pressures, the tamp's gate, a bed under it still centre, the kip."""
 import math
 import os
 import re
@@ -15,7 +15,7 @@ from gynoid_kit import Report
 #: The deformable texts, lisp/humanoid/kernel/.
 TEXTS = ('deformable_substrate_core.lisp', 'deformable_groundwork_specializers.lisp',
          'deformable_groundwork_patches.lisp')
-#: A tick of an impact or a bed, s; her patches' raster, m; the identifier's window, s (its text's comment).
+#: A tick of an impact or a bed, s; its patches' raster, m; the identifier's window, s (its text's comment).
 DT, STEP, WINDOW_S = 1e-6, 5e-4, 0.035
 #: A power law's exponent at most (Bekker's n for snow and soil runs under it).
 N_MOST = 2.0
@@ -43,7 +43,7 @@ def _impact(m, k, zeta, v0):
 def test_the_texts_read_whole(report):
     """The three texts read with the kernel (`kernel.read`): the substrate's state, 9 slots of 8 patches; every
     manifold they name a patch; the core, the specializers and the patches stages; the schedule the mattress, the snow
-    and the trampoline, each up again on her walk's clock; the regimes, ceilings, tamp and kip as the runs lay them."""
+    and the trampoline, each up again on its walk's clock; the regimes, ceilings, tamp and kip as the runs lay them."""
     from machine.texts import dsp, kernel
     from machine.body import mechatronics
     got = kernel.read()
@@ -64,7 +64,7 @@ def test_the_texts_read_whole(report):
                  all(isinstance(got[n], dsp.Stage) for n in stages if n != 'compile-deformable-groundwork-suite-soa'))
     plan = _plan()
     runs = [seg[1]['_trace'][-1][0] for seg in plan]
-    report.check('the schedule: %s, each up on her clock' % ', '.join(runs),
+    report.check('the schedule: %s, each up on its clock' % ', '.join(runs),
                  [seg[0] for seg in plan] == ['oneshot'] * 3
                  and runs == ['patch-groundwork-on-viscoelastic-mattress', 'patch-groundwork-in-deep-snow',
                               'patch-groundwork-on-trampoline']
@@ -72,7 +72,7 @@ def test_the_texts_read_whole(report):
     classes = plan[0][1]['work-loop']['regime-classifier']
     snow, base = plan[1][1], plan[0][1]
     report.check('plastic under %.2f, harmonic over %.2f; %.0f kPa a patch, %.0f in snow; snow tamped at %.2f of '
-                 'her weight to %.0f N/mm; the kip %.0f mm up' % (
+                 'its weight to %.0f N/mm; the kip %.0f mm up' % (
                      classes[0]['when-eta-below'], classes[2]['when-eta-above'],
                      base['patch-pressure']['pressure-ceiling-kpa'], snow['patch-pressure']['pressure-ceiling-kpa'],
                      snow['tamp-commit']['stage-1-pre-tamp']['preload-weight-cap'],
@@ -82,10 +82,10 @@ def test_the_texts_read_whole(report):
 
 
 def test_the_work_loop_names_a_damping(report):
-    """`substrate.loop` on her striking a linear contact returns e^2 = exp(-2 pi zeta / sqrt(1 - zeta^2)) of the
+    """`substrate.loop` on its striking a linear contact returns e^2 = exp(-2 pi zeta / sqrt(1 - zeta^2)) of the
     energy to 1e-3, so the text's regimes are damping ratios (`substrate.damping`): an elastic foam damped at 0.5,
-    springing back whole, reads plastic. Her stroke, touch to deepest, fits the identifier's 35 ms only on a contact
-    stiffer than her mass times (pi / 2 / 0.035)^2."""
+    springing back whole, reads plastic. Its stroke, touch to deepest, fits the identifier's 35 ms only on a contact
+    stiffer than its mass times (pi / 2 / 0.035)^2."""
     import numpy as np
     from machine.body import figure
     from machine.texts import kernel
@@ -104,14 +104,14 @@ def test_the_work_loop_names_a_damping(report):
         report.check('damped %.3f: %.4f of the energy back (%.4f)%s' % (
             zeta, eta, e2, ', ' + got if want else ''), abs(eta - e2) < 1e-3 and got == (want or got))
     stiff = m * (0.5 * math.pi / WINDOW_S) ** 2
-    report.check('her %.1f kg strokes %.0f ms at %.0f N/mm: within %.0f ms only past %.1f N/mm' % (
+    report.check('it %.1f kg strokes %.0f ms at %.0f N/mm: within %.0f ms only past %.1f N/mm' % (
         m, 1e3 * substrate.stroke(m, k), k / 1e3, 1e3 * WINDOW_S, stiff / 1e3),
         abs(substrate.stroke(m, stiff) - WINDOW_S) < 1e-12)
 
 
 def _patches():
-    """{patch: m^2} of hers: a sole and its toes (their boxes' undersides), a fist, a shin, a forearm and its fist, a
-    thigh (capsules flat on their segments' x-y planes), her buttocks (the seat's capsules on its x-z plane)."""
+    """{patch: m^2} of its own: a sole and its toes (their boxes' undersides), a fist, a shin, a forearm and its fist, a
+    thigh (capsules flat on their segments' x-y planes), its buttocks (the seat's capsules on its x-z plane)."""
     import numpy as np
     from machine.body import figure
     from machine.world import substrate
@@ -129,10 +129,10 @@ def _patches():
             'buttocks': flat([c for c in of('pelvis') if c[0] == figure.SEAT_R], (0, 2))}
 
 
-def test_her_patches_under_her_weight(report):
-    """`substrate.footprint` a disc's and a capsule's areas to 1 %; her patches' areas against the snowshoe's
-    multipliers; her pressure standing, landing a step (her walk's bound), kneeling, on all fours' fists (the text's
-    share), on her forearms and sat, against the texts' ceilings."""
+def test_its_patches_under_its_weight(report):
+    """`substrate.footprint` a disc's and a capsule's areas to 1 %; its patches' areas against the snowshoe's
+    multipliers; its pressure standing, landing a step (its walk's bound), kneeling, on all fours' fists (the text's
+    share), on its forearms and sat, against the texts' ceilings."""
     import numpy as np
     from machine.body import figure
     from machine.texts import kernel
@@ -147,7 +147,7 @@ def test_her_patches_under_her_weight(report):
     area = _patches()
     plan = _plan()
     snowshoe = {s['broad-snowshoe-patch']: s['area-multiplier'] for s in plan[1][1]['patch-pressure']['area-foliation-synergies']}
-    report.check('hers, cm^2: %s; shin to sole %.2f (the text %.1f), forearm to fist %.2f (%.1f), thighs to buttocks '
+    report.check('its own, cm^2: %s; shin to sole %.2f (the text %.1f), forearm to fist %.2f (%.1f), thighs to buttocks '
                  '%.2f (%.1f)' % (', '.join('%s %.0f' % (k, 1e4 * v) for k, v in area.items()),
                                   area['shin'] / area['sole'], snowshoe[':anterior-tibial-bilateral'],
                                   area['forearm'] / area['fist'], snowshoe[':olecranon-ulnar-sphinx'],
@@ -166,7 +166,7 @@ def test_her_patches_under_her_weight(report):
     report.check('kPa (ceilings %s): %s' % ('/'.join('%g' % c for c in ceilings), '; '.join(said)), True)
 
 
-def test_a_tamp_commits_only_where_snow_bears_her(report):
+def test_a_tamp_commits_only_where_snow_bears_it(report):
     """`substrate.tangent` is a power law's d F / d z, n F / z, to 1e-6 whatever its moduli: the tamp's stiffness
     gate opens under its pre-load only at a sinkage under n F / k, any n to 2: in the first 2 % of the sinkage the
     tamp allows."""
@@ -186,17 +186,17 @@ def test_a_tamp_commits_only_where_snow_bears_her(report):
     weight = figure.mass() * 9.81
     opens = [1e3 * n * pre * weight / gate for n in (1.0, N_MOST)]
     at = [substrate.tangent(pre * weight, deepest, n) / gate for n in (1.0, N_MOST)]
-    report.check('its %.0f N/mm opens under %.2f of her weight at %.1f-%.1f mm sunk, under all of it at %.1f-%.1f; at '
+    report.check('its %.0f N/mm opens under %.2f of its weight at %.1f-%.1f mm sunk, under all of it at %.1f-%.1f; at '
                  'its %.0f mm %.3f-%.3f of the gate' % (
                      gate / 1e3, pre, *opens, *[1e3 * n * weight / gate for n in (1.0, N_MOST)], 1e3 * deepest, *at),
                  max(opens) < 0.02 * 1e3 * deepest)
 
 
-def test_a_bed_under_her_still_centre(report):
-    """`substrate.phase` 0 at a bed's top, pi at its bottom. Her centre held still, her push on a bed is her weight,
+def test_a_bed_under_it_still_centre(report):
+    """`substrate.phase` 0 at a bed's top, pi at its bottom. Its centre held still, its push on a bed is its weight,
     constant: its energy about its loaded rest falls by its own damper's alone (`substrate.bed`, 1e-3), the
     harmonic regime's most damped bed keeping what it keeps after the text's 1.5 periods; the kip's apex time and
-    energy, her hips and knees at its tuck's speeds within their peak."""
+    energy, its hips and knees at its tuck's speeds within their peak."""
     import numpy as np
     from machine.body import bemf, drives, figure
     from machine.world import substrate
@@ -218,7 +218,7 @@ def test_a_bed_under_her_still_centre(report):
             lost += d * v * v * dt
         left = 0.5 * k * (z - rest) ** 2 + 0.5 * mass * v * v
         kept.append((share, left / start, abs(start - left - lost) / start))
-    report.check('damped %.3f with her on it: a bed of %s her mass keeps %s of its energy, its damper the rest to %.0e' % (
+    report.check('damped %.3f with it on it: a bed of %s its mass keeps %s of its energy, its damper the rest to %.0e' % (
         zeta, ' and '.join('%.1f' % s for s, _l, _e in kept), ' and '.join('%.2g' % l for _s, l, _e in kept),
         max(e for _s, _l, e in kept)), max(e for _s, _l, e in kept) < 1e-3)
     kip = plan[2][1]['seat-drop-kip']
@@ -233,8 +233,8 @@ def test_a_bed_under_her_still_centre(report):
                  min(h_ - bemf.PEAK[j] for h_, j in zip(hi, joints)) >= 0.0)
 
 
-ROSTER = [test_the_texts_read_whole, test_the_work_loop_names_a_damping, test_her_patches_under_her_weight,
-          test_a_tamp_commits_only_where_snow_bears_her, test_a_bed_under_her_still_centre]
+ROSTER = [test_the_texts_read_whole, test_the_work_loop_names_a_damping, test_its_patches_under_its_weight,
+          test_a_tamp_commits_only_where_snow_bears_it, test_a_bed_under_it_still_centre]
 
 
 def main(argv=None):

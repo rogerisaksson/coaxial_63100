@@ -46,12 +46,12 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   next run one job of 831.6 s, killed there: only a whole run is kept.
 - A suite the table held no row of was expected at 0 s: laid from a gate
   that stopped at its first red suite, the table had none of eleven of the
-  offline gate's, and on GitHub's runner - no record of its own - her
+  offline gate's, and on GitHub's runner - no record of its own - its
   errands ran as one job cut at the plain limit (test_errands.py CRASHED
   exit=None 300.1s; FRESH_S had held 760 s). A suite neither the tree's
   record nor the table knows is expected as the heaviest they know till
   its first whole run tells (`machine_detector.expected`): in a fresh tree
-  her errands ran as 5 shards, 444.7 s, 21 of 21. `--keep` read the table
+  its errands ran as 5 shards, 444.7 s, 21 of 21. `--keep` read the table
   after it had opened it to be written - a run of 18 suites left a table
   of 109 those 18 - and laid the tree's last run whatever the tree's
   state: test_layout took 20.7 s as a fresh tree's first run and 2.2 s as
@@ -65,7 +65,7 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   threads, x86_64 Linux, 2 at once; 5.09 kernels a second a baton on its
   Python 3.12 job, 2.63 on its 3.14 job. The table told its 3.12 job's
   test_structure at 39.9 s and it took 36.7 s, its test_mirrors at 70.1 s
-  and they took 86.0 s. Ten runs before it took her errands 267.6 to
+  and they took 86.0 s. Ten runs before it took its errands 267.6 to
   585.5 s on the one job and 276.7 to 523.5 s on the other, the slower job
   not the same from run to run: a runner's pace is a run's.
 - A batch fits whose host it is (`background.runner`: CI true in a job's
@@ -77,13 +77,13 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   (`machine_detector.host`): told as a runner this desk does 96.6 kernels
   a second at 64 wide and 81.9 at 32 wide. A benchmark's processes run
   above normal priority on a desk only, and `pace.py` run on one errand
-  raises hers as the relay's benchmark does.
+  raises its own as the relay's benchmark does.
 - GitHub's run of 011bfef4, 2 at once, 3.38 kernels a second a baton on
   its Python 3.12 job and 3.27 on its 3.14 job: no suite cut. The table
   told test_wasd at 576.1 and 595.5 s and it took 611.1 and 587.7 s;
   test_mirrors at 112.1 and 115.9 s, 107.4 and 103.1 s; test_structure at
   68.6 and 70.9 s, 52.0 and 43.8 s. The gate stopped at test_wasd, 2 of
-  its 23 red on both jobs to the same numbers, before her errands had told
+  its 23 red on both jobs to the same numbers, before its errands had told
   their seconds.
 - Offline gate: 544 s at 17 % busy, a job a suite; one relay with shards past
   half its work over the batons: 224 s at 31 %.
@@ -95,7 +95,7 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - The offline gate was 400 s of sleeping on the stand-in's clock; suites run
   four at a time: 142 s.
 - The pre-push smoke (`tools/dev/smoke.py`): every `machine` module imported
-  and her first 1.5 s on the loop told to walk, 2.7 s; a raise in
+  and its first 1.5 s on the loop told to walk, 2.7 s; a raise in
   `flight.check_contacts` stopped it in 0.4 s.
 - test_controller's 1500 rpm lane on the wall read 1421 on Python 3.12: told
   its seconds (`hostclock.Told`) it reads 1446 every run, the lane ringing
@@ -134,12 +134,12 @@ The board's findings: [FINDINGS](../FINDINGS.md).
 - A kept replay that stood here fell at 10.60 s on CI's runner, Python 3.12 and
   3.14 alike: another platform's floating point. Laid 0.2 mm aside it fell here
   too, at 11.33 s; a kept replay now stands laid 0.2 mm either way. The hop
-  after a stop, a fall at 8.97 s when recorded, stands on her law since the
+  after a stop, a fall at 8.97 s when recorded, stands on its law since the
   sensor boundary at every wobble to 1 mm.
 - A HUMANOID recording replayed (`tools/sim/replay.py`) through the worker's
   process: 7 commands over 2 epochs, the pelvis 0.0 mm off the recording, a
   400 N shove's fall at 4.162 s again. `stage` read off the gait's amplitude
-  said stand at 0.9 m/s; measured, her first pass after a lay read 0 N on
+  said stand at 0.9 m/s; measured, its first pass after a lay read 0 N on
   both soles and walk for a second till a lift counted only off a bearing sole.
 - A FAIL behind a page's footer or screen clear went unnamed: the runner takes
   a line's first marker, escapes stripped.
@@ -172,17 +172,17 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   to see.
   The host's C libraries are built in each process already, each named by
   its sources', headers' and flags' bytes: the headers beside its sources
-  are among them (aero_bits.h, read by her native board's build off
+  are among them (aero_bits.h, read by its native board's build off
   aero/src, was 1 of 189 in no digest; the other cores' 0 of 133), and
-  MuJoCo's headers' version is one of her whole-body core's flags. A source
+  MuJoCo's headers' version is one of its whole-body core's flags. A source
   touched: both built in 3.9 s.
-- MuJoCo Warp on her world as built (mujoco_warp 3.15, an RTX 4080 SUPER;
-  her model from its default pose, no control, 86 contacts): the CPU steps
+- MuJoCo Warp on its world as built (mujoco_warp 3.15, an RTX 4080 SUPER;
+  its model from its default pose, no control, 86 contacts): the CPU steps
   it in 0.31 ms, 3 200 a second a core; Warp 14 ms a step for one world,
   0.27 ms a world for 64, 0.039 for 512, 0.018 for 2 048, 0.015 for 8 192 -
-  66 000 world steps a second, 21 cores' worth. A pass of her walk is 1.3 ms
+  66 000 world steps a second, 21 cores' worth. A pass of its walk is 1.3 ms
   of wall, the world's step 0.1-0.3 of it: the physics batched alone gains a
-  quarter at most, and pays once her law and her boards step as arrays
+  quarter at most, and pays once its law and its boards step as arrays
   beside it (docs/TODO.md, the latent stack).
 
 - CI flakes diagnosed and resolved across 5 suites looped under heavy load:
@@ -228,7 +228,7 @@ The board's findings: [FINDINGS](../FINDINGS.md).
   all 144 pairs of zeros, NaNs, infinities): 277 ns, the state the same bits.
   The crafts a flown second, frames' hashes the same: quad 0.19 -> 0.155 s,
   helicopter 0.115 -> 0.10, aerobat 0.13 -> 0.11, ornithopter 0.115 -> 0.10.
-  native:// built so too (`build.FAST`): her twenty boards 2.03 -> 1.81 CPU s
+  native:// built so too (`build.FAST`): its twenty boards 2.03 -> 1.81 CPU s
   a wall s.
 - A QUAD rotor through the flight's loop, the law against the closed form:
   450.0 and 450.0 rad/s on 27.5 A, 690.0 on 58.0; 33 rad/s apart at most,

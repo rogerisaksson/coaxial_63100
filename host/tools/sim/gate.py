@@ -1,12 +1,12 @@
-"""A write of her texts held on the suites it reaches, in a worktree of its own.
+"""A write of its texts held on the suites it reaches, in a worktree of its own.
 
     broken = gate.held(texts)     # [(suite, check)] failing with them alone: none, write
 
 The texts' files that differ from the tree's (`ortho.source`) pick their suites by the path map
 (`scope.pick`); a detached worktree at HEAD runs them on the relay as the files are, then with
 `texts` written there: a check failing with them alone breaks the write. The shared tree is never
-written to try one - its suites read her files from disk (her viewport's bed was broken by a step
-held on her suite's roots and the bench).
+written to try one - its suites read its files from disk (its viewport's bed was broken by a step
+held on its suite's roots and the bench).
 """
 import os
 import re

@@ -1,20 +1,20 @@
-"""Her whole body as one stack of QPs a step: torques that keep her contacts, by priority.
+"""The robot's whole body as one stack of QPs a step: torques that keep its contacts, by priority.
 
-    body = Body()                           # her model laid once, a MjData of its own
+    body = Body()                           # its model laid once, a MjData of its own
     s = sense(body, qpos, qvel)             # M, bias, Jacobians, the soles, the centre of mass
     out = step(body, s, ask)                # ask: stance, the centre of mass's acceleration,
                                             # the pelvis's and the trunk's turns, a swing, posture
     out['tau'], out['qacc'], out['force']   # driven joints' N m (JOINTS order), rad/s^2, N
 
 The plant is MuJoCo's: M(q) with the rotors' reflected inertia, the bias C q' + g, the passive
-forces; the floating base on SE(3), a turn's error SO(3)'s log. The unknowns: her 39
+forces; the floating base on SE(3), a turn's error SO(3)'s log. The unknowns: its 39
 accelerations and a force at each corner of a standing sole; the torques follow. Held at every
 level (`qp.stack`): the undriven rows of the dynamics, a standing sole still, each corner's
 force pressing inside the friction pyramid, the drives' clamps as built (the ankle's pair as
 `physics.paired`, past the clamp to WEP's ceiling where granted), the stops a horizon ahead.
-By priority then: the centre of mass along the floor and her weight borne (soft); the pelvis's
+By priority then: the centre of mass along the floor and its weight borne (soft); the pelvis's
 and the trunk's turns, a swinging sole and each sole's centre of pressure inside its edge
-(soft); her form weighed - her height, the angular momentum, the posture, the torques, the
+(soft); its form weighed - its height, the angular momentum, the posture, the torques, the
 forces - and each drive within its clamp (soft). Each level's tie-break is the levels below.
 """
 import importlib
@@ -32,7 +32,7 @@ from machine.body.drives import kind
 from machine.errors import MachineError
 from machine.body.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF
 
-#: Her loop's numbers, her build's (`[gait.loop]`: each with what it was found at, `machine.body.gait`).
+#: Its loop's numbers, its build's (`[gait.loop]`: each with what it was found at, `machine.body.gait`).
 _G = gait.table('loop')
 
 #: The friction pyramid's slope, inside the soles' elliptic cone of `mjcf.FRICTION` 1.0; a
@@ -48,8 +48,8 @@ SLIDE_M_S = _G['slide_m_s']
 #: centre of mass's m/s^2).
 MARGIN_M, SLACK_W = _G['margin_m'], _G['slack']
 
-#: Her vertical acceleration within HEIGHT_BAND m/s^2 of her height's ask on the balance's
-#: level, her height itself under the turns and a swing.
+#: The robot's vertical acceleration within HEIGHT_BAND m/s^2 of its height's ask on the balance's
+#: level, its height itself under the turns and a swing.
 HEIGHT_BAND = _G['height_band_m_s2']
 
 #: A stop met no nearer than STOP_RAD, LIMIT_S ahead at the acceleration asked.
@@ -66,12 +66,12 @@ CLAMP_SHARE, NEAR = _G['clamp_share'], _G['near']
 #: at MOMENTUM_K 1/s.
 TURN_KD, POSTURE_KD, SWING_KD = ((_G[k + '_1_s2'], _G[k + '_1_s']) for k in ('turn', 'posture', 'swing'))
 MOMENTUM_K = _G['momentum_1_s']
-#: Her centre of mass's height held by (kp 1/s^2, kd 1/s).
+#: The robot's centre of mass's height held by (kp 1/s^2, kd 1/s).
 HEIGHT_KD = (_G['height_1_s2'], _G['height_1_s'])
 
-#: The turns' weight against a swinging sole's m/s^2; her form's against the posture's
+#: The turns' weight against a swinging sole's m/s^2; its form's against the posture's
 #: rad/s^2: the angular momentum's N m, the torques' (a clamp's share), the corners' forces
-#: (her weight's share), her height's m/s^2.
+#: (its weight's share), its height's m/s^2.
 TURN_W, MOMENTUM_W, POSTURE_W, TORQUE_W, FORCE_W, HEIGHT_W = (_G[k + '_w'] for k in ('turn', 'momentum', 'posture', 'torque', 'force', 'height'))
 
 #: A swinging knee's fold's weight against its sole's m/s^2.
@@ -111,8 +111,8 @@ def turn_error(want, have):
 
 class Body:
 
-    """Her model laid once for the law: a MjData of its own, her degrees of freedom sorted
-    driven, held and free, the clamps, the soles' corners; her corrections as identified laid
+    """The robot's model laid once for the law: a MjData of its own, its degrees of freedom sorted
+    driven, held and free, the clamps, the soles' corners; its corrections as identified laid
     over it where `identified` (`identified.IDENTIFIED`)."""
 
     def __init__(self, xml=None, identified=True):
@@ -122,22 +122,22 @@ class Body:
         m.opt.disableflags |= int(mj.mjtDisableBit.mjDSBL_CONSTRAINT)
         self.d = mj.MjData(m)
         self.pelvis, self.torso, self.head = m.body('pelvis').id, m.body('torso').id, m.body('head').id
-        #: her legs' bodies on what she sits on: the closed chains' sled, not the upright step's (`chain.bearing`)
+        #: its legs' bodies on what it sits on: the closed chains' sled, not the upright step's (`chain.bearing`)
         self.legs = tuple(m.body(name).id for name in ('left_thigh', 'left_shank', 'right_thigh', 'right_shank'))
-        #: Her links and drives corrected as identified (`identified.correct`).
+        #: The robot's links and drives corrected as identified (`identified.correct`).
         self.identified = []
         if identified:
             from machine.identify import identified
             self.identified = identified.correct(self, identified.load(identified.IDENTIFIED))
 
-        def hers(body):
+        def its_own(body):
             while body:
                 if body == self.pelvis:
                     return True
                 body = m.body_parentid[body]
             return False
 
-        self.n = n = sum(hers(m.dof_bodyid[i]) for i in range(m.nv))
+        self.n = n = sum(its_own(m.dof_bodyid[i]) for i in range(m.nv))
         vadr = np.array([m.jnt_dofadr[m.joint(j).id] for j in JOINTS])
         qadr = np.array([m.jnt_qposadr[m.joint(j).id] for j in JOINTS])
         spring = [drives.passive(j) for j in JOINTS]
@@ -168,8 +168,8 @@ class Body:
         self.stop_lo = np.array([r[0] for _k, r in stops])
         self.stop_hi = np.array([r[1] for _k, r in stops])
         from machine.law import supervisor
-        #: The master insert's buffers before her model's stops (`supervisor.buffers`, `drives.TRAVEL`), rows of her
-        #: step: without the neck's and head's her chair's sit fell at 6.44 s.
+        #: The master insert's buffers before its model's stops (`supervisor.buffers`, `drives.TRAVEL`), rows of its
+        #: step: without the neck's and head's its chair's sit fell at 6.44 s.
         self.buffers = supervisor.buffers(names, dict(stops))
         self.feet = (m.body('left_foot').id, m.body('right_foot').id)
         self.insoles = [m.body(n).id for n in ('left_foot', 'left_toes', 'right_foot', 'right_toes')]
@@ -184,11 +184,11 @@ class Body:
 
 
 def sense(b, qpos, qvel):
-    """What the law reads of her at (qpos, qvel): {M, h (bias less passive), v, q, com, vcom,
+    """What the law reads of it at (qpos, qvel): {M, h (bias less passive), v, q, com, vcom,
     k (angular momentum about the centre of mass), feet [{R, quat, pts, Jc, J6, dJv, sole}],
     turns [{quat, Jr, dJr, w}] (pelvis, trunk), head {pos, v, quat, w}}, world frame."""
     m, d, mj, n = b.m, b.d, b.mj, b.n
-    # her world's coordinates as far as her body's go: her room's loose things past them, welded in hers (`mjcf`)
+    # its world's coordinates as far as its body's go: its room's loose things past them, welded in its own (`mjcf`)
     nq, nv = min(len(qpos), m.nq), min(len(qvel), m.nv)
     d.qpos[:nq], d.qvel[:nv] = qpos[:nq], qvel[:nv]
     mj.mj_fwdPosition(m, d)
@@ -321,7 +321,7 @@ def _held(b, s, ask, stance):
 
 
 def _form_level(b, s, ask, stance, held, up, ay):
-    """Level 3: her height, angular momentum, posture, torques, forces, and WEP clamp share."""
+    """Level 3: its height, angular momentum, posture, torques, forces, and WEP clamp share."""
     T, t0, Th, th, nominal = held[4:]
     n, v, nc, fs = b.n, s['v'], 4 * len(stance), b.mass * G
     nx = n + 3 * nc

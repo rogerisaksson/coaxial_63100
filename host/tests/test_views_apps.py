@@ -23,9 +23,9 @@ def drawn_lit(laid):
 
 def test_each_page_comes_to_its_own(report):
     """The atlas's ties from symbol to symbol (tools/dev/atlas_calls.py) take a page's `run` to what it calls,
-    none to the menu that starts every page nor to what a module imported runs as a script: her pass's makers all
-    the robot's, her law, stack and senses hers alone; the crafts' own the flyers' and theirs alone, none of them
-    coming to her law; each craft's loop - the tick its view gives its runner, the sky and law it steps -
+    none to the menu that starts every page nor to what a module imported runs as a script: its pass's makers all
+    the robot's, its law, stack and senses its own alone; the crafts' own the flyers' and theirs alone, none of them
+    coming to its law; each craft's loop - the tick its view gives its runner, the sky and law it steps -
     in its system (terminal/views/atlas/apps.py, tools/dev/atlas_flow.py)."""
     import ast
     from terminal.views.atlas import apps, scene
@@ -36,13 +36,13 @@ def test_each_page_comes_to_its_own(report):
     menu = any('host/terminal/menu.py::main' in keys for keys in reached.values())
     makers = {tree.up[n] for n in atlas_flow.makers(tree).values() if n >= 0}
     own = {scene.short(tree, f): {scene.short(tree, p) for p in ps} for f, ps in served.items()}
-    hers = {f: own[f] for f in ('law/', 'stack/', 'senses/')}
+    its_own = {f: own[f] for f in ('law/', 'stack/', 'senses/')}
     crafts = own.get('aircraft/', set())
-    report.check("a page's run to what it calls, none to the menu; her pass's makers the robot's, her law, "
-                 "stack and senses hers alone", sum(map(len, tree.calls.values())) > 10000 and not menu
-                 and makers <= systems[robot] and all(ps == {'humanoid.py'} for ps in hers.values()),
-                 '%d ties; menu reached %s; hers %s' % (sum(map(len, tree.calls.values())), menu, hers))
-    report.check("the crafts' own the flyers' alone, none of them coming to her law",
+    report.check("a page's run to what it calls, none to the menu; its pass's makers the robot's, its law, "
+                 "stack and senses its own alone", sum(map(len, tree.calls.values())) > 10000 and not menu
+                 and makers <= systems[robot] and all(ps == {'humanoid.py'} for ps in its_own.values()),
+                 '%d ties; menu reached %s; its own %s' % (sum(map(len, tree.calls.values())), menu, its_own))
+    report.check("the crafts' own the flyers' alone, none of them coming to its law",
                  crafts == {scene.short(tree, p) for p in flyers}
                  and not any(f in systems[p] for p in flyers for f, ps in served.items() if robot in ps and len(ps) == 1),
                  'aircraft/ %s' % sorted(crafts))
@@ -260,10 +260,10 @@ def test_the_tree_grows_as_a_tree(report):
 
 def test_the_dataflow_draws_one_system(report):
     """D turns the page to one system's dataflow (show_atlas.py, atlas/apps.py, atlas/mirror.py), titled DATAFLOW
-    and the system, each its own loop the same way: with none chosen the robot's - her pass and what comes back of
-    it, the wire -, every flow between its files, a node opening to its parts alone, the robot's executive to her
+    and the system, each its own loop the same way: with none chosen the robot's - its pass and what comes back of
+    it, the wire -, every flow between its files, a node opening to its parts alone, the robot's executive to its
     folders, no craft's; D again the next page's, each craft's the tick its view flies - the aerobat's on its own
-    sky and law, handed on to the helicopter's tick -, none of her pass; a branch chosen, its pages' together;
+    sky and law, handed on to the helicopter's tick -, none of its pass; a branch chosen, its pages' together;
     M back to the tree."""
     from terminal.ui import bindings
     from terminal.views import show_atlas
@@ -278,8 +278,8 @@ def test_the_dataflow_draws_one_system(report):
     opened = nested.opened(over, 6.0)
     parts = {p for inner, _near in opened for p in inner['own']}
     strays = [scene.short(tree, p) for p in parts if not any(p in scene.chain(tree, f) for f in files)]
-    report.check("D the robot's dataflow where none is chosen: her pass, every flow between her files, a node "
-                 'opening to her parts alone', state['mirror'] and show_atlas.titled(state, None, 100) == 'DATAFLOW HUMANOID'
+    report.check("D the robot's dataflow where none is chosen: its pass, every flow between its files, a node "
+                 'opening to its parts alone', state['mirror'] and show_atlas.titled(state, None, 100) == 'DATAFLOW HUMANOID'
                  and over['reach'] == files and all(a in files and b in files for a, b, _k, _l in over['flow'])
                  and any(k == passed for _a, _b, k, _l in over['flow']) and opened and not strays
                  and 'aircraft/' not in {scene.short(tree, n) for n in over['marks']},
@@ -296,7 +296,7 @@ def test_the_dataflow_draws_one_system(report):
         seen[name] = (set(loop) <= set(flow) and not streams & set(flow) and show_atlas.placed(state)['reach'] == theirs
                       and all(a in theirs and b in theirs for a, b, _k, _l in flow), len(flow))
     sky = {tree.id[n] for a, b, _k, _l in ticks['host/terminal/views/aerobat/flight.py::flown'] for n in (a, b)}
-    report.check("D again each craft's: the loop of the tick its view flies, none of her pass, every flow between "
+    report.check("D again each craft's: the loop of the tick its view flies, none of its pass, every flow between "
                  "its files - the aerobat's on its own sky", sorted(seen) == sorted(FLYERS) and all(ok for ok, _n in seen.values())
                  and 'host/machine/aircraft/aerobat/sky.py' in sky and 'host/machine/aircraft/helicopter/sky.py' not in sky,
                  str(seen))

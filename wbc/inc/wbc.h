@@ -1,4 +1,4 @@
-/** wbc.h - her chain on static arrays (wbc_model.h): poses, Jacobians, mass matrix and bias,
+/** wbc.h - its chain on static arrays (wbc_model.h): poses, Jacobians, mass matrix and bias,
     the product of exponentials over twists (w, v) in body frames; and the loop over it, the
     asks of R^k into the drives' torques. Portable C11. */
 #ifndef WBC_H
@@ -14,7 +14,7 @@ typedef struct
   double p[3];
 } wbc_frame_t;
 
-/** Her body at one configuration, laid once; filled by the steps below, pose first. */
+/** The robot's body at one configuration, laid once; filled by the steps below, pose first. */
 typedef struct
 {
   wbc_frame_t t[WBC_LINKS];        /**< each link's frame in the world */
@@ -22,7 +22,7 @@ typedef struct
   double      q[WBC_N - 6];        /**< the hinges' angles */
   double      axis[WBC_LINKS][3];  /**< each hinge's axis in the world */
   double      anchor[WBC_LINKS][3];/**< a point on it */
-  double      u[WBC_N];            /**< her velocities, as the bias had them */
+  double      u[WBC_N];            /**< its velocities, as the bias had them */
   double      v[WBC_LINKS][6];     /**< each link's twist in its own frame */
   double      vd[WBC_LINKS][6];    /**< its acceleration, gravity's included */
   double      f[WBC_LINKS][6];     /**< the wrench it passes to its parent */
@@ -51,19 +51,19 @@ void wbc_body_point(const wbc_body_t *b, int link, const double r[3], double out
 /** The point's Jacobian over u in the world: rows w, then v. */
 void wbc_body_jacobian(const wbc_body_t *b, int link, const double r[3], double j[6][WBC_N]);
 
-/** Her centre of mass in the world and its Jacobian over u, at the pose. */
+/** The robot's centre of mass in the world and its Jacobian over u, at the pose. */
 void wbc_body_com(wbc_body_t *b, double com[3], double j[3][WBC_N]);
 
 /** The point's J-dot u in the world, rows w then v: its acceleration were u held (after the bias). */
 void wbc_body_drift(const wbc_body_t *b, int link, const double r[3], double out[6]);
 
-/** Her angular momentum about `com`, world (after the mass matrix and the bias). */
+/** The robot's angular momentum about `com`, world (after the mass matrix and the bias). */
 void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3]);
 
 /** The commanded torques: the drives', then the held joints'. */
 #define WBC_X (WBC_DRIVEN + WBC_HELD)
 /** The loop's variables: every acceleration, then each sole's four corners' forces, world, in
-    shares of her weight (the python stack's scaling: the regularisation stays negligible). */
+    shares of its weight (the python stack's scaling: the regularisation stays negligible). */
 #define WBC_F 12
 /** The slacks: each sole's four centre-of-pressure margins. */
 #define WBC_S 8
@@ -106,8 +106,8 @@ typedef struct
   double kdot[3];
   double settle[2][6];            /**< a standing sole's own acceleration (w, v), world: 0 still */
   double edge[2];                 /**< its centre of pressure toward its ball (1) or heel (-1) */
-  double strides;                 /**< how far she strides, 0 to 1: the floor's shortfall her inertia's */
-  double mu[2];                   /**< each standing sole's friction: her grip (machine.senses.grip) */
+  double strides;                 /**< how far it strides, 0 to 1: the floor's shortfall its inertia's */
+  double mu[2];                   /**< each standing sole's friction: its grip (machine.senses.grip) */
   double lo[WBC_DRIVEN];          /**< each drive's back-EMF bounds, N m (machine.body.bemf): none -inf, inf */
   double hi[WBC_DRIVEN];
 } wbc_ask_t;
@@ -151,7 +151,7 @@ typedef struct
   double jcorner[2][4][3][WBC_N]; /**< each corner's linear Jacobian, world */
   double pcorner[2][4][3];        /**< and where it is */
   double sole_p[2][3];            /**< each sole's middle, world */
-  double fs;                      /**< her weight, N: a corner force variable is a share of it */
+  double fs;                      /**< its weight, N: a corner force variable is a share of it */
   double tc[WBC_DRIVEN][WBC_V];   /**< each drive's torque over the variables, and its offset */
   double toff[WBC_DRIVEN];
   double la[WBC_ROWS][WBC_V];     /**< the level being laid: its rows over the variables, laid again as a solve needs them */
@@ -206,20 +206,20 @@ typedef struct
 
 void wbc_stack_init(wbc_stack_t *s);
 
-/** One tick: her pose and velocity in, the ask in, the torques and the rest out. */
+/** One tick: its pose and velocity in, the ask in, the torques and the rest out. */
 void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
                     const double q[WBC_N - 6], const double u[WBC_N], const wbc_ask_t *ask,
                     wbc_out_t *out);
 
 /** The step without an active set (wbc_wrench.c): its unknowns - six a sole, its wrench where
-    it stands, its acceleration where it does not, then her upper body's drives' accelerations
+    it stands, its acceleration where it does not, then its upper body's drives' accelerations
     - and the joints no drive and no stop holds. */
 #define WBC_U (12 + WBC_DRIVEN - 12)
 /** Its rounds of clipping, and of faces striding. */
 #define WBC_ROUNDS 4
-/** Rounds more, at most, for an answer past her height's band after them (machine.stack.wrench.PAST). */
+/** Rounds more, at most, for an answer past its height's band after them (machine.stack.wrench.PAST). */
 #define WBC_PAST 2
-/** Her law's own friction, a sole's, before she has felt a floor (machine.stack.wbc.MU). */
+/** The robot's law's own friction, a sole's, before it has felt a floor (machine.stack.wbc.MU). */
 #define WBC_MU 0.6
 #define WBC_PASSIVE (WBC_N - 6 - WBC_DRIVEN - WBC_HELD)
 
@@ -230,7 +230,7 @@ typedef struct
   int    upper[WBC_DRIVEN - 12];  /**< the rest of them */
   int    passive[WBC_PASSIVE];    /**< the dofs no drive and no stop holds, and how many */
   int    npassive;
-  int    led[12 + WBC_PASSIVE];   /**< the dofs the pelvis's six move: her legs', the passive */
+  int    led[12 + WBC_PASSIVE];   /**< the dofs the pelvis's six move: its legs', the passive */
   int    reach[WBC_N][2];         /**< the unknowns a dof's row of e reaches this tick: from, before */
   double room[2];                 /**< a sole's centre of pressure within, across and along, m */
   double jsole[2][6][WBC_N];      /**< each sole's Jacobian at its middle, world (w, v) */
@@ -245,7 +245,7 @@ typedef struct
   double p0[6];
   double h[WBC_U][WBC_U];         /**< the rows' normal equations, and a round's, factored */
   double g[WBC_U];
-  double gn[WBC_U];               /**< the rows' right-hand side with nothing asked: every acceleration 0, her weight borne */
+  double gn[WBC_U];               /**< the rows' right-hand side with nothing asked: every acceleration 0, its weight borne */
   double k[WBC_U][WBC_U];
   double gk[WBC_U];
   double mt[WBC_N][6];            /**< striding: M t and M e, t^T M e, (t^T M t) p + t^T M e */
@@ -253,7 +253,7 @@ typedef struct
   double tme[6][WBC_U];
   double xk[6][WBC_U];
   double gi[12][WBC_U];           /**< the metric's inverse's columns a sole's unknowns have */
-  double cf[13][12];              /**< the faces met, over the soles' unknowns; the 13th her height's band */
+  double cf[13][12];              /**< the faces met, over the soles' unknowns; the 13th its height's band */
   double z[13][WBC_U];            /**< the metric's inverse on each */
   double s[13][13];
 } wbc_wrench_t;
@@ -273,8 +273,8 @@ void wbc_cone_bounded(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_
                       const double stance[2], const double x[WBC_U], double at[WBC_U],
                       double moved[WBC_U]);
 
-/** Striding: u0, the rows' answer with the floor unbounded, brought to the faces her soles'
-    wrenches are past by the least change in her kinetic energy's metric, into at; her
+/** Striding: u0, the rows' answer with the floor unbounded, brought to the faces its soles'
+    wrenches are past by the least change in its kinetic energy's metric, into at; its
     height inside lo to hi; mbt the pelvis's rows of M t, own each unknown's own weight. 0
     where the metric has no factor. */
 int wbc_cone_taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],

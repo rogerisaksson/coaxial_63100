@@ -1,11 +1,11 @@
 # The gynoid mesomorph medium's physical, electromechanical and electronic construction:
-# her battery packs, each joint kind's stack of parts from the library (machine/library), her ankle's
-# carbon leaf spring, joints without a drive, clothing over her drives, carbon-epoxy shells, internal
+# its battery packs, each joint kind's stack of parts from the library (machine/library), its ankle's
+# carbon leaf spring, joints without a drive, clothing over its drives, carbon-epoxy shells, internal
 # payloads, limb quick-releases and anthropometric figure. All servo gains, structural wind-up, leaf
 # stiffness, standing/deep-squat equilibria, service bands and Froude-scaled gait laws are derived by
 # the static meta-compiler (`structural`, `drives`, `figure`, `compile`).
 
-# Her two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
+# It two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
 # voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell (A),
 # per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso (m).
 [pack]
@@ -115,7 +115,7 @@ unique = 1.15
 armature_kgm2 = 0.0005
 held_deg = 0.5
 
-# Carbon-epoxy shells over her capsules (`machine/body/build.py`), housing lips/brackets and thermal interfaces.
+# Carbon-epoxy shells over its capsules (`machine/body/build.py`), housing lips/brackets and thermal interfaces.
 [shell]
 wall_m = 0.002
 kg_m3 = 1600.0

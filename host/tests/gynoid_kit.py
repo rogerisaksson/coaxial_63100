@@ -23,7 +23,7 @@ def suite_read():
     return dsp.read(dsp.SUITE)
 
 
-def her_frame():
+def robot_frame():
     from machine.process import worker
     return worker.session()['g']['fr']
 

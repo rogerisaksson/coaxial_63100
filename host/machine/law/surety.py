@@ -1,6 +1,6 @@
-"""Her surety field, how sure she is of her stance: wbc_surety.c's python on her law's arrays.
+"""Its surety field, how sure it is of its stance: wbc_surety.c's python on its law's arrays.
 
-    cur, vec = surety.field(y_in, y, fr, a, st, out, prev, dt, ct, t)   # her law's is its C (`motion.surety`)
+    cur, vec = surety.field(y_in, y, fr, a, st, out, prev, dt, ct, t)   # its law's is its C (`motion.surety`)
 """
 import math
 import os
@@ -14,11 +14,11 @@ from machine.senses import edge
 
 
 def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
-    """(her surety `dt` s on from `prev`, in [0, 1]; (surety along, across, its direction's two,
-    its probe)) of her edge's array `y_in`, modal's `y`, `fr` and `a`, her latent `st` and its
-    `out` alone at her time `t` - `ct` her tilt, deg, where given (nan: her IMU's): highest in a wide
+    """(its surety `dt` s on from `prev`, in [0, 1]; (surety along, across, its direction's two,
+    its probe)) of its edge's array `y_in`, modal's `y`, `fr` and `a`, its latent `st` and its
+    `out` alone at its time `t` - `ct` its tilt, deg, where given (nan: its IMU's): highest in a wide
     double stance, lower on a single walking sole, held in quasi-static equilibrium on a seat or
-    bed, contracting into her 2D tuck-and-brace regime on an unrecoverable topple and absorbing at
+    bed, contracting into its 2D tuck-and-brace regime on an unrecoverable topple and absorbing at
     0. In C bit for bit (`g['surety_field']`, `motion.laid`)."""
     rot = fr[modal.ROT].reshape(3, 3)
     c, v = rot @ y[modal.COM], rot @ y[modal.VCOM]
@@ -36,8 +36,8 @@ def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     w_jump = min(1.0, max(0.0, (k_ax - 15000.0) / 5000.0))
     w, f_soles = np.maximum(np.clip(loads / (0.25 * wt), 0.0, 1.0), w_jump), float(loads.sum()) / wt
     theta = math.radians(float(np.nan_to_num(ct, nan=edge.tilt(y_in))))
-    # what bears her bears her up to lying flat on it: counted from upright, lain on the bed her surety
-    # fell to 0.03 and its brace stood in for her law through her rise; past flat, rolled back over it
+    # what bears it bears it up to lying flat on it: counted from upright, lain on the bed its surety
+    # fell to 0.03 and its brace stood in for its law through its rise; past flat, rolled back over it
     theta_e = max(0.0, theta - max(abs(float(a[modal.WANT][0])), float(a[modal.BORNE]) * (0.5 * math.pi)))
     v_norm = float(np.linalg.norm(v))
     w_ext = min(1.0, max(0.0, (ap_y / modal.G - f_soles) / 0.45)) * math.exp(-(w_gyro / 1.2) ** 2 - (v_norm / 0.18) ** 2 - (theta_e / 0.65) ** 4)
@@ -49,7 +49,7 @@ def field(y_in, y, fr, a, st, out, prev, dt, ct, t):
     mid, span = 0.5 * (b_lo + b_hi), np.maximum(0.5 * (b_hi - b_lo), 0.02)
     # sure of the air where the rows let the polygon go (out[HELD]: a throw, a landing's
     # absorption) - and, kept, the read at the ZMP's slot that is a mode's phase (out[57], PSI):
-    # the seats lie on it (the bed bore 0.00 of her without it; docs/TODO.md)
+    # the seats lie on it (the bed bore 0.00 of it without it; docs/TODO.md)
     w_air = max(0.0, 1.0 - float(out[latent.ZMP]), 1.0 - float(out[latent.HELD]), w_jump)
     w_prop = max(w_ext, float(a[modal.BORNE]), w_air)
     w_sup = min(1.0, 0.42 + 0.30 * float(w[0] + w[1]) + 0.22 * float(max(w[0], w[1])) + 0.55 * w_prop)

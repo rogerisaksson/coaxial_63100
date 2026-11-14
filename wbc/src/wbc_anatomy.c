@@ -1,4 +1,4 @@
-/** wbc_anatomy.c - her moves' anatomy (wbc_move.h): each joint driven as its phase says, her trunk held by her hips -
+/** wbc_anatomy.c - its moves' anatomy (wbc_move.h): each joint driven as its phase says, its trunk held by its hips -
     machine.moves.anatomy's arithmetic operation for operation (wbc_np.h), every branch a select. */
 #include "wbc_move.h"
 #include "wbc_np.h"

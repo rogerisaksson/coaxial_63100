@@ -1,30 +1,30 @@
-"""Her way out of a bed over its end: sat up on her arms, scooted to the edge, seated there.
+"""The robot's way out of a bed over its end: sat up on its arms, scooted to the edge, seated there.
 
-A move her joints play as a program does (`machine.process.joints`), its phases told by what she senses, not by
-the clock alone: lain along the bed, her elbows are set under her shoulders and her hips fold as her arms lift her
-(held straight, the arms lifted her as a plank); her hands set on the bed by her hips; then strokes like an
-earthworm's - her straight arms push back as her knees pull in, her legs stretch, her arms come forward on the bed -
-her buttocks dragging, her hips holding her trunk TRUNK deg back of upright (held by her palms' share of her weight
-instead, a push that lifted her hands opened her hips and she rolled onto her back with her legs in the air). Once
-her shanks bear nothing as her legs stretch her knees are past the edge (on the foam they bear 40-100 N): her knees
-fold to TUCK and her ankles to 0 at the push's own rates as her arms push, her buttocks after her feet (yielding,
-drawn from where they were, her drives' damping undone, her shanks whipped down, 35 of her weight on her shins;
-told to tuck to 110 deg against her planted feet her knees stalled at 85-94, her soles and the bed squeezing 1.5 and
-1.7 of her; drawn freely her feet slid under the mattress onto the bed's frame, which bore 300 N on a foot as she
-stood); seated once her knees fold past KNEE_SEAT on her soles, the push ending there (told at its end alone, a push
-dragged her 0.21 m on, her hips 0.06 m in off the lodge bed's end and 0.15 behind her ankles, and her thrust threw
-her forward off her feet; her soles' share alone told nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding
-0.24 back), her heels on the frame's face. There they go on SETTLE_S s, her heels sliding down its face to the floor
-(left 4 cm up it, her ankles 0.13 m up, not 0.10, her scoot stood her on her toes, her hips 0.00-0.08 m behind her
-ankles, and her seat's upright trunk threw her back up the bed). Then she scoots: her trunk SCOOT_TRUNK deg forward
-off her buttocks, her arms planted where the push left them, her knees and ankles blended to her seat (SEATED_KNEE,
-SEATED_ANKLE), her feet flattening about her heels drag her hips toward them (set out ahead of the frame at 95 and
--20 her hips sat 0.32-0.34 m behind her ankles, where no lean of her trunk, 70 deg, put her over her soles and her
-thrust waited; scooted from her heels on the floor, 0.21-0.23). Then seated, her trunk upright, her arms forward: her
-law's seat, whose handover stands her up. Its phases are a table (PHASES), every branch a select; its arithmetic is
-wbc_bedexit.c's, bit for bit (`tools.cores.bedexit`, what her loop plays).
+A move its joints play as a program does (`machine.process.joints`), its phases told by what it senses, not by
+the clock alone: lain along the bed, its elbows are set under its shoulders and its hips fold as its arms lift it
+(held straight, the arms lifted it as a plank); its hands set on the bed by its hips; then strokes like an
+earthworm's - its straight arms push back as its knees pull in, its legs stretch, its arms come forward on the bed -
+its buttocks dragging, its hips holding its trunk TRUNK deg back of upright (held by its palms' share of its weight
+instead, a push that lifted its hands opened its hips and it rolled onto its back with its legs in the air). Once
+its shanks bear nothing as its legs stretch its knees are past the edge (on the foam they bear 40-100 N): its knees
+fold to TUCK and its ankles to 0 at the push's own rates as its arms push, its buttocks after its feet (yielding,
+drawn from where they were, its drives' damping undone, its shanks whipped down, 35 of its weight on its shins;
+told to tuck to 110 deg against its planted feet its knees stalled at 85-94, its soles and the bed squeezing 1.5 and
+1.7 of it; drawn freely its feet slid under the mattress onto the bed's frame, which bore 300 N on a foot as it
+stood); seated once its knees fold past KNEE_SEAT on its soles, the push ending there (told at its end alone, a push
+dragged its 0.21 m on, its hips 0.06 m in off the lodge bed's end and 0.15 behind its ankles, and its thrust threw
+it forward off its feet; its soles' share alone told nothing: 0.59 at a push's end lifted 0.26 m back, 0.48 sliding
+0.24 back), its heels on the frame's face. There they go on SETTLE_S s, its heels sliding down its face to the floor
+(left 4 cm up it, its ankles 0.13 m up, not 0.10, its scoot stood it on its toes, its hips 0.00-0.08 m behind its
+ankles, and its seat's upright trunk threw it back up the bed). Then it scoots: its trunk SCOOT_TRUNK deg forward
+off its buttocks, its arms planted where the push left them, its knees and ankles blended to its seat (SEATED_KNEE,
+SEATED_ANKLE), its feet flattening about its heels drag its hips toward them (set out ahead of the frame at 95 and
+-20 its hips sat 0.32-0.34 m behind its ankles, where no lean of its trunk, 70 deg, put it over its soles and its
+thrust waited; scooted from its heels on the floor, 0.21-0.23). Then seated, its trunk upright, its arms forward: its
+law's seat, whose handover stands it up. Its phases are a table (PHASES), every branch a select; its arithmetic is
+wbc_bedexit.c's, bit for bit (`tools.cores.bedexit`, what its loop plays).
 
-    state = bedexit.laid(q_deg, t)                                     # from where she lies, at t s
+    state = bedexit.laid(q_deg, t)                                     # from where it lies, at t s
     done = bedexit.step(state, cmd, q_deg, t, dt, soles, shins, pitch)  # cmd (deg, figure.JOINTS) laid over
 """
 import math
@@ -43,18 +43,18 @@ PARTS = ('hip', 'knee', 'ankle', 'shoulder', 'elbow', 'spine')
 JOINT = np.array([J[side + part] for part in PARTS[:-1] for side in ('left_', 'right_')] + [J['spine']])
 PART = np.array([k for k in range(len(PARTS) - 1) for _side in range(2)] + [len(PARTS) - 1])
 KNEES = JOINT[PART == PARTS.index('knee')]
-#: How a goal is reached: blended in over its phase from where the phase began, her sensed angle and the goal past
-#: it, or drawn toward from her sensed angle by PULL deg at most, yielding past it; else a rate, deg/s.
+#: How a goal is reached: blended in over its phase from where the phase began, its sensed angle and the goal past
+#: it, or drawn toward from its sensed angle by PULL deg at most, yielding past it; else a rate, deg/s.
 BLEND, FOLLOW, TOWARD = 0.0, -1.0, -2.0
-#: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove bed-exit`, moves.lisp): her
-#: hips' gain on her trunk (deg/s a deg) and range (deg); past the edge her shanks' share under which they hang, a
-#: pull's most past where they are (TOWARD, deg); seated, her soles' share and her knees' fold (deg); the strokes.
+#: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove bed-exit`, moves.lisp): its
+#: hips' gain on its trunk (deg/s a deg) and range (deg); past the edge its shanks' share under which they hang, a
+#: pull's most past where they are (TOWARD, deg); seated, its soles' share and its knees' fold (deg); the strokes.
 _MOVE = anatomy.move('bed-exit')
 TRUNK_GAIN, HIP_LO, HIP_HI, SHIN_SHARE, PULL, SOLE_SHARE, KNEE_SEAT, STROKES = (_MOVE['constants'][k] for k in (
     'trunk-gain', 'hip-lo', 'hip-hi', 'shin-share', 'pull', 'sole-share', 'knee-seat', 'strokes'))
 #: How the lisp says a goal is reached: BLEND .. TOWARD, a number its rate.
 _BY = {':blend': BLEND, ':follow': FOLLOW, ':toward': TOWARD}
-#: The phases: (name, s, the next, {part: (deg, how)}, past the edge {part: (deg, how)}, the trunk her hips hold or
+#: The phases: (name, s, the next, {part: (deg, how)}, past the edge {part: (deg, how)}, the trunk its hips hold or
 #: None); no seconds, never by the clock.
 PHASES = tuple((p['name'].lstrip(':'), p.get('seconds', math.inf), p['next'].lstrip(':'),
                 {part: (deg, _BY[by] if isinstance(by, str) else by) for part, (deg, by) in p.get('goals', {}).items()},
@@ -62,10 +62,10 @@ PHASES = tuple((p['name'].lstrip(':'), p.get('seconds', math.inf), p['next'].lst
                 p.get('trunk'))
                for p in _MOVE['phases'])
 NAMES = tuple(phase[0] for phase in PHASES)
-#: The push (it counts the strokes and tells her seated), the stretch (it tells her past the edge), the settle (where
-#: she goes seated), the end.
+#: The push (it counts the strokes and tells its seated), the stretch (it tells it past the edge), the settle (where
+#: it goes seated), the end.
 PUSHED, STRETCHED_AT, SEATED, DONE = (NAMES.index(name) for name in ('push', 'stretch', 'settle', 'done'))
-#: PHASES as flat tables: each phase's length, the next, the trunk her hips hold and whether they do; each part's
+#: PHASES as flat tables: each phase's length, the next, the trunk its hips hold and whether they do; each part's
 #: goal, how it is reached (`anatomy`'s HELD .. TOWARD) and its rate or pull, on the bed and past its edge.
 LENGTH = np.array([phase[1] for phase in PHASES])
 NEXT = np.array([NAMES.index(phase[2]) for phase in PHASES], float)
@@ -85,7 +85,7 @@ PHASE, AT, COUNT, OVER, FROM = 0, 1, 2, 3, 4
 
 
 def laid(q_deg, t):
-    """The move's state from her pose `q_deg` (deg, figure.JOINTS) at `t` s: its first phase, nothing done."""
+    """The move's state from its pose `q_deg` (deg, figure.JOINTS) at `t` s: its first phase, nothing done."""
     state = np.zeros(FROM + len(JOINTS))
     state[AT] = t
     state[FROM:] = q_deg
@@ -93,8 +93,8 @@ def laid(q_deg, t):
 
 
 def step(state, cmd, q_deg, t, dt, soles, shins, pitch):
-    """A pass of the move at `t`, `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, her pose `q_deg` (deg),
-    her soles' and shanks' share of her weight and her trunk's pitch (deg) sensed; 1.0 once she sits on the edge."""
+    """A pass of the move at `t`, `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, its pose `q_deg` (deg),
+    its soles' and shanks' share of its weight and its trunk's pitch (deg) sensed; 1.0 once it sits on the edge."""
     k, el, over = int(state[PHASE]), t - state[AT], state[OVER] > 0.5
     a, x, start = min(el / LENGTH[k], 1.0), cmd[JOINT], state[FROM + JOINT]
     how = np.where(over, HOW_OVER[k, PART], HOW[k, PART])

@@ -1,17 +1,17 @@
-"""Her body's footprint by height, and the gap it leaves each of her things.
+"""The robot's body's footprint by height, and the gap it leaves each of its things.
 
     gap = footprint.gaps(poses, footprint.reach('stand'), things, floor)   # (N, M) m, pose by thing
-    h = footprint.swept(180.0, 1.0)        # (bands, K) m: a half turn to her left, about where it began
-    fwd, left = footprint.carry(180.0, 1.0)   # m: where that turn ends her pelvis, forward and left
+    h = footprint.swept(180.0, 1.0)        # (bands, K) m: a half turn to its left, about where it began
+    fwd, left = footprint.carry(180.0, 1.0)   # m: where that turn ends its pelvis, forward and left
     e = footprint.spread(180.0, 1.0)       # m: the most an end lay off that
     s = footprint.took(180.0)              # s: the most that turn takes, word to still
 
-Her reach is `footprint_rows`' (`tools/cores/footprint.py`, laid from her own motions on her loop): a
-band each BAND_M over her soles' floor, a direction each 2 pi / K from her heading toward her left. A
-thing meets the bands its box spans over the floor - its top within her soles' touch of the floor is
-floor (`leap.TOUCH_M`), its bottom over her head nothing. The gap is the most, over separating axes, of
-the thing's least extent along an axis less her most: her K directions, and the thing's two axes either
-way, her reach along one the more of her two directions round it over cos(pi / K) - so never more than
+Its reach is `footprint_rows`' (`tools/cores/footprint.py`, laid from its own motions on its loop): a
+band each BAND_M over its soles' floor, a direction each 2 pi / K from its heading toward its left. A
+thing meets the bands its box spans over the floor - its top within its soles' touch of the floor is
+floor (`leap.TOUCH_M`), its bottom over its head nothing. The gap is the most, over separating axes, of
+the thing's least extent along an axis less its most: its K directions, and the thing's two axes either
+way, its reach along one the more of it two directions round it over cos(pi / K) - so never more than
 the true gap: two shapes touching never read apart.
 """
 import functools
@@ -29,7 +29,7 @@ TOOK = tuple(max(a, b) for a, b in zip(footprint_rows.TOOK_LEFT, footprint_rows.
 
 @functools.lru_cache(maxsize=1)
 def _laid():
-    """Her rows as arrays: {mode: (bands, K)}, {way: [(bands, K) a turn]}, (K,) her directions, rad."""
+    """Its rows as arrays: {mode: (bands, K)}, {way: [(bands, K) a turn]}, (K,) its directions, rad."""
     import numpy as np
     modes = {m: np.array(getattr(footprint_rows, m.upper())) for m in ('stand', 'walk', 'back', 'side')}
     swept = {1.0: [np.array(h) for h in footprint_rows.LEFT], -1.0: [np.array(h) for h in footprint_rows.RIGHT]}
@@ -37,7 +37,7 @@ def _laid():
 
 
 def reach(mode):
-    """(bands, K) m: her reach about her pelvis in her own frame in `mode` (stand, walk, back, side)."""
+    """(bands, K) m: its reach about its pelvis in its own frame in `mode` (stand, walk, back, side)."""
     return _laid()[0][mode]
 
 
@@ -47,18 +47,18 @@ def _bin(deg):
 
 
 def swept(deg, way):
-    """(bands, K) m: her reach over a turn in place of `deg` toward `way` (+1 left) and its settling, about
-    her pelvis's place and heading as it began - the least of TURN_DEG holding it -; None past a half turn."""
+    """(bands, K) m: its reach over a turn in place of `deg` toward `way` (+1 left) and its settling, about
+    its pelvis's place and heading as it began - the least of TURN_DEG holding it -; None past a half turn."""
     return _laid()[1][way][_bin(deg)] if deg <= TURN_DEG[-1] + 1e-6 else None
 
 
 def carry(deg, way):
-    """(forward, left) m: her pelvis's end after a turn of `deg` toward `way`, in its start's frame."""
+    """(forward, left) m: its pelvis's end after a turn of `deg` toward `way`, in its start's frame."""
     return CARRY[way][_bin(deg)]
 
 
 def spread(deg, way):
-    """m: the most such a turn's end lay off its mean carry from still, her soles bearing alike."""
+    """m: the most such a turn's end lay off its mean carry from still, its soles bearing alike."""
     return SPREAD[way][_bin(deg)]
 
 
@@ -73,7 +73,7 @@ _THINGS: list = [None, None, {}]
 
 def _laid_things(things):
     """((M,) bottoms, (M,) tops, (M, 2) footprints' centres, (M, 2, 2) axes, (M, 2) half sizes) of `things`, and their
-    meetings (`met`), laid once a list - nothing writes into her things -: a dock's ask reads them some 220 times
+    meetings (`met`), laid once a list - nothing writes into its things -: a dock's ask reads them some 220 times
     (`dock.docked`), laid each its footprints were 343 thousand an errand."""
     import numpy as np
     if _THINGS[0] is not things:
@@ -85,8 +85,8 @@ def _laid_things(things):
 
 
 def met(things, floor, h):
-    """((M,) whether each thing meets her, (M, K) her reach `h` toward it along each of her directions -
-    the most over the bands its box spans over `floor`), kept with her things (`_laid_things`) by `floor` and `h`."""
+    """((M,) whether each thing meets it, (M, K) its reach `h` toward it along each of its directions -
+    the most over the bands its box spans over `floor`), kept with its things (`_laid_things`) by `floor` and `h`."""
     import numpy as np
     (bottoms, tops, *_prints), meetings = _laid_things(things)
     got = meetings.get((floor, id(h)))
@@ -101,10 +101,10 @@ def met(things, floor, h):
 
 
 def gaps(poses, h, things, floor):
-    """(N, M) m: each pose's (x, z, heading) least gap from her reach `h` (bands, K) to each of `things`
-    (boxes: kind, centre, half sizes, turn) over `floor`, inf where the thing meets none of her bands. Each sum
+    """(N, M) m: each pose's (x, z, heading) least gap from its reach `h` (bands, K) to each of `things`
+    (boxes: kind, centre, half sizes, turn) over `floor`, inf where the thing meets none of its bands. Each sum
     over a pair numpy's einsum's written out - its two products added into a zero, the same bits (`gaps_twin` the
-    einsums) -: a peek's dock was 735 ms in einsum's loops; her things' arrays laid once a list."""
+    einsums) -: a peek's dock was 735 ms in einsum's loops; its things' arrays laid once a list."""
     import numpy as np
     phi = _laid()[2]
     poses = np.asarray(poses, float).reshape(-1, 3)

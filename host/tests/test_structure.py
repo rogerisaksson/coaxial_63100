@@ -274,16 +274,16 @@ def test_motor_imports_no_board(r):
             ', '.join(importers))
 
 
-#: Her motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
+#: Its motion pass: what `machine.law.motion` steps. It reads the world through `machine.senses.edge` alone.
 LAW = ('law/motion', 'law/se2', 'moves/leap', 'law/support', 'law/latent', 'law/impedance', 'law/modal', 'law/poise',
        'law/stride', 'law/treads', 'law/vault', 'law/rocker', 'senses/estimate', 'stack/wrench', 'stack/wbc', 'body/reach', 'senses/touch', 'senses/situation',
        'senses/borne', 'senses/grip')
-#: Her motion pass in C: its bindings and their sources name no world and no MuJoCo.
+#: The robot's motion pass in C: its bindings and their sources name no world and no MuJoCo.
 LAW_C = tuple('tools/cores/%s.py' % m for m in ('motion', 'surety', 'touch', 'twist', 'wait', 'bedexit', 'scoot', 'brace'))
 LAW_C_SOURCES = tuple('wbc_%s.c' % m for m in ('imp', 'latched', 'poses', 'stride', 'poise', 'floor', 'surety', 'touch', 'twist', 'wait', 'anatomy', 'bedexit', 'scoot',
                                                  'brace', 'law', 'blas'))
-#: What her law may not name: the world, its truth, its ids, the writes that move it, the world's
-#: own modules. Her model posed is wbc.sense's and estimate.step's alone.
+#: What its law may not name: the world, its truth, its ids, the writes that move it, the world's
+#: own modules. The robot's model posed is wbc.sense's and estimate.step's alone.
 TRUTH = {'world', 'obstacle_ids', 'sill_ids', 'upper_ids', 'robot_ids', 'push_until', 'push_n',
          'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'mocap_quat'}
 WORLDS, POSED = ('machine.world.physics', 'machine.world.floor', 'machine.world.room', 'machine.rig.buses'), {'sense', 'step'}
@@ -310,10 +310,10 @@ def _word(node):
     return None
 
 
-def test_her_law_reads_her_sensors_alone(r):
-    """Her law names no world, none of its truth or ids, no shove and none of its modules; only
-    her model's posing writes qpos or qvel. A chair moved under her mid-hop, obstacles found by
-    their ids and a shove's newtons choosing her reaction were in it once."""
+def test_its_law_reads_its_sensors_alone(r):
+    """Its law names no world, none of its truth or ids, no shove and none of its modules; only
+    its model's posing writes qpos or qvel. A chair moved under its mid-hop, obstacles found by
+    their ids and a shove's newtons choosing its reaction were in it once."""
     named, posed = [], []
     for name in LAW:
         tree = ast.parse(open(os.path.join(HOST, 'machine', *name.split('/')) + '.py', encoding='utf-8').read())
@@ -335,13 +335,13 @@ def test_her_law_reads_her_sensors_alone(r):
         text = open(os.path.join(HOST, os.pardir, 'wbc', 'src', name), encoding='utf-8').read()
         named += ['%s %s' % (name, word) for word in ('mujoco', 'mjData', 'mjModel', 'world', 'xfrc')
                   if word in text]
-    r.check("her law names none of the world's state, its ids, its shove or its modules - nor her law in C",
+    r.check("its law names none of the world's state, its ids, its shove or its modules - nor its law in C",
             not named, ', '.join(named[:6]))
-    r.check("only her model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
+    r.check("only its model's posing (wbc.sense, estimate.step) writes qpos or qvel", not posed,
             ', '.join(posed[:6]))
 
 
-#: Her gym over her law, and the crafts' flight laws.
+#: The robot's gym over its law, and the crafts' flight laws.
 GYM = ('process/sprung', 'process/worker', 'way/tour')
 AERO_LAWS = tuple('aircraft/' + n for n in ('aerokin', 'wingborne', 'helicopter/law', 'helicopter/kit',
                                               'ornithopter/law', 'aerobat/law'))
@@ -349,7 +349,7 @@ MOVES = ('qpos', 'qvel', 'ctrl', 'xfrc_applied', 'qfrc_applied', 'mocap_pos', 'm
          'target', 'feed', 'rate', 'limit')
 
 
-def test_the_gym_moves_her_through_the_world_alone(r):
+def test_the_gym_moves_it_through_the_world_alone(r):
     """The gym and the aircraft flight laws write none of the world's state or drive arrays
     directly: a lay, a scene and a shove are the world's own calls (`physics.World.reset`, `.scenario`,
     `.push`), and drives are told on their
@@ -459,7 +459,7 @@ ROSTER = (test_every_file_fits_a_reading, test_imports, test_no_undefined_names,
           test_reexports, test_stand_ins_answer_every_call, test_no_duplicate_definitions,
           test_no_unused_imports, test_numpy_enters_behind_the_thread_cap,
           test_machine_imports_no_board, test_motor_imports_no_board,
-          test_her_law_reads_her_sensors_alone, test_the_gym_moves_her_through_the_world_alone, test_shape,
+          test_its_law_reads_its_sensors_alone, test_the_gym_moves_it_through_the_world_alone, test_shape,
           test_documented, test_no_escaping_scars, test_twins_and_errand_rows)
 
 def main(argv=None):

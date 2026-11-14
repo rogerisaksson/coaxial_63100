@@ -1,4 +1,4 @@
-"""Her boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
+"""Its boards on their buses: a limb's boards a process, the host's Modbus RTU frames real bytes.
 
     block = Block(joints, buses); buses = Buses(block, limbs)   # World.wire: the processes up
     bus.arm(index); bus.short(index); bus.off(index)            # gate writes - the next pass

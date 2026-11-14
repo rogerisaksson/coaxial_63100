@@ -1,26 +1,26 @@
-"""Where she docks at a thing: the face, her place along it, where she stands to turn onto it.
+"""Where it docks at a thing: the face, its place along it, where it stands to turn onto it.
 
-    laid = dock.docked((x, z), things, floor, 'sit_chair', box, standoff)   # her dock and stage on `box`; None where none fits
-    way = dock.turns(g, (x, z), heading, to, first)     # the way her turn in place clears her things, 0 none
-    verbs = dock.docks()                                # her errands' verbs and how each docks
+    laid = dock.docked((x, z), things, floor, 'sit_chair', box, standoff)   # its dock and stage on `box`; None where none fits
+    way = dock.turns(g, (x, z), heading, to, first)     # the way its turn in place clears its things, 0 none
+    verbs = dock.docks()                                # its errands' verbs and how each docks
 
-A seat or a bed: her heels its stunt's standoff off the face's edge, facing away, her hips within the
-face - on a seat over her shins her fists set beside them (`seated.placed`): her hips' 0.21 m let her land
-0.151 m aside and a fist met no seat; one her legs reach no floor from (`seated.reaches`) no dock. She stands on the face's normal the least out that her turn in place onto the dock - from each of
-her ARRIVALS, still, her soles bearing alike (`even`), its sweep as measured so
-(`footprint.swept`) - leaves each thing she sees, by its own height against her body's bands, her skin,
-that turn's spread (`footprint.spread`) and her stop's spread along her arrival toward the face
-(`wayfinder.MARGIN`, `se2.STOP_SPREAD_M`): at her skin alone she turned 1.6-4.2 cm off and touched -,
-and her walk back from there onto the dock, its arms' swing with it, leaves them her skin: a hand met
+A seat or a bed: its heels its stunt's standoff off the face's edge, facing away, its hips within the
+face - on a seat over its shins its fists set beside them (`seated.placed`): its hips' 0.21 m let it land
+0.151 m aside and a fist met no seat; one its legs reach no floor from (`seated.reaches`) no dock. It stands on the face's normal the least out that its turn in place onto the dock - from each of
+its ARRIVALS, still, its soles bearing alike (`even`), its sweep as measured so
+(`footprint.swept`) - leaves each thing it sees, by its own height against its body's bands, its skin,
+that turn's spread (`footprint.spread`) and its stop's spread along its arrival toward the face
+(`wayfinder.MARGIN`, `se2.STOP_SPREAD_M`): at its skin alone it turned 1.6-4.2 cm off and touched -,
+and its walk back from there onto the dock, its arms' swing with it, leaves them its skin: a hand met
 the loft beside the chair; no
-distance of its own: staged a stride past her back's end (0.52 m), she settled 0.3-1.2 m out and backed
-0.3-1.3 m. Turned, she backs the few cm left onto the dock. Her stage out to her turn's carry, a cell and
-her stop's spread: where she stops nearest, her aim less that spread, her turn ends her a cell off the
-dock - out to her carry and a cell alone, her walk's stop spread 0.06 -> 0.13 m (1.16 m/s) left the
-chair and the bed no stage, 1.8-2.6 cm short 0.47 m out. The faces her stunt's patch docks her at first
-(`furniture.first`: a bed's ends, its sides only where no end is hers to reach), the face's middle first,
-then the face her walk reaches soonest. Staged her stopping distance and a stride out
-(1.17 m), she backed 0.37-1.03 m after her turn, in 3.9-8.3 s.
+distance of its own: staged a stride past its back's end (0.52 m), it settled 0.3-1.2 m out and backed
+0.3-1.3 m. Turned, it backs the few cm left onto the dock. Its stage out to its turn's carry, a cell and
+its stop's spread: where it stops nearest, its aim less that spread, its turn ends it a cell off the
+dock - out to its carry and a cell alone, its walk's stop spread 0.06 -> 0.13 m (1.16 m/s) left the
+chair and the bed no stage, 1.8-2.6 cm short 0.47 m out. The faces its stunt's patch docks it at first
+(`furniture.first`: a bed's ends, its sides only where no end is its own to reach), the face's middle first,
+then the face its walk reaches soonest. Staged its stopping distance and a stride out
+(1.17 m), it backed 0.37-1.03 m after its turn, in 3.9-8.3 s.
 """
 import functools
 import heapq
@@ -33,22 +33,22 @@ from machine.moves import seated
 from machine.eyes import voxels
 from machine.way import wayfinder
 
-#: Her arrivals off facing the face, rad: head on, aslant either way, along it either way.
+#: The robot's arrivals off facing the face, rad: head on, aslant either way, along it either way.
 ARRIVALS = tuple(k * 0.25 * math.pi for k in (0, 1, -1, 2, -2))
 
 
 def docks():
-    """How each errand docks, kind -> (her half across that lands within the face - her hips on a seat,
-    her hanging hands on a bed she lies along and in the doorway -, m; her run in through the door, m, None
-    where she turns onto a dock). Her hips within its end, she landed 0.25 m off its middle and lay over
+    """How each errand docks, kind -> (it half across that lands within the face - its hips on a seat,
+    its hanging hands on a bed it lies along and in the doorway -, m; its run in through the door, m, None
+    where it turns onto a dock). Its hips within its end, it landed 0.25 m off its middle and lay over
     its corner, 16 deg off its axis."""
     return {'sit_chair': (figure.HIP_HALF, None), 'lie_bed': (figure.ASIDE, None), 'leg_bed': (figure.ASIDE, None),
             'exit_door': (figure.ASIDE, 4.0 * stride.STRIDE_M)}
 
 
 def shown(er):
-    """Errand `er`'s docks as the page draws them - {'at': [(x, y, z)] each face her wayfinder reached
-    (`docked`'s 'reach') on its top, 'chosen' the one her planner laid} -, None before its answer."""
+    """Errand `er`'s docks as the page draws them - {'at': [(x, y, z)] each face its wayfinder reached
+    (`docked`'s 'reach') on its top, 'chosen' the one its planner laid} -, None before its answer."""
     if not er or not er.get('docks'):
         return None
     hn = math.atan2(er['nx'], er['nz'])
@@ -63,7 +63,7 @@ def _floor(g):
 
 
 def _ways(heading, to):
-    """[(way, deg)]: her turns in place from `heading` onto `to` a half turn at most, +1 left, -1 right."""
+    """[(way, deg)]: its turns in place from `heading` onto `to` a half turn at most, +1 left, -1 right."""
     return [(w, d) for w in (1.0, -1.0) for d in (math.degrees((w * (to - heading)) % math.tau),) if d <= 180.0 + 1e-6]
 
 
@@ -72,8 +72,8 @@ def _gap(things, at, heading, way, deg, floor):
 
 
 def turns(g, at, heading, to, first):
-    """The way (+1 left, -1 right) her turn in place from `at` (x, z) facing `heading` onto `to` leaves
-    her things her skin and its own end's spread, its sweep as measured from a walk's stop, `first` tried
+    """The way (+1 left, -1 right) its turn in place from `at` (x, z) facing `heading` onto `to` leaves
+    its things its skin and its own end's spread, its sweep as measured from a walk's stop, `first` tried
     first; 0 where neither does."""
     floor = _floor(g)
     fits = {w: _gap(g['things'], at, heading, w, d, floor) >= wayfinder.MARGIN + footprint.spread(d, w)
@@ -89,13 +89,13 @@ def _leap():
 
 
 def even(g, e=None):
-    """Whether her soles bear her alike, within a sole's touch (`leap.TOUCH_N`) of each other, held half
-    her stride's period (`se2.BRAKE_S`) where an errand `e` keeps the time: still after a walk's stop her
+    """Whether its soles bear its alike, within a sole's touch (`leap.TOUCH_N`) of each other, held half
+    its stride's period (`se2.BRAKE_S`) where an errand `e` keeps the time: still after a walk's stop its
     weight swings sole to sole 1.0-1.5 s (349/4 N to 94/211 to 153/153), crossing alike on the way;
-    turned mid-swing she pivoted anywhere from 0.44 m behind her to 0.28 ahead, alike on the balls of her
-    soles turning left (0.10 m ahead) and on their middle turning right (within 0.01). Or her weight's
-    split held within a sole's touch as long - her swing over where it ended: stood still at 164/141 N,
-    still her soles never crossed alike and she waited at the door's stage 30 s and more."""
+    turned mid-swing it pivoted anywhere from 0.44 m behind it to 0.28 ahead, alike on the balls of its
+    soles turning left (0.10 m ahead) and on their middle turning right (within 0.01). Or its weight's
+    split held within a sole's touch as long - its swing over where it ended: stood still at 164/141 N,
+    still its soles never crossed alike and it waited at the door's stage 30 s and more."""
     leap = _leap()
     split = float(g['loads'][0]) - float(g['loads'][1])
     alike = abs(split) <= leap.TOUCH_N
@@ -108,7 +108,7 @@ def even(g, e=None):
 
 
 def walked(at, cells):
-    """(nx, nz) m her walk over `cells`' free ones from `at` (x, z), inf where none reaches."""
+    """(nx, nz) m its walk over `cells`' free ones from `at` (x, z), inf where none reaches."""
     import numpy as np
     from machine.way import route
     from machine.eyes import sight
@@ -128,11 +128,11 @@ def walked(at, cells):
 
 
 def docked(at, things, floor, sc, box, standoff):
-    """Errand `sc`'s dock on her thing `box` among `things` over `floor`, from `at` (x, z) - {'hn' the
-    face's outward heading, 'face' its normal (x, z), 'edge' its edge's point she docks at (x, z),
-    'lat_tol' how far along the edge she may land off that point, 'd_stage' m out along the face's
-    normal she stands to turn, 'stage' (x, z)} -, None where none fits: the face's middle first, then
-    the face her walk reaches soonest. At the door its face her walk reaches soonest, her run in its
+    """Errand `sc`'s dock on its thing `box` among `things` over `floor`, from `at` (x, z) - {'hn' the
+    face's outward heading, 'face' its normal (x, z), 'edge' its edge's point it docks at (x, z),
+    'lat_tol' how far along the edge it may land off that point, 'd_stage' m out along the face's
+    normal it stands to turn, 'stage' (x, z)} -, None where none fits: the face's middle first, then
+    the face its walk reaches soonest. At the door its face its walk reaches soonest, its run in its
     stage."""
     import numpy as np
     from machine.way import affordance, furniture, route
@@ -164,8 +164,8 @@ def docked(at, things, floor, sc, box, standoff):
         return footprint.gaps(poses, h, things, floor).min(axis=1, initial=math.inf)
 
     def turned(edge, hn, n, a):
-        """(len(outs),) whether her turn onto the dock from arrival `a` at each stage, and where her stop's
-        spread along `a` toward the face carries her nearest, leaves her things her skin and its end's spread."""
+        """(len(outs),) whether its turn onto the dock from arrival `a` at each stage, and where its stop's
+        spread along `a` toward the face carries its nearest, leaves its things its skin and its end's spread."""
         heading, stop = hn + math.pi + a, se2.STOP_SPREAD_M * max(0.0, math.cos(a))
         poses = np.column_stack([edge + outs[:, None] * n, np.full(len(outs), heading)])
         near = np.column_stack([edge + (outs - stop)[:, None] * n, np.full(len(outs), heading)])
@@ -173,7 +173,7 @@ def docked(at, things, floor, sc, box, standoff):
                        >= wayfinder.MARGIN + footprint.spread(d, w) for w, d in _ways(heading, hn)], axis=0)
 
     def backed(edge, hn, n):
-        """(len(outs),) whether her walk back from each stage onto the dock leaves her things her skin."""
+        """(len(outs),) whether its walk back from each stage onto the dock leaves its things its skin."""
         b = np.arange(s_dock, outs[-1] + 1e-9, 0.5 * voxels.CELL_M)
         ok = gaps(np.column_stack([edge + b[:, None] * n, np.full(len(b), hn)]), footprint.reach('back')) >= wayfinder.MARGIN
         return np.array([bool(ok[b <= s + 1e-9].all()) for s in outs])
@@ -190,7 +190,7 @@ def docked(at, things, floor, sc, box, standoff):
         return {'hn': hn, 'face': tuple(n), 'edge': tuple(edge), 'lat_tol': lat, 'd_stage': s, 'stage': tuple(stage),
                 'key': (walk == math.inf, rank, off, walk)}
 
-    # by their offsets along the face, the first her walk reaches ending it: none further out beats it
+    # by their offsets along the face, the first its walk reaches ending it: none further out beats it
     best, reach = None, {}
     for _off, level in itertools.groupby(sorted(rows, key=lambda r: r[0]), key=lambda r: r[0]):
         found = [laid(r) for r in level]

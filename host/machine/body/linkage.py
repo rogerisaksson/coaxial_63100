@@ -1,4 +1,4 @@
-"""Her transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts.
+"""Its transmissions off a joint's axis: the ankle's rods, the trunk roll's four-bar, spurs, belts.
 
 A rod a four-bar - a crank on its drive, a rigid carbon rod on two ball joints, the heel's horn
 -; the ankle a parallel pair (PAIRS), its two drives' rods turning its pitch together and its roll
@@ -23,7 +23,7 @@ _ROBOT = mechatronics.robot()
 _LINK = _ROBOT['linkage']
 _SEG_AT = _ROBOT['figure']['segments']
 
-#: Off-axis transmissions read from `[linkage]` in her build (`machine.body.mechatronics`):
+#: Off-axis transmissions read from `[linkage]` in its build (`machine.body.mechatronics`):
 #: parallel push-pull carbon rods (`RODS`, `ROD_AT`, `BENDS`, `PAIRS`, `ROLLED`), toothed belts
 #: (`BELTS`), spur pairs (`GEARS`), planar four-bars (`PLANAR`), and bevel stages (`BEVELS`).
 RODS = {k: ((float(r['up']), float(r['ahead']), float(r['crank_m']), math.radians(float(r['crank_deg'])),
@@ -81,14 +81,14 @@ def _local(point, pin, ball, across, side):
 
 def bent(kind, pin, ball, across, side):
     """A rod's bend, world, from its ends `pin` and `ball` and its limb's x `across` (unit), `side`
-    1 her left and -1 her right: its rest's place (`BENDS`) in the frame they make now."""
+    1 its left and -1 its right: its rest's place (`BENDS`) in the frame they make now."""
     frame = _frame(pin, ball, across, side)
     return tuple(p + sum(c * axis[i] for c, axis in zip(_bend(kind), frame))
                  for i, p in enumerate(pin))
 
 
 def joints(kind):
-    """The joints of a kind: her left's and her right's, or the trunk's one."""
+    """The joints of a kind: its left's and its right's, or the trunk's one."""
     from machine.body.figure import JOINTS
     return [j for j in ('left_' + kind, 'right_' + kind, kind) if j in JOINTS]
 

@@ -1,26 +1,26 @@
-"""Her loop's latent, impedance and wrench layers live, for a debugger or the local model to attach to.
+"""Its loop's latent, impedance and wrench layers live, for a debugger or the local model to attach to.
 
-    snap = introspect.snapshot(s)                 # a law pass's layers and her body, named, JSON-able
+    snap = introspect.snapshot(s)                 # a law pass's layers and its body, named, JSON-able
     server = introspect.attach(s, port)            # serve them on 127.0.0.1:port, a JSON line a pass
     rows = introspect.read(port, n=10)             # a client: the next n snapshots
-    told = introspect.events(port, seconds=8)       # her analyzers' events over 8 s (`watch`)
+    told = introspect.events(port, seconds=8)       # its analyzers' events over 8 s (`watch`)
     notices = introspect.gated(port, {'tag': 'lie', 'count': 2}, 30)   # a gate armed on them (`gate`)    python -m machine.process.introspect --attach 8765     # the same from a shell, a JSON line each
-    python -m machine.process.introspect --attach 8765 --events   # her analyzers' events alone, a line each
+    python -m machine.process.introspect --attach 8765 --events   # its analyzers' events alone, a line each
     python -m machine.process.introspect --attach 8765 --gate support.fall --tag fall   # a gate's notices
 
-The layers as her loop leaves them each law pass (`motion.control`): latent - her state's rows and
-her latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it
+The layers as its loop leaves them each law pass (`motion.control`): latent - its state's rows and
+its latent out (`latent.step`); impedance - the modal ask (`impedance.ask`) and the step's ask it
 makes; wrench - the whole-body step's answer (`wrench.step`: tau, qacc, contact forces, ..); observer -
-what bears her as her observer splits it, against her skin (`observer.named`); contacts - the contacts
-her step was given, each named (`borne.named`). Traced (`calls.Calls`), a
-snapshot carries what her law called since the last, a count each. Each
-array's fields are named from her code's own layout, generated (`layout`): the run of module-level
+what bears it as its observer splits it, against its skin (`observer.named`); contacts - the contacts
+its step was given, each named (`borne.named`). Traced (`calls.Calls`), a
+snapshot carries what its law called since the last, a count each. Each
+array's fields are named from its code's own layout, generated (`layout`): the run of module-level
 slice and int constants ending at a vector's size, laid in rising offsets - none listed by hand.
-Attached, a hook on her passes (`worker`'s `s['each']`) publishes a snapshot each law pass to every
+Attached, a hook on its passes (`worker`'s `s['each']`) publishes a snapshot each law pass to every
 client connected, dropped where a client lags, the loop never waiting; none connected, the hook
 returns at its first line. A line a client sends asks instead for its analyzers' events, run
-beside her loop ({'watch': {'folder'}}), or arms a gate on them ({'gate': spec}, `machine.rig.gate`):
-her streams on their own clocks, a trigger's windows before and after it written to a file. Opt in
+beside its loop ({'watch': {'folder'}}), or arms a gate on them ({'gate': spec}, `machine.rig.gate`):
+its streams on their own clocks, a trigger's windows before and after it written to a file. Opt in
 on the page: `show_humanoid --telemetry PORT`.
 """
 import ast
@@ -40,7 +40,7 @@ import typing
 
 #: A client's queue of snapshots; past it the oldest is dropped - the loop never waits on a reader.
 QUEUED = 64
-#: Where every recording of her goes - a page's R, a gate's windows: the repo's own folder.
+#: Where every recording of it goes - a page's R, a gate's windows: the repo's own folder.
 RECORDINGS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
                           'recordings')
 
@@ -73,7 +73,7 @@ def layout(name, size, end=None):
 def counted(name, size, end=None):
     """{field: {'of': the tuple of names its entries are ('module.NAME'), 'each': their components}}
     of `layout(name, size, end)`'s fields whose definition counts one tuple of names - `len(X)` in
-    it, or a constant counting one, through modules - its width a whole multiple of: by her code's
+    it, or a constant counting one, through modules - its width a whole multiple of: by its code's
     own definitions, none guessed from a width. Names-major: an entry's components together."""
     module, out = importlib.import_module(name), {}
     for field, sp in layout(name, size, end).items():
@@ -176,10 +176,10 @@ def _plain(v):
 
 
 def body(s, peaks=None):
-    """Her body as her page shows it, a pass of her session `s`: her joints' angles (deg) and speeds
+    """Its body as its page shows it, a pass of its session `s`: its joints' angles (deg) and speeds
     (deg/s) by name (`figure.JOINTS`, the world's addresses), their fastest since the last snapshot
-    where `peaks` (deg/s) says, else their speeds; her soles' loads (N), her pelvis's place (m), what
-    she does, her surety (`motion.surety`), fallen, a say refused, her epoch, her errand's phase."""
+    where `peaks` (deg/s) says, else their speeds; its soles' loads (N), its pelvis's place (m), what
+    it does, its surety (`motion.surety`), fallen, a say refused, its epoch, its errand's phase."""
     import numpy as np
     from machine.process import sprung
     from machine.body.figure import JOINTS
@@ -196,7 +196,7 @@ def body(s, peaks=None):
 
 
 def snapshot(s, peaks=None, lazy=False) -> typing.Any:
-    """A law pass of her session `s`, named: {'t', 'doing', 'body': `body`, 'latent': {'state': {row:
+    """A law pass of its session `s`, named: {'t', 'doing', 'body': `body`, 'latent': {'state': {row:
     {field: ..}}, 'out': {..}}, 'impedance': {'ask': {..}, 'step_ask': {..}}, 'wrench': {..}}; `lazy`,
     its layers named as they are first read (`Snap`)."""
     from machine.process import sprung
@@ -207,7 +207,7 @@ def snapshot(s, peaks=None, lazy=False) -> typing.Any:
 
 
 def _layers(s):
-    """Her law's layers this pass, named: latent, impedance, wrench, observer, contacts, modes, kinematics, drives."""
+    """Its law's layers this pass, named: latent, impedance, wrench, observer, contacts, modes, kinematics, drives."""
     import numpy as np
     from machine.process import kinematics
     from machine.senses import borne, observer
@@ -227,7 +227,7 @@ def _layers(s):
 class Snap(dict):
 
     """A snapshot whose layers are named as they are first read (`snap['latent']`), in the pass it
-    was taken: an analyzer reading her body alone pays her body's 11 us, not all layers' 134."""
+    was taken: an analyzer reading its body alone pays its body's 11 us, not all layers' 134."""
 
     s: typing.Any = None
 
@@ -246,7 +246,7 @@ class Snap(dict):
         return dict(self, **{k: self[k] for k in LAYERS})
 
 
-#: Her law's layers a snapshot names, and what of her touches what is not hers, the world's truth (`struck`).
+#: Its law's layers a snapshot names, and what of its touches what is not its own, the world's truth (`struck`).
 LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts', 'modes', 'kinematics', 'drives', 'ground')
 
 
@@ -285,7 +285,7 @@ class _Client(socketserver.StreamRequestHandler):
             srv.commands.put((c, None))
 
     def _asked(self, srv, c):
-        """The client's lines, each a command to her loop's hook; their end, its writer's."""
+        """The client's lines, each a command to its loop's hook; their end, its writer's."""
         with contextlib.suppress(OSError, ValueError):
             for line in self.rfile:
                 srv.commands.put((c, json.loads(line)))
@@ -293,7 +293,7 @@ class _Client(socketserver.StreamRequestHandler):
 
 
 def _put(q, item):
-    """`item` onto a client's queue `q`, its oldest dropped where full: her loop never waits on a reader."""
+    """`item` onto a client's queue `q`, its oldest dropped where full: its loop never waits on a reader."""
     while True:
         try:
             return q.put_nowait(item)
@@ -303,7 +303,7 @@ def _put(q, item):
 
 
 def _commanded(s, scope, c, command):
-    """A client's `command` at a pass of her session `s`: its analyzers' events ({'watch': {'folder'}}),
+    """A client's `command` at a pass of its session `s`: its analyzers' events ({'watch': {'folder'}}),
     a gate armed on them ({'gate': spec}); None - the client gone -, its gate taken off."""
     from machine.process import watch
     from machine.errors import MachineError
@@ -324,8 +324,8 @@ def _commanded(s, scope, c, command):
 
 class Tap:
 
-    """Her passes into snapshots, a peak detector between: every pass her joints' fastest held, a
-    snapshot each law period of her world's time carrying them since the last - fallen, her law
+    """Its passes into snapshots, a peak detector between: every pass its joints' fastest held, a
+    snapshot each law period of its world's time carrying them since the last - fallen, its law
     stands still and a snapshot a law pass told no fall; one a law pass alone read the tip's fastest
     joint 249.7 deg/s where every pass's 270.7."""
 
@@ -333,8 +333,8 @@ class Tap:
         self.t, self.peaks = -float('inf'), None
 
     def passed(self, s):
-        """A pass of her session `s`: its snapshot (`snapshot`, lazy; the peaks since the last) where a
-        law period of her world's time has gone since the last - a new epoch's time from its start -,
+        """A pass of its session `s`: its snapshot (`snapshot`, lazy; the peaks since the last) where a
+        law period of its world's time has gone since the last - a new epoch's time from its start -,
         else None."""
         import numpy as np
         from machine.process import worker
@@ -352,10 +352,10 @@ class Tap:
 
 
 def attach(s, port, host='127.0.0.1'):
-    """Serve her session `s`'s layers on `host:port` (0 a free one; the server's `server_address`
-    says which), a hook on her passes (`s['each']`) returning at once with none connected: each
+    """Serve its session `s`'s layers on `host:port` (0 a free one; the server's `server_address`
+    says which), a hook on its passes (`s['each']`) returning at once with none connected: each
     client a snapshot a JSON line each law pass (`Tap`), or, asked, its analyzers' events (a
-    `watch.Watch` beside her loop) and its gate's notices (`gate.Scope`). The server."""
+    `watch.Watch` beside its loop) and its gate's notices (`gate.Scope`). The server."""
     from machine.rig import gate
     server, tap, scope = _Clients((host, port)), Tap(), gate.Scope()
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -378,8 +378,8 @@ def attach(s, port, host='127.0.0.1'):
 
 
 def _faulted(s, server, scope, exc):
-    """A fault of her telemetry told to every client watching, its gates dropped unwritten: it never
-    stops her loop - a gate's writer started in her page's daemon worker once raised in her pass and
+    """A fault of its telemetry told to every client watching, its gates dropped unwritten: it never
+    stops its loop - a gate's writer started in its page's daemon worker once raised in its pass and
     ended the page."""
     import traceback
     where = traceback.extract_tb(exc.__traceback__)[-1]
@@ -444,14 +444,14 @@ def _session(port, ask, seconds, host='127.0.0.1', until=None):
 
 
 def events(port, seconds, folder=None, host='127.0.0.1'):
-    """The events her analyzers fire (a `watch.Watch` beside her loop, of `folder` else
+    """The events its analyzers fire (a `watch.Watch` beside its loop, of `folder` else
     machine/analyzers) over `seconds` of the wall: what a reader with little room takes in place of
     the stream."""
     return _session(port, {'watch': {'folder': folder}}, seconds, host)
 
 
 def gated(port, spec, seconds, host='127.0.0.1'):
-    """A gate armed on her analyzers' events (`gate.Scope.arm`: triggers, tag, pre_s, post_s, count,
+    """A gate armed on its analyzers' events (`gate.Scope.arm`: triggers, tag, pre_s, post_s, count,
     streams; folder, the analyzers') over `seconds` of the wall, or till its count is written: its
     notices - armed, each gate written - and the events."""
     return _session(port, {'gate': spec}, seconds, host,
@@ -461,17 +461,17 @@ def gated(port, spec, seconds, host='127.0.0.1'):
 def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--attach', type=int, required=True, help='the port her page serves on (--telemetry)')
+    parser.add_argument('--attach', type=int, required=True, help='the port its page serves on (--telemetry)')
     parser.add_argument('-n', type=int, default=0, help='lines to write, 0 till interrupted')
     parser.add_argument('--events', action='store_true',
-                        help='her analyzers\' events alone (machine/analyzers, reloaded as they change)')
+                        help='its analyzers\' events alone (machine/analyzers, reloaded as they change)')
     parser.add_argument('--analyzers', help='the analyzers\' folder, else machine/analyzers')
     parser.add_argument('--gate', nargs='*', metavar='TRIGGER',
-                        help='a gate armed on her analyzers\' events (`machine.rig.gate`): its triggers '
+                        help='a gate armed on its analyzers\' events (`machine.rig.gate`): its triggers '
                              '(\'analyzer.event\'), none those marked capture')
     parser.add_argument('--tag', help='the gate\'s tag')
-    parser.add_argument('--pre', type=float, help='s before its trigger, else half her leg\'s swing')
-    parser.add_argument('--post', type=float, help='s after it, else half her leg\'s swing')
+    parser.add_argument('--pre', type=float, help='s before its trigger, else half its leg\'s swing')
+    parser.add_argument('--post', type=float, help='s after it, else half its leg\'s swing')
     parser.add_argument('--count', type=int, help='gates written at most, else unbounded')
     parser.add_argument('--streams', help='its streams, comma-separated (`streams.NAMES`), else all')
     args = parser.parse_args(argv)

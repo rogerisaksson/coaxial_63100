@@ -20,7 +20,7 @@
     (latent_targets (mode_axial_compression 0.6))
     (impedance (stiffness mode_axial_compression 8000) (damping mode_axial_compression 1200))))
 
-;; 9: hop: loaded, thrown by a spring that lets go 17 mm under her standing height, her
+;; 9: hop: loaded, thrown by a spring that lets go 17 mm under its standing height, its
 ;; trunk free through the throw, landed on soft knees
 (defbehavior hop
   (phase load
@@ -39,7 +39,7 @@
   (phase land (use soft_land)
     (duration 700ms)))
 
-;; 0: on one sole, the other off the floor: it leaves once her weight is over
+;; 0: on one sole, the other off the floor: it leaves once its weight is over
 (defbehavior one_sole (extends stance_hold)
   (phase over
     (duration 4s) (blend_duration 800ms)
@@ -49,7 +49,7 @@
       (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600)
       (stiffness mode_pelvis_list 1500) (damping mode_pelvis_list 300))))
 
-;; her weight over one sole
+;; its weight over one sole
 (defbehavior weight_shift (extends stance_hold)
   (phase over
     (duration 3s) (blend_duration 500ms)
@@ -97,10 +97,10 @@
       (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)
       (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))))
 
-;; her march, the jog's slot: a power walk at 1.25 Hz, her drive 0.85 (the rhythm's `run_drive`: at 1.0 she
-;; fell setting out) for 1.41 m/s on 0.55 m steps, her pelvis turned 0.8 (9 deg, a power walk's 8-12) and
-;; each limb swinging 0.48 of a turn (`stride.swings`, a power walk's duty 0.51): her hip passes its clamp 12
-;; times in 6 s, p99 102 N m (at 1.3 Hz on 0.40 of a turn, 190-460), her landing knee 22 deg and 15 after
+;; its march, the jog's slot: a power walk at 1.25 Hz, its drive 0.85 (the rhythm's `run_drive`: at 1.0 it
+;; fell setting out) for 1.41 m/s on 0.55 m steps, its pelvis turned 0.8 (9 deg, a power walk's 8-12) and
+;; each limb swinging 0.48 of a turn (`stride.swings`, a power walk's duty 0.51): its hip passes its clamp 12
+;; times in 6 s, p99 102 N m (at 1.3 Hz on 0.40 of a turn, 190-460), its landing knee 22 deg and 15 after
 (defbehavior jog (extends jog)
   (phase apa
     (latent_targets (mode_axial_compression 0.075) (mode_pitch_attitude 0.01))

@@ -1,4 +1,4 @@
-"""Her drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
+"""Its drives: each a coaxial stack of an inverter disc, a pancake outrunner, a one-stage gearbox.
 
 Two motors as bought, one box at one ratio, one board - the 63100: a stack for the legs and the
 trunk, one for the arms and the head.
@@ -29,7 +29,7 @@ from machine.body import linkage, mechatronics
 from machine.body.figure import ANKLE_H, BALL, SEGMENTS, SHANK, THIGH
 from motor.pmsm import TORQUE_FACTOR
 
-#: The parts library and her build of it (machine/library, machine/humanoids): the tables below are
+#: The parts library and its build of it (machine/library, machine/humanoids): the tables below are
 #: theirs, read once.
 _LIB, _BUILD = mechatronics.library(), mechatronics.robot()
 _MAT, _WORLD = mechatronics.materials(), mechatronics.environment()
@@ -55,7 +55,7 @@ class Size:
         self.drag, self.shock, self.board, self.parts = drag, shock, board, parts
 
 
-#: Her stacks' parts as the library has them: a motor's (can D m, height m, kg, line-to-line
+#: The robot's stacks' parts as the library has them: a motor's (can D m, height m, kg, line-to-line
 #: ohm, peak N m, rotor kg m^2) and its KV; a gearbox's diameter and stiffness; an inverter's
 #: (disc D m, amps, kg, its laminate's K/W to the air, its height m). Each kind's stack: (motor,
 #: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's

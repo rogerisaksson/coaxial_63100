@@ -1,6 +1,6 @@
-"""Her streams gated to a file as a scope acquires: a trigger, the windows around it, re-armed.
+"""Its streams gated to a file as a scope acquires: a trigger, the windows around it, re-armed.
 
-    scope = gate.Scope()                          # her streams' rings, laid while a gate is armed
+    scope = gate.Scope()                          # its streams' rings, laid while a gate is armed
     key = scope.arm(s, spec, told)                # a gate: triggers, tag, pre_s, post_s, count, streams
     scope.passed(s); scope.fired(key, events); scope.closed(s)   # each pass; its analyzers' events
     scope.disarm(s, key)                          # taken off, an open window written as it stands
@@ -9,22 +9,22 @@
 
 Armed, a gate waits for a trigger: an event of its analyzers its spec names ('analyzer.event'),
 else one its analyzer marks capture. Fired, it takes its streams (`streams.STREAMS`) over [t -
-pre_s, t + post_s] - half her leg's swing each way unless told (`takes.ENTER_S`) -, written once
+pre_s, t + post_s] - half its leg's swing each way unless told (`takes.ENTER_S`) -, written once
 the post has passed; armed again till `count` gates are written (None, unbounded), a trigger
 while its window is open held off and told in its trailer. Its file, one an arming, is gate after
 gate: a metadata line {'gate': its trigger's name, tag, event and time, the commit, the window, each stream
 expected - what makes it and its words, its kind, period, the most it fits and fields -}; its records {'t',
-'s', 'v'} in time, the streams interleaved - one instant's in her pass's order -, an aperiodic
+'s', 'v'} in time, the streams interleaved - one instant's in its pass's order -, an aperiodic
 stream's last before the window first: the value it held; a trailer {'gated': each stream's count, the
 triggers held off, a cut}. A gate of `every_s` records between its windows too: its streams a
-sample each `every_s` (her page's 60 Hz), written a block a `post_s` behind her by `pre_s` - its
+sample each `every_s` (its page's 60 Hz), written a block a `post_s` behind it by `pre_s` - its
 metadata named 'every', the span written its window -, a trigger's window whole at full rate
 between them, drawn on a `post_s` past each trigger it holds off (cut 'continued' where it outlasts
 its rings, opened on); `file` names its file. A vector's 'v' holds its fields at their offsets ('at', 'n'; 'of' the
-names its entries are, 'each' their components, names-major); a record's is the record. Her loop
+names its entries are, 'each' their components, names-major); a record's is the record. Its loop
 copies a window's samples and hands them on; a process of the scope's, fed through a pipe, encodes
-and writes them - encoded beside her loop, a gate's JSON held her passes 0.4 s; handed on, 36 ms -
-and ends as its pipe closes. Her page's worker is a daemon: a multiprocessing child it may not start.
+and writes them - encoded beside its loop, a gate's JSON held its passes 0.4 s; handed on, 36 ms -
+and ends as its pipe closes. Its page's worker is a daemon: a multiprocessing child it may not start.
 """
 import collections
 import itertools
@@ -47,7 +47,7 @@ CAPTURES = introspect.RECORDINGS
 
 
 def _ring(row, lay, span, s):
-    """A stream's ring over `span` s of her: a vector's times and samples laid once, as deep as the
+    """A stream's ring over `span` s of it: a vector's times and samples laid once, as deep as the
     span holds its periods; a record's a deque its samples past the span leave."""
     import numpy as np
     period = None if row.period is None else row.period(s)
@@ -115,7 +115,7 @@ def _described(row, lay, s):
 
 class Scope:
 
-    """Her streams' rings and the gates armed on them, in her loop's thread; a writer's process."""
+    """Its streams' rings and the gates armed on them, in its loop's thread; a writer's process."""
 
     def __init__(self):
         self.gates: dict[int, typing.Any] = {}
@@ -130,7 +130,7 @@ class Scope:
 
     def arm(self, s, spec, told):
         """A gate of `spec` - {triggers, tag, pre_s, post_s, count, streams, every_s, file}, each optional - armed in
-        her session `s`; `told(notice)` hears it armed and each gate written. Its key."""
+        its session `s`; `told(notice)` hears it armed and each gate written. Its key."""
         from machine.rig import streams
         from machine.texts import takes
         from machine.errors import MachineError
@@ -140,7 +140,7 @@ class Scope:
                                             **{k: v for k, v in (spec or {}).items() if v is not None}))
         unknown = sorted(set(spec['streams'] or ()) - set(streams.NAMES))
         if unknown:
-            raise MachineError('no stream %s; her streams: %s' % (', '.join(unknown), ', '.join(streams.NAMES)))
+            raise MachineError('no stream %s; its streams: %s' % (', '.join(unknown), ', '.join(streams.NAMES)))
         key = next(self.keys)
         os.makedirs(CAPTURES, exist_ok=True)
         path = os.path.join(CAPTURES, (spec['file'] or '%s_%s' % (time.strftime('%Y%m%d_%H%M%S'),
@@ -166,13 +166,13 @@ class Scope:
             s['heard'], self.was, self.rings, self.polled, self.last = self.was, None, {}, [], None
 
     def dropped(self, s):
-        """Every gate dropped, none written - a fault in her telemetry -; her commands heard as before."""
+        """Every gate dropped, none written - a fault in its telemetry -; its commands heard as before."""
         s['heard'] = self.was if self.was is not None else s['heard']
         self.gates, self.rings, self.polled, self.was, self.last, self.clock = {}, {}, [], None, None, None
 
     def _laid(self, s):
-        """The rings her gates' streams need, as deep as the longest window and a law pass: those
-        laid already kept where deep enough; her commands heard through the scope."""
+        """The rings its gates' streams need, as deep as the longest window and a law pass: those
+        laid already kept where deep enough; its commands heard through the scope."""
         from machine.rig import streams
         span = max(g['spec']['pre_s'] + g['spec']['post_s'] for g in self.gates.values()) + streams._law(s)
         wanted = {n for g in self.gates.values() for n in g['streams']}
@@ -201,7 +201,7 @@ class Scope:
             _append(ring, float(entry[2]), entry[3])
 
     def _rolled(self, s):
-        """A new epoch, her time from its start: each open window written as it stands; the rings anew."""
+        """A new epoch, its time from its start: each open window written as it stands; the rings anew."""
         for key in [k for k, g in self.gates.items() if g['open'] is not None]:
             self._gated(s, key, 'epoch')
         for key in [k for k, g in self.gates.items() if g['spec']['every_s'] and 'events' in g]:
@@ -213,7 +213,7 @@ class Scope:
         self._laid(s)
 
     def passed(self, s):
-        """A pass of her session `s`: each stream its own clock says has a new sample takes it."""
+        """A pass of its session `s`: each stream its own clock says has a new sample takes it."""
         if not self.gates:
             return
         from machine.rig import streams
@@ -254,7 +254,7 @@ class Scope:
 
     def closed(self, s):
         """Each window its post has passed - this pass begun at or after its end - written; a gate of
-        `every_s` with none open, what lies `pre_s` behind her once a `post_s` of it is unwritten; its
+        `every_s` with none open, what lies `pre_s` behind it once a `post_s` of it is unwritten; its
         window a trigger held off has drawn on past what its rings hold, written so far and opened on."""
         if self.clock is None:
             return
@@ -349,7 +349,7 @@ def _piped(writer, jobs):
 
 def _writes(pipe, done):
     """The writer's process: each gate its parent pipes in written (`written`), its metadata the commit
-    HEAD stood at as the writer began (`commit.head`: git apart from her loop), its records told
+    HEAD stood at as the writer began (`commit.head`: git apart from its loop), its records told
     back a JSON line each; the pipe closed - its parent gone -, it ends."""
     from machine.process import commit
     sha = commit.head()

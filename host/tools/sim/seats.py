@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""A human's sit as the reference: a sit's measures from joints' places, a take's or hers.
+"""A human's sit as the reference: a sit's measures from joints' places, a take's or its own.
 
-A take, a recording and her rows read alike, as `normal` reads a walk.
+A take, a recording and its rows read alike, as `normal` reads a walk.
 
     python tools/sim/seats.py TAKE.fbx [..]                   # the takes' measures, SEAT their band
-    python tools/sim/seats.py --recording REC.csv --from 22 --to 34   # hers on the page, the window s
-    python tools/sim/seats.py --sim chair_behind sit_chair    # hers here: a scene and the verb
+    python tools/sim/seats.py --recording REC.csv --from 22 --to 34   # its own on the page, the window s
+    python tools/sim/seats.py --sim chair_behind sit_chair    # its own here: a scene and the verb
     measures = seats.measured(times, joints)                  # {name: value}
 
 The takes (stunts/sitting, stunts/lying): sitting down from standing takes a human 0.6 s of
@@ -108,8 +108,8 @@ def recorded(path, start, end):
 
 
 def simulated(scene, verb, seconds):
-    """(times, joints, flickers) of her sit here: `scene` laid, `verb` said, `seconds` followed;
-    `flickers` how often a sole's load came and went past her soles' touch."""
+    """(times, joints, flickers) of its sit here: `scene` laid, `verb` said, `seconds` followed;
+    `flickers` how often a sole's load came and went past its soles' touch."""
     from machine.body import figure
     from machine.moves import leap
     from machine.world import physics
@@ -148,7 +148,7 @@ def main(argv=None):
     parser.add_argument('--recording', help='a HUMANOID recording')
     parser.add_argument('--from', dest='start', type=float, default=0.0, help='the recording from, s')
     parser.add_argument('--to', dest='end', type=float, default=math.inf, help='the recording to, s')
-    parser.add_argument('--sim', nargs=2, metavar=('SCENE', 'VERB'), help='her sit here')
+    parser.add_argument('--sim', nargs=2, metavar=('SCENE', 'VERB'), help='its sit here')
     parser.add_argument('--seconds', type=float, default=8.0, help='--sim followed, s')
     args = parser.parse_args(argv)
     from tools.sim import fbx
@@ -158,7 +158,7 @@ def main(argv=None):
     if args.sim:
         times, joints, flickers = simulated(args.sim[0], args.sim[1], args.seconds)
         columns.append(('%s' % args.sim[1][:12], measured(times, joints)))
-        print('her soles came and went %d times in %.1f s' % (flickers, args.seconds))
+        print('its soles came and went %d times in %.1f s' % (flickers, args.seconds))
     print('\n'.join(table(columns)))
     return 0
 

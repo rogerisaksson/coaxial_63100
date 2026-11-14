@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Her scenarios, each alone on her loop as the page runs her (`worker.session`): to iterate on one.
+"""Its scenarios, each alone on its loop as the page runs it (`worker.session`): to iterate on one.
 
     python tools/sim/told.py                     # every scenario, side by side on the relay
     python tools/sim/told.py chair bed           # those named, here
     python tools/sim/told.py chair --trace       # and its phases, a line each
 
 A scenario a line: what a player's keys, F or a click send, the seconds from it to what it asks -
-past 0.3 m/s, still, seated, lying, up, out of the door -, the flips of her doing meanwhile,
-whether she fell; her arms' fastest swing and widest sweep while it runs, a sit's or a lie's
-furniture's share of her held, a sit's measures off a human's (`seats.SEAT`) where out of its band.
+past 0.3 m/s, still, seated, lying, up, out of the door -, the flips of its doing meanwhile,
+whether it fell; its arms' fastest swing and widest sweep while it runs, a sit's or a lie's
+furniture's share of its held, a sit's measures off a human's (`seats.SEAT`) where out of its band.
 """
 import argparse
 import math
@@ -19,17 +19,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 #: The keys' twists: W, S's stop, A, W with D.
 WALK, STOP, LEFT, TURN = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.5, 0.0), (0.69, 0.0, -0.7)
-#: Past this she moves, under this for STILL_S she is still, m/s.
+#: Past this it moves, under this for STILL_S it is still, m/s.
 MOVING_M_S, STILL_M_S, STILL_S = 0.3, 0.05, 0.5
-#: Her arms' joints, measured.
+#: The robot's arms' joints, measured.
 ARMS = ('left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow')
 #: A sit or a lie held this long before its rise, s.
 HELD_S = 3.0
 
 
 class Run:
-    """Her session laid on `scene` (`scenarios.placed`) or in her room (`room`), stepped, her doing's
-    flips counted, her arms and her support logged and a sit's joints kept (`seats.measured`)."""
+    """Its session laid on `scene` (`scenarios.placed`) or in its room (`room`), stepped, its doing's
+    flips counted, its arms and its support logged and a sit's joints kept (`seats.measured`)."""
 
     def __init__(self, scene='flat', room=False):
         from machine.world import physics
@@ -51,7 +51,7 @@ class Run:
         return math.hypot(float(v[0]), float(v[2]))
 
     def go(self, seconds, until=None):
-        """`seconds` of passes, or to her fall: the seconds until `until(self)` first holds, or None."""
+        """`seconds` of passes, or to its fall: the seconds until `until(self)` first holds, or None."""
         from machine.process import sprung, worker
         t0, got = self.t, None
         while self.t - t0 < seconds and self.s['fallen_at'] is None:
@@ -84,7 +84,7 @@ class Run:
         worker.apply(self.s, command)
 
     def arms(self, t0=0.0, t1=math.inf):
-        """(fastest swing deg/s, widest sweep deg) of her arms' joints between `t0` and `t1` s."""
+        """(fastest swing deg/s, widest sweep deg) of its arms' joints between `t0` and `t1` s."""
         from coaxial.model.blocks import numpy as np
         at = [r for r in self.log if t0 <= r[0] <= t1]
         if len(at) < 3:
@@ -93,7 +93,7 @@ class Run:
         return float(np.abs(np.gradient(a, t, axis=0)).max()), float((a.max(axis=0) - a.min(axis=0)).max())
 
     def borne(self, t0, t1):
-        """The furniture's share of her, mean, between `t0` and `t1` s."""
+        """The furniture's share of it, mean, between `t0` and `t1` s."""
         at = [r[4] for r in self.log if t0 <= r[0] <= t1]
         return sum(at) / max(len(at), 1)
 
@@ -104,8 +104,8 @@ class Run:
         return seats.out(seats.measured(*fbx.joints(rows))) if len(rows) > 10 else []
 
     def trace(self):
-        """Her phases a line each: span, her arms' fastest swing and widest sweep, her soles' and
-        the furniture's share, her pelvis's height at its end."""
+        """Its phases a line each: span, its arms' fastest swing and widest sweep, its soles' and
+        the furniture's share, its pelvis's height at its end."""
         lines, k0 = [], 0
         for k in range(1, len(self.log) + 1):
             if k == len(self.log) or self.log[k][1] != self.log[k0][1]:
@@ -199,7 +199,7 @@ def _held(r, verb, rest, rise, seconds):
     r.tell(say=rise)
     up = r.go(8.0, doing('stand', 'rest'))
     out = ', '.join('%s %.2f (%g..%g)' % m for m in r.sat(t0, t2)) if verb == 'sit_chair' else ''
-    return ('%s at %s s (%d flips), held %.2f of her, up at %s s (%d flips); arms down %.0f deg/s %.0f deg, '
+    return ('%s at %s s (%d flips), held %.2f of it, up at %s s (%d flips); arms down %.0f deg/s %.0f deg, '
             'held %.0f deg/s %.0f deg, up %.0f deg/s %.0f deg%s'
             % (rest, there, flips, r.borne(t1, t2), up, r.flips, *r.arms(t0, t1), *r.arms(t1, t2), *r.arms(t2),
                '; off a human: ' + out if out else ''))

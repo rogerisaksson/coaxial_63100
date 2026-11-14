@@ -1,4 +1,4 @@
-"""Her drives as drawn: each joint's drum, and the patches sewn on the cloth over a drum's ends.
+"""Its drives as drawn: each joint's drum, and the patches sewn on the cloth over a drum's ends.
 
     parts += drums()                               # [(name, parent, offset, mesh)], a joint each
     sewn = patches(parts)                          # {joint: [(part, its corners near an end)]}

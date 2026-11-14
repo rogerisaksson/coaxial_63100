@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Her falls by the world's truth: what struck first, how hard, how fast; her spasms about it.
+"""Its falls by the world's truth: what struck first, how hard, how fast; its spasms about it.
 
-    python tools/sim/falls.py                               # her falls, a line each: the slip, the 200 N shoves
+    python tools/sim/falls.py                               # its falls, a line each: the slip, the 200 N shoves
     python tools/sim/falls.py shove_200_090_walk_0 slip     # those
     python tools/sim/falls.py --jobs 6 --json               # side by side on the relay, each run whole as JSON
 
-A run a job on the relay (`tools.dev.focus.relay`), read by her analyzers off her loop's snapshots
-(`watch.Watch`): landing's touches (`machine.world.struck`), motion's spasms past her own walk's fastest joint,
-support's stumble and fall; at its end the driven joints she lies within STOP_DEG of a stop (`sysid.STOP_DEG`).
-Times are from her fall, or from her stumble where she stood. `slip` is her walk held into the slip patch
+A run a job on the relay (`tools.dev.focus.relay`), read by its analyzers off its loop's snapshots
+(`watch.Watch`): landing's touches (`machine.world.struck`), motion's spasms past its own walk's fastest joint,
+support's stumble and fall; at its end the driven joints it lies within STOP_DEG of a stop (`sysid.STOP_DEG`).
+Times are from its fall, or from its stumble where it stood. `slip` is its walk held into the slip patch
 (`introspected`'s), the rest `scenarios.SCENARIOS`'.
 """
 import argparse
@@ -18,9 +18,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Her falls asked when none is named: her walk into the slip patch, and every 200 N shove's first moment.
+#: Its falls asked when none is named: its walk into the slip patch, and every 200 N shove's first moment.
 FALLS = ('slip',) + tuple('shove_200_%03d_%s_0' % (a, kind) for kind in ('stand', 'walk') for a in range(0, 360, 45))
-#: The slip's play: her walk held 4 s into the patch.
+#: The slip's play: its walk held 4 s into the patch.
 SLIP = ('slip', 'w4')
 
 

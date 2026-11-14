@@ -1,4 +1,4 @@
-"""Her kinematics' algebra: a pose a motor, a joint a screw, a chain their product.
+"""The robot's kinematics' algebra: a pose a motor, a joint a screw, a chain their product.
 
     m = motors.of(turn, at)                      # a frame: a 3x3 of rows at a place
     at, turn = motors.place(m), motors.turn(m)

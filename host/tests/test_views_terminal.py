@@ -354,11 +354,11 @@ def test_the_attitude_caps_its_frame_rate(report):
 
 def test_the_stand_shows_its_acts(report):
     """The front page's stand through its cycle, its three pictures stood in for: the board,
-    her, the quad and the board again, each torn into the next about its turn - and the board
+    it, the quad and the board again, each torn into the next about its turn - and the board
     alone where no card lights the others. Then the quad as the stand draws it."""
     import time
     from terminal import stand
-    was = dict(stand._STAGE), stand._draw, stand._her, stand._quad, stand.time
+    was = dict(stand._STAGE), stand._draw, stand._robot, stand._quad, stand.time
     clock = {'now': 1000.0}
 
     class Clock:
@@ -366,30 +366,30 @@ def test_the_stand_shows_its_acts(report):
 
     def picture(letter):
         return lambda _view, width, height: '\n'.join([letter * width] * height)
-    stand._draw, stand._her, stand._quad = picture('B'), picture('H'), picture('Q')
+    stand._draw, stand._robot, stand._quad = picture('B'), picture('H'), picture('Q')
     stand.time = Clock
     view = {'opened': 1000.0}
-    cycle = stand.BOARD_S + stand.HER_S + stand.QUAD_S
+    cycle = stand.BOARD_S + stand.ROBOT_S + stand.QUAD_S
 
     def at(seconds):
         clock['now'] = 1000.0 + seconds
         return set(stand.turntable(view, 20, 6)) - set('\n')
     try:
         stand._STAGE.update(ready=True, lit=object())
-        got = [at(1.0), at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.HER_S + 2.0),
+        got = [at(1.0), at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.ROBOT_S + 2.0),
                at(cycle + 2.0)]
-        report.check('the stand: the board, her, the quad and the board again',
+        report.check('the stand: the board, it, the quad and the board again',
                      got == [{'B'}, {'H'}, {'Q'}, {'B'}], str(got))
-        torn = [at(stand.BOARD_S), at(stand.BOARD_S + stand.HER_S), at(cycle)]
+        torn = [at(stand.BOARD_S), at(stand.BOARD_S + stand.ROBOT_S), at(cycle)]
         report.check('the stand: each torn into the next about its turn',
                      all(pair <= mix for pair, mix in zip(({'B', 'H'}, {'H', 'Q'}, {'Q', 'B'}),
                                                           torn)), str([sorted(m)[:6] for m in torn]))
         stand._STAGE.update(lit=None)
-        alone = [at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.HER_S + 2.0)]
+        alone = [at(stand.BOARD_S + 2.0), at(stand.BOARD_S + stand.ROBOT_S + 2.0)]
         report.check('the stand: the board alone where no card lights the others',
                      alone == [{'B'}, {'B'}], str(alone))
     finally:
-        stand._draw, stand._her, stand._quad, stand.time = was[1:]
+        stand._draw, stand._robot, stand._quad, stand.time = was[1:]
         stand._STAGE.clear()
         stand._STAGE.update(was[0])
     # On the CPU where no card answers: its dots, as the QUAD page draws them.

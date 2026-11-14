@@ -1,5 +1,5 @@
-/** wbc_pass.h - a pass of her world on the host (wbc_pass.c): her drives told, her world's
-    torques, meters and reads, her drives' heat, on arrays laid once and pointed to, numpy's
+/** wbc_pass.h - a pass of its world on the host (wbc_pass.c): its drives told, its world's
+    torques, meters and reads, its drives' heat, on arrays laid once and pointed to, numpy's
     arithmetic operation for operation. Portable C11. */
 #ifndef WBC_PASS_H
 #define WBC_PASS_H
@@ -10,13 +10,13 @@
 #include "wbc_imp.h"
 #include "wbc_move.h"
 
-/** A pass of her world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
+/** A pass of its world on the host (wbc_pass.c): arrays laid once and pointed to, nothing allocated,
     numpy's arithmetic operation for operation. The most joints a world has. */
 #define WBC_PASS_MAX 64
 
-/** Her law's drive-side step (machine.law.drives): each driven joint's observer on its motor's
+/** Its law's drive-side step (machine.law.drives): each driven joint's observer on its motor's
     encoder, its setpoint carried on by the loop's ask and leaking to its encoder, its feed and its
-    clamp; the knees' spring. Pointers into her law's arrays, the driven joints in wbc_driven's
+    clamp; the knees' spring. Pointers into its law's arrays, the driven joints in wbc_driven's
     order, y machine.senses.edge's. */
 typedef struct
 {
@@ -32,7 +32,7 @@ typedef struct
   double               wep_hold_s; /**< a drive asked past its clamp holds its WEP this long, s */
   const int           *joints;     /**< each driven joint's index among the world's joints */
   const int           *act;        /**< its dof among the loop's accelerations */
-  const double        *y;          /**< her edge's array */
+  const double        *y;          /**< its edge's array */
   const double        *qacc;       /**< the loop's accelerations, its torques, which drives it asked over */
   const double        *tau;
   const unsigned char *over;
@@ -56,40 +56,40 @@ typedef struct
   double               posture_kd; /**< a drive's own damping over its inertia, 1/s */
 } wbc_drives_t;
 
-/** The step, `dt` s on: `wo` the observers' bandwidth and `wo3` its cube, `ys` her law's yield as
-    she tilts (1 upright), `in_hop` whether she is in a hop, `wb` whether the raised WEP limit is hers. */
+/** The step, `dt` s on: `wo` the observers' bandwidth and `wo3` its cube, `ys` its law's yield as
+    it tilts (1 upright), `in_hop` whether it is in a hop, `wb` whether the raised WEP limit is its own. */
 void wbc_pass_drives(wbc_drives_t *p, double dt, double wo, double wo3, double ys, int in_hop, int wb);
 
-/** Her drives' pass whole (machine.law.motion.drives): her surety field stepped, her observers' bandwidth
-    eased by it, a hop by her axial stiffness asked, the step, each setpoint within its range, each clamp
-    her rest's share of the step's, her WEP's reserve - Python's arithmetic operation for operation. */
+/** Its drives' pass whole (machine.law.motion.drives): its surety field stepped, its observers' bandwidth
+    eased by it, a hop by its axial stiffness asked, the step, each setpoint within its range, each clamp
+    its rest's share of the step's, its WEP's reserve - Python's arithmetic operation for operation. */
 typedef struct
 {
   wbc_drives_t        *drives;     /**< the step's */
-  const wbc_imp_t     *imp;        /**< her surety field's (wbc_imp_surety), her axial stiffness asked its */
+  const wbc_imp_t     *imp;        /**< its surety field's (wbc_imp_surety), its axial stiffness asked its */
   const wbc_surety_t  *field;
   const double        *rng;        /**< each setpoint's range (n, 2) */
   const double        *kept;       /**< each clamp as the step left it, and as told (n) */
   double              *limit;
-  double               hop_k;      /**< the stiffness past which she hops, N/m */
-  double               wep_s;      /**< her WEP's reserve, s, and its refill */
+  double               hop_k;      /**< the stiffness past which it hops, N/m */
+  double               wep_s;      /**< its WEP's reserve, s, and its refill */
   double               wep_fill;
-  double               surety;     /**< in and out: her surety, her WEP's reserve left */
+  double               surety;     /**< in and out: its surety, its WEP's reserve left */
   double               left;
-  double               vec[5];     /**< out: her surety along and across, its direction, its probe */
+  double               vec[5];     /**< out: its surety along and across, its direction, its probe */
 } wbc_tick_t;
 
-/** The pass `dt` s on at `now`: `wo` her observers' bandwidth, `limp` how far she rests limp (se2.limp). */
+/** The pass `dt` s on at `now`: `wo` its observers' bandwidth, `limp` how far it rests limp (se2.limp). */
 void wbc_pass_tick(wbc_tick_t *t, double dt, double now, double wo, double limp);
 
-/** Her world's drives on their setpoints (machine.world.physics.World.advance): each joint's PD at the
-    world's step, a parallel pair's shared, the motors' torques and their meters; her IMU and
+/** Its world's drives on their setpoints (machine.world.physics.World.advance): each joint's PD at the
+    world's step, a parallel pair's shared, the motors' torques and their meters; its IMU and
     encoders read. Pointers into the world's arrays and MuJoCo's. */
 typedef struct
 {
   int                  n;          /**< the joints */
   int                  npairs;     /**< the parallel pairs, (joint, its roll) each */
-  int                  pelvis;     /**< her pelvis's body */
+  int                  pelvis;     /**< its pelvis's body */
   int                  spare;      /**< explicit: its ints a whole number of doubles */
   double               wound;      /**< where a drive reads its angle: 1 the motor's encoder, 0 the joint's */
   const int           *qadr;       /**< each joint's address in qpos, in qvel */
@@ -141,12 +141,12 @@ int wbc_pass_paired(const unsigned char *geom, const unsigned char *pos, ptrdiff
     `k` of the way (machine.process.worker's averages). */
 void wbc_pass_averaged(const wbc_world_t *w, double k, double *torque, double *power);
 
-/** Her IMU and encoders into `y` at its offsets (machine.senses.edge): her turn, spin and specific force,
+/** Its IMU and encoders into `y` at its offsets (machine.senses.edge): its turn, spin and specific force,
     each joint's angle and rate, each motor's angle through its gearbox. */
 void wbc_pass_felt(const wbc_world_t *w, double *y, int quat_at, int gyro_at, int accel_at, int q_at, int qd_at,
                    int qm_at);
 
-/** Her soles' and her skin's contacts read (machine.senses.edge.read): the contacts between a body of hers
+/** Its soles' and its skin's contacts read (machine.senses.edge.read): the contacts between a body of its own
     and one not, a contact's force its rows of the solver's (the cone elliptic), summed a bin a
     segment in the contacts' order. The contacts' fields are read at their offsets from each
     contact's `pos`, `stride` bytes a contact (MuJoCo's mjContact, laid from its arrays). */
@@ -164,7 +164,7 @@ typedef struct
   int                  off_friction;
   double               middle_m;   /**< a sole's middle along it: its heel's cell behind, its ball's ahead */
   const int           *gb;         /**< each geom's body */
-  const unsigned char *hers;       /**< each body: hers or not */
+  const unsigned char *its_own;       /**< each body: its own or not */
   const int           *sole_side;  /**< each body's sole's side, -1 none; its insole, its foot, its skin, -1 none */
   const int           *insole;
   const int           *foot;
@@ -182,26 +182,26 @@ typedef struct
   double              *felt_at;
   double              *felt_give;  /**< the bin: each segment's support's give, the solver's impedance R on its contacts'
                                         normal rows (a_n = a_ref - R f_n, m/s^2 a N), its touch's size times */
-  double              *felt_nrm;   /**< the bin: each segment's contacts' normals into her (3, its frame), its touch's size times */
+  double              *felt_nrm;   /**< the bin: each segment's contacts' normals into it (3, its frame), its touch's size times */
 } wbc_contacts_t;
 
 /** The bins filled from `ncon` contacts at `pos`, their forces in `efc_force`, their rows' impedance in `efc_R`. */
 void wbc_pass_contacts(wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force, const double *efc_R);
 
-/** Her contacts copied as they stand (machine.rig.live.raw): of `ncon` contacts at `pos`, each between a
-    body of hers and one not with rows of the solver's, a row of `width` doubles in `out`, at most
-    `cap` - at `at`'s offsets whether hers is the first geom, its place, frame, force (the solver's
-    rows), friction and tangential velocity (the solver's velocity rows). Returns how many she has. */
+/** Its contacts copied as they stand (machine.rig.live.raw): of `ncon` contacts at `pos`, each between a
+    body of its own and one not with rows of the solver's, a row of `width` doubles in `out`, at most
+    `cap` - at `at`'s offsets whether its own is the first geom, its place, frame, force (the solver's
+    rows), friction and tangential velocity (the solver's velocity rows). Returns how many it has. */
 int wbc_pass_tapped(const wbc_contacts_t *c, int ncon, const char *pos, const double *efc_force,
                     const double *efc_vel, const int *at, int width, int cap, double *out);
 
 /** The bins into `y` at its offsets: the loads, the touch, the insoles' loads and centres of pressure,
-    the cells, where each segment's touch is, how much more what bears each gives than her floor, the way each
+    the cells, where each segment's touch is, how much more what bears each gives than its floor, the way each
     segment's support pushes it (its frame, force-weighted). */
 void wbc_pass_sensed(const wbc_contacts_t *c, double *y, int load_at, int touch_at, int press_at, int cop_at,
                      int cells_at, int at_at, int give_at, int nrm_at);
 
-/** Her drives' heat as their boards keep it (machine.body.heat.Heat): four nodes a drive - the switches,
+/** Its drives' heat as their boards keep it (machine.body.heat.Heat): four nodes a drive - the switches,
     the laminate, the stator, the winding - on their losses, the envelope's derate and trip on them. */
 typedef struct
 {
@@ -264,7 +264,7 @@ void wbc_pass_heat(wbc_heat_t *h, double dt, const double *air, const double *rd
 /** Each drive's hottest: its junction or its nodes' peak. */
 void wbc_pass_heat_peak(const wbc_heat_t *h, double *out);
 
-/** What her drives draw now, W (machine.world.physics.World.drawn): the work they do on `speed` (NULL the
+/** What its drives draw now, W (machine.world.physics.World.drawn): the work they do on `speed` (NULL the
     joints'), their copper, their boards' own, the drives `driven`, switching, and a check's copper. */
 double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *speed, const double *loss,
                       const unsigned char *driven, const double *testing, const double *ohm, double housekeeping_w,
@@ -278,7 +278,7 @@ double wbc_pass_drawn(const wbc_world_t *w, const double *tau, const double *spe
 void wbc_pass_hem(int n, double dt, const double *ap, const double *om, const double *alb, const double *c,
                   double *state, double *q, double *v, double *a, unsigned char *hit);
 
-/** Her 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards. */
+/** The robot's 5 extremity 10 Mbit/s RS485 Modbus RTU buses and 27 SIL coaxial_63100 boards. */
 #define WBC_SIL_BUSES 5
 #define WBC_SIL_BAUD  10000000U
 
@@ -287,9 +287,9 @@ int  wbc_sil_transceive(wbc_world_t *w, int bus_id, const unsigned char *frame, 
 void wbc_sil_drive(wbc_world_t *w, int n_idx, const int *idx, const double *target,
                    const double *feed, const double *kp, const double *limit);
 
-/** A move of hers playing on her boards (machine.process.joints.played): her bed's exit, her scoot or a move whose
-    phases end by what she senses (wbc_sensed.c) - the one whose tables are given -, its state and command (deg, every
-    joint), her edge's angles read in degrees, and its joints told - in radians, her clamps, its feed and stiffness -
+/** A move of its own playing on its boards (machine.process.joints.played): its bed's exit, its scoot or a move whose
+    phases end by what it senses (wbc_sensed.c) - the one whose tables are given -, its state and command (deg, every
+    joint), its edge's angles read in degrees, and its joints told - in radians, its clamps, its feed and stiffness -
     through wbc_sil_drive. */
 typedef struct
 {
@@ -298,22 +298,22 @@ typedef struct
   const wbc_sensed_t   *sensed;
   double               *state;             /**< the move's state and command */
   double               *cmd;
-  const double         *y;                 /**< her edge's array: every joint's angle from `q_at`, `nq` of them */
+  const double         *y;                 /**< its edge's array: every joint's angle from `q_at`, `nq` of them */
   int                   q_at;
   int                   nq;
-  int                   n;                 /**< the move's joints, each one's index among hers */
+  int                   n;                 /**< the move's joints, each one's index among its own */
   int                   spare;             /**< explicit: its ints a whole number of doubles */
   const int            *idx;
-  const double         *clamp;             /**< her clamps, every joint's; its feed and stiffness, its joints' */
+  const double         *clamp;             /**< its clamps, every joint's; its feed and stiffness, its joints' */
   const double         *feed;
   const double         *kp;
   double               *target;            /**< out: its joints' setpoints (rad) and clamps */
   double               *limit;
   wbc_world_t          *world;
-  double                q_deg[WBC_PASS_MAX]; /**< her angles in degrees, as its step reads them */
+  double                q_deg[WBC_PASS_MAX]; /**< its angles in degrees, as its step reads them */
 } wbc_played_t;
 
-/** The move `dt` s on at `t` on her senses (its SENSED's, in order): its done; where it is not, its joints'
+/** The move `dt` s on at `t` on its senses (its SENSED's, in order): its done; where it is not, its joints'
     setpoints and clamps laid (wbc_played_step) and, in wbc_sil_played, told. */
 double wbc_played_step(wbc_played_t *p, double t, double dt, const double *senses);
 double wbc_sil_played(wbc_played_t *p, double t, double dt, const double *senses);
@@ -326,7 +326,7 @@ void wbc_sil_noise(double ber, uint32_t seed);
 void wbc_sil_burst(int bus_id, int frames);
 /** The longest run of setpoint frames refused in a row on any bus, its bus in `bus_id`. */
 int  wbc_sil_stalest(int *bus_id);
-/** Every board's clamp at zero: her drives off. */
+/** Every board's clamp at zero: its drives off. */
 void wbc_sil_off(wbc_world_t *w);
 
 #endif

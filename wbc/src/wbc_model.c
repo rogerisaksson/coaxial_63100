@@ -1,4 +1,4 @@
-/** wbc_model.c - her figure as static arrays: written by host/tools/cores/model.py, not by hand. */
+/** wbc_model.c - its figure as static arrays: written by host/tools/cores/model.py, not by hand. */
 #include "wbc_model.h"
 
 const double wbc_gravity[3] = {0.0, -9.81, 0.0};

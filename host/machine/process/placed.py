@@ -1,39 +1,39 @@
-"""Her processes placed by her host's own topology: a core apart, her loop's on a cache of its own.
+"""Its processes placed by its host's own topology: a core apart, its loop's on a cache of its own.
 
-Where each of her processes runs, never what it tells; read off the host at each start, nothing of any one machine
+Where each of its processes runs, never what it tells; read off the host at each start, nothing of any one machine
 written here. Windows tells its cores, their classes and their caches (GetLogicalProcessorInformationEx), Linux its
-sysfs, on any processor of theirs; macOS binds no thread to a core, there her loop's thread is told the user's own
+sysfs, on any processor of theirs; macOS binds no thread to a core, there its loop's thread is told the user's own
 (its quality of service: its fast cores, not throttled); another system is left as it is. A host of two cores or fewer,
 of one cache for all its cores, of a cache a core, of fast and slow cores or of several memory nodes is placed by the
 same lines.
 
-A core of its own: each process on a physical core it takes among her processes on the host (`core`), not the
+A core of its own: each process on a physical core it takes among its processes on the host (`core`), not the
 system's first (its interrupts'); a batch's job on one its relay takes for it (`claim`, `bind`); all taken, on one
 processor of each core none holds. Moved by the system, a process of a batch of 28 touched 40 cores in 5 s; on a
-core of its own, none, and did a tenth more work. Two of her processes on one core's two threads ran at half pace
-each (her law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts her gives her (GIVEN).
-Her loop's on a cache of its own (`placed(True)`): the cores that share a last-level cache are a group; her
-loop's process takes one for itself among her loops on the host (`_claim`) - one of its fastest cores' where they
+core of its own, none, and did a tenth more work. Two of its processes on one core's two threads ran at half pace
+each (its law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts its gives it (GIVEN).
+Its loop's on a cache of its own (`placed(True)`): the cores that share a last-level cache are a group; its
+loop's process takes one for itself among its loops on the host (`_claim`) - one of its fastest cores' where they
 differ -, its thread held to the group's first fast core where the system holds a thread apart from its process
-(Windows), the thread of her C's beside it (`steps.ahead`) on its neighbours; her other processes leave every group
+(Windows), the thread of its C's beside it (`steps.ahead`) on its neighbours; its other processes leave every group
 so taken, or its first core alone where that would leave them none (`left`). A group lies within one memory node
-and memory is the node's that first touches it, so her loop's is its own. Moved among all her cores her loop ran
-each at a cold cache, her camera's map beside it on its cache: on a host of 32 cores, four to a cache, her bed
-errand's pace 1.28 -> 1.70, her door's 1.68 -> 1.94, a fifth apart between runs before and steady after.
+and memory is the node's that first touches it, so its loop's is its own. Moved among all its cores its loop ran
+each at a cold cache, its camera's map beside it on its cache: on a host of 32 cores, four to a cache, its bed
+errand's pace 1.28 -> 1.70, its door's 1.68 -> 1.94, a fifth apart between runs before and steady after.
 Not throttled: Windows' power throttling of a process whose window is not the user's is told off for each.
-Above normal priority under a benchmark's relay (BENCH set, `tools.dev.focus.relay`): her pace measured beside a
+Above normal priority under a benchmark's relay (BENCH set, `tools.dev.focus.relay`): its pace measured beside a
 peer's suites flickered 8-17 % between runs of the same tree.
 
-    placed.placed()      # this process: True where it now runs on a core of its own, off her loops' caches
-    placed.placed(True)  # her loop's: on a cache group of its own where one is free, its thread on its first core
-    placed.placed(cache=True)  # her camera's, her vision's: a group of its own, its threads free, kept by later calls
+    placed.placed()      # this process: True where it now runs on a core of its own, off its loops' caches
+    placed.placed(True)  # its loop's: on a cache group of its own where one is free, its thread on its first core
+    placed.placed(cache=True)  # its camera's, its vision's: a group of its own, its threads free, kept by later calls
     mask, held = placed.claim()   # a core for a job this one starts: bind(pid, mask), then free(held)
     placed.raised()      # this process above normal priority where BENCH is set: True where it now does
     placed.cores()       # [each physical core's logical processors, a mask] where the host tells them, else []
     placed.groups()      # [each last-level cache's logical processors, a mask], else []
     placed.topology()    # ([(class, a core's mask)], [a last-level cache's mask]) as the host tells them
     placed.now()         # this process's logical processors as the system holds it now, a mask
-    placed.chosen(caches, own, free, fast)   # her loop's processors of the group it takes, 0 where none fits
+    placed.chosen(caches, own, free, fast)   # its loop's processors of the group it takes, 0 where none fits
     placed.core(found, caches, own, free)    # a core of its own, 0 where none
     placed.left(caches, own, taken)          # another process's: `own` off the groups taken
 """
@@ -53,18 +53,18 @@ _INTERACTIVE = 0x21
 SYSFS = '/sys/devices/system/cpu'
 #: Linux's control groups from a root: a process's cpuset - a container's processors - told in them.
 CGROUPS = ('sys', 'fs', 'cgroup')
-#: Set (by a benchmark's relay, inherited by every process of hers it starts), her processes run above normal priority:
+#: Set (by a benchmark's relay, inherited by every process it starts), its processes run above normal priority:
 #: Windows' ABOVE_NORMAL class - over the host's other loads, short of HIGH, which a baton a core could starve the
 #: desktop with.
 BENCH = 'COAXIAL_BENCH'
-#: Set by who starts her processes (a desk's batch, `tools.dev.background.lower`): the processors they are given, a
+#: Set by who starts its processes (a desk's batch, `tools.dev.background.lower`): the processors they are given, a
 #: hex mask, placed within as a container's cpuset (`given`); unset, all.
 GIVEN = 'COAXIAL_GIVEN'
-#: Set (not '0'), her processes are left where the system schedules them, none bound: a run's `--float`.
+#: Set (not '0'), its processes are left where the system schedules them, none bound: a run's `--float`.
 FLOAT = 'COAXIAL_FLOAT'
 #: Windows' rights on another process enough to set its processors and read them back.
 _SET_INFORMATION, _QUERY_LIMITED = 0x0200, 0x1000
-#: Her loop's cache group once taken: what holds it while this process lives, its processors of hers.
+#: Its loop's cache group once taken: what holds it while this process lives, its own processors.
 _MINE: list = []
 #: This process's core once taken (`core`): what holds it while this process lives, its logical processors.
 _CORED: list = []
@@ -203,7 +203,7 @@ def held(found, caches, mask):
 
 
 def told(environ=None):
-    """The logical processors who started this process gives her (GIVEN), a mask; 0 where none is told."""
+    """The logical processors who started this process gives it (GIVEN), a mask; 0 where none is told."""
     try:
         return int((os.environ if environ is None else environ).get(GIVEN, '0'), 16)
     except ValueError:
@@ -213,7 +213,7 @@ def told(environ=None):
 def topology():
     """([(class, each physical core's logical processors, a mask)], [each last-level cache's]) as this host tells
     them - Windows, Linux held to the processors its control group is given (`held`: a container's) -, held to
-    those who started it gives her (`told`: a desk's batch's); ([], []) on another system."""
+    those who started it gives it (`told`: a desk's batch's); ([], []) on another system."""
     if sys.platform == 'win32':
         return held(*_windows(), told())
     return held(*held(*sysfs(), given()), told()) if sys.platform.startswith('linux') else ([], [])
@@ -230,7 +230,7 @@ def groups():
 
 
 def apart(found):
-    """(her processors, the fast of them) of the cores `found` [(class, mask)]: one logical processor of each
+    """(its processors, the fast of them) of the cores `found` [(class, mask)]: one logical processor of each
     physical core but the system's first (processor 0's, its interrupts'), and those of them on cores of the highest
     class - all, where every core is one."""
     kept = [core for core in sorted(found, key=lambda core: core[1]) if not core[1] & 1]
@@ -239,8 +239,8 @@ def apart(found):
 
 
 def chosen(caches, own, free, fast=0):
-    """Her loop's processors of the cache group it takes: of `caches` (masks) one that `free` (a group -> bool,
-    asked once each till one is) says is none's and that holds two of her processors `own` at least - her loop's
+    """Its loop's processors of the cache group it takes: of `caches` (masks) one that `free` (a group -> bool,
+    asked once each till one is) says is none's and that holds two of its processors `own` at least - its loop's
     thread and the one beside it -, those with a `fast` processor before the rest, the last first: the first's
     first core is the system's. 0 where none fits: a cache a core, every group taken."""
     for group in sorted(caches, key=lambda g: (bool(g & fast), g), reverse=True):
@@ -264,7 +264,7 @@ def core(found, caches, own, free):
 
 def left(caches, own, taken):
     """Another process's processors: `own` less every cache group of `caches` that `taken` (a group -> bool) says
-    one of her loops holds; less those loops' first cores alone where that leaves none - a host of one cache for all
+    one of its loops holds; less those loops' first cores alone where that leaves none - a host of one cache for all
     its cores -; `own` where that leaves none either."""
     held = [group for group in caches if taken(group)]
     firsts = sum((group & own) & -(group & own) for group in held)
@@ -290,7 +290,7 @@ def _locked(name):
 
 
 def _take(mask, kind='loop'):
-    """What holds `mask` (a cache group's, or a core's: `kind`) for this process where none of hers on the host does:
+    """What holds `mask` (a cache group's, or a core's: `kind`) for this process where none of its own on the host does:
     a named mutex (Windows), a locked file (elsewhere), till it ends or `free`; None where another holds it."""
     name = 'coaxial-%s-%x' % (kind, mask)
     if sys.platform != 'win32':
@@ -305,7 +305,7 @@ def _take(mask, kind='loop'):
 
 
 def _taken(mask, kind='loop'):
-    """Whether one of hers holds `mask` (`_take`'s), only asked; held where it cannot be told."""
+    """Whether one of its own holds `mask` (`_take`'s), only asked; held where it cannot be told."""
     name = 'coaxial-%s-%x' % (kind, mask)
     if sys.platform != 'win32':
         fd = _locked(name)
@@ -330,7 +330,7 @@ def free(held):
 
 
 def _group(group, found):
-    """Whether her loop takes `group`, none holding it or a core of it (`found`'s): kept in `_MINE`."""
+    """Whether its loop takes `group`, none holding it or a core of it (`found`'s): kept in `_MINE`."""
     if any(_taken(mask, 'core') for _klass, mask in found if mask & group):
         return False
     held = _take(group)
@@ -348,7 +348,7 @@ def _cored(mask):
 
 
 def _given():
-    """Her loop's cache group given back: taken where this process cannot be held to it - a job's own affinity, a
+    """Its loop's cache group given back: taken where this process cannot be held to it - a job's own affinity, a
     test's runner's -, it is none's again."""
     free(_MINE[0])
     _MINE.clear()
@@ -400,7 +400,7 @@ def _keen():
 
 
 def raised():
-    """This process above normal priority where BENCH is set (a benchmark's relay): her measurements less at the
+    """This process above normal priority where BENCH is set (a benchmark's relay): its measurements less at the
     mercy of the host's other loads. False where unset or on another system; results untouched - only how soon."""
     if not os.environ.get(BENCH) or sys.platform != 'win32':
         return False
@@ -409,11 +409,11 @@ def raised():
 
 
 def placed(loop=False, host=None, cache=False):
-    """This process on a core of its own (`core`) off her loops' groups - all taken, on the lowest processor of each
+    """This process on a core of its own (`core`) off its loops' groups - all taken, on the lowest processor of each
     none holds -, above normal priority where a benchmark asks (`raised`), not throttled as a background window's
-    (Windows). Her `loop`'s on a cache group it takes (`chosen`, none of its cores held), this thread - her loop's -
-    on its first fast core (`_bound`), or the user's own where none is bound (`_keen`, macOS); a `cache` process (her
-    camera's, her vision's) on a group alike, its threads free in it - held to one, a peer's load there cut her pace
+    (Windows). Its `loop`'s on a cache group it takes (`chosen`, none of its cores held), this thread - its loop's -
+    on its first fast core (`_bound`), or the user's own where none is bound (`_keen`, macOS); a `cache` process (its
+    camera's, its vision's) on a group alike, its threads free in it - held to one, a peer's load there cut its pace
     6-10 %; either on a core where no group is free. False where it cannot be placed (two cores or fewer, another
     system); results untouched either way."""
     if host is None:

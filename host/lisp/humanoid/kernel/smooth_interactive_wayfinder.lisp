@@ -4,7 +4,7 @@
 ;;         Zero-Distance Affordance Docking Funnel & Anti-Trip Swing Foliation
 ;; REQUIRES: ortho_dsp_somatic_substrate.lisp, ortho_dsp_cognitive_autonomy.lisp,
 ;;           agnostic_terrain_and_clutter_nav.lisp
-;; Hers: somatic_interaction_core.lisp, lie_group_slam_core.lisp and the bridge
+;; Its own: somatic_interaction_core.lisp, lie_group_slam_core.lisp and the bridge
 ;; agnostic_terrain_and_clutter_nav.lisp (`:ortho-dsp.agnostic-nav`).
 ;; =============================================================================
 (defpackage :ortho-dsp.smooth-interactive-nav
@@ -58,8 +58,8 @@
 ;;     inside the frontal docking cone aligned with `docking-face-normal-xy`,
 ;;     guiding the robot smoothly into zero-clearance contact perpendicular
 ;;     to the object's oriented face!
-;; Hers: her slot's margin from her reach across her way (0.20-0.33 m in the bands it
-;; meets) to her reach ahead (0.10-0.32 m) and the standoff; the face her dock's
+;; Its own: its slot's margin from its reach across its way (0.20-0.33 m in the bands it
+;; meets) to its reach ahead (0.10-0.32 m) and the standoff; the face its dock's
 ;; (`machine.way.dock`, by what the thing affords), the cone's apex its centre.
 ;; -----------------------------------------------------------------------------
 (defprimitive carve-anisotropic-affordance-docking-funnel
@@ -86,14 +86,14 @@
 ;; Replaces jerky C^0 velocity deflections with an Euler-spiral (clothoid)
 ;; differential filter on SE(2) combined with harmonic dipole circulation:
 ;;   d(psi)/dt = v * kappa,  |kappa| <= mu * g / v^2,  |d(kappa)/dt| <= sigma_max
-;; Hers: |kappa| within her walk's arc (WALK_SPEED / YAW_RATE, 1.63 m) - she has one
-;; walk's speed, so her arc bounds kappa, not her speed -; d(kappa)/dt her arc taken up
-;; over a step, where a sole lands and turns her (`machine.way.errand`).
+;; Its own: |kappa| within its walk's arc (WALK_SPEED / YAW_RATE, 1.63 m) - it has one
+;; walk's speed, so its arc bounds kappa, not its speed -; d(kappa)/dt its arc taken up
+;; over a step, where a sole lands and turns it (`machine.way.errand`).
 ;; -----------------------------------------------------------------------------
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
-              (max-curvature-inv-m 0.61)       ; Min turning radius R_min ~ 0.54 m during normal walk! Hers 1.63 m, her arc
-              (max-clothoid-rate-inv-ms 1.41)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; hers 0.61 /m over a step's 0.43 s
+              (max-curvature-inv-m 0.61)       ; Min turning radius R_min ~ 0.54 m during normal walk! Its own 1.63 m, its arc
+              (max-clothoid-rate-inv-ms 1.41)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; its own 0.61 /m over a step's 0.43 s
               (harmonic-dipole-circulation 0.42)]
   (-> state
       (integrate-se2-clothoid-streamline
@@ -104,11 +104,11 @@
         :dkappa-max max-clothoid-rate-inv-ms
         ;; Harmonic Dipole Circulation: adds a smooth tangential swirl around oriented
         ;; obstacles at long range (1.8 m) so curves initiate early and gracefully!
-        ;; Hers none: her way is planned round her things, her aim a pursuit's ahead.
+        ;; Its own none: its way is planned round its things, its aim a pursuit's ahead.
         :dipole-swirl-gain harmonic-dipole-circulation
         ;; Centripetal Friction-Cone Governor: automatically slows translational speed v(t)
         ;; in tight turns so lateral acceleration v^2 * |kappa| never challenges the ZMP!
-        ;; Hers: one walk speed (asked 0.25-0.69 m/s she walks 0.81): kappa bounded instead.
+        ;; Its own: one walk speed (asked 0.25-0.69 m/s it walks 0.81): kappa bounded instead.
         :centripetal-velocity-scaling true
         :bank-torso-into-curve-gain 0.14)))    ; Subtle human-like inward torso lean in curves!
 
@@ -118,7 +118,7 @@
 ;; is recessed at floor level (`sub-tarsal-slab` smaller than `pelvic-crural-slab`),
 ;; allows the feet `p_td` to step UNDER the overhang so the torso/pelvis can
 ;; reach true 0.0 mm contact with the upper edge without leaning off-balance!
-;; Hers by her bands: a thing meets her reach in the bands its box spans
+;; Its own by its bands: a thing meets its reach in the bands its box spans
 ;; (`footprint.met`), a surface told apart from the legs under it (`machine.eyes.voxels`).
 ;; -----------------------------------------------------------------------------
 (defprimitive allow-sub-overhang-interactive-footholds
@@ -138,22 +138,22 @@
               (interact-with-goal-object true)
               (terminal-standoff-mm 0.0)]
   (-> state
-      (foliate-local-curved-ground-manifold :grid-extent-m 7.0) ; 6 m! Hers 7 m, her map's side
+      (foliate-local-curved-ground-manifold :grid-extent-m 7.0) ; 6 m! Its own 7 m, its map's side
       (extract-agnostic-frustum-so3-clusters
         :registry 'agnostic-hazard-soa-registry
-        :min-positive-trip-height-mm 75.0     ; 24 mm! Hers 75 mm, her ankle: her map's floor 80 mm
-        :min-negative-ditch-depth-mm -45.0)   ; Hers: her map holds nothing under her floor
+        :min-positive-trip-height-mm 75.0     ; 24 mm! Its own 75 mm, its ankle: its map's floor 80 mm
+        :min-negative-ditch-depth-mm -45.0)   ; Its own: its map holds nothing under its floor
       (carve-anisotropic-affordance-docking-funnel
         :target-selection (if interact-with-goal-object :nearest-goal-cluster :none)
         :preferred-face :minor-axis-front
         :terminal-standoff-mm terminal-standoff-mm)
       (solve-permeability-sherman-morrison-streamline
         :goal-xyz goal-xyz
-        :pelvic-clearance-margin-mm 155.0     ; Hers: her reach across her way in each thing's bands
+        :pelvic-clearance-margin-mm 155.0     ; Its own: its reach across its way in each thing's bands
         :shoulder-aperture-slotting true)
       (filter-streamline-via-se2-clothoid
         :curvature-bandwidth-radps 6.5
-        :max-curvature-inv-m 0.61             ; 1.85! Hers 0.61, her arc
+        :max-curvature-inv-m 0.61             ; 1.85! Its own 0.61, its arc
         :harmonic-dipole-circulation 0.42)
       (allow-sub-overhang-interactive-footholds :shin-to-bevel-min-clearance-mm 14.0)
       (guard-3d-swing-and-prealign-ankle-so3
@@ -173,8 +173,8 @@
 ;; Guides the robot along a C^2 clothoid curve around clutter, approaches the
 ;; furniture's front/long face orthogonally, steps feet right up to the base,
 ;; and brings the calves/thighs to -5 mm (light 9 N tactile preload!) for sitting/lying.
-;; Hers: her stage where her turn onto the face clears from any arrival (`machine.way.dock`),
-;; her heels then the stunt's standoff off the edge (`maneuver.standoff`).
+;; Its own: its stage where its turn onto the face clears from any arrival (`machine.way.dock`),
+;; its heels then the stunt's standoff off the edge (`maneuver.standoff`).
 (defmodifier specialize-nav-zero-distance-furniture-dock
   [nav-state &key (target-class :chair-or-bed) (tactile-preload-standoff-mm -5.0)]
   (-> nav-state
@@ -209,7 +209,7 @@
   (-> nav-state
       (filter-streamline-via-se2-clothoid
         :curvature-bandwidth-radps 5.2
-        :max-curvature-inv-m 1.01               ; 1.35! Hers 1.01, her arc
+        :max-curvature-inv-m 1.01               ; 1.35! Its own 1.01, its arc
         :harmonic-dipole-circulation 0.58)
       (specialize-nav-forest-roots-and-boulders :max-root-rock-height-mm 245.0)
       (specialize-nav-negative-ditches-and-curbs :ditch-depth-trigger-mm -40.0)))

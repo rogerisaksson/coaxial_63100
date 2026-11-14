@@ -1,4 +1,4 @@
-"""What she stands on when it gives: a contact's work loop, a patch's area, a power law, a bed.
+"""What it stands on when it gives: a contact's work loop, a patch's area, a power law, a bed.
 
     w_in, w_out, eta = substrate.loop(fz, zdot, dt)          # J, J, 1: a contact's compression and rebound work
     plastic, elastic, harmonic = substrate.regime(eta, ceiling, floor)   # 1 at its regime

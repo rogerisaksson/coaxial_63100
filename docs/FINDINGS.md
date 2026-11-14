@@ -264,34 +264,34 @@ Six firmware defects, no hardware fault:
 | --- | --- |
 | A woman's walk as the metric: the band, walks off it, the take | [findings/normal.md](findings/normal.md) |
 | Feet: passive toes, the sole's give, the push-off | [findings/feet.md](findings/feet.md) |
-| Her eyes: the stereo, the map she keeps, ways round its things | [findings/sight.md](findings/sight.md) |
+| Its eyes: the stereo, the map it keeps, ways round its things | [findings/sight.md](findings/sight.md) |
 | Kinematics: the figure's recipes, dual quaternions, the seams | [findings/kinematics.md](findings/kinematics.md) |
 | The whole-body stack: its solver, standing, shoves, the loop in C | [findings/wbc.md](findings/wbc.md) |
 | Leap on the stack: which soles stand from one pass, a hop stood | [findings/leap.md](findings/leap.md) |
-| Orthokinematics, the one way she moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
+| Orthokinematics, the one way it moves: text, a latent loop, the stride, the walk | [findings/orthokinematics.md](findings/orthokinematics.md) |
 | The whole body's step without an active set: 21 unknowns, four solves | [findings/wrench.md](findings/wrench.md) |
-| What her law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
-| Her body identified | [findings/identification.md](findings/identification.md) |
-| Her scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
-| Her errands: her way to a chair, a bed, the door, her dock, its stunt | [findings/errands.md](findings/errands.md) |
-| Her errands from every spot of the lodge's floor, four headings | [findings/spots.md](findings/spots.md) |
-| Her lie on the floor: the legs' refusal, the fall window let go, the rise | [findings/lie.md](findings/lie.md) |
-| Her loop's latent, impedance and wrench served live to a debugger or the local model | [findings/introspect.md](findings/introspect.md) |
-| The stairs told her: footholds, her height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
-| Her place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
-| The mocap takes as her scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
+| What its law senses: edge, estimate, insoles | [findings/sensing.md](findings/sensing.md) |
+| Its body identified | [findings/identification.md](findings/identification.md) |
+| Its scenarios as a player commands them | [findings/scenarios.md](findings/scenarios.md) |
+| Its errands: its way to a chair, a bed, the door, its dock, its stunt | [findings/errands.md](findings/errands.md) |
+| Its errands from every spot of the lodge's floor, four headings | [findings/spots.md](findings/spots.md) |
+| Its lie on the floor: the legs' refusal, the fall window let go, the rise | [findings/lie.md](findings/lie.md) |
+| Its loop's latent, impedance and wrench served live to a debugger or the local model | [findings/introspect.md](findings/introspect.md) |
+| The stairs told it: footholds, its height over the incline, the climb | [findings/stairs.md](findings/stairs.md) |
+| Its place: the glazed mountain lodge, its scene, its drawing | [findings/lodge.md](findings/lodge.md) |
+| The mocap takes as its scenarios, each judged against its take | [findings/stunts.md](findings/stunts.md) |
 | The takes as a sequencer's score: beats, voices, a gait's pattern | [findings/sequencer.md](findings/sequencer.md) |
-| The autotuner on her texts, offline and at runtime: reach, step, her loop linked | [findings/autotuner.md](findings/autotuner.md) |
-| Support, whatever bears her: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
+| The autotuner on its texts, offline and at runtime: reach, step, its loop linked | [findings/autotuner.md](findings/autotuner.md) |
+| Support, whatever bears it: a seat, a bed, a knee on the floor | [findings/support.md](findings/support.md) |
 | The board's thermal: the network, the camera, the observer, the envelope | [findings/thermal.md](findings/thermal.md) |
-| Her floor's grip: felt as a sole slides, told, her law bounded by it | [findings/grip.md](findings/grip.md) |
-| Her situation read from her sensors | [findings/situation.md](findings/situation.md) |
-| Her jerk through transitions against her steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
-| The anti-spasm insert, her master bus: each stage on her | [findings/insert.md](findings/insert.md) |
+| Its floor's grip: felt as a sole slides, told, its law bounded by it | [findings/grip.md](findings/grip.md) |
+| Its situation read from its sensors | [findings/situation.md](findings/situation.md) |
+| Its jerk through transitions against its steady walk, and its sources | [findings/jerk.md](findings/jerk.md) |
+| The anti-spasm insert, its master bus: each stage on it | [findings/insert.md](findings/insert.md) |
 | Build, buses, falls, drawing, clothes | [findings/body.md](findings/body.md) |
-| Her pace against real time: MuJoCo's step, her law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
+| Its pace against real time: MuJoCo's step, its law in C, the page's tiers | [findings/pace.md](findings/pace.md) |
 | Drives: motors, gearboxes, inverters, sizing | [findings/drives.md](findings/drives.md) |
-| Each drive's demand on her loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
+| Each drive's demand on its loop, the chair's stunts against it | [findings/demand.md](findings/demand.md) |
 | One stack for every drive: demand, candidates, stacks as built | [findings/stacks.md](findings/stacks.md) |
 | The drive and its observers: stand-in, emulator, native://, rotor pages | [findings/drive.md](findings/drive.md) |
 | QUAD: frame, law, routine, course, tuner | [findings/quad.md](findings/quad.md) |
@@ -302,10 +302,10 @@ Six firmware defects, no hardware fault:
 | Flown from compiled streams: the core, the rotors' reach, upsets, the power loop | [findings/streams.md](findings/streams.md) |
 | Renode, native:// and CI: the emulated image, peripherals, speed | [findings/emulation.md](findings/emulation.md) |
 | Host pages, tooling, suites, the local model's runner | [findings/host.md](findings/host.md) |
-| Her law compiled from her numpy: numpy's orders, her parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
+| Its law compiled from its numpy: numpy's orders, its parts, their time and memory | [findings/compiler.md](findings/compiler.md) |
 | The dual-domain kernel: its momentum observer, its steps, its tests in the lodge | [findings/kernel.md](findings/kernel.md) |
-| Her seat: where a sit lands her, the Coulomb slide as her step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
-| The hitch on her hands: from the chair's edge onto its seat, what moved her hips 0 | [findings/hitch.md](findings/hitch.md) |
+| Its seat: where a sit lands it, the Coulomb slide as its step's ask, a seat as two points | [findings/seat.md](findings/seat.md) |
+| The hitch on its hands: from the chair's edge onto its seat, what moved its hips 0 | [findings/hitch.md](findings/hitch.md) |
 
 ## Ruled Out
 

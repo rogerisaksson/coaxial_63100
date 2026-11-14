@@ -1,4 +1,4 @@
-"""Static physical, kinematic and cybernetic meta-compiler for her body, servos and gait.
+"""Static physical, kinematic and cybernetic meta-compiler for its body, servos and gait.
 
     st = compile.subtrees()          # composite rigid-body masses, levers and inertias standing
     sv = compile.servos(overrides)   # {kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2)}
@@ -391,7 +391,7 @@ def _core() -> dict[str, Any]:
 
 
 def subtrees() -> dict[str, Any]:
-    """Composite rigid-body masses, gravity levers and inertias of her kinematic subtrees standing."""
+    """Composite rigid-body masses, gravity levers and inertias of its kinematic subtrees standing."""
     return dict(_core()['subtrees'])
 
 

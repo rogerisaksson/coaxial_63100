@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A slender gynoid on her latent loop under gravity: a body with mass, each joint a drive."""
+"""A slender gynoid on its latent loop under gravity: a body with mass, each joint a drive."""
 import argparse
 import math
 import os
@@ -115,7 +115,7 @@ PROMPT_INK = (255, 196, 80)
 
 
 def badge(width, height, state):
-    """The viewport's corners: the tour's step and LLM command feed at its top, her balance
+    """The viewport's corners: the tour's step and LLM command feed at its top, its balance
     strip under it, the interactive LLM prompt bar and what Space and F offer at its foot
     (`gym.prompt`)."""
     if width < 30 or height < 6:
@@ -205,8 +205,8 @@ chat_box = gym.chat_box
 
 
 def size_of(console, args, up=0.0, below=0):
-    """(width, height) of her drawing: the room beside the column, the rows the band, the bar, `up`
-    of the help and the `below` her chat's drawer takes leave."""
+    """(width, height) of its drawing: the room beside the column, the rows the band, the bar, `up`
+    of the help and the `below` its chat's drawer takes leave."""
     size = console.size if console.is_terminal else None
     width = args.width or max(24, room(size.width if size else 110))
     bar = footer(PAD['bar']).row_count + help_rows(PAD['groups'], up)
@@ -249,8 +249,8 @@ def _joint_row(now, joint, label, shown):
 
 
 def _bus_row(now, name, joints):
-    """A bus's boards, each by its drive's load and heat: her wear's alarms are SERVICE's - red
-    here, a seat's and a fall's misread drift was taken for her buses' errors."""
+    """A bus's boards, each by its drive's load and heat: its wear's alarms are SERVICE's - red
+    here, a seat's and a fall's misread drift was taken for its buses' errors."""
     from machine.body import drives
     get = lambda k, j, d=0.0: float((now.get(k) or {}).get(j, d)) if now else d
     nodes, pk_share, max_c = ['\x1b[38;5;66m├'], 0.0, 25.0
@@ -275,8 +275,8 @@ def _bus_row(now, name, joints):
 
 
 def _tier_row(state, now, emu):
-    """The BUSES box's tier row: where her boards run - her own process's SIL, or a limb on Renode
-    -, her process paced to the wall (rt) or flat out (max), and how many times real time it
+    """The BUSES box's tier row: where its boards run - its own process's SIL, or a limb on Renode
+    -, its process paced to the wall (rt) or flat out (max), and how many times real time it
     could run (`headroom`)."""
     where = 'renode %s' % emu.limb if emu else 'in-process sil'
     return '%s  %s %.1fx' % (where, 'max' if state.get('max') else 'rt', float((now or {}).get('headroom', 1.0)))
@@ -353,7 +353,7 @@ def _seen(state):
     return state['skin'] if state['skin'] in ('mechanism', 'actuators') else None
 
 
-#: Her speed over the floor past which she goes and the chase camera follows, m/s.
+#: The robot's speed over the floor past which it goes and the chase camera follows, m/s.
 GOING_M_S = 0.1
 
 
@@ -367,8 +367,8 @@ def scripted(state, keys):
 
 
 def _step_frame(state, dt):
-    """A frame's commands: the tour's due, what her keys hold (`humanoid_keys.frame`); the chase
-    camera eased behind her."""
+    """A frame's commands: the tour's due, what its keys hold (`humanoid_keys.frame`); the chase
+    camera eased behind it."""
     if gym.touring(state):
         state['tour'].step(state, dt)
     t_mono, now = time.monotonic(), state.get('now')
@@ -380,7 +380,7 @@ def _step_frame(state, dt):
 
 
 def _draw_viewport(state, now, width, height, terminal):
-    """This frame's drawing of her - asked the frame before - and hers at `now` asked for the next
+    """This frame's drawing of it - asked the frame before - and its own at `now` asked for the next
     (`state['ahead']`, a frame ahead in its own process)."""
     if now is None:
         return '\n'.join(' ' * width for _ in range(height))
@@ -416,7 +416,7 @@ def main(argv=None):
     parser.add_argument('--tour', action='store_true', help='start the autonomous room tour on launch')
     parser.add_argument('--prompt', default='', help='send an initial natural-language LLM prompt to the gynoid')
     parser.add_argument('--telemetry', type=int, default=0,
-                        help='serve her latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
+                        help='serve its latent, impedance and wrench live on 127.0.0.1:PORT (machine.process.introspect)')
     args, board_view = parser.parse_args(argv), stage()
     if args.telemetry:
         from machine.process import worker as _worker
@@ -480,7 +480,7 @@ def main(argv=None):
             state['ahead'].close()
         sys.stdout.write('\n')
         emu = state.get('emu')
-        closing([('body', 'stopped, her process ended'),
+        closing([('body', 'stopped, its process ended'),
                  ('boards', emu.closed_note() if emu else 'none - every drive was simulated')], terminal, 0)
     return answer(leaving)
 

@@ -3,7 +3,7 @@
 
 A list to the left under `// MAIN TERMINAL ACCESS`, the board itself to the
 right, turning slowly - the toon mesh off the CAD export, so the first thing
-the terminal shows is the hardware it is for - and in turn what it drives, her
+the terminal shows is the hardware it is for - and in turn what it drives, it
 and the quad (`terminal.stand`). No session is opened here:
 the page has to be instant, so the only live datum is whether a broker is
 serving, fetched by a background thread: probed inline it cost 2 029 ms a

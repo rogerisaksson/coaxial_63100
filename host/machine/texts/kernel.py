@@ -1,4 +1,4 @@
-"""The dual-domain kernel's ops by the mechanism each feeds on her loop.
+"""The dual-domain kernel's ops by the mechanism each feeds on its loop.
 
 Its texts lisp/humanoid/kernel/, read by `machine.texts.dsp`; its protocol docs/todo/protocol.md.
 """
@@ -79,7 +79,7 @@ MECHANISMS = {
     'enforce-zero-net-yaw-wrench-allocation': 'yaw-nullifier', 'guard-underactuated-appendage-envelope': 'towed-limb'}
 #: The kernel's ops of many, each held under its node by the param naming it.
 KEYED = {'inject-adjoint-cone': ('adjoint-cones', 'id'), 'orient-manifold-normal': ('manifold-normals', 'patch')}
-#: The kernel's queries of her world, each a Law she resolves as she goes.
+#: The kernel's queries of its world, each a Law it resolves as it goes.
 QUERIES = ('query-nearest-affordance', 'slot-surface-normal', 'slot-estimated-mu', 'query-upcoming-obstacle-span-x',
            'query-upcoming-obstacle-height-z')
 
@@ -98,7 +98,7 @@ def said(stage, key):
 
 
 def node(stage, at):
-    """A kernel modifier's node `at` as it lays it on her nominal gait."""
+    """A kernel modifier's node `at` as it lays it on its nominal gait."""
     from machine.texts import dsp
     return dsp.value([stage, 'nominal-biped-gait'], read())[at]
 
@@ -115,6 +115,6 @@ def transitions():
 
 
 def transition(frm, to, at):
-    """A funnel transition's node `at`: its executor (`transitions`) run on her nominal gait."""
+    """A funnel transition's node `at`: its executor (`transitions`) run on its nominal gait."""
     from machine.texts import dsp
     return dsp.run(transitions()[(frm, to)], read()['nominal-biped-gait'])[at]

@@ -151,7 +151,7 @@ function Get-ArmFeatures {
 
 function Install-Arm {
     <#
-  Her C on an emulated Arm (run_tests.py --linux --arch arm64 --isa sve2|sme2): the engine's QEMU with SVE2 and
+  Its C on an emulated Arm (run_tests.py --linux --arch arm64 --isa sve2|sme2): the engine's QEMU with SVE2 and
         SME2, else tonistiigi's registered in its place; the runner's arm64 images - each after what it needs.
 #>
     param([string]$Docker, [string]$Python)

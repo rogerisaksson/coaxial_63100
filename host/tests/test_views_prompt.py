@@ -1,4 +1,4 @@
-"""Her prompt on the HUMANOID page: the chat dock its one surface, the local model asked off the
+"""Its prompt on the HUMANOID page: the chat dock its one surface, the local model asked off the
 page's thread when one is here, the keyword rules when none (`gym.submit_prompt`)."""
 import sys
 from types import SimpleNamespace as SN

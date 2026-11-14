@@ -1,5 +1,5 @@
-/** wbc_beat.c - her 1 kHz pass beside her law on the host (wbc_beat.h): machine.process.sprung.passed's
-    edge.felt, observer.felt, inekf.felt, motion.drives and her law's joints told, in that order, numpy's
+/** wbc_beat.c - its 1 kHz pass beside its law on the host (wbc_beat.h): machine.process.sprung.passed's
+    edge.felt, observer.felt, inekf.felt, motion.drives and its law's joints told, in that order, numpy's
     arithmetic operation for operation. Portable C11. */
 #include "wbc_beat.h"
 

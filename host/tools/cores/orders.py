@@ -1,7 +1,7 @@
 """The order numpy sums an einsum's terms in, read off its own result (`tools.cores.emit`'s einsums).
 
     perm, inner = orders.ordered(st)    # the summed letters outer to inner; an order of ORDERS
-    python -X utf8 -m tools.cores.orders    # her einsum forms' orders on this processor (`told`)
+    python -X utf8 -m tools.cores.orders    # its einsum forms' orders on this processor (`told`)
 
 Each run along the innermost summed index summed in `inner` (numpy's sum_of_products), added to the
 output in turn over the outer ones.
@@ -20,7 +20,7 @@ from tools.cores.trace import Ref, Untraced
 #: of operands 'lanes2fma', 'nji,nj->ni' 'seqfma'; strided ones and three plain), its unfused first.
 ORDERS = ('seq', 'lanes2', 'lanes4', 'seqfma', 'lanes2fma')
 #: The draws, and their seed, an einsum's order is read on where its own result fits more than one:
-#: an order is numpy's algorithm, terms alike or zero leave it untold (her capsules' ends, most 0
+#: an order is numpy's algorithm, terms alike or zero leave it untold (its capsules' ends, most 0
 #: across, summed 'seq' where numpy's AVX2 sums in lanes).
 DRAWS, SEED = 3, 5
 
@@ -168,8 +168,8 @@ def ordered(st):
 
 def told(seed=SEED):
     """[(an einsum's form, the orders of ORDERS that sum it as numpy does on this processor, bit for bit)] of
-    the forms her cores sum: a frame's rows into her contacts' (contiguous and strided), a sum over her bodies
-    into a strided output, three operands, a transpose - what `ordered` reads off her own statements."""
+    the forms its cores sum: a frame's rows into its contacts' (contiguous and strided), a sum over its bodies
+    into a strided output, three operands, a transpose - what `ordered` reads off its own statements."""
     rng = np.random.default_rng(seed)
     R, X = rng.standard_normal((16, 3, 5)), rng.standard_normal((16, 4, 5))
     Rt = np.asfortranarray(rng.standard_normal((16, 3, 5)))

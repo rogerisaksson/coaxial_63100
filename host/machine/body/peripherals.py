@@ -1,4 +1,4 @@
-"""Static peripheral meta-compiler for her fieldbus, thermal SOA, cooling, harness, eyes and sysid.
+"""Static peripheral meta-compiler for its fieldbus, thermal SOA, cooling, harness, eyes and sysid.
 
     b = peripherals.bus()         # fieldbus wire timing, SEA observer share and wear window
     t = peripherals.thermal()     # board SOA derating and trip recovery envelope
@@ -70,7 +70,7 @@ def _build_peripherals():
     kp_t = float(round(j_sprung * wt * wt, -2))
     kd_t = float(round(2.0 * zeta * math.sqrt(kp_t * j_sprung), -1))
 
-    ey = mechatronics.robot(mechatronics.HERS)['eyes']
+    ey = mechatronics.robot(mechatronics.STOCK)['eyes']
     eyes_cfg = {
         'w': int(ey['resolution'][0]), 'h': int(ey['resolution'][1]),
         'fovy_deg': float(ey['fovy_deg']), 'baseline_m': float(ey['baseline_m']),
@@ -90,7 +90,7 @@ def _build_peripherals():
 
 
 def _compiled():
-    srcs = (mechatronics.robot_sources() + mechatronics.robot_sources(mechatronics.HERS)
+    srcs = (mechatronics.robot_sources() + mechatronics.robot_sources(mechatronics.STOCK)
             + (__file__, _compile.__file__, drives.__file__, build.__file__))
     return mechatronics.compiled('peripherals_' + mechatronics.ROBOT, srcs, _build_peripherals)
 

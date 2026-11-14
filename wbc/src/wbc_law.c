@@ -1,4 +1,4 @@
-/** wbc_law.c - her latent loop's step and her upper body's coupling on the host (wbc_law.h):
+/** wbc_law.c - its latent loop's step and its upper body's coupling on the host (wbc_law.h):
     machine.law.latent.step and machine.law.support.couple, numpy's arithmetic and numpy's own OpenBLAS
     (wbc_blas.h) operation for operation. Portable C11, the host's alone. */
 #include "wbc_law.h"

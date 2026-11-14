@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Her runs recorded and replayed: R's rows and the commands beside them; each kept replay
+"""The robot's runs recorded and replayed: R's rows and the commands beside them; each kept replay
 (`tests/replays`, `tools/sim/replay.py`) every command at the pass it came at, none ending in a
 fall. A fall recorded on the page is kept in `tests/replays/falls` till it stands."""
 import csv

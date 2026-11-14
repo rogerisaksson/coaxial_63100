@@ -1,4 +1,4 @@
-/** wbc_imp.h - her modes' springs on her body in C (wbc_imp.c, wbc_stride.c, wbc_poise.c): machine.law.impedance's
+/** wbc_imp.h - its modes' springs on its body in C (wbc_imp.c, wbc_stride.c, wbc_poise.c): machine.law.impedance's
     ask, with machine.law.modal's reading, machine.law.poise, machine.law.stride and flight.standing under it,
     numpy's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #ifndef WBC_IMP_H
@@ -6,14 +6,14 @@
 
 #include "wbc_blas.h"
 
-/** The most modes she has. */
+/** The most modes it has. */
 #define WBC_IMP_N 16
 
-/** What the ask is laid on, filled once from the modules that define it: her modes' indices,
+/** What the ask is laid on, filled once from the modules that define it: its modes' indices,
     the offsets of latent.step's out, modal's y, fr and a, and their constants. */
 typedef struct
 {
-  int           n;            /**< her modes, and each's index */
+  int           n;            /**< its modes, and each's index */
   int           axial, lateral, drive, pitch, sagittal, lift, width, list, turn, arms, rock, reach, elbows;
   int           o_ref, o_rate, o_acc, o_ks, o_ds, o_psi, o_sway, o_turns, o_held, o_yawed, o_bend, o_ducked, o_manifolded, o_asked;
   int           y_com, y_vcom, y_sole, y_vsole, y_load, y_quat, y_spin, y_moment, y_lowest, y_hip, y_tilt;
@@ -41,40 +41,40 @@ typedef struct
   double        limbs[2], stride_m, rock_rad, stirs, swing, swing_fast, pace_m_s, pace_fast_m_s, back, ahead_m_s, reach_m, apart_m, soon_s;
   double        rise_u, fall_u, rise_u2, fall_u2, arrive_u, leads, land_share, reach_m_s, reach_s, flat_k, heel_rad;
   double        heel_rad_s, dip_m, edge_rad, fold_rad, heel_up, map_k;
-  /* numpy's own OpenBLAS: her law's 1-d dots and vector-matrix products taken as numpy takes them, the kernel
+  /* numpy's own OpenBLAS: its law's 1-d dots and vector-matrix products taken as numpy takes them, the kernel
      its CPU picks (SkylakeX's on AVX-512 sums otherwise than Haswell's) */
   wbc_blas_t    blas;
 } wbc_imp_t;
 
-/** `a`, the loop's ask this pass: latent.step's `out` rendered on her as she is sensed (`y`,
+/** `a`, the loop's ask this pass: latent.step's `out` rendered on it as it is sensed (`y`,
     `fr`), `a` the pass before's in and this one's out (machine.law.impedance.ask). */
 void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a);
 
-/** machine.law.modal.reading: her modes `z` and their rates `zd` as she is, the soles in `stance` her
-    standing ones; her legs (each hip from its ankle (2, 3), its length, that's rate), her turns
+/** machine.law.modal.reading: its modes `z` and their rates `zd` as it is, the soles in `stance` its
+    standing ones; its legs (each hip from its ankle (2, 3), its length, that's rate), its turns
     and their rates (3, 2). */
 void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double *z,
                      double *zd, double leg[2][3], double len[2], double lrate[2], double turn[3][2],
                      double spun[3][2]);
 
-/** machine.law.modal.shortened: her axial compression and its rate; under: the floor under each
-    sole's middle, its rise along her way returned; each sole's share of those that stand. */
+/** machine.law.modal.shortened: its axial compression and its rate; under: the floor under each
+    sole's middle, its rise along its way returned; each sole's share of those that stand. */
 void   wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rate[2], const double *fr,
                          const double stance[2], double axial[2]);
 double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double floors[2]);
-/** machine.senses.borne.latched (wbc_latched.c): her support off her soles, 0 or 1, on its comparator kept in `a`,
-    its box's low and high corners along and across in her way's frame (`rot`). */
+/** machine.senses.borne.latched (wbc_latched.c): its support off its soles, 0 or 1, on its comparator kept in `a`,
+    its box's low and high corners along and across in its way's frame (`rot`). */
 double wbc_imp_latched(const wbc_imp_t *k, const double *y, const double *fr, const double *rot, double *a,
                        double lo[2], double hi[2]);
-/** What she asks of her: her modes' reference, rate, acceleration, springs and dampers. */
+/** What it asks of it: its modes' reference, rate, acceleration, springs and dampers. */
 typedef struct
 {
   double ref[WBC_IMP_N], rate[WBC_IMP_N], acc[WBC_IMP_N], kp[WBC_IMP_N], kd[WBC_IMP_N];
   double hands[WBC_IMP_N * 6];
 } wbc_imp_said_t;
 
-/** machine.law.impedance._poses (wbc_poses.c): her turns, her arms and her knees into `a`; `z` her modes as she
-    is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still` her rhythm's. */
+/** machine.law.impedance._poses (wbc_poses.c): its turns, its arms and its knees into `a`; `z` its modes as it
+    is, `up` how far each sole is asked up, `folds` which soles' knees are asked a fold, `still` its rhythm's. */
 void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const double *fr, double *a,
                    const double *z, const wbc_imp_said_t *s, const double turn[3][2], const double rates[3][2],
                    const double up[2], const double folds[2], double still);
@@ -97,14 +97,14 @@ void wbc_imp_boxes(const wbc_imp_t *k, const double flat[2][2], const double edg
 void wbc_imp_spanned(const double lo[2], const double hi[2], const double plo[2], const double phi[2], double by,
                      double slo[2], double shi[2]);
 
-/** machine.law.poise.stands: which soles stand, her ZMP into `zmp`. `beat` sweep, off, flying, toes;
+/** machine.law.poise.stands: which soles stand, its ZMP into `zmp`. `beat` sweep, off, flying, toes;
     `bears` loads, over, felt; `prop` its low, high and how far. */
 void wbc_imp_stands(const wbc_imp_t *k, double zmp[2], const double xi[2], const double low[2][2],
                     const double high[2][2], double om, double held, const double up[2], int swaying,
                     const double beat[4][2], const double bears[3][2], double rising, double borne,
                     const double stood[2], const double prop[2][2], double by, double stance[2]);
 
-/** machine.law.surety.field's reading of her law's arrays, laid once: machine.senses.edge's offsets in
+/** machine.law.surety.field's reading of its law's arrays, laid once: machine.senses.edge's offsets in
     y_in, machine.law.latent's in st and out, the arrays themselves. */
 typedef struct
 {
@@ -118,7 +118,7 @@ typedef struct
   int           zmp_out;
   int           held_out;
   int           spare;     /**< explicit: its ints a whole number of doubles */
-  const double *y_in;      /**< her edge's array; modal's y, fr and a; her latent state and its out */
+  const double *y_in;      /**< its edge's array; modal's y, fr and a; its latent state and its out */
   const double *y;
   const double *fr;
   const double *a;
@@ -126,22 +126,22 @@ typedef struct
   const double *out;
 } wbc_surety_t;
 
-/** Her directional surety field `dt` s on from `prev` (machine.law.surety.field, wbc_surety.c):
-    her tilt `ct` deg where given, nan her IMU's; `t` her time; `vec` out: her surety along and
+/** Its directional surety field `dt` s on from `prev` (machine.law.surety.field, wbc_surety.c):
+    its tilt `ct` deg where given, nan its IMU's; `t` its time; `vec` out: its surety along and
     across, its direction, its probe. */
 double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, double dt, double ct, double t,
                       double vec[5]);
 
-/** machine.senses.touch.stepped's reading of her law's arrays, laid once: the edge's touch offset in
-    y_in, latent's gains in st, her rest's Z, K and D, the filter's state's offsets; her core's
-    and her soles' skin indices, each's body, the toes' tips; the filter's constants; the arrays. */
+/** machine.senses.touch.stepped's reading of its law's arrays, laid once: the edge's touch offset in
+    y_in, latent's gains in st, its rest's Z, K and D, the filter's state's offsets; its core's
+    and its soles' skin indices, each's body, the toes' tips; the filter's constants; the arrays. */
 typedef struct
 {
   int           touch_at;  /**< the skin's touch in y_in */
   int           st_now_gain, st_to_gain;  /**< the gain now and asked in st */
   int           r_z, r_k, r_d;  /**< rest's targets, springs, dampers */
   int           s_felt, s_hold, s_brake, s_stand, s_drv, s_clear;  /**< the state's */
-  int           core[4];   /**< her pelvis, torso, neck and head among the skin */
+  int           core[4];   /**< its pelvis, torso, neck and head among the skin */
   int           soles[2][2];  /**< each sole's foot and toes among the skin */
   const int    *ids;       /**< each skin index's body */
   const double *tips;      /**< the toes' tips (2, 3) */
@@ -151,12 +151,12 @@ typedef struct
 } wbc_touch_t;
 
 /** A pass of the filter `dt` s on (machine.senses.touch.stepped, wbc_touch.c): `asked` the twist told,
-    `twist` hers in and out, `tw_on` whether one is told, `heading` hers, `vel` her estimate's. */
+    `twist` its own in and out, `tw_on` whether one is told, `heading` its own, `vel` its estimate's. */
 void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked[3], double twist[3], double tw_on,
                     double heading, double dt, const double *vel);
 
-/** machine.law.se2.twisted's reading of her law's arrays, laid once: the edge's and modal's offsets
-    the ask's struct lacks, latent's in st, her waist and her head among her driven joints, the
+/** machine.law.se2.twisted's reading of its law's arrays, laid once: the edge's and modal's offsets
+    the ask's struct lacks, latent's in st, its waist and its head among its driven joints, the
     step's state's and its words' offsets (machine.law.se2), its constants, the arrays. */
 typedef struct
 {
@@ -166,14 +166,14 @@ typedef struct
   int           s_last_way, s_look_yaw, s_turn_dc;
   int           w_heading, w_target, w_has, w_twist, w_actual, w_active, w_stop, w_t, w_back, w_backing, w_clear;
   double        walk_m_s, back_m_s, strafe_m_s, yaw_rate, floor_hz, touch_n, stirs;
-  /** machine.law.rhythm.NAMES: her rhythm's numbers under a twist (`[gait.rhythm]`), in its order. */
+  /** machine.law.rhythm.NAMES: its rhythm's numbers under a twist (`[gait.rhythm]`), in its order. */
   double        moving, moving_edge, gain_on, gain_edge, rest_lo, rest_hi, edge_m_s, still_rad_s, edge_rad_s;
   double        rest_drive, side_m_s, turn_rad_s, turn_edge_rad_s, spin_rad_s, spin_still_m_s, backing_m_s;
   double        turn_dc, turn_dc_side, turn_blend, turning, turning_edge, spin_fast_m_s, spin_fast_edge_m_s;
   double        spin_drive, spin_drive_s_m, spin_drive_from_m_s, spin_lift, turn_sway, slip_grip, slip_grip_edge;
   double        slip_m_s, slip_hz, brisk_hz, quick_hz, run_drive, run_boost, run_arms, back_drive, back_boost;
   double        side_shift;
-  /** machine.law.se2.STEER_NAMES: her heading's and her look's numbers under a twist (`[gait.steer]`). */
+  /** machine.law.se2.STEER_NAMES: its heading's and its look's numbers under a twist (`[gait.steer]`). */
   double        slew_rad_s, side_told_m_s, turn_told_rad_s, along_s, across_s, told_s, stance_turn, stance_turn_load;
   double        stance_turn_k, lag_rad, lead_1_s, align_m_s, align_side_m_s, align_speed_m_s, align_own_m_s, align_rad;
   double        align_1_s, slack_rad, flip_gain, flip_drive, look_drive, look_on, look_back_rad_s, look_turn_rad_s;
@@ -182,17 +182,17 @@ typedef struct
   double       *fr, *st, *out, *posture, *state, *words;
 } wbc_twist_t;
 
-/** A pass of her twist `dt` s on (machine.law.se2.twisted, wbc_twist.c): `vel` her estimate's, `held`
-    her soles' grip, `prior` what she knows of the floor; fr, st, out, her posture, the state and
+/** A pass of its twist `dt` s on (machine.law.se2.twisted, wbc_twist.c): `vel` its estimate's, `held`
+    its soles' grip, `prior` what it knows of the floor; fr, st, out, its posture, the state and
     the words in place. */
 void wbc_twist_step(const wbc_imp_t *k, const wbc_twist_t *t, double dt, const double *vel, const double *held,
                     const double *prior);
 
-/** The most rows of her table the waits take. */
+/** The most rows of its table the waits take. */
 #define WBC_WAIT_ROWS 512
 
-/** machine.law.waits' reading of her table (machine.law.latent): a row's width, time, targets,
-    gain, amplitudes, phases, contact, latch and rise; her state's targets, gain, phases, rhythm
+/** machine.law.waits' reading of its table (machine.law.latent): a row's width, time, targets,
+    gain, amplitudes, phases, contact, latch and rise; its state's targets, gain, phases, rhythm
     angle and blend rates; the waits' constants and numpy's BLAS. */
 typedef struct
 {
@@ -203,11 +203,11 @@ typedef struct
   wbc_blas_t blas;
 } wbc_wait_t;
 
-/** Rows that halt her rhythm wait while her capture point steps her or a swing is under way
+/** Rows that halt its rhythm wait while its capture point steps it or a swing is under way
     (machine.law.waits.held_rows): `tab` (n rows) its times shifted in place; `got` the shift, the
-    first row shifted, her hold's seconds. Rows that raise her wait while something bears her
-    off her soles and her capture point is off them (risen_rows): `got` the shift, the first,
-    until when a prop counts. Rows that lower her wait while nothing bears her, soles or prop
+    first row shifted, its hold's seconds. Rows that raise its wait while something bears it
+    off its soles and its capture point is off them (risen_rows): `got` the shift, the first,
+    until when a prop counts. Rows that lower its wait while nothing bears it, soles or prop
     (landed_rows): `got` the shift, the first. */
 void wbc_wait_held(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
                    double t, double dt, double held_s, double got[3]);
@@ -215,41 +215,41 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
                     const double *a, const double *st, double t, double dt, double prop_until, double got[3]);
 void wbc_wait_landed(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *st,
                      double t, double dt, double got[3]);
-/** Rows that raise her out of a dip wait while her centre of mass still sinks (machine.law.waits.sunk_rows): `got` the
+/** Rows that raise it out of a dip wait while its centre of mass still sinks (machine.law.waits.sunk_rows): `got` the
     shift, the first. */
 void wbc_wait_sunk(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                    double t, double dt, double got[3]);
 
-/** Rows a contact releases (machine.law.waits.borne_rows) wait while a seat or a bed bears less of her
-    than her support counts it from, her soles' share's till her soles' loads bear it of her weight (`fr`):
+/** Rows a contact releases (machine.law.waits.borne_rows) wait while a seat or a bed bears less of it
+    than its support counts it from, its soles' share's till its soles' loads bear it of its weight (`fr`):
     `got` the shift, the first. */
 void wbc_wait_borne(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *y, const double *fr,
                     double t, double dt, double got[3]);
 
-/** Her table's waits of a law pass in their order (machine.law.waits.backs): held, risen, landed, sunk and borne,
-    each one's shift and first row in `got` (five pairs), her hold's seconds and until when a prop counts carried in
-    `state` (2); then her latch (wbc_wait_latched). */
+/** Its table's waits of a law pass in their order (machine.law.waits.backs): held, risen, landed, sunk and borne,
+    each one's shift and first row in `got` (five pairs), its hold's seconds and until when a prop counts carried in
+    `state` (2); then its latch (wbc_wait_latched). */
 void wbc_wait_backs(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n, const double *a, const double *out,
                     const double *y, const double *fr, double *st, double t, double dt, double state[2],
                     double got[10]);
 
-/** Her text's rows after `t` wait a pass, `dt`, while a move of hers plays (machine.law.waits.played_rows): `got`
+/** Its text's rows after `t` wait a pass, `dt`, while a move of its own plays (machine.law.waits.played_rows): `got`
     the shift, the time after which rows wait. */
 void wbc_wait_played(const wbc_wait_t *w, double *tab, int n, double t, double dt, double got[3]);
 
-/** A row due this pass that latches her (machine.law.waits.latched_rows) sets her latent `st`'s targets
-    now, from and to where she is read (wbc_imp_reading, the ask's stance in `a`), its rates 0. */
+/** A row due this pass that latches it (machine.law.waits.latched_rows) sets its latent `st`'s targets
+    now, from and to where it is read (wbc_imp_reading, the ask's stance in `a`), its rates 0. */
 void wbc_wait_latched(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, const double *y,
                       const double *fr, const double *a, double *st, double t, double dt);
 
-/** The rows due this pass that ask a rhythm - their gain times their amplitude - wake hers where
+/** The rows due this pass that ask a rhythm - their gain times their amplitude - wake its own where
     its gain has died down (machine.law.waits.woken_rows): its angle let go, its phases those the rows
-    say, in her latent `st`. */
+    say, in its latent `st`. */
 void wbc_wait_woken(const wbc_imp_t *k, const wbc_wait_t *w, const double *tab, int n, double *st, double t, double dt);
 
-/** machine.law.motion.scaled's and braced's reading of her body: its dofs and driven, the cervical and
-    shoulder joints among the driven (cv) and their dofs (acv), the tuck's rows (3, driven), her
-    drives' clamps, her legs' joints and their free stiffness, the posture gains, numpy's BLAS, a
+/** machine.law.motion.scaled's and braced's reading of its body: its dofs and driven, the cervical and
+    shoulder joints among the driven (cv) and their dofs (acv), the tuck's rows (3, driven), its
+    drives' clamps, its legs' joints and their free stiffness, the posture gains, numpy's BLAS, a
     scratch (wbc_brace.c). */
 typedef struct
 {
@@ -265,8 +265,8 @@ typedef struct
     by 1 - w_up (machine.law.motion.scaled). */
 void wbc_brace_scaled(const wbc_brace_t *b, const double *M, const double *w_up, double *Ms);
 
-/** The solve's `qacc`, `tau` and `over` blended in place with the tuck's by her surety's `sw` and
-    `bw`, the cervical blend by `w_up`; her drives' inertia `jeff` and her legs' stiffness `leg_kp`
+/** The solve's `qacc`, `tau` and `over` blended in place with the tuck's by its surety's `sw` and
+    `bw`, the cervical blend by `w_up`; its drives' inertia `jeff` and its legs' stiffness `leg_kp`
     by their `stance` out (machine.law.motion.braced). */
 void wbc_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, const double *q, const double *v,
                      const double *h, const double *posture, double *qacc, double *tau, unsigned char *over,

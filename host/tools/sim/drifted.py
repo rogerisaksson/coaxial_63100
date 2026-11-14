@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Her two estimates of her pelvis against the world's: her estimate's and the right-invariant EKF's.
+"""It two estimates of its pelvis against the world's: its estimate's and the right-invariant EKF's.
 
-    python tools/sim/drifted.py                     # her walk, her turns, her moves: a table
+    python tools/sim/drifted.py                     # its walk, its turns, its moves: a table
     python tools/sim/drifted.py --one play_walk     # one scene, its line as JSON (the relay's job)
 
-Each law pass from her first stride (`machine.senses.estimate`, `machine.senses.inekf`): how far each has drifted
-along the floor and in height by the end, m, against how far she went; its velocity's error at the
+Each law pass from its first stride (`machine.senses.estimate`, `machine.senses.inekf`): how far each has drifted
+along the floor and in height by the end, m, against how far it went; its velocity's error at the
 90th percentile, m/s.
 """
 import argparse
@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 SCENES = ('play_walk', 'play_turns', 'play_moves', 'play_strafes')
-#: From her first stride, s.
+#: From its first stride, s.
 SINCE_S = 1.0
 
 

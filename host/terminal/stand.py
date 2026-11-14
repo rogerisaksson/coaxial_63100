@@ -1,4 +1,4 @@
-"""The front page's stand: the board, her standing, the quad hovering, torn one into the next.
+"""The front page's stand: the board, its standing, the quad hovering, torn one into the next.
 
     view = stand.fresh(now)                       # the turntable's state
     stand.idle(view, now, dt)                     # a frame of its own motion
@@ -96,11 +96,11 @@ def grab(view, keys, moved, now):
     carry(view, dx, dy)
 
 
-#: The stand shows the board BOARD_S, then her standing HER_S (`figure.stand`), then the
+#: The stand shows the board BOARD_S, then its standing ROBOT_S (`figure.stand`), then the
 #: quad QUAD_S, in a hover and once over its nose, each torn into
 #: the next over TORN_S (`terminal.ui.glitch`) - where a card lights them: on the CPU a frame
-#: of her took 280 ms, on the card 6.
-BOARD_S, HER_S, QUAD_S, TORN_S = 14.0, 9.0, 9.0, 0.5
+#: of it took 280 ms, on the card 6.
+BOARD_S, ROBOT_S, QUAD_S, TORN_S = 14.0, 9.0, 9.0, 0.5
 
 #: The quad on the stand: its lean, degrees, round once in LEAN_S; its roll, begun ROLL_AT s
 #: into its act and made in ROLL_S.
@@ -112,13 +112,13 @@ LOOK_DEG, REACH_M, CAN_C, BOARD_C = 32.0, 0.62, 55.0, 45.0
 
 def turntable(view, width=52, height=18):
     """The board on the stand, at the pose and zoom the view holds - lit as the render demo
-    lights it: camera straight down the axis, no horizon - and in turn her, standing, and the
+    lights it: camera straight down the axis, no horizon - and in turn it, standing, and the
     quad, hovering.
     """
     if not _STAGE['ready']:
         return ''
     elapsed = time.monotonic() - view['opened']
-    acts, half = ((BOARD_S, _draw), (HER_S, _her), (QUAD_S, _quad)), TORN_S / 2.0
+    acts, half = ((BOARD_S, _draw), (ROBOT_S, _robot), (QUAD_S, _quad)), TORN_S / 2.0
     if _STAGE.get('lit') is None or elapsed < half:
         return _draw(view, width, height)
     into, act = elapsed % sum(seconds for seconds, _draws in acts), 0
@@ -134,8 +134,8 @@ def turntable(view, width=52, height=18):
                                  new(view, width, height).split('\n'), k, int(elapsed * 30)))
 
 
-def _her(view, width, height):
-    """Her standing on the stand, turning as the board turns."""
+def _robot(view, width, height):
+    """The robot's standing on the stand, turning as the board turns."""
     from coaxial.graphics import gynoid
     from machine.body import figure
     return '\n'.join(gynoid.render(figure.stand(), width, height,
@@ -150,7 +150,7 @@ def _quad(view, width, height):
     from machine.aircraft import aerobatics, quad
     from machine.body.figure import mul, rx, rz
     t = time.monotonic() - view['opened']
-    into = t % (BOARD_S + HER_S + QUAD_S) - BOARD_S - HER_S
+    into = t % (BOARD_S + ROBOT_S + QUAD_S) - BOARD_S - ROBOT_S
     lean, round_ = math.radians(LEAN_DEG), math.tau * t / LEAN_S
     roll = math.tau * aerobatics.ease((into - ROLL_AT) / ROLL_S)
     turn = mul(mul(rz(lean * math.cos(round_)), rx(lean * math.sin(round_))), rz(roll))
@@ -176,7 +176,7 @@ _STAGE: dict = {'ready': False}
 
 
 def warm():
-    """The stand's solids built, and her and the quad once on the card where one answers."""
+    """The stand's solids built, and it and the quad once on the card where one answers."""
     try:
         _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
         # On the card where one answers: 64 ms a frame at 52x18 on the CPU.
@@ -185,7 +185,7 @@ def warm():
         found = card.adapter()
         if found is not None:
             _STAGE['lit'] = gpu.LitRaster(found=found)
-            _her({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
+            _robot({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
             _quad({'opened': time.monotonic(), 'spun': 0.0}, 8, 4)
     finally:
         _STAGE['ready'] = True

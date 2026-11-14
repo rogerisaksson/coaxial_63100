@@ -1,1 +1,1 @@
-"""Her world in MuJoCo: its physics, her floors and the lodge, what gives under her, the referee."""
+"""Its world in MuJoCo: its physics, its floors and the lodge, what gives under it, the referee."""

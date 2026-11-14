@@ -1,5 +1,5 @@
-"""Her movements' terms (`machine.body.terms`): its rows her figure's laid anew; a term moves her in
-MuJoCo as its name says, either limb the one sign; its stops the figure's; what she has not is
+"""Its movements' terms (`machine.body.terms`): its rows its figure's laid anew; a term moves it in
+MuJoCo as its name says, either limb the one sign; its stops the figure's; what it has not is
 absent; the leg's own IK bends its joints the terms' way."""
 import importlib
 import math
@@ -13,12 +13,12 @@ IDENT = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 ASKED_DEG = 10.0
 
 
-def test_the_rows_are_her_figure(report):
-    """machine/body/term_rows.py is what tools/cores/terms.py lays from her figure now."""
+def test_the_rows_are_its_figure(report):
+    """machine/body/term_rows.py is what tools/cores/terms.py lays from its figure now."""
     from tools.cores import terms as laid
     with open(laid.PATH, encoding='utf-8') as f:
         on_disk = f.read()
-    report.check('the rows on disk are her figure laid anew', laid.render(laid.rows()) == on_disk,
+    report.check('the rows on disk are its figure laid anew', laid.render(laid.rows()) == on_disk,
                  'python tools/cores/terms.py --write')
 
 
@@ -34,8 +34,8 @@ def _posed(mujoco, model, data, segment, kind, vector, angles):
     return [float(p) + t for p, t in zip(body.xpos, tip)] if kind == 'point' else tip
 
 
-def test_a_term_moves_her_as_its_name_says(report):
-    """Every term asked ASKED_DEG of each limb - or of her trunk - in the compiled figure: its
+def test_a_term_moves_it_as_its_name_says(report):
+    """Every term asked ASKED_DEG of each limb - or of its trunk - in the compiled figure: its
     segment's point or axis goes the way anatomy says (`tools.cores.terms.ANATOMY`), nine
     tenths of its motion at the least; its opposite the other way; a term toward a side, toward
     the limb's whose mirror it took."""
@@ -62,12 +62,12 @@ def test_a_term_moves_her_as_its_name_says(report):
                       for angles in ({}, {terms.joint(limb, joint): deg})]
                 went = sum((b - a) * w for a, b, w in zip(at[0], at[1], toward)) / math.radians(ASKED_DEG)
                 least, asked = min(least, sense * went), asked + 1
-    report.check('every term moves her its own way in MuJoCo, either limb', asked > 40 and least > 0.9,
+    report.check('every term moves it its own way in MuJoCo, either limb', asked > 40 and least > 0.9,
                  '%d asked, %.3f of the motion at the least' % (asked, least))
 
 
 def test_its_stops_are_the_figures(report):
-    """A term's stops are her figure's as declared - `drives.TRAVEL` -, through the term's sign; with none
+    """A term's stops are its figure's as declared - `drives.TRAVEL` -, through the term's sign; with none
     declared, none."""
     from machine.body import drives, terms
     declared = drives.TRAVEL
@@ -79,15 +79,15 @@ def test_its_stops_are_the_figures(report):
                 wrong.append((part, name, low, high))
         else:
             free.append((part, name, low, high))
-    report.check("a term's stops are her figure's through its sign", held > 10 and not wrong,
+    report.check("a term's stops are its figure's through its sign", held > 10 and not wrong,
                  '%d held; wrong: %s' % (held, wrong or 'none'))
     report.check('where nothing is declared, none', all(low is None and high is None for _p, _n, low, high in free),
                  ', '.join('%s %s' % (p, n) for p, n, _l, _h in free))
 
 
-def test_what_she_has_not_is_absent(report):
-    """A movement anatomy names and no driven joint of hers makes is not found: her shoulder's
-    abduction, her forearm's pronation, her wrist's flexion - held -, her toes' - sprung; no
+def test_what_it_has_not_is_absent(report):
+    """A movement anatomy names and no driven joint of its own makes is not found: its shoulder's
+    abduction, its forearm's pronation, its wrist's flexion - held -, its toes' - sprung; no
     term is on a joint without a drive."""
     from machine.body import drives, term_rows, terms
     found = [t for t in term_rows.ABSENT if terms.find(*t) is not None]
@@ -95,7 +95,7 @@ def test_what_she_has_not_is_absent(report):
                                                  ('wrist', 'flexion'), ('toes', 'extension')))
     undriven = [(part, name) for (part, name), (joint, *_rest) in terms.TERMS.items()
                 if any(drives.passive(terms.joint(limb, joint)) for limb in range(2))]
-    report.check('what she has not is absent', named and not found and not undriven,
+    report.check('what it has not is absent', named and not found and not undriven,
                  '%d absent, %d of them found, %d terms on a joint with no drive'
                  % (len(term_rows.ABSENT), len(found), len(undriven)))
 
@@ -126,8 +126,8 @@ def test_the_legs_ik_bends_the_terms_way(report):
     report.check("the leg's IK bends each joint its term's way, either limb", not wrong, '%s' % (wrong or '12 of 12'))
 
 
-ROSTER = [test_the_rows_are_her_figure, test_a_term_moves_her_as_its_name_says,
-          test_its_stops_are_the_figures, test_what_she_has_not_is_absent,
+ROSTER = [test_the_rows_are_its_figure, test_a_term_moves_it_as_its_name_says,
+          test_its_stops_are_the_figures, test_what_it_has_not_is_absent,
           test_the_legs_ik_bends_the_terms_way]
 
 

@@ -2,7 +2,7 @@
 # cube-cmake writes per-preset trees here; everything in it is regenerated.
 build/
 out/
-# her recordings (`introspect.RECORDINGS`): a page's R, a gate's windows. Each carries the commit
+# its recordings (`introspect.RECORDINGS`): a page's R, a gate's windows. Each carries the commit
 # it was made at (machine/process/commit.py); the pre-commit removes them all.
 recordings/
 cmake-build-*/
@@ -53,7 +53,7 @@ htmlcov/
 # The BOM is not a measurement log: it is the authority on what is
 # fitted, and docs/HARDWARE.md points at it.
 !electronics/*.csv
-# Her kept replays are a suite's input: the commands a run heard, pass by pass.
+# The robot's kept replays are a suite's input: the commands a run heard, pass by pass.
 !host/tests/replays/*.csv
 !host/tests/replays/falls/*.csv
 *.log
@@ -141,7 +141,7 @@ host/prompt_io.tmp
 # Rewritten by every run; only ever used to say what a narrowed run skipped.
 host/tests/.counts.json
 
-# Her pace's floor (tests/test_pace.py --record): this host's own, another's pace not its.
+# The robot's pace's floor (tests/test_pace.py --record): this host's own, another's pace not its.
 host/tests/.pace.json
 
 # The mesh reduction cached beside the model: derived from the STL, 1 MB,

@@ -48,7 +48,7 @@ STRAYS = (0, 3, -2, 1, -3, 2, -1, 0, 2, -3, 1, -2, 3, -1, 0, 1)
 #: all but the chosen node's, those above it and those laid out below it -, lit edges, the chosen node's
 #: ties out and in, lit nodes, then the legend's (the dark terminal's, validated all-pairs): reaches,
 #: reached by, found, chosen. Then text's: a dim name, a lit one, the chosen node's, a key that chooses; a
-#: panel's frame - her eyes' (coaxial.graphics.inset: the instruments' frame, the theme's name and value) -,
+#: panel's frame - its eyes' (coaxial.graphics.inset: the instruments' frame, the theme's name and value) -,
 #: an idle panel's frame, a brief.
 FAINT, DIM_EDGE, DIM_NODE, EDGE, TIE_OUT, TIE_IN, NODE, OUT, IN, HIT, OPEN, NAME_DIM, NAME, TOLD, KEY, \
     FRAME, TITLE, NOTE, FRAME_DIM, BRIEF = range(1, 21)

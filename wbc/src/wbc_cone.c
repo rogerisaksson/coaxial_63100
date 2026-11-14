@@ -1,6 +1,6 @@
 /** wbc_cone.c - a standing sole's wrench in its cone, for the step without an active set
     (wbc_wrench.c): clipped a part at a time for its rounds (`wbc_cone_bounded`); striding, met
-    a face at a time by her inertia (`wbc_cone_taken`: machine.stack.wrench's `faced` and `_taken`). */
+    a face at a time by its inertia (`wbc_cone_taken`: machine.stack.wrench's `faced` and `_taken`). */
 #include "wbc.h"
 #include "wbc_solve.h"
 
@@ -97,7 +97,7 @@ static void faced(const wbc_body_t *b, const wbc_wrench_t *w, const wbc_ask_t *a
   }
 }
 
-/** Her kinetic energy's metric over the unknowns - full^T M full, udot = full x - and each
+/** The robot's kinetic energy's metric over the unknowns - full^T M full, udot = full x - and each
     unknown's own weight on its diagonal: w->k's lower half. full = T P + E is not formed: M T
     and M E over what T and E reach, then T^T M T, T^T M E and E^T M E. mbt the pelvis's rows
     of M T. */
@@ -209,10 +209,10 @@ static void kinetic(const wbc_body_t *b, wbc_wrench_t *w, const double mbt[6][6]
   }
 }
 
-/** Striding, what the floor cannot give her inertia takes: u0, the rows' answer with the floor
-    unbounded, brought to the faces her soles' wrenches are past by the least change in the
+/** Striding, what the floor cannot give its inertia takes: u0, the rows' answer with the floor
+    unbounded, brought to the faces its soles' wrenches are past by the least change in the
     metric w->k holds factored - a face a part of a sole's wrench, about its own axes, less its
-    share of the sole's push; her height's band decided before the faces, and giving where a
+    share of the sole's push; its height's band decided before the faces, and giving where a
     cone and it cannot both be met. Into at (machine.stack.wrench._taken). */
 static void taken(const wbc_body_t *b, wbc_wrench_t *w, const wbc_ask_t *ask, const double stance[2],
                   double lo, double hi, const double u0[NU], double at[NU])

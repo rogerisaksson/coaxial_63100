@@ -1,19 +1,19 @@
-"""Her shield (proprioceptive_body_schema.lisp): capsules' ECBF on each other; the room's boxes.
+"""Its shield (proprioceptive_body_schema.lisp): capsules' ECBF on each other; the room's boxes.
 
-    posture, held = schema.shielded(body, near, s, ask, volts)    # her posture holding each near pair's ECBF
+    posture, held = schema.shielded(body, near, s, ask, volts)    # its posture holding each near pair's ECBF
     boxes = schema.room(props)                                    # the room's boxes, laid once a refresh
 
-Her posture's ask (her law's lowest row, `wbc.POSTURE_KD`: the null space of her balance and her steps)
-is held to h'' + k_d h' + k_p h >= 0 on each pair of her capsules (`machine.body.capsules`) within the text's
+Its posture's ask (its law's lowest row, `wbc.POSTURE_KD`: the null space of its balance and its steps)
+is held to h'' + k_d h' + k_p h >= 0 on each pair of its capsules (`machine.body.capsules`) within the text's
 influence (`specialize-with-nullspace-limb-retraction`), h its clearance less its floor and its braking
-distance v^2 / (2 a) within the cocoon's horizon - v its closing speed, a the most her drives' braking
-bounds (`machine.body.bemf`) can open it by through her mass matrix -, on the pair's evading joints, least in
-her mass's metric, each within its drive's peak; what they cannot is the shield's spill.
+distance v^2 / (2 a) within the cocoon's horizon - v its closing speed, a the most its drives' braking
+bounds (`machine.body.bemf`) can open it by through its mass matrix -, on the pair's evading joints, least in
+its mass's metric, each within its drive's peak; what they cannot is the shield's spill.
 
-The room: each prop a box (`world.props()` through her map, `machine.eyes.registry`), her wayfinder's gauge's
-(`machine.way.wayfinder`). Her arms' ECBF against them through their elbows alone (the text's limb synergy
-she has) spared no strike at a doorway's jamb and halved her shoulder's yield after it: not held; the
-text's holds her trunk by her balance bus and her legs by her footholds.
+The room: each prop a box (`world.props()` through its map, `machine.eyes.registry`), its wayfinder's gauge's
+(`machine.way.wayfinder`). Its arms' ECBF against them through their elbows alone (the text's limb synergy
+it has) spared no strike at a doorway's jamb and halved its shoulder's yield after it: not held; the
+text's holds its trunk by its balance bus and its legs by its footholds.
 """
 import os
 
@@ -32,22 +32,22 @@ _SHIELD = kernel.node('xform-universal-spatial-awareness', 'ecbf-shield')
 KP, KD = _SHIELD['position-gain-kp'], _SHIELD['velocity-gain-kd']
 #: A pair's clearance past its floor under which the shield holds it, m.
 INFLUENCE = RETRACTION['activation-distance-m']
-#: A shortfall's weight against her posture's change in her mass's metric, kg: what her evading joints
+#: A shortfall's weight against its posture's change in its mass's metric, kg: what its evading joints
 #: cannot meet within their peaks is left as the shield's spill.
 SPILL_KG = 1e6
 #: The braking distance's horizon, s (`extrude-velocity-braking-cocoon`).
 HORIZON = kernel.node('xform-universal-spatial-awareness', 'braking-cocoon')['lookahead-s']
-#: The bands' refresh, s: her things read so often.
+#: The bands' refresh, s: its things read so often.
 REFRESH_S = 1.0 / kernel.node('configure-foliated-sdf-bands', 'sdf-bands')['refresh-rate-hz']
 
 
 def room(props):
     """{centre (C, 3), half (C, 3), R (C, 3, 3)} of the room's boxes `props` (`world.props()`'s: kind,
-    centre, half sizes, rotation), laid once per list: her things change at REFRESH_S, her law passes
-    oftener; her registry's things (`registry.Things`) laid off the arrays they keep. Laid to a doubling's
+    centre, half sizes, rotation), laid once per list: its things change at REFRESH_S, its law passes
+    oftener; its registry's things (`registry.Things`) laid off the arrays they keep. Laid to a doubling's
     capacity C - the least power of two that holds them, the last of them told again for the rest: a gap among
-    them is a least and an any (`wayfinder.gap`), the same with a box told twice, and her gauge's C is one a
-    capacity where it was one a count - her eyes' things told 25 counts in a door errand, each traced and held anew,
+    them is a least and an any (`wayfinder.gap`), the same with a box told twice, and its gauge's C is one a
+    capacity where it was one a count - its eyes' things told 25 counts in a door errand, each traced and held anew,
     15 ms."""
     if _LAID.get('of') is not props:
         if getattr(props, 'arrays', None) is not None:
@@ -67,16 +67,16 @@ _LAID: dict = {}
 
 
 def braking(J, M, act, dq, volts):
-    """The most each row of `J` can be opened by, m/s^2: her drives' bounds at their speeds `dq` on
-    `volts` (`bemf.bounds`) through her mass matrix `M`, each drive at the bound that opens it."""
+    """The most each row of `J` can be opened by, m/s^2: its drives' bounds at their speeds `dq` on
+    `volts` (`bemf.bounds`) through its mass matrix `M`, each drive at the bound that opens it."""
     lo, hi = bemf.bounds(dq, volts, bemf.PEAK)
     C = np.linalg.solve(M, J.T)[act].T
     return np.maximum(C * lo, C * hi).sum(1)
 
 
 def _evaded(M, J, act, free, short):
-    """(x, held): the change on her evading joints `free` of `act` and each row's spill meeting `short`
-    through `J`, least in her mass's metric `M`, each joint within its drive's peak over its own
+    """(x, held): the change on its evading joints `free` of `act` and each row's spill meeting `short`
+    through `J`, least in its mass's metric `M`, each joint within its drive's peak over its own
     inertia; the rows `qp.solve` held, x zeros where none meets it."""
     k, f = len(short), len(free)
     Jf, Mf = J[:, act[free]], M[np.ix_(act[free], act[free])]
@@ -89,13 +89,13 @@ def _evaded(M, J, act, free, short):
 
 
 def shielded(body, near, s, ask, volts, shield_=None):
-    """(her posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
-    joints of the pairs within INFLUENCE of their floors (EVADES), least in her mass's metric, each
+    """(its posture's ask, {d, h, which, held, spill}): `ask['posture']` changed on the text's evading
+    joints of the pairs within INFLUENCE of their floors (EVADES), least in its mass's metric, each
     joint within its drive's peak over its own inertia, so that each pair keeps h'' + KD h' + KP h >= 0
     - h its clearance less its floor and its braking distance -, what it cannot its spill (m/s^2);
     `near` every pair's clearance and its Jacobian at `s` (`capsules.felt`); each pair's clearance,
     the near ones' h, the pairs it held. Every pair's h and shortfall at once (`shield`, `shield_` its C,
-    `machine.law.motion.laid`); a near one short, the QP's (`_shielded`), else her posture as asked."""
+    `machine.law.motion.laid`); a near one short, the QP's (`_shielded`), else its posture as asked."""
     act, posture = body.act, np.asarray(ask['posture'], float)
     which = np.flatnonzero(near['d'] - FLOOR < INFLUENCE)
     h, short = (shield if shield_ is None else shield_)(near['d'], near['J'], s['M'], s['v'], s['q'], posture, volts,
@@ -108,8 +108,8 @@ def shielded(body, near, s, ask, volts, shield_=None):
 
 
 def shield(d, J, M, v, q, posture, volts, act):
-    """Each pair's h and its ECBF's shortfall (`_shielded`'s), of arrays alone: her drives' braking bounds
-    (`bemf.bounds`) through her mass matrix, the pair's closing speed, her posture's want on her joints `act`."""
+    """Each pair's h and its ECBF's shortfall (`_shielded`'s), of arrays alone: its drives' braking bounds
+    (`bemf.bounds`) through its mass matrix, the pair's closing speed, its posture's want on its joints `act`."""
     back, peak = bemf.E * v[act], _PEAK
     lo = np.maximum(-peak, np.minimum(0.0, bemf.K * (-(bemf.REACH * volts) - back)))
     hi = np.minimum(peak, np.maximum(0.0, bemf.K * (bemf.REACH * volts - back)))
@@ -122,7 +122,7 @@ def shield(d, J, M, v, q, posture, volts, act):
     return h, -KD * rate - KP * h - J[:, act] @ want
 
 
-#: Her drives' peaks, each (`bemf.PEAK`), as `bemf.bounds` takes them.
+#: The robot's drives' peaks, each (`bemf.PEAK`), as `bemf.bounds` takes them.
 _PEAK = np.asarray(bemf.PEAK, float)
 
 

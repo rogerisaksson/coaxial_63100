@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       # What the suites take from outside, kept in the Actions cache (.github/actions/inputs): their
-      # environment, and Mesa's EGL in software for her eyes' renderer (machine.eyes.sight, MuJoCo's) -
+      # environment, and Mesa's EGL in software for its eyes' renderer (machine.eyes.sight, MuJoCo's) -
       # the runner has no display; without it mjr_makeContext raised and test_sight crashed. Fetched
       # afresh every run, apt's mirrors not resolving failed the gate before a suite ran (f97eab6b,
       # c3a6174a, 074c24b0).
@@ -44,9 +44,9 @@ jobs:
           editable: host
       # numpy's AVX2 paths on every runner, as on the desk and the EPYC 7763: on AVX-512 (Xeon 8370C/8573C,
       # EPYC 9V45/9V74) numpy sent tan, asin, acos, atan2, exp and log to SVML, a last bit apart from the libm
-      # her C calls, and her wrench magnified it past her twins' bounds (5.33e-05 N m of tau at test_tick's pass
-      # 2298); OpenBLAS's kernel her C takes as numpy does (wbc_dot, wbc_matmul) - forced, it crashed Zen 4/5.
-      # Her C built for AVX2 on every runner too (x86-64-v3, tools/cores/build.py's TARGETS): one code for all.
+      # its C calls, and its wrench magnified it past its twins' bounds (5.33e-05 N m of tau at test_tick's pass
+      # 2298); OpenBLAS's kernel its C takes as numpy does (wbc_dot, wbc_matmul) - forced, it crashed Zen 4/5.
+      # Its C built for AVX2 on every runner too (x86-64-v3, tools/cores/build.py's TARGETS): one code for all.
       - run: python tools/dev/run_tests.py --offline ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
@@ -66,7 +66,7 @@ jobs:
             -f body="$(printf 'CI offline (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}'; cat tail.log; printf '\n~~~\n')" \
             || true
 
-  # Her C built for another target than the gate's, its parity suites beside her python on a runner that runs it:
+  # Its C built for another target than the gate's, its parity suites beside its python on a runner that runs it:
   # SVE2 on GitHub's arm64 runner (Cobalt 100, Neoverse N2 - numpy's einsums fused there, its OpenBLAS's own
   # kernels), AVX-512 where the runner GitHub gives has it (EPYC 9V74, Xeon 8573C; an EPYC 7763 has none, and the
   # job says so). SME2 is emulated on a desk alone (run_tests.py --linux --arch arm64 --isa sme2): hours under QEMU.

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Her floor scoot's lean: pelvis, feet and fists each side at her sit, held, and each back stroke.
+"""Its floor scoot's lean: pelvis, feet and fists each side at its sit, held, and each back stroke.
 
     python tools/sim/scoot_lean.py              # four starts side by side on the relay
     python tools/sim/scoot_lean.py 0.7          # one start, its JSON line
 
-Said scoot_floor `at` s after she stands, then S held 8 s. At her sit's end (floor_rest's first pass), held (12 s
-after the say) and each back stroke's set (both feet down, the stroke's first pass): her pelvis's tilt and her
-trunk's (its left side up, deg), her centre of mass out from her pelvis's middle line (m, left +), each side's leg
-joints sensed and commanded (deg), feet's and fists' places in her pelvis's frame (ahead, out from her middle line,
-m) and their loads (shares of her weight), the seat's.
+Said scoot_floor `at` s after it stands, then S held 8 s. At its sit's end (floor_rest's first pass), held (12 s
+after the say) and each back stroke's set (both feet down, the stroke's first pass): its pelvis's tilt and its
+trunk's (its left side up, deg), its centre of mass out from its pelvis's middle line (m, left +), each side's leg
+joints sensed and commanded (deg), feet's and fists' places in its pelvis's frame (ahead, out from its middle line,
+m) and their loads (shares of its weight), the seat's.
 """
 import json
 import math
@@ -17,16 +17,16 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Her leg's joints, each side.
+#: The robot's leg's joints, each side.
 LEG = ('hip', 'hip_roll', 'hip_yaw', 'knee', 'ankle_roll')
-#: The starts compared, s after she stands.
+#: The starts compared, s after it stands.
 STARTS = ('0.5', '0.7', '0.9', '1.0')
-#: Her sit's span after the say, then S held, s.
+#: The robot's sit's span after the say, then S held, s.
 SIT_S, BACK_S = 12.0, 8.0
 
 
 def run(at):
-    """One start: her snapshots as a dict."""
+    """One start: its snapshots as a dict."""
     from coaxial.model.blocks import numpy as np
     from machine.body.figure import JOINTS
     from machine.law import modal

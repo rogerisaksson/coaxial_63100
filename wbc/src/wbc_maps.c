@@ -189,7 +189,7 @@ int wbc_step_maps(const wbc_step_t *p, const double *want, double *T, double *E,
       }
     }
   }
-  /* the joints no drive holds, by their own rows of her dynamics under all the rest */
+  /* the joints no drive holds, by their own rows of its dynamics under all the rest */
   for (int a = 0; a < np_; a++)
   {
     for (int b = 0; b < np_; b++)

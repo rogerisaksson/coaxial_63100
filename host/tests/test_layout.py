@@ -172,8 +172,8 @@ def _reached(path, headers, seen):
 def test_null_has_its_header(r):
     """A source naming NULL, or offsetof, reaches a header ISO C defines it in. MinGW's and newlib's
     <math.h> and <stdint.h> bring them and glibc's do not: ctrl_loop.c built here and for the
-    part, and on CI's host no core did - 29 suites crashed, the emulator's among them -; her
-    glue's offsetof (quick_part.c) built here, and on CI's host her glue stayed python."""
+    part, and on CI's host no core did - 29 suites crashed, the emulator's among them -; its
+    glue's offsetof (quick_part.c) built here, and on CI's host its glue stayed python."""
     from tools.dev import target_map
     dirs = target_map.DIRS + ('wbc', 'aero')
     glue = dirs + (os.path.join('host', 'tools', 'cores'),)
@@ -408,15 +408,15 @@ def test_docs_name_only_the_tree(r):
             not gone, '; '.join(gone[:4]))
 
 
-def test_her_structs_carry_no_padding(r):
-    """Each C struct her python mirrors through ctypes carries no implicit padding - its fields' sizes sum to its size,
+def test_its_structs_carry_no_padding(r):
+    """Each C struct its python mirrors through ctypes carries no implicit padding - its fields' sizes sum to its size,
     an int left over an explicit `spare`, a tail past whole cache lines a named field -, each mirror held to its C's
     size as its library lays it."""
     import ctypes
     import importlib
     from tools.cores.build import find_cc
     if find_cc() is None:
-        r.check('her structs carry no padding, where a host compiler builds them', True, 'no compiler here')
+        r.check('its structs carry no padding, where a host compiler builds them', True, 'no compiler here')
         return
     from tools.cores import beat, bedexit, played, scoot, sensed, surety, tick, wbc, world
     wbc.library()
@@ -431,7 +431,7 @@ def test_her_structs_carry_no_padding(r):
         struct = getattr(importlib.import_module('tools.cores.' + mod), name)
         gap = ctypes.sizeof(struct) - sum(ctypes.sizeof(t) for _n, t in struct._fields_)
         padded += ['%s.%s %d B' % (mod, name, gap)] if gap else []
-    r.check('her %d mirrored C structs carry no implicit padding' % len(mirrors), not padded, ', '.join(padded) or 'none')
+    r.check('it %d mirrored C structs carry no implicit padding' % len(mirrors), not padded, ', '.join(padded) or 'none')
 
 
 ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_header,
@@ -440,7 +440,7 @@ ROSTER = (test_target_briefs, test_emulation_is_transparent, test_null_has_its_h
           test_no_dates_in_the_tree,
           test_every_suite_runs, test_a_crash_names_its_test, test_a_suite_cut_short_keeps_its_seconds,
           test_docs_name_only_the_tree,
-          test_her_structs_carry_no_padding)
+          test_its_structs_carry_no_padding)
 
 def main(argv=None):
     """Every test, or those the command line's words name, or its --shard k/n (tools.dev.focus)."""

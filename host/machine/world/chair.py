@@ -1,11 +1,11 @@
 """A chair's body as the floor parks it: its seat at a height, its back, its four legs."""
 from machine.body import figure
 
-#: The chair, as wide as her hands hang and a fist: 0.44 m wide they hung 4-5 cm past it.
+#: The chair, as wide as its hands hang and a fist: 0.44 m wide they hung 4-5 cm past it.
 CHAIR_SEAT, CHAIR_SEAT_H, CHAIR_BACK = (figure.ASIDE + figure.FIST_R, 0.02, 0.22), 0.45, (figure.ASIDE + figure.FIST_R, 0.20, 0.02)
 CHAIR_LEG, CHAIR_LEG_IN = 0.02, 0.03
 #: A seat's grip on what sits on it: its wood's sliding coefficient 0.6, MuJoCo's torsion and roll. At MuJoCo's 1.0
-#: her clothes (0.55, the same priority) took the seat's and held her where she sat: her arms' strokes moved her none.
+#: its clothes (0.55, the same priority) took the seat's and held it where it sat: its arms' strokes moved its none.
 SEAT_GRIP = ' friction="0.6 0.005 0.0001"'
 
 

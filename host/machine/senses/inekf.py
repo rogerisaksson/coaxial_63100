@@ -1,20 +1,20 @@
-"""Her pelvis by a right-invariant EKF on SE_2+3(3): her IMU carries it, what bears her corrects it.
+"""Its pelvis by a right-invariant EKF on SE_2+3(3): its IMU carries it, what bears its corrects it.
 
     f = inekf.laid(where, turn)                 # still at `where` (m, world), turned `turn`
-    inekf.felt(f, y, dt)                        # each drive pass: her IMU into the pass's means
-    inekf.stepped(f, body, y, shares, dt, inekf.points, inekf.step)   # a law pass: her bearing points off her posed body
+    inekf.felt(f, y, dt)                        # each drive pass: its IMU into the pass's means
+    inekf.stepped(f, body, y, shares, dt, inekf.points, inekf.step)   # a law pass: its bearing points off its posed body
     inekf.step(f, y, soles, anchors, shares, dt)   # the filter on given points
-    f['R'], f['v'], f['p']                      # her pelvis's turn, velocity and place, world
+    f['R'], f['v'], f['p']                      # its pelvis's turn, velocity and place, world
 
 The kernel's `propagate-invariant-ekf-se3` (Hartley, Ghaffari, Eustice, Grizzle 2020): the state
-her pelvis's turn R, velocity v and place p and her soles' and core's contact points d, X in SE_2+3(3); her
+its pelvis's turn R, velocity v and place p and its soles' and core's contact points d, X in SE_2+3(3); its
 gyro and accelerometer over the pass carry it on, their noise the text's (gyro, accel per root
-hertz). A contact's point is the one under its centre of pressure: that point last pass, in her pelvis
-now by her encoders' kinematics, is R'(d - p) - a rolling sole's or core's point that bears does not move -,
-its innovation R h - (d - p), its noise her encoders' grain through her leg over the contact's share
-of her weight (the text's `contact-weight-source`: what bears her); then d is laid at the point
+hertz). A contact's point is the one under its centre of pressure: that point last pass, in its pelvis
+now by its encoders' kinematics, is R'(d - p) - a rolling sole's or core's point that bears does not move -,
+its innovation R h - (d - p), its noise its encoders' grain through its leg over the contact's share
+of its weight (the text's `contact-weight-source`: what bears it); then d is laid at the point
 under its centre of pressure now. A contact bearing under the comparator's release (`observer.RELEASE`)
-or its innovation past the text's Mahalanobis gate (a slide) is let go and laid anew; her IMU the
+or its innovation past the text's Mahalanobis gate (a slide) is let go and laid anew; its IMU the
 pass's mean (`felt`). The update X+ = exp(dx) X, the
 covariance in Joseph's form.
 """
@@ -39,10 +39,10 @@ ENCODER_COUNTS = int(_INV['encoder_counts'])
 GRAIN, REACH = math.tau / (ENCODER_COUNTS * drives.RATIO), round(figure.standing(), 2)
 CONTACTS, N = 3, 18
 CORE = np.array([edge.SKIN.index('pelvis'), edge.SKIN.index('torso')])
-#: Her world's up, against gravity (`edge.G`): what a look laid onto her floor turns her about (`seen`).
+#: Its world's up, against gravity (`edge.G`): what a look laid onto its floor turns it about (`seen`).
 UP = -edge.G / np.linalg.norm(edge.G)
 #: How fast a bearing sole's point rolls along it at most, m/s: its length (`figure.SOLE_HALF` twice) once a stride of
-#: her walk (`se2.WALK_HZ`) - her drift's walk a pass (`stepped`).
+#: its walk (`se2.WALK_HZ`) - its drift's walk a pass (`stepped`).
 ROLL_M_S = 2.0 * figure.SOLE_HALF * se2.WALK_HZ
 
 
@@ -63,14 +63,14 @@ def _exp(phi):
 
 #: A contact's innovation past this Mahalanobis square is a slide, let go (the text's gate).
 GATE = _EKF['visual-innovation-law']['mahalanobis-gate-chi2']
-#: Her IMU's spin and specific force in her edge's array, side by side (`edge.GYRO`, `edge.ACCEL`): summed
+#: Its IMU's spin and specific force in its edge's array, side by side (`edge.GYRO`, `edge.ACCEL`): summed
 #: over a law pass as one array laid once, each at its own place in it.
 IMU = slice(edge.GYRO.start, edge.ACCEL.stop)
 IMU_GYRO, IMU_ACCEL = (slice(sl.start - IMU.start, sl.stop - IMU.start) for sl in (edge.GYRO, edge.ACCEL))
 
 
 def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
-    """Her pelvis still at `where`, turned `turn` (w, x, y, z); her soles' points unknown."""
+    """Its pelvis still at `where`, turned `turn` (w, x, y, z); its soles' points unknown."""
     w, x, y, z = turn
     R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
                   [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
@@ -83,8 +83,8 @@ def laid(where, turn=(1.0, 0.0, 0.0, 0.0)):
 
 
 def head(f, body):
-    """Her head's pose {pos, quat} in the filter's frame: the filter's pelvis (R, p) and her head on her law's
-    `body` as her estimate poses it - her eyes' pose (`sight.Keep.look`)."""
+    """Its head's pose {pos, quat} in the filter's frame: the filter's pelvis (R, p) and its head on its law's
+    `body` as its estimate poses it - its eyes' pose (`sight.Keep.look`)."""
     d = body.d
     R, p = np.asarray(f['R']), np.asarray(f['p'])
     Rp, pp = d.xmat[body.pelvis].reshape(3, 3), d.xpos[body.pelvis]
@@ -97,15 +97,15 @@ def head(f, body):
 
 
 def felt(f, y, dt):
-    """Her IMU over a drive pass `dt` into the law pass's means: her spin and specific force at once (IMU)."""
+    """Its IMU over a drive pass `dt` into the law pass's means: its spin and specific force at once (IMU)."""
     f['imu'] += dt * y[IMU]
     f['span'] += dt
 
 
 def points(body, y, local, weights):
-    """(3, 3) each contact's point in her pelvis on her law's posed `body`: each sole's foot and toes
-    insoles and her pelvis and torso skin (`local`, their frames) by their `weights` - a sole rolling
-    onto its toes bears there (the foot's alone, her pelvis sank 0.39 m in 13.5 of walking)."""
+    """(3, 3) each contact's point in its pelvis on its law's posed `body`: each sole's foot and toes
+    insoles and its pelvis and torso skin (`local`, their frames) by their `weights` - a sole rolling
+    onto its toes bears there (the foot's alone, its pelvis sank 0.39 m in 13.5 of walking)."""
     d, ids = body.d, list(body.insoles) + [body.pelvis, body.torso]
     Rp, pp = d.xmat[body.pelvis].reshape(3, 3), d.xpos[body.pelvis]
     out = np.zeros((CONTACTS, 3))
@@ -117,8 +117,8 @@ def points(body, y, local, weights):
 
 
 def stepped(f, body, y, shares, dt, points, step):
-    """A law pass of her edge's `y` on her law's `body` posed at her estimate: last pass's bearing
-    points now, this pass's laid; the filter `dt` on, each sole and her core bearing `shares` of her
+    """A law pass of its edge's `y` on its law's `body` posed at its estimate: last pass's bearing
+    points now, this pass's laid; the filter `dt` on, each sole and its core bearing `shares` of its
     weight - by `points` and `step`, this module's or their C (`motion.laid`)."""
     core = np.linalg.norm(y[edge.TOUCH].reshape(-1, 3)[CORE], axis=1)
     local = np.vstack([y[edge.COP].reshape(-1, 3), y[edge.AT].reshape(-1, 3)[CORE]])
@@ -129,11 +129,11 @@ def stepped(f, body, y, shares, dt, points, step):
     anchors = points(body, y, local, weights)
     soles = points(body, y, *f['last']) if 'last' in f else anchors
     f['last'] = (local, weights)
-    # her drift since her floor last held her (`seen`): her gyro's on her turn, a sole's point's travel along it as it
-    # rolls, bearing this pass and the last, on her place - what her contacts, telling her how she moved, cannot tell her
-    # of where she is -, no further a pass than a sole rolls its length a stride (ROLL_M_S): a sole come down or let go,
-    # its weight shifted heel to toe in a turn on the spot, jumps its point, no roll (her drift 0.2-1.2 m a look so);
-    # summed in floats over her contacts - as numpy arrays it was 14 us of her pass, 4.7 so
+    # its drift since its floor last held it (`seen`): its gyro's on its turn, a sole's point's travel along it as it
+    # rolls, bearing this pass and the last, on its place - what its contacts, telling it how it moved, cannot tell its
+    # of where it is -, no further a pass than a sole rolls its length a stride (ROLL_M_S): a sole come down or let go,
+    # its weight shifted heel to toe in a turn on the spot, jumps its point, no roll (its drift 0.2-1.2 m a look so);
+    # summed in floats over its contacts - as numpy arrays it was 14 us of its pass, 4.7 so
     cap = (ROLL_M_S * dt) ** 2
     rolled = sum(min(x * x + y * y + z * z, cap) * (s >= observer.RELEASE) * (o > 0.5) for (x, y, z), s, o in
                  zip((soles - anchors).tolist(), sh.tolist(), f['on'].tolist()))
@@ -146,9 +146,9 @@ def stepped(f, body, y, shares, dt, points, step):
 
 
 def step(f, y, soles, anchors, shares, dt):
-    """`f` a law pass `dt` on: her IMU's mean over it in `y` (`edge.GYRO`, `edge.ACCEL`); each contact's
-    point that bore her last pass, in her pelvis now (`soles` (3, 3)), the point under its centre of
-    pressure now (`anchors`), its share of her weight (`shares` (3,))."""
+    """`f` a law pass `dt` on: its IMU's mean over it in `y` (`edge.GYRO`, `edge.ACCEL`); each contact's
+    point that bore its last pass, in its pelvis now (`soles` (3, 3)), the point under its centre of
+    pressure now (`anchors`), its share of its weight (`shares` (3,))."""
     R, v, p, d, P = f['R'], f['v'], f['p'], f['d'], f['P']
     span = np.maximum(f['span'], dt)
     w, a, g = f['gyro'] / span, f['accel'] / span, edge.G
@@ -193,12 +193,12 @@ def step(f, y, soles, anchors, shares, dt):
 
 
 def seen(f, fix, info, eye):
-    """Whether `f` took a look laid onto her floor (`machine.eyes.ground.Mosaic.fixed`), the text's visual innovation:
+    """Whether `f` took a look laid onto its floor (`machine.eyes.ground.Mosaic.fixed`), the text's visual innovation:
     `fix` its turn about UP through `eye`, rad, and its shift along x, y, z, m, `info` its information (4, 4) - each
-    direction her floor resolves -, weighed against her drift since her floor last held her (`f['drift']`, `stepped`),
-    gated as her contacts are (GATE); taken, her whole frame turned about `eye` and shifted, her drift what is left of
-    it. Her soles carry her place between looks, her floor holds it: her contacts tell her how she moved, not where she
-    is, and her filter's own spread said so to 0.3-2 mm while her head read 0.142 m high in 21 s of a bed errand."""
+    direction its floor resolves -, weighed against its drift since its floor last held it (`f['drift']`, `stepped`),
+    gated as its contacts are (GATE); taken, its whole frame turned about `eye` and shifted, its drift what is left of
+    it. Its soles carry its place between looks, its floor holds it: its contacts tell it how it moved, not where it
+    is, and its filter's own spread said so to 0.3-2 mm while its head read 0.142 m high in 21 s of a bed errand."""
     drift = f['drift']
     told = np.linalg.inv(np.linalg.inv(drift + np.eye(4) * (GRAIN * REACH) ** 2) + info)
     held = float(fix @ (info - info @ told @ info) @ fix <= GATE)

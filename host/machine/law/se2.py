@@ -1,4 +1,4 @@
-"""Her twist on the loop: the gait it walks her by, her heading turned by it, her rhythm by it."""
+"""Its twist on the loop: the gait it walks it by, its heading turned by it, its rhythm by it."""
 import functools
 import math
 
@@ -7,14 +7,14 @@ from machine.law import rhythm
 from machine.texts import ortho
 
 _G = gait.table('twist')
-#: Her twists' speeds (her build's, `machine.body.gait`): a walk, a sprint, a walk back, a sidestep,
+#: Its twists' speeds (its build's, `machine.body.gait`): a walk, a sprint, a walk back, a sidestep,
 #: m/s; a turn, rad/s.
 WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('walk_m_s', 'run_m_s', 'back_m_s', 'strafe_m_s', 'yaw_rad_s'))
-#: Told faster than this she goes over from her walk to her march (the gym's jog): midway, m/s.
+#: Told faster than this it goes over from its walk to its march (the gym's jog): midway, m/s.
 MARCH_FROM = 0.5 * (WALK_SPEED + RUN_SPEED)
-#: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
+#: Its walk's, walk back's and sidestep's stopping distances and half its walk's stop's spread, m.
 STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
-#: Her walk's rhythm, Hz, her brake's and stand's blends, s, and the speed under which a brake has halted her, m/s.
+#: Its walk's rhythm, Hz, its brake's and stand's blends, s, and the speed under which a brake has halted it, m/s.
 WALK_HZ, STAND_S, HALT_M_S = _G['walk_hz'], _G['stand_s'], 0.25
 BRAKE_S = 1.0 / WALK_HZ
 
@@ -42,11 +42,11 @@ STUNT_PHASES = {'approach', 'lower', 'seated', 'lean_forward', 'thrust', 'sit_ed
                 'absorb', 'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'descent'}
 #: The doings that lie on the ground on purpose: the fall judge leaves them be (`referee.fallen`).
 GROUNDED = frozenset({'kneel', 'tip', 'floor_rest'})
-#: The doings that rest limp: her drives' clamps at zero over the bus, the boards' damping all that
-#: holds (`motion.drives`) - sprung at the rest's own stiffness she churned on the floor, 200-1400
+#: The doings that rest limp: its drives' clamps at zero over the bus, the boards' damping all that
+#: holds (`motion.drives`) - sprung at the rest's own stiffness it churned on the floor, 200-1400
 #: deg/s, pitch rolling full circle.
 LIMP = frozenset({'floor_rest'})
-#: Her back among what bears her (`ortho.MANIFOLDS`): lain on it, her row blended, she rests limp (`limp`).
+#: Its back among what bears it (`ortho.MANIFOLDS`): lain on it, its row blended, it rests limp (`limp`).
 DORSAL = ortho.MANIFOLDS.index('dorsal')
 _FWD_GAITS = ('walk', 'trip', 'jog', 'ballistic_walk', 'stairs_walk', 'stairs_down', 'ice_walk', 'slope_walk',
               'strafe_left', 'strafe_right', 'turn_left', 'turn_right', 'spin_left', 'spin_right', 'circle_walk')
@@ -75,19 +75,19 @@ def brake_lead(spd, back_to=0.0):
 
 
 def braked(spd):
-    """Her brake's blend from speed `spd` (m/s), s: her walk's stride at its rate, no shorter than her stand's."""
+    """Its brake's blend from speed `spd` (m/s), s: its walk's stride at its rate, no shorter than its stand's."""
     return max(STAND_S, BRAKE_S * min(1.0, abs(float(spd)) / WALK_SPEED))
 
 
 def stand_lead(spd):
-    """Her brake's horizons `(ts, tg)` (s) from speed `spd`: she is told to stand once it has braked her
+    """Its brake's horizons `(ts, tg)` (s) from speed `spd`: it is told to stand once it has braked it
     (`braked`); what follows twice that."""
     ts = braked(spd)
     return ts, 2.0 * ts
 
 
 def rise_lead(wire):
-    """A rise stunt's own length, s: its last row, her rest given back once she stands."""
+    """A rise stunt's own length, s: its last row, its rest given back once it stands."""
     import numpy as np
     from machine.law import latent
     return float(np.frombuffer(wire, latent.WIRE)[-1]['at']) / 1e3
@@ -116,7 +116,7 @@ def _dropped(g):
 
 
 def doing(g):
-    """What she is doing: the name of her table's row that last came by her law's last pass, 'rest'
+    """What it is doing: the name of its table's row that last came by its law's last pass, 'rest'
     with none; cached on `(labels, t_law)` (`g['_doing']`)."""
     labels, now = g['labels'], g.get('t_law', g['t'])
     kept = g.get('_doing')
@@ -134,8 +134,8 @@ def _mods():
 
 
 def limp(g):
-    """How far she rests limp, 0 to 1: a doing in LIMP or her back told to bear her, eased to 1 after
-    her row's blend (`motion.drives`), woken smoothly when a twist is told outside a program."""
+    """How far it rests limp, 0 to 1: a doing in LIMP or its back told to bear it, eased to 1 after
+    its row's blend (`motion.drives`), woken smoothly when a twist is told outside a program."""
     latent = _mods()[0]
     blend, now = max(float(g['st'][latent.BLEND]), 1e-3), g.get('t_law', g['t'])
     eased = min(1.0, max(0.0, (now - float(g['st'][latent.T0]) - blend) / blend))
@@ -148,7 +148,7 @@ def limp(g):
 
 
 def closing(vx, vz, dx, dz):
-    """(the gap to a stop `dx, dz` off her, her closing speed on it going `vx, vz`, m/s - none receding:
+    """(the gap to a stop `dx, dz` off it, its closing speed on it going `vx, vz`, m/s - none receding:
     a spin's drift away from it is no approach)."""
     gap = math.hypot(dx, dz)
     return gap, max(0.0, (vx * dx + vz * dz) / max(gap, 1e-9))
@@ -175,21 +175,21 @@ GAIT_BOXES = (
 
 
 def gait_for_twist(vx, vy, wz):
-    """The gym's entry a twist walks her by, queried from `GAIT_BOXES`; None at rest."""
+    """The gym's entry a twist walks it by, queried from `GAIT_BOXES`; None at rest."""
     moving = max(abs(vx) / _SV, abs(vy) / _SV, abs(wz) / _SW) > 1.0
     return next((name for x0, x1, y0, y1, z0, z1, name in GAIT_BOXES
                  if moving and x0 <= vx <= x1 and y0 <= vy <= y1 and z0 <= wz <= z1), None)
 
 
-#: The twist step's memory, one array (`twist_laid`): which way her sway led last (nan till it
-#: has), her look's yaw, her turn's offset. Its words with `g` each pass (`words_laid`): her
-#: heading, the heading told and whether one is, her twist told and as made, whether a twist is
-#: active and until when a stop holds, her time; out her heading, her twist as made, her backing
-#: and its yaw, her clearance.
+#: The twist step's memory, one array (`twist_laid`): which way its sway led last (nan till it
+#: has), its look's yaw, its turn's offset. Its words with `g` each pass (`words_laid`): its
+#: heading, the heading told and whether one is, its twist told and as made, whether a twist is
+#: active and until when a stop holds, its time; out its heading, its twist as made, its backing
+#: and its yaw, its clearance.
 LAST_WAY, LOOK_YAW, TURN_DC, TWISTED = 0, 1, 2, 3
 W_HEADING, W_TARGET, W_HAS, W_TWIST, W_ACTUAL, W_ACTIVE, W_STOP, W_T = 0, 1, 2, slice(3, 6), slice(6, 9), 9, 10, 11
 W_BACK, W_BACKING, W_CLEAR, WORDS = 12, 13, 14, 15
-#: Her heading's and her look's numbers under a twist, her build's (`[gait.steer]`), in the order her
+#: Its heading's and its look's numbers under a twist, its build's (`[gait.steer]`), in the order its
 #: step's C twin lays them (wbc_twist_t).
 STEER_NAMES = ('slew_rad_s', 'side_told_m_s', 'turn_told_rad_s', 'along_s', 'across_s', 'told_s', 'stance_turn',
                'stance_turn_load', 'stance_turn_k', 'lag_rad', 'lead_1_s', 'align_m_s', 'align_side_m_s',
@@ -197,7 +197,7 @@ STEER_NAMES = ('slew_rad_s', 'side_told_m_s', 'turn_told_rad_s', 'along_s', 'acr
                'look_drive', 'look_on', 'look_back_rad_s', 'look_turn_rad_s', 'look_rad', 'look_1_s', 'look_back_1_s',
                'waist_share', 'head_share', 'clear_m')
 STEER = gait.table('steer')
-#: The floor under her follows her bearing soles at FLOOR_HZ.
+#: The floor under its follows its bearing soles at FLOOR_HZ.
 FLOOR_HZ = 15.0
 
 
@@ -214,8 +214,8 @@ def words_laid():
 
 
 def floored(y, fr, dt):
-    """The floor under her where her bearing soles' lowest corners stand, in her estimate's own
-    height - held where she was laid it read her soles 22 mm over it as her estimate drifted up -,
+    """The floor under it where its bearing soles' lowest corners stand, in its estimate's own
+    height - held where it was laid it read its soles 22 mm over it as its estimate drifted up -,
     and its pitch under each sole: that sole's own while its heel's cell and its ball's both
     press, as far as they press alike. One centre of pressure read inside its edges took a
     hole's edge under a sole's middle for a floor 10 deg up."""
@@ -238,7 +238,7 @@ def floored(y, fr, dt):
 
 
 def step_physical_twist(g, dt, out):
-    """A pass of her twist on the loop: `twisted` in C on her arrays (`g['twist_step']`,
+    """A pass of its twist on the loop: `twisted` in C on its arrays (`g['twist_step']`,
     `machine.law.motion.laid`), its words from and to `g`."""
     modal = _mods()[1]
     g.setdefault('floor0', float(g['fr'][modal.FLOOR]))
@@ -252,11 +252,11 @@ def step_physical_twist(g, dt, out):
 
 
 def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt, waist, head):
-    """A pass of her twist on her edge's array `y_in` and her estimate's velocity `vel`, modal's
-    `y`, `fr` and `a`, her latent `st` and its `out`, her `posture` (her `waist` and `head` in it),
-    her soles' grip `held` and her `prior` of it: the floor under her (`floored`), her heading
-    turned by the twist told and by her pelvis, her rhythm flipped where her sway leads the other
-    way, her gait modulated (`rhythm.modulated`), her look into a turn; `state` (`twist_laid`) and
+    """A pass of its twist on its edge's array `y_in` and its estimate's velocity `vel`, modal's
+    `y`, `fr` and `a`, its latent `st` and its `out`, its `posture` (its `waist` and `head` in it),
+    its soles' grip `held` and its `prior` of it: the floor under it (`floored`), its heading
+    turned by the twist told and by its pelvis, its rhythm flipped where its sway leads the other
+    way, its gait modulated (`rhythm.modulated`), its look into a turn; `state` (`twist_laid`) and
     `words` (`words_laid`) stepped in place. In C bit for bit (`step_physical_twist`)."""
     import numpy as np
     from machine.senses import edge
@@ -298,7 +298,7 @@ def twisted(y_in, vel, y, fr, a, st, out, posture, held, prior, state, words, dt
     sh_n, ch_n = math.sin(heading), math.cos(heading)
     fr[modal.HEADING] = heading
     fr[modal.ROT][:] = (sh_n, 0.0, ch_n, ch_n, 0.0, -sh_n, 0.0, 1.0, 0.0)
-    # each standing sole's turn of her way since it was planted, naught for one in the air (`stride.meets`)
+    # each standing sole's turn of its way since it was planted, naught for one in the air (`stride.meets`)
     fr[modal.PLANTED] = a[modal.STANCE] * (fr[modal.PLANTED] + wrap_angle(heading - float(words[W_HEADING])))
     l_psi, d_psi = float(out[latent.PSI][modal.LATERAL]), float(out[latent.PSI][modal.DRIVE])
     l_sgn = math.copysign(1.0, float(out[latent.SWAY][modal.LATERAL]))
@@ -343,7 +343,7 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     g['asked'] = (0.0, 0.0, 0.0) if tw is None else (float(tw[0]), float(tw[1]), float(tw[2]))
     vx, vy, wz = touch.against(g, g['asked'])
     by, cur_d = {e[0]: e for e in gym}, doing(g)
-    # a twist less than the last is a key let go, not her errand's own braking: read so, F's run to the door slowed
+    # a twist less than the last is a key let go, not its errand's own braking: read so, F's run to the door slowed
     # 0.69 -> 0.53 m/s for a corner, stood, braked to nothing there, backed 0.6 m and fell at 6.1 s
     decay = (not has_say and not g.get('_errand') and math.hypot(vx, vy) < math.hypot(pvx, pvy) - 1e-4
              and -(BACK_SPEED - 0.01) < vx < WALK_SPEED - 0.01 and abs(vy) < STRAFE_SPEED - 0.01 and abs(wz) < 0.01)

@@ -1,4 +1,4 @@
-"""Her sneaker, size 37-38, drawn: the shoe and the toe cap as lofts along z, their gum soles.
+"""Its sneaker, size 37-38, drawn: the shoe and the toe cap as lofts along z, their gum soles.
 
     sneaker.feet(side)     # {side + '_foot': mesh, side + '_toes': mesh}
     sneaker.soles(side)    # [(name, parent, offset, mesh)]: the gum under each

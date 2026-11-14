@@ -1,9 +1,9 @@
 # Architecture: Kinematics
 
 The gynoid's figure as numbers, laid once: segments, joints and masses; the
-algebra of her chains; what a leg reaches; movements by name; the figure as
-MuJoCo's XML and as the C core's static model. What moves her:
-[planners](planners.md); what solves her torques: [solvers](solvers.md).
+algebra of its chains; what a leg reaches; movements by name; the figure as
+MuJoCo's XML and as the C core's static model. What moves it:
+[planners](planners.md); what solves its torques: [solvers](solvers.md).
 Findings: [kinematics](../findings/kinematics.md).
 
 | Where | Is |
@@ -22,5 +22,5 @@ Findings: [kinematics](../findings/kinematics.md).
 | Suite | Holds |
 | --- | --- |
 | `test_reach.py` | humanoid robot leg's reach: its rows humanoid robot figure's, what they hold within humanoid robot stops, a place landed in MuJoCo by either limb |
-| `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what she has not |
+| `test_terms.py` | humanoid robot movements' terms: its rows humanoid robot figure's, a term moving humanoid robot in MuJoCo as its name says by either limb, its stops, what it has not |
 | `test_wbc_core.py` | humanoid robot chain in C against MuJoCo: frames, M, bias, Jacobians at random configurations; a step's time |

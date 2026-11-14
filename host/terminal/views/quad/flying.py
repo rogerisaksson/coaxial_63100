@@ -1,4 +1,4 @@
-"""A craft's flight run apart as her body is: stepped in its own process, played back by its page.
+"""A craft's flight run apart as its body is: stepped in its own process, played back by its page.
 
 Its boards, its sky, its law and its card stepped STEP_S at a time (`machine.process.apart`), paced to the
 wall and no further than its lead past what the page has shown; each step said as the page draws

@@ -1,4 +1,4 @@
-/** wbc_law.h - her latent loop's step and her upper body's coupling on the host (wbc_law.c):
+/** wbc_law.h - its latent loop's step and its upper body's coupling on the host (wbc_law.c):
     machine.law.latent.step and machine.law.support.couple, numpy's arithmetic and numpy's own OpenBLAS
     (wbc_blas.h) operation for operation. Portable C11, the host's alone. */
 #ifndef WBC_LAW_H
@@ -6,7 +6,7 @@
 
 #include "wbc_blas.h"
 
-/** The most modes, her contact manifolds (machine.texts.ortho.MANIFOLDS), row parameters, driven joints. */
+/** The most modes, its contact manifolds (machine.texts.ortho.MANIFOLDS), row parameters, driven joints. */
 #define WBC_LAW_N 16
 #define WBC_LAW_M 5
 #define WBC_LAW_P (5 * WBC_LAW_N + 7 + WBC_LAW_M + 1)

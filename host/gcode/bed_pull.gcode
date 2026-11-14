@@ -1,5 +1,5 @@
 ; humanoid gcode 1
-; rig hers
+; rig its own
 ; program bed_pull
 G1 T0.650 left_ankle0.000 left_elbow0.000 left_hip-75.000 left_hip_rollnan left_hip_yawnan left_knee30.000 left_shoulder30.000 necknan right_ankle0.000 right_elbow0.000 right_hip-75.000 right_hip_rollnan right_hip_yawnan right_knee30.000 right_shoulder30.000 spinenan waistnan
 G1 T1.950 left_ankle0.000 left_elbow5.000 left_hip-10.000 left_hip_rollnan left_hip_yawnan left_knee15.000 left_shoulder0.000 necknan right_ankle0.000 right_elbow5.000 right_hip-10.000 right_hip_rollnan right_hip_yawnan right_knee15.000 right_shoulder0.000 spinenan waistnan

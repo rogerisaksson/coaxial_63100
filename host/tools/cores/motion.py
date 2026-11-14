@@ -1,8 +1,8 @@
-"""Her motion pass in C through ctypes, her python's bit for bit.
+"""The robot's motion pass in C through ctypes, its python's bit for bit.
 
-Her ask (wbc_imp.c, wbc_stride.c, wbc_poise.c), her latent step and her upper body's coupling (wbc_law.c) on
+Its ask (wbc_imp.c, wbc_stride.c, wbc_poise.c), its latent step and its upper body's coupling (wbc_law.c) on
 numpy's own OpenBLAS (wbc_blas.c); the structs they are laid on, filled of the modules that define
-their layouts and constants. Her surety field: `tools.cores.surety`; her step: `tools.cores.step`.
+their layouts and constants. Its surety field: `tools.cores.surety`; its step: `tools.cores.step`.
 
     k, ask = motion.laid()
     motion.asked(k, ask, out, y, fr, a)     # `a` this pass, in place: impedance.ask(out, y, fr, a)
@@ -21,7 +21,7 @@ import numpy as np
 
 from tools.cores import orders, wbc
 
-#: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.law.modal`),
+#: wbc_imp_t's ints in its order, by the names of what fills them: its modes (`machine.law.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
 MODES = 'axial lateral drive pitch sagittal lift width list turn arms rock reach elbows'.split()
 OUT = 'ref rate acc ks ds psi sway turns held yawed bend ducked manifolded asked'.split()
@@ -36,7 +36,7 @@ A = ('stance com_acc sole_acc want fold fold_rate turned bend kdot going rolled 
 
 def _at(x):
     """An offset's start: a float is another constant of the same name (modal's SUPPORT, a ZMP's
-    mode, once took its slot as 1 - her right sole's stance)."""
+    mode, once took its slot as 1 - its right sole's stance)."""
     if not isinstance(x, (slice, int, np.integer)):
         raise TypeError('an offset, not %r' % (x,))
     return x.start if isinstance(x, slice) else int(x)
@@ -91,12 +91,12 @@ def _typed(fields):
 
 def laid():
     """(k, ask): wbc_imp_t filled of the constants as they are now - `tools.sim.ballistic` sets
-    them before her session is laid -, and the step on it."""
+    them before its session is laid -, and the step on it."""
     from machine.law import impedance, latent, modal, stride
     if (stride.ALONG, stride.LEFT, stride.UP) != (0, 1, 2) or modal.HANDS.shape != (modal.N, 2, 3):
-        raise ValueError('wbc_imp.c reads her way along, left, up and her hands (n, 2, 3)')
+        raise ValueError('wbc_imp.c reads its way along, left, up and its hands (n, 2, 3)')
     if modal.N > 16:
-        raise ValueError('wbc_imp.c lays %d modes at most, she has %d' % (16, modal.N))
+        raise ValueError('wbc_imp.c lays %d modes at most, it has %d' % (16, modal.N))
     ints = ([('n', modal.N)] + [(m, getattr(modal, m.upper())) for m in MODES]
             + [('o_' + o, _at(getattr(latent, o.upper()))) for o in OUT]
             + [('y_' + v, _at(getattr(modal, v.upper()))) for v in Y]
@@ -125,11 +125,11 @@ def asked(k, ask, out, y, fr, a):
     return a
 @functools.lru_cache(maxsize=None)
 def exact_host(draws=1000):
-    """Whether this host's numpy computes her law's primitives as her law's C does, bit for bit -
+    """Whether this host's numpy computes its law's primitives as its law's C does, bit for bit -
     its small matmuls', dots' and einsum's orders (wbh_np_probe); its sin, cos, tan, arcsin,
     arccos, arctan2, exp, log and hypot on arrays and on scalars and a scalar's square its pow,
-    libm called side by side as her C calls it, 10^5 draws across its paths (wbh_np_libm): where
-    it does, her law in C is her python's bit for bit; a numpy dispatching elsewhere (SVML, other
+    libm called side by side as its C calls it, 10^5 draws across its paths (wbh_np_libm): where
+    it does, its law in C is its python's bit for bit; a numpy dispatching elsewhere (SVML, other
     OpenBLAS kernels) parts the last bits."""
     lib, blas = wbc.library(), numpy_blas()
     lib.wbh_np_probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int,
@@ -171,14 +171,14 @@ def exact_host(draws=1000):
 class Blas(ctypes.Structure):
 
     """wbc_blas_t: numpy's own OpenBLAS - cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot, dgesv, dpotrf, dgeqrf,
-    dorgqr -, and the order numpy's einsum sums her hand ports' two in here (`einsums`)."""
+    dorgqr -, and the order numpy's einsum sums its hand ports' two in here (`einsums`)."""
 
     _fields_ = ([(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv', 'potrf', 'geqrf', 'orgqr')]
                 + [('einsum', ctypes.c_int32 * 2)])
 
 
 def einsums(draws=64):
-    """The order (an index of orders.ORDERS) numpy's einsum sums her hand ports' two in here, read off its own
+    """The order (an index of orders.ORDERS) numpy's einsum sums its hand ports' two in here, read off its own
     results on draws: 'nia,ia->n' of six contiguous, a run of six (npein6), and 'nia,n->ia', each of its six a run
     down n (npein)."""
     rng = np.random.default_rng(orders.SEED)
@@ -196,7 +196,7 @@ def numpy_blas():
     linalg call, so C calling it gets numpy's bits; its einsums' orders here (`einsums`)."""
     found = sorted(glob.glob(os.path.join(os.path.dirname(np.__file__), os.pardir, 'numpy.libs', '*scipy_openblas64*')))
     if not found:
-        raise RuntimeError("numpy carries no scipy-openblas64 beside it: her law in C needs numpy's own BLAS")
+        raise RuntimeError("numpy carries no scipy-openblas64 beside it: its law in C needs numpy's own BLAS")
     lib = ctypes.CDLL(os.path.abspath(found[0]))
     names = ('scipy_cblas_dgemm64_', 'scipy_cblas_dsyrk64_', 'scipy_cblas_dgemv64_', 'scipy_cblas_ddot64_',
              'scipy_dgesv_64_', 'scipy_dpotrf_64_', 'scipy_dgeqrf_64_', 'scipy_dorgqr_64_')
@@ -284,7 +284,7 @@ HOOKS = ('sensed', 'solves', 'estimated', 'felt', 'weighed', 'clear', 'gap', 'ou
 
 class _WaitsTwin:
 
-    """Her table's waits in python on `g`'s arrays (`machine.law.waits`), `tools.cores.wait.Waits`'s twin."""
+    """Its table's waits in python on `g`'s arrays (`machine.law.waits`), `tools.cores.wait.Waits`'s twin."""
 
     def __init__(self, g, py_waits):
         self.g, self.w = g, py_waits
@@ -323,7 +323,7 @@ class _WaitsTwin:
 
 class _BracedTwin:
 
-    """Her brace in python on `g`'s arrays (`machine.law.brace`), `tools.cores.brace.Braced`'s twin."""
+    """Its brace in python on `g`'s arrays (`machine.law.brace`), `tools.cores.brace.Braced`'s twin."""
 
     def __init__(self, g, py_brace):
         self.g, self.b = g, py_brace

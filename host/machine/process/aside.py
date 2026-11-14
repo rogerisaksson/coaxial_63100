@@ -1,10 +1,10 @@
-"""A process beside her loop's: a module of this tree served on its own, asks pickled down its stdin.
+"""A process beside its loop's: a module of this tree served on its own, asks pickled down its stdin.
 
-Her page's worker is daemonic and may have no children of multiprocessing's (`machine.process.apart`): what it runs
-beside itself is a subprocess, `python -m module`, its stdout its answers' alone. Her planner, her camera's
-map and her vision run so (`machine.way.planner`, `machine.eyes.camera`, `machine.eyes.vision`).
+Its page's worker is daemonic and may have no children of multiprocessing's (`machine.process.apart`): what it runs
+beside itself is a subprocess, `python -m module`, its stdout its answers' alone. Its planner, its camera's
+map and its vision run so (`machine.way.planner`, `machine.eyes.camera`, `machine.eyes.vision`).
 
-    aside = Aside('machine.eyes.vision', 'her vision')   # spawned at its first ask, or `start` sooner
+    aside = Aside('machine.eyes.vision', 'its vision')   # spawned at its first ask, or `start` sooner
     aside.send(ask); answer = aside.recv()          # an answer waited for
     aside.heard(answers)                            # or each onto a queue as it comes, None once it ended
     aside.close()
@@ -44,15 +44,17 @@ class Aside:
 
     def send(self, ask):
         """`ask` down its stdin, pickled whole first: one write, not the pickler's many."""
-        self.start()
+        into = self.start().into
+        assert into is not None
         try:
-            self.into.write(pickle.dumps(ask, protocol=pickle.HIGHEST_PROTOCOL))
-            self.into.flush()
+            into.write(pickle.dumps(ask, protocol=pickle.HIGHEST_PROTOCOL))
+            into.flush()
         except OSError as e:
             raise MachineError('%s took no ask: %s' % (self.name, e)) from e
 
     def recv(self):
         """Its next answer, waited for; raises once it has ended."""
+        assert self.out is not None
         try:
             return pickle.load(self.out)
         except (EOFError, OSError, pickle.UnpicklingError) as e:
@@ -70,6 +72,7 @@ class Aside:
         """Its process ended: a None sent, its stdin closed, `wait` s for it to end, then killed."""
         if self.process is None:
             return
+        assert self.into is not None
         try:
             pickle.dump(None, self.into)
             self.into.close()
@@ -82,7 +85,7 @@ class Aside:
 
 def _heard(out, answers):
     """`out`'s answers onto `answers` as they come; None once it has ended. Not an Aside's method: a thread
-    holding its owner kept its pipe open and its process alive, 105 of her planners beside 28 runs."""
+    holding its owner kept its pipe open and its process alive, 105 of its planners beside 28 runs."""
     try:
         while True:
             answers.put(pickle.load(out))
@@ -91,7 +94,7 @@ def _heard(out, answers):
 
 
 def _said(out, answer):
-    """`answer` pickled onto `out`: whether it was heard. Its asker gone - her worker ended with an ask in flight,
+    """`answer` pickled onto `out`: whether it was heard. Its asker gone - its worker ended with an ask in flight,
     its pipe's reader closed - the write is refused: what is left unsaid goes to the null device, not into a
     traceback at this process's end."""
     try:
@@ -108,7 +111,7 @@ def _said(out, answer):
 def serve(answer, ready=SILENT):
     """This process a module served: `ready` said first where given, then each ask off stdin answered on stdout,
     pickled; None, stdin's end or its asker gone (`_said`) ends it. Its prints go to stderr: its stdout is its
-    answers'. Placed a core apart from her others (`placed`)."""
+    answers'. Placed a core apart from its others (`placed`)."""
     placed.placed()
     out, inp, sys.stdout = sys.stdout.buffer, sys.stdin.buffer, sys.stderr
     if ready is not SILENT and not _said(out, ready):

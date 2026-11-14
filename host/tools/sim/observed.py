@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Her momentum observer against her skin: each manifold's normal force through her scenes.
+"""The robot's momentum observer against its skin: each manifold's normal force through its scenes.
 
     python tools/sim/observed.py                     # walk, sit and rise, lie, rise from the bed: a table
     python tools/sim/observed.py --one chair         # one scene, its line as JSON (the relay's job)
 
 Each law pass, standing or not yet fallen: the observer's normal force on each manifold
-(`machine.senses.observer`, blind) against her skin's (`edge.TOUCH`, MuJoCo's contacts) - each segment's
+(`machine.senses.observer`, blind) against its skin's (`edge.TOUCH`, MuJoCo's contacts) - each segment's
 touch along each of its manifolds' normals, pushing, a sole's along its up. Per manifold: the
-error's rms and 95th percentile, N; the most it reads where her skin feels under FELT_N.
+error's rms and 95th percentile, N; the most it reads where its skin feels under FELT_N.
 """
 import argparse
 import json
@@ -16,9 +16,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: The scenes: her walk, the chair's sit and rise, the bed's lie and rise, the floor mattress's.
+#: The scenes: its walk, the chair's sit and rise, the bed's lie and rise, the floor mattress's.
 SCENES = ('play_walk', 'chair', 'bed', 'bed_rise', 'mattress')
-#: A manifold her skin feels none of, N: MuJoCo's soft contact holds a resting hand at a few.
+#: A manifold its skin feels none of, N: MuJoCo's soft contact holds a resting hand at a few.
 FELT_N = 5.0
 
 

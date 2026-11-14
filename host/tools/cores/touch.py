@@ -1,8 +1,8 @@
-"""Her touch's filter in C through ctypes (wbc_touch.c), her python's bit for bit.
+"""The robot's touch's filter in C through ctypes (wbc_touch.c), its python's bit for bit.
 
     k, ask = motion.laid()
     step = touch.laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state)    # machine.senses.touch.stepped
-    twist = step(asked, twist, tw_on, heading, dt, vel)       # a pass: out, a and state in place, her twist back
+    twist = step(asked, twist, tw_on, heading, dt, vel)       # a pass: out, a and state in place, its twist back
 """
 import ctypes
 import functools
@@ -14,7 +14,7 @@ from tools.cores import wbc
 
 class Touch(ctypes.Structure):
 
-    """wbc_touch_t: the filter's reading of her law's arrays, laid once."""
+    """wbc_touch_t: the filter's reading of its law's arrays, laid once."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('touch_at', 'st_now_gain', 'st_to_gain', 'r_z', 'r_k', 'r_d',
                                                    's_felt', 's_hold', 's_brake', 's_stand', 's_drv', 's_clear')]
@@ -39,10 +39,10 @@ def _typed():
 
 
 def laid(k, y_in, xmat, xpos, ids, tips, y, fr, a, st, out, rest, state):
-    """The filter in C on her law's arrays, pointed at once - `machine.senses.touch.stepped` of her edge's
-    `y_in`, her model's `xmat` and `xpos` with her skin's bodies `ids` and the toes' `tips`, modal's
-    `y`, `fr` and `a`, her latent `st`, its `out` and her `rest`, the filter's `state` -: a step
-    (asked, twist, tw_on, heading, dt, vel) -> her twist (3,); `k` the ask's (`tools.cores.motion.laid`)."""
+    """The filter in C on its law's arrays, pointed at once - `machine.senses.touch.stepped` of its edge's
+    `y_in`, its model's `xmat` and `xpos` with its skin's bodies `ids` and the toes' `tips`, modal's
+    `y`, `fr` and `a`, its latent `st`, its `out` and its `rest`, the filter's `state` -: a step
+    (asked, twist, tw_on, heading, dt, vel) -> its twist (3,); `k` the ask's (`tools.cores.motion.laid`)."""
     from machine.senses import edge
     from machine.law import latent
     from machine.senses import touch

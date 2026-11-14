@@ -10,7 +10,7 @@
 
 /** numpy's OpenBLAS: cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot and LAPACK's dgesv, dpotrf, dgeqrf and
     dorgqr (its linalg's cholesky and qr), each as numpy's umath_linalg calls it; and the order numpy's einsum sums
-    her hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of six
+    its hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of six
     contiguous, then 'nia,n->ia'. */
 typedef struct
 {

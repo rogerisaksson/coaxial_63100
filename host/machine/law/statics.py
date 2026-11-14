@@ -1,9 +1,9 @@
-"""Her statics of what is sensed standing: her frame, the mass each mode moves, her rest vector.
+"""Its statics of what is sensed standing: its frame, the mass each mode moves, its rest vector.
 
-Laid once, before her loop runs (modal's FRAME, `ortho`'s parameters).
+Laid once, before its loop runs (modal's FRAME, `ortho`'s parameters).
 
-    fr = statics.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # her statics, once (`sprung`)
-    rest = statics.rest(fr)                                         # her rest vector (`latent.state`)
+    fr = statics.frame(y, mass, limb, trunk, arm, forearm, knee, dt)  # its statics, once (`sprung`)
+    rest = statics.rest(fr)                                         # its rest vector (`latent.state`)
 """
 import os
 
@@ -25,8 +25,8 @@ from machine.texts import ortho
 
 
 def frame(y, mass, limb, trunk, arm, forearm, knee, dt):
-    """Her statics of what is sensed standing: `mass` hers, a `limb`'s, her `trunk`'s, an
-    `arm`'s and a `forearm`'s, kg; `knee` her knees' bend, rad; `dt` s from an ask to the next."""
+    """The robot's statics of what is sensed standing: `mass` its own, a `limb`'s, its `trunk`'s, an
+    `arm`'s and a `forearm`'s, kg; `knee` its knees' bend, rad; `dt` s from an ask to the next."""
     q = y[QUAT]
     yaw = 2.0 * np.arctan2(q[2], q[0])
     s, c = np.sin(yaw), np.cos(yaw)
@@ -50,14 +50,14 @@ def frame(y, mass, limb, trunk, arm, forearm, knee, dt):
 
 
 def masses(mass, limb, trunk, arm, forearm):
-    """The mass each mode moves, kg, of hers, a limb's, her trunk's, an arm's and a forearm's."""
+    """The mass each mode moves, kg, of its own, a limb's, its trunk's, an arm's and a forearm's."""
     return np.array([mass, mass, limb, trunk, mass, limb, limb, trunk, trunk, arm, limb, arm, forearm])
 
 
 def rest(fr):
-    """Her rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
-    her rhythm off at 1 Hz, her ZMP in her support polygon, her yaw momentum free, what bears her
-    unsaid - her soles alone then (`observer.weighed`), nothing capped (`somatic.asked`)."""
+    """Its rest vector (`ortho`'s parameters): every target 0, each mode's spring and damper,
+    its rhythm off at 1 Hz, its ZMP in its support polygon, its yaw momentum free, what bears its
+    unsaid - its soles alone then (`observer.weighed`), nothing capped (`somatic.asked`)."""
     floor = REST_K * fr[OMEGA], fr[OMEGA] + REST_K
     p = np.zeros(ortho.P)
     for part, kd in ((latent.K, 0), (latent.D, 1)):

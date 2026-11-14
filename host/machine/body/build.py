@@ -1,11 +1,11 @@
-"""Her build as made: carbon-fibre shells over her shape, what they hold, her drives where they sit.
+"""Its build as made: carbon-fibre shells over its shape, what they hold, its drives where they sit.
 
-    build.SHELLS = 1.0        # her segments as built (`machine.body.mjcf`, `figure.com`); 0 a woman's
+    build.SHELLS = 1.0        # its segments as built (`machine.body.mjcf`, `figure.com`); 0 a woman's
     build.segments()          # {segment: (kg, centre, (ixx, iyy, izz, ixy, ixz, iyz))}, its frame
-    build.mass()              # her weight as built, kg
+    build.mass()              # its weight as built, kg
     build.riders()            # {segment: [(joint, kg, where, (ixx, iyy, izz))]}: the drives on it
 
-A shell is a laminate WALL_M thick over her capsules (`figure.BODY`) and her soles' boxes
+A shell is a laminate WALL_M thick over its capsules (`figure.BODY`) and its soles' boxes
 (`figure.CONTACTS`), each capsule a thin cylinder and its two caps; what a segment holds besides
 (HOLDS) is a point; a drive's assembly a cylinder of its size about its joint's axis.
 """
@@ -14,20 +14,20 @@ import math
 from machine.body import drives, mechatronics
 from machine.body.figure import BODY, SCALE, SEGMENTS, STAGES, contacts as undersides
 
-#: Her body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
+#: The robot's body as made or as a woman's (de Leva's shares of `figure.MASS_KG`), 1 or 0.
 SHELLS = 1.0
 #: Whether a drive on a gimbal's stage (`drives.mount`: the hip's roll M, its pitch L) rides it,
 #: turning with the leg's yaw and roll, or the segment that stage hangs from: 0.7 kg, 8 % more yaw.
 STAGED = 1.0
 
-#: Her build's (`mechatronics.robot`): its shells, what its segments hold, its limbs' quick-releases.
+#: Its build's (`mechatronics.robot`): its shells, what its segments hold, its limbs' quick-releases.
 _BUILT = mechatronics.robot()
 
 #: The laminate (its `[shell]`): its wall, m, and density, kg/m^3.
 WALL_M, CF_KG_M3 = float(_BUILT['shell']['wall_m']), float(_BUILT['shell']['kg_m3'])
 
 #: What a segment holds besides its shell and its drives (its `[holds]` and `[pack]`), (kg, where in its frame, m):
-#: each where at her figure's SCALE, its kg as it is; each battery pack synthesized from its cell count and case.
+#: each where at its figure's SCALE, its kg as it is; each battery pack synthesized from its cell count and case.
 _PACK = _BUILT.get('pack', {})
 _PACK_KG = (round(_PACK['series'] * _PACK['parallel'] * _PACK['cell_kg'] + _PACK.get('case_kg', 0.0), 4)
             if 'cell_kg' in _PACK else 0.0)
@@ -37,9 +37,9 @@ HOLDS = {segment: tuple((float(kg), tuple(SCALE * float(m) for m in at)) for kg,
 if _PACK_HOLDS:
     HOLDS['torso'] = _PACK_HOLDS + HOLDS.get('torso', ())
 
-#: Walking she drew 691 W at 0.76 m/s (work 197, copper 424, her boards 70) and 439 at 0.48 (96,
+#: Walking it drew 691 W at 0.76 m/s (work 197, copper 424, its boards 70) and 439 at 0.48 (96,
 #: 273, 70): 253 Wh a km either way - on the two packs' 972 Wh used (90 %) 3.8 km, on one 1.9;
-#: lying limp her 25 boards' 35 W, 28 h (the build before the gimbal hip).
+#: lying limp its 25 boards' 35 W, 28 h (the build before the gimbal hip).
 
 #: Each limb's quick-release by its segment (its `[releases]`): its centre down the segment m, radius, length,
 #: kg.
@@ -154,5 +154,5 @@ def _segments():
 
 
 def mass():
-    """Her weight as built, kg."""
+    """The robot's weight as built, kg."""
     return sum(kg for kg, _c, _i in segments().values())

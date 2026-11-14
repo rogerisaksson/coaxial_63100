@@ -144,7 +144,7 @@ def _spilling(commands, states, shown):
 def test_a_world_ended_mid_state_is_left_unread(report):
     """`apart.Apart.close` on a world that never stops, each state bigger than its pipe: ended at
     its wait with a state half written, it is not read after - read, a POSIX pipe's half message
-    waits for its rest for ever (her page hung so in close on CI's runner)."""
+    waits for its rest for ever (its page hung so in close on CI's runner)."""
     import threading
     import time
     from machine.process import apart as world_apart

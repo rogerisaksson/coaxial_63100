@@ -1,4 +1,4 @@
-"""The loop and the step without an active set behind `0x6E` device 13: ticked on her stand."""
+"""The loop and the step without an active set behind `0x6E` device 13: ticked on its stand."""
 from coaxial.comm import protocol
 from coaxial.comm.protocol import WbcOp
 from coaxial.comm.wire import Reader, pack
@@ -30,9 +30,9 @@ class Wbc(Device, device=protocol.DEVICE_WBC):
         return self._stepped(self._op(WbcOp.STEP, pack(('u8', ticks)), timeout=TICK_S * ticks))
 
     def swung(self, ticks=3, strides=0.0):
-        """As `step`, her right sole swung where it is with its knee asked folded and the
+        """As `step`, its right sole swung where it is with its knee asked folded and the
         left's moment past its room: the step's four rounds; striding `strides` (0 to 1) what
-        the floor cannot give is her inertia's (wbc_cone.c) - the step's longest ticks."""
+        the floor cannot give is its inertia's (wbc_cone.c) - the step's longest ticks."""
         return self._stepped(self._op(WbcOp.SWUNG, pack(('u8', ticks), ('u8', int(round(100.0 * strides)))),
                                       timeout=TICK_S * ticks))
 

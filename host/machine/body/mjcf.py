@@ -1,4 +1,4 @@
-"""Her figure as MuJoCo's XML: segments, a motor a joint, contacts, clothes, what hangs loose.
+"""Its figure as MuJoCo's XML: segments, a motor a joint, contacts, clothes, what hangs loose.
 
 The world steps it (`machine.world.physics`).
 """
@@ -41,10 +41,10 @@ HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = (float(_HAIR['back_deg']), float(_HAIR['i
                                         float(_HAIR['side_deg']))
 HAIRS = ('hair_x', 'hair_z')
 
-#: What hangs loose on her: the hinges `World.loose` reads.
+#: What hangs loose on it: the hinges `World.loose` reads.
 LOOSE = HEMS + HAIRS
 
-#: Contact bitmasks: 2 meets the floor's 1, 4 her own segments and skeleton.
+#: Contact bitmasks: 2 meets the floor's 1, 4 its own segments and skeleton.
 ME, MEETS = 2 | 4, 1 | 4
 
 #: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`[elastomers]`).
@@ -65,7 +65,7 @@ SWEEPS, QUAT_BITS = 8, 26
 def principal(full):
     """(quat w x y z, diaginertia) of an inertia (xx, yy, zz, xy, xz, yz, as fullinertia orders it, at %g):
     its principal axes in plain IEEE arithmetic - every processor's the same bits, where MuJoCo's own
-    eigendecomposition is its build's (an Arm's parted 9 of her 50 bodies' in their last bits)."""
+    eigendecomposition is its build's (an Arm's parted 9 of its 50 bodies' in their last bits)."""
     xx, yy, zz, xy, xz, yz = (float('%g' % x) for x in full)
     a, v = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]], [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     for _sweep in range(SWEEPS):
@@ -113,12 +113,12 @@ def _inertial(mass, pos, full):
 
 def mjcf(free=True):
     """The figure as MuJoCo's XML: y up, a drive's motor on every joint, the floor's contacts,
-    her skeleton colliding with itself, the floor and her skins but its segment's neighbours' - in
+    its skeleton colliding with itself, the floor and its skins but its segment's neighbours' - in
     the squat a hip's yaw stood 45 mm into the thigh's capsule, the boom 56 (`machine.body.skeleton`) -
     MuJoCo's parent filter off, which takes a welded part for its segment, each segment kept from
-    its parent by name, what touches standing or in the squat she lands in too - there her arms
-    stood 3-8 mm in her knees' drums and boards, the kick felling her walk. Her room's loose things
-    `free` (her world's), else welded where they stand (her law's body: their freedom none of hers)."""
+    its parent by name, what touches standing or in the squat it lands in too - there its arms
+    stood 3-8 mm in its knees' drums and boards, the kick felling its walk. Its room's loose things
+    `free` (its world's), else welded where they stand (its law's body: their freedom none of its own)."""
     from machine.world.physics import SKELETON
     xml = _mjcf(SKELETON, free)
     kin = [(s[0], s[1]) for s in SEGMENTS if s[1]]
@@ -140,9 +140,9 @@ _APART = {}
 
 
 def stops(model):
-    """(lo, hi) of her joints' stops in `model`, rad, `JOINTS`' order: its ranges, unbounded where
-    it has none - a pose laid within them (`physics.World.reset`): her fingers, held a fist at 80
-    deg, laid at the stand's 18 snapped in at 893.5 deg/s each lay, her wrists at 69.1."""
+    """(lo, hi) of its joints' stops in `model`, rad, `JOINTS`' order: its ranges, unbounded where
+    it has none - a pose laid within them (`physics.World.reset`): its fingers, held a fist at 80
+    deg, laid at the stand's 18 snapped in at 893.5 deg/s each lay, its wrists at 69.1."""
     import numpy as np
     ids = [model.joint(j).id for j in JOINTS]
     return tuple(np.where(model.jnt_limited[ids, None] > 0, model.jnt_range[ids], [-np.inf, np.inf]).T)
@@ -190,7 +190,7 @@ def _mjcf(bones, free=True):
     ridden = set(build.riders()) | {rides for _part, rides, _g in parts}
 
     def carried(at):
-        """The drives' and her skeleton's bodies riding `at`, welded."""
+        """The drives' and its skeleton's bodies riding `at`, welded."""
         out = ['<body name="%s_drive" pos="%g %g %g"><inertial pos="0 0 0" mass="%g" '
                'diaginertia="%g %g %g"/></body>' % ((joint,) + where + (kg,) + inertia)
                for joint, kg, where, inertia in riders.get(at, ())]
@@ -276,8 +276,8 @@ def _mjcf(bones, free=True):
             out += body(kid)
         return out + ['</body>'] * (1 + len(stages))
 
-    # her constraints' Jacobian dense, as MuJoCo's auto laid it for her alone: her room's loose things' 36 dofs took
-    # her past its 60 to sparse, her step's constraint solve 34 us where 28 - asleep, they take no row
+    # its constraints' Jacobian dense, as MuJoCo's auto laid it for it alone: its room's loose things' 36 dofs took
+    # it past its 60 to sparse, its step's constraint solve 34 us where 28 - asleep, they take no row
     return '\n'.join(
         ['<mujoco model="gynoid">',
          '<option timestep="%g" gravity="0 %g 0" integrator="implicitfast" cone="%s" jacobian="dense" '
@@ -301,6 +301,6 @@ def _mjcf(bones, free=True):
 
 
 def _stand(stand, high):
-    """Her pelvis welded to the world `high` m up, where she stands for identification."""
+    """The robot's pelvis welded to the world `high` m up, where it stands for identification."""
     return (['<equality><weld body1="pelvis" relpose="0 %g 0 1 0 0 0" solref="%g 1"/></equality>'
              % (-high, _STAND_SOLREF_S)] if stand else [])

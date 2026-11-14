@@ -1,4 +1,4 @@
-/** wbc_body.c - her chain on the static arrays: poses, Jacobians, mass matrix and bias.
+/** wbc_body.c - its chain on the static arrays: poses, Jacobians, mass matrix and bias.
 
     Twists (w, v) and wrenches (m, f) in body frames; a link's frame in its parent's is
     X exp([S] q), the body form of the product of exponentials; the mass matrix by composite
@@ -263,7 +263,7 @@ void wbc_body_mass(wbc_body_t *b)
     }
   }
   {
-    /* the pelvis's block: all she is, in its axes - R0^T I R0, [h] and her mass */
+    /* the pelvis's block: all it is, in its axes - R0^T I R0, [h] and its mass */
     const double *g = b->gc[0];
     const double  in[9] = {g[4], g[5], g[6], g[5], g[7], g[8], g[6], g[8], g[9]};
     double        ir[9], h[3];
@@ -481,7 +481,7 @@ void wbc_body_momentum(const wbc_body_t *b, const double com[3], double k[3])
 {
   double pm[6], lin[3], d[3], c[3];
 
-  /* all she is, moving: the pelvis's rows of M u, its axes about its origin */
+  /* all it is, moving: the pelvis's rows of M u, its axes about its origin */
   for (int i = 0; i < 6; i++)
   {
     pm[i] = 0.0;

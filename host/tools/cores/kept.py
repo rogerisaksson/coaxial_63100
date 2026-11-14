@@ -1,13 +1,13 @@
-"""Her compiled parts held once, taken by a part laid anew in this process or a later one.
+"""The robot's compiled parts held once, taken by a part laid anew in this process or a later one.
 
     kept.warm(part)                                 # a part laid (`bodied.Compiled`): its kind's libraries kept loading
     kept.store(part, prog, info, specs, lib, cfn)   # a part held: its program and its build, here and on disk
     got = kept.taken(part, args, Bound)             # (program, info, specs, its Bound on `args`), None where none fits
 
-Each laying of her world made her law's parts anew, and each traced and held its program again: 33 traces and 31
+Each laying of its world made it law's parts anew, and each traced and held its program again: 33 traces and 31
 holds, 0.23 s of the first second of every errand after the first, and of each process's first. A program held fits
 another part of its function, its name, its inputs and its body where that part's arguments pass its checks
-(`bodied.Bound.fits`); her body's constants of the same bits (`same`) are taken as another laying's body's own
+(`bodied.Bound.fits`); its body's constants of the same bits (`same`) are taken as another laying's body's own
 objects, that body bound anew. Kept on disk beside the libraries (KEPT) under the stamp of every source a trace
 reads and the host it was held on (`stamp`): one of them changed, none is taken; a nested function's, never - its
 cells were its process's.
@@ -27,7 +27,7 @@ from tools.cores import build
 
 #: Where held programs are kept between processes: a file a kind, beside the libraries they are built in.
 KEPT = os.path.join(build.OUT, 'kept')
-#: The folders whose sources a trace reads - her machine, these cores, the texts her constants are of.
+#: The folders whose sources a trace reads - its machine, these cores, the texts its constants are of.
 SOURCES = tuple(os.path.join(REPO, 'host', *part) for part in (('machine',), ('tools', 'cores'), ('lisp',)))
 #: What a kept file may fail with as it is read - torn, of another numpy's or another code's - read as none.
 TORN = (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError, TypeError, ValueError, KeyError,
@@ -57,7 +57,7 @@ def stamp():
 
 def _stamped(at, out):
     """Folder `at`'s sources stamped into `out` by their directory entries' own sizes and times - a stat of each
-    path its own was 131 ms of her laying."""
+    path its own was 131 ms of its laying."""
     try:
         with os.scandir(at) as listed:
             found = sorted(listed, key=lambda e: e.name)
@@ -93,7 +93,7 @@ def _kept(path):
 
 def warm(part):
     """`part`'s kind's kept programs, not yet read here, read and their libraries loading in the builds' thread
-    behind her laying: by her first pass they are in memory."""
+    behind its laying: by its first pass they are in memory."""
     from tools.cores import held
     key, path = _key(part), _file(part)
     if path is None or key in _READ or _HELD.get(key):
@@ -122,7 +122,7 @@ def store(part, prog, info, specs, lib, cfn):
             pickle.dump({'stamp': stamp(), 'programs': programs}, f, protocol=pickle.HIGHEST_PROTOCOL)
         os.replace(whole, path)
     except (OSError, TypeError, AttributeError, pickle.PicklingError):
-        # a constant pickle cannot carry (a module her body keeps): held in this process alone
+        # a constant pickle cannot carry (a module its body keeps): held in this process alone
         with contextlib.suppress(OSError):
             os.remove(whole)
 

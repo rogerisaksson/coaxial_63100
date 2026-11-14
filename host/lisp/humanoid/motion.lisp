@@ -9,16 +9,16 @@
 (deftrait two_footed
   (latent_targets (mode_limb_lift 0.0)))
 
-;; Her arms held where they hang, as the suite's maneuvers hold them (`maneuver._armed`: her rest's
-;; stiffness times W_STILL over W_POSTURE): let go, lying back on the bed her shoulders turned 260-500 deg
+;; Its arms held where they hang, as the suite's maneuvers hold them (`maneuver._armed`: its rest's
+;; stiffness times W_STILL over W_POSTURE): let go, lying back on the bed its shoulders turned 260-500 deg
 (deftrait arms_held
   (impedance (stiffness mode_arm_swing 1198000) (damping mode_arm_swing 2395)))
 
 ;; sit_chair, rise_chair, lie_bed and rise_bed: the ortho-DSP suite's maneuvers (machine/texts/maneuver.py)
 
 
-;; lie down where she stands: crouch to her modes' floor, then the drives soft and the pitch
-;; let go - gravity lays her, the fall window's own quiet (45 N passive); she rests till a rise
+;; lie down where it stands: crouch to its modes' floor, then the drives soft and the pitch
+;; let go - gravity lays it, the fall window's own quiet (45 N passive); it rests till a rise
 (defbehavior lie_floor (extends stance_hold)
   (phase kneel
     (duration 2500ms) (blend_duration 1200ms)
@@ -49,12 +49,12 @@
     (task_constraints (maintain_zmp (polygon 0))
                       (contact_manifolds (plantar 0.0) (ischial 1.0) (trochanter 0.6) (dorsal 1.0)))))
 
-;; sat on the floor, she drags her butt forward on her hands: off her knees her palms down beside her hips as columns
-;; (`modal.poses`) till each bears, her butt lowered on them and her soles till the floor bears it, her support's
-;; polygon held throughout - let go, she threw herself back off her knees, her head down in 1.3 s; then a stroke - her
-;; elbows straightened, her shoulders turned back as her butt slides - and her hands lifted forward again. Caught and
-;; sat on her tripod: her fists on the floor behind her, her arms straight (seated.braced at the sit's pitch, -1.75);
-;; on bent elbows her hands came down under her shoulders and nothing held her as she leant back
+;; sat on the floor, it drags its butt forward on its hands: off its knees its palms down beside its hips as columns
+;; (`modal.poses`) till each bears, its butt lowered on them and its soles till the floor bears it, its support's
+;; polygon held throughout - let go, it threw itself back off its knees, its head down in 1.3 s; then a stroke - its
+;; elbows straightened, its shoulders turned back as its butt slides - and its hands lifted forward again. Caught and
+;; sat on its tripod: its fists on the floor behind it, its arms straight (seated.braced at the sit's pitch, -1.75);
+;; on bent elbows its hands came down under its shoulders and nothing held it as it leant back
 (defbehavior scoot_floor (extends stance_hold)
   (phase kneel
     (duration 2500ms) (blend_duration 1200ms)

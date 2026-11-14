@@ -4,8 +4,8 @@
     boxes, dirty = stacked.restacked(kept, looks, changed)               # kept look to look, its changed rows alone
     names = stacked.classed(slots, kinds, centre, half, R, clear, dirty) # their classes, told anew as values change
 
-What her registry takes of a look (`machine.eyes.registry.seen`): each thing a box - a kind, a centre, half sizes, a
-rotation, her eyes' id and whether the space over it is seen clear -, stacked as arrays; in her vision apart's
+What its registry takes of a look (`machine.eyes.registry.seen`): each thing a box - a kind, a centre, half sizes, a
+rotation, its eyes' id and whether the space over it is seen clear -, stacked as arrays; in its vision apart's
 process kept from look to look, only the rows not the same objects as the last look's restacked.
 """
 import math
@@ -43,8 +43,8 @@ def _box(p):
 def restacked(kept, looks, changed):
     """(`stack(looks)`, whether a value of it changed since the last look): kept on `kept` look to look - its rows
     `changed` (those not the same objects as the last look's) restacked alone, numpy's conversion row by row, handed on
-    as copies -, `stack`'s own where a thing of the look or of the last is not a box. Restacked whole, her lodge's 64
-    things took 146 us of a look in her vision's process, its door alone changing."""
+    as copies -, `stack`'s own where a thing of the look or of the last is not a box. Restacked whole, its lodge's 64
+    things took 146 us of a look in its vision's process, its door alone changing."""
     was = kept.get('stacked')
     if was is None or len(was[0]) != len(looks) or not all(_box(looks[k]) for k in changed):
         boxes = stack(looks)
@@ -66,7 +66,7 @@ def restacked(kept, looks, changed):
 def classed(slots, kinds, centre, half, R, clear, dirty=True):
     """A look's things' classes (`classes.of`), kept on `slots` with the look they are of and told anew only as it
     changes value: `of` is a pure function of the look, compares its numbers and never their zeros' signs, so the
-    same bits. Told each look, the lodge's 64 things took 1.1 ms of its 1.64 - every 9 ms, joined by her law -, its
+    same bits. Told each look, the lodge's 64 things took 1.1 ms of its 1.64 - every 9 ms, joined by its law -, its
     door at rest the same values look after look. Not `dirty` (`restacked`), no value changed since the last look:
     what it was told then kept without comparing - each look told anew where one changed, the last is what it holds."""
     was = slots.get('classed')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""The gynoid's body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): her
-clothes and her look, her leg by its foot, a virtual and a dynamic machine of her, her skeleton,
-her drives' mounts and gearboxes, her kinematics as motors."""
+"""The gynoid's body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): its
+clothes and its look, its leg by its foot, a virtual and a dynamic machine of it, its skeleton,
+its drives' mounts and gearboxes, its kinematics as motors."""
 import sys
 
 from structure_kit import Report
@@ -25,19 +25,19 @@ def test_dressed_or_bare(report):
                       'left_sole'} <= set(worn),
                  '%d of %d worn, %d bands' % (len(worn), len(dressed.parts), len(bands)))
     feet = [i for i, p in enumerate(bare.parts) if p[0].split('_', 1)[-1] in ('foot', 'toes')]
-    report.check('her feet plated bare, sneakers dressed',
+    report.check('its feet plated bare, sneakers dressed',
                  all((bare.materials[slice(*bare.spans[i])] == lit.PLATE).all() for i in feet)
                  and all((dressed.materials[slice(*dressed.spans[i])]
                           == lit.paint(sneaker.SNEAKER)).all() for i in feet))
 
 
-def test_her_views_draw(report):
+def test_its_views_draw(report):
     """The page's mechanism and actuators views draw: a held drive (`drives.WAYS`) has no drum,
     so no spur or bevel pair on it - the wrists' bevels crashed the page."""
     from coaxial.graphics import gynoid
     for see in ('mechanism', 'actuators'):
         seen = gynoid.body(see=see)
-        report.check('her %s drawn, nothing on a held wrist' % see,
+        report.check('it %s drawn, nothing on a held wrist' % see,
                      len(seen.parts) > 20 and not any(
                          p[0].startswith(('bevel', 'pinion', 'spur')) and p[0].endswith('_wrist')
                          for p in seen.parts), '%d parts' % len(seen.parts))
@@ -89,7 +89,7 @@ def test_a_virtual_body_is_told(report):
 
 
 def test_a_leg_by_its_foot(report):
-    """figure.leg answers the six joints that put a foot where `foot_of` finds it across her travel."""
+    """figure.leg answers the six joints that put a foot where `foot_of` finds it across its travel."""
     import math
     from machine.body import drives, figure
     hy = math.radians(0.5 * drives.TRAVEL['hip_yaw'][1])
@@ -122,13 +122,13 @@ def test_a_leg_by_its_foot(report):
 
 
 def test_a_body_with_mass_is_fitted(report):
-    """DYNAMIC: each of the gynoid's joints is a drive on a body with mass, her pose read beside them."""
+    """DYNAMIC: each of the gynoid's joints is a drive on a body with mass, its pose read beside them."""
     from machine import Machine
     from machine.body import figure
     from machine.rig.modes import DYNAMIC
     from machine.rig.dynamic import DriveJoint
     body = Machine.discover('gynoid', execution_mode=DYNAMIC)
-    report.check('all %d drives fitted bus by bus, and her pose read beside them' % len(figure.JOINTS),
+    report.check('all %d drives fitted bus by bus, and its pose read beside them' % len(figure.JOINTS),
                  len(body.actuators) == len(figure.JOINTS)
                  and all(isinstance(a, DriveJoint) for a in body.actuators.values())
                  and body.actuators['spine'].node.name == 'D1_1'
@@ -137,7 +137,7 @@ def test_a_body_with_mass_is_fitted(report):
     body.close()
 
 
-def test_her_skeleton_collides(report):
+def test_its_skeleton_collides(report):
     """Skeleton adds bone geoms at unchanged mass, clear at stand/squat and meeting femur past stop."""
     import importlib
     import math
@@ -152,7 +152,7 @@ def test_her_skeleton_collides(report):
         model = mujoco.MjModel.from_xml_string(mjcf.mjcf())
     finally:
         physics.SKELETON = was
-    report.check('her skeleton is %d geoms more, her weight as it was' % (model.ngeom - bare.ngeom),
+    report.check('its skeleton is %d geoms more, its weight as it was' % (model.ngeom - bare.ngeom),
                  model.ngeom > bare.ngeom
                  and abs(sum(model.body_mass) - sum(bare.body_mass)) < 1e-3,
                  '%.4f kg apart' % abs(sum(model.body_mass) - sum(bare.body_mass)))
@@ -186,7 +186,7 @@ def test_each_drive_is_held(report):
     report.check('every drive held', not loose, '%s held by nothing' % loose)
 
 
-def test_her_kinematics_as_motors(report):
+def test_its_kinematics_as_motors(report):
     """Motor chains match `figure.frames`, damped solve matches `figure.leg`, half-screw squares."""
     import math
     from machine.body import drives, figure, motors
@@ -205,7 +205,7 @@ def test_her_kinematics_as_motors(report):
             rows = motors.chain(end)
             m = motors.forward(rows, base, [math.radians(deg[j]) for j, _pre, _axis in rows])
             off = max(off, apart(m, *placed[end]))
-    report.check('a chain of motors puts a foot, a hand and her head where the figure has them',
+    report.check('a chain of motors puts a foot, a hand and its head where the figure has them',
                  off < 1e-12, '%.1e m, or of a unit axis' % off)
     rows = motors.chain('left_foot')
     hy = math.radians(0.5 * drives.TRAVEL['hip_yaw'][1])
@@ -283,31 +283,31 @@ def _gearbox_has_play(report, physics, figure, i):
                      1e3 * (at if at is not None else 0.0), 1e3 * on[-1][2]))
 
 
-def test_every_build_runs_her(report):
-    """Every build file but hers (`mechatronics.robots`) runs her on her loop under COAXIAL_ROBOT:
-    every module imported, her first seconds and a walk told (`tools/dev/smoke.py`)."""
+def test_every_build_runs_it(report):
+    """Every build file but its own (`mechatronics.robots`) runs it on its loop under COAXIAL_ROBOT:
+    every module imported, its first seconds and a walk told (`tools/dev/smoke.py`)."""
     import os
     import subprocess
     from machine.body import mechatronics
     host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     others = [n for n in mechatronics.robots() if n != mechatronics.ROBOT]
-    report.check('a second build beside hers', bool(others), ', '.join(mechatronics.robots()))
+    report.check('a second build beside its own', bool(others), ', '.join(mechatronics.robots()))
     for other in others:
         run = subprocess.run([sys.executable, '-X', 'utf8', os.path.join(host, 'tools', 'dev', 'smoke.py')],
                              cwd=host, env=dict(os.environ, COAXIAL_ROBOT=other, PYTHONPATH=host),
                              capture_output=True, text=True, timeout=600)
-        report.check('%s runs her: every module imported, her first seconds on the loop' % other,
+        report.check('%s runs it: every module imported, its first seconds on the loop' % other,
                      run.returncode == 0 and 'smoke: clean' in run.stdout, (run.stdout + run.stderr)[-300:])
 
 
-def test_her_gait_is_stated_on_her(report):
+def test_its_gait_is_stated_on_it(report):
     """Declarative `.toml` construction compiles into `.cache/compiled/` on first run and recompiles on edit."""
     import math
     import os
     import tempfile
     import tomllib
     from machine.body import build, drives, figure, gait, mechatronics, servos
-    with open(os.path.join(mechatronics.ROBOTS, mechatronics.HERS + '.toml'), 'rb') as f:
+    with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
         raw = tomllib.load(f)
     banned = {'servo', 'wind', 'series', 'gait', 'service', 'pack_v', 'cooling', 'clamped',
               'rigid_play_deg', 'ahead_wind', 'ahead_play', 'mount_k_w', 'off_mount_k_w'}
@@ -352,15 +352,15 @@ def test_her_gait_is_stated_on_her(report):
                  and drives.SERIES['ankle'] > 0.0 and drives.TRACK == 0.0
                  and len(servos.SERVO) == len(drives.STACKS) and len(drives.WIND) == len(drives.STACKS)
                  and abs(sq_com[2] - 0.5 * (figure.BALL - figure.HEEL)) < 1e-3)
-    report.check('her leg and her mass are those her gait is stated at', gait.SIMILAR == 1.0 and gait.MASSY == 1.0,
-                 'leg %r, mass %r of hers' % (gait.SIMILAR, gait.MASSY))
+    report.check('its leg and its mass are those its gait is stated at', gait.SIMILAR == 1.0 and gait.MASSY == 1.0,
+                 'leg %r, mass %r of its own' % (gait.SIMILAR, gait.MASSY))
 
 
-def test_her_tiers_by_the_machine(report):
-    """`modes.afforded`, `chosen` and `told`: on 16 cores her 20 boards fit in-process and native,
-    not on Renode; her body wired to in-process alone, that is chosen; on 2 cores in-process alone
-    fits; on 1 none does and she runs in her own process. `sprung.state` tells her headroom beside
-    her ratio."""
+def test_its_tiers_by_the_machine(report):
+    """`modes.afforded`, `chosen` and `told`: on 16 cores its 20 boards fit in-process and native,
+    not on Renode; its body wired to in-process alone, that is chosen; on 2 cores in-process alone
+    fits; on 1 none does and it runs in its own process. `sprung.state` tells its headroom beside
+    its ratio."""
     from machine.rig import modes
     from machine.process import sprung, worker
     fits = {name: ok for name, _c, ok in modes.afforded(16, 20)}
@@ -370,19 +370,19 @@ def test_her_tiers_by_the_machine(report):
     few = {name: ok for name, _c, ok in modes.afforded(2, 20)}
     report.check('on 2 cores in-process alone fits', few['in-process'] and not few['native'] and not few['emulated']
                  and modes.chosen(2, 20) == 'in-process', modes.told(2, 20))
-    report.check('on 1 core none fits and she runs in her own process', modes.chosen(1, 20) == 'in-process',
+    report.check('on 1 core none fits and it runs in its own process', modes.chosen(1, 20) == 'in-process',
                  modes.told(1, 20))
     s = worker.session()
-    worker.Her(s).said(0.5, 1.7)
+    worker.Robot(s).said(0.5, 1.7)
     told = worker.told(s)
-    report.check("her state tells her ratio and her headroom", told['ratio'] == 0.5 and told['headroom'] == 1.7,
+    report.check("its state tells its ratio and its headroom", told['ratio'] == 0.5 and told['headroom'] == 1.7,
                  'ratio %s headroom %s' % (told['ratio'], told['headroom']))
     s['g']['world'].close()
 
 
-def test_the_referee_and_her_averages_in_c(report):
-    """Her worker's referee (`referee.fallen`, wbc_pass_paired) and her drives' averages
-    (wbc_pass_averaged) beside their numpy at every pass of her walk and a shove that throws her:
+def test_the_referee_and_its_averages_in_c(report):
+    """The robot's worker's referee (`referee.fallen`, wbc_pass_paired) and its drives' averages
+    (wbc_pass_averaged) beside their numpy at every pass of its walk and a shove that throws it:
     the same fall at each pass, a fall seen, the averages bit for bit."""
     import numpy as np
     from machine.body import figure
@@ -406,15 +406,15 @@ def test_the_referee_and_her_averages_in_c(report):
         fallen = bool((((down[a] & ground[b]) | (down[b] & ground[a])) & under).any())
         falls += fallen
         apart += (fallen != referee.fallen(g, world)) + (not (same(torque, s['torque']) and same(power, s['power'])))
-    report.check('the referee and her averages in C are their numpy at every pass, a shove her fall',
+    report.check('the referee and its averages in C are their numpy at every pass, a shove its fall',
                  not apart and falls > 0 and s['fallen_at'] is not None, '%d apart, fallen at %s' % (apart, s['fallen_at']))
     g['world'].close()
 
 
-ROSTER = (test_her_tiers_by_the_machine, test_the_referee_and_her_averages_in_c, test_every_build_runs_her, test_her_gait_is_stated_on_her, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
-          test_dressed_or_bare, test_her_views_draw, test_her_skeleton_collides,
+ROSTER = (test_its_tiers_by_the_machine, test_the_referee_and_its_averages_in_c, test_every_build_runs_it, test_its_gait_is_stated_on_it, test_a_virtual_body_is_told, test_a_leg_by_its_foot, test_a_body_with_mass_is_fitted,
+          test_dressed_or_bare, test_its_views_draw, test_its_skeleton_collides,
           test_each_drive_turns_from_its_gearbox, test_each_drive_is_held,
-          test_a_gearbox_has_play, test_her_kinematics_as_motors)
+          test_a_gearbox_has_play, test_its_kinematics_as_motors)
 
 
 def main(argv=None):

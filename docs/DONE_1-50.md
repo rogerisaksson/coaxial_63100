@@ -13,33 +13,33 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
    ([host](findings/host.md)).
 6. The heat's airspeed one input: the load carries it, every executive's
    world flies in it ([aircraft](findings/aircraft.md)).
-7. Humanoid robot joints air-cooled, a board's back on an aluminium holder on
+7. The robot's joints air-cooled, a board's back on an aluminium holder on
    its motor
    or gearbox, MINOR 30; no boards in oil ([drives](findings/drives.md)).
 8. A pull rebuilds: the terminal builds the images where their trees are
    behind ([host](findings/host.md)).
-9. Humanoid robot gearboxes as bodies with their play
+9. The robot's gearboxes as bodies with their play
    ([drives](findings/drives.md)); a
    shove charged from the page's view; the living room and its words
-   ([room](findings/room.md)); the quad's thrusts as Humanoid robot law
+   ([room](findings/room.md)); the quad's thrusts as its law
    ([aircraft](findings/aircraft.md)).
 10. R on the HUMANOID page, which crashed it, held by a test
     ([host](findings/host.md)).
-11. Humanoid robot drives as bought, one stack on all
+11. The robot's drives as bought, one stack on all
     ([stacks](findings/stacks.md)).
 12. The law turns: a standing leg keeps its landing yaw, the pelvis follows
     the heading ([turns](findings/turns.md)).
-13. Humanoid robot toes sprung, no motors on Humanoid robot feet
+13. The robot's toes sprung, no motors on its feet
     ([feet](findings/feet.md)).
-14. Humanoid robot fingers a fist and Humanoid robot wrists held: 21 drives
+14. The robot's fingers a fist and its wrists held: 21 drives
     ([body](findings/body.md)).
 15. A softer walk: a sole's strike 352-398 N where 1 000 was the bound
     ([straight](findings/straight.md)).
 16. The docs as technical documents: dates and who asked out of comments,
     docstrings, docs and test labels.
-17. MuJoCo Warp's step on Humanoid robot world against the CPU's
+17. MuJoCo Warp's step on its world against the CPU's
     ([host](findings/host.md)).
-18. Humanoid robot leg's reach over its foot as static arrays, read with no side
+18. The robot's leg's reach over its foot as static arrays, read with no side
     in
     the code ([kinematics](findings/kinematics.md)).
 19. The stand-in's drive and loop on the board's C, QUAD's rotors on their
@@ -52,12 +52,12 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     ([drive](findings/drive.md), [host](findings/host.md)).
 22. The law's voltage limit keeps the d current its reference: a 63100's top
     at 55 V 673.5 rad/s where 650.5 ([drive](findings/drive.md)).
-23. Humanoid robot movements' orthopaedic terms as laid rows, a joint and its
+23. The robot's movements' orthopaedic terms as laid rows, a joint and its
     sign found
-    in Humanoid robot figure ([kinematics](findings/kinematics.md)).
-24. Flight on the whole-body stack: Humanoid robot soles released as she leaves
+    in its figure ([kinematics](findings/kinematics.md)).
+24. Flight on the whole-body stack: its soles released as it leaves
     the
-    floor and taken again as she lands; a hop stood on the python stack
+    floor and taken again as it lands; a hop stood on the python stack
     and on the loop in C ([flight](findings/flight.md)).
 25. A board holds its clamp to what its envelope leaves and says it
     (MINOR 32); the flight's share and each rotor's cap on it: full tilt on
@@ -65,20 +65,20 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     83 ([envelope](findings/envelope.md)).
 26. A hover's heat: its legs' dry switching, 6.45 W of 9.4; the wash takes
     the laminate from 91 to 60 C ([envelope](findings/envelope.md)).
-27. Humanoid robot hops on the loop in C: which soles stand told from one pass,
-    Humanoid robot
-    throw a spring that lets go under Humanoid robot standing height; 48 mm and
+27. The robot's hops on the loop in C: which soles stand told from one pass,
+    its
+    throw a spring that lets go under its standing height; 48 mm and
     three in a row stood ([flight](findings/flight.md)).
 28. The quad's flight intent as text compiled to payloads
     (`machine.aircraft.aerolisp`), a core in C under them with no branch, in its
     sources or in the M7's code (`aero/`): the power loop's four streams
     flown on ideal rotors, caught 79 degrees off of 80 and stood again; a
     hover stood from upsets ([streams](findings/streams.md)).
-29. Orthokinematics: Humanoid robot movement as text compiled to rows
-    (`machine.texts.ortho`), Humanoid robot latent state stepped and rendered with no
-    branch
+29. Orthokinematics: its movement as text compiled to rows
+    (`machine.texts.ortho`), its latent state stepped and rendered
+    with no branch
     (`machine.law.latent`, `machine.law.modal`), on the page's gym (`<`): crouched,
-    Humanoid robot weight over one sole, bowed, on one sole, a hop stood,
+    its weight over one sole, bowed, on one sole, a hop stood,
     walking
     0.27 m/s for a minute ([orthokinematics](findings/orthokinematics.md)).
 30. The core's attitude as its rotors' axis in the world, in the level frame
@@ -87,14 +87,13 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     stood from 12 rad/s about its axis a quarter turn off
     ([streams](findings/streams.md)).
 31. The page's routine and the course flown from their cards' rows
-    (`machine.aircraft.aerokin`), a pass a payload and the air the core's: 59.1 s;
-    laps 14.9 and 14.8 s, whole in the tour's air
+    (`machine.aircraft.aerokin`), a pass a payload and the air the core's: 59.1
+    s; laps 14.9 and 14.8 s, whole in the tour's air
     ([streams](findings/streams.md)).
-32. Humanoid robot stride on the loop: eleven modes - Humanoid robot standing
+32. The robot's stride on the loop: eleven modes - its standing
     legs' compression,
-    Humanoid robot pelvis's list and turn, Humanoid robot arms' swing, Humanoid
-    robot soles' rock -, a sole
-    let go on Humanoid robot drive's phase, landed on Humanoid robot capture
+    its pelvis's list and turn, its arms' swing, its soles' rock -, a sole
+    let go on its drive's phase, landed on its capture
     point, its heel
     rising first: 0.61 m/s at 329 J/m, 2.59 off a woman's band for 7.71,
     none of the gaits it was by name; the first texts as given walk
@@ -107,11 +106,11 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     lean across its way, 7.7 degrees inside a lap's bends where 12.5
     outside, rolled 9.5 degrees rms in them; level at rest
     ([aircraft](findings/aircraft.md)).
-35. One way she moves: the laws before Humanoid robot latent loop out of the
+35. One way it moves: the laws before its latent loop out of the
     tree - 34
     modules (the director, the walk as built, the one law, the stand, the
     falls, the get-up, the MPC), 14 tools, 7 suites, 8 findings; the page
-    Humanoid robot loop alone, walking from rest; they stay at tag
+    its loop alone, walking from rest; they stay at tag
     `laws-before-the-loop`.
 36. The rotors' tops, their reach and their stage's watts from the action
     space (`machine.aircraft.pull`), the law's on a stand-in within 0.1 %; the pack
@@ -119,7 +118,7 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     of 34 whole in fourteen winds, laps 14.3 and 14.5-14.6 s
     ([envelope](findings/envelope.md)).
 37. The step without an active set in C (`wbc/src/wbc_wrench.c`): the
-    python step's answer, Humanoid robot walk and Humanoid robot hop on it, 46
+    python step's answer, its walk and its hop on it, 46
     us a tick on
     this host where the loop's 1 600 ([wrench](findings/wrench.md)).
 38. The flight inside the action space's shell: a row's pull the rotors'
@@ -141,26 +140,26 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     pass under Renode, the same whatever it is asked, 0.31 ms on the M7 at
     one a cycle; its thrusts the host core's within 1.7e-5 N
     ([streams](findings/streams.md)).
-42. Humanoid robot walk's stagger measured: landing load, unloading, dip and
+42. The robot's walk's stagger measured: landing load, unloading, dip and
     head
     nod in `strides.WALK`, bounded in `looks.FORM` (1.25, 0.75, 6 deg) and
-    told by `ortho.py --look`; what Humanoid robot head nods for and what holds
-    Humanoid robot
-    speed, with eleven steps tried under Humanoid robot walk
+    told by `ortho.py --look`; what its head nods for and what holds
+    its
+    speed, with eleven steps tried under its walk
     ([orthokinematics](findings/orthokinematics.md)).
 43. The lap's lead and its swing derived from its tilt's own loop where
     89 ms and 0.36 s were searched: the boards' laps 13.9 and 14.1-14.3 s
     where 14.3 and 14.5-14.6, 34 flights of 34 whole in fourteen winds
     ([streams](findings/streams.md)).
-44. Humanoid robot head still as she walks: striding, what the floor cannot give
-    is taken by Humanoid robot inertia, a swinging sole's ask held, its landing
+44. The robot's head still as it walks: striding, what the floor cannot give
+    is taken by its inertia, a swinging sole's ask held, its landing
     led
-    by half Humanoid robot speed's error, a knee folding before its swing as its
-    load leaves it - Humanoid robot head 2.5 deg where 46, 300 J/m where 330,
+    by half its speed's error, a knee folding before its swing as its
+    load leaves it - its head 2.5 deg where 46, 300 J/m where 330,
     2.46
-    off the band where 2.60, stiff 0.32 where 0.37, 4 of Humanoid robot form's
+    off the band where 2.60, stiff 0.32 where 0.37, 4 of its form's
     12
-    broken where 6; standing as she stood, bit for bit
+    broken where 6; standing as it stood, bit for bit
     ([orthokinematics](findings/orthokinematics.md),
     [wrench](findings/wrench.md)).
 45. A board's speed loop winds no further than its drive carries - its
@@ -168,9 +167,8 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     its clamp a rotor slows as asked where 0.18 s late, full tilt's four
     4.4-5.9 A apart and 8.3-12.4 deg off at the most where 5.2-10.5 and
     9.4-15.2 ([envelope](findings/envelope.md)).
-46. Humanoid robot stride in C (`wbc_cone.c`): the python step's on Humanoid
-    robot walk, 7e-10 N m
-    on one sole; Humanoid robot walk on it 0.69 m/s, 301 J/m, 2.46 off; device
+46. The robot's stride in C (`wbc_cone.c`): the python step's on its walk, 7e-10
+    N m on one sole; its walk on it 0.69 m/s, 301 J/m, 2.46 off; device
     13 op 2
     ticks the step with a sole swung - its rounds, striding, setting out,
     0.44 M instructions the longest ([wrench](findings/wrench.md)).
@@ -186,5 +184,5 @@ The first fifty lines of [DONE](DONE.md), the oldest first.
     72-85, 34 flights of 34 whole ([streams](findings/streams.md)).
 49. Gait initiation from a stand to #203, its landing never behind its lift-off
     ([orthokinematics](findings/orthokinematics.md)).
-50. Her motion's measures in a dimensionless frame on SO(3), a CI gate on them
+50. Its motion's measures in a dimensionless frame on SO(3), a CI gate on them
     (`tools/sim/gvs.py`).

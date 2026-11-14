@@ -103,7 +103,7 @@ def _draped():
 HEAD_Y = 0.095
 HAIR, HAIR_ENDS, LIPS, EYES = (118, 80, 52), (222, 168, 100), (192, 112, 112), (46, 46, 58)
 PART_M, BALAYAGE = 0.004, 1.2
-#: Her ponytail: gathered at the occiput, hanging behind the neck.
+#: The robot's ponytail: gathered at the occiput, hanging behind the neck.
 HAIR_FALL = ((0.085, 0.030, 0.026, -0.082), (0.05, 0.030, 0.026, -0.094), (0.0, 0.028, 0.024, -0.098),
              (-0.06, 0.026, 0.022, -0.100), (-0.12, 0.020, 0.016, -0.102))
 #: The skull's radii and its middle; the hair a cap HAIR_M over it from ear level, its front

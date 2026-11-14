@@ -1,14 +1,14 @@
-"""Her way round her things: A* over their cells' costs (`machine.way.obstacles`), arcs at corners.
+"""Its way round its things: A* over their cells' costs (`machine.way.obstacles`), arcs at corners.
 
     cost = route.costs(things, floor, seen, slot, face)   # (nx, nz) a metre's cost through each cell, inf blocked
-    cells = route.blocked(things, floor)             # her map's cells she may not stand in
-    corners = route.way((x, z), to, cost)            # [(x, z)] from her place round them, `to` last
-    stops, curve, held = route.planned((x, z), yaw, still, to, cost, held)   # her stops, the curve to the first
-    k, aim, along, there, pace, bend = route.ahead(curve, k, (x, z))   # her place, aim, headings, speed, bend
-    barred = route.barred(cells, [(x, z), ..])       # whether her way left is blocked past its first free cell
-    d = route.staged((x, z), out, most, cells)       # m out along a dock's normal she stands free at
+    cells = route.blocked(things, floor)             # its map's cells it may not stand in
+    corners = route.way((x, z), to, cost)            # [(x, z)] from its place round them, `to` last
+    stops, curve, held = route.planned((x, z), yaw, still, to, cost, held)   # its stops, the curve to the first
+    k, aim, along, there, pace, bend = route.ahead(curve, k, (x, z))   # its place, aim, headings, speed, bend
+    barred = route.barred(cells, [(x, z), ..])       # whether its way left is blocked past its first free cell
+    d = route.staged((x, z), out, most, cells)       # m out along a dock's normal it stands free at
 
-Her planner runs these apart (`machine.way.planner`).
+The robot's planner runs these apart (`machine.way.planner`).
 """
 import bisect
 import math
@@ -16,24 +16,24 @@ import math
 from machine.way import obstacles
 from machine.law import rhythm, se2, stride
 from machine.eyes import sight, voxels
-#: Setting off she walks while her heading is CONE off her leg at most, her walk's arc (WALK_SPEED /
+#: Setting off it walks while its heading is CONE off its leg at most, its walk's arc (WALK_SPEED /
 #: YAW_RATE round) a cell off it at most.
 CONE = math.acos(1.0 - voxels.CELL_M * se2.YAW_RATE / se2.WALK_SPEED)
 
-#: Her walk's arc told, ARC_M round; her aim AIM_M on along her way, where pure pursuit on that arc
-#: runs a cell inside it (ARC_M - sqrt(ARC_M^2 - AIM_M^2) = CELL_M); a stage STRAIGHT_M out: her aim,
-#: her run-out STOP_M and a cell - told to stand mid-turn on (0.42, 0.03) she went on 0.5 rad off
-#: her heading, 0.82 m into the chair's margin.
+#: Its walk's arc told, ARC_M round; its aim AIM_M on along its way, where pure pursuit on that arc
+#: runs a cell inside it (ARC_M - sqrt(ARC_M^2 - AIM_M^2) = CELL_M); a stage STRAIGHT_M out: its aim,
+#: its run-out STOP_M and a cell - told to stand mid-turn on (0.42, 0.03) it went on 0.5 rad off
+#: its heading, 0.82 m into the chair's margin.
 ARC_M = se2.WALK_SPEED / se2.YAW_RATE
 AIM_M = ARC_M * math.sin(CONE)
 STRAIGHT_M = AIM_M + se2.STOP_M + voxels.CELL_M
-#: Her walking turn as she makes it, rad/s: told YAW_RATE, her heading turns her stance's share of it
-#: (`[gait.steer]` stance_turn) - told 0.7 rad/s she turned 0.46-0.50 at 0.25-0.68 m/s, her stride
-#: her speed told (`rhythm.modulated`), so her arc is her speed over TURN: her walk's 1.41 m round,
-#: wider than the lodge's ways - a B-spline at it fitted none of 56 plans and she stood at each corner.
+#: Its walking turn as it makes it, rad/s: told YAW_RATE, its heading turns its stance's share of it
+#: (`[gait.steer]` stance_turn) - told 0.7 rad/s it turned 0.46-0.50 at 0.25-0.68 m/s, its stride
+#: its speed told (`rhythm.modulated`), so its arc is its speed over TURN: its walk's 1.41 m round,
+#: wider than the lodge's ways - a B-spline at it fitted none of 56 plans and it stood at each corner.
 TURN = se2.YAW_RATE * se2.STEER['stance_turn']
-#: Her braking, m/s^2 - her walk's speed run out over STOP_M - and her run-out's time, s; her slowest
-#: walk, m/s: told slower she turns on the spot (`[gait.rhythm]` spin_still_m_s).
+#: Its braking, m/s^2 - its walk's speed run out over STOP_M - and its run-out's time, s; its slowest
+#: walk, m/s: told slower it turns on the spot (`[gait.rhythm]` spin_still_m_s).
 BRAKE, RUN_OUT_S = se2.WALK_SPEED ** 2 / (2.0 * se2.STOP_M), se2.STOP_M / se2.WALK_SPEED
 SLOWEST = rhythm.R['spin_still_m_s']
 CORNER_SPEED = SLOWEST + rhythm.R['edge_m_s']
@@ -52,7 +52,7 @@ def _free(cells, cell):
 
 
 def _grid():
-    """(nx * nz, 2) her map's cells' centres (x, z), and its shape."""
+    """(nx * nz, 2) its map's cells' centres (x, z), and its shape."""
     np = sight._np()
     nx = int(round((voxels.X_M[1] - voxels.X_M[0]) / voxels.CELL_M))
     nz = int(round((voxels.Z_M[1] - voxels.Z_M[0]) / voxels.CELL_M))
@@ -62,13 +62,13 @@ def _grid():
 
 
 def costs(things, floor, seen=None, slot=-1, face=None):
-    """(nx, nz) a metre's cost walked through each of her map's cells among `things` (her registry's
-    boxes) over her soles' `floor` (`obstacles.costed`): inf where she may not stand, `seen` (nx, nz) 1
-    where her eyes have seen - the whole room without -, `slot` the thing she goes to, opened before
-    the `face` she docks at, its outward normal (x, z), None where she docks at none. The door among
+    """(nx, nz) a metre's cost walked through each of its map's cells among `things` (its registry's
+    boxes) over its soles' `floor` (`obstacles.costed`): inf where it may not stand, `seen` (nx, nz) 1
+    where its eyes have seen - the whole room without -, `slot` the thing it goes to, opened before
+    the `face` it docks at, its outward normal (x, z), None where it docks at none. The door among
     them at its live pose: closed, no way out exists and `way`'s fallback straight line is the push;
-    ajar, the look along her way rounds its panel - held out of her map she ground it onto its 1.92
-    rad stop and its spring flung her at 1.66 m/s."""
+    ajar, the look along its way rounds its panel - held out of its map it ground it onto its 1.92
+    rad stop and its spring flung it at 1.66 m/s."""
     np = sight._np()
     at, shape = _grid()
     known = np.ones(len(at)) if seen is None else np.asarray(seen, float).reshape(-1)
@@ -76,13 +76,13 @@ def costs(things, floor, seen=None, slot=-1, face=None):
 
 
 def blocked(things, floor, slot=-1, face=None):
-    """Her map's cells she may not stand in among `things` over `floor` (`costs`' inf)."""
+    """The robot's map's cells it may not stand in among `things` over `floor` (`costs`' inf)."""
     return sight._np().isinf(costs(things, floor, None, slot, face))
 
 
 def way(at, to, cost):
-    """[(x, z)] her corners from `at` (x, z) to `to` through `cost`'s free cells (`costs`), its least,
-    `to` last; [`to`] where no way is found or either end is off her map."""
+    """[(x, z)] its corners from `at` (x, z) to `to` through `cost`'s free cells (`costs`), its least,
+    `to` last; [`to`] where no way is found or either end is off its map."""
     np = sight._np()
     start, goal = _cell(*at), _cell(*to)
     if not all(0 <= c[0] < cost.shape[0] and 0 <= c[1] < cost.shape[1] for c in (start, goal)):
@@ -95,11 +95,11 @@ def way(at, to, cost):
 
 
 def barred(cells, pts):
-    """Whether her way through `pts` [(x, z)], her place first, is blocked in `cells`: a blocked cell past
-    a free one along its legs, a cell a sample. Its leading blocked run (her own cell inside a thing's
-    grown disc as she docks) and its last point (a stage laid inside one, `staged`'s) are hers to stand
-    in: checked every look they replanned her mid-stride at the chair and she perched unsure, and felled
-    her at the door."""
+    """Whether its way through `pts` [(x, z)], its place first, is blocked in `cells`: a blocked cell past
+    a free one along its legs, a cell a sample. Its leading blocked run (its own cell inside a thing's
+    grown disc as it docks) and its last point (a stage laid inside one, `staged`'s) are its own to stand
+    in: checked every look they replanned its mid-stride at the chair and it perched unsure, and felled
+    it at the door."""
     samples = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n)
                for a, b in zip(pts, pts[1:])
                for n in (max(1, int(math.ceil(math.dist(a, b) / voxels.CELL_M))),)
@@ -109,11 +109,11 @@ def barred(cells, pts):
 
 
 def staged(dock, out, most, cells):
-    """m along `out` (a dock's normal, unit (x, z)) from `dock` she stands free at: the point of the
-    first run of free cells along it nearest `most` - in the open `most` itself; `most` her walk's
-    stopping distance and the stride a turn in place drifts her. The run's middle staged the chair
-    before the table 0.45 m out and the click's errand perched her on its corner (pelvis 0.742, sure
-    0.48); at 0.70 she sits (0.586, 0.95), the lodge's start sitting either way (16.6, 17.6 s)."""
+    """m along `out` (a dock's normal, unit (x, z)) from `dock` it stands free at: the point of the
+    first run of free cells along it nearest `most` - in the open `most` itself; `most` its walk's
+    stopping distance and the stride a turn in place drifts it. The run's middle staged the chair
+    before the table 0.45 m out and the click's errand perched it on its corner (pelvis 0.742, sure
+    0.48); at 0.70 it sits (0.586, 0.95), the lodge's start sitting either way (16.6, 17.6 s)."""
     steps = [k * sight.CELL_M for k in range(int(round(2.0 * most / sight.CELL_M)) + 1)]
     free = [_free(cells, _cell(dock[0] + s * out[0], dock[1] + s * out[1])) for s in steps]
     k0 = next((k for k, f in enumerate(free) if f), None)
@@ -124,13 +124,13 @@ def staged(dock, out, most, cells):
 
 
 def _aim(v):
-    """m her aim runs on ahead of her at `v` m/s: where pure pursuit on her arc at that speed (v /
-    YAW_RATE round) runs a cell inside it, a cell at least - AIM_M at her walk."""
+    """m its aim runs on ahead of it at `v` m/s: where pure pursuit on its arc at that speed (v /
+    YAW_RATE round) runs a cell inside it, a cell at least - AIM_M at its walk."""
     return math.sqrt(max(2.0 * voxels.CELL_M * v / se2.YAW_RATE - voxels.CELL_M ** 2, voxels.CELL_M ** 2))
 
 
 def _arc(p, a, b, r):
-    """[(x, z)] her arc of radius `r` round the corner `p` from its leg in along `a` to its leg out
+    """[(x, z)] its arc of radius `r` round the corner `p` from its leg in along `a` to its leg out
     along `b` (units), a half cell apart, from its tangent on the one to its tangent on the other."""
     turn = math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
     tau, side = r * math.tan(0.5 * abs(turn)), math.copysign(1.0, turn)
@@ -163,20 +163,20 @@ def _widest(cells, p, a, b, lo, hi):
 
 
 def _room(ell, tan, out, stop):
-    """Her arc's widest radius its legs give a corner turning by 2 atan(`tan`): its leg in `ell`
-    (`out` its share of it), its leg out `out` - to a `stop`, her run-out (RUN_OUT_S at TURN times the
+    """Its arc's widest radius its legs give a corner turning by 2 atan(`tan`): its leg in `ell`
+    (`out` its share of it), its leg out `out` - to a `stop`, its run-out (RUN_OUT_S at TURN times the
     radius) kept before it."""
     return min(se2.WALK_SPEED / TURN, ell / tan, out / (tan + RUN_OUT_S * TURN * float(stop)))
 
 
 def rounded(cells, pts):
-    """(curve, last): her way through `pts` [(x, z)] - her place, `way`'s corners, its end - round each
-    corner on the widest arc her map's free `cells` and its legs give (`_widest`, `_room`), her walk's
+    """(curve, last): its way through `pts` [(x, z)] - its place, `way`'s corners, its end - round each
+    corner on the widest arc its map's free `cells` and its legs give (`_widest`, `_room`), its walk's
     (WALK_SPEED / TURN round) at most, walked at TURN times its radius. The curve (N, 5): x, z, its
-    length, her speed and its bend (1/m) a half cell apart, braked into each arc and out of it at
-    BRAKE, into its end - where she stands - to her SLOWEST walk; `last` the index in `pts` of the
-    first corner no arc of her SLOWEST walk rounds - a stop,
-    the curve's end, her run-out kept before it."""
+    length, its speed and its bend (1/m) a half cell apart, braked into each arc and out of it at
+    BRAKE, into its end - where it stands - to its SLOWEST walk; `last` the index in `pts` of the
+    first corner no arc of its SLOWEST walk rounds - a stop,
+    the curve's end, its run-out kept before it."""
     np = sight._np()
     p = np.asarray(pts, float)
     ell = np.hypot(*np.diff(p, axis=0).T)
@@ -224,11 +224,11 @@ def rounded(cells, pts):
 
 
 def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
-    """(stops, curve, held): where she stands still on her way from `at` (x, z) to `to` through `cost`
+    """(stops, curve, held): where it stands still on its way from `at` (x, z) to `to` through `cost`
     (`costs`) - `way`'s corners from the first no arc rounds (`rounded`), `to` last, its leading corners
-    within `passed` of her dropped -, the curve she walks to the first ((0, 5) where she walks straight
-    at it: one leg, no corner rounded, or a blocked sample past a free one, `barred`'s - her own run
-    inside a grown thing's hers, as she rises off a chair she stood a corner at a time); none held. `yaw`, `still` and `warm` her planner's ask's: she turns standing where she is off her
+    within `passed` of its dropped -, the curve it walks to the first ((0, 5) where it walks straight
+    at it: one leg, no corner rounded, or a blocked sample past a free one, `barred`'s - its own run
+    inside a grown thing's its own, as it rises off a chair it stood a corner at a time); none held. `yaw`, `still` and `warm` its planner's ask's: it turns standing where it is off its
     way, as at a stop (`steer`)."""
     np = sight._np()
     here = tuple(at)
@@ -245,11 +245,11 @@ def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
 
 
 def ahead(curve, k, at):
-    """(k, (x, z), along, there, pace, bend): her place on `curve` ((N, 5) `rounded`'s) - its sample
-    nearest `at` from the k-th on, AIM_M along it at most -, her aim on from there as far as her speed
-    there runs it (`_aim`), its end at most, the curve's heading at her place and at her aim, rad, her
-    speed at her place, m/s, and its bend at her aim, 1/m. Its columns read as lists once a curve (`_columns`):
-    bisect's insertions searchsorted's on its arclength, sorted; numpy's hypot and argmin for her place."""
+    """(k, (x, z), along, there, pace, bend): its place on `curve` ((N, 5) `rounded`'s) - its sample
+    nearest `at` from the k-th on, AIM_M along it at most -, its aim on from there as far as its speed
+    there runs it (`_aim`), its end at most, the curve's heading at its place and at its aim, rad, its
+    speed at its place, m/s, and its bend at its aim, 1/m. Its columns read as lists once a curve (`_columns`):
+    bisect's insertions searchsorted's on its arclength, sorted; numpy's hypot and argmin for its place."""
     np = sight._np()
     x, z, s, pace, bend = _columns(curve)
     near = slice(k, bisect.bisect_right(s, s[k] + AIM_M))
@@ -263,7 +263,7 @@ def ahead(curve, k, at):
 
 def _columns(curve):
     """`curve`'s columns as lists of floats, kept while it is the same curve - each a planner's answer, never written
-    in place: searched in numpy each pass, its column copied out of its rows for it, it took 29 us of her walk."""
+    in place: searched in numpy each pass, its column copied out of its rows for it, it took 29 us of its walk."""
     if _COLUMNS[0] is not curve:
         _COLUMNS[:] = curve, curve.T.tolist()
     return _COLUMNS[1]

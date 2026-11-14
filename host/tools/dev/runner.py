@@ -123,7 +123,7 @@ def _extra_for(name, args, tags, live_sections):
 
 
 def _timeout(name):
-    """s a suite runs at most: the live models' 1200 - a model's turns, her loop's errands -, the rest 300."""
+    """s a suite runs at most: the live models' 1200 - a model's turns, its loop's errands -, the rest 300."""
     return 1200 if name in (LIVE, LIVE_GYNOID) else 300
 
 

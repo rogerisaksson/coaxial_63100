@@ -1,4 +1,4 @@
-/** wbc_scoot.c - her scoot on the floor as her twist tells it (wbc_move.h): machine.moves.scoot's laid and step on its
+/** wbc_scoot.c - its scoot on the floor as its twist tells it (wbc_move.h): machine.moves.scoot's laid and step on its
     tables, numpy's and Python's arithmetic operation for operation (wbc_np.h), every branch a select. */
 #include "wbc_move.h"
 #include "wbc_np.h"

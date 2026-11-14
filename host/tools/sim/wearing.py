@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Her wear filter's step response: test_wear's worn knee and hip, window by window, an ensemble.
+"""Its wear filter's step response: test_wear's worn knee and hip, window by window, an ensemble.
 
     python tools/sim/wearing.py                          # walks x the change some windows later, a line each
     python tools/sim/wearing.py --course --after 48      # one run, the knee's f a window at a time, to 48 s on
     python tools/sim/wearing.py --against C:/sources/coaxial_ab     # each run on another tree too, beside
 
 test_wear's own case (`tests/test_wear.py`: its session, its phases and changes, of the tree run): walked as built
-NOMINAL_S, a load in her left hand LOADED_S, then her left knee's friction FRICTION_X, her left hip's torque an
-amp TORQUE_X and her right elbow's encoder zero ZERO_RAD, read WORN_S on. A run's line: the knee's f and its
+NOMINAL_S, a load in its left hand LOADED_S, then its left knee's friction FRICTION_X, its left hip's torque an
+amp TORQUE_X and its right elbow's encoder zero ZERO_RAD, read WORN_S on. A run's line: the knee's f and its
 margin - f less SIGMAS of its doubt less its band, named where positive -, the hip's kt's, the nearest other
 drift's (a false alarm where positive), what is named. A run a job on the relay (`tools.dev.focus.relay`).
 """
@@ -19,7 +19,7 @@ import sys
 HOST = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HOST)
 
-#: The ensemble: her walk's speeds, m/s, and the change a whole number of wear windows later.
+#: The ensemble: its walk's speeds, m/s, and the change a whole number of wear windows later.
 SPEEDS, LATER = (0.66, 0.69, 0.72), (0, 1, 2, 3)
 
 

@@ -1,11 +1,11 @@
-"""A gait of the ortho-DSP suite (`machine.texts.dsp`) voiced on her walk's row.
+"""A gait of the ortho-DSP suite (`machine.texts.dsp`) voiced on its walk's row.
 
-    row, told = voicing.voiced(g, dry, fr)       # {slot: value} off her walk's row; {'twist', 'grip'}
+    row, told = voicing.voiced(g, dry, fr)       # {slot: value} off its walk's row; {'twist', 'grip'}
     wire, span = voicing.morphed(m, dry, fr)     # a Morph's rows (`patch.morph`)
 
-A gait moves her walk's row (`walk`) by its changes off a dry gait, the suite's nominal (VOICES,
-RULES): the dry plays her walk to the last slot. What has no voice of hers is named with what she
-has instead (VOICELESS), what she cannot do refused by name (REFUSED), anything else as unknown.
+A gait moves its walk's row (`walk`) by its changes off a dry gait, the suite's nominal (VOICES,
+RULES): the dry plays its walk to the last slot. What has no voice of its own is named with what it
+has instead (VOICELESS), what it cannot do refused by name (REFUSED), anything else as unknown.
 """
 import math
 
@@ -13,7 +13,7 @@ from machine.texts import dsp, ortho, patch
 from machine.law import modal, se2, statics, supervisor
 from machine.errors import MachineError
 
-#: Her voices' slots.
+#: The robot's voices' slots.
 Z, K, D, AMP, PHASE, N = ortho.Z, ortho.K, ortho.D, ortho.AMP, ortho.PHASE, ortho.N
 
 #: A param's voice: (node, param, slot, rule); a param a rule moves its slot by (RULES).
@@ -35,9 +35,9 @@ VOICES = (
     ('com-dynamics', 'sidechain.release-ms', ortho.DUCK.start + 2, 'milli'),
 )
 #: Rules (slot's value so far, value, the dry's, the mode's unit) -> the slot's value: 'ratio'
-#: her walk's times the value over the dry's, 'inverse' times the dry's over it, 'shift' her
-#: walk's plus the change in her unit, 'drop' a height lowered, mm, as her legs' shortening,
-#: 'width' her width's share moved by the ratio (`stride.meets` floors it), 'db' a gain's
+#: its walk's times the value over the dry's, 'inverse' times the dry's over it, 'shift' its
+#: walk's plus the change in its unit, 'drop' a height lowered, mm, as its legs' shortening,
+#: 'width' its width's share moved by the ratio (`stride.meets` floors it), 'db' a gain's
 #: change, 'phase' and 'lag' a phase's, rad, 'milli' mm or ms as m or s.
 RULES = {'ratio': lambda base, v, vd, unit: base * v / vd,
          'inverse': lambda base, v, vd, unit: base * vd / v,
@@ -48,65 +48,65 @@ RULES = {'ratio': lambda base, v, vd, unit: base * v / vd,
          'phase': lambda base, v, vd, unit: base + (v - vd),
          'lag': lambda base, v, vd, unit: base - (v - vd),
          'milli': lambda base, v, vd, unit: 1e-3 * v}
-#: A param her voices read off others: (node, param, its sources, how). Her lift is her swing's
-#: height over the floor she steps to: stairs told raise it by their rise.
+#: A param its voices read off others: (node, param, its sources, how). Its lift is its swing's
+#: height over the floor it steps to: stairs told raise it by their rise.
 DERIVED = (
     ('tarsal-sagittal', 'floor-clearance-z-mm', ('swing-clearance-z-mm', 'step-elevation-z-mm'),
      lambda n: n['swing-clearance-z-mm'] - abs(n.get('step-elevation-z-mm', 0.0))),
 )
 #: Params whose unsaid value is a value: a lag unsaid is none.
 UNSAID = {('glenohumeral', 'phase-lag-rad'): 0.0}
-#: Params told her as commands, not voiced: her twist (`se2`) and her floor's grip (`grip`). A
-#: stride is her capture point's: said as her drive's amplitude (x1.54) 713 -> 759 mm for 1 220
+#: Params told it as commands, not voiced: its twist (`se2`) and its floor's grip (`grip`). A
+#: stride is its capture point's: said as its drive's amplitude (x1.54) 713 -> 759 mm for 1 220
 #: asked, and the catwalk take, a forward walk and a catwalk loop fell at 6.2-10.3 s.
 TOLD = (('oscillator', 'direction-angle-rad'), ('oscillator', 'yaw-rate-radps'),
         ('tarsal-sagittal', 'stride-length-mm'), ('wrench-cone', 'mu-static'))
-_SOLE, _GATE = "her shoe's sole (mjcf.SOLE_S); the rock stiffened for its transient felled her", 'her gate: 0.6 stands'
-_CLOCK, _GUARD = 'her clock has no humanize: 1.1 ms a step', 'stride.guarded holds her swing off the standing sole'
-_ARMS = 'her arms swing in pitch alone'
-#: What has no voice of hers, and what she has instead (findings/sequencer.md); '*' a node's all.
+_SOLE, _GATE = "its shoe's sole (mjcf.SOLE_S); the rock stiffened for its transient felled it", 'its gate: 0.6 stands'
+_CLOCK, _GUARD = 'its clock has no humanize: 1.1 ms a step', 'stride.guarded holds its swing off the standing sole'
+_ARMS = 'its arms swing in pitch alone'
+#: What has no voice of its own, and what it has instead (findings/sequencer.md); '*' a node's all.
 VOICELESS = {
-    ('oscillator', 'even-step-swing-offset'): 'her limbs half a turn apart: 0.0005 of a step measured',
+    ('oscillator', 'even-step-swing-offset'): 'its limbs half a turn apart: 0.0005 of a step measured',
     ('oscillator', 'phase-jitter-ms'): _CLOCK, ('oscillator', 'strip-jitter'): _CLOCK,
     ('oscillator', 'duty-factor-l'): _GATE, ('oscillator', 'duty-factor-r'): _GATE,
-    ('plantar-boundary', '*'): "her shoe (mjcf.SOLE_S)", ('calcaneus', '*'): _SOLE,
+    ('plantar-boundary', '*'): "its shoe (mjcf.SOLE_S)", ('calcaneus', '*'): _SOLE,
     ('tarsal-sagittal', 'strike-angle-rad'): _SOLE,
-    ('tarsal-sagittal', 'step-elevation-z-mm'): 'her floor, told (`floor.told_stairs`)',
-    ('com-dynamics', 'topology'): "her pendulum's vault; a spring's (SLIP) refused",
-    ('com-dynamics', 'vertical-oscillation-mm'): "her height's own: 22.7 mm a step",
-    ('com-dynamics', 'sidechain.*'): 'her duck: a touchdown latches it, a linear attack, an exponential release',
-    ('tibiofemoral', 'stance-yield-rad'): "her knee's give is her axial spring's under load (compliance)",
-    ('tibiofemoral', 'work-mode'): "her drives' work", ('tibiofemoral', 'energy-injection-j'): "her drives' work",
+    ('tarsal-sagittal', 'step-elevation-z-mm'): 'its floor, told (`floor.told_stairs`)',
+    ('com-dynamics', 'topology'): "its pendulum's vault; a spring's (SLIP) refused",
+    ('com-dynamics', 'vertical-oscillation-mm'): "its height's own: 22.7 mm a step",
+    ('com-dynamics', 'sidechain.*'): 'its duck: a touchdown latches it, a linear attack, an exponential release',
+    ('tibiofemoral', 'stance-yield-rad'): "its knee's give is its axial spring's under load (compliance)",
+    ('tibiofemoral', 'work-mode'): "its drives' work", ('tibiofemoral', 'energy-injection-j'): "its drives' work",
     ('tarsal-coronal', 'swing-circumduction-mm'): _GUARD, ('tarsal-coronal', 'circumduction-window-phase'): _GUARD,
     ('tarsal-coronal', 'circumduction-shape'): _GUARD,
-    ('tarsal-coronal', 'pan-spread'): "her landings' spread is her capture point's",
+    ('tarsal-coronal', 'pan-spread'): "its landings' spread is its capture point's",
     ('iliac-coronal', 'waveform'): 'a sine',
-    ('iliac-coronal', 'stereo-width'): "as the sway's 1.55 by a narrow track she widened to 230 mm and fell",
-    ('l4-l5-lumbar', '*'): "her trunk has one pitch voice, the thoracic's",
-    ('c7-t12-thoracic', 'q-factor'): "her posture's spring", ('c7-t12-thoracic', 'zmp-counter-bias-x-mm'): 'her law',
-    ('c7-t12-thoracic', 'lpf-cutoff-hz'): "her trunk held on her posture's spring (1.59 Hz): softened by 2.2 of 8 Hz "
-                                          'it bent 0.85 rad for 0.16', ('c7-t12-thoracic', 'lpf-slope-db'): 'her posture',
+    ('iliac-coronal', 'stereo-width'): "as the sway's 1.55 by a narrow track it widened to 230 mm and fell",
+    ('l4-l5-lumbar', '*'): "its trunk has one pitch voice, the thoracic's",
+    ('c7-t12-thoracic', 'q-factor'): "its posture's spring", ('c7-t12-thoracic', 'zmp-counter-bias-x-mm'): 'its law',
+    ('c7-t12-thoracic', 'lpf-cutoff-hz'): "its trunk held on its posture's spring (1.59 Hz): softened by 2.2 of 8 Hz "
+                                          'it bent 0.85 rad for 0.16', ('c7-t12-thoracic', 'lpf-slope-db'): 'its posture',
     ('glenohumeral', 'abduction-rad'): _ARMS, ('glenohumeral', 'elbow-flexion-rad'): _ARMS,
     ('c1-c2-atlas', '*'): 'no head voice', ('craniofacial', '*'): 'no face',
-    ('wrench-cone', 'mu-kinetic'): 'her friction pyramid has one mu (wbc.MU)',
-    ('wrench-cone', 'max-shear-slew-nps'): 'her friction pyramid has no slew',
+    ('wrench-cone', 'mu-kinetic'): 'its friction pyramid has one mu (wbc.MU)',
+    ('wrench-cone', 'max-shear-slew-nps'): 'its friction pyramid has no slew',
 }
-#: Her walk's top speed ahead, m/s: past it her twist picks her jog (`se2.GAIT_BOXES`).
+#: The robot's walk's top speed ahead, m/s: past it its twist picks its jog (`se2.GAIT_BOXES`).
 WALK_TOP = next(box[1] for box in se2.GAIT_BOXES if box[6] == 'walk')
 #: A centre of mass on a spring, sinking onto its stance and flying between: a run's, a gallop's.
 SLIP = (':ballistic-slip', ':double-peak-slip')
-#: What she cannot do: (node, the test on its params and the dry's, why).
+#: What it cannot do: (node, the test on its params and the dry's, why).
 REFUSED = (
     ('oscillator', lambda n, d: n.get('inter-limb-phase-rad') != d.get('inter-limb-phase-rad'),
-     'inter-limb-phase-rad: her legs half a turn apart on one clock'),
+     'inter-limb-phase-rad: its legs half a turn apart on one clock'),
     ('oscillator', lambda n, d: min(n.get('duty-factor-l', 1.0), n.get('duty-factor-r', 1.0)) < 0.5,
      'a duty under 0.5: a flight phase'),
     ('oscillator', lambda n, d: n.get('duty-factor-l') != n.get('duty-factor-r'),
      'duty-factor-l and -r apart: one gate for both legs'),
     ('com-dynamics', lambda n, d: n.get('topology') in SLIP,
-     'a spring-mass topology: a run sinks onto its stance and flies, her centre vaults'),
+     'a spring-mass topology: a run sinks onto its stance and flies, its centre vaults'),
     ('tarsal-coronal', lambda n, d: n.get('crossover-weave') is True,
-     'crossover-weave: her landings never cross'),
+     'crossover-weave: its landings never cross'),
 )
 
 
@@ -132,8 +132,8 @@ def _covered(node, param):
 
 
 def walk(fr, gym=None):
-    """Her walk's row as her loop holds it: what the walk says (`gait.said`, of her gym's entries
-    `gym` where given), her rest where it says nothing (`statics.rest`, of her statics `fr`)."""
+    """Its walk's row as its loop holds it: what the walk says (`gait.said`, of its gym's entries
+    `gym` where given), its rest where it says nothing (`statics.rest`, of its statics `fr`)."""
     import numpy as np
     from machine.law import gait
     said = gait.said(gym)
@@ -141,9 +141,9 @@ def walk(fr, gym=None):
 
 
 def voiced(g, dry, fr, gym=None):
-    """({slot: value} of her walk's row (`walk`, of `gym`) moved by gait `g`'s changes off gait
-    `dry` - only the slots it moves -, {'twist': (vx, vy, wz) told her, within her walk's box ahead,
-    'grip': her floor's mu told, 'asked': the twist asked where it is past the box})."""
+    """({slot: value} of its walk's row (`walk`, of `gym`) moved by gait `g`'s changes off gait
+    `dry` - only the slots it moves -, {'twist': (vx, vy, wz) told it, within its walk's box ahead,
+    'grip': its floor's mu told, 'asked': the twist asked where it is past the box})."""
     for node, test, why in REFUSED:
         if test(g.get(node, {}), dry.get(node, {})):
             raise MachineError('refused: ' + why)
@@ -152,7 +152,7 @@ def voiced(g, dry, fr, gym=None):
     changed = {k for k in set(now) | set(was) if now.get(k, UNSAID.get(k)) != was.get(k, UNSAID.get(k))}
     unknown = sorted('%s.%s' % k for k in changed if not _covered(*k))
     if unknown:
-        raise MachineError('no voice of hers, none named: ' + ', '.join(unknown))
+        raise MachineError('no voice of its own, none named: ' + ', '.join(unknown))
     std, row = walk(fr, gym), {}
     for node, param, slot, rule in VOICES:
         v, vd = now.get((node, param)), was.get((node, param), UNSAID.get((node, param)))
@@ -162,7 +162,7 @@ def voiced(g, dry, fr, gym=None):
         row[slot] = RULES[rule](row.get(slot, float(std[slot])), v, vd, fr[modal.UNIT][mode])
     bad = sorted(slot for slot, v in row.items() if not math.isfinite(v))
     if bad:
-        raise MachineError('voiced past her: slots %s' % bad)
+        raise MachineError('voiced past it: slots %s' % bad)
     osc, dry_osc = g.get('oscillator', {}), dry.get('oscillator', {})
     stride_of = lambda x: x.get('tarsal-sagittal', {}).get('stride-length-mm', 1.0)
     speed = se2.WALK_SPEED * stride_of(g) / stride_of(dry) * osc.get('bpm', 1.0) / dry_osc.get('bpm', 1.0)
@@ -175,8 +175,8 @@ def voiced(g, dry, fr, gym=None):
 
 
 def morphed(m, dry, fr, gym=None):
-    """(rows, span s) of Morph `m` on her loop (`patch.morph`), her walk `gym`'s: each slot either end
-    moves on its node's band, her clock from one end's Hz to the other's on the clock's slew."""
+    """(rows, span s) of Morph `m` on its loop (`patch.morph`), its walk `gym`'s: each slot either end
+    moves on its node's band, its clock from one end's Hz to the other's on the clock's slew."""
     src, _told = voiced(m.source, dry, fr, gym)
     dst, _told = voiced(m.target, dry, fr, gym)
     std = walk(fr, gym)

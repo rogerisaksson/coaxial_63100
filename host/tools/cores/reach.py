@@ -1,7 +1,7 @@
-"""Her leg's reach over its foot as static arrays: where its stops leave the hip, by its height.
+"""Its leg's reach over its foot as static arrays: where its stops leave the hip, by its height.
 
     python tools/cores/reach.py --write     # machine/body/reach_rows.py
-    laid = reach.rows()                     # what the file holds, laid anew from her figure
+    laid = reach.rows()                     # what the file holds, laid anew from its figure
 
 A hip's place in its foot's frame - across to the limb's own side, up, along the toes - is the
 ankle's roll, the ankle's pitch and the knee, whatever the pelvis's turn: the hip's own three
@@ -28,7 +28,7 @@ from tools import REPO
 from tools.cores import written
 
 PATH = os.path.join(REPO, 'host', 'machine', 'body', 'reach_rows.py')
-NOTICE = "Her leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."
+NOTICE = "Its leg's reach over its foot as static arrays: written by host/tools/cores/reach.py, not by hand."
 
 #: The rows: the hip from U0 m up in its leg's plane, DU apart; a row scanned SCAN_M apart, its
 #: run's ends bisected.
@@ -38,25 +38,25 @@ LENGTH = THIGH + SHANK
 
 def stops():
     """{kind: (low, high) rad} of a leg's travel from its hip's yaw down (`drives.TRAVEL`): the hip's pitch
-    and roll turn her pelvis over the leg, not the foot's frame."""
+    and roll turn its pelvis over the leg, not the foot's frame."""
     return {k: tuple(math.radians(v) for v in drives.TRAVEL[k]) for k in ('hip_yaw', 'knee', 'ankle', 'ankle_roll')}
 
 
 def bend(r):
-    """(knee, ankle, ankle_roll) rad of her left leg, its hip at `r` in its foot's frame."""
+    """(knee, ankle, ankle_roll) rad of its left leg, its hip at `r` in its foot's frame."""
     return figure.leg(1.0, (r[0] - HIP_HALF, r[1] + HIP_DROP, r[2]), figure.IDENT, (0.0, 0.0, 0.0),
                       figure.IDENT)[3:]
 
 
 def held(r, limits):
-    """Whether her left leg, its hip at `r` in its foot's frame, is within its length and
+    """Whether its left leg, its hip at `r` in its foot's frame, is within its length and
     `limits` (`stops`)."""
     return math.hypot(*r) <= LENGTH + 1e-12 and all(
         limits[k][0] <= q <= limits[k][1] for k, q in zip(('knee', 'ankle', 'ankle_roll'), bend(r)))
 
 
 def run(u, limits):
-    """(back, fore) m along the toes: the longest run her hip stands in, `u` m up in its leg's
+    """(back, fore) m along the toes: the longest run its hip stands in, `u` m up in its leg's
     plane; an end the leg's length alone bounds, -+LENGTH."""
     edge = math.sqrt(LENGTH * LENGTH - u * u)
     n = int(edge / SCAN_M)
@@ -142,7 +142,7 @@ def render(laid):
 
     return '\n'.join([
         '"""%s"""' % NOTICE, '',
-        "#: Each limb's mirror, her left's and her right's: across is to a limb's own side.",
+        "#: Each limb's mirror, its left's and its right's: across is to a limb's own side.",
         'LIMBS = (%s)' % ', '.join('%.1f' % v for v in laid['LIMBS']),
         '#: Thigh and shank, m.',
         'THIGH, SHANK = %g, %g' % (laid['THIGH'], laid['SHANK']),

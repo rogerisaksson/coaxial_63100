@@ -1,4 +1,4 @@
-;; The language's first texts, as they were given: what each does on her is measured in
+;; The language's first texts, as they were given: what each does on it is measured in
 ;; docs/findings/orthokinematics.md. The page's gym says them after `>`.
 
 ;; stand relaxed

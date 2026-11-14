@@ -1,4 +1,4 @@
-"""Her telemetry reduced: analyzers firing sparse events on her body's own triggers.
+"""The robot's telemetry reduced: analyzers firing sparse events on its body's own triggers.
 
     w = watch.Watch()                       # every analyzer in machine/analyzers, or a folder given
     events = w.step(snap)                   # a snapshot (`introspect.Tap`) in, its events out
@@ -7,14 +7,14 @@
     watch.recorded(s, 'humanoid_<time>')    # introspect.RECORDINGS/<name>.jsonl: 60 Hz, captures whole
 
 An analyzer is a file of its folder: `laid(meta) -> state` and `step(state, snap) -> [event, ..]`,
-most passes none; `meta` her code's own numbers (`meta`): her joints, each drive's rated speed, her
-weight, her natural time. The folder is read again as a file there is saved, added or taken away -
-while she runs: a file changed is loaded anew, its state laid again; one removed is dropped; one
+most passes none; `meta` its code's own numbers (`meta`): its joints, each drive's rated speed, its
+weight, its natural time. The folder is read again as a file there is saved, added or taken away -
+while it runs: a file changed is loaded anew, its state laid again; one removed is dropped; one
 that raises is told once and held off till its file changes, the rest firing on. Each event carries
 the pass's time and its analyzer's name.
 
 An event an analyzer marks `capture` is a trigger for a gate armed without triggers of its own
-(`machine.rig.gate`): her streams on their own clocks over the half swing of her leg before it and after
+(`machine.rig.gate`): its streams on their own clocks over the half swing of its leg before it and after
 (`takes.ENTER_S`, pi sqrt(leg/g)) written to a file, the gate armed again.
 """
 import glob
@@ -22,16 +22,16 @@ import importlib.util
 import os
 import time
 
-#: Where her analyzers are, one a file.
+#: Where its analyzers are, one a file.
 FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'analyzers')
 #: How often the folder is read again, s of the wall: a file saved is in within it.
 RESCAN_S = 1.0
 
 
 def meta():
-    """Her code's own numbers an analyzer weighs by: her joints (`figure.JOINTS`), each drive's rated
-    speed, deg/s (her manifest's), her weight, N, her natural time, s (`takes.TICK_S`: sqrt(leg/g)),
-    the surety her brace takes her over below (`motion.BRACE_SURETY`)."""
+    """Its code's own numbers an analyzer weighs by: its joints (`figure.JOINTS`), each drive's rated
+    speed, deg/s (its manifest's), its weight, N, its natural time, s (`takes.TICK_S`: sqrt(leg/g)),
+    the surety its brace takes it over below (`motion.BRACE_SURETY`)."""
     from machine.body import defrobot
     from machine.law import motion
     from machine.texts import takes
@@ -43,7 +43,7 @@ def meta():
 
 class Watch:
 
-    """The analyzers of `folder` over her snapshots, read again as its files change."""
+    """The analyzers of `folder` over its snapshots, read again as its files change."""
 
     def __init__(self, folder=FOLDER, laid_meta=None):
         self.folder, self.meta = folder, laid_meta if laid_meta is not None else meta()
@@ -87,7 +87,7 @@ class Watch:
             out.extend(self.scan(t))
         epoch = snap.get('body', {}).get('epoch')
         if self.epoch is not None and epoch != self.epoch:
-            # a new epoch laid: her time from 0 again, every analyzer's state laid anew
+            # a new epoch laid: its time from 0 again, every analyzer's state laid anew
             for name, on in self.on.items():
                 on['state'] = None if on['failed'] else on['mod'].laid(self.meta)
             out.append({'t': t, 'analyzer': 'watch', 'event': 'relaid', 'epoch': epoch})
@@ -105,10 +105,10 @@ class Watch:
 
 
 def recorded(s, name):
-    """Her session `s` recorded to `introspect.RECORDINGS`/`name`.jsonl (`gate.Scope`, `every_s`):
-    every stream a sample each of her page's frames (`sprung.SAY_S`), and whole at its own clock over
-    each window a capture her analyzers mark opens - a transition, a hand-over to what bears her, a
-    stumble, a fall -; a hook on her passes, on her snapshots (`introspect.Tap`). None, the recording
+    """Its session `s` recorded to `introspect.RECORDINGS`/`name`.jsonl (`gate.Scope`, `every_s`):
+    every stream a sample each of its page's frames (`sprung.SAY_S`), and whole at its own clock over
+    each window a capture its analyzers mark opens - a transition, a hand-over to what bears it, a
+    stumble, a fall -; a hook on its passes, on its snapshots (`introspect.Tap`). None, the recording
     under way ended, its last written."""
     from machine.process import introspect, sprung
     from machine.rig import gate

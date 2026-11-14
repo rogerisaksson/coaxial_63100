@@ -7,7 +7,7 @@
     python -X utf8 tools/dev/linux.py --kept              # whether each stands: 0 where all do
 
 --arch arm64: the runner as an arm64 image, its processor emulated by the engine's QEMU (binfmt) - --cpu its
-QEMU_CPU (the vector lengths: sve-default-vector-length, sme-default-vector-length, in bytes); --isa her cores'
+QEMU_CPU (the vector lengths: sve-default-vector-length, sme-default-vector-length, in bytes); --isa its cores'
 target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of host.yml's, which an x86 runner's is.
 
 What .github/workflows/host.yml runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
@@ -47,7 +47,7 @@ REPO = ROOT.parent
 WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'host.yml', REPO / '.github' / 'runner.Dockerfile'
 #: GitHub's standard runner of a public repository: four logical processors - two cores of two threads, its
 #: own detector line says - and 16 GB; its /dev/shm a tmpfs of half of it (8.36 GB of 16.7 on both its
-#: architectures), where her loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB faulted
+#: architectures), where its loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB faulted
 #: test_tune (SIGBUS).
 PROCESSORS, MEMORY, SHM = 4, '16g', '8g'
 #: The runner's user and its id; the image's name, its tag a release and a Python.
@@ -55,7 +55,7 @@ USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
 #: runner's first.
 ARCHS = {'amd64': 'x64', 'arm64': 'arm64'}
-#: host.yml's gate's keys an x86 runner's alone: numpy's x86 sets disabled, her cores' x86 target.
+#: host.yml's gate's keys an x86 runner's alone: numpy's x86 sets disabled, its cores' x86 target.
 X86_ENV = ('NPY_DISABLE_CPU_FEATURES', 'COAXIAL_ISA')
 #: Where a container is shown its processors online: glibc counts them there, and os.cpu_count with it.
 ONLINE = '/sys/devices/system/cpu/online'
@@ -117,7 +117,7 @@ def tagged(info, minor, arch='amd64'):
 
 def environment(info, arch='amd64', isa=None, cpu=None):
     """A container's environment: host.yml's gate's - on another arch than the runner's without its x86 keys
-    (X86_ENV) -, her cores' target `isa` where given (COAXIAL_ISA), the emulated processor `cpu` (QEMU_CPU)."""
+    (X86_ENV) -, its cores' target `isa` where given (COAXIAL_ISA), the emulated processor `cpu` (QEMU_CPU)."""
     env = {k: v for k, v in info['env'].items() if arch == next(iter(ARCHS)) or k not in X86_ENV}
     env.update({k: v for k, v in (('COAXIAL_ISA', isa), ('QEMU_CPU', cpu)) if v})
     return env
@@ -298,7 +298,7 @@ def main(argv=None):
     parser.add_argument('--kept', action='store_true', help='whether each image stands: 0 where all do')
     parser.add_argument('--arch', choices=list(ARCHS), default=next(iter(ARCHS)),
                         help="the image's architecture: arm64 emulated by the engine's QEMU")
-    parser.add_argument('--isa', help="her cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--isa', help="its cores' target there (COAXIAL_ISA), in place of host.yml's")
     parser.add_argument('--cpu', help="with --arch arm64: the emulated processor (QEMU_CPU)")
     args, relayed = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
     hosts = [arg for arg in relayed if arg.split('=', 1)[0] in HOSTS]

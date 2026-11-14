@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Her posture as what bears her holds her (`modal.poses`, `modal.seat`; the kernel's
-`canonical_posture_bundle.lisp`): the seat's chain against her landing, the blend over what bears her,
-the atlas read, her ask sat on the chair."""
+"""The robot's posture as what bears it holds it (`modal.poses`, `modal.seat`; the kernel's
+`canonical_posture_bundle.lisp`): the seat's chain against its landing, the blend over what bears it,
+the atlas read, its ask sat on the chair."""
 import math
 import os
 import sys
@@ -13,8 +13,8 @@ from gynoid_kit import Report
 
 
 def _seated(hips, behind, trunk):
-    """(y, fr, knee, ankle) of her sensed sat, her soles flat on the floor, her hip joints `hips` m up and
-    `behind` m behind her ankles (`seated.legs`), her pelvis pitched `trunk` rad forward, her way along
+    """(y, fr, knee, ankle) of its sensed sat, its soles flat on the floor, its hip joints `hips` m up and
+    `behind` m behind its ankles (`seated.legs`), its pelvis pitched `trunk` rad forward, its way along
     the world's z."""
     import numpy as np
     from machine.law import modal
@@ -31,9 +31,9 @@ def _seated(hips, behind, trunk):
     return y, fr, knee, ankle
 
 
-def test_the_seat_holds_her_legs_as_she_sits(report):
-    """`modal.seat`: her hips where a seat lands them (`seated.legs`: 0.40-0.55 m up, 0.10-0.30 m behind
-    her ankles), her pelvis pitched -0.3 to 0.3 rad, her knee as landed - each leg's hip and ankle the
+def test_the_seat_holds_its_legs_as_it_sits(report):
+    """`modal.seat`: its hips where a seat lands them (`seated.legs`: 0.40-0.55 m up, 0.10-0.30 m behind
+    its ankles), its pelvis pitched -0.3 to 0.3 rad, its knee as landed - each leg's hip and ankle the
     landing's (`seated.posed`)."""
     import numpy as np
     from machine.law import modal
@@ -52,10 +52,10 @@ def test_the_seat_holds_her_legs_as_she_sits(report):
     report.check("sat, each leg's hip and ankle the landing's, 27 seats and pitches", worst < 1e-9, '%.1e rad' % worst)
 
 
-def test_her_legs_as_what_bears_her_holds_them(report):
-    """`modal.poses` over what bears her (`ortho.MANIFOLDS`): her soles alone, the crouch's pose bit for
-    bit (her walk's), her side, her back and her hands the same; the seat alone, `modal.seat`'s legs, the
-    rest of her the crouch's; half on each, half way; her knees as asked whatever bears her; a let-go
+def test_its_legs_as_what_bears_its_holds_them(report):
+    """`modal.poses` over what bears it (`ortho.MANIFOLDS`): its soles alone, the crouch's pose bit for
+    bit (its walk's), its side, its back and its hands the same; the seat alone, `modal.seat`'s legs, the
+    rest of it the crouch's; half on each, half way; its knees as asked whatever bears it; a let-go
     leg on the same, an open chain (`machine.moves.emancipation`)."""
     import numpy as np
     from machine.body import bends
@@ -80,15 +80,15 @@ def test_her_legs_as_what_bears_her_holds_them(report):
     alone = {m: posed(hot[k]) for k, m in enumerate(ortho.MANIFOLDS)}
     rest = np.ones(len(names), bool)
     rest[modal.CHAIN.ravel()] = False
-    report.check('her soles, her side, her back and her hands alone: the crouch bit for bit',
+    report.check('its soles, its side, its back and its hands alone: the crouch bit for bit',
                  all(np.array_equal(alone[m], crouch) for m in ('plantar', 'trochanter', 'dorsal', 'palmar')))
     sat = alone['ischial']
-    report.check("the seat alone: her legs the seat's, her knees and the rest of her the crouch's",
+    report.check("the seat alone: its legs the seat's, its knees and the rest of it the crouch's",
                  np.allclose(sat[modal.CHAIN], seat, rtol=0.0, atol=1e-12) and np.array_equal(sat[rest], crouch[rest])
                  and np.array_equal(sat[list(knees)], crouch[list(knees)]),
                  'legs %.1e rad off' % float(np.abs(sat[modal.CHAIN] - seat).max()))
     half = posed(0.5 * (hot[0] + hot[seat_at]))
-    report.check('half on her soles and half on the seat: her legs half way',
+    report.check('half on its soles and half on the seat: its legs half way',
                  np.allclose(half[modal.CHAIN], 0.5 * (crouch[modal.CHAIN] + seat), rtol=0.0, atol=1e-12))
     hung = posed(hot[seat_at], (1.0, 0.0))
     report.check("a leg let go: on the seat's posture as the other, an open chain", np.array_equal(hung, sat),
@@ -121,9 +121,9 @@ def test_the_posture_atlas_reads_whole(report):
                  str([k for k in stages if not isinstance(got.get(k), dsp.Stage)]))
 
 
-def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
-    """Down onto the chair and up (`chair`), sat - the seat 0.8 of what bears her or more, felt -: her ask's hips
-    and ankles (`modal.poses`) nearer her legs than half what the crouch's column asks of her knee
+def test_sat_its_legs_are_asked_as_the_seat_holds_them(report):
+    """Down onto the chair and up (`chair`), sat - the seat 0.8 of what bears it or more, felt -: its ask's hips
+    and ankles (`modal.poses`) nearer its legs than half what the crouch's column asks of its knee
     (`bends.crouch`, hip and ankle half the knee: 25-29 deg off them, findings/seat.md)."""
     import numpy as np
     from machine.law import modal
@@ -140,14 +140,14 @@ def test_sat_her_legs_are_asked_as_the_seat_holds_them(report):
             offs.append((np.abs(np.asarray(g['ask']['posture'])[legs] - q[legs]), np.abs(crouch - q[legs])))
     got = scenarios.ran('chair', laid=laid)
     asked, crouched = (np.degrees(np.mean([o[k] for o in offs], axis=0)) if offs else np.full((2, 2), np.nan) for k in (0, 1))
-    report.check("sat, her hips and ankles asked nearer her legs than half the crouch's, and she rose",
+    report.check("sat, its hips and ankles asked nearer its legs than half the crouch's, and it rose",
                  len(offs) > 100 and bool(np.all(asked < 0.5 * crouched)),
                  '%d passes sat; asked off (hip, ankle) %s deg, the crouch %s' % (
                      len(offs), np.round(asked, 1).tolist(), np.round(crouched, 1).tolist()))
 
 
-ROSTER = [test_the_seat_holds_her_legs_as_she_sits, test_her_legs_as_what_bears_her_holds_them,
-          test_the_posture_atlas_reads_whole, test_sat_her_legs_are_asked_as_the_seat_holds_them]
+ROSTER = [test_the_seat_holds_its_legs_as_it_sits, test_its_legs_as_what_bears_its_holds_them,
+          test_the_posture_atlas_reads_whole, test_sat_its_legs_are_asked_as_the_seat_holds_them]
 
 
 def main(argv=None):

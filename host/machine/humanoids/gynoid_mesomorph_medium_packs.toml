@@ -1,4 +1,4 @@
-# The gynoid mesomorph medium on two 15S3P packs: her build (`extends`) with 3 parallel cell strings per pack
+# The gynoid mesomorph medium on two 15S3P packs: its build (`extends`) with 3 parallel cell strings per pack
 # instead of 2 (810 Wh for 540 Wh); pack mass, inertia, DC-link resistance, BMS charge ceiling, servo gains and
 # gait laws are derived automatically (`machine.body.build`, `machine.body.dclink`, `machine.body.compile`).
 extends = "gynoid_mesomorph_medium"

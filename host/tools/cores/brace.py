@@ -1,4 +1,4 @@
-"""Her surety's brace on the solve in C through ctypes (wbc_brace.c), her python's bit for bit.
+"""Its surety's brace on the solve in C through ctypes (wbc_brace.c), its python's bit for bit.
 
     brace = brace.laid(body, brace_rows, cv, acv, legs, free_kp)      # machine.law.brace.scaled, braced
     Ms = brace.scaled(M, w_up)                                       # the solve's M, the four dofs' inertia scaled off
@@ -14,7 +14,7 @@ from tools.cores import motion as c_motion, wbc
 
 class Brace(ctypes.Structure):
 
-    """wbc_brace_t: her body's indices, the tuck's rows, the gains, numpy's BLAS, the scratch."""
+    """wbc_brace_t: its body's indices, the tuck's rows, the gains, numpy's BLAS, the scratch."""
 
     _fields_ = ([(name, ctypes.c_int) for name in ('n', 'nd', 'ncv', 'nleg')]
                 + [(name, ctypes.c_void_p) for name in ('act', 'acv', 'cv', 'leg_joints', 'leg_len', 'brace', 'clamp',
@@ -39,8 +39,8 @@ def _typed():
 
 class Braced:
 
-    """The brace in C on her body `b`: its driven dofs `act`, the cervical and shoulder joints `cv`
-    among the driven and their dofs `acv`, the tuck's `rows` (3, driven), her `legs`' joints and
+    """The brace in C on its body `b`: its driven dofs `act`, the cervical and shoulder joints `cv`
+    among the driven and their dofs `acv`, the tuck's `rows` (3, driven), its `legs`' joints and
     their free stiffness `free_kp`; the arrays of a pass given at each call."""
 
     def __init__(self, b, rows, cv, acv, legs, free_kp):
@@ -77,5 +77,5 @@ class Braced:
 
 
 def laid(b, rows, cv, acv, legs, free_kp):
-    """The brace on her body `b` (`Braced`)."""
+    """The brace on its body `b` (`Braced`)."""
     return Braced(b, rows, cv, acv, legs, free_kp)

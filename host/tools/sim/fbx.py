@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""FBX takes in and out: a skeleton's joints' places from one, her look's rows written as one.
+"""FBX takes in and out: a skeleton's joints' places from one, its look's rows written as one.
 
     times, joints = fbx.take('TAKE.fbx')        # s, {joint: (n, 3) places, m, y up}
-    fbx.wrote('OUT.fbx', rows)                  # her rows (`look.simulated`), a bone a segment
+    fbx.wrote('OUT.fbx', rows)                  # its rows (`look.simulated`), a bone a segment
     fbx.write('OUT.fbx', times, bones)          # any skeleton's
 
 Read: binary 7.x (64-bit headers from 7500) and ASCII; a joint's place its chain's Lcl
@@ -40,7 +40,7 @@ for _side, _s in (('Left', 'l'), ('Right', 'r')):
                  _side.lower() + 'thigh': _side + 'UpLeg', _side.lower() + 'shin': _side + 'Leg',
                  _side.lower() + 'toe': _side + 'ToeBase'})
 
-#: Her segments as a take's bones, less their side.
+#: The robot's segments as a take's bones, less their side.
 BONES = {'pelvis': 'Hips', 'torso': 'Spine', 'neck': 'Neck', 'head': 'Head', 'upper_arm': 'Arm',
          'forearm': 'ForeArm', 'hand': 'Hand', 'fingers': 'HandMiddle1', 'thigh': 'UpLeg',
          'shank': 'Leg', 'foot': 'Foot', 'toes': 'ToeBase'}
@@ -366,13 +366,13 @@ def write(path, times, bones):
 
 
 def bone(segment):
-    """HumanIK's name of her `segment`."""
+    """HumanIK's name of its `segment`."""
     side, _bar, rest = segment.partition('_')
     return (side.capitalize() + BONES[rest]) if side in ('left', 'right') else BONES[segment]
 
 
 def joints(rows):
-    """(times s, {joint: (n, 3) places, m}) of her look's rows, as `take` has a take's."""
+    """(times s, {joint: (n, 3) places, m}) of its look's rows, as `take` has a take's."""
     from machine.body.figure import SEGMENTS
     return (np.array([float(r['t']) for r in rows]),
             {bone(seg[0]): np.array([[float(r['%s_%s' % (seg[0], axis)]) for axis in 'xyz']
@@ -380,7 +380,7 @@ def joints(rows):
 
 
 def wrote(path, rows):
-    """Her look's rows written a take: a bone a segment, the pelvis's place and every bone's
+    """The robot's look's rows written a take: a bone a segment, the pelvis's place and every bone's
     turn in its parent's frame keyed a row."""
     from machine.body import figure
     turns = {seg[0]: [] for seg in figure.SEGMENTS}

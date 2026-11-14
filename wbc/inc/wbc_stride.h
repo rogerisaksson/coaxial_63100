@@ -1,12 +1,12 @@
-/** wbc_stride.h - her stride in C under her ask (wbc_imp.h): machine.law.stride's steps (wbc_stride.c,
+/** wbc_stride.h - its stride in C under its ask (wbc_imp.h): machine.law.stride's steps (wbc_stride.c,
     wbc_floor.c), numpy's arithmetic operation for operation (wbc_np.h). Portable C11, the host's alone. */
 #ifndef WBC_STRIDE_H
 #define WBC_STRIDE_H
 
 #include "wbc_imp.h"
 
-/** machine.law.stride.swings: how far round her rhythm each limb swings, rad - SWING of a turn to
-    pace_m_s of her drive's pace, swing_fast from pace_fast_m_s, in line between. */
+/** machine.law.stride.swings: how far round its rhythm each limb swings, rad - SWING of a turn to
+    pace_m_s of its drive's pace, swing_fast from pace_fast_m_s, in line between. */
 double wbc_imp_swing_w(const wbc_imp_t *k, double drive, double turns, double going);
 /** machine.law.stride.beat: (stepping, way, swung) out, each limb's sweep, phi, on, off, u, flying. */
 void wbc_imp_beat(const wbc_imp_t *k, double drive, double psi, double sway, double lateral, double turns,
@@ -24,7 +24,7 @@ void   wbc_imp_meets(const wbc_imp_t *k, const double xi[2], const double c[3], 
                      double apart, const double planted[2], double meet[2][2]);
 void   wbc_imp_guarded(const wbc_imp_t *k, const double meet[2][2], const double over[2], const double flat[2][2],
                        double apart, const double planted[2], double held[2][2]);
-/** machine.law.stride.ducked: her height's sidechain, (latch, envelope) `held` in place, the duck and its rate, m. */
+/** machine.law.stride.ducked: its height's sidechain, (latch, envelope) `held` in place, the duck and its rate, m. */
 void   wbc_imp_ducked(const double duck_p[3], double held[2], const double stance[2], const double stood[2], double dt,
                       double duck[2]);
 void   wbc_imp_rocks(const wbc_imp_t *k, double rock, double rate, double acc, double tip[2], double tipping[2],
@@ -71,8 +71,8 @@ void wbc_imp_landings(const wbc_imp_t *k, const double *y, const double *fr, dou
 double wbc_imp_floor_at(const double *along, const double *rise, int told, double s);
 double wbc_imp_floor_mean(const wbc_imp_t *k, const double *along, const double *rise, int told, double s0, double s1);
 
-/** machine.law.stride.flown: which sole's her stride is with none standing - the one `strode` alone the
-    pass before, the one `off` as the other left the floor (`stood`) with her centre going `up`, while
+/** machine.law.stride.flown: which sole's its stride is with none standing - the one `strode` alone the
+    pass before, the one `off` as the other left the floor (`stood`) with its centre going `up`, while
     `thrown`; else the one further on its swing (`u`). */
 void wbc_imp_flown(const double strode[2], const double off[2], const double stood[2], const double u[2], double thrown,
                    double up, double flown[2]);

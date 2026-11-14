@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Her jerk through transitions against her steady walk's, each segment of her.
+"""The robot's jerk through transitions against its steady walk's, each segment of it.
 
-The DOD: no transition jerks her more than her walk does.
+The DOD: no transition jerks it more than its walk does.
 
     python tools/sim/jerk.py                       # every transition, a table of ratios
     python tools/sim/jerk.py --one play_weave 0 99 # one scenario's peaks in a window, as JSON
 
 Each segment's jerk is the referee's (`scenarios.JERKED`, `JERK_S`): a 20 ms window's third
-difference; a peak is its largest. Her walk's peaks are `play_walk`'s from STEADY on, past its
+difference; a peak is its largest. Its walk's peaks are `play_walk`'s from STEADY on, past its
 start; a transition's are over its whole run.
 """
 import argparse
@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-#: Her steady walk: `play_walk` between these, s.
+#: The robot's steady walk: `play_walk` between these, s.
 STEADY = (4.0, 10.0)
 #: The transitions judged against it: the plays of a player's keys, a seat, a hop.
 TRANSITIONS = ('play_moves', 'play_start_stop', 'play_turns', 'play_strafes', 'play_reverse', 'play_sprint',
@@ -77,7 +77,7 @@ def main(argv=None):
         print('%-16s %s%s' % (name, ' '.join('%10.1f' % (p.get(s, 0.0) / max(walk.get(s, 1.0), 1.0))
                                              for s in scenarios.JERKED), '' if got[name]['met'] else '  (goal missed)'))
     worst = max(got[n]['peaks'].get(s, 0.0) / max(walk.get(s, 1.0), 1.0) for n in TRANSITIONS for s in scenarios.JERKED)
-    print('the worst, of her walk: %.1f' % worst)
+    print('the worst, of its walk: %.1f' % worst)
     return 0
 
 

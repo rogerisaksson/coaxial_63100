@@ -2,13 +2,13 @@
 
     scanner = VisionScanner()
     detected = scanner.scan(now, look)
-    shown = scanner.seen(now)                  # what her eyes' view holds, for her vision's panel
+    shown = scanner.seen(now)                  # what its eyes' view holds, for its vision's panel
     cells = docked_vision(scanner, now, width, height)
     action = auto_action(detected)
 
-Names what her stereo visual field holds by its class (`machine.eyes.classes`: a wall, a window, a
+Names what its stereo visual field holds by its class (`machine.eyes.classes`: a wall, a window, a
 door, a chair, a table, a bed, stairs, a slope) using local Ollama inference when available or deterministic spatial geometry, and compiles
-affordance interaction shortcuts displayed beneath her picture-in-picture viewport inset.
+affordance interaction shortcuts displayed beneath its picture-in-picture viewport inset.
 """
 import math
 import threading
@@ -19,16 +19,16 @@ from machine.world import room
 from machine.eyes import classes, sight, stereo, voxels
 
 
-#: What F says by a support she sees (`gym.offers`): its verb, and the verb's name.
+#: What F says by a support it sees (`gym.offers`): its verb, and the verb's name.
 AFFORDANCES = {'chair': ('sit_chair', 'sit'), 'armchair': ('sit_chair', 'sit'),
                'stool': ('sit_chair', 'sit'), 'bench': ('sit_chair', 'sit'), 'sofa': ('sit_chair', 'sit'),
                'bed': ('lie_bed', 'lie down'), 'mattress': ('lie_floor', 'lie down'),
                'door': ('exit_door', 'go out')}
 PRIMARY_ACTION = {kind: verb for kind, (verb, _name) in AFFORDANCES.items()}
-#: A box's turn where a thing has none: her map's are upright. Her sight's reach, m. Her vision's panel holds
-#: her eyes' view about her heading alone - ACROSS rad either side (`sight.FOVY_DEG` high, W / H as wide), out
-#: to her map's reach (`voxels.FAR_M`): held to the page's own view's heading, 75 deg and anything of use
-#: within 1.2 m wherever, it named what no look of hers had shown.
+#: A box's turn where a thing has none: its map's are upright. Its sight's reach, m. Its vision's panel holds
+#: its eyes' view about its heading alone - ACROSS rad either side (`sight.FOVY_DEG` high, W / H as wide), out
+#: to its map's reach (`voxels.FAR_M`): held to the page's own view's heading, 75 deg and anything of use
+#: within 1.2 m wherever, it named what no look of its own had shown.
 UPRIGHT, SIGHT_M = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), 8.0
 ACROSS = math.atan(math.tan(math.radians(sight.FOVY_DEG / 2.0)) * stereo.W / stereo.H)
 
@@ -51,7 +51,7 @@ PLATE_TITLE_INK = (0, 215, 215)
 PLATE_KEY_INK = (255, 175, 0)
 PLATE_LABEL_INK = (214, 220, 228)
 PLATE_BG = (8, 14, 16)
-#: The bus plate's own faults (CRC), and her wear's service alarms (`wear.told`): a drive's drift
+#: The bus plate's own faults (CRC), and its wear's service alarms (`wear.told`): a drive's drift
 #: past its band, no bus fault.
 CRC_INK, WEAR_INK = (255, 80, 80), (200, 120, 255)
 
@@ -70,8 +70,8 @@ def _snap_key(now):
 
 class VisionScanner:
 
-    """Stereo camera vision scanner with local Ollama model integration; what she has told apart
-    since her scene was laid kept (`identified`)."""
+    """Stereo camera vision scanner with local Ollama model integration; what it has told apart
+    since its scene was laid kept (`identified`)."""
 
     def __init__(self):
         self._ollama_checked = False
@@ -99,9 +99,9 @@ class VisionScanner:
         threading.Thread(target=_probe, daemon=True).start()
 
     def identified(self, now):
-        """What her eyes' view has shown (`seen`) since her scene was laid - its scenario, her epoch -,
-        wherever it stands now within SIGHT_M, nearest first: a thing once seen is known, her sway at
-        its edge none of its; held to the wider `scan`, F offered things no look of hers had shown."""
+        """What its eyes' view has shown (`seen`) since its scene was laid - its scenario, its epoch -,
+        wherever it stands now within SIGHT_M, nearest first: a thing once seen is known, its sway at
+        its edge none of its; held to the wider `scan`, F offered things no look of its own had shown."""
         laid = (now.get('scenario'), now.get('epoch')) if now else None
         if laid != self._laid:
             self._laid, self._known, self._places, self._ident_key = laid, set(), [], None
@@ -124,7 +124,7 @@ class VisionScanner:
         return list(out)
 
     def seen(self, now):
-        """What her eyes' view holds (`scan`'s within FAR_M, ACROSS of her heading): her vision's panel."""
+        """What its eyes' view holds (`scan`'s within FAR_M, ACROSS of its heading): its vision's panel."""
         heading = float((now or {}).get('heading') or 0.0)
         return [d for d in self.scan(now, reach=voxels.FAR_M)
                 if d.get('shown') or abs(math.remainder(
@@ -132,14 +132,14 @@ class VisionScanner:
                     math.tau)) <= ACROSS]
 
     def scan(self, now, look=None, reach=None):
-        """Her things in her sight, one a thing of its pieces - her registry's, by what each is and the one thing
-        each is of as her worker read them (`now['named']`, `now['groups']`, `classes.read`), else the props
-        by theirs, a scenario's variants by its rules (`_PROP_RULES`), a piece of furniture's and what she
-        cannot tell none; and each building she is outside of, its index from -1 down -: within 75 deg of her
+        """Its things in its sight, one a thing of its pieces - its registry's, by what each is and the one thing
+        each is of as its worker read them (`now['named']`, `now['groups']`, `classes.read`), else the props
+        by theirs, a scenario's variants by its rules (`_PROP_RULES`), a piece of furniture's and what it
+        cannot tell none; and each building it is outside of, its index from -1 down -: within 75 deg of its
         heading or the heading the view looks along (`look`, rad), SIGHT_M, or with `reach` every one that
         near, nearest first; a thing's distance and kind its nearest piece's, that piece's place `near`, the box
         round its pieces its `pos` and `extent` (half sizes along the world's axes), its lowest slot - a prop's
-        place in her state's - its `index`."""
+        place in its state's - its `index`."""
         if not now:
             return []
         snap = _snap_key(now)
@@ -181,7 +181,7 @@ class VisionScanner:
             })
         found: list[dict] = [_one(ds, scen) for ds in pieces.values()]
 
-        # a building she is outside of (`now['buildings']`, `classes.read`): its distance its shell's
+        # a building it is outside of (`now['buildings']`, `classes.read`): its distance its shell's
         for k, (kind, centre, half) in enumerate(built):
             dx, dz = float(centre[0]) - gx, float(centre[2]) - gz
             dist = math.hypot(max(abs(dx) - float(half[0]), 0.0), max(abs(dz) - float(half[2]), 0.0))

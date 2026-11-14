@@ -1,20 +1,20 @@
-"""Her movements by their orthopaedic names, read from static arrays (`term_rows`).
+"""The robot's movements by their orthopaedic names, read from static arrays (`term_rows`).
 
-    kind, sign, low, high = terms.find('knee', 'flexion')   # deg; None: she has it not
+    kind, sign, low, high = terms.find('knee', 'flexion')   # deg; None: it has it not
     name = terms.joint(limb, kind)                          # a limb's joint; the trunk's, its own
     term_rows.TOWARD, term_rows.ABSENT                      # told toward a side; named, no joint
 
 A part and a movement name a joint kind and the sign its angle takes the movement's own way;
 its amount's stops with it, None where nothing stops it. A movement toward a side is told for
 limb 0's and takes a limb's mirror (`reach_rows.LIMBS`) for another's. A limb is an index:
-which joint of hers is its knee is data, laid from her figure (tools/cores/terms.py).
+which joint of its own is its knee is data, laid from its figure (tools/cores/terms.py).
 """
 from machine.body.term_rows import LIMBS, TERMS
 
 
 def find(part, term):
     """(joint kind, sign, low, high) of a movement of a part, deg - or None: no driven joint of
-    hers makes it."""
+    its own makes it."""
     return TERMS.get((part, term))
 
 

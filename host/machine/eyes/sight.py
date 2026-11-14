@@ -1,15 +1,15 @@
-"""Her eyes and what she makes of them. A stereo pair on her head rendered from the world, the
-disparity by block matching, depth from it, the points into the map she keeps of the room
-(`machine.eyes.voxels`) in her estimate's frame, its things boxes with their turn (docs/findings/sight.md).
+"""Its eyes and what it makes of them. A stereo pair on its head rendered from the world, the
+disparity by block matching, depth from it, the points into the map it keeps of the room
+(`machine.eyes.voxels`) in its estimate's frame, its things boxes with their turn (docs/findings/sight.md).
 
-    eyes, keep = Eyes(world), Keep()        # her eyes on a world, the map she keeps
-    keep.took(*eyes.stereo(world, head))    # a look matched by her stereo into the map, from her head's pose
+    eyes, keep = Eyes(world), Keep()        # its eyes on a world, the map it keeps
+    keep.took(*eyes.stereo(world, head))    # a look matched by its stereo into the map, from its head's pose
     keep.took(*eyes.shot(world, head))      # a look's parallax from the renderer's depth (`machine.eyes.camera`)
-    things = told(keep)                     # [(kind, centre, half sizes, turn)] her registry's looks
-    way = plan(keep.map.blocked(), at, to)  # [(x, z)] round what she knows
-    keep.hulls()                            # what the last look showed, hulled by what she tells of it
+    things = told(keep)                     # [(kind, centre, half sizes, turn)] its registry's looks
+    way = plan(keep.map.blocked(), at, to)  # [(x, z)] round what it knows
+    keep.hulls()                            # what the last look showed, hulled by what it tells of it
 
-Her keep reads nothing of the world: a look's frame - an eye's colour and parallax at her own pose - alone,
+Its keep reads nothing of the world: a look's frame - an eye's colour and parallax at its own pose - alone,
 rendered on the world's side (`physics.SIGHT`).
 """
 import atexit
@@ -22,23 +22,23 @@ from machine.eyes.voxels import CELL_M, X_M, Z_M
 from machine.eyes import epipolar, gimbal, ground, instances, squint, voxels
 from machine.eyes.grids import coded, convex, joined_by, rim as _rim
 
-#: A look's points every EVERY'th pixel each way: at 640 x 480 her map's 19 200 points a look as at 320 x 240
+#: A look's points every EVERY'th pixel each way: at 640 x 480 its map's 19 200 points a look as at 320 x 240
 #: every second - its cost theirs, 45 ms a look against 161 every second -, each point's depth twice as fine.
 EVERY = 4
 
-#: A look LOOK_S apart. What she has not seen is open: her way is planned through it and again as she
+#: A look LOOK_S apart. What it has not seen is open: its way is planned through it and again as it
 #: sees - held shut, a target unseen had no way and every first word a look round first, 14 s on 23
 #: steps.
 LOOK_S = 0.5
-#: How far a look's pixels are kept (`Eyes.shot`), across her map's floor (X_M, Z_M), m: her map takes those within
-#: FAR_M (`voxels.Map.add`), her picture tells the rest by their look (`Keep.hulls`).
+#: How far a look's pixels are kept (`Eyes.shot`), across its map's floor (X_M, Z_M), m: its map takes those within
+#: FAR_M (`voxels.Map.add`), its picture tells the rest by their look (`Keep.hulls`).
 REACH_M = math.hypot(X_M[1] - X_M[0], Z_M[1] - Z_M[0])
 
-#: What the room's things are made to look like, for her eyes (`mjcf`): a kind's colour,
+#: What the room's things are made to look like, for its eyes (`mjcf`): a kind's colour,
 #: speckled with a darker shade, the speckles a cube's on every face and one scale in space,
 #: the pattern SPECKLE_M long: a checker repeats, and so did speckles laid 12 a face - on the
 #: door 7 cm apart, 4.5 px at 3.4 m - and block matching matched one to the next: a thing
-#: 1.2 m high stood 1 m before her where nothing is. A lump's look is the kind nearest its
+#: 1.2 m high stood 1 m before it where nothing is. A lump's look is the kind nearest its
 #: cells' chromaticity (`_chroma`), whatever the light on it.
 SPECKLE_M = 4.0
 LOOKS = {'glass': ((0.55, 0.75, 1.0), (0.35, 0.5, 0.7)),
@@ -51,8 +51,8 @@ LOOKS = {'glass': ((0.55, 0.75, 1.0), (0.35, 0.5, 0.7)),
          'stone': ((0.58, 0.56, 0.52), (0.36, 0.35, 0.33)), 'rail': ((0.72, 0.75, 0.80), (0.45, 0.47, 0.50))}
 ALPHA = {'glass': 0.7}
 
-#: The page's picture of her view, pixels wide and high (`coaxial.graphics.inset`); a lump of one look smaller than a
-#: cell of it - her points every EVERY'th pixel each way - her picture leaves untold, points.
+#: The page's picture of its view, pixels wide and high (`coaxial.graphics.inset`); a lump of one look smaller than a
+#: cell of it - its points every EVERY'th pixel each way - its picture leaves untold, points.
 VIEW = (32, 24)
 LUMP = (W // VIEW[0]) * (H // VIEW[1]) // EVERY ** 2
 #: Each class's ink for the page, (r, g, b) (`classes`); the classes under and over all else, one region each.
@@ -82,7 +82,7 @@ def assets():
 
 
 def lights():
-    """The room lit from its ceiling, for her eyes: the model has no light of its own."""
+    """The room lit from its ceiling, for its eyes: the model has no light of its own."""
     return ['<light pos="%g 2.2 %g" dir="0 -1 0" diffuse="0.9 0.9 0.9" specular="0.2 0.2 0.2"/>'
             % at for at in ((-1.5, 0.0), (1.5, 0.0), (-1.5, 2.5), (1.5, 2.5))]
 
@@ -93,8 +93,8 @@ def focal():
 
 
 def eye_pose(head, turn=None, at=gimbal.EYES):
-    """(the left eye's place `at`, the frame `turn` (3, 3) - her eye's at rest by default -, both in her head's) in
-    her `head`'s {pos, quat} frame."""
+    """(the left eye's place `at`, the frame `turn` (3, 3) - its eye's at rest by default -, both in its head's) in
+    its `head`'s {pos, quat} frame."""
     np = _np()
     w, x, y, z = head['quat']
     R = np.array([[1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - w * z), 2.0 * (x * z + w * y)],
@@ -106,7 +106,7 @@ def eye_pose(head, turn=None, at=gimbal.EYES):
 class Seen:
 
     """One look: both eyes' images (H, W, 3) uint8 and the left eye's pose - the renderer's, till
-    `Keep.look` lays hers -, its pictures' lay (`epipolar.Laid`'s beta, fv, baseline)."""
+    `Keep.look` lays its own -, its pictures' lay (`epipolar.Laid`'s beta, fv, baseline)."""
 
     def __init__(self, left, right, at, turn, lay=None):
         self.left, self.right, self.at, self.turn = left, right, at, turn
@@ -150,7 +150,7 @@ class Eyes:
                     d.cam_xmat[i].reshape(3, 3).copy())
 
     def warmed(self):
-        """Her stereo's card started - two blank pictures laid where her gimbals are held and matched
+        """Its stereo's card started - two blank pictures laid where its gimbals are held and matched
         (`epipolar.matched`) -, nothing of its own moved (`held`, `squint`, `laid`) and no frame drawn: a camera's first
         match took 683 ms of the card's start, one after it 28."""
         blank = _np().zeros((epipolar.FINE * H, epipolar.FINE * W, 3), 'uint8')
@@ -158,12 +158,12 @@ class Eyes:
         epipolar.matched(blank, blank, lr, told @ self.squint.turn(), rc - lc)
 
     def stereo(self, world, head, gz=(0.0, 0.0), held=None):
-        """A look's frame (seen, disparity, kept) at her servos' gaze `gz`: both eyes' pictures laid by their turns and
-        places as her calibration told her them - each gimbal where its pushrods' play leaves it by how she turned them
-        (`held`: her own, each command's, `gaze.held`; else played from the last look's) -, her right eye's as her
-        pictures told her past it (`squint.Squint`), and matched
-        (`epipolar.matched`), told on by the look; at her `head` {pos, quat} as her estimate has it - on the CPU too: CI's
-        runner (Mesa's frames) told no chair from the renderer's own depth (`shot`), 4.13 m off, and one from her match."""
+        """A look's frame (seen, disparity, kept) at its servos' gaze `gz`: both eyes' pictures laid by their turns and
+        places as its calibration told it them - each gimbal where its pushrods' play leaves it by how it turned them
+        (`held`: its own, each command's, `gaze.held`; else played from the last look's) -, its right eye's as its
+        pictures told it past it (`squint.Squint`), and matched
+        (`epipolar.matched`), told on by the look; at its `head` {pos, quat} as its estimate has it - on the CPU too: CI's
+        runner (Mesa's frames) told no chair from the renderer's own depth (`shot`), 4.13 m off, and one from its match."""
         seen, start = self.see(world), None
         self.held = dict(held) if held is not None else {
             s: gimbal.played(self.held[s], gimbal.angles(s, gz, True), s, True) for s in ('left', 'right')}
@@ -178,9 +178,9 @@ class Eyes:
         return Seen(left, right, *eye_pose(head, laid.E, lc), lay=(laid.beta, laid.fv, laid.B)), disp, kept
 
     def shot(self, world, head):
-        """A look's frame (seen, disparity, kept) as her fake camera gives it (`machine.eyes.camera`): the left
-        eye's colour and the parallax her stereo would match from the renderer's own depth (`truth`), every
-        pixel within REACH_M kept, laid at her `head` {pos, quat} as her estimate has it."""
+        """A look's frame (seen, disparity, kept) as its fake camera gives it (`machine.eyes.camera`): the left
+        eye's colour and the parallax its stereo would match from the renderer's own depth (`truth`), every
+        pixel within REACH_M kept, laid at its `head` {pos, quat} as its estimate has it."""
         np = _np()
         self.renderer.update_scene(world.data, camera=self.ids['left'])
         left, z = np.rint(_area(self.renderer.render())).astype(np.uint8), self.truth(world)
@@ -191,7 +191,7 @@ class Eyes:
 
     def truth(self, world):
         """The left eye's depth from the renderer's own buffer, m, each pixel its area's mean (`_area`): the
-        measure to hold the stereo to, never hers."""
+        measure to hold the stereo to, never its own."""
         self.renderer.enable_depth_rendering()
         try:
             self.renderer.update_scene(world.data, camera=self.ids['left'])
@@ -201,7 +201,7 @@ class Eyes:
 
 
 def _area(a):
-    """(H, W, ..) float: a finer picture's (`epipolar.FINE`) pixels' means, each of hers its area's."""
+    """(H, W, ..) float: a finer picture's (`epipolar.FINE`) pixels' means, each of its own its area's."""
     f = epipolar.FINE
     return _np().asarray(a, float).reshape((H, f, W, f) + a.shape[2:]).mean(axis=(1, 3))
 
@@ -231,20 +231,20 @@ class Look:
 
 class Keep:
 
-    """The map she keeps (`voxels.Map` of LOOKS' colours) and her last look into it, kept for the page."""
+    """The map it keeps (`voxels.Map` of LOOKS' colours) and its last look into it, kept for the page."""
 
     def __init__(self):
         self.map = voxels.Map({k: a for k, (a, _b) in LOOKS.items()})
         self.forget()
 
     def forget(self):
-        """Her map and floor laid anew, the last look let go: the room changed under her."""
+        """The robot's map and floor laid anew, the last look let go: the room changed under it."""
         self.map, self.last, self.objects = voxels.Map(self.map.means_of, after=self.map), None, None
         self.ground, self.fix = ground.Mosaic(EVERY / focal()), None
 
     def took(self, seen, disp, kept):
-        """A look's frame (`Eyes.stereo`, `Eyes.shot`) laid onto her floor (`ground.Mosaic`, `fix` her estimate's to
-        take) and into the map, its objects boxed (`instances`) where her segmenter is; the Look."""
+        """A look's frame (`Eyes.stereo`, `Eyes.shot`) laid onto its floor (`ground.Mosaic`, `fix` its estimate's to
+        take) and into the map, its objects boxed (`instances`) where its segmenter is; the Look."""
         xyz, rgb, rows, cols = points(seen, disp, kept)
         grey = rgb.mean(axis=1)
         fix, info, fit = self.ground.fixed(xyz, grey, seen.at)
@@ -262,14 +262,14 @@ class Keep:
         return thumbnail(self.last.seen.left, VIEW[0], VIEW[1]), self.hulls()
 
     def hulls(self):
-        """What the last look showed by what she tells of it (`_told`): [(class, ink, [(col, row), ..] its hull in
+        """What the last look showed by what it tells of it (`_told`): [(class, ink, [(col, row), ..] its hull in
         the left eye's image)], one round each thing's points - a window's panes one, SPREAD's each all one, a thing
-        of under LUMP points none -, a building seen from outside it round all its own; what she cannot tell none."""
+        of under LUMP points none -, a building seen from outside it round all its own; what it cannot tell none."""
         if self.last is None:
             return []
         np, last = _np(), self.last
         told, one, housed, built = self._told(last)
-        # her points' classes and things as numbers, a class in its name's order and a pair one key: numpy's unique of
+        # its points' classes and things as numbers, a class in its name's order and a pair one key: numpy's unique of
         # 19 200 names as strings and of their pairs as rows, and each hull round every pixel, were 20 ms a look
         names = told.tolist()
         kinds = sorted(set(names))
@@ -292,14 +292,14 @@ class Keep:
         return out
 
     def _told(self, last):
-        """((n,) what she tells of each of the points of `last`, her last look - 'thing' what she cannot -, (n,) the one
+        """((n,) what it tells of each of the points of `last`, its last look - 'thing' what it cannot -, (n,) the one
         thing each is of - -1 none -, (n,) the building each is of seen from outside it - -1 none -, [each building's
-        class]) of her map's things and the lumps of what it took none of past her own hands (`voxels.NEAR_M`), told at
+        class]) of its map's things and the lumps of what it took none of past its own hands (`voxels.NEAR_M`), told at
         once (`classes.of`, `classes.grouped`): a
-        point of her map's its thing's whole's class - a chair's back's and legs' its seat's -; a lump one look's points
-        joined in the picture, those under her map's floor (`voxels.FLOOR_M`) in bands a cell apart and seen clear over,
-        each told by its box - one at her floor running on to her picture's reach the ground -, one under LUMP points
-        none; what rises past her map's ceiling within its reach is the top of what it holds, none."""
+        point of its map's its thing's whole's class - a chair's back's and legs' its seat's -; a lump one look's points
+        joined in the picture, those under its map's floor (`voxels.FLOOR_M`) in bands a cell apart and seen clear over,
+        each told by its box - one at its floor running on to its picture's reach the ground -, one under LUMP points
+        none; what rises past its map's ceiling within its reach is the top of what it holds, none."""
         from machine.eyes import classes
         np = _np()
         things, labels = self.map.things()
@@ -399,7 +399,7 @@ def _cuts(cost, a, b, most):
 
 def _pruned(cost, path):
     """The path's corners: each the furthest cell straight from the one before whose line's dearest
-    cell is no dearer than the path's it cuts (`_cuts`): no nearer her things than the way it
+    cell is no dearer than the path's it cuts (`_cuts`): no nearer its things than the way it
     replaces; at a cost of 1 each, the furthest seen free."""
     out, i = [path[0]], 0
     on = [float(cost[c]) for c in path]
@@ -413,10 +413,10 @@ def _pruned(cost, path):
 
 
 def told(keep):
-    """[(kind, centre, half sizes, turn, id, clear)] of what her map tells (`voxels.Map.things`) as
+    """[(kind, centre, half sizes, turn, id, clear)] of what its map tells (`voxels.Map.things`) as
     `world.props()` gives the room's boxes, each thing's id and whether the space over it is seen clear with
-    it: her registry's looks (`machine.eyes.registry`) from her eyes - the last look's objects (`instances`) in place
-    of those of her map's they are, where her segmenter is."""
+    it: its registry's looks (`machine.eyes.registry`) from its eyes - the last look's objects (`instances`) in place
+    of those of its map's they are, where its segmenter is."""
     things = keep.map.things()[0]
     return instances.merged(things, keep.objects, keep.map) if keep.objects else things
 

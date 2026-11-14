@@ -4,7 +4,7 @@ Motors, gearboxes, inverters and the numbers that size them
 (`machine.body.drives`). The body's findings:
 [body](body.md); the board's: [FINDINGS](../FINDINGS.md); one stack for
 every drive, its demand and the candidates: [stacks](stacks.md); each
-drive's demand on her loop and the stunts against it: [demand](demand.md).
+drive's demand on its loop and the stunts against it: [demand](demand.md).
 
 ## Assemblies
 
@@ -150,7 +150,7 @@ back (`tests/test_gynoid.py`).
   (800 N m/rad on a 1.4 kN m/rad spring with the rotor behind it). The servo
   and the observer read the motor's encoder (`physics.WOUND` 1), as a board
   does; the whole-body law the joint's. The observer on the joint took the
-  play for 84 N m of disturbance and she fell standing.
+  play for 84 N m of disturbance and it fell standing.
 - The wind-up alone loses the ankle 2 x 60 / 6 200 = 1.2 deg at each torque
   reversal, the play 0.5 more.
 - The loop on its torques walks the boxes: with its PD 2.52 m at 0.42 m/s
@@ -163,9 +163,9 @@ back (`tests/test_gynoid.py`).
 
 ## As data
 
-- Her build's parts as files (`machine/library`, `machine/humanoids`): every
+- Its build's parts as files (`machine/library`, `machine/humanoids`): every
   drive's kt, peak, armature, speed, drag, shock, ohm, mass, length and heat
   the same to the bit for all 27 joints; `docs/DIMENSIONS.md` unchanged;
   `drives.py` 5.8 k -> 4.7 k tokens.
-- Her manifest of them reads her 31.14 kg (305.5 N), her centre of mass 0.916 m
-  up, omega 3.27/s: her text's header had said 55 kg.
+- Its manifest of them reads its 31.14 kg (305.5 N), its centre of mass 0.916 m
+  up, omega 3.27/s: its text's header had said 55 kg.

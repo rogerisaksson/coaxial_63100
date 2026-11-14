@@ -1,6 +1,6 @@
-/** wbc_brace.c - her surety's brace on the solve (wbc_imp.h): machine.law.motion.scaled and braced on her
+/** wbc_brace.c - its surety's brace on the solve (wbc_imp.h): machine.law.motion.scaled and braced on its
     law's arrays - the cervical and shoulder dofs' inertia scaled off the solve, the tuck's torques
-    and the cervical blend laid over its answer, her drives' inertia and her legs' stiffness -
+    and the cervical blend laid over its answer, its drives' inertia and its legs' stiffness -
     numpy's arithmetic operation for operation (wbc_np.h), its matmuls numpy's own BLAS on the
     gathered submatrices in numpy's memory order (wbc_blas.h). Portable C11, the host's alone. */
 #include "wbc_imp.h"
@@ -74,7 +74,7 @@ void wbc_brace_blend(const wbc_brace_t *b, const double *M, const double *Ms, co
   double            kp_cv[4], kd_cv[4];
   int               at = 0;
 
-  /* the tuck's posture by her surety's direction, its torques through her inertia */
+  /* the tuck's posture by its surety's direction, its torques through its inertia */
   wbc_matmul(&b->blas, lv, bv, q_brace, 0, 1, 1, 3, nd);
   for (int i = 0; i < nd; i++)
   {

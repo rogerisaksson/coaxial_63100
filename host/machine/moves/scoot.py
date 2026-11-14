@@ -1,21 +1,21 @@
-"""Her scoot on the floor as her twist tells it: a crab on her seat, heels in turn, then a stroke.
+"""Its scoot on the floor as its twist tells it: a crab on its seat, heels in turn, then a stroke.
 
-A move her joints play as a program does (`machine.process.joints`), bound by her text to her floor rest once she sits
-(`clocked`) and begun again by a twist while she sits on the floor (`joints.scooted`, `g['sat']`). Its gait is her
-text's, the kernel's seated butt-scoot (`degraded_scoot_and_crawl_*.lisp`, the segment `clocked` sits her by): its
-clock's phases order her limbs (her heels in turn, then her fists together), its stroke's length is her knees' sweep
+A move its joints play as a program does (`machine.process.joints`), bound by its text to its floor rest once it sits
+(`clocked`) and begun again by a twist while it sits on the floor (`joints.scooted`, `g['sat']`). Its gait is its
+text's, the kernel's seated butt-scoot (`degraded_scoot_and_crawl_*.lisp`, the segment `clocked` sits it by): its
+clock's phases order its limbs (its heels in turn, then its fists together), its stroke's length is its knees' sweep
 from the take's fold (`clocked.chord`), its beat and limb duty the stroke's rate. No clock times a phase: each is told
-by what she senses and by her twist (her text's 32 clocked strokes waited on fists that never bore, and she sat still
-from the third). A cycle: both feet lift to their strokes' starts and she sits on her seat and fists; each heel sets in
-its turn, her seat bearing her (stood on her fists and feet, a lifted limb left her three points and she tipped: S, A,
-D 5 of 5 from one sit); her arms reach back to her seat's brace; her hips open her off her seat onto her fists and feet
-where both heels push her back (sat, a push slid her feet out: S +0.01 m in 8 s), or she pulls herself along on her
-seat where they pull (vaulted, W went 0.55-0.72 m in 8 s, sat 1.05-1.60); her stroke; her hips lean her trunk back to
-its lean. Her legs' rolls and yaws and her trunk's roll and twist stay square (splayed, she spun 37-99 deg a back
-stroke run and fell). Her twist let go, she sits where her last heel set. Its phases are a table (PHASES), every
-branch a select; its arithmetic is wbc_scoot.c's, bit for bit (`tools.cores.scoot`, what her loop plays).
+by what it senses and by its twist (its text's 32 clocked strokes waited on fists that never bore, and it sat still
+from the third). A cycle: both feet lift to their strokes' starts and it sits on its seat and fists; each heel sets in
+its turn, its seat bearing it (stood on its fists and feet, a lifted limb left it three points and it tipped: S, A,
+D 5 of 5 from one sit); its arms reach back to its seat's brace; its hips open it off its seat onto its fists and feet
+where both heels push it back (sat, a push slid its feet out: S +0.01 m in 8 s), or it pulls itself along on its
+seat where they pull (vaulted, W went 0.55-0.72 m in 8 s, sat 1.05-1.60); its stroke; its hips lean its trunk back to
+its lean. Its legs' rolls and yaws and its trunk's roll and twist stay square (splayed, it spun 37-99 deg a back
+stroke run and fell). Its twist let go, it sits where its last heel set. Its phases are a table (PHASES), every
+branch a select; its arithmetic is wbc_scoot.c's, bit for bit (`tools.cores.scoot`, what its loop plays).
 
-    state = scoot.laid(q_deg, t)                                                           # from where she sits
+    state = scoot.laid(q_deg, t)                                                           # from where it sits
     scoot.step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, heading)  # cmd laid over; 0.0
 """
 import math
@@ -30,30 +30,30 @@ from machine.body.figure import JOINTS
 from machine.errors import MachineError
 from machine.moves import anatomy, clocked, seated
 
-#: What `machine.process.joints` gives a pass beyond her pose: her trunk's pitch (deg, forward +), her fists' and each
-#: foot's share of her weight, her twist back and turning left as shares of her keys' (1 a key held, -1 its opposite),
-#: her pelvis's heading (deg, left +).
+#: What `machine.process.joints` gives a pass beyond its pose: its trunk's pitch (deg, forward +), its fists' and each
+#: foot's share of its weight, its twist back and turning left as shares of its keys' (1 a key held, -1 its opposite),
+#: its pelvis's heading (deg, left +).
 SENSED = ('pitch', 'hands', 'left_foot', 'right_foot', 'back', 'turn', 'heading')
-#: The parts it moves, a side each (left, right) - her hips, knees, shoulders, elbows, her legs' rolls and yaws and her
-#: ankles -, then her trunk's roll and twist.
+#: The parts it moves, a side each (left, right) - its hips, knees, shoulders, elbows, its legs' rolls and yaws and its
+#: ankles -, then its trunk's roll and twist.
 PAIRED, SINGLE = ('hip', 'knee', 'shoulder', 'elbow', 'hip_roll', 'hip_yaw', 'ankle_roll', 'ankle'), ('spine_roll', 'waist')
 PARTS = PAIRED + SINGLE
 JOINT = np.array([JOINTS.index(side + p) for p in PAIRED for side in ('left_', 'right_')] + [JOINTS.index(p) for p in SINGLE])
 PART = np.array([k for k in range(len(PAIRED)) for _side in range(2)] + [len(PAIRED) + k for k in range(len(SINGLE))])
 SIDE = np.array([1.0, -1.0] * len(PAIRED) + [0.0] * len(SINGLE))
-#: The side each joint is on: 0 her left (and her trunk's), 1 her right; each one's other side (her trunk's its own).
+#: The side each joint is on: 0 its left (and its trunk's), 1 its right; each one's other side (its trunk's its own).
 SIDED = (SIDE < 0.0).astype(int)
 PARTNER = np.array([i ^ 1 for i in range(2 * len(PAIRED))] + [2 * len(PAIRED) + k for k in range(len(SINGLE))])
 HIP, KNEE = PART == 0, PART == 1
-#: Her gait as her text lays it (`clocked`): its clock's phases [LH LF RH RF axial] (hind her heels, fore her fists),
-#: of a turn, and a limb's stance on it, s, and its stroke, m (`clocked.turns`). Her heels step in their phases' order;
-#: her fists reach together after them (her two-joint arms shove her round as one steps alone: a fist set turned her
-#: 32 deg, and A and W+A tipped her at 22-44 deg).
+#: Its gait as its text lays it (`clocked`): its clock's phases [LH LF RH RF axial] (hind its heels, fore its fists),
+#: of a turn, and a limb's stance on it, s, and its stroke, m (`clocked.turns`). Its heels step in their phases' order;
+#: its fists reach together after them (it two-joint arms shove its round as one steps alone: a fist set turned its
+#: 32 deg, and A and W+A tipped it at 22-44 deg).
 PHASED = clocked.phases('scoot_floor')
 STANCE_S, STROKE_M = clocked.turns('scoot_floor')[2:]
 if PHASED[1] != PHASED[3] or PHASED[1] <= max(PHASED[0], PHASED[2]):
-    raise MachineError('refused: her fists reach together after her heels, not at %s' % (PHASED[:4],))
-#: Each step's side (her heel's, in its phase's order) and the joints it moves (its hip and knee: 1 a joint it moves).
+    raise MachineError('refused: its fists reach together after its heels, not at %s' % (PHASED[:4],))
+#: Each step's side (its heel's, in its phase's order) and the joints it moves (its hip and knee: 1 a joint it moves).
 ORDER = np.argsort(np.array([PHASED[0], PHASED[2]]), kind='stable')
 STEPS = np.array([[float(SIDED[i] == side and PART[i] < 2) for i in range(len(JOINT))] for side in ORDER])
 #: The parts a step moves: a hip or knee its heel's is held while it steps.
@@ -61,15 +61,15 @@ LIMBED = PART < 2
 
 
 def _bent(chord):
-    """The knee, deg, that sets her hip joints `chord` m behind her ankle sat on the floor (`clocked.chord`'s)."""
+    """The knee, deg, that sets its hip joints `chord` m behind its ankle sat on the floor (`clocked.chord`'s)."""
     up = clocked.SAT - figure.ANKLE_H
     c = (chord * chord + up * up - figure.THIGH ** 2 - figure.SHANK ** 2) / (2.0 * figure.THIGH * figure.SHANK)
     return math.degrees(math.acos(min(max(c, -1.0), 1.0)))
 
 
 #: Its numbers and phases as the suite's lisp says them, their reasons there (`defmove scoot`, moves.lisp): a stroke's
-#: knees folded (deg), a hip's lift and set, her trunk within LEANT of its lean, her braced elbows, the trunk her hips
-#: hold with their gain and range, her vaulted shoulders, the rates (deg/s), what bears and touches, a twist's ask and
+#: knees folded (deg), a hip's lift and set, its trunk within LEANT of its lean, its braced elbows, the trunk its hips
+#: hold with their gain and range, its vaulted shoulders, the rates (deg/s), what bears and touches, a twist's ask and
 #: a turn's shares.
 _MOVE = anatomy.move('scoot')
 (FOLD, FOLDED, DOWN, LEANT, LOCKED, TRUNK, GAIN, HIP_LO, HIP_HI, VAULTED, AIR_RATE, BRACE_RATE, LIFT_RATE, SET_RATE,
@@ -77,23 +77,23 @@ _MOVE = anatomy.move('scoot')
     'fold', 'folded', 'down', 'leant', 'locked', 'trunk', 'gain', 'hip-lo', 'hip-hi', 'vaulted', 'air-rate',
     'brace-rate', 'lift-rate', 'set-rate', 'square-rate', 'even-rate', 'bear', 'skim', 'ask', 'tol', 'stroke-turn',
     'turn', 'half'))
-#: What her body sets: a stroke's knees stretched where her hips have gone the stroke's length; her shoulders sat, her
-#: fists behind her braced at her lean (`seated.braced`); a stroke's knees' rate at a key held, its sweep in her text's
-#: stance; her aim a turn's LEAD ahead as she turns.
+#: What its body sets: a stroke's knees stretched where its hips have gone the stroke's length; its shoulders sat, its
+#: fists behind its braced at its lean (`seated.braced`); a stroke's knees' rate at a key held, its sweep in its text's
+#: stance; its aim a turn's LEAD ahead as it turns.
 STRETCH = _bent(clocked.chord(math.radians(FOLD)) + STROKE_M)
 SEAT = math.degrees(seated.braced(math.radians(TRUNK)))
 STROKE_RATE = (FOLD - STRETCH) / STANCE_S
 LEAD = STROKE_TURN * TURN
-#: How a part reaches its goal: 0 held, 1 its phase's goal at its rate, 2 the stroke's end at her way's rate, 3 the
+#: How a part reaches its goal: 0 held, 1 its phase's goal at its rate, 2 the stroke's end at its way's rate, 3 the
 #: stroke's start (a hip by its knee's way), 4 its phase's goal while its foot touches none, 5 its pair's mean at its
-#: rate, a hip holding her trunk as well (her stance square as she sits), 6 its phase's goal while her trunk is short
+#: rate, a hip holding its trunk as well (its stance square as it sits), 6 its phase's goal while its trunk is short
 #: of LEANT back of its lean.
 HELD, RATE, END, START, SETTING, EVEN, UNSEAT = range(7)
-#: When a phase is over: its goals reached; its goals reached, her fists touching and her trunk at its lean; its heel
-#: touching or its goals reached; her knees at their ends or her twist let go; her twist asking; her trunk LEANT back
-#: of its lean; her trunk within LEANT of it.
+#: When a phase is over: its goals reached; its goals reached, its fists touching and its trunk at its lean; its heel
+#: touching or its goals reached; its knees at their ends or its twist let go; its twist asking; its trunk LEANT back
+#: of its lean; its trunk within LEANT of it.
 REACHED, BRACED, SET, STROKED, ASKING, OFF, LEANED = range(7)
-#: How the lisp says a part goes, a phase ends, and the goal her body sets.
+#: How the lisp says a part goes, a phase ends, and the goal its body sets.
 _HOWS = {':rate': RATE, ':end': END, ':start': START, ':setting': SETTING, ':even': EVEN, ':unseat': UNSEAT}
 _ENDED = {':reached': REACHED, ':braced': BRACED, ':set': SET, ':stroked': STROKED, ':asking': ASKING, ':off': OFF,
           ':leaned': LEANED}
@@ -113,8 +113,8 @@ PHASES = tuple((p['name'].lstrip(':'), _goals_of(p), _ENDED[p['ends']], p['asked
 NAMED = tuple(phase[0] for phase in PHASES)
 SITTING, SETTING_DOWN, REACHING, PUSHING, HOLDING = (NAMED.index(n) for n in ('sit', 'set', 'reach', 'push', 'hold'))
 #: PHASES as flat tables: each part's how, goal and rate a phase; when it is over; the next asked and idle; whether a
-#: step's heel alone moves; whether her twist's ways are taken as it ends (a cycle begun); whether her hips hold her
-#: trunk (not as she sits, steps or reaches: her fists and her seat hold it there; nor pulling on her seat).
+#: step's heel alone moves; whether its twist's ways are taken as it ends (a cycle begun); whether its hips hold its
+#: trunk (not as it sits, steps or reaches: its fists and its seat hold it there; nor pulling on its seat).
 HOW, GOAL, RATES = (np.zeros((len(PHASES), len(PARTS))) for _table in range(3))
 for _k, _phase in enumerate(PHASES):
     for _part, (_how, _goal, _rate) in _phase[1].items():
@@ -125,22 +125,22 @@ MASKED = np.array([float(n in ('lift', 'set')) for n in NAMED])
 CYCLES = np.array([float(n in ('brace', 'hold', 'lean')) for n in NAMED])
 TRUNKED = np.array([float(n not in ('sit', 'lift', 'set', 'reach')) for n in NAMED])
 #: The state's slots: the phase, the step (of ORDER), each side's way this cycle (+ its knee stretches, - it folds, 0
-#: still), the heading she aims at (deg) and whether she has one.
+#: still), the heading it aims at (deg) and whether it has one.
 PHASE, STEP, WAY, AIM, AIMED = 0, 1, 2, 4, 5
-#: Her sides, left then right, as her turn shares them (left +).
+#: The robot's sides, left then right, as its turn shares them (left +).
 SIDES = np.array([1.0, -1.0])
 
 
 def laid(q_deg, t):
-    """The move's state from her pose `q_deg` (deg, figure.JOINTS) at `t` s: bracing, her first step next, no way, no
+    """The move's state from its pose `q_deg` (deg, figure.JOINTS) at `t` s: bracing, its first step next, no way, no
     aim yet."""
     return np.zeros(AIMED + 1)
 
 
 def step(state, cmd, q_deg, t, dt, pitch, hands, left, right, back, turn, heading):
-    """A pass of the move `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, her trunk's pitch (deg), her
-    fists' and feet's shares of her weight, her twist and her heading (`SENSED`) sensed; 0.0, the move never over by
-    itself (a word of hers ends it)."""
+    """A pass of the move `dt` s on: `cmd` (deg, figure.JOINTS) laid over from `state`, its trunk's pitch (deg), its
+    fists' and feet's shares of its weight, its twist and its heading (`SENSED`) sensed; 0.0, the move never over by
+    itself (a word of its own ends it)."""
     k, n = int(state[PHASE]), int(state[STEP])
     x = cmd[JOINT]
     way = state[WAY + SIDED]

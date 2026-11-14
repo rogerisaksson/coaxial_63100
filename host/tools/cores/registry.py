@@ -1,6 +1,6 @@
-"""Her map's look in C through ctypes (wbc_registry.c): `registry.passed` and `seen`, bit for bit.
+"""Its map's look in C through ctypes (wbc_registry.c): `registry.passed` and `seen`, bit for bit.
 
-    core = registry.laid(rows)          # her registry's slots' fields (`machine.eyes.registry.Rows`), laid once
+    core = registry.laid(rows)          # its registry's slots' fields (`machine.eyes.registry.Rows`), laid once
     core.passed(live, movable, pos, quat, dt)
     n = core.seen(centre, half, R, ids, clear, codes, live, slot_codes, t, everywhere, pos, quat)
     core.looked, core.slot_of           # each thing looked at; the slot each of the n looked at took
@@ -102,7 +102,7 @@ class Core:
         self.looked, self.slot_of = (np.ctypeslib.as_array(getattr(t, name)) for name in ('looked', 'slot_of'))
 
     def passed(self, live, movable, pos, quat, dt):
-        """registry.passed past its slots' kinds: the live slots `live`, each `movable` or not, her head at `pos`
+        """registry.passed past its slots' kinds: the live slots `live`, each `movable` or not, its head at `pos`
         turned by `quat`, `dt` s on."""
         live, movable, pos, quat = _flat(live, np.int64), _flat(movable), _flat(pos), _flat(quat)
         self._passed(self.at, live.ctypes.data, len(live), movable.ctypes.data, pos.ctypes.data, quat.ctypes.data, dt)

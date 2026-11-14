@@ -1,17 +1,17 @@
-"""What bears her off her soles as her skin feels it: her law's support, her step's contacts.
+"""What bears it off its soles as its skin feels it: its law's support, its step's contacts.
 
     prop, contacts, palms = borne.read(b, s, y, weight, hands)   # `wbc.sense`'s s, `machine.senses.edge`'s y
-    named = borne.named(g)                                        # her step's contacts this pass, named (`introspect`)
+    named = borne.named(g)                                        # its step's contacts this pass, named (`introspect`)
 
-Each segment above her soles pushed up (`edge.TOUCH`) at its touch's centre (`edge.AT`), placed
-by her own model as her estimate has her - a seat, a bed, the floor under a knee or her hands -:
-prop, the share of her weight the furniture bears and the box what bears her spans, her hands' points too,
+Each segment above its soles pushed up (`edge.TOUCH`) at its touch's centre (`edge.AT`), placed
+by its own model as its estimate has it - a seat, a bed, the floor under a knee or its hands -:
+prop, the share of its weight the furniture bears and the box what bears its spans, its hands' points too,
 world (share, low (3,), high (3,)); contacts, each such point, its force now (3,), the normal of what bears it
 (3,, `_normal`), its Jacobian (3, n) and that's drift (3,), whose force the step finds (`machine.stack.wrench`).
 Its sensed force fed to the step
 instead, a stiff seat's a pass late, the step cancelled the seat's stiffness a pass after it
-pushed - 695, 250, 88, 539, 131 N on it 30 ms apart, her soles' loads swinging 0 to 286 N.
-Her hands bear as the furniture does, a patch of their own (CARPAL), out of prop's share: palms, each one's.
+pushed - 695, 250, 88, 539, 131 N on it 30 ms apart, its soles' loads swinging 0 to 286 N.
+Its hands bear as the furniture does, a patch of their own (CARPAL), out of prop's share: palms, each one's.
 """
 import math
 import os
@@ -26,30 +26,30 @@ from machine.law import supervisor
 from machine.senses import touch
 from machine.law.modal import PALMS, PROP, PROP_HI, PROP_LO, PROPPED, PROPPED_BELOW, PROPPED_BOX, PROPPED_SINCE
 
-#: A segment bears that is pushed up past this, N: her skin's touch.
+#: A segment bears that is pushed up past this, N: its skin's touch.
 BEARS_N = edge.TOUCHED_N
-#: Her arms' segments, upper arm to fingers, indices into her skin - her left's first: a hand braced, or a
-#: forearm down on the bed as she lies back onto her elbows.
+#: Its arms' segments, upper arm to fingers, indices into its skin - its left's first: a hand braced, or a
+#: forearm down on the bed as it lies back onto its elbows.
 HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
-#: The segments above her soles (`touch.ABOVE`) and her arms', indices into her skin.
+#: The segments above its soles (`touch.ABOVE`) and its arms', indices into its skin.
 ABOVE = np.array(sorted(set(touch.ABOVE) | set(HANDS.tolist())))
-#: What bears her bounded where nothing does: its low and high corners, m, the bounds a touch widens.
+#: What bears its bounded where nothing does: its low and high corners, m, the bounds a touch widens.
 NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
-#: Her pelvis among them: its skin's one touch is her two ischia's (`figure.SEAT_X` either side), split by
+#: Its pelvis among them: its skin's one touch is it two ischia's (`figure.SEAT_X` either side), split by
 #: where it lies between them - the force-weighted point of two lines gives their shares exactly - and laid
-#: on them as far as it pushes up her pelvis (sat; lying on her back or side the two meet at the touch).
-#: One point, a seat held her roll by nothing: sat on her pelvis alone she rolled off at 2e-4 rad.
+#: on them as far as it pushes up its pelvis (sat; lying on its back or side the two meet at the touch).
+#: One point, a seat held its roll by nothing: sat on its pelvis alone it rolled off at 2e-4 rad.
 PELVIS = edge.SKIN.index('pelvis')
-#: What bears her is a surface under her skin: a bearing point's room is its segment's capsule's radius round
+#: What bears it is a surface under its skin: a bearing point's room is its segment's capsule's radius round
 #: it along the floor (CAPSULES, `figure.BODY` by its name without its side; MuJoCo gives a capsule one
-#: contact point). Points alone, sat on her pelvis its box was the ischia's line and her centre of mass was
+#: contact point). Points alone, sat on its pelvis its box was the ischia's line and its centre of mass was
 #: asked back to it at 1.5 m/s^2.
 CAPSULES = [[(r, np.asarray(a, float), np.asarray(b, float)) for seg, r, a, b in figure.BODY
              if seg == (name.split('_', 1)[1] if name.startswith(('left_', 'right_')) else name)] for name in edge.SKIN]
 ALONG = np.array([1.0, 0.0, 1.0])
 
 
-#: Her support's comparator, the master insert's (`supervisor`): latched from PROP_ENGAGE of her
+#: Its support's comparator, the master insert's (`supervisor`): latched from PROP_ENGAGE of its
 #: weight, let go under PROP_RELEASE held PROP_DWELL_S, never within PROP_BLANK_S of its strike.
 _CMP = supervisor.insert()['contact-comparators']
 PROP_ENGAGE, PROP_RELEASE = _CMP['schmitt-high-engage-fz'], _CMP['schmitt-low-release-fz']
@@ -71,11 +71,11 @@ def _room(k, local):
 
 
 def _normal(k, local, R):
-    """(3,) her skin's own estimate of the normal of what bears segment `k` at its touch `local` (its frame), world,
-    into her: her capsule nearest the point outward there, by her own model turned (`R`), reversed - up where she has
-    no capsule or the point lies on its axis; `read` takes it where her edge has no contact normal (`edge.NORMAL`).
-    Of the felt force instead, her fists' 36-44 deg of real shear on a level seat tilted it and her plan's cap and
-    box about it set 7-21 N of her hands' 50 up; of her pelvis's capsules on a bed it read 111 N across on 84 up."""
+    """(3,) its skin's own estimate of the normal of what bears segment `k` at its touch `local` (its frame), world,
+    into it: its capsule nearest the point outward there, by its own model turned (`R`), reversed - up where it has
+    no capsule or the point lies on its axis; `read` takes it where its edge has no contact normal (`edge.NORMAL`).
+    Of the felt force instead, its fists' 36-44 deg of real shear on a level seat tilted it and its plan's cap and
+    box about it set 7-21 N of its hands' 50 up; of its pelvis's capsules on a bed it read 111 N across on 84 up."""
     best = None
     for r, a, b in CAPSULES[k]:
         ab = b - a
@@ -85,23 +85,23 @@ def _normal(k, local, R):
         best = (here, r, q) if best is None or here < best[0] or (here == best[0] and r < best[1]) else best
     size = 0.0 if best is None else float(np.linalg.norm(best[2]))
     return -(R @ (best[2] / size)) if best is not None and size > 0.0 else np.array([0.0, 1.0, 0.0])
-#: The segments one surface bears are one patch of her step: the way of what bears it (`_normal`), the world's axis
+#: The segments one surface bears are one patch of its step: the way of what bears it (`_normal`), the world's axis
 #: it is most along and its sign - a seat's, a bed's or a floor's all up, a backrest's or a wall's all one way across
-#: (the lodge's surfaces stand square; a yawed wall's split); by the push's way, her fists' shear on a seat at its
+#: (the lodge's surfaces stand square; a yawed wall's split); by the push's way, its fists' shear on a seat at its
 #: friction (49 of 50 N up) took them to a patch across. Each
 #: hand a patch of its own past every other's (CARPAL on, a side's apart): split as felt between them, one hand's
 #: share held what it was and the asymmetry grew till it let go. A let-go foot's past both hands' (LET on): held
-#: against the floor alone - held still along it too, her legs sliding out as she sat braked them 102 N and threw
-#: her back over her seat. Each let-go foot a patch of its own (LET on, a side's apart), its push its own cap
+#: against the floor alone - held still along it too, its legs sliding out as it sat braked them 102 N and threw
+#: it back over its seat. Each let-go foot a patch of its own (LET on, a side's apart), its push its own cap
 #: (`machine.moves.emancipation`): shed one by one.
 CARPAL = 6
 LET = 3 * CARPAL
 
 
 def _points(k, push, at):
-    """((share, point in the segment's frame), ..) of skin segment `k`'s touch `push` at `at`: one, her pelvis's
-    two ischia's (PELVIS) - a pivot's single point let the chain's plan spin her for free and it pushed too little
-    against the mattress's friction; two points slide at their box as she turns."""
+    """((share, point in the segment's frame), ..) of skin segment `k`'s touch `push` at `at`: one, its pelvis's
+    two ischia's (PELVIS) - a pivot's single point let the chain's plan spin it for free and it pushed too little
+    against the mattress's friction; two points slide at their box as it turns."""
     if k != PELVIS:
         return ((1.0, at),)
     sat = float(np.clip(push[1] / max(float(np.linalg.norm(push)), 1e-9), 0.0, 1.0))
@@ -111,7 +111,7 @@ def _points(k, push, at):
     return ((left, at + to_left), (1.0 - left, at + to_right))
 
 
-#: (her skin above her soles and the let-go feet, which of it is no hand) by the feet let go: four at most.
+#: (its skin above its soles and the let-go feet, which of it is no hand) by the feet let go: four at most.
 _SKINS: dict = {}
 
 
@@ -121,7 +121,7 @@ def _skin(soled):
 
 
 def laid(b):
-    """Her skin's bodies in her law's model `b` and a point's Jacobian rows each way (3, nv), laid on `b` once (`b.skin`,
+    """Its skin's bodies in its law's model `b` and a point's Jacobian rows each way (3, nv), laid on `b` once (`b.skin`,
     `b.jacs`): what `read` walks, in python or in C (`tools.cores.borne`), and `emancipation.seated`'s rows."""
     if getattr(b, 'skin', None) is None:
         b.skin = np.array([b.m.body(name).id for name in edge.SKIN])
@@ -130,21 +130,21 @@ def laid(b):
 
 
 def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
-    """(prop, contacts, palms) of `y`'s touch above her soles: her model `b`'s data posed as `wbc.sense`
-    left it for `s`, `weight` hers, N; her hands' contacts where her text tells them to bear (`hands`, their
+    """(prop, contacts, palms) of `y`'s touch above its soles: its model `b`'s data posed as `wbc.sense`
+    left it for `s`, `weight` its own, N; its hands' contacts where its text tells them to bear (`hands`, their
     share told, `ortho.PALMAR`) - untold, an arm swinging over a seat holds no hand still on it, its push its palms' -, a let-go leg's
     foot too, not its toes (`let_go`, `machine.moves.emancipation`): no contact, the step took that leg for hanging on the
     floor; its toes held still, their passive joint was asked 500-835 rad/s^2 and the whole ask shrank to nothing.
-    Each contact its segment's give, m/s^2 a N: the solver's impedance on its support's normal rows as her skin
+    Each contact its segment's give, m/s^2 a N: the solver's impedance on its support's normal rows as its skin
     feels it (`edge.GIVE`; a_n = a_ref - R f_n, a force asked past what is felt costs acceleration into the
     support), the closed chains' QP holding it giving so (`chain.gives_of`) - as the foam's give past the floor's, a
-    chair's was none and the plan split her seat's load as it pleased at a_n = 0, believing a scoot it never drove
-    -; her regime's own foam 27.9. Her drives'
-    wind-up is no give of the contact's: her hand's push on a seat rises as the rotor winds the box up while the
+    chair's was none and the plan split its seat's load as it pleased at a_n = 0, believing a scoot it never drove
+    -; its regime's own foam 27.9. The robot's drives'
+    wind-up is no give of the contact's: its hand's push on a seat rises as the rotor winds the box up while the
     hand stays still, so the plan may plan it (counted as the contact's give it tied the hands' push to what they
-    felt and her bench fell from 3 of 6 met to 1). Her thighs and shanks on what bears her are contacts like her
-    pelvis (her sled's, `chain_qp.unknowns`): skipped while she sat, their static friction - 24 N against her
-    hands' 93 on a chair's seat - braked a scoot her plan believed it drove."""
+    felt and its bench fell from 3 of 6 met to 1). Its thighs and shanks on what bears its are contacts like its
+    pelvis (its sled's, `chain_qp.unknowns`): skipped while it sat, their static friction - 24 N against its
+    hands' 93 on a chair's seat - braked a scoot its plan believed it drove."""
     m, d, n = b.m, b.d, b.n
     ids = laid(b)
     pushes, at, nrms = y[edge.TOUCH].reshape(-1, 3), y[edge.AT].reshape(-1, 3), y[edge.NORMAL].reshape(-1, 3)
@@ -160,19 +160,19 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         if f[1] <= BEARS_N:
             continue
         give = float(y[edge.GIVE][k])
-        # a let-go foot is a contact, not what bears her off her soles: in her props' box her centre was asked out over
-        # her feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
+        # a let-go foot is a contact, not what bears it off its soles: in its props' box its centre was asked out over
+        # its feet at the floor's grip, 5.9 m/s^2 each way, and a hand flew 0.7 m up
         prop = float(k not in soled)
         up += f[1] * float(k not in HANDS) * prop
         let = int(k in soled)
         side = int(k in HANDS[len(touch.ARMS[0]):]) + let * foot.get(k, 0)
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
-        # an untold hand bears what it bears - her support's share (`latched`) -, held still by nothing: dropped, her
-        # hands' 150-210 N off a chair's seat let her support go mid-rise and her capture point stepped her in place
+        # an untold hand bears what it bears - its support's share (`latched`) -, held still by nothing: dropped, its
+        # hands' 150-210 N off a chair's seat let it support go mid-rise and its capture point stepped it in place
         if k in untold:
             continue
-        # the way its support pushes it: its contacts' normals as her edge has them (`edge.NORMAL`, world, unit), her
+        # the way its support pushes it: its contacts' normals as its edge has them (`edge.NORMAL`, world, unit), its
         # skin's own estimate where it has none (`_normal`), never against the push - a support only pushes
         nrm = R @ nrms[k] if (nrms[k] != 0.0).any() else _normal(k, at[k], R)
         nrm = nrm / math.sqrt((float(nrm[0]) * float(nrm[0]) + float(nrm[1]) * float(nrm[1])) + float(nrm[2]) * float(nrm[2]))
@@ -192,15 +192,15 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
 
 
 def latched(y, rot, a, dt):
-    """(her support off her soles, 0 or 1; (its box's low and high corners along and across in her
-    way's frame, that support)): what bears her - a seat, a bed, a knee's floor - on her support's
-    comparator, kept in `a` and stepped `dt` s on; its box held while what bears her is under its
-    release; her hands' share with the furniture's (`borne`): the furniture's alone, a hitch on her
-    hands let it go under the release and her soles stood under her again. Its share ramped to
-    PROP_ON, a brush of the bed's frame at the dock, 0.07 of her,
-    counted 0.07, her parry stepped her back into it and over the edge; reclining on the bed's edge
-    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from her support, her soles
-    lifted in turn and she slid onto the mattress."""
+    """(its support off its soles, 0 or 1; (its box's low and high corners along and across in its
+    way's frame, that support)): what bears it - a seat, a bed, a knee's floor - on its support's
+    comparator, kept in `a` and stepped `dt` s on; its box held while what bears it is under its
+    release; its hands' share with the furniture's (`borne`): the furniture's alone, a hitch on its
+    hands let it go under the release and its soles stood under it again. Its share ramped to
+    PROP_ON, a brush of the bed's frame at the dock, 0.07 of it,
+    counted 0.07, its parry stepped its back into it and over the edge; reclining on the bed's edge
+    it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from its support, its soles
+    lifted in turn and it slid onto the mattress."""
     share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]
     on = (1.0 - latched) * float(share >= PROP_ENGAGE)
     under = latched * float(share < PROP_RELEASE)
@@ -216,7 +216,7 @@ def latched(y, rot, a, dt):
 
 
 def named(g):
-    """Her step's contacts this pass, named (`introspect`'s `contacts` layer): the contacts her step was given
+    """Its step's contacts this pass, named (`introspect`'s `contacts` layer): the contacts its step was given
     (`motion.control`'s `solve_in`, else the reader's) - each its body ('sole0', 'sole1' a standing sole), patch,
     point p and felt force f, world (m, N), the normal n of what bears it, its give (m/s^2 a N) and its point's
     speed v (m/s)."""

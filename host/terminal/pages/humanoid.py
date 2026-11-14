@@ -1,4 +1,4 @@
-"""HUMANOID: a slender gynoid walking, her twenty joints on virtual actuators."""
+"""HUMANOID: a slender gynoid walking, its twenty joints on virtual actuators."""
 from terminal.loader import call, common
 
 HEADLINE, KEY, WHAT = 'HUMANOID', 'H', 'gynoid on virtual actuators'

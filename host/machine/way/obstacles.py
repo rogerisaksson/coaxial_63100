@@ -1,19 +1,19 @@
-"""Each floor point's cost among her things, whatever they are (smooth_interactive_wayfinder.lisp).
+"""Each floor point's cost among its things, whatever they are (smooth_interactive_wayfinder.lisp).
 
     nodes = obstacles.laws()                                     # the wayfinder's texts threaded: {node: params}
     d = obstacles.apart(points, things)                          # (N, M) m from each floor point to each footprint
     cost = obstacles.costed(points, things, floor, seen, slot, face)   # (N,) a metre's cost through each, inf blocked
     obstacles.LAYERS[':name'] = (phase, layer)                   # an extension's layer, its name on the text's :layers
 
-A thing is a box as her registry holds it (kind, centre, half sizes, turn, slot, clear, swell): a lump of
-her stereo's voxels turned by its footprint's fit (`voxels.FITS`), or the stand-in's prop. A point is
-blocked within a thing's footprint grown by her reach across her way in the bands it meets
+A thing is a box as its registry holds it (kind, centre, half sizes, turn, slot, clear, swell): a lump of
+its stereo's voxels turned by its footprint's fit (`voxels.FITS`), or the stand-in's prop. A point is
+blocked within a thing's footprint grown by its reach across its way in the bands it meets
 (`footprint.met`), half a cell and its swell - its blind spot's and its wake's; a free point costs 1 a
 metre and each layer's. A layer `layer(field, node)` moves {points, things, reach, ahead, margin, kept, d,
 cost, kinds, slots, centres, slot, face, seen}: a thing's first (phase 0), then a point's (phase 1), each in the
 text's order - `:class-margin` a kind's margin on its reach (recognition's, the one layer reading a kind),
-`:affordance-aperture` the thing she goes to opened before its face, `:clearance` w exp(-m / decay) at m
-past the nearest grown footprint she keeps off, `:unknown` w where her eyes have seen nothing.
+`:affordance-aperture` the thing it goes to opened before its face, `:clearance` w exp(-m / decay) at m
+past the nearest grown footprint it keeps off, `:unknown` w where its eyes have seen nothing.
 """
 import functools
 import math
@@ -28,18 +28,18 @@ from machine.body import footprint
 from machine.texts import kernel
 from machine.eyes import voxels
 
-#: The wayfinder's texts in order: her base, then the specializers threaded after it - what she goes to docked as
-#: furniture: her errands go to a seat, a bed and the door, the door no slot of hers (`machine.way.dock`).
+#: The wayfinder's texts in order: its base, then the specializers threaded after it - what it goes to docked as
+#: furniture: its errands go to a seat, a bed and the door, the door no slot of its own (`machine.way.dock`).
 STAGES = ('xform-smooth-interactive-stereo-navigator', 'specialize-nav-zero-distance-furniture-dock')
-#: Her reach across her way: her walk's directions within a direction's step of her sides; her strides' lies
-#: along it. One radius for all (0.215 m) let her hand meet a chair's back.
+#: Its reach across its way: its walk's directions within a direction's step of its sides; its strides' lies
+#: along it. One radius for all (0.215 m) let it hand meet a chair's back.
 ACROSS = [k for k in range(footprint.K)
           if abs(math.cos(2.0 * math.pi * k / footprint.K)) <= math.sin(2.0 * math.pi / footprint.K) + 1e-9]
 
 
 @functools.cache
 def laws(stages=STAGES):
-    """{node: params} of the wayfinder's texts `stages` threaded over her nominal gait in order."""
+    """{node: params} of the wayfinder's texts `stages` threaded over its nominal gait in order."""
     from machine.texts import dsp
     got = kernel.read()
     g = got['nominal-biped-gait']
@@ -84,24 +84,24 @@ def _class_margin(field, node):
 
 
 def _clearance(field, node):
-    """w exp(-m / decay) a metre at m past the nearest grown footprint of those she keeps off: her way
-    kept off them where the room leaves her the width."""
+    """w exp(-m / decay) a metre at m past the nearest grown footprint of those it keeps off: its way
+    kept off them where the room leaves it the width."""
     m = np.where(field['kept'][None, :], field['d'] - field['margin'], math.inf).min(axis=1, initial=math.inf)
     field['cost'] = field['cost'] + node['clearance-weight'] * np.exp(-np.maximum(m, 0.0) / (1e-3 * node['clearance-decay-mm']))
 
 
 def _unknown(field, node):
-    """w a metre where her eyes have seen nothing."""
+    """w a metre where its eyes have seen nothing."""
     field['cost'] = field['cost'] + node['unknown-weight'] * (1.0 - field['seen'])
 
 
 def _affordance_aperture(field, node):
-    """The thing she goes to (`slot`) and the things standing within its footprint - a seat's legs -
+    """The thing it goes to (`slot`) and the things standing within its footprint - a seat's legs -
     opened before its `face`, its outward normal: their margins at each point the blend by s = ((1 +
-    cos t) / 2)^gamma, t the point's bearing from its centre off `face`, of her reach across her way (s
-    0: behind it, round its corners) and her reach ahead with the text's standoff (s 1: before its face,
-    walked in on head on) - `carve-anisotropic-affordance-docking-funnel`. Her swinging foot reaches
-    0.32 m ahead, 0.24 across: low, it opens nothing; from her hips up her reach ahead is the less."""
+    cos t) / 2)^gamma, t the point's bearing from its centre off `face`, of its reach across its way (s
+    0: behind it, round its corners) and its reach ahead with the text's standoff (s 1: before its face,
+    walked in on head on) - `carve-anisotropic-affordance-docking-funnel`. Its swinging foot reaches
+    0.32 m ahead, 0.24 across: low, it opens nothing; from its hips up its reach ahead is the less."""
     funnel = laws()['docking-funnel']
     goes = (field['slots'] == field['slot']) & (field['slot'] >= 0) & (field['face'] is not None) & (funnel['selector'] != ':none')
     if not goes.any():
@@ -127,8 +127,8 @@ LAYERS = {':class-margin': (0, _class_margin), ':affordance-aperture': (1, _affo
 def costed(points, things, floor, seen, slot=-1, face=None):
     """(N,) a metre's cost walked through each floor point (N, 2) among `things` over `floor`: inf
     within a thing's grown footprint, else 1 and each of the text's layers (`laws()['costmap']`), a
-    thing's before a point's; `seen` (N,) 1 where her eyes have seen, `slot` the thing she goes to,
-    `face` (x, z) the outward normal of its face she docks at, None for none."""
+    thing's before a point's; `seen` (N,) 1 where its eyes have seen, `slot` the thing it goes to,
+    `face` (x, z) the outward normal of its face it docks at, None for none."""
     node = laws()['costmap']
     things = boxes(things)
     meets, toward = footprint.met(things, floor, footprint.reach('walk'))

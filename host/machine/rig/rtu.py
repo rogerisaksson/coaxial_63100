@@ -1,4 +1,4 @@
-"""Modbus RTU as her buses speak it: CRC-16, the frames a pass sends and a board answers.
+"""Modbus RTU as its buses speak it: CRC-16, the frames a pass sends and a board answers.
 
     crc16(b'123456789') == CHECK_VALUE
     broadcast(1, [mdeg, ..]); poll(unit); gate(unit, op)     # the host's bytes

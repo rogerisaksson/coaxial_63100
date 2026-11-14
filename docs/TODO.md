@@ -22,9 +22,9 @@ the table under [Subjects](#subjects).
 - Avoid all conditional logic (`if`-statements, boolean gates, discrete mode
   switches, string-name checks and hard thresholds) in favour of continuous
   physical and mathematical formulas: SE(3) kinematics, Euler-Lagrange
-  dynamics, smooth convex blends and support-polygon projections. Whether she
+  dynamics, smooth convex blends and support-polygon projections. Whether it
   walks, stands, sits on a chair, lies on a bed or leans on an obstacle is
-  implicit in her continuous SE(3) and modal state vectors; discrete labels
+  implicit in its continuous SE(3) and modal state vectors; discrete labels
   project strictly outward (`machine.senses.situation` -> `state['situation']`).
 - A special case means the problem needs a more general form.
 
@@ -33,9 +33,9 @@ the table under [Subjects](#subjects).
 | Subject | File |
 | --- | --- |
 | Scenarios, by the general case: each a test in MuJoCo, in order | [todo/scenarios.md](todo/scenarios.md) |
-| The somatic dual-domain kernel: its seven steps on her loop, its five tests in the lodge | [todo/protocol.md](todo/protocol.md) |
-| The 32 base moves: each on her loop, as her texts, or a gap with its prerequisite | [todo/moves.md](todo/moves.md) |
+| The somatic dual-domain kernel: its seven steps on its loop, its five tests in the lodge | [todo/protocol.md](todo/protocol.md) |
+| The 32 base moves: each on its loop, as its texts, or a gap with its prerequisite | [todo/moves.md](todo/moves.md) |
 | The bench: what the board has still to show | [todo/bench.md](todo/bench.md) |
 | Flight pages: the crafts in wind, the aerobat's landing | [todo/flight.md](todo/flight.md) |
-| Host: native://, identification on the robot, her law compiled | [todo/host.md](todo/host.md) |
-| Her wayfinder: her dock and her way round her things, planned apart | [todo/wayfinder.md](todo/wayfinder.md) |
+| Host: native://, identification on the robot, its law compiled | [todo/host.md](todo/host.md) |
+| Its wayfinder: its dock and its way round its things, planned apart | [todo/wayfinder.md](todo/wayfinder.md) |

@@ -1,17 +1,17 @@
-"""Her wayfinder and her map (docs/todo/protocol.md): a gap's width across her way, what her looks told her.
+"""Its wayfinder and its map (docs/todo/protocol.md): a gap's width across its way, what its looks told it.
 
-The gauge's width through a doorway and the trunk's twist that fits her through it; her registry's slots
-by her looks, in and out of her eyes' frustum."""
+The gauge's width through a doorway and the trunk's twist that fits it through it; its registry's slots
+by its looks, in and out of its eyes' frustum."""
 import sys
 
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
 
-def test_the_wayfinder_gauges_her_way(report):
-    """The wayfinder's gauge (`machine.way.wayfinder`): the free width across her way through a doorway and
-    inside its post; the trunk's twist that fits her through a gap - none square on, past twice
-    atan(depth / across) under her shoulders, the text's most past her contorted width."""
+def test_the_wayfinder_gauges_its_way(report):
+    """The wayfinder's gauge (`machine.way.wayfinder`): the free width across its way through a doorway and
+    inside its post; the trunk's twist that fits it through a gap - none square on, past twice
+    atan(depth / across) under its shoulders, the text's most past its contorted width."""
     import math
     import numpy as np
     from machine.way import wayfinder as w
@@ -24,7 +24,7 @@ def test_the_wayfinder_gauges_her_way(report):
     first = 2.0 * math.atan2(depth, across)
     twists = [w.sliced(f * across, across, depth) for f in (1.2, 0.99, 0.8, 0.3)]
     report.check('a doorway 1.0 m between its posts (a low box under the band not), 4.0 past them, 0 in a post; '
-                 'her chest %.0f mm across, %.0f deep: twists %s deg at 1.2, 0.99, 0.8, 0.3 of it'
+                 'its chest %.0f mm across, %.0f deep: twists %s deg at 1.2, 0.99, 0.8, 0.3 of it'
                  % (1e3 * across, 1e3 * depth, [round(math.degrees(t), 1) for t in twists]),
                  bool(np.allclose(widths, (1.0, 4.0, 0.0))) and twists[0] == 0.0 and twists[1] >= first
                  and twists[1] < twists[2] <= w.TWIST and twists[3] == w.TWIST
@@ -43,17 +43,17 @@ def test_the_wayfinder_gauges_her_way(report):
             way /= np.linalg.norm(way)
             a, b = (float(w.gap(c, h, r, at, way, 0.0, w.NOMINAL)) for c, h, r in ((laid['centre'], laid['half'], laid['R']), plain))
             off += a != b
-    report.check('her room\'s boxes laid to a doubling\'s capacity gauge every gap the same to the bit: %s' % counts,
+    report.check('its room\'s boxes laid to a doubling\'s capacity gauge every gap the same to the bit: %s' % counts,
                  off == 0 and counts == {0: 0, 1: 1, 3: 4, 5: 8, 12: 16, 64: 64, 65: 128, 107: 128}, '%d gaps off' % off)
 
 
-def test_her_map_keeps_what_her_looks_told(report):
-    """Her registry (`machine.eyes.registry`): three things before her looked at thrice confirmed, none behind
-    her; a chair shoved at 1 m/s under the stand-in's looks (8 ms apart) kept one slot, moving once its
+def test_its_map_keeps_what_its_looks_told(report):
+    """Its registry (`machine.eyes.registry`): three things before its looked at thrice confirmed, none behind
+    it; a chair shoved at 1 m/s under the stand-in's looks (8 ms apart) kept one slot, moving once its
     drift passes the text's chi2, its velocity within 5 %; a pane 1.1 m from its twin never takes its
-    slot; a thing before her unseen pruned at the text's rate, her head aside; the lamp out of her view
+    slot; a thing before its unseen pruned at the text's rate, its head aside; the lamp out of its view
     kept 45 s, swollen 1.5 mm/s to 120 mm, missed past them; 256 kinds in one look, a 257th takes the least
-    salient's slot, not the thrice-seen one's; her buses' boxes the slots at 1.8."""
+    salient's slot, not the thrice-seen one's; its buses' boxes the slots at 1.8."""
     import math
     import numpy as np
     from machine.eyes import registry
@@ -77,7 +77,7 @@ def test_her_map_keeps_what_her_looks_told(report):
     panes = registry.laid()
     registry.seen(panes, [('glass', (0.0, 1.2, 3.0), (0.01, 1.0, 0.5), eye)], head, 0.0)
     registry.seen(panes, [('glass', (1.1, 1.2, 3.0), (0.01, 1.0, 0.5), eye)], head, 0.1)
-    report.check("three things before her thrice looked at: salience %.2f each, confirmed, the bed behind her none; the "
+    report.check("three things before its thrice looked at: salience %.2f each, confirmed, the bed behind its none; the "
                  "chair shoved at 1 m/s one slot, moving from its %s. look at %.2f m/s; a pane's twin 1.1 m off its own slot"
                  % (first[0], flagged, speed),
                  first == [3 * registry.HIT] * 3 and all(v >= registry.CONFIRM for v in first) and int(r['on'].sum()) == 3
@@ -96,7 +96,7 @@ def test_her_map_keeps_what_her_looks_told(report):
     swell_kept, sal_kept = float(r['swell'][2]), float(r['salience'][2])
     registry.seen(slots, [], turned, t + registry.KEPT_S + 1.0)
     registry.passed(slots, turned, 100.0)
-    report.check('the table unseen before her pruned after %d looks from %.2f, her head aside; the lamp out of view kept at '
+    report.check('the table unseen before its pruned after %d looks from %.2f, its head aside; the lamp out of view kept at '
                  '%.2f, swollen %.1f mm after 45 s, then missed once, %.0f mm at most'
                  % (looks, had, sal_kept, 1e3 * swell_kept, 1e3 * float(r['swell'][2])),
                  looks == math.ceil((had - registry.PRUNE) / -registry.MISS)
@@ -115,12 +115,12 @@ def test_her_map_keeps_what_her_looks_told(report):
                  and len(taken) == 1 and taken[0][0] == 'thing0' and tuple(taken[0][1]) == at, str(full['kinds'][:3]))
 
 
-def test_her_wayfinder_apart(report):
-    """Her wayfinder apart (`machine.way.planner`): the lodge's chair docked by her planner's process at once,
-    as answered here, her way to it watched LATENCY_S on, none before; what affords a verb kept of hers and of things
-    given her each (`furniture._afforded`); a table top she goes to opened to her reach ahead
-    before its face, behind it her reach across (`:affordance-aperture`); the text's clothoid her
-    arc's, its rate her arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
+def test_its_wayfinder_apart(report):
+    """Its wayfinder apart (`machine.way.planner`): the lodge's chair docked by its planner's process at once,
+    as answered here, its way to it watched LATENCY_S on, none before; what affords a verb kept of its own and of things
+    given it each (`furniture._afforded`); a table top it goes to opened to its reach ahead
+    before its face, behind it its reach across (`:affordance-aperture`); the text's clothoid its
+    arc's, its rate its arc over a step (smooth_interactive_wayfinder.lisp as fitted)."""
     import math
     import numpy as np
     from machine.way import furniture, obstacles, planner, route
@@ -135,21 +135,21 @@ def test_her_wayfinder_apart(report):
         worker.stepped(s)
     floor = min(float(f['sole'][1]) for f in g['s']['feet'])
     box = furniture.nearest(g, 'sit_chair')[6]
-    # her errand's look asks of hers and of things given it each pass (`words._seen`, `words._glimpsed`): each kept
+    # its errand's look asks of its own and of things given it each pass (`words._seen`, `words._glimpsed`): each kept
     given, anew = list(g['things']), furniture._afforded({'things': g['things']}, 'sit_chair')
-    hers, theirs = furniture._afforded(g, 'sit_chair'), furniture._afforded(g, 'sit_chair', given)
+    its_own, theirs = furniture._afforded(g, 'sit_chair'), furniture._afforded(g, 'sit_chair', given)
     kept = furniture._afforded(g, 'sit_chair') + furniture._afforded(g, 'sit_chair', given)
     alike = lambda a, b: len(a) == len(b) and all(p is q and own == mine for (p, own), (q, mine) in zip(a, b))
-    report.check('what affords her sitting told of hers and of things given her, each kept: neither anew for the other',
-                 all(a is b for a, b in zip(kept, hers + theirs)) and bool(anew[1])
-                 and alike(hers[1], anew[1]) and alike(theirs[1], anew[1]), '%d afford it' % len(anew[1]))
+    report.check('what affords its sitting told of its own and of things given it, each kept: neither anew for the other',
+                 all(a is b for a, b in zip(kept, its_own + theirs)) and bool(anew[1])
+                 and alike(its_own[1], anew[1]) and alike(theirs[1], anew[1]), '%d afford it' % len(anew[1]))
     ask = {'kind': 'dock', 'at': (0.0, 0.0), 'yaw': 0.0, 'still': True, 'things': list(g['things']), 'floor': floor,
            'seen': None, 'slot': int(box[4]) if box is not None else -1, 'face': None, 'to': None, 'warm': (),
            'dock': ('sit_chair', box, maneuver.standoff('sit_chair')), 'passed': 0.0, 'way': ()}
     here: dict = planner.answered(ask)
     laid = here.get('laid') or {}
     told = early = watched = None
-    # no dock laid, no way to watch: a watch of none killed her planner's process and the suite with it
+    # no dock laid, no way to watch: a watch of none killed its planner's process and the suite with it
     if 'stage' in laid:
         watch = dict(ask, kind='watch', to=laid['stage'], face=laid['face'], way=[(0.0, 0.0), laid['stage']])
         p = planner.Planner()
@@ -169,15 +169,15 @@ def test_her_wayfinder_apart(report):
     report.check('the top before its face blocked 0.30 m out, free 0.36 (0.38 plain); behind it blocked both',
                  list(plain) == [True, True, True, True] and list(opened) == [True, False, True, True], '%s %s' % (plain, opened))
     c = obstacles.laws()['clothoid']
-    report.check('the clothoid within her arc (%.2f /m), its rate her arc over a step (%.2f /m s)' % (c['kappa-max'], c['dkappa-max']),
+    report.check('the clothoid within its arc (%.2f /m), its rate its arc over a step (%.2f /m s)' % (c['kappa-max'], c['dkappa-max']),
                  math.isclose(c['kappa-max'], 1.0 / route.ARC_M, abs_tol=0.01)
                  and math.isclose(c['dkappa-max'], 1.0 / route.ARC_M / (0.5 * se2.BRAKE_S), abs_tol=0.01), str(c))
 
 
-def test_her_gaps_as_numpys_einsums(report):
-    """Her gaps to her things (`footprint.gaps`, its sums over pairs written out, her things' arrays laid once a list)
-    and her floor's distances to them (`obstacles.apart`, the same) as numpy's einsums give them (`footprint.gaps_twin`,
-    `obstacles.apart_twin`), bit for bit at every read her planner makes docking at the lodge's chair, its bed and its
+def test_its_gaps_as_numpys_einsums(report):
+    """Its gaps to its things (`footprint.gaps`, its sums over pairs written out, its things' arrays laid once a list)
+    and its floor's distances to them (`obstacles.apart`, the same) as numpy's einsums give them (`footprint.gaps_twin`,
+    `obstacles.apart_twin`), bit for bit at every read its planner makes docking at the lodge's chair, its bed and its
     door; each box's top clear under the lodge's seat and bed slabs read of all at once (`affordance.Boxes`) as one by
     one."""
     import numpy as np
@@ -232,7 +232,7 @@ def test_her_gaps_as_numpys_einsums(report):
     finally:
         footprint.gaps, obstacles.apart = real, real_apart
         physics.ROOM, physics.SIGHT = was
-    report.check('her gaps and her floor\'s distances as numpy\'s einsums docking at the chair, the bed and the door: '
+    report.check('its gaps and its floor\'s distances as numpy\'s einsums docking at the chair, the bed and the door: '
                  '%(calls)d reads, %(cells)d gaps, %(costs)d floors; %(clears)d tops clear at once' % tally,
                  tally['calls'] > 100 and tally['costs'] > 5 and tally['clears'] > 100 and not tally['apart'],
                  '%(apart)d apart' % tally)
@@ -241,7 +241,7 @@ def test_her_gaps_as_numpys_einsums(report):
 def test_the_planner_and_errand_rows_do_not_toggle(report):
     """`route.planned` within `passed` next to grown cells returns empty stops instead of detouring out and back;
     and `errand.step_errand` in `'settle'` and `'done'` ignores standing postural sway velocity (`s_perp_side`) when
-    her position `s_perp` is within `lat_tol`, waiting for `still` before re-settling from `'done'`."""
+    its position `s_perp` is within `lat_tol`, waiting for `still` before re-settling from `'done'`."""
     import numpy as np
     from machine.law import latent
     from machine.process import worker
@@ -340,8 +340,8 @@ def test_the_planner_and_errand_rows_do_not_toggle(report):
                  (stale['x_dock'], risen[0]))
 
 
-ROSTER = (test_the_wayfinder_gauges_her_way, test_her_map_keeps_what_her_looks_told, test_her_wayfinder_apart,
-          test_her_gaps_as_numpys_einsums, test_the_planner_and_errand_rows_do_not_toggle)
+ROSTER = (test_the_wayfinder_gauges_its_way, test_its_map_keeps_what_its_looks_told, test_its_wayfinder_apart,
+          test_its_gaps_as_numpys_einsums, test_the_planner_and_errand_rows_do_not_toggle)
 
 
 def main(argv=None):

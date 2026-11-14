@@ -1,7 +1,7 @@
 """A compiled part's glue written out once a build: its result's views, its arguments' checks and walk.
 
     made = glue.maker(shape, outs)    # (block, args) -> fn's result, each leaf a view of the block
-    head = glue.head(bound)           # args -> whether her body, the pins and the checks are as traced
+    head = glue.head(bound)           # args -> whether its body, the pins and the checks are as traced
     walk = glue.walk(bound, todo)     # args -> whether each leaf fits, its extern addressed (`Bound.fits`)
 
 Each a Python function of straight lines, its paths, shapes and places constants of the build: a loop
@@ -66,7 +66,7 @@ def _written(name, lines, consts, space) -> Callable[[tuple], bool]:
 
 
 def head(b):
-    """Bound `b`'s fits before its leaves: her body the one bound and its constants the trace's, each
+    """Bound `b`'s fits before its leaves: its body the one bound and its constants the trace's, each
     pinned value the same, each dict's keys and each list's length as traced."""
     consts, lines = [], []
 

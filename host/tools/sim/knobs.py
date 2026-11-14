@@ -1,4 +1,4 @@
-"""A handover spec's knobs: JSON, TOML or key=value overrides on her texts and gait tables.
+"""A handover spec's knobs: JSON, TOML or key=value overrides on its texts and gait tables.
 
     texts = knobs.arranged(handover.parsed('sea=143,track=12,edge=0.1'))   # the texts given (tune.given), or None
 

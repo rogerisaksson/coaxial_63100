@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Her compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
-of her law walking given twins of its arguments made alike -, and her step asked in C (quick_step.c) beside its Python
+"""Its compiled parts called whole in C (`tools.cores.quick`'s runner, quick_run.c) beside their Python glue - each part
+of its law walking given twins of its arguments made alike -, and its step asked in C (quick_step.c) beside its Python
 from the same struct: both ways' results the same trees, types, views and bits at every call."""
 import os
 import sys
@@ -12,7 +12,7 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: Her walk's passes; her lie into a bed and her rise off it, s.
+#: The robot's walk's passes; its lie into a bed and its rise off it, s.
 PASSES, LIE_S, RISE_S = 3000, 12.0, 8.0
 
 
@@ -40,13 +40,13 @@ def _apart(a, b):
 
 
 def test_a_part_called_whole_in_c_as_by_its_glue(report, c):
-    """Each compiled part of her law walking, called whole in C (its head, walk, C and result's views) and through its
-    Python glue on twins of its arguments made alike - its turn kept as her own call finds it -: their results the
+    """Each compiled part of its law walking, called whole in C (its head, walk, C and result's views) and through its
+    Python glue on twins of its arguments made alike - its turn kept as its own call finds it -: their results the
     same trees, types, views and bits at every call."""
     from machine.process import worker
     from tools.cores import bodied, quick
     if quick.module() is None:
-        report.check('her parts called whole in C, where the extension is built', True, 'not built here')
+        report.check('its parts called whole in C, where the extension is built', True, 'not built here')
         return
     tally, call = {'calls': 0, 'apart': 0, 'parts': set()}, bodied.Compiled.__call__
 
@@ -68,7 +68,7 @@ def test_a_part_called_whole_in_c_as_by_its_glue(report, c):
             worker.stepped(s)
     finally:
         bodied.Compiled.__call__ = call
-    report.check('her parts called whole in C as by their glue, %d calls over %d parts walking'
+    report.check('its parts called whole in C as by their glue, %d calls over %d parts walking'
                  % (tally['calls'], len(tally['parts'])),
                  tally['calls'] > 100 and len(tally['parts']) >= 15 and not tally['apart'], '%d apart' % tally['apart'])
 
@@ -84,8 +84,8 @@ def _numbers(k):
                     for name, t in type(k)._fields_ if not pointer(t))
 
 
-def test_her_step_asked_in_c_as_by_python(report, c):
-    """Her step's ask and senses laid into its struct, its C called and its answer made in one C call (quick_step.c)
+def test_its_step_asked_in_c_as_by_python(report, c):
+    """Its step's ask and senses laid into its struct, its C called and its answer made in one C call (quick_step.c)
     beside `_stepped`'s Python from the same struct - lying into a bed, rising off it and walking -: every answer the
     same trees, types, views and bits, `b.load` too, and the struct but its pointers the same after."""
     import ctypes
@@ -93,7 +93,7 @@ def test_her_step_asked_in_c_as_by_python(report, c):
     from tools.cores import quick, step as cs
     from tools.sim import told
     if quick.module() is None:
-        report.check('her step asked in C, where the extension is built', True, 'not built here')
+        report.check('its step asked in C, where the extension is built', True, 'not built here')
         return
     tally, real = {'calls': 0, 'apart': 0, 'miss': 0, 'contacts': 0}, cs._stepped
 
@@ -129,11 +129,11 @@ def test_her_step_asked_in_c_as_by_python(report, c):
             worker.stepped(s)
     finally:
         cs._stepped = real
-    report.check('her step asked in C as by Python, %(calls)d calls over %(contacts)d contacts (%(miss)d missed)' % tally,
+    report.check('its step asked in C as by Python, %(calls)d calls over %(contacts)d contacts (%(miss)d missed)' % tally,
                  tally['calls'] > 3000 and tally['contacts'] > 1000 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_her_step_asked_in_c_as_by_python)
+ROSTER = (test_a_part_called_whole_in_c_as_by_its_glue, test_its_step_asked_in_c_as_by_python)
 
 
 def main(argv=None):

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""What bears her off her soles in C (`tools.cores.borne`, wbc_borne.c) beside its python (`borne.read`, her seat's
-cone `emancipation.seated`): at every pass of her law lying into a bed from its end and walking, on her arrays, her
+"""What bears it off its soles in C (`tools.cores.borne`, wbc_borne.c) beside its python (`borne.read`, its seat's
+cone `emancipation.seated`): at every pass of its law lying into a bed from its end and walking, on its arrays, its
 support, palms and every contact bit for bit - each push turned to the world, its room, its Jacobian and drift
-MuJoCo's own, her seat's corners -, a read's time beside its python's."""
+MuJoCo's own, its seat's corners -, a read's time beside its python's."""
 import os
 import sys
 import time
@@ -14,13 +14,13 @@ import numpy as np
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: Her lie into a bed from its end and her rise off it, s; her walk's passes.
+#: The robot's lie into a bed from its end and its rise off it, s; its walk's passes.
 LIE_S, RISE_S, WALK_PASSES = 12.0, 8.0, 9000
 
 
-def test_what_bears_her_in_c_as_in_python(report, c):
-    """Her C read (`g['borne']`) and `borne.read` on the same arrays at every pass of her law: lying into the bed,
-    several segments bearing her at once, and walking - her support's share and box, her palms, every contact's
+def test_what_bears_it_in_c_as_in_python(report, c):
+    """Its C read (`g['borne']`) and `borne.read` on the same arrays at every pass of its law: lying into the bed,
+    several segments bearing it at once, and walking - its support's share and box, its palms, every contact's
     point, push, Jacobian, drift, patch, side, room, body and give bit for bit; a read's time beside its python's."""
     from machine.moves import emancipation
     from machine.process import worker
@@ -70,22 +70,22 @@ def test_what_bears_her_in_c_as_in_python(report, c):
     held(s['g'])
     for _ in range(WALK_PASSES):
         worker.stepped(s)
-    line = "%d reads, %d contacts (%d at once at most, %d her seat's corners), %d apart, %.3g at most" % (
+    line = "%d reads, %d contacts (%d at once at most, %d its seat's corners), %d apart, %.3g at most" % (
         tally['reads'], tally['contacts'], tally['most'], tally['corners'], tally['apart'], tally['by'])
     if c_motion.exact_host():
-        report.check("what bears her in C is her python bit for bit lying into a bed and walking, her seat's cone too",
+        report.check("what bears it in C is its python bit for bit lying into a bed and walking, its seat's cone too",
                      tally['reads'] > 1000 and tally['most'] >= 3 and tally['corners'] > 0 and not tally['apart'], line)
     else:
-        report.check("what bears her in C is her python within its last bits where numpy dispatches elsewhere",
+        report.check("what bears it in C is its python within its last bits where numpy dispatches elsewhere",
                      tally['reads'] > 1000 and tally['most'] >= 3 and tally['corners'] > 0 and not tally['unlike']
                      and tally['by'] <= 1e-9, line)
     us = [1e6 * float(np.median(each)) for each in spent]
-    report.check('a read of what bears her in C on this host', us[0] < us[1], '%.1f us, its python %.1f' % tuple(us))
+    report.check('a read of what bears it in C on this host', us[0] < us[1], '%.1f us, its python %.1f' % tuple(us))
 
 
-def test_her_supports_in_c_as_in_python(report, c):
-    """Her supports besides her soles in C on borne's contacts as read (`tools.cores.borne.supported`) and
-    `emancipation.supports` on their dicts at every pass of her law lying into a bed, rising off it and walking: her
+def test_its_supports_in_c_as_in_python(report, c):
+    """Its supports besides its soles in C on borne's contacts as read (`tools.cores.borne.supported`) and
+    `emancipation.supports` on their dicts at every pass of its law lying into a bed, rising off it and walking: its
     points, their rooms and each leg's own the same shapes and bits."""
     from machine.moves import emancipation
     from machine.process import worker
@@ -115,12 +115,12 @@ def test_her_supports_in_c_as_in_python(report, c):
     held(s['g'])
     for _ in range(WALK_PASSES // 3):
         worker.stepped(s)
-    report.check('her supports in C as in python lying, rising and walking: %(calls)d law passes (%(felt)d with more than '
-                 'her soles, %(most)d points at most)' % tally,
+    report.check('its supports in C as in python lying, rising and walking: %(calls)d law passes (%(felt)d with more than '
+                 'its soles, %(most)d points at most)' % tally,
                  tally['calls'] > 1000 and tally['felt'] > 100 and not tally['apart'], '%(apart)d apart' % tally)
 
 
-ROSTER = (test_what_bears_her_in_c_as_in_python, test_her_supports_in_c_as_in_python)
+ROSTER = (test_what_bears_it_in_c_as_in_python, test_its_supports_in_c_as_in_python)
 
 
 def main(argv=None):

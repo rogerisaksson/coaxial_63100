@@ -1,27 +1,27 @@
-"""What of her touches what is not hers, the world's truth: what struck, how hard, how fast.
+"""What of its touches what is not its own, the world's truth: what struck, how hard, how fast.
 
-    struck.touching(world)        # {her body's name: [N on it, the fastest it closes on what it touches, m/s]}
+    struck.touching(world)        # {its body's name: [N on it, the fastest it closes on what it touches, m/s]}
 
-Her world's contacts between a body of hers (her pelvis's tree) and one not hers, each its normal force
+Its world's contacts between a body of its own (its pelvis's tree) and one not its own, each its normal force
 (`mj_contactForce`) and its point's speed into the other (`mj_objectVelocity`, the body's turn about its centre
-of mass), summed and the fastest kept a body of hers - as no sense of hers tells it: the landing analyzer's
+of mass), summed and the fastest kept a body of its own - as no sense of its own tells it: the landing analyzer's
 (`machine.analyzers.landing`) and the fall probe's (`tools/sim/falls.py`), introspect's `ground` layer.
 """
 import functools
 
 
 @functools.cache
-def _hers(m):
-    """(her root's id, each body's name) of the world's model `m`."""
+def _robots(m):
+    """(its root's id, each body's name) of the world's model `m`."""
     return int(m.body_rootid[m.body('pelvis').id]), tuple(m.body(k).name for k in range(m.nbody))
 
 
 def touching(world):
-    """{her body's name: [the normal force on it, N; the fastest any point of it closes on what it touches,
-    m/s]} this pass, of `world` (`physics.World`): 121 us with her two soles down, twenty contacts."""
+    """{its body's name: [the normal force on it, N; the fastest any point of it closes on what it touches,
+    m/s]} this pass, of `world` (`physics.World`): 121 us with it two soles down, twenty contacts."""
     import numpy as np
     m, d, mj = world.model, world.data, world._mj
-    root, names = _hers(m)
+    root, names = _robots(m)
     con, f6 = d.contact, np.zeros(6)
     b1, b2 = m.geom_bodyid[con.geom1], m.geom_bodyid[con.geom2]
     h1 = m.body_rootid[b1] == root

@@ -1,6 +1,6 @@
-"""The kernel's mechanisms apart from her scenes (docs/todo/protocol.md): its bank, shield, box, probe.
+"""The kernel's mechanisms apart from its scenes (docs/todo/protocol.md): its bank, shield, box, probe.
 
-Its lowering and bank, her body schema and its shield, her drives' back-EMF box, the phase-margin
+Its lowering and bank, its body schema and its shield, its drives' back-EMF box, the phase-margin
 probe, the wayfinder."""
 import sys
 
@@ -10,8 +10,8 @@ from gynoid_kit import Report
 
 def test_the_lowering_lays_the_texts_abi(report):
     """The room's schedule lowered (`machine.texts.lowering`): C lays every section where Python does, the
-    text's offsets held by wbc_soa.h; each bank's fields as its gait says them in SI over her
-    nominal's, a field past its bounds clamped; each node's biquad the text's, seeded on her value."""
+    text's offsets held by wbc_soa.h; each bank's fields as its gait says them in SI over its
+    nominal's, a field past its bounds clamped; each node's biquad the text's, seeded on its value."""
     import numpy as np
     from machine.texts import dsp, kernel, lowering as L
     from machine.process import rcu
@@ -24,8 +24,8 @@ def test_the_lowering_lays_the_texts_abi(report):
     banks = [b for _seg, b in L.scheduled(got['compile-complete-humanoid-soa']) if b is not None]
     room, stairs = banks[0], banks[-1]
     fast = L.lowered(dsp.value(['->', 'nominal-biped-gait', ['quantize-grid', ':bpm', 600.0]], got))
-    report.check('four banks; the room 110 BPM as 1.833 Hz, its sole 32 mm, its track her nominal 103 mm where '
-                 'her world says it, shins 32 mm; the stairs 1.5 Hz, 15 /s and 16 mm, thorax 0.06 rad; 600 BPM at 4 Hz',
+    report.check('four banks; the room 110 BPM as 1.833 Hz, its sole 32 mm, its track its nominal 103 mm where '
+                 'its world says it, shins 32 mm; the stairs 1.5 Hz, 15 /s and 16 mm, thorax 0.06 rad; 600 BPM at 4 Hz',
                  len(banks) == 4 and abs(L.field(room, 'bpm') - 110.0 / 60.0) < 1e-6
                  and abs(L.field(room, 'sole-stack-z-mm') - 0.032) < 1e-7 and abs(L.field(room, 'track-width-mm') - 0.103) < 1e-7
                  and abs(L.field(room, 'min-shin-clearance-mm') - 0.032) < 1e-7
@@ -49,8 +49,8 @@ def test_the_lowering_lays_the_texts_abi(report):
 
 
 def test_a_bank_swaps_with_no_step(report):
-    """A bank published over her link (`machine.process.rcu`) and taken by her loop's C side: its biquad in C
-    bit for bit Python's; her thorax's filter settled on one bank, the next lowered on her value goes
+    """A bank published over its link (`machine.process.rcu`) and taken by its loop's C side: its biquad in C
+    bit for bit Python's; its thorax's filter settled on one bank, the next lowered on its value goes
     on with no step where an unseeded one drops."""
     import numpy as np
     from machine.texts import kernel, lowering as L
@@ -60,13 +60,13 @@ def test_a_bank_swaps_with_no_step(report):
     x = (0.3 + 0.05 * rng.standard_normal(500)).astype(np.float32)
     a = L.lowered(got['nominal-biped-gait'], {node: float(x[0])})
     link = rcu.Link.made(((4, 2),), 1, L.SIZE // 8)
-    her = rcu.Link.found(link.name)
+    robot = rcu.Link.found(link.name)
     sent = link.published(L.words(a))
-    taken = her.taken()
+    taken = robot.taken()
     y = np.zeros(len(x), np.float32)
     if taken is not None:
         rcu._core().wbh_soa_biquad(taken[1].ctypes.data, L.NODES.index(node), x.ctypes.data, y.ctypes.data, len(x))
-    her.closed()
+    robot.closed()
     link.closed()
     mine = a.copy()
     ours = np.array([L.biquad(mine, node, v) for v in x], np.float32)
@@ -96,8 +96,8 @@ def _brute(caps, pairs, steps=20001):
     return np.array(out)
 
 
-def test_the_body_schema_lays_her_capsules(report):
-    """The text's 18 capsules on her skin (`machine.law.schema`): her segments, the barriers' floors;
+def test_the_body_schema_lays_its_capsules(report):
+    """The text's 18 capsules on its skin (`machine.law.schema`): its segments, the barriers' floors;
     two capsules' nearest axes as a fine walk finds them, parallel, offset and a sphere among them;
     the log-sum-exp under the least by at most log(n) / alpha."""
     import numpy as np
@@ -117,7 +117,7 @@ def test_the_body_schema_lays_her_capsules(report):
     soft = capsules.smooth(d)
     named = dict(zip(capsules.NAMES, capsules.SEGMENT))
     floors = {tuple(capsules.NAMES[k] for k in pair): f for pair, f in zip(capsules.PAIRS, capsules.FLOOR)}
-    report.check('%d capsules on her segments, the feet 7.5 mm apart at least, shanks 12, forearm and hips 15, '
+    report.check('%d capsules on its segments, the feet 7.5 mm apart at least, shanks 12, forearm and hips 15, '
                  'thighs touching; %d pairs as a fine walk finds them within %.1e m; the soft least %.3f under %.3f'
                  % (len(capsules.NAMES), len(pairs), off, soft, float(d.min())),
                  len(capsules.NAMES) == 18 and named['foot-shell-l'] == 'left_foot' and named['thoracic-ribcage'] == 'torso'
@@ -129,12 +129,12 @@ def test_the_body_schema_lays_her_capsules(report):
 
 
 def test_the_shield_holds_a_closing_pair(report):
-    """Her standing, her left foot closing on her right at 4 m/s: the shield changes her posture's
-    ask on the pair's barrier's evading joints alone (her hips' rolls, the swing's circumduction),
+    """Its standing, its left foot closing on its right at 4 m/s: the shield changes its posture's
+    ask on the pair's barrier's evading joints alone (its hips' rolls, the swing's circumduction),
     each within its drive's peak, so that each pair's h'' + k_d h' + k_p h >= 0 holds or what it
-    cannot is spilled - least in her mass's metric there (its change her mass's inverse through the
-    held rows, their multipliers not negative); her left forearm closing on her hips, a pair whose
-    barrier evades by her shoulder's abduction she has not, at 1.5 m/s spilled whole; at rest nothing."""
+    cannot is spilled - least in its mass's metric there (its change its mass's inverse through the
+    held rows, their multipliers not negative); its left forearm closing on its hips, a pair whose
+    barrier evades by its shoulder's abduction it has not, at 1.5 m/s spilled whole; at rest nothing."""
     import numpy as np
     from machine.body import bemf, capsules
     from machine.senses import edge
@@ -172,9 +172,9 @@ def test_the_shield_holds_a_closing_pair(report):
     lam = np.linalg.lstsq(Jh[on][:, act[free]][:, inner].T, (Mf @ change[free])[inner], rcond=None)[0]
     fit = float(np.abs(Jh[on][:, act[free]][:, inner].T @ lam - (Mf @ change[free])[inner]).max())
     arm, _gap, _v, _moved, (arm_posture, arm_held) = closing('forearm-ulnar-l', 'pelvic-girdle', 1.5)
-    report.check("at rest nothing held; her feet %.1f mm apart closing at 4 m/s: %d held on %s, each row met to "
-                 "%.1e, the change her mass's inverse through them (%.1e), multipliers %s; her forearm on her hips "
-                 "spilled %.0f m/s^2, her posture as asked"
+    report.check("at rest nothing held; its feet %.1f mm apart closing at 4 m/s: %d held on %s, each row met to "
+                 "%.1e, the change its mass's inverse through them (%.1e), multipliers %s; its forearm on its hips "
+                 "spilled %.0f m/s^2, its posture as asked"
                  % (1e3 * float(gap), len(held['held']), ' '.join(bemf.DRIVEN[i] for i in free), float(sides.min()), fit,
                     np.round(lam, 4), float(np.max(arm_held['spill'], initial=0.0))),
                  not info['held'] and np.array_equal(rest, np.asarray(ask['posture'], float))
@@ -185,11 +185,11 @@ def test_the_shield_holds_a_closing_pair(report):
                  and np.array_equal(arm_posture, np.asarray(ask['posture'], float)), '')
 
 
-def test_her_drives_back_emf_bounds(report):
-    """Her drives' torque bounds under their back-EMF (`machine.body.bemf`): still, each its peak or its
+def test_its_drives_back_emf_bounds(report):
+    """Its drives' torque bounds under their back-EMF (`machine.body.bemf`): still, each its peak or its
     winding's volts' torque both ways; motoring falls with speed to 0 at V m / E, braking keeps its
-    peak. Her law's three steps (`wrench.step`, wbc_step.c, the board's wbc_wrench.c) under a box
-    that binds: her ask not shrunk for it, each drive clipped inside it, the same torques within the
+    peak. Its law's three steps (`wrench.step`, wbc_step.c, the board's wbc_wrench.c) under a box
+    that binds: its ask not shrunk for it, each drive clipped inside it, the same torques within the
     twins' own 5e-3 N m."""
     import math
     import numpy as np
@@ -225,7 +225,7 @@ def test_her_drives_back_emf_bounds(report):
     solve = c_step.wrench_laid(b)
     theirs, board = solve(b, wbc.sense(b, world.data.qpos, qvel), boxed), wrench_step(b, sense, boxed, shared())
     apart = max(float(np.abs(ours['tau'] - theirs['tau']).max()), float(np.abs(ours['tau'] - board['tau']).max()))
-    report.check('a box half her torques each way: her ask carried %.3f as without it, each drive clipped to the box, '
+    report.check('a box half its torques each way: its ask carried %.3f as without it, each drive clipped to the box, '
                  'its C twins %.1e N m apart' % (ours['scale'], apart),
                  ours['scale'] == plain['scale'] and np.array_equal(ours['tau'], np.clip(plain['tau'], lo, hi))
                  and bool((ours['tau'] != plain['tau']).any())
@@ -272,9 +272,9 @@ def test_the_lock_in_reads_a_known_loop(report):
 
 ROSTER = (test_the_lowering_lays_the_texts_abi,
           test_a_bank_swaps_with_no_step,
-          test_the_body_schema_lays_her_capsules,
+          test_the_body_schema_lays_its_capsules,
           test_the_shield_holds_a_closing_pair,
-          test_her_drives_back_emf_bounds,
+          test_its_drives_back_emf_bounds,
           test_the_lock_in_reads_a_known_loop)
 
 

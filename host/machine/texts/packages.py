@@ -32,5 +32,5 @@ def ordered(paths):
 
 
 def modules(folder):
-    """`folder`'s modules under her lisp (`mechatronics.HUMANOID`), each after those it uses."""
+    """`folder`'s modules under its lisp (`mechatronics.HUMANOID`), each after those it uses."""
     return ordered(sorted(ortho.key(p) for p in glob.glob(os.path.join(mechatronics.HUMANOID, folder, '*.lisp'))))

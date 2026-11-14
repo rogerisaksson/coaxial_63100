@@ -30,7 +30,7 @@
 
       (on-contact-threshold
         :sensor-bus :ischial-bilateral
-        :trigger-fz-ratio 0.15             ; her seat bears her from 0.15 of her weight (impedance.PROP_ON)
+        :trigger-fz-ratio 0.15             ; its seat bears it from 0.15 of its weight (impedance.PROP_ON)
         :max-impact-velocity-mps 0.02           ; Silent, zero-thump contact
         (crossfade-support-manifold
           :from-bus :plantar-bilateral

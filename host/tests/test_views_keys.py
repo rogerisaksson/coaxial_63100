@@ -14,10 +14,10 @@ def test_a_page_its_keys_the_terminals_after(report):
     from terminal.ui import bindings
     from terminal.views import humanoid_keys, show_chat
     from terminal.views.quad import keys
-    her, chat, shared = humanoid_keys.PAD, show_chat.PAD, (('ESC', 'BACK'), ('TAB', 'COLUMN'), ('?', 'KEYS'))
-    report.check("HUMANOID's Q sidesteps her, the terminal's Q off its bar; Esc, Tab and ? the terminal's",
-                 'q' in her['held'] and ('Q', 'EXIT') not in her['bar'] and set(shared) <= set(her['bar'])
-                 and [label for label, _what in dict(her['groups'])['TERMINAL']] == ['ESC', 'TAB', '?'], her['bar'])
+    robot, chat, shared = humanoid_keys.PAD, show_chat.PAD, (('ESC', 'BACK'), ('TAB', 'COLUMN'), ('?', 'KEYS'))
+    report.check("HUMANOID's Q sidesteps it, the terminal's Q off its bar; Esc, Tab and ? the terminal's",
+                 'q' in robot['held'] and ('Q', 'EXIT') not in robot['bar'] and set(shared) <= set(robot['bar'])
+                 and [label for label, _what in dict(robot['groups'])['TERMINAL']] == ['ESC', 'TAB', '?'], robot['bar'])
     folded = bindings.UX['column']
     rest = bindings.act_on(menu.FRONT, ['\t'], {'picked': 0, 'who': None})[1]
     tabbed, bindings.UX['column'] = bindings.UX['column'], folded
@@ -68,7 +68,7 @@ def test_tab_and_help_in_any_mode(report):
         front = bindings.UX['column']
     finally:
         bindings.UX.update(column=False, help=False)
-    report.check("folded to its rail at first, out on Tab, folded on Tab with her prompt open, the prompt's the rest",
+    report.check("folded to its rail at first, out on Tab, folded on Tab with its prompt open, the prompt's the rest",
                  folded == (False, taskbar.RAIL) and out == (True, HUD_WIDTH) and not bindings.UX['column']
                  and st['llm_prompt']['text'] == 'a?', (folded, out, st))
     report.check("the front page's board its column: the rail folded, out on its Tab",
@@ -78,9 +78,9 @@ def test_tab_and_help_in_any_mode(report):
                  helped == [True, False] and rest == ['up', 'down'], (helped, rest))
 
 
-def test_her_modes_before_her_rows(report):
-    """HUMANOID: her prompt open takes every key, Esc closing it - the page kept -; F's choice open
-    keeps the view's keys, a key that acts on her shuts it before it acts, Esc shuts it alone; a
+def test_its_modes_before_its_rows(report):
+    """HUMANOID: its prompt open takes every key, Esc closing it - the page kept -; F's choice open
+    keeps the view's keys, a key that acts on its shuts it before it acts, Esc shuts it alone; a
     key's repeat within REPEAT_S acts once, P's repeats charge its push."""
     from types import SimpleNamespace as SN
     from terminal.ui import bindings
@@ -100,7 +100,7 @@ def test_her_modes_before_her_rows(report):
     acted = st['choosing'], sent[-1]
     shut = typed(pad, 'f\x1b', st), st['choosing']
     back = typed(pad, '\x1b', st)
-    report.check("Esc closes her prompt, the page kept; the view's keys keep F's choice; C shuts it and crouches her",
+    report.check("Esc closes its prompt, the page kept; the view's keys keep F's choice; C shuts it and crouches it",
                  prompt == {'open': False, 'text': 'x'} and kept and acted == (None, {'say': 'crouch'}),
                  (prompt, kept, acted))
     report.check("Esc shuts F's choice alone; the next Esc the front page", shut == (None, None) and back == 'menu',
@@ -246,7 +246,7 @@ def test_a_chord_rearms_the_terminal(report):
 
 
 ROSTER = (test_a_page_its_keys_the_terminals_after, test_esc_the_front_page, test_tab_and_help_in_any_mode,
-          test_her_modes_before_her_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
+          test_its_modes_before_its_rows, test_folded_into_the_page, test_the_drawing_takes_the_columns_room,
           test_a_paste_is_never_typed, test_a_chord_rearms_the_terminal)
 
 

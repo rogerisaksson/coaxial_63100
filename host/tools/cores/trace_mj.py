@@ -1,13 +1,13 @@
-"""Her MuJoCo as a trace sees it (`tools.cores.trace`): her body's model, data and scratch, her calls.
+"""Its MuJoCo as a trace sees it (`tools.cores.trace`): its body's model, data and scratch, its calls.
 
     prog, got = trace.traced(wbc.sense, (t, qpos, qvel), (1, 2), wrap=lambda prog, a: [Body(prog, t)] + a[1:])
-    arrays, model, data = bound(prog, b)               # at call time, her own body's (t = twin(b))
+    arrays, model, data = bound(prog, b)               # at call time, its own body's (t = twin(b))
 
-Her data's arrays and her body's scratch (SCRATCH) are externs: memory MuJoCo's and hers, addressed
-at call time. A MuJoCo function her code calls runs as it is and stands an 'mj' statement: in C the
+Its data's arrays and its body's scratch (SCRATCH) are externs: memory MuJoCo's and its own, addressed
+at call time. A MuJoCo function its code calls runs as it is and stands an 'mj' statement: in C the
 function itself, mujoco.dll's, by its prototype in mujoco.h - the binding's arguments the C's, in
-their order. What else her code reads of her body is a constant of the trace (`prog.consts`), the
-same objects or traced again; of her model and her data nothing else is read.
+their order. What else its code reads of its body is a constant of the trace (`prog.consts`), the
+same objects or traced again; of its model and its data nothing else is read.
 """
 import copy
 import ctypes
@@ -21,7 +21,7 @@ import numpy as np
 from tools.cores import trace
 from tools.cores.trace import Traced, Untraced
 
-#: Her body's own scratch a MuJoCo call writes into (`machine.stack.wbc.Body`).
+#: The robot's body's own scratch a MuJoCo call writes into (`machine.stack.wbc.Body`).
 SCRATCH = ('_M', '_jp', '_jr', '_am')
 #: MjData's float arrays a holder may keep a view of (`quad.Sky._xmat`, `_vel`, `_xfrc`).
 DATA_ARRAYS = ('qpos', 'qvel', 'qacc', 'act', 'ctrl', 'qfrc_applied', 'xfrc_applied',
@@ -51,7 +51,7 @@ def _in_data(d, arr):
 
 class Model:
 
-    """Her model as traced: its sizes read, its parameters not - identified, they move mid-run."""
+    """Its model as traced: its sizes read, its parameters not - identified, they move mid-run."""
 
     def __init__(self, m):
         self.raw = m
@@ -60,12 +60,12 @@ class Model:
         got = getattr(self.raw, name)
         if isinstance(got, int):
             return got
-        raise Untraced("her model's %s read at %s: a parameter, not a size" % (name, trace.where()))
+        raise Untraced("its model's %s read at %s: a parameter, not a size" % (name, trace.where()))
 
 
 class Data:
 
-    """Her data as traced: each of its float arrays an extern named 'd.<name>', nothing else read."""
+    """Its data as traced: each of its float arrays an extern named 'd.<name>', nothing else read."""
 
     def __init__(self, prog, d):
         self.prog, self.raw = prog, d
@@ -74,7 +74,7 @@ class Data:
         got = getattr(self.raw, name)
         if isinstance(got, np.ndarray) and got.dtype == np.float64:
             return self.prog.extern('d.' + name, got)
-        raise Untraced("her data's %s read at %s: her state, not an array of it" % (name, trace.where()))
+        raise Untraced("its data's %s read at %s: its state, not an array of it" % (name, trace.where()))
 
 
 class Mj:
@@ -104,7 +104,7 @@ class Mj:
 
 class Body:
 
-    """Her body as traced: its model, data, MuJoCo and scratch traced, the rest constants read."""
+    """Its body as traced: its model, data, MuJoCo and scratch traced, the rest constants read."""
 
     def __init__(self, prog, b):
         m, d, mj = _of(b)
@@ -119,7 +119,7 @@ class Body:
     def __getattr__(self, name):
         got = getattr(self.raw, name)
         if callable(got):
-            raise Untraced("her body's %s called at %s: its reads not traced" % (name, trace.where()))
+            raise Untraced("its body's %s called at %s: its reads not traced" % (name, trace.where()))
         if isinstance(got, np.ndarray) and got.dtype == np.float64:
             found = _in_data(self.d.raw, got)
             if found is not None:
@@ -148,7 +148,7 @@ def _kind(a, param, name):
             if not _contiguous(r):
                 raise Untraced('%s given a view not C-ordered at %s' % (name, trace.where()))
             if not const and r.buffer.role == 'in':
-                raise Untraced('%s writes her input at %s' % (name, trace.where()))
+                raise Untraced('%s writes its input at %s' % (name, trace.where()))
             return ('buf', r, const)
     elif re.fullmatch(r'int\s+\w+', param):
         if isinstance(a, (bool, int, np.integer)):
@@ -177,7 +177,7 @@ def copy_state(dst, src):
 
 
 def twin(b):
-    """Her body with a MjData and scratch of its own: traced and held on, hers untouched."""
+    """Its body with a MjData and scratch of its own: traced and held on, its own untouched."""
     m, d, mj = _of(b)
     t = copy.copy(b)
     td = mj.MjData(m)
@@ -199,8 +199,8 @@ def twin(b):
 
 
 def bound(prog, b):
-    """Her body `b` as the C addresses it: ([(each of her body's externs' place in `prog.externs`, its
-    array)], her model's address, her data's) - Untraced where an array is not as traced."""
+    """Its body `b` as the C addresses it: ([(each of its body's externs' place in `prog.externs`, its
+    array)], its model's address, its data's) - Untraced where an array is not as traced."""
     m, d, _mj = _of(b)
     arrays = []
     for i, e in enumerate(prog.externs):

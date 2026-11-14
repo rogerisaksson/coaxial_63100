@@ -95,7 +95,7 @@
       (surface-high-mu-planar)
       (master-anti-spasm-insert)))
 
-;; The insert last before her SoA, whatever the patch above it
+;; The insert last before its SoA, whatever the patch above it
 (defpatch clean-runtime-stream
   (-> nominal-biped-manifold
       (transducer-elastomer-flat)

@@ -43,7 +43,7 @@
   [state &key (bevel-unweight-ratio 0.82) (rowing-speed-mps 0.16)]
   (-> state
       (configure-momentum-observer :observer-bandwidth-hz 42.0)
-      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; her leg, hip to sole
+      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; its leg, hip to sole
       ;; 1. Enforce both Backless-Stool Rim ZCBF and Two-Body Stool Overturning Cone:
       (enforce-backless-stool-rim-zcbf :rim-safety-margin-mm 38.0 :auto-detect-missing-backrest true)
       (enforce-fixture-overturning-cone :min-stool-zmp-margin-mm 28.0 :vertical-preload-boost-n 140.0)
@@ -51,7 +51,7 @@
       (blend-manifold-posture-jet :atlas 'high-vault-1jet-posture-atlas)
       (drive-capstan-bevel-arm-vault
         :bevel-unweight-fraction bevel-unweight-ratio
-        :vault-clear-lift-mm 31.0                    ; her lockout from the dip's origin
+        :vault-clear-lift-mm 31.0                    ; its lockout from the dip's origin
         :rowing-velocity-mps (- rowing-speed-mps))
       ;; 3. Walk hands back one ratchet step if seat depth requires further posterior centering:
       (ratchet-carpal-seat-replant
@@ -69,11 +69,11 @@
 ;;   eccentrically in front of the stool until plantarflexed toes touch the floor,
 ;;   transfers the 6D Wrench Cone to the feet, and stands up!
 (defmodifier xform-overheight-arm-dip-egress
-  [seated-high-state &key (dip-lowering-speed-mps 0.16) (max-dip-travel-mm 167.0)]   ; hers
+  [seated-high-state &key (dip-lowering-speed-mps 0.16) (max-dip-travel-mm 167.0)]   ; its own
   (-> seated-high-state
       (wake-inverter-closed-loop)
       (configure-momentum-observer :observer-bandwidth-hz 42.0)
-      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; her leg, hip to sole
+      (modulate-kinematic-reachability :max-leg-reach-mm 845.0)          ; its leg, hip to sole
       (enforce-fixture-overturning-cone :min-stool-zmp-margin-mm 28.0 :vertical-preload-boost-n 120.0)
       ;; 1. Scoot anteriorly to the front bevel using tangential Coulomb slide + carpal boost:
       (specialize-with-carpal-seat-boost :max-arm-push-share 0.45)
@@ -116,7 +116,7 @@
               :patch-id :vault-carpal-flat-anchors
               :anatomical-frames [:carpal-heel-l :carpal-heel-r]
               :surface-normal [0.0 0.0 1.0]
-              :cop-box-mm `(:x [-30.0 30.0] :y [(- ,coronal-span-mm) ,coronal-span-mm]) ; her fist
+              :cop-box-mm `(:x [-30.0 30.0] :y [(- ,coronal-span-mm) ,coronal-span-mm]) ; its fist
               :mu 0.70 :bilateral-grasp-pull false
               :weight-law (:wrench-proportional :max-share 0.90))))
 

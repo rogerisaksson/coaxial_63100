@@ -1,4 +1,4 @@
-/** wbc_bus.c - the master bus insert's stages (wbc_bus.h): her ask's jerk and her law's torque
+/** wbc_bus.c - the master bus insert's stages (wbc_bus.h): its ask's jerk and its law's torque
     command's slew soft-clipped, the command passed through the tank. No branch: masks and clips.
     Portable C11. */
 #include "wbc_bus.h"
@@ -64,14 +64,14 @@ double wbc_bus_feed(const wbc_bus_k *k, wbc_bus_t *b, int i, double dt, double q
   b->sign[i] = s + (double)(s == 0.0) * b->sign[i];
   b->power += p;
   /* the passivity controller: on a parasitic oscillation, the detector's - the command's band rolled
-     back, the damping injected; released over recover_s - her drives are pure torque, no P gain of
+     back, the damping injected; released over recover_s - its drives are pure torque, no P gain of
      their own. Tripped by the tank at its floor too, a hop's push drained it in 30 ms, every drive
-     rolled back and she rose 669 mm off one sole */
+     rolled back and it rose 669 mm off one sole */
   trip = (double)(b->count[i] >= k->reversals);
   b->alpha[i] = npmax(trip, b->alpha[i] - dt / k->recover_s);
   gain = b->alpha[i] * (1.0 - k->rollback);
   cmd = (feed - gain * t) - ((b->alpha[i] * k->inject) * damping) * qd;
-  /* what the bus changed of the command, for her drive's observer to know what moved its rotor */
+  /* what the bus changed of the command, for its drive's observer to know what moved its rotor */
   b->given[i] = cmd - feed;
   return cmd;
 }

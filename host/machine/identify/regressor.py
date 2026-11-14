@@ -1,9 +1,9 @@
-"""Her Newton-Euler regressor: tau = Y(q, v, a) theta, her drives' torques at N states of her model.
+"""Its Newton-Euler regressor: tau = Y(q, v, a) theta, its drives' torques at N states of its model.
 
 Numpy's, its definition, on `sysid.laid`'s layout, and compiled from it to C bit for bit
 (`tools.cores.held`), no port between them.
 
-    xpos, xmat, axis, anchor = regressor.posed(lay, body, qpos)     # her frames, MuJoCo's
+    xpos, xmat, axis, anchor = regressor.posed(lay, body, qpos)     # its frames, MuJoCo's
     Y = regressor.regressor(lay, body, qpos, qvel, qacc, a0, wacc)  # numpy
     Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc)       # its C, what sysid calls
 """
@@ -11,7 +11,7 @@ Numpy's, its definition, on `sysid.laid`'s layout, and compiled from it to C bit
 
 def posed(lay, body, qpos):
     """(xpos (N, bodies, 3), xmat (N, bodies, 3, 3), axis (N, hinges, 3), anchor (N, hinges, 3))
-    her links' frames and her hinges' axes, world, at `qpos` (N, nq)."""
+    its links' frames and its hinges' axes, world, at `qpos` (N, nq)."""
     import numpy as np
     m, d, mj = body.m, body.d, body.mj
     bodies, jnt, n = lay['bodies'], lay['jnt'], len(qpos)
@@ -26,11 +26,11 @@ def posed(lay, body, qpos):
 
 
 def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None):
-    """Y (N, hinges + 6, P) at N states of her law's model: `qpos` (N, nq) and `qvel`, `qacc`
-    (N, nv) in MuJoCo's convention, `a0` (N, 3) her pelvis's origin's acceleration less gravity,
-    world; every hinge's row, as its torque would be in a world without gravity, then her
-    pelvis's six: the force on her, world, and the moment about her pelvis's origin in its
-    frame - what the floor and whatever else touches her must supply. `wacc` (N, driven) each
+    """Y (N, hinges + 6, P) at N states of its law's model: `qpos` (N, nq) and `qvel`, `qacc`
+    (N, nv) in MuJoCo's convention, `a0` (N, 3) its pelvis's origin's acceleration less gravity,
+    world; every hinge's row, as its torque would be in a world without gravity, then its
+    pelvis's six: the force on it, world, and the moment about its pelvis's origin in its
+    frame - what the floor and whatever else touches it must supply. `wacc` (N, driven) each
     motor's acceleration through its gearbox, the armature's column: the joint's own without."""
     import numpy as np
     hinge, parent, span, above = lay['hinge'], lay['parent'], lay['span'], lay['above']
@@ -71,7 +71,7 @@ def regressor(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None):
             f[:, :, 1 + a] = np.cross(alb, e) + np.cross(om, np.cross(om, e))
             nn[:, :, 1 + a] = np.cross(e, ac)
         nn[:, :, 4:10] = _tensor(alb) + np.cross(om[:, :, None], _tensor(om), axis=1)
-        # To the world, about its origin; each hinge between the body and her pelvis takes its row.
+        # To the world, about its origin; each hinge between the body and its pelvis takes its row.
         fw = np.einsum('nij,njc->nic', Rb, f)
         nw = np.einsum('nij,njc->nic', Rb, nn) + np.cross(pb[:, :, None], fw, axis=1)
         cols, rows_ = slice(10 * k, 10 * k + 10), np.flatnonzero(above[k])
@@ -102,7 +102,7 @@ def in_c(lay, body, qpos, qvel, qacc, a0, wacc=None, frames=None, wait=False):
     states, numpy's arithmetic operation for operation, its einsums' orders read off numpy's own;
     held bit for bit as it is built, a build a layout kept. A layout not yet built is built in a
     process of its own (`wait` till it is), numpy's own meanwhile and where this host builds none -
-    her bits the same either way; built in this one, its trace held her world 0.88 s."""
+    its bits the same either way; built in this one, its trace held its world 0.88 s."""
     import numpy as np
     arrays = [np.ascontiguousarray(f, dtype=np.float64) for f in (posed(lay, body, qpos) if frames is None else frames)]
     arrays += [np.ascontiguousarray(x, dtype=np.float64) for x in (qvel, qacc, a0) + (() if wacc is None else (wacc,))]

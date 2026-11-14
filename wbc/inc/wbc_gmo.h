@@ -1,11 +1,11 @@
-/** wbc_gmo.h - her generalized momentum observer (machine.senses.observer): the external force on her and
-    each manifold's normal force of it, of her drives, encoders and IMU over her chain (wbc.h).
-    The residual of her momentum over a law pass, M u' + h - S'tau less her drives' friction,
-    low-passed; split by least squares with every unknown pushing (Lawson-Hanson): her patches'
-    points - a sole's four corners in her law's pyramid -, a joint on its stop pushed off it, her
+/** wbc_gmo.h - its generalized momentum observer (machine.senses.observer): the external force on it and
+    each manifold's normal force of it, of its drives, encoders and IMU over its chain (wbc.h).
+    The residual of its momentum over a law pass, M u' + h - S'tau less its drives' friction,
+    low-passed; split by least squares with every unknown pushing (Lawson-Hanson): its patches'
+    points - a sole's four corners in its law's pyramid -, a joint on its stop pushed off it, its
     capsules touching each other pushed apart. Laid by machine.senses.observer from the kernel's registry
-    and her model. A pass works on its working set alone (working_envelope_scoper.lisp): the unknowns
-    that can push, the pairs staged within her envelope; the same bits as the whole. Portable C11. */
+    and its model. A pass works on its working set alone (working_envelope_scoper.lisp): the unknowns
+    that can push, the pairs staged within its envelope; the same bits as the whole. Portable C11. */
 #ifndef WBC_GMO_H
 #define WBC_GMO_H
 
@@ -13,8 +13,8 @@
 
 #include <stdalign.h>
 
-/** Her patches' points; a point's pushes at most (a pyramid's edges), all of them at most; her
-    joints' stops' pushes, one a hinge; her capsules, the pairs of them that can touch, the touches
+/** Its patches' points; a point's pushes at most (a pyramid's edges), all of them at most; its
+    joints' stops' pushes, one a hinge; its capsules, the pairs of them that can touch, the touches
     a pass at most; the unknowns; each point's shares of the manifolds; the manifolds. */
 #define WBC_GMO_POINTS    24
 #define WBC_GMO_EDGES     4
@@ -32,44 +32,44 @@
 
 typedef struct
 {
-  alignas(64) double a[WBC_N][WBC_GMO_LD]; /**< hot, first, each row whole 64-byte lines: J' (her velocities' rows), */
+  alignas(64) double a[WBC_N][WBC_GMO_LD]; /**< hot, first, each row whole 64-byte lines: J' (its velocities' rows), */
   double      h[WBC_GMO_F][WBC_GMO_LD];    /**< the split's normal equations and their factor, its weighed rows */
-  double      k[WBC_GMO_F][WBC_GMO_LD];    /**< gathered and its gradient over her working set */
+  double      k[WBC_GMO_F][WBC_GMO_LD];    /**< gathered and its gradient over its working set */
   double      ag[WBC_N][WBC_GMO_LD];
   double      w[WBC_GMO_LD];
   double      alpha;                       /**< the low-pass's bandwidth, rad/s */
-  double      slip;                        /**< her drives' friction tanh(u / slip), rad/s */
+  double      slip;                        /**< its drives' friction tanh(u / slip), rad/s */
   double      eps;                         /**< the split's tie-break, of its largest curvature */
-  double      weight;                      /**< her weight, N; gravity's prior's sharpness on a */
+  double      weight;                      /**< its weight, N; gravity's prior's sharpness on a */
   double      upright;                     /**< push's cosine with the vertical, and its reach */
-  double      reach;                       /**< over her lowest point, m; a support's speed, m/s: */
-  double      still;                       /**< past it a point does not stand on what bears her */
-  double      slide[3];                    /**< her text's slide, world m/s: moving with it a point stands still */
-  double      horizon;                     /**< her envelope, m: a pair staged nearer is searched a pass */
+  double      reach;                       /**< over its lowest point, m; a support's speed, m/s: */
+  double      still;                       /**< past it a point does not stand on what bears it */
+  double      slide[3];                    /**< its text's slide, world m/s: moving with it a point stands still */
+  double      horizon;                     /**< its envelope, m: a pair staged nearer is searched a pass */
   double      loss[WBC_N];                 /**< each velocity's friction loss, N m */
-  int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in her edge's */
+  int         driven_at[WBC_DRIVEN];       /**< each drive's velocity, and its torque in its edge's */
   int         driven_joint[WBC_DRIVEN];
   int         link[WBC_GMO_POINTS];        /**< each point's link, its place in it, its pushes' */
   double      local[WBC_GMO_POINTS][3];    /**< directions there and how many, its first unknown */
   double      edge[WBC_GMO_POINTS][WBC_GMO_EDGES][3];
   int         edges[WBC_GMO_POINTS];
   int         col[WBC_GMO_POINTS];
-  int         whole;                       /**< 1: every unknown and every pair a pass, her set unscoped */
+  int         whole;                       /**< 1: every unknown and every pair a pass, its set unscoped */
   int         pushes;                      /**< the points' pushes, the stops' first column */
-  int         gated[WBC_GMO_POINTS];       /**< 1 a point not felt: off her soles, unlatched (a pass's) */
+  int         gated[WBC_GMO_POINTS];       /**< 1 a point not felt: off its soles, unlatched (a pass's) */
   int         world[WBC_GMO_POINTS];       /**< 1 a point's pushes laid in the world, not its link */
-  int         soled[WBC_GMO_POINTS];       /**< 1 a point of her soles */
+  int         soled[WBC_GMO_POINTS];       /**< 1 a point of its soles */
   double      stop_lo[WBC_N - 6];          /**< each hinge's stops, rad; 0 none */
   double      stop_hi[WBC_N - 6];
   int         stopped[WBC_N - 6];
-  int         capsules;                    /**< her capsules: each one's link, radius and axis's */
+  int         capsules;                    /**< its capsules: each one's link, radius and axis's */
   int         capsule_link[WBC_GMO_CAPSULES]; /**< ends in it (a sphere's alike) */
   double      capsule_r[WBC_GMO_CAPSULES];
   double      capsule_a[WBC_GMO_CAPSULES][3];
   double      capsule_b[WBC_GMO_CAPSULES][3];
   int         pairs;                       /**< the pairs of capsules that can touch */
   int         pair[WBC_GMO_PAIRS][2];
-  int         listed;                      /**< the pairs staged within her envelope, in their order */
+  int         listed;                      /**< the pairs staged within its envelope, in their order */
   int         list[WBC_GMO_PAIRS];
   double      staged[WBC_GMO_CAPSULES][2][3]; /**< each capsule's ends, world, as last staged */
   int         share_point[WBC_GMO_SHARES]; /**< a share: its point, its manifold, the link whose */
@@ -88,23 +88,23 @@ typedef struct
   double      at[WBC_GMO_POINTS][3];       /**< out: each point in the world */
   int         touched[WBC_GMO_TOUCH];      /**< out: each touch's pair, -1 none */
   int         past[WBC_N - 6];             /**< each hinge's row past its band: 1 over, -1 under */
-  int         stagings;                    /**< out: her pairs staged so far */
+  int         stagings;                    /**< out: its pairs staged so far */
   double      prior[WBC_GMO_POINTS];       /**< out: each point's push as gravity would have it, N */
   double      speed[WBC_GMO_POINTS];       /**< out: each point's speed in the world, m/s */
   double      expected[WBC_GMO_F];         /**< and each unknown's */
   int         rounds;                      /**< out: the band's rounds this pass */
   int         lives;                       /**< out: the unknowns that can push this pass, in their order */
   int         live[WBC_GMO_F];
-  int         spare;                       /**< explicit: her ints a whole number of doubles */
+  int         spare;                       /**< explicit: its ints a whole number of doubles */
   wbc_body_t  body;
 } wbc_gmo_t;
 
-/** A drive pass of `dt` s into the sums, of her edge's array: the drives' torques (`tau`, every
+/** A drive pass of `dt` s into the sums, of its edge's array: the drives' torques (`tau`, every
     joint's), the pelvis's specific force (its own frame) turned by its quaternion (w, x, y, z) to
     the world, gravity added. */
 void wbc_gmo_felt(wbc_gmo_t *o, const double quat[4], const double accel[3], const double *tau, double dt);
 
-/** A law pass at her estimate - the pelvis's frame, the hinges, u -, `dt` s on: r, f, force; the
+/** A law pass at its estimate - the pelvis's frame, the hinges, u -, `dt` s on: r, f, force; the
     sums emptied. */
 void wbc_gmo_step(wbc_gmo_t *o, const wbc_frame_t *base, const double q[WBC_N - 6], const double u[WBC_N], double dt);
 

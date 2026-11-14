@@ -1,10 +1,10 @@
-"""Her gaits as said: a gait entry heard, laid as rows on her table from where she is.
+"""The robot's gaits as said: a gait entry heard, laid as rows on its table from where it is.
 
 A start from rest or a stand (init_walk, then the gait), a brake into a stand or another gait, a key pressed again
-in the brake spliced into the walk at the stand's time, a stop's stand said once she has halted (`halted`), a hop
+in the brake spliced into the walk at the stand's time, a stop's stand said once it has halted (`halted`), a hop
 and the gait resumed after it; split from the worker.
 
-    gaits.heard_say(g, gym, entry)          # the entry said, as rows on her table (`sprung.said`)
+    gaits.heard_say(g, gym, entry)          # the entry said, as rows on its table (`sprung.said`)
     gaits.start_mode(g, by, entry, at)      # a mode's rows from `at`, init_walk first where the gait takes one
     gaits.TURN_ALL                          # the turns, which take a heading
 """
@@ -22,13 +22,13 @@ STUNT_TRANSIENT = ('approach', 'lower', 'seated_', 'sit_edge', 'recline', 'bed_r
 
 
 def in_stunt_transient(g):
-    """Whether she is in a transient stunt phase or joint program (neither standing nor settled at rest)."""
+    """Whether it is in a transient stunt phase or joint program (neither standing nor settled at rest)."""
     cur = sprung.doing(g)
     return g.get('played') is not None or any(
         cur.startswith(p) if p.endswith('_') else (cur == p or cur.startswith(p + '_')) for p in STUNT_TRANSIENT)
-#: She has halted after a stop's brake: slower than HALT_M_S along her way with both soles touching (`leap.TOUCH_N`);
-#: her stand is said then, or at the brake's doubled horizon unmet. Each sole at a quarter of her weight instead
-#: waited out the horizon: stopped, she rests 43 N on one sole and 251 on the other.
+#: It has halted after a stop's brake: slower than HALT_M_S along its way with both soles touching (`leap.TOUCH_N`);
+#: its stand is said then, or at the brake's doubled horizon unmet. Each sole at a quarter of its weight instead
+#: waited out the horizon: stopped, it rests 43 N on one sole and 251 on the other.
 HALT_M_S = 0.25
 
 
@@ -100,7 +100,7 @@ def _queue_post_jump(g, by, entry):
 def _brake_and_switch(g, by, entry, t0, spd, back_now):
     import numpy as np
     from machine.law import latent, se2
-    # the gait she brakes from, for a key pressed again in the brake (`heard_say`'s splice)
+    # the gait it brakes from, for a key pressed again in the brake (`heard_say`'s splice)
     g['_brake_from'], g['_halt_at'] = g.get('active_entry'), None
     name = g['active_entry'] = entry[0]
     brake = np.frombuffer(sprung._BRAKE_BACK_WIRE if back_now else sprung._BRAKE_WIRE, latent.WIRE).copy()
@@ -115,10 +115,10 @@ def _brake_and_switch(g, by, entry, t0, spd, back_now):
     if name == 'stand' or name not in (sprung._FWD_GAITS + sprung._BACK_GAITS):
         ts, tg = se2.stand_lead(spd)
         if name == 'stand':
-            # said once she has halted (`halted`), the clock its fallback: on the clock the stand took her at
-            # 0.5-0.9 m/s after a stop re-pressed into, the trailing sole bearing 0-40 N, and she went over the
+            # said once it has halted (`halted`), the clock its fallback: on the clock the stand took it at
+            # 0.5-0.9 m/s after a stop re-pressed into, the trailing sole bearing 0-40 N, and it went over the
             # leading foot (the stutter's third stop, 5 of 9 starts); the capture point lies past REACH_M above
-            # 1.2 m/s, so her brake takes the steps it takes
+            # 1.2 m/s, so its brake takes the steps it takes
             g['_halt_at'] = (t0 + ts, t0 + tg)
             return None
         sprung.said(g, *by['stand'], at=t0 + ts, reset=True)
@@ -163,8 +163,8 @@ def _splice_fwd(g, entry, t_end, cur_d):
     from machine.law import latent, se2
     name = g['active_entry'] = entry[0]
     g['_brake_from'], g['_halt_at'] = None, None
-    # pressed again in a brake she walks on from now: spliced at its horizon, a 0.2 s release braked her on 0.3-0.7 s
-    # with her drive let go, a lone stance running her on over its sole (the stutter stood 4 of 9 starts, 7 so)
+    # pressed again in a brake it walks on from now: spliced at its horizon, a 0.2 s release braked it on 0.3-0.7 s
+    # with its drive let go, a lone stance running it on over its sole (the stutter stood 4 of 9 starts, 7 so)
     t_last = (g['t'] + 0.001 if cur_d == 'brake' else
               min(t_end, g['t'] + 0.18) if (cur_d == 'init_walk' and name in ('jog', 'turn_left', 'turn_right')) else t_end)
     g['tab'] = g['tab'][g['tab'][:, latent.AT] < t_last - 1e-4]
@@ -185,7 +185,7 @@ def heard_say(g, gym, entry):
             (sprung.doing(g) in ('rest', 'stand', 'brake') or g.get('_halt_at') is not None) if name == 'stand'
             else (sprung.doing(g) not in ('rest', 'stand') or bool(len(g['tab']) and (g['tab'][:, latent.AT] >= g['t']).any()))):
         return
-    # her gait's direction is the one she was told, not her sway's phase: a spin's read as a backward walk
+    # its gait's direction is the one it was told, not its sway's phase: a spin's read as a backward walk
     back_now = g.get('active_entry') in sprung._BACK_GAITS
     spd, ref = math.hypot(float(g['est']['vel'][0]), float(g['est']['vel'][2])), g['out'][latent.REF]
     t0, cur_d = g['t'] + 0.001, sprung.doing(g)
@@ -197,13 +197,13 @@ def heard_say(g, gym, entry):
         max(abs(float(ref[modal.LIFT])), abs(float(ref[modal.SAGITTAL])), abs(float(ref[modal.LATERAL]))) > 0.15
         or abs(float(ref[modal.AXIAL])) > 0.25 or abs(float(g['loads'][0]) - float(g['loads'][1])) > 90.0)
     future = g['tab'][g['tab'][:, latent.AT] > g['t']]
-    # her direction through a brake is the gait she brakes from, not the stand it leads to: a `w` 0.25 s into a
+    # its direction through a brake is the gait it brakes from, not the stand it leads to: a `w` 0.25 s into a
     # stop's brake read `stand`, missed the splice and braked again into a walk laid cold (reset) 0.7 s on at 1 m/s
-    # - her sway 0.09, then 0.06 after a second stop, 0.20 still 2.3 s later - and the third stop had nothing to brake
-    # with: she stood at 1.3 m/s and fell (stutter 2 of 9 starts)
+    # - its sway 0.09, then 0.06 after a second stop, 0.20 still 2.3 s later - and the third stop had nothing to brake
+    # with: it stood at 1.3 m/s and fell (stutter 2 of 9 starts)
     braked = g.get('_brake_from') if cur_d == 'brake' else None
     ae_dir = braked if braked in (sprung._FWD_GAITS + sprung._BACK_GAITS) else g.get('active_entry')
-    # and the gait queued after the brake (`active_entry` while she brakes): a back turn said in a brake laid for the
+    # and the gait queued after the brake (`active_entry` while it brakes): a back turn said in a brake laid for the
     # other back turn was braked again - a brake row reset, the turn 0.9 s later - for a splice (brake, brake, turn
     # for brake, turn on the page's WD, SD, SA)
     queued = g.get('active_entry') if cur_d == 'brake' else None
@@ -286,7 +286,7 @@ def heard_say(g, gym, entry):
 
 
 def halted(g, gym):
-    """Her stand said once a stop's brake has halted her (`_brake_and_switch`): slower than HALT_M_S along her way
+    """Its stand said once a stop's brake has halted it (`_brake_and_switch`): slower than HALT_M_S along its way
     with both soles touching, or at the brake's doubled horizon unmet; nothing pending, nothing."""
     from machine.moves import leap
     at = g.get('_halt_at')
@@ -313,7 +313,7 @@ def _slew(val, goal, step):
 
 
 def govern_twist(g, gym, dt):
-    """Step her governed twist toward `asked` within her clothoid and braking envelope across
+    """Step its governed twist toward `asked` within its clothoid and braking envelope across
     forward and spin gaits (`se2.SE2_GAITS`), switching gait polytopes without zero-crossing chatter."""
     if not g.get('_twist_active') or g.get('_errand') is not None or g.get('_jump_until', 0.0) > g['t']:
         return

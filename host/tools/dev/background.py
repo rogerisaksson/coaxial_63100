@@ -2,7 +2,7 @@
 
 This process and every process it starts, held below so on Windows by a job: Renode raises itself above
 normal and, inheriting below normal, ran there over the page. Off the page's cores by this process's own
-processors, which those it starts inherit, and by telling her placement them (`placed.GIVEN`): each of her
+processors, which those it starts inherit, and by telling its placement them (`placed.GIVEN`): each of its
 processes takes a core of its own among them. The job's own affinity held every process on all of them, none
 able to take one - the system moved each nine times a second among 40 of them.
 
@@ -22,7 +22,7 @@ import sys
 #: Windows' BELOW_NORMAL_PRIORITY_CLASS: a child process takes its parent's when it is this or
 #: idle, so a pool's workers and their buses follow; POSIX's niceness for the same.
 BELOW_NORMAL, NICE = 0x4000, 10
-#: A page's own processes - its draw, its drawing ahead (`terminal.ui.ahead`), her worker, her camera -,
+#: A page's own processes - its draw, its drawing ahead (`terminal.ui.ahead`), its worker, its camera -,
 #: a physical core each the batch leaves whole, both its threads: under the offline gate below normal the
 #: HUMANOID page's frame took 41.3 ms to its 7.3 alone, 28.3 with these kept; the rest is the memory bus,
 #: shared at any priority - eight streaming numpy loads alone took it to 39.3. Of a desk's cores a third at
@@ -75,7 +75,7 @@ def cores():
 def lower():
     """This process below the pages and off the cores they keep (`kept`): the first's threads, a core's
     numbered beside each other; the processes it starts held to both - below by its job, off by its own
-    processors and her placement told them (`placed.GIVEN`). A runner's batch is left as it was started:
+    processors and its placement told them (`placed.GIVEN`). A runner's batch is left as it was started:
     nobody's pages are there."""
     from machine.process import placed
     from tools.dev.focus import physical_cores

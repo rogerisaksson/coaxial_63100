@@ -7,26 +7,26 @@ from machine.process import sprung
 from machine.texts import takes
 from tools.sim.player import FORCES_N, KEYS, MOMENTS, SHOVE_S, WALK
 
-#: A stairs take's window opens as her first sole lands on the first tread, its first frame's.
+#: A stairs take's window opens as its first sole lands on the first tread, its first frame's.
 STAIRS_TAKE_S = 1.5
 #: The takes as scenarios, each judged against its take (`tools/sim/stunts.py`): key: (the take
-#: under stunts/, scene, commands, from when her rows are measured - the telling, or MOMENTS[0]
+#: under stunts/, scene, commands, from when its rows are measured - the telling, or MOMENTS[0]
 #: with a gait under way -, the measures of its signature). A posture's take is told as its own
 #: rows ({'take': key}, `stunts.wire`), a gait's as a player's twist, a jump's as the hop's text,
-#: a fall's as a shove; a verb she has no text for is refused by name: backflip. The falls'
+#: a fall's as a shove; a verb it has no text for is refused by name: backflip. The falls'
 #: signature is SAFE alone: a shove of the polar's most, the slick patch and the ice, a step's
-#: edge behind her.
+#: edge behind it.
 _BACK, _RUN, _SHOVED = KEYS['s'], KEYS['W'], FORCES_N[1]
-#: A gait take's pattern laid over her walk said, as the walk's last entry (`sprung.WALK`) has
+#: A gait take's pattern laid over its walk said, as the walk's last entry (`sprung.WALK`) has
 #: entered: forward over the walk, backward over the walk back (on within 1.5 s of its saying).
 PATTERN_S = sprung.WALK[-1][1] + takes.ENTER_S
 _PATTERN = lambda key: [(1.0, {'say': 'walk'}), (PATTERN_S, {'pattern': key})]
 _BACK_PATTERN = lambda key: [(1.0, {'say': 'walk_back'}), (PATTERN_S, {'pattern': key})]
 #: The stairs takes' flight told at 0 s where the scene stands, the walk by twist: a climb's pattern
-#: (its tempo, drive and lean over the walk) hopped her onto the first tread and toppled her
+#: (its tempo, drive and lean over the walk) hopped it onto the first tread and toppled its
 #: backward at 4.0 s where the walk climbs the flight (sequencer.md).
 _FLIGHT = [(0.0, {'floor': fl.told_stairs(fl.TAKE_RISE_M, fl.TAKE_RUN_M)}), (1.0, {'twist': WALK})]
-#: s a joint program her text binds to a phase may wait for it: her sit and her plant at the bed's edge.
+#: s a joint program its text binds to a phase may wait for it: its sit and its plant at the bed's edge.
 PLAYED_S = 8.0
 STUNTS = {
     'hip_hop': ('dance/Hip Hop Dancing', 'flat', [(1.0, {'take': 'hip_hop'})], 1.0, ('travel', 'drop', 'arms')),

@@ -1,11 +1,11 @@
-"""How a sole rolls: her rock's pitch of it, a knee's fold before its swing, a standing heel's rise.
+"""How a sole rolls: its rock's pitch of it, a knee's fold before its swing, a standing heel's rise.
 
-    tip, tipping, tipped = rocker.rocks(rock, rate, acc)    # each sole's pitch as her rock has it
+    tip, tipping, tipped = rocker.rocks(rock, rate, acc)    # each sole's pitch as its rock has it
     fold, short = rocker.folds(off, loads, bent)            # a knee's fold before its swing, rad and m
     rocked, flatten, pin, round, reach = rocker.heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground)
-    level = rocker.pitched(ground)                          # the floor's pitch as her soles take it
+    level = rocker.pitched(ground)                          # the floor's pitch as its soles take it
 
-Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` renders with it, her
+Arrays in, arrays out and no branch (tests/test_ortho.py); `machine.law.impedance` renders with it, its
 stride's numbers (`machine.law.stride`) its own.
 """
 import os
@@ -21,17 +21,17 @@ from machine.stack.wbc import CONTACT_K
 
 
 def rocks(rock, rate, acc):
-    """Each sole's pitch as her rock has it, rad, its rate and its acceleration: its heel up
-    behind her, its toes up ahead (`rock` her rock's reference, `rate`, `acc` its own)."""
+    """Each sole's pitch as its rock has it, rad, its rate and its acceleration: its heel up
+    behind it, its toes up ahead (`rock` its rock's reference, `rate`, `acc` its own)."""
     heel = ROCK_RAD * (1.0 + HEEL_UP * np.sign(LIMBS * rock))
     return heel * LIMBS * rock, heel * LIMBS * rate, heel * LIMBS * acc
 
 
 def folds(off, loads, bent):
     """A knee's fold before its swing, rad, and what it shortens its leg by, m (2 each): its
-    stride has the sole off and its load leaves it - none of her soles' loads on it, all of
-    FOLD_RAD. `bent` her knees' bend standing, rad. Before its swing alone (`off` less the swing's
-    share done): at the swing's end its sole lands, and the fold leaked there bent her landing knee
+    stride has the sole off and its load leaves it - none of its soles' loads on it, all of
+    FOLD_RAD. `bent` its knees' bend standing, rad. Before its swing alone (`off` less the swing's
+    share done): at the swing's end its sole lands, and the fold leaked there bent its landing knee
     37-39 deg, a woman's 0-12."""
     fold = FOLD_RAD * off * (1.0 - loads / np.maximum(loads.sum(), TINY))
     return fold, (THIGH + SHANK) * (np.cos(0.5 * bent) - np.cos(0.5 * (bent + fold)))
@@ -40,20 +40,20 @@ def folds(off, loads, bent):
 def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, ground):
     """A standing sole's turn about the edge it stands on, striding: (the heel's rise asked,
     rad; its turn's acceleration, rad/s^2; how far it stands on an edge, 1 its ball and -1 its
-    heel; its middle's acceleration round that edge, her way's frame (2, 3); the hip's height over
-    the floor its leg reaches with its heel so, m - `vault.vaults` holds her hip there). Flat; or, its
-    stride `off` it, over its ball as far as her rock has its heel up (`tip`); or as far as
-    its leg's length asks, her hip ahead of its ball - the heel's rise that lets the leg,
-    `long` m less what its knee's fold shortens it (`short`), reach her hip DIP_M under
-    where it stood over a sole (held there her straight leg reaches 0.26 m ahead at most, her step
-    0.5 m whatever her drive; held where the other leg lands straight instead, a long step's
-    compass, her hip came down 1 cm early in each stance and her landing knee bent 28 deg for 23,
-    her march at 1.3 Hz fell). Flat till it left, a sole
-    25 cm behind her had her hips 4 cm down as the other landed, on a knee at 36 deg. `sole`
-    each sole's (place in her way's frame (2, 3), pitch, its rate); `hips` each hip's place
+    heel; its middle's acceleration round that edge, its way's frame (2, 3); the hip's height over
+    the floor its leg reaches with its heel so, m - `vault.vaults` holds its hip there). Flat; or, its
+    stride `off` it, over its ball as far as its rock has its heel up (`tip`); or as far as
+    its leg's length asks, its hip ahead of its ball - the heel's rise that lets the leg,
+    `long` m less what its knee's fold shortens it (`short`), reach its hip DIP_M under
+    where it stood over a sole (held there its straight leg reaches 0.26 m ahead at most, its step
+    0.5 m whatever its drive; held where the other leg lands straight instead, a long step's
+    compass, its hip came down 1 cm early in each stance and its landing knee bent 28 deg for 23,
+    its march at 1.3 Hz fell). Flat till it left, a sole
+    25 cm behind it had its hips 4 cm down as the other landed, on a knee at 36 deg. `sole`
+    each sole's (place in its way's frame (2, 3), pitch, its rate); `hips` each hip's place
     along; `was` the rise asked the pass before, `dt` s ago. Its pitch is read against the
     floor's under it (`ground`, each's): flat on a 10 deg ramp, read as on its heel, a sole's
-    box was its heel's line and she fell 1.9 m up it."""
+    box was its heel's line and it fell 1.9 m up it."""
     place, tilt, tilting = sole
     spoke = np.stack([np.sin(tilt), 0.0 * tilt, np.cos(tilt)], axis=1)
     inward = np.stack([np.cos(tilt), 0.0 * tilt, -np.sin(tilt)], axis=1)
@@ -79,7 +79,7 @@ def heels(sole, hips, floor, long, short, off, tip, stance, stepping, was, dt, g
 
 
 def pitched(ground):
-    """The floor's pitch as her soles take it, rad: under half EDGE_RAD level, past it all of
-    it - a level floor read 0.003 to 0.006 rad as her soft soles pressed it, and her pelvis
+    """The floor's pitch as its soles take it, rad: under half EDGE_RAD level, past it all of
+    it - a level floor read 0.003 to 0.006 rad as its soft soles pressed it, and its pelvis
     rolled 4.96 deg where 5.05."""
     return ground * clip((np.abs(ground) - 0.5 * EDGE_RAD) / (0.5 * EDGE_RAD), 0.0, 1.0)

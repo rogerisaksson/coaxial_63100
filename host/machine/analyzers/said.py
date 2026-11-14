@@ -1,6 +1,6 @@
-"""What she was told and how it went.
+"""What it was told and how it went.
 
-A say refused, in its own words; her errand's phases - laid, each phase, over.
+A say refused, in its own words; its errand's phases - laid, each phase, over.
 """
 
 

@@ -42,19 +42,19 @@ pulled answers.
 | clef:27b-q4_k_m | 17 | at its 16384 the runner wants a 5.4 GB compute buffer beside 11.7 GB of weights: OOM; `options.num_ctx` and OLLAMA_CONTEXT_LENGTH ignored |
 | clef-flash | 10 | every request "non-finite logit" on 0.35.1 (ollama issue 18769) |
 
-### Her prompt (`coaxial_ollama/gynoid.py`)
+### The robot's prompt (`coaxial_ollama/gynoid.py`)
 
 The HUMANOID page's prompt in the operator's own words: the page's model
-(`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of her catalog
+(`gynoid.MODELS`, else the chat's DEFAULT_MODEL) picks one row of its catalog
 (`machine.texts.says`, every row generated from the code that plays it - errands,
 stunts, behaviours, gaits, takes, the tour), held to the rows by a JSON
-Schema enum, null when nothing fits, the mocap takes named after her own
+Schema enum, null when nothing fits, the mocap takes named after its own
 rows and chosen only when asked for. Asked off the page's thread, the plan
 sent as it lands (`gym.drain_plan`); loaded off it as the page opens and at
 `/`, held 5 min, released as the page closes; a smoke run loads nothing.
 
 Measured on 20 prompts in Swedish and English, and the eight of
-`tests/test_live_gynoid.py` judged on her loop:
+`tests/test_live_gynoid.py` judged on its loop:
 
 | Tag | GB on the card | Warm s | Cold s | Right of 20 | Loop |
 | --- | --- | --- | --- | --- | --- |
@@ -69,12 +69,12 @@ Measured on 20 prompts in Swedish and English, and the eight of
 
 No better: a fits flag before the op, the kinds beside the lines, the request
 put in English first, repeat_penalty 1.0 or 1.05 (the same 20 answers).
-With the takes in one list her walk came out running_forward and 'stand up
+With the takes in one list its walk came out running_forward and 'stand up
 from the chair' sit_to_stand. 'buga' and Swedish 'spring' missed on every
 model; hop's line was its specialization's header ('propulsion spring
 specialization') till `says` passed over a self-extending behaviour.
 strands-decider needs MLX. The live suite's first run found the catalog's
-errand command carrying a documentation placeholder for `at` into her loop.
+errand command carrying a documentation placeholder for `at` into its loop.
 
 ## Daemon and client
 

@@ -1,12 +1,12 @@
-"""Her DC link: her packs and her boards' capacitance under her drives' power, bled by her boards.
+"""Its DC link: its packs and its boards' capacitance under its drives' power, bled by its boards.
 
-    link = dclink.laid()                       # at her packs' open-circuit volts (`drives.PACK_V`)
-    dclink.step(link, tau, qvel, vadr, dt)     # her drives' torques at their speeds a step on: link['v']
-    dclink.stepped(world, dt)                  # the world's, its step `compiled`; her boards' buses driven
+    link = dclink.laid()                       # at its packs' open-circuit volts (`drives.PACK_V`)
+    dclink.step(link, tau, qvel, vadr, dt)     # its drives' torques at their speeds a step on: link['v']
+    dclink.stepped(world, dt)                  # the world's, its step `compiled`; its boards' buses driven
 
-Each step her drives' electrical power - the work they do, braking negative, their copper, each
-board's housekeeping and switching - is drawn from her packs through their resistance; what comes
-back they take no faster than their BMS's charge, the rest charges her boards' DC link. Solved
+Each step its drives' electrical power - the work they do, braking negative, their copper, each
+board's housekeeping and switching - is drawn from its packs through their resistance; what comes
+back they take no faster than their BMS's charge, the rest charges its boards' DC link. Solved
 implicit in the link's volts (its RC, 0.52 ms, is under a step): the packs' linear share or their
 charge's limit, whichever leaves the link higher. Past the text's bleed onset
 (`shunt-regenerative-bus-overvoltage`) each board drives its d axis in proportion to its clamp, at
@@ -22,7 +22,7 @@ from machine.law.supervisor import NODE_KINDS
 
 _PACK = mechatronics.robot()['pack']
 _SHUNT = kernel.node('shunt-regenerative-bus-overvoltage', 'dc-bus')
-#: Her packs: their resistance, ohm, their BMS's most charge, A; her boards' DC link, F.
+#: The robot's packs: their resistance, ohm, their BMS's most charge, A; its boards' DC link, F.
 PACK_OHM = _PACK['series'] * _PACK['cell_ohm'] / _PACK['parallel'] / _PACK['packs']
 CHARGE_A = _PACK['cell_charge_a'] * _PACK['parallel'] * _PACK['packs']
 DRIVEN = [j for j in JOINTS if not drives.passive(j)]
@@ -33,7 +33,7 @@ SINKS = [j for j in DRIVEN if drives.kind(j) in {k for node in _SHUNT['priority-
 
 
 def laid():
-    """The link at rest at her packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)}, each
+    """The link at rest at its packs' open-circuit volts: {v, peak, bled (J), id (A, JOINTS order)}, each
     written in place - v, peak and bled 0-d."""
     import numpy as np
     driven = np.array([not drives.passive(j) for j in JOINTS])
@@ -46,13 +46,13 @@ def laid():
 
 
 def compiled():
-    """`step` compiled on her arrays (`tools.cores.bodied`), its `vadr` and `dt` constants: a world's own."""
+    """`step` compiled on its arrays (`tools.cores.bodied`), its `vadr` and `dt` constants: a world's own."""
     from tools.cores import bodied
     return bodied.on_args(step, 'dclink', (0, 1, 2))
 
 
 def step(link, tau, qvel, vadr, dt):
-    """`link` `dt` s on under her drives' torques `tau` at their speeds `qvel[vadr]`."""
+    """`link` `dt` s on under its drives' torques `tau` at their speeds `qvel[vadr]`."""
     import numpy as np
     speed, v = qvel[vadr], link['v'][()]
     spare = np.sqrt(np.maximum(link['amps'] ** 2 - (tau / link['kt']) ** 2, 0.0))
@@ -67,7 +67,7 @@ def step(link, tau, qvel, vadr, dt):
 
 
 def stepped(world, dt):
-    """`world`'s link `dt` s on under her drives' torques and speeds (`world.linked`, `compiled`); her
+    """`world`'s link `dt` s on under its drives' torques and speeds (`world.linked`, `compiled`); its
     boards' current loops on their buses driven from it (their back-EMF's headroom, `buses`)."""
     world.linked(world.link, world.motor, world.data.qvel, world.vadr, dt)
     if world.buses is not None:

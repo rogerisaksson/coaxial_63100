@@ -1,16 +1,16 @@
-"""Her errands: told a verb, she walks to its thing among her things, docks and plays the stunt.
+"""Its errands: told a verb, it walks to its thing among its things, docks and plays the stunt.
 
-    errand.start_errand(g, gym, 'sit_chair', heard, heard_say, at)   # on her things; none, a look, a look round
+    errand.start_errand(g, gym, 'sit_chair', heard, heard_say, at)   # on its things; none, a look, a look round
     errand.step_errand(g, gym, heard, heard_say)                      # a pass: the phase's first true row taken
 
-The phases a table (`_on_rows`): look (still while a glimpse of the kind firms up to hers, turning in
-place till a thing affords the verb, a full turn at most), plan (her planner's answer awaited), scan and
-check where her eyes see (stood, her eyes on her way's places in turn, then her planner told what they showed:
-a way round what bars it - `machine.eyes.gaze`), walk (her way round her things to the stage, her gaze held on
-her dock and led by her way's ground ahead, let go there), corner, settle, turn, side, then back and done at a seat or a
-bed, out and door out of the door (`words._FACES`); the thing hers by what it affords (`machine.way.furniture`),
-her dock and way her planner's (`machine.way.planner`), the stunt on it (`machine.texts.maneuver`); the
-words its rows say, the thing it goes to and what her planner is asked `machine.way.words`'.
+The phases a table (`_on_rows`): look (still while a glimpse of the kind firms up to its own, turning in
+place till a thing affords the verb, a full turn at most), plan (its planner's answer awaited), scan and
+check where its eyes see (stood, its eyes on its way's places in turn, then its planner told what they showed:
+a way round what bars it - `machine.eyes.gaze`), walk (its way round its things to the stage, its gaze held on
+its dock and led by its way's ground ahead, let go there), corner, settle, turn, side, then back and done at a seat or a
+bed, out and door out of the door (`words._FACES`); the thing its own by what it affords (`machine.way.furniture`),
+its dock and way its planner's (`machine.way.planner`), the stunt on it (`machine.texts.maneuver`); the
+words its rows say, the thing it goes to and what its planner is asked `machine.way.words`'.
 """
 import functools
 import math
@@ -24,15 +24,15 @@ from machine.way.words import (
 
 
 def errands():
-    """The verbs she walks to a thing for (`start_errand`)."""
+    """The verbs it walks to a thing for (`start_errand`)."""
     from machine.way import dock
     return tuple(dock.docks())
 
 
 def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
-    """An errand `sc` begun to the thing it goes to nearest `at` (x, z), her without one; nothing of the
-    kind among her things, a look now (`sprung.looked`), nothing in it, begun looking round for one; one
-    found out of her reach refused."""
+    """An errand `sc` begun to the thing it goes to nearest `at` (x, z), it without one; nothing of the
+    kind among its things, a look now (`sprung.looked`), nothing in it, begun looking round for one; one
+    found out of its reach refused."""
     from machine.way import dock
     from machine.law import latent
     from machine.process import sprung
@@ -54,18 +54,18 @@ def start_errand(g, gym, sc, heard_fn, heard_say_fn, at=None):
 @functools.cache
 def _on_rows():
     """The errand's phases, a row each: (on what -> the phase next, told what) in order, the first
-    true row taken; and what she is told while none is - laid once, its tests and words functions of a
-    pass's context, the table of none of it (laid each pass, 6.6 us of her 1 kHz). Read: looking, she stands while a glimpse
-    of the kind firms up to hers, else turns in place till a thing in reach affords the verb - one
-    at hand, its stunt where she stands -, a full turn at most; walking, she stands where her
+    true row taken; and what it is told while none is - laid once, its tests and words functions of a
+    pass's context, the table of none of it (laid each pass, 6.6 us of its 1 kHz). Read: looking, it stands while a glimpse
+    of the kind firms up to its own, else turns in place till a thing in reach affords the verb - one
+    at hand, its stunt where it stands -, a full turn at most; walking, it stands where its
     stopping point
-    enters the box; stood still (`idle`), she walks again past her stopping distance from it,
-    turns to face her heading docked once her rhythm is still and her soles bear alike, the way that
-    clears her things - none
-    clearing, backs off the face once where she faces it, then turns the shorter way; facing all but
-    away, takes the stunt as she stands -, sidesteps while her stop would end past the dock's tolerance off its line
+    enters the box; stood still (`idle`), it walks again past its stopping distance from it,
+    turns to face its heading docked once its rhythm is still and its soles bear alike, the way that
+    clears its things - none
+    clearing, backs off the face once where it faces it, then turns the shorter way; facing all but
+    away, takes the stunt as it stands -, sidesteps while its stop would end past the dock's tolerance off its line
     till that stop is on it, then runs out through a door, else
-    backs till her heels are the stunt's standoff off the edge (`maneuver.standoff`), then the stunt
+    backs till its heels are the stunt's standoff off the edge (`maneuver.standoff`), then the stunt
     (findings/errands.md)."""
     from machine.law import modal, poise, se2, stride
     back = (-se2.BACK_SPEED, 0.0, 0.0)
@@ -107,28 +107,28 @@ def _on_rows():
     }
 
 
-#: What a phase looks for each pass: the look's its verb's thing among hers, and a glimpse of one among
-#: her registry's live slots; a scan whether her eyes have looked along her way (`gaze.scanned`); the rest nothing.
+#: What a phase looks for each pass: the look's its verb's thing among its own, and a glimpse of one among
+#: its registry's live slots; a scan whether its eyes have looked along its way (`gaze.scanned`); the rest nothing.
 _SEEN = {'look': lambda g, e: _seen(g, e['kind'], e.get('at'), e['swept'])}
 _GLIMPSE = {'look': lambda g, e: _glimpsed(g, e['kind'], e.get('at'))}
 _SCANNED = {'scan': lambda g, e: _parts()[9].scanned(g)}
 
 
 def _turn_way(g, e, c):
-    """The way her turn in place onto the dock's heading from where she stands clears her things, the
+    """The way its turn in place onto the dock's heading from where it stands clears its things, the
     shorter first (`dock.turns`); 0 where neither does."""
     from machine.way import dock
     return dock.turns(g, (c['gx'], c['gz']), c['pyaw'], e['hdd'], math.copysign(1.0, c['err_yaw']))
 
 
-#: Which way her turn clears her things, by phase: settled still before a turn, and backing off till
+#: Which way its turn clears its things, by phase: settled still before a turn, and backing off till
 #: one does; elsewhere none asked.
 _TURNS = {'settle': lambda g, e, c: float(c['idle'] and c['still'] and c['even']) and _turn_way(g, e, c), 'clear': _turn_way}
 
 
 @functools.cache
 def _parts():
-    """What a pass of her errand reads, imported at her first errand's pass and not looked up again each."""
+    """What a pass of its errand reads, imported at its first errand's pass and not looked up again each."""
     from machine.way import dock, furniture, planner, route
     from machine.senses import edge
     from machine.law import latent, modal, se2, stride
@@ -137,8 +137,8 @@ def _parts():
 
 
 def _watched(g, e):
-    """Her way left watched by her planner (`_asked`) once WATCH_S walking, none in flight: replanned
-    where her things bar it (`route.barred`) - a new way only where the old stops existing."""
+    """Its way left watched by its planner (`_asked`) once WATCH_S walking, none in flight: replanned
+    where its things bar it (`route.barred`) - a new way only where the old stops existing."""
     planner, furniture = _parts()[8], _parts()[10]
     due = e['phase'] in ('walk', 'door') and g['planner'].asked_at is None
     if not due or g['t'] - e.get('checked_at', -math.inf) < planner.WATCH_S:
@@ -151,10 +151,10 @@ def _watched(g, e):
 
 
 def settled(y, fr, a, sway):
-    """m, positive where her latent loop stands her still enough for a stunt to begin: both soles
-    stand, her capture point `xi = c + v / omega` inside their hull by more than her rhythm sways
-    her, her drift `v / omega` within a sole's half-length - numpy's alone on her law's arrays
-    (modal's `y`, `fr`, `a`; her latent's `sway`), so compiled (`_settled`)."""
+    """m, positive where its latent loop stands it still enough for a stunt to begin: both soles
+    stand, its capture point `xi = c + v / omega` inside their hull by more than its rhythm sways
+    it, its drift `v / omega` within a sole's half-length - numpy's alone on its law's arrays
+    (modal's `y`, `fr`, `a`; its latent's `sway`), so compiled (`_settled`)."""
     import numpy as np
     from machine.body import figure
     from machine.law import modal, poise
@@ -170,7 +170,7 @@ def settled(y, fr, a, sway):
 
 def _settled(g):
     """`settled` on `g`'s arrays, compiled at its first read (`bodied.on_args`, `g['settled']`): numpy's
-    took 50 us a read, read each pass walking (19-22 us of her errand's 84-97) and seated or lying (5-10)."""
+    took 50 us a read, read each pass walking (19-22 us of its errand's 84-97) and seated or lying (5-10)."""
     latent = _parts()[3]
     if g.get('settled') is None:
         from tools.cores import bodied
@@ -180,8 +180,8 @@ def _settled(g):
 
 class _Context(dict):
 
-    """A pass's context for her errand's rows, `idle` (`_settled`) told as a row first reads it - before any word of
-    the pass, the same bits: walking, at her door and turning no row reads it, told each pass it was 47 of her
+    """A pass's context for its errand's rows, `idle` (`_settled`) told as a row first reads it - before any word of
+    the pass, the same bits: walking, at its door and turning no row reads it, told each pass it was 47 of its
     errand's 100-194 us."""
 
     def __init__(self, g, fields):
@@ -196,11 +196,11 @@ class _Context(dict):
 
 
 def step_errand(g, gym, heard_fn, heard_say_fn):
-    """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): her place in the dock's
-    frame, her stop, her aim - her curve, her next stop, else its normal line -, what the phase looks
-    for (`_SEEN`, `_GLIMPSE`), her planner's answer, the row (`_on_rows`), her way watched (`_watched`). Her floor let
-    her go (`g['relocalize']`, `machine.eyes.sight.Keep.took`: her light or her room changed under her): the errand
-    begun anew, its thing and its dock found from what she sees now."""
+    """Advance an active room errand (`sit_chair`, `lie_bed`, `exit_door`): its place in the dock's
+    frame, its stop, its aim - its curve, its next stop, else its normal line -, what the phase looks
+    for (`_SEEN`, `_GLIMPSE`), its planner's answer, the row (`_on_rows`), its way watched (`_watched`). Its floor let
+    it go (`g['relocalize']`, `machine.eyes.sight.Keep.took`: its light or its room changed under it): the errand
+    begun anew, its thing and its dock found from what it sees now."""
     er, relocalize = g.get('_errand'), g.pop('relocalize', False)
     if not er:
         return
@@ -225,10 +225,10 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     a_par = max(s_par - se2.STOP_M, e['d_stage'])
     stop = e['way'][0] if e['way'] else (e['x_dock'] + a_par * e['nx'], e['z_dock'] + a_par * e['nz'])
     gap, closing = se2.closing(vx_w, vz_w, stop[0] - gx, stop[1] - gz)
-    # her straight leg braked into an intermediate corner as her curve is into its end (`route.rounded`, the
-    # wayfinder's centripetal governor): at BRAKE to her CORNER_SPEED a stride and a cell off it, where `corner` stands her;
-    # at her stage (`len(e['way']) <= 1`) `corner` and `stops_in` already time her STOP_M run-out from WALK_SPEED;
-    # pushing a door (`door_push`), eased to a steady walk before the panel so she neither slams it nor stalls on its spring
+    # its straight leg braked into an intermediate corner as its curve is into its end (`route.rounded`, the
+    # wayfinder's centripetal governor): at BRAKE to its CORNER_SPEED a stride and a cell off it, where `corner` stands it;
+    # at its stage (`len(e['way']) <= 1`) `corner` and `stops_in` already time its STOP_M run-out from WALK_SPEED;
+    # pushing a door (`door_push`), eased to a steady walk before the panel so it neither slams it nor stalls on its spring
     door_push = e['phase'] == 'door' and len(e['way']) <= 1
     off = max(0.0, gap - stride.STRIDE_M - voxels.CELL_M)
     door_pace = math.sqrt((0.65 * se2.WALK_SPEED) ** 2 + 2.0 * route.BRAKE * max(0.0, s_par - stride.STRIDE_M))
@@ -239,8 +239,8 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
     e['k'], (ax, az), along, _there, pace, _bend = (
         route.ahead(e['curve'], e['k'], (gx, gz)) if len(e['curve'])
         else (e['k'], aim, way_hd, pyaw, walk_pace, 0.0))
-    # on her curve its stop is what is left of it, her speed along it: by the line to it, round the bed
-    # 1 m off and more walked, she was told to stand mid-curve at 0.84 m/s and fell
+    # on its curve its stop is what is left of it, its speed along it: by the line to it, round the bed
+    # 1 m off and more walked, it was told to stand mid-curve at 0.84 m/s and fell
     gap, closing = ((float(e['curve'][-1, 2] - e['curve'][e['k'], 2]) + math.hypot(float(e['curve'][e['k'], 0]) - gx, float(e['curve'][e['k'], 1]) - gz),
                      max(0.0, vx_w * math.sin(along) + vz_w * math.cos(along))) if len(e['curve']) else (gap, closing))
     ctx = _Context(g, {
@@ -251,9 +251,9 @@ def step_errand(g, gym, heard_fn, heard_say_fn):
                      and e['d_stage'] + s_par <= max(closing * t_stop, 1.5 * stride.STRIDE_M)),
         'stops_in': not e['way'] and (s_par_stop <= e['d_stage'] and abs(s_perp_stop) <= e['lat_tol']
                                       or math.hypot(s_par_stop - e['d_stage'], s_perp_stop) <= stride.STRIDE_M),
-        # her run-out her speed's over t_stop - 0.87 m at 0.81 m/s, 1.17 at 0.92 - and a stride at least, her
-        # brake's: told 0.31 m off her stage at 0.25 m/s she went on 0.5 m onto the bed; a cell early at a
-        # corner, none at her stage: a cell short there she backed it after her turn
+        # its run-out its speed's over t_stop - 0.87 m at 0.81 m/s, 1.17 at 0.92 - and a stride at least, its
+        # brake's: told 0.31 m off its stage at 0.25 m/s it went on 0.5 m onto the bed; a cell early at a
+        # corner, none at its stage: a cell short there it backed it after its turn
         'corner': bool(e['way']) and gap <= max(closing * t_stop, stride.STRIDE_M * float(closing > 0.0))
         + voxels.CELL_M * float(len(e['way']) > 1),
         'err_w': se2.wrap_angle(math.atan2(ax - gx, az - gz) - pyaw), 'off_w': se2.wrap_angle(along - pyaw),

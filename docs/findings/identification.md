@@ -1,34 +1,34 @@
 # Findings: identification
 
-Her body identified of what a robot of her build measures (`machine.identify.sysid`,
+Its body identified of what a robot of its build measures (`machine.identify.sysid`,
 `tests/test_sysid.py`, `tools/sim/sysid.py`): the drives' torques are linear in
 each link's ten inertial parameters and each drive's armature, viscous and
-Coulomb friction, tau = Y(q, v, a) theta; Y is Newton-Euler down her tree from
-her pelvis's IMU and her encoders, only her drives' rows measured. The same
+Coulomb friction, tau = Y(q, v, a) theta; Y is Newton-Euler down its tree from
+its pelvis's IMU and its encoders, only its drives' rows measured. The same
 arrays come off MuJoCo and off a robot on its stand, its boards' currents its
-torques. What her law senses: [sensing](sensing.md); the drives:
+torques. What its law senses: [sensing](sensing.md); the drives:
 [drives](drives.md).
 
 ## The regressor
 
-- Her drives' rows against MuJoCo's inverse dynamics at 40 random states, the
+- Its drives' rows against MuJoCo's inverse dynamics at 40 random states, the
   pelvis anywhere, the loose dofs moving: 5e-14 N m apart of 8. The pelvis's
   frame set still, its specific force the base acceleration: gravity rides in
   the IMU's reading and nowhere else.
-- 28 links, 33 hinges, 21 drives: 343 columns. Her pelvis's own ten are zero
-  in every drive's row; her hair's and hems', unsensed and at rest in her
-  law's model, fold into her head's and shanks'.
+- 28 links, 33 hinges, 21 drives: 343 columns. Its pelvis's own ten are zero
+  in every drive's row; its hair's and hems', unsensed and at rest in its
+  law's model, fold into its head's and shanks'.
 - A joint's axes and anchors are MuJoCo's per joint (`xaxis`, `xanchor`), not
   per dof.
 
 ## The campaign
 
-- On the stand (`mjcf.STAND`: her pelvis welded 1.3 m up, `solref` 0.005):
-  every drive swung at once met herself - feet on feet 417 steps of 12 000,
+- On the stand (`mjcf.STAND`: its pelvis welded 1.3 m up, `solref` 0.005):
+  every drive swung at once met itself - feet on feet 417 steps of 12 000,
   forearm on thigh 372, shank on thigh 290. A limb at a time
   (`campaign.STAGES`), its joints swung 35 % of their range 5 % from either stop
-  and the unlimited 0.5 rad, the hip's roll abducted, her arms held out before
-  her (`campaign.POSE`, shoulders flexed 90 deg): 0 steps touched in 24 s.
+  and the unlimited 0.5 rad, the hip's roll abducted, its arms held out before
+  it (`campaign.POSE`, shoulders flexed 90 deg): 0 steps touched in 24 s.
 - MuJoCo's `frictionloss` is Coulomb past 0.25 rad/s and a dead band under it:
   read everywhere, a drive's viscous friction came out 0.7-2.1 N m s/rad for
   0.3 and its Coulomb 0.1-0.4 for 1.2-2.2. A drive's row read only where it
@@ -56,23 +56,23 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   axis: 1.0-2.6 for 0.49); a foot's and its toes' tensors, the toes' sprung
   hinge barely moving, split between them (hz -0.71 and 0.74 for 0.02 and
   0.002, their sum right).
-- 0.5 kg in her left hand: her forearm's first moment -0.031 -> -0.156 kg m,
-  read -0.155; her upper arm's -0.271 -> -0.411, read -0.412; her trunk's
+- 0.5 kg in its left hand: its forearm's first moment -0.031 -> -0.156 kg m,
+  read -0.155; its upper arm's -0.271 -> -0.411, read -0.412; its trunk's
   3.585 -> 3.756, read 3.751.
-- Hung in a harness (`World.hang`) where the stand would hold her, a robot's
-  rig: her pelvis 79 mm down on it, bouncing at 1.8 Hz under her limbs; 48
+- Hung in a harness (`World.hang`) where the stand would hold it, a robot's
+  rig: its pelvis 79 mm down on it, bouncing at 1.8 Hz under its limbs; 48
   s, 0 steps touched, residual 0.24 N m rms a drive (the stand's 0.28), 110
   base parameters trusted (101), 70 within 10 % (69). 237 base parameters
   either way: the bounce tells no mass from its first moment at the base's
   1 %. A load cell in the harness (`World.pull`, `sysid.hung`: its force on
-  her and its moment about her pelvis's origin, six rows beside the drives')
-  adds her pelvis's ten: 247 base parameters, 115 trusted, 83 within 10 %,
-  her mass 31.142 for 31.143 kg; the force rows' residual 0.07 N m at the 0.1
+  it and its moment about its pelvis's origin, six rows beside the drives')
+  adds its pelvis's ten: 247 base parameters, 115 trusted, 83 within 10 %,
+  its mass 31.142 for 31.143 kg; the force rows' residual 0.07 N m at the 0.1
   m lever, the moment rows' 0.3-0.57.
 
 ## The corrections
 
-- `identified.correction` moves her build the least that fits the campaign: each
+- `identified.correction` moves its build the least that fits the campaign: each
   link's mass and first moment and each drive's armature and friction, least
   squares with a ridge (0.3 of the regressor's mean column) on each move in
   its kind's unit (0.1 kg, 0.02 kg m, 0.01 kg m^2, 0.05 N m s/rad, 0.1 N m);
@@ -80,7 +80,7 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   following its mass and centre, so every link stays a body; no mass under a
   quarter of itself, no drive parameter under none. `identified.save` writes it
   (`machine/humanoids/<robot>.identified.toml`, `identified.IDENTIFIED`); `wbc.Body`
-  lays it over her law's model whole, so the C arrays
+  lays it over its law's model whole, so the C arrays
   (`tools/cores/model.py`) follow.
 - A base parameter is a sum over neighbouring links: laid on one column
   apiece the links' own tensors were no body's (the trunk's principal
@@ -88,9 +88,9 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   residual rose 6.5 N m. Priced of each parameter's own size the hand's
   0.5 kg cost 14 units and landed as the trunk's mass and the arms' first
   moments, the other arm's residual up 0.31 N m.
-- The 0.5 kg in her hand, on a third campaign: her hand and fingers 0.19 and
-  0.22 kg heavier (their columns one, the gripper held), her forearm 0.06; her
-  shoulder's residual 3.37 -> 0.05 N m, her elbow's 1.93 -> 0.05, her trunk's
+- The 0.5 kg in its hand, on a third campaign: its hand and fingers 0.19 and
+  0.22 kg heavier (their columns one, the gripper held), its forearm 0.06; its
+  shoulder's residual 3.37 -> 0.05 N m, its elbow's 1.93 -> 0.05, its trunk's
   1.5-4.5 -> 0.1; no other drive's up by more than 0.06.
 - A world built 15 % off the figure, every link's mass, centre and inertia
   and every drive's armature and friction drawn apart: Coulomb read back
@@ -135,10 +135,10 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   on arrays low-passed at 3-20 Hz, every wind-up 20-90 % low: the wind-up's
   signal is the ring's size.
 
-## On her walk
+## On its walk
 
-- Her walk on the gym's world 15 % off the figure, 0.69 m/s for 9 s, her
-  edge arrays and her drives' torques a step: a row is read where the model
+- The robot's walk on the gym's world 15 % off the figure, 0.69 m/s for 9 s, its
+  edge arrays and its drives' torques a step: a row is read where the model
   holds (`sysid.free`) - no joint of the limb within 2 deg of a stop, nothing
   touching its skin from the sample before to the one after. Against the
   world's own model the trunk's rows read 0.02-0.03 N m rms, a hip's 1.3-2.3
@@ -148,85 +148,85 @@ torques. What her law senses: [sensing](sensing.md); the drives:
   stop, 2.7 deg flexed.
 - Judged on the walk's second half, N m rms a drive in the mean: the build
   0.53, the world's own 0.35; corrected on the stand's campaign alone 0.62 -
-  her hips' and knees' 1.8 and 1.3 -> 3.1 and 2.4: her pelvis still on the
+  its hips' and knees' 1.8 and 1.3 -> 3.1 and 2.4: its pelvis still on the
   stand, masses and first moments never stand apart -; on the walk's first
   half alone 0.44; on both 0.42, the trunk's 0.47, 0.45, 0.11 -> 0.30, 0.17,
-  0.03, no drive's up by more than 0.02 (`test_her_model_holds_on_her_walk`).
+  0.03, no drive's up by more than 0.02 (`test_its_model_holds_on_its_walk`).
 - Of what the world's own model takes off the build, the correction on both
   takes 0.57 (build 0.613, corrected 0.511, world 0.433) and on CI's Linux
   0.62 (0.872, 0.782, 0.726): of the build's whole 17 and 10 %. The
   platform's arithmetic moves the floor no model takes, not the share.
 
-## Standing on her insoles
+## Standing on its insoles
 
-- Her pelvis's six rows (`sysid.regressor`'s last: the force on her, world, and
-  the moment about her pelvis's origin in its frame) are MuJoCo's inverse
-  dynamics to 3e-13 N m at 20 random states. Standing on her law and swaying
-  (#202) 8 s, her insoles' pressures along their soles' normals at their
-  centres of pressure against them, shear-free about the point under her
-  pelvis at her insoles' height (`sysid.borne`): her weight 305.2 for 305.5 N,
+- Its pelvis's six rows (`sysid.regressor`'s last: the force on it, world, and
+  the moment about its pelvis's origin in its frame) are MuJoCo's inverse
+  dynamics to 3e-13 N m at 20 random states. Standing on its law and swaying
+  (#202) 8 s, its insoles' pressures along their soles' normals at their
+  centres of pressure against them, shear-free about the point under its
+  pelvis at its insoles' height (`sysid.borne`): its weight 305.2 for 305.5 N,
   0.034 N m rms apart at a 0.1 m lever, the moments 0.13 and 0.45 N m rms
   apart on swings of 2 and 18.
-- Those three rows beside the stand's campaign add her pelvis's own to the base
-  parameters, 237 -> 239: her mass 31.14 kg to 0.02 %, and a first moment of her
-  pelvis (hz -0.137 for -0.147 kg m, 6 % of itself), which her drives' rows never
+- Those three rows beside the stand's campaign add its pelvis's own to the base
+  parameters, 237 -> 239: its mass 31.14 kg to 0.02 %, and a first moment of its
+  pelvis (hz -0.137 for -0.147 kg m, 6 % of itself), which its drives' rows never
   show.
 
 ## On-line, under a load
 
-`machine.identify.wear` (tests/test_wear.py): her walk's rows every 4 s against her
-build's prediction, where her model holds; a load in a hand (a mass and its
+`machine.identify.wear` (tests/test_wear.py): its walk's rows every 4 s against
+its build's prediction, where its model holds; a load in a hand (a mass and its
 first moment), each drive's Coulomb and viscous friction and its torque an
 amp the movers, a Kalman filter on a random walk keeping each with its
-doubt, each drive's rows weighed by its misfit the window before; her boxes
+doubt, each drive's rows weighed by its misfit the window before; its boxes
 by `campaign.boxes` on the window; the bands, a load's most and the service
-interval her build's [service]; an alarm a drift past its band by two of its
+interval its build's [service]; an alarm a drift past its band by two of its
 doubt.
 
-- Walking at 0.69 m/s with her jeans on (`mjcf.HEM_KG` 0.12 kg), 0.5 kg put in
-  her left hand reads 0.48 +- 0.2 kg there within 12 s, 0.00 in the right, no
-  alarm, and is laid into her law (`wear.loaded`, `body.m` and `g['fr']`) and
-  shown in the page's `SERVICE` box; her left knee's friction doubled reads
-  +0.98 N m for +1.2, her left hip's torque an amp 0.8 reads -0.23 of itself,
-  and her right elbow's encoder zero slipped +20 mrad reads +20.0 mrad, each
-  named within 14 s; a window 0.3 s. Standing on her insoles (`#202`) with 1.5
-  kg on her back (`torso`), `wear.torso_load` reads 1.500 kg off her insoles'
-  rows (`sysid.borne`) and lays it into her law.
+- Walking at 0.69 m/s with its jeans on (`mjcf.HEM_KG` 0.12 kg), 0.5 kg put in
+  its left hand reads 0.48 +- 0.2 kg there within 12 s, 0.00 in the right, no
+  alarm, and is laid into its law (`wear.loaded`, `body.m` and `g['fr']`) and
+  shown in the page's `SERVICE` box; its left knee's friction doubled reads
+  +0.98 N m for +1.2, its left hip's torque an amp 0.8 reads -0.23 of itself,
+  and its right elbow's encoder zero slipped +20 mrad reads +20.0 mrad, each
+  named within 14 s; a window 0.3 s. Standing on its insoles (`#202`) with 1.5
+  kg on its back (`torso`), `wear.torso_load` reads 1.500 kg off its insoles'
+  rows (`sysid.borne`) and lays it into its law.
 - A kt's column whole - the drive's predicted torque - told nothing from
   its friction's columns (the knee's doubling read as kt +0.25); short of
   the friction it does.
-- The jeans' hems swinging on her shanks, at rest in her law's model, read
-  her knees' torque an amp 12-21 % high and their friction 0.5-0.8 N m low
+- The jeans' hems swinging on its shanks, at rest in its law's model, read
+  its knees' torque an amp 12-21 % high and their friction 0.5-0.8 N m low
   as built, a false alarm at 0.15. Integrated in `wear._hems` as 2-DoF
   pendulums with their stops (`jnt_solref`, `jnt_solimp`) at the world's step
-  from her pelvis's IMU and her legs' encoders, and the samples within 5 steps
-  of a hem stop masked out, her 10 s walk as built raises no alarm and keeps
-  every drive's residual under 0.25 N m. Not kept: the hems swung in her law's
-  model from her motion by its inverse dynamics - free, three times the
+  from its pelvis's IMU and its legs' encoders, and the samples within 5 steps
+  of a hem stop masked out, its 10 s walk as built raises no alarm and keeps
+  every drive's residual under 0.25 N m. Not kept: the hems swung in its law's
+  model from its motion by its inverse dynamics - free, three times the
   world's, which bang on their stops; held at their stops, the stops' impulses
   in the rows read the hips 1-2.5 N m off.
-- Her rows recorded a step early (the edge read at a pass's start after the
+- Its rows recorded a step early (the edge read at a pass's start after the
   pass) misfit the hips 4-6 N m rms for 1.5-3.
 - A window's edge rows, their neighbour beyond the window unseen: kept on
   their own clear, a sole's landing read the right hip's friction -1.4 N m
   and the right knee's torque an amp +0.67 of itself in 36 s, both named;
   wrapped round (`np.roll`), they had been judged by the window's other end.
   A neighbour unseen counts as touched (`sysid.free`).
-- Her regressor in C, compiled from its numpy (`machine/identify/regressor.py`,
+- Its regressor in C, compiled from its numpy (`machine/identify/regressor.py`,
   `tools.cores.held`): numpy's arithmetic operation for operation -
   'nij,nj->ni' on R's views SSE's two lanes, its other einsums a plain sum,
   its cross's formula, each read off numpy's own -; 0 of 5.35 M entries apart
-  over three of her walk's windows, 9 against 57 ms a window, her wear's worst
+  over three of its walk's windows, 9 against 57 ms a window, its wear's worst
   pass 202 -> 116 ms. Its port by hand ran 9.4 ms at 400 states, the build
   5.95 at -O3 (8.0 at -O2), each level bit for bit.
-- Her wear's window a part a pass (`wear.wearing`, `worker.stepped`): its hems,
-  its rows and her insoles' a hundred states a part, the movers' columns, the
-  filter, her boxes, the load laid last - the arithmetic of one pass; her
-  worst pass walking 118-146 -> 18.2 ms over three windows, her trajectory and
-  her wear the same to the bit, the load laid and the page's report 19 passes
+- Its wear's window a part a pass (`wear.wearing`, `worker.stepped`): its hems,
+  its rows and its insoles' a hundred states a part, the movers' columns, the
+  filter, its boxes, the load laid last - the arithmetic of one pass; its
+  worst pass walking 118-146 -> 18.2 ms over three windows, its trajectory and
+  its wear the same to the bit, the load laid and the page's report 19 passes
   later.
 
-## On her boards
+## On its boards
 
 A drive on its board, through the wire alone (`coaxial.control.identify`,
 `tools/bench/sysid_drives.py`, tests/test_native_sysid.py): held as a stepper

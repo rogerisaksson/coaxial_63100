@@ -1,16 +1,16 @@
-"""F's keys held: each thing she has identified at its own function key while her eyes keep it.
+"""F's keys held: each thing it has identified at its own function key while its eyes keep it.
 
     got = fkeys.slotted(state, now, offers, turn)   # [(slot, offer)], each thing at its key's place
 
-A thing keeps its key while she turns; a new one takes the first free; one past the keys' count takes
-the key of the one she faces least only HELD_RAD nearer facing, so two in a tie do not trade it.
+A thing keeps its key while it turns; a new one takes the first free; one past the keys' count takes
+the key of the one it faces least only HELD_RAD nearer facing, so two in a tie do not trade it.
 """
 import math
 
 #: The keys' count: F1 to F10.
 KEYS = 10
-#: A thing past the keys' count takes the key of the one she faces least only turned this much nearer
-#: to it than to that one, rad: an eighth of a turn, her slant arrival's (`dock.ARRIVALS`).
+#: A thing past the keys' count takes the key of the one it faces least only turned this much nearer
+#: to it than to that one, rad: an eighth of a turn, its slant arrival's (`dock.ARRIVALS`).
 HELD_RAD = 0.25 * math.pi
 
 
@@ -23,8 +23,8 @@ def _same(held, offer):
 
 def slotted(state, now, got, turn):
     """[(slot, offer)] each of `got` [(verb, word, at, thing, (lo, hi))], ranked, at its key's place,
-    by place: a thing again at its own (`state['slots']`, laid anew with her scanner or its epoch), a
-    new one at the first free, one past KEYS at the key of the one she faces least (`turn(now, at)`)
+    by place: a thing again at its own (`state['slots']`, laid anew with its scanner or its epoch), a
+    new one at the first free, one past KEYS at the key of the one it faces least (`turn(now, at)`)
     only HELD_RAD nearer facing."""
     sc, mem = state.get('scanner'), state.get('slots')
     if mem is None or mem['of'][0] is not sc or mem['of'][1] != now.get('epoch'):
@@ -45,7 +45,7 @@ def slotted(state, now, got, turn):
 
 
 def shown(state, offer, propped=None):
-    """The offers of `offer` (`gym.offered`'s) at a thing in her sight (`scanner.scan`), or bearing her (`propped`)."""
+    """The offers of `offer` (`gym.offered`'s) at a thing in its sight (`scanner.scan`), or bearing it (`propped`)."""
     now, sc = state.get('now'), state.get('scanner')
     view = sc.scan(now) if sc is not None and now and not propped else None
     return [o for o in offer if o[3] is not None and (view is None or any(

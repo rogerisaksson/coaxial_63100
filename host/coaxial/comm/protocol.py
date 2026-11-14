@@ -209,7 +209,7 @@ class CtrlOp(IntEnum):
 
 
 class WbcOp(IntEnum):
-    """Device 13, the whole-body loop on her stand - `coaxial.devices.wbc`."""
+    """Device 13, the whole-body loop on its stand - `coaxial.devices.wbc`."""
     TICK = 0
     STEP = 1
     SWUNG = 2

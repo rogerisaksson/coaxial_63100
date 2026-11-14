@@ -1,15 +1,15 @@
-"""Her capture point's barrier: her centre of mass's ask held to keep it in her support.
+"""The robot's capture point's barrier: its centre of mass's ask held to keep it in its support.
 
     acc = barrier.barred(acc, com, vcom, om, corners, rest)   # the ask, each edge's h' + gamma h >= 0
 
-The kernel's `enforce-dcm-barrier-zcbf`: h = an edge's distance in of her capture point
-xi = c + c' / omega, less the text's margin, over the hull of her bearing soles' corners and what else bears her. Each
+The kernel's `enforce-dcm-barrier-zcbf`: h = an edge's distance in of its capture point
+xi = c + c' / omega, less the text's margin, over the hull of its bearing soles' corners and what else bears it. Each
 edge asks h' + GAMMA h >= 0, h' = -n'(c' + c'' / omega): n'c'' <= omega (GAMMA h - n'c'); past it
-(h < 0) no further out, h' >= 0 - pulled back it threw her rise forward off its seat. The ask's
-floor part is projected onto those half planes, SWEEPS times in turn, as far as `rest`: what her
-rows lean on that her comparator does not feel (`observer.weighed`), the text's blind settle, while
-she does not stride - a stride moves her support itself. Kept on in every stance it threw the
-chair's rise (her pelvis's jerk 266 -> 1 000 m/s^3).
+(h < 0) no further out, h' >= 0 - pulled back it threw its rise forward off its seat. The ask's
+floor part is projected onto those half planes, SWEEPS times in turn, as far as `rest`: what its
+rows lean on that its comparator does not feel (`observer.weighed`), the text's blind settle, while
+it does not stride - a stride moves its support itself. Kept on in every stance it threw the
+chair's rise (its pelvis's jerk 266 -> 1 000 m/s^3).
 """
 import os
 
@@ -19,13 +19,13 @@ import numpy as np
 
 from machine.texts import kernel
 
-#: The text's barrier: its decay, /s; her capture point kept this far in of her support's edges, m.
+#: The text's barrier: its decay, /s; its capture point kept this far in of its support's edges, m.
 GAMMA = kernel.said('enforce-dcm-barrier-zcbf', 'barrier-gamma')
 MARGIN_M = 1e-3 * kernel.said('enforce-dcm-barrier-zcbf', 'min-capture-margin-mm')
 #: The projections onto the edges' half planes in turn: a hull's corner meets two.
 SWEEPS = 3
-#: The hulls her soles make, by their corners: two soles' eight at most. Each one's part of `ringed` traced
-#: ahead in her first passes (`ahead`), not in the pass such a hull first bears her - 8 ms a trace.
+#: The hulls its soles make, by their corners: two soles' eight at most. Each one's part of `ringed` traced
+#: ahead in its first passes (`ahead`), not in the pass such a hull first bears it - 8 ms a trace.
 HULLS = tuple(range(3, 9))
 
 
@@ -47,7 +47,7 @@ def hull(points):
 
 
 def ringed(acc, com, vcom, om, ring, rest):
-    """`acc` (world, y up) with its floor part (x, z) held by her capture point's barrier over a
+    """`acc` (world, y up) with its floor part (x, z) held by its capture point's barrier over a
     hull's `ring` (k, 2), as far as `rest`; in C a ring's length a part (`motion.laid`), its
     np.maximum(0.0, d) Python's max(0.0, d) but at nan."""
     edge = np.roll(ring, -1, axis=0) - ring
@@ -68,7 +68,7 @@ def ringed(acc, com, vcom, om, ring, rest):
 def ahead(law, left):
     """`law` (`ringed`, a part a ring's length) on a regular ring of the first length `left`, its result
     dropped, till that part is traced or stays numpy - then that length off `left`: a trace at a time, as
-    her parts pace them (`tools.cores.bodied`); `left` empty, nothing."""
+    its parts pace them (`tools.cores.bodied`); `left` empty, nothing."""
     if not left:
         return
     k = left[0]

@@ -1,7 +1,7 @@
-/** quick_step.c - her step's ask and senses laid into its struct, its C called and its answer made in one C call
- * (tools.cores.step's `_stepped`): its pointed write, her contacts, the ask's fields as numpy's assignments set them
+/** quick_step.c - its step's ask and senses laid into its struct, its C called and its answer made in one C call
+ * (tools.cores.step's `_stepped`): its pointed write, its contacts, the ask's fields as numpy's assignments set them
  * (its defaults `_stepped`'s), the call - the interpreter let go, as ctypes lets it go - and its dict, the same objects;
- * a sensing not her compiled sensing's last, a value of another kind or layout its miss, Python's path then. The
+ * a sensing not its compiled sensing's last, a value of another kind or layout its miss, Python's path then. The
  * host's alone. */
 #define NO_IMPORT_ARRAY
 #include "quick.h"
@@ -46,7 +46,7 @@ typedef struct
   Py_ssize_t off[FIELDS], most, pointed, npointed, nd;
   double     mu;                          /* the ask's friction where none is given (machine.stack.wbc.MU) */
   double    *spread;                      /* a derate, lo or hi given as a number, broadcast: three of nd each */
-  PyObject  *keys, *miss, *singular;      /* her sensing's keys pointed at (step.SENSED), MISS, LinAlgError */
+  PyObject  *keys, *miss, *singular;      /* its sensing's keys pointed at (step.SENSED), MISS, LinAlgError */
 } step_t;
 
 #define FAT(t, f) ((t)->k + (t)->off[f])
@@ -205,7 +205,7 @@ static double *spread(PyObject *o, double *buf, Py_ssize_t nd, double none)
   return buf;
 }
 
-/* Her sensing pointed at, `_stepped`'s pointed write: her compiled sensing's last, `s`'s the same objects. */
+/* Its sensing pointed at, `_stepped`'s pointed write: its compiled sensing's last, `s`'s the same objects. */
 static int pointed(step_t *t, PyObject *kobj, PyObject *s)
 {
   PyObject *sensed = PyObject_GetAttr(kobj, K[K_SENSED]), *placed = PyObject_GetAttr(kobj, K[K_PLACED]);
@@ -245,7 +245,7 @@ static int pointed(step_t *t, PyObject *kobj, PyObject *s)
   return ok;
 }
 
-/* Her contacts (`s.get('contacts', ())`) pointed at, their patches, bodies and give: 0 where one is not as laid. */
+/* Its contacts (`s.get('contacts', ())`) pointed at, their patches, bodies and give: 0 where one is not as laid. */
 static int touched(step_t *t, PyObject *s)
 {
   static const int ptrs[5][2] = {{K_J, F_CJ}, {K_P, F_CP}, {K_DJV, F_CDJV}, {K_F, F_CF}, {K_N, F_CN}};
@@ -366,7 +366,7 @@ static int asked(step_t *t, PyObject *ask)
   return ok && !bad;
 }
 
-/* Her ask's arrays and her body's (`_stepped`'s): posture, derate, clamp, WEP, mass, lo and hi; 0 where not as laid. */
+/* Its ask's arrays and its body's (`_stepped`'s): posture, derate, clamp, WEP, mass, lo and hi; 0 where not as laid. */
 static int arrays(step_t *t, PyObject *b, PyObject *ask)
 {
   int       bad = 0;

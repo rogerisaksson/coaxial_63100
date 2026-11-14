@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Her identification on-line, under a load (`machine.identify.wear`): on her walk with her jeans on, a load
-put in her hand read with no alarm and laid into her law, the filter in her worker and on the page;
+"""Its identification on-line, under a load (`machine.identify.wear`): on its walk with its jeans on, a load
+put in its hand read with no alarm and laid into its law, the filter in its worker and on the page;
 a knee's friction doubled, a hip's torque an amp down a fifth and a slipped encoder zero named and
 nothing else, the load still read; on the boxed stand a box's play doubled and a slipped encoder
-zero named; standing on her insoles, a load on her back read and laid into her law; the hours run
-and the service left in what she tells; her windows read apart landing as they land here."""
+zero named; standing on its insoles, a load on its back read and laid into its law; the hours run
+and the service left in what it tells; its windows read apart landing as they land here."""
 import os
 import sys
 
@@ -17,11 +17,11 @@ from gynoid_kit import Report
 from machine.body import mjcf
 from machine.world import physics
 
-#: Her walk's phases, s: as built, carrying LOAD_KG in her left hand, then - from a wear window's
+#: Its walk's phases, s: as built, carrying LOAD_KG in its left hand, then - from a wear window's
 #: start (`wear.WINDOW_S`), WORN_S its windows whole - a knee's friction FRICTION_X, a hip's torque
 #: an amp TORQUE_X of themselves and an elbow's encoder slipped ZERO_RAD besides; a load read within
-#: this of itself; the stand's campaign, s, with a knee's play PLAY_X; her back's load, kg, read
-#: standing on her insoles.
+#: this of itself; the stand's campaign, s, with a knee's play PLAY_X; its back's load, kg, read
+#: standing on its insoles.
 NOMINAL_S, LOADED_S, WORN_S = 12.0, 12.0, 14.0
 LOAD_KG, WITHIN, FRICTION_X, TORQUE_X, ZERO_RAD = 0.5, 0.3, 2.0, 0.8, 0.02
 CAMPAIGN_S, PLAY_X = 24.0, 2.0
@@ -29,7 +29,7 @@ TORSO_KG, SWAY_S = 1.5, 6.0
 
 
 def _laid():
-    """Her session on the gym's floor with her jeans on (`mjcf.HEM_KG`), and the filter in her
+    """Its session on the gym's floor with its jeans on (`mjcf.HEM_KG`), and the filter in its
     worker (`s['wear']`)."""
     from machine.process import worker
     was = mjcf.STAND
@@ -37,12 +37,12 @@ def _laid():
     try:
         s = worker.session()
     finally:
-        mjcf.STAND = was  # set back to 1.0, every session after it stood her on the gym's stand
+        mjcf.STAND = was  # set back to 1.0, every session after it stood it on the gym's stand
     return s, s['wear']
 
 
 def _walked(s, until, walked=True):
-    """Her worker stepped on to `until` s, her walk at 0.69 m/s from 1 s when `walked`."""
+    """The robot's worker stepped on to `until` s, its walk at 0.69 m/s from 1 s when `walked`."""
     from machine.process import worker
     g = s['g']
     told = g['t'] >= 1.0
@@ -54,7 +54,7 @@ def _walked(s, until, walked=True):
 
 
 def _changed(world, change):
-    """`change` on the world's model, her state kept."""
+    """`change` on the world's model, its state kept."""
     m, d = world.model, world.data
     qpos, qvel = d.qpos.copy(), d.qvel.copy()
     change(m)
@@ -63,13 +63,13 @@ def _changed(world, change):
     world._mj.mj_forward(m, d)
 
 
-def test_a_load_is_read_and_her_wear_named(report):
-    """Walking as built with her jeans on (`mjcf.HEM_KG`) nothing is named and no load read; LOAD_KG
-    put in her left hand is read within WITHIN of itself in LOADED_S with no alarm and laid into her
-    law (`g['body']`, `g['fr']`), the worker's state and the page's SERVICE box showing it; her left
-    knee's friction FRICTION_X, her left hip's torque an amp TORQUE_X and her right elbow's encoder
+def test_a_load_is_read_and_its_wear_named(report):
+    """Walking as built with its jeans on (`mjcf.HEM_KG`) nothing is named and no load read; LOAD_KG
+    put in its left hand is read within WITHIN of itself in LOADED_S with no alarm and laid into its
+    law (`g['body']`, `g['fr']`), the worker's state and the page's SERVICE box showing it; its left
+    knee's friction FRICTION_X, its left hip's torque an amp TORQUE_X and its right elbow's encoder
     zero ZERO_RAD besides, each is named within WORN_S and nothing else, the load still read; the
-    hours run in what she tells, service due."""
+    hours run in what it tells, service due."""
     from machine.law import modal
     from machine.process import worker
     from machine.body.figure import JOINTS
@@ -96,7 +96,7 @@ def test_a_load_is_read_and_her_wear_named(report):
     law_dw = (float(g['fr'][modal.WEIGHT]) - weight0) / modal.G
     boxes = show_humanoid.boxes({'recording': None, 'recorded': None}, now, 'cpu')
     shown = '\n'.join('%s\n%s' % (b.title, b.renderable.plain) for b in boxes)
-    report.check('%.1f kg in her left hand: read %.2f kg in %.0f s, %.2f in the right, nothing named; %.2f kg laid into her law and on the page' % (
+    report.check('%.1f kg in its left hand: read %.2f kg in %.0f s, %.2f in the right, nothing named; %.2f kg laid into its law and on the page' % (
         LOAD_KG, hand_read, LOADED_S, loaded['load']['right_hand'][0], law_dm),
                  s['fallen_at'] is None and abs(hand_read - LOAD_KG) < WITHIN * LOAD_KG
                  and abs(loaded['load']['right_hand'][0]) < WITHIN * LOAD_KG and not loaded['alarms']
@@ -116,7 +116,7 @@ def test_a_load_is_read_and_her_wear_named(report):
     _walked(s, NOMINAL_S + LOADED_S + WORN_S)
     told = worker.told(s)['wear']
     named = sorted(name for name, _v, _b in told['alarms'])
-    report.check('her left knee\'s friction x%.0f, left hip\'s kt x%.1f and right elbow\'s zero %+.0f mrad: named in %.0f s and nothing else, the load still %.2f kg' % (
+    report.check('its left knee\'s friction x%.0f, left hip\'s kt x%.1f and right elbow\'s zero %+.0f mrad: named in %.0f s and nothing else, the load still %.2f kg' % (
         FRICTION_X, TORQUE_X, 1e3 * ZERO_RAD, WORN_S, told['load']['left_hand'][0]),
                  s['fallen_at'] is None and named == ['left_hip.kt', 'left_knee.f', 'right_elbow.zero']
                  and abs(told['load']['left_hand'][0] - LOAD_KG) < WITHIN * LOAD_KG
@@ -131,7 +131,7 @@ def test_a_load_is_read_and_her_wear_named(report):
 
 
 def test_a_box_played_out_and_a_zero_slipped_are_named(report):
-    """On the boxed stand (`physics.BOXED`), her left knee's play PLAY_X and her right hip's encoder
+    """On the boxed stand (`physics.BOXED`), its left knee's play PLAY_X and its right hip's encoder
     zero ZERO_RAD: the campaign's windows read and name both, no other box's play or zero; the
     wind-ups within their band."""
     from machine.identify import campaign, wear
@@ -153,7 +153,7 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
     played = [name for name, _v, _b in told['alarms'] if name.endswith('.play')]
     slipped = [name for name, _v, _b in told['alarms'] if name.endswith('.zero')]
     zero_read = told['drift']['right_hip']['zero']
-    report.check('her left knee\'s play x%.0f and right hip\'s zero %+.0f mrad on the stand: both named (zero %+.1f mrad), no other box\'s; %d boxes read, touched %d' % (
+    report.check('its left knee\'s play x%.0f and right hip\'s zero %+.0f mrad on the stand: both named (zero %+.1f mrad), no other box\'s; %d boxes read, touched %d' % (
         PLAY_X, 1e3 * ZERO_RAD, 1e3 * zero_read, len(told['boxes']), touched),
                  played == ['left_knee.play'] and slipped == ['right_hip.zero']
                  and abs(zero_read - ZERO_RAD) < 0.2 * ZERO_RAD
@@ -161,9 +161,9 @@ def test_a_box_played_out_and_a_zero_slipped_are_named(report):
                  'alarms %s; wind-ups %s' % (told['alarms'], {k: round(v[1], 2) for k, v in told['boxes'].items()}))
 
 
-def test_a_load_on_her_back_is_read_off_her_insoles(report):
-    """Standing on her insoles (`sway`), TORSO_KG put on her back (`torso`) is read off her insoles'
-    rows (`wear.torso_load`, `wear.window`) within WITHIN of itself and laid into her law."""
+def test_a_load_on_its_back_is_read_off_its_insoles(report):
+    """Standing on its insoles (`sway`), TORSO_KG put on its back (`torso`) is read off its insoles'
+    rows (`wear.torso_load`, `wear.window`) within WITHIN of itself and laid into its law."""
     from machine.law import modal
     from machine.process import worker
     s, _w = _laid()
@@ -179,7 +179,7 @@ def test_a_load_on_her_back_is_read_off_her_insoles(report):
     read_kg = float(told['load']['torso'][0])
     law_dm = float(g['body'].m.body_mass[torso]) - torso0
     law_dw = (float(g['fr'][modal.WEIGHT]) - weight0) / modal.G
-    report.check('%.1f kg on her back standing on her insoles: read %.2f kg off her insoles and laid into her law (%.2f kg)' % (
+    report.check('%.1f kg on its back standing on its insoles: read %.2f kg off its insoles and laid into its law (%.2f kg)' % (
         TORSO_KG, read_kg, law_dm),
                  s['fallen_at'] is None and abs(read_kg - TORSO_KG) < WITHIN * TORSO_KG
                  and abs(law_dm - read_kg) < 1e-6 and abs(law_dw - read_kg) < 1e-6,
@@ -187,14 +187,14 @@ def test_a_load_on_her_back_is_read_off_her_insoles(report):
                      read_kg, np.round(told['load']['torso'][1], 3), law_dm, law_dw))
 
 
-#: Her walk carrying LOAD_KG from pass LOADED_AT, the first window's landed, to APART_S: two windows read.
+#: Its walk carrying LOAD_KG from pass LOADED_AT, the first window's landed, to APART_S: two windows read.
 LOADED_AT, APART_S = 4600, 9.0
 
 
 def _carried(apart):
-    """Her walk to APART_S, LOAD_KG put in her left hand at pass LOADED_AT, her wear's windows here or apart
-    (`machine.process.worn`): (her passes' hash, each landing's pass and hand load, her law's hand mass,
-    whether she stood, whether every window was read apart)."""
+    """Its walk to APART_S, LOAD_KG put in its left hand at pass LOADED_AT, its wear's windows here or apart
+    (`machine.process.worn`): (its passes' hash, each landing's pass and hand load, its law's hand mass,
+    whether it stood, whether every window was read apart)."""
     import hashlib
     from machine.process import worker, worn
     s = worker.session(walks=True)
@@ -218,24 +218,24 @@ def _carried(apart):
     return h.hexdigest(), landed, float(g['body'].m.body_mass[g['body'].m.body('left_hand').id]), stood, read
 
 
-def test_her_wear_apart_lands_as_here(report):
-    """Her walk carrying LOAD_KG from LOADED_AT, her wear's windows read here and apart (`worn.Here`,
-    `worn.Apart`): each window's load laid on her LAND passes after it shut, the same load the same pass,
-    her law the same and her every pass the same bits; apart, every window read there."""
+def test_its_wear_apart_lands_as_here(report):
+    """Its walk carrying LOAD_KG from LOADED_AT, its wear's windows read here and apart (`worn.Here`,
+    `worn.Apart`): each window's load laid on its LAND passes after it shut, the same load the same pass,
+    its law the same and it every pass the same bits; apart, every window read there."""
     from machine.process import worn
     here, apart = _carried(False), _carried(True)
     shut = [k - worn.LAND for k, _load in here[1]]
-    report.check('her wear here and apart: %.2f kg laid into her law at passes %s, each LAND after its window shut, bit for bit' % (
+    report.check('its wear here and apart: %.2f kg laid into its law at passes %s, each LAND after its window shut, bit for bit' % (
         here[1][-1][1] if here[1] else float('nan'), [k for k, _load in here[1]]),
                  here[:3] == apart[:3] and here[3] and apart[3] and apart[4] and len(here[1]) == 2
                  and all(k % 4000 == 1 for k in shut) and here[1][-1][1] > 0.2 * LOAD_KG,
                  'here %s, stood %s; apart %s, stood %s, read apart %s' % (here[1], here[3], apart[1], apart[3], apart[4]))
 
 
-ROSTER = (test_a_load_is_read_and_her_wear_named,
+ROSTER = (test_a_load_is_read_and_its_wear_named,
           test_a_box_played_out_and_a_zero_slipped_are_named,
-          test_a_load_on_her_back_is_read_off_her_insoles,
-          test_her_wear_apart_lands_as_here)
+          test_a_load_on_its_back_is_read_off_its_insoles,
+          test_its_wear_apart_lands_as_here)
 
 
 def main(argv=None):

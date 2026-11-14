@@ -30,7 +30,7 @@
   [state &key (target-calf-touch-force-n 9.0)
               (max-posterior-seek-mm 110.0)
               (rebound-clearance-mm 12.0)
-              (probe-capsules [:shank-crural-l :shank-crural-r])] ; her calves meet an edge under her knee
+              (probe-capsules [:shank-crural-l :shank-crural-r])] ; its calves meet an edge under its knee
   (-> state
       (bind-posterior-crural-datum-probe
         :probe-capsules probe-capsules
@@ -63,7 +63,7 @@
         ;; When no backrest exists (Stool / Pall mode):
         ;; 1. Clamp backward Coulomb slide strictly at quadric centroid X_0.
         ;; 2. Shift 1-Jet `:ischial-seated` thoracic pitch forward so Poinsot's central axis
-        ;;    pierces the center of the stool top with zero backrest force - as far as her
+        ;;    pierces the center of the stool top with zero backrest force - as far as its
         ;;    ischia keep the rim's margin on a 340 mm stool:
         :on-backless-stool-detected
           (:halt-slide-at-quadric-centroid true
@@ -129,7 +129,7 @@
         ;; v_y_escape = -R_eff(theta) * d(theta)/dt - k_center * y_offset_from_bed_axis
         :shrimp-counter-translation
           (:enabled true
-           :effective-torso-radius-m 0.198      ; her drift onto her side over its quarter turn
+           :effective-torso-radius-m 0.198      ; its drift onto its side over its quarter turn
            :centerline-restoring-gain 4.5
            ;; Plant contralateral heel + shoulder briefly to scoot pelvis BACK toward
            ;; bed centerline before completing the roll over the ipsilateral shoulder!

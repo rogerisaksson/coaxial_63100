@@ -78,7 +78,7 @@
 (defmodifier xform-locomotion-prone-low-crawl
   [state &key (velocity-vx-vy-wz [0.22 0.0 0.0])
               (bpm 68.0)
-              (belly-unweight-ratio 0.45)]       ; Keeps chest/pelvis skimming low to the ground; her anchors hold her belly from 0.441 of her (0.42)
+              (belly-unweight-ratio 0.45)]       ; Keeps chest/pelvis skimming low to the ground; its anchors hold its belly from 0.441 of it (0.42)
   (-> state
       (xform-prior-regularized-observer)
       (partition-fault-tolerant-dynamics :health-mask 'actuator-health-soa-mask)
@@ -118,7 +118,7 @@
 ;;   - `:high-z-freewheel`    (Burned inverter / zero torque / floppy joint)
 ;;   - `:mechanically-jammed` (Seized gearbox / locked angle)
 ;;   - `:thermal-derated`     (Partial torque authority, e.g., alpha = 0.25)
-;; Hers: her floppy joint still holds its backdrive; her derate is her thermal envelope's.
+;; Its own: its floppy joint still holds its backdrive; its derate is its thermal envelope's.
 (defmodifier specialize-with-actuator-fault-injection
   [crawl-state &key (affected-limb :hind-left)   ; :hind-left | :hind-right | :fore-left | :fore-right
                     (fault-type :high-z-freewheel)
@@ -189,7 +189,7 @@
           (modulate-stick-slip-sled-ratchet
             :anchor-patches [:olecranon-ulnar-sphinx :ulnar-carpal-shove-bilateral]
             :sled-patches   [:ventral-prone-continuum :anterior-tibial-bilateral]
-            :vault-unweight-ratio 0.51          ; her forearms hold her belly and shins from 0.509 of her (0.48)
+            :vault-unweight-ratio 0.51          ; its forearms hold its belly and shins from 0.509 of it (0.48)
             :rowing-stroke-length-mm 270.0)))))
 
 ;; 4. Self-Splinting / Cross-Ankle Hook Specializer (Carry Dead Leg Off the Floor!)
@@ -208,7 +208,7 @@
         (project-nullspace-posture
           :free-nodes dead-chain
           :target-angles '((:coxofemoral-flex 0.85)
-                           (:coxofemoral-ext-rot 0.436) ; hers at her hip yaw's stop (0.72)
+                           (:coxofemoral-ext-rot 0.436) ; its own at its hip yaw's stop (0.72)
                            (:coxofemoral-adduct 0.48)
                            (:tibiofemoral-flex 1.25))
           :nullspace-leakage-guard 0.0))))

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Her floor: the plane under her soles, its grip as she feels it, the situations that cap her rhythm,
-what she does on it."""
+"""Its floor: the plane under its soles, its grip as it feels it, the situations that cap its rhythm,
+what it does on it."""
 import math
 import os
 import sys
@@ -10,13 +10,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.dev.focus import chosen
 from gynoid_kit import Report
 
-#: Her trunk's pitch this far off her scoot's lean, deg, has tipped her over (her fall goes unflagged on the floor).
+#: Its trunk's pitch this far off its scoot's lean, deg, has tipped it over (its fall goes unflagged on the floor).
 TIPPED = 50.0
 
 
-def test_the_floor_runs_on_under_her_soles(report):
-    """Level, the floor under each sole is the floor's height to the bit; pitched as her standing
-    soles stand, a sole 0.3 m on along her way stands on it 0.3 tan(pitch) higher."""
+def test_the_floor_runs_on_under_its_soles(report):
+    """Level, the floor under each sole is the floor's height to the bit; pitched as its standing
+    soles stand, a sole 0.3 m on along its way stands on it 0.3 tan(pitch) higher."""
     import numpy as np
     from machine.law import modal
     fr, y = np.zeros(modal.FRAME), np.zeros(modal.SENSED)
@@ -51,8 +51,8 @@ def test_a_grown_prop_bears_where_it_has_grown(report):
                  and abs(m.geom_rbound[g] - np.linalg.norm(half)) < 1e-9, '%s, %.3f' % (half, m.geom_rbound[g]))
 
 
-def test_her_grip_bounds_her_rhythm(report):
-    """Her text's slippery situation caps her rhythm under its grip, its targets kept; at her law's
+def test_its_grip_bounds_its_rhythm(report):
+    """Its text's slippery situation caps its rhythm under its grip, its targets kept; at its law's
     own grip nothing moves; a sliding sole's grip is what it used, a holding one's at least that, a
     landing one's once it has settled."""
     import numpy as np
@@ -62,7 +62,7 @@ def test_her_grip_bounds_her_rhythm(report):
     from machine.stack.wbc import MU
     table = situation.text()
     k = table['names'].index('slippery')
-    report.check('her text has the slippery floor under a quarter of a sole\'s load',
+    report.check('its text has the slippery floor under a quarter of a sole\'s load',
                  table['hi'][k, situation.READINGS.index('grip')] == 0.25, str(table['hi'][k]))
     rng = np.random.default_rng(1)
     out = np.zeros(latent.OUT)
@@ -71,12 +71,12 @@ def test_her_grip_bounds_her_rhythm(report):
     stance, level = np.ones(2), np.array([MU, 0.0, 0.0, 1.0, 0.0, 0.0])
     held = out.copy()
     motion.gripped(held, np.full(2, MU), stance, table['caps'], situation.read(table, level))
-    report.check('at her law\'s own grip her rhythm is the same to the bit', (held == out).all())
+    report.check('at its law\'s own grip its rhythm is the same to the bit', (held == out).all())
     iced, on_ice = out.copy(), level.copy()
     on_ice[0] = 0.1
     motion.gripped(iced, np.full(2, 0.1), stance, table['caps'], situation.read(table, on_ice))
     target = lambda o: o[latent.REF] - o[latent.SWAY] * np.sin(o[latent.PSI])
-    report.check('on ice (0.1) her drive sways 0.20 at most, her soles rock none, her targets kept',
+    report.check('on ice (0.1) its drive sways 0.20 at most, its soles rock none, its targets kept',
                  iced[latent.SWAY][modal.DRIVE] <= 0.2 + 1e-12 and iced[latent.SWAY][modal.ROCK] == 0.0
                  and np.allclose(target(iced), target(out)),
                  'drive %.3f, rock %.3f' % (iced[latent.SWAY][modal.DRIVE], iced[latent.SWAY][modal.ROCK]))
@@ -99,9 +99,9 @@ def test_her_grip_bounds_her_rhythm(report):
                  min(early) == MU and np.allclose(landing, 8.0 / 300.0), '%s, %s' % (min(early), landing))
 
 
-def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
-    """Said lie_floor on the flat floor: she crouches, tips back soft and lies - pelvis under 0.25 m,
-    doing floor_rest, her drives limp (se2.LIMP, clamps zero over the bus) - quiet (joints under 30
+def test_told_to_lie_on_the_floor_it_lies_where_it_stands(report):
+    """Said lie_floor on the flat floor: it crouches, tips back soft and lies - pelvis under 0.25 m,
+    doing floor_rest, its drives limp (se2.LIMP, clamps zero over the bus) - quiet (joints under 30
     deg/s, no contact past 300 N after the settle), no fall reset for 14 s (se2.GROUNDED)."""
     import numpy as np
     from machine.world import physics
@@ -124,19 +124,19 @@ def test_told_to_lie_on_the_floor_she_lies_where_she_stands(report):
             for i in range(d.ncon):
                 contact_force(m, d, i, f6)
                 worst_f = max(worst_f, abs(float(f6[0])))
-    report.check('she lies where she stood: pelvis under 0.25, floor_rest, quiet, no reset',
+    report.check('it lies where it stood: pelvis under 0.25, floor_rest, quiet, no reset',
                  s.get('epoch', 0) == 0 and float(d.qpos[1]) < 0.25 and sprung.doing(g) == 'floor_rest'
                  and math.degrees(worst_v) < 30.0 and worst_f < 300.0,
                  'pelvis %.3f doing %s worst %d deg/s %d N epoch %s' % (
                      d.qpos[1], sprung.doing(g), math.degrees(worst_v), worst_f, s.get('epoch', 0)))
 
 
-def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her(report):
-    """Said scoot_floor on the flat floor: she sits (pelvis under 0.25 m) and her scoot (`machine.moves.scoot`, bound to
-    her floor rest) holds her on her fists, her trunk within its band of the crawl take's lean and her pelvis within
-    2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots her back and W held 8 s forward, 0.2 m each
-    at least, and A held 8 s turns her left and D right, 2 deg each at least, her trunk never TIPPED off its lean (her
-    law's own rest crept on bent elbows and laid her down 4.6 s on; on the floor her fall goes unflagged)."""
+def test_told_to_scoot_on_the_floor_it_sits_on_its_fists_and_its_keys_scoot_it(report):
+    """Said scoot_floor on the flat floor: it sits (pelvis under 0.25 m) and its scoot (`machine.moves.scoot`, bound to
+    its floor rest) holds it on its fists, its trunk within its band of the crawl take's lean and its pelvis within
+    2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots its back and W held 8 s forward, 0.2 m each
+    at least, and A held 8 s turns its left and D right, 2 deg each at least, its trunk never TIPPED off its lean (its
+    law's own rest crept on bent elbows and laid it down 4.6 s on; on the floor its fall goes unflagged)."""
     import numpy as np
     from machine.law import modal
     from machine.moves import scoot
@@ -160,7 +160,7 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her
             lean = max(lean, abs(pitch - scoot.TRUNK))
     played = (g.get('played') or {}).get('name')
     drift = float(np.hypot(*(d.qpos[[0, 2]] - still))) if still is not None else math.nan
-    report.check('she sits on the floor, held on her fists by her scoot, still and at its lean, 12 s without a fall',
+    report.check('it sits on the floor, held on its fists by its scoot, still and at its lean, 12 s without a fall',
                  sat and s['fallen_at'] is None and played == 'scoot' and drift < 0.02 and lean <= scoot.LEANT,
                  'sat %s fallen %s playing %s drift %.3f m lean off %.1f deg' % (sat, s['fallen_at'], played, drift, lean))
     yaw = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
@@ -177,18 +177,18 @@ def test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her
         went[key] = float((d.qpos[0:3] - at) @ way)
         now = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
         turned[key] = math.degrees((now - was + math.pi) % (2.0 * math.pi) - math.pi)
-    report.check('S held scoots her back and W forward, 0.2 m each at least, her trunk never tipped',
+    report.check('S held scoots its back and W forward, 0.2 m each at least, its trunk never tipped',
                  went['s'] <= -0.2 and went['w'] >= 0.2 and off < TIPPED and s['fallen_at'] is None,
                  'S %+.2f m W %+.2f m trunk off its lean %.1f deg at most' % (went['s'], went['w'], off))
-    report.check('A held turns her left and D right, her trunk never tipped',
+    report.check('A held turns its left and D right, its trunk never tipped',
                  turned['a'] >= 0.5 and turned['d'] <= -0.1 and off < TIPPED and s['fallen_at'] is None,
                  'A %+.1f deg D %+.1f deg trunk off its lean %.1f deg at most' % (turned['a'], turned['d'], off))
 
 
-def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(report):
-    """Her legs' release (intentional_limb_emancipation.lisp): asked where her soles are told nothing and something
-    else is; allowed where her capture point lies inside what bears her besides them by the text's margin - 0.2 m
-    inside a seat's and hands' square, open; outside it, or on her soles alone, shut; at her walk's 0.7 m/s her Froude
+def test_its_legs_are_released_only_where_the_rest_of_what_bears_its_holds_it(report):
+    """Its legs' release (intentional_limb_emancipation.lisp): asked where its soles are told nothing and something
+    else is; allowed where its capture point lies inside what bears it besides them by the text's margin - 0.2 m
+    inside a seat's and hands' square, open; outside it, or on its soles alone, shut; at its walk's 0.7 m/s its Froude
     number holds it to exp(-(Fr/0.045)^2)."""
     import math
     import numpy as np
@@ -196,7 +196,7 @@ def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(r
     from machine.law import latent
     from machine.texts import ortho
     weight, told, out = 305.5, np.array([0.0, 0.64, 0.0, 0.0, 0.36]), np.zeros(latent.OUT)
-    report.check('her text asks her legs released where it tells her soles nothing and her seat and hands bear',
+    report.check('its text asks its legs released where it tells its soles nothing and its seat and hands bear',
                  (cascade.intent(told, out) == 1.0).all() and (cascade.intent(np.array([1.0, 0, 0, 0, 0]), out) == 0.0).all()
                  and (cascade.intent(np.zeros(len(ortho.MANIFOLDS)), out) == 0.0).all(), str(cascade.intent(told, out)))
     square = np.array([(x, z) for x in (-0.2, 0.2) for z in (-0.2, 0.2)])
@@ -209,17 +209,17 @@ def test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her(r
     soled, _ = em.gate(np.zeros(2), pts, room, np.ones((2, 6)), still, told, loads, weight)
     walking, going = em.gate(np.zeros(2), pts, room, own, np.array([0.0, 0.0, 0.7]), told, loads, weight)
     froude = 0.7 * 0.7 / (9.81 * cascade.LEG_M)
-    report.check('0.2 m inside her seat and hands she may let her legs go; 0.1 m outside, or on her soles alone, not',
+    report.check('0.2 m inside its seat and hands it may let it legs go; 0.1 m outside, or on its soles alone, not',
                  (inside == 1.0).all() and np.allclose(parts[3], 0.2 * weight, atol=1e-3 * weight)
                  and (outside == 0.0).all() and np.allclose(far[3], -0.1 * weight, atol=1e-3 * weight)
                  and (soled == 0.0).all(), '%s N m in, %s out' % (parts[3], far[3]))
-    report.check("at her walk's 0.7 m/s her Froude number holds her gate to exp(-(Fr/0.045)^2)",
+    report.check("at its walk's 0.7 m/s its Froude number holds its gate to exp(-(Fr/0.045)^2)",
                  abs(going[0] - math.exp(-(froude / cascade.FROUDE) ** 2)) < 2e-3 and (walking < 0.2).all(), '%.3f' % going[0])
 
 
-def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(report):
-    """Released over the text's 160 ms (its cascade's windows): her estimator lets the sole go as an anchor by 0.25 of
-    it, her step lets the leg go then sheds its foot's push to nothing by 0.75, the leg moves after - and back within
+def test_its_release_lets_it_estimator_go_first_then_its_step_then_its_leg(report):
+    """Released over the text's 160 ms (its cascade's windows): its estimator lets the sole go as an anchor by 0.25 of
+    it, its step lets the leg go then sheds its foot's push to nothing by 0.75, the leg moves after - and back within
     the relock's 25 ms once the gate shuts."""
     import numpy as np
     from machine.moves import cascade as em
@@ -238,11 +238,11 @@ def test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg(repo
                  and modal.LET_GO.stop - modal.LET_GO.start == 2, '%g %g' % (em.SLEW_S, em.RELOCK_S))
 
 
-ROSTER = [test_the_floor_runs_on_under_her_soles, test_a_grown_prop_bears_where_it_has_grown,
-          test_her_grip_bounds_her_rhythm, test_told_to_lie_on_the_floor_she_lies_where_she_stands,
-          test_told_to_scoot_on_the_floor_she_sits_on_her_fists_and_her_keys_scoot_her,
-          test_her_legs_are_released_only_where_the_rest_of_what_bears_her_holds_her,
-          test_her_release_lets_her_estimator_go_first_then_her_step_then_her_leg]
+ROSTER = [test_the_floor_runs_on_under_its_soles, test_a_grown_prop_bears_where_it_has_grown,
+          test_its_grip_bounds_its_rhythm, test_told_to_lie_on_the_floor_it_lies_where_it_stands,
+          test_told_to_scoot_on_the_floor_it_sits_on_its_fists_and_its_keys_scoot_it,
+          test_its_legs_are_released_only_where_the_rest_of_what_bears_its_holds_it,
+          test_its_release_lets_it_estimator_go_first_then_its_step_then_its_leg]
 
 
 def main(argv=None):

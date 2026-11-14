@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What holds each of her drives, standing.
+"""What holds each of its drives, standing.
 
 A bone, a gimbal, the boom or the trunk's frame touching its drum, or its own collars and struts
 between (`machine.body.skeleton.HELD`); a drum held by nothing floats (the hip's
@@ -17,7 +17,7 @@ from tools.sim import fit
 
 
 def held_by(touch=0.001):
-    """{joint: [parts]}: standing, her left's and her trunk's drums and the structure holding
+    """{joint: [parts]}: standing, its left's and its trunk's drums and the structure holding
     each - a bone, a gimbal, the boom, the trunk's frame, a bone's collar - touching it or through
     its own collars and struts, within `touch`; never a rod, a drum, a board, nor a wire through a
     segment's middle (a straight bone where `skeleton.HUNG` has none)."""

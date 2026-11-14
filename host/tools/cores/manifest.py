@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Her orthokinematic manifest: what a text's numbers move, as Lisp, of her build and her figure.
+"""Its orthokinematic manifest: what a text's numbers move, as Lisp, of its build and its figure.
 
     python tools/cores/manifest.py --write     # machine/<robot>.manifest.lisp
     page = manifest.text()                     # what the file holds, laid anew
 
 A text asks a mode's target in its unit, its stiffness and damping in N/m and N s/m of the mass
-the mode moves (`machine.law.modal`). Her manifest gives each mode's unit, mass and resting spring,
-her body's statics, and each drive's parts, ratio, peak, speed and range - of her build's file
-(machine/humanoids, `machine.body.mechatronics`) and her figure laid on her loop (`sprung.laid`).
+the mode moves (`machine.law.modal`). Its manifest gives each mode's unit, mass and resting spring,
+its body's statics, and each drive's parts, ratio, peak, speed and range - of its build's file
+(machine/humanoids, `machine.body.mechatronics`) and its figure laid on its loop (`sprung.laid`).
 `ortho` compiles it (`defrobot`, `machine.body.defrobot.read`); test_mirrors holds the file to this.
 """
 import math
@@ -19,17 +19,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from tools import REPO
 from tools.cores import written
 
-NOTICE = 'Her orthokinematic manifest: written by host/tools/cores/manifest.py, not by hand.'
+NOTICE = 'Its orthokinematic manifest: written by host/tools/cores/manifest.py, not by hand.'
 
 
 def path(robot=None):
-    """Where her manifest is written."""
+    """Where its manifest is written."""
     from machine.body import mechatronics
     return os.path.join(REPO, 'host', 'lisp', 'humanoid', 'builds', '%s.manifest.lisp' % (robot or mechatronics.ROBOT))
 
 
 def laid():
-    """{robot, body, modes, drives}: her manifest's numbers, her figure laid on her loop."""
+    """{robot, body, modes, drives}: its manifest's numbers, its figure laid on its loop."""
     from machine.body import drives, mechatronics
     from machine.law import latent, modal
     from machine.texts import ortho

@@ -44,7 +44,7 @@
                               (limiter-high-mu-planar)
                               (master-anti-spasm-insert))
 
-        ;; 4. Pure Lateral Crabwalk Sideways (Right then Left in Supine & Pronograde): back to the floor, to her right
+        ;; 4. Pure Lateral Crabwalk Sideways (Right then Left in Supine & Pronograde): back to the floor, to its right
         sideways-crabwalk (-> nominal-biped-gait
                               (transducer-viscoelastic-flat)
                               (xform-gait-lateral-crabwalk :side-direction :right
@@ -54,7 +54,7 @@
                               (limiter-high-mu-planar)
                               (master-anti-spasm-insert))
 
-        ;; 5. The crabwalk belly down, to her left
+        ;; 5. The crabwalk belly down, to its left
         belly-down-crabwalk (-> nominal-biped-gait
                                 (transducer-viscoelastic-flat)
                                 (xform-gait-lateral-crabwalk :side-direction :left
