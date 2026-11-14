@@ -52,8 +52,8 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   r_y[0] = 2.0 * (qx * qj + qw * qk);
   r_y[1] = 1.0 - 2.0 * (qx * qx + qk * qk);
   r_y[2] = 2.0 * (qj * qk - qw * qx);
-  ap_y = npdot(r_y, 1, acc, 1, 3);
-  w_gyro = sqrt(npdot(gyro, 1, gyro, 1, 3));
+  ap_y = wbc_dot(&k->blas, r_y, 1, acc, 1, 3);
+  w_gyro = sqrt(wbc_dot(&k->blas, gyro, 1, gyro, 1, 3));
   wt = npmax(fr[k->f_weight], 1.0);
   k_ax = npmax(st[s->k_to], st[s->k_from]);
   w_jump = npmin(1.0, npmax(0.0, (k_ax - 15000.0) / 5000.0));
@@ -65,7 +65,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   f_soles = npsum(loads, 2) / wt;
   theta = (isnan(ct) ? tilt_deg(q) : ct) * (PI / 180.0);
   theta_e = npmax(0.0, theta - npmax(fabs(a[k->a_want]), borne * (0.5 * PI)));
-  v_norm = sqrt(npdot(v, 1, v, 1, 3));
+  v_norm = sqrt(wbc_dot(&k->blas, v, 1, v, 1, 3));
   w_ext = npmin(1.0, npmax(0.0, (ap_y / k->g - f_soles) / 0.45))
           * exp(((-pow(w_gyro / 1.2, 2.0)) - pow(v_norm / 0.18, 2.0)) - pow(theta_e / 0.65, 4.0));
   probe = ((0.008 * npmax(0.0, (4.0 * f_soles) * (1.0 - f_soles))) * exp(-pow(w_gyro / 0.6, 2.0)))
@@ -77,13 +77,19 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   w_sup = npmin(1.0, ((0.42 + 0.30 * (w[0] + w[1])) + 0.22 * npmax(w[0], w[1])) + 0.55 * w_prop);
   r_gait = 0.28 * npmin(1.0, st[s->gain_now]);
   w_tilt = hypot(gyro[0], gyro[2]);
+  {
+    const wbc_view_t wv = {w, 2, 1}, lov = {&lo[0][0], 2, 1}, hiv = {&hi[0][0], 2, 1};
+
+    wbc_matmul(&k->blas, wv, lov, lo_1, 2, 1, 1, 2, 2);
+    wbc_matmul(&k->blas, wv, hiv, hi_1, 2, 1, 1, 2, 2);
+  }
   for (int j = 0; j < 2; j++)
   {
     const double vp = v[j] * (1.0 - w_prop);
     double       o;
 
-    lo_1[j] = npdot(w, 1, &lo[0][j], 2, 2) / w_sum;
-    hi_1[j] = npdot(w, 1, &hi[0][j], 2, 2) / w_sum;
+    lo_1[j] = lo_1[j] / w_sum;
+    hi_1[j] = hi_1[j] / w_sum;
     lmin[j] = npminimum(lo[0][j], lo[1][j]);
     hmax[j] = npmaximum(hi[0][j], hi[1][j]);
     b_lo[j] = ((1.0 - w_both) * lo_1[j] + w_both * lmin[j]) - w_ext * 0.16;
@@ -96,7 +102,7 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
     out_xi[j] = (xi[j] - npclip(xi[j], r_lo[j], r_hi[j])) * (1.0 - w_prop);
     o = out_xi[j] / 0.24;
     s_dir[j] = cap[j] * (0.45 + 0.55 * exp(((-(o * o)) - 0.04 * (vp * vp)) - pow(0.22 * w_tilt, 2.0)));
-    u_xy[j] = npdot(up_w, 1, rot + 3 * j, 1, 3);
+    u_xy[j] = wbc_dot(&k->blas, up_w, 1, rot + 3 * j, 1, 3);
     e_vec[j] = ((xi[j] - mid[j]) * (1.0 - w_ext) + 0.35 * u_xy[j]) + 0.15 * v[j];
   }
   e3[0] = e_vec[0];

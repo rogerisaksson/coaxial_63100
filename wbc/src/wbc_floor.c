@@ -2,6 +2,7 @@
     her centre keeps over its incline - numpy's arithmetic operation for operation (wbc_np.h). Portable
     C11, the host's alone. */
 #include "wbc_imp.h"
+#include "wbc_stride.h"
 #include "wbc_np.h"
 
 #include <math.h>

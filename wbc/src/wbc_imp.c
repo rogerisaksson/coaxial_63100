@@ -2,6 +2,7 @@
     reading under it (wbc_stride.c, wbc_poise.c, wbc_poses.c, wbc_floor.c, wbc_swing.c), numpy's arithmetic operation for
     operation (wbc_np.h) - the ask the same bit for bit. Portable C11, the host's alone. */
 #include "wbc_imp.h"
+#include "wbc_stride.h"
 #include "wbc_np.h"
 
 #include <math.h>
@@ -110,7 +111,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     up[b] = k->limbs[b] * s.ref[k->lift];
   }
   /* her capture point past the soles that stood steps her; still, past those not lifting */
-  still = 1.0 - npclip(sqrt(npdot(sway, 1, sway, 1, n)) / k->tiny, 0.0, 1.0);
+  still = 1.0 - npclip(sqrt(wbc_dot(&k->blas, sway, 1, sway, 1, n)) / k->tiny, 0.0, 1.0);
   edge0[0] = 0.0 * a[k->a_edge];
   edge0[1] = 0.0 * a[k->a_edge + 1];
   wbc_imp_boxes(k, flat, edge0, tilt, lo, hi);
@@ -141,7 +142,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
     smax = npmax(stood[0], stood[1]);
     a[k->a_need] = (((1.0 - propped) * smax)
-                    * npclip(sqrt(npdot(past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
+                    * npclip(sqrt(wbc_dot(&k->blas, past, 1, past, 1, 2)) / k->margin_m, 0.0, 1.0))
                    * npclip(out[k->o_held], 0.0, 1.0);
   }
   lat0 = s.ref[k->lateral] - sway[k->lateral] * sin(psi[k->lateral]);
@@ -151,7 +152,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     const double gap = a[k->a_split] - a[k->a_split + 1], pi2 = 2.0 * PI, ad = fabs(asked[k->drive]), st = k->stirs;
     const double half = 0.5 * (gap - pi2 * rint(gap / pi2)), relax = npmin(1.0, (turns * fr[k->f_dt]) / pi2);
     const double idle = (double)(npmax(was[0], was[1]) < 0.5);
-    const double fresh = ((still * (1.0 - npclip(sqrt(npdot(out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0)))
+    const double fresh = ((still * (1.0 - npclip(sqrt(wbc_dot(&k->blas, out + k->o_rate, 1, out + k->o_rate, 1, n)) / k->tiny, 0.0, 1.0)))
                           * (double)(a[k->a_need] > 0.5)) * idle;
     const double side = (double)((npmin(stood[0], stood[1]) > 0.5) && (idle > 0.5) && (fabs(sway[k->drive]) < 0.5 * st)
                                  && (ad > k->tiny) && (ad < 4.0 * st) && (fabs(lat0) > 0.1 * st));
@@ -188,7 +189,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       past[b] = npmax(k->limbs[b] * beyond[1], 0.0);
       aside[b] = smax * npmax(past[b], still * fabs(beyond[0]));
     }
-    a[k->a_outside] = npdot(sw, 1, past, 1, 2);
+    a[k->a_outside] = wbc_dot(&k->blas, sw, 1, past, 1, 2);
   }
   kpf[0] = s.kp[k->free_by[0]];
   kpf[1] = s.kp[k->free_by[1]];
@@ -295,9 +296,9 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_imp_shares(k, stance, bears);
   along[0] = om2 * (c[0] - zmp[0]);
   along[1] = om2 * (c[1] - zmp[1]);
-  gd = npdot(bears, 1, y + k->y_grip, 1, 2);
+  gd = wbc_dot(&k->blas, bears, 1, y + k->y_grip, 1, 2);
   {
-    const double by = npmin(1.0, (gd * k->g) / npmax(sqrt(npdot(along, 1, along, 1, 2)), k->tiny));
+    const double by = npmin(1.0, (gd * k->g) / npmax(sqrt(wbc_dot(&k->blas, along, 1, along, 1, 2)), k->tiny));
 
     along[0] = along[0] * by;
     along[1] = along[1] * by;
@@ -336,8 +337,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     const double h_air[2] = {air0 * npmax(y[k->y_lowest] - floors[0], 0.0),
                              air1 * npmax(y[k->y_lowest + 1] - floors[1], 0.0)};
     const double v_air[2] = {air0 * shod[0][2], air1 * shod[1][2]};
-    const double za = (axial[0] - npdot(bears, 1, h_air, 1, 2) / (k->axial_m * fr[k->f_hips_by])) - z[ax];
-    const double zda = (axial[1] - (npdot(bears, 1, v_air, 1, 2) + npmax(stance[0], stance[1]) * dvh[2])
+    const double za = (axial[0] - wbc_dot(&k->blas, bears, 1, h_air, 1, 2) / (k->axial_m * fr[k->f_hips_by])) - z[ax];
+    const double zda = (axial[1] - (wbc_dot(&k->blas, bears, 1, v_air, 1, 2) + npmax(stance[0], stance[1]) * dvh[2])
                                    / (k->axial_m * fr[k->f_hips_by])) - zd[ax];
 
     for (int m = 0; m < n; m++)
@@ -363,7 +364,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     /* her standing legs' geometry sets her height only while nothing else bears her (machine.law.impedance) */
     const double upright = smax * (1.0 - propped);
 
-    lifted = ((upright * npdot(bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - upright) * k->axial_m) * pressed;
+    lifted = ((upright * wbc_dot(&k->blas, bears, 1, risen, 1, 2)) / fr[k->f_hips_by]) - ((1.0 - upright) * k->axial_m) * pressed;
   }
   com[0] = grounded * along[0] + (1.0 - grounded) * k->falls[0];
   com[1] = grounded * along[1] + (1.0 - grounded) * k->falls[1];
@@ -391,13 +392,14 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   wbc_imp_swings(k, y, fr, v, om, shod, floors, rise, &s, clear, stance, pace, grounded, propped, loose, frame);
   /* aloft her stride is the sole's further on its swing; thrown - her support asked none - the sole's that was off
      as the other left the floor with her centre going up, kept till one stands (stride.flown) */
-  for (int b = 0; b < 2; b++)
   {
-    const double rises = (double)(v[2] > 0.0);
-    const double lone[2] = {(gone * a[k->a_strode]) * (1.0 - a[k->a_strode + 1]), (gone * a[k->a_strode + 1]) * (1.0 - a[k->a_strode])};
-    const double led[2] = {(((gone * rises) * off[0]) * (1.0 - stood[0])) * stood[1], (((gone * rises) * off[1]) * (1.0 - stood[1])) * stood[0]};
+    double flown[2];
 
-    strides[b] = limbs[b] * npmax(grounded, lone[b] + (1.0 - npmax(lone[0], lone[1])) * (led[b] + (1.0 - npmax(led[0], led[1])) * (double)(u[b] > u[1 - b])));
+    wbc_imp_flown(a + k->a_strode, off, stood, u, gone, (double)(v[2] > 0.0), flown);
+    for (int b = 0; b < 2; b++)
+    {
+      strides[b] = limbs[b] * npmax(grounded, flown[b]);
+    }
   }
   /* the sole that trails it hangs: nothing asked of it along her way, up the floor's alone and never down (swing.hung) */
   for (int b = 0; b < 2; b++)
@@ -416,10 +418,11 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     cm[j] = (1.0 - grounded * k->between[j]) * com[j];
     fm[j] = (1.0 - grounded) * com[j];
   }
-  for (int j = 0; j < 3; j++)
   {
-    gc[j] = npdot(cm, 1, rot + j, 3, 3);
-    fc[j] = npdot(fm, 1, rot + j, 3, 3);
+    const wbc_view_t rv = {rot, 3, 1}, cv = {cm, 3, 1}, fv = {fm, 3, 1};
+
+    wbc_matmul(&k->blas, cv, rv, gc, 3, 1, 1, 3, 3);
+    wbc_matmul(&k->blas, fv, rv, fc, 3, 1, 1, 3, 3);
   }
   th[0] = (turns * hurry[0]) / (1.0 - begun[0]);
   th[1] = (turns * hurry[1]) / (1.0 - begun[1]);
@@ -463,7 +466,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   }
   wbc_imp_rested(k, &s, out[k->o_held], grounded, aloft, limbs, floors, y, shod, rot, a);
   /* its pitch on the rock's own spring, from the floor's under the soles that stand */
-  pg = npdot(bears, 1, pg2, 1, 2);
+  pg = wbc_dot(&k->blas, bears, 1, pg2, 1, 2);
   for (int b = 0; b < 2; b++)
   {
     /* a swing's pitch asked by how far up its rise it is, a sole that is no swing whole (stride.eased); the
@@ -487,9 +490,10 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
     a[k->a_begun + b] = on[b] * (begun[b] + starts * (npmin(0.5 * (phi[b] / phi_w + 1.0), 0.0) - begun[b]));
   }
-  for (int j = 0; j < 3; j++)
   {
-    a[k->a_com_acc + j] = npdot(com, 1, rot + j, 3, 3);
+    const wbc_view_t comv = {com, 3, 1}, rv = {rot, 3, 1};
+
+    wbc_matmul(&k->blas, comv, rv, a + k->a_com_acc, 3, 1, 1, 3, 3);
   }
   a[k->a_strides] = stepping;
   a[k->a_borne] = propped;

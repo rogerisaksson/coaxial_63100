@@ -2,6 +2,7 @@
     beat, landings, rocks and heels - numpy's arithmetic operation for operation (wbc_np.h). Her soles'
     boxes and stance are wbc_poise.c's. Portable C11, the host's alone. */
 #include "wbc_imp.h"
+#include "wbc_stride.h"
 #include "wbc_np.h"
 
 #include <math.h>
@@ -425,5 +426,19 @@ void wbc_imp_goes(const wbc_imp_t *k, const double meet[2][2], const double flat
       acc[b][j] = rise * (npmin(6.0 / (to_go * to_go), kp[j]) * (meet[b][j] - flat[b][j])
                           - npmin(4.0 / to_go, kd[j]) * (shod[b][j] - v[j]));
     }
+  }
+}
+
+void wbc_imp_flown(const double strode[2], const double off[2], const double stood[2], const double u[2], double thrown,
+                   double up, double flown[2])
+{
+  const double lone[2] = {(thrown * strode[0]) * (1.0 - strode[1]), (thrown * strode[1]) * (1.0 - strode[0])};
+  const double first[2] = {(((thrown * up) * off[0]) * (1.0 - stood[0])) * stood[1],
+                           (((thrown * up) * off[1]) * (1.0 - stood[1])) * stood[0]};
+
+  for (int b = 0; b < 2; b++)
+  {
+    flown[b] = lone[b] + (1.0 - npmax(lone[0], lone[1]))
+                             * (first[b] + (1.0 - npmax(first[0], first[1])) * (double)(u[b] > u[1 - b]));
   }
 }

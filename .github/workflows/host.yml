@@ -1,5 +1,5 @@
-# A runner probe on a temporary branch, never merged: numpy's AVX-512 dispatch off, OpenBLAS's kernel as it
-# picks it - where her C hooks part from their python twins (host/tools/dev/probe_twins.py).
+# A runner probe on a temporary branch, never merged: her C hand ports' dots through numpy's OpenBLAS and
+# numpy's AVX-512 dispatch off - her twins and her ports beside their python on each runner.
 name: host
 
 on:
@@ -34,10 +34,14 @@ jobs:
         run: |
           python -X utf8 -c "import numpy._core._multiarray_umath as m; print('dispatch:', ' '.join(m.__cpu_dispatch__))"
           python -X utf8 -c "from tools.dev import probe_twins as p; p.processor()"
-      - name: hooks
+      - name: twins
         shell: bash
         working-directory: host
         env:
           MUJOCO_GL: egl
           NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
-        run: python -X utf8 tools/dev/probe_twins.py
+        run: |
+          python -X utf8 -c "from tools.dev import probe_twins as p; p.processor(); p.exact_parts()" | grep -E "corename|probe 4|pow 2|exact_host"
+          python -X utf8 tests/test_tick.py | grep -E "FAIL|passed, " || true
+          python -X utf8 tests/test_ported.py | grep -E "FAIL|passed, " || true
+          python -X utf8 tests/test_wbc_core.py | grep -E "FAIL|passed, " || true
