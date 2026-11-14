@@ -61,19 +61,21 @@ def _typed():
 
 @functools.lru_cache(maxsize=None)
 def lanes():
-    """numpy's sum of each einsum of a look here, as wbc_registry_t takes it (1 in turn, 2 or 4 lanes): a box's corners
-    ('nij,ncj->nci'), its nearest point's turn in ('nji,nj->ni') and out ('nij,nj->ni') - read off numpy's own
-    results on a draw (`orders.summed`): AVX2's lanes or SSE's, where it dispatches them."""
+    """numpy's sum of each einsum of a look here, as wbc_registry_t takes it (an index of `orders.ORDERS`): a box's
+    corners ('nij,ncj->nci'), its nearest point's turn in ('nji,nj->ni') and out ('nij,nj->ni') - read off numpy's
+    own results on a draw (`orders.summed`): AVX2's lanes or SSE's where it dispatches them, an Arm's fused."""
     rng = np.random.default_rng(SEED)
     R, X, e = rng.standard_normal((64, 3, 3)), rng.standard_normal((64, 8, 3)), rng.standard_normal((64, 3))
-    forms = (('nij,ncj->nci', X, R[:, None, :, :] * X[:, :, None, :]),
-             ('nji,nj->ni', e, np.swapaxes(R, 1, 2) * e[:, None, :]), ('nij,nj->ni', e, R * e[:, None, :]))
+    forms = (('nij,ncj->nci', X, R[:, None, :, :], X[:, :, None, :]),
+             ('nji,nj->ni', e, np.swapaxes(R, 1, 2), e[:, None, :]), ('nij,nj->ni', e, R, e[:, None, :]))
     got = []
-    for subscripts, b, terms in forms:
-        fit = [o for o in orders.ORDERS if orders.same(orders.summed(terms, o), np.einsum(subscripts, R, b))]
-        if not fit:
+    for subscripts, b, A, B in forms:
+        A, B = np.broadcast_arrays(A, B)
+        want = np.einsum(subscripts, R, b)
+        fit = next((o for o in orders.ORDERS if orders.same(orders.summed(A, B, o), want)), None)
+        if fit is None:
             raise ValueError('numpy sums %s in none of %s here' % (subscripts, orders.ORDERS))
-        got.append(1 if fit[0] == 'seq' else int(fit[0][5:]))
+        got.append(orders.ORDERS.index(fit))
     return tuple(got)
 
 

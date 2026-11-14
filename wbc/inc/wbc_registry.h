@@ -22,8 +22,9 @@ typedef struct
   int32_t          *kind;
   const wbc_blas_t *blas;                      /* numpy's OpenBLAS */
   int               slots;                     /* registry.SLOTS */
-  int               lanes[3];                  /* numpy's sum of each einsum (orders.summed): 1 in turn, 2 or 4 lanes -
-                                                  a box's corners, its nearest point's turn in and out */
+  int               lanes[3];                  /* numpy's sum of each einsum, an index of orders.ORDERS: in turn, 2 or 4
+                                                  lanes, fused in turn or in 2 lanes - a box's corners, its nearest
+                                                  point's turn in and out */
   double            cell2, gate, hit, miss, prune, kept_s, swell_mps, swell_m, diffuse, moving_chi2;
   double            near_m, far_m, tan_up, tan_across;
   double            axis[3], up[3], eyes[3], corners[8][3];

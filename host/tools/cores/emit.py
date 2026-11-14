@@ -165,14 +165,15 @@ def _einsum(w, st, order):
         for j in range(sizes[perm[-1]]):
             at = dict(place, **{perm[-1]: str(j)})
             factors = [factor(r, [at[x] for x in lets]) for lets, r in zip(ops, refs)]
-            terms.append(' * '.join(factors) if len(factors) < 3 else '(' + ' * '.join(factors[:2]) + ') * ' + factors[2])
+            terms.append((factors[0], None) if len(factors) < 2 else (factors[0], factors[1]) if len(factors) < 3
+                         else ('(' + ' * '.join(factors[:2]) + ')', factors[2]))
         return _summed(terms, inner)
 
     def element(idx):
         place, outer = dict(zip(out, idx)), perm[:-1]
         if not outer:
             got = run(place)
-            return ['%s = %s;' % (w.ref(st.out, idx), got if inner == 'seq' else '0.0 + ' + got)]
+            return ['%s = %s;' % (w.ref(st.out, idx), got if inner.startswith('seq') else '0.0 + ' + got)]
         acc = '0.0'
         for combo in itertools.product(*[range(sizes[x]) for x in outer]):
             acc = '(%s + %s)' % (acc, run(dict(place, **{x: str(v) for x, v in zip(outer, combo)})))
@@ -181,20 +182,28 @@ def _einsum(w, st, order):
 
 
 def _summed(terms, order):
-    """A run of terms summed in `order` (`orders.summed`): a chain from zero, or SIMD lanes across."""
-    if order == 'seq':
+    """A run of terms (a, b) - a * b, a alone where b is None - summed in `order` (`orders.summed`): a chain
+    from zero, or SIMD lanes across; each product fused into its add (fma) in an order ending 'fma'."""
+    fused = order.endswith('fma')
+
+    def add(acc, term):
+        a, b = term
+        return '(%s + %s)' % (acc, a) if b is None else 'fma(%s, %s, %s)' % (a, b, acc) if fused else (
+            '(%s + %s * %s)' % (acc, a, b))
+    if order.startswith('seq'):
         expr = '0.0'
         for t in terms:
-            expr = '(%s + %s)' % (expr, t)
+            expr = add(expr, t)
         return expr
-    v, J = int(order[5:]), len(terms)
+    v, J = int(order[5]), len(terms)
     lanes, t = ['0.0'] * v, 0
     while J - t >= 4 * v:
-        lanes = ['((((%s + %s) + %s) + %s) + %s)' % (lanes[k], terms[t + 3 * v + k], terms[t + 2 * v + k],
-                                                   terms[t + v + k], terms[t + k]) for k in range(v)]
+        for k in range(v):
+            for u in (3, 2, 1, 0):
+                lanes[k] = add(lanes[k], terms[t + u * v + k])
         t += 4 * v
     while t < J:
-        lanes = ['(%s + %s)' % (lanes[k], terms[t + k] if t + k < J else '0.0') for k in range(v)]
+        lanes = [add(lanes[k], terms[t + k]) if t + k < J else '(%s + 0.0)' % lanes[k] for k in range(v)]
         t += v
     return '(%s + %s)' % (lanes[0], lanes[1]) if v == 2 else '((%s + %s) + (%s + %s))' % (
         lanes[0], lanes[2], lanes[1], lanes[3])
