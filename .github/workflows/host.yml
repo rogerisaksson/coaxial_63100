@@ -65,3 +65,54 @@ jobs:
           gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
             -f body="$(printf 'CI offline (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}'; cat tail.log; printf '\n~~~\n')" \
             || true
+
+  # Her C built for another target than the gate's, its parity suites beside her python on a runner that runs it:
+  # SVE2 on GitHub's arm64 runner (Cobalt 100, Neoverse N2 - numpy's einsums fused there, its OpenBLAS's own
+  # kernels), AVX-512 where the runner GitHub gives has it (EPYC 9V74, Xeon 8573C; an EPYC 7763 has none, and the
+  # job says so). SME2 is emulated on a desk alone (run_tests.py --linux --arch arm64 --isa sme2): hours under QEMU.
+  arch:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04-arm, isa: sve2}
+          - {runner: ubuntu-latest, isa: avx512}
+    steps:
+      - uses: actions/checkout@v7
+      - id: held
+        run: |
+          if [ "${{ matrix.isa }}" != avx512 ] || grep -qw avx512f /proc/cpuinfo; then echo "runs=1" >> "$GITHUB_OUTPUT"
+          else echo "::notice::$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2): no AVX-512 on this runner, its suites not run"; fi
+      - if: steps.held.outputs.runs == '1'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - if: steps.held.outputs.runs == '1'
+        uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          constraints: host/constraints.txt
+          editable: host
+      - if: steps.held.outputs.runs == '1'
+        run: >-
+          python tools/dev/run_tests.py --offline --file test_aero_core.py --file test_borne.py --file test_mppi_core.py
+          --file test_native.py --file test_qp.py --file test_quick.py --file test_registry.py --file test_tick.py
+          --file test_wbc_core.py --file test_wear.py --file test_compiled.py --file test_sysid.py 2>&1 | tee run.log;
+          exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          NPY_DISABLE_CPU_FEATURES: ${{ matrix.isa == 'avx512' && 'X86_V4 AVX512_ICL AVX512_SPR' || '' }}
+          COAXIAL_ISA: ${{ matrix.isa }}
+      - if: failure()
+        working-directory: host
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            -f body="$(printf 'CI arch (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.isa }}'; cat tail.log; printf '\n~~~\n')" \
+            || true
