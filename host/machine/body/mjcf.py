@@ -55,7 +55,60 @@ PAD_SOFT, PAD_S, PAD_DAMP = float(_PAD['soft']), float(_PAD['settle_s']), float(
 LACE_AT = tuple(float(v) for v in _LACE['at'])
 LACE_M, LACE_S, LACE_HOLD_N = float(_LACE['length_m']), float(_LACE['stop_s']), float(_LACE['hold_n'])
 
+#: An inertia's principal frame: Jacobi's cyclic sweeps of its 3x3 (a 3x3's off-diagonal under a double's
+#: last bit within five), its quaternion to 26 bits a component - their squares exact, MuJoCo's normalising
+#: of it the same bits on every processor, fused or not: 1.5e-8 of a turn, inside the 1e-6 its moments
+#: are written to (%g).
+SWEEPS, QUAT_BITS = 8, 26
 
+
+def principal(full):
+    """(quat w x y z, diaginertia) of an inertia (xx, yy, zz, xy, xz, yz, as fullinertia orders it, at %g):
+    its principal axes in plain IEEE arithmetic - every processor's the same bits, where MuJoCo's own
+    eigendecomposition is its build's (an Arm's parted 9 of her 50 bodies' in their last bits)."""
+    xx, yy, zz, xy, xz, yz = (float('%g' % x) for x in full)
+    a, v = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]], [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    for _sweep in range(SWEEPS):
+        for p, q in ((0, 1), (0, 2), (1, 2)):
+            if a[p][q] == 0.0:
+                continue
+            theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q])
+            t = math.copysign(1.0, theta) / (abs(theta) + math.sqrt(theta * theta + 1.0))
+            c = 1.0 / math.sqrt(t * t + 1.0)
+            s = t * c
+            for m in (a, v):
+                for k in range(3):
+                    m[k][p], m[k][q] = c * m[k][p] - s * m[k][q], s * m[k][p] + c * m[k][q]
+            for k in range(3):
+                a[p][k], a[q][k] = c * a[p][k] - s * a[q][k], s * a[p][k] + c * a[q][k]
+    det = (v[0][0] * (v[1][1] * v[2][2] - v[1][2] * v[2][1]) - v[0][1] * (v[1][0] * v[2][2] - v[1][2] * v[2][0])
+           + v[0][2] * (v[1][0] * v[2][1] - v[1][1] * v[2][0]))
+    if det < 0.0:
+        for k in range(3):
+            v[k][2] = -v[k][2]
+    return tuple(round(c * 2.0 ** QUAT_BITS) / 2.0 ** QUAT_BITS for c in _quat(v)), (a[0][0], a[1][1], a[2][2])
+
+
+def _quat(r):
+    """The unit quaternion (w, x, y, z) of a rotation matrix `r` (Shepperd's: from its largest pivot)."""
+    tr = r[0][0] + r[1][1] + r[2][2]
+    pivots = (tr, r[0][0], r[1][1], r[2][2])
+    k = pivots.index(max(pivots))
+    if k == 0:
+        w = 0.5 * math.sqrt(1.0 + tr)
+        return w, (r[2][1] - r[1][2]) / (4.0 * w), (r[0][2] - r[2][0]) / (4.0 * w), (r[1][0] - r[0][1]) / (4.0 * w)
+    i, j, n = k - 1, k % 3, (k + 1) % 3
+    s = 0.5 * math.sqrt(1.0 + r[i][i] - r[j][j] - r[n][n])
+    q = [0.0, 0.0, 0.0]
+    q[i], q[j], q[n] = s, (r[j][i] + r[i][j]) / (4.0 * s), (r[n][i] + r[i][n]) / (4.0 * s)
+    return ((r[n][j] - r[j][n]) / (4.0 * s),) + tuple(q)
+
+
+def _inertial(mass, pos, full):
+    """An inertial of `mass` at `pos` and inertia `full` (fullinertia's order), on its principal frame (`principal`)."""
+    quat, diag = principal(full)
+    return '<inertial pos="%g %g %g" mass="%g" quat="%r %r %r %r" diaginertia="%r %r %r"/>' % (
+        tuple(pos) + (mass,) + quat + diag)
 
 
 def mjcf(free=True):
@@ -135,7 +188,6 @@ def _mjcf(bones, free=True):
     parts = skeleton.bodies() if bones else []
 
     ridden = set(build.riders()) | {rides for _part, rides, _g in parts}
-    held = '<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>'
 
     def carried(at):
         """The drives' and her skeleton's bodies riding `at`, welded."""
@@ -159,7 +211,7 @@ def _mjcf(bones, free=True):
             out.append(_joint(joint, axis, sign))
             if joint in stages:
                 k = stages.index(joint) + 1
-                out += ([held % (shells[joint][1] + (shells[joint][0],) + shells[joint][2])
+                out += ([_inertial(shells[joint][0], shells[joint][1], shells[joint][2])
                          if joint in shells else
                          '<inertial pos="0 0 0" mass="1e-6" diaginertia="1e-10 1e-10 1e-10"/>']
                         + carried(joint)
@@ -168,8 +220,7 @@ def _mjcf(bones, free=True):
         staged = [j for kid in kids.get(name, []) for j, _a, _s in kid[2][:-1]]
         mass = share * MASS_KG - sum(kg for at in [name] + staged
                                      for _j, kg, _at, _i in riders.get(at, ()))
-        out.append('<inertial pos="%g %g %g" mass="%g" fullinertia="%g %g %g %g %g %g"/>' % (
-            shells[name][1] + (shells[name][0],) + shells[name][2]) if shells else
+        out.append(_inertial(shells[name][0], shells[name][1], shells[name][2]) if shells else
                    '<inertial pos="%g %g %g" mass="%g" diaginertia="%g %g %g"/>' % (
             tuple(com) + (mass,) + tuple(mass * g * g for g in gyr)))
         if name == 'head' and eyed:

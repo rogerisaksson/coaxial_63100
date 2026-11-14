@@ -180,7 +180,9 @@ void aero_share(const aero_t *s, const float weigh[AERO_WRENCH],
       const uint64_t up = lt(0.0, p[i]), down = lt(p[i], 0.0);
       const double   room = pick(up, pick(down, 0.0, f[i] - low[i]), high[i] - f[i]);
 
-      reach[i] = pick(up | down, FAR, room / (fabs(p[i]) + one(~(up | down))));
+      /* 1 where it moves neither way as 1 - one(...), not one(~(...)): gcc 13 and 15 for an Arm read the
+         complement off a compare (csetm), the difference of two exact doubles they keep as data */
+      reach[i] = pick(up | down, FAR, room / (fabs(p[i]) + (1.0 - one(up | down))));
       alpha = least(alpha, reach[i]);
     }
     stopped = lt(alpha, 1.0);
