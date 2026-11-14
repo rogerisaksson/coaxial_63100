@@ -14,11 +14,14 @@ an observer of the torque its box passes on.
 """
 import math
 
-from machine.body import drives
+from machine.body import drives, mechatronics, peripherals
 from machine.body.figure import JOINTS
 
-#: A board's torque counts as taking up the play from this, N m (`ahead`).
-PLAY_NM = 1.0
+_ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
+_bus = peripherals.bus()
+
+#: A board's torque counts as taking up the play from this, N m (`compile.bus()`).
+PLAY_NM = _bus['play_nm']
 
 #: A series spring's torque loop (`drives.series`, `Boxes.step`): its rotor driven TRACK times the
 #: shortfall of the torque its box passes on, as the board observes it, against the torque its pass
@@ -44,13 +47,13 @@ TRACK = drives.TRACK
 #: 180 1/s: at 1500 the ask's 3 ms steps went through to her hip (203 passes, she fell) and the lead
 #: that cancels the observer's pole (0.6 of it) 82; slower, 100 fell in the walk's stop and 60 was 54.
 #: On the built leaf 180 fell at 4.7 s (its mode 174 1/s lagged into a swing), 400 walked, 1500 53.
-OBSERVE_X = 2.3
+OBSERVE_X = _bus['observe_x']
 #: The command's rate is read through this first-order lag, s: a pass's step spread over the world's steps.
-RATE_S = 0.005
+RATE_S = _bus['rate_s']
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
-#: the world's step: at one on the knee's 6.2 kN m/rad and 0.177 kg m^2 (187 rad/s, 0.19 of a
-#: step) the rotor's mode grew faster than its damping took it and she fell rising.
-MESH_RAD_S, SUBSTEPS = 0.02, 5
+#: the world's step (`gearboxes.toml`, `world.toml`).
+MESH_RAD_S = float(_LIB['gearboxes'][_BUILD['stacks']['knee'][1]]['mesh_rad_s'])
+SUBSTEPS = int(_ENV['substeps'])
 
 
 class Boxes:

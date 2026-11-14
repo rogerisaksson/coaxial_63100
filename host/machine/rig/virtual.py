@@ -8,12 +8,17 @@
 A body's subsystem i is bus i and its actuators units 1.. in order, so `fit` names them as the
 type does. Joints only: a rotor or a surface is refused.
 """
+from machine.body import mechatronics
 from machine.rig.controller import Feedback
 from machine.errors import MachineError
 from machine.rig.machine import Actuator
 from machine.rig.nodes import Module, Node
 from machine.rig.parts import Direct, Gain, Slew
 from machine.rig.routines import TYPES
+
+_SIM = mechatronics.environment()['simulation']
+_DEF_SPAN = float(_SIM['virtual_span_deg'])
+_DEF_SLEW = float(_SIM['virtual_slew_deg_s'])
 
 
 class _Angle:
@@ -38,7 +43,7 @@ class VirtualJoint(Actuator):
 
     UNIT, READS, DRIVES, BACK = 'deg', 'angle', 'angle', 'deg'
 
-    def __init__(self, node, span=150.0, deg_s=1500.0):
+    def __init__(self, node, span=_DEF_SPAN, deg_s=_DEF_SLEW):
         super().__init__(node)
         self.half, self.deg_s = float(span), float(deg_s)
 

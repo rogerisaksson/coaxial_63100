@@ -22,7 +22,7 @@ import math
 
 from machine.senses import borne
 from machine.identify import campaign, identified, sysid
-from machine.body import drives, mechatronics
+from machine.body import drives, mechatronics, peripherals
 from machine.senses import edge
 from machine.moves import leap
 from machine.law import modal, statics
@@ -33,21 +33,15 @@ from machine.errors import MachineError
 SITES = ('left_hand', 'right_hand')
 #: The movers, in this order: each site's mass and first moment, kg and kg m; each drive's
 #: Coulomb friction, N m, and viscous, N m s/rad; each drive's torque an amp, of itself. Each
-#: kind's unit, and how far it walks in a second, units a root second.
+#: kind's unit, random-walk pace, prior doubt, torque noise floor, sigma gate, sample decimation,
+#: window length and gearbox smoothing come from `peripherals.identify()['wear']`.
 LOAD, DRIFT, SCALE = ('m', 'hx', 'hy', 'hz'), ('f', 'b'), ('kt',)
-UNIT = {'m': 0.1, 'hx': 0.02, 'hy': 0.02, 'hz': 0.02, 'f': 0.1, 'b': 0.05, 'kt': 0.01}
-PACE = {'m': 2.5, 'hx': 2.5, 'hy': 2.5, 'hz': 2.5, 'f': 0.5, 'b': 0.5, 'kt': 0.5}
-#: Each one's doubt at the start, units; a row's noise, N m; a drift is past its band by this
-#: many of its doubt before it is named.
-PRIOR, NOISE, SIGMAS = 10.0, 0.5, 2.0
-#: Every how many steps a window's rows are read, and a window, s.
-EVERY, WINDOW_S = 10, 4.0
-#: A box's read eased over this many windows; its play, its wind-up and its encoder's zero among
-#: `campaign.BOX`.
-BOX_WINDOWS = 3
+_wear = peripherals.identify()['wear']
+UNIT, PACE = dict(_wear['unit']), dict(_wear['pace'])
+PRIOR, NOISE, SIGMAS = _wear['prior'], _wear['noise'], _wear['sigmas']
+EVERY, WINDOW_S = _wear['every'], _wear['window_s']
+BOX_WINDOWS, HUNG_KG, ALONE_SHARE = _wear['box_windows'], _wear['hung_kg'], _wear['alone_share']
 PLAY, WIND, ZERO = campaign.BOX.index('play'), campaign.BOX.index('k'), campaign.BOX.index('zero')
-#: A load is placed where it hangs from this mass up, kg.
-HUNG_KG = 0.05
 
 
 def service(build=None):
@@ -55,11 +49,7 @@ def service(build=None):
     viscous (of its own, N m s/rad), torque (of itself), play (of its own, up), wind_up (of its
     own, down), zero (rad), load_kg, hours, trend_h (a drift's trend from the last service counts
     from)."""
-    table = (build or mechatronics.robot()).get('service')
-    if table is None:
-        raise MachineError('%s names no service: a [service] table in machine/humanoids/%s.toml'
-                           % (mechatronics.ROBOT, mechatronics.ROBOT))
-    return table
+    return peripherals.service((build or mechatronics.robot()).get('service'))
 
 
 def laid(body, build=None):
@@ -155,7 +145,7 @@ def windowing(w, ys, taus, dt):
     keep = np.abs(rows_).sum(axis=1) > 0.0
     zero = (ys_arr[-1, edge.QM] - ys_arr[-1, edge.Q])[lay['joint']]
     alone = (ys_arr[:, edge.LOAD] >= leap.TOUCH_N).all(axis=1) & ~ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3)[:, borne.ABOVE].any(axis=(1, 2))
-    if alone.mean() > 0.8:
+    if alone.mean() > ALONE_SHARE:
         yield
         yield from torso_loading(w, ys_arr, dt)
     return {'A': A[keep], 'left': (tau.reshape(-1) - pred)[keep], 'drive': drive[keep],

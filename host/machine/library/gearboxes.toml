@@ -11,25 +11,49 @@
 kind = "roller wave"
 diameter_m = 0.064
 ratio = 30.0
+efficiency = 0.90
+l10_cycles = 2.0e6
 input_j_share = 0.05
 zeta = 0.3
 backlash_deg = 0.5
 friction_share = 0.02
+mesh_rad_s = 0.02
+stiffness_nm_rad_m2 = 2.20e6
+drag_nm_m3 = 156.25
+shock_pa = 4.883e5
+fill_share = 0.51
+length_share = 0.28
 
 [A]
 kind = "roller wave"
 diameter_m = 0.084
 ratio = 30.0
+efficiency = 0.90
+l10_cycles = 2.0e6
 input_j_share = 0.05
 zeta = 0.3
 backlash_deg = 0.5
 friction_share = 0.02
+mesh_rad_s = 0.02
+stiffness_nm_rad_m2 = 2.20e6
+drag_nm_m3 = 156.25
+shock_pa = 4.883e5
+fill_share = 0.51
+length_share = 0.28
 
 [S]
 kind = "roller wave"
 diameter_m = 0.050
 ratio = 30.0
+efficiency = 0.90
+l10_cycles = 2.0e6
 input_j_share = 0.05
 zeta = 0.3
 backlash_deg = 0.5
 friction_share = 0.02
+mesh_rad_s = 0.02
+stiffness_nm_rad_m2 = 2.20e6
+drag_nm_m3 = 156.25
+shock_pa = 4.883e5
+fill_share = 0.51
+length_share = 0.28

@@ -17,78 +17,36 @@ solves that length on the branch its rest lies on - no dead point over the strok
 import functools
 import math
 
-#: Each rod by its drive's kind, from its crank at the front of the knee through the shin to the
-#: heel's back, crossed: (up, ahead, crank, crank's rest rad, ball, ball's rest rad) about its
-#: ball's joint, m, its stroke - the ankle's two M 80 and 150 mm under the knee. Searched inside her over
-#: -50..45 deg rolled +-15: the upper's lever 0.73-0.90, the lower's 0.76-0.92,
-#: their transmission 40.7 and 39.2 deg at worst, 1.4 and 1.7 mm clear of the drums and the tibia,
-#: 1.5 and 1.4 inside her shell standing; a 48 mm crank on a 48 mm horn stood 29 mm out of her
-#: ankle - in its 32-36 mm round any rod's line passes the axis within 25.
-RODS = {'ankle': ((0.300, 0.015, 0.020, math.radians(90.0), 0.018, math.radians(255.0)),
-                  (-50.0, 45.0)),
-        'ankle_roll': ((0.230, 0.000, 0.024, math.radians(90.0), 0.022, math.radians(255.0)),
-                       (-50.0, 45.0))}
+from machine.body import mechatronics
 
-#: Each rod's ball's joint, its crank's plane and its ball's: x of its left limb's frame, m (the
-#: right's mirrored) - each crank on its drum's outer end, each ball on the heel's horn beside
-#: the tibia's end. Straight inside the leg one rod stood 51 mm out of her shell and 15 out of
-#: her jeans, its crank 50-60 mm in met the other leg's walking.
-ROD_AT = {'ankle': ('ankle', 0.045, 0.012), 'ankle_roll': ('ankle', -0.047, -0.016)}
+_ROBOT = mechatronics.robot()
+_LINK = _ROBOT['linkage']
+_SEG_AT = _ROBOT['figure']['segments']
 
-#: A parallel pair: a joint and its roll, two drives turning both - the first through their rods'
-#: levers together, the second through their offsets over their cranks against each other.
-PAIRS = {'ankle': 'ankle_roll'}
-#: The roll each pair's rods were laid over, deg either side.
-ROLLED = {'ankle': 15.0}
-
-#: A rod's radius, m: solid carbon, 12 mm round and 0.3 m long it buckles at 7 kN; a drive's 88 N m
-#: on its 20 mm crank is 4.4 kN, 6.8 at the transmission's worst, pulling at the push-off
-#: (estimated) - 18 mm round the rods stood 26-29 mm out of her ankle.
-ROD_R = 0.006
-
-#: A rod's bend, laid at rest in its left joint's frame as RODS' (x across), m, carried with its
-#: ends (`bent`): down its crank's plane past the drums, then in to its ball - straight, each
-#: rod's run past its own drum's end face, the crank no longer than the drum's radius.
-BENDS = {'ankle': (0.045, 0.180, 0.0139), 'ankle_roll': (-0.047, 0.205, 0.0193)}
-
-#: Each belt, toothed steel cord: its drive's pulley's radius and its joint's, m - the ratio
-#: theirs, constant - and how far out to her side of the limb's axis it runs. None where its give
-#: under her weight would show in her walk - the knee's 141 N m was a 3.4 kN pull.
-#: The toes' from their own stack, 36 mm out, past its gearbox (`drives.STACKS`).
-#: The elbow's and the wrist's went (fewest parts): the elbow's stack on
-#: its own axis, 68 mm across an elbow of 56 - a human's breadth -, the wrist held.
-BELTS = {'foot': (0.010, 0.010, 0.036)}
-
-#: Each spur pair after its drive's gearbox, its ratio: the gearbox takes its joint's torque over
-#: it. The hip roll's M at 1:100 on two stages put its 126 N m peak through a box rated 100, and
-#: walking 133-139 (`World.geared`): one stage at 1:60 and 1.67 here. Its copper
-#: 1.57 at 1.5x the walk: a crank-rocker there was measured on two strokes and kept neither
-#: (docs/findings/drives.md).
-GEARS = {'hip_roll': 1.67}
-
-#: Each four-bar turning about z in its drive's segment's x-y plane: its crank's centre and its
-#: horn's - the joint's axis - (x, y) m, the crank, its rest rad, the horn, its rest rad, the
-#: plane's z m, its stroke deg. The trunk's roll's M 100 mm under the roll's axis, an 18 mm crank
-#: on a 24 mm horn crossed: over +-35 deg its lever 1.31-1.66, its transmission 53 deg at worst,
-#: 24 mm off the fork's legs - its 1:1 spur pair's 100 mm wheels stood in the pitch's bracket's
-#: sweep, and a stage at 1:40 wants 1.5 after it. Between the M's face and the roll's bearing, its
-#: M 7 mm back: over spine -30..85 and roll +-35 the closest 1 mm. A crank-rocker
-#: (the crank turns 360 deg, the limb reverses at the dead centres, never into a stop)
-#: was measured at the hip roll on two strokes and kept neither (docs/findings/drives.md): its
-#: dead centres are stops to a fall. The right's the left's mirrored in x (`four_bar`).
-#: A four-bar's crank and horn: steel plates 2 PLATE_R thick, drawn and collided as such (16 mm
-#: capsules before hid the hip roll's 10 mm pinch).
-PLATE_R = 0.004
-PLANAR = {'spine_roll': ((0.0, 0.02), (0.0, 0.12), 0.018, math.radians(20.0), 0.024,
-                         math.radians(200.0), 0.047, (-35.0, 35.0))}
-
-#: Each bevel pair after its drive's gearbox, 1:1, its pitch radius, m: a right-angle stage, a
-#: motorcycle's shaft drive's, turning an output along its limb onto its joint's axis - across her
-#: arms the elbow's M and the wrist's S stood 3-26 mm out of her shell, their belts 8-27, along
-#: them 1 mm in. Each BEVEL_T thick, BEVEL_EFF of the torque through it (estimated).
-#: None now (`BELTS`).
-BEVELS = {}
-BEVEL_T, BEVEL_EFF = 0.006, 0.97
+#: Off-axis transmissions read from `[linkage]` in her build (`machine.body.mechatronics`):
+#: parallel push-pull carbon rods (`RODS`, `ROD_AT`, `BENDS`, `PAIRS`, `ROLLED`), toothed belts
+#: (`BELTS`), spur pairs (`GEARS`), planar four-bars (`PLANAR`), and bevel stages (`BEVELS`).
+RODS = {k: ((float(r['up']), float(r['ahead']), float(r['crank_m']), math.radians(float(r['crank_deg'])),
+             float(r['ball_m']), math.radians(float(r['ball_deg']))),
+            (float(r['stroke'][0]), float(r['stroke'][1])))
+        for k, r in _LINK['rods'].items()}
+ROD_AT = {k: (str(r['joint']), float(r['crank_x']), float(r['ball_x']))
+          for k, r in _LINK['rods'].items()}
+PAIRS = {k: str(v) for k, v in _LINK['pairs'].items()}
+ROLLED = {k: float(v) for k, v in _LINK['rolled'].items()}
+ROD_R = float(_LINK['rod_r'])
+BENDS = {k: tuple(float(v) for v in r['bend']) for k, r in _LINK['rods'].items()}
+BELTS = {k: tuple(float(v) for v in b) for k, b in _LINK['belts'].items()}
+GEARS = {k: float(v) for k, v in _LINK['gears'].items()}
+PLATE_R = float(_LINK['plate_r'])
+PLANAR = {k: (tuple(float(v) for v in p['crank_at']),
+              tuple(float(v) for v in p.get('horn_at', _SEG_AT[p['segment']]['at'][:2])),
+              float(p['crank_m']), math.radians(float(p['crank_deg'])),
+              float(p['horn_m']), math.radians(float(p['horn_deg'])),
+              float(p['z_m']), (float(p['stroke'][0]), float(p['stroke'][1])))
+          for k, p in _LINK['planar'].items()}
+BEVELS = {k: float(v) for k, v in _LINK.get('bevels', {}).items()}
+BEVEL_T, BEVEL_EFF = float(_LINK['bevel_t']), float(_LINK['bevel_eff'])
 
 #: A rod's lever tabled every GRID deg over SPAN, interpolated: worked out each step the ankle's
 #: pair cost 34 us a leg against the world's 184.

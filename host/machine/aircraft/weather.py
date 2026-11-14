@@ -9,40 +9,17 @@ What the frame is flown through, none of it told to its law (`AIR`).
 import math
 import random
 
-#: The air's kinds, a row each - a day's weather over a field at REF_M, assumptions: the wind's
-#: mean, m/s; how far its way swings either side, degrees, and a swing's seconds; its gusts'
-#: size over the mean, m/s, and the seconds between two; its eddies', m/s rms.
-AIR = {
-    'calm':      (0.5,  0.0,  0.0, 0.0, 0.0, 0.1),
-    'constant':  (4.0,  0.0,  0.0, 0.0, 0.0, 0.2),
-    'gusty':     (3.0, 15.0,  8.0, 4.0, 5.0, 0.5),
-    'changing':  (3.5, 80.0, 30.0, 1.0, 9.0, 0.3),
-    'turbulent': (2.5, 25.0,  6.0, 2.0, 6.0, 1.2),
-}
+from machine.aircraft import compile as aircraft_compile
 
-#: The kinds in turn, KIND_S of each, the air come to a kind's sizes and round to its own way,
-#: within TURN_DEG of the last, on an S over EASE_S: eased from the first on 4 s, a turbulent
-#: kind's eddies set in at their fastest.
-TOUR, KIND_S, EASE_S, TURN_DEG = tuple(AIR), 20.0, 8.0, 120.0
+_W = aircraft_compile.weather()
 
-#: A gust: up and down again as 1 - cos over so long, s, so much of its kind's size, within
-#: GUST_DEG of the wind's way. Over 1.5-3 s a gusty kind's rose 8 m/s^2.
-GUST_S, GUST_SHARE, GUST_DEG = (4.0, 8.0), (0.6, 1.0), 30.0
-
-#: The eddies: the frame's turn over in EDDY_S; each disc has one of its own besides,
-#: EDDY_DISC of the size, over in EDDY_DISC_S; up and down EDDY_UP of along the floor. Each
-#: of two stages, grown and subsided: of one, white in what it changed by, a turbulent kind's
-#: changed 13.8 m/s^2 rms at 50 Hz, 44 at the most.
-EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = 1.5, 0.3, 0.5, 0.5
-
-#: The wind over the ground: (h / REF_M) ** SHEAR of what it is at REF_M, counted from SHEAR_M
-#: up and SHEAR_MOST at the most; its gusts, its eddies and its rise and fall none at the floor,
-#: whole from RISE_M up - no eddy larger than its height, a frame averaging those under its size.
-REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = 5.0, 0.2, 0.1, 1.5, 3.0
-
-#: The discs with an eddy each besides the frame's: the quad's four; a craft of two drives reads
-#: its first.
-DISCS = 4
+#: The air's kinds (`world.toml` `[weather]`): mean m/s, veer deg, veer s, gust m/s, every s, eddy m/s rms.
+AIR = _W['air']
+TOUR, KIND_S, EASE_S, TURN_DEG = tuple(AIR), _W['kind_s'], _W['ease_s'], _W['turn_deg']
+GUST_S, GUST_SHARE, GUST_DEG = _W['gust_s'], _W['gust_share'], _W['gust_deg']
+EDDY_S, EDDY_DISC_S, EDDY_DISC, EDDY_UP = _W['eddy_s'], _W['eddy_disc_s'], _W['eddy_disc'], _W['eddy_up']
+REF_M, SHEAR, SHEAR_M, SHEAR_MOST, RISE_M = _W['ref_m'], _W['shear'], _W['shear_m'], _W['shear_most'], _W['rise_m']
+DISCS = _W['discs']
 
 
 def air(seed=3, kind=None):

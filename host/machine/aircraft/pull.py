@@ -16,7 +16,7 @@ import functools
 import math
 from typing import NamedTuple
 
-from machine.aircraft import flightpack, quad
+from machine.aircraft import compile as aircraft_compile, flightpack, quad
 
 
 class Rotor(NamedTuple):
@@ -38,25 +38,27 @@ class Rotor(NamedTuple):
         return 1.5 * self.pairs * self.lam
 
 
-#: The 63100's can and a 16x14 on it, kg m^2.
-CAN_J, PROP_J = 1.2e-4, 3.3e-4
+_PULL = aircraft_compile.pull()
+
+#: The 63100's can and a 16x14 on it, kg m^2 (`motors.toml`, `crafts.toml`).
+CAN_J, PROP_J = _PULL['can_j'], _PULL['prop_j']
 #: The quad's as built: the 63100 as its boards' record has it (the profile
 #: outrunner_63100_14p), its can and a 16x14 turning.
-ROTOR = Rotor(0.03, 4.1e-5, 0.00207, 14.0, CAN_J + PROP_J, 8e-4, quad.K_DRAG)
+ROTOR = Rotor(_PULL['r'], _PULL['lq'], _PULL['lam'], _PULL['pairs'], CAN_J + PROP_J, _PULL['b'], quad.K_DRAG)
 
 #: The clamp a flight is planned on and war emergency power's, A: the space's two shells.
-I_MAX, I_WEP = 60.0, 90.0
+I_MAX, I_WEP = _PULL['i_max'], _PULL['i_wep']
 
 #: The share of the link's volts over sqrt 3 the law's vector may use (the record's
 #: drv_v_frac).
-V_FRAC = 0.95
+V_FRAC = _PULL['v_frac']
 
 #: The tables' rows: a link's volts from VOLTS[0] to VOLTS[1], a row every VOLTS[2]; the
 #: pack's charge from none to full in CHARGES rows, its cells' curve's corners among them.
-VOLTS, CHARGES = (30.0, 70.0, 0.5), 41
+VOLTS, CHARGES = _PULL['volts'], _PULL['charges']
 
 #: A top is sought under this, rad/s, the span halved this often.
-OVER_RAD_S, HALVINGS = 4000.0, 40
+OVER_RAD_S, HALVINGS = _PULL['over_rad_s'], _PULL['halvings']
 
 
 def torque(w, rotor=ROTOR):
@@ -138,7 +140,7 @@ def reach(w, volts, amps, rotor=ROTOR):
 
 
 #: The speed, rad/s, above which the loop's slew reaches WEP's; at idle it is the flight's clamp's.
-W_SLEW_RAD_S = 300.0
+W_SLEW_RAD_S = _PULL['w_slew_rad_s']
 
 
 def slew(amps=I_WEP, w=math.inf, rotor=ROTOR):

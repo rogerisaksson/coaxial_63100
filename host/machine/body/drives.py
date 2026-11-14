@@ -26,14 +26,15 @@ import math
 from typing import Any
 
 from machine.body import linkage, mechatronics
-from machine.body.figure import HIP_DROP, HIP_HALF
+from machine.body.figure import ANKLE_H, BALL, SEGMENTS, SHANK, THIGH
 from motor.pmsm import TORQUE_FACTOR
 
 #: The parts library and her build of it (machine/library, machine/humanoids): the tables below are
 #: theirs, read once.
 _LIB, _BUILD = mechatronics.library(), mechatronics.robot()
+_MAT, _WORLD = mechatronics.materials(), mechatronics.environment()
 _PACK = _BUILD['pack']
-PACK_V = float(_BUILD.get('pack_v', _PACK['series'] * _PACK.get('cell_v_min', 3.2)))
+PACK_V = float(_BUILD.get('pack_v', _PACK['series'] * _PACK['cell_v_min']))
 
 
 class Size:
@@ -59,9 +60,19 @@ class Size:
 #: (disc D m, amps, kg, its laminate's K/W to the air, its height m). Each kind's stack: (motor,
 #: gearbox, inverter). One gearbox for every stack: its ratio, its input's share of the rotor's
 #: inertia, its wind-up's damping ratio, its play and its mesh's friction.
+_ROTOR_RING, _KV_REF = float(_MAT['rotor_ring_share']), float(_MAT['kv_ref'])
+_RHO_STEEL = float(_MAT['steel_kg_m3'])
+_CP_WIND, _CP_HOUS = float(_MAT['copper_winding_j_k_kg']), float(_MAT['aluminium_housing_j_k_kg'])
+_H_SLOT, _H_DISC = float(_MAT['slot_w_m2_k']), float(_MAT['disc_w_m2_k'])
+_SHELL = _BUILD['shell']
+_LIP_M, _FASTENER_SHARE = float(_SHELL['lip_m']), float(_SHELL['fastener_share'])
+_TIM_M, _K_TIM, _K_CF_THRU = (float(_SHELL['tim_m']), float(_SHELL['tim_w_m_k']),
+                              float(_SHELL['cf_thru_w_m_k']))
+
+
 def _rotor_j(m):
-    """Outrunner rotor inertia, kg m^2, from can radius, mass and KV flux-ring scaling."""
-    j = 0.39 * min(1.0, (120.0 / m['kv']) ** 0.155) * m['kg'] * (0.5 * m['can_m']) ** 2
+    """Outrunner rotor inertia, kg m^2, from can radius, mass and 1/6 pole-ring scaling."""
+    j = _ROTOR_RING * min(1.0, (_KV_REF / m['kv']) ** (1.0 / 6.0)) * m['kg'] * (0.5 * m['can_m']) ** 2
     return round(j, -int(math.floor(math.log10(j))) + 2)
 
 
@@ -70,13 +81,14 @@ FRAMES = {k: (m['can_m'], m['height_m'], m['kg'], m['ohm'], m['peak_nm'],
           for k, m in _LIB['motors'].items()}
 KV = {k: m['kv'] for k, m in _LIB['motors'].items()}
 BOXES = {k: b['diameter_m'] for k, b in _LIB['gearboxes'].items()}
-BOX_K = {k: float(b.get('stiffness_nm_rad', round(2.20e6 * b['diameter_m'] ** 2, -2)))
+BOX_K = {k: float(b.get('stiffness_nm_rad',
+                        round(float(b['stiffness_nm_rad_m2']) * b['diameter_m'] ** 2, -2)))
          for k, b in _LIB['gearboxes'].items()}
 INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'],
-                 float(v.get('laminate_k_w', round(1.0 / (35.4 * math.pi * (0.5 * v['disc_m']) ** 2), 1))),
+                 float(v.get('laminate_k_w', round(1.0 / (_H_DISC * math.pi * (0.5 * v['disc_m']) ** 2), 1))),
                  v['height_m'])
              for k, v in _LIB['inverters'].items()}
-LOOP_HZ = {k: float(v.get('loop_hz', 0.05 * v.get('pwm_hz', 50000.0)))
+LOOP_HZ = {k: float(v.get('loop_hz', float(v['current_bw_share']) * float(v['pwm_hz'])))
            for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
@@ -87,22 +99,25 @@ RIGID_PLAY_DEG = float(_BUILD.get('rigid_play_deg', 0.2 * BACKLASH_DEG))
 AHEAD_WIND = float(_BUILD.get('ahead_wind', 0.0))
 AHEAD_PLAY = float(_BUILD.get('ahead_play', 0.0))
 
-#: The inverters out of their stacks: (segment, offset m in its frame, the axis its disc faces),
-#: else in its stack. The knee's and the ankle's split, two discs facing
-#: out on the femur's outer side: round the tibia under the knee the folded femur met them,
-#: 10-16 mm, round the femur over it the folded tibia, 13-14; facing forward 15 cm over the knee
-#: they stood 12 mm out of her (`tools/sim/fit.py`). The spine's and the neck's flush in her
-#: back on its middle line, the one over the other: a hand's breadth off it a 100 mm disc
-#: stands 17-20 mm out of her shell, at her shoulders' height 13-28 on the line itself; the
-#: head's under the neck's - in her skull, 0.2 kg more of head, a fall put her head on the
-#: floor at 1.49 m/s. The hip's in its stack - on the pelvis's or the torso's back it stood
-#: 14-35 mm out of her, lower on the thigh 16 mm into the shank folded. In their
-#: stacks, standing, the elbow's is 20 mm past her shell, the shoulder's 15, the hip's yaw's 9.
-BOARDS = {'knee': ('thigh', (0.035, -0.18, 0.01), 'x'),
-          'ankle': ('thigh', (0.051, -0.18, 0.01), 'x'),
-          'spine': ('torso', (0.0, 0.14, -0.066), 'z'),
-          'neck': ('torso', (0.0, 0.245, -0.066), 'z'),
-          'head': ('torso', (0.0, 0.245, -0.049), 'z')}
+def _boards():
+    """Remote split inverter placements from `[boards]`, stacking twin discs by `height_m + gap_m`."""
+    raw, out = _BUILD.get('boards', {}), {}
+    for k, b in raw.items():
+        if 'stack_on' not in b:
+            out[k] = (str(b['on']), tuple(float(v) for v in b['at']), str(b['face']))
+    for k, b in raw.items():
+        if 'stack_on' in b:
+            seg, base, face = out[b['stack_on']]
+            ax = 'xyz'.index(face[-1])
+            step = (0.5 * INVERTERS[STACKS[b['stack_on']][2]][4] + float(b['gap_m'])
+                    + 0.5 * INVERTERS[STACKS[k][2]][4])
+            sign = -1.0 if face.startswith('-') else 1.0
+            out[k] = (seg, tuple(round(v + sign * step, 6) if i == ax else v for i, v in enumerate(base)), face)
+    return out
+
+
+#: Split inverter discs out of their stacks: (segment, offset m in its frame, normal axis).
+BOARDS = _boards()
 
 def flex(joint):
     """rad a N m its gearbox and the structure on to its limb wind up."""
@@ -139,7 +154,9 @@ def mesh(joint):
 WAYS = {k: v['way'] for k, v in _BUILD['passive'].items()}
 PASSIVE = {k: (v['stiffness'], v['damping'], v['rest']) for k, v in _BUILD['passive'].items()
            if 'stiffness' in v}
-TOE_K, TOE_LOSS, TOE_RAD_S, TOE_REST = (_BUILD['toes'][k] for k in ('stiffness', 'loss', 'rad_s', 'rest'))
+TOE_K, TOE_LOSS, TOE_REST = (float(_BUILD['toes'][k]) for k in ('stiffness', 'loss', 'rest'))
+TOE_RAD_S = float(_BUILD['toes'].get(
+    'rad_s', round(math.sqrt(float(_WORLD['g_m_s2']) * (THIGH + SHANK)) / math.hypot(BALL, ANKLE_H))))
 
 
 def _stack(kind):
@@ -151,16 +168,20 @@ def _stack(kind):
     # N m an amp of q current, a sine's peak; a phase's ohm, half the pair's
     kt = round(TORQUE_FACTOR * 30.0 / (math.pi * math.sqrt(3.0)), 2) / kv
     disc, amps, b_kg, laminate, tall = INVERTERS[inverter]
-    scale = (BOXES[box] / 0.08) ** 3
+    b_spec = _LIB['gearboxes'][box]
+    box_d = BOXES[box]
+    len_share = float(b_spec['length_share'])
+    box_kg = float(b_spec['fill_share']) * _RHO_STEEL * 0.25 * math.pi * len_share * box_d ** 3
     parts = ((() if kind in BOARDS else (('board', disc / 2.0, tall),))
-             + (('motor', rotor / 2.0 + 0.002, can),
-                ('gear', BOXES[box] / 2.0 + 0.002, 0.28 * BOXES[box] + 0.004)))
+             + (('motor', rotor / 2.0 + _LIP_M, can),
+                ('gear', box_d / 2.0 + _LIP_M, len_share * box_d + 2.0 * _LIP_M)))
     return Size(min(amps, top / kt), kt, 0.5 * ohm, kv, inertia,
-                (310.0 * kg, 2.2 * 0.060 * 0.045 / (rotor * can)), 0.9, laminate,
-                2.0 * max(r for _p, r, _l in parts), sum(l for _p, _r, l in parts),
-                1.1 * (kg + 0.45 * scale), 0.08 * scale, 250.0 * scale, (b_kg, disc / 2.0),
+                (_CP_WIND * kg, 1.0 / (_H_SLOT * math.pi * rotor * can)), float(b_spec['efficiency']),
+                laminate, 2.0 * max(r for _p, r, _l in parts), sum(l for _p, _r, l in parts),
+                _FASTENER_SHARE * (kg + box_kg), float(b_spec['drag_nm_m3']) * box_d ** 3,
+                round(float(b_spec['shock_pa']) * box_d ** 3, 1), (b_kg, disc / 2.0),
                 parts, 'motor %s %.0f x %.0f mm KV %.0f, box %.0f mm, %.0f A' % (
-                    frame, rotor * 1e3, can * 1e3, kv, BOXES[box] * 1e3, amps), amps)
+                    frame, rotor * 1e3, can * 1e3, kv, box_d * 1e3, amps), amps)
 
 
 _SIZED = {}
@@ -173,62 +194,49 @@ def size(kind):
         _SIZED[key] = _stack(kind)
     return _SIZED[key]
 
-#: Where each joint's stack sits: None on the joint's own axis; else (segment,
-#: offset m in its frame[, its axis, '-x' its gearbox's end toward -x]) - its output turns what it
-#: drives about that axis from that end, nothing radial off an axial drive's 
-#: (the ankle's L lay along the shin, its crank about the knee's axis). The hip a
-#: gimbal (`skeleton.gimbal`), each drive on the stage before its joint's - a segment's segment
-#: named for that joint, its frame the hip's centre: the yaw's on the pelvis above, clear of the
-#: pitch's swing (69 mm), turning the fork; the roll's on the fork behind, up and in on a spur
-#: pair into the cradle, her seat's fullest - an 80 mm drum there stood 67 mm out of it; its
-#: crank-rocker (docs/findings/drives.md) wanted the pitch's stack 20 mm in, where
-#: its inverter stood 16 mm into the pelvis boom squatting -; the pitch's in the cradle on the
-#: hip's centre; the knee's on its axis inside it - a belt's give showed in her
-#: walk, no four-bar kept its 163 degrees over a 12 degree transmission,
-#: coupling rods stood as wide as her knee; 100 mm round there the capture law flagged 260
-#: catches walking in 6 s, 80 none -; the elbow's under the arm's quick-release, a belt to the
-#: joint; the ankle's pair under the knee, one over the other on the shin's axis, each turning
-#: the foot through its rod (`linkage.PAIRS`) - an L at the foot 15 mm ahead put her head down at
-#: 1.6 and 1.9 m/s in two falls of four, 10 ahead with the roll's 10 back a derated knee's walk
-#: fell -; the trunk's roll first (`figure.SEGMENTS`), its drive on the pelvis's top between the
-#: hips' yaws on a four-bar into it (`linkage.PLANAR`), the pitch's on its stage: on its axis the
-#: roll's 60 mm drum stood 80 mm out of her back, 47 out of her shell; across the pitch a rod or a
-#: differential failed (docs/findings/body.md); the wrist's and the fingers' in the forearm, the
-#: toes' in the foot. Off the thigh, the hip's three took 3 kg out of its swing. An elbow pushing
-#: her up from the floor asked 20 N m rms over 2 s, the neck holding her head 6. The
-#: waist's on its axis 120 mm up the torso, its gearbox down to the spine's bracket - at the
-#: torso's foot sits the pitch's,
-#: and its bracket clears the roll's bearings to 85 deg; the shoulder's 15 mm in from its joint
-#: (`skeleton.TRUNK`). The elbow's on its own axis, its belt and bevel pair gone
-#: (`linkage.BELTS`).
-JOINTS = {
-    'spine': ('spine_roll', (0.0, 0.0, 0.0)), 'spine_roll': ('pelvis', (0.0, 0.02, 0.005)),
-    'waist': ('torso', (0.0, 0.12, 0.0), '-y'),
-    'neck': None, 'head': None,
-    'shoulder': ('torso', (0.133, 0.325, -0.005)),
-    'elbow': ('upper_arm', (0.0, -0.28, 0.0), '-x'),
-    'wrist': ('forearm', (0.0, -0.12, 0.0), '-y'),
-    'gripper': ('forearm', (0.0, -0.165, 0.0)),
-    'hip_yaw': ('pelvis', (HIP_HALF, 0.103 - HIP_DROP, 0.0), '-y'),
-    'hip_roll': ('hip_yaw', (-0.025, 0.035, -0.078)),
-    'hip': ('hip_roll', (0.0, 0.0, 0.0)),
-    'knee': None,
-    'ankle': ('shank', (0.002, -0.090, 0.015), 'x'),
-    'ankle_roll': ('shank', (-0.004, -0.150, 0.0), '-x'),
-    'foot': ('foot', (0.0, -0.04, 0.045)),
-}
+def _mounts():
+    """Drive assembly mounts derived from `figure.SEGMENTS`, `linkage` and `[mounts]`."""
+    raw, out = _BUILD.get('mounts', {}), {}
+    j_info = {}
+    for seg in SEGMENTS:
+        if seg[0].startswith('right_'):
+            continue
+        for idx, (j, ax, _s) in enumerate(seg[2]):
+            prev = seg[2][idx - 1][0].replace('left_', '') if idx > 0 else None
+            j_info[j.replace('left_', '')] = (seg[0].replace('left_', ''),
+                                              (seg[1] or '').replace('left_', ''), seg[3], ax, prev)
+    for k in STACKS:
+        seg_name, parent_name, offset, ax, prev = j_info[k]
+        if k not in raw:
+            out[k] = (prev, (0.0, 0.0, 0.0)) if prev else None
+            continue
+        m = raw[k]
+        on, face = str(m['on']), (str(m['face']),) if 'face' in m else ()
+        if 'at' in m:
+            at = tuple(float(v) for v in m['at'])
+        elif 'z_m' in m:
+            cx, cy = linkage.PLANAR[k][0]
+            at = (cx, cy, float(m['z_m']))
+        elif 'x_m' in m:
+            up, ahead = linkage.RODS[k][0][:2]
+            at = (float(m['x_m']), round(up - SHANK + float(m.get('dy_m', 0.0)), 6), ahead)
+        else:
+            piv = offset if on == parent_name else (0.0, 0.0, 0.0)
+            idx = 'xyz'.index(ax)
+            at = tuple(round(v + (float(m['along_m']) if i == idx else 0.0), 6)
+                       for i, v in enumerate(piv))
+        out[k] = (on, at) + face
+    return out
 
-#: Each stopped kind's travel, (low, high) deg: her model's stops, her law's range, her manifest's. The elbow
-#: straight at -5 as an arm's (free, her forearm folded back under her weight, -82 to -161), the knee at -5 (a
-#: swinging knee snapped to -24 and the walk hopped), the spine's bracket to 85 (`JOINTS`; the get-up asks it -8 to
-#: 60, a fall the waist 45; free, it folded back 98-101 deg on a sill), the hip's yaw drum 25 either side (81.0 % of
-#: the scoreboard as free, 3 get-ups of 3), the neck's and head's stacks (free, granted WEP they spun as weights at
-#: 51 N m), the roll's four-bar's and the ankle's rods' dead centres (`linkage`). The shoulder and the hip's pitch
-#: and roll turn on: stopped 60 behind, her back-walk's 65 felled her onto the bed; free, a bed edge wound it 421 deg.
-TRAVEL = {'elbow': (-5.0, 160.0), 'knee': (-5.0, 165.0), 'spine': (-30.0, 85.0), 'waist': (-50.0, 50.0),
-          'hip_yaw': (-25.0, 25.0), 'neck': (-45.0, 60.0), 'head': (-80.0, 80.0),
-          'spine_roll': linkage.PLANAR['spine_roll'][7], 'ankle': linkage.RODS['ankle'][1],
-          'ankle_roll': (-linkage.ROLLED['ankle'], linkage.ROLLED['ankle'])}
+
+#: Where each joint's stack sits: None on its own axis, else (segment, offset m[, face]).
+JOINTS = _mounts()
+
+#: Each stopped kind's travel, (low, high) deg: mechanical stops (`[stops]`) and linkage dead centres.
+TRAVEL = {**{k: (float(s[0]), float(s[1])) for k, s in _BUILD.get('stops', {}).items()},
+          **{k: p[7] for k, p in linkage.PLANAR.items()},
+          **{k: r[1] for k, r in linkage.RODS.items() if k in linkage.PAIRS},
+          **{v: (-linkage.ROLLED[k], linkage.ROLLED[k]) for k, v in linkage.PAIRS.items()}}
 
 
 def kind(joint):
@@ -384,6 +392,14 @@ def peak(joint):
     return min(kt(joint) * of(joint)[1].amps, shock(joint))
 
 
+def wep_scale(joint):
+    """Stator tooth-saturation torque gain sqrt(I_board / I_linear) from linear knee to board ceiling."""
+    if passive(joint):
+        return 1.0
+    s = of(joint)[1]
+    return math.sqrt(s.rated / s.amps)
+
+
 def slew(joint):
     """Its torque's fastest slew, N m/s: its peak through its board's current loop, first order at
     its bandwidth (`LOOP_HZ`)."""
@@ -432,12 +448,12 @@ def speed(joint):
 #: Clothing's insulation over bare air by kind (ISO 9920); each motor's housing's thermal mass,
 #: J/K, and a board's K/W to its stator on its axis and off it.
 CLOTH_AIR = dict(_BUILD['cloth'])
-STATOR_J_K = {k: float(m.get('stator_j_k', round(1100.0 * m['kg']))) for k, m in _LIB['motors'].items()}
-_DISC_M = INVERTERS[STACKS['knee'][2]][0]
+STATOR_J_K = {k: float(m.get('stator_j_k', round(_CP_HOUS * m['kg']))) for k, m in _LIB['motors'].items()}
+_DISC_M, _REF_AMPS = INVERTERS[STACKS['knee'][2]][0], INVERTERS['coaxial_63100'][1]
 _CONTACT_M2 = math.pi * (0.5 * _DISC_M) ** 2 / 3.0
-MOUNT_K_W = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(0.5e-3 / (0.318 * _CONTACT_M2), 2)
+MOUNT_K_W = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(_TIM_M / (_K_TIM * _CONTACT_M2), 2)
 OFF_MOUNT_K_W = (float(_BUILD['off_mount_k_w']) if 'off_mount_k_w' in _BUILD
-                 else round(MOUNT_K_W + float(_BUILD['shell']['wall_m']) / (0.4775 * _CONTACT_M2), 2))
+                 else round(MOUNT_K_W + float(_BUILD['shell']['wall_m']) / (_K_CF_THRU * _CONTACT_M2), 2))
 
 
 def cloth_air(joint=None):
@@ -455,7 +471,7 @@ def heat(joint):
     """(kt N m/A, winding ohm, the board's amps against the 100 A board's, the winding's J/K and
     K/W, the laminate's K/W to the air): what `machine.body.heat` keeps a joint's drive by."""
     s = of(joint)[1]
-    return (kt(joint), r_ohm(joint), 100.0 / s.rated, s.winding[0], s.winding[1] * COOLING,
+    return (kt(joint), r_ohm(joint), _REF_AMPS / s.rated, s.winding[0], s.winding[1] * COOLING,
             s.housing_k_w * COOLING)
 
 

@@ -1,21 +1,22 @@
 """Static compliance of her skeleton, linkages and carbon ankle leaf."""
 import math
 
-from machine.body import linkage, skeleton
+from machine.body import linkage, mechatronics, skeleton
 
-#: Materials: (E GPa, G GPa, allowable MPa). Roll-wrapped carbon tube, high-modulus carbon tube,
-#: pultruded carbon rod, printed PAHT-CF in its layers' plane, and steel pins/plates.
+_MAT, _BUILD = mechatronics.materials(), mechatronics.robot()
+_SOLIDS, _SHELL, _BUS = _MAT['solids'], _BUILD['shell'], _BUILD['bus']
+#: Materials (`materials.toml`): (E GPa, G GPa, allowable MPa).
 CARBON, HM_CARBON, ROD, PAHT_CF, STEEL = (
-    (70.0, 20.0, 300.0), (130.0, 30.0, 300.0), (130.0, 5.0, 600.0),
-    (4.5, 1.6, 50.0), (200.0, 80.0, 250.0))
-#: Tube wall share of radius, flex evaluation load fraction, flex limit (deg), and clamp margin.
-WALL, FLEX_AT, FLEX_DEG, MARGIN = 0.1, 0.6, 0.25, 1.5
-#: Four-bar PAHT-CF plate width and hip-fork carbon crown width, m.
-PLATE_W, CROWN_W = 0.050, 0.040
-#: Stock roll-wrapped carbon tubes, (outer radius, wall) m, and carbon laminate density, kg/m^3.
-TUBES = tuple((d / 2e3, 0.001 if d < 30 else 0.002)
-              for d in (8, 10, 12, 14, 16, 18, 20, 22, 25, 30, 35, 40, 50))
-ROOM, CF_KG_M3 = 0.0025, 1550.0
+    tuple(float(x) for x in _SOLIDS[k]) for k in ('carbon', 'hm_carbon', 'rod', 'paht_cf', 'steel'))
+#: Tube wall share of radius, flex evaluation load fraction, flex limit (deg), and clamp margin (`[shell]`).
+WALL, FLEX_AT, FLEX_DEG, MARGIN = (
+    float(_SHELL[k]) for k in ('wall_share', 'flex_at', 'flex_deg', 'margin'))
+#: Four-bar PAHT-CF plate width and hip-fork carbon crown width, m (`[shell]`).
+PLATE_W, CROWN_W = float(_SHELL['plate_w_m']), float(_SHELL['crown_w_m'])
+#: Stock roll-wrapped carbon tubes, (outer radius, wall) m, minimum wall and laminate density (`materials.toml`).
+_MIN_WALL_M = float(_MAT['min_wall_m'])
+TUBES = tuple((float(d) / 2e3, float(t)) for d, t in _MAT['tubes']['stock'])
+ROOM, CF_KG_M3 = float(_SHELL['room_m']), float(_MAT['cf_kg_m3'])
 #: Series structural load path from each joint kind's gearbox to its driven segment.
 PATH = {
     'spine': ('spine frame 0', 'pelvis frame 0'),
@@ -45,8 +46,8 @@ def tube_section(r, t):
 
 
 def tube(r):
-    """(I, J, A) of a carbon tube `r` round: stock wall (`TUBES`), else `WALL * r` (>= 1 mm)."""
-    return tube_section(r, next((t for rr, t in TUBES if math.isclose(rr, r)), max(WALL * r, 0.001)))
+    """(I, J, A) of a carbon tube `r` round: stock wall (`TUBES`), else `WALL * r` (>= `_MIN_WALL_M`)."""
+    return tube_section(r, next((t for rr, t in TUBES if math.isclose(rr, r)), max(WALL * r, _MIN_WALL_M)))
 
 
 def plate(t, w):
@@ -72,7 +73,8 @@ def members(peak=None):
             else:
                 out.append(('%s run %d' % (seg, k), 'bend', length, max(peak[a], peak[b]), tube(r),
                             HM_CARBON, r))
-    couple = peak['spine'] / 0.132
+    rings = skeleton.TRUNK['pelvis'][1]
+    couple = peak['spine'] / abs(rings[0][0][2] - rings[1][0][2])
     for frame, (runs, _rings) in skeleton.TRUNK.items():
         for k, pts in enumerate(runs):
             r = skeleton.TRUNK_R[frame][min(k, len(skeleton.TRUNK_R[frame]) - 1)]
@@ -98,9 +100,10 @@ def members(peak=None):
                         (i, i, 2.0 * r * CROWN_W), HM_CARBON, CROWN_W / 2.0))
         else:
             out.append(('hip fork %d' % k, mode, math.dist(a, b), load_nm, tube(r), CARBON, r))
+    cradle_span = 2.0 * skeleton.BEARING[2]
     for k, (a, b, r) in enumerate(skeleton.gimbal('hip_roll')[0]):
         length = math.dist(a, b)
-        out.append(('hip cradle %d' % k, 'bend', length, peak['hip'] / 0.12 * length,
+        out.append(('hip cradle %d' % k, 'bend', length, peak['hip'] / cradle_span * length,
                     (math.pi * r ** 4 / 4.0, math.pi * r ** 4 / 2.0, math.pi * r * r), STEEL, r))
     for name, _rides, shape in skeleton.held('left_'):
         if shape[0] == 'tube':
@@ -184,11 +187,14 @@ def leaf_series(leaf):
     return {joint: round(arm ** 2 / comp_axial, 1)}
 
 
-def leaf_track(series_map, armature_fn, rate_s=0.005, observe_x=2.3):
+def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):
     """SEA rotor torque-loop gain from leaf natural frequency vs observer/rate bandwidth ceiling."""
     if not series_map:
         return 0.0
-    omega_sea = 0.90 / (observe_x * rate_s)
+    bus_hz, law_div = float(_BUS['bus_hz']), float(_BUS['law_div'])
+    r_s = (law_div + 2.0) / bus_hz if rate_s is None else float(rate_s)
+    obs_x = round(2.0 + 1.0 / law_div, 1) if observe_x is None else float(observe_x)
+    omega_sea = 0.90 / (obs_x * r_s)
     gains = []
     for kind, k_rot in series_map.items():
         j_rot = max(armature_fn('left_' + kind), 1e-6)

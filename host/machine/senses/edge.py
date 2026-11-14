@@ -23,9 +23,11 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body import compile as _compile, mechatronics, peripherals
 from machine.body.figure import BALL, HEEL, JOINTS, SEGMENTS
 
-G = np.array([0.0, -9.81, 0.0])
+_ENV, _BUS = mechatronics.environment(), peripherals.bus()
+G = np.array([0.0, -_compile.G_M_S2, 0.0])
 J = len(JOINTS)
 #: Her segments with skin, `SEGMENTS`' order.
 SKIN = tuple(seg[0] for seg in SEGMENTS)
@@ -60,8 +62,7 @@ GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
 #: has none - a fist's capsule normal on a seat read 49 of 50 N across, her pelvis's on a bed 111 across on 84 up).
 NORMAL = slice(GIVE.stop, GIVE.stop + 3 * len(SKIN))
 SENSED = NORMAL.stop
-#: Her touch past this, N, a segment's: MuJoCo's soft contact holds a resting hand at a few.
-TOUCHED_N = 5.0
+TOUCHED_N = float(_ENV['touched_n'])
 
 
 def laid(world):
@@ -186,11 +187,8 @@ def yaw(y):
     return 2.0 * math.atan2(float(q[2]), float(q[0]))
 
 
-#: 10 Mbit/s RS485 Modbus RTU bus per extremity (`axis`, `left_arm`, `left_leg`, `right_arm`, `right_leg`).
-BAUD = 10_000_000
-#: Her buses' bit error rate on a run: a noisy industrial RS485 run's, 3 of her 10 000 frames a
-#: second refused in 10 s; 0 laid, a test's faults its bursts (`burst`).
-LINE_BER = 1e-7
+BAUD = _BUS['baud']
+LINE_BER = _BUS['line_ber']
 LIMBS = (
     ('axis', ('spine', 'spine_roll', 'waist', 'neck', 'head')),
     ('left_arm', ('left_shoulder', 'left_elbow', 'left_wrist', 'left_gripper')),

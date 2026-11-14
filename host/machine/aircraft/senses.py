@@ -20,21 +20,22 @@ import collections
 import math
 import random
 
+from machine.aircraft import compile as aircraft_compile
+
+_INS = aircraft_compile.instruments()
+
 #: The attitude, the IMU's fused with the fixes: tilted ATT_RAD rms over ATT_S, an RTK-aided
-#: MEMS INS's roll and pitch (Xsens MTi-680G: 0.2 deg) - on the BNO085's own 1 deg the height
-#: ran 1.8 cm high through a knife-in and its tip struck. The gyros' noise, rad/s/sqrt(Hz), the
-#: specific force's, m/s^2/sqrt(Hz): Bosch's BMI055 class.
-ATT_RAD, ATT_S, GYRO, ACC = math.radians(0.2), 10.0, math.radians(0.014), 150e-6 * 9.81
-#: The RTK receiver's fix: a second, s behind - its poll on the bus 0.1 ms of it -, its
-#: place's noise, m rms, its speed's, m/s.
-GNSS = (20.0, 0.06, 0.02, 0.03)
+#: MEMS INS's roll and pitch (`world.toml` `[instruments]`).
+ATT_RAD, ATT_S, GYRO, ACC = _INS['att_rad'], _INS['att_s'], _INS['gyro'], _INS['acc']
+#: The RTK receiver's fix: a second, s behind, its place's noise, m rms, its speed's, m/s.
+GNSS = _INS['gnss']
 #: The star camera's attitude: a second, s behind, rad rms.
-STAR = (5.0, 0.1, math.radians(20.0 / 3600.0))
+STAR = _INS['star']
 #: The signal lost about every LOSE_S, for LOST_S.
-LOSE_S, LOST_S = 90.0, (8.0, 15.0)
+LOSE_S, LOST_S = _INS['lose_s'], _INS['lost_s']
 #: The seconds of the estimate kept to meet a fix taken behind it.
-KEEP_S = 0.5
-GRAVITY = 9.81
+KEEP_S = _INS['keep_s']
+GRAVITY = _INS['gravity']
 
 
 def _gains(rate, pos_m, vel_m, acc):

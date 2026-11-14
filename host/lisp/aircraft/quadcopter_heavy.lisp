@@ -1,13 +1,8 @@
-; The quad on a body a quarter heavier, 2.5 kg, its inertia with its mass: its other blocks `quadcopter.lisp`'s,
-; its flights its kind's (`flights/quadcopter.lisp`), nothing of them tuned to it (tools/sim/flights.py flies it).
+; The quad on a 2.5 kg frame (`crafts.toml` `[quadcopter_heavy]`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
 (include "kinematics.lisp")
-
-(defblock rigid_body quad_x_body_heavy
-  (use quad_x_body)
-  (mass 2.5kg))
 
 (defvehicle quadcopter_heavy
   (use standard_airframe)

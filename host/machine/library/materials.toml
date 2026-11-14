@@ -1,0 +1,28 @@
+# Structural laminates, metals, stock roll-wrapped carbon tubes and motor/PCB thermal materials
+# (`mechatronics.materials()`, read by `structural` and `drives`).
+
+cf_kg_m3 = 1550.0
+steel_kg_m3 = 7850.0
+copper_winding_j_k_kg = 310.0
+aluminium_housing_j_k_kg = 1100.0
+slot_w_m2_k = 53.6
+disc_w_m2_k = 35.0
+rotor_ring_share = 0.39
+kv_ref = 120.0
+min_wall_m = 0.001
+
+# Isotropic / in-plane elastic modulus E (GPa), shear modulus G (GPa) and allowable stress (MPa).
+[solids]
+carbon = [70.0, 20.0, 300.0]
+hm_carbon = [130.0, 30.0, 300.0]
+rod = [130.0, 5.0, 600.0]
+paht_cf = [4.5, 1.6, 50.0]
+steel = [200.0, 80.0, 250.0]
+
+# Stock roll-wrapped carbon tubes: [outer_diameter_mm, wall_m].
+[tubes]
+stock = [
+    [8.0, 0.001], [10.0, 0.001], [12.0, 0.001], [14.0, 0.001], [16.0, 0.001],
+    [18.0, 0.001], [20.0, 0.001], [22.0, 0.001], [25.0, 0.001],
+    [30.0, 0.002], [35.0, 0.002], [40.0, 0.002], [50.0, 0.002],
+]

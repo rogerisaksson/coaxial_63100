@@ -26,12 +26,12 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import numpy as np
 
 from machine.body import drives, gait, linkage
+from machine.body.compile import G_M_S2 as G
 from machine.stack import qp
 from machine.body.drives import kind
 from machine.errors import MachineError
 from machine.body.figure import ANKLE_H, BALL, HEEL, JOINTS, SOLE_HALF
 
-G = 9.81
 #: Her loop's numbers, her build's (`[gait.loop]`: each with what it was found at, `machine.body.gait`).
 _G = gait.table('loop')
 

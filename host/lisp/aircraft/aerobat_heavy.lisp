@@ -1,16 +1,8 @@
-; The aerobat on a body 15 percent heavier, 2.3 kg, its inertia with its mass: its other blocks `aerobat.lisp`'s,
-; its flights its kind's (`flights/aerobat.lisp`), nothing of them tuned to it (tools/sim/flights.py flies it).
-; At 2.5 kg - on its own 17 in prop, and on the 18 in its weight takes (its thrust a quarter more) - its knife
-; pass sank at 2.1-2.5 m/s and laid its lower tip on the runway at 15 s: its wing and fuselage hold that figure;
-; at 2.2 and 2.3 kg it flew the whole card.
+; The aerobat on a 2.3 kg frame (`crafts.toml` `[aerobat_heavy]`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
 (include "kinematics.lisp")
-
-(defblock rigid_body aerobat_monoplane_body_heavy
-  (use aerobat_monoplane_body)
-  (mass 2.3kg))
 
 (defvehicle aerobat_3d_heavy
   (use monoplane_airframe)

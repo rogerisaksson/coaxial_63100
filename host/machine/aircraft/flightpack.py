@@ -5,12 +5,16 @@
 """
 import math
 
+from machine.aircraft import compile as aircraft_compile
+
+_PACK = aircraft_compile.pack()
+
 #: The pack: PACK_CELLS in series, a cell's open volts by the share of its charge left - a LiPo's
 #: curve, 63 V full -, its charge, A h - a racer's, a few flights -, and its and its leads'
 #: resistance, ohm, the bus drooping that much a link amp: assumptions with a name each. Spent
 #: at RESERVE of its charge. At 0.12 ohm the four's 8 kW at their clamps took the bus to half.
-PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = 15, 1.0, 0.04, 0.2
-CELL_V = ((0.0, 3.30), (0.05, 3.50), (0.2, 3.70), (0.5, 3.85), (0.9, 4.05), (1.0, 4.20))
+PACK_CELLS, PACK_AH, PACK_OHM, RESERVE = _PACK['cells'], _PACK['ah'], _PACK['ohm'], _PACK['reserve']
+CELL_V = _PACK['cell_v']
 
 
 def open_volts(left):

@@ -20,6 +20,7 @@ turned a vertical line into a 45 deg tumble.
 import ctypes
 import math
 
+from machine.aircraft import compile as aircraft_compile
 from machine.aircraft.aerobatics import ease
 from machine.body.figure import cross
 from machine.aircraft.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y, _so3_error
@@ -27,21 +28,15 @@ from machine.aircraft.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y,
 _d3, _d4, _d6, _d8, _d9 = (
     ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 6, ctypes.c_double * 8, ctypes.c_double * 9)
 _R_BUF, _TO_BUF, _OUT_R = _d9(), _d9(), _d9()
+_WB = aircraft_compile.wingborne()
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
-    math.radians(10.0), 0.4, math.radians(12.0), 0.85, 1.2, 1.3)
-ALPHA_MAX = math.radians(15.0)
-#: The airfoil stalls at STALL_RAD, a plate over STALL_BLEND past it; its drag CD_LIFT of its
-#: lift squared (an aspect ratio of 5).
-STALL_RAD, STALL_BLEND, CD_LIFT = math.radians(15.0), math.radians(8.0), 0.07
-#: On its wheels: the nose this far from the vertical, 12 deg up; the flare's limit, 16 deg.
-PITCH_REST, HARRIER_RAD = math.radians(78.0), math.radians(16.0)
-#: On its wheels the tail comes up from TAIL_UP of the wing's speed and the nose rotates up to
-#: the wing's, each over RUN_EASE of it: stepped, the rotation asked 22 deg in a tick.
-RUN_EASE = 0.15
-#: Wing-borne the whole attitude the wing's, eased in over WHOLE of the share: handed over at
-#: half, the share's crossing stepped the target 1.8 deg in a tick, 127 rad/s^2, the rudder 0.5.
-WHOLE = (0.4, 0.6)
+    _WB['alpha_rad'], _WB['tail_up'], _WB['climb_rad'], _WB['airborne_m'], _WB['run_g'], _WB['climb_v'])
+ALPHA_MAX = _WB['alpha_max']
+STALL_RAD, STALL_BLEND, CD_LIFT = _WB['stall_rad'], _WB['stall_blend'], _WB['cd_lift']
+PITCH_REST, HARRIER_RAD = _WB['pitch_rest'], _WB['harrier_rad']
+RUN_EASE = _WB['run_ease']
+WHOLE = _WB['whole']
 
 
 def whole(w):
@@ -178,9 +173,8 @@ class Wing:
 
 
 #: On its wheels, WHEELS_M of its rest, it rolls along them and grips across them: GRIP of its
-#: load at the most, its slip across taken back over GRIP_S. On skids alone, sliding, a 1.1 m/s
-#: crosswind carried it 2.3-3.3 m off its line on the roll-out.
-GRIP, GRIP_S, WHEELS_M = 0.8, 0.05, 0.05
+#: load at the most, its slip across taken back over GRIP_S.
+GRIP, GRIP_S, WHEELS_M = _WB['grip'], _WB['grip_s'], _WB['wheels_m']
 
 
 def wing_substep(sky, lift, wx, wy, wz, dk, ab0, ab1, ab2):
@@ -236,12 +230,8 @@ def run(wing, core, v_fwd, h, yaw, rate, up=math.inf):
     return r_des, (0.0, rate, 0.0), f_run
 
 
-#: The flare's sink asked: its height over FLARE_S, TOUCH_M_S at the least - onto its wheels,
-#: the wheels' 2.35 m/s^2 stopping it where the float's drag slows it 1. Held off at 5 cm till
-#: its wing could hold it no longer it floated 12-38 m in gusts, every landing of 13 past the
-#: runway's end. On 0.3 m/s at any height it eased off from 8.8 deg at 0.29 m and touched at
-#: 0.64 m/s; on 0.2 at the least, its wing lifting it on its wheels, it skimmed 34-55 m.
-FLARE_S, TOUCH_M_S = 0.4, 0.25
+#: The flare's sink asked: its height over FLARE_S, TOUCH_M_S at the least.
+FLARE_S, TOUCH_M_S = _WB['flare_s'], _WB['touch_m_s']
 
 
 def flare(wing, v_fwd, h, v, yaw, rate, r11):

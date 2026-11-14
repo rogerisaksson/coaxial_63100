@@ -25,20 +25,18 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.body import drives, figure
+from machine.body import drives, figure, mechatronics
 from machine.law import se2
 from machine.senses import edge
 from machine.texts import kernel
 from machine.senses import observer
 
 _EKF = kernel.node('propagate-invariant-ekf-se3', 'invariant-ekf')
+_INV = mechatronics.library()['inverters'][mechatronics.robot()['stacks']['knee'][2]]
 #: The IMU's noise densities (rad/s, m/s^2 a root hertz).
 GYRO, ACCEL = _EKF['inertial-noise']['gyro-radps-sqrt-hz'], _EKF['inertial-noise']['accel-mps2-sqrt-hz']
-#: Her encoders' grain (an A1335's 12 bits through her drives' ratio, rad) through a leg's standing reach (m):
-#: a bearing point's own walk a pass - walking it as the slip gate's 0.08 m/s, the filter took her
-#: IMU over her soles and drifted 1.02 m in 13.5.
-ENCODER_BITS = 12
-GRAIN, REACH = math.tau / ((1 << ENCODER_BITS) * drives.RATIO), round(figure.standing(), 2)
+ENCODER_COUNTS = int(_INV['encoder_counts'])
+GRAIN, REACH = math.tau / (ENCODER_COUNTS * drives.RATIO), round(figure.standing(), 2)
 CONTACTS, N = 3, 18
 CORE = np.array([edge.SKIN.index('pelvis'), edge.SKIN.index('torso')])
 #: Her world's up, against gravity (`edge.G`): what a look laid onto her floor turns her about (`seen`).

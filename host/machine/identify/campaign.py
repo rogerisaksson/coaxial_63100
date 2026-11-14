@@ -11,28 +11,20 @@ a step, on the world or on a robot of her build, its boards' currents its torque
 """
 import math
 
-from machine.body import drives, figure, terms
+from machine.body import drives, figure, peripherals, terms
 from machine.senses import edge
 from machine.errors import MachineError
 from machine.body.figure import JOINTS, LEG
 
-#: A gearbox counts as wound up passing more than this, N m, and is read on this many rows at
-#: least (`boxes`); a campaign's arrays low-passed at this, Hz, both ways, before its rows
-#: (`smoothed`: the tones under 1.4, a rotor's mode 30).
-WOUND_NM, WOUND_ROWS, SMOOTH_HZ = 1.0, 25, 10.0
-#: A rotor is read inside this share of its play, on this many steps at least, its torque's
-#: mean over the two steps about each past this, N m (`boxes`); a box's numbers read, its
-#: columns.
-INSIDE, ROTOR_ROWS, ROTOR_NM = 0.85, 25, 0.5
+#: Gearbox wind-up threshold, backlash-play rotor window, smoothing corner, coprime multi-sine
+#: excitation tones, travel swing/margin and stand pose (`peripherals.identify()['campaign']`).
+_camp = peripherals.identify()['campaign']
+WOUND_NM, WOUND_ROWS, SMOOTH_HZ = _camp['wound_nm'], _camp['wound_rows'], _camp['smooth_hz']
+INSIDE, ROTOR_ROWS, ROTOR_NM = _camp['inside'], _camp['rotor_rows'], _camp['rotor_nm']
 BOX = ('k', 'play', 'c', 'mesh', 'J', 'zero')
-#: The excitation's sines a drive, Hz; the share of a joint's range it swings through and the
-#: share kept from either stop; an unlimited joint's swing, rad; the parts whose unlimited
-#: joint swings abducted; a stage's ease in and out, s.
-TONES, SWING, MARGIN, FREE_RAD = ((0.23, 0.61, 1.37), (0.31, 0.79, 1.13)), 0.35, 0.05, 0.5
-ABDUCTED, RAMP_S = ('hip',), 0.5
-#: Her pose on the stand: the stand's (`figure.stand`) with each (part, movement, deg) of
-#: POSE laid on it (`machine.body.terms`) - her arms held out before her, clear of her thighs.
-POSE = (('shoulder', 'flexion', 90.0),)
+TONES, SWING, MARGIN, FREE_RAD = _camp['tones'], _camp['swing'], _camp['margin'], _camp['free_rad']
+ABDUCTED, RAMP_S = ('hip',), _camp['ramp_s']
+POSE = _camp['pose']
 #: The campaign's stages, a limb each: its driven joints swung, the rest held where they stand.
 STAGES = (('spine_roll', 'spine', 'waist', 'neck', 'head'),) + tuple(
     tuple(side + k for k in kinds) for kinds in (('shoulder', 'elbow'), tuple(k[1:] for k in LEG))

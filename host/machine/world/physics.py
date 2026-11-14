@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine.body import dclink, drives, gearbox, heat, linkage
+from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics
 from machine.world import floor, harness, loose, passing, room, steps
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
@@ -27,48 +27,31 @@ from machine.body.mjcf import LACE_HOLD_N, LACE_M, LOOSE, mjcf, stops
 from machine.body.servos import CLAMPED, SERVO
 from machine.body.figure import JOINTS
 
-#: The world's step, s.
-STEP_S = 0.001
+_ENV = mechatronics.environment()
+_SIM = _ENV['simulation']
 
-#: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s.
-#: The solver's a pass flickered 0-950 N standing still, a foot at 0 N 104 passes a second. At 20 ms the feet stand on 159 and 160 N, sd 0.02; the walk's touchdown 769 -> 253 N,
-#: its power 683 -> 560 W (docs/findings/stacks.md).
-LOAD_S = 0.02
+#: The world's step, s (`world.toml`).
+STEP_S = float(_ENV['step_s'])
+
+#: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s (`world.toml`).
+LOAD_S = float(_ENV['load_s'])
 
 #: A drive's reading, `World.reading`'s.
 READING = ('degrees', 'rate', 'celsius', 'spent', 'derate', 'status')
 
-#: The drives as built, each 0 or 1 (`machine.body.mjcf`): how much of their rotors and gearboxes
-#: seen through them (`drives.armature`) a joint carries in place of SERVO's armature, how much
-#: of that its board feeds forward on its setpoint's acceleration (`buses.ACCEL_S`); whether a
-#: joint's clamp is its drive's peak where that is less (`drives.peak`); whether the assemblies
-#: sit where they are, bodies of their own, their segments the lighter; how much of their
-#: gearboxes' drag the joints carry, Coulomb (`drives.backdrive`); whether her skeleton collides,
-#: its drums, boards, bones, rods and belts (`machine.body.skeleton`) - off: the ankle's one crank
-#: 50-60 mm inside her shins met the other's walking and she fell in 1-3 s; on the parallel pair
-#: the scoreboard 542 against 495 without, chance's 150, but shoved past saving into the crouch
-#: her head met the floor at 1.03-1.66 m/s in 3 of 64 falls, off at 0.66-0.81 in 2.
-#: ROTOR_FF: fed forward whole a standing start asked the knees and hips their clamps and she
-#: fell back in 3 starts of 12; at 0.5 and up off her form.
-REFLECTED, ROTOR_FF, PLACED, BACKDRIVE, SKELETON = 1.0, 0.25, 1.0, 1.0, 0.0
-#: Where a drive's loop reads its angle and speed: 1 the motor's encoder; 0 the link's.
-WOUND = 1.0
-
-#: The gearboxes between the rotors and the links (`machine.body.gearbox`): 1, each rotor runs free
-#: across its play, winds the box and the structure up past it against the mesh's friction, and
-#: the link is turned by that wind-up alone; 0, rigid, the rotor's inertia on the link's joint.
-#: On the boxes the walk on setpoints drags its toes 7-19 mm at lift where 1 rigid and its form's
-#: 2, the loop on its torques walks them at 265-326 J/m (docs/findings/drives.md).
-#: ROOM her lodge (`machine.world.room`); CAMERA her fake camera; SIGHT her registry on it (`machine.eyes.camera`).
-BOXED, ROOM, CAMERA, SIGHT = 0.0, 0.0, 0.0, 0.0
-
-#: The boards' envelopes: 1 as built, derating and tripping them; 0 boards whose SOA never binds,
-#: the heat counted (`tests/test_gynoid.py`).
-ENVELOPE = 1.0
-
-#: A board glitched (`World.glitch`): its switches' on-resistance SOA_RDS times (a gate drive
-#: sagging, the FETs half on) or its nodes at WARM_C.
-SOA_RDS, WARM_C = 50.0, 100.0
+#: Plant switches and discrete rotor feedforward share (`world.toml` `[simulation]`, `compile.ROTOR_FF`).
+REFLECTED = float(_SIM['reflected'])
+ROTOR_FF = _compile.ROTOR_FF
+PLACED = float(_SIM['placed'])
+BACKDRIVE = float(_SIM['backdrive'])
+SKELETON = float(_SIM['skeleton'])
+WOUND = float(_SIM['wound'])
+BOXED = float(_SIM['boxed'])
+ROOM = float(_SIM['room'])
+CAMERA = float(_SIM['camera'])
+SIGHT = float(_SIM['sight'])
+ENVELOPE = float(_SIM['envelope'])
+SOA_RDS, WARM_C = float(_SIM['soa_rds']), float(_SIM['warm_c'])
 
 class World:
 

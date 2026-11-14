@@ -14,17 +14,17 @@ import importlib
 import math
 import os
 
+from machine.aircraft import compile as aircraft_compile
 from tools.cores import mppi
 
-#: The floor under a contact point, a spring and a damper: at 4 000 N/m the tail's 0.18 kg swung
-#: at 149 rad/s, 3.7 rad a 0.025 s step, and the rollouts blew up.
-K_FLOOR, C_FLOOR = 400.0, 20.0
+_MPC = aircraft_compile.mpc()
+K_FLOOR, C_FLOOR = _MPC['k_floor'], _MPC['c_floor']
 #: The model's constants in mppi.h's order.
 CONSTS = ('m', 'g', 'kt', 'kp', 'kr', 'ky', 'kd', 'rho', 'area', 'cla', 'span', 'stab', 'fin', 'arm', 'wq',
           'stall', 'blend', 'cdl', 'j0', 'pitch', 'r', 'cla_a', 'cda', 'area_a', 'cd0', 'cdi', 'share',
           'ix', 'iy', 'iz', 'kf', 'cf', 'side', 'adisc', 'pb', 'pl', 'ps')
-#: The tail's lowest point a row's `skim` asks, m over the floor: a few centimetres.
-SKIM_M = 0.03
+#: The tail's lowest point a row's `skim` asks, m over the floor (`crafts.toml`).
+SKIM_M = _MPC['skim_m']
 #: A step's reference, mppi.h's MR_*: where each part starts in a row of REF.
 PLACE, SPEED, BELLY, NOSE, W_BELLY, W_NOSE, SKIM, W_SKIM, W_HEIGHT, REF = 0, 3, 6, 9, 12, 13, 14, 15, 16, 17
 

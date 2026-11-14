@@ -19,20 +19,9 @@
 
 #define WBC_G 9.81
 
-static const double HELD_K = 50.0, CONTACT_K = 20.0;
-static const double TURN_KP = 100.0, TURN_KD = 20.0, POSTURE_KP = 100.0, POSTURE_KD = 20.0;
-static const double SWING_KP = 1600.0, SWING_KD = 80.0, MOMENTUM_K = 3.0;
-static const double TURN_W = 3.0, MOMENTUM_W = 0.3, POSTURE_W = 1.0, TORQUE_W = 3.0;
-static const double FORCE_W = 1.0, HEIGHT_W = 1.0, FOLD_W = 0.3;
-static const double CLAMP_SHARE = 0.95, NEAR = 0.6;
-/** A margin's slack weighed SLACK_W (its square root a row) on the turns' level: hard, the
-    turns went unmet by 5-60 rad/s^2 under 100 N and the head took its peak in their stead.
-    The rows' weight is the level's scale, and her form's in it (wbc_solve.c, LOWER): the
-    slack scaled to a unit row, the form at the python stack's 1e-3, her walk cost 798 J/m
-    where 259. */
-static const double SLACK_W = 1e3;
-static const double MU = 0.6, MARGIN_M = 0.015, LIMIT_S = 0.05, STOP_RAD = 0.01, HEIGHT_BAND = 3.0;
-/** A bound within ACTIVE of its edge is reported at it. */
+/** A bound within ACTIVE of its edge is reported at it; loop gains, bounds and weights live in
+    wbc_loop (wbc_model.h), where a margin's slack is weighed by sqrt(wbc_loop[WBC_LOOP_SLACK]) on
+    the turns' level so the form's level stays scaled to the python stack's (wbc_solve.c, LOWER). */
 static const double ACTIVE = 1e-3;
 /** The level a swinging sole and its fold are laid on: beside the turns, as the python stack. */
 #define SWING_LEVEL 2
@@ -154,7 +143,7 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
           a[fvar(k, c, 1)] = sign * s->fs / wbc_total_mass;
         }
       }
-      bound(s, 1, 1200 + (sign > 0), a, sign * ay + HEIGHT_BAND);
+      bound(s, 1, 1200 + (sign > 0), a, sign * ay + wbc_loop[WBC_LOOP_HEIGHT_BAND]);
     }
   }
   for (int k = 0; k < 2; k++)
@@ -170,7 +159,7 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         memset(a, 0, sizeof(a));
         a[fvar(k, c, 0)] = FACE[face][0];
         a[fvar(k, c, 2)] = FACE[face][1];
-        a[fvar(k, c, 1)] = -MU;
+        a[fvar(k, c, 1)] = -wbc_loop[WBC_LOOP_MU];
         bound(s, 2, 2000 + k * 100 + c * 10 + face, a, 0.0);
       }
       memset(a, 0, sizeof(a));
@@ -205,9 +194,10 @@ static void lay_bounds(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
 
     if (lo < hi)
     {
-      const double ahead = b->q[d - 6] + u[d] * LIMIT_S;
-      const double most = 2.0 * (hi - STOP_RAD - ahead) / (LIMIT_S * LIMIT_S);
-      const double least = 2.0 * (lo + STOP_RAD - ahead) / (LIMIT_S * LIMIT_S);
+      const double lim_s = wbc_loop[WBC_LOOP_LIMIT_S], stop_r = wbc_loop[WBC_LOOP_STOP_RAD];
+      const double ahead = b->q[d - 6] + u[d] * lim_s;
+      const double most = 2.0 * (hi - stop_r - ahead) / (lim_s * lim_s);
+      const double least = 2.0 * (lo + stop_r - ahead) / (lim_s * lim_s);
 
       memset(a, 0, sizeof(a));
       a[d] = 1.0;
@@ -259,8 +249,8 @@ void wbc_stack_init(wbc_stack_t *s)
   }
   for (int k = 0; k < 2; k++)
   {
-    s->edge_lo[k] += MARGIN_M;
-    s->edge_hi[k] -= MARGIN_M;
+    s->edge_lo[k] += wbc_loop[WBC_LOOP_MARGIN_M];
+    s->edge_hi[k] -= wbc_loop[WBC_LOOP_MARGIN_M];
   }
 }
 
@@ -357,7 +347,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
 
     memset(coef, 0, sizeof(coef));
     coef[d] = 1.0;
-    lay_udot(s, 0, coef, -HELD_K * u[d], 1.0);
+    lay_udot(s, 0, coef, -wbc_loop[WBC_LOOP_HELD_K] * u[d], 1.0);
   }
   for (int k = 0; k < 2; k++)
   {
@@ -373,7 +363,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
       {
         twist += s->jsole[k][i][n] * u[n];
       }
-      lay_udot(s, 0, s->jsole[k][i], -s->dsole[k][i] - CONTACT_K * twist, 1.0);
+      lay_udot(s, 0, s->jsole[k][i], -s->dsole[k][i] - wbc_loop[WBC_LOOP_CONTACT_K] * twist, 1.0);
     }
   }
 
@@ -404,7 +394,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
     }
     memset(a, 0, sizeof(a));
     a[WBC_N + 2 * WBC_F + i] = 1.0;
-    lay(s, 2, a, 0.0, sqrt(SLACK_W));
+    lay(s, 2, a, 0.0, sqrt(wbc_loop[WBC_LOOP_SLACK]));
   }
 
   /* Level 2: the pelvis's and the trunk's turns, a swinging sole and its knee's fold beside. */
@@ -434,11 +424,11 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         {
           w += s->jac[i][n] * u[n];
         }
-        wdot[i] = TURN_KP * err[i] - TURN_KD * w;
+        wdot[i] = wbc_loop[WBC_LOOP_TURN_KP] * err[i] - wbc_loop[WBC_LOOP_TURN_KD] * w;
       }
       for (int i = 0; i < 3; i++)
       {
-        lay_udot(s, 2, s->jac[i], wdot[i] - drift[i], TURN_W);
+        lay_udot(s, 2, s->jac[i], wdot[i] - drift[i], wbc_loop[WBC_LOOP_TURN_W]);
       }
     }
     for (int k = 0; k < 2; k++)
@@ -461,9 +451,10 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         wbc_turn_error(ask->swing_quat[k], have, err);
         for (int i = 0; i < 3; i++)
         {
-          a6[i] = TURN_KP * err[i] - TURN_KD * twist[i];
-          a6[3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - s->sole_p[k][i])
-                      + SWING_KD * (ask->swing_speed[k][i] - twist[3 + i]);
+          a6[i] = wbc_loop[WBC_LOOP_TURN_KP] * err[i] - wbc_loop[WBC_LOOP_TURN_KD] * twist[i];
+          a6[3 + i] = ask->swing_acc[k][i]
+                      + wbc_loop[WBC_LOOP_SWING_KP] * (ask->swing_at[k][i] - s->sole_p[k][i])
+                      + wbc_loop[WBC_LOOP_SWING_KD] * (ask->swing_speed[k][i] - twist[3 + i]);
         }
         for (int i = 0; i < 6; i++)
         {
@@ -477,8 +468,8 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         memset(coef, 0, sizeof(coef));
         coef[d] = 1.0;
         lay_udot(s, SWING_LEVEL, coef,
-                 ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - b->q[d - 6])
-                 + SWING_KD * (ask->fold_rate[k] - u[d]), FOLD_W);
+                 ask->fold_acc[k] + wbc_loop[WBC_LOOP_SWING_KP] * (ask->fold_knee[k] - b->q[d - 6])
+                 + wbc_loop[WBC_LOOP_SWING_KD] * (ask->fold_rate[k] - u[d]), wbc_loop[WBC_LOOP_FOLD_W]);
       }
     }
   }
@@ -498,11 +489,11 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
           a[fvar(k, c, 1)] = s->fs / wbc_total_mass;
         }
       }
-      lay(s, 4, a, ask->com_acc[1] + WBC_G, HEIGHT_W);
+      lay(s, 4, a, ask->com_acc[1] + WBC_G, wbc_loop[WBC_LOOP_HEIGHT_W]);
       wbc_body_momentum(b, s->com, k3);
       for (int i = 0; i < 3; i++)
       {
-        kdot[i] = ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i];
+        kdot[i] = ask->kdot_given ? ask->kdot[i] : -wbc_loop[WBC_LOOP_MOMENTUM_K] * k3[i];
       }
       /* k-dot = the sum over the corners of (corner - com) x its force. */
       for (int i = 0; i < 3; i++)
@@ -519,7 +510,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
             a[fvar(k, c, (i + 2) % 3)] = s->fs * d[(i + 1) % 3];
           }
         }
-        lay(s, 4, a, kdot[i], MOMENTUM_W);
+        lay(s, 4, a, kdot[i], wbc_loop[WBC_LOOP_MOMENTUM_W]);
       }
     }
     for (int j = 0; j < WBC_DRIVEN; j++)
@@ -528,12 +519,13 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
 
       memset(coef, 0, sizeof(coef));
       coef[d] = 1.0;
-      lay_udot(s, 4, coef, POSTURE_KP * (ask->posture[j] - b->q[d - 6]) - POSTURE_KD * u[d],
-               POSTURE_W);
+      lay_udot(s, 4, coef, wbc_loop[WBC_LOOP_POSTURE_KP] * (ask->posture[j] - b->q[d - 6])
+               - wbc_loop[WBC_LOOP_POSTURE_KD] * u[d], wbc_loop[WBC_LOOP_POSTURE_W]);
     }
     for (int j = 0; j < WBC_DRIVEN; j++)
     {
-      lay(s, 4, s->tc[j], -s->toff[j], TORQUE_W / (CLAMP_SHARE * wbc_clamp[wbc_driven[j]]));
+      lay(s, 4, s->tc[j], -s->toff[j],
+          wbc_loop[WBC_LOOP_TORQUE_W] / (wbc_loop[WBC_LOOP_CLAMP_SHARE] * wbc_clamp[wbc_driven[j]]));
     }
     for (int k = 0; k < 2; k++)
     {
@@ -543,7 +535,7 @@ static void lay_level(wbc_body_t *b, wbc_stack_t *s, const double u[WBC_N],
         {
           memset(a, 0, sizeof(a));
           a[fvar(k, c, axis)] = 1.0;
-          lay(s, 4, a, 0.0, FORCE_W);
+          lay(s, 4, a, 0.0, wbc_loop[WBC_LOOP_FORCE_W]);
         }
       }
     }
@@ -610,7 +602,8 @@ void wbc_stack_step(wbc_body_t *b, wbc_stack_t *s, const wbc_frame_t *base,
   for (int j = 0; j < WBC_DRIVEN; j++)
   {
     s->nominal[j] = wbc_clamp[wbc_driven[j]] * ask->derate[j];
-    s->ceiling[j] = (ask->wep && (s->load[j] > NEAR)) ? wbc_peak[wbc_driven[j]] : s->nominal[j];
+    s->ceiling[j] = (ask->wep && (s->load[j] > wbc_loop[WBC_LOOP_NEAR]))
+                    ? wbc_peak[wbc_driven[j]] : s->nominal[j];
     if (s->ceiling[j] < s->nominal[j])
     {
       s->ceiling[j] = s->nominal[j];

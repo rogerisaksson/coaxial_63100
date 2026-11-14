@@ -22,34 +22,21 @@ model. On the stand (`mjcf.STAND`) her pelvis is welded to the world and nothing
 """
 import math
 
-from machine.body import servos
+from machine.body import peripherals, servos
 from machine.senses import edge
 from machine.identify import campaign, regressor
 from machine.body.drives import armature, kind, series
 from machine.body.figure import JOINTS
 
-#: The states a part of `rowing` reads a regressor of: a part of her wear's window a pass.
-ROWS_AT = 100
-#: A link's inertial parameters, in its frame about its origin.
+#: Regressor batch size, Gautier Cholesky rank thresholds, sliding velocity bands, pelvic force
+#: lever and mechanical hard-stop clearance (`peripherals.identify()['sysid']`).
+_sys = peripherals.identify()['sysid']
+ROWS_AT = _sys['rows_at']
 INERTIAL = ('m', 'hx', 'hy', 'hz', 'Ixx', 'Ixy', 'Ixz', 'Iyy', 'Iyz', 'Izz')
-#: A drive's: the rotor's inertia at the joint, kg m^2; viscous, N m s/rad; Coulomb, N m.
 FRICTION = ('J', 'b', 'f')
-#: A column is one of the base when, scaled, this much of it stands clear of the base before it;
-#: one under NONE of the largest is nothing but rounding; two within TIE of each other stand
-#: alike.
-INDEPENDENT, NONE, TIE = 1e-3, 1e-9, 1e-9
-#: A base parameter is trusted within this of itself.
-TRUST = 0.10
-#: A drive's row is read only where it slides faster than this, rad/s (on a series spring's
-#: box, where its rotor's mesh rings past MuJoCo's dry-friction band): at rest its Coulomb
-#: friction is whatever holds it, anything within its limit.
-STICK, SPRUNG_STICK = 0.25, 0.85
-#: Her pelvis's force rows are read in N m at this lever, m, beside the moment rows.
-LEVER_M = 0.1
-#: A drive's row off the stand is read where the model holds: no joint of its limb within
-#: STOP_DEG of a stop, nothing touching the limb's skin from the sample before to the one after.
-#: A limb's joints and its skin's segments, a leg's and an arm's.
-STOP_DEG = 2.0
+INDEPENDENT, NONE, TIE = _sys['independent'], _sys['none'], _sys['tie']
+TRUST, STICK, SPRUNG_STICK = _sys['trust'], _sys['stick'], _sys['sprung_stick']
+LEVER_M, STOP_DEG, HEM_ACC_MAX = _sys['lever_m'], _sys['stop_deg'], _sys['hem_acc_max']
 LIMBS = ((('hip', 'knee', 'ankle', 'foot'), ('thigh', 'shank', 'foot', 'toes')),
          (('shoulder', 'elbow', 'wrist', 'gripper'), ('upper_arm', 'forearm', 'hand', 'fingers')))
 
@@ -222,7 +209,7 @@ def rowing(lay, body, ys, taus, dt, every=1, extra=None):
     slides = (np.abs(v0) >= stick) & (np.abs(v1) >= stick) & (v0 * v1 > 0.0)
     if extra is None and lay.get('hems'):
         (_, _, _, _, a_h), _ = yield from campaign.hemming(lay, body, np.asarray(ys), dt, every)
-        bad = np.abs(a_h).reshape(len(at), len(lay['hems']), 2).max(axis=2) > 120.0
+        bad = np.abs(a_h).reshape(len(at), len(lay['hems']), 2).max(axis=2) > HEM_ACC_MAX
         slides = slides & ((bad.astype(int) @ lay['hem_limb']) == 0)
     Y *= slides[:, :, None]
     return Y, tau * slides
@@ -248,14 +235,19 @@ def free(lay, ys, every=1, stop_deg=STOP_DEG):
     unknown - against the world's own model a swinging hip's row read 0 within its swing and
     2-6 N m the sample its sole landed."""
     import numpy as np
-    seen = np.asarray(ys)[np.arange(0, len(ys) - 1, every)]
-    q, margin = seen[:, edge.Q], math.radians(stop_deg)
+    ys_arr = np.asarray(ys)
+    at = np.arange(0, len(ys_arr) - 1, every)
+    q, margin = ys_arr[at, edge.Q], math.radians(stop_deg)
     near = (q < lay['lo'] + margin) | (q > lay['hi'] - margin)
-    touch = np.linalg.norm(seen[:, edge.TOUCH].reshape(len(seen), -1, 3), axis=2) > 0.0
+    touch = np.linalg.norm(ys_arr[:, edge.TOUCH].reshape(len(ys_arr), -1, 3), axis=2) > 0.0
+    hit = (touch.astype(int) @ lay['skin'].T) > 0
+    cs = np.vstack([np.zeros((1, hit.shape[1]), int), np.cumsum(hit, axis=0)])
+    clear = (cs[np.minimum(at + every + 1, len(hit))] - cs[np.maximum(at - every, 0)]) == 0
     stopped = (near.astype(int) @ lay['limb'].T) > 0
-    clear = (touch.astype(int) @ lay['skin'].T) == 0
-    edges = ~lay['skin'].any(axis=1)[None, :]
-    return ~stopped & clear & np.r_[edges, clear[:-1]] & np.r_[clear[1:], edges]
+    ends = np.ones_like(clear)
+    if len(at):
+        ends[0] = ends[-1] = ~lay['skin'].any(axis=1)
+    return ~stopped & clear & ends
 
 
 def borne(lay, body, ys, dt, every=1):
@@ -322,7 +314,7 @@ def hung(lay, body, ys, dt, pulls, every=1):
     f = np.asarray([pulls[i] for i in at], float) * np.r_[[LEVER_M] * 3, [1.0] * 3]
     if lay.get('hems'):
         (_, _, _, _, a_h), _ = done(campaign.hemming(lay, body, np.asarray(ys), dt, every))
-        keep = np.abs(a_h).max(axis=1) <= 120.0
+        keep = np.abs(a_h).max(axis=1) <= HEM_ACC_MAX
         out, f = out * keep[:, None, None], f * keep[:, None]
     return out, f
 

@@ -11,18 +11,14 @@ a body. `wbc.Body` lays IDENTIFIED over her law's model when the file is there.
 import os
 import tomllib
 
-from machine.body import mechatronics
+from machine.body import mechatronics, peripherals
 from machine.errors import MachineError
 from machine.identify.sysid import FRICTION, INERTIAL, following, laid, shifted, truth
 
-#: A correction's unit move a kind (kg, kg m; kg m^2, N m s/rad, N m): a payload is a mass
-#: where it hangs, not first moments up the limb - priced of each parameter's own size a hand's
-#: 0.5 kg cost 14 and landed in the trunk's; the ridge against moving at all, of the
-#: regressor's mean column.
-UNITS = {'m': 0.1, 'hx': 0.02, 'hy': 0.02, 'hz': 0.02, 'J': 0.01, 'b': 0.05, 'f': 0.1}
-RIDGE = 0.3
-#: The least of its mass a link keeps under a correction.
-KEPT = 0.25
+#: A correction's unit move a kind (kg, kg m; kg m^2, N m s/rad, N m), ridge regularization and
+#: minimum retained link mass share (`peripherals.identify()['identified']`).
+_ident = peripherals.identify()['identified']
+UNITS, RIDGE, KEPT = dict(_ident['units']), _ident['ridge'], _ident['kept']
 #: Her corrections as identified, over her build (`save`, `load`, `correct`): her law's model
 #: reads them when the file is there (`wbc.Body`).
 IDENTIFIED = os.path.join(mechatronics.ROBOTS, mechatronics.ROBOT + '.identified.toml')

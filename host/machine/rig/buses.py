@@ -21,22 +21,15 @@ import time
 from multiprocessing import resource_tracker, shared_memory
 from typing import Any
 
-from machine.body import heat
+from machine.body import heat, peripherals
 from machine.rig import rtu
 from machine.errors import MachineError
 
-#: The link's rate, bits/s (10 Mbit/s RS485 per extremity), and a board's turn from a poll
-#: landing to its reply, s.
-BAUD, TURN_S = 10_000_000, 30e-6
-
-#: The boards' pace and the world's step, s; a board's heat steps every THERMAL_S.
-LOCKSTEP_S, THERMAL_S = 0.001, 0.01
-
-#: How long the host spins for the boards' step before yielding, and how long a step may take, s.
-SPIN_S, STALL_S = 0.002, 60.0
-
-#: A limb a process where the machine has this many hardware threads a limb.
-THREADS_A_LIMB = 2
+_BUS = peripherals.bus()
+BAUD, TURN_S = _BUS['baud'], _BUS['turn_s']
+LOCKSTEP_S, THERMAL_S = _BUS['lockstep_s'], _BUS['thermal_s']
+SPIN_S, STALL_S = _BUS['spin_s'], _BUS['stall_s']
+THREADS_A_LIMB = _BUS['threads_a_limb']
 
 #: The block's fields: name, struct format, count - a number, or per joint (J) or bus (B).
 FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B'),
@@ -50,9 +43,7 @@ FIELDS = (('time', 'd', 1), ('seq', 'q', 1), ('epoch', 'q', 1), ('done', 'q', 'B
           ('volts', 'd', 1), ('pair', 'd', 'J'), ('marked', 'q', 1),
           ('backed', 'q', 1), ('back_to', 'q', 1))
 
-#: A board's setpoint's acceleration, read between frames, filtered over ACCEL_S: mdeg frames a
-#: millisecond apart step it by 17 rad/s^2.
-ACCEL_S = 0.005
+ACCEL_S = _BUS['accel_s']
 
 HOST = '127.0.0.1'
 

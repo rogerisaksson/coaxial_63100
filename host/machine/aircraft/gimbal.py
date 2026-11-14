@@ -12,24 +12,13 @@ rest none, the horizon level.
 """
 import math
 
-#: The lens in the frame, m: under its plate, ahead of its middle.
-MOUNT = (0.0, -0.07, 0.12)
+from machine.aircraft import compile as aircraft_compile
 
-#: How fast the sight comes round to the way it is asked, 1/s; the speed over the ground at
-#: which the way counts as the nose does, m/s - slower the sight is the nose's, faster the
-#: way's, by the square of it -; the tilt under the way, rad, and the tilt axis' ends, down
-#: and up.
-FOLLOW, NOSE_M_S, TILT = 4.0, 1.0, math.radians(8.0)
-TILTS = (math.radians(-70.0), math.radians(35.0))
-
-#: Of the frame's lean across its way, what the sight looks into the turn and what it rolls
-#: with it, their most, rad; the speed over the ground they are half of that at, m/s. Level
-#: and along its way the sight trailed a lap's bends, 12.5 degrees outside the way at the
-#: mean and inside it a tenth of them: here 7.7 inside, 86 % of them, rolled 9.5 degrees rms
-#: and 17.5 at the most.
-LOOK, LEAN, MOST, LEAN_M_S = 1.1, 0.35, math.radians(40.0), 3.0
-
-#: The sight of a frame at rest on its spot, its nose along z: (pan, tilt, roll), rad.
+_GM = aircraft_compile.gimbal()
+MOUNT = _GM['mount']
+FOLLOW, NOSE_M_S, TILT = _GM['follow'], _GM['nose_m_s'], _GM['tilt']
+TILTS = _GM['tilts']
+LOOK, LEAN, MOST, LEAN_M_S = _GM['look'], _GM['lean'], _GM['most'], _GM['lean_m_s']
 REST = (0.0, -TILT, 0.0)
 
 

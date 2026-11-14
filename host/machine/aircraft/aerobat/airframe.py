@@ -1,7 +1,7 @@
 """The aerobat's airframe: its numbers (`aerobat.lisp`), its wing, its MuJoCo XML, its drives."""
 import math
 
-from machine.aircraft import aerolisp, airfield, flightpack, pull, quad, text
+from machine.aircraft import aerolisp, airfield, compile as aircraft_compile, flightpack, pull, quad, text
 from machine.aircraft.aerobat import form
 from machine.aircraft.aerobatics import HOVER
 from machine.aircraft.wingborne import PITCH_REST, Wing
@@ -54,7 +54,8 @@ WO_TURN, WO_PULL = _OBS['turn_bandwidth'], _OBS['pull_bandwidth']
 FLOOR_M, HOVER_M = (KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height'))
 WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
-DIVE_M_S = 4.0
+_AB_CFG = aircraft_compile.aerobat()
+DIVE_M_S = _AB_CFG['dive_m_s']
 #: Both boards turn a 17x8 stage on the 63100's can; the propeller's top on the flight's clamp
 #: and a full pack's volts, as the page's drives have it.
 ROTOR = pull.Rotor(*pull.ROTOR[:4], pull.CAN_J + PROP_INERTIA, pull.ROTOR.b, K_DRAG)
@@ -94,9 +95,7 @@ def row_from_payload(payload, base=None):
         payload, base or HOVER, MASS_KG * GRAVITY, KINEMATICS['horizontal']['orbit_speed'])
 
 
-#: Its wheels' drag on its strip, of their load: on 0.4 and 0.5 it nosed over, its tail up on its
-#: take-off's run, in 5 of six tours.
-ROLL_MU = 0.3
+ROLL_MU = _AB_CFG['roll_mu']
 #: The tail on asphalt, its fin 1 cm past the elevator, softer than the wheels: at their 0.03 s a
 #: touch read 37-143 N, 7-27 N m against the ailerons' 5.3.
 TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'

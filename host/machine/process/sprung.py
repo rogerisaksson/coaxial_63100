@@ -6,7 +6,7 @@
 import functools
 import math
 import os
-from machine.body import mechatronics
+from machine.body import mechatronics, peripherals
 from machine.way import planner
 from machine.eyes import camera, vision
 from machine.senses import edge, estimate, field, grip, inekf, momentum, observer, situation, touch
@@ -25,7 +25,8 @@ LEAK_S, STANDING_KP, WEP_HOLD_S, WEP_FILL = se2.LEAK_S, se2.STANDING_KP, se2.WEP
 KNEE_SOFT, KNEE_NM, STUNT_MODES, STUNT_PHASES = se2.KNEE_SOFT, se2.KNEE_NM, se2.STUNT_MODES, se2.STUNT_PHASES
 _FWD_GAITS, _BACK_GAITS = se2._FWD_GAITS, se2._BACK_GAITS
 
-RATE_HZ, SLICE_S, SAY_S, AVERAGE_S = 1000.0, 0.05, 1.0 / 60.0, 0.05
+_sprung_bus = peripherals.bus()
+RATE_HZ, SLICE_S, SAY_S, AVERAGE_S = round(1.0 / _sprung_bus['lockstep_s'], 1), 0.05, 1.0 / 60.0, 0.05
 SHOVES, SHOVE_S = {'nudge': 38.0, 'push': 80.0, 'shove': 120.0}, 0.12
 #: Her state as her page hears it (`page`): her stage, her tilt, her things named.
 named, tilt, staged, state = page.named, page.tilt, page.staged, page.state
@@ -35,26 +36,33 @@ HEARD = ('say', 'at', 'walk', 'entries', 'gym', 'text', 'push', 'seconds', 'rest
 STREAM_NAMES = {201: 'stand', 202: 'sway', 203: 'step', 204: 'walk', 205: 'walk_back'}
 ALIASES = {'#201': 'stand', '#202': 'sway', '#203': 'step', '#204': 'walk', '#205': 'walk_back', 'back': 'walk_back'}
 WALK = (('stand', 0.5), ('sway', 2.0), ('step', 5.0), ('walk', 9.0))
-BRAKE = ('(stream_inject (sequence_id 200) (blend_duration %dms) (latent_targets (mode_axial_compression 0.04)'
-         ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
-         ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 800)'
-         ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 600) (stiffness mode_sagittal_shift 0)'
-         ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-         ' (cpg_config (enable true) (amplitude mode_lateral_shift 0.12) (amplitude mode_sagittal_drive 0.0)'
-         ' (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
-         ' (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0) (amplitude mode_stance_width 0.0)'
-         ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg) (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
-         ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))') % round(1e3 * se2.BRAKE_S)
-_TOUCH = ('(stream_inject (sequence_id 200) (blend_duration 500ms) (latent_targets (mode_axial_compression 0.0)'
-          ' (mode_lateral_shift 0.0) (mode_limb_lift 0.0) (mode_pelvis_list 0.0)) (impedance'
-          ' (stiffness mode_axial_compression 6000) (damping mode_axial_compression 800) (stiffness mode_lateral_shift 6000)'
-          ' (damping mode_lateral_shift 600) (stiffness mode_pelvis_list 1500) (damping mode_pelvis_list 300))'
-          ' (cpg_config (enable false)) (task_constraints (maintain_zmp (polygon support_polygon))))')
+BRAKE = (('(stream_inject (sequence_id 200) (blend_duration %dms) (latent_targets (mode_axial_compression 0.04)'
+          ' (mode_pitch_attitude 0.0) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
+          ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression %g)'
+          ' (damping mode_axial_compression %g) (stiffness mode_lateral_shift %g)'
+          ' (damping mode_lateral_shift %g) (stiffness mode_sagittal_shift 0)'
+          ' (damping mode_sagittal_shift %g) (stiffness mode_foot_rock %g) (damping mode_foot_rock %g))'
+          ' (cpg_config (enable true) (amplitude mode_lateral_shift 0.12) (amplitude mode_sagittal_drive 0.0)'
+          ' (amplitude mode_foot_rock 0.0) (amplitude mode_pelvis_list 0.0)'
+          ' (amplitude mode_pelvis_turn 0.0) (amplitude mode_arm_swing 0.0) (amplitude mode_stance_width 0.0)'
+          ' (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
+          ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg))'
+          ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
+         % (round(1e3 * se2.BRAKE_S), se2._K_WALK, round(1.3 * se2._D_WALK, -1), se2._K_WALK, se2._D_WALK,
+            round(0.4 * se2._D_WALK, -1), se2._K_ROCK, se2._D_ROCK))
+_TOUCH = (('(stream_inject (sequence_id 200) (blend_duration %dms) (latent_targets (mode_axial_compression 0.0)'
+           ' (mode_lateral_shift 0.0) (mode_limb_lift 0.0) (mode_pelvis_list 0.0)) (impedance'
+           ' (stiffness mode_axial_compression %g) (damping mode_axial_compression %g)'
+           ' (stiffness mode_lateral_shift %g) (damping mode_lateral_shift %g)'
+           ' (stiffness mode_pelvis_list %g) (damping mode_pelvis_list %g))'
+           ' (cpg_config (enable false)) (task_constraints (maintain_zmp (polygon support_polygon))))')
+          % (round(1e3 * se2.STAND_S), 2.0 * se2._K_WALK, round(1.3 * se2._D_WALK, -1), 2.0 * se2._K_WALK,
+             se2._D_WALK, 0.5 * se2._K_WALK, 0.5 * se2._D_WALK))
 _BRAKE_WIRE, _BRAKE_BACK_WIRE, _TOUCH_WIRE = ortho.compiled(BRAKE)[0][''], ortho.compiled(BRAKE.replace('108deg', '-108deg'))[0][''], ortho.compiled(_TOUCH)[0]['']
 SERVO_SHARE = (0.5, 1.0)
-INNER, ESO_WO, SOLVER = 'eso', 100.0, 'wrench'
+INNER, ESO_WO, SOLVER = 'eso', _sprung_bus['eso_wo'], 'wrench'
 LEG_KINDS = ('hip_yaw', 'hip_roll', 'hip', 'knee', 'ankle', 'ankle_roll')
-STACK_EVERY, DOWN_DEG, DOWN_M = 3, 50.0, 0.45
+STACK_EVERY, DOWN_DEG, DOWN_M = _sprung_bus['law_div'], 50.0, 0.45
 GYMS = (mechatronics.ROBOT, 'examples')
 
 
@@ -84,7 +92,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     from machine.world import physics
     from machine.eyes import registry
     from machine.stack import wbc, wrench
-    from machine.body.drives import kind, peak
+    from machine.body.drives import kind, peak, wep_scale
     from machine.body.figure import JOINTS
     world, body, pose, inner = physics.World(), wbc.Body(), figure.stand(), (inner or INNER)
     world.reset(pose)
@@ -119,7 +127,7 @@ def laid(every=1, inner=None, solver=None, texts=None, suite=None):
     a, hw, q0 = np.zeros(modal.ASK), 0.5 * float(fr[modal.WEIGHT]), sense[edge.Q][joints]
     a[modal.STANCE] = 1.0
     legs = [[i for i, j in enumerate(JOINTS) if j.startswith(s0) and kind(j) in LEG_KINDS] for s0 in ('left_', 'right_')]
-    wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), 1.45 * float(body.clamp[i])) for i, j in enumerate(names)])
+    wep_lim = np.array([max(float(servos.SERVO[kind(j)][0]), float(peak(j)), wep_scale(j) * float(body.clamp[i])) for i, j in enumerate(names)])
     from machine.body import defrobot
     drv = (defrobot.read() or {}).get('drives', {})
     rng = np.array([[math.radians(drv[j]['range'][0]), math.radians(drv[j]['range'][1])] if 'range' in drv.get(j, {})

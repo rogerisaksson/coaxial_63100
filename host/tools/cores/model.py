@@ -16,6 +16,8 @@ import importlib
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import numpy as np
 
 from tools import REPO
@@ -27,6 +29,17 @@ NOTICE = 'her figure as static arrays: written by host/tools/cores/model.py, not
 
 #: A link's kind, as the C reads it.
 FREE, DRIVEN, HELD = 0, 1, 2
+LOOP_KEYS = (
+    ('MU', 'mu'), ('MARGIN_M', 'margin_m'), ('SLACK', 'slack'),
+    ('HEIGHT_BAND', 'height_band_m_s2'), ('LIMIT_S', 'limit_s'), ('STOP_RAD', 'stop_rad'),
+    ('CONTACT_K', 'contact_1_s'), ('HELD_K', 'held_1_s'), ('CLAMP_SHARE', 'clamp_share'),
+    ('NEAR', 'near'), ('TURN_KP', 'turn_1_s2'), ('TURN_KD', 'turn_1_s'),
+    ('POSTURE_KP', 'posture_1_s2'), ('POSTURE_KD', 'posture_1_s'),
+    ('SWING_KP', 'swing_1_s2'), ('SWING_KD', 'swing_1_s'), ('MOMENTUM_K', 'momentum_1_s'),
+    ('TURN_W', 'turn_w'), ('MOMENTUM_W', 'momentum_w'), ('POSTURE_W', 'posture_w'),
+    ('TORQUE_W', 'torque_w'), ('FORCE_W', 'force_w'), ('HEIGHT_W', 'height_w'),
+    ('FOLD_W', 'fold_w'),
+)
 
 
 def rotation(quat):
@@ -143,14 +156,17 @@ def standing(b):
     return r + list(qpos[:3]), list(qpos[7:7 + b.n - 6])
 
 
-def render(rows, b):
+def render(rows, b, stand=None):
     """(header, source) for `rows`, her `wbc.Body`'s."""
+    from machine.body import gait
     n = 5 + len(rows)
-    stand = standing(b)
+    stand = stand or standing(b)
+    loop_g = gait.table('loop')
     names = [r['name'] for r in rows]
     driven = [names.index(wbc_name) for wbc_name in _driven(b)]
     held = [k for k, r in enumerate(rows) if r['kind'] == HELD]
     buffers, buffer = b.buffers
+    loop_defs = ['#define WBC_LOOP_%s %d' % (c_name, i) for i, (c_name, _) in enumerate(LOOP_KEYS)]
     header = '\n'.join([
         '/** wbc_model.h - %s */' % NOTICE,
         '#ifndef WBC_MODEL_H', '#define WBC_MODEL_H', '',
@@ -160,10 +176,13 @@ def render(rows, b):
         '#define WBC_N %d' % n,
         '#define WBC_DRIVEN %d' % len(driven),
         '#define WBC_HELD %d' % len(held),
-        '#define WBC_BUFFERS %d' % len(buffers), '',
+        '#define WBC_BUFFERS %d' % len(buffers),
+        '#define WBC_LOOP %d' % len(LOOP_KEYS), '',
         '/** A link\'s kind (wbc_kind). */',
         '#define WBC_FREE %d' % FREE, '#define WBC_IS_DRIVEN %d' % DRIVEN,
         '#define WBC_IS_HELD %d' % HELD, '',
+        '/** Whole-body loop table indices (wbc_loop). */',
+        *loop_defs, '',
         'extern const int    wbc_parent[WBC_LINKS];   /**< a link\'s parent; -1, the world, under the pelvis */',
         'extern const double wbc_x[WBC_LINKS][12];    /**< its frame at rest in the parent\'s: R by rows, then p */',
         'extern const double wbc_s[WBC_LINKS][6];     /**< its screw in its own frame, (w, v) */',
@@ -185,6 +204,7 @@ def render(rows, b):
         'extern const int    wbc_buffer_link[WBC_BUFFERS]; /**< the master insert\'s buffers: each one\'s link */',
         'extern const double wbc_buffer_stop[WBC_BUFFERS][2]; /**< its stop rad and side, 1 a low end */',
         'extern const double wbc_buffer[4];           /**< their width rad, stiffness 1/s^2, damping 1/s, reach s */',
+        'extern const double wbc_loop[WBC_LOOP];      /**< [gait.loop] gains, bounds and weights */',
         'extern const int    wbc_trunk;               /**< the trunk\'s link */',
         'extern const double wbc_sole_at[3];          /**< a sole\'s middle, in its foot\'s frame */',
         'extern const double wbc_sole_corner[4][3];   /**< its corners */',
@@ -212,6 +232,7 @@ def render(rows, b):
         'const double wbc_buffer_stop[WBC_BUFFERS][2] = {\n  %s};'
         % (',\n  '.join('{%s}' % _nums((stop, side)) for _i, stop, side in buffers)),
         'const double wbc_buffer[4] = {%s};' % _nums(buffer),
+        'const double wbc_loop[WBC_LOOP] = {\n   %s};' % _nums([loop_g[k] for _, k in LOOP_KEYS]),
         'const int wbc_trunk = %d;' % names.index(_last_joint(b, 'torso')), '',
         'const double wbc_sole_at[3] = {%s};' % _nums(b.sole),
         'const double wbc_sole_corner[4][3] = {\n  %s};'
@@ -257,6 +278,14 @@ def write(b=None):
     from machine.stack import wbc
     b = b or wbc.Body()
     rows = links(b)
+    boot = render(rows, b, ([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                            [0.0] * (b.n - 6)))
+    with open(HEADER, encoding='utf-8', newline='') as f:
+        same_h = f.read() == boot[0]
+    if not same_h:
+        for path, text in zip((HEADER, SOURCE), boot):
+            with open(path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(text)
     for path, text in zip((HEADER, SOURCE), render(rows, b)):
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(text)

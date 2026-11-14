@@ -1,7 +1,7 @@
 """The aerobat's SO(3) law: hover and prop-hang, its stunts, on its wing nose first; its observer's."""
 import math
 
-from machine.aircraft import aerokin, airfield, se3mpc
+from machine.aircraft import aerokin, airfield, compile as aircraft_compile, se3mpc
 from machine.aircraft.aerobatics import ease
 from machine.aircraft.aerobat.airframe import (A_DISC, ATT_KD, ATT_KP, FLOOR_M, GRAVITY, IDLE_RAD_S, INERTIA,
                                       K_PITCH_Q, K_ROLL_Q, K_THRUST, K_YAW, MASS_KG, RHO, ROLL_KD,
@@ -14,31 +14,15 @@ from machine.aircraft.helicopter.kit import (Answer, _mat_mul, _plan_hold, _rot_
                                     _so3_torques, _step_hold, _stunt_step, _turn_heading)
 from machine.aircraft.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
 
-#: A row asked faster than FAST_M_S, m/s, flies on its wing whole once it is past half of it
-#: (`wingborne.whole`), eased in over the span: none slower, all faster.
-FAST_M_S = (3.0, 7.0)
-#: Low it comes round to the runway's line where its row is `lined` (1 unsaid; a line's own
-#: none): asked under LINED_M, m (all under its first), its turn and its slide eased out by
-#: LINED_RAD_S and LINED_M_S - switched on as they came to none, the run-in's yaw stepped to
-#: 1 rad/s and its rudder 0.56 in a tick.
-LINED_M, LINED_RAD_S, LINED_M_S = (1.5, 2.0), math.radians(10.0), 1.0
-#: The share of its surfaces' throw its propeller's wash is kept for.
-AUTHORITY = 0.7
-#: Gusty, its figures higher: its wind's swing about its mean over GUST_SLOW_S, rms over GUST_RMS_S,
-#: past GUST_FLOOR, times GUST_S, m - a figure's row (`lined` 1), not a laid line's (0), which says
-#: them to its giver (`aerokin.seen`). In still air its own estimate swung 0.10-0.17 m/s rms.
-GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = 5.0, 3.0, 0.3, airfield.GUST_S
-#: On its wing its climb follows its pitch, by its path's lag, m / (q S v), and its attitude
-#: loop's: its height's loop no quicker than PATH_POLE over them (`path_pole`). On the hover's
-#: 6.4 rad/s it swung its pull 6.7 m/s^2 at 1.8 Hz in a turn, past the stall, over 10 cm; the
-#: hover's past 0.5-1 m of its height, it swung so off the hoop. On its side its thrust and its
-#: side bear it, not its wing: on the wing's loop there it put its tip on the floor at 0.45 m.
-PATH_POLE = 0.35
-#: Its wheels on the runway, m over their rest: cut at 0.05, it dropped onto them at 1 m/s.
-TOUCH_M = 0.03
-#: On its wing the push its observer reads off its model, over PUSH_S: dropped there, a turn's
-#: lift 14 % short of its model on a wind read 1 m/s off sank it 1.2 m on that loop.
-PUSH_S = 1.0
+_AB = aircraft_compile.aerobat()
+FAST_M_S = _AB['fast_m_s']
+LINED_M, LINED_RAD_S, LINED_M_S = _AB['lined_m'], _AB['lined_rad_s'], _AB['lined_m_s']
+AUTHORITY = _AB['authority']
+GUST_SLOW_S, GUST_RMS_S, GUST_FLOOR, GUST_S = (
+    _AB['gust_slow_s'], _AB['gust_rms_s'], _AB['gust_floor'], airfield.GUST_S)
+PATH_POLE = _AB['path_pole']
+TOUCH_M = _AB['touch_m']
+PUSH_S = _AB['push_s']
 
 
 def path_pole(v):
@@ -226,7 +210,7 @@ class Core:
         drag = 0.5 * RHO * _aero_cda(*prev_ctrl[1:3]) / MASS_KG * math.hypot(*u)
         air_acc = [(1.0 - self.wing_air) * (self.push_hat[a] + w_lift[a] / MASS_KG)
                    + self.wing_air * self.push_slow[a] - drag * u[a] for a in (0, 1, 2)]
-        along = self.plan(law, row, state, dt, pull_max) if along is None else _step_hold(self, along, dt)
+        along = self.plan(law, row, state, dt, pull_max) if along is None else (_step_hold(self, along, dt) or along)
         rate, target_yaw = self.yawed(law, row, state)
         law['heading'] = c, s = _turn_heading(law['heading'], rate, dt)
         yaw = math.atan2(s, c)

@@ -12,13 +12,15 @@
 The kernel's ballistic_*.lisp. Her legs' line as `leap._a_z` lays it (thigh, shank, the knee's lever to it); her
 drives' bounds `bemf`'s at `drives.PACK_V`. Flat arrays and arithmetic: no branch.
 """
-from machine.body import bemf, drives, figure
+import math
 
-#: Gravity, m/s^2.
-G = 9.81
-#: Her knee among her drives (`bemf.DRIVEN`); a throw's height spring, N/m (the stride leap's table's, scaled
-#: with her weight over her leg).
-THROW_K = round(54.0 * figure.mass() * G / (figure.THIGH + figure.SHANK), -2)
+from machine.body import bemf, drives, figure, servos
+from machine.body.compile import G_M_S2 as G
+
+#: Her knee among her drives (`bemf.DRIVEN`); unilateral throw height spring, N/m, from knee servo
+#: stiffness mapped through her countermovement crouch lever.
+_CROUCH_LEVER = 0.5 * (figure.THIGH + figure.SHANK) * math.sin(math.radians(abs(figure.SQUAT['left_ankle'])))
+THROW_K = round(servos.SERVO['knee'][1] / (_CROUCH_LEVER * _CROUCH_LEVER), -2)
 KNEE = bemf.DRIVEN.index('left_knee')
 
 

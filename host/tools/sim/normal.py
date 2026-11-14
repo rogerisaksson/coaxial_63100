@@ -20,8 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
-
-G = 9.81
+from machine.body.compile import G_M_S2 as G
 
 #: A woman's normal walk, slow to brisk: (measure, unit, least, most). Textbook gait - a knee
 #: all but straight as it lands, 15-20 deg bent under her weight, 35-45 as its toes leave at

@@ -1,6 +1,8 @@
 """Physical, dynamic and kinematic block schemas and static scaling for AeroLisp."""
 import math
 
+from machine.aircraft import compile as aircraft_compile
+
 
 def _sp(s):
     return tuple(s.split())
@@ -153,6 +155,9 @@ def _apply_sec_block(b, out, amap, c, blocks, sec):
               else kv_block(b[1:], amap[h], c, (), out.get(h), blocks, h))
 
 
+_ROTOR_MAX_NM = aircraft_compile.ROTOR_MAX_NM
+
+
 def compile_section(form, c, base, blocks, sec):
     """Compile a `defaerodynamics`, `defdynamics`, or `defkinematics` section and update symbols."""
     out = copy_base(form, base)
@@ -174,7 +179,9 @@ def compile_section(form, c, base, blocks, sec):
         if any(b not in out for b in req):
             raise SyntaxError('missing aerodynamics blocks')
         if kind:
-            c.symbols['MAX_SYS_THRUST'] = out[kind]['k_thrust'] * (4.0 if kind == 'rotors' else 1.0) * 770.0 ** 2
+            tau = _ROTOR_MAX_NM if kind == 'rotors' else out['drive_load']['main_ceiling']
+            w2 = tau / max(out[kind]['k_drag'], 1e-9)
+            c.symbols['MAX_SYS_THRUST'] = out[kind]['k_thrust'] * (4.0 if kind == 'rotors' else 1.0) * w2
         return out
     if sec == 'dynamics':
         if any(b not in out for b in ('rigid_body', 'governor', 'impedance', 'observers')):
@@ -186,5 +193,6 @@ def compile_section(form, c, base, blocks, sec):
         raise SyntaxError('missing kinematics blocks')
     h = out['horizontal']
     turn = math.degrees(h['orbit_speed'] / h['orbit_radius'])
-    c.symbols.update(LAP_S=h['lap_duration'], FUNNEL_TURN_DEG_S=-turn, UNWIND_TURN_DEG_S=turn)
+    c.symbols.update(LAP_S=h['lap_duration'], ORBIT_SPEED=h['orbit_speed'],
+                     FUNNEL_TURN_DEG_S=-turn, UNWIND_TURN_DEG_S=turn)
     return out

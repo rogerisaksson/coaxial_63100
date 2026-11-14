@@ -1,13 +1,8 @@
-; The helicopter on a body a quarter heavier, 2.5 kg, its inertia with its mass: its other blocks `helicopter.lisp`'s,
-; its flights its kind's (`flights/helicopter.lisp`), nothing of them tuned to it (tools/sim/flights.py flies it).
+; The helicopter on a 2.5 kg frame (`crafts.toml` `[helicopter_heavy]`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
 (include "kinematics.lisp")
-
-(defblock rigid_body heli_pod_boom_body_heavy
-  (use heli_pod_boom_body)
-  (mass 2.5kg))
 
 (defvehicle helicopter_3d_heavy
   (use standard_airframe)

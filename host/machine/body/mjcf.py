@@ -4,82 +4,56 @@ The world steps it (`machine.world.physics`).
 """
 import math
 
-from machine.body import build, drives, figure, skeleton
+from machine.body import build, drives, figure, mechatronics, skeleton
 from machine.world import floor, room
 from machine.body.drives import kind
 from machine.body.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
-#: A joint with no drive (`drives.passive`): its armature, kg m^2 - nearly none, a spring's; held,
-#: its stops HELD_DEG either side of its rest.
-PASSIVE_J, HELD_DEG = 0.0005, 0.5
+_BUILD, _WORLD = mechatronics.robot(), mechatronics.environment()
+_GARM, _ELAST = _BUILD['garments'], _BUILD['elastomers']
+_HEM, _HAIR, _LACE = _GARM['hem'], _GARM['hair'], _GARM['lace']
+_SOLE, _PAD = _ELAST['sole'], _ELAST['pad']
+_PLIM = _BUILD['passive_limits']
 
-#: Her pelvis welded to a stand STAND_M high, soles clear, for identification (`machine.identify.sysid`).
-STAND, STAND_M = 0.0, 1.3
+#: Undriven spring armature, kg m^2, and held-joint stop half-width, deg (`drives.passive`, `[passive_limits]`).
+PASSIVE_J, HELD_DEG = float(_PLIM['armature_kgm2']), float(_PLIM['held_deg'])
 
-#: The contacts' friction cone: elliptic, the same grip every way, at IMPRATIO. On MuJoCo's
-#: pyramid she walked along the world's axes and fell 1.2 m on 45 degrees off them; elliptic at 1
-#: she fell every way at 1.18 m, at 3 and 10 walked 13 m every way.
-CONE, IMPRATIO = 'elliptic', 10.0
+#: Pelvis weld stand height and stiffness time constant for system identification (`world.toml`).
+STAND, STAND_M = 0.0, float(_WORLD['stand_m'])
+_STAND_SOLREF_S = float(_WORLD['stand_solref_s'])
 
-#: What her clothes cover and what the cloth grips with, sliding: jeans over the pelvis, the
-#: thighs and the knees, denim; a tee over the torso and the upper arms, cotton - the rest bare,
-#: the soles the sneakers'. The cloth gives CLOTH_GIVE_M over its padding before it bears.
-CLOTH = {'pelvis': 0.55, 'thigh': 0.55, 'shank': 0.55, 'torso': 0.45, 'upper_arm': 0.45}
-CLOTH_GIVE_M = 0.004
+#: Friction cone, tangential-to-normal impedance ratio, gravity and joint damping (`world.toml`).
+CONE, IMPRATIO = str(_WORLD['cone']), float(_WORLD['impratio'])
+_GRAVITY, _JOINT_DAMP = float(_WORLD['g_m_s2']), float(_WORLD['joint_damping'])
 
-#: A jeans' leg hangs `figure.HEM_AT` under the knee, HEM_KG HEM_M further down, on two hinges -
-#: fore and aft, and aside - held to the shin by HEM_K N m/rad, damped by HEM_D N m s/rad and
-#: stopped within HEM_STOP_S where its cloth meets the leg or the sneaker: its end HEM_FORE_DEG
-#: forward (the heel), HEM_BACK_DEG back (the instep), HEM_SIDE_DEG aside (the ankle). It touches
-#: nothing else. Free to 46 degrees it swung the leg's end through the cloth; stopped at 14,
-#: softly, it swung to 19 and the shin stood 35 mm out of it aside, the sneaker 64.
-HEM_M, HEM_KG, HEM_K, HEM_D = 0.2, 0.12, 0.6, 0.045
-HEM_FORE_DEG, HEM_BACK_DEG, HEM_SIDE_DEG, HEM_STOP_S = 5.0, 8.0, 3.0, 0.005
+#: Garment sliding friction, padding compliance, loose hem/hair pendulums and lace tendon (`[garments]`).
+CLOTH = {k: float(v) for k, v in _GARM['friction'].items()}
+CLOTH_GIVE_M = float(_GARM['give_m'])
+HEM_M, HEM_KG = float(_HEM['length_m']), float(_HEM['kg'])
+HEM_K, HEM_D = float(_HEM['k_nm_rad']), float(_HEM['d_nms_rad'])
+HEM_FORE_DEG, HEM_BACK_DEG = float(_HEM['fore_deg']), float(_HEM['back_deg'])
+HEM_SIDE_DEG, HEM_STOP_S = float(_HEM['side_deg']), float(_HEM['stop_s'])
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
-#: Her hair's fall hangs from `figure.HAIR_AT`, HAIR_KG HAIR_M under it, on two hinges - fore and
-#: aft, and aside - held by HAIR_K N m/rad and damped by HAIR_D N m s/rad: with gravity's 0.041 it
-#: swings at 1.8 Hz, a third of critical. Stopped HAIR_DEG back, HAIR_IN_DEG forward and
-#: HAIR_SIDE_DEG aside, where it meets her nape and her throat. It touches nothing.
-HAIR_M, HAIR_KG, HAIR_K, HAIR_D = 0.07, 0.06, 0.016, 0.0035
-HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = 20.0, 4.0, 8.0
+HAIR_M, HAIR_KG = float(_HAIR['length_m']), float(_HAIR['kg'])
+HAIR_K, HAIR_D = float(_HAIR['k_nm_rad']), float(_HAIR['d_nms_rad'])
+HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = (float(_HAIR['back_deg']), float(_HAIR['in_deg']),
+                                        float(_HAIR['side_deg']))
 HAIRS = ('hair_x', 'hair_z')
 
 #: What hangs loose on her: the hinges `World.loose` reads.
 LOOSE = HEMS + HAIRS
 
-#: Her geoms' contact bits: 2 meets the floor's 1, 4 her own - a part on a part, MuJoCo leaving
-#: out a segment and its parent. Floor alone, her feet passed 22 mm into each other as she
-#: walked. Her thighs' spheres, cruder than her, pressed 2 kN apart at every passing
-#: in her catwalk; drawn, they pass 20 mm apart.
+#: Contact bitmasks: 2 meets the floor's 1, 4 her own segments and skeleton.
 ME, MEETS = 2 | 4, 1 | 4
 
-#: The soles' friction: sliding, and turning in place (m) - a point of contact turns freely, and
-#: on its ball's edge the stance foot spun under the swinging leg.
-FRICTION, TORSION_M = 1.0, 0.08
-
-#: The soles' give, MuJoCo's solref and solimp: a contact settles over SOLE_S s at SOLE_DAMP of
-#: critical, its impedance SOLE_SOFT at a touch rising to 0.95 over SOLE_WIDTH_M of give - light
-#: sneakers. On 27 cm soles, rigid (0.02, 1, 0.9, 0.001) a touchdown peaked at 1.9
-#: kN, 3.5 times her weight; the give over 5 mm and the damping 1.5: 1.5 kN and the pendulum's
-#: stir 1.7 -> 1.4 mm. Softer felled her first stride from standing every way: settling over
-#: 0.035 s the body pitched on twice as fast (the sole a lag in the ankle's hold), damped 1.75
-#: the stance foot's load flickered to 70 N as the other swung.
-SOLE_S, SOLE_DAMP, SOLE_SOFT, SOLE_WIDTH_M = 0.02, 1.5, 0.9, 0.005
-
-#: The pads' gel (`figure.PADS`), MuJoCo's solref and solimp over `figure.PAD_M`: a touch's
-#: impedance PAD_SOFT, rising to 0.95 as the gel is spent; settling over PAD_S s at PAD_DAMP of
-#: critical. Over 12 falls against none, the padded parts' landing peak 5.99 -> 5.32 kN at the
-#: median, its spread 3.00 -> 2.53; the pads as stiff as her cloth, the worst 8.4 -> 11.3, at
-#: 0.005 s 61.
-PAD_SOFT, PAD_S, PAD_DAMP = 0.5, 0.02, 1.5
-
-#: Her left shoe's lace snagged on the right shoe (`World.lace`): from LACE_AT on the one to LACE_AT
-#: on the other (their frames), LACE_M between - a tendon, its limit settling over LACE_S s - until
-#: LACE_HOLD_N pulls it off. Under the right sole, pinned as the left foot lifted, it went taut
-#: as that foot landed, its step as long, and she walked on; as a tug of 300 N for 0.2 s it
-#: felled her on nothing seen.
-LACE_AT, LACE_M, LACE_S, LACE_HOLD_N = (0.0, -0.03, 0.07), 0.25, 0.03, 1000.0
+#: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`[elastomers]`).
+FRICTION, TORSION_M = float(_SOLE['friction']), figure.sole_torsion_m()
+SOLE_S, SOLE_DAMP = float(_SOLE['settle_s']), float(_SOLE['damp'])
+SOLE_SOFT, SOLE_WIDTH_M = float(_SOLE['soft']), float(_SOLE['width_m'])
+PAD_SOFT, PAD_S, PAD_DAMP = float(_PAD['soft']), float(_PAD['settle_s']), float(_PAD['damp'])
+LACE_AT = tuple(float(v) for v in _LACE['at'])
+LACE_M, LACE_S, LACE_HOLD_N = float(_LACE['length_m']), float(_LACE['stop_s']), float(_LACE['hold_n'])
 
 
 
@@ -230,21 +204,23 @@ def _mjcf(bones, free=True):
                     PAD_S, PAD_DAMP, PAD_SOFT, figure.PAD_M))
         if name.endswith('_shank'):
             side = name[:-len('_shank')]
+            hem_gyr2 = round(0.5 * HEM_M ** 2, 4)
             out += ['<body name="%s_hem" pos="0 %g 0">' % (side, -HEM_AT)] + [
                 '<joint name="%s_hem_%s" axis="%s" stiffness="%g" damping="%g" armature="0" limited="true" '
                 'range="%g %g" solreflimit="%g 1"/>' % (side, ax, d, HEM_K, HEM_D, lo, hi, HEM_STOP_S)
                 for ax, d, lo, hi in (('x', '1 0 0', -HEM_FORE_DEG, HEM_BACK_DEG),
                                       ('z', '0 0 1', -HEM_SIDE_DEG, HEM_SIDE_DEG))] + [
                 '<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
-                    -HEM_M, HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG, 0.02 * HEM_KG), '</body>']
+                    -HEM_M, HEM_KG, hem_gyr2 * HEM_KG, hem_gyr2 * HEM_KG, hem_gyr2 * HEM_KG), '</body>']
         if name == 'head':
+            hair_gyr2 = round(0.5 * HAIR_M ** 2, 4)
             out += ['<body name="hair" pos="%g %g %g">' % HAIR_AT] + [
                 '<joint name="hair_%s" axis="%s" stiffness="%g" damping="%g" armature="0" limited="true" '
                 'range="%g %g"/>' % (ax, d, HAIR_K, HAIR_D, lo, hi)
                 for ax, d, lo, hi in (('x', '1 0 0', -HAIR_IN_DEG, HAIR_DEG),
                                       ('z', '0 0 1', -HAIR_SIDE_DEG, HAIR_SIDE_DEG))] + [
                 '<inertial pos="0 %g 0" mass="%g" diaginertia="%g %g %g"/>' % (
-                    -HAIR_M, HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG, 0.0025 * HAIR_KG), '</body>']
+                    -HAIR_M, HAIR_KG, hair_gyr2 * HAIR_KG, hair_gyr2 * HAIR_KG, hair_gyr2 * HAIR_KG), '</body>']
         for kid in kids.get(name, []):
             out += body(kid)
         return out + ['</body>'] * (1 + len(stages))
@@ -253,10 +229,10 @@ def _mjcf(bones, free=True):
     # her past its 60 to sparse, her step's constraint solve 34 us where 28 - asleep, they take no row
     return '\n'.join(
         ['<mujoco model="gynoid">',
-         '<option timestep="%g" gravity="0 -9.81 0" integrator="implicitfast" cone="%s" jacobian="dense" '
-         'impratio="%g"%s' % (STEP_S, CONE, IMPRATIO, '><flag filterparent="disable"/></option>'
-                              if bones else '/>'),
-         '<default><joint damping="0.3"/><geom contype="0" conaffinity="0"/></default>',
+         '<option timestep="%g" gravity="0 %g 0" integrator="implicitfast" cone="%s" jacobian="dense" '
+         'impratio="%g"%s' % (STEP_S, -_GRAVITY, CONE, IMPRATIO,
+                              '><flag filterparent="disable"/></option>' if bones else '/>'),
+         '<default><joint damping="%g"/><geom contype="0" conaffinity="0"/></default>' % _JOINT_DAMP,
          ] + (sight.assets() if eyed else []) + [
          '<worldbody>',
          ] + (sight.lights() if eyed else []) + floor.ground(contacts, give, TORSION_M)
@@ -275,5 +251,5 @@ def _mjcf(bones, free=True):
 
 def _stand(stand, high):
     """Her pelvis welded to the world `high` m up, where she stands for identification."""
-    return (['<equality><weld body1="pelvis" relpose="0 %g 0 1 0 0 0" solref="0.005 1"/></equality>'
-             % -high] if stand else [])
+    return (['<equality><weld body1="pelvis" relpose="0 %g 0 1 0 0 0" solref="%g 1"/></equality>'
+             % (-high, _STAND_SOLREF_S)] if stand else [])

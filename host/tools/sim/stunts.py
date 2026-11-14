@@ -32,11 +32,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from coaxial.model.blocks import numpy as np  # behind the OpenBLAS cap
 from machine.body import figure
+from machine.body.compile import G_M_S2 as G
 from machine.law import modal, poise, stride
 from machine.texts import takes
 from tools import REPO
 
-G = 9.81
 #: The takes beside the repo; their measures kept here, their modes in `takes.FILE`.
 TAKES = os.path.join(os.path.dirname(REPO), 'stunts')
 REFERENCE = os.path.join(REPO, 'host', 'tests', 'takes', 'stunts.json')

@@ -17,25 +17,15 @@ block match's 0.122. `COAXIAL_GPU=0` keeps it on the CPU.
 import math
 import os
 
+from machine.body import peripherals
 from machine.eyes.voxels import NEAR_M
 
-#: Her eyes (`machine.eyes.sight`): W x H pixels, FOVY_DEG high, BASELINE_M apart - the text's 120 mm
-#: (`configure-phase-gated-stereo`); at 320 x 240 and 100 mm her map told a seat's depth 0.20-0.30 m of 0.44, at
-#: 640 x 480 and 120 mm, its points' footprints read (`voxels.Map._box`), 0.34-0.43.
-W, H, FOVY_DEG, BASELINE_M = 640, 480, 60.0, 0.12
-#: The match's bounds: its disparities, those of whatever stands NEAR_M off her eye or further and two over for the
-#: parabola about the best; the window placing a match within a pixel and telling its texture, that texture's least
-#: spread, the best's margin under the next.
+_EY = peripherals.eyes()
+W, H, FOVY_DEG, BASELINE_M = _EY['w'], _EY['h'], _EY['fovy_deg'], _EY['baseline_m']
 DISPARITIES = int(math.ceil((H / 2.0) / math.tan(math.radians(FOVY_DEG) / 2.0) * BASELINE_M / NEAR_M)) + 2
-WINDOW, TEXTURE, UNIQUE = 9, 1.5, 1.15
-#: A pixel's census, px (columns, rows): a bit a neighbour darker than it past QUANTUM grey levels, another one
-#: brighter past it, 62 of each. The aggregation's penalties, a step of one disparity along a path and of more, the
-#: customary ones on such a census, its two planes'.
-CENSUS, P1, P2 = (9, 7), 20, 240
-#: A neighbour within this of a pixel's grey is told neither darker nor brighter: her pictures laid on her planes are
-#: rounded a grey level each (`epipolar.Laid.warped`) and a bit read on a level flipped - looked round four ways, her
-#: squinted eyes told 9 of the room's 20 seats and beds on one plane, 14 on two; square, 17 either way.
-QUANTUM = 1
+WINDOW, TEXTURE, UNIQUE = _EY['window'], _EY['texture'], _EY['unique']
+CENSUS, P1, P2 = _EY['census'], _EY['p1'], _EY['p2']
+QUANTUM = _EY['quantum']
 #: The paths aggregated, (dx, dy) a pixel each step, in this order on both the card and the CPU.
 PATHS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
 #: A grey in fixed point: the luma's weights in thousandths, rounded half up.

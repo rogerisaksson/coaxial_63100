@@ -9,11 +9,38 @@
 #define WBC_DRIVEN 21
 #define WBC_HELD 4
 #define WBC_BUFFERS 12
+#define WBC_LOOP 24
 
 /** A link's kind (wbc_kind). */
 #define WBC_FREE 0
 #define WBC_IS_DRIVEN 1
 #define WBC_IS_HELD 2
+
+/** Whole-body loop table indices (wbc_loop). */
+#define WBC_LOOP_MU 0
+#define WBC_LOOP_MARGIN_M 1
+#define WBC_LOOP_SLACK 2
+#define WBC_LOOP_HEIGHT_BAND 3
+#define WBC_LOOP_LIMIT_S 4
+#define WBC_LOOP_STOP_RAD 5
+#define WBC_LOOP_CONTACT_K 6
+#define WBC_LOOP_HELD_K 7
+#define WBC_LOOP_CLAMP_SHARE 8
+#define WBC_LOOP_NEAR 9
+#define WBC_LOOP_TURN_KP 10
+#define WBC_LOOP_TURN_KD 11
+#define WBC_LOOP_POSTURE_KP 12
+#define WBC_LOOP_POSTURE_KD 13
+#define WBC_LOOP_SWING_KP 14
+#define WBC_LOOP_SWING_KD 15
+#define WBC_LOOP_MOMENTUM_K 16
+#define WBC_LOOP_TURN_W 17
+#define WBC_LOOP_MOMENTUM_W 18
+#define WBC_LOOP_POSTURE_W 19
+#define WBC_LOOP_TORQUE_W 20
+#define WBC_LOOP_FORCE_W 21
+#define WBC_LOOP_HEIGHT_W 22
+#define WBC_LOOP_FOLD_W 23
 
 extern const int    wbc_parent[WBC_LINKS];   /**< a link's parent; -1, the world, under the pelvis */
 extern const double wbc_x[WBC_LINKS][12];    /**< its frame at rest in the parent's: R by rows, then p */
@@ -36,6 +63,7 @@ extern const int    wbc_knee[2];             /**< the knees' links */
 extern const int    wbc_buffer_link[WBC_BUFFERS]; /**< the master insert's buffers: each one's link */
 extern const double wbc_buffer_stop[WBC_BUFFERS][2]; /**< its stop rad and side, 1 a low end */
 extern const double wbc_buffer[4];           /**< their width rad, stiffness 1/s^2, damping 1/s, reach s */
+extern const double wbc_loop[WBC_LOOP];      /**< [gait.loop] gains, bounds and weights */
 extern const int    wbc_trunk;               /**< the trunk's link */
 extern const double wbc_sole_at[3];          /**< a sole's middle, in its foot's frame */
 extern const double wbc_sole_corner[4][3];   /**< its corners */

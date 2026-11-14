@@ -7,9 +7,11 @@
 in `d`, MuJoCo's data; `np` the world's numpy.
 """
 
-#: Her harness (`World.hang`): N/m and N s/m on her pelvis's place, N m/rad and N m s/rad on its
-#: turn - 0.7 of critical on her 31 kg and 3 kg m^2.
-HANG = (4000.0, 500.0, 400.0, 50.0)
+from machine.body import peripherals
+
+#: Her harness (`World.hang`, derived in `peripherals.harness()`): N/m and N s/m on her pelvis's place,
+#: N m/rad and N m s/rad on its turn.
+HANG = peripherals.harness()
 
 
 def wrench(d, np, hung, pelvis):

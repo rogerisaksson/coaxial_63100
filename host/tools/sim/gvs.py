@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 import numpy as np
 
 from machine.body import figure
+from machine.body.compile import G_M_S2 as G
 from tools.sim import fbx, normal
 
-G = 9.81
 L0_DEFAULT = figure.THIGH + figure.SHANK
 MASS_DEFAULT = figure.MASS_KG
 MAX_TOLERANCE_DEG = 15.0

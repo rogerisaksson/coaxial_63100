@@ -23,13 +23,13 @@ box.
 
 | axis | drives | sits | through | ratio | peak N m | clamp N m | deg/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ankle | 2 | on the shank, its inverter on the thigh | a rod, a pair with the ankle roll | 27.3 | 197 | 140 | 1055 |
-| hip roll | 2 | on the hip yaw | a spur pair 1:1.67 | 50.1 | 180 | 129 | 575 |
-| spine roll | 1 | on the pelvis | a four-bar | 40.0 | 144 | 77 | 720 |
-| ankle roll | 2 | on the shank | a rod, a pair with the ankle | 17.9 | 129 | 100 | 1611 |
+| ankle | 2 | on the shank, its inverter on the thigh | a rod, a pair with the ankle roll | 27.3 | 197 | 139 | 1055 |
+| hip roll | 2 | on the hip yaw | a spur pair 1:1.67 | 50.1 | 180 | 128 | 575 |
+| spine roll | 1 | on the pelvis | a four-bar | 40.0 | 144 | 76 | 720 |
+| ankle roll | 2 | on the shank | a rod, a pair with the ankle | 17.9 | 129 | 98 | 1611 |
 | spine | 1 | on the spine roll, its inverter on the torso | - | 30.0 | 108 | 108 | 960 |
-| waist | 1 | on the torso | - | 30.0 | 108 | 77 | 960 |
-| hip yaw | 2 | on the pelvis | - | 30.0 | 108 | 52 | 960 |
+| waist | 1 | on the torso | - | 30.0 | 108 | 76 | 960 |
+| hip yaw | 2 | on the pelvis | - | 30.0 | 108 | 54 | 960 |
 | hip | 2 | on the hip roll | - | 30.0 | 108 | 108 | 960 |
 | knee | 2 | on its axis, its inverter on the thigh | - | 30.0 | 108 | 108 | 960 |
 
@@ -37,10 +37,10 @@ box.
 
 | axis | drives | sits | through | ratio | peak N m | clamp N m | deg/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 15 | 1536 |
-| head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 8 | 1536 |
-| shoulder | 2 | on the torso | - | 30.0 | 51 | 40 | 1536 |
-| elbow | 2 | on the upper arm | - | 30.0 | 51 | 25 | 1536 |
+| neck | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 14 | 1536 |
+| head | 1 | on its axis, its inverter on the torso | - | 30.0 | 51 | 10 | 1536 |
+| shoulder | 2 | on the torso | - | 30.0 | 51 | 39 | 1536 |
+| elbow | 2 | on the upper arm | - | 30.0 | 51 | 26 | 1536 |
 
 ### No drive
 

@@ -17,25 +17,17 @@ her pictures (`machine.eyes.squint`), her eyes' line held to their build.
 import functools
 import math
 
+from machine.body import peripherals
 from machine.eyes.stereo import BASELINE_M, FOVY_DEG, _np
 from machine.eyes import epipolar
 
-#: Her eyes: BASELINE_M apart on the head, EYES (x, y, z) in the head's frame the left one's at rest,
-#: looking along the head's z, DOWN_DEG under it - level, their view's lower edge 30 deg
-#: down, a table's top was out of it nearer than 1.4 m and a chair's seat nearer than 1.9;
-#: FOVY_DEG high, W x H pixels (`machine.eyes.stereo`).
-EYES, DOWN_DEG = (0.05, 0.10, 0.09), 15.0
-#: Her eyes as built: each camera on its gimbal turned about its own axes (x her right, y up, z back), deg - her right
-#: eye's rows 4.7 px under her left's, 0.9 deg cross-eyed, held a parallel pair her median depth 126 % off -; each
-#: gimbal turned by its pushrods that share of a servo's turn (across, down), its pushrods' play, deg (across, down);
-#: each camera's optical middle ahead of its gimbal's pivot, m.
-SQUINT = {'left': (-0.35, -0.40, 0.20), 'right': (0.30, 0.50, -0.25)}
-RODS = {'left': (1.0, 1.0), 'right': (1.012, 0.994)}
-PLAY = {'left': (0.20, 0.15), 'right': (0.35, 0.25)}
-LEVER = {'left': 0.006, 'right': 0.0065}
-#: Her eyes as her calibration told her them, every gaze: each one's squint, its rods' share past a servo's and its
-#: lever off what they are by that share, at the church's edge either way.
-CHURCH = {'left': -0.025, 'right': 0.025}
+_eyes = peripherals.eyes()
+EYES, DOWN_DEG = _eyes['left_at'], _eyes['down_deg']
+SQUINT = _eyes['squint']
+RODS = _eyes['rods']
+PLAY = _eyes['play']
+LEVER = _eyes['lever']
+CHURCH = _eyes['church']
 
 #: Her eyes' frame at rest in the head's (`cameras`' xyaxes, the rows): x her right, y up and DOWN_DEG forward, z back.
 _EYE_R = ((-1.0, 0.0, 0.0), (0.0, math.cos(math.radians(DOWN_DEG)), math.sin(math.radians(DOWN_DEG))),

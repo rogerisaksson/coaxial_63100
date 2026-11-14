@@ -15,9 +15,9 @@ next.
 import math
 
 from machine.body import gait, reach
+from machine.body.compile import G_M_S2 as G
 from machine.body.figure import ANKLE_H, BALL, HEEL
 
-G = 9.81
 #: Her touch's and her leaps' numbers, her build's (`[gait.leap]`, `machine.body.gait`).
 _G = gait.table('leap')
 

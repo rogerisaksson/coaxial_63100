@@ -13,11 +13,10 @@ WALK_SPEED, RUN_SPEED, BACK_SPEED, STRAFE_SPEED, YAW_RATE = (_G[k] for k in ('wa
 #: Told faster than this she goes over from her walk to her march (the gym's jog): midway, m/s.
 MARCH_FROM = 0.5 * (WALK_SPEED + RUN_SPEED)
 #: Her walk's, walk back's and sidestep's stopping distances and half her walk's stop's spread, m.
-STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))#: Her walk's rhythm, Hz (gait_base.lisp's sway), and her brake's blend, s: one stride.
-WALK_HZ = _G['walk_hz']
+STOP_M, BACK_STOP_M, SIDE_STOP_M, STOP_SPREAD_M = (_G[k] for k in ('stop_m', 'back_stop_m', 'side_stop_m', 'stop_spread_m'))
+#: Her walk's rhythm, Hz, and her brake's and stand's blends, s.
+WALK_HZ, STAND_S = _G['walk_hz'], _G['stand_s']
 BRAKE_S = 1.0 / WALK_HZ
-#: Her stand's blend, s (gait_base.lisp's stand).
-STAND_S = _G['stand_s']
 
 WASD_GAITS = ('walk', 'walk_back', 'jog', 'strafe_left', 'strafe_right',
               'turn_left', 'turn_right', 'turn_back_left', 'turn_back_right', 'spin_left', 'spin_right', 'init_walk')
@@ -164,26 +163,25 @@ def wrap_angle(angle):
     return math.atan2(math.sin(angle), math.cos(angle))
 
 
-_INF = math.inf
-#: Twist-space polytope table: (vx_min, vx_max, vy_min, vy_max, wz_min, wz_max, gait_name).
+_INF, _SV, _SW = math.inf, rhythm.R['backing_m_s'], rhythm.R['still_rad_s']
 GAIT_BOXES = (
-    (-_INF, _INF, 0.05, _INF, -_INF, _INF, 'strafe_left'),
-    (-_INF, _INF, -_INF, -0.05, -_INF, _INF, 'strafe_right'),
-    (-0.05, 0.05, -0.05, 0.05, 0.05, _INF, 'spin_left'),
-    (-0.05, 0.05, -0.05, 0.05, -_INF, -0.05, 'spin_right'),
-    (-0.05, _INF, -0.05, 0.05, 0.05, _INF, 'turn_left'),
-    (-0.05, _INF, -0.05, 0.05, -_INF, -0.05, 'turn_right'),
-    (-_INF, -0.05, -0.05, 0.05, 0.05, _INF, 'turn_back_left'),
-    (-_INF, -0.05, -0.05, 0.05, -_INF, -0.05, 'turn_back_right'),
-    (MARCH_FROM, _INF, -0.05, 0.05, -0.05, 0.05, 'jog'),
-    (0.05, MARCH_FROM, -0.05, 0.05, -0.05, 0.05, 'walk'),
-    (-_INF, -0.05, -0.05, 0.05, -0.05, 0.05, 'walk_back'),
+    (-_INF, _INF, _SV, _INF, -_INF, _INF, 'strafe_left'),
+    (-_INF, _INF, -_INF, -_SV, -_INF, _INF, 'strafe_right'),
+    (-_SV, _SV, -_SV, _SV, _SW, _INF, 'spin_left'),
+    (-_SV, _SV, -_SV, _SV, -_INF, -_SW, 'spin_right'),
+    (-_SV, _INF, -_SV, _SV, _SW, _INF, 'turn_left'),
+    (-_SV, _INF, -_SV, _SV, -_INF, -_SW, 'turn_right'),
+    (-_INF, -_SV, -_SV, _SV, _SW, _INF, 'turn_back_left'),
+    (-_INF, -_SV, -_SV, _SV, -_INF, -_SW, 'turn_back_right'),
+    (MARCH_FROM, _INF, -_SV, _SV, -_SW, _SW, 'jog'),
+    (_SV, MARCH_FROM, -_SV, _SV, -_SW, _SW, 'walk'),
+    (-_INF, -_SV, -_SV, _SV, -_SW, _SW, 'walk_back'),
 )
 
 
 def gait_for_twist(vx, vy, wz):
     """The gym's entry a twist walks her by, queried from `GAIT_BOXES`; None at rest."""
-    moving = max(abs(vx), abs(vy), abs(wz)) > 0.05
+    moving = max(abs(vx) / _SV, abs(vy) / _SV, abs(wz) / _SW) > 1.0
     return next((name for x0, x1, y0, y1, z0, z1, name in GAIT_BOXES
                  if moving and x0 <= vx <= x1 and y0 <= vy <= y1 and z0 <= wz <= z1), None)
 
@@ -371,18 +369,29 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
         heard_say_fn(g, gym, by[target])
 
 
-WALK_ON = ('(stream_inject (sequence_id 204) (blend_duration 650ms) (latent_targets (mode_axial_compression 0.03)'
-           ' (mode_pitch_attitude 0.01) (mode_sagittal_shift 0.0) (mode_lateral_shift 0.0) (mode_pelvis_turn 0.0)'
-           ' (mode_stance_width 0.0)) (impedance (stiffness mode_axial_compression 3000) (damping mode_axial_compression 600)'
-           ' (stiffness mode_lateral_shift 3000) (damping mode_lateral_shift 300) (stiffness mode_sagittal_shift 0)'
-           ' (damping mode_sagittal_shift 260) (stiffness mode_foot_rock 2400) (damping mode_foot_rock 240))'
-           ' (cpg_config (enable true) (frequency 1.15Hz) (amplitude mode_lateral_shift 0.28)'
-           ' (amplitude mode_sagittal_drive 0.85) (amplitude mode_limb_lift 1.05) (amplitude mode_foot_rock 0.6)'
-           ' (amplitude mode_pelvis_list 0.4) (amplitude mode_pelvis_turn 0.40) (amplitude mode_arm_swing 0.8)'
-           ' (amplitude mode_stance_width 0.0) (phase_offset mode_lateral_shift mode_sagittal_drive 108deg)'
-           ' (phase_offset mode_pelvis_list mode_sagittal_drive 108deg) (phase_offset mode_pelvis_turn mode_sagittal_drive 0deg)'
-           ' (phase_offset mode_arm_swing mode_sagittal_drive 0deg) (phase_offset mode_foot_rock mode_sagittal_drive 0deg))'
-           ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))')
+_LOOP_G, _MODES_G = gait.table('loop'), gait.table('modes')
+_M_TOT = float(gait._G['mass_kg']) * gait.MASSY
+_M_LEG = float(gait._G['leg_kg']) * gait.MASSY
+_K_WALK, _D_WALK = round(_LOOP_G['height_1_s2'] * _M_TOT, -2), round(_LOOP_G['height_1_s'] * _M_TOT, -1)
+_K_ROCK, _D_ROCK = round(_MODES_G['limb_1_s2'] * _M_LEG, -2), round(_MODES_G['limb_1_s'] * _M_LEG, -1)
+WALK_ON = (
+    '(stream_inject (sequence_id 204) (blend_duration %dms) (latent_targets %s) (impedance %s)'
+    ' (cpg_config (enable true) (frequency %.4gHz) %s %s)'
+    ' (task_constraints (maintain_zmp (polygon dynamic_footprint))))' % (
+        round(750.0 / WALK_HZ),
+        ' '.join('(mode_%s %g)' % kv for kv in (
+            ('axial_compression', 0.03), ('pitch_attitude', 0.01), ('sagittal_shift', 0),
+            ('lateral_shift', 0), ('pelvis_turn', 0), ('stance_width', 0))),
+        ' '.join('(stiffness mode_%s %g) (damping mode_%s %g)' % (m, k, m, d) for m, k, d in (
+            ('axial_compression', _K_WALK, _D_WALK), ('lateral_shift', _K_WALK, 0.5 * _D_WALK),
+            ('sagittal_shift', 0, round(0.4 * _D_WALK, -1)), ('foot_rock', _K_ROCK, _D_ROCK))),
+        WALK_HZ,
+        ' '.join('(amplitude mode_%s %g)' % kv for kv in (
+            ('lateral_shift', 0.28), ('sagittal_drive', 0.85), ('limb_lift', 1.05), ('foot_rock', 0.6),
+            ('pelvis_list', 0.4), ('pelvis_turn', 0.4), ('arm_swing', 0.8), ('stance_width', 0))),
+        ' '.join('(phase_offset mode_%s mode_sagittal_drive %ddeg)' % kv for kv in (
+            ('lateral_shift', 108), ('pelvis_list', 108), ('pelvis_turn', 0),
+            ('arm_swing', 0), ('foot_rock', 0)))))
 _WALK_ON_WIRE = ortho.compiled(WALK_ON)[0]['']
 
 

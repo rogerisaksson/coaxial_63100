@@ -14,97 +14,49 @@ which MuJoCo's parent and child never do; what touches standing is excluded (`ma
 import math
 from typing import Any
 
-from machine.body import drives, linkage
-from machine.body.figure import SEGMENTS, SHANK, THIGH, UPPER_ARM
+from machine.body import drives, linkage, mechatronics
+from machine.body.figure import FOREARM, SEGMENTS, SHANK, THIGH, UPPER_ARM
 
-#: The femur and tibia, her left's, their tubes through these points of their segments' frames, m
-#: (the right's x mirrored), their radii: femur from under the hip's gearbox to over the knee's
-#: motor's middle, clear of the calf's drives and rod folded at 163 deg; tibia from the knee's
-#: gearbox behind the ankle's drives to the ankle, between their rods. Each drum clamped by a
-#: collar (`coaxial.graphics.mechanism`): (joint, its gearbox or motor, y on the segment).
-#: Seven stock sizes in high-modulus carbon: 12x1, 20x1, 25x1, 30x2, 35x2, 40x2, 50x2 mm.
-HUNG = {'thigh': ((((0.034, -0.05, 0.0), (0.0, -0.14, 0.03)),
-                   ((0.0, -0.14, 0.03), (-0.019, 0.05 - THIGH, 0.012))), (0.020, 0.020),
-                  (('hip', 'gear', 0.0), ('knee', 'motor', -THIGH))),
-        'shank': ((((0.0285, -0.045, -0.032), (0.0, -0.17, -0.05)),
-                   ((0.0, -0.17, -0.05), (0.0, 0.06 - SHANK, -0.008), (0.0, 0.035 - SHANK, 0.014)),
-                   ((0.03, 0.02 - SHANK, 0.014), (0.0, 0.035 - SHANK, 0.014),
-                    (-0.03, 0.02 - SHANK, 0.014)),
-                   ((0.03, 0.02 - SHANK, 0.014), (0.03, -SHANK, 0.0)),
-                   ((-0.03, 0.02 - SHANK, 0.014), (-0.03, -SHANK, 0.0))),
-                  (0.020, 0.0175, 0.010, 0.010, 0.010),
-                  (('knee', 'gear', 0.0),)),
-        'upper_arm': ((((0.032, -0.004, 0.0), (0.032, -0.05, 0.0), (0.0, -0.077, 0.0)),
-                       ((-0.014, -0.145, -0.016), (-0.012, -0.19, -0.012), (-0.012, -0.235, -0.01),
-                        (-0.024, 0.042 - UPPER_ARM, 0.0))),
-                      (0.0125, 0.0125), (('elbow', 'motor', -UPPER_ARM),)),
-        'forearm': ((((0.034, -0.037, 0.0), (0.0, -0.055, 0.0)), ((0.0, -0.055, 0.0), (0.0, -0.089, 0.0)),
-                     ((0.0, -0.142, -0.015), (0.0, -0.18, -0.012), (0.0, -0.215, -0.008),
-                      (-0.016, -0.235, 0.0), (-0.016, -0.25, 0.0)),
-                     ((0.0, -0.215, -0.008), (0.013, -0.235, 0.0), (0.013, -0.25, 0.0))),
-                    (0.010, 0.0125, 0.010, 0.010), (('elbow', 'gear', 0.0),)),
-        'foot': ((((0.0, 0.0, -0.026), (0.0, -0.035, -0.032), (0.0, -0.066, -0.045),
-                   (0.0, -0.066, 0.105), (0.0, -0.061, 0.117)),
-                  ((0.0, 0.0, 0.026), (0.0, -0.03, 0.018), (0.0, -0.066, 0.015)),
-                  ((0.012, 0.0047, -0.0174), (0.0, 0.004, -0.024), (-0.016, 0.0057, -0.0213)),
-                  ((-0.03, -0.061, 0.117), (0.03, -0.061, 0.117))), 0.006, ())}
+_SKEL = mechatronics.robot()['skeleton']
+_LIMB_M = {'thigh': THIGH, 'shank': SHANK, 'upper_arm': UPPER_ARM, 'forearm': FOREARM}
 
-#: A crank's radius (a rod's `linkage.ROD_R`).
-CRANK_R = 0.012
 
-#: The pelvis's boom, its radius and the points it runs through, m: 50x2 high-modulus (`HUNG`).
-BOOM = (0.025, ((0.066, 0.062, 0.0), (0.006, -0.03, 0.0), (-0.006, -0.03, 0.0), (-0.066, 0.062, 0.0)))
+def _pt(seg, p):
+    return (float(p[0]), float(p[1]) - (_LIMB_M[seg] if len(p) > 3 and p[3] == 'end' else 0.0), float(p[2]))
 
-#: Her trunk's frame: per frame, tubes through these points, TRUNK_R round, and rings (centre,
-#: axis, radius, half), m in it; carbon tubes cut to length in printed PAHT-CF holders.
-TRUNK_R = {'pelvis': (0.015, 0.015, 0.020), 'spine_roll': (0.007, 0.007), 'spine': (0.020,),
-           'torso': (0.02, 0.015), 'neck': (0.010,)}
-TRUNK = {'pelvis': ((((0.055, 0.045, 0.0), (0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
-                     ((-0.055, 0.045, 0.0), (-0.055, 0.045, 0.066), (0.0, 0.099, 0.066)),
-                     ((0.0, -0.03, 0.0), (0.0, -0.03, -0.06), (0.0, 0.099, -0.066))),
-                    (((0.0, 0.12, 0.066), 'z', 0.009, 0.007),
-                     ((0.0, 0.12, -0.066), 'z', 0.009, 0.007))),
-         'spine_roll': ((((0.0, 0.0, 0.043), (0.0, 0.0, 0.052)),
-                         ((0.0, 0.0, -0.043), (0.0, 0.0, -0.052))),
-                        (((0.0, 0.0, 0.0), 'x', 0.043, 0.008),)),
-         'spine': ((((0.049, 0.0, 0.0), (0.052, 0.048, 0.0), (0.0, 0.062, 0.0)),), ()),
-         'torso': ((((0.0, 0.155, 0.0), (0.0, 0.352, 0.004)),
-                    ((-0.105, 0.325, -0.005), (0.105, 0.325, -0.005))), ()),
-         'neck': ((((0.047, 0.0, 0.0), (0.047, 0.042, 0.0), (0.0, 0.042, 0.012)),), ())}
 
-#: The hip's gimbal (`gimbal`): tubes' radius, roll bearings (radius, half length, z), cradle band.
-FORK_R, CROWN_R, BEARING, BAND = 0.015, 0.005, (0.009, 0.007, 0.060), (0.043, 0.008)
-STEERER_R, ARM_R = 0.0125, 0.0125
+def _collar_y(seg, y):
+    return -_LIMB_M[seg] if y == 'end' else float(y)
 
-#: Each drive held by what carries it - the hip's roll drum, the ankles', the toes' and the boards
-#: held by nothing: its collars, COLLAR_M proud of its drum, each (m from
-#: its middle toward its output, half width); its struts, STRUT_R round - 20 for the rods' 3-4 kN -
-#: unless a third says (the ankle roll's 14: a 20 met the folded femur, 3 mm), (a, b) m in the
-#: frame its drum rides, her left's (the right's x mirrored), from a collar into the fork's back
-#: leg or the tibia. The boards on POSTS into the femur; the ankle's CROSS (pins' radius, half length)
-#: on the stage between its pitch and its roll.
-COLLAR_M, STRUT_R, POST_R = 0.004, 0.010, 0.004
-HELD = {'hip_yaw': (((-0.014, 0.008),), ()),
-        'hip_roll': (((0.018, 0.006), (-0.022, 0.006)),
-                     (((0.02, 0.035, -0.055), (0.009, 0.035, -0.06)),
-                      ((0.02, 0.058, -0.055), (-0.001, 0.059, -0.1)))),
-        'ankle': (((0.0185, 0.006),), (((0.0205, -0.08, -0.019), (0.0205, -0.08, -0.037)),)),
-        'ankle_roll': (((-0.0086, 0.006),),
-                       (((0.0046, -0.15, -0.034), (0.0046, -0.15, -0.047), 0.007),)),
-        'wrist': (((-0.022, 0.005), (0.022, 0.005)), ()),
-        'foot': (((0.0, 0.006),), ()),
-        'spine_roll': (((-0.025, 0.006),), ()),
-        'waist': (((0.025, 0.006), (-0.025, 0.006)), ()), 'neck': (((0.0, 0.006),), ()),
-        'head': (((0.0, 0.005),), ()), 'shoulder': (((-0.02, 0.006),), ())}
-POSTS = {'thigh': (((-0.0019, -0.16, 0.0282), (0.057, -0.16, 0.0282)),
-                   ((-0.0057, -0.20, 0.0246), (0.057, -0.20, 0.0246)))}
-CROSS = ('ankle', 0.007, 0.026)
 
-#: Her skeleton's contacts: her skins and itself (`mjcf.ME`, `MEETS`), its own friction - never
-#: the floor: inside her shell, outside her skins' capsules, the toes' belt's pulley met it as
-#: her sole sank walking and felled her at 6.05 s, a knee's drum landed past its gel, 935 N
-#: against 102 bare.
-CONTYPE, CONAFFINITY, FRICTION = 4, 4, 0.5
+#: Structural chassis tubes, hip gimbals, collars, struts and board posts read from `[skeleton]`
+#: in her build (`machine.body.mechatronics`), with `"end"` points anchored to limb joint lengths.
+HUNG = {seg: (tuple(tuple(_pt(seg, p) for p in run) for run in h['tubes']),
+              tuple(float(r) for r in h['radii']) if isinstance(h['radii'], list) else float(h['radii']),
+              tuple((str(c[0]), str(c[1]), _collar_y(seg, c[2])) for c in h['collars']))
+        for seg, h in _SKEL['hung'].items()}
+CRANK_R = float(_SKEL['crank_r'])
+BOOM = (float(_SKEL['boom']['r']), tuple(tuple(float(v) for v in p) for p in _SKEL['boom']['pts']))
+TRUNK_R = {f: tuple(float(r) for r in t['radii']) for f, t in _SKEL['trunk'].items()}
+TRUNK = {f: (tuple(tuple(tuple(float(v) for v in p) for p in run) for run in t['tubes']),
+             tuple((tuple(float(v) for v in r[0]), str(r[1]), float(r[2]), float(r[3])) for r in t['rings']))
+         for f, t in _SKEL['trunk'].items()}
+_GIM = _SKEL['gimbal']
+FORK_R, CROWN_R = float(_GIM['fork_r']), float(_GIM['crown_r'])
+BEARING = tuple(float(v) for v in _GIM['bearing'])
+BAND = tuple(float(v) for v in _GIM['band'])
+STEERER_R, ARM_R = float(_GIM['steerer_r']), float(_GIM['arm_r'])
+_CROWN_DROP, _LEG_X = float(_GIM['crown_drop']), float(_GIM['leg_x'])
+COLLAR_M = float(_SKEL['collar_m'])
+STRUT_R, POST_R = float(_SKEL['strut_r']), float(_SKEL['post_r'])
+HELD = {k: (tuple((float(c[0]), float(c[1])) for c in h['collars']),
+            tuple((tuple(float(v) for v in s[0]), tuple(float(v) for v in s[1]))
+                  + ((float(s[2]),) if len(s) > 2 else ()) for s in h['struts']))
+        for k, h in _SKEL['held'].items()}
+POSTS = {seg: tuple((tuple(float(v) for v in p[0]), tuple(float(v) for v in p[1])) for p in rows)
+         for seg, rows in _SKEL['posts'].items()}
+CROSS = (str(_SKEL['cross'][0]), float(_SKEL['cross'][1]), float(_SKEL['cross'][2]))
+CONTYPE, CONAFFINITY, FRICTION = 4, 4, float(_SKEL['friction'])
 
 AXES = {'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0), 'z': (0.0, 0.0, 1.0)}
 
@@ -151,8 +103,8 @@ def gimbal(stage):
     thigh = next(s for s in SEGMENTS if s[0] == 'left_thigh')
     top = (drives.mount('left_hip_yaw') or ('', (0.0, 0.0, 0.0)))[1][1] - thigh[3][1] - (
         drives.length('left_hip_yaw') / 2.0)
-    crown = top - 0.01
-    legs = ((-0.02, z), (0.02, -z))
+    crown = top - _CROWN_DROP
+    legs = ((-_LEG_X, z), (_LEG_X, -z))
     tubes = [((0.0, top, 0.0), (0.0, crown, 0.0), STEERER_R)]
     for x, at in legs:
         tubes += [((0.0, crown, 0.0), (x, crown, at), CROWN_R), ((x, crown, at), (x, 0.0, at), FORK_R),

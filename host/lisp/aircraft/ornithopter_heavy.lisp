@@ -1,13 +1,8 @@
-; The ornithopter on a body a quarter heavier, 2.5 kg, its inertia with its mass: its other blocks `ornithopter.lisp`'s,
-; its flights its kind's (`flights/ornithopter.lisp`), nothing of them tuned to it (tools/sim/flights.py flies it).
+; The ornithopter on a 2.5 kg frame (`crafts.toml` `[ornithopter_heavy]`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
 (include "kinematics.lisp")
-
-(defblock rigid_body ornithopter_carapace_body_heavy
-  (use ornithopter_carapace_body)
-  (mass 2.5kg))
 
 (defvehicle ornithopter_dune_heavy
   (use standard_airframe)

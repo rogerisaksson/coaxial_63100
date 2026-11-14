@@ -15,10 +15,11 @@ or 1, a bound a least or a most.
 """
 import math
 
-from machine.aircraft import pull, quad
+from machine.aircraft import compile as aircraft_compile, pull, quad
 from machine.aircraft.aerolisp import CompiledAeroPayload, K_MODES, LATENT_SYMBOL_MAP
 from machine.body.figure import cross
 
+_AK = aircraft_compile.aerokin()
 _IMP, _KIN = quad.DYNAMICS['impedance'], quad.KINEMATICS
 _ENV, _VERT, _HORIZ, _HOLD = (
     _KIN['envelope'], _KIN['vertical'], _KIN['horizontal'], _KIN['hold'])
@@ -30,20 +31,20 @@ _ENV, _VERT, _HORIZ, _HOLD = (
 #: the frame's size 0.76: at 300, 0.06 low and 0.04 high.
 TILT_K, TILT_D = _IMP['stiffness']['attitude_pitch'], _IMP['damping']['attitude_pitch']
 TURN_K, TURN_D = _IMP['stiffness']['pitch_rate'], _IMP['damping']['pitch_rate']
-YAW_D, NOSE_K = _IMP['damping']['attitude_yaw'], 1.0
+YAW_D, NOSE_K = _IMP['damping']['attitude_yaw'], _AK['nose_k']
 
 #: The height's loop, 1/s on its rate, both its poles at half of it; a height is flown to
 #: braked on all the rotors' pull leaves - rising, gravity over their idle - from where the
 #: lead the spool and the pass take ends; a pace come to and stopped from in PACE_S.
-KD, PACE_S = _VERT['settle_kd'], 1.0
+KD, PACE_S = _VERT['settle_kd'], _AK['pace_s']
 
 #: Along the floor: the spot's loop, 1/s^2 and 1/s; its spot goes to its place at HOME_K, 1/s,
 #: HOME_M_S at the most.
-SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = _HORIZ['spot_kp'], _HORIZ['spot_kd'], 1.5, _HORIZ['orbit_speed']
+SPOT_KP, SPOT_KD, HOME_K, HOME_M_S = _HORIZ['spot_kp'], _HORIZ['spot_kd'], _AK['home_k'], _HORIZ['orbit_speed']
 
 #: What the frame is sped up on at the least, of its weight, whatever pull it is given; and
 #: what of its rotors' top a card is planned on: the rest the tilt's and the observers'.
-LEAST, HEADROOM = _ENV['least_pull'], 0.9
+LEAST, HEADROOM = _ENV['least_pull'], _AK['headroom']
 
 #: Held: within this of its height, m, and of its spot, m, this slow, m/s, its axis this
 #: near up, rad - what it may lean into a wind.
@@ -57,7 +58,7 @@ DOING = (None, BURN, FALL)
 
 #: The rotors' axis is asked no further from where it points than this, as its (cos, sin) -
 #: a sixth of a turn; the axis it turns about keeps this much of the last pass's.
-AHEAD, KEEP = (math.cos(math.pi / 3.0), math.sin(math.pi / 3.0)), 0.2
+AHEAD, KEEP = (math.cos(_AK['max_tilt_rad']), math.sin(_AK['max_tilt_rad'])), _AK['keep']
 
 PITCH, ROLL = LATENT_SYMBOL_MAP['mode_attitude_pitch'], LATENT_SYMBOL_MAP['mode_attitude_roll']
 YAW_RATE, PITCH_RATE, ROLL_RATE = (LATENT_SYMBOL_MAP[name] for name in (
@@ -65,7 +66,7 @@ YAW_RATE, PITCH_RATE, ROLL_RATE = (LATENT_SYMBOL_MAP[name] for name in (
 
 #: The force vector's slew: max turn rate, rad/s, acceleration, rad/s^2, and approach slope,
 #: 1/s, within reach; the share of its rate fed onto the frame's when pushed down.
-FORCE_W, FORCE_A, FORCE_K, FORCE_SHARE = 8.0, 200.0, 10.0, 0.25
+FORCE_W, FORCE_A, FORCE_K, FORCE_SHARE = (_AK['force_w'], _AK['force_a'], _AK['force_k'], _AK['force_share'])
 
 #: The law's constants that have a unit, by the powers of their metres and seconds
 #: (`quad.rescaled`).

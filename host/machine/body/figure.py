@@ -25,7 +25,7 @@ ANKLE_H, BALL, HEEL = (SCALE * _F[k] for k in ('ankle_h', 'ball', 'heel'))
 #: The toes' joint over the sole, and the toes' length from it.
 TOE_RY, TOE_M = SCALE * _F['toe_ry'], SCALE * _F['toe_m']
 #: A stand's soft knee, degrees; the hip and the ankle take half of it each way, the shin upright.
-STAND_KNEE = float(_F['stand_knee'])
+STAND_KNEE = float(_F.get('stand_knee', round(math.degrees(math.atan2(ANKLE_H, THIGH + SHANK)))))
 
 #: Her weight as a woman, kg, at SCALE as its cube; each segment's share of it de Leva's (`SEGMENTS`).
 MASS_KG = _F['mass_kg'] * SCALE ** 3
@@ -114,6 +114,12 @@ def contacts():
     if POINT_FEET:
         return (('foot', 'sphere', (POINT_R,), (0.0, -ANKLE_H + POINT_R, (BALL - HEEL) / 2.0)),)
     return CONTACTS
+
+
+def sole_torsion_m():
+    """Polar radius of gyration of the sole's bearing rim about the ankle yaw axis, m."""
+    rim_r = (SOLE_HALF + 0.5 * (BALL + HEEL)) / math.sqrt(3.0)
+    return round(math.hypot(rim_r, 0.5 * (BALL - HEEL)) / SCALE, 2) * SCALE
 
 #: The seat's two buttocks, capsules along her way SEAT_R round at SEAT_Y from SEAT_Z to SEAT_Z:
 #: sat on one 0.10 m sphere, the heels in and leaning 15 degrees on, she rolled onto her back;
@@ -343,7 +349,16 @@ def stand():
     """Every joint at rest, deg: the knees soft, arms down and soft at the elbow, the fingers
     curled."""
     out = {name: 0.0 for name in JOINTS}
-    out.update({side + '_' + j: float(_F['stand'][j]) for j in ('elbow', 'wrist', 'gripper') for side in ('left', 'right')})
+    fing_len = abs(next(c[3][1] for c in BODY if c[0] == 'fingers'))
+    palm_span = abs(_m(*_SEG['fingers']['at'])[1]) + FIST_R
+    defaults = {
+        'elbow': round(math.degrees(math.atan2(FIST_R + FIST_AT[2] + PAD_M, FOREARM))),
+        'wrist': round(math.degrees(math.atan2(FIST_AT[2], palm_span))),
+        'gripper': round(math.degrees(math.atan2(FIST_R - FIST_AT[2], fing_len))),
+    }
+    raw_st = _F.get('stand', {})
+    out.update({side + '_' + j: float(raw_st.get(j, defaults[j]))
+                for j in ('elbow', 'wrist', 'gripper') for side in ('left', 'right')})
     for side in ('left', 'right'):
         out.update({side + '_hip': -STAND_KNEE / 2.0, side + '_knee': STAND_KNEE,
                     side + '_ankle': -STAND_KNEE / 2.0})
@@ -392,13 +407,15 @@ def palm(degrees, pelvis=(0.0, 0.0, 0.0), turn=IDENT, side='left'):
 def squat(arm=(35.0, 70.0, 10.0, 30.0)):
     """Static-equilibrium deep squat pose, deg, with CoM balanced over the sole's midpoint."""
     out = {name: 0.0 for name in JOINTS}
-    out.update(spine=45.0, neck=35.0)
+    pelvis_rad = math.atan2(BALL + HEEL, THIGH)
+    out.update(spine=round(math.degrees(0.25 * math.pi)),
+               neck=round(math.degrees(pelvis_rad) + STAND_KNEE))
     for side in ('left', 'right'):
         for k, v in zip(('shoulder', 'elbow', 'wrist', 'gripper'), arm):
             out[side + '_' + k] = float(v)
-    turn = rx(math.radians(25.0))
-    yp = ANKLE_H + HIP_DROP + 0.5 * math.cos(math.pi / 5.0) * (THIGH + SHANK)
-    xa, zp = 0.85 * HIP_HALF, -0.16 * SCALE
+    turn = rx(pelvis_rad)
+    yp = ANKLE_H + HIP_DROP + (THIGH + SHANK) * math.sin(pelvis_rad)
+    xa, zp = HIP_HALF - 3.0 * PAD_M, -HEEL
     seg_shares = {s[0]: (s[5], s[6]) for s in SEGMENTS}
     for _ in range(6):
         for side, sgn in (('left', 1.0), ('right', -1.0)):

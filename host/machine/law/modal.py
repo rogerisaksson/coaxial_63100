@@ -26,12 +26,12 @@ from machine.law import rocker
 from machine.moves import leap
 from machine.texts import ortho
 from machine.stack import rounds
-from machine.body import gait, terms
+from machine.body import compile as _compile, gait, terms
 from machine.body.figure import ANKLE_H, SHANK, THIGH
 from machine.law.poise import TINY, clip
 from machine.law.stride import ALONG, LEFT, LIMBS, UP
 
-G = 9.81
+G = _compile.G_M_S2
 N = ortho.N
 (AXIAL, LATERAL, DRIVE, PITCH, SAGITTAL, LIFT, WIDTH, LIST, TURN, ARMS,
  ROCK, REACH, ELBOWS) = (ortho.MODES.index(m) for m in (

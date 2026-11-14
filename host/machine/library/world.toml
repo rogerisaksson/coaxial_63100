@@ -1,0 +1,87 @@
+# Physical environment, atmosphere, contact mechanics, flight pack, instruments and weather
+# (`mechatronics.environment()`).
+
+g_m_s2 = 9.81
+air_kg_m3 = 1.2
+ambient_c = 25.0
+step_s = 0.001
+load_s = 0.02
+substeps = 5
+mu_dry = 0.80
+kinetic_share = 0.75
+cone = "elliptic"
+impratio = 10.0
+joint_damping = 0.3
+stand_m = 1.3
+stand_solref_s = 0.005
+touched_n = 5.0
+
+# MuJoCo hardware-in-the-loop plant switches and fault-injection fixtures (`machine.world.physics`).
+[simulation]
+reflected = 1.0
+placed = 1.0
+backdrive = 1.0
+skeleton = 0.0
+wound = 1.0
+boxed = 0.0
+room = 0.0
+camera = 0.0
+sight = 0.0
+envelope = 1.0
+soa_rds = 50.0
+warm_c = 100.0
+virtual_span_deg = 150.0
+virtual_slew_deg_s = 1500.0
+
+# Overhead pelvic safety harness and 6-axis load-cell fixture (`machine.world.harness`): damping
+# ratio relative to critical and natural frequency (rad/s) on pelvic translation and rotation.
+[harness]
+zeta = 0.70
+place_rad_s = 11.4
+turn_rad_s = 11.5
+
+# High-discharge 15S LiPo flight battery pack (`machine.aircraft.flightpack`).
+[flight_pack]
+series = 15
+ah = 1.0
+ohm = 0.04
+reserve = 0.20
+cell_v = [[0.0, 3.30], [0.05, 3.50], [0.2, 3.70], [0.5, 3.85], [0.9, 4.05], [1.0, 4.20]]
+
+# Airborne navigation sensors: MEMS INS (BMI055/MTi-680G class), RTK GNSS and star tracker (`aircraft.senses`).
+[instruments]
+att_deg = 0.2
+att_s = 10.0
+gyro_deg_s_rt_hz = 0.014
+acc_ug_rt_hz = 150.0
+gnss = [20.0, 0.06, 0.02, 0.03]
+star = [5.0, 0.1, 20.0]
+lose_s = 90.0
+lost_s = [8.0, 15.0]
+keep_s = 0.5
+
+# Atmospheric boundary-layer wind, gust and eddy field (`machine.aircraft.weather`).
+[weather]
+kind_s = 20.0
+ease_s = 8.0
+turn_deg = 120.0
+gust_s = [4.0, 8.0]
+gust_share = [0.6, 1.0]
+gust_deg = 30.0
+eddy_s = 1.5
+eddy_disc_s = 0.3
+eddy_disc = 0.5
+eddy_up = 0.5
+ref_m = 5.0
+shear = 0.2
+shear_m = 0.1
+shear_most = 1.5
+rise_m = 3.0
+discs = 4
+
+[weather.kinds]
+calm = [0.5, 0.0, 0.0, 0.0, 0.0, 0.1]
+constant = [4.0, 0.0, 0.0, 0.0, 0.0, 0.2]
+gusty = [3.0, 15.0, 8.0, 4.0, 5.0, 0.5]
+changing = [3.5, 80.0, 30.0, 1.0, 9.0, 0.3]
+turbulent = [2.5, 25.0, 6.0, 2.0, 6.0, 1.2]

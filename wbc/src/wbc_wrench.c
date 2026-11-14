@@ -21,9 +21,6 @@
 #define UPPER (WBC_DRIVEN - 12)
 
 static const double G = 9.81;
-static const double HELD_K = 50.0, CONTACT_K = 20.0, MOMENTUM_K = 3.0, HEIGHT_BAND = 3.0;
-static const double TURN_KP = 100.0, TURN_KD = 20.0, POSTURE_KP = 100.0, POSTURE_KD = 20.0;
-static const double SWING_KP = 1600.0, SWING_KD = 80.0;
 /** machine/stack/wrench.py's: a sole's edge, m; a leg's solve's damping; the rows' weights. */
 static const double EDGE_M = 0.003, DAMP = 0.02;
 static const double W_COM = 1000.0, W_TURN = 30.0, W_SWING = 30.0, W_KNEE = 3.0, W_POSTURE = 1.0;
@@ -252,7 +249,7 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
   }
   for (int k = 0; k < WBC_HELD; k++)
   {
-    w->t0[5 + wbc_held[k]] = -HELD_K * u[5 + wbc_held[k]];
+    w->t0[5 + wbc_held[k]] = -wbc_loop[WBC_LOOP_HELD_K] * u[5 + wbc_held[k]];
   }
   for (int i = 0; i < UPPER; i++)
   {
@@ -340,7 +337,7 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
 
         for (int r = 0; r < 6; r++)
         {
-          v += inv[i][r] * (ask->settle[k][r] - drift[r] - CONTACT_K * twist[r]);
+          v += inv[i][r] * (ask->settle[k][r] - drift[r] - wbc_loop[WBC_LOOP_CONTACT_K] * twist[r]);
         }
         w->t0[dof[i]] = v;
       }
@@ -350,9 +347,10 @@ static void maps(wbc_body_t *b, wbc_wrench_t *w, const double u[WBC_N], const wb
     wbc_turn_error(ask->swing_quat[k], have, err);
     for (int i = 0; i < 3; i++)
     {
-      a6[6 * k + i] = TURN_KP * err[i] - TURN_KD * twist[i];
-      a6[6 * k + 3 + i] = ask->swing_acc[k][i] + SWING_KP * (ask->swing_at[k][i] - w->sole_p[k][i])
-                          + SWING_KD * (ask->swing_speed[k][i] - twist[3 + i]);
+      a6[6 * k + i] = wbc_loop[WBC_LOOP_TURN_KP] * err[i] - wbc_loop[WBC_LOOP_TURN_KD] * twist[i];
+      a6[6 * k + 3 + i] = ask->swing_acc[k][i]
+                          + wbc_loop[WBC_LOOP_SWING_KP] * (ask->swing_at[k][i] - w->sole_p[k][i])
+                          + wbc_loop[WBC_LOOP_SWING_KD] * (ask->swing_speed[k][i] - twist[3 + i]);
     }
     asked[k] = 1.0;
     for (int i = 0; i < 6; i++)
@@ -498,7 +496,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   const double origin[3] = {0.0, 0.0, 0.0};
   const double stance[2] = {ask->stance[0] ? 1.0 : 0.0, ask->stance[1] ? 1.0 : 0.0};
   const double grounded = (stance[0] > stance[1]) ? stance[0] : stance[1];
-  const double mass = wbc_total_mass, lo = ask->com_acc[1] - HEIGHT_BAND, hi = ask->com_acc[1] + HEIGHT_BAND;
+  const double hband = wbc_loop[WBC_LOOP_HEIGHT_BAND];
+  const double mass = wbc_total_mass, lo = ask->com_acc[1] - hband, hi = ask->com_acc[1] + hband;
   double       want[WBC_DRIVEN], a6[12], asked[2], com[3], k3[3], row[NU], part[NU];
   double       a[6][6], ai[6][6], d[6], mbt[6][6], own[NU], whole[NU], stood[NU];
 
@@ -511,7 +510,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
   {
     const int dof = 5 + wbc_driven[j];
 
-    want[j] = POSTURE_KP * (ask->posture[j] - b->q[dof - 6]) - POSTURE_KD * u[dof];
+    want[j] = wbc_loop[WBC_LOOP_POSTURE_KP] * (ask->posture[j] - b->q[dof - 6])
+              - wbc_loop[WBC_LOOP_POSTURE_KD] * u[dof];
   }
   maps(b, w, u, ask, want, a6, asked);
 
@@ -610,7 +610,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       {
         spin += w->jac[i][n] * u[n];
       }
-      lay(w, row, TURN_KP * err[i] - TURN_KD * spin - drift[i] - rest, -drift[i] - rest, W_TURN * grounded * asks);
+      lay(w, row, wbc_loop[WBC_LOOP_TURN_KP] * err[i] - wbc_loop[WBC_LOOP_TURN_KD] * spin
+          - drift[i] - rest, -drift[i] - rest, W_TURN * grounded * asks);
     }
   }
   /* an unknown asked alone: its own weight on the diagonal */
@@ -637,7 +638,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       memset(pick, 0, sizeof(pick));
       pick[5 + wbc_knee[k]] = 1.0;
       left[k] = over(w, pick, bends[k]);
-      rhs += stance[k] * ((want[w->leg[k][3]] + POSTURE_KD * ask->knee_rate[k]) - left[k]);
+      rhs += stance[k] * ((want[w->leg[k][3]] + wbc_loop[WBC_LOOP_POSTURE_KD] * ask->knee_rate[k]) - left[k]);
       none -= stance[k] * left[k];
       for (int c = 0; c < NU; c++)
       {
@@ -650,8 +651,9 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       const int    knee = 5 + wbc_knee[k];
       const double bend = b->q[knee - 6];
 
-      lay(w, bends[k], ask->fold_acc[k] + SWING_KP * (ask->fold_knee[k] - bend)
-          + SWING_KD * (ask->fold_rate[k] - u[knee]) - left[k], -left[k], ask->fold[k] ? W_FOLD : 0.0);
+      lay(w, bends[k], ask->fold_acc[k] + wbc_loop[WBC_LOOP_SWING_KP] * (ask->fold_knee[k] - bend)
+          + wbc_loop[WBC_LOOP_SWING_KD] * (ask->fold_rate[k] - u[knee]) - left[k],
+          -left[k], ask->fold[k] ? W_FOLD : 0.0);
     }
   }
   /* the master insert's buffers: each joint sprung back, critically damped, from its width
@@ -682,7 +684,8 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
       row[6 * k + 3 + (i + 1) % 3] = -stance[k] * r[(i + 2) % 3];
       row[6 * k + 3 + (i + 2) % 3] = stance[k] * r[(i + 1) % 3];
     }
-    lay(w, row, ask->kdot_given ? ask->kdot[i] : -MOMENTUM_K * k3[i], 0.0, W_MOMENT * grounded);
+    lay(w, row, ask->kdot_given ? ask->kdot[i] : -wbc_loop[WBC_LOOP_MOMENTUM_K] * k3[i],
+        0.0, W_MOMENT * grounded);
   }
   for (int c = 0; c < NU; c++)
   {
@@ -698,7 +701,7 @@ void wbc_wrench_step(wbc_body_t *b, wbc_wrench_t *w, const wbc_frame_t *base,
 
   /* the ask's answer, and nothing's: every acceleration 0, her weight borne, by the same rows */
   if (!solved(b, w, ask, stance, grounded, lo, hi, w->g, part, own, mbt, whole)
-      || !solved(b, w, ask, stance, grounded, -HEIGHT_BAND, HEIGHT_BAND, w->gn, part, own, mbt, stood))
+      || !solved(b, w, ask, stance, grounded, -hband, hband, w->gn, part, own, mbt, stood))
   {
     return;
   }

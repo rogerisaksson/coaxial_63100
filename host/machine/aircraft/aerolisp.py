@@ -6,6 +6,7 @@ import re
 import struct
 from typing import Any
 
+from machine.aircraft import compile as aircraft_compile
 from machine.aircraft.aeroblocks import (AERO_BLOCKS, ALL_BLOCK_KINDS, DYN_BLOCKS, GATES, KIN_BLOCKS,
                                          STUNT_FIELDS, compile_section, copy_base, dyn_impedance, kv_block)
 from machine.body import mechatronics
@@ -53,7 +54,7 @@ class AeroLispCompiler:
 
     def __init__(self, symbols=None):
         self.latent_dim = K_MODES
-        self.symbols = {'MAX_SYS_K': 8000.0, **(symbols or {})}
+        self.symbols = {'MAX_SYS_K': aircraft_compile.MAX_SYS_K, **(symbols or {})}
         self.state = None
 
     def _val(self, v):
@@ -189,7 +190,10 @@ def compiled(text, symbols=None):
     return [c.compile(s) for s in read(text)]
 
 
-def payload_to_row(p, base_row, hover_thrust=19.62, orbit_speed=3.0):
+_DEF_HOVER_N, _DEF_ORBIT_M_S = aircraft_compile.defaults()
+
+
+def payload_to_row(p, base_row, hover_thrust=_DEF_HOVER_N, orbit_speed=_DEF_ORBIT_M_S):
     """Translate a `CompiledAeroPayload` `p` into a stunt row dict overlaid on `base_row`."""
     row, t, nan = dict(base_row), p.latent_targets, math.isnan
     for bit, i in ((1, 0), (2, 1)):
@@ -249,7 +253,8 @@ def _compile_phase_or_stage(row, tag, stunts, c, beh_c=None, prev_row=None):
         base = dict(stunts[props['stunt']] if 'stunt' in props
                     else (prev_row or stunts.get('hover') or next(iter(stunts.values()), {})))
         props.update(payload=p, stunt=props.get('stunt', 'stream'),
-                     row=payload_to_row(p, base, c.symbols.get('HOVER_THRUST', 19.62)) if p is not None else base)
+                     row=payload_to_row(p, base, c.symbols.get('HOVER_THRUST', _DEF_HOVER_N),
+                                        c.symbols.get('ORBIT_SPEED', _DEF_ORBIT_M_S)) if p is not None else base)
     return props
 
 
@@ -344,8 +349,8 @@ def _apply_manifest_form(form, out, c, base_dir, seen):
 
 def compile_manifest(text, symbols=None, base_dir=_BASE_DIR):
     c = AeroLispCompiler(symbols)
-    out = {'includes': [], 'blocks': {}, 'vehicle': None, 'aerodynamics': {}, 'dynamics': {},
-           'kinematics': {}, 'streams': [], 'stunts': {}, 'behaviors': {}, 'routines': {}}
+    out = {'includes': [], 'blocks': aircraft_compile.blocks(), 'vehicle': None, 'aerodynamics': {},
+           'dynamics': {}, 'kinematics': {}, 'streams': [], 'stunts': {}, 'behaviors': {}, 'routines': {}}
     for f in _trees(text):
         if not isinstance(f, list) or not f:
             raise SyntaxError(f'invalid form {f!r}')

@@ -33,7 +33,7 @@ import math
 import os
 import re
 import struct
-from machine.body import gait, mechatronics
+from machine.body import gait, mechatronics, peripherals
 from machine.texts.curves import QUINTICS
 
 _FILE = os.path.join(mechatronics.HUMANOID, mechatronics.ROBOT + '.lisp')
@@ -46,8 +46,7 @@ _FILE = os.path.join(mechatronics.HUMANOID, mechatronics.ROBOT + '.lisp')
 #: pitch, 1 ahead. Her pelvis's list, 1 her first hip up, and its turn, 1 her other hip
 #: forward; her arms' swing, 1 her first arm ahead; her soles' rock, 1 her first heel up and
 #: the other's toes; her arms' reach, 1 both ahead; their fold, 1 both elbows bent.
-MODES = ('axial_compression', 'lateral_shift', 'sagittal_drive', 'pitch_attitude', 'sagittal_shift',
-         'limb_lift', 'stance_width', 'pelvis_list', 'pelvis_turn', 'arm_swing', 'foot_rock', 'arm_reach', 'arm_fold')
+MODES = mechatronics.MODES
 N = len(MODES)
 #: A row's parameters, one vector: each mode's target, stiffness, damping, amplitude and phase
 #: (rad); then her rhythm's gain (0 off, 1 on) and Hz, her ZMP's polygon (0 none, 1 the
@@ -80,7 +79,8 @@ SHAPES = tuple(QUINTICS)
 SHAPE_BIT = 4
 _CLEAR = float('nan')
 #: A name that is a number (or `none` / `unsaid` to clear an inherited parameter back to NaN).
-SYMBOLS = {'MAX_SYS_K': 8.0e4, 'true': 1.0, 'false': 0.0, 'support_polygon': 1.0, 'dynamic_footprint': 2.0,
+SYMBOLS = {'MAX_SYS_K': peripherals.bus()['max_sys_k'], 'true': 1.0, 'false': 0.0,
+           'support_polygon': 1.0, 'dynamic_footprint': 2.0,
            'none': _CLEAR, 'unsaid': _CLEAR, 'nan': _CLEAR}
 
 _UNIT = re.compile(r'(-?\d+(?:\.\d+)?)(ms|s|Hz|deg)')

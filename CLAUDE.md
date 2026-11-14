@@ -68,6 +68,23 @@ is set up by the repository's own setup, never by installs picked by hand:
 3. Every shell afterwards: `. .\env.ps1`. The machine is ready when
    `.\setup.ps1 -Check` exits 0 and `test_depends` passes here and with
    `--linux` (the same modules as CI).
+4. **Static Meta-Compiler (`compile.py`):** Declarative `.toml` specs
+   (`host/machine/library/*.toml`, `host/machine/humanoids/<robot>.toml`, and
+   `host/machine/aircraft/crafts.toml`) state only physical, mechanical, and
+   electronic construction. On first run or after any `.toml` edit,
+   `host/machine/body/compile.py` and `host/machine/aircraft/compile.py`
+   solve and cache derived parameters under `.cache/compiled/` (keyed by
+   content hash via `mechatronics.compiled`). Query compiled outputs directly
+   (set `COAXIAL_ROBOT=<build>` to switch humanoid builds) and regenerate
+   checked-in static tables whenever a `.toml` spec changes:
+
+   ```powershell
+   python -X utf8 -c "from machine.body import compile; print(compile.servos())"
+   python -X utf8 -c "from machine.aircraft import compile; print(compile.blocks())"
+   python -X utf8 host/tools/cores/manifest.py --write
+   python -X utf8 host/tools/cores/model.py --write
+   python -X utf8 host/tools/sim/dimensions.py --write
+   ```
 
 ---
 

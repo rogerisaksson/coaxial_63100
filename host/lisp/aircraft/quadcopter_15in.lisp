@@ -1,15 +1,8 @@
-; The quad on 15 in props for its 16s, their pitch with their diameter (a 15x13.1): its thrust at a speed by the
-; diameter's fourth power, its drag by its fifth, its disc and its pitch's speed by the first - its other blocks
-; `quadcopter.lisp`'s, its flights its kind's (`flights/quadcopter.lisp`), nothing of them tuned to it
-; (tools/sim/flights.py flies it).
+; The quad on 15 in props (`crafts.toml` `[quadcopter_15in]`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
 (include "kinematics.lisp")
-
-(defblock rotors quad_x_15x13
-  (use quad_x_16x14)
-  (disc_radius 0.1905m))
 
 (defvehicle quadcopter_15in
   (use standard_airframe)

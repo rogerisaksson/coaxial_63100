@@ -20,40 +20,49 @@ the air (1 as built; a blocked one runs hot), `rds` the switches' on-resistance 
 gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 """
 
-#: The switches' on-resistance and the shunts', ohm (IAUCN10S7N021, two WSHM2818 in parallel);
-#: the housekeeping's always (MCU, regulators, AFE): thermal.c's loss table; idle, a board draws
-#: about 1.4 W. 2nd-order silicon temperature coefficients of RDS_OHM (thermal.c).
-RDS_OHM, RDS_ALPHA, RDS_BETA, SHUNT_OHM, HOUSEKEEPING_W = 1.8e-3, 4.6e-3, 1.2e-5, 3.5e-3, 1.33
+from machine.body import drives, mechatronics, peripherals
+
+_env = mechatronics.environment()
+_INV = mechatronics.library()['inverters']['coaxial_63100']
+_TH = peripherals.thermal()
+_COOL = peripherals.cooling()
+
+#: The switches' on-resistance and the shunts', ohm (`inverters.toml`); housekeeping watts;
+#: 2nd-order silicon temperature coefficients of RDS_OHM (`thermal.c`).
+RDS_OHM, RDS_ALPHA, RDS_BETA, SHUNT_OHM, HOUSEKEEPING_W = (
+    float(_INV[k]) for k in ('rds_ohm', 'rds_alpha', 'rds_beta', 'shunt_ohm', 'housekeeping_w'))
+_DRY_24V_W, _DRY_W_PER_V = float(_INV['dry_loss_24v_w']), float(_INV['dry_loss_w_per_v'])
 
 
-def dry_loss(volts=48.0):
-    """The three legs' dry switching loss, W: 2.4 W at 24 V to 4.4 W at 44 V (0.1 W/V)."""
-    return 2.4 + 0.1 * (float(volts) - 24.0)
+def dry_loss(volts=None):
+    """The three legs' dry switching loss, W, linear from 24 V (`inverters.toml`)."""
+    v = drives.PACK_V if volts is None else float(volts)
+    return _DRY_24V_W + _DRY_W_PER_V * (v - 24.0)
 
 
-#: Switching watts with gates on, unshorted, at nominal 48 V bus (bench fit: 2.4 W at 24 V to 4.4 W at 44 V).
-SWITCHING_W = dry_loss(48.0)
+#: Switching watts with gates on, unshorted, at nominal pack voltage (`drives.PACK_V`).
+SWITCHING_W = dry_loss(drives.PACK_V)
 
 #: The nodes: the switches, the laminate under them, the coaxial aluminium stator-housing, the winding.
-#: The switches', laminate's, and default coaxial stator-housing's heat capacity, J/K, and paths, K/W.
+#: Heat capacities, J/K, and thermal resistances, K/W (`inverters.toml`, `drives.stator`).
 NODES = ('switch', 'laminate', 'stator', 'winding')
-SWITCH_J_K, LAMINATE_J_K, INTO_K_W = 0.35, 16.0, 4.0
-STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, CLOTH_AIR_DEFAULT = 240.0, 0.60, 1.35
+SWITCH_J_K, LAMINATE_J_K, INTO_K_W = (
+    float(_INV[k]) for k in ('switch_j_k', 'laminate_j_k', 'into_k_w'))
+STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, CLOTH_AIR_DEFAULT = drives.stator('left_knee')
 
-#: Each node's ceiling, C (the record's: the drivers' copper, the laminate, the stator, the winding),
-#: and the FETs' junction limit over the switches by RTH_JC K/W a FET's watts (the sheet's).
-CEILING_C, TJ_MAX_C, RTH_JC = (125.0, 105.0, 120.0, 120.0), 175.0, 0.69
+#: Each node's ceiling, C, and the FETs' junction limit over the switches by RTH_JC K/W (`inverters.toml`).
+CEILING_C = tuple(float(x) for x in _INV['ceiling_c'])
+TJ_MAX_C, RTH_JC = float(_INV['tj_max_c']), float(_INV['rth_jc'])
 
-#: The room, C; heat's seconds a second of the clock (the stand-in's: a 7 min board constant
-#: shows in 40 s).
-AMBIENT_C, HASTE = 25.0, 10.0
+#: Ambient temperature, C (`world.toml`); heat's seconds per clock second in the stand-in.
+AMBIENT_C, HASTE = float(_env['ambient_c']), _TH['haste']
 
 #: The envelope (thermal.c): the derate 1 at THROTTLE_AT of a node's span spent and 0 at its
 #: ceiling, a node's hold inside LOOKAHEAD_S counted as spent; down at once, up RECOVER_PER_S a
 #: heat second. A trip drops the gates and trims every ceiling to TRIP_MARGIN of its span, given
 #: back TRIP_RECOVER_PER_S a heat second.
-THROTTLE_AT, LOOKAHEAD_S, RECOVER_PER_S = 0.90, 2.0, 0.05
-TRIP_MARGIN, TRIP_RECOVER_PER_S = 0.70, 0.30 / 1800.0
+THROTTLE_AT, LOOKAHEAD_S, RECOVER_PER_S = _TH['throttle_at'], _TH['lookahead_s'], _TH['recover_per_s']
+TRIP_MARGIN, TRIP_RECOVER_PER_S = _TH['trip_margin'], _TH['trip_recover_per_s']
 
 #: The status word: the gates on, the phases shorted, and the worst node's index above
 #: WORST_SHIFT.
@@ -64,21 +73,22 @@ class Heat:
 
     """Drives' heat and envelopes, an array a quantity, a drive an index."""
 
-    def __init__(self, drives, volts=48.0):
+    def __init__(self, drives_spec, volts=None):
         import ctypes
         import numpy as np
         from tools.cores import wbc as cores
-        n = len(drives)
-        self.volts = float(volts)
-        self.switching_w = dry_loss(volts)
+        n = len(drives_spec)
+        v_pack = drives.PACK_V if volts is None else float(volts)
+        self.volts = v_pack
+        self.switching_w = dry_loss(v_pack)
         #: Each drive's torque an amp, winding ohm, board scale, winding J/K and K/W, laminate
         #: K/W (`drives.heat`), plus coaxial stator J/K, mount K/W, and clothing insulation.
         self.kt, self.r, self.scale, self.winding_j_k, self.winding_k_w, self.laminate_k_w = (
-            [float(d[i]) for d in drives] for i in range(6))
-        self.stator_j_k = [float(d[6]) if len(d) > 6 else STATOR_J_K_DEFAULT for d in drives]
-        self.mount_k_w = [float(d[7]) if len(d) > 7 else MOUNT_K_W_DEFAULT for d in drives]
-        self.cloth_air = [float(d[8]) if len(d) > 8 else CLOTH_AIR_DEFAULT for d in drives]
-        self.ratio = [float(d[9]) if len(d) > 9 else 80.0 for d in drives]
+            [float(d[i]) for d in drives_spec] for i in range(6))
+        self.stator_j_k = [float(d[6]) if len(d) > 6 else STATOR_J_K_DEFAULT for d in drives_spec]
+        self.mount_k_w = [float(d[7]) if len(d) > 7 else MOUNT_K_W_DEFAULT for d in drives_spec]
+        self.cloth_air = [float(d[8]) if len(d) > 8 else CLOTH_AIR_DEFAULT for d in drives_spec]
+        self.ratio = [float(d[9]) if len(d) > 9 else drives.RATIO for d in drives_spec]
         self.capacity = [(SWITCH_J_K, LAMINATE_J_K, s_c, w_c)
                          for s_c, w_c in zip(self.stator_j_k, self.winding_j_k)]
         self.t = np.full((n, len(NODES)), AMBIENT_C)
@@ -138,15 +148,16 @@ class Heat:
         self._h.at = seconds
 
     @classmethod
-    def for_joints(cls, joints=None, volts=48.0):
+    def for_joints(cls, joints=None, volts=None):
         """Construct a coaxial 4-node `Heat` observer for all joints in `figure.JOINTS`."""
-        from machine.body import drives
         from machine.body.figure import JOINTS
         names = JOINTS if joints is None else joints
+        def_h = drives.heat('left_knee')
         specs = []
         for j in names:
             if drives.passive(j):
-                specs.append((1.0, 0.0, 0.0, 100.0, 10.0, 10.0, STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, 1.0, 1.0))
+                specs.append((1.0, 0.0, 0.0, def_h[3], def_h[4], def_h[5],
+                              STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, 1.0, 1.0))
             else:
                 specs.append(drives.heat(j) + drives.stator(j) + (drives.ratio(j),))
         inst = cls(specs, volts=volts)
@@ -210,11 +221,10 @@ class Heat:
                 | int(self.worst[k]) << WORST_SHIFT)
 
 
-def held(joint, volts=48.0):
+def held(joint, volts=None):
     """(N m, node) a joint's drive holds for ever at its envelope's THROTTLE_AT: its nodes'
     steady state (no hold left to count) bisected on the torque, the node that binds there
     (NODES)."""
-    from machine.body import drives
     kt, r, scale, _wj, winding_k_w, laminate_k_w = drives.heat(joint)
     _sj, mount_k_w, _ca = drives.stator(joint)
     sw_w = dry_loss(volts)
@@ -248,13 +258,10 @@ def held(joint, volts=48.0):
 
 #: Default finned aluminium heatsink block (conducting heat from power switches and shunts) and
 #: temperature-controlled cooling fan parameters (`finned_aluminium_fan_sink` in `dynamics.lisp`).
-DEFAULT_COOLING = {
-    'sink_mass': 0.085, 'sink_capacity': 180.0,
-    'r_switches_to_sink': 3.0, 'r_shunts_to_sink': 1.5,
-    'r_sink_to_air_natural': 2.5, 'r_sink_to_air_forced': 0.25,
-    'fan_temp_on': 45.0, 'fan_temp_full': 80.0,
-    'fan_idle_duty': 0.0, 'fan_max_airflow': 14.0, 'fan_max_rpm': 8000.0,
-}
+DEFAULT_COOLING = {k: v for k, v in _COOL.items()
+                   if k not in ('switch_pkg_j_k', 'shunt_pkg_j_k', 'ram_air_share')}
+_SW_PKG_J_K, _SH_PKG_J_K = _COOL['switch_pkg_j_k'], _COOL['shunt_pkg_j_k']
+_RAM_AIR_SHARE = _COOL['ram_air_share']
 
 
 def fan_duty(temp_c, cooling=None):
@@ -280,7 +287,7 @@ def sink_r_to_air(temp_c, airspeed_m_s=0.0, cooling=None):
     g_nat = 1.0 / max(1e-6, float(c['r_sink_to_air_natural']))
     g_for = 1.0 / max(1e-6, float(c['r_sink_to_air_forced']))
     max_flow = max(1e-6, float(c['fan_max_airflow']))
-    share = min(1.0, (fan_airflow(temp_c, c) + 0.35 * max(0.0, float(airspeed_m_s))) / max_flow)
+    share = min(1.0, (fan_airflow(temp_c, c) + _RAM_AIR_SHARE * max(0.0, float(airspeed_m_s))) / max_flow)
     return 1.0 / (g_nat + share * (g_for - g_nat))
 
 
@@ -305,7 +312,7 @@ def step_cooling(state, switch_watts, shunt_watts, dt, airspeed_m_s=0.0, cooling
     r_sw = max(1e-6, float(c['r_switches_to_sink']))
     r_sh = max(1e-6, float(c['r_shunts_to_sink']))
     c_sink = max(1.0, float(c['sink_capacity']))
-    c_sw, c_sh = 4.5, 3.6
+    c_sw, c_sh = _SW_PKG_J_K, _SH_PKG_J_K
     amb = float(state.get('ambient_c', AMBIENT_C))
     t_sw = float(state.get('switches_c', amb))
     t_sh = float(state.get('shunts_c', amb))
@@ -338,7 +345,7 @@ def step_cooling(state, switch_watts, shunt_watts, dt, airspeed_m_s=0.0, cooling
     return state
 
 
-def step_board_cooling(state, amps, volts=48.0, dt=0.02, airspeed_m_s=0.0, cooling=None,
+def step_board_cooling(state, amps, volts=None, dt=0.02, airspeed_m_s=0.0, cooling=None,
                        switching=True):
     """Step a 63100 board's finned aluminium heatsink and fan at `amps` A and `volts` V."""
     sq = float(amps) ** 2

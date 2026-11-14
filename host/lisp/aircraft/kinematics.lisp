@@ -1,55 +1,5 @@
-; General kinematic envelope, trajectory, oscillator, and stunt blocks (`kinematics.lisp`).
-
-(defblock envelope standard_arena_envelope
-  (floor_height 0.1m)
-  (hover_height 0.3m)
-  (high_height 0.75m)
-  (top_height 1.5m)
-  (least_pull 1.5)
-  (hover_lean 8.0m_s2)
-  (sky_lean 8.0m_s2))
-
-(defblock envelope aerobat_envelope
-  (use standard_arena_envelope)
-  (floor_height 0.74m)
-  (hover_height 0.9m)
-  (high_height 6.0m)
-  (top_height 6.0m))
-
-(defblock vertical vertical_climb_brake
-  (climb_speed 4.0m_s)
-  (descent_speed 2.0m_s)
-  (settle_kp 6.4))
-
-(defblock horizontal orbit_circle
-  (orbit_radius 2.0m)
-  (orbit_speed 3.0m_s)
-  (spot_kp 1.95)
-  (spot_kd 2.94))
-
-(defblock oscillator base_tictoc_oscillator
-  (tictoc_frequency 1.25Hz)
-  (tictoc_amplitude 45.0deg))
-
-(defblock oscillator heli_tictoc_oscillator
-  (use base_tictoc_oscillator)
-  (tictoc_amplitude 52.0deg))
-
-(defblock oscillator ornithopter_flap_oscillator
-  (use base_tictoc_oscillator)
-  (tictoc_frequency 1.35Hz)
-  (tictoc_amplitude 48.0deg))
-
-(defblock oscillator aerobat_harrier_oscillator
-  (use base_tictoc_oscillator)
-  (tictoc_frequency 1.25Hz)
-  (tictoc_amplitude 54.0deg))
-
-(defblock hold hold_tolerances
-  (height_tol 0.03m)
-  (speed_tol 0.15m_s)
-  (spot_tol 0.15m)
-  (tilt_tol 0.5rad))
+; Shared kinematic envelope, trajectory, oscillator and stunt primitives (`kinematics.lisp`);
+; kinematic blocks come from `aircraft/crafts.toml` via `machine.aircraft.compile`.
 
 (defkinematics shared
   (use standard_arena_envelope)

@@ -1,0 +1,182 @@
+# Physical, electromechanical and aerodynamic construction of every craft and variant
+# (`mechatronics.crafts()`, compiled by `machine.aircraft.compile`).
+# All thrust/drag polars, rigid-body inertias, heatsink capacities, governor speeds, attitude
+# impedances, ESO bandwidths and trajectory gains are derived by `machine.aircraft.compile`.
+
+[shared]
+motor = "outrunner_63100_14p"
+inverter = "coaxial_63100"
+step_s = 0.002
+parasite_cda = 0.15
+inflow_j0 = 1.05
+inflow_floor = 0.35
+foot_r_m = 0.015
+
+[shared.arena]
+floor_m = 0.10
+hover_m = 0.30
+high_m = 0.75
+top_m = 1.50
+least_pull = 1.5
+hover_lean_m_s2 = 8.0
+climb_m_s = 4.0
+descent_m_s = 2.0
+orbit_r_m = 2.0
+orbit_m_s = 3.0
+tictoc_hz = 1.25
+tictoc_deg = 45.0
+height_tol_m = 0.03
+speed_tol_m_s = 0.15
+spot_tol_m = 0.15
+tilt_tol_rad = 0.50
+
+[shared.gimbal]
+mount = [0.0, -0.07, 0.12]
+tilt_deg = 8.0
+tilts_deg = [-70.0, 35.0]
+most_deg = 40.0
+nose_m_s = 1.0
+
+[quadcopter]
+kind = "rotors"
+mass_kg = 2.0
+rotors = 4
+arm_m = 0.30
+disc_height_m = 0.06
+diameter_m = 0.4064
+pitch_m = 0.3556
+disc_half_m = 0.008
+prop_kgm2 = 3.3e-4
+ct = 0.13283
+cp = 0.07715
+skid_h_m = 0.12
+hub_m = [0.06, 0.03, 0.06]
+
+[quadcopter_15in]
+extends = "quadcopter"
+diameter_m = 0.3810
+
+[quadcopter_heavy]
+extends = "quadcopter"
+mass_kg = 2.5
+
+[helicopter]
+kind = "main_rotor"
+mass_kg = 2.0
+disc_height_m = 0.22
+diameter_m = 1.250
+pitch_m = 0.3556
+collective_deg = 14.0
+cyclic_deg = 10.0
+ct = 0.0059264
+cp = 0.00028015
+cyclic_share = 0.0910
+profile_drag_share = 0.35
+induced_drag_share = 1.65
+cyclic_drag_share = 0.50
+tail_boom_m = 0.85
+tail_diameter_m = 0.220
+tail_pitch_deg = 16.0
+tail_ct = 1.05329
+gyration_m = [0.130384, 0.153297, 0.107238]
+skid_h_m = 0.15
+skid_span_m = 0.17
+strut_aft_m = -0.10
+strut_fore_m = 0.16
+head_tip_m_s = 225.0
+tail_tip_ratio = 0.944444
+tail_drive_ratio = 0.88
+tictoc_deg = 52.0
+drive_load = { main_base = 0.42, main_collective = 1.65, main_cyclic = 0.55, main_ceiling = 1.25, tail_base = 0.25, tail_pitch = 1.25, tail_ceiling = 1.00 }
+
+[helicopter_heavy]
+extends = "helicopter"
+mass_kg = 2.5
+
+[ornithopter]
+kind = "flapping_wings"
+mass_kg = 2.0
+wing_span_m = 0.56
+wing_chord_m = 0.085
+shoulder_x_m = 0.068
+fore_z_m = 0.085
+aft_z_m = -0.055
+shoulder_y_m = 0.048
+stroke_deg = 38.0
+pitch_deg = 24.0
+sweep_fold_deg = 52.0
+gear_ratio = 6.0
+beat_pulse = 0.30
+ct_stroke = 0.50945
+cp_stroke = 0.01297
+cl_glide = 0.16
+pitch_lever_share = 0.04036
+roll_lever_share = 0.04260
+yaw_lever_share = 0.06726
+gyration_m = [0.109545, 0.126491, 0.094868]
+skid_h_m = 0.135
+skid_span_m = 0.130
+strut_aft_m = -0.09
+strut_fore_m = 0.14
+drive_rad_s = 365.0
+aft_speed_ratio = 0.972603
+aft_drive_ratio = 0.94
+tictoc_hz = 1.35
+tictoc_deg = 48.0
+drive_load = { main_base = 0.44, main_collective = 1.65, main_cyclic = 0.55, main_ceiling = 1.25, tail_base = 0.40, tail_pitch = 1.35, tail_ceiling = 1.20 }
+
+[ornithopter_heavy]
+extends = "ornithopter"
+mass_kg = 2.5
+
+[aerobat]
+kind = "aero_surfaces"
+mass_kg = 2.0
+parasite_cda = 0.016
+wing_span_m = 1.40
+wing_chord_m = 0.28
+prop_diameter_m = 0.4318
+prop_pitch_m = 0.2032
+prop_z_m = 0.356
+prop_kgm2 = 0.0004
+ct = 0.081670
+cp = 0.040831
+tail_arm_m = 0.484
+stab_area_m2 = 0.046
+fin_area_m2 = 0.035
+cl_alpha = 4.2
+cd0 = 0.035
+cd_induced = 0.085
+elevator_deg = 45.0
+aileron_deg = 38.0
+rudder_deg = 48.0
+propwash_share = 0.85
+cm_elev = 0.0046681
+cl_ail = 0.00055095
+cn_rud = 0.0069717
+stall_deg = 15.0
+stall_blend_deg = 8.0
+alpha_run_deg = 10.0
+climb_deg = 12.0
+pitch_rest_deg = 78.0
+harrier_deg = 16.0
+roll_mu = 0.30
+tail_contact_m = 0.03
+gyration_m = [0.187083, 0.151658, 0.215639]
+skid_h_m = 0.264
+skid_span_m = 0.147
+strut_aft_m = -0.819
+strut_fore_m = 0.093
+drive_rad_s = 365.0
+vect_speed_ratio = 0.945205
+vect_drive_ratio = 0.90
+tictoc_deg = 54.0
+floor_m = 0.74
+hover_m = 0.90
+high_m = 6.0
+top_m = 6.0
+drive_load = { main_base = 0.34, main_collective = 0.66, main_cyclic = 0.72, main_ceiling = 2.50, tail_base = 0.32, tail_pitch = 1.15, tail_ceiling = 1.15 }
+
+[aerobat_heavy]
+extends = "aerobat"
+mass_kg = 2.3
