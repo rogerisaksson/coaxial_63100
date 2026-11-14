@@ -2,8 +2,13 @@
 """The offline gate on Linux, here: GitHub's runner as a container on this host's engine.
 
     python -X utf8 tools/dev/run_tests.py --linux [--python 3.12] [the relay's own arguments]
+    python -X utf8 tools/dev/run_tests.py --linux --arch arm64 --isa sme2 --cpu max,sve-default-vector-length=64
     python -X utf8 tools/dev/linux.py --build [--fresh]   # the runner's images alone; --fresh: from scratch
     python -X utf8 tools/dev/linux.py --kept              # whether each stands: 0 where all do
+
+--arch arm64: the runner as an arm64 image, its processor emulated by the engine's QEMU (binfmt) - --cpu its
+QEMU_CPU (the vector lengths: sve-default-vector-length, sme-default-vector-length, in bytes); --isa her cores'
+target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of host.yml's, which an x86 runner's is.
 
 What .github/workflows/host.yml runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
 its Ubuntu release (`runs-on`), the archive's amd64v3 builds where this processor runs them, as the runner's
@@ -44,6 +49,11 @@ WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'host.yml', REPO / '.git
 PROCESSORS, MEMORY = 4, '16g'
 #: The runner's user and its id; the image's name, its tag a release and a Python.
 USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
+#: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
+#: runner's first.
+ARCHS = {'amd64': 'x64', 'arm64': 'arm64'}
+#: host.yml's gate's keys an x86 runner's alone: numpy's x86 sets disabled, her cores' x86 target.
+X86_ENV = ('NPY_DISABLE_CPU_FEATURES', 'COAXIAL_ISA')
 #: Where a container is shown its processors online: glibc counts them there, and os.cpu_count with it.
 ONLINE = '/sys/devices/system/cpu/online'
 #: The relay's arguments that ask for this host - a board, a model, a benchmark's priority -: not a container's.
@@ -97,13 +107,26 @@ def engine():
     return client
 
 
-def built(info, minor, fresh=False):
-    """The runner's image for Python `minor`, built by the engine's command line (BuildKit, each step kept; from
-    scratch where `fresh`) of the Dockerfile, the requirements, their lock and the package's build: its tag."""
+def tagged(info, minor, arch='amd64'):
+    """The tag of the runner's image for Python `minor` on `arch`: the runner's arch unnamed."""
+    return '%s:%s-%s%s' % (IMAGE, info['release'], minor, '' if arch == next(iter(ARCHS)) else '-' + arch)
+
+
+def environment(info, arch='amd64', isa=None, cpu=None):
+    """A container's environment: host.yml's gate's - on another arch than the runner's without its x86 keys
+    (X86_ENV) -, her cores' target `isa` where given (COAXIAL_ISA), the emulated processor `cpu` (QEMU_CPU)."""
+    env = {k: v for k, v in info['env'].items() if arch == next(iter(ARCHS)) or k not in X86_ENV}
+    env.update({k: v for k, v in (('COAXIAL_ISA', isa), ('QEMU_CPU', cpu)) if v})
+    return env
+
+
+def built(info, minor, fresh=False, arch='amd64'):
+    """The runner's image for Python `minor` on `arch`, built by the engine's command line (BuildKit, each step kept;
+    from scratch where `fresh`) of the Dockerfile, the requirements, their lock and the package's build: its tag."""
     program = shutil.which('docker')
     if program is None:
         raise SystemExit("linux: the engine's command line (docker) is not on PATH - a shell opened after its install")
-    tag = '%s:%s-%s' % (IMAGE, info['release'], minor)
+    tag = tagged(info, minor, arch)
     context = io.BytesIO()
     # ustar: the command line tells a context from a Dockerfile by its first 512 bytes, and a pax header's
     # record (a file's mtime to the nanosecond) ends past them - the archive was read as a Dockerfile
@@ -116,8 +139,10 @@ def built(info, minor, fresh=False):
             tar.add(str(lock), arcname='constraints.txt')
         else:       # no lock yet (before its first laying): every version as the requirements allow
             tar.addfile(tarfile.TarInfo('constraints.txt'))
-    told = {'RELEASE': info['release'], 'PYTHON': minor, 'APT': ' '.join(info['apt']), 'USER': USER, 'UID': UID}
-    argv = [program, 'build', '--progress', 'plain', '--tag', tag] + (['--pull', '--no-cache'] if fresh else [])
+    told = {'RELEASE': info['release'], 'PYTHON': minor, 'APT': ' '.join(info['apt']), 'USER': USER, 'UID': UID,
+            'ARCH': ARCHS[arch]}
+    argv = [program, 'build', '--progress', 'plain', '--tag', tag, '--platform', 'linux/' + arch] + (
+        ['--pull', '--no-cache'] if fresh else [])
     for key, value in told.items():
         argv += ['--build-arg', '%s=%s' % (key, value)]
     print('linux: image %s - built where its inputs changed, minutes the first time' % tag, flush=True)
@@ -129,13 +154,13 @@ def built(info, minor, fresh=False):
     return tag
 
 
-def kept(client, info, pythons):
-    """{Python: whether its image stands on the engine}."""
+def kept(client, info, pythons, arch='amd64'):
+    """{Python: whether its image on `arch` stands on the engine}."""
     from docker.errors import ImageNotFound
     stands = {}
     for minor in pythons:
         try:
-            client.images.get('%s:%s-%s' % (IMAGE, info['release'], minor))
+            client.images.get(tagged(info, minor, arch))
             stands[minor] = True
         except ImageNotFound:
             stands[minor] = False
@@ -268,21 +293,28 @@ def main(argv=None):
     parser.add_argument('--build', action='store_true', help='build the images and stop')
     parser.add_argument('--fresh', action='store_true', help='build them from scratch, the base pulled anew')
     parser.add_argument('--kept', action='store_true', help='whether each image stands: 0 where all do')
+    parser.add_argument('--arch', choices=list(ARCHS), default=next(iter(ARCHS)),
+                        help="the image's architecture: arm64 emulated by the engine's QEMU")
+    parser.add_argument('--isa', help="her cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--cpu', help="with --arch arm64: the emulated processor (QEMU_CPU)")
     args, relayed = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
     hosts = [arg for arg in relayed if arg.split('=', 1)[0] in HOSTS]
     if hosts:
         raise SystemExit('linux: %s asks for this host - a board, a model, a benchmark -: the container runs the '
                          'offline gate' % ' '.join(hosts))
+    if args.cpu and args.arch == next(iter(ARCHS)):
+        raise SystemExit('linux: --cpu is the emulated processor of an --arch arm64 image')
     info = workflow()
     pythons = args.python or info['pythons']
     if not set(pythons) <= set(info['pythons']):
         raise SystemExit("linux: host.yml's matrix is %s" % ', '.join(info['pythons']))
     client = engine()
     if args.kept:
-        stands = kept(client, info, pythons)
+        stands = kept(client, info, pythons, args.arch)
         print(', '.join('%s %s' % (minor, ('missing', 'kept')[ok]) for minor, ok in stands.items()))
         return 0 if all(stands.values()) else 1
-    tags = [built(info, minor, args.fresh) for minor in pythons]
+    tags = [built(info, minor, args.fresh, args.arch) for minor in pythons]
+    info = dict(info, env=environment(info, args.arch, args.isa, args.cpu))
     if args.build:
         return 0
     found = cores(client, tags[0])

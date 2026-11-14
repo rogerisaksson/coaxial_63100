@@ -234,6 +234,14 @@ def test_the_runner_here_is_host_yml_s(report):
             '-c /tmp/inputs/constraints.txt' in image]
     report.check("host.yml's environment held to its lock: the file there, CI installing through it and keying its "
                  "cached environment by it, the runner's image installing through it", all(held), held)
+    arm = linux.environment(info, 'arm64', 'sme2', 'max,sve-default-vector-length=64')
+    own = linux.environment(info)
+    report.check("an arm64 container: host.yml's environment without its x86 keys, her target and QEMU's processor "
+                 "named; the runner's as host.yml's; each image its own tag, the arch the image's build is told",
+                 not set(linux.X86_ENV) & set(arm) - {'COAXIAL_ISA'} and arm['COAXIAL_ISA'] == 'sme2'
+                 and arm['QEMU_CPU'] == 'max,sve-default-vector-length=64' and own == info['env']
+                 and linux.tagged(info, '3.12') != linux.tagged(info, '3.12', 'arm64') and '"${ARCH}"' in image,
+                 '%s | %s' % (arm, linux.tagged(info, '3.12', 'arm64')))
 
 
 def test_the_gate_builds_her_c_for_its_target(report):

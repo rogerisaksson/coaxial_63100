@@ -137,9 +137,12 @@ def _options(argv):
                              "a container a Python of host.yml's matrix, side by side")
     parser.add_argument('--python', action='append',
                         help="with --linux: this Python of host.yml's matrix alone (repeatable)")
+    parser.add_argument('--arch', help="with --linux: the image's architecture - arm64 emulated (linux.py)")
+    parser.add_argument('--isa', help="with --linux: her cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--cpu', help='with --linux --arch arm64: the emulated processor (QEMU_CPU)')
     args = parser.parse_args(argv)
-    if args.python and not args.linux:
-        parser.error('--python goes with --linux')
+    if (args.python or args.arch or args.isa or args.cpu) and not args.linux:
+        parser.error('--python, --arch, --isa and --cpu go with --linux')
     if args.float:
         from machine.process.placed import FLOAT
         os.environ[FLOAT] = '1'

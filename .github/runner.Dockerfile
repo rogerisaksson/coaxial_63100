@@ -1,10 +1,12 @@
 # GitHub's runner of the host's gate (.github/workflows/host.yml) as an image here, built and run by
 # host/tools/dev/linux.py (run_tests.py --linux), which passes host.yml's own choices as the arguments below:
-# its Ubuntu release, its apt packages, its Python. Built of this file, host/requirements.txt and
+# its Ubuntu release, its apt packages, its Python; and its processor's architecture as actions/python-versions
+# names it (x64; arm64 for an arm64 image, linux.py --arch). Built of this file, host/requirements.txt and
 # host/pyproject.toml alone.
 ARG RELEASE=latest
 FROM ubuntu:${RELEASE}
 ARG PYTHON
+ARG ARCH=x64
 ARG APT=""
 ARG USER=runner
 ARG UID=1001
@@ -36,8 +38,8 @@ USER ${USER}
 # installed into the tool cache by its own setup.sh, run by bash as setup-python runs it.
 RUN . /etc/os-release; \
     url=$(curl -fsSL --retry 5 https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json \
-      | python3 -c 'import json, sys; m, v = sys.argv[1:]; print(next(f["download_url"] for r in json.load(sys.stdin) if r["stable"] and r["version"].startswith(m + ".") for f in r["files"] if (f["platform"], f.get("platform_version"), f["arch"]) == ("linux", v, "x64")))' \
-        "${PYTHON}" "${VERSION_ID}"); \
+      | python3 -c 'import json, sys; m, v, a = sys.argv[1:]; print(next(f["download_url"] for r in json.load(sys.stdin) if r["stable"] and r["version"].startswith(m + ".") for f in r["files"] if (f["platform"], f.get("platform_version"), f["arch"]) == ("linux", v, a)))' \
+        "${PYTHON}" "${VERSION_ID}" "${ARCH}"); \
     mkdir /tmp/python; \
     curl -fsSL --retry 5 "${url}" | tar -xz -C /tmp/python; \
     (cd /tmp/python && bash ./setup.sh > /dev/null); \
@@ -47,7 +49,7 @@ RUN . /etc/os-release; \
 # requirements and what the package's build asks, each at the version host.yml's lock pins (host/constraints.txt,
 # tools/dev/pinned.py) as the desk's and CI's are; the package itself is installed at each run.
 COPY --chown=${USER} requirements.txt constraints.txt pyproject.toml /tmp/inputs/
-RUN python=$(ls -d "${RUNNER_TOOL_CACHE}/Python/${PYTHON}".*/x64/bin/python3 | sort -V | tail -1); \
+RUN python=$(ls -d "${RUNNER_TOOL_CACHE}/Python/${PYTHON}".*/"${ARCH}"/bin/python3 | sort -V | tail -1); \
     "${python}" -m venv "/home/${USER}/.ci-venv"; \
     build=$("/home/${USER}/.ci-venv/bin/python" -c "import sys, tomllib; print(' '.join(tomllib.load(open(sys.argv[1], 'rb'))['build-system']['requires']))" /tmp/inputs/pyproject.toml); \
     "/home/${USER}/.ci-venv/bin/python" -m pip install -q --retries 10 --timeout 60 -r /tmp/inputs/requirements.txt \

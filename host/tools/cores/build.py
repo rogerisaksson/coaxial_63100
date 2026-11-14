@@ -19,9 +19,11 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
 #: Her cores' targets by name (COAXIAL_ISA), each one's flags: AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as
-#: x86-64-v3, AVX-512 as x86-64-v4 (their FMA unused: nothing contracted); a processor running them as isa.c
+#: x86-64-v3, AVX-512 as x86-64-v4 (their FMA unused: nothing contracted); SVE2 as Armv9-A, SME2 over Armv9.2-A -
+#: her generated programs that call nothing streaming there (`emit.STREAMING`); a processor running them as isa.c
 #: reads it (`held`).
-TARGETS = {'avx': ('-march=x86-64-v2', '-mavx'), 'avx2': ('-march=x86-64-v3',), 'avx512': ('-march=x86-64-v4',)}
+TARGETS = {'avx': ('-march=x86-64-v2', '-mavx'), 'avx2': ('-march=x86-64-v3',), 'avx512': ('-march=x86-64-v4',),
+           'sve2': ('-march=armv9-a',), 'sme2': ('-march=armv9.2-a+sme2',)}
 #: The probe of which of them this processor runs.
 ISA_C = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'isa.c')
 
