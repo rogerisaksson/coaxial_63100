@@ -34,23 +34,23 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
       moved[b][j] = y[k->y_vsole + 3 * b + j] - y[k->y_vcom + j];
     }
   }
-  npmmt(&moved[0][0], 2, &frame[0][0], &speed[0][0]);
-  npmmt(&arm[0][0], 2, &frame[0][0], &at[0][0]);
+  wbc_mm3(&k->blas, &moved[0][0], 2, &frame[0][0], 1, &speed[0][0]);
+  wbc_mm3(&k->blas, &arm[0][0], 2, &frame[0][0], 1, &at[0][0]);
   for (int m = 0; m < k->n; m++)
   {
     w[m] = (s->ref[m] - npeye(m, k->axial) * npmin(s->ref[k->axial], 0.0)) - fr[k->f_z0 + m];
   }
-  npein(k->n, s->hands, w, e);
+  npein(k->n, s->hands, w, e, k->blas.einsum[1]);
   for (int i = 0; i < 6; i++)
   {
     off3[0][i / 3][i % 3] = e[i] - at[i / 3][i % 3];
   }
-  npein(k->n, s->hands, s->rate, e);
+  npein(k->n, s->hands, s->rate, e, k->blas.einsum[1]);
   for (int i = 0; i < 6; i++)
   {
     off3[1][i / 3][i % 3] = e[i] - speed[i / 3][i % 3];
   }
-  npein(k->n, s->hands, s->acc, e);
+  npein(k->n, s->hands, s->acc, e, k->blas.einsum[1]);
   for (int i = 0; i < 6; i++)
   {
     off3[2][i / 3][i % 3] = e[i];
@@ -79,7 +79,7 @@ void wbc_imp_swings(const wbc_imp_t *k, const double *y, const double *fr, const
       }
     }
   }
-  npmmt(soles, 2, rot, &sr[0][0]);
+  wbc_mm3(&k->blas, soles, 2, rot, 1, &sr[0][0]);
   for (int b = 0; b < 2; b++)
   {
     aloft[b] = stood * (1.0 - stance[b]);
@@ -138,7 +138,7 @@ void wbc_imp_rested(const wbc_imp_t *k, const wbc_imp_said_t *s, double held, do
                    - s->kd[k->free_by[j]] * shod[b][j];
     }
   }
-  npmm(&kept[0][0], rot, &kw[0][0]);
+  wbc_mm3(&k->blas, &kept[0][0], 2, rot, 0, &kw[0][0]);
   for (int b = 0; b < 2; b++)
   {
     const double rest = (((1.0 - npclip(held, 0.0, 1.0)) * grounded) * aloft[b]) * (1.0 - limbs[b] * grounded);

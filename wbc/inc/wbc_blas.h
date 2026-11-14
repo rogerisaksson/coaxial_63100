@@ -9,7 +9,9 @@
 #include <stdint.h>
 
 /** numpy's OpenBLAS: cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot and LAPACK's dgesv, dpotrf, dgeqrf and
-    dorgqr (its linalg's cholesky and qr), each as numpy's umath_linalg calls it. */
+    dorgqr (its linalg's cholesky and qr), each as numpy's umath_linalg calls it; and the order numpy's einsum sums
+    her hand ports' two in here (npsumof's `order`, an index of tools.cores.orders.ORDERS): 'nia,ia->n' of six
+    contiguous, then 'nia,n->ia'. */
 typedef struct
 {
   void   (*gemm)(int order, int ta, int tb, int64_t m, int64_t n, int64_t k, double alpha, const double *a,
@@ -26,6 +28,7 @@ typedef struct
                   const int64_t *lwork, int64_t *info);
   void   (*orgqr)(const int64_t *m, const int64_t *n, const int64_t *k, double *a, const int64_t *lda, const double *tau,
                   double *work, const int64_t *lwork, int64_t *info);
+  int32_t einsum[2];
 } wbc_blas_t;
 
 /** An array's view: its first element and its strides, elements. */
@@ -39,6 +42,13 @@ typedef struct
     view of one row or one column: numpy's 1-d operand, its length n. */
 void wbc_matmul(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, double *o, ptrdiff_t o_m, ptrdiff_t o_p, int m,
                 int n, int p);
+
+/** numpy's `m @ v` of a C-ordered (r, c) m and a contiguous v (c,), into o (r,) (`wbc_matmul`'s gemv). */
+void wbc_mv(const wbc_blas_t *l, const double *m, int r, int c, const double *v, double *o);
+
+/** numpy's `a @ b` of a C-ordered (r, 3) a and (3, 3) b - `b.T` where `bt` -, into a C-ordered o (r, 3)
+    (`wbc_matmul`'s gemm). */
+void wbc_mm3(const wbc_blas_t *l, const double *a, int r, const double *b, int bt, double *o);
 
 /** numpy's 1-d `a @ b`, `n` long, at strides sa and sb. */
 double wbc_dot(const wbc_blas_t *l, const double *a, ptrdiff_t sa, const double *b, ptrdiff_t sb, int n);

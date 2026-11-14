@@ -45,10 +45,12 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
   {
     const double *r = t->xmat + 9 * t->ids[t->core[b]], *tc = touch + 3 * t->core[b];
     const double  size = sqrt((tc[0] * tc[0] + tc[1] * tc[1]) + tc[2] * tc[2]);
+    double        turned[3];
 
+    wbc_mv(&k->blas, r, 3, 3, tc, turned);
     for (int j = 0; j < 3; j++)
     {
-      f[j] = f[j] + npmv3(r + 3 * j, tc);
+      f[j] = f[j] + turned[j];
     }
     c_max = b == 0 ? size : npmaximum(c_max, size);
   }
@@ -142,18 +144,19 @@ void wbc_touch_step(const wbc_imp_t *k, const wbc_touch_t *t, const double asked
 
     for (int j = 0; j < 2; j++)
     {
-      const int     seg = t->soles[s][j];
-      const double *rs = t->xmat + 9 * t->ids[seg], *ts = touch + 3 * seg;
+      const int seg = t->soles[s][j];
 
-      for (int c = 0; c < 3; c++)
-      {
-        pushed[s][j][c] = npmv3(rs + 3 * c, ts);
-      }
+      wbc_mv(&k->blas, t->xmat + 9 * t->ids[seg], 3, 3, touch + 3 * seg, pushed[s][j]);
       sizes[s][j] = sqrt(wbc_dot(&k->blas, pushed[s][j], 1, pushed[s][j], 1, 3));
     }
-    for (int p = 0; p < 2; p++)
     {
-      tip[p] = xp[1] + npmm3(t->tips + 3 * p, r + 3, 1);
+      double tips[2][3];
+
+      wbc_mm3(&k->blas, t->tips, 2, r, 1, &tips[0][0]);
+      for (int p = 0; p < 2; p++)
+      {
+        tip[p] = xp[1] + tips[p][1];
+      }
     }
     lowest[s] = npminimum(tip[0], tip[1]);
     aloft[s] = npclip(1.0 - a[k->a_stance + s], 0.0, 1.0);

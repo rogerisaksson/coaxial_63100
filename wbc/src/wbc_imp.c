@@ -25,7 +25,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   double        z[WBC_IMP_N], zd[WBC_IMP_N], zdd[WBC_IMP_N], leg[2][3], len[2], lrate[2], turn[3][2], spun[3][2];
   double        c[3], v[3], vh[3], om, om2, shod[2][3], sr[2][3], flat[2][2], xi[2], low[2][2], high[2][2];
   double        floors[2], rise, still, dvh[3];
-  double        way4[4][3], plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
+  double        plo[2], phig[2], propped, lo[2][2], hi[2][2], slo[2], shi[2], beyond[2], edge0[2];
   double        smax, stepping, way, swung, rate[2], sweep[2], phi[2], on[2], off[2], u[2], flying[2], fl2[2], pre[2], kpf[2], kdf[2];
   double        aside[2], hurry[2], limbs[2], tone[3], cruise, pace, lat0, lat_dc, across, e[6], both[2], up[2], zmp[2];
   double        stance[2], grounded, aloft[2], bears[2], along[2], gd, reach, meet[2][2], tip[2], tipping[2];
@@ -39,18 +39,15 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
 
   memset(&s, 0, sizeof s);
   wbc_imp_reading(k, y, fr, stood, z, zd, leg, len, lrate, turn, spun);
-  for (int j = 0; j < 3; j++)
-  {
-    c[j] = npmv3(rot + 3 * j, y + k->y_com);
-    v[j] = npmv3(rot + 3 * j, y + k->y_vcom);
-    vh[j] = npmv3(rot + 3 * j, y + k->y_vhead);
-  }
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_com, c);
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_vcom, v);
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_vhead, vh);
   om = sqrt(k->g / npmax(c[2] - fr[k->f_floor], k->low_m));
   om2 = pow(om, 2.0);
   /* how far round her rhythm a limb swings this pass: her drive's pace within her going's band (stride.swings) */
   phi_w = wbc_imp_swing_w(k, sway[k->drive], turns, a[k->a_going]);
-  npmmt(y + k->y_vsole, 2, rot, &shod[0][0]);
-  npmmt(y + k->y_sole, 2, rot, &sr[0][0]);
+  wbc_mm3(&k->blas, y + k->y_vsole, 2, rot, 1, &shod[0][0]);
+  wbc_mm3(&k->blas, y + k->y_sole, 2, rot, 1, &sr[0][0]);
   for (int b = 0; b < 2; b++)
   {
     flat[b][0] = sr[b][0];
@@ -61,37 +58,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   xi[1] = c[1] + v[1] / om;
   wbc_imp_boxes(k, flat, edge0, tilt, low, high);
   rise = wbc_imp_under(k, y, fr, stood, floors);
-  /* what bears her off her soles, in her way's frame */
-  {
-    const double xs[2] = {y[k->y_prop_lo], y[k->y_prop_hi]}, zs[2] = {y[k->y_prop_lo + 2], y[k->y_prop_hi + 2]};
-    const double corner[4][3] = {{xs[0], 0.0, zs[0]}, {xs[0], 0.0, zs[1]}, {xs[1], 0.0, zs[0]}, {xs[1], 0.0, zs[1]}};
-
-    npmmt(&corner[0][0], 4, rot, &way4[0][0]);
-  }
-  /* her support's comparator, the master insert's: latched from its engage, let go under its
-     release held its dwell, never within its strike's blanking; its box held under the release */
-  {
-    const double share = y[k->y_prop] + (y[k->y_palms] + y[k->y_palms + 1]), latched = a[k->a_propped];
-    const double struck = (1.0 - latched) * (double)(share >= k->prop_engage);
-    const double under = latched * (double)(share < k->prop_release);
-    double       freed;
-
-    a[k->a_propped_below] = under * (a[k->a_propped_below] + fr[k->f_dt]);
-    a[k->a_propped_since] = (1.0 - struck) * (a[k->a_propped_since] + fr[k->f_dt]);
-    freed = (under * (double)(a[k->a_propped_since] >= k->prop_blank_s)) * (double)(a[k->a_propped_below] >= k->prop_dwell_s);
-    a[k->a_propped] = (latched + struck) - freed;
-    for (int j = 0; j < 2; j++)
-    {
-      const double lo_j = npmin(npmin(npmin(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
-      const double hi_j = npmax(npmax(npmax(way4[0][j], way4[1][j]), way4[2][j]), way4[3][j]);
-
-      a[k->a_propped_box + j] = share >= k->prop_release ? lo_j : a[k->a_propped_box + j];
-      a[k->a_propped_box + 2 + j] = share >= k->prop_release ? hi_j : a[k->a_propped_box + 2 + j];
-      plo[j] = a[k->a_propped_box + j];
-      phig[j] = a[k->a_propped_box + 2 + j];
-    }
-    propped = a[k->a_propped];
-  }
+  /* what bears her off her soles, on her support's comparator (wbc_latched.c) */
+  propped = wbc_imp_latched(k, y, fr, rot, a, plo, phig);
   /* the lift's own rhythm is her stride's clearance */
   {
     const double beat = psi[k->lift];
@@ -251,12 +219,12 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
   }
   /* her limbs' places as her modes ask them; their sum's acceleration is her centre of mass's */
-  npein(n, s.hands, zdd, e);
+  npein(n, s.hands, zdd, e, k->blas.einsum[1]);
   both[0] = ((0.0 + e[0]) + e[3]) / 2.0;
   both[1] = ((0.0 + e[1]) + e[4]) / 2.0;
   swaying = (fabs((s.ref[k->lateral] - lat_dc) - z[k->lateral]) < k->on[0])
             && (fabs(s.rate[k->lateral] - zd[k->lateral]) < k->on[1]);
-  npmmt(y + k->y_hip, 2, rot, &hip3[0][0]);
+  wbc_mm3(&k->blas, y + k->y_hip, 2, rot, 1, &hip3[0][0]);
   hips[0] = hip3[0][0];
   hips[1] = hip3[1][0];
   l_ask = fr[k->f_reach0] - (k->axial_m * fr[k->f_hips_by]) * npmax(s.ref[ax], 0.0);
@@ -316,7 +284,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
   a[k->a_prefold + 1] = fold[1];
   wbc_imp_heels(k, sr, tilt, tilting, hips, floors, l_ask, shorter, off, tip,
                 stance, stepping, a + k->a_heeled, fr[k->f_dt], fr + k->f_ground, rocked, flatten, edge, rounds, reach_h);
-  npmm(&rounds[0][0], rot, &rr[0][0]);
+  wbc_mm3(&k->blas, &rounds[0][0], 2, rot, 0, &rr[0][0]);
   for (int b = 0; b < 2; b++)
   {
     a[k->a_heeled + b] = rocked[b];
@@ -412,7 +380,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
       loose[b][j] = loose[b][j] + trails[b] * (npeye(2, j) * hang - loose[b][j]);
     }
   }
-  npmm(&loose[0][0], &frame[0][0], &ff[0][0]);
+  wbc_mm3(&k->blas, &loose[0][0], 2, &frame[0][0], 0, &ff[0][0]);
   for (int j = 0; j < 3; j++)
   {
     cm[j] = (1.0 - grounded * k->between[j]) * com[j];
@@ -455,7 +423,7 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     }
     cat[b][2] = eased * loose[b][2];
   }
-  npmm(&cat[0][0], rot, &gg[0][0]);
+  wbc_mm3(&k->blas, &cat[0][0], 2, rot, 0, &gg[0][0]);
   for (int b = 0; b < 2; b++)
   {
     a[k->a_strode + b] = strides[b];
@@ -478,8 +446,8 @@ void wbc_imp_ask(const wbc_imp_t *k, const double *out, const double *y, const d
     a[k->a_tipped + b] = tilt[b] + (((aloft[b] * eased) * ((level * tipped[b] + s.kp[k->rock] * ((level * tip[b] + pg) - tilt[b]))
                                                            + s.kd[k->rock] * (level * tipping[b] - tilting[b])))
                                      + k->turn_kd[1] * tilting[b]) / k->turn_kd[0];
-    mvs[b] = npmv3(y + k->y_vsole + 3 * b, rot);
   }
+  wbc_mv(&k->blas, y + k->y_vsole, 2, 3, rot, mvs);
   a[k->a_going] += (fr[k->f_dt] / k->going_s) * (((0.0 + mvs[0]) + mvs[1]) / 2.0 - a[k->a_going]);
   a[k->a_stance] = stance[0];
   a[k->a_stance + 1] = stance[1];

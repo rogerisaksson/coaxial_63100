@@ -29,13 +29,10 @@ double wbc_imp_surety(const wbc_imp_t *k, const wbc_surety_t *s, double prev, do
   double        om, ap_y, w_gyro, wt, k_ax, w_jump, f_soles, theta, theta_e, v_norm, w_ext, probe, w_sum;
   double        w_both, w_air, w_prop, w_sup, r_gait, w_tilt, h, f_att, raw, diff, step;
 
-  for (int j = 0; j < 3; j++)
-  {
-    c[j] = npmv3(rot + 3 * j, y + k->y_com);
-    v[j] = npmv3(rot + 3 * j, y + k->y_vcom);
-  }
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_com, c);
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_vcom, v);
   om = sqrt(k->g / npmax(c[2] - fr[k->f_floor], 0.3));
-  npmmt(y + k->y_sole, 2, rot, &sr[0][0]);
+  wbc_mm3(&k->blas, y + k->y_sole, 2, rot, 1, &sr[0][0]);
   for (int b = 0; b < 2; b++)
   {
     xi[b] = c[b] + v[b] / om;

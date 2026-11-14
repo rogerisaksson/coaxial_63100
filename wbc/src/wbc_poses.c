@@ -19,10 +19,7 @@ void wbc_imp_poses(const wbc_imp_t *k, const double *out, const double *y, const
   const double  knee = fr[k->f_knee], yawed = out[k->o_yawed];
   double        bent, cosine, wh[3], spun[3][2];
 
-  for (int j = 0; j < 3; j++)
-  {
-    wh[j] = npmv3(rot + 3 * j, y + k->y_hspin);
-  }
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_hspin, wh);
   {
     const double dwh[3] = {wh[1] - rates[0][1], wh[0] - rates[1][1], 0.0};
 

@@ -1,6 +1,11 @@
 # linux.ps1 - the offline gate on Linux here (run_tests.py --linux, host/tools/dev/linux.py): GitHub's runner
 # as a container on this machine's engine - WSL 2 under it, the engine and its group, the modules that drive it
-# (host/requirements-linux.txt), the runner's images.
+# (host/requirements-linux.txt), the runner's images; and on an emulated Arm (--arch arm64): the engine's QEMU
+# for arm64 with SVE2 and SME2, the runner's arm64 images.
+
+#: The QEMU registered for arm64 where the engine's own emulates no SVE2 or SME2 (binfmt): tonistiigi's image of
+#: one release - 10.1 the first with SME2, 10.2.3 Docker Desktop's.
+$script:Binfmt = 'tonistiigi/binfmt:qemu-v10.2.3'
 
 function Find-Docker {
     <#
@@ -129,5 +134,64 @@ function Install-Linux {
     } else {
         Write-Item 'runner images' 'missing' $kept
         Add-Todo 'python tools/dev/linux.py --build   (in host/; run_tests.py --linux builds them too)'
+    }
+    Install-Arm -Docker $docker -Python $Python
+}
+
+function Get-ArmFeatures {
+    <#
+  The features an arm64 container's processor shows - the engine's QEMU, through binfmt -: /proc/cpuinfo's
+        line, '' where none runs. -Pull never: its base image not fetched (-Check).
+#>
+    param([string]$Docker, [string]$Pull)
+    $said = @(& $Docker run --rm --pull $Pull --platform linux/arm64 ubuntu:latest grep -m1 '^Features' /proc/cpuinfo 2>$null)
+    if ($LASTEXITCODE -ne 0) { return '' }
+    return ($said -join ' ')
+}
+
+function Install-Arm {
+    <#
+  Her C on an emulated Arm (run_tests.py --linux --arch arm64 --isa sve2|sme2): the engine's QEMU with SVE2 and
+        SME2, else tonistiigi's registered in its place; the runner's arm64 images - each after what it needs.
+#>
+    param([string]$Docker, [string]$Python)
+    $features = Get-ArmFeatures -Docker $Docker -Pull $(if ($Check) { 'never' } else { 'missing' })
+    if (($features -match '\bsve2\b') -and ($features -match '\bsme2\b')) {
+        Write-Item 'arm64 emulation' 'ok' 'QEMU: SVE2, SME2'
+    } else {
+        $why = $(if ($features) { 'its QEMU emulates no SVE2 or SME2' } else { 'no arm64 container ran' })
+        Write-Item 'arm64 emulation' 'missing' $why
+        $register = "docker run --privileged --rm $script:Binfmt --install arm64"
+        if (-not (Confirm-Step "register QEMU for arm64 ($script:Binfmt) ?  (a privileged container)")) {
+            Add-Todo $register
+            return
+        }
+        & $Docker run --privileged --rm $script:Binfmt --uninstall qemu-aarch64 *> $null
+        & $Docker run --privileged --rm $script:Binfmt --install arm64 *> $null
+        $features = Get-ArmFeatures -Docker $Docker -Pull 'missing'
+        if (-not (($features -match '\bsve2\b') -and ($features -match '\bsme2\b'))) {
+            Write-Item 'arm64 emulation' 'failed' "still no SVE2 and SME2: $features"
+            Add-Todo "$register   (then setup.ps1 again)"
+            return
+        }
+        Write-Item 'arm64 emulation' 'done' "QEMU registered ($script:Binfmt)"
+    }
+    if (-not $Python) { return }
+
+    # Emulated: its Python's packages are installed by the emulated processor - minutes an image.
+    $kept = Invoke-Host -Python $Python -Arguments @('-X', 'utf8', 'tools/dev/linux.py', '--kept', '--arch', 'arm64')
+    if ($LASTEXITCODE -eq 0) {
+        Write-Item 'arm64 runner images' 'ok' $kept
+    } elseif (Confirm-Step 'build the runner''s arm64 images ?  (emulated, minutes each)') {
+        Push-Location $Host_
+        try { & $Python -X utf8 tools/dev/linux.py --build --arch arm64 } finally { Pop-Location }
+        if ($LASTEXITCODE -eq 0) { Write-Item 'arm64 runner images' 'done' 'built' }
+        else {
+            Write-Item 'arm64 runner images' 'failed' "exit $LASTEXITCODE"
+            Add-Todo 'python tools/dev/linux.py --build --arch arm64 failed - run it in host/ and read the output'
+        }
+    } else {
+        Write-Item 'arm64 runner images' 'missing' $kept
+        Add-Todo 'python tools/dev/linux.py --build --arch arm64   (in host/; run_tests.py --linux --arch arm64 builds them too)'
     }
 }

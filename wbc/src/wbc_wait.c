@@ -79,13 +79,10 @@ void wbc_wait_risen(const wbc_imp_t *k, const wbc_wait_t *w, double *tab, int n,
   double        c[3], v[3], om, xi[2], sr[2][3], flat[2][2], edge[2], tilt[2], lo[2][2], hi[2][2], lmin[2], hmax[2];
   double        first, outside, shift;
 
-  for (int j = 0; j < 3; j++)
-  {
-    c[j] = npmv3(rot + 3 * j, y + k->y_com);
-    v[j] = npmv3(rot + 3 * j, y + k->y_vcom);
-  }
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_com, c);
+  wbc_mv(&k->blas, rot, 3, 3, y + k->y_vcom, v);
   om = sqrt(k->g / npmax(c[2] - fr[k->f_floor], 0.3));
-  npmmt(y + k->y_sole, 2, rot, &sr[0][0]);
+  wbc_mm3(&k->blas, y + k->y_sole, 2, rot, 1, &sr[0][0]);
   for (int b = 0; b < 2; b++)
   {
     xi[b] = c[b] + v[b] / om;

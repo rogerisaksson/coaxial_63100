@@ -80,6 +80,20 @@ static void matrixmatrix(const wbc_blas_t *l, wbc_view_t a, wbc_view_t b, double
   }
 }
 
+void wbc_mv(const wbc_blas_t *l, const double *m, int r, int c, const double *v, double *o)
+{
+  const wbc_view_t mv = {m, c, 1}, vv = {v, 1, 1};
+
+  wbc_matmul(l, mv, vv, o, 1, 1, r, c, 1);
+}
+
+void wbc_mm3(const wbc_blas_t *l, const double *a, int r, const double *b, int bt, double *o)
+{
+  const wbc_view_t av = {a, 3, 1}, bv = {b, bt != 0 ? 1 : 3, bt != 0 ? 3 : 1};
+
+  wbc_matmul(l, av, bv, o, 3, 1, r, 3, 3);
+}
+
 double wbc_dot(const wbc_blas_t *l, const double *a, ptrdiff_t sa, const double *b, ptrdiff_t sb, int n)
 {
   double sum = 0.0;

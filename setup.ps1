@@ -29,7 +29,8 @@
 .PARAMETER SkipOllama
     Leave the model side alone - a machine that only builds and flashes.
 .PARAMETER SkipLinux
-    Leave the gate on Linux out: no container engine, no runner images (run_tests.py --linux).
+    Leave the gate on Linux out: no container engine, no runner images (run_tests.py --linux), no arm64
+    QEMU with SVE2 and SME2 nor arm64 images (--arch arm64).
 .PARAMETER SkipRenode
     Leave the emulator out.
 .PARAMETER SkipCubeMX

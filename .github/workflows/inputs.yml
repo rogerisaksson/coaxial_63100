@@ -1,7 +1,8 @@
 # Every source a job falls back to, checked on the runner's own network: each pinned tool's sources
 # fetched, checked and unpacked (.github/inputs.sh --every), apt updated from each independent mirror
-# alone (.github/apt.sh --every) - when a fetcher or the table changes, weekly, and when asked: a
-# fallback no run exercises would rot unseen, the Actions cache answering in its place.
+# alone (.github/apt.sh --every) - the archive's on an amd64 runner, Ubuntu's ports on an arm64 one -
+# when a fetcher or the table changes, weekly, and when asked: a fallback no run exercises would rot
+# unseen, the Actions cache answering in its place.
 name: inputs
 
 on:
@@ -25,3 +26,8 @@ jobs:
       - run: bash .github/inputs.sh --every
       - if: always()
         run: bash .github/apt.sh --every
+  ports:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash .github/apt.sh --every

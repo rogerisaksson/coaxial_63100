@@ -62,6 +62,10 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
 void   wbc_imp_shortened(const wbc_imp_t *k, const double len[2], const double rate[2], const double *fr,
                          const double stance[2], double axial[2]);
 double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, const double stance[2], double floors[2]);
+/** machine.senses.borne.latched (wbc_latched.c): her support off her soles, 0 or 1, on its comparator kept in `a`,
+    its box's low and high corners along and across in her way's frame (`rot`). */
+double wbc_imp_latched(const wbc_imp_t *k, const double *y, const double *fr, const double *rot, double *a,
+                       double lo[2], double hi[2]);
 /** What she asks of her: her modes' reference, rate, acceleration, springs and dampers. */
 typedef struct
 {

@@ -553,42 +553,36 @@ API int wbh_law_size(void)
   return (int)sizeof(wbc_law_t);
 }
 
-/** numpy's primitives as her law's C computes them, `n` draws: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,),
-    2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3, 5 einsum 'nia,ia->n' of six. */
-API void wbh_np_probe(int which, const double *a, const double *b, double *out, int n)
+/** numpy's primitives as her law's C computes them, `n` draws, through numpy's own OpenBLAS `l` and its einsum's
+    order there: 0 a (3, 3) @ (3,), 1 a (2, 2) @ (2,), 2 a (2, 3) @ (3, 3).T and 3 @ (3, 3), 4 a 1-d dot of 3,
+    5 einsum 'nia,ia->n' of six. */
+API void wbh_np_probe(int which, const double *a, const double *b, double *out, int n, const wbc_blas_t *l)
 {
   for (int k = 0; k < n; k++)
   {
-    const double *x = a + 9 * k, *y = b + 9 * k;
-    double       *o = out + 9 * k;
+    const double    *x = a + 9 * k, *y = b + 9 * k;
+    double          *o = out + 9 * k;
+    const wbc_view_t x3 = {x, 3, 1}, x2 = {x, 2, 1}, yv = {y, 1, 1}, yt = {y, 1, 3}, ym = {y, 3, 1};
 
     switch (which)
     {
     case 0:
-      for (int j = 0; j < 3; j++)
-      {
-        o[j] = npmv3(x + 3 * j, y);
-      }
+      wbc_matmul(l, x3, yv, o, 1, 1, 3, 3, 1);
       break;
     case 1:
-      o[0] = npmv2(x, y);
-      o[1] = npmv2(x + 2, y);
+      wbc_matmul(l, x2, yv, o, 1, 1, 2, 2, 1);
       break;
     case 2:
+      wbc_matmul(l, x3, yt, o, 3, 1, 2, 3, 3);
+      break;
     case 3:
-      for (int i = 0; i < 2; i++)
-      {
-        for (int j = 0; j < 3; j++)
-        {
-          o[3 * i + j] = which == 2 ? npmm3(x + 3 * i, y + 3 * j, 1) : npmm3(x + 3 * i, y + j, 3);
-        }
-      }
+      wbc_matmul(l, x3, ym, o, 3, 1, 2, 3, 3);
       break;
     case 4:
-      o[0] = npdot(x, 1, y, 1, 3);
+      o[0] = wbc_dot(l, x, 1, y, 1, 3);
       break;
     case 5:
-      o[0] = npein6(x, y);
+      o[0] = npein6(x, y, l->einsum[0]);
       break;
     default:
       break;

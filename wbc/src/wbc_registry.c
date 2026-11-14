@@ -8,32 +8,6 @@
 #include <stddef.h>
 #include <string.h>
 
-/** An einsum's three terms a[k s] b[k] summed as numpy sums them here (`order`, an index of `orders.ORDERS`): from
-    zero in turn, or in 2 or 4 SIMD lanes summed across; or each product fused into its add (an Arm's NEON), in turn
-    or in 2 lanes. */
-static double sum3(const double *a, int s, const double b[3], int order)
-{
-  const double p0 = a[0] * b[0], p1 = a[s] * b[1], p2 = a[2 * s] * b[2];
-
-  if (order == 0)
-  {
-    return ((0.0 + p0) + p1) + p2;
-  }
-  if (order == 1)
-  {
-    return 0.0 + (((0.0 + p0) + p2) + ((0.0 + p1) + 0.0));
-  }
-  if (order == 2)
-  {
-    return 0.0 + (((0.0 + p0) + (0.0 + p2)) + ((0.0 + p1) + (0.0 + 0.0)));
-  }
-  if (order == 3)
-  {
-    return fma(a[2 * s], b[2], fma(a[s], b[1], fma(a[0], b[0], 0.0)));
-  }
-  return 0.0 + (fma(a[2 * s], b[2], fma(a[0], b[0], 0.0)) + (fma(a[s], b[1], 0.0) + 0.0));
-}
-
 /** registry._eye: her eye's place `eye` and her head's rotation `turn` of her head at `pos` turned by `quat`. */
 static void eye_of(const wbc_registry_t *r, const double *pos, const double *quat, double eye[3], double turn[9])
 {
@@ -82,7 +56,7 @@ static void seen_of(wbc_registry_t *r, int n, const double *c, const double *h, 
       }
       for (int i = 0; i < 3; i++)
       {
-        pa[k][i] = ca[i] + sum3(Ra + 3 * i, 1, x, r->lanes[0]);
+        pa[k][i] = ca[i] + npsumof(Ra + 3 * i, 1, x, 1, 3, r->lanes[0]);
       }
     }
     for (int j = 0; j < 3; j++)
@@ -92,11 +66,11 @@ static void seen_of(wbc_registry_t *r, int n, const double *c, const double *h, 
     }
     for (int i = 0; i < 3; i++)
     {
-      local[i] = npclip(sum3(Ra + i, 3, e, r->lanes[1]), -ha[i], ha[i]);
+      local[i] = npclip(npsumof(Ra + i, 3, e, 1, 3, r->lanes[1]), -ha[i], ha[i]);
     }
     for (int i = 0; i < 3; i++)
     {
-      pa[9][i] = ca[i] + sum3(Ra + 3 * i, 1, local, r->lanes[2]);
+      pa[9][i] = ca[i] + npsumof(Ra + 3 * i, 1, local, 1, 3, r->lanes[2]);
     }
   }
   for (int p = 0; p < m; p++)

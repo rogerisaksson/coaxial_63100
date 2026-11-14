@@ -43,11 +43,19 @@ double wbc_imp_under(const wbc_imp_t *k, const double *y, const double *fr, cons
   pitched[0] = -tan(pitched[0]);
   pitched[1] = -tan(pitched[1]);
   rise = wbc_dot(&k->blas, bears, 1, pitched, 1, 2);
-  for (int b = 0; b < 2; b++)
   {
-    const double d[2] = {y[k->y_sole + 3 * b] - fr[k->f_floor_at], y[k->y_sole + 3 * b + 2] - fr[k->f_floor_at + 1]};
+    double d[2][2], under[2];
 
-    floors[b] = fr[k->f_floor] + rise * npmv2(d, rr);
+    for (int b = 0; b < 2; b++)
+    {
+      d[b][0] = y[k->y_sole + 3 * b] - fr[k->f_floor_at];
+      d[b][1] = y[k->y_sole + 3 * b + 2] - fr[k->f_floor_at + 1];
+    }
+    wbc_mv(&k->blas, &d[0][0], 2, 2, rr, under);
+    for (int b = 0; b < 2; b++)
+    {
+      floors[b] = fr[k->f_floor] + rise * under[b];
+    }
   }
   return rise;
 }
@@ -58,24 +66,25 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
                     double *zd, double leg[2][3], double len[2], double lrate[2], double turn[3][2],
                     double spun[3][2])
 {
-  const double *rot = fr + k->f_rot, *unit = fr + k->f_unit;
+  const double *rot = fr + k->f_rot, *unit = fr + k->f_unit, *spin = y + k->y_spin;
   double        dd[2][3], ddv[2][3], dp[2][3], dsp[2][3], d[2][3], dv[2][3], place[2][3], speed[2][3];
   double        axial[2], tl, al, rl, arm[2], ar, el;
+  double        left[2][3], up[2][3], on[2][3], up_a[2], left_l[2], on_l[2], on_a[2];
 
   for (int b = 0; b < 2; b++)
   {
-    const double *q = y + k->y_quat + 4 * b, *s = y + k->y_spin + 3 * b;
+    const double *q = y + k->y_quat + 4 * b;
     const double  w = q[0], x = q[1], j = q[2], kk = q[3];
-    const double  left[3] = {1.0 - 2.0 * (j * j + kk * kk), 2.0 * (x * j + w * kk), 2.0 * (x * kk - w * j)};
-    const double  up[3] = {2.0 * (x * j - w * kk), 1.0 - 2.0 * (x * x + kk * kk), 2.0 * (j * kk + w * x)};
-    const double  on[3] = {2.0 * (x * kk + w * j), 2.0 * (j * kk - w * x), 1.0 - 2.0 * (x * x + j * j)};
 
-    turn[0][b] = atan2(npmv3(up, rot), up[1]);
-    turn[1][b] = atan2(left[1], npmv3(left, rot + 3));
-    turn[2][b] = atan2(npmv3(on, rot + 3), npmv3(on, rot));
-    spun[0][b] = npmv3(s, rot + 3);
-    spun[1][b] = npmv3(s, rot);
-    spun[2][b] = npmv3(s, rot + 6);
+    left[b][0] = 1.0 - 2.0 * (j * j + kk * kk);
+    left[b][1] = 2.0 * (x * j + w * kk);
+    left[b][2] = 2.0 * (x * kk - w * j);
+    up[b][0] = 2.0 * (x * j - w * kk);
+    up[b][1] = 1.0 - 2.0 * (x * x + kk * kk);
+    up[b][2] = 2.0 * (j * kk + w * x);
+    on[b][0] = 2.0 * (x * kk + w * j);
+    on[b][1] = 2.0 * (j * kk - w * x);
+    on[b][2] = 1.0 - 2.0 * (x * x + j * j);
     for (int i = 0; i < 3; i++)
     {
       dp[b][i] = y[k->y_sole + 3 * b + i] - y[k->y_com + i];
@@ -84,10 +93,23 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
       ddv[b][i] = y[k->y_vcom + i] - y[k->y_vsole + 3 * b + i];
     }
   }
-  npmmt(&dp[0][0], 2, rot, &place[0][0]);
-  npmmt(&dsp[0][0], 2, rot, &speed[0][0]);
-  npmmt(&dd[0][0], 2, rot, &d[0][0]);
-  npmmt(&ddv[0][0], 2, rot, &dv[0][0]);
+  wbc_mv(&k->blas, &up[0][0], 2, 3, rot, up_a);
+  wbc_mv(&k->blas, &left[0][0], 2, 3, rot + 3, left_l);
+  wbc_mv(&k->blas, &on[0][0], 2, 3, rot + 3, on_l);
+  wbc_mv(&k->blas, &on[0][0], 2, 3, rot, on_a);
+  wbc_mv(&k->blas, spin, 2, 3, rot + 3, spun[0]);
+  wbc_mv(&k->blas, spin, 2, 3, rot, spun[1]);
+  wbc_mv(&k->blas, spin, 2, 3, rot + 6, spun[2]);
+  for (int b = 0; b < 2; b++)
+  {
+    turn[0][b] = atan2(up_a[b], up[b][1]);
+    turn[1][b] = atan2(left[b][1], left_l[b]);
+    turn[2][b] = atan2(on_l[b], on_a[b]);
+  }
+  wbc_mm3(&k->blas, &dp[0][0], 2, rot, 1, &place[0][0]);
+  wbc_mm3(&k->blas, &dsp[0][0], 2, rot, 1, &speed[0][0]);
+  wbc_mm3(&k->blas, &dd[0][0], 2, rot, 1, &d[0][0]);
+  wbc_mm3(&k->blas, &ddv[0][0], 2, rot, 1, &dv[0][0]);
   for (int b = 0; b < 2; b++)
   {
     const double t = y[k->y_tilt + b];
@@ -106,8 +128,8 @@ void wbc_imp_reading(const wbc_imp_t *k, const double *y, const double *fr, cons
   wbc_imp_shortened(k, len, lrate, fr, stance, axial);
   for (int m = 0; m < k->n; m++)
   {
-    z[m] = (0.5 * npein6(k->hands + 6 * m, &place[0][0])) / unit[m] + fr[k->f_z0 + m];
-    zd[m] = (0.5 * npein6(k->hands + 6 * m, &speed[0][0])) / unit[m];
+    z[m] = (0.5 * npein6(k->hands + 6 * m, &place[0][0], k->blas.einsum[0])) / unit[m] + fr[k->f_z0 + m];
+    zd[m] = (0.5 * npein6(k->hands + 6 * m, &speed[0][0], k->blas.einsum[0])) / unit[m];
   }
   {
     const double za = axial[0] - z[k->axial], zda = axial[1] - zd[k->axial];
@@ -355,11 +377,14 @@ void wbc_imp_vaults(const wbc_imp_t *k, const double leg[2][3], const double len
                     const double heeled[2], const double striding[2], double asked, double kp, double kd, double risen[2])
 {
   /* and only while her drive is asked: none asked, the leg rolls over on the arc */
-  const double push = 1.0 - (double)(fabs(asked) <= k->tiny);
+  const double     push = 1.0 - (double)(fabs(asked) <= k->tiny);
+  const wbc_view_t lv = {&leg[0][0], 3, 1}, av = {along, 1, 1};
+  double           las[2];
 
+  wbc_matmul(&k->blas, lv, av, las, 1, 1, 2, 2, 1);
   for (int b = 0; b < 2; b++)
   {
-    const double la = npmv2(leg[b], along);
+    const double la = las[b];
     double       sq[3], arc, held;
 
     for (int j = 0; j < 3; j++)

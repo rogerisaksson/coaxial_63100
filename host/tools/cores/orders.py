@@ -79,6 +79,15 @@ def summed(A, B, order):
     return 0.0 + across
 
 
+def fitted(A, B, want):
+    """The index in ORDERS of the first order whose sum of the terms A * B along their last axis is numpy's
+    `want` bit for bit (`summed`); ValueError where none is."""
+    found = next((k for k, o in enumerate(ORDERS) if same(summed(A, B, o), want)), None)
+    if found is None:
+        raise ValueError('numpy sums its terms in none of %s here' % (ORDERS,))
+    return found
+
+
 def letters(st):
     """(each operand's letters, the output's, the letters summed) of an einsum statement."""
     subscripts = st.args[0].replace(' ', '')

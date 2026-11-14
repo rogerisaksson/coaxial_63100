@@ -70,12 +70,8 @@ def lanes():
              ('nji,nj->ni', e, np.swapaxes(R, 1, 2), e[:, None, :]), ('nij,nj->ni', e, R, e[:, None, :]))
     got = []
     for subscripts, b, A, B in forms:
-        A, B = np.broadcast_arrays(A, B)
-        want = np.einsum(subscripts, R, b)
-        fit = next((o for o in orders.ORDERS if orders.same(orders.summed(A, B, o), want)), None)
-        if fit is None:
-            raise ValueError('numpy sums %s in none of %s here' % (subscripts, orders.ORDERS))
-        got.append(orders.ORDERS.index(fit))
+        terms, by = np.broadcast_arrays(A, B)
+        got.append(orders.fitted(terms, by, np.einsum(subscripts, R, b)))
     return tuple(got)
 
 

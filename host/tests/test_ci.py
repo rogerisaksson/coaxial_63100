@@ -203,6 +203,9 @@ def test_the_jobs_take_their_inputs_kept(report):
                  if not watched or any("'.github/%s'" % name not in paths for paths in watched)
                  or not re.search(r'run: bash \.github/%s --every' % re.escape(name), health)]
     report.check("every fetcher's fallbacks checked, whenever it changes", not unchecked, str(unchecked))
+    jobs = re.findall(r'runs-on: (\S+)\n(?:(?!    runs-on).)*?run: bash \.github/apt\.sh --every', health, re.S)
+    report.check("apt's fallbacks checked on both machines it serves: the archive's on amd64, the ports' on arm64",
+                 'ubuntu-latest' in jobs and 'ubuntu-24.04-arm' in jobs, str(jobs))
 
 
 def test_the_runner_here_is_host_yml_s(report):

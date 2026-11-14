@@ -1,7 +1,7 @@
-/** wbc_np.h - numpy's arithmetic from C, operation for operation, as numpy 2.5, its OpenBLAS
-    and this host's libm give it: maximum, minimum, clip and sign; the pairwise sum; the orders
-    its small matmuls, dots and einsums add in. ISO C contracts nothing: an fma is asked by name.
-    Portable C11, the host's alone. */
+/** wbc_np.h - numpy's arithmetic from C, operation for operation, as numpy 2.5 and this host's
+    libm give it: maximum, minimum, clip and sign; the pairwise sum; the orders its einsums add in
+    here (its products are its OpenBLAS's own, wbc_blas.h). ISO C contracts nothing: an fma is
+    asked by name. Portable C11, the host's alone. */
 #ifndef WBC_NP_H
 #define WBC_NP_H
 
@@ -145,19 +145,6 @@ static inline double npsum_s(const double *a, long n, long s)
   return npsum_s(a, n2, s) + npsum_s(a + n2 * s, n - n2, s);
 }
 
-/** A 1-d dot of two, a's at stride sa, b's at sb (ddot): the plain sum from zero. A vector @
-    a matrix, a transposed one's @ a vector (dgemv_n) adds the same way, k long. */
-static inline double npdot(const double *a, int sa, const double *b, int sb, int k)
-{
-  double t = 0.0;
-
-  for (int i = 0; i < k; i++)
-  {
-    t += a[i * sa] * b[i * sb];
-  }
-  return 0.0 + t;
-}
-
 /** Python's math.hypot of `n` finite, normal coordinates, eight at most (CPython's vector_norm):
     scaled, squared and summed losslessly, a differential correction. numpy's hypot is C's. */
 static inline double pyhypot(const double *x, int n)
@@ -198,35 +185,57 @@ static inline double pyhypot(const double *x, int n)
   return h / scale;
 }
 
-/** A row of a matrix @ a vector, three long or two (dgemv_t's tail, contracted). */
-static inline double npmv3(const double *a, const double *x)
+/** A term of a run, a b, added to `acc` - rounded then added, or fused into its add. */
+static inline double npterm(double a, double b, double acc, int fused)
 {
-  return 0.0 + fma(a[2], x[2], fma(a[0], x[0], a[1] * x[1]));
+  return fused != 0 ? fma(a, b, acc) : acc + a * b;
 }
 
-static inline double npmv2(const double *a, const double *x)
+/** An einsum's run of n terms a[k sa] b[k sb] summed as numpy's sum_of_products sums it here (`order`, an index of
+    tools.cores.orders.ORDERS): from zero in turn; or in 2 or 4 SIMD lanes, four vectors a step - the last first -,
+    then one at a time, the lanes past its end adding zero, summed across from zero; each product rounded then
+    added, or (an Arm's NEON, from index 3) fused into its add. */
+static inline double npsumof(const double *a, int sa, const double *b, int sb, int n, int order)
 {
-  return 0.0 + fma(a[0], x[0], a[1] * x[1]);
-}
+  const int fused = order >= 3 ? 1 : 0;
+  const int v = (order == 1 || order == 4) ? 2 : (order == 2 ? 4 : 1);
+  double    lanes[4] = {0.0, 0.0, 0.0, 0.0};
+  int       t = 0;
 
-/** An entry of a small matmul, three long: a's row and b's column at stride s (dgemm's fma
-    chain) - 1 against a transposed matrix's row, 3 down a (3, 3)'s column. */
-static inline double npmm3(const double *a, const double *b, int s)
-{
-  return fma(a[2], b[2 * s], fma(a[1], b[s], a[0] * b[0]));
-}
-
-/** einsum 'nia,ia->n' of six, contiguous: SSE's two lanes, then their sum. */
-static inline double npein6(const double *h, const double *p)
-{
-  double l0 = 0.0, l1 = 0.0;
-
-  for (int i = 0; i < 6; i += 2)
+  if (v == 1)
   {
-    l0 = h[i] * p[i] + l0;
-    l1 = h[i + 1] * p[i + 1] + l1;
+    double acc = 0.0;
+
+    for (int k = 0; k < n; k++)
+    {
+      acc = npterm(a[k * sa], b[k * sb], acc, fused);
+    }
+    return acc;
   }
-  return 0.0 + (l0 + l1);
+  for (; n - t >= 4 * v; t += 4 * v)
+  {
+    for (int k = 0; k < v; k++)
+    {
+      for (int u = 3; u >= 0; u--)
+      {
+        lanes[k] = npterm(a[(t + u * v + k) * sa], b[(t + u * v + k) * sb], lanes[k], fused);
+      }
+    }
+  }
+  for (; t < n; t += v)
+  {
+    for (int k = 0; k < v; k++)
+    {
+      lanes[k] = t + k < n ? npterm(a[(t + k) * sa], b[(t + k) * sb], lanes[k], fused) : lanes[k] + 0.0;
+    }
+  }
+  return 0.0 + (v == 2 ? lanes[0] + lanes[1] : (lanes[0] + lanes[2]) + (lanes[1] + lanes[3]));
+}
+
+/** einsum 'nia,ia->n' of six, contiguous: one run of six in numpy's `order` here (wbc_blas_t's einsum[0]). */
+static inline double npein6(const double *h, const double *p, int order)
+{
+  return npsumof(h, 1, p, 1, 6, order);
 }
 
 /** numpy's eye: 1 at mode `m`, else 0. */
@@ -235,43 +244,13 @@ static inline double npeye(int n, int m)
   return n == m ? 1.0 : 0.0;
 }
 
-/** a (r, 3) @ b.T, b (3, 3). */
-static inline void npmmt(const double *a, int r, const double *b, double *got)
-{
-  for (int i = 0; i < r; i++)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      got[3 * i + j] = npmm3(a + 3 * i, b + 3 * j, 1);
-    }
-  }
-}
-
-/** a (2, 3) @ b, b (3, 3). */
-static inline void npmm(const double *a, const double *b, double *got)
-{
-  for (int i = 0; i < 2; i++)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      got[3 * i + j] = npmm3(a + 3 * i, b + j, 3);
-    }
-  }
-}
-
-/** einsum 'nia,n->ia' of `h` (n, 2, 3) and `w`, then each of its six. */
-static inline void npein(int n, const double *h, const double *w, double got[6])
+/** einsum 'nia,n->ia' of `h` (n, 2, 3) and `w`: each of its six a run down n in numpy's `order` here (wbc_blas_t's
+    einsum[1]). */
+static inline void npein(int n, const double *h, const double *w, double got[6], int order)
 {
   for (int i = 0; i < 6; i++)
   {
-    got[i] = 0.0;
-  }
-  for (int m = 0; m < n; m++)
-  {
-    for (int i = 0; i < 6; i++)
-    {
-      got[i] = h[6 * m + i] * w[m] + got[i];
-    }
+    got[i] = npsumof(h + i, 6, w, 1, n, order);
   }
 }
 

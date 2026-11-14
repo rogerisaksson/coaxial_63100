@@ -183,10 +183,15 @@ def interior(H, g, A, b, most=60):
             neg = dv < 0.0
             return min(1.0, float((-v[neg] / dv[neg]).min())) if neg.any() else 1.0
 
-        dx, dl, ds = newton(s * lam, C)
-        a = min(reach(s, ds), reach(lam, dl))
-        sigma = (float((s + a * ds) @ (lam + a * dl)) / m / mu) ** 3
-        dx, dl, ds = newton(s * lam + ds * dl - sigma * mu, C)
+        # A solve through C numpy refuses as Cholesky refused K: none - on an Arm's OpenBLAS (Neoverse N2) its LU met
+        # a pivot of 0 there in test_qp's draws, numpy's LinAlgError out of the stack.
+        try:
+            dx, dl, ds = newton(s * lam, C)
+            a = min(reach(s, ds), reach(lam, dl))
+            sigma = (float((s + a * ds) @ (lam + a * dl)) / m / mu) ** 3
+            dx, dl, ds = newton(s * lam + ds * dl - sigma * mu, C)
+        except np.linalg.LinAlgError:
+            return None, (), np.zeros(0)
         a = 0.99 * min(reach(s, ds), reach(lam, dl))
         x, lam, s = x + a * dx, lam + a * dl, s + a * ds
     return None, (), np.zeros(0)

@@ -19,7 +19,7 @@ import os
 
 import numpy as np
 
-from tools.cores import wbc
+from tools.cores import orders, wbc
 
 #: wbc_imp_t's ints in its order, by the names of what fills them: her modes (`machine.law.modal`),
 #: the offsets of latent.step's out, of modal's y, fr and a.
@@ -131,8 +131,9 @@ def exact_host(draws=1000):
     libm called side by side as her C calls it, 10^5 draws across its paths (wbh_np_libm): where
     it does, her law in C is her python's bit for bit; a numpy dispatching elsewhere (SVML, other
     OpenBLAS kernels) parts the last bits."""
-    lib = wbc.library()
-    lib.wbh_np_probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+    lib, blas = wbc.library(), numpy_blas()
+    lib.wbh_np_probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int,
+                                 ctypes.c_void_p]
     lib.wbh_np_probe.restype = None
     lib.wbh_np_libm.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p]
     lib.wbh_np_libm.restype = None
@@ -142,7 +143,7 @@ def exact_host(draws=1000):
 
     def probe(which):
         out = np.zeros((draws, 9))
-        lib.wbh_np_probe(which, a.ctypes.data, b.ctypes.data, out.ctypes.data, draws)
+        lib.wbh_np_probe(which, a.ctypes.data, b.ctypes.data, out.ctypes.data, draws, ctypes.addressof(blas))
         return out
     wants = {0: (a.reshape(draws, 3, 3) @ b[:, :3, None])[:, :, 0],
              1: (a[:, :4].reshape(draws, 2, 2) @ b[:, :2, None])[:, :, 0],
@@ -170,22 +171,37 @@ def exact_host(draws=1000):
 class Blas(ctypes.Structure):
 
     """wbc_blas_t: numpy's own OpenBLAS - cblas_dgemm, cblas_dsyrk, cblas_dgemv, cblas_ddot, dgesv, dpotrf, dgeqrf,
-    dorgqr."""
+    dorgqr -, and the order numpy's einsum sums her hand ports' two in here (`einsums`)."""
 
-    _fields_ = [(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv', 'potrf', 'geqrf', 'orgqr')]
+    _fields_ = ([(name, ctypes.c_void_p) for name in ('gemm', 'syrk', 'gemv', 'dot', 'gesv', 'potrf', 'geqrf', 'orgqr')]
+                + [('einsum', ctypes.c_int32 * 2)])
+
+
+def einsums(draws=64):
+    """The order (an index of orders.ORDERS) numpy's einsum sums her hand ports' two in here, read off its own
+    results on draws: 'nia,ia->n' of six contiguous, a run of six (npein6), and 'nia,n->ia', each of its six a run
+    down n (npein)."""
+    rng = np.random.default_rng(orders.SEED)
+    h, p, w = rng.standard_normal((draws, 2, 3)), rng.standard_normal((2, 3)), rng.standard_normal(draws)
+    flat = h.reshape(draws, 6)
+    six, laid = np.broadcast_arrays(flat, p.reshape(6))
+    down, by = np.broadcast_arrays(flat.T, w)
+    return (orders.fitted(six, laid, np.einsum('nia,ia->n', h, p)),
+            orders.fitted(down, by, np.einsum('nia,n->ia', h, w).reshape(6)))
 
 
 @functools.lru_cache(maxsize=None)
 def numpy_blas():
     """numpy's own OpenBLAS (scipy-openblas, ILP64) as wbc_blas_t: the library numpy's matmul and
-    linalg call, so C calling it gets numpy's bits."""
+    linalg call, so C calling it gets numpy's bits; its einsums' orders here (`einsums`)."""
     found = sorted(glob.glob(os.path.join(os.path.dirname(np.__file__), os.pardir, 'numpy.libs', '*scipy_openblas64*')))
     if not found:
         raise RuntimeError("numpy carries no scipy-openblas64 beside it: her law in C needs numpy's own BLAS")
     lib = ctypes.CDLL(os.path.abspath(found[0]))
     names = ('scipy_cblas_dgemm64_', 'scipy_cblas_dsyrk64_', 'scipy_cblas_dgemv64_', 'scipy_cblas_ddot64_',
              'scipy_dgesv_64_', 'scipy_dpotrf_64_', 'scipy_dgeqrf_64_', 'scipy_dorgqr_64_')
-    return Blas(*[ctypes.cast(getattr(lib, n), ctypes.c_void_p).value for n in names])
+    return Blas(*[ctypes.cast(getattr(lib, n), ctypes.c_void_p).value for n in names],
+                einsum=(ctypes.c_int32 * 2)(*einsums()))
 
 
 #: wbc_law_t's ints and doubles in its order, by what fills them.

@@ -203,9 +203,10 @@ int wbc_qp_interior(const wbc_blas_t *l, const double *H, const double *g, const
     {
       rc[i] = s[i] * lam[i];
     }
+    /* a solve through C numpy refuses: none, as where Cholesky refuses K (machine.stack.qp.interior) */
     if (newton(&k, rc, dx, dl, ds))
     {
-      return 2;
+      return 1;
     }
     a = reach(s, ds, m);
     a2 = reach(lam, dl, m);
@@ -222,7 +223,7 @@ int wbc_qp_interior(const wbc_blas_t *l, const double *H, const double *g, const
     }
     if (newton(&k, rc, dx, dl, ds))
     {
-      return 2;
+      return 1;
     }
     a = reach(s, ds, m);
     a2 = reach(lam, dl, m);

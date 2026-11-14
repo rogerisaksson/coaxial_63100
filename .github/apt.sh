@@ -13,9 +13,16 @@
 #     bash .github/apt.sh --every
 set -euo pipefail
 KEPT="${APT_KEPT:-$HOME/.ci-apt}"
+ARCH=$(dpkg --print-architecture)
 #: Mirrors beside the runner's own, other hosts under other names: the runner's three, all under
-#: ubuntu.com, have failed to resolve together.
-INDEPENDENT=(https://mirrors.edge.kernel.org/ubuntu/ https://mirrors.mit.edu/ubuntu/)
+#: ubuntu.com, have failed to resolve together. An arm64 runner's packages are Ubuntu's ports, which
+#: the archive and kernel.org's mirror of it do not hold (binary-arm64 404 there): MIT's and
+#: Berkeley's ports, near GitHub's runners, each serving the release and its security pocket.
+if [ "$ARCH" = amd64 ]; then
+  INDEPENDENT=(https://mirrors.edge.kernel.org/ubuntu/ https://mirrors.mit.edu/ubuntu/)
+else
+  INDEPENDENT=(https://mirrors.mit.edu/ubuntu-ports/ https://mirrors.ocf.berkeley.edu/ubuntu-ports/)
+fi
 LIST=/etc/apt/ci-mirrors.txt
 SOURCES=/etc/apt/ci-ubuntu.sources
 APT=(-o "Dir::Etc::SourceList=$SOURCES" -o Dir::Etc::SourceParts=/dev/null
@@ -24,10 +31,13 @@ APT=(-o "Dir::Etc::SourceList=$SOURCES" -o Dir::Etc::SourceParts=/dev/null
 RELEASE="$VERSION_CODENAME"
 keyring=( /usr/share/keyrings/ubuntu-archive-keyring.* )
 
-serves() {  # mirror: true where it serves the release's index now (asked twice at most, 10 s each)
+serves() {  # mirror: true where it serves the release's index and this machine's packages now (each asked twice
+            # at most, 10 s each): every index names every architecture, a mirror holds only some
   local index
   index=$(curl -fsS --retry 1 --retry-all-errors --max-time 10 "${1%/}/dists/$RELEASE/InRelease") \
-    && [[ $index == *$'\n'"Codename: $RELEASE"$'\n'* ]]
+    && [[ $index == *$'\n'"Codename: $RELEASE"$'\n'* ]] \
+    && curl -fsI --retry 1 --retry-all-errors --max-time 10 \
+      "${1%/}/dists/$RELEASE/main/binary-$ARCH/Packages.gz" > /dev/null
 }
 
 use() {  # mirror...: apt shown the Ubuntu archive alone, through these mirrors in this order, updated
