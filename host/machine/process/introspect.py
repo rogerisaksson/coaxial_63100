@@ -232,7 +232,10 @@ class Snap(dict):
     s: typing.Any = None
 
     def __missing__(self, key):
-        self.update(_layers(self.s) if key in LAYERS else {})
+        if key == 'ground':
+            from machine.world import struck
+            self['ground'] = struck.touching(self.s['g']['world'])
+        self.update(_layers(self.s) if key in LAYERS and key != 'ground' else {})
         return dict.__getitem__(self, key)
 
     def whole(self):
@@ -240,8 +243,8 @@ class Snap(dict):
         return dict(self, **{k: self[k] for k in LAYERS})
 
 
-#: Her law's layers a snapshot names.
-LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts', 'modes', 'kinematics', 'drives')
+#: Her law's layers a snapshot names, and what of her touches what is not hers, the world's truth (`struck`).
+LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts', 'modes', 'kinematics', 'drives', 'ground')
 
 
 def row_len(fields):
