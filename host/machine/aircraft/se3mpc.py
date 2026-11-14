@@ -17,7 +17,7 @@ import os
 from machine.aircraft import compile as aircraft_compile
 from tools.cores import mppi
 
-_MPC = aircraft_compile.mpc()
+_MPC = aircraft_compile.part('mpc')
 K_FLOOR, C_FLOOR = _MPC['k_floor'], _MPC['c_floor']
 #: The model's constants in mppi.h's order.
 CONSTS = ('m', 'g', 'kt', 'kp', 'kr', 'ky', 'kd', 'rho', 'area', 'cla', 'span', 'stab', 'fin', 'arm', 'wq',

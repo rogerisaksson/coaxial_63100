@@ -54,7 +54,7 @@ WO_TURN, WO_PULL = _OBS['turn_bandwidth'], _OBS['pull_bandwidth']
 FLOOR_M, HOVER_M = (KINEMATICS['envelope'][k] for k in ('floor_height', 'hover_height'))
 WATERFALL_HZ, WATERFALL_RAD = (KINEMATICS['oscillator'][k] for k in (
     'tictoc_frequency', 'tictoc_amplitude'))
-_AB_CFG = aircraft_compile.aerobat()
+_AB_CFG = aircraft_compile.part('aerobat')
 DIVE_M_S = _AB_CFG['dive_m_s']
 #: Both boards turn a 17x8 stage on the 63100's can; the propeller's top on the flight's clamp
 #: and a full pack's volts, as the page's drives have it.

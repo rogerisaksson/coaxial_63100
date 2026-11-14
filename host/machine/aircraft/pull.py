@@ -38,7 +38,7 @@ class Rotor(NamedTuple):
         return 1.5 * self.pairs * self.lam
 
 
-_PULL = aircraft_compile.pull()
+_PULL = aircraft_compile.part('pull')
 
 #: The 63100's can and a 16x14 on it, kg m^2 (`motors.toml`, `crafts.toml`).
 CAN_J, PROP_J = _PULL['can_j'], _PULL['prop_j']

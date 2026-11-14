@@ -232,7 +232,7 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
     from machine.texts import acts, dsp, maneuver
     from machine.body import mechatronics
     from machine.errors import MachineError
-    got = suite_read()
+    got, (rest, _body) = suite_read(), maneuver._manifest()
     g = dsp.value(['patch-bed-side-lie', 'nominal-biped-manifold'], got)
     at = next(e for e in g['_events'] if e[0] == 'on-contact-threshold' and e[2] and e[2][0][0] == 'stage-coupled-pendulum')
     swing = at[2][0][1]
@@ -265,8 +265,8 @@ def test_the_side_lie_reads_and_is_refused_by_name(report):
                  swung.stage == 'contact' and swung.weighs == (0.0, 0.0, 1.0, 0.0, 0.0) and swung.zmp == acts.NONE
                  and swung.ms == 1550.0 and near(swung.targets['mode_pelvis_list'], 4.0)
                  and near(swung.targets['mode_pelvis_turn'], 3.0) and swung.targets['mode_axial_compression'] > 0.0
-                 and near(swung.springs['mode_limb_lift'][0], 2486.0 * 10.0 ** (-36.0 / 20.0))
-                 and swung.springs['mode_pelvis_list'][0] == 1458.0, str(swung))
+                 and near(swung.springs['mode_limb_lift'][0], rest['mode_limb_lift'][1] * 10.0 ** (-36.0 / 20.0))
+                 and swung.springs['mode_pelvis_list'][0] == rest['mode_pelvis_list'][1], str(swung))
 
 
 ROSTER = (test_the_suite_reads_as_written, test_the_maneuvers_read_as_written,

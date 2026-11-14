@@ -14,7 +14,7 @@ from machine.aircraft.helicopter.kit import (Answer, _mat_mul, _plan_hold, _rot_
                                     _so3_torques, _step_hold, _stunt_step, _turn_heading)
 from machine.aircraft.wingborne import AIRBORNE_M, STALL_RAD, WHEELS_M, flare, lined, plane, run, toward, whole
 
-_AB = aircraft_compile.aerobat()
+_AB = aircraft_compile.part('aerobat')
 FAST_M_S = _AB['fast_m_s']
 LINED_M, LINED_RAD_S, LINED_M_S = _AB['lined_m'], _AB['lined_rad_s'], _AB['lined_m_s']
 AUTHORITY = _AB['authority']

@@ -7,9 +7,9 @@ swings any (WALK_DEG_S), once a joint a phase, captured - a spasm, a jerk: no ga
 Her toes, wrists and grippers no drive turns: a footfall throws her toes 870 deg/s.
 """
 
-#: The fastest her own walk swings a driven joint, deg/s: her knee over 8 s of a flat walk, 464.4, measured
+#: The fastest her own walk swings a driven joint, deg/s: her knee over 8 s of a flat walk, 465.3, measured
 #: (`test_introspect`); a slip's arms 620, an obstacle's 1027, her bed's legs 422.
-WALK_DEG_S = 465.0
+WALK_DEG_S = 466.0
 
 
 def laid(meta):

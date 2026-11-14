@@ -28,7 +28,7 @@ from machine.aircraft.helicopter.kit import _aero_lib, _mat_mul, _rot_x, _rot_y,
 _d3, _d4, _d6, _d8, _d9 = (
     ctypes.c_double * 3, ctypes.c_double * 4, ctypes.c_double * 6, ctypes.c_double * 8, ctypes.c_double * 9)
 _R_BUF, _TO_BUF, _OUT_R = _d9(), _d9(), _d9()
-_WB = aircraft_compile.wingborne()
+_WB = aircraft_compile.part('wingborne')
 
 ALPHA_RAD, TAIL_UP, CLIMB_RAD, AIRBORNE_M, RUN_G, CLIMB_V = (
     _WB['alpha_rad'], _WB['tail_up'], _WB['climb_rad'], _WB['airborne_m'], _WB['run_g'], _WB['climb_v'])

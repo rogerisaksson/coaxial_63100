@@ -22,7 +22,7 @@ import random
 
 from machine.aircraft import compile as aircraft_compile
 
-_INS = aircraft_compile.instruments()
+_INS = aircraft_compile.part('instruments')
 
 #: The attitude, the IMU's fused with the fixes: tilted ATT_RAD rms over ATT_S, an RTK-aided
 #: MEMS INS's roll and pitch (`world.toml` `[instruments]`).

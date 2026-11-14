@@ -86,14 +86,14 @@
 ;; Replaces jerky C^0 velocity deflections with an Euler-spiral (clothoid)
 ;; differential filter on SE(2) combined with harmonic dipole circulation:
 ;;   d(psi)/dt = v * kappa,  |kappa| <= mu * g / v^2,  |d(kappa)/dt| <= sigma_max
-;; Hers: |kappa| within her walk's arc (WALK_SPEED / YAW_RATE, 0.99 m) - she has one
+;; Hers: |kappa| within her walk's arc (WALK_SPEED / YAW_RATE, 1.63 m) - she has one
 ;; walk's speed, so her arc bounds kappa, not her speed -; d(kappa)/dt her arc taken up
 ;; over a step, where a sole lands and turns her (`machine.way.errand`).
 ;; -----------------------------------------------------------------------------
 (defprimitive filter-streamline-via-se2-clothoid
   [state &key (curvature-bandwidth-radps 6.5)
-              (max-curvature-inv-m 0.60)       ; Min turning radius R_min ~ 0.54 m during normal walk! Hers 1.66 m, her arc
-              (max-clothoid-rate-inv-ms 1.39)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; hers 0.60 /m over a step's 0.43 s
+              (max-curvature-inv-m 0.61)       ; Min turning radius R_min ~ 0.54 m during normal walk! Hers 1.63 m, her arc
+              (max-clothoid-rate-inv-ms 1.41)  ; Bounds lateral jerk d^3(y)/dt^3! Text 2.4; hers 0.61 /m over a step's 0.43 s
               (harmonic-dipole-circulation 0.42)]
   (-> state
       (integrate-se2-clothoid-streamline
@@ -153,7 +153,7 @@
         :shoulder-aperture-slotting true)
       (filter-streamline-via-se2-clothoid
         :curvature-bandwidth-radps 6.5
-        :max-curvature-inv-m 0.60             ; 1.85! Hers 0.60, her arc
+        :max-curvature-inv-m 0.61             ; 1.85! Hers 0.61, her arc
         :harmonic-dipole-circulation 0.42)
       (allow-sub-overhang-interactive-footholds :shin-to-bevel-min-clearance-mm 14.0)
       (guard-3d-swing-and-prealign-ankle-so3

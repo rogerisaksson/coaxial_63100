@@ -14,7 +14,7 @@ import math
 
 from machine.aircraft import compile as aircraft_compile
 
-_GM = aircraft_compile.gimbal()
+_GM = aircraft_compile.part('gimbal')
 MOUNT = _GM['mount']
 FOLLOW, NOSE_M_S, TILT = _GM['follow'], _GM['nose_m_s'], _GM['tilt']
 TILTS = _GM['tilts']

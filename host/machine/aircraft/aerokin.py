@@ -19,7 +19,7 @@ from machine.aircraft import compile as aircraft_compile, pull, quad
 from machine.aircraft.aerolisp import CompiledAeroPayload, K_MODES, LATENT_SYMBOL_MAP
 from machine.body.figure import cross
 
-_AK = aircraft_compile.aerokin()
+_AK = aircraft_compile.part('aerokin')
 _IMP, _KIN = quad.DYNAMICS['impedance'], quad.KINEMATICS
 _ENV, _VERT, _HORIZ, _HOLD = (
     _KIN['envelope'], _KIN['vertical'], _KIN['horizontal'], _KIN['hold'])

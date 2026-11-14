@@ -1,10 +1,10 @@
 """Static physical, aerodynamic and cybernetic meta-compiler for aircraft and drones.
 
     blk = compile.blocks()      # {name: (kind, dict)} for AeroLisp `defvehicle` / `use`
-    pk = compile.pack()         # 15S LiPo flight pack (`aircraft.flightpack`)
-    pl = compile.pull()         # outrunner, propeller and inverter shell (`aircraft.pull`)
-    ak = compile.aerokin()      # vacuum trajectory & attitude handoff (`aircraft.aerokin`)
-    wb = compile.wingborne()    # stall, rotation and harrier transition (`aircraft.wingborne`)
+    pk = compile.part('pack')       # 15S LiPo flight pack (`aircraft.flightpack`)
+    pl = compile.part('pull')       # outrunner, propeller and inverter shell (`aircraft.pull`)
+    ak = compile.part('aerokin')    # vacuum trajectory & attitude handoff (`aircraft.aerokin`)
+    wb = compile.part('wingborne')  # stall, rotation and harrier transition (`aircraft.wingborne`)
 
 Reads declarative craft geometry and nondimensional polars (`crafts.toml`), motor/inverter
 datasheets (`motors.toml`, `inverters.toml`), heatsink materials (`materials.toml`) and
@@ -348,36 +348,10 @@ def blocks():
             for k, (kind, val) in _compiled()['blocks'].items()}
 
 
-def pack():
-    return dict(_compiled()['pack'])
-
-
-def pull():
-    return dict(_compiled()['pull'])
-
-
-def aerokin():
-    return dict(_compiled()['aerokin'])
-
-
-def wingborne():
-    return dict(_compiled()['wingborne'])
-
-
-def aerobat():
-    return dict(_compiled()['aerobat'])
-
-
-def mpc():
-    return dict(_compiled()['mpc'])
-
-
-def gimbal():
-    return dict(_compiled()['gimbal'])
-
-
-def instruments():
-    return dict(_compiled()['instruments'])
+def part(name):
+    """A fresh copy of one compiled part: 'pack', 'pull', 'aerokin', 'wingborne', 'aerobat', 'mpc', 'gimbal' or
+    'instruments' - each the module of its name's (`aircraft.se3mpc` the mpc's, `aircraft.senses` the instruments')."""
+    return dict(_compiled()[name])
 
 
 def weather():
