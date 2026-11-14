@@ -13,7 +13,8 @@ board/native's chip - TIM1, ADC1-3, SPI2 and SPI4 with DMA1, the front end, the 
 BNO085: Renode's models in C. Each board is a copy of the library, its statics its own; a
 limb's boards share a world (world/, a library of its own) and one RS485 bus, and a thread
 holds their clocks to the wall's in lockstep, limbs on the host's cores side by side. An
-exchange takes its line time off the wall. Built and powered at a URL's first open in a
+exchange takes its line time off the wall, a lag past half its board's host quiet forgiven
+(`Limb.send`). Built and powered at a URL's first open in a
 process, it runs on across sessions. Not the Cortex-M: validation is Renode's (emulator://).
 """
 import ctypes
@@ -67,6 +68,10 @@ BURST_S = 0.05
 #: How far the board's clock stands from the wall's with a core for its limb: a wake, a burst,
 #: a scheduler's slice (Windows' 15.6 ms), s.
 TRAIL_S = 0.02
+
+#: The board's host deadman (BOARD_POWER_HOST_QUIET_MS), s: a host silent this long on its clock
+#: has its holds dropped.
+HOST_QUIET_S = 10.0
 
 #: The least wall s a limb's load is measured over.
 LOAD_S = 0.25
@@ -364,8 +369,17 @@ class Limb:
         """`data` onto the limb's port at the line's pace, every board hearing it, the wall
         waited for the line's time. The frame starts at the wall's time and, as the bus's one
         adapter, no sooner than t3.5 in board time after the line's last activity: the
-        addressed board closes a frame at once, the others after t3.5."""
+        addressed board closes a frame at once, the others after t3.5. A board further behind
+        the wall than half its host's quiet (HOST_QUIET_S) - a host too slow to run it in real
+        time - runs that half and is forgiven the rest, the wall's epoch moved on by it: run at
+        half the wall's pace or better, two of the host's frames a few ms apart never stand its
+        quiet apart on the board's clock (on the N2 runner a 16 s lag ran through took 16 s, the
+        request after the reply found it 16 s behind again, and the board's deadman dropped the
+        host's hold on the AFE rail between them)."""
         with self.lock:
+            past = int((time.monotonic() - self._start) * 1e6) - self._us - int(0.5 * HOST_QUIET_S * 1e6)
+            if past > 0:
+                self._start += past / 1e6
             start = max(int((time.monotonic() - self._start) * 1e6), self._line + T35_US)
             self._run_to(start)
             for byte in data:
