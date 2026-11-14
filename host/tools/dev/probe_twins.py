@@ -78,33 +78,34 @@ def exact_parts(draws=1000):
     print('exact_host:', c_motion.exact_host())
 
 
-def _arrays(obj, out, depth=0):
-    """Every array and number in `obj` (arrays, numbers, tuples, lists, dicts by sorted key), copied, in order."""
+def _flat(obj, path, out, depth=0):
+    """{path: copy} of every array and number in `obj` (arrays, numbers, tuples, lists, dicts)."""
     if isinstance(obj, np.ndarray):
-        out.append(obj.copy())
+        out[path] = obj.copy()
     elif isinstance(obj, (bool, int, float, np.number)):
-        out.append(np.array(float(obj)))
+        out[path] = np.array(float(obj))
     elif isinstance(obj, (tuple, list)) and depth < 3:
-        for o in obj:
-            _arrays(o, out, depth + 1)
+        for i, o in enumerate(obj):
+            _flat(o, '%s[%d]' % (path, i), out, depth + 1)
     elif isinstance(obj, dict) and depth < 3:
-        for k in sorted(obj, key=str):
-            _arrays(obj[k], out, depth + 1)
+        for k, v in obj.items():
+            _flat(v, '%s.%s' % (path, k), out, depth + 1)
     return out
 
 
-def _parted(xs, ys, names=None):
-    """'name maxdiff, ...' of the entries of xs and ys whose bits differ, None where none."""
+def _parted(m1, m2):
+    """'path maxdiff, ...' of the paths both maps hold whose bits differ, None where none."""
     out = []
-    for j, (x, y) in enumerate(zip(xs, ys)):
+    for k, x in m1.items():
+        y = m2.get(k)
+        if y is None:
+            continue
         if x.shape != y.shape or x.dtype != y.dtype or x.tobytes() != y.tobytes():
             try:
                 d = float(np.nanmax(np.abs(x.astype(float) - y.astype(float)))) if x.shape == y.shape else np.nan
             except (TypeError, ValueError):
                 d = np.nan
-            out.append('%s %.3g' % (names[j] if names else j, d))
-    if len(xs) != len(ys):
-        out.append('len %d/%d' % (len(xs), len(ys)))
+            out.append('%s %.3g' % (k, d))
     return ', '.join(out[:6]) or None
 
 
@@ -120,12 +121,12 @@ def twins():
     watch = tt.CONTROL_ARRAYS + ('seat_f',)
     log, gs, pair, real = {1: [], 2: []}, {}, [], motion.control
     tally = collections.Counter()
-    firsts, hooks, solves, arrays_apart = [], collections.Counter(), [], collections.Counter()
+    examples, hooks, solves, arrays_apart = collections.defaultdict(list), collections.Counter(), [], \
+        collections.Counter()
 
     def record(sid, name, ret):
         g = gs[sid]
-        log[sid].append((name, _arrays(ret, []), [np.array(g[k]).copy() for k in watch if k in g],
-                         [k for k in watch if k in g]))
+        log[sid].append((name, _flat(ret, '', {}), {k: np.array(g[k]).copy() for k in watch if k in g}))
 
     class Wrapped:
         """A hook (or a hook object's method) whose every call is recorded."""
@@ -168,17 +169,24 @@ def twins():
         n, chained, t = tally['passes'], int(g.get('chained', 0)), float(g.get('t', 0.0))
         tally['passes'] += 1
         tally['chained %d' % chained] += 1
-        first = None
+        # the first call after which what the hooks wrote on g parts (state), and the first whose answer parts (ret)
+        first = ret_first = None
         for i, (a, b) in enumerate(zip(log[1], log[2])):
             if a[0] != b[0]:
                 first = (i, a[0] + '|' + b[0], 'order')
                 break
-            ret, state = _parted(a[1], b[1]), _parted(a[2], b[2], a[3])
-            if ret or state:
-                first = (i, a[0], 'ret[%s] state[%s]' % (ret, state))
+            ret, state = _parted(a[1], b[1]), _parted(a[2], b[2])
+            if ret and ret_first is None:
+                ret_first = (a[0], ret)
+            if state:
+                first = (i, a[0], 'state[%s] ret[%s]' % (state, ret))
                 break
         if first is None and len(log[1]) != len(log[2]):
             first = (min(len(log[1]), len(log[2])), 'calls %d/%d' % (len(log[1]), len(log[2])), 'count')
+        if ret_first is not None:
+            hooks['ret ' + ret_first[0]] += 1
+            if len(examples['ret ' + ret_first[0]]) < 2:
+                examples['ret ' + ret_first[0]].append((n, t, chained, -1, ret_first[0], ret_first[1]))
         law = [(k, g[k], g2[k]) for k in tt.CONTROL_ARRAYS] + [
             (k, np.array(float(g.get(k, 0.0))), np.array(float(g2.get(k, 0.0)))) for k in tt.CONTROL_NUMBERS]
         sol = [('seat_f', g['seat_f'], g2['seat_f']), ('tau', g['drives'][1]['tau'], g2['drives'][1]['tau']),
@@ -194,11 +202,10 @@ def twins():
         if first is not None:
             tally['parted passes'] += 1
             hooks[first[1]] += 1
-            if len(firsts) < 12:
-                firsts.append((n, t, chained) + first)
+            if len(examples[first[1]]) < 3:
+                examples[first[1]].append((n, t, chained) + first)
         if worst[0] > 0.0:
-            got = _parted(_arrays(g.get('got'), []), _arrays(g2.get('got'), []),
-                          [str(k) for k in sorted(g.get('got', {}), key=str)])
+            got = _parted(_flat(g.get('got'), '', {}), _flat(g2.get('got'), '', {}))
             solves.append((worst[0], worst[1], n, t, chained, first[1] if first else None, got))
     motion.control = beside
     try:
@@ -222,9 +229,10 @@ def twins():
         motion.control = real
     print('passes:', dict(tally))
     print('arrays apart (passes):', dict(arrays_apart))
-    print('first parting hooks:', hooks.most_common(12))
-    for f in firsts:
-        print('  first parting: pass %d t %.3f chained %d call %d %s %s' % f)
+    print('first parting hooks (state; ret = first answer parting):', hooks.most_common(16))
+    for name, rows in examples.items():
+        for f in rows:
+            print('  %s: pass %d t %.3f chained %d call %d %s %s' % ((name,) + f))
     for s in sorted(solves, reverse=True)[:10]:
         print('  solve apart %.3g in %s: pass %d t %.3f chained %d first %s got[%s]' % s)
 
