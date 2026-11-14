@@ -20,7 +20,8 @@ environment, --offline.
 A container takes the runner's shape (PROCESSORS, MEMORY): whole cores of the engine's processors as its sysfs
 pairs their threads - two cores of two threads, as the runner's detector says of itself (host: a runner,
 2 cores, 4 threads) -, held to them by its cpuset and shown them as the processors online, so its processes
-count what they are given as on the runner (glibc, os.cpu_count; `placed.given`); 16 GB, no swap. Each Python
+count what they are given as on the runner (glibc, os.cpu_count; `placed.given`); 16 GB, no swap, its /dev/shm
+the runner's 8 GB. Each Python
 of the matrix runs in a container of its own on cores of its own, side by side, as each runs on a VM of its own
 there; in turn where the engine has too few. Not reproduced: the runner's processor model (its rounding), its
 disk, its network.
@@ -45,8 +46,10 @@ from tools.dev.suites import ROOT
 REPO = ROOT.parent
 WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'host.yml', REPO / '.github' / 'runner.Dockerfile'
 #: GitHub's standard runner of a public repository: four logical processors - two cores of two threads, its
-#: own detector line says - and 16 GB.
-PROCESSORS, MEMORY = 4, '16g'
+#: own detector line says - and 16 GB; its /dev/shm a tmpfs of half of it (8.36 GB of 16.7 on both its
+#: architectures), where her loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB faulted
+#: test_tune (SIGBUS).
+PROCESSORS, MEMORY, SHM = 4, '16g', '8g'
 #: The runner's user and its id; the image's name, its tag a release and a Python.
 USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
@@ -259,7 +262,7 @@ def ran(client, tag, info, cpus, argv, say, checkout, name):
         container = client.containers.create(
             tag, ['bash', '-c', GATE, 'gate', *argv], user=USER, environment=env,
             working_dir='/home/%s/work/%s/%s' % (USER, name, name), cpuset_cpus=listed, mem_limit=MEMORY,
-            memswap_limit=MEMORY, mounts=[Mount(ONLINE, online.name, type='bind', read_only=True)])
+            memswap_limit=MEMORY, shm_size=SHM, mounts=[Mount(ONLINE, online.name, type='bind', read_only=True)])
         LIVE.append(container)
         container.put_archive('/home/%s/work' % USER, tar)
         container.start()
