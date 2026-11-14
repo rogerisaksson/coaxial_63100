@@ -39,6 +39,16 @@ LUMBAR_M = (next(seg for seg in figure.SEGMENTS if seg[0] == 'torso')[3][1]
 #: A rectangle's half extents along any axes reach its circle's radius at most: the rectangle round it on them, so
 #: much of that radius its own circle's.
 ROOT2 = math.sqrt(2.0)
+#: A footprint's four corners by the signs of its half sizes along its two axes.
+CORNERS = np.array([[sx, sz] for sx in (-1, 1) for sz in (-1, 1)])
+
+
+class Boxes(list):
+
+    """Boxes with their centres, half sizes and turns (n, 3), (n, 3), (n, 3, 3) as arrays beside them (`arrays`,
+    `registry.Things`' rows of them): `clear` reads every one over a box at once."""
+
+    arrays: tuple
 
 
 def top(box):
@@ -79,7 +89,7 @@ def _within(box, other, fb=None):
     along each of box's axes (2, 2))."""
     c, axes, _h = fb or footprint(box)
     oc, oaxes, oh = footprint(other)
-    corners = oc + np.array([[sx, sz] for sx in (-1, 1) for sz in (-1, 1)]) * oh @ oaxes
+    corners = oc + CORNERS * oh @ oaxes
     local = (corners - c) @ axes.T
     return np.column_stack([local.min(axis=0), local.max(axis=0)])
 
@@ -98,13 +108,35 @@ def clear(box, things, slab):
     """The area of `box`'s top clear of `things` whose bottoms lie in `slab` (lo, hi) over it, m^2: one whose
     footprint's circle misses `box`'s covers none of it - `covered` reads the rectangle round it in `box`'s frame,
     within ROOT2 of its circle -, 0.0 its sum's same bits unread: 87 of 108 over her lodge's beds, their every
-    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), her seats' 10.2 ms."""
+    thing's `covered` 5.1 ms a look as a thing moved renews them (`furniture._afforded`), her seats' 10.2 ms. Boxes
+    with their arrays (`Boxes`) all at once (`_covers`), the same bits: a bed awake under her renewed it each look, 14 %
+    of her lying."""
     fb = footprint(box)
     c, _axes, h = fb
     lo, hi, reach = top(box) + slab[0], top(box) + slab[1], math.hypot(h[0], h[1])
+    if getattr(things, 'arrays', None) is not None:
+        return float(4.0 * h[0] * h[1]) - sum(_covers(box, things, fb, (lo, hi), reach).tolist())
     over = [t for t in things if t is not box and lo <= bottom(t) <= hi and math.hypot(
         float(t[1][0]) - c[0], float(t[1][2]) - c[1]) <= reach + ROOT2 * math.hypot(t[2][0], t[2][2]) + 1e-9]
     return float(4.0 * h[0] * h[1]) - sum(covered(box, t, fb) for t in over)
+
+
+def _covers(box, things, fb, slab, reach):
+    """(k,) `covered` of `box`'s footprint `fb` (its circle's radius `reach`) under each of `things` (`Boxes`) whose
+    bottoms lie in `slab` (lo, hi) and whose circles meet its, in their order, at once: each one's corners by its axes
+    and their reach along `box`'s the same products as `_within`'s, a thing at a time (numpy's stacked matmul), its
+    circle's test numpy's - one it misses covers none, 0.0 its sum's bits either way."""
+    centre, half, R = things.arrays
+    c, axes, h = fb
+    bottoms = centre[:, 1] - half[:, 1]
+    near = (np.hypot(centre[:, 0] - c[0], centre[:, 2] - c[1])
+            <= reach + ROOT2 * np.hypot(half[:, 0], half[:, 2]) + 1e-9)
+    others = np.fromiter((t is not box for t in things), bool, len(things))
+    k = np.flatnonzero((bottoms >= slab[0]) & (bottoms <= slab[1]) & near & others)
+    oaxes = np.ascontiguousarray(R[k][:, ::2, ::2].transpose(0, 2, 1))
+    local = (centre[k][:, None, ::2] + CORNERS * half[k][:, None, ::2] @ oaxes - c) @ axes.T
+    side = np.maximum(np.minimum(local.max(axis=1), h) - np.maximum(local.min(axis=1), -h), 0.0)
+    return side[:, 0] * side[:, 1]
 
 
 def sits(box, things):

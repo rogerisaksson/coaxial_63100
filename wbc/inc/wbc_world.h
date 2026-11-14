@@ -114,4 +114,27 @@ int wbc_world_paired(const wbc_steps_t *s, const unsigned char *a, const unsigne
     force to any of its bodies (its xfrc_applied: a shove, for her skin to feel), else 0. */
 int wbc_world_contacted(const struct mjData_ *d, wbc_contacts_t *c);
 
+/** Her loose things asleep as machine.world.loose.stick holds them a pass (its `_held` arrays). */
+typedef struct
+{
+  const int           *by_geom;  /**< each geom's thing asleep, -1 none (MuJoCo's ngeom) */
+  const unsigned char *live;     /**< a byte a geom: 1 where its body moves (not the world's, welded to it) */
+  const int           *vel;      /**< the things asleep's velocities along the floor and up, three a thing (nvel) */
+  const int           *of;       /**< each thing asleep, in their order (nvel / 3) */
+  const int           *at;       /**< their coordinates (nat) and where each lies asleep */
+  const double        *lie;
+  const int           *still;    /**< their velocities, held at 0 (nstill) */
+  unsigned char       *woken;    /**< out: a byte a thing (nthing), 1 where it woke */
+  double               low;      /**< a thing asleep moving past this, m/s, woke (half loose.SLIDE_M_S) */
+  int                  nvel;
+  int                  nat;
+  int                  nstill;
+  int                  nthing;
+} wbc_held_t;
+
+/** Her loose things asleep a pass (loose._woke): each that MuJoCo's contacts pair with a geom of something that moves,
+    not of a thing asleep, or that moves past `low`, woken; none, each held where it lies, still. How many woke - those
+    the caller wakes, then holds the rest. */
+int wbc_world_held(struct mjData_ *d, const wbc_held_t *h);
+
 #endif

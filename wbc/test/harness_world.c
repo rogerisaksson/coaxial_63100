@@ -167,3 +167,13 @@ API int wbh_world_contacted(const struct mjData_ *d, wbc_contacts_t *c)
 {
   return wbc_world_contacted(d, c);
 }
+
+API int wbh_held_size(void)
+{
+  return (int)sizeof(wbc_held_t);
+}
+
+API int wbh_world_held(struct mjData_ *d, const wbc_held_t *h)
+{
+  return wbc_world_held(d, h);
+}

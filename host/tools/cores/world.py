@@ -1,6 +1,7 @@
 """Her world's steps in C (wbc_world.c): drives, gearboxes, meters, link, switch about MuJoCo's step.
 
     at, rated, before, after, paired, s, kept = world.laid(w)   # on her world `w`, anew where `w.reset` lays her link
+    hold = world.held(vel, of, at, lie, still, by_geom, live, n, low) # her loose things asleep held a pass: woken
     loop, data = world.numpy_tanh()                             # numpy's own float64 tanh loop, for C to call
 
 `machine.world.physics.World.advance`'s steps where nothing else is asked of them (`machine.world.steps`), the same
@@ -53,17 +54,26 @@ class Steps(ctypes.Structure):
                 + [('lamp', _i), ('spare', _i)])
 
 
+class Held(ctypes.Structure):
+
+    """wbc_held_t: her loose things asleep as `machine.world.loose.stick` holds them a pass, pointing at their arrays."""
+
+    _fields_ = ([(name, _vp) for name in ('by_geom', 'live', 'vel', 'of', 'at', 'lie', 'still', 'woken')]
+                + [('low', _d)] + [(name, _i) for name in ('nvel', 'nat', 'nstill', 'nthing')])
+
+
 @functools.lru_cache(maxsize=None)
 def typed():
     """The library's steps typed, wbc_steps_t's and wbc_boxes_t's sizes the C's."""
     lib = wbc.library()
-    for name, mirror in (('steps', Steps), ('boxes', Boxes)):
+    for name, mirror in (('steps', Steps), ('boxes', Boxes), ('held', Held)):
         size = getattr(lib, 'wbh_%s_size' % name)
         size.restype = _i
         if size() != ctypes.sizeof(mirror):
             raise ValueError('wbc_%s_t is %d bytes, its mirror %d' % (name, size(), ctypes.sizeof(mirror)))
     for name, args, back in (('rated', [_vp, _d], None), ('before', [_vp, _d], None), ('after', [_vp], None),
-                             ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i), ('behind', [], _i)):
+                             ('paired', [_vp, _vp, _vp, _d], _i), ('ahead', [_vp, _vp, _vp], _i), ('behind', [], _i),
+                             ('held', [_vp, _vp], _i)):
         fn = getattr(lib, 'wbh_world_' + name)
         fn.argtypes, fn.restype = args, back
     return lib
@@ -145,3 +155,21 @@ def laid(w):
     rated, before, after, paired = (functools.partial(getattr(lib, 'wbh_world_' + k), at)
                                     for k in ('rated', 'before', 'after', 'paired'))
     return at, rated, before, after, paired, s, (link, masks, boxes, held)
+
+
+def held(vel, of, at, lie, still, by_geom, live, nthing, low):
+    """Her loose things asleep held a pass in C (wbc_world_held) on `loose._held`'s arrays - their velocities three a
+    thing, which they are, their coordinates, where each lies, their velocities held still, each geom's thing asleep,
+    the geoms of what moves -: a call of MuJoCo's data, the things that woke (none: each held where it lies, still)."""
+    lib, point = typed(), wbc.pointer
+    ints = [np.ascontiguousarray(a, np.int32) for a in (by_geom, vel, of, at, still)]
+    kept = ints + [np.ascontiguousarray(live, np.bool_), np.ascontiguousarray(lie, np.float64), np.zeros(nthing, np.uint8)]
+    s = Held(**{k: point(a, np.int32) for k, a in zip(('by_geom', 'vel', 'of', 'at', 'still'), ints)},
+             live=point(kept[5], np.bool_), lie=point(kept[6]), woken=point(kept[7], np.uint8), low=low,
+             nvel=len(vel), nat=len(at), nstill=len(still), nthing=nthing)
+    fn, address, woken = lib.wbh_world_held, ctypes.addressof(s), kept[7]
+
+    def hold(d):
+        return np.flatnonzero(woken).tolist() if fn(d._address, address) else []
+    hold.kept = (s, kept)
+    return hold

@@ -57,13 +57,24 @@ def _afforded(g, verb, things=None):
         else:
             affords, itself, _faces = GOES.get(verb, _NONE)
             index = [k for k, p in enumerate(source) if _boxlike(p)]
-            boxes = [source[k] for k in index]
+            boxes = _boxes(source, index)
             near, was = _near(kept, source, index), dict(kept[3]) if kept is not None else {}
             chosen = [(j, itself(p, boxes) if near is None or near[j] else was[j]) for j, p in enumerate(boxes)
                       if (affords(p, boxes) if near is None or near[j] else j in was)]
-        boxes = [source[k] for k in index]
+        boxes = _boxes(source, index)
         kept = g['_afforded'][key] = (source, tuple(source), index, chosen, boxes, [(boxes[j], own) for j, own in chosen], {})
     return kept[4], kept[5]
+
+
+def _boxes(things, index):
+    """`things`' boxes at `index`, their arrays beside them where `things` has them (`affordance.Boxes`, a look's
+    `registry.Things`) - what affords a verb read of all of them over a box at once (`affordance.clear`)."""
+    boxes = affordance.Boxes(things[k] for k in index)
+    arrays = getattr(things, 'arrays', None)
+    if arrays is not None and len(arrays[0]) == len(things):
+        at = list(index)
+        boxes.arrays = tuple(a[at] for a in arrays)
+    return boxes
 
 
 def _near(kept, things, index):

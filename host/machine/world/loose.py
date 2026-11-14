@@ -82,9 +82,9 @@ def free(m):
             m.geom_conaffinity[owned[k]].copy()) for k in range(len(dofs))]
     world = int(np.bitwise_or.reduce(m.geom_contype[m.geom_bodyid == 0], initial=0))
     live = m.body_weldid[m.geom_bodyid] != 0
+    held: list = [np.zeros(0, int)] * 3 + [np.zeros(0), np.zeros(0, int), np.full(m.ngeom, -1, int), live, None]
     return (dofs, np.array(at, int), feet, of, grips, np.array(bodies, int), per,
-            [[False, False, 0.0, None] for _ in dofs], world,
-            [np.zeros(0, int)] * 3 + [np.zeros(0), np.zeros(0, int), np.full(m.ngeom, -1, int), live])
+            [[False, False, 0.0, None] for _ in dofs], world, held)
 
 
 def home(m, d, things):
@@ -104,24 +104,24 @@ def home(m, d, things):
         _asleep(m, d, things, k)
 
 
-def stick(m, d, things):
+def stick(m, d, things, in_c=True):
     """A pass of her loose things (`free`'s `things`), after MuJoCo's steps: each foot's grip sliding while its thing
     slides along the floor (past SLIDE_M_S), at rest once it has stopped (under half that), as it was between - written
     as a thing goes from one to the other alone (its six things' arrays each pass were 24 us of it) -; a thing still
-    SLEEP_S, touched by nothing that moves, asleep (`_alone`); one asleep that something awake touches (`_touched`) or
-    that moves woken, the others held where they lie, still - all at once (`_held`): one by one, six asleep were 16 us
-    of each pass."""
+    SLEEP_S, touched by nothing that moves, asleep (`_alone`); one asleep that something awake touches or that moves
+    woken (`_woke`), the others held where they lie, still - all at once (`_held`): one by one, six asleep were 16 us
+    of each pass; told in C where `in_c` (wbc_world_held, `_woke` its twin): its numpy views of MuJoCo's contacts 25 us
+    of her stand's every pass, 4 % of it."""
     dofs, _at, _feet, _of, _grips, _bodies, per, state, _world, held = things
     qp, qv, t, low = d.qpos, d.qvel, d.time, 0.5 * SLIDE_M_S
     if len(held[4]):
-        moved = abs(qv[held[0]]) > low
-        woke = _touched(d, held)
-        if moved.any():
-            woke = set(woke) | {int(held[4][i // 3]) for i in moved.nonzero()[0]}
-        for k in sorted(woke):
+        c = held[7] if in_c else None
+        woke = _woke(d, held, low) if c is None else c(d)
+        for k in woke:
             _woken(m, d, things, int(k))
             state[int(k)][2] = t
-        qp[held[1]], qv[held[2]] = held[3], 0.0
+        if woke or c is None:
+            qp[held[1]], qv[held[2]] = held[3], 0.0
     for k, v in enumerate(dofs):
         s = state[k]
         if s[1]:
@@ -137,6 +137,13 @@ def stick(m, d, things):
             if _alone(m, d, things, k):
                 _asleep(m, d, things, k)
             s[2] = t
+
+
+def _woke(d, held, low):
+    """The things asleep (`held`) that wake this pass, in their order: touched by something awake that moves
+    (`_touched`), or moving past `low` themselves (wbc_world_held's twin)."""
+    moved = abs(d.qvel[held[0]]) > low
+    return sorted(set(_touched(d, held)) | {int(held[4][i // 3]) for i in moved.nonzero()[0]})
 
 
 def _touched(d, held):
@@ -194,14 +201,18 @@ def _woken(m, d, things, k):
 
 def _held(things):
     """The things asleep (`free`'s `things`) laid as `stick` holds them, at once: their velocities along the floor
-    and up, their coordinates, their velocities, where each lies, which they are, each geom's asleep thing."""
+    and up, their coordinates, their velocities, where each lies, which they are, each geom's asleep thing, the geoms of
+    what moves, and their hold a pass in C (`tools.cores.world.held`)."""
     import numpy as np
     dofs, at, per, state, live = things[0], things[1], things[6], things[7], things[9][6]
     ks = [k for k, s in enumerate(state) if s[1]]
     by_geom = np.full(len(live), -1, int)
     for k in ks:
         by_geom[per[k][3]] = k
-    things[9][:] = [np.array([dofs[k] + j for k in ks for j in range(3)], int),
-                    np.array([at[k] + j for k in ks for j in range(7)], int),
-                    np.array([dofs[k] + j for k in ks for j in range(6)], int),
-                    np.concatenate([state[k][3] for k in ks]) if ks else np.zeros(0), np.array(ks, int), by_geom, live]
+    from tools.cores import world
+    held = [np.array([dofs[k] + j for k in ks for j in range(3)], int),
+            np.array([at[k] + j for k in ks for j in range(7)], int),
+            np.array([dofs[k] + j for k in ks for j in range(6)], int),
+            np.concatenate([state[k][3] for k in ks]) if ks else np.zeros(0), np.array(ks, int), by_geom, live]
+    things[9][:] = held + [world.held(held[0], held[4], held[1], held[3], held[2], by_geom, live, len(state),
+                                      0.5 * SLIDE_M_S)]

@@ -165,10 +165,10 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
     bits at every pass; MuJoCo's contacts paired in C off its data (`steps.paired`) as python's views pair them."""
     import math
     from machine.body import figure
-    from machine.world import physics, steps
+    from machine.world import loose, physics, steps
     from tools.cores import wbc as cores
     was, tally = (physics.ROOM, physics.CAMERA, physics.SIGHT), {'passes': 0, 'apart': 0, 'pairs': 0, 'paired': 0,
-                                                                 'boxed': 0}
+                                                                 'boxed': 0, 'held': 0, 'woke': 0}
     physics.ROOM, physics.CAMERA, physics.SIGHT = 1.0, 0.0, 0.0
     try:
         clock, worlds = [0.0], [physics.World(), physics.World()]
@@ -193,7 +193,14 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
             tally['boxed'] += a._steps is not None and a._steps[6][2] is not None
             tally['apart'] += any(_apart(x, y) if isinstance(x, str) else x.tobytes() != y.tobytes()
                                   for x, y in zip(*held))
-            d = a.data
+            d, held = a.data, a.furnished[9]
+            if len(held[4]):
+                # her loose things asleep: those that wake told in C (wbc_world_held) as by its twin, one nudged past
+                # its stir each 50th pass and put back
+                v, nudged = int(held[0][0]), k % 50 == 0
+                kept, d.qvel[v] = float(d.qvel[v]), loose.SLIDE_M_S if nudged else float(d.qvel[v])
+                tally['apart'] += held[7](d) != loose._woke(d, held, 0.5 * loose.SLIDE_M_S)
+                tally['held'], tally['woke'], d.qvel[v] = tally['held'] + 1, tally['woke'] + nudged, kept
             for below in (math.inf, 0.05):
                 c = steps.paired(a, *masks, below)
                 geom, pos = d.contact.geom, d.contact.pos
@@ -205,9 +212,9 @@ def test_her_world_steps_in_c_as_in_python(report, _c):
     finally:
         physics.ROOM, physics.CAMERA, physics.SIGHT = was
     report.check("her world's steps in C as in python, %(passes)d passes, her boxes in C %(boxed)d, her contacts paired "
-                 "%(paired)d of %(pairs)d" % tally,
-                 tally['passes'] == WORLD_PASSES == tally['boxed'] and tally['paired'] > 100 and not tally['apart'],
-                 '%(apart)d apart' % tally)
+                 "%(paired)d of %(pairs)d, her loose things held %(held)d, %(woke)d woken" % tally,
+                 tally['passes'] == WORLD_PASSES == tally['boxed'] == tally['held'] and tally['paired'] > 100
+                 and tally['woke'] > 0 and not tally['apart'], '%(apart)d apart' % tally)
 
 
 SKIN_PASSES, SHOVE_N = 1500, 40.0

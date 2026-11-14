@@ -178,14 +178,15 @@ def test_her_gaps_as_numpys_einsums(report):
     """Her gaps to her things (`footprint.gaps`, its sums over pairs written out, her things' arrays laid once a list)
     and her floor's distances to them (`obstacles.apart`, the same) as numpy's einsums give them (`footprint.gaps_twin`,
     `obstacles.apart_twin`), bit for bit at every read her planner makes docking at the lodge's chair, its bed and its
-    door."""
+    door; each box's top clear under the lodge's seat and bed slabs read of all at once (`affordance.Boxes`) as one by
+    one."""
     import numpy as np
     from machine.body import footprint
-    from machine.way import furniture, obstacles, planner
+    from machine.way import affordance, furniture, obstacles, planner
     from machine.texts import maneuver
     from machine.world import physics
     from machine.process import worker
-    was, tally = (physics.ROOM, physics.SIGHT), {'calls': 0, 'apart': 0, 'cells': 0, 'costs': 0}
+    was, tally = (physics.ROOM, physics.SIGHT), {'calls': 0, 'apart': 0, 'cells': 0, 'costs': 0, 'clears': 0}
     physics.ROOM, physics.SIGHT = 1.0, 0.0
     real, real_apart = footprint.gaps, obstacles.apart
 
@@ -211,6 +212,12 @@ def test_her_gaps_as_numpys_einsums(report):
         while g['t'] < 0.1:
             worker.stepped(s)
         floor = min(float(f['sole'][1]) for f in g['s']['feet'])
+        boxes = furniture._boxes(g['things'], range(len(g['things'])))
+        for box in boxes:
+            for slab in (affordance.SEAT_CLEAR, affordance.BED_CLEAR):
+                both = np.array([affordance.clear(box, boxes, slab), affordance.clear(box, list(boxes), slab)])
+                tally['clears'] += 1
+                tally['apart'] += both[0].tobytes() != both[1].tobytes()
         for verb in ('sit_chair', 'lie_bed', 'exit_door'):
             box = furniture.nearest(g, verb)[6]
             if box is None:
@@ -226,8 +233,9 @@ def test_her_gaps_as_numpys_einsums(report):
         footprint.gaps, obstacles.apart = real, real_apart
         physics.ROOM, physics.SIGHT = was
     report.check('her gaps and her floor\'s distances as numpy\'s einsums docking at the chair, the bed and the door: '
-                 '%(calls)d reads, %(cells)d gaps, %(costs)d floors' % tally,
-                 tally['calls'] > 100 and tally['costs'] > 5 and not tally['apart'], '%(apart)d apart' % tally)
+                 '%(calls)d reads, %(cells)d gaps, %(costs)d floors; %(clears)d tops clear at once' % tally,
+                 tally['calls'] > 100 and tally['costs'] > 5 and tally['clears'] > 100 and not tally['apart'],
+                 '%(apart)d apart' % tally)
 
 
 def test_the_planner_and_errand_rows_do_not_toggle(report):

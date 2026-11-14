@@ -243,3 +243,57 @@ int wbc_world_contacted(const mjData *d, wbc_contacts_t *c)
   }
   return shoved;
 }
+
+int wbc_world_held(mjData *d, const wbc_held_t *h)
+{
+  const mjContact *con = d->contact;
+  int              woke = 0;
+
+  for (int k = 0; k < h->nthing; k++)
+  {
+    h->woken[k] = 0U;
+  }
+  for (int i = 0; i < d->ncon; i++)
+  {
+    const int g0 = con[i].geom[0];
+    const int g1 = con[i].geom[1];
+
+    if ((g0 >= 0) && (g1 >= 0))
+    {
+      const int k0 = h->by_geom[g0];
+      const int k1 = h->by_geom[g1];
+
+      if ((k0 >= 0) && (k1 < 0) && (h->live[g1] != 0U))
+      {
+        h->woken[k0] = 1U;
+      }
+      if ((k1 >= 0) && (k0 < 0) && (h->live[g0] != 0U))
+      {
+        h->woken[k1] = 1U;
+      }
+    }
+  }
+  for (int i = 0; i < h->nvel; i++)
+  {
+    if (fabs(d->qvel[h->vel[i]]) > h->low)
+    {
+      h->woken[h->of[i / 3]] = 1U;
+    }
+  }
+  for (int k = 0; k < h->nthing; k++)
+  {
+    woke += (int)h->woken[k];
+  }
+  if (woke == 0)
+  {
+    for (int i = 0; i < h->nat; i++)
+    {
+      d->qpos[h->at[i]] = h->lie[i];
+    }
+    for (int i = 0; i < h->nstill; i++)
+    {
+      d->qvel[h->still[i]] = 0.0;
+    }
+  }
+  return woke;
+}
