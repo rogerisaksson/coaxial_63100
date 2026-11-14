@@ -238,13 +238,20 @@ def test_the_runner_here_is_host_yml_s(report):
 
 def test_the_gate_builds_her_c_for_its_target(report):
     """host.yml's gate names her cores' target (COAXIAL_ISA), one of `build.TARGETS`, its flags those `native`
-    gives under it, nothing contracted; a name none of them refused; unset, this host's own (-march=native)."""
+    gives under it, nothing contracted; a name none of them refused; unset, this host's own (-march=native). And
+    the probe (isa.c) says of this processor what numpy finds where nothing disables its sets: AVX on x86-64-v2,
+    AVX2 as x86-64-v3."""
     from tools.cores import build
     from tools.dev import linux
+    found = set(build._host().split(','))
+    off = set(os.environ.get('NPY_DISABLE_CPU_FEATURES', '').replace(',', ' ').split())
+    probed = {isa: (build.held(isa), needs <= found) for isa, needs in
+              (('avx', {'X86_V2', 'AVX'}), ('avx2', {'X86_V3'})) if not needs & off}
+    report.check("the probe's targets numpy's sets", all(a == b for a, b in probed.values()), str(probed))
     isa, kept = linux.workflow()['env'].get('COAXIAL_ISA'), os.environ.pop('COAXIAL_ISA', None)
     try:
         os.environ['COAXIAL_ISA'] = str(isa)
-        given = build.native() if isa in build.TARGETS and set(build.TARGETS[isa][1]) <= build._sets() else None
+        given = build.native() if isa in build.TARGETS and build.held(isa) else None
         os.environ['COAXIAL_ISA'] = 'none'
         try:
             build.native()
@@ -258,7 +265,7 @@ def test_the_gate_builds_her_c_for_its_target(report):
         if kept is not None:
             os.environ['COAXIAL_ISA'] = kept
     report.check("the gate's target one of her targets, its flags given under it, nothing contracted",
-                 isa in build.TARGETS and given in (None, ('-ffp-contract=off',) + build.TARGETS[isa][0]),
+                 isa in build.TARGETS and given in (None, ('-ffp-contract=off',) + build.TARGETS[isa]),
                  '%s: %s' % (isa, given))
     report.check('a name none of her targets refused; unset, this host\'s own', refused
                  and own[0] == '-ffp-contract=off' and all(flag.endswith('=native') for flag in own[1:]), str(own))

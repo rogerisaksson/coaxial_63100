@@ -1,4 +1,6 @@
 """A portable C core built with the host's compiler into a shared library."""
+import ctypes
+import functools
 import glob
 import hashlib
 import os
@@ -16,17 +18,19 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
-def _sets():
-    """The instruction sets this host's processor has, as numpy probes them."""
-    import numpy as np
-    sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
-    return frozenset(k for k, on in sets.items() if on)
+#: Her cores' targets by name (COAXIAL_ISA), each one's flags: AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as
+#: x86-64-v3, AVX-512 as x86-64-v4 (their FMA unused: nothing contracted); a processor running them as isa.c
+#: reads it (`held`).
+TARGETS = {'avx': ('-march=x86-64-v2', '-mavx'), 'avx2': ('-march=x86-64-v3',), 'avx512': ('-march=x86-64-v4',)}
+#: The probe of which of them this processor runs.
+ISA_C = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'isa.c')
 
 
-#: Her cores' targets by name (COAXIAL_ISA): each one's flags and the sets numpy must find on this host to run
-#: them (`_sets`) - AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as x86-64-v3 (its FMA unused: nothing contracted).
-TARGETS = {'avx': (('-march=x86-64-v2', '-mavx'), ('X86_V2', 'AVX')),
-           'avx2': (('-march=x86-64-v3',), ('X86_V3',))}
+@functools.cache
+def held(isa):
+    """Whether this processor runs target `isa`, as the compiler's own runtime reads it (isa.c's isa_<name>): numpy's
+    sets are what NPY_DISABLE_CPU_FEATURES leaves them - X86_V3 False on a processor that has it."""
+    return bool(getattr(ctypes.CDLL(cached([ISA_C], [], 'isa')[0]), 'isa_' + isa)())
 
 
 def native():
@@ -38,22 +42,13 @@ def native():
     if isa:
         if isa not in TARGETS:
             raise RuntimeError('COAXIAL_ISA=%s is none of her targets: %s' % (isa, ', '.join(TARGETS)))
-        flags, needs = TARGETS[isa]
-        lacking = [name for name in needs if name not in _sets()]
-        if lacking:
-            raise RuntimeError('COAXIAL_ISA=%s needs %s, which this processor lacks' % (isa, ', '.join(lacking)))
-        return ('-ffp-contract=off',) + flags
+        if not held(isa):
+            raise RuntimeError('COAXIAL_ISA=%s is a target this processor does not run (isa.c)' % isa)
+        return ('-ffp-contract=off',) + TARGETS[isa]
     flag = {'amd64': '-march=native', 'x86_64': '-march=native', 'arm64': '-mcpu=native',
             'aarch64': '-mcpu=native'}.get(platform.machine().lower())
     return ('-ffp-contract=off',) + ((flag,) if flag else ())
 
-
-#: A world run here: -O3 on this host's own instruction sets (`native`, her cores' too: one set of them for
-#: every loop's C) - an x86's roundss for floorf and nearbyintf, exact -; on Windows ucrt's fminf and fmaxf inline
-#: (world_libm.h). The stand-in's drive period 448 -> 277 ns, its state the same bits at -O0 to -O3; her twenty
-#: native boards 2.03 -> 1.81 CPU s a wall s.
-FAST = (['-O3', '-fno-math-errno'] + list(native())
-        + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h')] if os.name == 'nt' else []))
 
 #: With COAXIAL_GCOV set (tools/dev/cover.py), built for gcov: unoptimised, so a
 #: line is a line, the counts beside the library.
@@ -112,9 +107,11 @@ def build(cc, sources, includes, name, extra=()):
 
 
 def _host():
-    """This host's processor by the instruction sets it has (`_sets`): a library built for them (`native`) is no
-    other processor's, its digest this too."""
-    return ','.join(sorted(_sets()))
+    """This host's processor by the instruction sets it has, as numpy probes them: a library built for them
+    (`native`) is no other processor's, its digest this too."""
+    import numpy as np
+    sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
+    return ','.join(sorted(k for k, on in sets.items() if on))
 
 
 def headers(includes):
@@ -218,6 +215,14 @@ def _claimed(lib):
             _unmarked(marker)
             return False
         return True
+
+
+#: A world run here: -O3 on this host's own instruction sets (`native`, her cores' too: one set of them for
+#: every loop's C) - an x86's roundss for floorf and nearbyintf, exact -; on Windows ucrt's fminf and fmaxf inline
+#: (world_libm.h). The stand-in's drive period 448 -> 277 ns, its state the same bits at -O0 to -O3; her twenty
+#: native boards 2.03 -> 1.81 CPU s a wall s. Laid after `cached`: a target's probe (`held`) is built by it.
+FAST = (['-O3', '-fno-math-errno'] + list(native())
+        + (['-include', os.path.join(REPO, 'world', 'inc', 'world_libm.h')] if os.name == 'nt' else []))
 
 
 # setup.ps1's probe, before host/ is installed: winget's gcc is on PATH in new shells only.

@@ -71,8 +71,8 @@ Python 3.12 to 3.14 is what CI runs the host on. The host is one package,
 `.\system_terminal.ps1 adc -Simulated` opens one page with no cable; `-Frames N`
 ends it after N frames. The 3D pages raster on the GPU where a card answers
 (wgpu); `COAXIAL_GPU=0` keeps them on the CPU. Her C cores are built for this
-host's processor (`-march=native`); `COAXIAL_ISA=avx` or `avx2` builds them for
-that target instead (`host/tools/cores/build.py`).
+host's processor (`-march=native`); `COAXIAL_ISA=avx`, `avx2` or `avx512` builds
+them for that target instead (`host/tools/cores/build.py`).
 
 </details>
 
