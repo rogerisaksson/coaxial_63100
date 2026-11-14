@@ -36,6 +36,7 @@ from tools import REPO
 from tools.cores import fakeboard
 from tools.cores.build import FAST, OUT, cached, find_cc
 from tools.cores.model import built
+from tools.cores.native_trace import TRACE, traced
 from tools.emu import world as worlds
 from tools.emu.protocol_emulator import BODIES
 
@@ -356,11 +357,20 @@ class Limb:
         if timer is not None:
             timer.winmm.timeBeginPeriod(1)
         try:
+            last = time.monotonic()
             while not self._stop.wait(PACE_S):
+                woke = time.monotonic() if TRACE else 0.0
                 with self.lock:
+                    held = time.monotonic() if TRACE else 0.0
                     wall = int((time.monotonic() - self._start) * 1e6)
                     if wall - self._us >= PACE_S * 1e6:
                         self._run_to(min(wall, self._us + int(BURST_S * 1e6)))
+                if TRACE:
+                    ran = time.monotonic()
+                    if max(woke - last, held - woke, ran - held) > BURST_S:
+                        traced('pace', gap_s=round(woke - last, 3), lock_s=round(held - woke, 3),
+                               run_s=round(ran - held, 3), board_s=self._us / 1e6)
+                    last = ran
         finally:
             if timer is not None:
                 timer.winmm.timeEndPeriod(1)
@@ -376,12 +386,19 @@ class Limb:
         quiet apart on the board's clock (on the N2 runner a 16 s lag ran through took 16 s, the
         request after the reply found it 16 s behind again, and the board's deadman dropped the
         host's hold on the AFE rail between them)."""
+        asked = time.monotonic() if TRACE else 0.0
         with self.lock:
+            held, was = time.monotonic() if TRACE else 0.0, self._us
             past = int((time.monotonic() - self._start) * 1e6) - self._us - int(0.5 * HOST_QUIET_S * 1e6)
             if past > 0:
                 self._start += past / 1e6
             start = max(int((time.monotonic() - self._start) * 1e6), self._line + T35_US)
             self._run_to(start)
+            if TRACE:
+                ran = time.monotonic()
+                if past > 0 or max(held - asked, ran - held, (start - was) / 1e6) > BURST_S:
+                    traced('send', lock_s=round(held - asked, 3), run_s=round(ran - held, 3), board_s=was / 1e6,
+                           caught_s=(start - was) / 1e6, forgiven_s=max(past, 0) / 1e6, bytes=len(data))
             for byte in data:
                 for board in self.boards:
                     board.lib.fake_hear(self.port, byte)

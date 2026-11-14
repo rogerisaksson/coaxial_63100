@@ -165,8 +165,9 @@ Evaluate the prompt and working tree before invoking any tool:
     keeps a red suite from stopping the run, and host-time checks (test_qp's
     solve, test_wbc_core's tick) and test_mirrors' subprocess timeout fail
     there only - judge the parity tallies. A fault only a runner shows is
-    probed on a branch of its own: the suite in a matrix (16 jobs, six runs
-    each), judged by its count of reds, the branch deleted after.
+    probed there (`gh workflow run probe.yml --ref BRANCH -f runner=...
+    -f file=test_x.py [-f trace=true]`: 16 jobs, six runs each), judged by
+    its count of reds and a red run's tail.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool
     (`python -X utf8 host/tools/sim/pace.py` `stand walk` `--blind`) to establish
@@ -206,6 +207,12 @@ Evaluate the prompt and working tree before invoking any tool:
   + Use existing selective probes or tests, or create new, for use with the tools
     (such as profilers, introspection, test suites), to establish reliable
     detectors and sieves for effectively discovering and rejecting solutions.
+    Probes live in the repo, ensembles on the relay, `--against TREE` for an
+    A/B: `host/tools/sim/falls.py` (her falls by the world's truth: what
+    struck, how hard, her spasms), `offered.py` (F's errands walked into),
+    `wearing.py` (her wear filter's step response), `inertias.py` (her
+    figure's inertias as bits), `python -m tools.cores.orders` (numpy's
+    einsum orders on this processor).
 
 - **Exit Gate (Emit after receiving State 1 tool outputs):**
   `[STATE 1 GATE: Mapped=[...] Dirty=[...] Baseline=[numbers or N/A]]`

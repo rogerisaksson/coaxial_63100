@@ -176,7 +176,8 @@ def test_a_batch_fits_whose_host_it_is(report):
 def test_the_jobs_take_their_inputs_kept(report):
     """.github/inputs.txt pins each tool a job takes from outside: a row a tool, the sha256 of what its
     source serves, its program inside that, and an https archive of a kind .github/inputs.sh unpacks; a
-    tool's sources of one kind name one program. Both workflows take their inputs through the inputs
+    tool's sources of one kind name one program. The workflows running her suites (the gate, the
+    firmware's, the runner probe's) take their inputs through the inputs
     action (.github/actions/inputs, kept in the Actions cache) and fetch nothing themselves - apt's
     mirrors not resolving had failed the host's gate before a suite ran, three pushes running. Every
     fetcher's fallbacks are checked by the inputs workflow, run when the fetcher changes."""
@@ -193,10 +194,10 @@ def test_the_jobs_take_their_inputs_kept(report):
         programs.setdefault((tool, next(k for k in kinds if source.endswith(k))), set()).add(program)
     report.check("a tool's sources of one kind name one program",
                  all(len(names) == 1 for names in programs.values()), str(programs))
-    raw = [name for name in ('firmware.yml', 'host.yml')
+    raw = [name for name in ('firmware.yml', 'host.yml', 'probe.yml')
            if './.github/actions/inputs' not in (text := (root / 'workflows' / name).read_text(encoding='utf-8'))
            or re.search(r'apt-get|curl |pip install', text)]
-    report.check('both jobs take their inputs kept, fetching nothing themselves', not raw, str(raw))
+    report.check('every job running her suites takes its inputs kept, fetching nothing itself', not raw, str(raw))
     health = (root / 'workflows' / 'inputs.yml').read_text(encoding='utf-8')
     watched = re.findall(r'paths: \[([^\]]*)\]', health)
     unchecked = [name for name in ('inputs.sh', 'apt.sh')

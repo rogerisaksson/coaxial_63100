@@ -8,9 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
+from tools.sim.offered import OFFERED, STOP, WALK, described, reached, walked_up
 from views_kit import Report, typed
-
-WALK, STOP = (0.69, 0.0, 0.0), (0.0, 0.0, 0.0)
 
 
 def _first(st, typed, pad):
@@ -206,64 +205,25 @@ def test_chair_and_bed_seated_and_rising(report):
 def test_viewport_f_errands_chair_bed_and_door(report):
     """Walking toward the chair (`SIGHT = 1.0`), bed, or door offers it first in the viewport
     (`gym.offered`, `gym.ballooned`), and F (`_first`) makes her autonomously dock and sit, lie
-    down, or exit."""
-    from types import SimpleNamespace as SN
-    from machine.law import modal
-    from machine.world import physics
-    from machine.process import sprung, worker
-    from terminal.views import gym, humanoid_keys, scanner, viewpoint
+    down, or exit (`tools.sim.offered`: its walk, its judge, its ensemble)."""
+    from machine.process import worker
+    from terminal.views import gym, humanoid_keys, scanner
     sc = scanner.VisionScanner()
-    for label, hd0, walk_s, verb, goal_phase in (
-        ('chair', 1.0, 0.6, 'sit_chair', 'seated_crossfade'),
-        ('bed', -0.65, 1.0, 'lie_bed', 'bed_rest'),
-        ('door', 0.22, 1.5, 'exit_door', 'stand'),
-    ):
-        physics.ROOM, physics.SIGHT = 1.0, float(label == 'chair')
-        s = worker.session()
+    for label, hd0, walk_s, verb, goal_phase in OFFERED:
+        s, st, shown, shown_prompt, expected_prompt, max_prop = walked_up(label, hd0, walk_s, verb, goal_phase, sc)
         g = s['g']
-        worker.apply(s, {'heading': hd0, 'twist': WALK})
-        _run(s, walk_s)
-        st = {'body': SN(send=lambda **cmd: worker.apply(s, cmd)), 'scanner': sc,
-              'now': worker.told(s), 'yaw': 180.0, 'tour': None, **viewpoint.HOME}
-        offer = gym.offered(st)
-        key, first = (offer or [('', None)])[0][:2]
-        shown_prompt, expected_prompt = gym.prompt(st), '[%s] %s' % (key, gym.NAMED[verb])
-        shown = first == verb and shown_prompt.startswith(expected_prompt) and bool(gym.ballooned(st, offer, 120, 40, STOP))
-        _first(st, typed, humanoid_keys.PAD)
-        max_prop = 0.0
-        for _ in range(40000):
-            worker.stepped(s)
-            g = s['g']
-            max_prop = max(max_prop, float(g['y'][modal.PROP]))
-            if s['fallen_at'] is not None:
-                break
-            if label == 'door' and g.get('_errand') is None and float(g['world'].data.qpos[2]) > 4.1:
-                break
-            if (label != 'door' and sprung.doing(g) == goal_phase and max_prop > 0.45 and g['t'] > 9.0
-                    and g.get('played') is None):
-                break
-        gx, gy, gz = (float(g['world'].data.qpos[i]) for i in range(3))
-        if label == 'door':
-            dq = float(g['world'].data.qpos[g['world'].model.jnt_qposadr[g['world'].model.joint('door').id]])
-            ok = (shown and gz > 4.1 and dq > 1.2 and s['fallen_at'] is None)
-            detail = 'prompt=%r z=%.2f door=%.2f fallen=%s' % (shown_prompt, gz, dq, s['fallen_at'])
-        else:
-            sr_rest = float(g.get('surety', 1.0))
-            ok = (shown and sprung.doing(g) == goal_phase
-                  and max_prop > 0.45 and gy < 0.72 and sr_rest > 0.65 and s['fallen_at'] is None)
-            if label == 'bed' and ok:
-                _run(s, 0.8)
-                st['now'] = worker.told(s)
-                rise_prompt, rise_on = gym.prompt(st), (gym.offered(st) or [('',) * 5])[0][4]
-                _first(st, typed, humanoid_keys.PAD)
-                _flips, stood_t = _run(s, 30.0, until='stand')
-                _run(s, 0.5)
-                ok = (ok and rise_prompt == '[F1] rise bed' and rise_on.startswith('bed ') and stood_t is not None
-                      and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
-            detail = 'prompt=%r doing=%s pos=(%.2f,%.2f,%.2f) prop=%.2f sure=%.2f fallen=%s' % (
-                shown_prompt, sprung.doing(g), gx, gy, gz, max_prop, float(g.get('surety', 1.0)), s['fallen_at'])
+        ok = reached(label, goal_phase, s, shown, max_prop)
+        if label == 'bed' and ok:
+            _run(s, 0.8)
+            st['now'] = worker.told(s)
+            rise_prompt, rise_on = gym.prompt(st), (gym.offered(st) or [('',) * 5])[0][4]
+            _first(st, typed, humanoid_keys.PAD)
+            _flips, stood_t = _run(s, 30.0, until='stand')
+            _run(s, 0.5)
+            ok = (ok and rise_prompt == '[F1] rise bed' and rise_on.startswith('bed ') and stood_t is not None
+                  and sum(g['loads']) > 250.0 and float(g.get('surety', 1.0)) > 0.85 and s['fallen_at'] is None)
         report.check('F for %s: %s offered first and completes autonomous errand' % (label, expected_prompt),
-                     ok, detail)
+                     ok, described(label, s, shown_prompt, max_prop))
 
 
 def test_the_errand_goes_to_the_thing_told(report):

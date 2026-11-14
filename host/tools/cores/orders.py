@@ -1,6 +1,7 @@
 """The order numpy sums an einsum's terms in, read off its own result (`tools.cores.emit`'s einsums).
 
     perm, inner = orders.ordered(st)    # the summed letters outer to inner; an order of ORDERS
+    python -X utf8 -m tools.cores.orders    # her einsum forms' orders on this processor (`told`)
 
 Each run along the innermost summed index summed in `inner` (numpy's sum_of_products), added to the
 output in turn over the outer ones.
@@ -163,3 +164,38 @@ def ordered(st):
         raise Untraced('einsum %r in no order numpy sums in (%s)' % (st.args[0], st.where))
     perm = found[0][0]
     return perm, 'seq' if (perm, 'seq') in found else found[0][1]
+
+
+def told(seed=SEED):
+    """[(an einsum's form, the orders of ORDERS that sum it as numpy does on this processor, bit for bit)] of
+    the forms her cores sum: a frame's rows into her contacts' (contiguous and strided), a sum over her bodies
+    into a strided output, three operands, a transpose - what `ordered` reads off her own statements."""
+    rng = np.random.default_rng(seed)
+    R, X = rng.standard_normal((16, 3, 5)), rng.standard_normal((16, 4, 5))
+    Rt = np.asfortranarray(rng.standard_normal((16, 3, 5)))
+    h, w = rng.standard_normal((9, 2, 3)), rng.standard_normal(9)
+    a, b, c, e = (rng.standard_normal((4, 6)), rng.standard_normal((4, 6)), rng.standard_normal(6),
+                  rng.standard_normal((16, 3)))
+    forms = (('nij,ncj->nci', np.einsum('nij,ncj->nci', R, X), R[:, None], X[:, :, None]),
+             ('nij,ncj->nci strided', np.einsum('nij,ncj->nci', Rt, X), Rt[:, None], X[:, :, None]),
+             ('nia,n->ia', np.einsum('nia,n->ia', h, w), np.moveaxis(h, 0, -1), w),
+             ('ij,ij,j->i', np.einsum('ij,ij,j->i', a, b, c), a * b, np.broadcast_to(c, a.shape)),
+             ('nji,nj->ni', np.einsum('nji,nj->ni', R[:, :, :3], e), np.swapaxes(R[:, :, :3], 1, 2), e[:, None, :]))
+    told_ = []
+    for name, got, A, B in forms:
+        A, B = np.broadcast_arrays(A, B)
+        told_.append((name, [o for o in ORDERS if same(summed(A, B, o), got)]))
+    return told_
+
+
+def main():
+    """Each form's orders on this processor, a line each (`told`): python -X utf8 -m tools.cores.orders."""
+    import platform
+    print('numpy %s on %s' % (np.__version__, platform.machine()))
+    for name, fits in told():
+        print('%-22s %s' % (name, ' '.join(fits) or 'none of ORDERS'))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

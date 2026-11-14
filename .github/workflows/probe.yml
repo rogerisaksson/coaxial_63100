@@ -1,0 +1,97 @@
+# A fault only a runner shows, probed there: a suite run again and again on GitHub's runner, side by side, its
+# reds counted and a red run's tail kept - asked by hand on any branch (gh workflow run probe.yml --ref BRANCH
+# -f runner=ubuntu-24.04-arm -f file=test_native.py). test_native's thermometers went red 1 to 9 % of runs on
+# the N2 alone, a limb 16 s behind the wall (native.send); found so in 96 runs a round, with its transport's
+# slow moments (tools/cores/native_trace.py) where `trace`.
+name: probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: the runner it is probed on
+        type: choice
+        options: [ubuntu-24.04-arm, ubuntu-latest]
+        default: ubuntu-24.04-arm
+      file:
+        description: the suite (run_tests.py --file), words after a colon its tests
+        default: test_native.py
+      isa:
+        description: her cores' target (COAXIAL_ISA); none - the gate's, sve2 on an Arm
+        default: ''
+      jobs:
+        description: runners side by side
+        default: '16'
+      runs:
+        description: runs a runner
+        default: '6'
+      python:
+        description: the Python
+        default: '3.12'
+      trace:
+        description: the native transport's slow moments beside a red run (COAXIAL_NATIVE_TRACE)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  laid:
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.n.outputs.jobs }}
+    steps:
+      - id: n
+        env:
+          JOBS: ${{ inputs.jobs }}
+        run: echo "jobs=$(python3 -c 'import json, os; print(json.dumps(list(range(1, int(os.environ["JOBS"]) + 1))))')" >> "$GITHUB_OUTPUT"
+
+  probe:
+    needs: laid
+    runs-on: ${{ inputs.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.laid.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python }}
+      - uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          constraints: host/constraints.txt
+          editable: host
+      # As the gate runs on each: on an x86 numpy's AVX2 paths and her C for AVX2 (host.yml), on an Arm her C for
+      # SVE2 (its arch job); `isa` another target.
+      - shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          FILE: ${{ inputs.file }}
+          RUNS: ${{ inputs.runs }}
+          ISA: ${{ inputs.isa }}
+          TRACE: ${{ inputs.trace }}
+        run: |
+          if [ "$(uname -m)" = x86_64 ]; then
+            export NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR" COAXIAL_ISA="${ISA:-avx2}"
+          else
+            export COAXIAL_ISA="${ISA:-sve2}"
+          fi
+          [ "$TRACE" = true ] && export COAXIAL_NATIVE_TRACE="$RUNNER_TEMP/native.jsonl"
+          suite="${FILE%%:*}"
+          reds=0
+          for k in $(seq 1 "$RUNS"); do
+            python tools/dev/run_tests.py --offline --measure --file "$FILE" > out.txt 2>&1 || true
+            grep -E "^${suite} |^  ${suite}:" out.txt || true
+            if ! grep -qE "^${suite} +[0-9]+ passed, 0 failed" out.txt; then
+              reds=$((reds + 1))
+              echo "--- run $k red: its tail"; tail -80 out.txt
+              [ -n "$COAXIAL_NATIVE_TRACE" ] && [ -f "$COAXIAL_NATIVE_TRACE" ] && { echo "--- its transport's slow moments"; tail -40 "$COAXIAL_NATIVE_TRACE"; }
+            fi
+            [ -n "$COAXIAL_NATIVE_TRACE" ] && rm -f "$COAXIAL_NATIVE_TRACE"
+          done
+          echo "::notice::${suite} on $(uname -m) ($COAXIAL_ISA): $reds of $RUNS runs red"
