@@ -16,11 +16,33 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 # The warnings the firmware build puts on the portable cores.
 FLAGS = ['-std=c11', '-O1', '-Wall', '-Wextra', '-Wconversion', '-Wshadow']
 
+def _sets():
+    """The instruction sets this host's processor has, as numpy probes them."""
+    import numpy as np
+    sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
+    return frozenset(k for k, on in sets.items() if on)
+
+
+#: Her cores' targets by name (COAXIAL_ISA): each one's flags and the sets numpy must find on this host to run
+#: them (`_sets`) - AVX over x86-64-v2 (a Sandy Bridge's), AVX2 as x86-64-v3 (its FMA unused: nothing contracted).
+TARGETS = {'avx': (('-march=x86-64-v2', '-mavx'), ('X86_V2', 'AVX')),
+           'avx2': (('-march=x86-64-v3',), ('X86_V3',))}
+
+
 def native():
-    """The compiler's flags for this host's own instruction sets, nothing contracted: -march=native on x86,
-    -mcpu=native on ARM (clang's -march takes no native there), none on another processor; -ffp-contract=off with
-    them - gcc's ISO C contracts nothing, clang's does within an expression, and a fused multiply-add is not
-    numpy's bits."""
+    """The compiler's flags for her cores' target, nothing contracted: COAXIAL_ISA's (`TARGETS`) where it is set -
+    one this processor runs -, else this host's own instruction sets: -march=native on x86, -mcpu=native on ARM
+    (clang's -march takes no native there), none on another processor; -ffp-contract=off with them - gcc's ISO C
+    contracts nothing, clang's does within an expression, and a fused multiply-add is not numpy's bits."""
+    isa = os.environ.get('COAXIAL_ISA', '')
+    if isa:
+        if isa not in TARGETS:
+            raise RuntimeError('COAXIAL_ISA=%s is none of her targets: %s' % (isa, ', '.join(TARGETS)))
+        flags, needs = TARGETS[isa]
+        lacking = [name for name in needs if name not in _sets()]
+        if lacking:
+            raise RuntimeError('COAXIAL_ISA=%s needs %s, which this processor lacks' % (isa, ', '.join(lacking)))
+        return ('-ffp-contract=off',) + flags
     flag = {'amd64': '-march=native', 'x86_64': '-march=native', 'arm64': '-mcpu=native',
             'aarch64': '-mcpu=native'}.get(platform.machine().lower())
     return ('-ffp-contract=off',) + ((flag,) if flag else ())
@@ -90,11 +112,9 @@ def build(cc, sources, includes, name, extra=()):
 
 
 def _host():
-    """This host's processor by the instruction sets it has, as numpy probes them: a library built for them
-    (`native`) is no other processor's, its digest this too."""
-    import numpy as np
-    sets = getattr(getattr(getattr(np, '_core', None), '_multiarray_umath', None), '__cpu_features__', {})
-    return ','.join(sorted(k for k, on in sets.items() if on))
+    """This host's processor by the instruction sets it has (`_sets`): a library built for them (`native`) is no
+    other processor's, its digest this too."""
+    return ','.join(sorted(_sets()))
 
 
 def headers(includes):

@@ -4,7 +4,8 @@ runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
-take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt)."""
+take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt). And her C
+built for the gate's target (`tools.cores.build.TARGETS`)."""
 import json
 import os
 import pathlib
@@ -235,11 +236,40 @@ def test_the_runner_here_is_host_yml_s(report):
                  "cached environment by it, the runner's image installing through it", all(held), held)
 
 
+def test_the_gate_builds_her_c_for_its_target(report):
+    """host.yml's gate names her cores' target (COAXIAL_ISA), one of `build.TARGETS`, its flags those `native`
+    gives under it, nothing contracted; a name none of them refused; unset, this host's own (-march=native)."""
+    from tools.cores import build
+    from tools.dev import linux
+    isa, kept = linux.workflow()['env'].get('COAXIAL_ISA'), os.environ.pop('COAXIAL_ISA', None)
+    try:
+        os.environ['COAXIAL_ISA'] = str(isa)
+        given = build.native() if isa in build.TARGETS and set(build.TARGETS[isa][1]) <= build._sets() else None
+        os.environ['COAXIAL_ISA'] = 'none'
+        try:
+            build.native()
+            refused = False
+        except RuntimeError:
+            refused = True
+        del os.environ['COAXIAL_ISA']
+        own = build.native()
+    finally:
+        os.environ.pop('COAXIAL_ISA', None)
+        if kept is not None:
+            os.environ['COAXIAL_ISA'] = kept
+    report.check("the gate's target one of her targets, its flags given under it, nothing contracted",
+                 isa in build.TARGETS and given in (None, ('-ffp-contract=off',) + build.TARGETS[isa][0]),
+                 '%s: %s' % (isa, given))
+    report.check('a name none of her targets refused; unset, this host\'s own', refused
+                 and own[0] == '-ffp-contract=off' and all(flag.endswith('=native') for flag in own[1:]), str(own))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
-          test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s)
+          test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s,
+          test_the_gate_builds_her_c_for_its_target)
 
 
 def main(argv=None):
