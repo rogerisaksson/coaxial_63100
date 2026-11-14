@@ -17,11 +17,12 @@ from gynoid_kit import Report
 from machine.body import mjcf
 from machine.world import physics
 
-#: Her walk's phases, s: as built, carrying LOAD_KG in her left hand, then a knee's friction
-#: FRICTION_X, a hip's torque an amp TORQUE_X of themselves and an elbow's encoder slipped ZERO_RAD
-#: besides; a load read within this of itself; the stand's campaign, s, with a knee's play PLAY_X;
-#: her back's load, kg, read standing on her insoles.
-NOMINAL_S, LOADED_S, WORN_S = 10.0, 12.0, 14.0
+#: Her walk's phases, s: as built, carrying LOAD_KG in her left hand, then - from a wear window's
+#: start (`wear.WINDOW_S`), WORN_S its windows whole - a knee's friction FRICTION_X, a hip's torque
+#: an amp TORQUE_X of themselves and an elbow's encoder slipped ZERO_RAD besides; a load read within
+#: this of itself; the stand's campaign, s, with a knee's play PLAY_X; her back's load, kg, read
+#: standing on her insoles.
+NOMINAL_S, LOADED_S, WORN_S = 12.0, 12.0, 14.0
 LOAD_KG, WITHIN, FRICTION_X, TORQUE_X, ZERO_RAD = 0.5, 0.3, 2.0, 0.8, 0.02
 CAMPAIGN_S, PLAY_X = 24.0, 2.0
 TORSO_KG, SWAY_S = 1.5, 6.0
