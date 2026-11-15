@@ -259,6 +259,24 @@ def test_a_craft_states_its_own_alone(r):
             not apart and not any('extends' in cfg for cfg in resolved.values()), apart)
 
 
+def test_a_wings_lift_slope_is_its_aspect_ratios(r):
+    """The aerobat's lift a radian of incidence is not stated: `polars.lift_slope` gives it of its
+    wing's span and chord (Helmbold) - a slender wing's pi/2 an aspect ratio at the one end, thin
+    airfoil theory's 2 pi at the other, rising between."""
+    from machine.aircraft import compile as craft, polars
+    from machine.body import mechatronics
+    wing = mechatronics.crafts()['aerobat']
+    slope = polars.lift_slope(wing['wing_span_m'], wing['wing_chord_m'])
+    laid = _scalars(craft.blocks()['unlimited_3d_monoplane'][1])['cl_alpha']
+    r.check('the aerobat states no lift slope: its block\'s is its wing\'s aspect ratio\'s',
+            'cl_alpha' not in wing and laid == slope, (laid, slope))
+    slopes = [polars.lift_slope(aspect, 1.0) for aspect in (1e-6, 1.0, 2.0, 5.0, 10.0, 1e3, 1e9)]
+    r.check('a wing\'s lift slope rises with its aspect ratio, pi/2 of it slender, toward 2 pi a radian',
+            all(a < b for a, b in zip(slopes, slopes[1:])) and slopes[-1] <= math.tau
+            and math.isclose(slopes[0] / 1e-6, 0.5 * math.pi, rel_tol=1e-6)
+            and math.isclose(slopes[-1], math.tau, rel_tol=1e-6), slopes)
+
+
 def test_a_heavier_craft_keeps_its_radii(r):
     """A craft's heavy variant states a mass alone: its body's inertias grow by the mass's ratio,
     its geometry stays, and the hover thrust AeroLisp starts from is the quadcopter's weight."""
@@ -287,7 +305,7 @@ ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_state
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_craft_states_its_own_alone,
-          test_a_heavier_craft_keeps_its_radii)
+          test_a_wings_lift_slope_is_its_aspect_ratios, test_a_heavier_craft_keeps_its_radii)
 
 
 def main(argv=None):

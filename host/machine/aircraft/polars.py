@@ -12,6 +12,13 @@ def kq(rho, cp, d):
     return round(float(cp) * rho * (float(d) ** 5) / (math.tau ** 3), 9)
 
 
+def lift_slope(span, chord):
+    """A wing's lift a radian of incidence by its aspect ratio (Helmbold's equation): thin-airfoil theory's
+    2 pi a radian in two dimensions, less what its trailing vortices' downwash takes of it."""
+    aspect = float(span) / float(chord)
+    return math.tau * aspect / (2.0 + math.sqrt(aspect * aspect + 4.0))
+
+
 def _gyr(mass, gyr):
     m = float(mass)
     return tuple(round(m * float(r) ** 2, 6) for r in gyr)
@@ -39,7 +46,7 @@ def arena(crafts, rho, g):
     a_span, a_chord = float(ae['wing_span_m']), float(ae['wing_chord_m'])
     a_top = float(round(4.0 * a_span + 2.0 * a_chord))
     v_stall = math.sqrt(2.0 * float(ae['mass_kg']) * g
-                        / (rho * a_span * a_chord * float(ae['cl_alpha']) * math.radians(stall)))
+                        / (rho * a_span * a_chord * lift_slope(a_span, a_chord) * math.radians(stall)))
     return {
         'floor_m': floor_m, 'hover_m': hover_m, 'high_m': round(2.5 * hover_m, 2), 'top_m': top_m,
         'least_pull': round(0.15 * g, 1), 'hover_lean_m_s2': lean,
@@ -173,7 +180,7 @@ def aero_blocks(crafts, inv, rho, env=None):
             'tail_arm': a_arm, 'stab_area': a_stab, 'fin_area': a_fin,
             'k_thrust': a_kt, 'k_drag': a_kq, 'blade_pitch': float(ae['prop_pitch_m']),
             'inflow_j0': j0, 'prop_inertia': float(ae['prop_kgm2']),
-            'cl_alpha': float(ae['cl_alpha']), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae, env),
+            'cl_alpha': lift_slope(a_span, a_chord), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae, env),
             'elevator_limit': math.radians(float(ae['elevator_deg'])),
             'aileron_limit': math.radians(float(ae['aileron_deg'])),
             'rudder_limit': math.radians(float(ae['rudder_deg'])),

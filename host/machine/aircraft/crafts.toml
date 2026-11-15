@@ -92,7 +92,6 @@ cp = 0.040831
 tail_arm_m = 0.484
 stab_area_m2 = 0.046
 fin_area_m2 = 0.035
-cl_alpha = 4.2
 cd0 = 0.035
 elevator_deg = 45.0
 aileron_deg = 38.0
