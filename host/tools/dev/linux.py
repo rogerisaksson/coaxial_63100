@@ -42,6 +42,7 @@ from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from tools.dev import ledger
 from tools.dev.suites import ROOT
 
 #: The tree's root, the workflow of the gate (its host job the one run here) and the image of its runner.
@@ -52,6 +53,9 @@ WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'gate.yml', REPO / '.git
 #: architectures), where the robot's loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB
 #: faulted test_tune (SIGBUS).
 PROCESSORS, MEMORY, SHM = 4, '16g', '8g'
+#: A container's commit booked in the machine's ledger (tools.dev.ledger): the reserve a relay keeps - the gate
+#: inside books its own jobs in the container's ledger, and the engine's VM takes the host's commit as it goes.
+BOOKED_GB = ledger.RESERVE_GB
 #: The runner's user and its id; the image's name, its tag a release and a Python.
 USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
@@ -61,7 +65,7 @@ ARCHS = {'amd64': 'x64', 'arm64': 'arm64'}
 X86_ENV = ('NPY_DISABLE_CPU_FEATURES', 'COAXIAL_ISA')
 #: Where a container is shown its processors online: glibc counts them there, and os.cpu_count with it.
 ONLINE = '/sys/devices/system/cpu/online'
-#: The plan job's one stated default of a list, quoted in its expression: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
+#: The workflow job's one stated default of a list, quoted in its expression: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
 PLANNED = re.compile(r"'([^']*)'")
 #: The relay's arguments that ask for this host - a board, a model, a benchmark's priority -: not a container's.
 HOSTS = ('--conformance', '--live', '--model', '--sections', '--match', '--tags', '--only', '--bench')
@@ -83,13 +87,13 @@ LIVE = []
 
 def workflow(path=WORKFLOW):
     """What gate.yml's host job runs on and runs: {'release': its runner's Ubuntu ('latest' of ubuntu-latest),
-    'pythons': the plan job's default Pythons (its PYTHONS line, the one place they are stated), 'apt': the packages, 'requirements', 'constraints' (its lock, tools/dev/pinned.py) and
+    'pythons': the workflow job's default Pythons (its PYTHONS line, the one place they are stated), 'apt': the packages, 'requirements', 'constraints' (its lock, tools/dev/pinned.py) and
     'editable': what its inputs action is given, 'env': the gate's step's environment, 'directory': where that step
     runs}."""
     import yaml
     with open(path, encoding='utf-8') as f:
         jobs = yaml.safe_load(f)['jobs']
-    job, planned = jobs['host'], PLANNED.search(str(jobs['plan']['env']['PYTHONS']))
+    job, planned = jobs['host'], PLANNED.search(str(jobs['workflow']['env']['PYTHONS']))
     runs, steps = str(job['runs-on']), job['steps']
     if not runs.startswith('ubuntu-'):
         raise SystemExit('linux: gate.yml runs on %s - an image here is of an Ubuntu runner' % runs)
@@ -270,7 +274,8 @@ def ran(client, tag, info, cpus, argv, say, checkout, name):
         container = client.containers.create(
             tag, ['bash', '-c', GATE, 'gate', *argv], user=USER, environment=env,
             working_dir='/home/%s/work/%s/%s' % (USER, name, name), cpuset_cpus=listed, mem_limit=MEMORY,
-            memswap_limit=MEMORY, shm_size=SHM, mounts=[Mount(ONLINE, online.name, type='bind', read_only=True)])
+            memswap_limit=MEMORY, shm_size=SHM, mounts=[Mount(ONLINE, online.name, type='bind', read_only=True)],
+            labels={'coaxial.relay': str(os.getpid()), 'coaxial.tree': str(REPO)})   # its owner and its tree (ledger.clean)
         LIVE.append(container)
         container.put_archive('/home/%s/work' % USER, tar)
         container.start()
@@ -320,6 +325,8 @@ def main(argv=None):
     if not set(pythons) <= set(info['pythons']):
         raise SystemExit("linux: gate.yml's matrix is %s" % ', '.join(info['pythons']))
     client = engine()
+    for line in ledger.clean(client=client):
+        print('linux: ' + line, flush=True)
     if args.kept:
         stands = kept(client, info, pythons, args.arch)
         print(', '.join('%s %s' % (minor, ('missing', 'kept')[ok]) for minor, ok in stands.items()))
@@ -340,10 +347,15 @@ def main(argv=None):
         def say(line):
             with lock:
                 print(prefix + line, flush=True)
+        held_cores = sum(1 for core in found if core & cpus)
         say('linux: Python %s, %s, processors %s (%d cores, %d threads), %s' % (
             minor, tag, ','.join(str(c) for c in range(cpus.bit_length()) if cpus >> c & 1),
-            sum(1 for core in found if core & cpus), bin(cpus).count('1'), MEMORY))
-        codes[minor] = ran(client, tag, info, cpus, relayed, say, checkout, name)
+            held_cores, bin(cpus).count('1'), MEMORY))
+        # its cores booked in the machine's ledger beside every relay's jobs, waited for while the machine is taken
+        with ledger.reserved(held_cores, BOOKED_GB, 'linux-%s' % minor) as booking:
+            if booking.waited >= ledger.POLL_S:
+                say('linux: waited %.0f s for %d cores of the machine (run_tests.py --ledger)' % (booking.waited, held_cores))
+            codes[minor] = ran(client, tag, info, cpus, relayed, say, checkout, name)
 
     jobs = [threading.Thread(target=one, args=(minor, tag, sets[k] if side else sets[0]), daemon=True)
             for k, (minor, tag) in enumerate(zip(pythons, tags))]

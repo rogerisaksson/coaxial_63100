@@ -127,10 +127,10 @@ def test_the_gate_builds_the_robots_c_for_its_target(report):
 
 def test_the_gate_s_parts_cover_its_suites(report):
     """`machine_detector.parts`: the offline suites in n parts, each suite in one part in the given order, the parts'
-    work apart by one suite's at most, the same split asked twice. And gate.yml's plan (`machines.plan`): its defaults
+    work apart by one suite's at most, the same split asked twice. And gate.yml's workflow job (`workflow.plan`): its defaults
     stated once, twenty machines every one taken - the host's parts a Python what the firmware's presets and the arch's
-    targets leave -, the matrices and --part from the plan's outputs; fewer machines fewer parts, one Python all left."""
-    from tools.dev import machine_detector, machines, suites
+    targets leave -, the matrices and --part from its outputs; fewer machines fewer parts, one Python all left."""
+    from tools.dev import machine_detector, suites, workflow
     offline = [s for s in suites.DEFAULT_SUITES if s not in suites.NEEDS_BOARD]
     work = machine_detector.table()
     heaviest = max(work.get(s, 0.0) for s in offline)
@@ -145,18 +145,18 @@ def test_the_gate_s_parts_cover_its_suites(report):
                  'asked twice', all(held), '%s; %d parts %s' % (held, n, [round(l) for l in loads]))
     gate = (pathlib.Path(__file__).resolve().parents[2] / '.github' / 'workflows' / 'gate.yml').read_text(encoding='utf-8')
     told = dict(re.findall(r"^\s+(MACHINES|PYTHONS|PRESETS|ISAS): \$\{\{ inputs\.\w+ \|\| '([^']*)' \}\}", gate, re.M))
-    laid = machines.plan(told.get('MACHINES', 0), told.get('PYTHONS', ''), told.get('PRESETS', ''), told.get('ISAS', ''))
-    wired = ('--part ${{ matrix.part }}/${{ needs.plan.outputs.n }}', 'python: ${{ fromJSON(needs.plan.outputs.pythons) }}',
-             'part: ${{ fromJSON(needs.plan.outputs.parts) }}', 'preset: ${{ fromJSON(needs.plan.outputs.presets) }}',
-             'include: ${{ fromJSON(needs.plan.outputs.arch) }}', 'job: ${{ fromJSON(needs.plan.outputs.probe) }}')
-    report.check("gate.yml's plan: its defaults stated once, twenty machines every one taken, the matrices and --part from "
-                 "the plan's outputs", len(told) == 4 and laid['jobs'] == int(told.get('MACHINES', 0)) == 20 and laid['n'] == 8
+    laid = workflow.plan(told.get('MACHINES', 0), told.get('PYTHONS', ''), told.get('PRESETS', ''), told.get('ISAS', ''))
+    wired = ('--part ${{ matrix.part }}/${{ needs.workflow.outputs.n }}', 'python: ${{ fromJSON(needs.workflow.outputs.pythons) }}',
+             'part: ${{ fromJSON(needs.workflow.outputs.parts) }}', 'preset: ${{ fromJSON(needs.workflow.outputs.presets) }}',
+             'include: ${{ fromJSON(needs.workflow.outputs.arch) }}', 'job: ${{ fromJSON(needs.workflow.outputs.probe) }}')
+    report.check("gate.yml's workflow job: its defaults stated once, twenty machines every one taken, the matrices and --part "
+                 "from its outputs", len(told) == 4 and laid['jobs'] == int(told.get('MACHINES', 0)) == 20 and laid['n'] == 8
                  and all(w in gate for w in wired), '%s -> n %s, %s jobs' % (told, laid['n'], laid['jobs']))
-    fewer = machines.plan(10, '3.12', 'Release', 'sve2')
+    fewer = workflow.plan(10, '3.12', 'Release', 'sve2')
     report.check('fewer machines fewer parts, one Python all that are left: 10 machines, Release and sve2 -> 8 parts of one '
                  'Python, 10 jobs; 3 machines -> one part', fewer['n'] == 8 and fewer['jobs'] == 10
                  and fewer['arch'] == [{'runner': 'ubuntu-24.04-arm', 'isa': 'sve2'}]
-                 and machines.plan(3, '3.12 3.14', 'Debug Release', 'sve2 avx512')['n'] == 1, str(fewer))
+                 and workflow.plan(3, '3.12 3.14', 'Debug Release', 'sve2 avx512')['n'] == 1, str(fewer))
 
 
 def test_the_last_green_commit_is_the_reference(report):

@@ -153,14 +153,14 @@ def test_a_table_laid_keeps_what_was_not_run(report):
 def test_a_batch_fits_whose_host_it_is(report):
     """`tools.dev.background` and `machine_detector.chosen` on hosts laid here: a CI runner is nobody's desk -
     nothing kept, its cores a width and its every thread another, the one that does most work taken as
-    measured; a desk keeps its user a third of its cores, four at most."""
+    measured; a desk keeps its user a third of its cores, four at most and two at least."""
     from tools.dev import background as b, machine_detector as m
     told = [b.runner(e) for e in ({'CI': 'true'}, {'CI': 'True'}, {'CI': '1'}, {}, {'CI': 'false'}, {'CI': ''})]
     report.check("a runner: CI true in a job's environment; a desk: unset, empty or false",
                  told == [True, True, True, False, False, False], told)
     desks = [(b.kept(cores, False), b.widths(cores, 2 * cores, False)) for cores in (2, 4, 8, 12, 32)]
-    report.check('a desk keeps its user a third of its cores, four at most: none of 2, 1 of 4, 2 of 8, 4 of 12 and of 32',
-                 desks == [(0, (2,)), (1, (3,)), (2, (6,)), (4, (8,)), (4, (28,))], desks)
+    report.check('a desk keeps its user a third of its cores, four at most, two at least: one of 2, 2 of 4 and of 8, 4 of 12 '
+                 'and of 32', desks == [(1, (1,)), (2, (2,)), (2, (6,)), (4, (8,)), (4, (28,))], desks)
     runners = [(b.kept(cores, True), b.widths(cores, threads, True)) for cores, threads in ((2, 4), (4, 4), (32, 64))]
     report.check('a runner keeps none: its cores a width, its every thread another where it has more',
                  runners == [(0, (2, 4)), (0, (4,)), (0, (32, 64))], runners)
@@ -172,10 +172,52 @@ def test_a_batch_fits_whose_host_it_is(report):
                  m.said(here))
 
 
+def test_the_ledger_counts_a_container_s_cores(report):
+    """`tools.dev.ledger`: a container's booking holds its cores in the ledger while its block runs, waited for while
+    the width is taken - a second container of one core finds none left of two, and finds it once the first is gone;
+    one that waits is in the queue the view lists, and takes its cores within a poll of the first letting go -;
+    `focus.outstanding` tells the cores beside the jobs; `said` lists the machine, its containers with their tree, its
+    queue; `clean` removes what a relay that is gone left: its booking, its ticket, its half-written file."""
+    import threading
+    from tools.dev import focus, ledger
+    with tempfile.TemporaryDirectory() as folder:
+        with ledger.reserved(2, 0.0, 'linux-3.12', ledger=folder, width=2, free=100.0) as first:
+            held, cores = first.path is not None, focus.outstanding(folder)[3]
+            with ledger.reserved(1, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=0, free=100.0) as second:
+                refused = second.path is None
+            lines = ledger.said(folder, width=2)
+        with ledger.reserved(1, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=0, free=100.0) as third:
+            again = third.path is not None
+        after = focus.outstanding(folder)[3]
+        queued, got = ledger.reserved(2, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=10.0, free=100.0), []
+        with ledger.reserved(2, 0.0, 'linux-3.12', ledger=folder, width=2, free=100.0):
+            runner = threading.Thread(target=lambda: got.append(queued.__enter__().path), daemon=True)
+            runner.start()
+            runner.join(1.5 * ledger.POLL_S)
+            queue = [line for line in ledger.said(folder, width=2) if line.startswith('waiting: container linux-3.14')]
+        runner.join(3 * ledger.POLL_S)
+        queued.__exit__(None, None, None)
+        dead = next(pid for pid in range(2 ** 22 + 1, 2 ** 22 + 1000) if not focus._alive(pid))
+        for name in ('.wait-%d-jobs' % dead, '.%d-8.part' % dead):   # 8: booking 7's own part file is consumed by its laying
+            with open(os.path.join(folder, name), 'w', encoding='utf-8') as f:
+                json.dump({'relay': dead, 'count': 3, 'since': 0.0}, f)
+        focus.booked(os.path.join(folder, '%d-7' % dead), 0.3, None, dead)
+        swept, left = ledger.clean(folder, client=False), sorted(os.listdir(folder))
+    report.check('a container booked holds its cores; a second finds none left of two, finds them once the first is '
+                 'gone; the view lists it', held and cores == 2 and refused and again and after == 0
+                 and any(line.startswith('container linux-3.12') and '2 cores' in line for line in lines)
+                 and lines[0].startswith('machine:') and '2 taken' in lines[0]
+                 and len(queue) == 1 and '2 cores' in queue[0] and got and got[0] is not None
+                 and any(os.path.basename(str(focus.ROOT.parent)) in line for line in lines if line.startswith('container'))
+                 and len(swept) == 2 and left == [],
+                 '%s %s %s %s %s | queue %s, got %s | swept %s, left %s' % (cores, refused, again, after, lines, queue, got, swept, left))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
-          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is)
+          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
+          test_the_ledger_counts_a_container_s_cores)
 
 
 def main(argv=None):

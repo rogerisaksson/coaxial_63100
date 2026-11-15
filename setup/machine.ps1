@@ -14,7 +14,7 @@ function Get-PythonGate {
         no suite has run on.
 #>
     # $script:, not $Root: Find-Python's own $root is the same name to PowerShell. The list
-    # plan job's one stated default: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
+    # workflow job's one stated default: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
     $ci = Get-Content (Join-Path $script:Root '.github\workflows\gate.yml') -Raw -ErrorAction SilentlyContinue
     $matrix = [regex]::Match([string]$ci,
                              'PYTHONS:.*?''([\d. ]+)''').Groups[1].Value

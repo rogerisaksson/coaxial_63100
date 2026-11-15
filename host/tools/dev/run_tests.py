@@ -79,6 +79,9 @@ def _options(argv):
     parser.add_argument('--part', metavar='K/N',
                         help="the k-th of n parts the suites split in by their work (tests/work.json, "
                              "machine_detector.parts): the gate's runners take one each (gate.yml)")
+    parser.add_argument('--ledger', action='store_true',
+                        help="the machine's ledger: its cores kept and taken, each relay's jobs, each container of "
+                             "the gate (tools.dev.ledger); nothing run")
     parser.add_argument('--sections',
                         help='which live sections: tools|sequence|language')
     parser.add_argument('--live', action='store_true',
@@ -178,6 +181,7 @@ def _run(args, tags, live_sections):
     args.host = machine_detector.host(args.jobs)
     args.jobs = args.host['width']
     print(machine_detector.said(args.host), flush=True)
+    print('tree: %s' % ROOT.parent, flush=True)
     suites = list(args.file) if args.file else list(BENCHMARKS if args.bench else DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
@@ -282,6 +286,12 @@ def main(argv=None):
         if reconfigure is not None:
             reconfigure(errors='replace')
     args = _options(argv)
+    from tools.dev import ledger
+    for line in ledger.clean():
+        print(line, flush=True)
+    if args.ledger:
+        print('\n'.join(ledger.said()))
+        return 0
     if args.linux:
         from tools.dev import linux
         return linux.main([arg for arg in (sys.argv[1:] if argv is None else argv) if arg != '--linux'])

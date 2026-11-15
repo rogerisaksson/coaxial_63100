@@ -158,9 +158,8 @@ Evaluate the prompt and working tree before invoking any tool:
   + Green reference (mandatory before any red suite, fall, regression or CI
     red is reasoned about): the last commit GitHub's CI left wholly green is
     the reference, never first principles. Ask it
-    (`python -X utf8 host/tools/dev/ci.py` `--green`: the gate's host, firmware
-    and arch jobs and the gate whole, each its commit and how many commits HEAD
-    is past it), check
+    (`python -X utf8 host/tools/dev/ci.py` `--green`: each gate job's and the
+    gate's last green, each its commit and how far HEAD is past it), check
     that commit out in a worktree and A/B the red suite there and here
     through the relay (`offered.py` and `wearing.py` by `--against TREE`).
     The fault lies in `git diff GREEN..HEAD`; where the span is long, bisect
@@ -181,6 +180,12 @@ Evaluate the prompt and working tree before invoking any tool:
     runs the versions `host/constraints.txt` pins (laid by
     `host/tools/dev/pinned.py`); a difference between the operating systems
     is one only where the modules match.
+  + Machine ledger (before running beside other agents): every relay's jobs
+    and every container of the gate are booked in one ledger a machine and
+    wait for room, the desk's two cores or more kept (`tools.dev.ledger`);
+    `run_tests.py` `--ledger` shows cores kept and taken, each booking with
+    its tree, the queue, and cleans what relays that are gone left; a
+    runner's share of the gate is `--part k/n` (tests/work.json).
   + Empirical ISA baseline (mandatory when C cores, their target flags, sum
     orders or streaming kernels are touched, or CI's `arch` jobs are red):
     the robot's cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:

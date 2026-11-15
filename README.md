@@ -74,7 +74,10 @@ ends it after N frames. The 3D pages raster on the GPU where a card answers
 this host's processor (`-march=native`); `COAXIAL_ISA=avx`, `avx2`, `avx512`,
 `sve2` or `sme2` builds them for that target instead
 (`host/tools/cores/build.py`). `run_tests.py --linux --arch arm64 --isa sme2`
-runs the gate on an emulated Arm.
+runs the gate on an emulated Arm. `run_tests.py --ledger` shows the machine's
+ledger: what every relay and container of the gate holds of its cores, and
+the queue; beside others a run waits for room and leaves the desk two cores
+at least.
 
 </details>
 

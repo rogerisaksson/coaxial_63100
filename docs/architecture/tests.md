@@ -19,13 +19,19 @@ its structure, the relay, tiers, CI. Each subject's suites: its document.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `touches.TOUCHES` maps a changed path to its suites;
   `CHEAP` ones settle without asking the model.
-- CI: one workflow, `gate.yml`, twenty jobs a push: `host` runs `--offline`
+- CI: one workflow, `gate.yml`, twenty jobs a push laid out by its `workflow`
+  job (tools/dev/workflow.py): `host` runs `--offline`
   on Python 3.12 and 3.14 in eight parts each (`--part k/8`, split by
   tests/work.json); `firmware` builds both images in Debug and Release, fails
   on any warning, keeps the ELFs; `arch` runs the C parity suites on CI's
   arm64 runner (`sve2`) and
   with `avx512` where the x86 runner has it; `--linux` runs the gate in
   containers shaped as CI's runner.
+- The machine's ledger (`tools/dev/ledger.py`): every relay's jobs and
+  every container of the gate booked in one place a machine, admitted while
+  the batch's width (the cores less two or more kept for the desk) and the
+  free commit hold, else queued; `run_tests.py --ledger` shows it, and each
+  start cleans what relays that are gone left behind.
 
 ```text
 tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
@@ -35,6 +41,8 @@ tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     watchdog, the relay: a baton a physical core, a queue longest
                     first, as the free commit holds), ci (`--green`: the last
                     commit CI left green), linux (CI's runner as containers),
+                    ledger (the machine's ledger: bookings, the queue,
+                    `--ledger`), workflow (the gate laid out over its machines),
                     gate (the offline gate on a commit, its own worktree),
                     pinned and depends (`constraints.txt` laid; what a machine
                     needs written where setup reads it, held to the lock),

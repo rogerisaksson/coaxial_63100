@@ -26,8 +26,9 @@ BELOW_NORMAL, NICE = 0x4000, 10
 #: camera -, a physical core each the batch leaves whole, both its threads: under the offline gate below
 #: normal the HUMANOID page's frame took 41.3 ms to its 7.3 alone, 28.3 with these kept; the rest is the
 #: memory bus, shared at any priority - eight streaming numpy loads alone took it to 39.3. Of a desk's cores a
-#: third at most (`kept`): the batch has two of three; a runner keeps none.
-PAGE_CORES = 4
+#: third at most (`kept`), and two at least (DESK_CORES) where it has more than two - a laptop's user keeps a
+#: pair whatever a company of agents runs beside -: the batch has two of three; a runner keeps none.
+PAGE_CORES, DESK_CORES = 4, 2
 #: What a CI service sets true in the environment of its jobs.
 RUNNER = 'CI'
 #: A job's limit of its priority (JOB_OBJECT_LIMIT_PRIORITY_CLASS) and its basic limits' information class.
@@ -47,11 +48,14 @@ def runner(environ=None):
 
 
 def kept(cores=None, on_runner=None):
-    """The physical cores the batch leaves the pages: of a desk's a third, PAGE_CORES at most - one of four,
-    two of eight, four of twelve or more; of a runner's none. This host's unless told."""
+    """The physical cores the batch leaves the pages and the desk: of a desk's a third, PAGE_CORES at most and
+    DESK_CORES at least where it has more - one of two, two of four and of eight, four of twelve or more; of a
+    runner's none. This host's unless told."""
     from tools.dev.focus import physical_cores
     cores = physical_cores() if cores is None else cores
-    return 0 if (runner() if on_runner is None else on_runner) else min(PAGE_CORES, cores // 3)
+    if runner() if on_runner is None else on_runner:
+        return 0
+    return min(cores - 1, max(DESK_CORES, min(PAGE_CORES, cores // 3)))
 
 
 def widths(cores=None, threads=None, on_runner=None):

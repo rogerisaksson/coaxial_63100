@@ -157,7 +157,7 @@ DEPENDS = 'test_depends.py'
 #: What CI left red leads the suites that run first: a log tail read, FAILED_FIRST laid (tools.dev.ci).
 CI = 'test_ci.py'
 #: The gate as GitHub runs it: its one workflow's jobs and their inputs kept, the runner's image here, the robot's C
-#: for its target, its suites in parts of equal work (tools.dev.linux, machine_detector.parts, ci's reference).
+#: for its target, its suites in parts of equal work (tools.dev.linux, tools.dev.workflow, machine_detector.parts, ci's reference).
 WORKFLOW = 'test_workflow.py'
 #: The robot's law's hand ports in C beside their python at every pass of its walk (tools.cores.surety, touch, twist, wait,
 #: brace).

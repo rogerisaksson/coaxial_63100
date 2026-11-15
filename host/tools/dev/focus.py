@@ -204,26 +204,40 @@ class _Locked:
         self.f.close()
 
 
-def booked(path, gb, pid=None, owner=None):
+def booked(path, gb, pid=None, owner=None, cores=0):
     """A job in the ledger: `gb` its commit, `pid` its process once started, held while `owner`
-    (this relay) lives."""
-    os.makedirs(LEDGER, exist_ok=True)
-    part = os.path.join(LEDGER, '.%s.part' % os.path.basename(path))
+    (this relay) lives; `cores` a container's, counted as so many processes (tools.dev.ledger); the tree it runs."""
+    folder = os.path.dirname(path) or LEDGER
+    os.makedirs(folder, exist_ok=True)
+    part = os.path.join(folder, '.%s.part' % os.path.basename(path))
     with open(part, 'w', encoding='utf-8') as f:
-        json.dump({'relay': owner or os.getpid(), 'gb': gb, 'pid': pid}, f)
+        json.dump({'relay': owner or os.getpid(), 'gb': gb, 'pid': pid, 'cores': cores, 'tree': str(ROOT.parent)}, f)
     os.replace(part, path)
 
 
-def outstanding():
-    """(the commit every relay's running jobs have still to take, GB; how many run; their processes),
-    machine-wide: a job counted at its booking less what its process holds; one whose relay is gone,
-    dropped."""
-    owed, running, pids = 0.0, 0, []
+def waiting(path, count=0):
+    """A ticket in the ledger beside the bookings while a relay or a container waits for room - `count` jobs or
+    cores -, gone when `count` is 0: the queue as `tools.dev.ledger.said` lists it (`.wait-<relay>-<name>`)."""
+    if not count:
+        with suppress(OSError):
+            os.remove(path)
+        return
     with suppress(OSError):
-        for name in os.listdir(LEDGER):
+        with open(path + '.part', 'w', encoding='utf-8') as f:
+            json.dump({'relay': os.getpid(), 'count': count, 'since': time.time()}, f)
+        os.replace(path + '.part', path)
+
+
+def outstanding(ledger=LEDGER):
+    """(the commit every relay's running jobs have still to take, GB; how many run; their processes; the cores
+    every container holds), machine-wide: a job counted at its booking less what its process holds, a container
+    at its booking; one whose relay is gone, dropped."""
+    owed, running, pids, cores = 0.0, 0, [], 0
+    with suppress(OSError):
+        for name in os.listdir(ledger):
             if name.startswith('.'):
                 continue
-            path = os.path.join(LEDGER, name)
+            path = os.path.join(ledger, name)
             try:
                 with open(path, encoding='utf-8') as f:
                     job = json.load(f)
@@ -235,9 +249,12 @@ def outstanding():
                 continue
             held = _private_gb(job['pid']) if job['pid'] is not None else None
             owed += max(0.0, job['gb'] - (held or 0.0))
+            if job.get('cores'):
+                cores += int(job['cores'])
+                continue
             running += 1
             pids += [job['pid']] * (job['pid'] is not None)
-    return owed, running, pids
+    return owed, running, pids, cores
 
 
 def _parents():
@@ -367,12 +384,16 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
     return out or '', code, time.monotonic() - started
 
 
+waiting_ticket = waiting
+
+
 def relay(jobs, batons=None, bench=False):
     """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
     a physical core each - each taking the first job whose commit fits the free commit less what
     every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
-    an idle host fits anything -, while every relay's jobs with their children hold fewer processes
-    than the batch's widest (`processes`, `background.widths`), OpenBLAS on one thread in each; a job ending
+    an idle host fits anything -, while every relay's jobs with their children, and the cores every container of
+    the gate holds (tools.dev.ledger), stay under the batch's widest (`processes`, `background.widths`), OpenBLAS
+    on one thread in each; a job ending
     hands its baton to the next at once. `bench` a benchmark's, on a desk: each job above normal priority
     from its start and `placed.BENCH` set for every process of the robot's own it starts (`placed.raised`),
     its wall times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
@@ -399,6 +420,8 @@ def relay(jobs, batons=None, bench=False):
             return False
         return room is None or job.gb <= room
 
+    ticket = waiting_ticket
+
     def take():
         """(the next job that fits, its booking); None once none is left. Waits while those
         left do not, looking again each second: another relay's job may end."""
@@ -406,10 +429,11 @@ def relay(jobs, batons=None, bench=False):
             while waiting:
                 with _Locked():
                     free = free_commit_gb()
-                    owed, running, pids = outstanding()
-                    room = None if free is None or not running else free - owed - RESERVE_GB
-                    cores = processes(pids) + running - len(pids) < background.widths()[-1]
-                    job = next((j for j in waiting if fits(j, room)), None) if cores else None
+                    owed, running, pids, cores = outstanding()
+                    room = None if free is None or not (running or cores) else free - owed - RESERVE_GB
+                    fits_cores = processes(pids) + running - len(pids) + cores < background.widths()[-1]
+                    job = next((j for j in waiting if fits(j, room)), None) if fits_cores else None
+                    ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0 if job else len(waiting))
                     if job is not None:
                         waiting.remove(job)
                         held['running'] += 1
@@ -421,6 +445,7 @@ def relay(jobs, batons=None, bench=False):
                             booked(path, job.gb)
                         return job, path
                 turn.wait(timeout=1.0)
+            ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0)
             return None
 
     def baton():

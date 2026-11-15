@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """The gate's machines: how many each target takes at once, the host's suites in parts over the rest.
 
-    python3 tools/dev/machines.py 20 '3.12 3.14' 'Debug Release' 'sve2 avx512'   # KEY=json lines, the plan job's outputs
+    python3 tools/dev/workflow.py 20 '3.12 3.14' 'Debug Release' 'sve2 avx512'   # KEY=json lines, the workflow job's outputs
 
-GitHub runs twenty jobs of a public repository at once and queues the rest, so the gate plans twenty machines a
-run (gate.yml, its plan job): the firmware's presets take one each, the robot's C targets one each, and the
+GitHub runs twenty jobs of a public repository at once and queues the rest, so the gate relays a run to twenty
+machines (gate.yml, its workflow job): the firmware's presets take one each, the robot's C targets one each, and the
 host's suites split in as many parts a Python as are left (run_tests.py --part k/n, machine_detector.parts) -
 sixteen runners of the twenty for two Pythons, eight parts each. Asked by hand with fewer machines, fewer parts;
-with one Python, twice as many. Plain Python: the plan job runs it before anything is installed.
+with one Python, twice as many. Plain Python: the workflow job runs it before anything is installed.
 """
 import json
 import sys
@@ -28,10 +28,10 @@ def plan(machines, pythons, presets, isas):
 
 
 def main(argv=None):
-    """The plan's outputs as GitHub's output file takes them, KEY=json a line, and a line saying the plan."""
+    """The workflow job's outputs as GitHub's output file takes them, KEY=json a line, and a line saying the plan."""
     words = sys.argv[1:] if argv is None else list(argv)
     if len(words) != 4:
-        print('usage: machines.py MACHINES PYTHONS PRESETS ISAS', file=sys.stderr)
+        print('usage: workflow.py MACHINES PYTHONS PRESETS ISAS', file=sys.stderr)
         return 2
     laid = plan(*words)
     for key, value in laid.items():

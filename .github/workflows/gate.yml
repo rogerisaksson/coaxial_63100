@@ -1,5 +1,5 @@
-# The gate, one run a push, planned over the machines GitHub runs at once - twenty for a public repository; the
-# rest queue - by its first job (host/tools/dev/machines.py): the firmware's presets a machine each, the robot's C
+# The gate, one run a push, laid out over the machines GitHub runs at once - twenty for a public repository; the
+# rest queue - by its first job, workflow (host/tools/dev/workflow.py): the firmware's presets a machine each, the robot's C
 # targets a machine each, and the host's offline suites over what is left, in parts of equal work a Python
 # (tests/work.json: run_tests.py --part k/n, machine_detector.parts) - sixteen runners of the twenty, two Pythons
 # of eight parts. Asked by hand, the machines and each target's list are the inputs': fewer machines, fewer parts;
@@ -16,16 +16,16 @@ on:
   workflow_dispatch:
     inputs:
       machines:
-        description: machines at once (GitHub runs 20 for a public repository); the plan job's defaults where empty
+        description: machines at once (GitHub runs 20 for a public repository); the workflow job's defaults where empty
         default: ''
       pythons:
-        description: the host's Pythons, a part each of what is left; the plan job's default where empty
+        description: the host's Pythons, a part each of what is left; the workflow job's default where empty
         default: ''
       presets:
-        description: the firmware's presets, a machine each; the plan job's default where empty
+        description: the firmware's presets, a machine each; the workflow job's default where empty
         default: ''
       isas:
-        description: the robot's C targets held on their runners, a machine each; the plan job's default where empty
+        description: the robot's C targets held on their runners, a machine each; the workflow job's default where empty
         default: ''
       measure:
         description: every suite to its end, none cut - the runner's measure
@@ -66,10 +66,10 @@ permissions:
   contents: write        # the failure steps post the log tail as a commit comment
 
 jobs:
-  # The plan: the machines and each target's list - the inputs' where asked by hand, else these defaults, the one
-  # place they are stated (tools/dev/linux.py, pre_commit.py, readme.py and setup/machine.ps1 read the Pythons
-  # here) -, laid out by machines.py as the matrices below.
-  plan:
+  # The workflow laid out: the machines and each target's list - the inputs' where asked by hand, else these
+  # defaults, the one place they are stated (tools/dev/linux.py, pre_commit.py, readme.py and setup/machine.ps1
+  # read the Pythons here) -, handed out by workflow.py as the matrices below.
+  workflow:
     runs-on: ubuntu-latest
     env:
       MACHINES: ${{ inputs.machines || '20' }}
@@ -88,22 +88,22 @@ jobs:
       - uses: actions/checkout@v7
       - id: laid
         run: |
-          python3 host/tools/dev/machines.py "$MACHINES" "$PYTHONS" "$PRESETS" "$ISAS" >> "$GITHUB_OUTPUT"
+          python3 host/tools/dev/workflow.py "$MACHINES" "$PYTHONS" "$PRESETS" "$ISAS" >> "$GITHUB_OUTPUT"
           echo "probe=$(python3 -c 'import json, os; print(json.dumps(list(range(1, int(os.environ["PROBE_JOBS"]) + 1))))')" >> "$GITHUB_OUTPUT"
 
   # The offline gate: the suites that need no board, no ollama daemon and no bench - the same set
-  # `run_tests.py --offline` has always named - in the plan's parts of equal work (tests/work.json, the heaviest
+  # `run_tests.py --offline` has always named - in the workflow's parts of equal work (tests/work.json, the heaviest
   # first into the lightest part: machine_detector.parts), a Python each. Every part reports: with fail-fast the
   # first red cancelled the other Python's job and its verdict went unseen for weeks.
   host:
     if: ${{ !inputs.probe }}
-    needs: plan
+    needs: workflow
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python: ${{ fromJSON(needs.plan.outputs.pythons) }}
-        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+        python: ${{ fromJSON(needs.workflow.outputs.pythons) }}
+        part: ${{ fromJSON(needs.workflow.outputs.parts) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -128,7 +128,7 @@ jobs:
       # tau at test_tick's pass 2298); OpenBLAS's kernel its C takes as numpy does (wbc_dot,
       # wbc_matmul) - forced, it crashed Zen 4/5. The robot's C built for AVX2 on every runner too (x86-64-v3,
       # tools/cores/build.py's TARGETS): one code for all.
-      - run: python tools/dev/run_tests.py --offline --part ${{ matrix.part }}/${{ needs.plan.outputs.n }} ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
+      - run: python tools/dev/run_tests.py --offline --part ${{ matrix.part }}/${{ needs.workflow.outputs.n }} ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
         shell: bash
         working-directory: host
         env:
@@ -144,19 +144,19 @@ jobs:
         run: |
           tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
           gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-            -f body="$(printf 'CI host (%s, %s/%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}' '${{ matrix.part }}' '${{ needs.plan.outputs.n }}'; cat tail.log; printf '\n~~~\n')" \
+            -f body="$(printf 'CI host (%s, %s/%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}' '${{ matrix.part }}' '${{ needs.workflow.outputs.n }}'; cat tail.log; printf '\n~~~\n')" \
             || true
 
   # The firmware, built with the same presets the bench uses - `cmake --preset <name>`, then the build preset -
   # on Arm's own GCC 14, the major the ST bundle ships; then the image itself on Renode.
   firmware:
     if: ${{ !inputs.probe }}
-    needs: plan
+    needs: workflow
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        preset: ${{ fromJSON(needs.plan.outputs.presets) }}
+        preset: ${{ fromJSON(needs.workflow.outputs.presets) }}
     steps:
       - uses: actions/checkout@v7
       # Arm's GCC: the action keeps it in the Actions cache itself.
@@ -225,12 +225,12 @@ jobs:
   # hours under QEMU.
   arch:
     if: ${{ !inputs.probe }}
-    needs: plan
+    needs: workflow
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.plan.outputs.arch) }}
+        include: ${{ fromJSON(needs.workflow.outputs.arch) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -278,12 +278,12 @@ jobs:
   # moments (tools/cores/native_trace.py) where `trace`.
   probe:
     if: ${{ inputs.probe }}
-    needs: plan
+    needs: workflow
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(needs.plan.outputs.probe) }}
+        job: ${{ fromJSON(needs.workflow.outputs.probe) }}
     steps:
       - uses: actions/checkout@v7
         with:
