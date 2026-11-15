@@ -148,9 +148,29 @@ def test_the_heat_dry_loss_scales_with_bus_voltage(report, _lib):
     report.check('Heat instance with 24 V sets switching_w to 2.4 W', abs(h24.switching_w - 2.4) < 1e-6)
 
 
+def test_heterogeneous_inverter_and_gearbox_derivations(report, _lib):
+    """Per-inverter mounting resistance, laminate heat capacity, housekeeping and per-gearbox mesh."""
+    from machine.body import dclink, drives, heat, mechatronics
+    m100 = drives.MOUNT_BY_INV['coaxial_63100']
+    m50 = drives.MOUNT_BY_INV['coaxial_63050']
+    report.check('70 mm 50 A board has higher TIM and shell mounting K/W than 100 mm 100 A board',
+                 m100 == (0.6, 2.19) and m50 == (1.22, 4.47), f'{m100} vs {m50}')
+    inv50 = mechatronics.library()['inverters']['coaxial_63050']
+    lam50 = mechatronics.laminate_j_k(inv50, mechatronics.materials())
+    spec50 = drives.heat('left_knee') + drives.stator('left_knee') + (drives.ratio('left_knee'), lam50, 1.0, 0.25)
+    h50 = heat.Heat([spec50], volts=48.0)
+    report.check('Heat honours per-drive switch, laminate and housekeeping parameters',
+                 abs(h50.capacity[0][0] - 0.25) < 1e-9 and abs(h50.capacity[0][1] - lam50) < 1e-9
+                 and abs(float(h50._house_w[0]) - 1.0) < 1e-9)
+    report.check('DC-link housekeeping + switching sum matches driven joints',
+                 abs(dclink.laid()['house_w'] - len(dclink.DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)) < 1e-9
+                 and drives.zeta('left_knee') == drives.BOX_ZETA and drives.zeta('left_foot') == 0.0)
+
+
 ROSTER = (test_the_mirror_lays_what_the_c_lays, test_the_air_is_the_cs,
           test_each_application_sheds_as_its_reasons_say, test_the_stand_in_is_mounted,
-          test_the_heat_dry_loss_scales_with_bus_voltage)
+          test_the_heat_dry_loss_scales_with_bus_voltage,
+          test_heterogeneous_inverter_and_gearbox_derivations)
 
 
 def main():

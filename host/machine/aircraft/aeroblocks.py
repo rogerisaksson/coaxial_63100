@@ -60,32 +60,123 @@ STUNT_FIELDS = _sp('height pace climb push speed slide surge sway turn nose x z 
 GATES = ('', 'fit', 'held')
 
 
-def _derive_block(kind, out, inherited, explicit):
-    if kind == 'rotors' and 'disc_radius' in explicit and inherited.get('disc_radius', 0.0) > 0.0:
-        s = out['disc_radius'] / inherited['disc_radius']
-        for k, p in (('disc_half_height', 1), ('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)):
-            if k not in explicit and k in inherited:
-                out[k] = inherited[k] * s ** p
-    elif kind == 'aero_surfaces':
-        if 'wing_area' not in explicit and 'wing_span' in out and 'wing_chord' in out:
-            out['wing_area'] = out['wing_span'] * out['wing_chord']
-        if ('wing_span' in explicit or 'wing_chord' in explicit) and 'cd_induced' not in explicit:
-            if out.get('wing_chord', 0.0) > 0.0:
-                out['cd_induced'] = polars.cd_induced(
-                    {'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord']})
-    elif kind == 'rigid_body' and 'mass' in explicit and inherited.get('mass', 0.0) > 0.0:
-        s = out['mass'] / inherited['mass']
-        for ax in ('inertia_xx', 'inertia_yy', 'inertia_zz'):
-            if ax not in explicit and ax in inherited:
-                out[ax] = inherited[ax] * s
-    elif kind == 'cooling' and 'sink_mass' in explicit and inherited.get('sink_mass', 0.0) > 0.0:
-        if 'sink_capacity' not in explicit and 'sink_capacity' in inherited:
-            out['sink_capacity'] = inherited['sink_capacity'] * (out['sink_mass'] / inherited['sink_mass'])
-    elif kind == 'vertical' and 'settle_kd' not in explicit and 'settle_kp' in out:
+def _scale_pow(out, inherited, explicit, s, pairs):
+    for k, p in pairs:
+        if k not in explicit and k in inherited:
+            out[k] = inherited[k] * s ** p
+
+
+def _derive_flapping(out, inherited, explicit):
+    dims = ('wing_span', 'wing_chord', 'stroke_limit', 'gear_ratio')
+    if any(k in explicit for k in dims) and all(inherited.get(k, 0.0) > 0.0 for k in dims):
+        sb, sc = out['wing_span'] / inherited['wing_span'], out['wing_chord'] / inherited['wing_chord']
+        st, sg = out['stroke_limit'] / inherited['stroke_limit'], out['gear_ratio'] / inherited['gear_ratio']
+        dyn = (sb ** 3) * sc * (st ** 2) / (sg ** 2)
+        if 'k_thrust' not in explicit and 'k_thrust' in inherited:
+            out['k_thrust'] = inherited['k_thrust'] * dyn
+        if 'k_drag' not in explicit and 'k_drag' in inherited:
+            out['k_drag'] = inherited['k_drag'] * dyn * sb * st
+    if inherited.get('k_thrust', 0.0) > 0.0 and 'k_thrust' in out:
+        kt_r = out['k_thrust'] / inherited['k_thrust']
+        arms = ('fore_z', 'aft_z', 'shoulder_x', 'sweep_fold_limit', 'pitch_limit')
+        if kt_r != 1.0 or any(k in explicit for k in arms):
+            c_sw0 = math.cos(inherited.get('sweep_fold_limit', 0.0))
+            c_sw1 = math.cos(out.get('sweep_fold_limit', 0.0))
+            p0 = (inherited.get('fore_z', 0.0) - inherited.get('aft_z', 0.0)) * c_sw0 * math.cos(
+                inherited.get('pitch_limit', 0.0))
+            p1 = (out.get('fore_z', 0.0) - out.get('aft_z', 0.0)) * c_sw1 * math.cos(
+                out.get('pitch_limit', 0.0))
+            y0, y1 = inherited.get('shoulder_x', 0.0), out.get('shoulder_x', 0.0)
+            for k, a0, a1 in (('k_pitch', p0, p1), ('k_roll', y0 * c_sw0, y1 * c_sw1), ('k_yaw', y0, y1)):
+                if k not in explicit and k in inherited and a0 != 0.0:
+                    out[k] = inherited[k] * kt_r * (a1 / a0)
+
+
+def _derive_surfaces(out, inherited, explicit):
+    if 'wing_area' not in explicit and 'wing_span' in out and 'wing_chord' in out:
+        out['wing_area'] = out['wing_span'] * out['wing_chord']
+    if ('wing_span' in explicit or 'wing_chord' in explicit) and 'cd_induced' not in explicit:
+        if out.get('wing_chord', 0.0) > 0.0:
+            out['cd_induced'] = polars.cd_induced(
+                {'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord']})
+    if 'prop_radius' in explicit and inherited.get('prop_radius', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['prop_radius'] / inherited['prop_radius'],
+                   (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
+    for k, triggers, keys in (
+            ('k_pitch', ('stab_area', 'tail_arm'), ('stab_area', 'tail_arm')),
+            ('k_roll', ('wing_span', 'wing_chord', 'wing_area'), ('wing_area', 'wing_span')),
+            ('k_yaw', ('fin_area', 'tail_arm'), ('fin_area', 'tail_arm'))):
+        if any(t in explicit for t in triggers) and k not in explicit and k in inherited:
+            denom = inherited.get(keys[0], 0.0) * inherited.get(keys[1], 0.0)
+            if denom > 0.0:
+                out[k] = inherited[k] * (out[keys[0]] * out[keys[1]]) / denom
+
+
+def _derive_rotors(out, inherited, explicit):
+    if 'disc_radius' in explicit and inherited.get('disc_radius', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['disc_radius'] / inherited['disc_radius'],
+                   (('disc_half_height', 1), ('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
+
+
+def _derive_main_rotor(out, inherited, explicit):
+    if 'radius' in explicit and inherited.get('radius', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['radius'] / inherited['radius'],
+                   (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)))
+    if not any(k in explicit for k in ('radius', 'cyclic_limit', 'inflow_j0', 'k_thrust')):
+        return
+    if 'k_cyclic' in explicit or 'k_cyclic' not in inherited:
+        return
+    c0 = (inherited.get('k_thrust', 0.0) * math.tan(inherited.get('cyclic_limit', 0.0))
+          * inherited.get('inflow_j0', 0.0) * inherited.get('radius', 0.0))
+    if c0 > 0.0:
+        c1 = out['k_thrust'] * math.tan(out['cyclic_limit']) * out['inflow_j0'] * out['radius']
+        out['k_cyclic'] = inherited['k_cyclic'] * (c1 / c0)
+
+
+def _derive_tail_rotor(out, inherited, explicit):
+    if 'radius' in explicit and inherited.get('radius', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['radius'] / inherited['radius'], (('k_thrust', 4),))
+
+
+def _derive_rigid_body(out, inherited, explicit):
+    if 'mass' in explicit and inherited.get('mass', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['mass'] / inherited['mass'],
+                   (('inertia_xx', 1), ('inertia_yy', 1), ('inertia_zz', 1)))
+
+
+def _derive_cooling(out, inherited, explicit):
+    if 'sink_mass' in explicit and inherited.get('sink_mass', 0.0) > 0.0:
+        _scale_pow(out, inherited, explicit, out['sink_mass'] / inherited['sink_mass'],
+                   (('sink_capacity', 1),))
+
+
+def _derive_vertical(out, _inherited, explicit):
+    if 'settle_kd' not in explicit and 'settle_kp' in out:
         out['settle_kd'] = 2.0 * out['settle_kp']
-    elif kind == 'horizontal' and 'lap_duration' not in explicit:
-        if 'orbit_radius' in out and out.get('orbit_speed', 0.0) > 0.0:
-            out['lap_duration'] = math.tau * out['orbit_radius'] / out['orbit_speed']
+
+
+def _derive_horizontal(out, _inherited, explicit):
+    if 'lap_duration' not in explicit and 'orbit_radius' in out and out.get('orbit_speed', 0.0) > 0.0:
+        out['lap_duration'] = math.tau * out['orbit_radius'] / out['orbit_speed']
+
+
+_BLOCK_DERIVERS = {
+    'rotors': _derive_rotors,
+    'main_rotor': _derive_main_rotor,
+    'tail_rotor': _derive_tail_rotor,
+    'flapping_wings': _derive_flapping,
+    'aero_surfaces': _derive_surfaces,
+    'rigid_body': _derive_rigid_body,
+    'cooling': _derive_cooling,
+    'vertical': _derive_vertical,
+    'horizontal': _derive_horizontal,
+}
+
+
+def _derive_block(kind, out, inherited, explicit):
+    fn = _BLOCK_DERIVERS.get(kind)
+    if fn is not None:
+        fn(out, inherited, explicit)
 
 
 def kv_block(rows, allowed, c, req=None, base=None, blocks=None, kind=None):

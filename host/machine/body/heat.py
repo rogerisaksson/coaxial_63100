@@ -89,8 +89,11 @@ class Heat:
         self.mount_k_w = [float(d[7]) if len(d) > 7 else MOUNT_K_W_DEFAULT for d in drives_spec]
         self.cloth_air = [float(d[8]) if len(d) > 8 else CLOTH_AIR_DEFAULT for d in drives_spec]
         self.ratio = [float(d[9]) if len(d) > 9 else drives.RATIO for d in drives_spec]
-        self.capacity = [(SWITCH_J_K, LAMINATE_J_K, s_c, w_c)
-                         for s_c, w_c in zip(self.stator_j_k, self.winding_j_k)]
+        lam_j_k = [float(d[10]) if len(d) > 10 else LAMINATE_J_K for d in drives_spec]
+        house_w = [float(d[11]) if len(d) > 11 else HOUSEKEEPING_W for d in drives_spec]
+        sw_j_k = [float(d[12]) if len(d) > 12 else SWITCH_J_K for d in drives_spec]
+        self.capacity = [(sw_c, l_c, s_c, w_c)
+                         for sw_c, l_c, s_c, w_c in zip(sw_j_k, lam_j_k, self.stator_j_k, self.winding_j_k)]
         self.t = np.full((n, len(NODES)), AMBIENT_C)
         self.sq, self.ticks = np.zeros(n), np.zeros(n, int)
         self.krpm, self.limb_rad_s = np.zeros(n), np.zeros(n)
@@ -116,7 +119,7 @@ class Heat:
         self._win_k_w = np.asarray(self.winding_k_w, float)
         self._cap = np.asarray(self.capacity, float).reshape(n, len(NODES))
         self._ceil = np.asarray(CEILING_C, float)
-        self._house_w = np.where(self._active, HOUSEKEEPING_W, 0.0)
+        self._house_w = np.where(self._active, np.asarray(house_w, float), 0.0)
         self._peak = np.zeros(n)
         h = self._h = cores.Heat(n=n, at=0.0, haste=HASTE, ambient_c=AMBIENT_C, rds_ohm=RDS_OHM, rds_alpha=RDS_ALPHA,
                                  rds_beta=RDS_BETA, shunt_ohm=SHUNT_OHM, switching_w=self.switching_w,
@@ -153,13 +156,17 @@ class Heat:
         from machine.body.figure import JOINTS
         names = JOINTS if joints is None else joints
         def_h = drives.heat('left_knee')
+        invs = mechatronics.library()['inverters']
         specs = []
         for j in names:
             if drives.passive(j):
                 specs.append((1.0, 0.0, 0.0, def_h[3], def_h[4], def_h[5],
                               STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, 1.0, 1.0))
             else:
-                specs.append(drives.heat(j) + drives.stator(j) + (drives.ratio(j),))
+                inv = invs[drives.STACKS[drives.kind(j)][2]]
+                specs.append(drives.heat(j) + drives.stator(j)
+                             + (drives.ratio(j), mechatronics.laminate_j_k(inv, _mat),
+                                float(inv['housekeeping_w']), float(inv['switch_j_k'])))
         inst = cls(specs, volts=volts)
         for k, j in enumerate(names):
             if drives.passive(j):
@@ -225,9 +232,12 @@ def held(joint, volts=None):
     """(N m, node) a joint's drive holds for ever at its envelope's THROTTLE_AT: its nodes'
     steady state (no hold left to count) bisected on the torque, the node that binds there
     (NODES)."""
+    inv = mechatronics.library()['inverters'][drives.STACKS[drives.kind(joint)][2]]
     kt, r, scale, _wj, winding_k_w, laminate_k_w = drives.heat(joint)
     _sj, mount_k_w, _ca = drives.stator(joint)
-    sw_w = dry_loss(volts)
+    sw_w, into_k_w = dry_loss(volts, inv), mechatronics.into_k_w(inv, _mat)
+    rds_ohm, shunt_ohm, house_w = float(inv['rds_ohm']), float(inv['shunt_ohm']), float(inv['housekeeping_w'])
+    ceiling_c = tuple(float(x) for x in inv['ceiling_c'])
     g_ls = 1.0 / mount_k_w
     g_ws = 1.0 / max(0.15, 0.35 * winding_k_w)
     g_la, g_sa, g_wa = 0.35 / laminate_k_w, 0.65 / laminate_k_w, 1.0 / winding_k_w
@@ -235,8 +245,8 @@ def held(joint, volts=None):
     def spent(torque):
         amps = torque / kt
         board = (amps * scale) ** 2
-        switch = 1.5 * board * RDS_OHM + sw_w
-        p_b = switch + 1.5 * board * SHUNT_OHM + HOUSEKEEPING_W
+        switch = 1.5 * board * rds_ohm + sw_w
+        p_b = switch + 1.5 * board * shunt_ohm + house_w
         p_w = r * amps * amps
         a11, a12 = g_la + g_ls, -g_ls
         a22 = g_sa + g_ls + g_ws - g_ws * g_ws / (g_wa + g_ws)
@@ -246,9 +256,9 @@ def held(joint, volts=None):
         dt_s = (-a12 * p_b + a11 * rhs2) / det
         dt_w = (p_w + g_ws * dt_s) / (g_wa + g_ws)
         laminate, stator, winding = AMBIENT_C + dt_l, AMBIENT_C + dt_s, AMBIENT_C + dt_w
-        nodes = (laminate + switch * INTO_K_W, laminate, stator, winding)
+        nodes = (laminate + switch * into_k_w, laminate, stator, winding)
         return max(((t - AMBIENT_C) / (top - AMBIENT_C), name)
-                   for t, top, name in zip(nodes, CEILING_C, NODES))
+                   for t, top, name in zip(nodes, ceiling_c, NODES))
     lo, hi = 0.0, drives.peak(joint) * 4.0
     for _ in range(50):
         mid = 0.5 * (lo + hi)

@@ -69,7 +69,7 @@ def wing_kinematics(controls, speeds):
     beat_hz = w_mean / (math.tau * GEAR_RATIO)
     stroke_deg = stroke * STROKE_DEG
     folded = max(0.0, min(1.0, -stroke - 0.10)) if stroke < -0.10 else (
-        0.35 if w_mean < 120.0 else 0.12 * abs(pitch_t))
+        INFLOW_FLOOR if w_mean < 0.625 * IDLE_RAD_S else 0.12 * abs(pitch_t))
     return beat_hz, stroke_deg, folded * FOLD_DEG
 
 

@@ -125,10 +125,14 @@ def flex(joint):
     return 1.0 / BOX_K[STACKS[k][1]] + _structural()[0][k] * 1e-3
 
 
+def _box(joint):
+    return _LIB['gearboxes'][STACKS[kind(joint)][1]]
+
+
 def play(joint):
     """Half its gearbox's backlash at the joint, rad, through its transmission's lever; none
     undriven."""
-    return 0.0 if passive(joint) else math.radians(BACKLASH_DEG) / 2.0 / linkage.lever(joint)
+    return 0.0 if passive(joint) else math.radians(float(_box(joint)['backlash_deg'])) / 2.0 / linkage.lever(joint)
 
 
 def wind(joint):
@@ -146,7 +150,12 @@ def series(joint):
 def mesh(joint):
     """The friction in its gearbox's mesh at the joint, N m: the hysteresis loop's half width;
     none undriven."""
-    return 0.0 if passive(joint) else BOX_FRICTION * peak(joint)
+    return 0.0 if passive(joint) else float(_box(joint)['friction_share']) * peak(joint)
+
+
+def zeta(joint):
+    """Structural damping ratio of `joint`'s gearbox lobed-ring mesh; none undriven."""
+    return 0.0 if passive(joint) else float(_box(joint)['zeta'])
 
 #: Joints without a drive (`passive`): a kind's way - 1 on a spring, 2 held - and a spring's
 #: (stiffness N m/rad, damping N m s/rad, rest deg); the toes' spring, its loss factor at its
@@ -329,10 +338,10 @@ def mount(joint):
 
 
 def ratio(joint, deg=None):
-    """The joint's total ratio at rest - its gearbox's (`RATIO`) through its transmission's
-    (`linkage`) -, or at `deg` along its rod's or four-bar's stroke."""
+    """The joint's total ratio at rest - its gearbox's through its transmission's (`linkage`) -,
+    or at `deg` along its rod's or four-bar's stroke."""
     k = kind(joint)
-    total = RATIO * linkage.lever(joint)
+    total = float(_LIB['gearboxes'][STACKS[k][1]]['ratio']) * linkage.lever(joint)
     if deg is None or (k not in linkage.RODS and k not in linkage.PLANAR):
         return total
     return total * linkage.lever(joint, deg) / linkage.lever(joint)
@@ -445,8 +454,8 @@ def passive(joint):
 
 def armature(joint):
     """The rotor's and the gearbox's inertia as the joint feels them, kg m^2; none undriven."""
-    return 0.0 if passive(joint) else (motors(joint) * (1.0 + GEAR_J) * of(joint)[1].rotor
-                                       * ratio(joint) ** 2)
+    return 0.0 if passive(joint) else (motors(joint) * (1.0 + float(_box(joint)['input_j_share']))
+                                       * of(joint)[1].rotor * ratio(joint) ** 2)
 
 
 def backdrive(joint):
@@ -467,13 +476,19 @@ def speed(joint):
 
 #: Clothing's insulation over bare air by kind (ISO 9920); each motor's housing's thermal mass,
 #: J/K, and a board's K/W to its stator on its axis and off it.
+def _mount_k_w(disc_m):
+    area = math.pi * (0.5 * disc_m) ** 2 / 3.0
+    on = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(_TIM_M / (_K_TIM * area), 2)
+    off = (float(_BUILD['off_mount_k_w']) if 'off_mount_k_w' in _BUILD
+           else round(on + float(_SHELL['wall_m']) / (_K_CF_THRU * area), 2))
+    return on, off
+
+
 CLOTH_AIR = dict(_BUILD['cloth'])
 STATOR_J_K = {k: float(m.get('stator_j_k', round(_CP_HOUS * m['kg']))) for k, m in _LIB['motors'].items()}
-_DISC_M, _REF_AMPS = INVERTERS[STACKS['knee'][2]][0], INVERTERS[STACKS['knee'][2]][1]
-_CONTACT_M2 = math.pi * (0.5 * _DISC_M) ** 2 / 3.0
-MOUNT_K_W = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(_TIM_M / (_K_TIM * _CONTACT_M2), 2)
-OFF_MOUNT_K_W = (float(_BUILD['off_mount_k_w']) if 'off_mount_k_w' in _BUILD
-                 else round(MOUNT_K_W + float(_BUILD['shell']['wall_m']) / (_K_CF_THRU * _CONTACT_M2), 2))
+_REF_AMPS = INVERTERS[STACKS['knee'][2]][1]
+MOUNT_BY_INV = {k: _mount_k_w(v[0]) for k, v in INVERTERS.items()}
+MOUNT_K_W, OFF_MOUNT_K_W = MOUNT_BY_INV[STACKS['knee'][2]]
 
 
 def cloth_air(joint=None):
@@ -484,7 +499,8 @@ def cloth_air(joint=None):
 def stator(joint):
     """(stator_j_k J/K, mount_k_w K/W, cloth_air) of `joint`'s coaxial stator-housing assembly."""
     k = kind(joint)
-    return STATOR_J_K[STACKS[k][0]], (OFF_MOUNT_K_W if k in BOARDS else MOUNT_K_W), cloth_air(joint)
+    on_k_w, off_k_w = MOUNT_BY_INV[STACKS[k][2]]
+    return STATOR_J_K[STACKS[k][0]], (off_k_w if k in BOARDS else on_k_w), cloth_air(joint)
 
 
 def heat(joint):

@@ -180,10 +180,46 @@ def test_every_craft_flies_as_built(report):
                      for r in got))
 
 
+def test_aeroblocks_static_scaling(report):
+    """AeroLisp `(use ...)` blocks scale rotor, flapping-wing and monoplane polars from geometry."""
+    from typing import Any
+    from machine.aircraft import aeroblocks, aerolisp, compile as aircraft_compile
+    c = aerolisp.AeroLispCompiler()
+    blocks: dict[str, Any] = aircraft_compile.blocks()
+    mr_base = blocks['swashplate_550_3d'][1]
+    mr = aeroblocks.kv_block([['use', 'swashplate_550_3d'], ['radius', 2.0 * mr_base['radius']]],
+                             aeroblocks.AERO_BLOCKS['main_rotor'], c, None, None, blocks, 'main_rotor')
+    tr_base = blocks['tail_110_antitorque'][1]
+    tr = aeroblocks.kv_block([['use', 'tail_110_antitorque'], ['radius', 2.0 * tr_base['radius']]],
+                             aeroblocks.AERO_BLOCKS['tail_rotor'], c, None, None, blocks, 'tail_rotor')
+    fw_base = blocks['dune_4wing_flapper'][1]
+    fw = aeroblocks.kv_block([['use', 'dune_4wing_flapper'], ['wing_span', 2.0 * fw_base['wing_span']]],
+                             aeroblocks.AERO_BLOCKS['flapping_wings'], c, None, None, blocks, 'flapping_wings')
+    as_base = blocks['unlimited_3d_monoplane'][1]
+    surf = aeroblocks.kv_block(
+        [['use', 'unlimited_3d_monoplane'], ['wing_span', 2.0 * as_base['wing_span']],
+         ['prop_radius', 2.0 * as_base['prop_radius']], ['tail_arm', 1.5 * as_base['tail_arm']]],
+        aeroblocks.AERO_BLOCKS['aero_surfaces'], c, None, None, blocks, 'aero_surfaces')
+    report.check('main and tail rotors scale k_thrust ~ r^4 and k_drag / k_cyclic ~ r^5',
+                 abs(mr['k_thrust'] / mr_base['k_thrust'] - 16.0) < 1e-6
+                 and abs(mr['k_drag'] / mr_base['k_drag'] - 32.0) < 1e-6
+                 and abs(mr['k_cyclic'] / mr_base['k_cyclic'] - 32.0) < 1e-6
+                 and abs(tr['k_thrust'] / tr_base['k_thrust'] - 16.0) < 1e-6)
+    report.check('flapping wings and monoplane surfaces scale thrust, drag, cd_induced and moments',
+                 abs(fw['k_thrust'] / fw_base['k_thrust'] - 8.0) < 1e-6
+                 and abs(fw['k_drag'] / fw_base['k_drag'] - 16.0) < 1e-6
+                 and abs(fw['k_roll'] / fw_base['k_roll'] - 8.0) < 1e-6
+                 and abs(surf['k_thrust'] / as_base['k_thrust'] - 16.0) < 1e-6
+                 and abs(surf['k_roll'] / as_base['k_roll'] - 4.0) < 1e-6
+                 and abs(surf['k_pitch'] / as_base['k_pitch'] - 1.5) < 1e-6
+                 and surf['cd_induced'] < as_base['cd_induced'])
+
+
 ROSTER = (
     test_aerobat_routine,
     test_aerobat_airfield_laps,
     test_every_craft_flies_as_built,
+    test_aeroblocks_static_scaling,
 )
 
 

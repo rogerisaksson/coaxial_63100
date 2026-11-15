@@ -19,7 +19,9 @@ from machine.aircraft import aerolisp, grounds, text
 from machine.aircraft.aerobatics import DOWN, HOVER, PRESSED
 
 with open(text('aerobat'), encoding='utf-8') as _f:
-    _STUNTS = aerolisp.compile_manifest(_f.read())['stunts']
+    _MANIFEST = aerolisp.compile_manifest(_f.read())
+_STUNTS = _MANIFEST['stunts']
+_AS, _RB = _MANIFEST['aerodynamics']['aero_surfaces'], _MANIFEST['dynamics']['rigid_body']
 KNIFE_PASS, ROLLING_HARRIER = _STUNTS['knife_pass'], _STUNTS['rolling_harrier']
 
 RUNWAY_RAD = math.radians(50.0)
@@ -36,9 +38,11 @@ SPEED_M_S, TURN_M, HIGH_M, LOW_M, TOP_M, LAPS = 16.0, 12.0, 3.0, 1.2, 10.0, 2
 L1_S, TURN_RAD_S, LEAD_S = 0.7, math.radians(120.0), (0.8, 0.5)
 #: Faster on its side, m/s: at 14 m/s in gusts its wings swung 34 deg off upright in the gate.
 KNIFE_M_S = 4.0
-#: A pylon's side and the knife gate's width, m: an air race's, twice the wings, taken on its
-#: side by the rule - at 1.5 m, narrower than them, gusts put it 1.6 m off in knife-edge.
-PYLON_M, SLOT_M = 0.4, 3.2
+#: A pylon's side and the knife gate's width, m: an air race's, twice the wings plus the pylon,
+#: taken on its side by the rule - at 1.5 m, narrower than them, gusts put it 1.6 m off in knife-edge.
+PYLON_M = 0.4
+SLOT_M = round(2.0 * _AS['wing_span'] + PYLON_M, 2)
+REST_M = round(_RB['skid_height'] + _RB['foot_radius'], 2)
 #: Where the lap starts, (along, across) the runway from its end: the near turn's exit.
 START = (-110.0, 0.0)
 #: The slalom, (deg, m) turned, + toward the far side: its peaks 4 m either side of its pylons.
@@ -155,7 +159,7 @@ FINAL = dict(CRUISE, height=0.22, speed=11.5, pace=1.8)
 #: The opening's lean its carbon airframe's 15 g; what a turn takes short of it is its wing's,
 #: short of the stall (`aerobat.law`). On 15 g the course's laps left it into the floor on its
 #: final, 36 m on.
-G15_M_S2 = 15.0 * 9.81
+G15_M_S2 = 15.0 * _RB['gravity']
 
 
 def solids():
@@ -295,7 +299,7 @@ def approach(route, now):
     glide is FLARE_H. Its height LEAD_S ahead brought it down at 1.3 m/s into the flare."""
     seen = route.get('seen', {})
     v_g = math.hypot(*seen.get('vel', (0.0, 0.0, 0.0))[::2])
-    h = seen.get('at', (0.0, 1.0, 0.0))[1] - 0.28
+    h = seen.get('at', (0.0, 1.0, 0.0))[1] - REST_M
     fresh = {'began': route['at'], 'k': None, 'v': min(CIRCUIT_M_S, v_g)}
     run = route.get('glide', fresh)
     run = route['glide'] = (run, fresh)[int(run['began'] != route['at'])]

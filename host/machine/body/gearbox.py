@@ -75,7 +75,7 @@ class Boxes:
         wound = np.array([drives.wind(j) for j in JOINTS])
         self.k = np.where(self.series > 0.0, 1.0 / (1.0 / np.maximum(wound, 1e-9) + 1.0 / np.maximum(self.series, 1e-9)), wound)
         self.j = np.array([drives.armature(j) for j in JOINTS])
-        self.c = 2.0 * drives.BOX_ZETA * np.sqrt(self.k * self.j)
+        self.c = 2.0 * np.array([drives.zeta(j) for j in JOINTS]) * np.sqrt(self.k * self.j)
         self.track = TRACK * (self.series > 0.0)
         self.observe = np.where(self.sprung, OBSERVE_X * np.sqrt(self.k * (1.0 + self.track) / np.maximum(self.j, 1e-9)), 0.0)
         self.mesh = np.array([drives.mesh(j) for j in JOINTS])

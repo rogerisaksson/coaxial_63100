@@ -15,7 +15,7 @@ the current its drive's peak leaves its torque's - copper heat, no torque: the t
 """
 import math
 
-from machine.body import drives, heat, mechatronics
+from machine.body import drives, mechatronics
 from machine.texts import kernel
 from machine.body.figure import JOINTS
 from machine.law.supervisor import NODE_KINDS
@@ -41,10 +41,13 @@ def laid():
     driven = np.array([not drives.passive(j) for j in JOINTS])
     kt = np.array([drives.kt(j) if d else 1.0 for j, d in zip(JOINTS, driven)])
     ohm = np.array([drives.motors(j) * drives.r_ohm(j) if d else 0.0 for j, d in zip(JOINTS, driven)])
+    house_w = math.fsum(float(_INVS[drives.STACKS[drives.kind(j)][2]]['housekeeping_w'])
+                        + mechatronics.dry_loss(_INVS[drives.STACKS[drives.kind(j)][2]], drives.PACK_V)
+                        for j in DRIVEN)
     return {'v': np.array(drives.PACK_V, float), 'peak': np.array(drives.PACK_V, float), 'bled': np.zeros(()),
             'id': np.zeros(len(JOINTS)), 'kt': kt, 'ohm': ohm,
             'amps': np.array([drives.peak(j) / drives.kt(j) if d else 0.0 for j, d in zip(JOINTS, driven)]),
-            'loss': ohm / (kt * kt), 'house_w': len(DRIVEN) * (heat.HOUSEKEEPING_W + heat.SWITCHING_W)}
+            'loss': ohm / (kt * kt), 'house_w': house_w}
 
 
 def compiled():
