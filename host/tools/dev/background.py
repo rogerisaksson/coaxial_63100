@@ -19,6 +19,8 @@ import ctypes
 import os
 import sys
 
+from tools.dev import census
+
 #: Windows' BELOW_NORMAL_PRIORITY_CLASS: a child process takes its parent's when it is this or
 #: idle, so a pool's workers and their buses follow; POSIX's niceness for the same.
 BELOW_NORMAL, NICE = 0x4000, 10
@@ -51,8 +53,7 @@ def kept(cores=None, on_runner=None):
     """The physical cores the batch leaves the pages and the desk: of a desk's a third, PAGE_CORES at most and
     DESK_CORES at least where it has more - one of two, two of four and of eight, four of twelve or more; of a
     runner's none. This host's unless told."""
-    from tools.dev.focus import physical_cores
-    cores = physical_cores() if cores is None else cores
+    cores = census.physical_cores() if cores is None else cores
     if runner() if on_runner is None else on_runner:
         return 0
     return min(cores - 1, max(DESK_CORES, min(PAGE_CORES, cores // 3)))
@@ -62,9 +63,8 @@ def widths(cores=None, threads=None, on_runner=None):
     """The jobs at once a batch may run here, the narrowest first: a desk's cores less those kept; a
     runner's cores and, where it has more threads than cores, its every thread - which does more work a
     run measures as it starts (`machine_detector.host`). This host's unless told - a container's its own."""
-    from tools.dev import focus
-    cores = focus.physical_cores() if cores is None else cores
-    threads = focus.threads() if threads is None else threads
+    cores = census.physical_cores() if cores is None else cores
+    threads = census.threads() if threads is None else threads
     on_runner = runner() if on_runner is None else on_runner
     batch = cores - kept(cores, on_runner)
     return (batch, threads) if on_runner and threads > cores else (batch,)
@@ -72,8 +72,7 @@ def widths(cores=None, threads=None, on_runner=None):
 
 def cores():
     """The physical cores the batch is left (`kept`'s off the machine's)."""
-    from tools.dev.focus import physical_cores
-    return physical_cores() - kept()
+    return census.physical_cores() - kept()
 
 
 def lower():
@@ -82,11 +81,10 @@ def lower():
     processors and the robot's placement told them (`placed.GIVEN`). A runner's batch is left as it was
     started: nobody's pages are there."""
     from machine.process import placed
-    from tools.dev.focus import physical_cores
     if runner():
         return
     threads = os.cpu_count() or 1
-    spare = kept() * max(1, threads // physical_cores())
+    spare = kept() * max(1, threads // census.physical_cores())
     given = ((1 << threads) - 1) & ~((1 << spare) - 1)
     if sys.platform == 'win32':
         kernel = getattr(ctypes, 'windll').kernel32

@@ -14,7 +14,6 @@ A suite past a slice of the run goes on as shards (`--shard k/n`, `chosen`), sid
 import collections
 import ctypes
 import faulthandler
-import functools
 import json
 import os
 import queue
@@ -26,7 +25,7 @@ import threading
 import time
 from contextlib import suppress
 
-from tools.dev import background
+from tools.dev import background, census
 from tools.dev.suites import ROOT, asked
 
 if os.name == 'nt':
@@ -45,6 +44,8 @@ WORKER_GB, RESERVE_GB = 0.9, 2.5
 #: relays each sized their batons on the same free commit and the desktop went out of memory
 #: (Windows' event 2004, 10.4 GB of 23.7 free before they started).
 LEDGER = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~'), 'coaxial_63100', 'relay')
+#: How often a relay asks the ledger while its jobs wait, and a booking waiting for room, s.
+POLL_S = 1.0
 
 #: One job on the relay: its name, its command, its commit (GB), its time (s), its lock -
 #: jobs holding the same one never run together (a board's port), 'alone' none beside it -
@@ -95,92 +96,6 @@ def environment():
     return env
 
 
-@functools.lru_cache(maxsize=None)
-def counted():
-    """(physical cores, logical processors) of those Linux gives this process's control group - a container's, not
-    its host's: its cores as sysfs pairs their threads (`placed.given`, `placed.topology`) -; None where none is told:
-    another system, no cpuset."""
-    from machine.process import placed
-    mask = placed.given()
-    found = placed.topology()[0] if mask else []
-    return (len(found), bin(mask).count('1')) if found else None
-
-
-@functools.lru_cache(maxsize=None)
-def threads():
-    """The machine's logical processors: its control group's where Linux tells them (`counted`), else the system's
-    count."""
-    told = counted()
-    return told[1] if told else (os.cpu_count() or 1)
-
-
-@functools.lru_cache(maxsize=None)
-def physical_cores():
-    """The machine's physical cores: its control group's where Linux tells them (`counted`), else psutil's count
-    where it is installed, Windows' own (Win32_Processor), else the logical count."""
-    told = counted()
-    if told:
-        return told[0]
-    try:
-        import psutil
-        return psutil.cpu_count(logical=False) or os.cpu_count() or 1
-    except ImportError:
-        pass
-    if os.name == 'nt':
-        with suppress(OSError, ValueError, subprocess.TimeoutExpired):
-            said = subprocess.run(
-                ['powershell', '-NoProfile', '-Command',
-                 '(Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfCores '
-                 '-Sum).Sum'], capture_output=True, text=True, timeout=30).stdout
-            return max(1, int(said.strip()))
-    return os.cpu_count() or 1
-
-
-def free_commit_gb():
-    """The commit charge still free, GB; None off Windows."""
-    if os.name != 'nt':
-        return None
-
-    class Status(ctypes.Structure):
-        _fields_ = [('length', ctypes.c_uint32), ('load', ctypes.c_uint32)] + [
-            (name, ctypes.c_uint64) for name in ('phys', 'phys_free', 'commit', 'commit_free',
-                                                 'virtual', 'virtual_free', 'extended')]
-    status = Status(length=ctypes.sizeof(Status))
-    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-        return None
-    return status.commit_free / 2 ** 30
-
-
-def _alive(pid):
-    try:
-        import psutil
-        return psutil.pid_exists(pid)
-    except ImportError:
-        if os.name != 'nt':
-            with suppress(OSError):
-                os.kill(pid, 0)
-                return True
-            return False
-        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
-        if not handle:
-            return False
-        code = ctypes.c_uint32()
-        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
-        ctypes.windll.kernel32.CloseHandle(handle)
-        return code.value == 259
-
-
-def _private_gb(pid):
-    """A process's and its descendants' private bytes, GB; None unread."""
-    try:
-        import psutil
-        root = psutil.Process(pid)
-        return sum(p.memory_info().private if hasattr(p.memory_info(), 'private') else p.memory_info().rss
-                   for p in [root] + root.children(recursive=True)) / 2 ** 30
-    except Exception:
-        return None
-
-
 class _Locked:
 
     """The ledger held by this process alone while a relay measures, decides and books."""
@@ -222,23 +137,45 @@ def booked(path, gb, pid=None, owner=None, cores=0):
     os.replace(part, path)
 
 
-def waiting(path, count=0):
+def waiting(path, count=0, since=None):
     """A ticket in the ledger beside the bookings while a relay or a container waits for room - `count` jobs or
-    cores -, gone when `count` is 0: the queue as `tools.dev.ledger.said` lists it (`.wait-<relay>-<name>`)."""
+    cores, waiting since `since` (now where none is told: laid anew at every poll, a ticket read 0 s for ever) -,
+    gone when `count` is 0: the queue as `tools.dev.ledger.said` lists it (`.wait-<relay>-<name>`)."""
     if not count:
         with suppress(OSError):
             os.remove(path)
         return
     with suppress(OSError):
         with open(path + '.part', 'w', encoding='utf-8') as f:
-            json.dump({'relay': os.getpid(), 'count': count, 'since': time.time()}, f)
+            json.dump({'relay': os.getpid(), 'count': count, 'since': since or time.time()}, f)
         os.replace(path + '.part', path)
 
 
-def outstanding(ledger=LEDGER):
-    """(the commit every relay's running jobs have still to take, GB; how many run; their processes; the cores
-    booked; the processes they are booked for), machine-wide: a job counted at its booking less what its process
-    holds, a container at its booking; one whose relay is gone, dropped."""
+def queued(ledger=LEDGER, mine=None, before=None):
+    """The cores the machine's wide requests wait for - a relay's job of more than one core, a container: their
+    tickets (`waiting`), a relay's count of jobs apart - of owners that live, less the ticket `mine` and, `before`
+    given, those waiting since later: what a narrower or a later request leaves free, so a wide one is not passed
+    by for ever - every core let go went to the next narrow job that asked."""
+    total = 0
+    with suppress(OSError):
+        for name in os.listdir(ledger):
+            path = os.path.join(ledger, name)
+            if not name.startswith('.wait-') or name.endswith(('-jobs', '.part')) or path == mine:
+                continue
+            with suppress(OSError, ValueError, KeyError), open(path, encoding='utf-8') as f:
+                held = json.load(f)
+                if census.alive(held['relay']) and (before is None or held['since'] < before):
+                    total += int(held['count'])
+    return total
+
+
+def tally(ledger=LEDGER):
+    """(what is taken of the width - every relay's live job processes and the cores booked: a container's, an
+    emulator's, a job's sent along, each counted once -; the commit every relay's running jobs have still to
+    take, GB; how many run; the cores booked), machine-wide, the machine's processes read once
+    (`census.Snapshot`): a job counted at its booking less what its tree holds, a container at its booking; one
+    whose relay is gone, dropped."""
+    snap = census.Snapshot()
     owed, running, pids, cores, own = 0.0, 0, [], 0, []
     with suppress(OSError):
         for name in os.listdir(ledger):
@@ -250,11 +187,12 @@ def outstanding(ledger=LEDGER):
                     job = json.load(f)
             except (OSError, ValueError):
                 continue
-            if not _alive(job['relay']) or (job['pid'] is not None and not _alive(job['pid'])):
+            # Asked live, not off the snapshot: a booking laid after it was read must not pass for dead.
+            if not census.alive(job['relay']) or (job['pid'] is not None and not census.alive(job['pid'])):
                 with suppress(OSError):
                     os.remove(path)
                 continue
-            held = _private_gb(job['pid']) if job['pid'] is not None else None
+            held = snap.private_gb(snap.tree([job['pid']])) if job['pid'] is not None else None
             owed += max(0.0, job['gb'] - (held or 0.0))
             if job.get('cores'):
                 cores += int(job['cores'])
@@ -262,49 +200,7 @@ def outstanding(ledger=LEDGER):
                 continue
             running += 1
             pids += [job['pid']] * (job['pid'] is not None)
-    return owed, running, pids, cores, own
-
-
-def _parents():
-    """{pid: its parent's} of every process on the machine."""
-    if os.name != 'nt':
-        out = {}
-        for name in filter(str.isdigit, os.listdir('/proc')):
-            with suppress(OSError, ValueError, IndexError), open('/proc/%s/stat' % name, encoding='utf-8') as f:
-                out[int(name)] = int(f.read().rsplit(')', 1)[1].split()[1])
-        return out
-
-    class Entry(ctypes.Structure):
-        _fields_ = [('size', ctypes.c_ulong), ('usage', ctypes.c_ulong), ('pid', ctypes.c_ulong), ('heap', ctypes.c_size_t),
-                    ('module', ctypes.c_ulong), ('threads', ctypes.c_ulong), ('parent', ctypes.c_ulong),
-                    ('base', ctypes.c_long), ('flags', ctypes.c_ulong), ('exe', ctypes.c_char * 260)]
-    k = ctypes.windll.kernel32
-    k.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
-    snap, e, out = ctypes.c_void_p(k.CreateToolhelp32Snapshot(2, 0)), Entry(), {}
-    e.size = ctypes.sizeof(Entry)
-    ok = k.Process32First(snap, ctypes.byref(e))
-    while ok:
-        out[e.pid] = e.parent
-        ok = k.Process32Next(snap, ctypes.byref(e))
-    k.CloseHandle(snap)
-    return out
-
-
-def processes(pids, own=()):
-    """The live processes in the trees `pids` root: a job's children - the robot's planner, an emulator's
-    Renode - are cores it holds too; counted by its own process alone, a batch of 28 batons held 282. Less
-    those of `own` and what they start, counted by the cores booked for them (`outstanding`): counted twice,
-    two groups of two cores no longer fit a runner's four threads."""
-    parents = _parents()
-    kids = collections.defaultdict(list)
-    for pid, parent in parents.items():
-        kids[parent].append(pid)
-    todo, seen = [p for p in pids if p in parents], set(own)
-    while todo:
-        pid = todo.pop()
-        todo += kids[pid] * (pid not in seen)
-        seen.add(pid)
-    return len(seen - set(own))
+    return len(snap.tree(pids, own)) + running - len(pids) + cores, owed, running, cores
 
 
 def admitted(gb, start, name, busy=None):
@@ -312,8 +208,8 @@ def admitted(gb, start, name, busy=None):
     relay's owed and RESERVE_GB and `busy()` is not, booked in the ledger as `name` under its lock
     while it lives: (the process, its booking), or None."""
     with _Locked():
-        free = free_commit_gb()
-        if (busy is not None and busy()) or (free is not None and free - outstanding()[0] - RESERVE_GB < gb):
+        free = census.free_commit_gb()
+        if (busy is not None and busy()) or (free is not None and free - tally()[1] - RESERVE_GB < gb):
             return None
         proc = start()
         booking = os.path.join(LEDGER, '%s-%d-%d' % (name, os.getpid(), proc.pid))
@@ -411,21 +307,23 @@ def run(job, env=None, ledger=None, bench=False, procs=None):
 waiting_ticket = waiting
 
 
-def relay(jobs, batons=None, bench=False):
+def relay(jobs, batons=None, bench=False, ledger=LEDGER):
     """`jobs` from a queue in their order, the longest first where the caller knows: `batons` -
     a physical core each - each taking the first job whose commit fits the free commit less what
     every relay's running jobs have still to take (the ledger, machine-wide), over RESERVE_GB -
     an idle host fits anything -, while every relay's jobs with their children, and the cores every container of
-    the gate holds (tools.dev.ledger), stay under the batch's widest (`processes`, `background.widths`), OpenBLAS
+    the gate holds (tools.dev.ledger), stay under the batch's widest (`tally`, `background.widths`), OpenBLAS
     on one thread in each; a job ending
     hands its baton to the next at once. `bench` a benchmark's, on a desk: each job above normal priority
     from its start and `placed.BENCH` set for every process of the robot's own it starts (`placed.raised`),
     its wall times less at the mercy of the host's other loads - a runner has none, its jobs run as they are.
+    `ledger` the machine's, or a folder of its own for a relay that asks nothing of the machine (a test's).
     (job, output, exit code - None out of time -, seconds) as each ends."""
     bench = bench and not background.runner()
     waiting = collections.deque(jobs)
     count = len(waiting)
-    held = {'running': 0, 'locks': set(), 'n': 0}
+    held = {'running': 0, 'locks': set(), 'n': 0, 'asked': 0.0, 'idle': 0.0, 'since': 0.0}
+    tickets = [os.path.join(ledger, '.wait-%d-%s' % (os.getpid(), kind)) for kind in ('jobs', 'wide')]
     turn = threading.Condition()
     ended = queue.Queue()
     env = environment()
@@ -447,30 +345,49 @@ def relay(jobs, batons=None, bench=False):
     ticket = waiting_ticket
 
     def take():
-        """(the next job that fits, its booking); None once none is left. Waits while those
-        left do not, looking again each second: another relay's job may end."""
+        """(the next job that fits, its booking); None once none is left. Waits while those left do not, one
+        baton asking the ledger a second for all that wait - each baton asking, a relay of 28 held the ledger's
+        lock without a gap - and at once when a job of this relay ends: another relay's job may end. The relay's
+        first job of more than one core waits its turn among the machine's wide requests (`queued`), and every
+        other job leaves their cores free."""
         with turn:
             while waiting:
-                with _Locked():
-                    free = free_commit_gb()
-                    owed, running, pids, cores, own = outstanding()
-                    room = None if free is None or not (running or cores) else free - owed - RESERVE_GB
-                    used, width = processes(pids, own) + running - len(pids) + cores, background.widths()[-1]
-                    # A job's cores within the width beside what is taken; one wider than the width, the width.
-                    job = next((j for j in waiting if fits(j, room) and used + min(j.cores, width) <= width), None)
-                    ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0 if job else len(waiting))
+                if time.monotonic() - held['asked'] >= POLL_S:
+                    with _Locked():
+                        free = census.free_commit_gb()
+                        used, owed, running, cores = tally(ledger)
+                        room = None if free is None or not (running or cores) else free - owed - RESERVE_GB
+                        width = background.widths()[-1]
+                        wide = next((j for j in waiting if j.cores > 1), None)
+                        ahead = queued(ledger), queued(ledger, tickets[1], held['since'] or time.time())
+                        # A job's cores within the width beside what is taken and what the wide requests ahead
+                        # of it wait for; one wider than the width, the width.
+                        job = next((j for j in waiting if fits(j, room)
+                                    and used + min(j.cores, width) + ahead[j is wide] <= width), None)
+                        if job is not None:
+                            waiting.remove(job)
+                            held['running'] += 1
+                            held['n'] += 1
+                            if job.lock is not None:
+                                held['locks'].add(job.lock)
+                            path = os.path.join(ledger, '%d-%d' % (os.getpid(), held['n']))
+                            with suppress(OSError):
+                                booked(path, job.gb, cores=job.cores if job.cores > 1 else 0)
+                        # The tickets: the jobs that wait, since the relay last took one; its first wide job's
+                        # cores, since that job came first - the next one's turn begins when the first has gone.
+                        held['idle'] = 0.0 if job else held['idle'] or time.time()
+                        ticket(tickets[0], 0 if job else len(waiting), held['idle'])
+                        if job is wide:
+                            held['since'] = 0.0
+                        wide = next((j for j in waiting if j.cores > 1), None)
+                        held['since'] = (held['since'] or time.time()) if wide else 0.0
+                        ticket(tickets[1], min(wide.cores, width) if wide else 0, held['since'])
                     if job is not None:
-                        waiting.remove(job)
-                        held['running'] += 1
-                        held['n'] += 1
-                        if job.lock is not None:
-                            held['locks'].add(job.lock)
-                        path = os.path.join(LEDGER, '%d-%d' % (os.getpid(), held['n']))
-                        with suppress(OSError):
-                            booked(path, job.gb, cores=job.cores if job.cores > 1 else 0)
                         return job, path
-                turn.wait(timeout=1.0)
-            ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0)
+                    held['asked'] = time.monotonic()
+                turn.wait(timeout=POLL_S)
+            for path in tickets:
+                ticket(path, 0)
             return None
 
     def baton():
@@ -486,6 +403,7 @@ def relay(jobs, batons=None, bench=False):
                 with turn:
                     held['running'] -= 1
                     held['locks'].discard(job.lock)
+                    held['asked'] = 0.0             # room where the job ran: the ledger asked at once
                     turn.notify_all()
 
     procs = set()

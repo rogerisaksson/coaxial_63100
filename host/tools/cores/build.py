@@ -174,11 +174,11 @@ def _pruned(lib, name):
     """`name`'s other builds gone once `lib` is laid: each change of its sources built one and kept it - 11 369 over
     1757 cores, 1.2 GB, one core 1015 times -, and a build its process could not lay (`cached`) after it went; one a
     process holds stays, as Windows removes no open file."""
-    from tools.dev.focus import _alive
+    from tools.dev.census import alive
     own = re.compile(re.escape(name) + r'_(?:([0-9a-f]{12})|(\d+))\.(?:dll|so)$')
     for other in glob.glob(os.path.join(OUT, glob.escape(name) + '_*')):
         built = own.match(os.path.basename(other))
-        if other != lib and built and (built.group(1) or not _alive(int(built.group(2)))):
+        if other != lib and built and (built.group(1) or not alive(int(built.group(2)))):
             with suppress(OSError):
                 os.remove(other)
 
@@ -197,7 +197,7 @@ def _claimed(lib):
     (pid@node): a pid is one host's alone - a container on this tree starts its python as pid 14
     like the last container's, and waited on the marker that one's death left as if its own -,
     so another host's marker, or one naming no process, is nobody's and goes."""
-    from tools.dev.focus import _alive
+    from tools.dev.census import alive
     os.makedirs(OUT, exist_ok=True)
     marker = lib + '.building'
     node = platform.node()
@@ -212,7 +212,7 @@ def _claimed(lib):
                 pid = host = ''
             if os.path.exists(lib):
                 return False
-            if host != node or not pid.isdigit() or not _alive(int(pid)):
+            if host != node or not pid.isdigit() or not alive(int(pid)):
                 _unmarked(marker)
             time.sleep(0.2)
             continue

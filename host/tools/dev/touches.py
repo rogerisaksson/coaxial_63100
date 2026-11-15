@@ -1,6 +1,6 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
-                              CI, WORKFLOW, DEPENDS, ATLAS,
+                              CI, WORKFLOW, DEPENDS, ATLAS, PLACED,
                               BROKER, COMPILED, QUICK, TICK, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
                               DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
@@ -235,8 +235,8 @@ TOUCHES = (
     ('board/',                                 (WIRE, NATIVE, NATIVE_HEAT, EMULATOR, CONFORMANCE,
                                                 'test_mcp.py', 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
-    # Renode's cores, sent along with a job or taken where it starts: the bus suite's limb, the relay's test.
-    ('host/tools/emu/probes.py',               (EMULATOR, BUSES, CI)),
+    # Renode's cores, sent along with a job or taken where it starts: the bus suite's limb, the placement's test.
+    ('host/tools/emu/probes.py',               (EMULATOR, BUSES, PLACED)),
     ('host/tools/emu/',                        (EMULATOR,)),
     # Hardware-free like the filter: the host build covers it; board/'s glue is the bench's.
     ('thermal/',                               (THERMAL, THERMAL_APP, NATIVE_HEAT, CONFORMANCE,
@@ -282,7 +282,11 @@ TOUCHES = (
     # The jobs' inputs from outside, pinned and kept (test_workflow holds the table to its fetcher).
     ('.github/',                               (WORKFLOW, CI, STRUCTURE)),
     ('host/tools/dev/machine_detector.py',     (CI, WORKFLOW, STRUCTURE)),
+    # The relay: its jobs' admission and cores (test_ci), a job sent its emulator's (test_placed).
+    ('host/tools/dev/focus.py',                (CI, PLACED, STRUCTURE)),
     ('host/tools/dev/ledger.py',               (CI, STRUCTURE)),
+    # The machine's cores, commit and processes: the relay's and the ledger's asks, the batch's widths.
+    ('host/tools/dev/census.py',               (CI, WORKFLOW, PLACED, STRUCTURE)),
     ('host/tools/dev/background.py',           (CI, STRUCTURE)),
     ('host/tools/dev/linux.py',                (WORKFLOW, STRUCTURE)),
     ('host/tools/dev/workflow.py',             (WORKFLOW, STRUCTURE)),

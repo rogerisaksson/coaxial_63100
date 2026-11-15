@@ -50,7 +50,9 @@ tools/dev/          run_tests, pick_tests, counts, host_map, target_map,
                     first, as the free commit holds), ci (`--green`: the last
                     commit CI left green), linux (CI's runner as containers),
                     ledger (the machine's ledger: bookings, the queue,
-                    `--ledger`), workflow (the gate laid out over its machines),
+                    `--ledger`), census (the machine's cores, free commit and
+                    processes, read once an ask), workflow (the gate laid out
+                    over its machines),
                     gate (the offline gate on a commit, its own worktree),
                     pinned and depends (`constraints.txt` laid; what a machine
                     needs written where setup reads it, held to the lock),

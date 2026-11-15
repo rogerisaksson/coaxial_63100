@@ -237,7 +237,7 @@ def apart(module, fn, payload, key):
     (APART_GB) while it runs: begun only where the machine's commit holds it and no live process
     builds `key` (`focus.admitted`). (the process, running; its booking), or None - its words in
     gen/<its payload>.log."""
-    from tools.dev import focus
+    from tools.dev import census, focus
     folder = os.path.join(build.OUT, 'gen')
     os.makedirs(folder, exist_ok=True)
     marker = os.path.join(folder, 'building_%s.json' % key)
@@ -245,7 +245,7 @@ def apart(module, fn, payload, key):
     def busy():
         try:
             with open(marker, encoding='utf-8') as f:
-                return focus._alive(json.load(f)['pid'])
+                return census.alive(json.load(f)['pid'])
         except (OSError, ValueError, KeyError):
             return False
     path = os.path.join(folder, 'payload_%d_%d.pkl' % (os.getpid(), next(_count)))

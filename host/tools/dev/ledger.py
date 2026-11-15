@@ -18,27 +18,16 @@ import re
 import time
 from contextlib import suppress
 
-from tools.dev import background
-from tools.dev.focus import (LEDGER, RESERVE_GB, _Locked, _alive, booked, free_commit_gb, outstanding, processes,
-                            waiting)
-
-#: How often a booking waiting for room asks the ledger again, s: as a relay's baton does.
-POLL_S = 1.0
-
-
-def taken(ledger=LEDGER):
-    """(what is taken of the width now - every relay's live job processes and the cores booked: a container's, an
-    emulator's, a job's sent along, each counted once -, the commit owed, GB; how many jobs run, their processes,
-    the cores booked) of the ledger `ledger`."""
-    owed, running, pids, cores, own = outstanding(ledger)
-    return processes(pids, own) + running - len(pids) + cores, owed, running, pids, cores
+from tools.dev import background, census
+from tools.dev.focus import LEDGER, POLL_S, RESERVE_GB, _Locked, booked, queued, tally, waiting
 
 
 class reserved:
     """`cores` of the machine and `gb` of its commit booked as `name` in the ledger while the block runs, waited for
-    till they fit: the width (`background.widths`, or `width`) less what is taken, and the free commit (measured, or
-    `free`) less what is owed and RESERVE_GB; asked again every POLL_S, `wait_s` at most (None: as long as it takes)
-    - `path` the booking, None where it never fit, `waited` the seconds it took."""
+    till they fit: the width (`background.widths`, or `width`) less what is taken and what the wide requests waiting
+    since before it wait for (`focus.queued`: its turn kept, theirs left), and the free commit (measured, or `free`)
+    less what is owed and RESERVE_GB; asked again every POLL_S, `wait_s` at most (None: as long as it takes) -
+    `path` the booking, None where it never fit, `waited` the seconds it took."""
 
     def __init__(self, cores, gb, name, ledger=LEDGER, width=None, wait_s=None, free=None):
         self.cores, self.gb, self.name, self.ledger = cores, gb, name, ledger
@@ -46,19 +35,21 @@ class reserved:
         self.path, self.waited = None, 0.0
 
     def __enter__(self):
-        started, ticket = time.monotonic(), os.path.join(self.ledger, '.wait-%d-%s' % (os.getpid(), self.name))
+        started, since = time.monotonic(), time.time()
+        ticket = os.path.join(self.ledger, '.wait-%d-%s' % (os.getpid(), self.name))
         while True:
             with _Locked():
                 width = background.widths()[-1] if self.width is None else self.width
-                used, owed, *_rest = taken(self.ledger)
-                free = free_commit_gb() if self.free is None else self.free
-                if used + self.cores <= width and (free is None or free - owed - RESERVE_GB >= self.gb):
+                used, owed, *_rest = tally(self.ledger)
+                free = census.free_commit_gb() if self.free is None else self.free
+                if (used + self.cores + queued(self.ledger, ticket, since) <= width
+                        and (free is None or free - owed - RESERVE_GB >= self.gb)):
                     self.path = os.path.join(self.ledger, '%d-%s' % (os.getpid(), self.name))
                     booked(self.path, self.gb, None, os.getpid(), self.cores)
                     waiting(ticket, 0)
                     self.waited = time.monotonic() - started
                     return self
-                waiting(ticket, self.cores)
+                waiting(ticket, self.cores, since)
             if self.wait_s is not None and time.monotonic() - started >= self.wait_s:
                 waiting(ticket, 0)
                 return self
@@ -72,15 +63,16 @@ class reserved:
 
 
 def clean(ledger=LEDGER, client=None):
-    """What a relay that is gone left, gone too: its bookings (`outstanding` drops them), its tickets and half-written
+    """What a relay that is gone left, gone too: its bookings (`focus.tally` drops them), its tickets and half-written
     files, and the engine's containers of the gate it ran (their label coaxial.relay, `linux.ran`) - `client` the
     engine's where given, asked for where None, left alone where False or none answers. The lines that say what went."""
     gone = []
-    outstanding(ledger)
+    tally(ledger)
     with suppress(OSError):
         for name in os.listdir(ledger):
             digits = re.search(r'(\d+)', name)
-            if (name.startswith('.wait-') or name.endswith('.part')) and digits and not _alive(int(digits.group(1))):
+            if ((name.startswith('.wait-') or name.endswith('.part')) and digits
+                    and not census.alive(int(digits.group(1)))):
                 with suppress(OSError):
                     os.remove(os.path.join(ledger, name))
                 gone.append('cleaned: %s of relay %s, gone' % (name, digits.group(1)))
@@ -92,7 +84,7 @@ def clean(ledger=LEDGER, client=None):
             client = docker.from_env(timeout=5)
         for container in client.containers.list(filters={'label': 'coaxial.relay'}):
             pid = int(container.labels.get('coaxial.relay') or 0)
-            if pid and not _alive(pid):
+            if pid and not census.alive(pid):
                 container.remove(force=True)
                 gone.append('cleaned: container %s of relay %d, gone (%s)' % (
                     container.name, pid, os.path.basename(container.labels.get('coaxial.tree', ''))))
@@ -104,14 +96,14 @@ def clean(ledger=LEDGER, client=None):
 def said(ledger=LEDGER, width=None):
     """The machine as the ledger tells it, a line each: its cores, those kept for the desk, the width and what is
     taken of it; the commit free, owed and reserved; then each relay alive with its tree, jobs and commit, each
-    container with its cores; last the queue - each relay waiting with its jobs, each container with its cores."""
-    from tools.dev.focus import physical_cores
-    used, owed, running, _pids, cores = taken(ledger)
+    container with its cores; last the queue - each relay waiting with its jobs, its first wide job and each
+    container with their cores, and how long each has waited."""
+    used, owed, _running, cores = tally(ledger)
     width = background.widths()[-1] if width is None else width
-    free = free_commit_gb()
+    free = census.free_commit_gb()
     lines = ['machine: %d cores, %d kept for the desk, width %d: %d taken (%d jobs\' processes, %d cores booked by '
-             'containers and emulators), %d free' % (physical_cores(), background.kept(), width, used, used - cores,
-                                                   cores, max(0, width - used)),
+             'containers and emulators), %d free' % (census.physical_cores(), background.kept(), width, used,
+                                                   used - cores, cores, max(0, width - used)),
              'commit: %s free, %.1f GB owed, %.1f reserved' % ('%.1f GB' % free if free is not None else 'untold', owed, RESERVE_GB)]
     relays, queue = {}, []
     with suppress(OSError):
@@ -119,11 +111,12 @@ def said(ledger=LEDGER, width=None):
             if name.startswith('.wait-') and not name.endswith('.part'):
                 with suppress(OSError, ValueError), open(os.path.join(ledger, name), encoding='utf-8') as f:
                     held = json.load(f)
-                    if _alive(held['relay']):
+                    if census.alive(held['relay']):
                         what = name.split('-', 2)[2]
+                        who = {'jobs': 'relay', 'wide': "a relay's wide job"}.get(what, 'container ' + what)
                         queue.append('waiting: %s (relay %s): %d %s, %.0f s' % (
-                            'relay' if what == 'jobs' else 'container ' + what, held['relay'], held['count'],
-                            'jobs' if what == 'jobs' else 'cores', time.time() - held['since']))
+                            who, held['relay'], held['count'], 'jobs' if what == 'jobs' else 'cores',
+                            time.time() - held['since']))
                 continue
             if name.startswith('.'):
                 continue
@@ -136,12 +129,12 @@ def said(ledger=LEDGER, width=None):
             if job.get('cores') and not what.isdigit():        # a relay's jobs are numbered, the rest named
                 whose = ('emulator', 'process') if what.startswith('renode-') else ('container', 'relay')
                 lines.append('%s %s (%s %s%s, %s): %d cores, %.1f GB' % (
-                    whose[0], what, whose[1], job['relay'], '' if _alive(job['relay']) else ', gone', tree,
+                    whose[0], what, whose[1], job['relay'], '' if census.alive(job['relay']) else ', gone', tree,
                     job['cores'], job['gb']))
             else:
                 jobs, gb, _tree, sent = relays.get(job['relay'], (0, 0.0, tree, 0))
                 relays[job['relay']] = (jobs + 1, gb + job['gb'], tree, sent + int(job.get('cores') or 0))
-    lines += ['relay %s%s (%s): %d jobs%s, %.1f GB' % (pid, '' if _alive(pid) else ', gone', tree, jobs,
+    lines += ['relay %s%s (%s): %d jobs%s, %.1f GB' % (pid, '' if census.alive(pid) else ', gone', tree, jobs,
                                                        ' (%d cores with their emulators)' % sent if sent else '', gb)
               for pid, (jobs, gb, tree, sent) in sorted(relays.items())]
     return lines + queue

@@ -58,7 +58,7 @@ def test_the_runner_here_is_gate_yml_s(report):
     the engine has too few, none where it holds fewer than four; and this host counts what its group is given - the
     system's own count too (glibc's, os.cpu_count): a container shown its processors online as Linux writes them,
     an LF alone (with a CR glibc read the engine's 64)."""
-    from tools.dev import focus, linux
+    from tools.dev import census, linux
     info = linux.workflow()
     report.check("gate.yml's host job's own: an Ubuntu release, its matrix, its apt packages, its environment and folder",
                  bool(info['release']) and bool(info['pythons'])
@@ -68,9 +68,9 @@ def test_the_runner_here_is_gate_yml_s(report):
     took = [linux.shaped(smt, 2), linux.shaped(single, 2), linux.shaped(smt[:2], 2), linux.shaped(smt[:1], 1)]
     report.check('two cores of two threads a container, apart; four of one, the first core last; one set of two '
                  'cores; none of one core', took == [[0x3c, 0x3c0], [0x1e, 0xe1], [0xf], []], str(took))
-    told = focus.counted()
+    told = census.counted()
     report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
-                 told is None or told == (focus.physical_cores(), focus.threads()), str(told))
+                 told is None or told == (census.physical_cores(), census.threads()), str(told))
     report.check("and the system's own count the same: os.cpu_count, its group's processors online",
                  told is None or os.cpu_count() == told[1], '%s of %s' % (os.cpu_count(), told))
     action = (linux.REPO / '.github' / 'actions' / 'inputs' / 'action.yml').read_text(encoding='utf-8')

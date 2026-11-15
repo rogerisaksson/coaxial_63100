@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid, the
-runner's work told; a job cut at its time says where it was, a suite asks the relay for its emulator and its
-job is sent the cores (`tools.dev.focus`, `tools.emu.probes`).
+runner's work told; a job cut at its time says where it was, a suite asks the relay for its emulator, an ask of
+the machine's ledger reads the machine once and a wide request keeps its turn (`tools.dev.focus`,
+`tools.dev.ledger`); a job sent its emulator's cores is test_placed's.
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. The gate's
@@ -10,9 +11,9 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
 import tempfile
+import time
 import types
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -179,19 +180,19 @@ def test_the_ledger_counts_a_container_s_cores(report):
     """`tools.dev.ledger`: a container's booking holds its cores in the ledger while its block runs, waited for while
     the width is taken - a second container of one core finds none left of two, and finds it once the first is gone;
     one that waits is in the queue the view lists, and takes its cores within a poll of the first letting go -;
-    `focus.outstanding` tells the cores beside the jobs; `said` lists the machine, its containers with their tree, its
+    `focus.tally` tells the cores beside the jobs; `said` lists the machine, its containers with their tree, its
     queue; `clean` removes what a relay that is gone left: its booking, its ticket, its half-written file."""
     import threading
-    from tools.dev import focus, ledger
+    from tools.dev import census, focus, ledger
     with tempfile.TemporaryDirectory() as folder:
         with ledger.reserved(2, 0.0, 'linux-3.12', ledger=folder, width=2, free=100.0) as first:
-            held, cores = first.path is not None, focus.outstanding(folder)[3]
+            held, cores = first.path is not None, focus.tally(folder)[3]
             with ledger.reserved(1, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=0, free=100.0) as second:
                 refused = second.path is None
             lines = ledger.said(folder, width=2)
         with ledger.reserved(1, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=0, free=100.0) as third:
             again = third.path is not None
-        after = focus.outstanding(folder)[3]
+        after = focus.tally(folder)[3]
         queued, got = ledger.reserved(2, 0.0, 'linux-3.14', ledger=folder, width=2, wait_s=10.0, free=100.0), []
         with ledger.reserved(2, 0.0, 'linux-3.12', ledger=folder, width=2, free=100.0):
             runner = threading.Thread(target=lambda: got.append(queued.__enter__().path), daemon=True)
@@ -200,7 +201,7 @@ def test_the_ledger_counts_a_container_s_cores(report):
             queue = [line for line in ledger.said(folder, width=2) if line.startswith('waiting: container linux-3.14')]
         runner.join(3 * ledger.POLL_S)
         queued.__exit__(None, None, None)
-        dead = next(pid for pid in range(2 ** 22 + 1, 2 ** 22 + 1000) if not focus._alive(pid))
+        dead = next(pid for pid in range(2 ** 22 + 1, 2 ** 22 + 1000) if not census.alive(pid))
         for name in ('.wait-%d-jobs' % dead, '.%d-8.part' % dead):   # 8: booking 7's own part file is consumed by its laying
             with open(os.path.join(folder, name), 'w', encoding='utf-8') as f:
                 json.dump({'relay': dead, 'count': 3, 'since': 0.0}, f)
@@ -235,74 +236,60 @@ def test_a_suite_asks_the_relay_for_its_emulator(report):
                  '%s %s %s, unread %s' % (buses, emulator, rest, unread))
 
 
-def test_a_job_is_sent_its_emulator_s_cores(report):
-    """`focus.run`: a job of three cores - its suite asked for a Renode of two machines - is held to a whole core
-    of its own where one is free, sent the two others (`SENT`, a mask in its environment) where they are, and
-    booked as three in the ledger with them; a job sent none - of one core, or the two not free - is booked as its
-    process. `probes.Cored` binds a Renode to the cores sent it, unbooked; with none sent, to as many it takes
-    itself where they are free, else to any of the processors given, booked in the ledger while it runs - and
-    counted there by its cores alone, its process left out of its job's (`focus.processes`)."""
-    from machine.process import placed
-    from tools.dev import focus, ledger
-    from tools.emu.probes import Cored
-    cores = [mask for _klass, mask in placed.topology()[0]]
-    if len(cores) < 2:
-        report.check("a job is sent its emulator's cores (this host tells no two cores to bind to)", True, str(cores))
-        return
-
-    def whole(mask):
-        """The cores `mask` holds whole; none where it splits one."""
-        return [] if any(core & mask not in (0, core) for core in cores) else [c for c in cores if c & mask]
-
-    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    probe = [sys.executable, '-X', 'utf8', '-c', 'import os; from machine.process import placed; '
-             'print("%%x %%s" %% (placed.now(), os.environ["%s"]))' % focus.SENT]
-    waits = [sys.executable, '-X', 'utf8', '-c', 'import sys; from machine.process import placed; '
-             'sys.stdin.readline(); print("%x" % placed.now(), flush=True)']
+def test_an_ask_of_the_ledger_reads_the_machine_once(report):
+    """`focus.tally`: an ask of the ledger reads the machine's processes once (`census.Snapshot`), whatever is
+    booked - read a booking, 28 jobs took 467 ms an ask under the ledger's lock -, and a relay asks once a second
+    for all its batons that wait and when one of its jobs ends: six jobs one after another on six batons, five of
+    them waiting, ask twice a job and once a second at most - a baton each, some six a job."""
+    from tools.dev import census, focus
     with tempfile.TemporaryDirectory() as folder:
-        paths = [os.path.join(folder, '%d-%d' % (os.getpid(), k)) for k in (1, 2)]
-        said = [focus.run(focus.Job(name, probe, cores=n), env, path)[0].split()
-                for name, n, path in zip(('asked', 'plain'), (3, 1), paths)]
-        booked = []
-        for path in paths:
-            with open(path, encoding='utf-8') as f:
-                booked.append(json.load(f)['cores'])
+        for k in range(28):
+            focus.booked(os.path.join(folder, '%d-%d' % (os.getpid(), k)), 0.3, os.getpid())
+        before = census.Snapshot.count
+        running = focus.tally(folder)[2]
+        read = census.Snapshot.count - before
+    jobs = [focus.Job('one after another %d' % k, [sys.executable, '-c', 'import time; time.sleep(0.5)'], 0.1, 60.0,
+                      'one at a time') for k in range(6)]
+    # A ledger of its own: asking the machine's from inside a job, this relay waited behind the whole gate's.
+    with tempfile.TemporaryDirectory() as folder:
+        before, began = census.Snapshot.count, time.monotonic()
+        ended = [code for _job, _out, code, _took in focus.relay(jobs, batons=6, ledger=folder)]
+        asks, took = census.Snapshot.count - before, time.monotonic() - began
+    report.check('28 jobs booked read off one snapshot of the machine; a relay of six batons asks the ledger twice a '
+                 'job and once a second at most, not once a baton',
+                 read == 1 and running == 28 and ended == [0] * 6 and asks <= 2 * len(jobs) + took + 2,
+                 'snapshots an ask %d, %d jobs told; %d asks in %.1f s, exits %s' % (read, running, asks, took, ended))
 
-        def bound(given, port):
-            """A stand-in for a Renode of two machines bound as one is, `given` sent it: (its processors, the
-            cores it took, whether it lay in the ledger while it ran and is gone after, the processes the ledger
-            leaves out of this one's tree, booked as a job, for the cores booked, the view's lines of it)."""
-            child = subprocess.Popen(waits, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env)
-            cored = Cored(child.pid, 2, port, sent=given, ledger=folder)
-            booking, took = cored.booking, len(cored.holds)
-            lay = booking is not None and os.path.exists(booking)
-            job = os.path.join(folder, '%d-9' % os.getpid())
-            focus.booked(job, 0.0, os.getpid())
-            pids, own = focus.outstanding(folder)[2::2]
-            left = focus.processes(pids) - focus.processes(pids, own)
-            os.remove(job)
-            view = [line for line in ledger.said(folder) if line.startswith('emulator')]
-            mask = int(child.communicate('\n')[0].strip() or '0', 16)
-            cored.free()
-            return mask, took, lay and booking is not None and not os.path.exists(booking), left, view
 
-        pair = cores[-1] | cores[-2]
-        with_sent, with_none = bound(pair, 1), bound(0, 2)
-    (mine, sent), (_plain, none) = [(int(mask, 16), int(rest, 16)) for mask, rest in said]
-    held = len(whole(mine)) == 1 or mine == placed.now()
-    along = sent == 0 or (len(whole(sent)) == 2 and not sent & mine)
-    itself = (with_none[1] == 2 and len(whole(with_none[0])) == 2) or (with_none[1] == 0 and with_none[0] == sum(cores))
-    listed = [line for line in with_none[4] if line.startswith('emulator renode-2 (process %d, ' % os.getpid())
-              and line.endswith('): 2 cores, 0.0 GB')]
-    report.check('a job of three cores held to one, sent two apart from it where they are free and booked as three '
-                 'with them; a job of one sent none; a Renode bound to the cores sent it, unbooked; with none sent to '
-                 'two it takes itself or to any given, booked while it runs, counted by its cores alone and listed '
-                 'with the process that started it',
-                 held and along and none == 0 and booked == [3 if sent else 0, 0]
-                 and with_sent == (pair, 0, False, 0, []) and itself and with_none[2] and with_none[3] >= 1
-                 and len(listed) == 1,
-                 'mine %x, sent %x, plain sent %x, booked %s; sent %x: %s; none sent: %s of %x'
-                 % (mine, sent, none, booked, pair, with_sent, with_none, sum(cores)))
+def test_a_wide_request_keeps_its_turn(report):
+    """`focus.queued`: the cores the machine's wide requests wait for - a relay's job of more than one core, a
+    container: their tickets, a relay's count of jobs and a dead owner's left out -, those waiting since before a
+    given time alone, and without one's own; a container that asks after them takes no room they wait for
+    (`ledger.reserved`) and its cores where the width holds both; the view tells how long each has waited."""
+    from tools.dev import census, focus, ledger
+    now = time.time()
+    with tempfile.TemporaryDirectory() as folder:
+        wide, box = (os.path.join(folder, '.wait-%d-%s' % (os.getpid(), name)) for name in ('wide', 'linux-3.12'))
+        focus.waiting(wide, 4, now - 100.0)
+        focus.waiting(box, 2, now - 50.0)
+        focus.waiting(os.path.join(folder, '.wait-%d-jobs' % os.getpid()), 30, now - 100.0)
+        dead = next(pid for pid in range(2 ** 22 + 1, 2 ** 22 + 1000) if not census.alive(pid))
+        with open(os.path.join(folder, '.wait-%d-wide' % dead), 'w', encoding='utf-8') as f:
+            json.dump({'relay': dead, 'count': 8, 'since': now - 200.0}, f)
+        told = [focus.queued(folder), focus.queued(folder, mine=wide), focus.queued(folder, before=now - 75.0),
+                focus.queued(folder, mine=box, before=now - 50.0)]
+        with ledger.reserved(2, 0.0, 'linux-3.14', ledger=folder, width=7, wait_s=0, free=100.0) as short:
+            passed_by = short.path is not None
+        with ledger.reserved(2, 0.0, 'linux-3.14', ledger=folder, width=8, wait_s=0, free=100.0) as fits:
+            beside = fits.path is not None
+        ages = sorted(float(line.rsplit(', ', 1)[1].split()[0]) for line in ledger.said(folder, width=8)
+                      if line.startswith(("waiting: a relay's wide job", 'waiting: container linux-3.12')))
+    report.check("the wide requests' cores told - a relay's count of jobs and a dead owner's out -, one's own and the "
+                 'later left out; a container asking after them takes no room they wait for, and its cores where the '
+                 'width holds both; the view tells their ages',
+                 told == [6, 2, 4, 4] and not passed_by and beside and len(ages) == 2
+                 and all(abs(age - want) < 5.0 for age, want in zip(ages, (50.0, 100.0))),
+                 '%s; in a width of 7 %s, of 8 %s; ages %s' % (told, passed_by, beside, ages))
 
 
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
@@ -310,7 +297,7 @@ ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_w
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
           test_the_ledger_counts_a_container_s_cores, test_a_suite_asks_the_relay_for_its_emulator,
-          test_a_job_is_sent_its_emulator_s_cores)
+          test_an_ask_of_the_ledger_reads_the_machine_once, test_a_wide_request_keeps_its_turn)
 
 
 def main(argv=None):
