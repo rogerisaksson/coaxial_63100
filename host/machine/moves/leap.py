@@ -351,11 +351,12 @@ def stride_hop(g, by, t0, spd, back_now, fwd_gaits, back_gaits, said_fn, walk_on
         a[modal.SPLIT], a[modal.BEGUN], a[modal.STANCE], stride.swings(out[latent.SWAY][modal.DRIVE], float(out[latent.TURNS]), a[modal.GOING]))
     t0 = t0 + (float((on * (1.0 - u) * (1.0 - a[modal.BEGUN])).max()) / float(swung)
                if in_fwd and float(swung) > 0.5 else 0.0)
+    ts, tg = se2.stand_lead(spd)
     w_fast = max(0.0, min(1.0, (float(spd) - 0.55) / 0.20))
-    dt_stand, dt_b = 0.45 + 0.15 * w_fast, (0.85 + 0.20 * w_fast) * float(moving and not in_fwd)
+    dt_stand, dt_b = max(0.45 + 0.15 * w_fast, ts), max(0.85 + 0.20 * w_fast, tg) * float(moving and not in_fwd)
     if dt_b > 0.0 and '_brake_wire' in g:
         brake = np.frombuffer(g.get('_brake_back_wire', g['_brake_wire']) if back_now else g['_brake_wire'], latent.WIRE).copy()
-        brake['blend'] = round(1e3 * se2.STAND_S)
+        brake['blend'] = round(1e3 * ts)
         said_fn(g, 'brake', brake.tobytes(), ('brake',), at=t0, reset=True)
     if dt_b > 0.0 and '_brake_wire' in g and 'stand' in by:
         said_fn(g, *by['stand'], at=t0 + dt_stand, reset=True)

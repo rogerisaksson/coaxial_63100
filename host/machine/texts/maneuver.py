@@ -19,7 +19,7 @@ import math
 
 from machine.texts import curves, dsp, ortho
 from machine.body import defrobot, figure
-from machine.law import supervisor
+from machine.law import impedance, supervisor
 from machine.moves import seated
 from machine.stack import wrench
 from machine.texts.acts import ACTS, GRAIN_MS, LEGS, NODES, SUPPORT, sprung
@@ -92,15 +92,15 @@ def side(seen):
     return ':short' if seen[5] < seen[4] else ':long'
 
 
-def _played(name, got, seat, edge=None):
+def _played(name, got, seat, edge=None, popliteal=seated.POPLITEAL):
     """(the gait the suite's patch for stunt `name` makes of the gait it rises from - the stunt's it
     rises from, else the suite's nominal manifold -, a seat `seat` m up its key, the edge `edge` it sat
     on (`side`) its key, how many of its acts are that gait's)."""
     patch_name, under = PLAYED[name][:2]
-    base = _played(under, got, seat, edge)[0] if under else got['nominal-biped-manifold']
+    base = _played(under, got, seat, edge, popliteal)[0] if under else got['nominal-biped-manifold']
     keys = [':' + SEEN, 1e3 * seat] if seat is not None and SEEN in got[patch_name].keys else []
     keys += [':' + SIDE, edge] if edge is not None and SIDE in got[patch_name].keys else []
-    keys += [':' + POPLITEAL, 1e3 * seated.POPLITEAL] if POPLITEAL in got[patch_name].keys else []
+    keys += [':' + POPLITEAL, 1e3 * popliteal] if POPLITEAL in got[patch_name].keys else []
     g = dsp.called(patch_name, [base] + [got['nominal-biped-manifold']] * (len(got[patch_name].params) - 1), keys, got)
     if not isinstance(g, dict):
         raise MachineError('%s: a patch of a gait, not of a transition' % patch_name)
@@ -124,7 +124,12 @@ def _phases(name, seen=None, got=None):
     releases laid at the descent's start; an act's `:joint-program` on its first phase, its boards' program from
     that tick (`machine.process.joints`)."""
     given, got = got, got if got is not None else dsp.read(dsp.SUITE)
-    (g, first), (modes, body) = _played(name, got, seen[0] if seen else None, side(seen)), _manifest()
+    modes, body = _manifest()
+    pressed = impedance.PROP_ON * body['weight'] / modes['mode_axial_compression'][1]
+    no_palms = (seen is not None and len(seen) > 5 and seen[5] is not None and seated.reaches(seen[0])
+                and 0.5 * seen[5] - abs(seen[2]) - seated.placed(seated.ON - pressed, 0.0)[2] < 0.0)
+    pop = max(seated.POPLITEAL, seen[0]) if seen is not None and no_palms else seated.POPLITEAL
+    g, first = _played(name, got, seen[0] if seen else None, side(seen), pop)
     told = next((info[SEEN] for step, info in g['_trace'] if isinstance(info, dict) and SEEN in info), None)
     at = {'knee': math.radians(body['knee']), 'ankle': 0.5 * math.radians(body['knee']),
           'seat': None if told is None else 1e-3 * told,
@@ -352,25 +357,18 @@ def _entry(name, source, texts):
 
 
 def said(g, item, at=None, thing=None):
-    """A gym entry `item` as its session says it: a stunt it plays (PLAYED) compiled for the furniture
-    it sees nearest `at`, the thing of slot `thing` where given (`furniture.seen`); nothing among its
-    things yet, it looks till a sighting is its own (`registry.TAKEN` of HIT a look); still none, refused
-    by name - unseen, the patch's own seat played a 0.45 m descent onto a floor mattress that was not
-    there and it froze mid-air at 0.504 m. Its joint programs laid on its run (`g['programs']`, {phase:
-    program}): its boards play each from its phase's first tick (`machine.process.joints`); the seat's top it
-    sits it on, m (`g['seat']`, inf for an entry not a stunt): its legs rest from none over its popliteal height
-    (`melt.step`)."""
-    import math as _math
+    """A gym entry `item` as its session says it: a stunt (PLAYED) compiled for the furniture seen nearest
+    `at` (slot `thing` where given, `furniture.seen`); unseen, it looks till a sighting is its own
+    (`registry.TAKEN` of HIT a look), else refused by name. Its joint programs laid on `g['programs']`
+    (`machine.process.joints`), the seat's top m on `g['seat']` (`melt.step`, inf outside stunts)."""
     from machine.way import furniture
     from machine.eyes import registry
     from machine.process import sprung
-    g['seat'] = _math.inf
+    g['seat'] = math.inf
     if item[0] not in PLAYED:
         return item
     from machine.law import se2, stride
-    # lying on the floor (`se2.GROUNDED`) the floor is its seat, its top 0, its edge on it: a rise
-    # asked of it there is refused by its legs' reach, not 'nothing affords it' as the bed patch's
-    # search for a bed said
+    # on the floor (`se2.GROUNDED`) the floor is its seat, top 0: a rise there is refused by leg reach
     floor = float(sprung.doing(g) in se2.GROUNDED)
     verb, reach = PLAYED[item[0]][1] or item[0], stride.STRIDE_M + standoff(item[0], g['suite'])
     if thing is None and PLAYED[item[0]][1] is not None and not floor:
@@ -378,7 +376,7 @@ def said(g, item, at=None, thing=None):
         if sat is not None and furniture.nearest(g, verb, at, thing=sat)[0] <= reach:
             thing = sat
     seen = (0.0, 0.0, 0.0, 0.0, 0.0) if floor else furniture.seen(g, item[0], at, thing)
-    for _ in range(int(_math.ceil(registry.TAKEN / registry.HIT))):
+    for _ in range(int(math.ceil(registry.TAKEN / registry.HIT))):
         if seen is not None:
             break
         sprung.looked(g)

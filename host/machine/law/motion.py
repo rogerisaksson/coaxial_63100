@@ -16,7 +16,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.law import barrier, brace, composer, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
+from machine.law import barrier, brace, composer, impedance, latent, melt, modal, schema, se2, somatic, stride, supervisor, waits
 from machine.body import bemf, capsules, figure, servos
 from machine.senses import estimate, field, grip, inekf, observer, situation, touch
 from machine.moves import cascade, emancipation, leap, seated
@@ -168,6 +168,14 @@ def control(g, dt):
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
+    isch, pal = emancipation.SEAT_ROWS[0], latent.MANIFOLD.start + ortho.PALMAR
+    pelvis_up = sum(float(c['f'][1]) * float(int(c.get('body', -1)) == body.pelvis) for c in s.get('contacts', ()))
+    isch_w = min(1.0, float(told[isch]) / max(0.5 * float(told.sum()), observer.TINY))
+    borne_w = min(1.0, pelvis_up / max(impedance.PROP_ON * float(g['fr'][modal.WEIGHT]), observer.TINY))
+    pal_due = max(float(told[ortho.PALMAR]), float(g['st'][latent.TO][pal]), float(g['tab'][:, pal].max(initial=0.0)))
+    upright = float((pal_due <= 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
+                    & (float(g['st'][latent.TO][latent.ZMP]) < 0.5) & (abs(float(out[latent.SLID])) <= 1e-6))
+    ask['sat'] = max(ask['sat'], isch_w * borne_w * upright)
     g['observer']['slide'][:] = ask['slide']
     bears = np.array(g['loads']) >= leap.TOUCH_N
     held, rest = emancipation.held(g, s, bears, unfelt)
@@ -179,7 +187,6 @@ def control(g, dt):
                                                   float(y_in[edge.LINK][0]), g['shield'])
     ask['mu'] = g['held']
     ask['hold'] = max(1.0, float((g['out'][latent.KS][ARMED] / g['rest'][latent.K][ARMED]).max()))
-    cv, acv = g['_cv_sh'], g['_acv_sh']
     w_gait = min(1.0, max(0.0, (0.05 - float(g['st'][latent.NOW][latent.GAIN])) / 0.05))
     w_drive = min(1.0, abs(float(g['st'][latent.TO][latent.AMP][modal.DRIVE])) / stride.STIRS)
     foot = min(1.0, max(0.0, float(g['out'][latent.HELD]) - 1.0))
@@ -235,16 +242,11 @@ def _told(g):
 
 
 def laid(g):
-    """The robot's drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`): the struct
-    pointing at `g`'s arrays once - the observers, the setpoints and their rates, the holds, the
-    knees' spring, the feed and the clamps its drives are told (`g['cmd']`) - and what it reads
-    by, kept beside it. Its latent step, its upper body's coupling, its ask, its surety field, its
-    touch's filter, its twist's step, its table's waits, its surety's brace on the solve and what bears it off its
-    soles (`machine.senses.borne.read`) in C, its python's bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`,
-    `twist`, `wait`, `brace`, `borne`); its estimate, its grip's feel and floor, its
-    situation, its drive's cap, its ask's poses, its invariant EKF, its barrier (a ring's length a part), its
-    field's seek, what bears it weighed, its shield's clearances and its wayfinder's gap compiled from
-    their numpy (`tools.cores.bodied`)."""
+    """The drive-side step laid in C (`wbc_pass.c`, `tools.cores.wbc.Drives`) pointing at `g`'s arrays once
+    (`g['cmd']`), with its latent step, upper-body coupling, ask, surety, touch, twist, table waits, brace and
+    borne read in C bit for bit (`tools.cores.motion`, `step`, `surety`, `touch`, `twist`, `wait`, `brace`,
+    `borne`), and its estimate, grip, situation, poses, EKF, barrier, field, weighed shares, clearances and
+    wayfinder gap compiled from numpy (`tools.cores.bodied`)."""
     from machine.body.figure import JOINTS
     from tools.cores import bodied, motion as c_motion, surety as c_surety, touch as c_touch, twist as c_twist
     from tools.cores import brace as c_brace, wait as c_wait, wbc as cores

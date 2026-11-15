@@ -353,7 +353,7 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
     ae = g.get('active_entry') or (cur_d if cur_d in SE2_GAITS else None)
     striding = (abs(float(g['out'][latent.SWAY][modal.DRIVE])) > stride.STIRS
                 or abs(float(g['out'][latent.SWAY][modal.LATERAL])) > 0.08 or float(g['st'][latent.NOW][latent.GAIN]) > 0.02)
-    spin_gaits = ('spin_left', 'spin_right')
+    lat_spin = ('strafe_left', 'strafe_right', 'spin_left', 'spin_right')
     if (active and not has_say and g.get('_errand') is None and striding and cur_d not in ('brake', 'stand', 'init_walk')
             and g.get('_jump_until', 0.0) <= g['t'] and ae in SE2_GAITS and target in SE2_GAITS):
         g['governed'] = g['governed'] if was_tw else NOMINAL_TWIST.get(str(ae), g['asked'])
@@ -362,9 +362,9 @@ def heard_twist(g, gym, tw, has_say, heard_say_fn):
             g['_jog_until'] = g['t'] + 0.5 * BRAKE_S
         g['twist'] = touch.against(g, g['governed'])
         return
-    hold_tw = (not has_say and g.get('_errand') is None
-               and ((cur_d == 'brake' and target in spin_gaits) or cur_d in RISE_OF
-                    or (g.get('_jump_until', 0.0) > g['t'] and not g.get('_leap'))))
+    hold_tw = (not has_say and ((cur_d == 'brake' and target in lat_spin)
+               or (g.get('_errand') is None and (cur_d in RISE_OF
+                   or (g.get('_jump_until', 0.0) > g['t'] and not g.get('_leap'))))))
     g['governed'], g['twist'] = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)) if hold_tw else (g['asked'], (vx, vy, wz))
     if target is not None:
         g['_twist_active'], g['_twist_stop_until'] = active, g['t'] + 2.5
