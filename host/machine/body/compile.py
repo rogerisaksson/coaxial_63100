@@ -371,7 +371,7 @@ def _gait(st):
         'steer': _steer_gait(leg_m, v0, w_l, w0, w_task, w_law),
         'poise': {'margin_m': poise_margin, 'capture_s': round(2.0 / (3.0 * w0 * s_t), 2) * s_t,
                   'lift_eps': 0.02, 'gate_m': figure.PAD_M, 'early': 0.3},
-        'support': {'tau_s': round(0.25 * pi / (w_task * s_t), 2) * s_t, 'eso_rad_s2': round(w_l * w_l, 1),
+        'support': {'tau_s': round(pi / (w_eso * s_t), 2) * s_t, 'eso_rad_s2': round(w_l * w_l, 1),
                     'eso_scale_rad_s2': round(2.0 * w_l * w_l, 1),
                     'sigma_rad': round(atan2(figure.UPPER_ARM + figure.FIST_R, leg_m), 2),
                     'bleed': round(10.0 * w_l, 1)},
