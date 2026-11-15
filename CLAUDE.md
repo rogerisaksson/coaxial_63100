@@ -87,8 +87,18 @@ is set up by the repository's own setup, never by installs picked by hand:
    python -X utf8 -c "from machine.aircraft import compile; print(compile.blocks())"
    python -X utf8 host/tools/cores/manifest.py --write
    python -X utf8 host/tools/cores/model.py --write
+   python -X utf8 host/tools/cores/footprint.py --write
+   python -X utf8 host/tools/cores/reach.py --write
+   python -X utf8 host/tools/cores/terms.py --write
    python -X utf8 host/tools/sim/dimensions.py --write
    ```
+
+   A generated file's first line names the tool that writes it ("written by
+   ..., not by hand"); `test_mirrors` holds each file to its tool's output. A
+   wrong number in such a file is a fault upstream: in the `.toml` spec, in the
+   static meta-compiler (`compile.py`, `mechatronics.py`, `peripherals.py`) or
+   in the `--write` tool. Fix the solver there and run the tool; never type the
+   number into the file.
 
 ---
 
@@ -236,7 +246,7 @@ Evaluate the prompt and working tree before invoking any tool:
 - Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical
   residual from State 4 and which hypothesis class it eliminated]
 - Layer Owner: [Physics OR C11-Core OR Executive OR Client OR Target-FW]
-- Generated File: [NO (safe to edit) OR YES (create)]
+- Generated File: [NO (safe to edit) OR YES (name its generator; the fix goes there)]
 - Precision Domain: [float64 NumPy-exact OR float32 MCU/SoA ABI OR Integer]
 - [INV-SOLVER] Zero oracle corruption (0 weakened tests, relaxed tolerances, or mocked returns)? [YES / NO]
 - [INV-REWARD] Prioritized quality over quantity and speed? [YES / NO]
@@ -277,8 +287,12 @@ Evaluate the prompt and working tree before invoking any tool:
   added file(s) proven in State 2. Never leave untracked temporary or backup
   files in the tree.
 - **Generator Rule:** Never hand-edit machine-generated files (manifests,
-  static reach/footprint tables, C figure arrays, generated SVGs, or executed
-  notebooks) -- edit their generator script and run it.
+  static reach/footprint/term tables, C figure arrays, DIMENSIONS.md,
+  RESULTS.md, constraints.txt, generated SVGs, or executed notebooks). The
+  number in the file is the solver's output: fix the static meta-compiler
+  (`host/machine/body/compile.py`, `host/machine/aircraft/compile.py`, their
+  `.toml` specs) or the `--write` tool that lays it, run it, and let
+  `test_mirrors` hold the file to the tool.
 - **Banned Actions:** Speculative refactoring, renaming unrelated symbols,
   formatting untouched lines (a linter's fault excepted: fixed wherever it
   stands, STATE 4), breaching the per-file token budget, or inserting
