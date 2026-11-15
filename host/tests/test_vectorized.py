@@ -93,7 +93,8 @@ def test_the_reader_bites(report, _c):
     """A loop whose lanes are independent and the same loop with a dependence carried from pass to pass, each built
     as a core is for each of this host's targets: the reader tells the first vectorised and the second not."""
     from tools.cores import build, vectorized
-    cc, targets, told = build.find_cc(), vectorized.BUILDS[vectorized.machine()], []
+    cc, told = build.find_cc(), []
+    targets = vectorized.targets(cc)
     with tempfile.TemporaryDirectory() as folder:
         for name, source in (('apart.c', APART), ('carried.c', CARRIED)):
             with open(os.path.join(folder, name), 'w', encoding='utf-8', newline='\n') as f:

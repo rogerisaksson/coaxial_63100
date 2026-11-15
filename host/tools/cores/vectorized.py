@@ -9,8 +9,8 @@
 The cores are portable C11 the compiler vectorises where it can: at -O2 with nothing contracted (`wbc.FLAGS`), a
 loop whose lanes are independent. An edit can lose that without a suite going red - a pointer that may alias, a
 branch in a loop, a sum carried from pass to pass - and the loop runs on, a lane at a time. So each source is built
-for each target its machine's compiler builds (BUILDS: avx, avx2 and avx512 on x86; sve2 and sme2 on ARM, in the
-arm64 runner image under QEMU), to assembly and nowhere else, and the compiler's own report read
+for each target its machine's compiler builds (`targets` of BUILDS: avx, avx2 and avx512 on x86; sve2 and sme2 on
+ARM, in the arm64 runner image under QEMU - a compiler that knows no sme2 holds sve2), to assembly and nowhere else, and the compiler's own report read
 (-fopt-info-vec-optimized): the loops it vectorised, each once however often it tells it, by the function they
 stand in (`spans`). The table holds them a section - a compiler, its major version, its machine: what one compiler
 vectorises another may not - and test_vectorized fails where a function holds fewer than its row; more is no
@@ -53,6 +53,15 @@ def section(cc):
     said = subprocess.run([cc, '--version'], capture_output=True, text=True).stdout.lower()
     major = subprocess.run([cc, '-dumpversion'], capture_output=True, text=True).stdout.strip().split('.')[0]
     return '%s %s %s' % ('clang' if 'clang' in said else 'gcc', major, machine())
+
+
+def targets(cc):
+    """The targets of this host's machine (BUILDS) that compiler `cc` builds: an older one knows no sme2, and holds
+    what it does build."""
+    from tools.cores import build
+    return tuple(isa for isa in BUILDS[machine()] if not subprocess.run(
+        [cc, '-x', 'c', '-fsyntax-only'] + list(build.TARGETS[isa]) + ['-'], input='', capture_output=True,
+        text=True).returncode)
 
 
 def sources():
@@ -104,17 +113,18 @@ def report():
     """(this host's section's name, its targets, {source: {function: (its loops a target)}}, {target: {source: its
     fused multiply-adds}}): every source built for every target, AT_ONCE side by side."""
     from tools.cores import build
-    cc, targets, files = build.find_cc(), BUILDS[machine()], sources()
-    jobs = [(isa, name) for isa in targets for name in sorted(files)]
+    cc, files = build.find_cc(), sources()
+    held = targets(cc)
+    jobs = [(isa, name) for isa in held for name in sorted(files)]
     with ThreadPoolExecutor(min(AT_ONCE, os.cpu_count() or 2)) as pool:
         got = list(pool.map(lambda job: read(cc, job[0], files[job[1]]), jobs))
-    table, fused = {}, {isa: {} for isa in targets}
+    table, fused = {}, {isa: {} for isa in held}
     for (isa, name), (loops, n) in zip(jobs, got):
         if n:
             fused[isa][name] = n
-        for function, held in loops.items():
-            table.setdefault(name, {}).setdefault(function, [0] * len(targets))[targets.index(isa)] = held
-    return section(cc), targets, {name: {fn: tuple(v) for fn, v in fns.items()} for name, fns in table.items()}, fused
+        for function, k in loops.items():
+            table.setdefault(name, {}).setdefault(function, [0] * len(held))[held.index(isa)] = k
+    return section(cc), held, {name: {fn: tuple(v) for fn, v in fns.items()} for name, fns in table.items()}, fused
 
 
 def laid():
