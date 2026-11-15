@@ -269,11 +269,12 @@ def heard_say(g, gym, entry):
             r_entry = maneuver.said(g, by[rm])
         except MachineError:
             r_entry = by[rm]
-        sprung.said(g, *r_entry, at=t0, reset=True)
+        sprung.said(g, *r_entry, at=t0, reset=(rm in se2.RESET_MODES))
         post_entry = by.get('stand', entry) if name == 'hop' else entry
         start_mode(g, by, post_entry, at=t0 + se2.rise_lead(r_entry[1]))
         g['_post_stunt'] = post_entry[0]
         g['active_entry'] = rm
+        g['governed'] = g['twist'] = (0.0, 0.0, 0.0)
         return None
     if off_c and 'stand' in by and name not in (('stand', 'hop') + tuple(sprung.STUNT_MODES)):
         sprung.said(g, *by['stand'], at=t0, reset=True)

@@ -168,16 +168,16 @@ def control(g, dt):
     ask['com_acc'] = emancipation.settled(emancipation.counterweighted(ask['com_acc'], g), g, s)
     emancipation.opened(g, s, ask, dt * ev)
     somatic.asked(g, s, out, told, ask)
+    bears = np.array(g['loads']) >= leap.TOUCH_N
     isch, pal = emancipation.SEAT_ROWS[0], latent.MANIFOLD.start + ortho.PALMAR
     pelvis_up = sum(float(c['f'][1]) * float(int(c.get('body', -1)) == body.pelvis) for c in s.get('contacts', ()))
     isch_w = min(1.0, float(told[isch]) / max(0.5 * float(told.sum()), observer.TINY))
     borne_w = min(1.0, pelvis_up / max(impedance.PROP_ON * float(g['fr'][modal.WEIGHT]), observer.TINY))
     pal_due = max(float(told[ortho.PALMAR]), float(g['st'][latent.TO][pal]), float(g['tab'][:, pal].max(initial=0.0)))
-    upright = float((pal_due <= 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
+    upright = float((~bool(bears.all())) & (pal_due <= 0.0) & (float(ask.get('reclined', 0.0)) <= 0.5)
                     & (float(g['st'][latent.TO][latent.ZMP]) < 0.5) & (abs(float(out[latent.SLID])) <= 1e-6))
     ask['sat'] = max(ask['sat'], isch_w * borne_w * upright)
     g['observer']['slide'][:] = ask['slide']
-    bears = np.array(g['loads']) >= leap.TOUCH_N
     held, rest = emancipation.held(g, s, bears, unfelt)
     g['support'] = held
     ask['com_acc'] = barrier.barred(ask['com_acc'], s['com'], s['vcom'], float(g['fr'][modal.OMEGA]), held, rest, g['ringed'])

@@ -17,7 +17,7 @@ on an open floor (`not (physics.ROOM or g.get('eyes'))`) none: an errand's dock 
 """
 import math
 
-from machine.body import figure
+from machine.body import figure, footprint
 from machine.eyes import classes, registry, voxels
 from machine.law import schema, se2
 from machine.way import furniture, route, wayfinder
@@ -39,8 +39,7 @@ def _rising(g):
     from machine.process import gaits
     cur = se2.doing(g)
     return cur in se2.RISE_OF or (
-        g.get('_post_stunt') is not None and g.get('active_entry') in se2.RISE_OF.values()
-        and (cur == 'init_walk' or gaits.in_stunt_transient(g)))
+        g.get('active_entry') in se2.RISE_OF.values() and (cur == 'init_walk' or gaits.in_stunt_transient(g)))
 
 
 def _deeper(o, d, half, off):
@@ -54,7 +53,9 @@ def _deeper(o, d, half, off):
 
 def clear_of_rise(g):
     """Whether a completed rise has carried its pelvis outside its things' half-width halo (or it steps deeper in)."""
-    if _rising(g):
+    from machine.process import gaits
+    cur = se2.doing(g)
+    if cur in se2.RISE_OF or cur == 'init_walk' or gaits.in_stunt_transient(g):
         return False
     things = _seen(g)
     if not (physics.ROOM or g.get('eyes')) or not things:
@@ -86,12 +87,25 @@ def _vel_blocked(g):
     vel = g['est']['vel']
     vx, vz = float(vel[0]), float(vel[2])
     vh = math.hypot(vx, vz)
-    if vh <= 0.03:
+    if vh <= se2.HALT_M_S:
         return False
     cut = bool(g.get('_cocoon_cut'))
     room = _room(g, (vx / vh, vz / vh), things)
-    return room <= -wayfinder.MARGIN + 1e-6 or (
-        vh > se2.HALT_M_S and _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= room)
+    return _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= room
+
+
+def _spin_blocked(g, wz, cut=False):
+    """Whether spinning in place toward `wz` carries its pelvis into a thing (`footprint.carry`)."""
+    things = _seen(g)
+    if not (physics.ROOM or g.get('eyes')) or g.get('_errand') or not things or _rising(g):
+        return False
+    cf, cl = footprint.carry(45.0, math.copysign(1.0, wz))
+    carry_m = math.hypot(cf, cl)
+    if carry_m <= 1e-6:
+        return False
+    h = float(g['heading'])
+    way = ((cf * math.sin(h) + cl * math.cos(h)) / carry_m, (cf * math.cos(h) - cl * math.sin(h)) / carry_m)
+    return carry_m + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= _room(g, way, things)
 
 
 def hop_blocked(g):
@@ -108,12 +122,13 @@ def hop_blocked(g):
 
 
 def blocked(g):
-    """Whether its stop along its asked way (`g['asked']`), turning arc, or momentum while spinning no longer fits
+    """Whether its stop along its asked way (`g['asked']`), turning arc, or spin carry/momentum no longer fits
     short of its things: never on an errand, already braking or standing, or with none seen."""
     tw = g.get('asked', (0.0, 0.0, 0.0))
     way = _way(g, tw)
     if way is None:
-        return se2.doing(g) not in ('brake', 'stand', 'rest') and abs(float(tw[2])) > 1e-4 and _vel_blocked(g)
+        return (se2.doing(g) not in ('brake', 'stand', 'rest') and abs(float(tw[2])) > 1e-4
+                and (_vel_blocked(g) or _spin_blocked(g, float(tw[2]))))
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
     side = se2.SIDE_STOP_M if abs(float(tw[1])) > 1e-4 and se2.doing(g) not in ('brake', 'stand', 'rest') else 0.0
@@ -122,11 +137,12 @@ def blocked(g):
 
 def refused(g, tw):
     """Twist `tw` (its body's), its way taken off where its stop along it or its turning arc cannot fit short of its
-    things; its spin held off while its unsteered momentum into a thing has not yet halted."""
+    things; its spin held off while its carry or unsteered momentum runs into a thing."""
     way = _way(g, tw)
     v = math.hypot(tw[0], tw[1])
     if way is None:
-        return (0.0, 0.0, 0.0) if abs(float(tw[2])) > 1e-4 and _vel_blocked(g) else tw
+        return ((0.0, 0.0, 0.0) if abs(float(tw[2])) > 1e-4
+                and (_vel_blocked(g) or _spin_blocked(g, float(tw[2]), bool(g.get('_cocoon_cut')))) else tw)
     vel = g['est']['vel']
     v_along = max(0.0, float(vel[0]) * way[0] + float(vel[2]) * way[1])
     v_chk = max(v, v_along)

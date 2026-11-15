@@ -146,11 +146,11 @@ def _found(g, verb, at=None, thing=None, things=None):
     gx, gz = float(q[0]), float(q[2])
     ax, az = at if at is not None else (gx, gz)
     things, afforded = _afforded(g, verb, things)
-    held = [p for p in things if len(p) > 4 and p[4] == thing] if thing is not None else []
-    itself = GOES.get(verb, _NONE)[1]
+    held = [(p, own) for p, own in afforded if len(p) > 4 and p[4] == thing
+            and (at is None or affordance.distance(p, at) <= stride.STRIDE_M)] if thing is not None else []
     near = [(math.hypot(float(p[1][0]) - ax, float(p[1][2]) - az),
              not held and at is not None and affordance.distance(p, at) <= stride.STRIDE_M, p, own)
-            for p, own in ([(p, itself(p, things)) for p in held] if held else afforded)]
+            for p, own in (held or afforded)]
     if not near:
         return None
     least = min((not on_at, not own, d) for d, on_at, _p, own in near)
