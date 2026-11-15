@@ -1,7 +1,7 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
                               CI, WORKFLOW, DEPENDS, ATLAS, PLACED,
-                              BROKER, COMPILED, QUICK, TICK, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
+                              BROKER, COMPILED, QUICK, TICK, VECTORIZED, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
                               DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
                               EMULATOR, ERRANDS, FILTER, GVS, GYNOID, GROUND, HEATED, LEAP,
@@ -137,6 +137,8 @@ TOUCHES = (
     ('host/tools/cores/step.py',               (STRUCTURE, WBC_CORE, PORTED, QUICK)),
     ('host/tools/cores/surety.py',             (STRUCTURE, PORTED, TICK)),
     ('host/tools/cores/tick.py',               (STRUCTURE, TICK)),
+    ('host/tools/cores/vectorized.py',         (STRUCTURE, VECTORIZED)),
+    ('host/tools/cores/vectorized_rows.py',    (STRUCTURE, VECTORIZED, 'test_mirrors.py')),
     ('host/tools/cores/beat.py',               (STRUCTURE, TICK)),
     ('host/tools/cores/world.py',              (STRUCTURE, TICK)),
     ('host/tools/cores/played.py',             (STRUCTURE, TICK)),
@@ -198,7 +200,7 @@ TOUCHES = (
     ('filter/',                                (FILTER,)),
     ('ctrl/',                                  (CTRL_CORE,)),
     ('aero/',                                  QUADS + (AERO_CORE, STREAMS, WIRE, NATIVE, EMULATOR)),
-    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY)),
+    ('wbc/',                                   (WBC_CORE, LEAP, EMULATOR, PORTED, BORNE, REGISTRY, VECTORIZED)),
     ('world/',                                 (WORLD_CORE, NATIVE, NATIVE_HEAT, EMULATOR)),
     ('host/coaxial/acquire/bessel.py',         (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer; its suite closes

@@ -152,6 +152,9 @@ QUICK = 'test_quick.py'
 #: The robot's drives' pass in one C call beside its python, lying into a bed, resting limp, rising and walking
 #: (tools.cores.tick).
 TICK = 'test_tick.py'
+#: The compiler vectorises the robot's cores as its table says, a target at a time: no loop is lost
+#: (tools.cores.vectorized).
+VECTORIZED = 'test_vectorized.py'
 #: The robot's processes placed by its host's topology, on hosts of other shapes and live on this one
 #: (machine.process.placed).
 PLACED = 'test_placed.py'
@@ -266,7 +269,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, DEPENDS, CI, WORKFLOW, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, VECTORIZED, PLACED, DEPENDS, CI, WORKFLOW, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, SE3_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -356,7 +359,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (35, PORTED), (20, BORNE), (20, REGISTRY),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, VECTORIZED), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (35, PORTED), (20, BORNE), (20, REGISTRY),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, SE3_CORE),
@@ -426,7 +429,7 @@ PORT = ('test_mcp.py', 'test_parity.py')
 #: on as shards side by side.
 SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUATION, 'test_simulated.py', 'test_views_segments.py',
            DAQ_API, QUAD_PAGE, REPLAYS, SCENES, ERRANDS, WASD, STRUCTURE,
-           PORTED, 'test_mirrors.py', LEAP, TICK, FLOOR, CAMERA, SIGHT, GAZE)
+           PORTED, 'test_mirrors.py', LEAP, TICK, VECTORIZED, FLOOR, CAMERA, SIGHT, GAZE)
 
 #: A suite's seconds where the tree holds no record of its own (tests/.counts.json, not committed) are its work
 #: in tests/work.json over the pace of the host a run is on (tools/dev/machine_detector.py): numbers written

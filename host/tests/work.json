@@ -97,6 +97,7 @@
  "test_tick.py": 412.6,
  "test_tune.py": 137.9,
  "test_vault.py": 27.2,
+ "test_vectorized.py": 252.5,
  "test_views_apps.py": 51.9,
  "test_views_atlas.py": 51.5,
  "test_views_demo.py": 179.7,
