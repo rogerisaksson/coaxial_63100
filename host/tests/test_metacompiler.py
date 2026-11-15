@@ -2,12 +2,13 @@
 """The static meta-compiler held to itself: one source a number, the same answer twice, similarity.
 
 What a sheet states is read from the parts library and stated nowhere else, the world's gravity
-in `world.toml` alone; a build compiled anew is the build its cache holds; an override moves the
-one number it names; a figure scaled keeps its angles and shares and moves its lengths no further
-than its scale; a craft loaded heavier keeps its radii of gyration; no compiled number is not a
-number.
+in `world.toml` alone; a motor the library and the rig's profiles both describe is one motor; a
+build compiled anew is the build its cache holds; an override moves the one number it names; a
+figure scaled keeps its angles and shares and moves its lengths no further than its scale; a craft
+loaded heavier keeps its radii of gyration; no compiled number is not a number.
 The meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
 import ast
+import glob
 import json
 import math
 import os
@@ -21,6 +22,9 @@ from structure_kit import HOST, Report, sources
 
 #: The power stage's names its model reads from the library, each the library's key or its solver.
 STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 'tj_max_c', 'SHUNT': 'shunt_ohm'}
+#: A library motor's keys beside its rig profile's: the stand-in model's and the drive's record's.
+PROFILED = (('ohm', 'r', 'motor_r'), ('lq_h', 'lq', 'motor_lq'), ('flux_vs', 'lambda', 'motor_lambda'),
+            ('pole_pairs', 'pole_pairs', 'motor_pole_pairs'))
 #: A gait number's unit by its name's end: a name ending in none of them is an angle or a share.
 UNITS = ('_m', '_m_s', '_s', '_hz', '_rad_s', '_1_s', '_1_s2', '_m_s2', '_n')
 #: A scaled build's gait as one line of JSON, asked of a process of its own (ROBOT is a process's).
@@ -108,6 +112,36 @@ def test_the_worlds_gravity_is_stated_once(r):
             body.G_M_S2 == g and sensors.G == g and sensors.SimulatedImu.VECTORS[0][4] == (0.0, 0.0, g)
             and sensors.SimulatedImu.ONE_G == int(g * (1 << 8))
             and left_out['gravity'] == g and left_out['rho'] == float(env['air_kg_m3']), left_out)
+
+
+def test_a_motor_and_its_profile_are_one(r):
+    """A motor the library and the rig both describe (`coaxial/profiles/<its name>.json`, its drive's
+    record and its stand-in model) is one motor: its resistance, its q inductance, its flux and its
+    pole pairs the same in both, its bearing drag the model's; the crafts' motor's rotor is the can
+    the library's mass and diameter give; every profile's share of the link is the solver's."""
+    from coaxial.devices.drive import PROFILES
+    from machine.aircraft import compile as craft
+    from machine.body import mechatronics
+    lib, shared = mechatronics.library(), mechatronics.crafts()['shared']
+    share = mechatronics.v_frac(lib['inverters'][shared['inverter']])
+    both, apart, shares, rotor = [], [], [], None
+    for path in sorted(glob.glob(os.path.join(PROFILES, '*.json'))):
+        name = os.path.splitext(os.path.basename(path))[0]
+        with open(path, encoding='utf-8') as f:
+            profile = json.load(f)
+        shares += [name] * (float(profile['drive']['drv_v_frac']) != share)
+        motor = lib['motors'].get(name)
+        if motor is None:
+            continue
+        both.append(name)
+        apart += [(name, key) for key, model, drive in PROFILED
+                  if not float(motor[key]) == float(profile['model'][model]) == float(profile['drive'][drive])]
+        apart += [(name, 'viscous_nms')] * (float(motor['viscous_nms']) != float(profile['model']['b']))
+        rotor = float(profile['model']['j']) if name == shared['motor'] else rotor
+    r.check('a motor the library and the rig both describe is one: %s' % ', '.join(both), bool(both) and not apart, apart)
+    r.check('the crafts\' motor\'s rotor is the can its mass and diameter give', rotor == craft.ROTOR_CAN_J,
+            (rotor, craft.ROTOR_CAN_J))
+    r.check('every profile\'s share of the link is the solver\'s', not shares, shares)
 
 
 def test_a_build_compiled_anew_is_its_cache(r):
@@ -212,7 +246,7 @@ def test_a_heavier_craft_keeps_its_radii(r):
 
 
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_stated_once,
-          test_a_build_compiled_anew_is_its_cache,
+          test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_heavier_craft_keeps_its_radii)
 
