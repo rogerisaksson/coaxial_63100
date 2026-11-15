@@ -29,6 +29,8 @@ STUNT_BOOST, STUNT_YAW_RAD_S, AFT_RATIO = (
 STROKE_DEG, PITCH_DEG, FOLD_DEG = (round(math.degrees(x), 6) for x in (
     _FW['stroke_limit'], _FW['pitch_limit'], _FW['sweep_fold_limit']))
 K_THRUST, K_LIFT, K_DRAG = _FW['k_thrust'], _FW['k_lift'], _FW['k_drag']
+PROFILE_DRAG, INDUCED_DRAG, CYCLIC_DRAG = (
+    _FW['profile_drag_share'], _FW['induced_drag_share'], _FW['cyclic_drag_share'])
 K_PITCH, K_ROLL, K_YAW = _FW['k_pitch'], _FW['k_roll'], _FW['k_yaw']
 INFLOW_FLOOR, RHO, BODY_CDA = _FW['inflow_floor'], _AF['air_density'], _AF['parasite_cda']
 ATT_KP, ATT_KD = _IMP['stiffness']['attitude_pitch'], _IMP['damping']['attitude_pitch']
@@ -92,16 +94,16 @@ def mjcf(things=()):
 
 
 def _wing_drag(stroke, pitch_t, roll_d, w_eq):
-    return (0.32 + 1.55 * (stroke * stroke + 0.48 * (pitch_t * pitch_t + roll_d * roll_d))) * (
+    return (PROFILE_DRAG + INDUCED_DRAG * (stroke * stroke + CYCLIC_DRAG * (pitch_t * pitch_t + roll_d * roll_d))) * (
         K_DRAG * w_eq * w_eq)
 
 
 def _wing_cda(stroke=0.0):
     """Total carapace and articulated 4-wing drag area $C_D A$."""
-    return BODY_CDA + 0.08 * WING_SPAN * WING_CHORD * (1.0 + 0.5 * abs(float(stroke)))
+    return BODY_CDA + 0.5 * K_LIFT * WING_SPAN * WING_CHORD * (1.0 + 0.5 * abs(float(stroke)))
 
 
 def _flap_inflow(along, v_horiz, w_eq):
     """Combined axial inflow and translational flapping lift factor (`K_LIFT`)."""
     tip = max(w_eq * WING_SPAN, 8.0)
-    return inflow(along, w_eq) * (1.0 + K_LIFT * min(0.35, v_horiz / tip))
+    return inflow(along, w_eq) * (1.0 + K_LIFT * min(INFLOW_FLOOR, v_horiz / tip))

@@ -52,7 +52,8 @@ def _dressed_statics(segs, pose, y_pelvis):
     hangs = [('hem', s + '_shank', (0.0, -figure.HEM_AT, 0.0)) for s in ('left', 'right')]
     for key, host, off in hangs + [('hair', 'head', figure.HAIR_AT)]:
         if key in garm:
-            mh, lh = float(garm[key]['kg']), float(garm[key]['length_m'])
+            mh = float(garm[key]['kg']) * figure.SCALE ** 3
+            lh = float(garm[key]['length_m']) * figure.SCALE
             mt += mh
             my += mh * (figure.add(placed[host][0], figure.apply(placed[host][1], off))[1] - lh)
     sole_y = figure.add(placed['left_foot'][0], figure.apply(
@@ -101,7 +102,7 @@ def _subtrees():
         'swing_leg': sub('left_thigh', _AX, sw_pose), 'neck': sub('neck'), 'head': sub('head', _AY),
         'arm': sub('left_upper_arm'), 'fore': sub('left_forearm'),
         'elbow_x': crb(segs, placed, ['left_upper_arm'], placed['left_forearm'][0], _AX)[2],
-        'hand': sub('left_hand'), 'foot': sub('left_foot'),
+        'hand': sub('left_hand'), 'fingers': sub('left_fingers'), 'foot': sub('left_foot'),
         'neck_span': dist(placed['torso'][0], placed['neck'][0]),
         'unsprung_kg': 0.5 * segs['left_shank'][0] + segs['left_foot'][0] + segs['left_toes'][0],
     }
@@ -142,7 +143,9 @@ def _servos(st):
     kp_sh, kd_sh = pd_joint('shoulder', st['arm'][2] + j_drv('shoulder'), zeta_opt)
     kp_el, kd_el = pd_joint('elbow', st['elbow_x'] + st['fore'][2] + j_drv('elbow'), 0.5)
     kp_wr, kd_wr = pd_joint('wrist', st['hand'][2] + j_drv('wrist'), zeta_opt)
-    kp_gr, kd_gr, _ = drives.PASSIVE.get('gripper', (40.0, 1.0, 0.0))
+    p_gr = drives.PASSIVE.get('gripper', (None, 0.0, 0.0))
+    kp_gr, kd_gr = (p_gr[:2] if p_gr[0] is not None
+                    else pd_joint('gripper', st['fingers'][2] + j_drv('gripper'), zeta_opt))
 
     def wep_sat(joint):
         s = drives.of(joint)[1]
@@ -164,7 +167,7 @@ def _servos(st):
                        kp_sh, kd_sh),
         'elbow': sv('elbow', min(drives.peak('left_elbow'), palm * figure.FOREARM), kp_el, kd_el),
         'wrist': sv('wrist', palm * abs(figure.FIST_AT[1]), kp_wr, kd_wr),
-        'gripper': sv('gripper', kp_gr * radians(15.0), kp_gr, kd_gr),
+        'gripper': sv('gripper', palm * (abs(figure.FIST_AT[1]) - 0.5 * figure.FIST_R), kp_gr, kd_gr),
         'hip_yaw': sv('hip_yaw', min(drives.peak('left_hip_yaw'), mu_sole * w_tot * (figure.BALL + figure.HEEL)),
                       kp_hy, kd_hy),
         'hip_roll': sv('hip_roll', drives.peak('left_hip_roll') * zeta_opt, kp_st, kd_hip),

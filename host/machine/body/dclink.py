@@ -20,15 +20,17 @@ from machine.texts import kernel
 from machine.body.figure import JOINTS
 from machine.law.supervisor import NODE_KINDS
 
-_PACK = mechatronics.robot()['pack']
+_PACK, _INVS = mechatronics.robot()['pack'], mechatronics.library()['inverters']
 _SHUNT = kernel.node('shunt-regenerative-bus-overvoltage', 'dc-bus')
 #: The robot's packs: their resistance, ohm, their BMS's most charge, A; its boards' DC link, F.
 PACK_OHM = _PACK['series'] * _PACK['cell_ohm'] / _PACK['parallel'] / _PACK['packs']
 CHARGE_A = _PACK['cell_charge_a'] * _PACK['parallel'] * _PACK['packs']
 DRIVEN = [j for j in JOINTS if not drives.passive(j)]
 LINK_F = _PACK['board_link_f'] * len(DRIVEN)
-#: The bleed's onset and clamp, V; the text's sinks.
-ONSET_V, CLAMP_V = _SHUNT['bleed-threshold-v'], _SHUNT['max-voltage-v']
+#: The bleed's onset and clamp, V, scaled to its packs and its boards' ceilings; the text's sinks.
+_V_CEIL = min(float(_INVS[drives.STACKS[drives.kind(j)][2]]['volts']) for j in DRIVEN)
+CLAMP_V = min(_V_CEIL, round(float(_SHUNT['max-voltage-v']) * drives.PACK_V / float(_SHUNT['nominal-voltage-v']), 4))
+ONSET_V = round(CLAMP_V * float(_SHUNT['bleed-threshold-v']) / float(_SHUNT['max-voltage-v']), 4)
 SINKS = [j for j in DRIVEN if drives.kind(j) in {k for node in _SHUNT['priority-sink-nodes'] for k in NODE_KINDS[node]}]
 
 

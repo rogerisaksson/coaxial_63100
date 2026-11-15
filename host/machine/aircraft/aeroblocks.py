@@ -17,7 +17,8 @@ AERO_BLOCKS = {
                   'inflow_j0 blade_pitch'),
     'flapping_wings': _sp('wing_span wing_chord shoulder_x fore_z aft_z shoulder_y '
                           'stroke_limit pitch_limit sweep_fold_limit k_thrust k_lift '
-                          'k_pitch k_roll k_yaw k_drag inflow_floor gear_ratio beat_pulse'),
+                          'k_pitch k_roll k_yaw k_drag inflow_floor gear_ratio beat_pulse '
+                          'profile_drag_share induced_drag_share cyclic_drag_share'),
     'aero_surfaces': _sp('wing_span wing_chord wing_area prop_radius prop_z k_thrust tail_arm stab_area fin_area '
                          'k_drag cl_alpha cd0 cd_induced elevator_limit aileron_limit '
                          'rudder_limit k_pitch k_roll k_yaw propwash_share inflow_floor blade_pitch '

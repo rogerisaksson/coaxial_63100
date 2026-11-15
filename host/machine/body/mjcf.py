@@ -27,17 +27,25 @@ _STAND_SOLREF_S = float(_WRLD['stand_solref_s'])
 CONE, IMPRATIO = str(_WRLD['cone']), float(_WRLD['impratio'])
 _GRAVITY, _JOINT_DAMP = float(_WORLD['g_m_s2']), float(_WORLD['joint_damping'])
 
+def _pendulum_d(m, length, k, loss):
+    d = loss * math.sqrt((k + m * _GRAVITY * length) * (round(0.5 * length * length, 4) + length * length) * m)
+    return round(d, -int(math.floor(math.log10(d))) + 1)
+
+
 #: Garment sliding friction, padding compliance, loose hem/hair pendulums and lace tendon (`[garments]`).
+_S = figure.SCALE
 CLOTH = {k: float(v) for k, v in _GARM['friction'].items()}
-CLOTH_GIVE_M = float(_GARM['give_m'])
-HEM_M, HEM_KG = float(_HEM['length_m']), float(_HEM['kg'])
-HEM_K, HEM_D = float(_HEM['k_nm_rad']), float(_HEM['d_nms_rad'])
+CLOTH_GIVE_M = _S * float(_GARM['give_m'])
+HEM_M, HEM_KG, HEM_K = _S * float(_HEM['length_m']), _S ** 3 * float(_HEM['kg']), _S ** 4 * float(_HEM['k_nm_rad'])
+HEM_D = float(_HEM['d_nms_rad']) if 'd_nms_rad' in _HEM else _pendulum_d(HEM_KG, HEM_M, HEM_K, float(_HEM['loss']))
 HEM_FORE_DEG, HEM_BACK_DEG = float(_HEM['fore_deg']), float(_HEM['back_deg'])
 HEM_SIDE_DEG, HEM_STOP_S = float(_HEM['side_deg']), _STAND_SOLREF_S
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
-HAIR_M, HAIR_KG = float(_HAIR['length_m']), float(_HAIR['kg'])
-HAIR_K, HAIR_D = float(_HAIR['k_nm_rad']), float(_HAIR['d_nms_rad'])
+HAIR_M, HAIR_KG, HAIR_K = (_S * float(_HAIR['length_m']), _S ** 3 * float(_HAIR['kg']),
+                           _S ** 4 * float(_HAIR['k_nm_rad']))
+HAIR_D = (float(_HAIR['d_nms_rad']) if 'd_nms_rad' in _HAIR
+          else _pendulum_d(HAIR_KG, HAIR_M, HAIR_K, float(_HAIR['loss'])))
 HAIR_DEG, HAIR_IN_DEG, HAIR_SIDE_DEG = (float(_HAIR['back_deg']), float(_HAIR['in_deg']),
                                         float(_HAIR['side_deg']))
 HAIRS = ('hair_x', 'hair_z')
@@ -53,9 +61,9 @@ FRICTION, TORSION_M = float(_SOLE['friction']), figure.sole_torsion_m()
 SOLE_S, SOLE_DAMP = float(_WRLD['sole_s']), float(_WRLD['sole_damp'])
 SOLE_SOFT, SOLE_WIDTH_M = float(_WRLD['sole_soft']), float(_WRLD['sole_width_m'])
 PAD_SOFT, PAD_S, PAD_DAMP = float(_WRLD['pad_soft']), float(_WRLD['pad_s']), float(_WRLD['pad_damp'])
-LACE_AT = tuple(figure.SCALE * float(v) for v in _LACE['at'])
-LACE_M = figure.SCALE * float(_LACE['length_m'])
-LACE_S, LACE_HOLD_N = float(_WRLD['lace_s']), float(_LACE['break_n'])
+LACE_AT = tuple(_S * float(v) for v in _LACE['at'])
+LACE_M = _S * float(_LACE['length_m'])
+LACE_S, LACE_HOLD_N = float(_WRLD['lace_s']), _S ** 2 * float(_LACE['break_n'])
 
 #: An inertia's principal frame: Jacobi's cyclic sweeps of its 3x3 (a 3x3's off-diagonal under a double's
 #: last bit within five), its quaternion to 26 bits a component - their squares exact, MuJoCo's normalising

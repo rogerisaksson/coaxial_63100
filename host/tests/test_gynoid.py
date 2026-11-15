@@ -309,7 +309,8 @@ def test_its_gait_is_stated_on_it(report):
     craft_keys = {k for c in c_cfg.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
     craft_ban = craft_keys & _s('step_s arena drive_load k_thrust k_drag inertia_xx stiffness damping '
                                 'turn_bandwidth alpha_run_deg climb_deg harrier_deg tictoc_hz tictoc_deg '
-                                'most_deg nose_m_s head_tip_m_s drive_rad_s')
+                                'most_deg nose_m_s head_tip_m_s drive_rad_s profile_drag_share '
+                                'induced_drag_share cyclic_drag_share')
     lib_ban = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
                | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
                | {k for v in lib['inverters'].values() for k in v}
@@ -322,7 +323,9 @@ def test_its_gait_is_stated_on_it(report):
                  and not (_s('census_px window_px quantum p1 p2 texture unique') & set(raw['eyes']))
                  and not (_s('flex_at flex_deg margin') & set(raw['shell']))
                  and not (_s('settle_s damp soft width_m') & set(raw['elastomers']['sole']))
-                 and not ({'stop_s', 'hold_n'} & set(raw['garments']['lace'])) and 'stop_s' not in raw['garments']['hem']
+                 and not ({'stop_s', 'hold_n'} & set(raw['garments']['lace']))
+                 and not ({'stop_s', 'd_nms_rad'} & (set(raw['garments']['hem']) | set(raw['garments']['hair'])))
+                 and not ({'stiffness', 'damping'} & set(raw['passive']['gripper']))
                  and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n simulation harness') & set(w_cfg))
                  and 'discs' not in w_cfg['weather'] and not craft_ban and not lib_ban
                  and 'g_m_s2' in w_cfg and 'solids' in m_cfg and 'rad_s' not in raw['toes']

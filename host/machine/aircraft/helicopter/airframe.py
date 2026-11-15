@@ -83,4 +83,4 @@ def _rotor_drag(coll, cyc_p, cyc_r, w):
 
 
 def _rotor_inflow(along, v_horiz, w_m):
-    return inflow(along, w_m) * (1.0 + 0.65 * min(0.35, v_horiz / max(w_m * ROTOR_R, 8.0)))
+    return inflow(along, w_m) * (1.0 + (1.0 - INFLOW_FLOOR) * min(INFLOW_FLOOR, v_horiz / max(w_m * ROTOR_R, 8.0)))

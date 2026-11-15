@@ -49,7 +49,7 @@ thick_m = 0.00625
 # Joints without a drive: way 1 on a passive spring, way 2 held between stops (`mjcf.HELD_DEG`).
 [passive]
 foot = { way = 1.0 }
-gripper = { way = 2.0, stiffness = 40.0, damping = 1.0, rest = 80.0 }
+gripper = { way = 2.0, rest = 80.0 }
 wrist = { way = 2.0 }
 
 # Forefoot TPU-carbon sandwich toe spring (`drives.passive`, `docs/findings/feet.md`).
@@ -209,8 +209,8 @@ thigh = [[[-0.0019, -0.16, 0.0282], [0.057, -0.16, 0.0282]], [[-0.0057, -0.20, 0
 [garments]
 give_m = 0.004
 friction = { pelvis = 0.55, thigh = 0.55, shank = 0.55, torso = 0.45, upper_arm = 0.45 }
-hem = { length_m = 0.2, kg = 0.12, k_nm_rad = 0.6, d_nms_rad = 0.045, fore_deg = 5.0, back_deg = 8.0, side_deg = 3.0 }
-hair = { length_m = 0.07, kg = 0.06, k_nm_rad = 0.016, d_nms_rad = 0.0035, back_deg = 20.0, in_deg = 4.0, side_deg = 8.0 }
+hem = { length_m = 0.2, kg = 0.12, k_nm_rad = 0.6, loss = 0.6, fore_deg = 5.0, back_deg = 8.0, side_deg = 3.0 }
+hair = { length_m = 0.07, kg = 0.06, k_nm_rad = 0.016, loss = 0.7, back_deg = 20.0, in_deg = 4.0, side_deg = 8.0 }
 lace = { at = [0.0, -0.03, 0.07], length_m = 0.25, break_n = 1000.0, stretch = 0.12 }
 
 [elastomers]

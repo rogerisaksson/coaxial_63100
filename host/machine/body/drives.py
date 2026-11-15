@@ -152,8 +152,8 @@ def mesh(joint):
 #: (stiffness N m/rad, damping N m s/rad, rest deg); the toes' spring, its loss factor at its
 #: push-off's rad/s and its rest.
 WAYS = {k: v['way'] for k, v in _BUILD['passive'].items()}
-PASSIVE = {k: (v['stiffness'], v['damping'], v['rest']) for k, v in _BUILD['passive'].items()
-           if 'stiffness' in v}
+PASSIVE = {k: (v.get('stiffness'), float(v.get('damping', 0.0)), float(v.get('rest', 0.0)))
+           for k, v in _BUILD['passive'].items()}
 TOE_K, TOE_LOSS, TOE_REST = (float(_BUILD['toes'][k]) for k in ('stiffness', 'loss', 'rest'))
 TOE_RAD_S = float(_BUILD['toes'].get(
     'rad_s', round(math.sqrt(float(_WORLD['g_m_s2']) * (THIGH + SHANK)) / math.hypot(BALL, ANKLE_H))))
@@ -436,7 +436,7 @@ def passive(joint):
     if not way:
         return None
     stiffness, damping, rest = ((TOE_K, TOE_LOSS * TOE_K / TOE_RAD_S, TOE_REST) if kind(joint) == 'foot'
-                                else PASSIVE.get(kind(joint), (40.0, 1.0, 0.0)))
+                                else PASSIVE.get(kind(joint), (None, 0.0, 0.0)))
     return (stiffness if way == 1.0 else None), damping, rest
 
 

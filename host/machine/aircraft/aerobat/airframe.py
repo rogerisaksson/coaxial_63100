@@ -134,7 +134,7 @@ def _aero_inflow(along, v_horiz, w_p):
     """The propeller's thrust's share of the static at `w_p` rad/s, the air `along` its axis and
     `v_horiz` across: none at INFLOW_J0 of its pitch's speed, more edgewise."""
     return (max(0.0, 1.0 - along / (INFLOW_J0 * max(1.0, BLADE_PITCH * abs(w_p) / math.tau)))
-            * (1.0 + 0.04 * CL_ALPHA * min(0.35, v_horiz / max(w_p * PROP_R, 8.0))))
+            * (1.0 + 0.04 * CL_ALPHA * min(INFLOW_FLOOR, v_horiz / max(w_p * PROP_R, 8.0))))
 
 
 def prop_speed(thrust, along, v_horiz):
@@ -142,7 +142,7 @@ def prop_speed(thrust, along, v_horiz):
     the root of `K_THRUST w^2 _aero_inflow` = thrust, edgewise where the static's root has it."""
     c, need = along * math.tau / (INFLOW_J0 * BLADE_PITCH), max(0.0, thrust) / K_THRUST
     w = 0.5 * (c + math.sqrt(c * c + 4.0 * need))
-    edge = 1.0 + 0.04 * CL_ALPHA * min(0.35, v_horiz / max(w * PROP_R, 8.0))
+    edge = 1.0 + 0.04 * CL_ALPHA * min(INFLOW_FLOOR, v_horiz / max(w * PROP_R, 8.0))
     return 0.5 * (c + math.sqrt(c * c + 4.0 * need / edge))
 
 

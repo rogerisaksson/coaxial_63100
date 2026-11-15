@@ -56,9 +56,15 @@ def arena(crafts, rho, g):
     }
 
 
+def _heli_drag_shares(he, inf_fl):
+    prof = float(he.get('profile_drag_share', inf_fl))
+    ind = float(he.get('induced_drag_share', round(2.0 - prof, 2)))
+    cyc = float(he.get('cyclic_drag_share', round((float(he['cyclic_deg']) / float(he['collective_deg'])) ** 2, 1)))
+    return prof, ind, cyc
+
+
 def _drive_loads(he, or_, ae, inv, inf_fl):
-    prof, ind, cyc = (float(he['profile_drag_share']), float(he['induced_drag_share']),
-                      float(he['cyclic_drag_share']))
+    prof, ind, cyc = _heli_drag_shares(he, inf_fl)
     pulse, cl_g = float(or_['beat_pulse']), float(or_['cl_glide'])
     cd0, cdi, pw = float(ae['cd0']), float(ae['cd_induced']), float(ae['propwash_share'])
     wep_ratio = float(inv['wep_amps']) / float(inv['flight_amps'])
@@ -122,6 +128,8 @@ def aero_blocks(crafts, inv, rho):
     a_area, a_pd = round(a_span * a_chord, 6), float(ae['prop_diameter_m'])
     a_kt, a_kq = round(kt(rho, ae['ct'], a_pd), 7), kq(rho, ae['cp'], a_pd)
     a_stab, a_fin, a_arm = float(ae['stab_area_m2']), float(ae['fin_area_m2']), float(ae['tail_arm_m'])
+    h_prof, h_ind, h_cyc = _heli_drag_shares(he, inf_fl)
+    o_pulse, o_cl = float(or_['beat_pulse']), float(or_['cl_glide'])
     return {
         'standard_airframe': ('airframe', {'air_density': rho, 'parasite_cda': float(sh['parasite_cda'])}),
         'monoplane_airframe': ('airframe', {'air_density': rho, 'parasite_cda': float(ae['parasite_cda'])}),
@@ -134,9 +142,7 @@ def aero_blocks(crafts, inv, rho):
             'disc_height': float(he['disc_height_m']), 'radius': h_r,
             'collective_limit': math.radians(float(he['collective_deg'])),
             'cyclic_limit': cyc_lim, 'k_thrust': h_kt, 'k_cyclic': h_kcyc, 'k_drag': h_kq,
-            'profile_drag_share': float(he['profile_drag_share']),
-            'induced_drag_share': float(he['induced_drag_share']),
-            'cyclic_drag_share': float(he['cyclic_drag_share']),
+            'profile_drag_share': h_prof, 'induced_drag_share': h_ind, 'cyclic_drag_share': h_cyc,
             'inflow_j0': j0, 'blade_pitch': float(he['pitch_m']), 'inflow_floor': inf_fl,
         }),
         'tail_110_antitorque': ('tail_rotor', {
@@ -147,10 +153,13 @@ def aero_blocks(crafts, inv, rho):
             'wing_span': o_span, 'wing_chord': o_chord, 'shoulder_x': sh_x,
             'fore_z': fore_z, 'aft_z': aft_z, 'shoulder_y': float(or_['shoulder_y_m']),
             'stroke_limit': o_stroke, 'pitch_limit': o_pitch, 'sweep_fold_limit': o_sweep,
-            'k_thrust': o_kt, 'k_lift': float(or_['cl_glide']),
+            'k_thrust': o_kt, 'k_lift': o_cl,
             'k_pitch': round(o_kt * p_arm, 7), 'k_roll': round(o_kt * r_arm, 7),
             'k_yaw': round(o_kt * sh_x, 7), 'k_drag': o_kq,
-            'inflow_floor': inf_fl, 'gear_ratio': o_gear, 'beat_pulse': float(or_['beat_pulse']),
+            'inflow_floor': inf_fl, 'gear_ratio': o_gear, 'beat_pulse': o_pulse,
+            'profile_drag_share': round(inf_fl - 0.1 * o_pulse, 2),
+            'induced_drag_share': round(1.0 + 1.5 * o_pulse + 0.625 * o_cl, 2),
+            'cyclic_drag_share': round(1.6 * o_pulse, 2),
         }),
         'unlimited_3d_monoplane': ('aero_surfaces', {
             'wing_span': a_span, 'wing_chord': a_chord, 'wing_area': a_area,

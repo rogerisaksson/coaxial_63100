@@ -113,7 +113,7 @@ def _build_peripherals():
     e_pad, h_pad = float(pad['modulus_mpa']), figure.PAD_M
     r_pad = sum(p[4] for p in figure.PADS) / len(figure.PADS)
     k_pad = (e_pad * 1e6) * (1.0 + r_pad / h_pad) * (math.tau * r_pad * h_pad) / h_pad
-    k_lace = float(lace['break_n']) / (float(lace['stretch']) * float(lace['length_m']) * figure.SCALE)
+    k_lace = float(lace['break_n']) * figure.SCALE / (float(lace['stretch']) * float(lace['length_m']))
     solref_floor = round(5.0 / bus_hz, 4)
     world_cfg = {
         'step_s': 1.0 / bus_hz,
