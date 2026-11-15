@@ -169,10 +169,15 @@ def test_a_spasm_is_past_its_own_walk(report):
                  '%.1f deg/s against %.1f' % (top, motion.WALK_DEG_S))
 
 
+#: Its slip walked into, s of its walk: it falls on the ice by 3.5 s at every start measured (2.2 s
+#: here, 2.5 on CI's runners); a walk still up at 8 s went off the ice on its feet, no fall to record.
+SLIP_S = 8.0
+
+
 def test_a_recording_is_60_hz_and_whole_about_its_stumble(report):
     """R's recording (`watch.recorded`) of its slip: 60 Hz between its windows, its blocks one after
-    another, a spasm told before its stumble and both whole in a window, each gate marked with HEAD
-    (`commit.head`), told (`tools/sim/recording.py`)."""
+    another, its spasm, its stumble and its fall each told and whole in a window, each gate marked with
+    HEAD (`commit.head`), told (`tools/sim/recording.py`)."""
     import math
     import os
     import numpy as np
@@ -185,7 +190,9 @@ def test_a_recording_is_60_hz_and_whole_about_its_stumble(report):
         worker.stepped(s)
     watch.recorded(s, name)
     worker.apply(s, {'say': 'walk'})
-    while s['fallen_at'] is None or s['g']['t'] < s['fallen_at'] + 1.5:
+    t0 = s['g']['t']
+    while (s['fallen_at'] is None and s['g']['t'] < t0 + SLIP_S) or (
+            s['fallen_at'] is not None and s['g']['t'] < s['fallen_at'] + 1.5):
         worker.stepped(s)
     scope = s['recording']['scope']
     watch.recorded(s, None)
@@ -207,10 +214,9 @@ def test_a_recording_is_60_hz_and_whole_about_its_stumble(report):
                      len(dts) and abs(dts.mean() - sprung.SAY_S) < 1e-3 and dts.max() <= sprung.SAY_S + 1.5e-3
                      and all(b[0] > a[1] for a, b in zip(spans, spans[1:])),
                      'dt %.4f..%.4f s, %d blocks' % (dts.min(), dts.max(), len(spans)))
-        report.check('a spasm told before its stumble, both in a window',
-                     at('spasm') <= at('stumble') < math.inf
-                     and inside(at('spasm')) and inside(at('stumble')),
-                     'spasm %s, stumble %s' % (at('spasm'), at('stumble')))
+        report.check('its spasm, its stumble and its fall each told, each in a window',
+                     all(at(n) < math.inf and inside(at(n)) for n in ('spasm', 'stumble', 'fall')),
+                     'spasm %s, stumble %s, fall %s' % (at('spasm'), at('stumble'), at('fall')))
         sha = commit.head()
         report.check('each gate marked with the commit it was made at',
                      sha is not None and gates and all(g['meta'].get('commit') == sha for g in gates),
