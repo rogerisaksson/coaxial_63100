@@ -273,11 +273,25 @@ def test_a_joint_dressed_in_nothing_is_bare(r):
             drives.CLOTH_AIR)
 
 
+def test_the_specs_inputs_only_fall(r):
+    """Each spec file states as many values as its ceiling (`tools/dev/stated.py`): a value more is an input the
+    static solver was to derive, a value fewer lowers the ceiling with it - the solver's inputs only fall."""
+    from tools.dev import stated
+    counts = {path: total for path, (total, _tables) in stated.counted().items()}
+    r.check('every spec file has its ceiling, and no ceiling a file that is gone',
+            set(counts) == set(stated.CEILING), sorted(set(counts) ^ set(stated.CEILING)))
+    over = {path: (n, stated.CEILING[path]) for path, n in counts.items() if n > stated.CEILING.get(path, n)}
+    r.check('no spec states more values than its ceiling: %d in all' % sum(counts.values()), not over, over)
+    slack = {path: (n, stated.CEILING[path]) for path, n in counts.items() if n < stated.CEILING.get(path, n)}
+    r.check("a ceiling is its spec's count: where a spec states fewer, the ceiling falls with it", not slack, slack)
+
+
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_rig_reads_the_specs_as_files,
           test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
-          test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare)
+          test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
+          test_the_specs_inputs_only_fall)
 
 
 def main(argv=None):
