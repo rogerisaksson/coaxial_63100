@@ -63,10 +63,11 @@ def arena(crafts, rho, g):
     }
 
 
-def cd_induced(ae, env=None):
-    e = float((mechatronics.environment(None) if env is None else env)['kinetic_share'])
+def cd_induced(ae):
+    """A wing's drag due to lift by its lift coefficient squared, 1 / (pi e AR): `e` the airframe's own span
+    efficiency (`span_efficiency`), its fuselage's and its viscous drag due to lift in it."""
     ar = float(ae['wing_span_m']) / float(ae['wing_chord_m'])
-    return float(ae.get('cd_induced', round(1.0 / (math.pi * e * ar), 3)))
+    return float(ae.get('cd_induced', round(1.0 / (math.pi * float(ae['span_efficiency']) * ar), 3)))
 
 
 def _heli_drag_shares(he, inf_fl):
@@ -76,10 +77,10 @@ def _heli_drag_shares(he, inf_fl):
     return prof, ind, cyc
 
 
-def _drive_loads(he, or_, ae, inv, inf_fl, env=None):
+def _drive_loads(he, or_, ae, inv, inf_fl):
     prof, ind, cyc = _heli_drag_shares(he, inf_fl)
     pulse, cl_g = float(or_['beat_pulse']), float(or_['cl_glide'])
-    cd0, cdi, pw = float(ae['cd0']), cd_induced(ae, env), float(ae['propwash_share'])
+    cd0, cdi, pw = float(ae['cd0']), cd_induced(ae), float(ae['propwash_share'])
     wep_ratio = float(inv['wep_amps']) / float(inv['flight_amps'])
     ae_tp = round(1.0 + 1.5 * pw * (cd0 + cdi), 2)
     return {
@@ -108,7 +109,7 @@ def _drive_loads(he, or_, ae, inv, inf_fl, env=None):
     }
 
 
-def aero_blocks(crafts, inv, rho, env=None):
+def aero_blocks(crafts, inv, rho):
     sh = crafts['shared']
     qc, q15 = crafts['quadcopter'], crafts['quadcopter_15in']
     he, or_, ae = crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
@@ -180,7 +181,8 @@ def aero_blocks(crafts, inv, rho, env=None):
             'tail_arm': a_arm, 'stab_area': a_stab, 'fin_area': a_fin,
             'k_thrust': a_kt, 'k_drag': a_kq, 'blade_pitch': float(ae['prop_pitch_m']),
             'inflow_j0': j0, 'prop_inertia': float(ae['prop_kgm2']),
-            'cl_alpha': lift_slope(a_span, a_chord), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae, env),
+            'cl_alpha': lift_slope(a_span, a_chord), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae),
+            'span_efficiency': float(ae['span_efficiency']),
             'elevator_limit': math.radians(float(ae['elevator_deg'])),
             'aileron_limit': math.radians(float(ae['aileron_deg'])),
             'rudder_limit': math.radians(float(ae['rudder_deg'])),
@@ -189,7 +191,7 @@ def aero_blocks(crafts, inv, rho, env=None):
             'k_yaw': round(float(ae['cn_rud']) * a_fin * a_arm, 8),
             'propwash_share': float(ae['propwash_share']), 'inflow_floor': inf_fl,
         }),
-        **_drive_loads(he, or_, ae, inv, inf_fl, env),
+        **_drive_loads(he, or_, ae, inv, inf_fl),
     }
 
 

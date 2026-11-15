@@ -93,6 +93,7 @@ tail_arm_m = 0.484
 stab_area_m2 = 0.046
 fin_area_m2 = 0.035
 cd0 = 0.035
+span_efficiency = 0.75
 elevator_deg = 45.0
 aileron_deg = 38.0
 rudder_deg = 48.0

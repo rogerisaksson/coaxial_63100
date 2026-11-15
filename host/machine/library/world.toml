@@ -7,6 +7,8 @@ g_m_s2 = 9.81
 air_kg_m3 = 1.2
 ambient_c = 25.0
 load_s = 0.02
+# The floor under a sole: a rubber sole's static friction on a dry indoor floor, and the share of it that holds
+# once the sole slides. Friction alone reads them (`machine.body.compile`, the aerobat's wheels and tail).
 mu_dry = 0.80
 kinetic_share = 0.75
 joint_damping = 0.3

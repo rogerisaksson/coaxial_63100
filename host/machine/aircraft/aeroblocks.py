@@ -22,7 +22,7 @@ AERO_BLOCKS = {
     'aero_surfaces': _sp('wing_span wing_chord wing_area prop_radius prop_z k_thrust tail_arm stab_area fin_area '
                          'k_drag cl_alpha cd0 cd_induced elevator_limit aileron_limit '
                          'rudder_limit k_pitch k_roll k_yaw propwash_share inflow_floor blade_pitch '
-                         'inflow_j0 prop_inertia'),
+                         'inflow_j0 prop_inertia span_efficiency'),
     'airframe': ('air_density', 'parasite_cda'),
     'drive_load': _sp('main_base main_collective main_cyclic main_ceiling tail_base '
                       'tail_pitch tail_ceiling'),
@@ -95,10 +95,12 @@ def _derive_flapping(out, inherited, explicit):
 def _derive_surfaces(out, inherited, explicit):
     if 'wing_area' not in explicit and 'wing_span' in out and 'wing_chord' in out:
         out['wing_area'] = out['wing_span'] * out['wing_chord']
-    if ('wing_span' in explicit or 'wing_chord' in explicit) and 'cd_induced' not in explicit:
-        if out.get('wing_chord', 0.0) > 0.0:
-            out['cd_induced'] = polars.cd_induced(
-                {'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord']})
+    resized = ('wing_span' in explicit or 'wing_chord' in explicit) and out.get('wing_chord', 0.0) > 0.0
+    if resized and 'cd_induced' not in explicit and 'span_efficiency' in out:
+        out['cd_induced'] = polars.cd_induced({'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord'],
+                                               'span_efficiency': out['span_efficiency']})
+    if resized and 'cl_alpha' not in explicit and 'cl_alpha' in inherited:
+        out['cl_alpha'] = polars.lift_slope(out['wing_span'], out['wing_chord'])
     if 'prop_radius' in explicit and inherited.get('prop_radius', 0.0) > 0.0:
         _scale_pow(out, inherited, explicit, out['prop_radius'] / inherited['prop_radius'],
                    (('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5), ('prop_inertia', 5)))

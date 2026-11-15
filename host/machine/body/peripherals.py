@@ -17,6 +17,10 @@ from typing import Any
 
 from machine.body import build, compile as _compile, drives, figure, mechatronics
 
+#: The least share of a link's nominal mass an identification leaves that link (`identified.KEPT`): the
+#: identification's own, a quarter.
+KEPT = 0.25
+
 
 def _build_peripherals():
     env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
@@ -223,7 +227,7 @@ def service(overrides=None) -> dict[str, Any]:
 
 
 def _identify() -> dict[str, Any]:
-    env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
+    rbt, lib = mechatronics.robot(), mechatronics.library()
     segs, svc, b_cfg = build.segments(), service(), bus()
     stacks = tuple(rbt['stacks'].values())
     eff = min(float(lib['gearboxes'][s[1]]['efficiency']) for s in stacks)
@@ -271,7 +275,7 @@ def _identify() -> dict[str, Any]:
         },
         'identified': {
             'units': {'m': m_u, 'hx': h_u, 'hy': h_u, 'hz': h_u, 'J': j_u, 'b': b_u, 'f': f_u},
-            'ridge': zeta, 'kept': round(1.0 - float(env['kinetic_share']), 2),
+            'ridge': zeta, 'kept': KEPT,
         },
         'campaign': {
             'wound_nm': mesh_arm, 'wound_rows': wound_rows, 'smooth_hz': smooth_hz,

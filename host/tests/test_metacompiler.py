@@ -4,10 +4,10 @@
 What a sheet states is read from the parts library and stated nowhere else, the world's gravity
 in `world.toml` alone; a motor the library and the rig's profiles both describe is one motor; a
 build compiled anew is the build its cache holds; an override moves the one number it names; a
-figure scaled keeps its angles and shares and moves its lengths no further than its scale; a craft
-states what is its own alone, each key of it read, and on its heavy frame keeps its radii of
-gyration; no compiled number is not a number.
-The meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
+figure scaled keeps its angles and shares and moves its lengths no further than its scale; a
+joint dressed in nothing is bare; no compiled number is not a number.
+The crafts' spec: test_metacompiler_crafts. The meta-compiler's cache keys and the generated files'
+texts: test_mirrors; the specs' own words: test_gynoid."""
 import ast
 import glob
 import json
@@ -27,8 +27,6 @@ STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 't
 #: A library motor's keys beside its rig profile's: the stand-in model's and the drive's record's.
 PROFILED = (('ohm', 'r', 'motor_r'), ('lq_h', 'lq', 'motor_lq'), ('flux_vs', 'lambda', 'motor_lambda'),
             ('pole_pairs', 'pole_pairs', 'motor_pole_pairs'))
-#: The crafts' spec's compilers, where a key it states is read: its polars, its blocks and its resolver.
-CRAFT_SOLVERS = ('machine/aircraft/polars.py', 'machine/aircraft/compile.py', 'machine/body/mechatronics.py')
 #: The rig imported in a process of its own, and what it has loaded of the robot's packages then.
 RIG = ('import sys, coaxial; from coaxial.model import inverter, thermal; from coaxial.simulated import sensors; '
        'from tools.emu import world; '
@@ -57,11 +55,6 @@ def _numbers(value, path=''):
             yield from _numbers(v, '%s[%d]' % (path, i))
     elif isinstance(value, (int, float)) and not isinstance(value, bool):
         yield path, float(value)
-
-
-def _scalars(block) -> dict[str, float]:
-    """A block's numbers by their names, what it nests left out."""
-    return {k: float(v) for k, v in block.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
 
 
 def _literals(path, names):
@@ -247,36 +240,6 @@ def test_a_scaled_figure_follows_similarity(r):
         r.check('%s: its gait\'s angles and shares are the stock\'s' % name, not turned, turned)
 
 
-def test_a_craft_states_its_own_alone(r):
-    """`crafts.toml` as it is written: every key a craft states is read by its compilers, none
-    states again what it has of `[shared]` or of the craft it extends, and a craft resolved is
-    `[shared]` with its own laid on it, a variant its craft with its own."""
-    from machine.body import mechatronics
-    with open(os.path.join(HOST, 'machine', 'aircraft', 'crafts.toml'), 'rb') as f:
-        raw = tomllib.load(f)
-    read = ''
-    for name in CRAFT_SOLVERS:
-        with open(os.path.join(HOST, *name.split('/')), encoding='utf-8') as f:
-            read += f.read()
-    stated = set()
-    for cfg in raw.values():
-        for key, value in cfg.items():
-            stated |= {key, *(value if isinstance(value, dict) else ())}
-    unread = sorted(key for key in stated if "'%s'" % key not in read)
-    r.check('%d keys the crafts state, each read by a compiler' % len(stated), len(stated) > 60 and not unread, unread)
-    resolved, shared = mechatronics.crafts(), raw['shared']
-    again, apart = [], []
-    for name, cfg in raw.items():
-        base = resolved[cfg['extends']] if 'extends' in cfg else shared
-        own = {key: value for key, value in cfg.items() if key != 'extends'}
-        again += [(name, key) for key, value in own.items() if name != 'shared' and base.get(key) == value]
-        apart += [(name, key) for key in {*base, *own}
-                  if name != 'shared' and resolved[name].get(key) != own.get(key, base.get(key))]
-    r.check('no craft states again what it has of the shared or of its craft', not again, again)
-    r.check('a craft resolved is the shared with its own laid on it, a variant its craft\'s',
-            not apart and not any('extends' in cfg for cfg in resolved.values()), apart)
-
-
 def test_a_joint_dressed_in_nothing_is_bare(r):
     """A build's `[cloth]` names the joints it dresses: the resolver lays bare (`mechatronics.BARE`,
     the identity over bare air) under the rest, after those named and in the stacks' order, and
@@ -296,55 +259,11 @@ def test_a_joint_dressed_in_nothing_is_bare(r):
             drives.CLOTH_AIR)
 
 
-def test_a_wings_lift_slope_is_its_aspect_ratios(r):
-    """The aerobat's lift a radian of incidence is not stated: `polars.lift_slope` gives it of its
-    wing's span and chord (Helmbold) - a slender wing's pi/2 an aspect ratio at the one end, thin
-    airfoil theory's 2 pi at the other, rising between."""
-    from machine.aircraft import compile as craft, polars
-    from machine.body import mechatronics
-    wing = mechatronics.crafts()['aerobat']
-    slope = polars.lift_slope(wing['wing_span_m'], wing['wing_chord_m'])
-    laid = _scalars(craft.blocks()['unlimited_3d_monoplane'][1])['cl_alpha']
-    r.check('the aerobat states no lift slope: its block\'s is its wing\'s aspect ratio\'s',
-            'cl_alpha' not in wing and laid == slope, (laid, slope))
-    slopes = [polars.lift_slope(aspect, 1.0) for aspect in (1e-6, 1.0, 2.0, 5.0, 10.0, 1e3, 1e9)]
-    r.check('a wing\'s lift slope rises with its aspect ratio, pi/2 of it slender, toward 2 pi a radian',
-            all(a < b for a, b in zip(slopes, slopes[1:])) and slopes[-1] <= math.tau
-            and math.isclose(slopes[0] / 1e-6, 0.5 * math.pi, rel_tol=1e-6)
-            and math.isclose(slopes[-1], math.tau, rel_tol=1e-6), slopes)
-
-
-def test_a_heavier_craft_keeps_its_radii(r):
-    """A craft's heavy variant states a mass alone: its body's inertias grow by the mass's ratio,
-    its geometry stays, and the hover thrust AeroLisp starts from is the quadcopter's weight."""
-    from machine.aircraft import compile as craft
-    from machine.body import mechatronics
-    blocks, crafts = craft.blocks(), mechatronics.crafts()
-    pairs = [(k[:-len('_heavy')], k) for k in blocks if k.endswith('_heavy') and k[:-len('_heavy')] in blocks]
-    off = []
-    for light, heavy in pairs:
-        a, b = _scalars(blocks[light][1]), _scalars(blocks[heavy][1])
-        ratio = b['mass'] / a['mass']
-        off += [(heavy, k) for k in a if k != 'mass' and not math.isclose(
-            b[k], a[k] * (ratio if k.startswith('inertia_') else 1.0), rel_tol=1e-9)]
-    r.check('%d heavy bodies: inertias by the mass\'s ratio, geometry kept' % len(pairs),
-            len(pairs) >= 4 and not off, off)
-    hover, _speed = craft.defaults()
-    weight = float(crafts['quadcopter']['mass_kg']) * craft.GRAVITY_M_S2
-    r.check('the base hover thrust is the quadcopter\'s weight', math.isclose(hover, weight, rel_tol=1e-12),
-            (hover, weight))
-    env = _scalars(blocks['standard_arena_envelope'][1])
-    r.check('the arena\'s heights stand in their order',
-            0.0 < env['floor_height'] < env['hover_height'] < env['high_height'] < env['top_height'], env)
-
-
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_rig_reads_the_specs_as_files,
           test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
-          test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,
-          test_a_craft_states_its_own_alone,
-          test_a_wings_lift_slope_is_its_aspect_ratios, test_a_heavier_craft_keeps_its_radii)
+          test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare)
 
 
 def main(argv=None):

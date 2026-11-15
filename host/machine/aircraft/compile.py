@@ -26,6 +26,9 @@ GRAVITY_M_S2 = float(_ENV['g_m_s2'])
 ROTOR_MAX_NM = 1.5 * float(_MOT['pole_pairs']) * float(_MOT['flux_vs']) * float(_INV['flight_amps'])
 ROTOR_CAN_J = round(float(_mat['rotor_ring_share']) * float(_MOT['kg']) * (0.5 * float(_MOT['can_m'])) ** 2, 7)
 MAX_SYS_K = round(0.16 * float(_INV['pwm_hz']), 1)
+#: The share of the force vector's turn rate a craft's frame is fed while the vector is pushed down in a
+#: descent (`aerokin.FORCE_SHARE`): the flight law's own, a quarter.
+FORCE_SHARE = 0.25
 
 
 def _imp(kp_p, kd_p, kp_r, kd_r, kp_y, kd_y, kr_p=0.0, dr_p=0.0):
@@ -37,7 +40,7 @@ def _imp(kp_p, kd_p, kp_r, kd_r, kp_y, kd_y, kr_p=0.0, dr_p=0.0):
     })
 
 
-def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb, env=None):
+def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb):
     step_s, vf = round(100.0 / float(inv['pwm_hz']), 6), mechatronics.v_frac(inv)
     qc, he, or_, ae = crafts['quadcopter'], crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
     q_kt = polars.kt(rho, qc['ct'], qc['diameter_m'])
@@ -55,7 +58,7 @@ def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb, en
     pulse = float(or_['beat_pulse'])
     kp_o = 5.0 * round(kp_b * (1.0 + 0.06 * pulse) / 5.0)
     kp_yo = 5.0 * round(kp_yh * (1.0 + 0.1 * pulse) / 5.0)
-    cdi = polars.cd_induced(ae, env)
+    cdi = polars.cd_induced(ae)
     gyr_ae = float(ae['gyration_m'][2]) / float(ae['gyration_m'][1])
     kp_ap = float(round(kp_b * (1.0 + 0.5 * cdi), -1))
     kp_ar = 5.0 * round(kp_b * (1.0 + 0.5 * cdi * gyr_ae) / 5.0)
@@ -164,7 +167,7 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
         'aerokin': {'nose_k': 1.0, 'pace_s': 1.0, 'home_k': round(orb_v / float(ar['orbit_r_m']), 2),
                     'headroom': round(2.0 * vf - 1.0, 2), 'max_tilt_rad': math.pi / 3.0, 'keep': 0.2,
                     'force_w': float(round(0.8 * force_k)), 'force_a': force_a, 'force_k': force_k,
-                    'force_share': round(1.0 - float(env['kinetic_share']), 2)},
+                    'force_share': FORCE_SHARE},
         'wingborne': {'alpha_rad': math.radians(ar['alpha_run_deg']), 'tail_up': 0.4,
                       'climb_rad': math.radians(ar['climb_deg']),
                       'airborne_m': round(ar['ae_hover_m'] - 0.5 * float(ar['floor_m']), 2), 'run_g': 1.2, 'climb_v': 1.3,
@@ -223,8 +226,8 @@ def _build_aircraft():
     ar = polars.arena(crafts, rho, g)
     can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * (0.5 * float(mot['can_m'])) ** 2, 7)
     rot_nm = 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
-    blk = {**polars.aero_blocks(crafts, inv, rho, env), **polars.body_and_cooling_blocks(crafts, mat, inv, env, g),
-           **_control_and_traj_blocks(crafts, inv, ar, can_j, rot_nm, rho, g, amb, env)}
+    blk = {**polars.aero_blocks(crafts, inv, rho), **polars.body_and_cooling_blocks(crafts, mat, inv, env, g),
+           **_control_and_traj_blocks(crafts, inv, ar, can_j, rot_nm, rho, g, amb)}
     return {'blocks': blk, **_runtime_configs(env, crafts, mot, inv, ar, can_j, g)}
 
 
