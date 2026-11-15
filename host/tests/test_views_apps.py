@@ -168,12 +168,13 @@ def test_the_tree_grows_as_a_tree(report):
             chord /= np.linalg.norm(chord)
             angle = math.acos(min(1.0, float(chord @ np.array(way))))
             off['murray'] = max(off['murray'], abs(angle - growth.murray(above, held(k))), angle * (k == leader))
-            across = chord - (chord @ np.array(way)) * np.array(way)
-            if np.linalg.norm(across) > 1e-6:   # round the stem from the last by the golden angle
-                across /= np.linalg.norm(across)
+            if angle > 1e-6:   # its way round the stem in the stem's own frame there (growth.lean)
+                side, other = np.array(growth.lean(way, 0.0)), np.array(growth.lean(way, math.pi / 2))
+                turn = math.atan2(float(chord @ other), float(chord @ side))
                 if last is not None:
-                    off['golden'] = max(off['golden'], abs(float(last @ across) - math.cos(scene.GOLDEN)))
-                last = across
+                    miss = (turn - last - scene.GOLDEN) % (2 * math.pi)
+                    off['golden'] = max(off['golden'], min(miss, 2 * math.pi - miss))
+                last = turn
             above -= held(k)
     for n, b in grown.items():   # a page or a branch at its bough's end, each folder at its step along it
         mine = sorted((f for f in users if own[f] == n), key=lambda f: (apps.layer(tree, f), f))
