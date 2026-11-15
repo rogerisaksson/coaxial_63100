@@ -74,6 +74,7 @@ def _literals(path, names):
 def test_the_power_stage_is_the_librarys(r):
     """`coaxial.model.inverter` and `thermal` state no number the library's inverter states: each
     is read there, and the modulator's share of the link is the solver's (`mechatronics.v_frac`)."""
+    from coaxial.devices import scaling
     from coaxial.model import inverter, thermal
     from machine.body import mechatronics
     inv = mechatronics.library()['inverters']['coaxial_63100']
@@ -83,6 +84,9 @@ def test_the_power_stage_is_the_librarys(r):
     r.check('its switching rate, resistances and junction limit are the library\'s',
             not apart and inverter.V_FRAC == mechatronics.v_frac(inv) and inverter.TS == 1.0 / float(inv['pwm_hz']),
             apart)
+    r.check('the board\'s phase shunt as its scaling states it is the library\'s',
+            scaling.PHASE_ONBOARD.r_shunt == scaling.ShuntParams().r_shunt == float(inv['shunt_ohm']),
+            scaling.PHASE_ONBOARD.r_shunt)
     switch, laminate, stator, winding = (float(c) for c in inv['ceiling_c'])
     ceilings = thermal.CEILING_C
     r.check('the thermal model\'s ceilings and its die\'s resistance are the library\'s',
