@@ -2,6 +2,161 @@
 # A section a compiler, its major version and its machine: its targets, then each source's functions'
 # vectorised loops a target. A loop lost fails test_vectorized; the tool's --write lays a host's section.
 ROWS = {
+    'gcc 13 aarch64': (('sve2',), {
+        'wbc_body.c': {
+            'bracket_t': (1,),
+            'compose': (2,),
+            'out_of': (1,),
+            'twist_exp': (1,),
+            'wbc_body_bias': (4,),
+            'wbc_body_com': (1,),
+            'wbc_body_drift': (1,),
+            'wbc_body_jacobian': (2,),
+            'wbc_body_mass': (2,),
+            'wbc_body_momentum': (2,),
+            'wbc_body_point': (1,),
+        },
+        'wbc_borne.c': {
+            'normal_of': (2,),
+            'room_of': (2,),
+            'wbc_borne_read': (2,),
+            'wbc_borne_seated': (4,),
+            'wbc_borne_supports': (2,),
+        },
+        'wbc_chain.c': {
+            'wbc_chain': (3,),
+        },
+        'wbc_chain_qp.c': {
+            'affine': (1,),
+            'keyed': (1,),
+            'unknowns': (1,),
+        },
+        'wbc_chain_rows.c': {
+            'wbc_chain_levels': (2,),
+            'wbc_chain_rows': (1,),
+        },
+        'wbc_chain_tasks.c': {
+            'laid': (1,),
+            'wbc_chain_tasks': (1,),
+        },
+        'wbc_cone.c': {
+            'faced': (2,),
+            'kinetic': (5,),
+            'taken': (1,),
+            'wbc_cone_bounded': (2,),
+        },
+        'wbc_floor.c': {
+            'wbc_imp_floor_at': (1,),
+            'wbc_imp_landings': (2,),
+        },
+        'wbc_gmo.c': {
+            'accelerations': (2,),
+            'added': (1,),
+            'closest': (1,),
+            'expect': (1,),
+            'lessened': (1,),
+            'pushes': (1,),
+            'shared': (1,),
+            'split': (1,),
+            'stage': (1,),
+            'touches': (4,),
+            'wbc_gmo_felt': (1,),
+        },
+        'wbc_imp.c': {
+            'wbc_imp_ask': (11,),
+        },
+        'wbc_law.c': {
+            'wbc_law_couple': (2,),
+            'wbc_law_latent': (3,),
+        },
+        'wbc_maps.c': {
+            'inv6': (1,),
+            'wbc_step_maps': (6,),
+        },
+        'wbc_pass.c': {
+            'wbc_pass_contacts': (2,),
+            'wbc_pass_tick': (1,),
+        },
+        'wbc_patch.c': {
+            'wbc_patch_rows': (2,),
+        },
+        'wbc_poise.c': {
+            'spanned_of': (1,),
+        },
+        'wbc_poses.c': {
+            'wbc_imp_poses': (1,),
+        },
+        'wbc_qp.c': {
+            'dual': (1,),
+            'wbc_qp_solve': (1,),
+        },
+        'wbc_registry.c': {
+            'seen_of': (1,),
+            'w2': (1,),
+            'wbc_registry_seen': (1,),
+        },
+        'wbc_rounds.c': {
+            'taken': (2,),
+            'wbc_rounds': (2,),
+        },
+        'wbc_scoot.c': {
+            'wbc_scoot_step': (1,),
+        },
+        'wbc_shrunk.c': {
+            'wbc_wrench_motion': (1,),
+            'wbc_wrench_out': (7,),
+        },
+        'wbc_sil.c': {
+            'wbc_sil_drive': (1,),
+        },
+        'wbc_solve.c': {
+            'dot': (1,),
+            'wbc_cholesky': (2,),
+            'wbc_level_solve': (17,),
+        },
+        'wbc_stack.c': {
+            'lay': (1,),
+            'lay_bounds': (2,),
+            'lay_level': (1,),
+            'total_of': (1,),
+            'wbc_stack_step': (1,),
+        },
+        'wbc_step.c': {
+            'stepped': (4,),
+        },
+        'wbc_stride.c': {
+            'wbc_imp_reading': (1,),
+            'wbc_imp_under': (1,),
+            'wbc_imp_vaults': (1,),
+        },
+        'wbc_surety.c': {
+            'wbc_imp_surety': (1,),
+        },
+        'wbc_swing.c': {
+            'wbc_imp_rested': (2,),
+            'wbc_imp_swings': (4,),
+        },
+        'wbc_touch.c': {
+            'wbc_touch_step': (4,),
+        },
+        'wbc_wait.c': {
+            'wbc_wait_latched': (1,),
+            'wbc_wait_risen': (1,),
+            'wbc_wait_sunk': (1,),
+            'wbc_wait_woken': (1,),
+        },
+        'wbc_world.c': {
+            'wbc_world_contacted': (1,),
+            'wbc_world_held': (2,),
+        },
+        'wbc_wrench.c': {
+            'maps': (6,),
+            'over': (1,),
+            'passive_of': (6,),
+            'solved': (4,),
+            'wbc_wrench_step': (5,),
+        },
+    }),
     'gcc 15 aarch64': (('sve2', 'sme2'), {
         'wbc_body.c': {
             'bracket_t': (1, 1),
