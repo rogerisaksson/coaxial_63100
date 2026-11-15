@@ -53,7 +53,7 @@ def correction(lay, body, Y, tau, *campaigns, ridge=RIDGE):
     move is laid as far as it harms no drive on a campaign it was not fitted on (`shares`):
     fitted on the stand and its walk's first half, a shank's mass took its hem's torque and
     raised the knee's misfit on the walk's second half 0.49 -> 2.13 N m while the drives' own
-    moves held - held out, the links' shares fall and the knee reads 0.46."""
+    moves held - held out, the links' shares fall and the knee reads 0.43."""
     import numpy as np
     rows = [(Y, tau)] + list(campaigns)
     delta = _fit(lay, body, np.concatenate([r[0] for r in rows]), np.concatenate([r[1] for r in rows]), ridge)
@@ -64,10 +64,12 @@ def correction(lay, body, Y, tau, *campaigns, ridge=RIDGE):
 
 def shares(lay, body, rows, ridge=RIDGE):
     """(P,) each column's share of a correction laid, 0 to 1: each link's ten and each drive's
-    three as one, as far as the move fitted on any one of `rows` ((Y, tau) campaigns) alone
-    harms none of the drives it enters on the others - a drive's misfit on rows held out is
-    quadratic in the share and falls while it is under 2 r.p / p.p (r its misfit as built on
-    them, p the group's move on its rows) -, the least over those drives and campaigns."""
+    three as one, the share of the move fitted on any one of `rows` ((Y, tau) campaigns) alone
+    that fits the rows of its drives on the others best - their misfit quadratic in the share,
+    least at r.p / p.p over them (r their misfit as built, p the group's move on their rows) -,
+    the least over the campaigns. Held to harm no drive at all (2 r.p / p.p a drive, the least)
+    it took 0.52 of the way the world's own model takes on its walk and 0.41 on CI's runner;
+    fitted best it takes 0.66 and still raises no drive."""
     import numpy as np
     nominal = truth(lay, body.m)
     n_b, n_d, P = len(lay['bodies']), len(lay['driven']), len(lay['names'])
@@ -82,11 +84,12 @@ def shares(lay, body, rows, ridge=RIDGE):
             for cols, drives in groups:
                 part = np.zeros(P)
                 part[cols] = d[cols]
+                rp = pp = 0.0
                 for k in drives:
                     r0, p = th[:, k] - Yh[:, k] @ nominal, Yh[:, k] @ part
-                    pp = float(p @ p)
-                    if pp > 0.0:
-                        share[cols] = np.minimum(share[cols], max(0.0, 2.0 * float(r0 @ p) / pp))
+                    rp, pp = rp + float(r0 @ p), pp + float(p @ p)
+                if pp > 0.0:
+                    share[cols] = np.minimum(share[cols], min(1.0, max(0.0, rp / pp)))
     return share
 
 
