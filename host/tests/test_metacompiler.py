@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """The static meta-compiler held to itself: one source a number, the same answer twice, similarity.
 
-What a sheet states is read from the parts library and stated nowhere else; a build compiled anew
-is the build its cache holds; an override moves the one number it names; a figure scaled keeps its
-angles and shares and moves its lengths no further than its scale; a craft loaded heavier keeps
-its radii of gyration; no compiled number is not a number.
+What a sheet states is read from the parts library and stated nowhere else, the world's gravity
+in `world.toml` alone; a build compiled anew is the build its cache holds; an override moves the
+one number it names; a figure scaled keeps its angles and shares and moves its lengths no further
+than its scale; a craft loaded heavier keeps its radii of gyration; no compiled number is not a
+number.
 Its cache's keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
 import ast
 import json
@@ -16,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.dev.focus import chosen
-from structure_kit import HOST, Report
+from structure_kit import HOST, Report, sources
 
 #: The power stage's names its model reads from the library, each the library's key or its solver.
 STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 'tj_max_c', 'SHUNT': 'shunt_ohm'}
@@ -86,6 +87,27 @@ def test_the_power_stage_is_the_librarys(r):
             and all(ceilings[n] in (stator, winding) for n in thermal.MOTOR)
             and all(ceilings[n] == float(inv['tj_max_c']) and thermal.RTH_DIE[n] == float(inv['rth_jc'])
                     for n in thermal.DRIVERS), ceilings)
+
+
+def test_the_worlds_gravity_is_stated_once(r):
+    """No module of the host's packages or scripts holds the world's gravity as a number of its
+    own: `world.toml` states it; the body's compiler, the simulated accelerometer and the
+    emulator's worlds read it there, the air's density with it."""
+    from coaxial.simulated import sensors
+    from machine.body import compile as body, mechatronics
+    from tools.emu import world
+    env = mechatronics.environment(None)
+    g = float(env['g_m_s2'])
+    stated = sorted({'%s:%d' % (path.replace(os.sep, '/'), node.lineno)
+                     for path, _text, tree in sources(beside=False) for node in ast.walk(tree)
+                     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+                     and not isinstance(node.value, bool) and abs(float(node.value)) == g})
+    r.check('no module states the world\'s gravity as a number of its own', not stated, stated)
+    left_out = dict(world.BODY)
+    r.check('the compiler, the simulated accelerometer and the emulator\'s worlds read the world\'s',
+            body.G_M_S2 == g and sensors.G == g and sensors.SimulatedImu.VECTORS[0][4] == (0.0, 0.0, g)
+            and sensors.SimulatedImu.ONE_G == int(g * (1 << 8))
+            and left_out['gravity'] == g and left_out['rho'] == float(env['air_kg_m3']), left_out)
 
 
 def test_a_build_compiled_anew_is_its_cache(r):
@@ -189,7 +211,8 @@ def test_a_heavier_craft_keeps_its_radii(r):
             0.0 < env['floor_height'] < env['hover_height'] < env['high_height'] < env['top_height'], env)
 
 
-ROSTER = (test_the_power_stage_is_the_librarys, test_a_build_compiled_anew_is_its_cache,
+ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_stated_once,
+          test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_heavier_craft_keeps_its_radii)
 

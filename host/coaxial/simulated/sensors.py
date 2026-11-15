@@ -11,13 +11,17 @@ from coaxial.devices.angle import AngleSensor
 from coaxial.devices.imu import CHANNELS, ROTATION_VECTOR, ImuSensor, decode
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 from coaxial.simulated.values import _tumble
+from machine.body import mechatronics
+
+#: The world's gravity, m/s^2 (`machine/library/world.toml`): what an accelerometer at rest reads.
+G = float(mechatronics.environment(None)['g_m_s2'])
 
 
 class SimulatedImu(ImuSensor):
     """A BNO08X that was never soldered on."""
 
-    #: Q8 counts for 9.81 m/s^2, which is what SCALE[0x01] divides by.
-    ONE_G = 2511
+    #: Q8 counts for the world's gravity, which is what SCALE[0x01] divides by.
+    ONE_G = int(G * (1 << 8))
 
     #: Q14 counts for 1.0, the scale a rotation vector is reported in.
     UNIT = 16384
@@ -116,7 +120,7 @@ class SimulatedImu(ImuSensor):
     #: Q points the part uses, the same table `coaxial.devices.imu` divides
     #: by: accelerometer Q8 in m/s^2, gyroscope Q9 in rad/s,
     #: magnetometer Q4 in uT.
-    VECTORS = (('accelerometer', 0x01, 8, 'm/s^2', (0.0, 0.0, 9.81)),
+    VECTORS = (('accelerometer', 0x01, 8, 'm/s^2', (0.0, 0.0, G)),
                ('gyroscope', 0x02, 9, 'rad/s', (0.0, 0.0, 0.0)),
                ('magnetometer', 0x03, 4, 'uT', (22.0, -3.0, 41.0)))
 

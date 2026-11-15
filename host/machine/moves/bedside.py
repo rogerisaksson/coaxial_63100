@@ -19,6 +19,8 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
+from machine.body.compile import G_M_S2 as G
+
 
 def behind(points, radii, lo, hi):
     """(m, n) m: how far behind it (-z) each point's skin (`points` (n, 3), `radii` (n,)) reaches within heights
@@ -39,7 +41,7 @@ def halted(gap, speed, gamma):
 def pendulum(moment, inertia):
     """Hz: a limb hung from its joint, swinging free - `moment` its mass times its centre's distance below the joint
     (kg m), `inertia` about the joint (kg m^2) (`specialize-posture-dangling-crural-hang`'s eigenfrequency)."""
-    return np.sqrt(9.81 * np.asarray(moment, float) / inertia) / (2.0 * np.pi)
+    return np.sqrt(G * np.asarray(moment, float) / inertia) / (2.0 * np.pi)
 
 
 def drift(h, theta):

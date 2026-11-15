@@ -24,6 +24,7 @@ def main(argv=None):
     from coaxial import EMULATED, HARDWARE, Coaxial63100
     from coaxial.control import identify
     from coaxial.devices.drive import PROFILES
+    from machine.body import mechatronics
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='native://?nodes=4&world=humanoid_leg')
     p.add_argument('--units', default='1', help='1 or 1-4')
@@ -59,7 +60,8 @@ def main(argv=None):
         if node:
             world = '%.3e %.3e %.3e' % (model.get('j', 0.0) + load.get('inertia', 0.0) / gear ** 2,
                                        model.get('b', 0.0) + load.get('damping', 0.0) / gear ** 2,
-                                       load.get('mass', 0.0) * 9.81 * load.get('arm', 0.0) / gear)
+                                       load.get('mass', 0.0) * float(mechatronics.environment(None)['g_m_s2'])
+                                       * load.get('arm', 0.0) / gear)
         print('%-5d %10.3e %10.3e %10.3e %10.3e %9.2f %s' % (unit, got['J'], got['b'], got['f'], got['gravity'],
                                                            got['residual'] / max(got['rms'], 1e-12), world))
     return 0

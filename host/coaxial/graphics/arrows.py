@@ -4,6 +4,7 @@ import math
 from coaxial.graphics.callouts import line
 from coaxial.graphics.lit import project
 from machine.body import figure
+from machine.body.compile import G_M_S2 as G
 from machine.law import se2
 from machine.body.figure import quat
 
@@ -179,7 +180,7 @@ def _jump_arrow(doing, _now, origin, normal, heading, sh, ch, spd_phys, props, t
 def _fall_arrow(doing, now, origin, _normal, heading, sh, ch, _spd_phys, props, tw_ord):
     where, vel_xz = now.get('where', (0.0, 0.90, 0.0)), now.get('velocity', (0.0, 0.0))
     ty = 0.45 if doing in _SEAT_BED else (0.22 if (doing in _FLOOR or now.get('fallen')) else 0.58)
-    tf = math.sqrt(2.0 * max(0.04, float(where[1]) - ty) / 9.81)
+    tf = math.sqrt(2.0 * max(0.04, float(where[1]) - ty) / G)
     po = -0.18 if doing in _SEAT_BED else (0.22 if doing in _FLOOR else 0.25)
     lx, lz = float(where[0]) + float(vel_xz[0]) * tf + po * sh, float(where[2]) + float(vel_xz[1]) * tf + po * ch
     ly, l_norm = surface_at(lx, lz, props, True)

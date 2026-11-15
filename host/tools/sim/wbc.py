@@ -39,6 +39,7 @@ CREEP_S = 2.0
 WAYS = tuple(range(0, 360, 45))
 
 #: The drives' PD round the stack's reference and war emergency power, as the loop has them.
+from machine.body.compile import G_M_S2 as G
 from machine.process.sprung import LEAK_S, SERVO_SHARE, STANDING_KP, WEP_HOLD_S, WEP_S
 
 NAMES = ()
@@ -49,7 +50,7 @@ def law(s, st, mid):
     import numpy as np
     from machine.stack import wbc
     c, v = s['com'], s['vcom']
-    omega = math.sqrt(9.81 / max(0.3, c[1]))
+    omega = math.sqrt(G / max(0.3, c[1]))
     xi = c[[0, 2]] + v[[0, 2]] / omega
     p = xi + XI_K / omega * (xi - mid)
     acc = omega ** 2 * (c[[0, 2]] - p)
