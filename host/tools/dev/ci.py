@@ -91,13 +91,13 @@ def told(runs):
 
 
 def last():
-    """(its commit, its gate's log tail - none where it was green -) of GitHub's last gate run on main that
+    """(its commit, its gate's log tail - none where it was green -) of GitHub's last gate push run on main that
     ended green or red - the host workflow's while the gate has none -, read off the comments it left on its
     commit; None where GitHub could not be asked or no run told."""
     run = None
     for workflow in (WORKFLOW, JOBS['host']):
         run = told(_gh('run', 'list', '--branch', BRANCH, '--workflow', workflow, '--status', 'completed',
-                       '--limit', '10', '--json', 'conclusion,headSha') or [])
+                       '--event', 'push', '--limit', '10', '--json', 'conclusion,headSha') or [])
         if run is not None:
             break
     if run is None:
@@ -126,9 +126,9 @@ def _git(*words):
 
 
 def green(workflow, limit=GREENS):
-    """[(commit, when, run)] of the workflow's runs on main that ended green, the newest first, `limit` at
-    most; None where GitHub could not be asked."""
-    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', workflow, '--status', 'success',
+    """[(commit, when, run)] of the workflow's push runs on main that ended green, the newest first, `limit` at
+    most - a probe or a measure asked by hand is no verdict on the gate -; None where GitHub could not be asked."""
+    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', workflow, '--status', 'success', '--event', 'push',
                '--limit', str(limit), '--json', 'headSha,createdAt,databaseId')
     return None if runs is None else [(run['headSha'], run['createdAt'], run['databaseId']) for run in runs]
 
@@ -157,9 +157,9 @@ def covered(job, jobs):
 
 def jobs_green(limit=GREENS):
     """{job: (commit, when, run) of the gate's newest run on main where it ended green, or None} for JOBS, read
-    off the newest `limit` finished runs: a run green whole says so of every job, another is asked for its jobs
+    off the newest `limit` finished push runs: a run green whole says so of every job, another is asked for its jobs
     (one call of gh a run, till each job has its green); None where GitHub could not be asked."""
-    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed',
+    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed', '--event', 'push',
                '--limit', str(limit), '--json', 'headSha,createdAt,databaseId,conclusion')
     if runs is None:
         return None
