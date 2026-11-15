@@ -434,7 +434,7 @@ def test_smart_selection(report):
                table.SIGHT, table.CAMERA, table.GAZE, table.REACH, table.TERMS, table.GVS, table.REPLAYS, table.SCENES, table.WBC, table.WBC_CORE, table.CHAIN, table.LEAP, table.WASD,
                table.ORTHO, table.POSTURES, table.FOURS, table.GROUNDWORK, table.SUBSTRATE, table.CRAWL, table.BEDSIDE, table.VAULT, table.BALLISTIC, table.DSP, table.KERNEL, table.SHIELD, table.WAYFINDER, table.SAYS, table.INTROSPECT,
                table.GATE, table.TUNE, table.FLOOR, table.SITUATION, table.BUSES, table.WRENCH, table.SYSID, table.SYSID_LIVE, table.WEAR, table.ERRANDS, table.DOCKS, table.CYCLIC, table.QUAD, table.QUAD_PULL,
-               table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.QUICK, table.TICK, table.VECTORIZED, table.PLACED, table.DEPENDS, table.CI, table.WORKFLOW, table.BORNE, table.REGISTRY, table.AERO_CORE, table.MPPI_CORE, table.STREAMS, table.BOOT} | set(table.OLLAMA)
+               table.QUAD_COURSE, table.SWEEP, table.COMPILED, table.QUICK, table.TICK, table.PLACED, table.DEPENDS, table.CI, table.WORKFLOW, table.BORNE, table.REGISTRY, table.AERO_CORE, table.MPPI_CORE, table.STREAMS, table.BOOT} | set(table.OLLAMA)
     for percent, expect in ((25, quarter),
                             (75, quarter | {'test_parity.py', 'test_mcp.py', table.EMULATOR, table.PORTED,
                                             table.NATIVE, table.NATIVE_HEAT, table.NATIVE_SYSID, table.CONFORMANCE, table.BENCH})):
