@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from coaxial.simulated.drive.locked import _rotor_locked
-from coaxial.simulated.values import NOMINAL
+from coaxial.simulated.values import AMPS_PER_CODE, NOMINAL
 
 
 class DriveCapture:
@@ -30,7 +30,7 @@ class DriveCapture:
 
     #: Amps per code, the stand-in's own scaling (scaling.PHASE_ONBOARD):
     #: 3.3 V over 32768 codes, through 3.5 mohm x 4.5455.
-    APC = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+    APC = AMPS_PER_CODE
 
     #: The shunt chains' gain mismatch the commissioning has to find.
     GAIN = (1.0, 1.01, 0.995)

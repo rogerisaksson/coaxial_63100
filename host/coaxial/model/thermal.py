@@ -387,7 +387,7 @@ LOSSES = {
     'rds_on': inverter.RDS_ON, 'rds_alpha': 5.55e-3, 'rds_beta': 1.78e-5, 'r_shunt': inverter.SHUNT,
     'r_hotswap': 3.6e-3, 'switching_watt': 1.20, 'switch_volts': 24.6, 'driver_share': 1.0,
     'mcu_watt': 0.666, 'ldo_watt': 0.534, 'afe_watt': 0.13, 'f_sw': inverter.FSW,
-    'coss_cjo': 15.6e-9, 'coss_m': 0.45, 'coss_vj': 0.7, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
+    'coss_cjo': inverter.CJO, 'coss_m': inverter.M, 'coss_vj': inverter.VJ, 't_switch_s': 14.0e-9, 'v_sd': 0.85,
     'q_g': 267.0e-9, 'v_drive': 15.0, 'buck_eff': 0.85, 'r_phase': 0.05, 'k_iron': 0.0,
     'mcu_sleep_watt': 0.49,
 }

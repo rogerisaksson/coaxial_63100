@@ -1,11 +1,15 @@
 """Conversion from raw ADC codes to physical quantities."""
 import math
 
+from coaxial.model import inverter
+
 #: The converter's 16-bit result: the full scale of codes, and the half of
 #: it that is a differential reading's span.
 ADC_CODES = 65536.0
 ADC_HALF_CODES = 32768.0
 KELVIN_AT_ZERO_C = 273.15
+#: The phase amplifier's feedback and gain resistors, ohm: a THS4551, 1.5k over 330.
+AFE_RF, AFE_RG = 1500.0, 330.0
 
 
 class NtcParams:
@@ -69,7 +73,7 @@ class DividerParams:
 class ShuntParams:
     """A current shunt and the differential amplifier chain above it."""
 
-    def __init__(self, r_shunt=0.0035, gain=1500.0 / 330.0,
+    def __init__(self, r_shunt=inverter.SHUNT, gain=AFE_RF / AFE_RG,
                  vref=3.3, name=None):
         self.r_shunt = r_shunt
         self.gain = gain
@@ -109,7 +113,7 @@ NTC_ONBOARD = NtcParams(r25=10000.0, beta=3380.0, r_fixed=10000.0,
                         name='Murata NCU18XH103, onboard')
 DCBUS_ONBOARD = DividerParams(r_top=49900.0, r_bottom=2200.0, vref=3.3,
                               name='onboard 49.9k/2.2k')
-PHASE_ONBOARD = ShuntParams(r_shunt=0.0035, vref=3.3,
+PHASE_ONBOARD = ShuntParams(r_shunt=inverter.SHUNT, vref=3.3,
                             name='RU1||RU2 3.5 mohm, THS4551 1.5k/330')
 
 

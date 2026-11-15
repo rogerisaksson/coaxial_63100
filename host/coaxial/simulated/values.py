@@ -2,7 +2,8 @@
 """
 import math
 
-from coaxial.devices.scaling import ADC_CODES, KELVIN_AT_ZERO_C, NTC_ONBOARD
+from coaxial.devices.scaling import (ADC_CODES, ADC_HALF_CODES, AFE_RF, AFE_RG, KELVIN_AT_ZERO_C, NTC_ONBOARD,
+                                     PHASE_ONBOARD)
 
 #: The stand-in's clock, as the board reports it: 475 MHz, the cycle
 #: counter at that rate, HCLK at half.
@@ -128,7 +129,7 @@ PHASE_LEG = {'Phase U': 0, 'Phase V': 1, 'Phase W': 2}
 #: Amps per code on a phase shunt - `SimulatedDrive.APC`, the same
 #: number `scaling.PHASE_ONBOARD` gives: 3.3 V over 32768 codes
 #: through 3.5 mohm times 4.5455.
-AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+AMPS_PER_CODE = PHASE_ONBOARD.vref / ADC_HALF_CODES / (PHASE_ONBOARD.r_shunt * AFE_RF / AFE_RG)
 
 
 def phase_codes(signal, amps, theta):

@@ -87,6 +87,8 @@ def test_the_power_stage_is_the_librarys(r):
     (`mechatronics.v_frac`)."""
     from coaxial.devices import scaling
     from coaxial.model import inverter, thermal
+    from coaxial.simulated import values
+    from coaxial.simulated.drive import capture
     from machine.body import mechatronics
     inv = mechatronics.library()['inverters']['coaxial_63100']
     bare = _literals(os.path.join(HOST, 'coaxial', 'model', 'inverter.py'), set(STAGE))
@@ -98,6 +100,12 @@ def test_the_power_stage_is_the_librarys(r):
     r.check('the board\'s phase shunt as its scaling states it is the library\'s',
             scaling.PHASE_ONBOARD.r_shunt == scaling.ShuntParams().r_shunt == float(inv['shunt_ohm']),
             scaling.PHASE_ONBOARD.r_shunt)
+    again = sorted('%s:%d' % (path.replace(os.sep, '/'), node.lineno) for path, _text, tree in sources(beside=False)
+                   if path.replace(os.sep, '/') != 'coaxial/model/inverter.py' for node in ast.walk(tree)
+                   if isinstance(node, ast.Constant) and node.value in (inverter.SHUNT, inverter.CJO))
+    r.check("no module states the shunt or the switches' output capacitance again, the stand-in's amps a code are one",
+            not again and values.AMPS_PER_CODE == capture.DriveCapture.APC
+            and thermal.LOSSES['coss_cjo'] == inverter.CJO, again)
     switch, laminate, stator, winding = (float(c) for c in inv['ceiling_c'])
     ceilings = thermal.CEILING_C
     r.check('the thermal model\'s ceilings and its die\'s resistance are the library\'s',
