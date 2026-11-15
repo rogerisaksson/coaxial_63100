@@ -192,27 +192,31 @@ def _unmarked(marker):
 
 def _claimed(lib):
     """Whether this process is to build `lib`: its marker made here; else another's built it -
-    waited for while that process lives - and False."""
+    waited for while that process lives - and False. The marker names its process and its host
+    (pid@node): a pid is one host's alone - a container on this tree starts its python as pid 14
+    like the last container's, and waited on the marker that one's death left as if its own -,
+    so another host's marker, or one naming no process, is nobody's and goes."""
     from tools.dev.focus import _alive
     os.makedirs(OUT, exist_ok=True)
     marker = lib + '.building'
+    node = platform.node()
     while True:
         try:
             fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except (FileExistsError, PermissionError):
             try:
                 with open(marker, encoding='utf-8') as f:
-                    pid = int(f.read() or 0)
-            except (OSError, ValueError):
-                pid = 0
+                    pid, _at, host = f.read().partition('@')
+            except OSError:
+                pid = host = ''
             if os.path.exists(lib):
                 return False
-            if pid and not _alive(pid):
+            if host != node or not pid.isdigit() or not _alive(int(pid)):
                 _unmarked(marker)
             time.sleep(0.2)
             continue
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write(str(os.getpid()))
+            f.write('%d@%s' % (os.getpid(), node))
         if os.path.exists(lib):
             _unmarked(marker)
             return False
