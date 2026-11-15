@@ -4,7 +4,7 @@
     sv = compile.servos(overrides)   # {kind: (peak N m, kp N m/rad, kd N m s/rad, armature kg m^2)}
     gt = compile.gait(overrides)     # {leg_m, mass_kg, modes, rhythm, steer, poise, ...}
 """
-from math import acos, asin, atan2, cos, degrees, dist, hypot, isnan, pi, radians, sin, sqrt, tau
+from math import acos, asin, atan2, cos, degrees, dist, hypot, isnan, pi, radians, sqrt, tau
 import os
 from typing import Any
 
@@ -93,16 +93,15 @@ def _subtrees():
     sq_pose = figure.frames(figure.SQUAT, origin, figure.IDENT)
     j_wa_y = 0.5 * (sub('torso', _AY)[2] + sub('torso', _AY, flex)[2])
     j_hy_y = 0.5 * (sub('left_thigh', _AY)[2] + sub('left_thigh', _AY, sq_pose)[2])
-    foot = sub('left_foot')
     return {
         'mass': mass, 'weight': m_dressed * G_M_S2, 'h0': h0, 'omega': sqrt(G_M_S2 / h0),
-        'leg_m': figure.THIGH + figure.SHANK, 'sprung_kg': mass - 2.0 * foot[0],
+        'leg_m': figure.THIGH + figure.SHANK,
         'pend_x': jx_ank, 'pend_ank': (rx_ank, jx_ank), 'pend_sole': (rz_sole, jz_sole),
         'trunk': (m_tr, r_tr, j_tr_x, j_wa_y), 'leg': (m_lg, r_lg, j_lg_x, j_hy_y),
         'swing_leg': sub('left_thigh', _AX, sw_pose), 'neck': sub('neck'), 'head': sub('head', _AY),
         'arm': sub('left_upper_arm'), 'fore': sub('left_forearm'),
         'elbow_x': crb(segs, placed, ['left_upper_arm'], placed['left_forearm'][0], _AX)[2],
-        'hand': sub('left_hand'), 'fingers': sub('left_fingers'), 'foot': foot,
+        'hand': sub('left_hand'), 'fingers': sub('left_fingers'), 'foot': sub('left_foot'),
         'neck_span': dist(placed['torso'][0], placed['neck'][0]),
         'unsprung_kg': 0.5 * segs['left_shank'][0] + segs['left_foot'][0] + segs['left_toes'][0],
     }
@@ -138,7 +137,7 @@ def _servos(st):
 
     kp_ank = float(round(w_tot * h0 * h0 / (figure.BALL + figure.HEEL)))
     kd_ank = float(round(2.0 * sqrt(kp_ank * (st['foot'][2] + j_drv('ankle')))))
-    j_kn = 0.5 * m_tot * figure.THIGH ** 2 + j_drv('knee')
+    j_kn = 0.5 * m_tot * (h0 - figure.ANKLE_H - figure.SHANK) ** 2 + j_drv('knee')
     kp_st, kd_hip = pd_joint('hip', 0.5 * m_tot * (0.5 * h0) ** 2 + j_drv('hip'), 0.5 * zeta_opt)
     kd_knee = float(round(zeta_opt * sqrt(kp_st * j_kn)))
     kp_sp, kd_sp = pd_joint('spine', j_tr_x + j_drv('spine'), 0.5)
@@ -208,30 +207,25 @@ def _knee_chord(deg):
 
 def _modes_gait(st, k_task, limb_k, poise_margin, mu):
     leg_m, h0, w0 = st['leg_m'], st['h0'], st['omega']
-    s_l, s_t = figure.SCALE, sqrt(figure.SCALE)
     ank = abs(drives.TRAVEL['ankle'][0]) - drives.TRAVEL['ankle_roll'][1]
     crouch = {**figure.stand(), 'left_hip': -ank, 'right_hip': -ank, 'left_knee': 2.0 * ank,
               'right_knee': 2.0 * ank, 'left_ankle': -ank, 'right_ankle': -ank}
     _, h_crouch = _dressed_statics(build.segments(), crouch, figure.pelvis_at(radians(2.0 * ank)))
-    m_dressed, k_g = st['weight'] / G_M_S2, st['weight'] / h0
-    k_ax = round(0.5 * (k_task + limb_k) * m_dressed / (s_l * s_l), -3) * (s_l * s_l)
-    k_sag_sh = round(0.75 * k_task / limb_k, 4)
-    d_ax = round(2.0 * sqrt(k_ax * m_dressed) / (s_l * s_t), -2) * (s_l * s_t)
-    d_sag = 50.0 * round(2.0 * sqrt(2.0 / 3.0) * sqrt(k_sag_sh * k_ax * m_dressed) / (50.0 * s_l * s_t)) * (s_l * s_t)
+    w_sole = figure.SOLE_HALF + figure.PAD_M
+    k_ax_spec, k_g_spec = 0.5 * (k_task + limb_k), G_M_S2 / h0
+    k_sag_share = (leg_m / (figure.BALL + figure.HEEL)) * (k_g_spec / k_ax_spec)
     return {
-        'axial_m': round((h0 - h_crouch) / s_l, 3) * s_l,
+        'axial_m': round((h0 - h_crouch) / figure.SCALE, 3) * figure.SCALE,
         'pitch_rad': round(asin(min(1.0, (figure.BALL - poise_margin) / st['trunk'][1])), 2),
         'clear_m': figure.CONTACTS[1][2][1] + figure.PAD_M,
         'list_rad': round(atan2(figure.HIP_HALF + figure.SOLE_HALF - poise_margin, h0 - figure.ANKLE_H), 2),
         'turn_rad': round(atan2(figure.HIP_HALF, 0.5 * leg_m + figure.ANKLE_H), 2),
         'arm_rad': round(atan2(figure.UPPER_ARM, leg_m), 2),
-        'rest_1_s': round(mu * w0 * s_t, 0) / s_t, 'limb_1_s2': limb_k, 'limb_1_s': 2.0 * sqrt(limb_k),
-        'rest_axial_w': round(sqrt(k_ax / k_g), 4),
-        'rest_lateral_share': round(3.0 * k_sag_sh, 4),
-        'rest_sagittal_share': k_sag_sh,
-        'rest_axial_zeta': round(d_ax / (2.0 * sqrt(k_ax * m_dressed)), 4),
-        'rest_lateral_d_share': 0.5,
-        'rest_sagittal_zeta': round(d_sag / (2.0 * sqrt(k_sag_sh * k_ax * m_dressed)), 4),
+        'rest_1_s': round(mu * w0, 2), 'limb_1_s2': limb_k, 'limb_1_s': 2.0 * sqrt(limb_k),
+        'rest_axial_w': sqrt(k_ax_spec / k_g_spec),
+        'rest_lateral_share': round(((figure.HIP_HALF + w_sole) / w_sole) * k_sag_share, 4),
+        'rest_sagittal_share': round(k_sag_share, 4),
+        'rest_axial_zeta': 1.0, 'rest_lateral_d_share': 0.5, 'rest_sagittal_zeta': sqrt(2.0 / 3.0),
     }
 
 
@@ -300,10 +294,10 @@ def _loop_gait(v0, w_task, w_eso):
     }
 
 
-def _stride_gait(leg_m, v0, w_l, limb_k, walk_hz, f_sw, fold_rad, mu, w_eso, modes_g, rhythm_g, s_t):
+def _stride_gait(leg_m, v0, w_l, limb_k, walk_v, walk_hz, f_sw, fold_rad, mu, w_eso, modes_g, rhythm_g, s_t):
     s_l, t_sw = s_t * s_t, 0.5 / f_sw
     swf = round(t_sw * 0.5 * (walk_hz + f_sw), 2)
-    stride_m = round(((leg_m - figure.ANKLE_H) * sin(fold_rad)) / s_l, 2) * s_l
+    stride_m = round((walk_v / (4.0 * rhythm_g['run_drive'] * walk_hz)) / s_l, 2) * s_l
     pace_walk = 4.0 * stride_m * rhythm_g['run_drive'] * walk_hz
     reach_s = round(0.5 / ((rhythm_g['brisk_hz'] + rhythm_g['slip_hz']) * s_t), 2) * s_t
     return {
@@ -316,7 +310,7 @@ def _stride_gait(leg_m, v0, w_l, limb_k, walk_hz, f_sw, fold_rad, mu, w_eso, mod
         'apart_m': round(2.0 * (figure.SOLE_HALF + figure.PAD_M), 3),
         'soon_s': 2.0 / w_eso, 'rise_u': 0.2, 'fall_u': 0.25, 'arrive_u': 0.9,
         'leads': 0.5, 'land_share': 1.0,
-        'reach_m_s': round(((modes_g['axial_m'] - 0.5 * figure.PAD_M) / reach_s) / s_t, 2) * s_t,
+        'reach_m_s': round(((modes_g['axial_m'] - figure.PAD_M) / reach_s) / s_t, 2) * s_t,
         'reach_s': reach_s,
         'flat_1_s2': limb_k,
         'heel_deg': round(degrees(atan2(figure.ANKLE_H, figure.BALL - figure.TOE_RY)), 1),
@@ -326,20 +320,18 @@ def _stride_gait(leg_m, v0, w_l, limb_k, walk_hz, f_sw, fold_rad, mu, w_eso, mod
     }
 
 
-def _twist_gait(v0, v_com, w_l, w0, walk_v, run_v, walk_hz, s_t):
+def _twist_gait(v0, w_l, w0, walk_v, run_v, walk_hz, s_t):
     s_l = figure.SCALE
-    side_v = round((v_com / 6.0) / s_t, 2) * s_t
-    slow_v = round((0.30 * walk_v) / s_t, 2) * s_t
     return {
-        'walk_m_s': walk_v, 'run_m_s': run_v, 'back_m_s': slow_v,
-        'strafe_m_s': side_v,
-        'yaw_rad_s': round(sqrt(2.0) * radians(drives.TRAVEL['hip_yaw'][1]) * walk_hz * s_t, 2) / s_t,
-        'stairs_m_s': side_v, 'ice_m_s': slow_v,
-        'slope_m_s': round(0.20 * v0 / s_t, 2) * s_t, 'ballistic_m_s': round(sqrt(0.075) * v0 / s_t, 2) * s_t,
-        'circle_m_s': round(0.20 * v0 / s_t, 2) * s_t, 'circle_rad_s': round(0.125 * w_l * s_t, 2) / s_t,
-        'stop_m': round((walk_v / walk_hz - 0.5 * (figure.BALL - figure.HEEL)) / s_l, 2) * s_l,
+        'walk_m_s': walk_v, 'run_m_s': run_v, 'back_m_s': round(0.125 * v0, 2),
+        'strafe_m_s': round(0.18 * v0, 2),
+        'yaw_rad_s': round(sqrt(2.0) * radians(drives.TRAVEL['hip_yaw'][1]) * walk_hz, 2),
+        'stairs_m_s': round(0.18 * v0, 2), 'ice_m_s': round(0.125 * v0, 2),
+        'slope_m_s': round(0.20 * v0, 2), 'ballistic_m_s': round(sqrt(0.075) * v0, 2),
+        'circle_m_s': round(0.20 * v0, 2), 'circle_rad_s': round(0.125 * w_l, 2),
+        'stop_m': round((walk_v / walk_hz) / s_l, 2) * s_l,
         'back_stop_m': round((figure.HEEL - figure.PAD_M) / s_l, 2) * s_l,
-        'side_stop_m': round((figure.HIP_HALF + figure.SOLE_HALF + 2.0 * figure.PAD_M) / s_l, 2) * s_l,
+        'side_stop_m': round((figure.HIP_HALF + figure.SOLE_HALF) / s_l, 2) * s_l,
         'stop_spread_m': round(walk_v / (8.0 * walk_hz * s_l), 2) * s_l,
         'walk_hz': walk_hz, 'stand_s': round(round(0.5 * pi / (w0 * s_t), 1) * s_t, 3),
     }
@@ -348,14 +340,14 @@ def _twist_gait(v0, v_com, w_l, w0, walk_v, run_v, walk_hz, s_t):
 def _gait(st):
     leg_m, mass_kg, w0 = st['leg_m'], st['mass'], st['omega']
     s_l, s_t = figure.SCALE, sqrt(figure.SCALE)
-    t0, v0, v_com = sqrt(leg_m / G_M_S2), sqrt(G_M_S2 * leg_m), sqrt(G_M_S2 * st['h0'])
+    t0, v0 = sqrt(leg_m / G_M_S2), sqrt(G_M_S2 * leg_m)
     w_l, w_eso = 1.0 / t0, _ESO_WO / s_t
     w_task, w_law = 0.1 * w_eso, 0.1 * _LAW_HZ / s_t
     m_sw, r_sw, j_sw_x = st['swing_leg']
     f_sw = sqrt(m_sw * G_M_S2 * r_sw / (j_sw_x + drives.armature('left_hip'))) / pi
     walk_hz = round(0.5 * (w0 / pi + f_sw) * s_t, 2) / s_t
     walk_v = round(0.40 * sqrt(G_M_S2 * (st['h0'] - figure.HIP_DROP) / s_l), 2) * s_t
-    run_v = round(0.50 * sqrt(G_M_S2 * (_knee_chord(figure.STAND_KNEE) - 0.5 * figure.HIP_DROP) / s_l), 2) * s_t
+    run_v = round(sqrt(0.24) * v0 / s_t, 2) * s_t
     loop_g = _loop_gait(v0, w_task, w_eso)
     k_task = loop_g['turn_1_s2']
     limb_k, poise_margin = 4.0 * k_task, 0.40 * figure.SOLE_HALF
@@ -366,7 +358,6 @@ def _gait(st):
     m_eff = mass_kg + 2.0 * drives.armature('left_knee') / (r90 * r90)
     throw_acc = round((2.0 * drives.peak('left_knee') / r90 - st['weight']) / m_eff, 1)
     rhythm_g = _rhythm_gait(st, v0, w_l, s_t)
-    sigma_rad = round(atan2(figure.UPPER_ARM + figure.FIST_R, leg_m), 2)
     leap = {
         'touch_n': round(st['unsprung_kg'] * G_M_S2, 1), 'touch_m': 0.4 * figure.PAD_M,
         'rest_m_s': round(sqrt(0.2 * G_M_S2 * figure.PAD_M), 2),
@@ -375,24 +366,24 @@ def _gait(st):
         **_standing_jump(),
     }
     return {
-        'leg_m': leg_m, 'mass_kg': mass_kg, 'sprung_kg': st['sprung_kg'], 'leg_kg': st['leg'][0],
+        'leg_m': leg_m, 'mass_kg': mass_kg, 'leg_kg': st['leg'][0],
         'modes': modes_g, 'rhythm': rhythm_g,
         'steer': _steer_gait(leg_m, v0, w_l, w0, w_task, w_law),
         'poise': {'margin_m': poise_margin, 'capture_s': round(2.0 / (3.0 * w0 * s_t), 2) * s_t,
                   'lift_eps': 0.02, 'gate_m': figure.PAD_M, 'early': 0.3},
-        'support': {'tau_s': round(0.25 / (w0 * s_t), 2) * s_t,
-                    'eso_rad_s2': round((G_M_S2 / (st['h0'] - figure.ANKLE_H)) * s_l, 0) / s_l,
-                    'eso_scale_rad_s2': round(2.0 * w_l * w_l * s_l, 0) / s_l,
-                    'sigma_rad': sigma_rad, 'bleed': round(5.0 / (sigma_rad * sigma_rad), 0)},
+        'support': {'tau_s': round(0.25 * pi / (w_task * s_t), 2) * s_t, 'eso_rad_s2': round(w_l * w_l, 1),
+                    'eso_scale_rad_s2': round(2.0 * w_l * w_l, 1),
+                    'sigma_rad': round(atan2(figure.UPPER_ARM + figure.FIST_R, leg_m), 2),
+                    'bleed': round(10.0 * w_l, 1)},
         'impedance': {'on_shift': 0.1, 'on_shift_1_s': round((w0 / pi) * s_t, 1) / s_t,
                       'going_s': round(t0 / s_t, 2) * s_t,
                       'ahead': 0.15, 'yaw_1_s': 0.5 * w_eso, 'throw_m_s2': throw_acc,
                       'low_m': round((figure.SHANK - figure.ANKLE_H - figure.PAD_M) / s_l, 2) * s_l,
                       'low_leg': 0.5, 'prop_on': 0.15},
         'loop': loop_g, 'leap': leap,
-        'stride': _stride_gait(leg_m, v0, w_l, limb_k, walk_hz, f_sw, fold_rad,
+        'stride': _stride_gait(leg_m, v0, w_l, limb_k, walk_v, walk_hz, f_sw, fold_rad,
                                loop_g['mu'], w_eso, modes_g, rhythm_g, s_t),
-        'twist': _twist_gait(v0, v_com, w_l, w0, walk_v, run_v, walk_hz, s_t),
+        'twist': _twist_gait(v0, w_l, w0, walk_v, run_v, walk_hz, s_t),
     }
 
 

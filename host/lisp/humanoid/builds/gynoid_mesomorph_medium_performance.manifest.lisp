@@ -3,11 +3,11 @@
 ;; N s/m of that mass; a drive's peak N m at its joint, speed deg/s, its travel deg where it stops.
 (defrobot gynoid_mesomorph_medium_performance
   (body (mass 37.98) (weight 372.5) (com_height 0.8583) (omega 3.381) (leg 0.77) (stance_width 0.19) (knee 6))
-  (mode mode_axial_compression (unit 0.111) (mass 37.98) (stiffness 9000) (damping 1200))
-  (mode mode_lateral_shift (unit 0.095) (mass 37.98) (stiffness 5062) (damping 600))
+  (mode mode_axial_compression (unit 0.111) (mass 37.98) (stiffness 9494) (damping 1201))
+  (mode mode_lateral_shift (unit 0.095) (mass 37.98) (stiffness 5636) (damping 600.5))
   (mode mode_sagittal_drive (unit 0.3) (mass 8.911) (stiffness 3564) (damping 356.4))
   (mode mode_pitch_attitude (unit 0.53) (mass 14.58) (stiffness 1458) (damping 291.7))
-  (mode mode_sagittal_shift (unit 0.086) (mass 37.98) (stiffness 1688) (damping 400))
+  (mode mode_sagittal_shift (unit 0.086) (mass 37.98) (stiffness 1943) (damping 444))
   (mode mode_limb_lift (unit 0.01) (mass 8.911) (stiffness 3564) (damping 356.4))
   (mode mode_stance_width (unit 0.095) (mass 8.911) (stiffness 3564) (damping 356.4))
   (mode mode_pelvis_list (unit 0.15) (mass 14.58) (stiffness 1458) (damping 291.7))
