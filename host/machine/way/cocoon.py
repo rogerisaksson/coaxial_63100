@@ -43,6 +43,15 @@ def _rising(g):
         and (cur == 'init_walk' or gaits.in_stunt_transient(g)))
 
 
+def _deeper(o, d, half, off):
+    """Whether `d` at `o` inside `half` steps closer to the unexpanded box or its nearer face."""
+    import numpy as np
+    h0 = np.maximum(half - (figure.WIDE_HALF - off)[:, None], 0.0)
+    over, od = half - np.abs(o), o * d
+    return (((o - np.clip(o, -h0, h0)) * d).sum(axis=1) < -1e-9) | (
+        np.where(over[:, 0] < over[:, 1], od[:, 0], od[:, 1]) < -1e-9)
+
+
 def clear_of_rise(g):
     """Whether a completed rise has carried its pelvis outside its things' half-width halo (or it steps deeper in)."""
     if _rising(g):
@@ -51,7 +60,7 @@ def clear_of_rise(g):
     if not (physics.ROOM or g.get('eyes')) or not things:
         return True
     import numpy as np
-    c, axes, half, _off = _boxes(things)
+    c, axes, half, off = _boxes(things)
     if not len(c):
         return True
     q = furniture.where(g)
@@ -66,8 +75,7 @@ def clear_of_rise(g):
     h = float(g['heading'])
     d = axes @ np.array([(tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v,
                          (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v])
-    far, od = np.abs(o) / half, o * d
-    return bool((inside & (np.where(far[:, 1] > far[:, 0], od[:, 1], od[:, 0]) < 0.0)).any())
+    return bool((inside & _deeper(o, d, half, off)).any())
 
 
 def _vel_blocked(g):
@@ -78,9 +86,12 @@ def _vel_blocked(g):
     vel = g['est']['vel']
     vx, vz = float(vel[0]), float(vel[2])
     vh = math.hypot(vx, vz)
+    if vh <= 0.03:
+        return False
     cut = bool(g.get('_cocoon_cut'))
-    return vh > se2.HALT_M_S and _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= _room(
-        g, (vx / vh, vz / vh), things)
+    room = _room(g, (vx / vh, vz / vh), things)
+    return room <= -wayfinder.MARGIN + 1e-6 or (
+        vh > se2.HALT_M_S and _stop(vh) + (2.0 * se2.STOP_SPREAD_M if cut else 0.0) >= room)
 
 
 def hop_blocked(g):
@@ -200,7 +211,6 @@ def ahead(boxes, at, way):
     lo = np.where(flat, np.minimum(t1, t2), np.where(within, -np.inf, np.inf)).max(axis=1)
     hi = np.where(flat, np.maximum(t1, t2), np.where(within, np.inf, -np.inf)).min(axis=1)
     inside = within.all(axis=1)
-    far, od = np.abs(o) / half, o * d
-    deeper = np.where(far[:, 1] > far[:, 0], od[:, 1], od[:, 0]) < 0.0
+    deeper = _deeper(o, d, half, off)
     hit = ((lo <= hi) & (hi >= 0.0) & ~inside) | (inside & deeper)
     return float((np.where(inside, 0.0, np.maximum(lo, 0.0)) - off)[hit].min()) if hit.any() else math.inf
