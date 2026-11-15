@@ -23,6 +23,7 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 from machine.body import drives, mechatronics, peripherals
 
 _env = mechatronics.environment()
+_mat = mechatronics.materials()
 _inv = mechatronics.library()['inverters'][drives.STACKS['knee'][2]]
 _TH = peripherals.thermal()
 _COOL = peripherals.cooling()
@@ -46,8 +47,8 @@ SWITCHING_W = dry_loss(drives.PACK_V)
 #: The nodes: the switches, the laminate under them, the coaxial aluminium stator-housing, the winding.
 #: Heat capacities, J/K, and thermal resistances, K/W (`inverters.toml`, `drives.stator`).
 NODES = ('switch', 'laminate', 'stator', 'winding')
-SWITCH_J_K, LAMINATE_J_K, INTO_K_W = (
-    float(_inv[k]) for k in ('switch_j_k', 'laminate_j_k', 'into_k_w'))
+SWITCH_J_K = float(_inv['switch_j_k'])
+LAMINATE_J_K, INTO_K_W = mechatronics.laminate_j_k(_inv, _mat), mechatronics.into_k_w(_inv, _mat)
 STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, CLOTH_AIR_DEFAULT = drives.stator('left_knee')
 
 #: Each node's ceiling, C, and the FETs' junction limit over the switches by RTH_JC K/W (`inverters.toml`).

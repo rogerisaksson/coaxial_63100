@@ -259,24 +259,19 @@ def _gearbox_has_play(report, physics, figure, i):
         return rows
     on = run(0.3, tau)
     across = next((t for t, d, _q in on if d >= gap), None)
-    still = max(abs(q) for t, d, q in on if across is None or t <= across)
+    still = max(abs(q) for t, _d, q in on if across is None or t <= across)
     report.check('the link stands while the rotor crosses the play, 10-60 ms',
-                 across is not None and 0.01 <= across <= 0.06 and still < 1e-4,
-                 'across at %s s, the link moved %.2e rad meanwhile' % (across, still))
+                 across is not None and 0.01 <= across <= 0.06 and still < 1e-4, '%s s, %.2e rad' % (across, still))
     wound = gap + tau / wind
     report.check('past the play the box winds up tau / wind and the link turns',
                  abs(on[-1][1] - wound) < 0.3 * wound and on[-1][2] > 0.005,
-                 'rotor %.1f mrad past the link of %.1f, the link turned %.1f mrad in 0.3 s' % (
-                     1e3 * on[-1][1], 1e3 * wound, 1e3 * on[-1][2]))
+                 '%.1f vs %.1f mrad, link %.1f mrad' % (1e3 * on[-1][1], 1e3 * wound, 1e3 * on[-1][2]))
     back = run(0.3, -tau)
     cross = next((t for t, d, _q in back if d <= -gap), None)
-    at = next((q for t, d, q in back if cross is not None and t >= cross), None)
+    at = next((q for t, _d, q in back if cross is not None and t >= cross), None)
     report.check('reversed, the rotor crosses the play again before the link turns back',
                  cross is not None and 0.01 <= cross - on[-1][0] <= 0.1 and at is not None
-                 and at >= on[-1][2] - 1e-6,
-                 'the other flank met %s s after the reversal, the link at %.1f mrad from %.1f' % (
-                     None if cross is None else round(cross - on[-1][0], 3),
-                     1e3 * (at if at is not None else 0.0), 1e3 * on[-1][2]))
+                 and at >= on[-1][2] - 1e-6, '%s s' % (None if cross is None else round(cross - on[-1][0], 3)))
 
 
 def test_every_build_runs_it(report):
@@ -295,38 +290,44 @@ def test_every_build_runs_it(report):
                      run.returncode == 0 and 'smoke: clean' in run.stdout, (run.stdout + run.stderr)[-300:])
 
 
+def _s(words):
+    return set(words.split())
+
+
 def test_its_gait_is_stated_on_it(report):
     """Declarative `.toml` specs hold physical construction only and cache/recompile on edit."""
     import math, os, tempfile, tomllib
     from machine.body import build, drives, figure, gait, mechatronics, servos
     with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
         raw = tomllib.load(f)
-    banned = {'servo', 'wind', 'series', 'gait', 'service', 'pack_v', 'cooling', 'clamped',
-              'rigid_play_deg', 'ahead_wind', 'ahead_play', 'mount_k_w', 'off_mount_k_w', 'passive_limits'}
-    req = {'bus', 'stops', 'boards', 'mounts', 'linkage', 'skeleton', 'garments', 'elastomers'}
+    banned = _s('servo wind series gait service pack_v cooling clamped rigid_play_deg '
+                'ahead_wind ahead_play mount_k_w off_mount_k_w passive_limits')
     lib, c_cfg, w_cfg, m_cfg = (mechatronics.library(), mechatronics.crafts(),
                                 mechatronics.environment(), mechatronics.materials())
-    bus_ban = {'bus_hz', 'law_div', 'thermal_s', 'spin_s', 'stall_s', 'threads_a_limb',
-               'eso_bw_share', 'observe_x', 'rate_s', 'play_nm', 'wear_window_s', 'wear_trend_windows'}
-    eyes_ban = {'census_px', 'window_px', 'quantum', 'p1', 'p2', 'texture', 'unique'}
-    world_ban = {'step_s', 'substeps', 'cone', 'impratio', 'stand_m', 'stand_solref_s', 'touched_n', 'simulation', 'harness'}
-    craft_ban = ({k for c in c_cfg.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
-                 & {'step_s', 'arena', 'drive_load', 'k_thrust', 'k_drag', 'inertia_xx', 'stiffness', 'damping',
-                    'turn_bandwidth', 'alpha_run_deg', 'climb_deg', 'harrier_deg', 'tictoc_hz', 'tictoc_deg',
-                    'most_deg', 'nose_m_s', 'head_tip_m_s', 'drive_rad_s'})
-    inv_hs = lib['inverters']['coaxial_63100']['heatsink']
+    bus_ban = _s('bus_hz law_div thermal_s spin_s stall_s threads_a_limb eso_bw_share '
+                 'observe_x rate_s play_nm wear_window_s wear_trend_windows')
+    craft_keys = {k for c in c_cfg.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
+    craft_ban = craft_keys & _s('step_s arena drive_load k_thrust k_drag inertia_xx stiffness damping '
+                                'turn_bandwidth alpha_run_deg climb_deg harrier_deg tictoc_hz tictoc_deg '
+                                'most_deg nose_m_s head_tip_m_s drive_rad_s')
     lib_ban = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
                | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
-               | {k for v in lib['inverters'].values() for k in v} & {'laminate_k_w', 'loop_hz', 'v_frac', 'envelope'}
-               | (set(inv_hs) & {'fan_temp_on', 'fan_temp_full', 'fan_idle_duty'}))
+               | {k for v in lib['inverters'].values() for k in v}
+               & _s('laminate_k_w laminate_j_k into_k_w loop_hz v_frac envelope')
+               | (set(lib['inverters']['coaxial_63100']['heatsink']) & _s('fan_temp_on fan_temp_full fan_idle_duty')))
     report.check('library, humanoid and craft .toml files hold pure physical construction only',
-                 req <= set(raw) and not (banned & set(raw)) and not ({'squat', 'stand', 'stand_knee'} & set(raw['figure']))
-                 and not (bus_ban & set(raw['bus'])) and not (eyes_ban & set(raw['eyes']))
-                 and not ({'flex_at', 'flex_deg', 'margin'} & set(raw['shell']))
-                 and not ({'settle_s', 'damp', 'soft', 'width_m'} & set(raw['elastomers']['sole']))
+                 _s('bus stops boards mounts linkage skeleton garments elastomers') <= set(raw)
+                 and not (banned & set(raw)) and not (_s('squat stand stand_knee') & set(raw['figure']))
+                 and not (bus_ban & set(raw['bus']))
+                 and not (_s('census_px window_px quantum p1 p2 texture unique') & set(raw['eyes']))
+                 and not (_s('flex_at flex_deg margin') & set(raw['shell']))
+                 and not (_s('settle_s damp soft width_m') & set(raw['elastomers']['sole']))
                  and not ({'stop_s', 'hold_n'} & set(raw['garments']['lace'])) and 'stop_s' not in raw['garments']['hem']
-                 and not (world_ban & set(w_cfg)) and not craft_ban and not lib_ban
+                 and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n simulation harness') & set(w_cfg))
+                 and 'discs' not in w_cfg['weather'] and not craft_ban and not lib_ban
                  and 'g_m_s2' in w_cfg and 'solids' in m_cfg and 'rad_s' not in raw['toes']
+                 and lib['gearboxes']['A']['ratio'] == lib['gearboxes']['B']['ratio']
+                 and mechatronics.laminate_j_k(lib['inverters']['coaxial_63050'], m_cfg) == 7.8
                  and 'stack_on' in raw['boards']['ankle'] and 'stack_on' in raw['boards']['head'])
     with tempfile.NamedTemporaryFile('w', suffix='.toml', delete=False, encoding='utf-8') as tf:
         tf.write('mass = 2.0\n')

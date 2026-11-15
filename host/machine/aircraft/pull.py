@@ -39,6 +39,7 @@ class Rotor(NamedTuple):
 
 
 _PULL = aircraft_compile.part('pull')
+ROTORS = int(_PULL['rotors'])
 
 #: The 63100's can and a 16x14 on it, kg m^2 (`motors.toml`, `crafts.toml`).
 CAN_J, PROP_J = _PULL['can_j'], _PULL['prop_j']
@@ -105,7 +106,7 @@ def linked(volts, rotors=0, rotor=ROTOR):
 
 LINK = tuple(linked(VOLTS[0] + k * VOLTS[2])
              for k in range(int(round((VOLTS[1] - VOLTS[0]) / VOLTS[2])) + 1))
-PACK = tuple(linked(flightpack.open_volts(k / (CHARGES - 1.0)), 4) for k in range(CHARGES))
+PACK = tuple(linked(flightpack.open_volts(k / (CHARGES - 1.0)), ROTORS) for k in range(CHARGES))
 
 
 def between(rows, x):
@@ -155,6 +156,6 @@ def slew(amps=I_WEP, w=math.inf, rotor=ROTOR):
 
 
 def thrust(w, along=0.0):
-    """The four's thrust at `w` each, N, the air `along` their discs' axis taking its share
+    """The rotors' thrust at `w` each, N, the air `along` their discs' axis taking its share
     (`quad.inflow`)."""
-    return 4.0 * quad.K_THRUST * w * w * quad.inflow(along, w)
+    return ROTORS * quad.K_THRUST * w * w * quad.inflow(along, w)

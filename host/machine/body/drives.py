@@ -466,7 +466,7 @@ def speed(joint):
 #: J/K, and a board's K/W to its stator on its axis and off it.
 CLOTH_AIR = dict(_BUILD['cloth'])
 STATOR_J_K = {k: float(m.get('stator_j_k', round(_CP_HOUS * m['kg']))) for k, m in _LIB['motors'].items()}
-_DISC_M, _REF_AMPS = INVERTERS[STACKS['knee'][2]][0], INVERTERS['coaxial_63100'][1]
+_DISC_M, _REF_AMPS = INVERTERS[STACKS['knee'][2]][0], INVERTERS[STACKS['knee'][2]][1]
 _CONTACT_M2 = math.pi * (0.5 * _DISC_M) ** 2 / 3.0
 MOUNT_K_W = float(_BUILD['mount_k_w']) if 'mount_k_w' in _BUILD else round(_TIM_M / (_K_TIM * _CONTACT_M2), 2)
 OFF_MOUNT_K_W = (float(_BUILD['off_mount_k_w']) if 'off_mount_k_w' in _BUILD

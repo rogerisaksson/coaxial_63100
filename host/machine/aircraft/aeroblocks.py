@@ -13,7 +13,7 @@ AERO_BLOCKS = {
                       'profile_drag_share induced_drag_share cyclic_drag_share inflow_j0 '
                       'blade_pitch inflow_floor'),
     'tail_rotor': _sp('boom_arm radius pitch_limit k_thrust'),
-    'rotors': _sp('arm_length disc_height disc_radius disc_half_height k_thrust k_drag '
+    'rotors': _sp('rotors arm_length disc_height disc_radius disc_half_height k_thrust k_drag '
                   'inflow_j0 blade_pitch'),
     'flapping_wings': _sp('wing_span wing_chord shoulder_x fore_z aft_z shoulder_y '
                           'stroke_limit pitch_limit sweep_fold_limit k_thrust k_lift '
@@ -162,7 +162,8 @@ def compile_section(form, c, base, blocks, sec):
     """Compile a `defaerodynamics`, `defdynamics`, or `defkinematics` section and update symbols."""
     out = copy_base(form, base)
     amap = AERO_BLOCKS if sec == 'aerodynamics' else DYN_BLOCKS if sec == 'dynamics' else KIN_BLOCKS
-    rmap = DYN_REQUIRED if sec == 'dynamics' else {}
+    rmap = DYN_REQUIRED if sec == 'dynamics' else ({'rotors': AERO_BLOCKS['rotors'][1:]}
+                                                   if sec == 'aerodynamics' else {})
     for b in form[2:]:
         _apply_sec_block(b, out, amap, c, blocks, sec)
     for k, v in out.items():
@@ -181,7 +182,8 @@ def compile_section(form, c, base, blocks, sec):
         if kind:
             tau = _ROTOR_MAX_NM if kind == 'rotors' else out['drive_load']['main_ceiling']
             w2 = tau / max(out[kind]['k_drag'], 1e-9)
-            c.symbols['MAX_SYS_THRUST'] = out[kind]['k_thrust'] * (4.0 if kind == 'rotors' else 1.0) * w2
+            c.symbols['MAX_SYS_THRUST'] = (out[kind]['k_thrust']
+                                           * (out[kind].get('rotors', 4.0) if kind == 'rotors' else 1.0) * w2)
         return out
     if sec == 'dynamics':
         if any(b not in out for b in ('rigid_body', 'governor', 'impedance', 'observers')):

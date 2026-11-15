@@ -13,6 +13,7 @@ corrections (`machine.identify.identified`) with it.
 """
 import hashlib
 import json
+import math
 import os
 import tempfile
 import tomllib
@@ -152,14 +153,44 @@ def compiled(key: str, paths, builder) -> dict[str, Any]:
     return payload
 
 
+def _resolve(raw):
+    out = {}
+
+    def one(name):
+        if name in out:
+            return out[name]
+        cfg = raw[name]
+        if isinstance(cfg, dict) and 'extends' in cfg:
+            out[name] = _merged(one(cfg['extends']), {k: v for k, v in cfg.items() if k != 'extends'})
+        else:
+            out[name] = dict(cfg) if isinstance(cfg, dict) else cfg
+        return out[name]
+
+    for k in raw:
+        one(k)
+    return out
+
+
 def library():
     """{part: {name: its data}} of every part in the library."""
-    return {part: _toml(os.path.join(LIBRARY, part + '.toml')) for part in PARTS}
+    return {part: _resolve(_toml(os.path.join(LIBRARY, part + '.toml'))) for part in PARTS}
 
 
 def materials():
     """Structural laminates, metals, stock carbon tubes and thermal material constants (`materials.toml`)."""
     return _toml(os.path.join(LIBRARY, 'materials.toml'))
+
+
+def laminate_j_k(inv, mat) -> float:
+    """Laminate heat capacity (J/K) from copper-FR4 areal heat capacity and disc diameter."""
+    return float(inv.get('laminate_j_k',
+                         round(float(mat['laminate_j_m2_k']) * math.pi * (0.5 * float(inv['disc_m'])) ** 2, 1)))
+
+
+def into_k_w(inv, mat) -> float:
+    """Switch-to-laminate prepreg thermal resistance (K/W) from areal conductance and disc diameter."""
+    return float(inv.get('into_k_w',
+                         round(1.0 / (float(mat['prepreg_w_m2_k']) * math.pi * (0.5 * float(inv['disc_m'])) ** 2), 1)))
 
 
 def v_frac(inv) -> float:
@@ -186,17 +217,7 @@ def environment(name: str | None = ROBOT):
 
 def crafts():
     """Declarative physical construction of every aircraft and variant (`aircraft/crafts.toml`)."""
-    raw = _toml(os.path.join(HERE, 'aircraft', 'crafts.toml'))
-    out = {'shared': dict(raw['shared'])}
-    for name, cfg in raw.items():
-        if name == 'shared' or not isinstance(cfg, dict):
-            continue
-        if 'extends' in cfg:
-            base = out.get(cfg['extends']) or raw[cfg['extends']]
-            out[name] = _merged(base, {k: v for k, v in cfg.items() if k != 'extends'})
-        else:
-            out[name] = dict(cfg)
-    return out
+    return _resolve(_toml(os.path.join(HERE, 'aircraft', 'crafts.toml')))
 
 
 def robots():

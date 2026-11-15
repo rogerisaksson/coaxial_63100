@@ -43,7 +43,8 @@ def _build_peripherals():
     inv_k_name = rbt['stacks']['knee'][2]
     inv_k = lib['inverters'][inv_k_name]
     t_sw, t_lam, tj_max = float(inv_k['ceiling_c'][0]), float(inv_k['ceiling_c'][1]), float(inv_k['tj_max_c'])
-    sw_jk, lam_jk, into_kw = float(inv_k['switch_j_k']), float(inv_k['laminate_j_k']), float(inv_k['into_k_w'])
+    sw_jk = float(inv_k['switch_j_k'])
+    lam_jk, into_kw = mechatronics.laminate_j_k(inv_k, mat), mechatronics.into_k_w(inv_k, mat)
     tau_sw = sw_jk * into_kw
     tau_lam = lam_jk * drives.INVERTERS[inv_k_name][3]
     margin = round((t_lam - amb) / (t_sw - amb + (t_sw - t_lam) / math.sqrt(2.0)), 2)
@@ -143,7 +144,7 @@ def _build_peripherals():
 
 def _compiled():
     srcs = (mechatronics.robot_sources() + mechatronics.craft_sources()
-            + (__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
+            + (__file__, mechatronics.__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
     return mechatronics.compiled('peripherals_' + mechatronics.ROBOT, srcs, _build_peripherals)
 
 

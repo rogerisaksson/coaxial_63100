@@ -48,7 +48,6 @@ shear = 0.2
 shear_m = 0.1
 shear_most = 1.5
 rise_m = 3.0
-discs = 4
 
 [weather.kinds]
 calm = [0.5, 0.0, 0.0, 0.0, 0.0, 0.1]

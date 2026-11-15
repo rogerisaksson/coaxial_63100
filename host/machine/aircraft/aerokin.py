@@ -84,8 +84,8 @@ def sized():
 
 
 def idle():
-    """What the four give a kg at their idle, m/s^2."""
-    return 4.0 * quad.K_THRUST * quad.IDLE_RAD_S ** 2 / quad.MASS_KG
+    """What the rotors give a kg at their idle, m/s^2."""
+    return len(quad.ROTOR_AT) * quad.K_THRUST * quad.IDLE_RAD_S ** 2 / quad.MASS_KG
 
 
 def fresh():
@@ -178,7 +178,7 @@ def seen(law, frame, dt, pull, top):
     return {'dt': dt, 'share': pull / full, 'heading': math.atan2(s, c), 'full': full,
             'pull': max(LEAST * quad.GRAVITY, pull),
             'pitch': quad.INFLOW_J0 * quad.PITCH_M * quad.speed_for(
-                top * quad.MASS_KG / 4.0) / math.tau,
+                top * quad.MASS_KG / len(quad.ROTOR_AT)) / math.tau,
             'spot': tuple(law['spot']), 'gust': law.get('gust', 0.0), 'at': [float(x) for x in frame['at']],
             'vel': [float(x) for x in frame['vel']]}
 

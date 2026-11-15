@@ -1,7 +1,8 @@
 # Inverters: disc diameter (m), phase amps, gate dead-time (s), mass (kg), axial height with parts
 # (m), bus ceiling (V), PWM switching frequency (Hz), encoder resolution and thermal/heatsink network.
-# Voltage utilization, laminate K/W, current-loop bandwidth, SOA derating envelope and fan curve are
-# derived by the static meta-compilers (`machine.body.drives`, `peripherals`, `aircraft.compile`).
+# Voltage utilization, laminate J/K and K/W, switch-to-laminate K/W, current-loop bandwidth, SOA
+# derating envelope and fan curve are derived by the static meta-compilers (`machine.body.drives`,
+# `mechatronics`, `peripherals`, `aircraft.compile`).
 
 [coaxial_63100]
 disc_m = 0.100
@@ -22,8 +23,6 @@ housekeeping_w = 1.33
 dry_loss_24v_w = 2.4
 dry_loss_w_per_v = 0.1
 switch_j_k = 0.35
-laminate_j_k = 16.0
-into_k_w = 4.0
 rth_jc = 0.69
 tj_max_c = 175.0
 ceiling_c = [125.0, 105.0, 120.0, 120.0]
@@ -42,26 +41,9 @@ fan_max_rpm = 8000.0
 ram_air_share = 0.35
 
 [coaxial_63050]
+extends = "coaxial_63100"
 disc_m = 0.070
 amps = 50.0
 flight_amps = 35.0
 wep_amps = 50.0
-deadtime_s = 0.5e-6
 kg = 0.12
-height_m = 0.015
-volts = 63.0
-pwm_hz = 50000.0
-encoder_counts = 4096
-rds_ohm = 1.8e-3
-rds_alpha = 4.6e-3
-rds_beta = 1.2e-5
-shunt_ohm = 3.5e-3
-housekeeping_w = 1.33
-dry_loss_24v_w = 2.4
-dry_loss_w_per_v = 0.1
-switch_j_k = 0.35
-laminate_j_k = 16.0
-into_k_w = 4.0
-rth_jc = 0.69
-tj_max_c = 175.0
-ceiling_c = [125.0, 105.0, 120.0, 120.0]

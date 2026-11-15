@@ -97,9 +97,9 @@ def aero_blocks(crafts, inv, rho):
     q_kt, q_kq = kt(rho, qc['ct'], q_d), kq(rho, qc['cp'], q_d)
     s15 = float(q15['diameter_m']) / q_d
     j0, inf_fl = float(sh['inflow_j0']), float(sh['inflow_floor'])
-    q_rot = {'arm_length': q_arm, 'disc_height': float(qc['disc_height_m']), 'disc_radius': 0.5 * q_d,
-             'disc_half_height': float(qc['disc_half_m']), 'k_thrust': q_kt, 'k_drag': q_kq,
-             'inflow_j0': j0, 'blade_pitch': float(qc['pitch_m'])}
+    q_rot = {'rotors': int(qc['rotors']), 'arm_length': q_arm, 'disc_height': float(qc['disc_height_m']),
+             'disc_radius': 0.5 * q_d, 'disc_half_height': float(qc['disc_half_m']), 'k_thrust': q_kt,
+             'k_drag': q_kq, 'inflow_j0': j0, 'blade_pitch': float(qc['pitch_m'])}
     h_d, ht_d = float(he['diameter_m']), float(he['tail_diameter_m'])
     h_r, ht_r = 0.5 * h_d, 0.5 * ht_d
     h_kt, h_kq = round(kt(rho, he['ct'], h_d), 7), kq(rho, he['cp'], h_d)
@@ -177,9 +177,9 @@ def body_and_cooling_blocks(crafts, mat, inv, env, g):
     he, hh = crafts['helicopter'], crafts['helicopter_heavy']
     or_, oh = crafts['ornithopter'], crafts['ornithopter_heavy']
     ae, ah = crafts['aerobat'], crafts['aerobat_heavy']
-    q_m, q_arm = float(qc['mass_kg']), float(qc['arm_m'])
-    q_c = round(q_m / 4.0 * q_arm * q_arm, 6)
-    qh_c = round(float(qh['mass_kg']) / 4.0 * q_arm * q_arm, 6)
+    q_n, q_m, q_arm = float(qc['rotors']), float(qc['mass_kg']), float(qc['arm_m'])
+    q_c = round(q_m / q_n * q_arm * q_arm, 6)
+    qh_c = round(float(qh['mass_kg']) / q_n * q_arm * q_arm, 6)
     base_rb = {'mass': q_m, 'gravity': g, 'inertia_xx': q_c, 'inertia_yy': 2.0 * q_c, 'inertia_zz': q_c,
                'skid_height': float(qc['skid_h_m']), 'foot_radius': float(crafts['shared']['foot_r_m'])}
     quad_rb = {**base_rb, 'hub_x': float(qc['hub_m'][0]), 'hub_y': float(qc['hub_m'][1]), 'hub_z': float(qc['hub_m'][2])}

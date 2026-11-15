@@ -48,9 +48,13 @@ BODY_CDA, RHO = _AF['parasite_cda'], _AF['air_density']
 #: the discs 0.6 m apart for 0.406 m props, and the way each turns seen from above: the
 #: diagonals alike, so their drags' torques cancel. Front left, front right, rear right, rear
 #: left.
+ROTORS = int(_ROT.get('rotors', 4))
 ARM_M = _ROT['arm_length']
-ROTOR_AT = ((-ARM_M, ARM_M), (ARM_M, ARM_M), (ARM_M, -ARM_M), (-ARM_M, -ARM_M))
-SPIN = (1.0, -1.0, 1.0, -1.0)
+_UNIT_AT = tuple((round(math.sqrt(2.0) * math.sin((2 * k - 1) * math.pi / ROTORS), 12),
+                  round(math.sqrt(2.0) * math.cos((2 * k - 1) * math.pi / ROTORS), 12))
+                 for k in range(ROTORS))
+ROTOR_AT = tuple((ux * ARM_M, uz * ARM_M) for ux, uz in _UNIT_AT)
+SPIN = tuple(1.0 if k % 2 == 0 else -1.0 for k in range(ROTORS))
 
 #: The discs' height over the frame's middle, the skids' under it and a skid's foot's radius,
 #: m; what of the frame strikes a thing: a disc, a 16 in propeller's radius and half its
@@ -77,7 +81,7 @@ STEP_S = _GOV['step_time']
 INFLOW_J0, PITCH_M = _ROT['inflow_j0'], _ROT['blade_pitch']
 
 #: The frame's inertia, kg m^2 about its axes: a rotor's share of its mass at each corner.
-_CORNER = MASS_KG / 8.0 * 2.0 * ARM_M * ARM_M
+_CORNER = MASS_KG / (2.0 * ROTORS) * 2.0 * ARM_M * ARM_M
 INERTIA = (_CORNER, 2.0 * _CORNER, _CORNER)
 
 #: The frame's numbers as they go with its size, each by the size to this power (`sized`):
@@ -100,9 +104,9 @@ def sized(size=1.0):
     scope = globals()
     for name, power in _POWERS.items():
         scope[name] = _BUILT[name] * size ** power
-    arm, corner = scope['ARM_M'], scope['MASS_KG'] / 8.0 * 2.0 * scope['ARM_M'] ** 2
+    arm, corner = scope['ARM_M'], scope['MASS_KG'] / (2.0 * ROTORS) * 2.0 * scope['ARM_M'] ** 2
     scope.update(HUB_M=tuple(size * x for x in _BUILT['HUB_M']),
-                 ROTOR_AT=((-arm, arm), (arm, arm), (arm, -arm), (-arm, -arm)),
+                 ROTOR_AT=tuple((ux * arm, uz * arm) for ux, uz in _UNIT_AT),
                  INERTIA=(corner, 2.0 * corner, corner))
 
 
@@ -314,7 +318,7 @@ class Sky:
                 xm[0], xm[1], xm[2], xm[3], xm[4], xm[5], xm[6], xm[7], xm[8])
             s0, s1, s2 = qv[0] - wx, qv[1] - wy, qv[2] - wz
             fast = math.sqrt(s0 * s0 + s1 * s1 + s2 * s2)
-            k_eddy = -0.125 * RHO * BODY_CDA
+            k_eddy = (-0.5 / ROTORS) * RHO * BODY_CDA
             for k, ((x, z), eddy) in enumerate(zip(ROTOR_AT, air['eddies'])):
                 ex, ey, ez = wind_at(eddy, h)
                 o0, o1, o2 = s0 - ex, s1 - ey, s2 - ez

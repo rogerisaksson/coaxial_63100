@@ -151,7 +151,8 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
         'defaults': (float(qc['mass_kg']) * g, orb_v),
         'pack': {'cells': int(fp['series']), 'ah': float(fp['ah']), 'ohm': float(fp['ohm']),
                  'reserve': float(fp['reserve']), 'cell_v': tuple((float(a), float(b)) for a, b in fp['cell_v'])},
-        'pull': {'can_j': can_j, 'prop_j': float(qc['prop_kgm2']), 'r': float(mot['ohm']), 'lq': float(mot['lq_h']),
+        'pull': {'rotors': int(qc['rotors']), 'can_j': can_j, 'prop_j': float(qc['prop_kgm2']),
+                 'r': float(mot['ohm']), 'lq': float(mot['lq_h']),
                  'lam': float(mot['flux_vs']), 'pairs': float(mot['pole_pairs']), 'b': float(mot['viscous_nms']),
                  'i_max': float(inv['flight_amps']), 'i_wep': float(inv['wep_amps']), 'v_frac': vf,
                  'volts': (float(v_min), float(v_max), 0.5), 'charges': 41, 'over_rad_s': float(round(w_nl, -3)),
@@ -199,7 +200,7 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
                     'eddy_s': float(w['eddy_s']), 'eddy_disc_s': float(w['eddy_disc_s']),
                     'eddy_disc': float(w['eddy_disc']), 'eddy_up': float(w['eddy_up']),
                     'ref_m': float(w['ref_m']), 'shear': float(w['shear']), 'shear_m': float(w['shear_m']),
-                    'shear_most': float(w['shear_most']), 'rise_m': float(w['rise_m']), 'discs': int(w['discs'])},
+                    'shear_most': float(w['shear_most']), 'rise_m': float(w['rise_m']), 'discs': int(qc['rotors'])},
     }
 
 

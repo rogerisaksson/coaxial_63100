@@ -74,12 +74,13 @@ class Flight:
     (`top`, `spool`, `lag`): TOP_RAD_S, SPOOL_RAD_S2 and LAG_S as built."""
 
     def __init__(self, air=None, at=None, things=(), eyes=None):
+        n = len(quad.ROTOR_AT)
         self.sky, self.core, self.air, self.eyes = quad.Sky(things), aero.Core(), air, eyes
-        self.w, self.clock, self.dt, self.owed = [0.0] * 4, 0.0, quad.STEP_S, 0.0
+        self.w, self.clock, self.dt, self.owed = [0.0] * n, 0.0, quad.STEP_S, 0.0
         self.top, self.spool, self.lag = TOP_RAD_S, SPOOL_RAD_S2, LAG_S
         if at is not None:
             self.sky.data.qpos[0:3] = (at[0], at[1] + quad.SKID_M + quad.FOOT_M, at[2])
-            self.w = [quad.speed_for(quad.MASS_KG * quad.GRAVITY / 4.0)] * 4
+            self.w = [quad.speed_for(quad.MASS_KG * quad.GRAVITY / n)] * n
             self.forward()
 
     def forward(self):
@@ -113,7 +114,7 @@ class Boards:
         from terminal.views.quad import flight as view
         self.view, self.sky, self.core, self.top = view, quad.Sky(things), aero.Core(), TOP_RAD_S
         self.rotors = [view.arm(Coaxial63100(execution_mode=SIMULATED).open(),
-                                clock=clock, warm_s=warm_s) for _ in range(4)]
+                                clock=clock, warm_s=warm_s) for _ in range(len(quad.ROTOR_AT))]
         self.flight: dict[str, Any] = dict(view.fresh(), air=air, eyes=eyes)
         self.eyes = eyes
         self.clock, self.dt, self.peak, self.owed = 0.0, view.STEP_S, {}, 0.0
@@ -189,7 +190,7 @@ def flown(flight, payloads, seconds, near=None):
 
 def top(flight):
     """All a flight's rotors give a kg at their top, m/s^2."""
-    return 4.0 * quad.K_THRUST * flight.top ** 2 / quad.MASS_KG
+    return len(quad.ROTOR_AT) * quad.K_THRUST * flight.top ** 2 / quad.MASS_KG
 
 
 def asked(flight, route, law, clock, dt=PASS_S, words=('fit',), share=1.0):
