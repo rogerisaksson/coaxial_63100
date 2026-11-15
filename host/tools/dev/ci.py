@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """What GitHub's last host run told: its red suites run first here, its seconds the table's work.
 
-    python tools/dev/ci.py        # GitHub asked (gh): the suites its last host run on main left red
+    python tools/dev/ci.py          # GitHub asked (gh): the suites its last host run on main left red
+    python tools/dev/ci.py --green  # the last commit on main that host, firmware and both gates left green
 
 Its red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
---keep`).
+--keep`). `--green` names the reference tree: the newest commit whose host run, whose firmware run, and whose
+both ended green (`green`, `whole`), each with how many commits HEAD is past it (`behind`) and its subject; a
+red suite is A/B'd against a worktree at that commit and the fault read in the diff, not derived from first
+principles.
 
 The gate on GitHub stops at its first red suite and leaves its log's tail as a comment on its commit;
 `FAILED_FIRST` schedules suites right after the structural ones, so a run here says first whether the
@@ -25,6 +29,12 @@ from tools.dev.suites import ROOT
 
 #: The file that holds FAILED_FIRST, from the repository's top; the workflow and the branch asked.
 SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites.py', 'host.yml', 'main'
+
+#: The workflows whose gates together are the system's: the host's suites and the target's firmware.
+WORKFLOWS = ('host.yml', 'firmware.yml')
+
+#: How many of a workflow's green runs are asked at most, the newest first; `whole` meets in them.
+GREENS = 100
 
 #: A red suite in a gate's log tail: one that failed a check, or crashed.
 RED = re.compile(r'^(test_\w+\.py)\s+(?:\d+ passed, [1-9]\d* failed|CRASHED)', re.M)
@@ -97,6 +107,64 @@ def asked():
     return None if got is None else (got[0], red(got[1]))
 
 
+def _git(*words):
+    """git's answer, stripped; None where git says no (a commit not here, no repository)."""
+    try:
+        done = subprocess.run(['git', *words], capture_output=True, text=True, encoding='utf-8',
+                              errors='replace', timeout=20, cwd=ROOT)
+        return done.stdout.strip() if done.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def green(workflow, limit=GREENS):
+    """[(commit, when, run)] of the workflow's runs on main that ended green, the newest first, `limit` at
+    most; None where GitHub could not be asked."""
+    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', workflow, '--status', 'success',
+               '--limit', str(limit), '--json', 'headSha,createdAt,databaseId')
+    return None if runs is None else [(run['headSha'], run['createdAt'], run['databaseId']) for run in runs]
+
+
+def whole(*greens):
+    """The newest commit green in every list given (`green`'s, each the newest first): the first run of the
+    first list whose commit the others hold too; None where there is none."""
+    first, *others = greens
+    held = [{run[0] for run in other} for other in others]
+    return next((run for run in first if all(run[0] in shas for shas in held)), None)
+
+
+def behind(sha):
+    """How many commits HEAD is past `sha`, 0 at HEAD itself; None where the commit is not here (fetch)."""
+    count = _git('rev-list', '--count', '%s..HEAD' % sha)
+    return None if count is None else int(count)
+
+
+def reference():
+    """{workflow: its newest green run on main or None} for WORKFLOWS, and 'both': the newest commit every
+    one of them left green (`whole`); None where GitHub could not be asked."""
+    found = {workflow: green(workflow) for workflow in WORKFLOWS}
+    if any(runs is None for runs in found.values()):
+        return None
+    named = {workflow: (runs[0] if runs else None) for workflow, runs in found.items()}
+    named['both'] = whole(*found.values())
+    return named
+
+
+def said(named):
+    """The lines that tell {name: its newest green run or None}: its commit, how far HEAD is past it
+    (`behind`) and its subject cut to a line; 'none green' where none ended green."""
+    width, lines = max(map(len, named)), []
+    for name, run in named.items():
+        if run is None:
+            lines.append('ci: %-*s  none green on %s' % (width, name, BRANCH))
+            continue
+        past, subject = behind(run[0]), _git('log', '-1', '--format=%s', run[0]) or ''
+        where = 'not here (git fetch)' if past is None else '%d commits behind HEAD' % past
+        lines.append('ci: %-*s  green last at %s, %s: %s'
+                     % (width, name, run[0][:8], where, textwrap.shorten(subject, 72)))
+    return lines
+
+
 def led(source, suites):
     """`source`, suites.py's text, with `suites` at the head of its FAILED_FIRST and the others after them in
     their order; `source` itself where they lead already, or it holds no such tuple."""
@@ -109,13 +177,34 @@ def led(source, suites):
     return source[:found.start()] + 'FAILED_FIRST = (' + ('\n' + INDENT).join(lines) + ')' + source[found.end():]
 
 
-def main():
-    """GitHub asked, its answer said: 1 where it could not be asked."""
+def red_said():
+    """The line that tells what GitHub's last host run on main left red (`asked`); None where GitHub could
+    not be asked."""
     got = asked()
     if got is None:
+        return None
+    return ["ci: the last host run on %s (%s) left %s red" % (BRANCH, got[0][:8], ', '.join(got[1]) or 'nothing')]
+
+
+def green_said():
+    """The lines that tell the last commit each workflow and both left green (`reference`, `said`); None
+    where GitHub could not be asked."""
+    named = reference()
+    return None if named is None else said(named)
+
+
+def main(argv=None):
+    """GitHub asked, its answer said: the suites its last host run left red, or with --green the last commit
+    each workflow and both left green; 1 where it could not be asked, 2 on another word."""
+    words = sys.argv[1:] if argv is None else list(argv)
+    if words not in ([], ['--green']):
+        print('usage: ci.py [--green]')
+        return 2
+    lines = green_said() if words else red_said()
+    if lines is None:
         print('ci: GitHub could not be asked (gh, its login, the network)')
         return 1
-    print("ci: the last host run on %s (%s) left %s red" % (BRANCH, got[0][:8], ', '.join(got[1]) or 'nothing'))
+    print('\n'.join(lines))
     return 0
 
 

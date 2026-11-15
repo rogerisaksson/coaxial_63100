@@ -150,6 +150,16 @@ Evaluate the prompt and working tree before invoking any tool:
     (`python -X utf8 host/tools/dev/run_tests.py` `--conformance` `--live`)
     with the complete suite to establish a quantitative existing test failure(s)
     metrics of the system.
+  + Green reference (mandatory before any red suite, fall, regression or CI
+    red is reasoned about): the last commit GitHub's CI left wholly green is
+    the reference, never first principles. Ask it
+    (`python -X utf8 host/tools/dev/ci.py` `--green`: host.yml, firmware.yml
+    and both, each its commit and how many commits HEAD is past it), check
+    that commit out in a worktree and A/B the red suite there and here
+    through the relay (the probes' `--against TREE` likewise). The fault lies
+    in `git diff GREEN..HEAD`; where the span is long, bisect it with the
+    relay (`git bisect run`). Derive a cause from first principles only where
+    no green run covers the suite, and say so in the State 2 gate.
   + Empirical Linux baseline (mandatory when CI is red, or a fault may differ
     between the operating systems: glibc, GCC, libm, MuJoCo's build, Mesa): the
     relay's selector runs the same gate here on Windows (default) or in local
@@ -242,6 +252,8 @@ Evaluate the prompt and working tree before invoking any tool:
 ```text
 [STATE 2 GATE: ROOT CAUSE, SOLVER SPACE & INVARIANT PROOF]
 - Rebased and merged: [no stale code, A/B test with your stash, branch or worktree]
+- Green Reference: [the commit `ci.py --green` names, A/B'd there and here, and the
+  diff that holds the fault, OR N/A (no fault located), OR no green covers the suite]
 - Proven Root Cause: [exact cybernetic, physical, or structural mechanism]
 - Prior Strike Residual & Pruned Subspace: [N/A on no Strike, OR exact numerical
   residual from State 4 and which hypothesis class it eliminated]

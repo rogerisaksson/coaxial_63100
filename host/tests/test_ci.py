@@ -5,7 +5,8 @@ runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
 take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt). And its C
-built for the gate's target (`tools.cores.build.TARGETS`)."""
+built for the gate's target (`tools.cores.build.TARGETS`). And the last commit every gate left green named as
+the reference (`ci.whole`, `ci.behind`, `ci.said`)."""
 import json
 import os
 import pathlib
@@ -283,12 +284,33 @@ def test_the_gate_builds_its_c_for_its_target(report):
                  and own[0] == '-ffp-contract=off' and all(flag.endswith('=native') for flag in own[1:]), str(own))
 
 
+def test_the_last_green_commit_is_the_reference(report):
+    """`ci.whole`: the newest commit green in every workflow's list, the lists newest first; `ci.behind`: how
+    many commits HEAD is past it, None for one not here; `ci.said`: a line a name - its commit, that distance
+    and its subject -, 'none green' where none ended green; `ci.main` on another word: usage, 2."""
+    import subprocess
+    from tools.dev import ci
+    host = [('c', '3', 3), ('b', '2', 2), ('a', '1', 1)]
+    firmware = [('d', '4', 4), ('b', '2', 2), ('a', '1', 1)]
+    report.check('the newest commit green in both lists, each newest first; none where they share none',
+                 ci.whole(host, firmware) == ('b', '2', 2) and ci.whole(host, [('z', '0', 0)]) is None
+                 and ci.whole(host) == host[0] and ci.whole([], firmware) is None, ci.whole(host, firmware))
+    head = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd=ci.ROOT).stdout.strip()
+    report.check('HEAD is 0 behind itself, its parent 1; a commit not here None',
+                 ci.behind(head) == 0 and ci.behind(head + '~1') == 1 and ci.behind('0' * 40) is None, ci.behind(head))
+    lines = ci.said({'host.yml': (head, '', 1), 'both': None})
+    report.check("a line a name: the commit, how far HEAD is past it, its subject; 'none green' where none",
+                 len(lines) == 2 and head[:8] in lines[0] and '0 commits behind HEAD' in lines[0]
+                 and lines[1].startswith('ci: both') and 'none green' in lines[1], lines)
+    report.check('another word: usage, 2', ci.main(['--red']) == 2 and ci.WORKFLOWS == ('host.yml', 'firmware.yml'))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
           test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s,
-          test_the_gate_builds_its_c_for_its_target)
+          test_the_gate_builds_its_c_for_its_target, test_the_last_green_commit_is_the_reference)
 
 
 def main(argv=None):
