@@ -2,8 +2,10 @@
 simulated shaft.
 """
 import math
+import os
 import random
 import time
+import tomllib
 from typing import Any
 
 from coaxial.devices import angle, imu
@@ -11,10 +13,12 @@ from coaxial.devices.angle import AngleSensor
 from coaxial.devices.imu import CHANNELS, ROTATION_VECTOR, ImuSensor, decode
 from coaxial.devices.scaling import KELVIN_AT_ZERO_C
 from coaxial.simulated.values import _tumble
-from machine.body import mechatronics
 
-#: The world's gravity, m/s^2 (`machine/library/world.toml`): what an accelerometer at rest reads.
-G = float(mechatronics.environment(None)['g_m_s2'])
+#: The world's gravity, m/s^2: what an accelerometer at rest reads. `machine/library/world.toml` states it
+#: and is read here as the file it is: the stand-in board comes to nothing of the robot's body for it.
+with open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                       'machine', 'library', 'world.toml'), 'rb') as _f:
+    G = float(tomllib.load(_f)['g_m_s2'])
 
 
 class SimulatedImu(ImuSensor):

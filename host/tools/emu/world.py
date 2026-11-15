@@ -15,9 +15,9 @@ import json
 import math
 import os
 import sys
+import tomllib
 
 from coaxial.simulated.values import DCBUS_V
-from machine.body import mechatronics
 from tools import REPO
 from tools.cores.build import build, find_cc
 
@@ -46,7 +46,10 @@ INCLUDES = [os.path.join(REPO, part) for part in ('world/inc', 'drive/inc', 'the
 #: world.h's enums by the names the files use.
 BODIES = {'ground': 0, 'lift': 1, 'vehicle': 2}
 LOADS = {'free': 0, 'joint': 1, 'rotor': 2, 'wheel': 3}
-_WORLD = mechatronics.environment(None)
+#: The world as `machine/library/world.toml` states it, read as the file it is: the emulator comes to nothing
+#: of the robot's body for it.
+with open(os.path.join(REPO, 'host', 'machine', 'library', 'world.toml'), 'rb') as _f:
+    _WORLD = tomllib.load(_f)
 #: What a file leaves out, in world.h's order: its gravity and its air the world's own (`world.toml`).
 BODY = (('mass', 0.0), ('gravity', float(_WORLD['g_m_s2'])), ('slope_deg', 0.0), ('crr', 0.0), ('cda', 0.0),
         ('rho', float(_WORLD['air_kg_m3'])), ('rider', 0.0), ('kick', 0.0), ('duty', 0.0))

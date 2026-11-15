@@ -29,6 +29,11 @@ PROFILED = (('ohm', 'r', 'motor_r'), ('lq_h', 'lq', 'motor_lq'), ('flux_vs', 'la
             ('pole_pairs', 'pole_pairs', 'motor_pole_pairs'))
 #: The crafts' spec's compilers, where a key it states is read: its polars, its blocks and its resolver.
 CRAFT_SOLVERS = ('machine/aircraft/polars.py', 'machine/aircraft/compile.py', 'machine/body/mechatronics.py')
+#: The rig imported in a process of its own, and what it has loaded of the robot's packages then.
+RIG = ('import sys, coaxial; from coaxial.model import inverter, thermal; from coaxial.simulated import sensors; '
+       'from tools.emu import world; '
+       'print(" ".join(sorted(m for m in sys.modules if m.startswith(("machine.body", "machine.law", '
+       '"machine.aircraft")))) or "none")')
 #: A gait number's unit by its name's end: a name ending in none of them is an angle or a share.
 UNITS = ('_m', '_m_s', '_s', '_hz', '_rad_s', '_1_s', '_1_s2', '_m_s2', '_n')
 #: A scaled build's gait as one line of JSON, asked of a process of its own (ROBOT is a process's).
@@ -77,12 +82,13 @@ def _literals(path, names):
 
 def test_the_power_stage_is_the_librarys(r):
     """`coaxial.model.inverter` and `thermal` state no number the library's inverter states: each
-    is read there, and the modulator's share of the link is the solver's (`mechatronics.v_frac`)."""
+    is read of its file, and the share of the link the model gives the modulator is the solver's
+    (`mechatronics.v_frac`)."""
     from coaxial.devices import scaling
     from coaxial.model import inverter, thermal
     from machine.body import mechatronics
     inv = mechatronics.library()['inverters']['coaxial_63100']
-    bare = _literals(os.path.join(HOST, 'coaxial', 'model', 'inverter.py'), set(STAGE) | {'V_FRAC'})
+    bare = _literals(os.path.join(HOST, 'coaxial', 'model', 'inverter.py'), set(STAGE))
     r.check('the inverter model binds none of the library\'s numbers to a literal', not bare, bare)
     apart = [n for n, key in STAGE.items() if getattr(inverter, n) != float(inv[key])]
     r.check('its switching rate, resistances and junction limit are the library\'s',
@@ -99,6 +105,18 @@ def test_the_power_stage_is_the_librarys(r):
             and all(ceilings[n] in (stator, winding) for n in thermal.MOTOR)
             and all(ceilings[n] == float(inv['tj_max_c']) and thermal.RTH_DIE[n] == float(inv['rth_jc'])
                     for n in thermal.DRIVERS), ceilings)
+
+
+def test_the_rig_reads_the_specs_as_files(r):
+    """The board's package, its models, its stand-in's sensors and the emulator's worlds read the
+    library and the world as the files they are: a process that imports them has loaded nothing of
+    the robot's body, the robot's law or the crafts (the atlas takes a page to what a module it
+    imports runs: a rig page come to the robot's body breaks the pages apart, test_views_apps)."""
+    out = subprocess.run([sys.executable, '-X', 'utf8', '-c', RIG], env=dict(os.environ, PYTHONPATH=HOST),
+                         cwd=HOST, capture_output=True, text=True)
+    loaded = out.stdout.split()
+    r.check("the rig imported loads nothing of the robot's body, the robot's law or the crafts",
+            out.returncode == 0 and loaded == ['none'], (loaded[:6], out.stderr[-200:]))
 
 
 def test_the_worlds_gravity_is_stated_once(r):
@@ -320,7 +338,8 @@ def test_a_heavier_craft_keeps_its_radii(r):
             0.0 < env['floor_height'] < env['hover_height'] < env['high_height'] < env['top_height'], env)
 
 
-ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_stated_once,
+ROSTER = (test_the_power_stage_is_the_librarys, test_the_rig_reads_the_specs_as_files,
+          test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
           test_a_scaled_figure_follows_similarity, test_a_joint_dressed_in_nothing_is_bare,

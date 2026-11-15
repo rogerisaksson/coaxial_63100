@@ -1,11 +1,13 @@
 """The power stage's numbers, in one importable place: the library's inverter, its bench's beside it."""
 import math
+import os
+import tomllib
 
-from machine.body import mechatronics
-
-#: The board as the parts library states it (`machine/library/inverters.toml`): what a sheet or
-#: the layout gives is read there, never stated twice.
-_INV = mechatronics.library()['inverters']['coaxial_63100']
+#: The board as the parts library states it (`machine/library/inverters.toml`), read as the file it is: what a
+#: sheet or the layout gives is stated there alone, and no page of the rig comes to the robot's body for it.
+with open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                       'machine', 'library', 'inverters.toml'), 'rb') as _f:
+    _INV = tomllib.load(_f)['coaxial_63100']
 
 FSW = float(_INV['pwm_hz'])    #: TIM1 centre-aligned, ARR 2375 (HARDWARE.md)
 TS = 1.0 / FSW
@@ -14,7 +16,7 @@ T_DEAD = 63.2e-9              #: DTG 15: 33.7 ns shot through dry, 42 did not
 T_DEAD_SIM = 65.4e-9          #: the simulation's worst corner
 T_MIN_PULSE = 105e-9          #: 25 ticks: TPW 40 ns + DTG 15 -> 0.53 % duty
 GATE_UVLO_V = 7.5             #: the 2EDL8034's (motor_inverters/half_bridge/2EDL8034F5.lib)
-V_FRAC = mechatronics.v_frac(_INV)    #: of the link the modulator may use
+V_FRAC = 0.95                 #: of the link the modulator may use
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.
 RDS_ON = float(_INV['rds_ohm'])
