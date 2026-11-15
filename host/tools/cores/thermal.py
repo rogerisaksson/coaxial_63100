@@ -2,6 +2,7 @@
 import ctypes
 import math
 import os
+import tomllib
 
 from tools import REPO
 
@@ -26,13 +27,18 @@ LAMINATE = ('board', 'patch_u', 'patch_v', 'patch_w', 'patch_left',
 #: BUDGET_ORDER, as `harness.c` flattens it.
 BUDGET = ('worst', 'worst_node', 'millis', 'throttling', 'tripped', 'derate')
 
-#: The envelope this tree's calibration record carries, stated rather than
-#: read: 125 C on every node but the board's copper, the winding and the legs,
-#: 105 on the copper, 120 on the winding, 175 on a leg's FET junction (the
-#: IAUCN10S7N021's sheet), throttling from 90 % of the span and looking two
+#: The envelope this tree's calibration record carries, the library's inverter's
+#: (`machine/library/inverters.toml`, read as the file it is: a core's harness
+#: lies under the board's package and comes to none of it): its switches'
+#: ceiling on every node but the board's copper, the winding and the legs, the
+#: laminate's on the copper, the winding's own, a leg's FET junction's limit
+#: (the IAUCN10S7N021's sheet), throttling from 90 % of the span and looking two
 #: seconds ahead. Another board's record carries other numbers; the arithmetic
 #: is the same.
-LIMIT_C, BOARD_LIMIT_C, WINDING_LIMIT_C, LEG_LIMIT_C = 125.0, 105.0, 120.0, 175.0
+with open(os.path.join(REPO, 'host', 'machine', 'library', 'inverters.toml'), 'rb') as _f:
+    _STAGE = tomllib.load(_f)['coaxial_63100']
+LIMIT_C, BOARD_LIMIT_C, _STATOR_C, WINDING_LIMIT_C = (float(c) for c in _STAGE['ceiling_c'])
+LEG_LIMIT_C = float(_STAGE['tj_max_c'])
 THROTTLE_AT, LOOKAHEAD_S = 0.90, 2.0
 
 AMBIENT = 20.0

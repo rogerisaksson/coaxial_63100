@@ -3,6 +3,7 @@ import ctypes
 import math
 import os
 import random
+import tomllib
 
 from tools import REPO
 
@@ -14,7 +15,10 @@ SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
            os.path.join(DRIVE, 'src', 'drive_observer.c'),
            os.path.join(DRIVE, 'src', 'drive_thermal.c')]
 
-TS = 20e-6
+#: One control period, s: the switching period of the library's inverter (`machine/library/inverters.toml`,
+#: read as the file it is - a core's harness lies under the board's package and comes to none of it).
+with open(os.path.join(REPO, 'host', 'machine', 'library', 'inverters.toml'), 'rb') as _f:
+    TS = 1.0 / float(tomllib.load(_f)['coaxial_63100']['pwm_hz'])
 TWO_PI = 2.0 * math.pi
 
 #: The orders harness.c crosses its arrays in.
@@ -200,7 +204,7 @@ class Drive:
         """Get or update Cauer thermal RC and WEP parameters."""
         arr = (ctypes.c_float * self.n_th_params)()
         self.lib.drv_thermal_params_get(self.h, arr, self.n_th_params)
-        got = dict(zip(THERMAL_PARAMS, arr))
+        got: dict[str, float] = dict(zip(THERMAL_PARAMS, arr))
         got.update(kw)
         arr = (ctypes.c_float * self.n_th_params)(*[got[k] for k in THERMAL_PARAMS])
         self.lib.drv_thermal_params_set(self.h, arr, self.n_th_params)

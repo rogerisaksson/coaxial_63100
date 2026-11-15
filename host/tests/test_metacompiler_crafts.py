@@ -4,7 +4,8 @@
 `crafts.toml` as it is written and as `mechatronics.crafts` resolves it; the aerobat's lift slope
 of its wing's aspect ratio and its drag due to lift of the airframe's own span efficiency, a wing a
 vehicle's text resizes with them; the floor's friction read for friction alone; a craft on its
-heavy frame with its radii of gyration kept.
+heavy frame with its radii of gyration kept; the quadcopter's hover solved once for its blocks and
+its parts, as built and resized.
 The solver's own laws, one source a number and a build anew its cache: test_metacompiler."""
 import math
 import os
@@ -127,8 +128,51 @@ def test_a_heavier_craft_keeps_its_radii(r):
             0.0 < env['floor_height'] < env['hover_height'] < env['high_height'] < env['top_height'], env)
 
 
+def test_a_quads_hover_is_solved_once(r):
+    """The quadcopter's hover - its rotors' speed, the time they take to it, the stiffness that time
+    leaves - is solved in one place (`compile._hover`) for its blocks and its parts alike: every
+    governor's idle, the rotors' spin time, the attitude's stiffness and the parts' slew and force
+    gains go by one speed, as built and at twice its mass; the rotor's can and torque the module
+    names are the parts' own."""
+    from machine.aircraft import compile as craft
+    from machine.body import mechatronics
+    with open(os.path.join(HOST, *CRAFT_SOLVERS[1].split('/')), encoding='utf-8') as f:
+        text = f.read()
+    r.check("the compiler asks the quad's thrust polar and the rotor's ring once each",
+            text.count('polars.kt(') == 1 and text.count("'rotor_ring_share'") == 1,
+            (text.count('polars.kt('), text.count("'rotor_ring_share'")))
+    stock = mechatronics.crafts()
+    twice = dict(stock, quadcopter=dict(stock['quadcopter'], mass_kg=2.0 * float(stock['quadcopter']['mass_kg'])))
+    speeds = []
+    for name, spec in (('as built', stock), ('at twice its mass', twice)):
+        built, quad = craft._build_aircraft(spec), spec['quadcopter']
+        blocks, pull = built['blocks'], built['pull']
+        weight = float(quad['mass_kg']) * craft.GRAVITY_M_S2
+        hover = math.sqrt(weight / (float(quad['rotors']) * blocks['quad_x_16x14'][1]['k_thrust']))
+        spin = blocks['quad_direct_governor'][1]['spin_time']
+        stiff = blocks['quad_attitude_impedance'][1]['stiffness']['attitude_pitch']
+        idles = {block['idle_speed'] for kind, block in blocks.values() if kind == 'governor'}
+        speeds.append(hover)
+        r.check('%s: its hover thrust is its weight, every governor idles at its hover speed over root six' % name,
+                built['defaults'][0] == weight and idles == {float(round(hover / math.sqrt(6.0)))}, idles)
+        r.check("%s: the spin time, the attitude's stiffness and the parts' gains go by that one speed" % name,
+                spin == round(math.sqrt(0.5) * math.pi * (pull['can_j'] + pull['prop_j']) * hover
+                              / craft.ROTOR_MAX_NM, 2)
+                and stiff == float(round(2.0 * pull['v_frac'] / (spin * spin), -1))
+                and pull['w_slew_rad_s'] == float(round(math.sqrt(2.0) * hover, -2))
+                and built['aerokin']['force_a'] == float(round(0.67 * stiff, -2)), (spin, stiff))
+    r.check('twice the mass hovers the root of two faster',
+            math.isclose(speeds[1], math.sqrt(2.0) * speeds[0], rel_tol=1e-12), speeds)
+    pull = craft.part('pull')
+    r.check("the rotor's can and torque the module names are the parts' own",
+            craft.ROTOR_CAN_J == pull['can_j']
+            and craft.ROTOR_MAX_NM == 1.5 * pull['pairs'] * pull['lam'] * pull['i_max'],
+            (craft.ROTOR_CAN_J, craft.ROTOR_MAX_NM))
+
+
 ROSTER = (test_a_craft_states_its_own_alone, test_a_wings_lift_slope_is_its_aspect_ratios,
-          test_the_floors_friction_is_friction_alone, test_a_heavier_craft_keeps_its_radii)
+          test_the_floors_friction_is_friction_alone, test_a_heavier_craft_keeps_its_radii,
+          test_a_quads_hover_is_solved_once)
 
 
 def main(argv=None):

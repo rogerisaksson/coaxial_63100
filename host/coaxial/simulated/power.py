@@ -41,8 +41,8 @@ class SimulatedGateDrivers(GateControl):
     #: CubeMX's 19 lasts until then.
     DEADTIME = round(inverter.T_DEAD * 1e12 / DTS_PS)
     TRIGGER = 2360
-    #: The update rate the counted hold and the update counter run at.
-    PWM_HZ = 50000
+    #: The update rate the counted hold and the update counter run at: the stage's switching rate, counted whole.
+    PWM_HZ = int(inverter.FSW)
     #: The keepalive's edges a second, measured idle.
     KEEPALIVE_HZ = 214000
 

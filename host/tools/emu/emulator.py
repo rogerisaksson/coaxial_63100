@@ -32,7 +32,7 @@ import serial
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools import REPO
-from coaxial.devices.boot import HAND_AT, HAND_MAGIC
+from coaxial.devices.boot import BOOT_BAUD, HAND_AT, HAND_MAGIC
 from coaxial.simulated.sto import PILOT_HZ
 from tools.emu import protocol_frames as frames
 from tools.emu import world as worlds
@@ -53,8 +53,6 @@ BOOT_ELF = os.path.join(os.path.dirname(ELF), 'coaxial_63100_boot.elf')
 #: Where each runs from: the bootloader from flash, the image from D2 SRAM (docs/BOOT.md).
 BOOT_VTOR = 0x08000000
 IMAGE_VTOR = 0x30000000
-#: The bootloader's RS485 rate (docs/BOOT.md).
-BOOT_BAUD = 10_000_000
 
 #: Renode's start, the ADC class compiled, the image booted: 5.6 s on the laptop;
 #: the wait allows ten times that, and as long again a node.

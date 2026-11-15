@@ -27,7 +27,7 @@ import math
 import os
 import sys
 
-from coaxial.model import sensorless
+from coaxial.model import inverter, sensorless
 from motor.catalog import BENCH_MOTOR, PLATINUM_5230SL
 from motor.loads import APC20x10E
 from motor.pmsm import Motor
@@ -132,7 +132,7 @@ def sweep_speed(params, lib):
         g = spin(params, iq, lib=lib)
         print('%-5.0f %8.0f %8.1f %8.1f %9.2f %9.2f  %s'
               % (iq, g['rpm'], g['f_e'],
-                 50000.0 / g['f_e'] if g['f_e'] > 1.0 else float('inf'),
+                 inverter.FSW / g['f_e'] if g['f_e'] > 1.0 else float('inf'),
                  g['worst_deg'], g['steady_deg'],
                  'yes' if g['locked'] else
                  ('stall' if not g['reached'] else 'LOST')

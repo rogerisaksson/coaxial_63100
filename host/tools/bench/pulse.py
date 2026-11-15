@@ -27,6 +27,7 @@ from contextlib import suppress
 
 from coaxial import Coaxial63100
 from coaxial.errors import RigError
+from coaxial.model import inverter
 from tools.bench.switch import PHASES
 
 #: Seconds a compare write takes to land, measured 14.9-16.0 ms over the
@@ -34,7 +35,7 @@ from tools.bench.switch import PHASES
 LANDING = 0.015
 #: The stage's PWM, Hz, and the ms one period is: the board's counted
 #: pulse is a whole number of periods, spoken since protocol 2.8.
-PWM_HZ = 50000
+PWM_HZ = int(inverter.FSW)
 MS_PER_PERIOD = 1000.0 / PWM_HZ
 COUNTED_SINCE, ALTERNATE_COUNTED_SINCE = (2, 8), (2, 27)
 #: Seconds of slack: short of the spin the sleep stops, and past a

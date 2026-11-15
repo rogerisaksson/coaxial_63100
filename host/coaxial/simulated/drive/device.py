@@ -7,6 +7,7 @@ from typing import Callable, Optional, Any
 from coaxial.devices.drive import (DT_ROWS, FAULTS, MODE_NAMES, MODES, PARAMS, SOURCES,
                                    DriveControl)
 from coaxial.errors import RigError
+from coaxial.model import inverter
 from coaxial.simulated.drive.capture import DriveCapture
 from coaxial.simulated.drive.locked import _rotor_locked
 from coaxial.simulated.drive.plant import DrivePlant
@@ -53,7 +54,7 @@ class SimulatedDrive(DrivePlant, DriveCapture, DriveControl):
     #: TIM1's counter clock. Centre-aligned, so a period is 2 x ARR.
     CLK = 237.5e6
     #: Where the stage switches: the `.ioc`'s ARR 2375 off 237.5 MHz.
-    PWM_HZ = 50e3
+    PWM_HZ = inverter.FSW
     #: One control period, s, and how many a second - what a window or a moments run fills at.
     TS = 1.0 / PWM_HZ
     FS = PWM_HZ

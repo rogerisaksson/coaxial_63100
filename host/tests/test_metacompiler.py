@@ -2,7 +2,8 @@
 """The static meta-compiler held to itself: one source a number, the same answer twice, similarity.
 
 What a sheet states is read from the parts library and stated nowhere else, the world's gravity
-in `world.toml` alone; a motor the library and the rig's profiles both describe is one motor; a
+in `world.toml` alone, the stage's switching rate, its period and its envelope in the library
+alone; a motor the library and the rig's profiles both describe is one motor; a
 build compiled anew is the build its cache holds; an override moves the one number it names; a
 figure scaled keeps its angles and shares and moves its lengths no further than its scale; a
 joint dressed in nothing is bare; no compiled number is not a number.
@@ -26,6 +27,11 @@ from structure_kit import HOST, REPO, Report, sources
 
 #: The power stage's names its model reads from the library, each the library's key or its solver.
 STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 'tj_max_c', 'SHUNT': 'shunt_ohm'}
+#: The names a module holds the stage's switching rate or its period under, and the thermal core's envelope's.
+RATES, ENVELOPE = ('PWM_HZ', 'FSW', 'TS'), ('LIMIT_C', 'BOARD_LIMIT_C', 'WINDING_LIMIT_C', 'LEG_LIMIT_C')
+#: The drive's and the thermal core's harnesses imported first, and what they loaded of the board's package then.
+CORES = ('import sys; from tools.cores import drive, thermal; '
+         'print(" ".join(sorted(m for m in sys.modules if m.split(".")[0] == "coaxial")) or "none")')
 #: A library motor's keys beside its rig profile's: the stand-in model's and the drive's record's.
 PROFILED = (('ohm', 'r', 'motor_r'), ('lq_h', 'lq', 'motor_lq'), ('flux_vs', 'lambda', 'motor_lambda'),
             ('pole_pairs', 'pole_pairs', 'motor_pole_pairs'))
@@ -100,6 +106,64 @@ def test_the_power_stage_is_the_librarys(r):
             and all(ceilings[n] in (stator, winding) for n in thermal.MOTOR)
             and all(ceilings[n] == float(inv['tj_max_c']) and thermal.RTH_DIE[n] == float(inv['rth_jc'])
                     for n in thermal.DRIVERS), ceilings)
+
+
+def _bound(tree, rate, names):
+    """The lines where a module binds `rate` to a name, scales by it - a rate goes times or over a time,
+    where an offset is added - or binds one of `names` to any bare number."""
+    lines = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            target, value = node.targets[0], node.value
+            pairs = (list(zip(target.elts, value.elts))
+                     if isinstance(target, ast.Tuple) and isinstance(value, ast.Tuple) else [(target, value)])
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Mult, ast.Div, ast.FloorDiv)):
+            pairs = [(None, node.left), (None, node.right)]
+        else:
+            continue
+        for target, value in pairs:
+            if (isinstance(value, ast.Constant) and isinstance(value.value, (int, float))
+                    and not isinstance(value.value, bool)
+                    and (float(value.value) == rate or getattr(target, 'id', getattr(target, 'attr', None)) in names)):
+                lines.add(node.lineno)
+    return lines
+
+
+def test_the_stages_rate_and_envelope_are_stated_once(r):
+    """The inverter's switching rate, its period and its nodes' ceilings stand in the library alone:
+    no module binds the rate to a name, scales by it or holds a rate's name on a bare number; the
+    stand-in's gate drivers and drive, the bench's pulse and the drive core's harness count by the
+    library's; the thermal core's envelope is the library's ceilings and its junction's limit; the
+    bootloader's line rate the emulator opens at is the master's transport's."""
+    from coaxial.devices import boot
+    from coaxial.model import inverter
+    from coaxial.simulated import power
+    from coaxial.simulated.drive import device
+    from machine.body import mechatronics
+    from tools.bench import pulse
+    from tools.cores import drive, thermal as core
+    from tools.emu import emulator
+    inv = mechatronics.library()['inverters']['coaxial_63100']
+    rate = float(inv['pwm_hz'])
+    bound = sorted('%s:%d' % (path.replace(os.sep, '/'), line)
+                   for path, _text, tree in sources(beside=False) for line in _bound(tree, rate, RATES))
+    r.check("no module binds the stage's switching rate, scales by it or names a rate on a bare number",
+            not bound, bound)
+    rates = (power.SimulatedGateDrivers.PWM_HZ, device.SimulatedDrive.PWM_HZ, device.SimulatedDrive.FS, pulse.PWM_HZ)
+    r.check("the stand-in's gate drivers and drive, the bench's pulse and the drive core count by the library's",
+            all(held == rate for held in rates) and device.SimulatedDrive.TS == drive.TS == 1.0 / rate, rates)
+    switch, laminate, _stator, winding = (float(c) for c in inv['ceiling_c'])
+    envelope = tuple(getattr(core, name) for name in ENVELOPE)
+    bare = _literals(os.path.join(HOST, 'tools', 'cores', 'thermal.py'), set(ENVELOPE))
+    r.check("the thermal core's envelope is the library's ceilings and its junction's limit, none a literal",
+            not bare and envelope == (switch, laminate, winding, float(inv['tj_max_c'])), (bare, envelope))
+    out = subprocess.run([sys.executable, '-X', 'utf8', '-c', CORES], env=dict(os.environ, PYTHONPATH=HOST),
+                         cwd=HOST, capture_output=True, text=True)
+    r.check("the cores' harnesses read the library as a file: imported first they load none of the board's package",
+            out.returncode == 0 and out.stdout.split() == ['none'], (out.stdout.split()[:4], out.stderr[-200:]))
+    r.check("the bootloader's line rate the emulator opens at is the master's transport's, stated there alone",
+            emulator.BOOT_BAUD == boot.BOOT_BAUD
+            and not _literals(os.path.join(HOST, 'tools', 'emu', 'emulator.py'), {'BOOT_BAUD'}), emulator.BOOT_BAUD)
 
 
 def test_the_rig_reads_the_specs_as_files(r):
@@ -286,7 +350,8 @@ def test_the_specs_inputs_only_fall(r):
     r.check("a ceiling is its spec's count: where a spec states fewer, the ceiling falls with it", not slack, slack)
 
 
-ROSTER = (test_the_power_stage_is_the_librarys, test_the_rig_reads_the_specs_as_files,
+ROSTER = (test_the_power_stage_is_the_librarys, test_the_stages_rate_and_envelope_are_stated_once,
+          test_the_rig_reads_the_specs_as_files,
           test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,

@@ -36,6 +36,7 @@ from rich.text import Text
 from coaxial.comm.session import standing
 from coaxial.devices import scaling
 from coaxial.errors import RigError
+from coaxial.model import inverter
 from coaxial.simulated.sto import PILOT_VOLTS
 from terminal.loader import answer
 from terminal.ui import bindings, screen as _screen
@@ -275,7 +276,7 @@ def _pulse(rig, view):
     state = rig.board.gate_drivers.state()
     return ('pulsed U %.0f %% against V low: %.0f ms, ~%d cycles - break %s,'
             ' %d overruns'
-            % (PULSE * 100.0, held * 1e3, int(held * 50000),
+            % (PULSE * 100.0, held * 1e3, int(held * inverter.FSW),
                'latched' if state['fault'] else 'clear', state['overruns']))
 
 
@@ -416,7 +417,7 @@ def main(argv=None):
             'layout': layout, 'override': bench and not args.interlock,
             'bench': bench, 'pilot': True,
             'deadtime_ns': state['deadtime'] * 1e9
-                           / (2.0 * (state['period'] - 1) * 50000.0),
+                           / (2.0 * (state['period'] - 1) * inverter.FSW),
             'scaling': board.analog.scaling()}
 
 

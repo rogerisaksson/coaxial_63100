@@ -16,6 +16,7 @@ import time
 
 from coaxial.control.commission import Commissioning
 from coaxial.control.motion import started
+from coaxial.model import inverter
 from coaxial.model.thermal import MOTOR
 from coaxial.simulated.sto import PILOT_VOLTS
 from machine.body import heat as mheat
@@ -395,7 +396,7 @@ def flown(rotors, sky, core, payload, flight, dt):
         rotor['rig'].board.drive.model.configure(
             b=pull.ROTOR.b + 2.0 * quad.K_DRAG * abs(rotor['w']),
             load=-quad.K_DRAG * rotor['w'] * abs(rotor['w']), vdc=volts)
-    periods = int(round(TICK_S * 50000))
+    periods = int(round(TICK_S * inverter.FSW))
     eyes = flight.get('eyes')
     read_buf = getattr(core, 'read', None)
     for _ in range(count):

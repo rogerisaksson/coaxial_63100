@@ -23,8 +23,30 @@ _SHARED = _CRAFTS['shared']
 _MOT = _LIB['motors'][_SHARED['motor']]
 _INV = _LIB['inverters'][_SHARED['inverter']]
 GRAVITY_M_S2 = float(_ENV['g_m_s2'])
-ROTOR_MAX_NM = 1.5 * float(_MOT['pole_pairs']) * float(_MOT['flux_vs']) * float(_INV['flight_amps'])
-ROTOR_CAN_J = round(float(_mat['rotor_ring_share']) * float(_MOT['kg']) * (0.5 * float(_MOT['can_m'])) ** 2, 7)
+
+
+def _rotor(mot, inv, mat):
+    """The crafts' rotor as its motor and its inverter give it: its can's inertia (kg m^2), a ring of the
+    motor's mass at its can's radius, and the torque (N m) its flight current holds."""
+    can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * (0.5 * float(mot['can_m'])) ** 2, 7)
+    return can_j, 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
+
+
+def _step_s(inv):
+    """The world's step, s: a hundred of the inverter's switching periods."""
+    return round(100.0 / float(inv['pwm_hz']), 6)
+
+
+def _hover(qc, inv, can_j, rot_nm, rho, g):
+    """The quadcopter hovering: its rotors' speed (rad/s), how long they take to it at the rotor's torque (s)
+    and the attitude stiffness that time leaves it - solved here once, for its blocks and its parts alike."""
+    q_kt = polars.kt(rho, qc['ct'], qc['diameter_m'])
+    w_hover = math.sqrt(float(qc['mass_kg']) * g / (float(qc['rotors']) * q_kt))
+    spin_s = round(math.sqrt(0.5) * math.pi * (can_j + float(qc['prop_kgm2'])) * w_hover / rot_nm, 2)
+    return w_hover, spin_s, float(round(2.0 * mechatronics.v_frac(inv) / (spin_s * spin_s), -1))
+
+
+ROTOR_CAN_J, ROTOR_MAX_NM = _rotor(_MOT, _INV, _mat)
 MAX_SYS_K = round(0.16 * float(_INV['pwm_hz']), 1)
 #: The share of the force vector's turn rate a craft's frame is fed while the vector is pushed down in a
 #: descent (`aerokin.FORCE_SHARE`): the flight law's own, a quarter.
@@ -40,14 +62,11 @@ def _imp(kp_p, kd_p, kp_r, kd_r, kp_y, kd_y, kr_p=0.0, dr_p=0.0):
     })
 
 
-def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb):
-    step_s, vf = round(100.0 / float(inv['pwm_hz']), 6), mechatronics.v_frac(inv)
-    qc, he, or_, ae = crafts['quadcopter'], crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
-    q_kt = polars.kt(rho, qc['ct'], qc['diameter_m'])
-    w_hover = math.sqrt(float(qc['mass_kg']) * g / (float(qc['rotors']) * q_kt))
+def _control_and_traj_blocks(crafts, inv, ar, hover, amb):
+    step_s, vf = _step_s(inv), mechatronics.v_frac(inv)
+    he, or_, ae = crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
+    w_hover, spin_s, kp_q = hover
     idle = float(round(w_hover / math.sqrt(6.0)))
-    spin_s = round(math.sqrt(0.5) * math.pi * (can_j + float(qc['prop_kgm2'])) * w_hover / rot_max_nm, 2)
-    kp_q = float(round(2.0 * vf / (spin_s * spin_s), -1))
     kd_q = float(round(math.sqrt(kp_q)))
     kr_q, dyaw_q = float(round(0.67 * kp_q)), float(round(0.25 * kd_q))
 
@@ -133,16 +152,12 @@ def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb):
     }
 
 
-def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
+def _runtime_configs(env, crafts, mot, inv, ar, can_j, hover, g):
     sh = crafts['shared']
     gm, qc, ae = sh['gimbal'], crafts['quadcopter'], crafts['aerobat']
     fp, ins, w = env['flight_pack'], env['instruments'], env['weather']
-    rho, vf, step_s = float(env['air_kg_m3']), mechatronics.v_frac(inv), round(100.0 / float(inv['pwm_hz']), 6)
-    q_kt = polars.kt(rho, qc['ct'], qc['diameter_m'])
-    w_hover = math.sqrt(float(qc['mass_kg']) * g / (float(qc['rotors']) * q_kt))
-    rot_nm = 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
-    spin_s = round(math.sqrt(0.5) * math.pi * (can_j + float(qc['prop_kgm2'])) * w_hover / rot_nm, 2)
-    kp_q = float(round(2.0 * vf / (spin_s * spin_s), -1))
+    vf, step_s = mechatronics.v_frac(inv), _step_s(inv)
+    w_hover, _spin_s, kp_q = hover
     force_a = float(round(0.67 * kp_q, -2))
     force_k = float(round(math.sqrt(0.5 * force_a)))
     v_min = round(float(fp['series']) * float(fp['cell_v'][0][1]) * 0.6)
@@ -217,18 +232,20 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
     }
 
 
-def _build_aircraft():
-    env, mat, lib, crafts = (mechatronics.environment(None), mechatronics.materials(),
-                             mechatronics.library(), mechatronics.crafts())
+def _build_aircraft(crafts=None):
+    """Every craft's blocks and parts compiled of the specs, or of `crafts` in the spec's place: a craft
+    resized, as `mechatronics.crafts` resolves one."""
+    env, mat, lib = mechatronics.environment(None), mechatronics.materials(), mechatronics.library()
+    crafts = mechatronics.crafts() if crafts is None else crafts
     sh = crafts['shared']
     mot, inv = lib['motors'][sh['motor']], lib['inverters'][sh['inverter']]
     g, rho, amb = float(env['g_m_s2']), float(env['air_kg_m3']), float(env['ambient_c'])
     ar = polars.arena(crafts, rho, g)
-    can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * (0.5 * float(mot['can_m'])) ** 2, 7)
-    rot_nm = 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
+    can_j, rot_nm = _rotor(mot, inv, mat)
+    hover = _hover(crafts['quadcopter'], inv, can_j, rot_nm, rho, g)
     blk = {**polars.aero_blocks(crafts, inv, rho), **polars.body_and_cooling_blocks(crafts, mat, inv, env, g),
-           **_control_and_traj_blocks(crafts, inv, ar, can_j, rot_nm, rho, g, amb)}
-    return {'blocks': blk, **_runtime_configs(env, crafts, mot, inv, ar, can_j, g)}
+           **_control_and_traj_blocks(crafts, inv, ar, hover, amb)}
+    return {'blocks': blk, **_runtime_configs(env, crafts, mot, inv, ar, can_j, hover, g)}
 
 
 def _compiled():

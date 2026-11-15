@@ -9,6 +9,7 @@
 63100 drives (`MAIN` on the mast and `TAIL` on the boom) and their thermal observers warmed on it, then
 the 16-gate course (`machine.aircraft.course`).
 """
+from coaxial.model import inverter
 from machine.aircraft import aerobatics, aerokin, course, flightpack, helicopter, pull, sweep, weather
 from terminal.views.quad import flight as qflight
 from terminal.views.quad.flight import (CRASHED, CRASH_S, FAULTS, THERMAL_S, TICK_S, _LIB,
@@ -129,7 +130,7 @@ def flown(rotors, sky, core, law, row, flight, dt, craft=helicopter):
         rotor['rig'].board.drive.model.configure(
             b=turned.b + 2.0 * turned.drag * abs(w),
             load=(sc - 2.0) * turned.drag * w * abs(w), vdc=volts)
-    periods = int(round(TICK_S * 50000))
+    periods = int(round(TICK_S * inverter.FSW))
     for _ in range(count):
         _step_drives(rotors, periods)
         limits = [max(craft.IDLE_RAD_S,
