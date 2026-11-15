@@ -28,6 +28,8 @@ jobs:
         python: ['3.12', '3.14']   # the declared floor, and the one it is developed on
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -80,6 +82,8 @@ jobs:
           - {runner: ubuntu-latest, isa: avx512}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - id: held
         run: |
           if [ "${{ matrix.isa }}" != avx512 ] || grep -qw avx512f /proc/cpuinfo; then echo "runs=1" >> "$GITHUB_OUTPUT"

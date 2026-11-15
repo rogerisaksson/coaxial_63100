@@ -13,7 +13,7 @@ target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of host.yml'
 What .github/workflows/host.yml runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
 its Ubuntu release (`runs-on`), the archive's amd64v3 builds where this processor runs them, as the runner's
 image installs them, the apt packages and the Python host.yml names, the virtual environment its inputs action
-makes. The tree as it stands here - committed or not, nothing ignored - copied in as a checkout of one commit
+makes. The tree as it stands here - committed or not, nothing ignored - copied in as a checkout with its parent
 and installed as host.yml installs it; the gate run as the runner runs it: its user, CI true, the step's own
 environment, --offline.
 
@@ -65,12 +65,14 @@ HOSTS = ('--conformance', '--live', '--model', '--sections', '--match', '--tags'
 #: the runner's checkout leaves it -, the package installed as the inputs action does (no index), the gate as
 #: host.yml's step runs it, the relay's arguments after.
 GATE = ('set -eo pipefail\n'
-        'git init -q && git add -A\n'
+        'git init -q\n'
+        'git -c user.name=%s -c user.email=%s@localhost commit --allow-empty -qm parent\n'
+        'git add -A\n'
         'while read -r sha path; do [ -n "$sha" ] || continue; mkdir -p "$path"\n'
         '  git update-index --add --cacheinfo "160000,$sha,$path"; done <<< "$GITLINKS"\n'
         'git -c user.name=%s -c user.email=%s@localhost commit -qm tree\n'
         'python -m pip install -q --no-deps --no-build-isolation -e "$EDITABLE"\n'
-        'cd "$DIRECTORY" && exec python tools/dev/run_tests.py --offline "$@"\n' % (USER, USER))
+        'cd "$DIRECTORY" && exec python tools/dev/run_tests.py --offline "$@"\n' % (USER, USER, USER, USER))
 #: The containers running now: removed at once where the run is stopped.
 LIVE = []
 
