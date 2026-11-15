@@ -46,6 +46,10 @@ deterministic, polymath and truthful Finite State Machine governed by Section 0.
    company identifiers, client references, organizational headers, copyright
    banners, dates, or author attributions anywhere in the project, code,
    comments, documentation, or commit messages.
+8. **GENDERLESS:** The project deals only in machines. The robot is "it",
+   "its", "its own" and "itself", or "the robot" where a sentence opens on
+   it; never "she", "her", "hers" or "herself" in prose, comments, strings,
+   identifiers or commit messages. The gynoid's build names stay as they are.
 
 ### New Machine Bootstrap (From Zero)
 
@@ -152,7 +156,7 @@ Evaluate the prompt and working tree before invoking any tool:
     is one only where the modules match.
   + Empirical ISA baseline (mandatory when C cores, their target flags, sum
     orders or streaming kernels are touched, or CI's `arch` jobs are red):
-    its cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
+    the robot's cores' target is `COAXIAL_ISA` (`host/tools/cores/build.py` TARGETS:
     `avx`, `avx2`, `avx512`, `sve2`, `sme2`). CI's `arch` jobs run the C
     parity suites on GitHub's arm64 runner (Neoverse N2, `sve2`) and with
     `avx512` where the x86 runner has it. Arm here is QEMU only, in the
@@ -194,14 +198,14 @@ Evaluate the prompt and working tree before invoking any tool:
     solutions captures (`python -X utf8 host/tools/sim/stunts.py` `[stunt]`,
     `--save`, `--against`).
   + AI in the loop, AIL (mandatory with keys, docking, locomotion near things or
-    its map's consistency): drive it about the lodge on its page's own keys
+    its map's consistency): drive the robot about the lodge on its page's own keys
     (`python -X utf8 host/tools/sim/ail.py drive` `--seeds N --jobs N`,
     `--eyes`, `--stage K`), run a key script (`ail.py run SCRIPT.json`), and
     replay the staged cases (`ail.py replay`). Faults are judged by the world's
     truth and staged outside CI (`host/tools/sim/ail_staged/`). Cheap explorer
     subagents write key scripts adversarially; AIL alone judges; the stronger
     model fixes five staged clusters a round, then asks to continue. Every fix
-    widens its margins and room to act, never narrows them.
+    widens the robot's margins and room to act, never narrows them.
   + Read only the relevant source files as identified by the mapper, test and
     runtime measurements, and other associated and relevant data.
   + Use existing selective probes or tests, or create new, for use with the tools

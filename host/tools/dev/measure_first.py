@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """UserPromptSubmit hook: a message about how the gynoid moves gets Claude told to measure first.
 
-Reads the hook's JSON on stdin; when the prompt names her movement, prints the context that
-sends Claude to her walk on the loop (tools/sim/ortho.py --walk --look) and to the user's
+Reads the hook's JSON on stdin; when the prompt names the robot's movement, prints the context
+that sends Claude to its walk on the loop (tools/sim/ortho.py --walk --look) and to the user's
 newest recording (tools/sim/look.py --last) - with the numbers quoted before any explanation.
 Silent otherwise.
 """
@@ -10,24 +10,24 @@ import json
 import re
 import sys
 
-#: Words of her movement that say so alone, Swedish and English, matched at a word's start.
+#: Words of the robot's movement that say so alone, Swedish and English, matched at a word's start.
 MOVES = ('lut', 'nig', 'knä', 'höft', 'svaj', 'bugar', 'vingl', 'catwalk', 'feminin', 'bål',
          'överkropp', 'axl', 'fött', 'gynoid', 'lean', 'knee', 'hip', 'torso', 'gait', 'sway',
          'curts')
 
-#: Words that are her movement only beside a word naming her: alone they are "varje gång", "går
+#: Words that are its movement only beside a word naming the robot: alone they are "varje gång", "går
 #: igenom", "det står", "nästa steg", "nodes", "arm the stage" - the hook fired on all of them.
 PLAIN = ('bakåt', 'framåt', 'huvud', 'gång', 'går ', 'gick', 'steg', 'reser', 'rest ', 'står',
          'stå ', 'tå', 'sjunk', 'hopp', 'skarv', 'arm', 'fot', 'walk', 'step', 'head', 'bob',
          'nod', 'dip')
 
-#: Words naming her.
-HER = ('hon', 'henne', 'hennes', 'gynoid', 'humanoid', 'she', 'her', 'kroppen', 'benen')
+#: Words naming the robot.
+NAMED = ('robot', 'roboten', 'maskinen', 'gynoid', 'humanoid', 'kroppen', 'benen')
 
 CONTEXT = (
     "The user describes how the gynoid moves. What they see is so (CLAUDE.md). Before any "
-    "explanation, measure: `cd host; python -X utf8 tools/sim/ortho.py --walk --look` (her walk "
-    "on her latent loop, as the page runs her) and `python -X utf8 tools/sim/look.py --last` "
+    "explanation, measure: `cd host; python -X utf8 tools/sim/ortho.py --walk --look` (its walk "
+    "on its latent loop, as the page runs it) and `python -X utf8 tools/sim/look.py --last` "
     "(their newest HUMANOID recording, R). Quote the row and the measure that shows what they describe; if none "
     "shows it, add the measure that would, not an argument. Fix, run it again, quote both. No "
     "reasoning in place of a number.")
@@ -43,7 +43,7 @@ def main():
     def said(words, whole=False):
         tail = r'(?![a-zåäö])' if whole else ''
         return any(re.search(r'(?<![a-zåäö])' + re.escape(w) + tail, text) for w in words)
-    if said(MOVES) or (said(PLAIN) and said(HER, whole=True)):
+    if said(MOVES) or (said(PLAIN) and said(NAMED, whole=True)):
         print(json.dumps({'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
                                                  'additionalContext': CONTEXT}}))
     return 0
