@@ -190,7 +190,7 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
                     'gust_floor': round(1.5 * float(w['kinds']['constant'][5]), 2),
                     'path_pole': float(sh['inflow_floor']), 'push_s': round(5.0 / (0.01 / step_s), 1)},
         'mpc': {'k_floor': kf, 'c_floor': float(round(math.sqrt(0.5 * m_ae * kf))),
-                'skim_m': float(ae['tail_contact_m'])},
+                'skim_m': float(ae['tail_contact_m']), 'touch_m': round(m_ae * g / (2.5 * kf), 2)},
         'gimbal': {'mount': tuple(float(x) for x in gm['mount']), 'follow': float(ar['climb_m_s']),
                    'nose_m_s': float(ar['nose_m_s']), 'tilt': math.radians(float(gm['tilt_deg'])),
                    'tilts': tuple(math.radians(float(x)) for x in gm['tilts_deg']),

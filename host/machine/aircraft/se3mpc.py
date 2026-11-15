@@ -18,11 +18,11 @@ from machine.aircraft import compile as aircraft_compile
 from tools.cores import mppi
 
 _MPC = aircraft_compile.part('mpc')
-K_FLOOR, C_FLOOR = _MPC['k_floor'], _MPC['c_floor']
+K_FLOOR, C_FLOOR, TOUCH_M = _MPC['k_floor'], _MPC['c_floor'], _MPC['touch_m']
 #: The model's constants in mppi.h's order.
 CONSTS = ('m', 'g', 'kt', 'kp', 'kr', 'ky', 'kd', 'rho', 'area', 'cla', 'span', 'stab', 'fin', 'arm', 'wq',
           'stall', 'blend', 'cdl', 'j0', 'pitch', 'r', 'cla_a', 'cda', 'area_a', 'cd0', 'cdi', 'share',
-          'ix', 'iy', 'iz', 'kf', 'cf', 'side', 'adisc', 'pb', 'pl', 'ps')
+          'ix', 'iy', 'iz', 'kf', 'cf', 'side', 'adisc', 'pb', 'pl', 'ps', 'ifloor', 'wfloor', 'touch', 'skim')
 #: The tail's lowest point a row's `skim` asks, m over the floor (`crafts.toml`).
 SKIM_M = _MPC['skim_m']
 #: A step's reference, mppi.h's MR_*: where each part starts in a row of REF.
@@ -69,7 +69,8 @@ def constants(craft):
                 r=craft.PROP_R, cla_a=craft.CL_ALPHA, cda=craft.BODY_CDA, area_a=craft.WING_AREA,
                 cd0=craft.CD0, cdi=craft.CD_INDUCED, share=craft.PROPWASH_SHARE, ix=ix, iy=iy, iz=iz,
                 kf=K_FLOOR, cf=C_FLOOR, side=w.side, adisc=craft.A_DISC, pb=craft.PROP_BASE,
-                pl=craft.PROP_LOAD, ps=craft.PROP_SURF)
+                pl=craft.PROP_LOAD, ps=craft.PROP_SURF, ifloor=craft.INFLOW_FLOOR,
+                wfloor=craft.WAKE_FLOOR_M_S, touch=TOUCH_M, skim=getattr(craft, 'TOUCH_M', SKIM_M))
 
 
 def points(craft):
@@ -118,7 +119,7 @@ class Batch:
         along, speed = (air * nose).sum(1), xp.sqrt((air * air).sum(1))
         vh = xp.hypot(air[:, 0], air[:, 2])
         j = xp.maximum(0.0, 1.0 - along / (k['j0'] * max(1.0, k['pitch'] * abs(w_p) / math.tau)))
-        share = j * (1.0 + 0.04 * k['cla_a'] * xp.minimum(0.35, vh / max(w_p * k['r'], 8.0)))
+        share = j * (1.0 + 0.04 * k['cla_a'] * xp.minimum(k['ifloor'], vh / max(w_p * k['r'], k['wfloor'])))
         lift = k['kt'] * w_p * w_p * share
         uy, uz = xp.maximum(0.0, along), (air * belly).sum(1)
         v2 = uy * uy + uz * uz
@@ -245,10 +246,10 @@ class Mppi:
             cost += W['spin'] * (w * w).sum(1)
             cost += W['reserve'] * (xp.maximum(0.0, xp.abs(u[:, t, 1:]) - 0.5) ** 2).sum(1)
             ys = p[:, 1, None] + xp.einsum('kj,nj->kn', r[:, 1, :], c[:, :3]) - c[:, 3]
-            cost += W['touch'] * (xp.maximum(0.0, -0.02 - ys) ** 2).sum(1)
+            cost += W['touch'] * (xp.maximum(0.0, -self.model.k['touch'] - ys) ** 2).sum(1)
             cost += W['skim'] * s[W_SKIM] * (xp.minimum(1e3, ys[:, :ns].min(1)) - s[SKIM]) ** 2
             ys = p[:, 1, None] + xp.einsum('kj,nj->kn', r[:, 1, :], self.rest)
-            cost += W['crash'] * (xp.maximum(0.0, 0.03 - ys) ** 2).sum(1)
+            cost += W['crash'] * (xp.maximum(0.0, self.model.k['skim'] - ys) ** 2).sum(1)
             cost += W['ease'] * ((u[:, t] - last) ** 2).sum(1) + W['thrust'] * u[:, t, 0] ** 2
             last = u[:, t]
         return xp.fmin(cost, 1e18)

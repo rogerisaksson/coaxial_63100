@@ -32,7 +32,8 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         const double air = sqrt(ax * ax + ay * ay + az * az);
         /* the propeller, its pitch fixed, through its inflow (aerobat._aero_inflow) */
         const double jj = fmax(0.0, 1.0 - along / (k[MP_J0] * fmax(1.0, k[MP_PITCH] * fabs(w_p) / 6.283185307179586)));
-        const double share = jj * (1.0 + 0.04 * k[MP_CL_ALPHA_A] * fmin(0.35, vh / fmax(w_p * k[MP_PROP_R], 8.0)));
+        const double share = jj * (1.0 + 0.04 * k[MP_CL_ALPHA_A]
+                                   * fmin(k[MP_INFLOW_FLOOR], vh / fmax(w_p * k[MP_PROP_R], k[MP_WAKE_FLOOR])));
         const double lift = k[MP_K_THRUST] * wp2 * share;
         /* the wing nose first, to and past its stall (wingborne.Wing.lift) */
         const double uy = fmax(0.0, along), uz = ax * bx + ay * by + az * bz, v2 = uy * uy + uz * uz;
@@ -116,7 +117,8 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         for (int j = 1; j < 4; j++) cost += weight[MW_RESERVE] * SQ(fmax(0.0, fabs(ut[j]) - 0.5));
         for (int n = 0; n < nc; n++) {
             const double *b = c + 5 * n;
-            cost += weight[MW_TOUCH] * SQ(fmax(0.0, -0.02 - (p[1] + R[3] * b[0] + R[4] * b[1] + R[5] * b[2] - b[3])));
+            cost += weight[MW_TOUCH]
+                    * SQ(fmax(0.0, -k[MP_TOUCH] - (p[1] + R[3] * b[0] + R[4] * b[1] + R[5] * b[2] - b[3])));
         }
         double low = 1e3;
         for (int n = 0; n < ns; n++) {
@@ -126,7 +128,7 @@ MPPI_FN double mppi_plane_rollout(const double *x0, const double *u, const doubl
         cost += weight[MW_SKIM] * rf[MR_W_SKIM] * SQ(low - rf[MR_SKIM]);
         for (int n = 0; n < nr; n++) {
             const double *b = r + 3 * n;
-            cost += weight[MW_CRASH] * SQ(fmax(0.0, 0.03 - (p[1] + R[3] * b[0] + R[4] * b[1] + R[5] * b[2])));
+            cost += weight[MW_CRASH] * SQ(fmax(0.0, k[MP_SKIM] - (p[1] + R[3] * b[0] + R[4] * b[1] + R[5] * b[2])));
         }
         for (int j = 0; j < 4; j++) {
             cost += weight[MW_EASE] * SQ(ut[j] - last[j]);

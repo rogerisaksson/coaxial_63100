@@ -100,21 +100,48 @@ def test_the_c_is_its_twin(report):
 def test_the_twin_is_the_plant(report):
     """At states in the air, under controls across their range: the twin's force and torque the
     plant's own - `aerobat`'s inflow, drag and propeller, `wingborne.Wing`'s wing and side."""
+    import types
     import numpy as np
     from machine.aircraft import aerobat
     rng = np.random.default_rng(11)
     worst = [0.0, 0.0]
-    for _ in range(40):
+    for idx in range(40):
         x, se3mpc = _state(np, rng)
         x = (x[0], rng.normal(0.0, 6.0, 3), x[2], x[3])
         u = np.concatenate([rng.uniform(0.0, 1.0, 1), rng.uniform(-1.0, 1.0, 3)])
         wind = rng.normal(0.0, 2.0, 3)
-        f, t = se3mpc.forces(aerobat, x, u, 365.0, 345.0, wind)
+        w_p = 20.0 if idx < 10 else 365.0
+        f, t = se3mpc.forces(aerobat, x, u, w_p, 345.0, wind)
         model = se3mpc.Batch(aerobat, np)
-        f2, t2 = model.forces(x[1][None], x[2][None], x[3][None], u[None], 365.0, 345.0, wind)
+        f2, t2 = model.forces(x[1][None], x[2][None], x[3][None], u[None], w_p, 345.0, wind)
         worst = [max(worst[0], float(np.abs(f - f2[0]).max())), max(worst[1], float(np.abs(t - t2[0]).max()))]
     report.check('the twin\'s force and torque are the plant\'s over 40 states, to 1e-9',
                  max(worst) < 1e-9, '%.1e N, %.1e N m' % tuple(worst))
+    x0 = (np.array([0.0, 0.75, 0.0]), np.array([2.5, 0.0, 0.0]),
+          np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]), np.zeros(3))
+    u0 = np.clip(rng.normal(0.3, 0.15, (32, 4, 4)), [0.0, -1.0, -1.0, -1.0], [1.0, 1.0, 1.0, 1.0])
+    alt = types.SimpleNamespace(**{
+        **{k: getattr(aerobat, k) for k in dir(aerobat) if not k.startswith('__')},
+        'INFLOW_FLOOR': 0.15, 'WAKE_FLOOR_M_S': 12.5, 'TOUCH_M': 0.08,
+        '_aero_inflow': lambda along, vh, wp: (
+            max(0.0, 1.0 - along / (aerobat.INFLOW_J0 * max(1.0, aerobat.BLADE_PITCH * abs(wp) / (2.0 * np.pi))))
+            * (1.0 + 0.04 * aerobat.CL_ALPHA * min(0.15, vh / max(wp * aerobat.PROP_R, 12.5)))),
+    })
+    fa, ta = se3mpc.forces(alt, x0, u0[0, 0], 30.0, 345.0)
+    fn, _ = se3mpc.forces(aerobat, x0, u0[0, 0], 30.0, 345.0)
+    fb, tb = se3mpc.Batch(alt, np).forces(x0[1][None], x0[2][None], x0[3][None], u0[0, :1], 30.0, 345.0, np.zeros(3))
+    mpc_nom, mpc_alt = se3mpc.Mppi(aerobat, k=32, h=4, xp=np), se3mpc.Mppi(alt, k=32, h=4, xp=np)
+    ref = _asked(np, se3mpc, mpc_alt)
+    c_alt, t_alt = mpc_alt.costs(x0, u0, ref, 30.0, 345.0), mpc_alt.twin(x0, u0, ref, 30.0, 345.0)
+    c_nom = mpc_nom.costs(x0, u0, ref, 30.0, 345.0)
+    report.check('derived inflow, wake-floor and skim constants propagate through C and twin',
+                 float(np.abs(fa - fb[0]).max()) < 1e-9 and float(np.abs(ta - tb[0]).max()) < 1e-9
+                 and float(np.abs(fa - fn).max()) > 1e-4
+                 and float(np.max(np.abs(c_alt - t_alt) / np.maximum(1.0, np.abs(t_alt)))) < 1e-12
+                 and float(np.max(np.abs(c_alt - c_nom))) > 10.0,
+                 'C-vs-twin %.1e, force diff %.2e N, cost diff %.1f' % (
+                     float(np.max(np.abs(c_alt - t_alt) / np.maximum(1.0, np.abs(t_alt)))),
+                     float(np.abs(fa - fn).max()), float(np.max(np.abs(c_alt - c_nom)))))
 
 
 ROSTER = (test_a_rollout_has_no_branch, test_the_c_is_its_twin, test_the_twin_is_the_plant)
