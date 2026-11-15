@@ -23,10 +23,10 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import numpy as np
 
-from machine.body import compile as _compile, mechatronics, peripherals
+from machine.body import compile as _compile, peripherals
 from machine.body.figure import BALL, HEEL, JOINTS, SEGMENTS
 
-_ENV, _BUS = mechatronics.environment(), peripherals.bus()
+_bus = peripherals.bus()
 G = np.array([0.0, -_compile.G_M_S2, 0.0])
 J = len(JOINTS)
 #: The robot's segments with skin, `SEGMENTS`' order.
@@ -62,7 +62,7 @@ GIVE = slice(LINK.stop, LINK.stop + len(SKIN))
 #: has none - a fist's capsule normal on a seat read 49 of 50 N across, its pelvis's on a bed 111 across on 84 up).
 NORMAL = slice(GIVE.stop, GIVE.stop + 3 * len(SKIN))
 SENSED = NORMAL.stop
-TOUCHED_N = float(_ENV['touched_n'])
+TOUCHED_N = float(peripherals.world()['touched_n'])
 
 
 def laid(world):
@@ -187,8 +187,8 @@ def yaw(y):
     return 2.0 * math.atan2(float(q[2]), float(q[0]))
 
 
-BAUD = _BUS['baud']
-LINE_BER = _BUS['line_ber']
+BAUD = _bus['baud']
+LINE_BER = _bus['line_ber']
 LIMBS = (
     ('axis', ('spine', 'spine_roll', 'waist', 'neck', 'head')),
     ('left_arm', ('left_shoulder', 'left_elbow', 'left_wrist', 'left_gripper')),

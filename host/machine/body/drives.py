@@ -26,7 +26,7 @@ import math
 from typing import Any
 
 from machine.body import linkage, mechatronics
-from machine.body.figure import ANKLE_H, BALL, SEGMENTS, SHANK, THIGH
+from machine.body.figure import ANKLE_H, BALL, SCALE, SEGMENTS, SHANK, THIGH
 from motor.pmsm import TORQUE_FACTOR
 
 #: The parts library and its build of it (machine/library, machine/humanoids): the tables below are
@@ -88,7 +88,7 @@ INVERTERS = {k: (v['disc_m'], v['amps'], v['kg'],
                  float(v.get('laminate_k_w', round(1.0 / (_H_DISC * math.pi * (0.5 * v['disc_m']) ** 2), 1))),
                  v['height_m'])
              for k, v in _LIB['inverters'].items()}
-LOOP_HZ = {k: float(v.get('loop_hz', float(v['current_bw_share']) * float(v['pwm_hz'])))
+LOOP_HZ = {k: float(v.get('loop_hz', 0.05 * float(v['pwm_hz'])))
            for k, v in _LIB['inverters'].items()}
 STACKS = {kind: tuple(stack) for kind, stack in _BUILD['stacks'].items()}
 _BOX = _LIB['gearboxes'][STACKS['knee'][1]]
@@ -245,6 +245,23 @@ def kind(joint):
         if joint.endswith(k):
             return k
     return joint.rsplit('_', 1)[-1]
+
+
+def _bus_timing():
+    """Fieldbus lockstep rate (Hz) and whole-body law decimation from RS485 wire budget and leg pendulum."""
+    bus = _BUILD['bus']
+    baud, turn_s = float(bus['baud']), float(bus['turn_s'])
+    leg = [j for s in SEGMENTS if s[0] in ('left_thigh', 'left_shank', 'left_foot', 'left_toes')
+           for j, *_ in s[2] if kind(j) not in WAYS]
+    n_drv = max(1, len(leg))
+    wire_s = 10.0 * (9 + 27 * n_drv) / baud + n_drv * turn_s
+    hz = float(bus.get('bus_hz', round(0.35 / wire_s, -2)))
+    l_ref = (THIGH + SHANK + ANKLE_H) / SCALE
+    div = int(bus.get('law_div', max(1, round(hz / (100.0 * math.sqrt(float(_WORLD['g_m_s2']) / l_ref))))))
+    return hz, div
+
+
+BUS_HZ, LAW_DIV = _bus_timing()
 
 
 def travel(joint):

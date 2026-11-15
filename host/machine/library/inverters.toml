@@ -1,18 +1,18 @@
-# Inverters: disc diameter (m), phase amps, mass (kg), axial height with parts (m), bus ceiling (V)
-# and PWM switching frequency (Hz). Laminate K/W to air (from disc area) and current-loop bandwidth
-# (0.05 of PWM frequency, `coaxial.model.sensorless.current_loop`) are derived (`machine.body.drives`).
+# Inverters: disc diameter (m), phase amps, gate dead-time (s), mass (kg), axial height with parts
+# (m), bus ceiling (V), PWM switching frequency (Hz), encoder resolution and thermal/heatsink network.
+# Voltage utilization, laminate K/W, current-loop bandwidth, SOA derating envelope and fan curve are
+# derived by the static meta-compilers (`machine.body.drives`, `peripherals`, `aircraft.compile`).
 
 [coaxial_63100]
 disc_m = 0.100
 amps = 100.0
 flight_amps = 60.0
 wep_amps = 90.0
-v_frac = 0.95
+deadtime_s = 0.5e-6
 kg = 0.2
 height_m = 0.015
 volts = 63.0
 pwm_hz = 50000.0
-current_bw_share = 0.05
 encoder_counts = 4096
 rds_ohm = 1.8e-3
 rds_alpha = 4.6e-3
@@ -27,14 +27,6 @@ into_k_w = 4.0
 rth_jc = 0.69
 tj_max_c = 175.0
 ceiling_c = [125.0, 105.0, 120.0, 120.0]
-
-[coaxial_63100.envelope]
-haste = 10.0
-throttle_at = 0.90
-lookahead_s = 2.0
-recover_per_s = 0.05
-trip_margin = 0.70
-trip_recover_s = 1800.0
 
 [coaxial_63100.heatsink]
 sink_mass_kg = 0.085
@@ -45,9 +37,6 @@ r_switches_to_sink = 3.0
 r_shunts_to_sink = 1.5
 r_sink_to_air_natural = 2.5
 r_sink_to_air_forced = 0.25
-fan_temp_on = 45.0
-fan_temp_full = 80.0
-fan_idle_duty = 0.0
 fan_max_airflow = 14.0
 fan_max_rpm = 8000.0
 ram_air_share = 0.35
@@ -57,12 +46,11 @@ disc_m = 0.070
 amps = 50.0
 flight_amps = 35.0
 wep_amps = 50.0
-v_frac = 0.95
+deadtime_s = 0.5e-6
 kg = 0.12
 height_m = 0.015
 volts = 63.0
 pwm_hz = 50000.0
-current_bw_share = 0.05
 encoder_counts = 4096
 rds_ohm = 1.8e-3
 rds_alpha = 4.6e-3
@@ -77,11 +65,3 @@ into_k_w = 4.0
 rth_jc = 0.69
 tj_max_c = 175.0
 ceiling_c = [125.0, 105.0, 120.0, 120.0]
-
-[coaxial_63050.envelope]
-haste = 10.0
-throttle_at = 0.90
-lookahead_s = 2.0
-recover_per_s = 0.05
-trip_margin = 0.70
-trip_recover_s = 1800.0

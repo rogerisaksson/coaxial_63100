@@ -17,7 +17,7 @@ import math
 import os
 from typing import Any
 
-from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics
+from machine.body import compile as _compile, dclink, drives, gearbox, heat, linkage, mechatronics, peripherals
 from machine.world import floor, harness, loose, passing, room, steps
 from machine.body.drives import kind
 from machine.rig.buses import QUIET, Block, Buses
@@ -28,10 +28,10 @@ from machine.body.servos import CLAMPED, SERVO
 from machine.body.figure import JOINTS
 
 _ENV = mechatronics.environment()
-_SIM = _ENV['simulation']
+_SIM = peripherals.world()
 
-#: The world's step, s (`world.toml`).
-STEP_S = float(_ENV['step_s'])
+#: The world's step, s (`peripherals.world`).
+STEP_S = float(_SIM['step_s'])
 
 #: Each sole's load as its sensor has it: the solver's through a first-order band of LOAD_S s (`world.toml`).
 LOAD_S = float(_ENV['load_s'])

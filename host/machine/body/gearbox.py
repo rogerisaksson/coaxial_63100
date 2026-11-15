@@ -17,8 +17,8 @@ import math
 from machine.body import drives, mechatronics, peripherals
 from machine.body.figure import JOINTS
 
-_ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
-_bus = peripherals.bus()
+_BUILD, _LIB = mechatronics.robot(), mechatronics.library()
+_bus, _wrld = peripherals.bus(), peripherals.world()
 
 #: A board's torque counts as taking up the play from this, N m (`compile.bus()`).
 PLAY_NM = _bus['play_nm']
@@ -51,9 +51,9 @@ OBSERVE_X = _bus['observe_x']
 #: The command's rate is read through this first-order lag, s: a pass's step spread over the world's steps.
 RATE_S = _bus['rate_s']
 #: The mesh's friction rounded over this speed, rad/s; the rotors stepped this many times within
-#: the world's step (`gearboxes.toml`, `world.toml`).
+#: the world's step (`gearboxes.toml`, `peripherals.world`).
 MESH_RAD_S = float(_LIB['gearboxes'][_BUILD['stacks']['knee'][1]]['mesh_rad_s'])
-SUBSTEPS = int(_ENV['substeps'])
+SUBSTEPS = int(_wrld['substeps'])
 
 
 class Boxes:

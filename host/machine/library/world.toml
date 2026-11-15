@@ -1,44 +1,15 @@
-# Physical environment, atmosphere, contact mechanics, flight pack, instruments and weather
-# (`mechatronics.environment()`).
+# Physical environment, atmosphere, surface tribology, sole load-cell filter, flight pack,
+# navigation sensors and boundary-layer weather (`mechatronics.environment()`).
+# Contact solver settings, HIL simulation plant switches and pelvic safety-harness impedances
+# are derived statically by `machine.body.peripherals`.
 
 g_m_s2 = 9.81
 air_kg_m3 = 1.2
 ambient_c = 25.0
-step_s = 0.001
 load_s = 0.02
-substeps = 5
 mu_dry = 0.80
 kinetic_share = 0.75
-cone = "elliptic"
-impratio = 10.0
 joint_damping = 0.3
-stand_m = 1.3
-stand_solref_s = 0.005
-touched_n = 5.0
-
-# MuJoCo hardware-in-the-loop plant switches and fault-injection fixtures (`machine.world.physics`).
-[simulation]
-reflected = 1.0
-placed = 1.0
-backdrive = 1.0
-skeleton = 0.0
-wound = 1.0
-boxed = 0.0
-room = 0.0
-camera = 0.0
-sight = 0.0
-envelope = 1.0
-soa_rds = 50.0
-warm_c = 100.0
-virtual_span_deg = 150.0
-virtual_slew_deg_s = 1500.0
-
-# Overhead pelvic safety harness and 6-axis load-cell fixture (`machine.world.harness`): damping
-# ratio relative to critical and natural frequency (rad/s) on pelvic translation and rotation.
-[harness]
-zeta = 0.70
-place_rad_s = 11.4
-turn_rad_s = 11.5
 
 # High-discharge 15S LiPo flight battery pack (`machine.aircraft.flightpack`).
 [flight_pack]

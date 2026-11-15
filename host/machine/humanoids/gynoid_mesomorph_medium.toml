@@ -77,20 +77,15 @@ wrist = 1.0
 gripper = 1.0
 foot = 1.0
 
-# Real-time RS485 fieldbus electronics: bus rate (Hz), whole-body law decimation, wire bit rate,
-# board poll turnaround (s), board thermal step (s) and noisy-run bit error rate (`body.compile`).
+# Real-time RS485 fieldbus electronics: wire bit rate, transceiver turnaround (s) and noisy-run
+# bit error rate; lockstep rate, law decimation and thermal cadence are derived (`drives`, `peripherals`).
 [bus]
-bus_hz = 1000.0
-law_div = 3
 baud = 10_000_000
 turn_s = 30e-6
-thermal_s = 0.01
-spin_s = 0.002
-stall_s = 60.0
-threads_a_limb = 2
 line_ber = 1e-7
 
 # Stereo cameras and coupled pushrod eye gimbals (`machine.eyes.stereo`, `machine.eyes.gimbal`).
+# Census window and SGM disparity penalties are derived from sensor geometry (`peripherals.eyes`).
 [eyes]
 resolution = [640, 480]
 fovy_deg = 60.0
@@ -102,18 +97,6 @@ rods = { left = [1.0, 1.0], right = [1.012, 0.994] }
 play_deg = { left = [0.20, 0.15], right = [0.35, 0.25] }
 lever_m = { left = 0.006, right = 0.0065 }
 church = { left = -0.025, right = 0.025 }
-census_px = [9, 7]
-window_px = 9
-quantum = 1
-p1 = 20
-p2 = 240
-texture = 1.5
-unique = 1.15
-
-# Passive-spring armature inertia (kg m^2) and held-joint mechanical stop half-width (deg).
-[passive_limits]
-armature_kgm2 = 0.0005
-held_deg = 0.5
 
 # Carbon-epoxy shells over its capsules (`machine/body/build.py`), housing lips/brackets and thermal interfaces.
 [shell]
@@ -127,9 +110,6 @@ fastener_share = 1.1
 plate_w_m = 0.050
 crown_w_m = 0.040
 wall_share = 0.10
-flex_at = 0.6
-flex_deg = 0.25
-margin = 1.5
 room_m = 0.0025
 
 # Mechanical bracket and shell hard-stops, [low, high] deg; linkage strokes follow `[linkage]`.
@@ -225,17 +205,17 @@ shoulder = { collars = [[-0.02, 0.006]], struts = [] }
 [skeleton.posts]
 thigh = [[[-0.0019, -0.16, 0.0282], [0.057, -0.16, 0.0282]], [[-0.0057, -0.20, 0.0246], [0.057, -0.20, 0.0246]]]
 
-# Garments, loose hems/hair pendulums, shoelaces and sole/pad contact elastomers (`machine/body/mjcf.py`).
+# Garments, loose hems/hair pendulums, braided shoelaces and sole/pad elastomers (`peripherals`, `mjcf`).
 [garments]
 give_m = 0.004
 friction = { pelvis = 0.55, thigh = 0.55, shank = 0.55, torso = 0.45, upper_arm = 0.45 }
-hem = { length_m = 0.2, kg = 0.12, k_nm_rad = 0.6, d_nms_rad = 0.045, fore_deg = 5.0, back_deg = 8.0, side_deg = 3.0, stop_s = 0.005 }
+hem = { length_m = 0.2, kg = 0.12, k_nm_rad = 0.6, d_nms_rad = 0.045, fore_deg = 5.0, back_deg = 8.0, side_deg = 3.0 }
 hair = { length_m = 0.07, kg = 0.06, k_nm_rad = 0.016, d_nms_rad = 0.0035, back_deg = 20.0, in_deg = 4.0, side_deg = 8.0 }
-lace = { at = [0.0, -0.03, 0.07], length_m = 0.25, stop_s = 0.03, hold_n = 1000.0 }
+lace = { at = [0.0, -0.03, 0.07], length_m = 0.25, break_n = 1000.0, stretch = 0.12 }
 
 [elastomers]
-sole = { friction = 1.0, settle_s = 0.02, damp = 1.5, soft = 0.9, width_m = 0.005 }
-pad = { settle_s = 0.02, damp = 1.5, soft = 0.5 }
+sole = { friction = 1.0, modulus_mpa = 1.0, thick_m = 0.005, loss = 0.75 }
+pad = { modulus_mpa = 0.10, loss = 0.75 }
 
 # Internal non-drive, non-pack payloads [kg, x, y, z] in each segment's frame (`machine/body/build.py`):
 # compute & harness in torso (packs come from `[pack]`), power distribution in pelvis, cameras & IMU in

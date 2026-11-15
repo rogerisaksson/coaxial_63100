@@ -45,13 +45,16 @@ def _key(part):
 
 @functools.cache
 def stamp():
-    """Every source a trace reads - its path, size and time written - and the host it is held on: its Python, numpy,
-    MuJoCo and the instruction sets its libraries are built for (`build._host`), one digest; once a process."""
+    """Every source a trace reads - its path, size and time written -, its build (`COAXIAL_ROBOT`) and the host it is
+    held on: its Python, numpy, MuJoCo and the instruction sets its libraries are built for (`build._host`), one
+    digest; once a process."""
     from importlib import metadata
+    from machine.body import mechatronics
     out = hashlib.sha1()
     for root in SOURCES:
         _stamped(root, out)
-    out.update(('%s %s %s %s' % (sys.version, np.__version__, metadata.version('mujoco'), build._host())).encode())
+    out.update(('%s %s %s %s %s' % (sys.version, np.__version__, metadata.version('mujoco'), build._host(),
+                                    mechatronics.ROBOT)).encode())
     return out.hexdigest()
 
 
@@ -67,17 +70,19 @@ def _stamped(at, out):
         if e.is_dir(follow_symlinks=False):
             if e.name != '__pycache__':
                 _stamped(e.path, out)
-        elif e.name.endswith(('.py', '.lisp', '.c', '.h')):
+        elif e.name.endswith(('.py', '.lisp', '.c', '.h', '.toml')):
             st = e.stat(follow_symlinks=False)
             out.update(('%s %d %d\n' % (e.path[len(REPO):], st.st_size, st.st_mtime_ns)).encode())
 
 
 def _file(part):
-    """The kept file of `part`'s kind, None for a nested function's or a lambda's."""
+    """The kept file of `part`'s kind and build, None for a nested function's or a lambda's."""
+    from machine.body import mechatronics
     fn = part.fn
     if '<' in getattr(fn, '__qualname__', '<'):
         return None
-    kind = '%s.%s|%s|%s|%s' % (fn.__module__, fn.__qualname__, part.name, tuple(part.inputs), part.body is not None)
+    kind = '%s.%s|%s|%s|%s|%s' % (fn.__module__, fn.__qualname__, part.name, tuple(part.inputs), part.body is not None,
+                                  mechatronics.ROBOT)
     return os.path.join(KEPT, hashlib.sha1(kind.encode()).hexdigest()[:20] + '.pkl')
 
 

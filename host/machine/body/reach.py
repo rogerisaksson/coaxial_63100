@@ -16,7 +16,18 @@ stop theirs; a foot landing pitched - `land` lays it flat.
 """
 import math
 
-from machine.body.reach_rows import ACROSS, BACK, DU, FOOT, FORE, LIMBS, SHANK, THIGH, U0, YAW
+from machine.body import drives, figure
+from machine.body.reach_rows import BACK as _BACK, DU as _DU, FORE as _FORE, LIMBS, SHANK as _SHANK, THIGH as _THIGH, U0 as _U0
+
+THIGH, SHANK = figure.THIGH, figure.SHANK
+_S = (THIGH + SHANK) / (_THIGH + _SHANK)
+U0, DU = _U0 * _S, _DU * _S
+BACK, FORE = tuple(v * _S for v in _BACK), tuple(v * _S for v in _FORE)
+YAW = tuple(math.floor(abs(math.radians(v)) * 1e6) / 1e6 for v in drives.TRAVEL['hip_yaw'])
+ACROSS = tuple(math.floor(math.tan(abs(math.radians(v))) * 1e6) / 1e6 for v in drives.TRAVEL['ankle_roll'])
+_HALF = figure.CONTACTS[0][2][0]
+FOOT = ((-_HALF, -figure.HEEL), (_HALF, -figure.HEEL),
+        (_HALF, figure.BALL + figure.TOE_M), (-_HALF, figure.BALL + figure.TOE_M))
 
 
 def _run(u):

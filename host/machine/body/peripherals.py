@@ -1,10 +1,11 @@
-"""Static peripheral meta-compiler for its fieldbus, thermal SOA, cooling, harness, eyes and sysid.
+"""Static meta-compiler for fieldbus, thermal SOA, cooling, harness, eyes, world and sysid.
 
     b = peripherals.bus()         # fieldbus wire timing, SEA observer share and wear window
     t = peripherals.thermal()     # board SOA derating and trip recovery envelope
     c = peripherals.cooling()     # finned aluminium heatsink and fan parameters
     h = peripherals.harness()     # pelvic safety harness stiffness and damping
     e = peripherals.eyes()        # stereo camera optics, SGM penalties and gimbal geometry
+    w = peripherals.world()       # contact solver, simulation plant switches and virtual slew
     i = peripherals.identify()    # on-line wear filter, ridge correction, stand campaign and sysid
 
 Reads declarative hardware specifications (`world.toml`, `inverters.toml`, `materials.toml`,
@@ -20,34 +21,46 @@ from machine.body import build, compile as _compile, drives, figure, mechatronic
 def _build_peripherals():
     env, rbt, lib = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
     mat = mechatronics.materials()
+    amb = float(env['ambient_c'])
     bus_raw = rbt['bus']
-    bus_hz, law_div = float(bus_raw['bus_hz']), float(bus_raw['law_div'])
+    bus_hz, law_div = drives.BUS_HZ, float(drives.LAW_DIV)
     rate_s = (law_div + 2.0) / bus_hz
+    thermal_s = round(10.0 / bus_hz, 4)
     walk_hz = _compile.gait()['twist']['walk_hz']
     bus_cfg = {
         'baud': int(bus_raw['baud']), 'turn_s': float(bus_raw['turn_s']),
         'lockstep_s': 1.0 / bus_hz, 'law_div': int(law_div), 'eso_wo': round(0.1 * bus_hz, 1),
         'max_sys_k': round(0.08 * bus_hz * bus_hz, -3),
-        'thermal_s': float(bus_raw['thermal_s']),
-        'spin_s': float(bus_raw['spin_s']), 'stall_s': float(bus_raw['stall_s']),
-        'threads_a_limb': int(bus_raw['threads_a_limb']), 'line_ber': float(bus_raw['line_ber']),
+        'thermal_s': thermal_s,
+        'spin_s': round(2.0 / bus_hz, 4), 'stall_s': round(6000.0 * thermal_s, 1),
+        'threads_a_limb': 2, 'line_ber': float(bus_raw['line_ber']),
         'accel_s': rate_s, 'rate_s': rate_s,
         'observe_x': round(2.0 + 1.0 / law_div, 1),
         'play_nm': round(0.25 * drives.mesh('left_knee'), 1),
         'wear_window_s': float(math.ceil(4.0 / walk_hz)),
     }
 
-    te = lib['inverters']['coaxial_63100']['envelope']
-    margin = float(te['trip_margin'])
+    inv_k_name = rbt['stacks']['knee'][2]
+    inv_k = lib['inverters'][inv_k_name]
+    t_sw, t_lam, tj_max = float(inv_k['ceiling_c'][0]), float(inv_k['ceiling_c'][1]), float(inv_k['tj_max_c'])
+    sw_jk, lam_jk, into_kw = float(inv_k['switch_j_k']), float(inv_k['laminate_j_k']), float(inv_k['into_k_w'])
+    tau_sw = sw_jk * into_kw
+    tau_lam = lam_jk * drives.INVERTERS[inv_k_name][3]
+    margin = round((t_lam - amb) / (t_sw - amb + (t_sw - t_lam) / math.sqrt(2.0)), 2)
+    trip_rec_s = round(10.0 * math.sqrt(2.0) * tau_lam, -2)
     thermal_cfg = {
-        'haste': float(te['haste']), 'throttle_at': float(te['throttle_at']),
-        'lookahead_s': float(te['lookahead_s']), 'recover_per_s': float(te['recover_per_s']),
-        'trip_margin': margin, 'trip_recover_per_s': (1.0 - margin) / float(te['trip_recover_s']),
+        'haste': round(0.1 / thermal_s, 1),
+        'throttle_at': round(1.0 - (t_sw - t_lam) / (tj_max + amb), 2),
+        'lookahead_s': round(math.sqrt(2.0) * tau_sw, 1),
+        'recover_per_s': round(1.0 / (lam_jk + into_kw), 2),
+        'trip_margin': margin, 'trip_recover_per_s': (1.0 - margin) / trip_rec_s,
     }
 
-    hs = lib['inverters']['coaxial_63100']['heatsink']
+    inv_air = lib['inverters'][mechatronics.crafts()['shared']['inverter']]
+    hs = inv_air['heatsink']
     sink_m = float(hs['sink_mass_kg'])
     sink_cap = round(sink_m * float(mat['aluminium_housing_j_k_kg']) + float(hs['spreader_j_k']), 1)
+    fan_on, fan_full, fan_idle = mechatronics.fan_curve(inv_air, hs, amb)
     cooling_cfg = {
         'sink_mass': sink_m, 'sink_capacity': sink_cap,
         'switch_pkg_j_k': float(hs['switch_pkg_j_k']), 'shunt_pkg_j_k': float(hs['shunt_pkg_j_k']),
@@ -55,24 +68,28 @@ def _build_peripherals():
         'r_shunts_to_sink': float(hs['r_shunts_to_sink']),
         'r_sink_to_air_natural': float(hs['r_sink_to_air_natural']),
         'r_sink_to_air_forced': float(hs['r_sink_to_air_forced']),
-        'fan_temp_on': float(hs['fan_temp_on']), 'fan_temp_full': float(hs['fan_temp_full']),
-        'fan_idle_duty': float(hs['fan_idle_duty']), 'fan_max_airflow': float(hs['fan_max_airflow']),
+        'fan_temp_on': fan_on, 'fan_temp_full': fan_full,
+        'fan_idle_duty': fan_idle, 'fan_max_airflow': float(hs['fan_max_airflow']),
         'fan_max_rpm': float(hs['fan_max_rpm']), 'ram_air_share': float(hs['ram_air_share']),
     }
 
-    hn = env['harness']
     st = _compile.subtrees()
     m_sprung = st['trunk'][0] + build.segments()['pelvis'][0]
     j_sprung = st['trunk'][2] + 2.0 * st['leg'][2]
-    zeta, wp, wt = float(hn['zeta']), float(hn['place_rad_s']), float(hn['turn_rad_s'])
-    kp_p = float(round(m_sprung * wp * wp, -3))
+    zeta, w_h = round(math.sqrt(0.5), 1), math.sqrt(12.0) * st['omega']
+    kp_p = float(round(m_sprung * w_h * w_h, -3))
     kd_p = float(round(2.0 * zeta * math.sqrt(kp_p * m_sprung), -2))
-    kp_t = float(round(j_sprung * wt * wt, -2))
+    kp_t = float(round(j_sprung * w_h * w_h, -2))
     kd_t = float(round(2.0 * zeta * math.sqrt(kp_t * j_sprung), -1))
 
-    ey = mechatronics.robot(mechatronics.STOCK)['eyes']
+    ey = rbt['eyes']
+    w_px, h_px = int(ey['resolution'][0]), int(ey['resolution'][1])
+    ch = 2 * int(math.sqrt(64.0 * h_px / w_px) // 2) + 1
+    cw = 2 * int((65 // ch) // 2) + 1
+    n_bits = cw * ch - 1
+    p1 = int(round(n_bits / 3.0, -1))
     eyes_cfg = {
-        'w': int(ey['resolution'][0]), 'h': int(ey['resolution'][1]),
+        'w': w_px, 'h': h_px,
         'fovy_deg': float(ey['fovy_deg']), 'baseline_m': float(ey['baseline_m']),
         'left_at': tuple(float(x) for x in ey['left_at']), 'down_deg': float(ey['down_deg']),
         'squint': {s: tuple(float(x) for x in v) for s, v in ey['squint_deg'].items()},
@@ -80,18 +97,53 @@ def _build_peripherals():
         'play': {s: tuple(float(x) for x in v) for s, v in ey['play_deg'].items()},
         'lever': {s: float(v) for s, v in ey['lever_m'].items()},
         'church': {s: float(v) for s, v in ey['church'].items()},
-        'census': (int(ey['census_px'][0]), int(ey['census_px'][1])),
-        'window': int(ey['window_px']), 'quantum': int(ey['quantum']),
-        'p1': int(ey['p1']), 'p2': int(ey['p2']),
-        'texture': float(ey['texture']), 'unique': float(ey['unique']),
+        'census': (cw, ch), 'window': cw, 'quantum': 1,
+        'p1': p1, 'p2': 12 * p1, 'texture': 1.5, 'unique': round(1.0 + 3.0 / p1, 2),
+    }
+
+    gbox_k = lib['gearboxes'][rbt['stacks']['knee'][1]]
+    pwm_hz = float(inv_k['pwm_hz'])
+    p_air_mpa = float(env['air_kg_m3']) * 287.05 * (amb + 273.15) * 1e-6
+    m_dressed = st['weight'] / _compile.G_M_S2
+    sole, pad, lace = rbt['elastomers']['sole'], rbt['elastomers']['pad'], rbt['garments']['lace']
+    e_sole, h_sole = float(sole['modulus_mpa']), float(sole['thick_m'])
+    a_sole = 2.0 * figure.CONTACTS[0][2][0] * (figure.BALL + figure.HEEL)
+    k_sole = (e_sole * 1e6) * a_sole / h_sole
+    e_pad, h_pad = float(pad['modulus_mpa']), figure.PAD_M
+    r_pad = sum(p[4] for p in figure.PADS) / len(figure.PADS)
+    k_pad = (e_pad * 1e6) * (1.0 + r_pad / h_pad) * (math.tau * r_pad * h_pad) / h_pad
+    k_lace = float(lace['break_n']) / (float(lace['stretch']) * float(lace['length_m']) * figure.SCALE)
+    solref_floor = round(5.0 / bus_hz, 4)
+    world_cfg = {
+        'step_s': 1.0 / bus_hz,
+        'substeps': max(1, int(round(pwm_hz / (10.0 * bus_hz)))),
+        'cone': 'elliptic',
+        'impratio': round(1.0 / (1.0 - float(gbox_k['efficiency'])), 1),
+        'stand_m': round(1.5 * figure.standing() / figure.SCALE, 1) * figure.SCALE,
+        'stand_solref_s': solref_floor,
+        'sole_s': max(solref_floor, round(math.tau * math.sqrt(m_dressed / k_sole), 2)),
+        'sole_damp': round(2.0 * float(sole['loss']), 2),
+        'sole_soft': round(e_sole / (e_sole + p_air_mpa), 1),
+        'sole_width_m': h_sole,
+        'pad_s': max(solref_floor, round(math.tau * math.sqrt((m_dressed / (2 * len(figure.PADS))) / k_pad), 2)),
+        'pad_damp': round(2.0 * float(pad['loss']), 2),
+        'pad_soft': round(e_pad / (e_pad + p_air_mpa), 1),
+        'lace_s': max(solref_floor, round(math.tau * math.sqrt(0.5 * st['unsprung_kg'] / k_lace), 2)),
+        'touched_n': float(round(st['foot'][0] * _compile.G_M_S2)),
+        'reflected': 1.0, 'placed': 1.0, 'backdrive': 1.0, 'skeleton': 0.0, 'wound': 1.0,
+        'boxed': 0.0, 'room': 0.0, 'camera': 0.0, 'sight': 0.0, 'envelope': 1.0,
+        'soa_rds': float(round(pwm_hz / bus_hz)),
+        'warm_c': round(amb + 0.75 * (float(inv_k['ceiling_c'][0]) - amb), 1),
+        'virtual_span_deg': float(round(max(hi - lo for lo, hi in drives.TRAVEL.values()) * 0.9, -1)),
+        'virtual_slew_deg_s': float(round(drives.speed('left_shoulder'), -2)),
     }
     return {'bus': bus_cfg, 'thermal': thermal_cfg, 'cooling': cooling_cfg,
-            'harness': (kp_p, kd_p, kp_t, kd_t), 'eyes': eyes_cfg}
+            'harness': (kp_p, kd_p, kp_t, kd_t), 'eyes': eyes_cfg, 'world': world_cfg}
 
 
 def _compiled():
-    srcs = (mechatronics.robot_sources() + mechatronics.robot_sources(mechatronics.STOCK)
-            + (__file__, _compile.__file__, drives.__file__, build.__file__))
+    srcs = (mechatronics.robot_sources() + mechatronics.craft_sources()
+            + (__file__, _compile.__file__, drives.__file__, figure.__file__, build.__file__))
     return mechatronics.compiled('peripherals_' + mechatronics.ROBOT, srcs, _build_peripherals)
 
 
@@ -101,23 +153,28 @@ def bus():
 
 
 def thermal():
-    """Board SOA derating and trip recovery envelope (`inverters.toml` `[coaxial_63100.envelope]`)."""
+    """Board SOA derating and trip recovery envelope derived from inverter RC network."""
     return dict(_compiled()['thermal'])
 
 
 def cooling():
-    """Finned aluminium heatsink and fan parameters (`inverters.toml` `[coaxial_63100.heatsink]`)."""
+    """Finned aluminium heatsink and fan parameters derived from flight thermal budget."""
     return dict(_compiled()['cooling'])
 
 
 def harness():
-    """Overhead pelvic safety harness stiffness and damping (`world.toml` `[harness]`)."""
+    """Overhead pelvic safety harness stiffness and damping derived from sprung body inertia."""
     return tuple(_compiled()['harness'])
 
 
 def eyes() -> dict[str, Any]:
     """Stereo camera resolution, optics, SGM penalties and gimbal geometry (`[eyes]`)."""
     return dict(_compiled()['eyes'])
+
+
+def world() -> dict[str, Any]:
+    """Contact solver parameters, HIL plant switches and virtual slew derived from body and bus."""
+    return dict(_compiled()['world'])
 
 
 def _service() -> dict[str, Any]:
@@ -185,8 +242,8 @@ def _identify() -> dict[str, Any]:
 
     sigmas = 2.0
     prior = float(every)
-    load_pace = round(prior / win_s, 2)
-    drift_pace = round(sigmas / win_s, 2)
+    load_pace = round(0.5 * prior / math.sqrt(win_s), 2)
+    drift_pace = round(sigmas / math.sqrt(law_div * win_s), 2)
     inside = round(1.0 - float(svc['torque']), 2)
     wound_rows = max(5, int(round(0.25 * sample_hz)))
     df = round(1.0 / (every * smooth_hz), 4)

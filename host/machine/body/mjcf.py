@@ -4,26 +4,27 @@ The world steps it (`machine.world.physics`).
 """
 import math
 
-from machine.body import build, drives, figure, mechatronics, skeleton
+from machine.body import build, drives, figure, mechatronics, peripherals, skeleton
 from machine.world import floor, room
 from machine.body.drives import kind
 from machine.body.figure import BODY, HAIR_AT, HEM_AT, JOINTS, MASS_KG, SEGMENTS, contacts as undersides
 
 _BUILD, _WORLD = mechatronics.robot(), mechatronics.environment()
+_WRLD = peripherals.world()
 _GARM, _ELAST = _BUILD['garments'], _BUILD['elastomers']
 _HEM, _HAIR, _LACE = _GARM['hem'], _GARM['hair'], _GARM['lace']
-_SOLE, _PAD = _ELAST['sole'], _ELAST['pad']
-_PLIM = _BUILD['passive_limits']
+_SOLE = _ELAST['sole']
 
-#: Undriven spring armature, kg m^2, and held-joint stop half-width, deg (`drives.passive`, `[passive_limits]`).
-PASSIVE_J, HELD_DEG = float(_PLIM['armature_kgm2']), float(_PLIM['held_deg'])
+#: Undriven spring armature, kg m^2, and held-joint stop half-width, deg (`drives.passive`).
+PASSIVE_J = round(0.5 * drives.size('wrist').mass * (0.5 * drives.size('wrist').diameter) ** 2, 4)
+HELD_DEG = float(drives.BACKLASH_DEG)
 
-#: Pelvis weld stand height and stiffness time constant for system identification (`world.toml`).
-STAND, STAND_M = 0.0, float(_WORLD['stand_m'])
-_STAND_SOLREF_S = float(_WORLD['stand_solref_s'])
+#: Pelvis weld stand height and stiffness time constant for system identification (`peripherals.world`).
+STAND, STAND_M = 0.0, float(_WRLD['stand_m'])
+_STAND_SOLREF_S = float(_WRLD['stand_solref_s'])
 
-#: Friction cone, tangential-to-normal impedance ratio, gravity and joint damping (`world.toml`).
-CONE, IMPRATIO = str(_WORLD['cone']), float(_WORLD['impratio'])
+#: Friction cone, tangential-to-normal impedance ratio, gravity and joint damping (`peripherals.world`, `world.toml`).
+CONE, IMPRATIO = str(_WRLD['cone']), float(_WRLD['impratio'])
 _GRAVITY, _JOINT_DAMP = float(_WORLD['g_m_s2']), float(_WORLD['joint_damping'])
 
 #: Garment sliding friction, padding compliance, loose hem/hair pendulums and lace tendon (`[garments]`).
@@ -32,7 +33,7 @@ CLOTH_GIVE_M = float(_GARM['give_m'])
 HEM_M, HEM_KG = float(_HEM['length_m']), float(_HEM['kg'])
 HEM_K, HEM_D = float(_HEM['k_nm_rad']), float(_HEM['d_nms_rad'])
 HEM_FORE_DEG, HEM_BACK_DEG = float(_HEM['fore_deg']), float(_HEM['back_deg'])
-HEM_SIDE_DEG, HEM_STOP_S = float(_HEM['side_deg']), float(_HEM['stop_s'])
+HEM_SIDE_DEG, HEM_STOP_S = float(_HEM['side_deg']), _STAND_SOLREF_S
 HEMS = tuple('%s_hem_%s' % (side, axis) for side in ('left', 'right') for axis in 'xz')
 
 HAIR_M, HAIR_KG = float(_HAIR['length_m']), float(_HAIR['kg'])
@@ -47,13 +48,14 @@ LOOSE = HEMS + HAIRS
 #: Contact bitmasks: 2 meets the floor's 1, 4 its own segments and skeleton.
 ME, MEETS = 2 | 4, 1 | 4
 
-#: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`[elastomers]`).
+#: Sole sliding/torsional friction and sneaker/gel-pad contact compliance (`peripherals.world`).
 FRICTION, TORSION_M = float(_SOLE['friction']), figure.sole_torsion_m()
-SOLE_S, SOLE_DAMP = float(_SOLE['settle_s']), float(_SOLE['damp'])
-SOLE_SOFT, SOLE_WIDTH_M = float(_SOLE['soft']), float(_SOLE['width_m'])
-PAD_SOFT, PAD_S, PAD_DAMP = float(_PAD['soft']), float(_PAD['settle_s']), float(_PAD['damp'])
-LACE_AT = tuple(float(v) for v in _LACE['at'])
-LACE_M, LACE_S, LACE_HOLD_N = float(_LACE['length_m']), float(_LACE['stop_s']), float(_LACE['hold_n'])
+SOLE_S, SOLE_DAMP = float(_WRLD['sole_s']), float(_WRLD['sole_damp'])
+SOLE_SOFT, SOLE_WIDTH_M = float(_WRLD['sole_soft']), float(_WRLD['sole_width_m'])
+PAD_SOFT, PAD_S, PAD_DAMP = float(_WRLD['pad_soft']), float(_WRLD['pad_s']), float(_WRLD['pad_damp'])
+LACE_AT = tuple(figure.SCALE * float(v) for v in _LACE['at'])
+LACE_M = figure.SCALE * float(_LACE['length_m'])
+LACE_S, LACE_HOLD_N = float(_WRLD['lace_s']), float(_LACE['break_n'])
 
 #: An inertia's principal frame: Jacobi's cyclic sweeps of its 3x3 (a 3x3's off-diagonal under a double's
 #: last bit within five), its quaternion to 26 bits a component - their squares exact, MuJoCo's normalising

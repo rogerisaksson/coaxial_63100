@@ -11,8 +11,8 @@ from typing import Any
 from machine.body import build, drives, figure, mechatronics
 
 _ENV, _BUILD, _LIB = mechatronics.environment(), mechatronics.robot(), mechatronics.library()
-_BUS, _INV = _BUILD['bus'], _LIB['inverters'][_BUILD['stacks']['knee'][2]]
-G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), float(_BUS['bus_hz']), float(_BUS['law_div'])
+_INV = _LIB['inverters'][_BUILD['stacks']['knee'][2]]
+G_M_S2, _BUS_HZ, _LAW_DIV = float(_ENV['g_m_s2']), drives.BUS_HZ, float(drives.LAW_DIV)
 _LAW_HZ, ROTOR_FF, _ESO_WO = _BUS_HZ / _LAW_DIV, round(1.0 / (1.0 + _LAW_DIV), 2), 0.10 * _BUS_HZ
 ENC_RAD = tau / float(_INV['encoder_counts'])
 _MU_DRY, _KIN_SHARE = float(_ENV['mu_dry']), float(_ENV['kinetic_share'])
@@ -121,8 +121,7 @@ def _servos(st):
         return j if j > 0.0 else (1.0 + drives.GEAR_J) * drives.size(k).rotor * drives.RATIO ** 2
 
     def sv(k, pk, kp, kd):
-        a = (0.5 * ROTOR_FF * drives.armature('waist') if k == 'waist'
-             else (ROTOR_FF + drives.GEAR_J) * drives.size(k).rotor * drives.RATIO ** 2)
+        a = (ROTOR_FF + drives.GEAR_J) * drives.size(k).rotor * drives.RATIO ** 2
         return (round(pk, 1), float(kp), float(kd), round(a, 2))
 
     def pd_joint(k, j_eff, zeta, bw=w_inner):

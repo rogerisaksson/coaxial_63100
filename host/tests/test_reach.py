@@ -165,9 +165,31 @@ def test_two_feet_clear_of_each_other(report):
                  '%.4f m off at most, %d of 150 crossing' % (worst, crossed))
 
 
+def test_its_scaled_builds_land_in_mujoco(report):
+    """Scaled builds (`_s95`, `_s105`) scale `reach` and `footprint` homothetically and land in MuJoCo."""
+    import os
+    import subprocess
+    from machine.body import footprint as fp_base, footprint_rows
+    report.check('nominal footprint matches static rows', fp_base.BAND_M == footprint_rows.BAND_M)
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    host = os.path.dirname(tests_dir)
+    py_path = host + os.pathsep + tests_dir
+    probe = ('import math, sys; from machine.body import figure, footprint; import test_reach; '
+             'assert abs(footprint.BAND_M - %r * figure.SCALE) < 1e-12; '
+             'assert abs(footprint.took(180.0) - %r * math.sqrt(figure.SCALE)) < 1e-12; '
+             'sys.exit(test_reach.main(["a_place_landed_stands_in_mujoco", "two_feet_clear_of_each_other"]))'
+             % (fp_base.BAND_M, fp_base.took(180.0)))
+    for build, scale in (('gynoid_mesomorph_medium_s95', 0.95), ('gynoid_mesomorph_medium_s105', 1.05)):
+        run = subprocess.run([sys.executable, '-X', 'utf8', '-c', probe], cwd=host,
+                             env=dict(os.environ, COAXIAL_ROBOT=build, PYTHONPATH=py_path),
+                             capture_output=True, text=True, timeout=120)
+        report.check('%s (%.2fx) lands in MuJoCo and scales footprint' % (build, scale),
+                     run.returncode == 0, (run.stdout + run.stderr)[-300:])
+
+
 ROSTER = [test_the_rows_are_its_figure, test_what_the_rows_hold_its_stops_allow,
           test_a_place_landed_stands_in_mujoco, test_its_right_is_its_left_mirrored,
-          test_two_feet_clear_of_each_other]
+          test_two_feet_clear_of_each_other, test_its_scaled_builds_land_in_mujoco]
 
 
 def main(argv=None):

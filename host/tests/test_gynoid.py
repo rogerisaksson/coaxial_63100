@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""The gynoid's body on fantasy boards (`physics.ENVELOPE` 0, their SOA never binding): its
-clothes and its look, its leg by its foot, a virtual and a dynamic machine of it, its skeleton,
-its drives' mounts and gearboxes, its kinematics as motors."""
+"""Gynoid body on fantasy boards: garments, leg IK, rigs, skeleton and static compiler."""
 import sys
 
 from structure_kit import Report
@@ -32,8 +30,7 @@ def test_dressed_or_bare(report):
 
 
 def test_its_views_draw(report):
-    """The page's mechanism and actuators views draw: a held drive (`drives.WAYS`) has no drum,
-    so no spur or bevel pair on it - the wrists' bevels crashed the page."""
+    """Mechanism and actuator views draw with zero spur or bevel parts on held wrists."""
     from coaxial.graphics import gynoid
     for see in ('mechanism', 'actuators'):
         seen = gynoid.body(see=see)
@@ -53,8 +50,7 @@ def _span(lo, hi, u):
 
 
 def test_a_virtual_body_is_told(report):
-    """VIRTUAL: no board, the humanoid's joints each where it is told, slewed; a pose
-    written, each reads its command back, the type's routines run."""
+    """VIRTUAL: joints slew to commanded poses, read back and run the type's walk routine."""
     from machine import Machine
     from machine.rig.modes import VIRTUAL
     from machine.rig.routines import TYPES
@@ -284,8 +280,7 @@ def _gearbox_has_play(report, physics, figure, i):
 
 
 def test_every_build_runs_it(report):
-    """Every build file but its own (`mechatronics.robots`) runs it on its loop under COAXIAL_ROBOT:
-    every module imported, its first seconds and a walk told (`tools/dev/smoke.py`)."""
+    """Every non-default build (`mechatronics.robots`) runs `smoke.py` under COAXIAL_ROBOT."""
     import os
     import subprocess
     from machine.body import mechatronics
@@ -301,41 +296,49 @@ def test_every_build_runs_it(report):
 
 
 def test_its_gait_is_stated_on_it(report):
-    """Declarative `.toml` construction compiles into `.cache/compiled/` on first run and recompiles on edit."""
-    import math
-    import os
-    import tempfile
-    import tomllib
+    """Declarative `.toml` specs hold physical construction only and cache/recompile on edit."""
+    import math, os, tempfile, tomllib
     from machine.body import build, drives, figure, gait, mechatronics, servos
     with open(os.path.join(mechatronics.ROBOTS, mechatronics.STOCK + '.toml'), 'rb') as f:
         raw = tomllib.load(f)
     banned = {'servo', 'wind', 'series', 'gait', 'service', 'pack_v', 'cooling', 'clamped',
-              'rigid_play_deg', 'ahead_wind', 'ahead_play', 'mount_k_w', 'off_mount_k_w'}
-    required = {'bus', 'passive_limits', 'stops', 'boards', 'mounts', 'linkage', 'skeleton', 'garments', 'elastomers'}
-    lib, c_cfg = mechatronics.library(), mechatronics.crafts()
-    w_cfg, m_cfg = mechatronics.environment(), mechatronics.materials()
-    bus_banned = {'eso_bw_share', 'observe_x', 'rate_s', 'play_nm', 'wear_window_s', 'wear_trend_windows'}
-    craft_banned = ({k for c in c_cfg.values() if isinstance(c, dict) for k in c}
-                    & {'k_thrust', 'k_drag', 'inertia_xx', 'stiffness', 'damping', 'turn_bandwidth'})
-    lib_banned = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
-                  | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
-                  | {k for v in lib['inverters'].values() for k in v} & {'laminate_k_w', 'loop_hz'})
+              'rigid_play_deg', 'ahead_wind', 'ahead_play', 'mount_k_w', 'off_mount_k_w', 'passive_limits'}
+    req = {'bus', 'stops', 'boards', 'mounts', 'linkage', 'skeleton', 'garments', 'elastomers'}
+    lib, c_cfg, w_cfg, m_cfg = (mechatronics.library(), mechatronics.crafts(),
+                                mechatronics.environment(), mechatronics.materials())
+    bus_ban = {'bus_hz', 'law_div', 'thermal_s', 'spin_s', 'stall_s', 'threads_a_limb',
+               'eso_bw_share', 'observe_x', 'rate_s', 'play_nm', 'wear_window_s', 'wear_trend_windows'}
+    eyes_ban = {'census_px', 'window_px', 'quantum', 'p1', 'p2', 'texture', 'unique'}
+    world_ban = {'step_s', 'substeps', 'cone', 'impratio', 'stand_m', 'stand_solref_s', 'touched_n', 'simulation', 'harness'}
+    craft_ban = ({k for c in c_cfg.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
+                 & {'step_s', 'arena', 'drive_load', 'k_thrust', 'k_drag', 'inertia_xx', 'stiffness', 'damping',
+                    'turn_bandwidth', 'alpha_run_deg', 'climb_deg', 'harrier_deg', 'tictoc_hz', 'tictoc_deg',
+                    'most_deg', 'nose_m_s', 'head_tip_m_s', 'drive_rad_s'})
+    inv_hs = lib['inverters']['coaxial_63100']['heatsink']
+    lib_ban = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
+               | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
+               | {k for v in lib['inverters'].values() for k in v} & {'laminate_k_w', 'loop_hz', 'v_frac', 'envelope'}
+               | (set(inv_hs) & {'fan_temp_on', 'fan_temp_full', 'fan_idle_duty'}))
     report.check('library, humanoid and craft .toml files hold pure physical construction only',
-                 required <= set(raw) and not (banned & set(raw))
-                 and not ({'squat', 'stand', 'stand_knee'} & set(raw['figure']))
-                 and not (bus_banned & set(raw['bus'])) and not craft_banned
-                 and 'g_m_s2' in w_cfg and 'solids' in m_cfg and 'rad_s' not in raw['toes'] and not lib_banned
+                 req <= set(raw) and not (banned & set(raw)) and not ({'squat', 'stand', 'stand_knee'} & set(raw['figure']))
+                 and not (bus_ban & set(raw['bus'])) and not (eyes_ban & set(raw['eyes']))
+                 and not ({'flex_at', 'flex_deg', 'margin'} & set(raw['shell']))
+                 and not ({'settle_s', 'damp', 'soft', 'width_m'} & set(raw['elastomers']['sole']))
+                 and not ({'stop_s', 'hold_n'} & set(raw['garments']['lace'])) and 'stop_s' not in raw['garments']['hem']
+                 and not (world_ban & set(w_cfg)) and not craft_ban and not lib_ban
+                 and 'g_m_s2' in w_cfg and 'solids' in m_cfg and 'rad_s' not in raw['toes']
                  and 'stack_on' in raw['boards']['ankle'] and 'stack_on' in raw['boards']['head'])
     with tempfile.NamedTemporaryFile('w', suffix='.toml', delete=False, encoding='utf-8') as tf:
         tf.write('mass = 2.0\n')
         probe = tf.name
     calls = []
+    chk = lambda: (calls.append(1), mechatronics._toml(probe)['mass'])[1]
     try:
-        v1 = mechatronics.compiled('_probe_test', (probe,), lambda: (calls.append(1), mechatronics._toml(probe)['mass'])[1])
-        v2 = mechatronics.compiled('_probe_test', (probe,), lambda: (calls.append(1), mechatronics._toml(probe)['mass'])[1])
+        v1 = mechatronics.compiled('_probe_test', (probe,), chk)
+        v2 = mechatronics.compiled('_probe_test', (probe,), chk)
         with open(probe, 'w', encoding='utf-8') as tf:
             tf.write('mass = 3.5\n')
-        v3 = mechatronics.compiled('_probe_test', (probe,), lambda: (calls.append(1), mechatronics._toml(probe)['mass'])[1])
+        v3 = mechatronics.compiled('_probe_test', (probe,), chk)
     finally:
         for p in (probe, os.path.join(mechatronics.CACHE, '_probe_test.json')):
             if os.path.exists(p):
@@ -357,12 +360,9 @@ def test_its_gait_is_stated_on_it(report):
 
 
 def test_its_tiers_by_the_machine(report):
-    """`modes.afforded`, `chosen` and `told`: on 16 cores its 20 boards fit in-process and native,
-    not on Renode; its body wired to in-process alone, that is chosen; on 2 cores in-process alone
-    fits; on 1 none does and it runs in its own process. `sprung.state` tells its headroom beside
-    its ratio."""
+    """Execution tiers fit core counts (`modes.afforded`/`chosen`) and `worker.told` reports headroom."""
     from machine.rig import modes
-    from machine.process import sprung, worker
+    from machine.process import worker
     fits = {name: ok for name, _c, ok in modes.afforded(16, 20)}
     report.check('on 16 cores 20 boards fit in-process and native, not on Renode; in-process chosen, the one wired',
                  fits['in-process'] and fits['native'] and not fits['emulated'] and modes.chosen(16, 20) == 'in-process',
@@ -381,10 +381,7 @@ def test_its_tiers_by_the_machine(report):
 
 
 def test_the_referee_and_its_averages_in_c(report):
-    """The robot's worker's referee (`referee.fallen`, wbc_pass_paired) and its drives' averages
-    (wbc_pass_averaged) beside their numpy at every pass of its walk and a shove that throws it:
-    the same fall at each pass, a fall seen, the averages bit for bit."""
-    import numpy as np
+    """C referee (`wbc_pass_paired`) and drive averages (`wbc_pass_averaged`) match numpy bit-for-bit."""
     from machine.body import figure
     from machine.law import modal
     from machine.world import referee

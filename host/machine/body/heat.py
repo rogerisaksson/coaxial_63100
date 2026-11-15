@@ -23,15 +23,15 @@ gate drive sagging runs the FETs in their SOA). Heat runs HASTE times the clock.
 from machine.body import drives, mechatronics, peripherals
 
 _env = mechatronics.environment()
-_INV = mechatronics.library()['inverters']['coaxial_63100']
+_inv = mechatronics.library()['inverters'][drives.STACKS['knee'][2]]
 _TH = peripherals.thermal()
 _COOL = peripherals.cooling()
 
 #: The switches' on-resistance and the shunts', ohm (`inverters.toml`); housekeeping watts;
 #: 2nd-order silicon temperature coefficients of RDS_OHM (`thermal.c`).
 RDS_OHM, RDS_ALPHA, RDS_BETA, SHUNT_OHM, HOUSEKEEPING_W = (
-    float(_INV[k]) for k in ('rds_ohm', 'rds_alpha', 'rds_beta', 'shunt_ohm', 'housekeeping_w'))
-_DRY_24V_W, _DRY_W_PER_V = float(_INV['dry_loss_24v_w']), float(_INV['dry_loss_w_per_v'])
+    float(_inv[k]) for k in ('rds_ohm', 'rds_alpha', 'rds_beta', 'shunt_ohm', 'housekeeping_w'))
+_DRY_24V_W, _DRY_W_PER_V = float(_inv['dry_loss_24v_w']), float(_inv['dry_loss_w_per_v'])
 
 
 def dry_loss(volts=None):
@@ -47,12 +47,12 @@ SWITCHING_W = dry_loss(drives.PACK_V)
 #: Heat capacities, J/K, and thermal resistances, K/W (`inverters.toml`, `drives.stator`).
 NODES = ('switch', 'laminate', 'stator', 'winding')
 SWITCH_J_K, LAMINATE_J_K, INTO_K_W = (
-    float(_INV[k]) for k in ('switch_j_k', 'laminate_j_k', 'into_k_w'))
+    float(_inv[k]) for k in ('switch_j_k', 'laminate_j_k', 'into_k_w'))
 STATOR_J_K_DEFAULT, MOUNT_K_W_DEFAULT, CLOTH_AIR_DEFAULT = drives.stator('left_knee')
 
 #: Each node's ceiling, C, and the FETs' junction limit over the switches by RTH_JC K/W (`inverters.toml`).
-CEILING_C = tuple(float(x) for x in _INV['ceiling_c'])
-TJ_MAX_C, RTH_JC = float(_INV['tj_max_c']), float(_INV['rth_jc'])
+CEILING_C = tuple(float(x) for x in _inv['ceiling_c'])
+TJ_MAX_C, RTH_JC = float(_inv['tj_max_c']), float(_inv['rth_jc'])
 
 #: Ambient temperature, C (`world.toml`); heat's seconds per clock second in the stand-in.
 AMBIENT_C, HASTE = float(_env['ambient_c']), _TH['haste']

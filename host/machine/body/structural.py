@@ -3,14 +3,17 @@ import math
 
 from machine.body import linkage, mechatronics, skeleton
 
-_MAT, _BUILD = mechatronics.materials(), mechatronics.robot()
-_SOLIDS, _SHELL, _BUS = _MAT['solids'], _BUILD['shell'], _BUILD['bus']
+_MAT, _BUILD, _LIB = mechatronics.materials(), mechatronics.robot(), mechatronics.library()
+_SOLIDS, _SHELL = _MAT['solids'], _BUILD['shell']
+_GBOX = _LIB['gearboxes'][_BUILD['stacks']['knee'][1]]
 #: Materials (`materials.toml`): (E GPa, G GPa, allowable MPa).
 CARBON, HM_CARBON, ROD, PAHT_CF, STEEL = (
     tuple(float(x) for x in _SOLIDS[k]) for k in ('carbon', 'hm_carbon', 'rod', 'paht_cf', 'steel'))
-#: Tube wall share of radius, flex evaluation load fraction, flex limit (deg), and clamp margin (`[shell]`).
-WALL, FLEX_AT, FLEX_DEG, MARGIN = (
-    float(_SHELL[k]) for k in ('wall_share', 'flex_at', 'flex_deg', 'margin'))
+#: Tube wall share of radius (`[shell]`), von Mises shear/flex share, half-backlash flex limit, and safety factor.
+WALL = float(_SHELL['wall_share'])
+FLEX_AT = float(_SHELL.get('flex_at', round(1.0 / math.sqrt(3.0), 1)))
+FLEX_DEG = float(_SHELL.get('flex_deg', 0.5 * float(_GBOX['backlash_deg'])))
+MARGIN = float(_SHELL.get('margin', 1.5))
 #: Four-bar PAHT-CF plate width and hip-fork carbon crown width, m (`[shell]`).
 PLATE_W, CROWN_W = float(_SHELL['plate_w_m']), float(_SHELL['crown_w_m'])
 #: Stock roll-wrapped carbon tubes, (outer radius, wall) m, minimum wall and laminate density (`materials.toml`).
@@ -135,7 +138,7 @@ def judge(_name, kind, length, load, section, material, c):
     if kind == 'bend':
         return load * c / i / allow, math.degrees(FLEX_AT * load * length / (e * i))
     if kind == 'twist':
-        return load * c / j / (allow * 0.6), math.degrees(FLEX_AT * load * length / (g * j))
+        return load * c / j / (allow * FLEX_AT), math.degrees(FLEX_AT * load * length / (g * j))
     euler = math.pi ** 2 * e * i / max(length, 0.02) ** 2
     return max(load / area / allow, load / euler), 0.0
 
@@ -191,7 +194,8 @@ def leaf_track(series_map, armature_fn, rate_s=None, observe_x=None):
     """SEA rotor torque-loop gain from leaf natural frequency vs observer/rate bandwidth ceiling."""
     if not series_map:
         return 0.0
-    bus_hz, law_div = float(_BUS['bus_hz']), float(_BUS['law_div'])
+    from machine.body import drives
+    bus_hz, law_div = drives.BUS_HZ, float(drives.LAW_DIV)
     r_s = (law_div + 2.0) / bus_hz if rate_s is None else float(rate_s)
     obs_x = round(2.0 + 1.0 / law_div, 1) if observe_x is None else float(observe_x)
     omega_sea = 0.90 / (obs_x * r_s)

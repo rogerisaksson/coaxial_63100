@@ -18,21 +18,25 @@ import functools
 import math
 
 from machine.way import affordance
-from machine.body import footprint_rows
+from machine.body import figure, footprint_rows
 from machine.moves import leap
 
-K, BAND_M, STEP_M, TURN_DEG = footprint_rows.K, footprint_rows.BAND_M, footprint_rows.STEP_M, footprint_rows.TURN_DEG
-CARRY = {1.0: footprint_rows.CARRY_LEFT, -1.0: footprint_rows.CARRY_RIGHT}
-SPREAD = {1.0: footprint_rows.SPREAD_LEFT, -1.0: footprint_rows.SPREAD_RIGHT}
-TOOK = tuple(max(a, b) for a, b in zip(footprint_rows.TOOK_LEFT, footprint_rows.TOOK_RIGHT))
+_S, _T = figure.SCALE, math.sqrt(figure.SCALE)
+K, TURN_DEG = footprint_rows.K, footprint_rows.TURN_DEG
+BAND_M, STEP_M = footprint_rows.BAND_M * _S, footprint_rows.STEP_M * _S
+CARRY = {1.0: tuple((f * _S, l * _S) for f, l in footprint_rows.CARRY_LEFT),
+         -1.0: tuple((f * _S, l * _S) for f, l in footprint_rows.CARRY_RIGHT)}
+SPREAD = {1.0: tuple(v * _S for v in footprint_rows.SPREAD_LEFT),
+          -1.0: tuple(v * _S for v in footprint_rows.SPREAD_RIGHT)}
+TOOK = tuple(max(a, b) * _T for a, b in zip(footprint_rows.TOOK_LEFT, footprint_rows.TOOK_RIGHT))
 
 
 @functools.lru_cache(maxsize=1)
 def _laid():
     """Its rows as arrays: {mode: (bands, K)}, {way: [(bands, K) a turn]}, (K,) its directions, rad."""
     import numpy as np
-    modes = {m: np.array(getattr(footprint_rows, m.upper())) for m in ('stand', 'walk', 'back', 'side')}
-    swept = {1.0: [np.array(h) for h in footprint_rows.LEFT], -1.0: [np.array(h) for h in footprint_rows.RIGHT]}
+    modes = {m: np.array(getattr(footprint_rows, m.upper())) * _S for m in ('stand', 'walk', 'back', 'side')}
+    swept = {1.0: [np.array(h) * _S for h in footprint_rows.LEFT], -1.0: [np.array(h) * _S for h in footprint_rows.RIGHT]}
     return modes, swept, 2.0 * np.pi * np.arange(K) / K
 
 
