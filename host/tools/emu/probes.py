@@ -1,10 +1,11 @@
 """The emulation's sockets and process, probed.
 
-A console's answer, a bootloader's, bytes until a pattern or a quiet, and Renode tied to this
-process's life.
+A console's answer, a bootloader's, bytes until a pattern or a quiet, and Renode found, tied to
+this process's life and bound to cores of its own (`Cored`).
 """
 import contextlib
 import ctypes
+import glob
 import os
 import re
 import shutil
@@ -44,6 +45,59 @@ def tied(process):
     kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
     kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(process._handle)))
     return job
+
+
+def find_renode():
+    """Renode's executable, or None."""
+    named = os.environ.get('RENODE') or shutil.which('renode')
+    if named and os.path.exists(named):
+        return named
+    local = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'renode', 'renode_*', 'renode.exe')
+    found = sorted(glob.glob(local))
+    return found[-1] if found else None
+
+
+class Cored:
+    """Renode `pid`, a CPU thread a machine (docs/findings/emulation.md), on `machines` cores while it runs.
+    Left where Renode's host is held - a relay's job on one core, a loop on a core of its own - Renode's threads
+    and the host shared that core's processors and the boards answered late: a limb of three a one-byte NoReply,
+    one board at full pace a CrcError. Renode's cores are those the relay sent along with a job whose suite
+    asked (`focus.SENT`, or `sent`, a mask). With none sent - a page's, a flight's, a tool's - Renode takes so
+    many where they are free (`placed.claim`), else any of the processors given, and books them in the
+    machine's ledger (or `ledger`) while it runs: the relays count them."""
+
+    def __init__(self, pid, machines, port, sent=None, ledger=None):
+        from machine.process import placed
+        from tools.dev import focus
+        cores = [mask for _klass, mask in placed.topology()[0]]
+        sent = int(os.environ.get(focus.SENT, '0'), 16) if sent is None else sent
+        self.holds, self.booking = [], None
+        if sum(1 for core in cores if core & sent == core) >= machines:
+            placed.bind(pid, sent)
+            return
+        claims = [placed.claim() for _ in range(machines)]
+        if all(mask for mask, _held in claims):
+            self.holds = [held for _mask, held in claims]
+        else:
+            for _mask, held in claims:
+                placed.free(held)
+        placed.bind(pid, sum(mask for mask, _held in claims) if self.holds else sum(cores))
+        self.booking = os.path.join(ledger or focus.LEDGER, '%d-renode-%d' % (os.getpid(), port))
+        # Laid whole (`booked`), outside the ledger's lock: every relay's batons hold it in turn, and a page's
+        # emulator would wait seconds behind them.
+        with contextlib.suppress(OSError):
+            focus.booked(self.booking, 0.0, pid, os.getpid(), machines)
+
+    def free(self):
+        """Renode's cores let go and the booking gone."""
+        from machine.process import placed
+        for held in self.holds:
+            placed.free(held)
+        self.holds = []
+        if self.booking is not None:
+            with contextlib.suppress(OSError):
+                os.remove(self.booking)
+            self.booking = None
 
 
 #: The latest run's log in a Renode's work, the only one kept (`swept`).

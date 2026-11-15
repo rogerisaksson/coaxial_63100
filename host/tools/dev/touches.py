@@ -235,6 +235,8 @@ TOUCHES = (
     ('board/',                                 (WIRE, NATIVE, NATIVE_HEAT, EMULATOR, CONFORMANCE,
                                                 'test_mcp.py', 'test_parity.py', BENCH)),
     ('core/',                                  (EMULATOR, CONFORMANCE, BENCH)),
+    # Renode's cores, sent along with a job or taken where it starts: the bus suite's limb, the relay's test.
+    ('host/tools/emu/probes.py',               (EMULATOR, BUSES, CI)),
     ('host/tools/emu/',                        (EMULATOR,)),
     # Hardware-free like the filter: the host build covers it; board/'s glue is the bench's.
     ('thermal/',                               (THERMAL, THERMAL_APP, NATIVE_HEAT, CONFORMANCE,

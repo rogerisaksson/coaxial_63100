@@ -8,6 +8,7 @@ The relay: a baton a physical core and a queue of jobs, the longest first. A bat
 next job whose commit fits what is left and whose lock is free, and runs it in a process of its
 own; a job ending hands its baton on at once, so no core idles while a job waits, whatever each
 takes. `emulator://` starts one Renode a process: jobs side by side are emulators side by side.
+A suite that starts one asks for its cores (`suites.asked`): they go along with its job (`run`).
 A suite past a slice of the run goes on as shards (`--shard k/n`, `chosen`), side by side.
 """
 import collections
@@ -26,7 +27,7 @@ import time
 from contextlib import suppress
 
 from tools.dev import background
-from tools.dev.suites import ROOT
+from tools.dev.suites import ROOT, asked
 
 if os.name == 'nt':
     # No Windows Error Reporting dialog on a child's unhandled exception.
@@ -45,10 +46,15 @@ WORKER_GB, RESERVE_GB = 0.9, 2.5
 #: (Windows' event 2004, 10.4 GB of 23.7 free before they started).
 LEDGER = os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~'), 'coaxial_63100', 'relay')
 
-#: One job on the relay: its name, its command, its commit (GB), its time (s), and its lock -
-#: jobs holding the same one never run together (a board's port), 'alone' none beside it.
-Job = collections.namedtuple('Job', 'name argv gb timeout lock',
-                             defaults=(WORKER_GB, 600.0, None))
+#: One job on the relay: its name, its command, its commit (GB), its time (s), its lock -
+#: jobs holding the same one never run together (a board's port), 'alone' none beside it -
+#: and its cores: its own and, where its suite asked (`suites.asked`), a core a machine of the
+#: Renode it starts, sent along with it (`run`).
+Job = collections.namedtuple('Job', 'name argv gb timeout lock cores',
+                             defaults=(WORKER_GB, 600.0, None, 1))
+#: The cores sent along with a job, a mask in its environment: Renode is bound to them where it
+#: starts (tools.emu.probes.Cored).
+SENT = 'COAXIAL_RENODE'
 
 #: The shard a suite's command line asks for: the k-th of every n of its tests, from 1.
 SHARD_RE = re.compile(r'^(\d+)/(\d+)$')
@@ -206,7 +212,8 @@ class _Locked:
 
 def booked(path, gb, pid=None, owner=None, cores=0):
     """A job in the ledger: `gb` its commit, `pid` its process once started, held while `owner`
-    (this relay) lives; `cores` a container's, counted as so many processes (tools.dev.ledger); the tree it runs."""
+    (this relay) lives; `cores` a container's, or a job's past one, counted as so many processes in place of its
+    own (tools.dev.ledger); the tree it runs."""
     folder = os.path.dirname(path) or LEDGER
     os.makedirs(folder, exist_ok=True)
     part = os.path.join(folder, '.%s.part' % os.path.basename(path))
@@ -230,9 +237,9 @@ def waiting(path, count=0):
 
 def outstanding(ledger=LEDGER):
     """(the commit every relay's running jobs have still to take, GB; how many run; their processes; the cores
-    every container holds), machine-wide: a job counted at its booking less what its process holds, a container
-    at its booking; one whose relay is gone, dropped."""
-    owed, running, pids, cores = 0.0, 0, [], 0
+    booked; the processes they are booked for), machine-wide: a job counted at its booking less what its process
+    holds, a container at its booking; one whose relay is gone, dropped."""
+    owed, running, pids, cores, own = 0.0, 0, [], 0, []
     with suppress(OSError):
         for name in os.listdir(ledger):
             if name.startswith('.'):
@@ -251,10 +258,11 @@ def outstanding(ledger=LEDGER):
             owed += max(0.0, job['gb'] - (held or 0.0))
             if job.get('cores'):
                 cores += int(job['cores'])
+                own += [job['pid']] * (job['pid'] is not None)
                 continue
             running += 1
             pids += [job['pid']] * (job['pid'] is not None)
-    return owed, running, pids, cores
+    return owed, running, pids, cores, own
 
 
 def _parents():
@@ -282,19 +290,21 @@ def _parents():
     return out
 
 
-def processes(pids):
+def processes(pids, own=()):
     """The live processes in the trees `pids` root: a job's children - the robot's planner, an emulator's
-    Renode - are cores it holds too; counted by its own process alone, a batch of 28 batons held 282."""
+    Renode - are cores it holds too; counted by its own process alone, a batch of 28 batons held 282. Less
+    those of `own` and what they start, counted by the cores booked for them (`outstanding`): counted twice,
+    two groups of two cores no longer fit a runner's four threads."""
     parents = _parents()
     kids = collections.defaultdict(list)
     for pid, parent in parents.items():
         kids[parent].append(pid)
-    todo, seen = [p for p in pids if p in parents], set()
+    todo, seen = [p for p in pids if p in parents], set(own)
     while todo:
         pid = todo.pop()
         todo += kids[pid] * (pid not in seen)
         seen.add(pid)
-    return len(seen)
+    return len(seen - set(own))
 
 
 def admitted(gb, start, name, busy=None):
@@ -327,9 +337,10 @@ def pick(tests, names):
 
 def chosen(tests, argv):
     """The `tests` a suite's command line asks for, in the suite's order: those its words name
-    (`pick`), and of them the share `--shard k/n` gives - every n-th from the k-th, so n shards
-    side by side run each test once."""
-    words, shard, args = [], None, list(argv)
+    (`pick`) less those a `--but=word` names - a suite's rest beside a job of their own -, and of
+    them the share `--shard k/n` gives - every n-th from the k-th, so n shards side by side run
+    each test once."""
+    words, shard, without, args = [], None, [], list(argv)
     while args:
         arg = args.pop(0)
         if arg == '--shard' and args:
@@ -339,9 +350,11 @@ def chosen(tests, argv):
             if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
                 sys.exit('--shard k/n, 1 <= k <= n: %s' % arg)
             shard = (int(m.group(1)), int(m.group(2)))
+        elif arg.startswith('--but='):
+            without.append(arg.split('=', 1)[1])
         else:
             words.append(arg)
-    tests = pick(tests, words)
+    tests = [test for test in pick(tests, words) if not any(word in test.__name__[5:] for word in without)]
     return tests[shard[0] - 1::shard[1]] if shard else tests
 
 
@@ -353,34 +366,45 @@ def watchdog(seconds):
 
 def run(job, env=None, ledger=None, bench=False, procs=None):
     """One job in a process of its own on a core of its own while it runs (`placed.claim`: moved among the batch's
-    cores by the system, a job of 28 touched 40 in 5 s, nine moves a second, a tenth less work done), stdout and
-    stderr in one, killed with its tree at its time: (output, exit code - None out of time -, seconds); `ledger` its
-    booking, its process named in it while it runs; `bench`, above normal priority from its start (Windows')."""
+    cores by the system, a job of 28 touched 40 in 5 s, nine moves a second, a tenth less work done), the rest of
+    `job.cores` taken with it and sent along (SENT) for the Renode it starts, all of them or none (on its host's
+    one core Renode answered late: tools.emu.probes.Cored), stdout and stderr in one, killed with its tree at its
+    time: (output, exit code - None out of time -, seconds); `ledger` its booking, its process and the cores
+    sent named in it while it runs; `bench`, above normal priority from its start (Windows')."""
     from machine.process import placed
     started = time.monotonic()
     group = {'start_new_session': True} if os.name != 'nt' else {}
     if bench and os.name == 'nt':
         group['creationflags'] = getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS')
-    proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, text=True, encoding='utf-8',
-                            errors='replace', **group)
-    cored, held = placed.claim()
-    placed.bind(proc.pid, cored)
-    if procs is not None:
-        procs.add(proc.pid)
-    if ledger is not None:
-        with suppress(OSError), _Locked():
-            booked(ledger, job.gb, proc.pid)
+    claims = [placed.claim() for _ in range(max(1, job.cores))]
+    if not all(mask for mask, _held in claims[1:]):
+        for _mask, held in claims[1:]:
+            placed.free(held)
+        del claims[1:]
+    sent = {SENT: '%x' % sum(mask for mask, _held in claims[1:])}
+    out, code = '', 1
     try:
-        out, _ = proc.communicate(timeout=job.timeout)
-        code = proc.returncode
-    except subprocess.TimeoutExpired:
-        out, _ = last_words(proc)
-        code = None
-    finally:
-        placed.free(held)
+        proc = subprocess.Popen(job.argv, cwd=str(ROOT), env=dict(os.environ if env is None else env, **sent),
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
+                                errors='replace', **group)
+        placed.bind(proc.pid, claims[0][0])
         if procs is not None:
-            procs.discard(proc.pid)
+            procs.add(proc.pid)
+        if ledger is not None:
+            with suppress(OSError), _Locked():
+                booked(ledger, job.gb, proc.pid, cores=len(claims) if len(claims) > 1 else 0)
+        try:
+            out, _ = proc.communicate(timeout=job.timeout)
+            code = proc.returncode
+        except subprocess.TimeoutExpired:
+            out, _ = last_words(proc)
+            code = None
+        finally:
+            if procs is not None:
+                procs.discard(proc.pid)
+    finally:
+        for _mask, held in claims:
+            placed.free(held)
     return out or '', code, time.monotonic() - started
 
 
@@ -429,10 +453,11 @@ def relay(jobs, batons=None, bench=False):
             while waiting:
                 with _Locked():
                     free = free_commit_gb()
-                    owed, running, pids, cores = outstanding()
+                    owed, running, pids, cores, own = outstanding()
                     room = None if free is None or not (running or cores) else free - owed - RESERVE_GB
-                    fits_cores = processes(pids) + running - len(pids) + cores < background.widths()[-1]
-                    job = next((j for j in waiting if fits(j, room)), None) if fits_cores else None
+                    used, width = processes(pids, own) + running - len(pids) + cores, background.widths()[-1]
+                    # A job's cores within the width beside what is taken; one wider than the width, the width.
+                    job = next((j for j in waiting if fits(j, room) and used + min(j.cores, width) <= width), None)
                     ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0 if job else len(waiting))
                     if job is not None:
                         waiting.remove(job)
@@ -442,7 +467,7 @@ def relay(jobs, batons=None, bench=False):
                             held['locks'].add(job.lock)
                         path = os.path.join(LEDGER, '%d-%d' % (os.getpid(), held['n']))
                         with suppress(OSError):
-                            booked(path, job.gb)
+                            booked(path, job.gb, cores=job.cores if job.cores > 1 else 0)
                         return job, path
                 turn.wait(timeout=1.0)
             ticket(os.path.join(LEDGER, '.wait-%d-jobs' % os.getpid()), 0)
@@ -483,8 +508,9 @@ def run_groups(path, groups, timeout, batons=None):
     without a tally one failure. `timeout`, s: one for all, or a group's own by name. The exit
     code."""
     passed = failed = 0
+    needs = asked(path)
     jobs = [Job(group, [sys.executable, '-X', 'utf8', '-u', str(path), group], WORKER_GB,
-                timeout[group] if isinstance(timeout, dict) else timeout)
+                timeout[group] if isinstance(timeout, dict) else timeout, cores=1 + needs.get(group, 0))
             for group in groups]
     for job, out, code, took in relay(jobs, batons):
         lines = out.splitlines()

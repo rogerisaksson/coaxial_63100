@@ -135,7 +135,8 @@ def _options(argv):
     parser.add_argument('--float', action='store_true',
                         help='every suite\'s processes where the system schedules them, none held to a core of '
                              'its own (placed.FLOAT): held is the default - moved by the system, a job of 28 '
-                             'touched 40 cores in 5 s and did a sixth less work.')
+                             'touched 40 cores in 5 s and did a sixth less work; a job whose suite asks for an '
+                             'emulator is sent a core a machine beside its own (suites.asked).')
     parser.add_argument('--params',
                         help='JSON/TOML file, inline JSON, or key=value overrides '
                              'forwarded via COAXIAL_PARAMS to simulation suites.')

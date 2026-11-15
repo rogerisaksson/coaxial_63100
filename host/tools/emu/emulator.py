@@ -19,10 +19,8 @@ Renode: $RENODE, `renode` on PATH, or the newest portable build under
 %LOCALAPPDATA%/renode (setup: docs/architecture/electronics.md).
 """
 import argparse
-import glob
 import os
 import re
-import shutil
 import socket
 import subprocess
 import sys
@@ -38,8 +36,8 @@ from coaxial.devices.boot import HAND_AT, HAND_MAGIC
 from coaxial.simulated.sto import PILOT_HZ
 from tools.emu import protocol_frames as frames
 from tools.emu import world as worlds
-from tools.emu.probes import (ANSI, answers, boot_answers, heard_quiet, heard_until,
-                              own_temp, swept, tied)
+from tools.emu.probes import (ANSI, Cored, answers, boot_answers, find_renode, heard_quiet,
+                              heard_until, own_temp, swept, tied)
 
 # frames://, the URL every emulator here hands out.
 if 'tools.emu' not in serial.protocol_handler_packages:
@@ -103,16 +101,6 @@ _AWAKE_LOCK = threading.Lock()
 #: Renode above the host's other apps on Windows, which stretched its pace between two
 #: measures; not high: eight limbs' processes would starve the desktop.
 PRIORITY = getattr(subprocess, 'ABOVE_NORMAL_PRIORITY_CLASS', 0)
-
-
-def find_renode():
-    """Renode's executable, or None."""
-    named = os.environ.get('RENODE') or shutil.which('renode')
-    if named and os.path.exists(named):
-        return named
-    local = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'renode', 'renode_*', 'renode.exe')
-    found = sorted(glob.glob(local))
-    return found[-1] if found else None
 
 
 def free_port():
@@ -223,6 +211,7 @@ class Emulator:
             cwd=REPO, stdout=self._sink, stderr=subprocess.STDOUT, creationflags=PRIORITY,
             env=own_temp(os.path.join(WORK, 'temp_%d' % self.port)))
         self._job = tied(self.process)
+        self._cores = Cored(self.process.pid, getattr(self, 'nodes', 1), self.port)
         self._ready(self.process)
         self.awake_scale = self.awake()
         frames.CLOCKS[self.url] = {'time_scale_source': self.load,
@@ -377,6 +366,9 @@ class Emulator:
         if self.process and self.process.poll() is None:
             self.process.kill()
             self.process.wait()
+        cores, self._cores = getattr(self, '_cores', None), None
+        if cores is not None:
+            cores.free()
         if self._sink is not None:
             self._sink.close()
             self._sink = None

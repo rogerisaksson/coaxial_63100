@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """What CI left red leads the suites that run first (`tools.dev.ci`): a tail read, the tuple laid, the
-runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
+runner's work told; a job cut at its time says where it was, a suite asks the relay for its emulator and its
+job is sent the cores (`tools.dev.focus`, `tools.emu.probes`).
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
 is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. The gate's
@@ -9,8 +10,10 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 import tempfile
+import types
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -213,11 +216,101 @@ def test_the_ledger_counts_a_container_s_cores(report):
                  '%s %s %s %s %s | queue %s, got %s | swept %s, left %s' % (cores, refused, again, after, lines, queue, got, swept, left))
 
 
+def test_a_suite_asks_the_relay_for_its_emulator(report):
+    """`suites.asked`: the line a suite asks the relay with, read, not run - the bus suite's test on Renode a limb
+    of three machines, the emulator suite's words its groups, a suite that asks none, none -, and `chosen` runs a
+    suite's rest without the tests a `--but=` names."""
+    from tools.dev import focus, suites
+    tests = pathlib.Path(__file__).parent
+    buses, emulator = suites.asked(tests / suites.BUSES), suites.asked(tests / suites.EMULATOR)
+    one, two = (types.SimpleNamespace(__name__=name) for name in ('test_one', 'test_two'))
+    rest = focus.chosen([one, two], ['--but=two'])
+    # A line that names RENODE and reads as no ask - laid over two lines, say - would send the job no cores.
+    unread = [path.name for path in sorted(tests.glob('test_*.py'))
+              if re.search(r'^RENODE\b', path.read_text(encoding='utf-8'), re.M) and not suites.asked(path)]
+    report.check('the bus suite asks for a limb of three by a word, the emulator suite by its groups, this suite for '
+                 "none, every suite's RENODE line read; a suite's rest runs without what --but names",
+                 buses == {'renode': 3} and bool(emulator) and set(emulator) <= set(suites.EMULATOR_GROUPS)
+                 and suites.asked(__file__) == {} and unread == [] and rest == [one],
+                 '%s %s %s, unread %s' % (buses, emulator, rest, unread))
+
+
+def test_a_job_is_sent_its_emulator_s_cores(report):
+    """`focus.run`: a job of three cores - its suite asked for a Renode of two machines - is held to a whole core
+    of its own where one is free, sent the two others (`SENT`, a mask in its environment) where they are, and
+    booked as three in the ledger with them; a job sent none - of one core, or the two not free - is booked as its
+    process. `probes.Cored` binds a Renode to the cores sent it, unbooked; with none sent, to as many it takes
+    itself where they are free, else to any of the processors given, booked in the ledger while it runs - and
+    counted there by its cores alone, its process left out of its job's (`focus.processes`)."""
+    from machine.process import placed
+    from tools.dev import focus, ledger
+    from tools.emu.probes import Cored
+    cores = [mask for _klass, mask in placed.topology()[0]]
+    if len(cores) < 2:
+        report.check("a job is sent its emulator's cores (this host tells no two cores to bind to)", True, str(cores))
+        return
+
+    def whole(mask):
+        """The cores `mask` holds whole; none where it splits one."""
+        return [] if any(core & mask not in (0, core) for core in cores) else [c for c in cores if c & mask]
+
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    probe = [sys.executable, '-X', 'utf8', '-c', 'import os; from machine.process import placed; '
+             'print("%%x %%s" %% (placed.now(), os.environ["%s"]))' % focus.SENT]
+    waits = [sys.executable, '-X', 'utf8', '-c', 'import sys; from machine.process import placed; '
+             'sys.stdin.readline(); print("%x" % placed.now(), flush=True)']
+    with tempfile.TemporaryDirectory() as folder:
+        paths = [os.path.join(folder, '%d-%d' % (os.getpid(), k)) for k in (1, 2)]
+        said = [focus.run(focus.Job(name, probe, cores=n), env, path)[0].split()
+                for name, n, path in zip(('asked', 'plain'), (3, 1), paths)]
+        booked = []
+        for path in paths:
+            with open(path, encoding='utf-8') as f:
+                booked.append(json.load(f)['cores'])
+
+        def bound(given, port):
+            """A stand-in for a Renode of two machines bound as one is, `given` sent it: (its processors, the
+            cores it took, whether it lay in the ledger while it ran and is gone after, the processes the ledger
+            leaves out of this one's tree, booked as a job, for the cores booked, the view's lines of it)."""
+            child = subprocess.Popen(waits, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env)
+            cored = Cored(child.pid, 2, port, sent=given, ledger=folder)
+            booking, took = cored.booking, len(cored.holds)
+            lay = booking is not None and os.path.exists(booking)
+            job = os.path.join(folder, '%d-9' % os.getpid())
+            focus.booked(job, 0.0, os.getpid())
+            pids, own = focus.outstanding(folder)[2::2]
+            left = focus.processes(pids) - focus.processes(pids, own)
+            os.remove(job)
+            view = [line for line in ledger.said(folder) if line.startswith('emulator')]
+            mask = int(child.communicate('\n')[0].strip() or '0', 16)
+            cored.free()
+            return mask, took, lay and booking is not None and not os.path.exists(booking), left, view
+
+        pair = cores[-1] | cores[-2]
+        with_sent, with_none = bound(pair, 1), bound(0, 2)
+    (mine, sent), (_plain, none) = [(int(mask, 16), int(rest, 16)) for mask, rest in said]
+    held = len(whole(mine)) == 1 or mine == placed.now()
+    along = sent == 0 or (len(whole(sent)) == 2 and not sent & mine)
+    itself = (with_none[1] == 2 and len(whole(with_none[0])) == 2) or (with_none[1] == 0 and with_none[0] == sum(cores))
+    listed = [line for line in with_none[4] if line.startswith('emulator renode-2 (process %d, ' % os.getpid())
+              and line.endswith('): 2 cores, 0.0 GB')]
+    report.check('a job of three cores held to one, sent two apart from it where they are free and booked as three '
+                 'with them; a job of one sent none; a Renode bound to the cores sent it, unbooked; with none sent to '
+                 'two it takes itself or to any given, booked while it runs, counted by its cores alone and listed '
+                 'with the process that started it',
+                 held and along and none == 0 and booked == [3 if sent else 0, 0]
+                 and with_sent == (pair, 0, False, 0, []) and itself and with_none[2] and with_none[3] >= 1
+                 and len(listed) == 1,
+                 'mine %x, sent %x, plain sent %x, booked %s; sent %x: %s; none sent: %s of %x'
+                 % (mine, sent, none, booked, pair, with_sent, with_none, sum(cores)))
+
+
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
           test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
-          test_the_ledger_counts_a_container_s_cores)
+          test_the_ledger_counts_a_container_s_cores, test_a_suite_asks_the_relay_for_its_emulator,
+          test_a_job_is_sent_its_emulator_s_cores)
 
 
 def main(argv=None):

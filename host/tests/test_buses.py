@@ -12,8 +12,11 @@ from gynoid_kit import Report
 BUS, SETTLE = 'left_leg', 200
 #: The robot's run under the line's noise (`edge.LINE_BER`), passes, and its draw.
 NOISY, SEED = 10_000, 3
+#: What the suite asks the relay for (`tools.dev.suites.asked`): its test on Renode starts a limb of three
+#: machines, their cores sent along with that test's job.
+RENODE = {'renode': 3}
 #: A limb on Renode, and the echoes through it: a request among them corrupted.
-RENODE_NODES, RENODE_ECHOES = 3, 24
+RENODE_NODES, RENODE_ECHOES = RENODE['renode'], 24
 
 
 def _laid():

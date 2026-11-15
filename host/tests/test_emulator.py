@@ -253,7 +253,9 @@ def test_the_imu_answers(report, rig, emu):
 
 #: Echoes a blast sends, of the most a frame carries less the envelope, through a limb's units
 #: in turn.
-BLAST, BLAST_BYTES, BLAST_NODES = 51, 240, 3
+#: What the suite asks the relay for (`tools.dev.suites.asked`): the machines each group's Renode runs.
+RENODE = {'board': 1, 'blank': 1, 'bus': 3, 'rate': 1, 'conformance': 1}
+BLAST, BLAST_BYTES, BLAST_NODES = 51, 240, RENODE['bus']
 
 
 def test_echoes_on_the_bus(report):

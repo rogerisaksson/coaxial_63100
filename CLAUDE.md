@@ -180,9 +180,10 @@ Evaluate the prompt and working tree before invoking any tool:
     runs the versions `host/constraints.txt` pins (laid by
     `host/tools/dev/pinned.py`); a difference between the operating systems
     is one only where the modules match.
-  + Machine ledger (before running beside other agents): every relay's jobs
-    and every container of the gate are booked in one ledger a machine and
-    wait for room, the desk's two cores or more kept (`tools.dev.ledger`);
+  + Machine ledger (before running beside other agents): every relay's jobs,
+    an emulator's cores with the job whose suite asked (`RENODE`) and every
+    container of the gate are booked in one ledger a machine and wait for
+    room, the desk's two cores or more kept (`tools.dev.ledger`);
     `run_tests.py` `--ledger` shows cores kept and taken, each booking with
     its tree, the queue, and cleans what relays that are gone left; a
     runner's share of the gate is `--part k/n` (tests/work.json).

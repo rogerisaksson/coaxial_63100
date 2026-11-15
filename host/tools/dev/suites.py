@@ -1,4 +1,6 @@
 """The suites: their names, which join a run, the tiers (the path map: `touches`)."""
+import ast
+import re
 from pathlib import Path
 
 
@@ -434,6 +436,22 @@ SHARDED = (SENSORLESS, CONTROLLER, GYNOID, ORTHO, SYSID, SYSID_LIVE, WEAR, SITUA
 #: in the same group.
 EMULATOR_GROUPS = {'board': 480, 'blank': 900, 'bus': 900, 'rate': 480, 'conformance': 480,
                    'fallback': 480}
+#: What a suite asks the relay with, a line of its own beside its tests: `RENODE = {word: machines}`.
+ASKED_RE = re.compile(r'^RENODE = (\{.*\})$', re.M)
+
+
+def asked(path):
+    """{word: machines} the suite at `path` asks the relay for, its RENODE line read, not run: the tests a word
+    of its command line picks start a Renode of so many machines, a CPU thread each, whose cores the relay
+    sends along with their job (`focus.run`) - let in when they fit the machine's width, so a job never waits
+    for an emulator's cores while it holds its own - and whose suite runs its rest without them (`--but=word`,
+    `focus.chosen`); {} where it asks none."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            said = ASKED_RE.search(f.read())
+    except OSError:
+        return {}
+    return ast.literal_eval(said.group(1)) if said else {}
 
 #: What a change to a page the world's heat is judged on reaches.
 HEATED = (STRUCTURE, *VIEWS, NATIVE_HEAT, 'test_simulated.py')

@@ -6,7 +6,9 @@
 The relay books each job in LEDGER while it runs and admits one only while every relay's live job processes stay
 under the batch's width - the cores less those kept for the desk (`background.widths`) - and the commit holds
 (`focus.relay`). A container of the gate on Linux (tools/dev/linux.py), x86 or arm64 under QEMU, is booked here the
-same way, its cpuset's cores counted beside the jobs' processes: so a company of agents' relays and containers on one
+same way, its cpuset's cores counted beside the jobs' processes, and so are a job sent an emulator's cores
+(`Job.cores`, in place of its processes) and an emulator that took its own (tools.emu.probes.Cored): so a
+company of agents' relays, containers and emulators on one
 desk share its cores and leave the desk its own, each waiting its turn instead of taking the whole machine. Each
 booking names the tree its relay runs, each container its relay (`clean`: what relays that are gone left, removed).
 """
@@ -25,10 +27,11 @@ POLL_S = 1.0
 
 
 def taken(ledger=LEDGER):
-    """(what is taken of the width now - every relay's live job processes and every container's cores -, the commit
-    owed, GB; how many jobs run, their processes, the containers' cores) of the ledger `ledger`."""
-    owed, running, pids, cores = outstanding(ledger)
-    return processes(pids) + running - len(pids) + cores, owed, running, pids, cores
+    """(what is taken of the width now - every relay's live job processes and the cores booked: a container's, an
+    emulator's, a job's sent along, each counted once -, the commit owed, GB; how many jobs run, their processes,
+    the cores booked) of the ledger `ledger`."""
+    owed, running, pids, cores, own = outstanding(ledger)
+    return processes(pids, own) + running - len(pids) + cores, owed, running, pids, cores
 
 
 class reserved:
@@ -106,8 +109,9 @@ def said(ledger=LEDGER, width=None):
     used, owed, running, _pids, cores = taken(ledger)
     width = background.widths()[-1] if width is None else width
     free = free_commit_gb()
-    lines = ['machine: %d cores, %d kept for the desk, width %d: %d taken (%d jobs\' processes, %d cores of containers), '
-             '%d free' % (physical_cores(), background.kept(), width, used, used - cores, cores, max(0, width - used)),
+    lines = ['machine: %d cores, %d kept for the desk, width %d: %d taken (%d jobs\' processes, %d cores booked by '
+             'containers and emulators), %d free' % (physical_cores(), background.kept(), width, used, used - cores,
+                                                   cores, max(0, width - used)),
              'commit: %s free, %.1f GB owed, %.1f reserved' % ('%.1f GB' % free if free is not None else 'untold', owed, RESERVE_GB)]
     relays, queue = {}, []
     with suppress(OSError):
@@ -128,13 +132,16 @@ def said(ledger=LEDGER, width=None):
                     job = json.load(f)
             except (OSError, ValueError):
                 continue
-            tree = os.path.basename(str(job.get('tree', '')))
-            if job.get('cores'):
-                lines.append('container %s (relay %s%s, %s): %d cores, %.1f GB' % (
-                    name.split('-', 1)[1], job['relay'], '' if _alive(job['relay']) else ', gone', tree, job['cores'], job['gb']))
+            tree, what = os.path.basename(str(job.get('tree', ''))), name.split('-', 1)[1]
+            if job.get('cores') and not what.isdigit():        # a relay's jobs are numbered, the rest named
+                whose = ('emulator', 'process') if what.startswith('renode-') else ('container', 'relay')
+                lines.append('%s %s (%s %s%s, %s): %d cores, %.1f GB' % (
+                    whose[0], what, whose[1], job['relay'], '' if _alive(job['relay']) else ', gone', tree,
+                    job['cores'], job['gb']))
             else:
-                jobs, gb, _tree = relays.get(job['relay'], (0, 0.0, tree))
-                relays[job['relay']] = (jobs + 1, gb + job['gb'], tree)
-    lines += ['relay %s%s (%s): %d jobs, %.1f GB' % (pid, '' if _alive(pid) else ', gone', tree, jobs, gb)
-              for pid, (jobs, gb, tree) in sorted(relays.items())]
+                jobs, gb, _tree, sent = relays.get(job['relay'], (0, 0.0, tree, 0))
+                relays[job['relay']] = (jobs + 1, gb + job['gb'], tree, sent + int(job.get('cores') or 0))
+    lines += ['relay %s%s (%s): %d jobs%s, %.1f GB' % (pid, '' if _alive(pid) else ', gone', tree, jobs,
+                                                       ' (%d cores with their emulators)' % sent if sent else '', gb)
+              for pid, (jobs, gb, tree, sent) in sorted(relays.items())]
     return lines + queue

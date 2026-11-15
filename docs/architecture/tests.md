@@ -16,6 +16,14 @@ its structure, the relay, tiers, CI. Each subject's suites: its document.
 - Suites run on the relay, as many at once as the host's width (`--jobs`, a
   baton a physical core); bench, pace, conformance and live alone
   (`ALONE`), mcp and parity one at a time beside the rest (`PORT`).
+- A suite that starts Renode asks the relay for it in a line of its own
+  (`RENODE = {word: machines}`, `suites.asked`): the tests the word picks run
+  as a job of their own, let in when a core a machine fits the width beside
+  its own, the cores sent along with it and Renode bound to them
+  (`probes.Cored`); the suite's rest runs without them (`--but=word`). An
+  emulator nobody asked for (a page's, a flight's, a tool's) takes free
+  cores itself or any of the batch's, never its host's one core, and books
+  them in the ledger.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `touches.TOUCHES` maps a changed path to its suites;
   `CHEAP` ones settle without asking the model.

@@ -16,7 +16,7 @@ import time
 from tools.dev import counts, machine_detector
 from tools.dev.focus import LEDGER, TALLY_RE, WORKER_GB, Job, last_words, relay
 from tools.dev.suites import (ALONE, EMULATOR, EMULATOR_GROUPS, FAILED_FIRST, LIVE, LIVE_GYNOID, OLLAMA,
-                              PORT, REAL_TIME, ROOT, SHARDED, STRUCTURES)
+                              PORT, REAL_TIME, ROOT, SHARDED, STRUCTURES, asked)
 
 #: Per-run directory of shard CSVs outside the git worktree (`.../coaxial_63100/runs`).
 RUNS_DIR = os.path.join(os.path.dirname(LEDGER), 'runs')
@@ -147,22 +147,37 @@ def _jobs(name, args, tags, live_sections, took, share, words=()):
     argv = ([sys.executable, str(ROOT / 'tests' / name)]
             + _extra_for(name, args, tags, live_sections))
     gb, lock, timeout = HEAVY_GB.get(name, SUITE_GB), _lock(name, args.jobs), _timeout(name)
+    measure = getattr(args, 'measure', False)      # --measure: no limit on any job, the run measures
+    # What the suite asks the relay for, where Renode is here (suites.asked): the tests a word picks start an
+    # emulator of so many machines, and their job is sent a core each beside its own (focus.Job.cores).
+    needs = asked(ROOT / 'tests' / name)
+    needs = needs if needs and _emulated_here() else {}
     if words:
+        # A word the suite asked with, its machines; any other may pick a test that starts an emulator: the most.
+        most = 1 + max((needs[w] for w in words if w in needs), default=max(needs.values(), default=0))
         if name in SHARDED and len(words) > 1:
-            return [Job('%s %s' % (name, w), argv + [w], gb, timeout, lock) for w in words]
-        return [Job(name, argv + list(words), gb, timeout, lock)]
+            return [Job('%s %s' % (name, w), argv + [w], gb, None if measure else timeout, lock, most)
+                    for w in words]
+        return [Job(name, argv + list(words), gb, None if measure else timeout, lock, most)]
     if name == EMULATOR and _emulated_here():
-        return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, seconds, lock)
+        return [Job('%s %s' % (name, group), argv + [group], WORKER_GB, None if measure else seconds, lock,
+                    1 + needs.get(group, 0))
                 for group, seconds in EMULATOR_GROUPS.items()]
     expected = took.get(name, 0.0)
     shards = min(MAX_SHARDS, math.ceil(expected / share)) if name in SHARDED else 1
-    # A job's time twice its expected share at least: CI's two shards of the falls suite, 443 s
-    # each, were cut at 300. None for --measure: the run measures what a limit would guess.
-    timeout = None if getattr(args, 'measure', False) else max(timeout, 2.0 * expected / max(1, shards))
+    # A job's time its suite's whole expected at least: a shard of one heavy test runs no longer than the suite
+    # would as one job - CI's shards of the errands suite, the viewport's vision 400 s on the runner's
+    # processor, were cut at twice a shard's share, 300 and 398 s; the falls suite's two shards of 443 s at 300
+    # before. None for --measure: the run measures what a limit would guess.
+    timeout = None if measure else max(timeout, expected)
+    # The tests that start an emulator a job of their own, sent its cores; the suite's rest without them.
+    own = [Job('%s %s' % (name, word), argv + [word], gb, timeout, lock, 1 + machines)
+           for word, machines in needs.items()]
+    argv = argv + ['--but=%s' % word for word in needs]
     if shards <= 1:
-        return [Job(name, argv, gb, timeout, lock)]
-    return [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,
-                timeout, lock) for k in range(1, shards + 1)]
+        return own + [Job(name, argv, gb, timeout, lock)]
+    return own + [Job('%s %d/%d' % (name, k, shards), argv + ['--shard', '%d/%d' % (k, shards)], gb,
+                      timeout, lock) for k in range(1, shards + 1)]
 
 
 def _merged(parts):
