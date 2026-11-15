@@ -1,4 +1,4 @@
-"""What of its touches what is not its own, the world's truth: what struck, how hard, how fast.
+"""What of it touches what is not its own, the world's truth: what struck, how hard, how fast.
 
     struck.touching(world)        # {its body's name: [N on it, the fastest it closes on what it touches, m/s]}
 
@@ -18,7 +18,7 @@ def _robots(m):
 
 def touching(world):
     """{its body's name: [the normal force on it, N; the fastest any point of it closes on what it touches,
-    m/s]} this pass, of `world` (`physics.World`): 121 us with it two soles down, twenty contacts."""
+    m/s]} this pass, of `world` (`physics.World`): 121 us with its two soles down, twenty contacts."""
     import numpy as np
     m, d, mj = world.model, world.data, world._mj
     root, names = _robots(m)

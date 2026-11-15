@@ -11,7 +11,7 @@ A core of its own: each process on a physical core it takes among its processes 
 system's first (its interrupts'); a batch's job on one its relay takes for it (`claim`, `bind`); all taken, on one
 processor of each core none holds. Moved by the system, a process of a batch of 28 touched 40 cores in 5 s; on a
 core of its own, none, and did a tenth more work. Two of its processes on one core's two threads ran at half pace
-each (its law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts its gives it (GIVEN).
+each (its law's pass 0.41 ms slower, 0.04 apart). Within the processors who starts it gives it (GIVEN).
 Its loop's on a cache of its own (`placed(True)`): the cores that share a last-level cache are a group; its
 loop's process takes one for itself among its loops on the host (`_claim`) - one of its fastest cores' where they
 differ -, its thread held to the group's first fast core where the system holds a thread apart from its process

@@ -46,11 +46,11 @@ its dock, its stunt; the scenes themselves in [scenarios](scenarios.md).
   from 0.69 m/s overshot the staging point by 0.95 m, and a cone of 0.3 rad
   flipped it between walking and turning in place every half second, 16 s
   round one spot, surety 0.36.
-- Its stop's spasms: the brake cuts its drive in 500 ms and lets it stride go
+- Its stop's spasms: the brake cuts its drive in 500 ms and lets its stride go
   (`a[STRIDES]` 1 to 0 in a law pass) mid-step at 0.5-0.9 m/s; its step's
   rounds, its projection gone, trade what its soles cannot give to its arms
   and head - a shoulder at -294 rad/s^2 (under 6 with its stride held), -99
-  deg at 1 168 deg/s. Its stand lets it neck go while its rhythm's gain falls
+  deg at 1 168 deg/s. Its stand lets its neck go while its rhythm's gain falls
   to 0.05 (the brake's hold reads the gain told, the rest's the gain as it
   is): 97 deg at 900 deg/s. The suite's stop (`dock-terminal-stance`) laid on
   its loop - from its lateral crossing every voice's amplitude to 0 on the log

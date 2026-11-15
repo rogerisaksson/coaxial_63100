@@ -331,7 +331,7 @@ def given(a, y, posed, knees, bend, fr, pitched_=pitched):
     own: through the knees' summed row and its posture alone it stayed at 30 deg and its hip was still
     extending, 82 deg/s, as its toes left - a woman's flexes there."""
     (sw_at, pose, turns, tips), speeds, accs = posed, y[VSOLE].reshape(2, 3), a[SOLE_ACC].reshape(2, 3)
-    # it two soles' sets read as numbers: three flatnonzeros of two were 20 us a law pass
+    # its two soles' sets read as numbers: three flatnonzeros of two were 20 us a law pass
     stood, let, folds, swings = a[STANCE].tolist(), a[LET_GO].tolist(), a[FOLDS].tolist(), a[SWINGS].tolist()
     soles = range(len(stood))
     free = list(compress(soles, [(st < 0.5) * (lg < 0.5) for st, lg in zip(stood, let)]))

@@ -5,8 +5,8 @@
 
 proprioceptive_body_schema.lisp's `extrude-velocity-braking-cocoon` on its walk: its things (its registry's boxes)
 it may not stand in (`voxels.STAND_M`), a door's or a slope's not (it pushes a door aside and walks a ramp), each
-grown by it half width (`figure.WIDE_HALF`: by its hips' alone its arm went 0.15 m into the bed) - a building's
-walls and windows (`classes.SHELL`) where its way runs into their face, less it half width: one brushed past is its
+grown by its half width (`figure.WIDE_HALF`: by its hips' alone its arm went 0.15 m into the bed) - a building's
+walls and windows (`classes.SHELL`) where its way runs into their face, less its half width: one brushed past is its
 touch's and its arms' yield's (grown, a doorway's post 0.15 m off closed it; left out, it walked into a pane at
 1.1 m/s and fell); its stop v T + v^2 / (2 a) along its way - T the text's horizon (`law.schema.HORIZON`), a its
 braking (`route.BRAKE`) - against the room to the nearest along it less the text's skin (`wayfinder.MARGIN`).
@@ -167,8 +167,8 @@ def _room(g, way, things=None):
 
 def _boxes(things, doors=False):
     """(centres (n, 2), axes (n, 2, 2), halves (n, 2), each one's distance off (n,)) of `things` it may not stand
-    in, slopes (and doors unless `doors`) out: a thing grown by it half width, a building's shell (`classes.SHELL`)
-    as it is and it half width off its face's distance - laid once a look."""
+    in, slopes (and doors unless `doors`) out: a thing grown by its half width, a building's shell (`classes.SHELL`)
+    as it is and its half width off its face's distance - laid once a look."""
     import numpy as np
     slot = 2 if doors else 0
     if _KEPT[slot] is not things:

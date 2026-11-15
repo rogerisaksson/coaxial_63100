@@ -2,7 +2,7 @@
 
 A palette of 32 moves (`0x00`-`0x1F`), each a task frame, a selection, an
 impedance, a feed-forward wrench and a guard, composed in sequence. Here it is
-a catalogue of what it is to do, read against what it does: it one law
+a catalogue of what it is to do, read against what it does: its one law
 (`latent` -> `impedance.ask` -> `wrench.step`) realizes every move its texts
 say (`defbehavior`, the suite's `defpatch`/`defmaneuver`, the kernel's
 `defprimitive`/`defmodifier`); a guard is a phase's wait on its support

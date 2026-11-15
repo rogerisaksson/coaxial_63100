@@ -147,7 +147,7 @@ serves its DOD; none an entry a case.
    runs and jogs 47 by their patterns, its stride without flight at
    1.3-2.0 m/s where the takes go 1.9-4.5); a take said at its beats, the
    squats and the dance on the legs and the trunk alone, a gait take as
-   amounts on it one standard gait (`machine.law.gait`: pace, stride, swing,
+   amounts on its one standard gait (`machine.law.gait`: pace, stride, swing,
    sway, roll, turn, rock, crouch, lean, width; a catwalk is roll +0.86,
    sequencer.md); the score's reach ends there,
    the rest the law's (the seats, the lie, the jumps' throw, the runs'

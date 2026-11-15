@@ -185,7 +185,7 @@ wall threw it back 1.18 m (the wall scene at +2e-4, main's met at 0.22),
 and a strike's skid as it stood up from the chair (1 000 N, 0.4 m/s)
 flipped the step's answer for 6 ms. Measured across the force a patch
 feels, the slip's plane leaned 30 deg into the lean's push (the force is
-no surface normal) and the regime let it hips drop along it. Unsaid the
+no surface normal) and the regime let its hips drop along it. Unsaid the
 step is as it was to the bit. Sat on the
 chair at its 85 mm dock, its pelvis 44 mm behind the seat's front edge (the
 edge sit), 2 s of asks of the step, the regime then an ask (`slide_probe`):

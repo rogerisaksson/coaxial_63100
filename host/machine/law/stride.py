@@ -101,7 +101,7 @@ def beat(drive, psi, sway, lateral, turns, was, need, lead, split, begun, stood,
     one stands in its rhythm, u 0: a leap's two soles, their rhythms aligned, landing together started
     a pre-swing, and one left again) - to PHI_W past that place, its rhythm's alone on a standing
     other sole or aloft itself (a flight); and on from a swing begun till it stands, the other standing,
-    its share held at 1 past its window (a swing ended by its window 13.5 cm behind its hung on a
+    its share held at 1 past its window (a swing ended by its window 13.5 cm behind it hung on a
     straight leg 225 ms while the other's rhythm had it off bearing 1.9 of its weight: at its touch,
     0.057, the other was gone from the plan in a pass and it came down at 2.8) and before it - but
     `thrown` (0 to 1: its support asked none, a leap and its landing), where a swing begun before its
@@ -239,7 +239,7 @@ def clears(u, flying, swung, high, tip, tipping, tilt, late, land):
     through its swing - its toes' TOE_M of that over the rise (`eased`): let go on its ball they
     are bent on the floor, and asked TOE_M sin(tilt), 3 cm, up in the pass its stance ended, the
     sole was yanked to 1.2 m/s and its hip swung it at 124 N m. Its swing out and nothing under it (`late` s), it reaches on down:
-    held at the floor's height, a sole 13 cm ahead of its bore nothing for 0.3 s past its
+    held at the floor's height, a sole 13 cm ahead of it bore nothing for 0.3 s past its
     swing and it went from 0.7 to 1.05 m/s over the one behind it. Down over the last FALL_U
     to `land` over the floor, a tread's height."""
     on, by = clip(u / RISE_U, 0.0, 1.0), clip((1.0 - u) / FALL_U, 0.0, 1.0)

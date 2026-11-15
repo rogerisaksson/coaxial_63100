@@ -1,7 +1,7 @@
 # Findings: sequencer
 
 The takes played as a sequencer plays a score: a posture take's beats as rows
-on its loop (`machine.texts.takes`), a gait take as amounts on it one standard
+on its loop (`machine.texts.takes`), a gait take as amounts on its one standard
 gait (`machine.law.gait`); the takes' bench: [stunts](stunts.md); the vocabulary:
 docs/todo/scenarios.md.
 

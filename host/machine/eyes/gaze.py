@@ -160,7 +160,7 @@ def _next(g, st):
 
 
 def _told_of(g, st, gz):
-    """The sectors a look at gaze `gz` showed its whole from its head (`_head`): each one's bearings and rows -
+    """The sectors a look at gaze `gz` showed it whole from its head (`_head`): each one's bearings and rows -
     its half the sectors' spacing either way - within its view's half across and up of where its eyes looked, seen
     from here; a sector's neighbour in its view's edge shown in part, not seen."""
     view, wide = _heading(_head(g)) + gz[0], math.tau / len({s[0] for s in SECTORS}) / 2.0

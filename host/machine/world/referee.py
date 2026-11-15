@@ -1,4 +1,4 @@
-"""Its fall judged, the referee's: what of its touches its ground, beside its law and not of it.
+"""Its fall judged, the referee's: what of it touches its ground, beside its law and not of it.
 
     fallen = referee.fallen(g, world)                # a part of its above its shins on its ground, untold
     paired, averaged, address = referee.passing()    # wbc_pass.c's referee and the page's averages, bound once

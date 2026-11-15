@@ -41,7 +41,7 @@ def _walk(seconds, then=STILL_S):
 
 
 #: name: (scene, commands, seconds, goal, its number). A goal: 'met' (the obstacle touched and
-#: its stopped at it), 'past' m (its pelvis that far on), 'rose'/'sank' m (its pelvis that much
+#: it stopped at it), 'past' m (its pelvis that far on), 'rose'/'sank' m (its pelvis that much
 #: higher or lower at the end), 'lay' (a bed bearing more of it than its soles do for HELD_S,
 #: by the world's contacts, and at the end more than the floor and its soles: a flat fall off it
 #: or a stand passed), 'sat' (so, and its soles bearing it at the end: risen), 'stands'

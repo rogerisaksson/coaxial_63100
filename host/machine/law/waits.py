@@ -244,7 +244,7 @@ def woken_rows(tab, st, t, dt):
     wake its own in `st` where its gain has died down: its angle let go, its phases theirs. Woken by a
     row laid whole alone, the sway's 108 deg lead came in with its gain, its lateral mode 22 % fast,
     and its first extremes left a sole 2.0 mm up on 0.6 N where 1.8 on 2.9; by its amplitude alone,
-    a stride leap's throw (gain 0) let it angle go and the run's leap fell. In C bit for bit
+    a stride leap's throw (gain 0) let its angle go and the run's leap fell. In C bit for bit
     (`g['waits']`)."""
     hit = ((tab[:, latent.AT] <= t + latent.EDGE_S) & (tab[:, latent.AT] > t - dt + latent.EDGE_S)).astype(float)
     vals = tab[:, latent.VALS]

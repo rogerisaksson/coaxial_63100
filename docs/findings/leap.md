@@ -136,7 +136,7 @@ The robot stood every row as thrown now.
   Left: the stutter and the sprint's grid 7 of 9 as before; the leading
   sole meets the floor at 0.95-1.17 m/s along; the hold's charge has no
   lever in stride - dipped 1.35 times deeper it flies no further (0.14 and
-  0.25 m): its stance sole behind its bears a third of it, it sinks
+  0.25 m): its stance sole behind it bears a third of it, it sinks
   0.16-0.21 m for the 0.11-0.15 told, outruns a push laid on the clock and
   coasts, its knee at 37-106 of its 171 N m.
 - The robot's launch from its drives (`ballistic.launch`, test_ballistic): both

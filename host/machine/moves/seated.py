@@ -199,7 +199,7 @@ def fisted(up, ahead, trunk):
 
 
 #: Its elbows this much straighter than the reach to a planted fist, rad (`kept`): its arms press on it and never
-#: draw its trunk down onto it (folded to the reach ahead of its pitch they hauled its back into a fall, 853 deg/s).
+#: draw its trunk down onto it (folded to the reach ahead of its pitch they hauled it back into a fall, 853 deg/s).
 FOLD_MARGIN = 0.15
 
 

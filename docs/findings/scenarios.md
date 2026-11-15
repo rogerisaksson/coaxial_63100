@@ -229,7 +229,7 @@ plain walk the same bit for bit (its pose hashed each second for 20 s).
   down the stairs 3.18, down the ramp 4.09, its walk unmoved); the stairs' gaits
   told (2.95, 3.5); a sole arriving stood by its load alone (down the ramp 4.32,
   across it 5.69, down the stairs 3.20); a 20 cm reach (as before); the floor's
-  pitch from it two bearing soles' heights apart (up the ramp 9.17 -> 4.46, the
+  pitch from its two bearing soles' heights apart (up the ramp 9.17 -> 4.46, the
   hole fell); the ramp's pitch told under each sole (down it to its foot, 0.449
   of 0.45 m, and down there at 4.49 s; up it at the crest, 9.25). Told the ramp
   and its cruise no longer drawn on by its going (`stride.cruises`' AHEAD below

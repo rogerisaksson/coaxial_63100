@@ -257,7 +257,7 @@ def seated(g, s):
     before (`g['seat_f']`) or a quarter of what its skin feels of it (its points taken out), its push grown from there
     (`rounds.GROW_N`): on its skin's alone, a seat a millimetre under it could take 120 N; held by its observer's
     comparator, it dropped out each time its hands took it and it rose off it. Two
-    points across its ischia held no pitch: it rolled back over them; felt alone, a seat a millimetre under its bore
+    points across its ischia held no pitch: it rolled back over them; felt alone, a seat a millimetre under it bore
     0 N."""
     b, obs, told, floor = g['body'], g['observer'], g['told'], float(g['fr'][modal.FLOOR])
     rows = [r for r in SEAT_ROWS if told[r] > 0.0]

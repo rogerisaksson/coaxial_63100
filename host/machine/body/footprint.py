@@ -11,7 +11,7 @@ band each BAND_M over its soles' floor, a direction each 2 pi / K from its headi
 thing meets the bands its box spans over the floor - its top within its soles' touch of the floor is
 floor (`leap.TOUCH_M`), its bottom over its head nothing. The gap is the most, over separating axes, of
 the thing's least extent along an axis less its most: its K directions, and the thing's two axes either
-way, its reach along one the more of it two directions round it over cos(pi / K) - so never more than
+way, its reach along one the more of its two directions round it over cos(pi / K) - so never more than
 the true gap: two shapes touching never read apart.
 """
 import functools

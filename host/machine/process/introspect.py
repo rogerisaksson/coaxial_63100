@@ -246,7 +246,7 @@ class Snap(dict):
         return dict(self, **{k: self[k] for k in LAYERS})
 
 
-#: Its law's layers a snapshot names, and what of its touches what is not its own, the world's truth (`struck`).
+#: Its law's layers a snapshot names, and what of it touches what is not its own, the world's truth (`struck`).
 LAYERS = ('latent', 'impedance', 'wrench', 'observer', 'contacts', 'modes', 'kinematics', 'drives', 'ground')
 
 

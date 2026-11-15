@@ -189,7 +189,7 @@ strafes 2.9, turns 3.8, a spin 4.4, a hop down 11.1, the chair 11.6, the weave
 - The stop's nod bisected (`play_walk` on its law in C, its head against its
   torso): 0.1 deg at 1c05786f, 101.2 at 1f1d039d, the branchless control pass -
   its neck cut from its step only under 0.05 of its rhythm's gain, a brake's
-  1.000 all through. Before it `no_stride` let it neck go in a brake by name.
+  1.000 all through. Before it `no_stride` let its neck go in a brake by name.
 - Its neck let go through a brake (`motion.control`: its rhythm told to run,
   held to its landings' footprint, told no drive) and a sole asked up off the
   floor only once the other bears as much of it (`poise.stands`,

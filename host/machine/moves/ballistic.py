@@ -129,7 +129,7 @@ def bound(fr, turns, now, label):
     (1.40), its soles 51 and 68 mm clear, 0.13 and 0.27 m along its way. Its hold thrown 0.35-0.53 m ahead and its
     drive swept x1.66 through the leap it fell 8 of 9 walks and every jog, the push leg 0.68 m behind at 2 m/s as
     the other sole landed. The hold's charge has no lever here: dipped 1.35 times the text's it stands and flies no
-    further (0.14 and 0.25 m) - the stance sole behind its bears a third of it and it sinks 0.16-0.21 m for the
+    further (0.14 and 0.25 m) - the stance sole behind it bears a third of it and it sinks 0.16-0.21 m for the
     0.11-0.15 told, then outruns a push laid on the clock (0.76 m/s on its 0.38) and coasts, its knee at 37-106 of
     its 171 N m."""
     import math

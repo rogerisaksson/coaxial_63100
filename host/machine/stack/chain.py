@@ -164,7 +164,7 @@ def tasks(b, s, ask, regime):
     way, its error the turn taking its left to the asked left (`ways`: the log map's way and up parts carried
     0.04-0.09 rad of a 35 deg pitch mismatch, and the way part left its 17 deg off the bed's line), its trunk's whole
     as asked (`regime.turn`; the text's pitch is its trunk's, its pelvis's is its posture's to make, rolling on its
-    ischia as a scoot leaves it: asked of the pelvis it hauled its forward 37 deg at the bed's handover), a sole
+    ischia as a scoot leaves it: asked of the pelvis it hauled it forward 37 deg at the bed's handover), a sole
     asked to swing (`regime.swing`), its pelvis along its level way at the twist told it (`regime.twist`) -, and its
     driven joints' posture acceleration, at the regime's own gains."""
     n, v, act = b.n, s['v'], np.asarray(b.act, int)
@@ -231,7 +231,7 @@ def gives_of(b, contacts, regime, compliant, tc=None):
     if compliant is True:
         return np.full(len(contacts), regime.soft)
     if compliant == 'sensed':
-        # as much more as what bears its gives than its floor, as its skin feels it (`borne.read`'s give); a floor none
+        # as much more as what bears it gives than its floor, as its skin feels it (`borne.read`'s give); a floor none
         return np.array([float(c.get('give', 0.0)) for c in contacts])
     from machine.world.floor import FOAM
     foam, out = float(FOAM.split('solref="')[1].split()[0]), []

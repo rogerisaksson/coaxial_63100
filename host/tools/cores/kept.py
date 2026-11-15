@@ -4,7 +4,7 @@
     kept.store(part, prog, info, specs, lib, cfn)   # a part held: its program and its build, here and on disk
     got = kept.taken(part, args, Bound)             # (program, info, specs, its Bound on `args`), None where none fits
 
-Each laying of its world made it law's parts anew, and each traced and held its program again: 33 traces and 31
+Each laying of its world made its law's parts anew, and each traced and held its program again: 33 traces and 31
 holds, 0.23 s of the first second of every errand after the first, and of each process's first. A program held fits
 another part of its function, its name, its inputs and its body where that part's arguments pass its checks
 (`bodied.Bound.fits`); its body's constants of the same bits (`same`) are taken as another laying's body's own

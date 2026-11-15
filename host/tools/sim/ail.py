@@ -13,7 +13,7 @@ keys typed as a terminal types them (a key typed renews those held beside it), o
 held (its page on Windows' console, `humanoid_keys.keyboard`).
 It ends where it does: fallen, stuck (W held and no way made), crashed, or its seconds run. Its faults: a fall, a
 stumble, a spasm (`watch.Watch`'s), its body into a thing on its keys (its place against the lodge's own boxes,
-`world.props()`, grown by it half width), stuck, a crash. A fault staged is a case of its own (ail_staged/*.json:
+`world.props()`, grown by its half width), stuck, a crash. A fault staged is a case of its own (ail_staged/*.json:
 its seed, its keys, its kind) that `replay` runs anew - red till fixed; no suite of CI's runs them.
 """
 import argparse

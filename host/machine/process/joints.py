@@ -17,7 +17,7 @@ table's (the session zeroed both for its law's own PD, `sprung.SERVO_SHARE`); a 
 ends it and its law drives again. Said with `keep`, the groups named (KEPT: legs, arms, trunk) stay its law's and
 the program drives the rest, so a take's upper body plays on its own balance. Said with `strokes`, the beats STROKES
 names (first to last) play that many times over: `bed_pull`'s stroke up the bed, 0.12 m each (its text counts them
-from the bed's depth its eyes saw, `maneuver`). `bed_pull`, up the bed from its end, is what a puppet of its found
+from the bed's depth its eyes saw, `maneuver`). `bed_pull`, up the bed from its end, is what a puppet of it found
 (its joints
 driven from its text's sit at the bed's edge, fists planted): the shoulders flexed against the fists as the hips
 lift the thighs and the knees open, 0.20 m in; the trunk down over 1.3 s, 0.14 m more; the legs raised straight,

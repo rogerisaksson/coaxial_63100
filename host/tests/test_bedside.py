@@ -252,7 +252,7 @@ def _rolled(deg, side):
 
 
 def _half(origin, fold=0.0):
-    """m: it half width lying on its back posed as the groundwork atlas's `origin`, its elbows `fold` rad more, and
+    """m: its half width lying on its back posed as the groundwork atlas's `origin`, its elbows `fold` rad more, and
     on its side."""
     import numpy as np
     from machine.texts import kernel

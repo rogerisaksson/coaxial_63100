@@ -32,7 +32,7 @@ from machine.eyes import voxels
 #: furniture: its errands go to a seat, a bed and the door, the door no slot of its own (`machine.way.dock`).
 STAGES = ('xform-smooth-interactive-stereo-navigator', 'specialize-nav-zero-distance-furniture-dock')
 #: Its reach across its way: its walk's directions within a direction's step of its sides; its strides' lies
-#: along it. One radius for all (0.215 m) let it hand meet a chair's back.
+#: along it. One radius for all (0.215 m) let its hand meet a chair's back.
 ACROSS = [k for k in range(footprint.K)
           if abs(math.cos(2.0 * math.pi * k / footprint.K)) <= math.sin(2.0 * math.pi / footprint.K) + 1e-9]
 

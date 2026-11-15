@@ -237,7 +237,7 @@ def test_its_skin_reads_its_contacts_in_c_as_their_views(report, _c):
         w.reset(figure.stand(), where=(0.0, figure.standing(), 0.0))
         w.clock = lambda: clock[0]
         base, d, lib = w.target.copy(), w.data, cores.library()
-        skins = [(edge.laid(w), vars(w)['contacts'])[1] for _ in range(2)]     # two skins' bins on it one world
+        skins = [(edge.laid(w), vars(w)['contacts'])[1] for _ in range(2)]     # two skins' bins on its one world
         (c, kept, contacted, _sensed), (c2, kept2, *_rest) = skins
         for k in range(SKIN_PASSES):
             clock[0] = (k + 1) * physics.STEP_S

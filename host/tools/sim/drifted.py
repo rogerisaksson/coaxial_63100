@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""It two estimates of its pelvis against the world's: its estimate's and the right-invariant EKF's.
+"""Its two estimates of its pelvis against the world's: its estimate's and the right-invariant EKF's.
 
     python tools/sim/drifted.py                     # its walk, its turns, its moves: a table
     python tools/sim/drifted.py --one play_walk     # one scene, its line as JSON (the relay's job)

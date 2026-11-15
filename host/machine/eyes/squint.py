@@ -39,7 +39,7 @@ def _vee(R):
 
 
 def _known():
-    """((3, 3) what its church told its of its right eye's turn off its left's, as a covariance in its frame - each
+    """((3, 3) what its church told it of its right eye's turn off its left's, as a covariance in its frame - each
     axis its squint's CHURCH share, rad squared -, (3, 3) what its pushrods' play moves of it past its word on it when
     its servos turn: each axis' play's CHURCH share)."""
     np = _np()
@@ -209,7 +209,7 @@ class Squint:
             moved, self.gz = self.gz is not None and tuple(gz) != self.gz, tuple(gz)
             start = self.w.copy(), self.P + self.Q * float(moved)
         lr, lc, rr, rc = matches(laid, a, b, disp, kept)
-        # its eyes told its square to the bit - no squint, no play - its pictures tell its nothing past it
+        # its eyes told it square to the bit - no squint, no play - its pictures tell it nothing past it
         if len(lr) <= 3 or not bool((np.linalg.eigvalsh(start[1]) > 0.0).all()):
             return start, False
         p, q = _rays(laid.at[0], lr.astype(float), lc.astype(float)), _rays(laid.at[1], rr, rc)

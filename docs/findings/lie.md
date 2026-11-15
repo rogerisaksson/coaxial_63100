@@ -281,7 +281,7 @@ at 0.58 m/s at most, its height unchanged, both feet up 0.5 m as one; the
 trunk down in 1.4 s; the legs stretched last. The bed scenario's `bed_behind`
 is the bed's long side; `bed_foot_behind` its end, now `bed_foot`. At HEAD
 the end-lie sat: lean 6-19 deg, fists 3-6 N on the foam, pelvis 0.06 m in,
-feet on the floor, and the rest's limp folded its forward (head 0.52 m);
+feet on the floor, and the rest's limp folded it forward (head 0.52 m);
 the lay judge called it met. Four mechanisms, each measured in memory before
 it was written:
 
@@ -301,7 +301,7 @@ it was written:
 - The lean on the fists is stable to the feet's unloading (-0.35 asked, -31
   deg met, hands 93 N, feet 9 N) only with the arms a shade too straight
   (`FOLD_MARGIN` 0.15 on `seated.planted`): folded to the reach ahead of its
-  pitch they drew its back into a fall, 853-1128 deg/s at the elbow. A fist
+  pitch they drew it back into a fall, 853-1128 deg/s at the elbow. A fist
   0.20 m behind is its own to pitch -0.3; at -0.6 within 0.06 m, at -1.2 beside
   it, flat 0.05 m ahead: the pull is the arms' reach, as the take's hands
   pass from 0.17 m behind to 0.07 ahead.
@@ -342,7 +342,7 @@ alone. `seated.planted` set the fists for the stage's told torso pitch; sat,
 its pelvis is 0.68 rad forward of it, so they hung 0.11-0.15 m over the foam,
 the first down bore alone (58-73 N against 0-10) while the other hung 4-13
 cm up, it rolled and yawed 10-13 deg onto it, the lean stalled 8-10 deg
-short of its -20 ask (feet 70 N) and the handover hauled its forward.
+short of its -20 ask (feet 70 N) and the handover hauled it forward.
 Three mechanisms, each measured first:
 
 - `seated.kept`, per tick (`somatic.asked`): a fist told to bear is sought to

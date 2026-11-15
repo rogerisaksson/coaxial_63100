@@ -11,7 +11,7 @@ The robot's scenarios: [scenarios](scenarios.md).
   force fed to its whole-body step a pass late chattered: 695, 250, 88, 539, 131
   N on the seat 30 ms apart, its soles 0 to 286 N; unfed, seat and soles shared
   its weight, 100 N each.
-- It free soles were held in its pelvis's frame, as in flight: pitched forward
+- Its free soles were held in its pelvis's frame, as in flight: pitched forward
   0.5 rad on a seat they rose 9 cm. Something bearing it and no sole standing,
   they are held up from the floor in its way's frame.
 - Its soles unloaded, the step took its base as free: its trunk pitched from

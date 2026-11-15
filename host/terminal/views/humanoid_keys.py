@@ -210,7 +210,7 @@ def keyboard(state):
 def steered(state, now, heading):
     """Each frame: the keys held - a keyboard's (`keyboard`), else those typed within
     `console.HOLD_WINDOW_S` - as its twist, sent when it changes and again as it reports a scene
-    laid anew, its twist zeroed with it; a key that moves its ends the tour. `now` the wall clock."""
+    laid anew, its twist zeroed with it; a key that moves it ends the tour. `now` the wall clock."""
     if (state.get('llm_prompt') or {}).get('open'):
         return
     raw_held = keyboard(state)
@@ -320,7 +320,7 @@ def _prompted(state, _key, _now):
 
 
 def _restarted(state):
-    """Backspace: its laid anew on the floor, the tour and the keys' twist ended."""
+    """Backspace: it laid anew on the floor, the tour and the keys' twist ended."""
     gym.cancel_tour(state)
     state['pad'] = pad()
     state['body'].send(restart=True)

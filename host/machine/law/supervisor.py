@@ -104,7 +104,7 @@ def low_pass(hz, rate):
 
 def high_pass(hz, rate):
     """(b, a): a second-order Butterworth high-pass at `hz` on samples `rate` Hz apart, bilinear, prewarped.
-    A window of one band-pass biquad (Q 0.5 about 14.5 Hz) let it stride's 1.8 Hz through at -12 dB:
+    A window of one band-pass biquad (Q 0.5 about 14.5 Hz) let its stride's 1.8 Hz through at -12 dB:
     its walk's own 4.5 W, the tank at its floor in 2.6 s of it."""
     c = math.tan(math.pi * hz / rate)
     norm = 1.0 / (1.0 + math.sqrt(2.0) * c + c * c)

@@ -35,7 +35,7 @@ HANDS = np.array(touch.ARMS[0] + touch.ARMS[1])
 ABOVE = np.array(sorted(set(touch.ABOVE) | set(HANDS.tolist())))
 #: What bears its bounded where nothing does: its low and high corners, m, the bounds a touch widens.
 NOWHERE = np.full(3, np.inf), np.full(3, -np.inf)
-#: Its pelvis among them: its skin's one touch is it two ischia's (`figure.SEAT_X` either side), split by
+#: Its pelvis among them: its skin's one touch is its two ischia's (`figure.SEAT_X` either side), split by
 #: where it lies between them - the force-weighted point of two lines gives their shares exactly - and laid
 #: on them as far as it pushes up its pelvis (sat; lying on its back or side the two meet at the touch).
 #: One point, a seat held its roll by nothing: sat on its pelvis alone it rolled off at 2e-4 rad.
@@ -169,7 +169,7 @@ def read(b, s, y, weight, hands=0.0, let_go=(0.0, 0.0)):
         carpal = float(k in HANDS)
         palms[side] += f[1] * carpal
         # an untold hand bears what it bears - its support's share (`latched`) -, held still by nothing: dropped, its
-        # hands' 150-210 N off a chair's seat let it support go mid-rise and its capture point stepped it in place
+        # hands' 150-210 N off a chair's seat let its support go mid-rise and its capture point stepped it in place
         if k in untold:
             continue
         # the way its support pushes it: its contacts' normals as its edge has them (`edge.NORMAL`, world, unit), its
@@ -198,7 +198,7 @@ def latched(y, rot, a, dt):
     release; its hands' share with the furniture's (`borne`): the furniture's alone, a hitch on its
     hands let it go under the release and its soles stood under it again. Its share ramped to
     PROP_ON, a brush of the bed's frame at the dock, 0.07 of it,
-    counted 0.07, its parry stepped its back into it and over the edge; reclining on the bed's edge
+    counted 0.07, its parry stepped it back into it and over the edge; reclining on the bed's edge
     it went 0.66, 0, 0.17, 0.71 in a second, each zero dropped the bed from its support, its soles
     lifted in turn and it slid onto the mattress."""
     share, latched = y[PROP] + y[PALMS].sum(), a[PROPPED]

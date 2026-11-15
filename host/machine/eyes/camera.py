@@ -1,6 +1,6 @@
 """The robot's fake camera: its eye's frames shot and its map kept in a process of its own.
 
-A look's frame (`sight.Eyes.stereo`) it two eyes drawn and matched on the card - its stereo's disparity, not
+A look's frame (`sight.Eyes.stereo`) its two eyes drawn and matched on the card - its stereo's disparity, not
 the renderer's depth (`sight.Eyes.shot`'s) -; its map and its things (`sight.Keep`); both off its loop, in `python -m
 machine.eyes.camera` - a process beside its own (`machine.process.aside`) -, on its model as its world holds it (MuJoCo's
 binary, sent as its camera starts: its renderer laid beside its laying) posed as its world's last step
@@ -46,7 +46,7 @@ class _Posed:
         self.eyes = sight.Eyes(self)
 
     def shot(self, poses, placed, head, gz=(0.0, 0.0), held=None):
-        """A look's frame of its world posed and laid so: it two eyes drawn and matched on the card, laid by its
+        """A look's frame of its world posed and laid so: its two eyes drawn and matched on the card, laid by its
         servos' gaze `gz` as it holds its eyes at it (`held`, `sight.Eyes.stereo`) - its stereo's own disparity,
         the renderer's depth never its own (`truth`)."""
         for name, a in poses.items():

@@ -78,7 +78,7 @@ def test_its_loop_takes_a_cache_of_its_own_on_hosts_of_other_shapes(report):
 def test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes(report):
     """`placed.core` on hosts laid here: each process a core of its own, every cache's first before any's second,
     the last cache first, the fast before the slow, none where all are taken; a host held to a batch's processors
-    keeps every core of them - only the system's first, processor 0's, is left -; who starts its tells them
+    keeps every core of them - only the system's first, processor 0's, is left -; who starts it tells them
     (`told`)."""
     from machine.process import placed
     found, caches = _host([0] * 16, 2, [range(4), range(4, 8), range(8, 12), range(12, 16)])
@@ -103,7 +103,7 @@ def test_each_process_takes_a_core_of_its_own_on_hosts_of_other_shapes(report):
     report.check("a host held to a batch's processors, the pages' first two cores kept: all six of its cores its own",
                  placed.apart(held[0])[0] == 0x5550 and placed.apart(found)[0] == 0x5554,
                  '%x' % placed.apart(held[0])[0])
-    report.check('who starts its tells its processors in hex; none told or none read: 0',
+    report.check('who starts it tells its processors in hex; none told or none read: 0',
                  placed.told({placed.GIVEN: 'fff0'}) == 0xfff0 and placed.told({}) == 0
                  and placed.told({placed.GIVEN: 'none'}) == 0)
 

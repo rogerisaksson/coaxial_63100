@@ -57,7 +57,7 @@ identification. The robot's figure: [kinematics](kinematics.md); its drives:
 | maneuver | the suite's maneuvers as its texts: a stunt's patch played on the one it rises from, its acts its phases, each paced to its springs, its arms held; a preload before a cross-fade onto its soles pans what bears it and its legs' springs to them; the bed's patches read, not played |
 | acts | the suite's acts as phases of its text (`maneuver`): an envelope's knee its height, a seat's landing (`seated`), a cross-fade the furniture taking it, a cascade or a gate a node a phase, a recline its trunk's ramp, a pendulum refused past its modes' reach |
 | seated | its legs and centre of mass sat or sitting down: the knee and ankle a seen seat asks, where they put its centre of mass |
-| furniture | what its eyes tell its of a thing a verb goes to: its top, its near edge, its centre |
+| furniture | what its eyes tell it of a thing a verb goes to: its top, its near edge, its centre |
 | route | its way round the furniture to an errand's dock: what stands on its floor grown by its radius on its map's cells, A* through the rest, its corners rounded on the widest arc it free cells and its legs give, walked at its turn times its radius, braked into it; each errand's dock |
 | curves | the suite's curves as shares of the way, and as quintics for a row's blend |
 | swing | a sole that does not stand: where its modes put it, or at rest on the floor while something bears it |

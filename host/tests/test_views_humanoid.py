@@ -234,7 +234,7 @@ def test_scenario_deck_tour_handoff_and_cybernetic_hud(report):
                  and all(set(c) <= {'twist', 'say', 'scenario', 'push', 'seconds'} for c in sent)
                  and verbs == set(scanner.PRIMARY_ACTION.values()) | {'rise_chair', 'rise_bed', 'rise_floor'}, verbs)
     typed(pad, 'w', st)
-    report.check('a key that moves its ends the tour', st.get('tour') is None)
+    report.check('a key that moves it ends the tour', st.get('tour') is None)
 
     nom = {'fallen': False, 'doing': 'walk', 'watts': 120.0, 'turn': (1, 0, 0, 0), 'loads': (160.0, 160.0),
            'where': (0.0, 0.9, 0.0), 'cadence': 0.9, 'phase': 0.2, 'ratio': 1.2, 'speed': 0.65,

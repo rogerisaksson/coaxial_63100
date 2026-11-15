@@ -226,7 +226,7 @@ def rounded(cells, pts):
 def planned(at, yaw, still, to, cost, warm=(), passed=0.0):
     """(stops, curve, held): where it stands still on its way from `at` (x, z) to `to` through `cost`
     (`costs`) - `way`'s corners from the first no arc rounds (`rounded`), `to` last, its leading corners
-    within `passed` of its dropped -, the curve it walks to the first ((0, 5) where it walks straight
+    within `passed` of it dropped -, the curve it walks to the first ((0, 5) where it walks straight
     at it: one leg, no corner rounded, or a blocked sample past a free one, `barred`'s - its own run
     inside a grown thing's its own, as it rises off a chair it stood a corner at a time); none held. `yaw`, `still` and `warm` its planner's ask's: it turns standing where it is off its
     way, as at a stop (`steer`)."""

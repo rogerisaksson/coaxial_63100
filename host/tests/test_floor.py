@@ -134,7 +134,7 @@ def test_told_to_lie_on_the_floor_it_lies_where_it_stands(report):
 def test_told_to_scoot_on_the_floor_it_sits_on_its_fists_and_its_keys_scoot_it(report):
     """Said scoot_floor on the flat floor: it sits (pelvis under 0.25 m) and its scoot (`machine.moves.scoot`, bound to
     its floor rest) holds it on its fists, its trunk within its band of the crawl take's lean and its pelvis within
-    2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots its back and W held 8 s forward, 0.2 m each
+    2 cm over the last 3 s of 12 without a fall; then S held 8 s scoots it back and W held 8 s forward, 0.2 m each
     at least, and A held 8 s turns its left and D right, 2 deg each at least, its trunk never TIPPED off its lean (its
     law's own rest crept on bent elbows and laid it down 4.6 s on; on the floor its fall goes unflagged)."""
     import numpy as np
@@ -177,7 +177,7 @@ def test_told_to_scoot_on_the_floor_it_sits_on_its_fists_and_its_keys_scoot_it(r
         went[key] = float((d.qpos[0:3] - at) @ way)
         now = 2.0 * math.atan2(float(d.qpos[5]), float(d.qpos[3]))
         turned[key] = math.degrees((now - was + math.pi) % (2.0 * math.pi) - math.pi)
-    report.check('S held scoots its back and W forward, 0.2 m each at least, its trunk never tipped',
+    report.check('S held scoots it back and W forward, 0.2 m each at least, its trunk never tipped',
                  went['s'] <= -0.2 and went['w'] >= 0.2 and off < TIPPED and s['fallen_at'] is None,
                  'S %+.2f m W %+.2f m trunk off its lean %.1f deg at most' % (went['s'], went['w'], off))
     report.check('A held turns its left and D right, its trunk never tipped',
@@ -209,7 +209,7 @@ def test_its_legs_are_released_only_where_the_rest_of_what_bears_its_holds_it(re
     soled, _ = em.gate(np.zeros(2), pts, room, np.ones((2, 6)), still, told, loads, weight)
     walking, going = em.gate(np.zeros(2), pts, room, own, np.array([0.0, 0.0, 0.7]), told, loads, weight)
     froude = 0.7 * 0.7 / (9.81 * cascade.LEG_M)
-    report.check('0.2 m inside its seat and hands it may let it legs go; 0.1 m outside, or on its soles alone, not',
+    report.check('0.2 m inside its seat and hands it may let its legs go; 0.1 m outside, or on its soles alone, not',
                  (inside == 1.0).all() and np.allclose(parts[3], 0.2 * weight, atol=1e-3 * weight)
                  and (outside == 0.0).all() and np.allclose(far[3], -0.1 * weight, atol=1e-3 * weight)
                  and (soled == 0.0).all(), '%s N m in, %s out' % (parts[3], far[3]))

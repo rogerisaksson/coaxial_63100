@@ -29,7 +29,7 @@ CORE = [edge.SKIN.index(n) for n in ('pelvis', 'torso', 'neck', 'head')]
 ABOVE = sorted(set(range(len(edge.SKIN))) - set(SOLES[0] + SOLES[1] + ARMS[0] + ARMS[1]))
 
 
-#: A touch above its soles not along its going - a wall, a tree, a hand that shoves its back or
+#: A touch above its soles not along its going - a wall, a tree, a hand that shoves it back or
 #: aside - gates it: it brakes and stands, steps where its capture point asks, and goes on
 #: as it was told RESUME_S after it is gone; one within ALONG_COS of its going it walks out.
 #: Walking at 0.69 m/s an 80 N shove felled its 5 ways of 8 going on; stopped 0.1 s after it, 3 -

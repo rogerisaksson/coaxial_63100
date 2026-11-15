@@ -6,7 +6,7 @@
 
 `machine.world.physics.World.advance`'s steps where nothing else is asked of them (`machine.world.steps`), the same
 arithmetic in the same order (test_tick): between MuJoCo's steps its world's three C calls, its link's compiled part
-and its room's contacts read in Python were 37 us a pass of the door errand's; its ankles' leaves made it world's
+and its room's contacts read in Python were 37 us a pass of the door errand's; its ankles' leaves made its world's
 steps python's whole, its gearboxes' numpy 279 us of a walk's pass, now theirs in C.
 """
 import ctypes

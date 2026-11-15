@@ -147,7 +147,7 @@ trunk held by the anchored hips) where every open-loop crab fell. The takes
   axial 1.8 to 0.5); a raise waits only told over its soles (the lying take's
   legs straightening behind them froze its rows). At axial 1.8 its hips
   0.284 m behind the soles' middle sit at 0.585 m, the seat; balanced over
-  its soles, 0.09 back, it hovers at 0.63 - its law never lets it centre of
+  its soles, 0.09 back, it hovers at 0.63 - its law never lets its centre of
   mass behind the heels. Told past its soles as a support it trusts (the
   capture point's box, the parry, its surety) it tipped back from the hover
   at 0.34-0.4 m/s onto the bed; the ZMP's box grown over the told point asked
@@ -172,7 +172,7 @@ trunk held by the anchored hips) where every open-loop crab fell. The takes
   frames) thinned to every second or third for the table's 512 rows
   (wbc_wait.c). The viewport's bed errand, broken since the seat round: at
   the dock its shank brushes the bed's frame, 0.07 of its weight up, and the
-  prop counted by its share alone its parry steps its back into it and over
+  prop counted by its share alone its parry steps it back into it and over
   the edge (2.3 of its weight on the bed, its surety 0, no lie said); the
   count and the span whole from 0.15 of its weight (PROP_ON, the ramp as
   before the round; spanned by the share against its soles it fell the

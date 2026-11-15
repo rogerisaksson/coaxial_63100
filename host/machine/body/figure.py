@@ -428,5 +428,5 @@ def squat(arm=(35.0, 70.0, 10.0, 30.0)):
     return out
 
 
-#: Its deep squat, deg: what of its touches in it is kept apart as what touches standing (`machine.body.mjcf`).
+#: Its deep squat, deg: what of it touches in it is kept apart as what touches standing (`machine.body.mjcf`).
 SQUAT = ({joint: float(deg) for joint, deg in _F['squat'].items()} if 'squat' in _F else squat())

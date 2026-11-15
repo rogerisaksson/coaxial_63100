@@ -197,7 +197,7 @@ STEER_NAMES = ('slew_rad_s', 'side_told_m_s', 'turn_told_rad_s', 'along_s', 'acr
                'look_drive', 'look_on', 'look_back_rad_s', 'look_turn_rad_s', 'look_rad', 'look_1_s', 'look_back_1_s',
                'waist_share', 'head_share', 'clear_m')
 STEER = gait.table('steer')
-#: The floor under its follows its bearing soles at FLOOR_HZ.
+#: The floor under it follows its bearing soles at FLOOR_HZ.
 FLOOR_HZ = 15.0
 
 

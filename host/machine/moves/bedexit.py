@@ -62,7 +62,7 @@ PHASES = tuple((p['name'].lstrip(':'), p.get('seconds', math.inf), p['next'].lst
                 p.get('trunk'))
                for p in _MOVE['phases'])
 NAMES = tuple(phase[0] for phase in PHASES)
-#: The push (it counts the strokes and tells its seated), the stretch (it tells it past the edge), the settle (where
+#: The push (it counts the strokes and tells it seated), the stretch (it tells it past the edge), the settle (where
 #: it goes seated), the end.
 PUSHED, STRETCHED_AT, SEATED, DONE = (NAMES.index(name) for name in ('push', 'stretch', 'settle', 'done'))
 #: PHASES as flat tables: each phase's length, the next, the trunk its hips hold and whether they do; each part's

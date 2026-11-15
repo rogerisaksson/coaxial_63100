@@ -139,7 +139,7 @@
 ;; static sled's shear along the way dissipative alone, z_t . s_t <= 0 (the seat never helps), and never planned to
 ;; slide against the way, al_t . s_t >= 0: with the pin's soft row that is static friction - z_t . s_t = -F while
 ;; the hands' F is under the cone, a = 0, no backward motor (the hard pin had it at -3.7 m/s^2 standing still) and
-;; no reaction wheel (the plan swung it free arms at -7400 deg/s^2 for the pelvis's acceleration and its trunk hit
+;; no reaction wheel (the plan swung its free arms at -7400 deg/s^2 for the pelvis's acceleration and its trunk hit
 ;; the chair's back at 902 N) -; the static sleds' brake together no more than its anchors' friction can drive,
 ;; -sum z_t . s_t <= sum mu_a z_n over the anchors whose tangents stick (a static friction is a reaction: pinned at
 ;; the cone with its hands bearing 7 N the plan had a -165 N motor, asked -5.6 m/s^2 backward and pitched its 28 deg

@@ -138,7 +138,7 @@ def test_what_it_cannot_do_is_refused_by_name(report):
     side = dsp.value(['->', 'nominal-biped-manifold', ['topology-coronal-sidestep']], got)
     back = dsp.value(['->', 'nominal-biped-manifold', ['topology-retro-locomotion']], got)
     told = [voicing.voiced(g, dry, fr)[1]['twist'] for g in (side, back)]
-    report.check('a sidestep told its leftward, a retro walk backward', told[0][1] > 100.0 * abs(told[0][0])
+    report.check('a sidestep told it leftward, a retro walk backward', told[0][1] > 100.0 * abs(told[0][0])
                  and told[1][0] < 0.0, str(told))
 
 

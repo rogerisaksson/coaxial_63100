@@ -1,4 +1,4 @@
-"""The furniture its eyes tell its of: the thing a verb goes to nearest a place, its top and middle.
+"""The furniture its eyes tell it of: the thing a verb goes to nearest a place, its top and middle.
 
 Its things are its registry's boxes (`g['things']`, `machine.eyes.registry`: its eyes' under `physics.SIGHT`,
 the world's props standing in for them without), what each affords it the text's (`machine.way.affordance`):

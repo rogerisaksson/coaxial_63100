@@ -88,7 +88,7 @@ def _envelope(p, at, modes, body):
     fell), its arms one ahead and one behind, the seat's side's ahead (hanging, a hand met it in 34
     docks of 50). Sat, a preload's knee and ankle are where the seat and its soles hold them, its
     arms hanging - its fists off a seat they bore on (`_sought`): swung 25 deg either way, a sole rose
-    58 mm and it fell; it slides its forward off the seat as the kernel's egress has it
+    58 mm and it fell; it slides it forward off the seat as the kernel's egress has it
     (`somatic.EGRESS_M_S`)."""
     stage = ENVELOPES[p['mode']]
     joints = dict(p.get('joint-targets', ()))

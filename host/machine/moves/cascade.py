@@ -43,7 +43,7 @@ FROUDE, ANCHORS, MARGIN_NM = GATE['max-allowable-froude'], GATE['min-complement-
 #: The cascade's slew to release, s, and back; its windows in a leg's release - its estimator's anchor let go, its
 #: step's push shed -; the share of its weight a shed sole bears over its own leg's under which the leg is free to
 #: move: a foot sliding on the floor bears its leg (its legs 0.38 of it); held to the text's 0.03 of it, lifted
-#: foot's, its heels never let it knees go.
+#: foot's, its heels never let its knees go.
 SLEW_S, RELOCK_S = 1e-3 * CASCADE['slew-duration-ms'], 1e-3 * CASCADE['relock-slew-ms']
 UNANCHOR, SHED = CASCADE['observer-unanchor-window'], CASCADE['qp-load-shed-window']
 FREED = CASCADE['kinematic-release-fz-floor']
@@ -173,7 +173,7 @@ def opening(let, q, fr, a, y, out, high, iota, freed, told, sat, posture, bend, 
     # floor, and it rose on its right alone, its left leg up to 0.98 m, and fell
     bed = let * (1.0 - sat) * np.maximum(np.clip(told[DORSAL] / 0.10, 0.0, 1.0),
                                          window(impedance.LIMBS * lift(out), (0.0, poise.LIFT_EPS)))
-    # where else than its soles bears its upright (borne, its trunk not past RECLINED_RAD back) on a seat its shank cannot
+    # where else than its soles bears it upright (borne, its trunk not past RECLINED_RAD back) on a seat its shank cannot
     # reach the floor from - the kernel's reach foliation from what bears it: its lowest over the floor as sensed
     # (`modal.PROP_LO`) over its popliteal height, past its toes' window to its detach -, a let-go leg its text neither
     # lifts nor places hangs: its knee and ankle the kernel's (HANG), off its axial mode, its hip where the seat holds it,

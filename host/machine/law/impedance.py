@@ -52,7 +52,7 @@ FALLS, UPWARD = np.array([0.0, 0.0, -G]), np.array([0.0, 1.0, 0.0])
 #: Borne off its soles this share of its weight, it is supported there wholly: its support
 #: region spans where, its centre of mass asked of its springs, not let fall.
 PROP_ON = _G['prop_on']
-#: Its pelvis's axes a seat holds once it bears it - its list on it two ischia -, its pitch and turn
+#: Its pelvis's axes a seat holds once it bears it - its list on its two ischia -, its pitch and turn
 #: its own: let go with the list, sat 3 deg askew it turned 0.05 rad in 0.1 s and lifted a sole; its
 #: pitch let go, it stayed 29 deg forward of its settled trunk, its spine at -25 deg.
 SEAT_HOLDS = np.array([[0.0], [1.0], [0.0]])
@@ -269,7 +269,7 @@ def _poses(out, y, fr, a, said, turned, up, folds, still):
     bent = z[AXIAL] + poise.clip(ref[AXIAL] - z[AXIAL], -AHEAD, AHEAD)
     cosine = np.cos(0.5 * fr[KNEE]) - AXIAL_M * bent * fr[HIPS_BY] / LEG_M
     a[BEND] = 2.0 * np.arccos(poise.clip(cosine, -1.0, 1.0)) - fr[KNEE]
-    # and at the told height's rate where the rows let it soles go (a throw's ZMP NONE): damped
+    # and at the told height's rate where the rows let its soles go (a throw's ZMP NONE): damped
     # against still, the stack's knee rows held a push's knees at 0.2 of their clamp, its height
     # at its band's floor, 3 m/s^2 under its ask; at the told rate under a held polygon the
     # seats' texts, laid against that damping, sat it onto the bed at 1.86 of its weight and

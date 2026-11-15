@@ -5,7 +5,7 @@
 # stiffness, standing/deep-squat equilibria, service bands and Froude-scaled gait laws are derived by
 # the static meta-compiler (`structural`, `drives`, `figure`, `compile`).
 
-# It two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
+# Its two packs in parallel, each 15S2P of 5 Ah 21700 cells (`build.HOLDS`, `dclink`): cell cutoff
 # voltage (V), cell and case/BMS mass (kg), cell DC resistance (ohm), BMS max charge per cell (A),
 # per-board DC link capacitance (F: 33 x 10 uF X7S 1210), and flank mount coordinates in the torso (m).
 [pack]
