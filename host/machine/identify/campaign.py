@@ -223,7 +223,9 @@ def rotations(q):
 
 def hemming(lay, body, ys, dt, every, state_holder=None):
     """Its unmeasured 2-DoF pendulums (`lay['hems']`) integrated at `dt` over `ys` with their stops,
-    sampled every `every`th, yielding after each: ((qadr, vadr, q, qd, qdd), free)."""
+    sampled every `every`th, yielding after each: ((qadr, vadr, q, qd, qdd), free). Each one's anchor
+    follows its chain down from the pelvis, a link's every joint in its order (the torso's spine and
+    waist both), its IMU and its encoders the chain's motion."""
     import numpy as np
     from tools.cores import wbc as cores
     hems = lay.get('hems', ())
@@ -260,13 +262,14 @@ def hemming(lay, body, ys, dt, every, state_holder=None):
             dp = np.einsum('nij,j->ni', R, m.body_pos[link])
             a = a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp))
             R = R @ rot(m.body_quat[link])
-            j = int(m.body_jntadr[link])
-            ax, ji = m.jnt_axis[j], int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0])
-            q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
-            sw = np.einsum('nij,j->ni', R, ax)
-            al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
-            c, s = np.cos(0.5 * q), np.sin(0.5 * q)
-            R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
+            first = int(m.body_jntadr[link])
+            for j in range(first, first + int(m.body_jntnum[link])):
+                ax, ji = m.jnt_axis[j], int(np.flatnonzero(lay['vadr'] == m.jnt_dofadr[j])[0])
+                q, qd, qdd_j = ys[:n, edge.Q][:, ji], qd_all[:, ji:ji + 1], qdd_all[:, ji:ji + 1]
+                sw = np.einsum('nij,j->ni', R, ax)
+                al, wv = al + sw * qdd_j + np.cross(wv, sw) * qd, wv + sw * qd
+                c, s = np.cos(0.5 * q), np.sin(0.5 * q)
+                R = R @ rot(np.column_stack([c, s * ax[0], s * ax[1], s * ax[2]]))
         dp = np.einsum('nij,j->ni', R, m.body_pos[b])
         ap = np.einsum('nji,nj->ni', R, a + np.cross(al, dp) + np.cross(wv, np.cross(wv, dp)))
         om, alb = np.einsum('nji,nj->ni', R, wv), np.einsum('nji,nj->ni', R, al)

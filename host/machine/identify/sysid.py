@@ -178,7 +178,10 @@ def _state(lay, body, ys, dt, every, extra=None):
 def rows(lay, body, ys, taus, dt, every=1, extra=None):
     """(Y (N, driven, P), tau (N, driven)) of a campaign: `ys` (N + 1, SENSED) its edge arrays a
     step `dt` apart, `taus` (N, JOINTS) its drives' torques over each step, every `every`th
-    step kept (`_state`); a drive's row zero where it does not slide (STICK)."""
+    step kept (`_state`); a drive's row zero where it does not slide (STICK). Given no `extra`,
+    its hems and its hair are integrated first (`campaign.hemming`) and ride in the regressor, a
+    limb's rows zero where its pendulum's acceleration passes HEM_ACC_MAX - the stops' strikes,
+    where the pendulum's model is least its own."""
     return done(rowing(lay, body, ys, taus, dt, every, extra))
 
 
@@ -195,6 +198,10 @@ def rowing(lay, body, ys, taus, dt, every=1, extra=None):
     """`rows` a part at a time: a generator yielding after each ROWS_AT states' regressor, `rows`'
     its return - one state's program the same over any number of them (`regressor.in_c`)."""
     import numpy as np
+    own = None
+    if extra is None and lay.get('hems'):
+        own, _free = yield from campaign.hemming(lay, body, np.asarray(ys), dt, every)
+        extra = own
     qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every, extra)
     yield
     Y = np.empty((len(at), len(lay['driven']), len(lay['names'])))
@@ -207,9 +214,8 @@ def rowing(lay, body, ys, taus, dt, every=1, extra=None):
     v0 = qvel[:, lay['dof']]
     v1 = v0 + np.where(stick > STICK, 0.0, 0.0095) * qacc[:, lay['dof']]
     slides = (np.abs(v0) >= stick) & (np.abs(v1) >= stick) & (v0 * v1 > 0.0)
-    if extra is None and lay.get('hems'):
-        (_, _, _, _, a_h), _ = yield from campaign.hemming(lay, body, np.asarray(ys), dt, every)
-        bad = np.abs(a_h).reshape(len(at), len(lay['hems']), 2).max(axis=2) > HEM_ACC_MAX
+    if own is not None:
+        bad = np.abs(own[4]).reshape(len(at), len(lay['hems']), 2).max(axis=2) > HEM_ACC_MAX
         slides = slides & ((bad.astype(int) @ lay['hem_limb']) == 0)
     Y *= slides[:, :, None]
     return Y, tau * slides
@@ -304,17 +310,20 @@ def hung(lay, body, ys, dt, pulls, every=1):
     """(Y (N, 6, P), f (N, 6)) its pelvis's rows a load cell in its harness measures, hung: the
     harness's force on it, world, LEVER_M as a moment, and its moment about its pelvis's
     origin, world - `pulls` (N + 1, 6) what the cell reads a step (`World.pull`). Its pelvis's
-    own ten join the base parameters, its mass among them."""
+    own ten join the base parameters, its mass among them; its hems and its hair ride in the rows
+    as in `rows`, a sample zero where a pendulum's acceleration passes HEM_ACC_MAX."""
     import numpy as np
-    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every)
+    extra = None
+    if lay.get('hems'):
+        extra, _free = done(campaign.hemming(lay, body, np.asarray(ys), dt, every))
+    qpos, qvel, qacc, a0, wacc, at = _state(lay, body, ys, dt, every, extra)
     Y = regressor.in_c(lay, body, qpos, qvel, qacc, a0, wacc)
     n_h = len(lay['hinge'])
     out = np.concatenate([LEVER_M * Y[:, n_h:n_h + 3],
                           np.einsum('nij,njc->nic', _rotations(qpos[:, 3:7]), Y[:, n_h + 3:n_h + 6])], axis=1)
     f = np.asarray([pulls[i] for i in at], float) * np.r_[[LEVER_M] * 3, [1.0] * 3]
-    if lay.get('hems'):
-        (_, _, _, _, a_h), _ = done(campaign.hemming(lay, body, np.asarray(ys), dt, every))
-        keep = np.abs(a_h).max(axis=1) <= HEM_ACC_MAX
+    if extra is not None:
+        keep = np.abs(extra[4]).max(axis=1) <= HEM_ACC_MAX
         out, f = out * keep[:, None, None], f * keep[:, None]
     return out, f
 
