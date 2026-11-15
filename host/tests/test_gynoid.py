@@ -302,19 +302,19 @@ def test_its_gait_is_stated_on_it(report):
         raw = tomllib.load(f)
     banned = _s('servo wind series gait service pack_v cooling clamped rigid_play_deg '
                 'ahead_wind ahead_play mount_k_w off_mount_k_w passive_limits')
-    lib, c_cfg, w_cfg, m_cfg = (mechatronics.library(), mechatronics.crafts(),
-                                mechatronics.environment(), mechatronics.materials())
+    lib, cf, wf, mf = (mechatronics.library(), mechatronics.crafts(),
+                       mechatronics.environment(), mechatronics.materials())
     bus_ban = _s('bus_hz law_div thermal_s spin_s stall_s threads_a_limb eso_bw_share '
                  'observe_x rate_s play_nm wear_window_s wear_trend_windows')
-    craft_keys = {k for c in c_cfg.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
-    craft_ban = craft_keys & _s('step_s arena drive_load k_thrust k_drag inertia_xx stiffness damping '
-                                'turn_bandwidth alpha_run_deg climb_deg harrier_deg tictoc_hz tictoc_deg '
-                                'most_deg nose_m_s head_tip_m_s drive_rad_s profile_drag_share '
-                                'induced_drag_share cyclic_drag_share')
-    lib_ban = ({k for m in lib['motors'].values() for k in m} & {'rotor_kgm2', 'stator_j_k'}
+    ck = {k for c in cf.values() if isinstance(c, dict) for k in tuple(c) + tuple(c.get('gimbal', ()))}
+    craft_ban = ck & _s('step_s arena drive_load k_thrust k_drag inertia_xx stiffness damping '
+                        'turn_bandwidth alpha_run_deg climb_deg harrier_deg tictoc_hz tictoc_deg '
+                        'most_deg nose_m_s head_tip_m_s drive_rad_s profile_drag_share '
+                        'induced_drag_share cyclic_drag_share cd_induced')
+    lib_ban = ({k for m in lib['motors'].values() for k in m} & _s('rotor_kgm2 stator_j_k')
                | {k for b in lib['gearboxes'].values() for k in b} & {'stiffness_nm_rad'}
                | {k for v in lib['inverters'].values() for k in v}
-               & _s('laminate_k_w laminate_j_k into_k_w loop_hz v_frac envelope')
+               & _s('laminate_k_w laminate_j_k into_k_w loop_hz v_frac envelope dry_loss_24v_w dry_loss_w_per_v')
                | (set(lib['inverters']['coaxial_63100']['heatsink']) & _s('fan_temp_on fan_temp_full fan_idle_duty')))
     report.check('library, humanoid and craft .toml files hold pure physical construction only',
                  _s('bus stops boards mounts linkage skeleton garments elastomers') <= set(raw)
@@ -323,14 +323,14 @@ def test_its_gait_is_stated_on_it(report):
                  and not (_s('census_px window_px quantum p1 p2 texture unique') & set(raw['eyes']))
                  and not (_s('flex_at flex_deg margin') & set(raw['shell']))
                  and not (_s('settle_s damp soft width_m') & set(raw['elastomers']['sole']))
-                 and not ({'stop_s', 'hold_n'} & set(raw['garments']['lace']))
-                 and not ({'stop_s', 'd_nms_rad'} & (set(raw['garments']['hem']) | set(raw['garments']['hair'])))
-                 and not ({'stiffness', 'damping'} & set(raw['passive']['gripper']))
-                 and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n simulation harness') & set(w_cfg))
-                 and 'discs' not in w_cfg['weather'] and not craft_ban and not lib_ban
-                 and 'g_m_s2' in w_cfg and 'solids' in m_cfg and 'rad_s' not in raw['toes']
+                 and not (_s('stop_s hold_n') & set(raw['garments']['lace']))
+                 and not (_s('stop_s d_nms_rad') & (set(raw['garments']['hem']) | set(raw['garments']['hair'])))
+                 and not (_s('stiffness damping') & set(raw['passive']['gripper']))
+                 and not (_s('step_s substeps cone impratio stand_m stand_solref_s touched_n simulation harness') & set(wf))
+                 and 'discs' not in wf['weather'] and not craft_ban and not lib_ban
+                 and 'g_m_s2' in wf and 'solids' in mf and not (_s('stiffness rad_s') & set(raw['toes']))
                  and lib['gearboxes']['A']['ratio'] == lib['gearboxes']['B']['ratio']
-                 and mechatronics.laminate_j_k(lib['inverters']['coaxial_63050'], m_cfg) == 7.8
+                 and mechatronics.laminate_j_k(lib['inverters']['coaxial_63050'], mf) == 7.8
                  and 'stack_on' in raw['boards']['ankle'] and 'stack_on' in raw['boards']['head'])
     with tempfile.NamedTemporaryFile('w', suffix='.toml', delete=False, encoding='utf-8') as tf:
         tf.write('mass = 2.0\n')

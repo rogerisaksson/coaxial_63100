@@ -52,9 +52,10 @@ foot = { way = 1.0 }
 gripper = { way = 2.0, rest = 80.0 }
 wrist = { way = 2.0 }
 
-# Forefoot TPU-carbon sandwich toe spring (`drives.passive`, `docs/findings/feet.md`).
+# Forefoot TPU-carbon sandwich toe spring (`drives.passive`, `docs/findings/feet.md`):
+# 8-ply carbon forefoot plate thickness (m), viscoelastic loss factor and rest angle (deg).
 [toes]
-stiffness = 10.0
+thick_m = 0.001074
 loss = 0.3
 rest = 0.0
 

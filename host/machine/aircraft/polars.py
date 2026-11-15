@@ -56,6 +56,12 @@ def arena(crafts, rho, g):
     }
 
 
+def cd_induced(ae, env=None):
+    e = float((mechatronics.environment(None) if env is None else env)['kinetic_share'])
+    ar = float(ae['wing_span_m']) / float(ae['wing_chord_m'])
+    return float(ae.get('cd_induced', round(1.0 / (math.pi * e * ar), 3)))
+
+
 def _heli_drag_shares(he, inf_fl):
     prof = float(he.get('profile_drag_share', inf_fl))
     ind = float(he.get('induced_drag_share', round(2.0 - prof, 2)))
@@ -63,10 +69,10 @@ def _heli_drag_shares(he, inf_fl):
     return prof, ind, cyc
 
 
-def _drive_loads(he, or_, ae, inv, inf_fl):
+def _drive_loads(he, or_, ae, inv, inf_fl, env=None):
     prof, ind, cyc = _heli_drag_shares(he, inf_fl)
     pulse, cl_g = float(or_['beat_pulse']), float(or_['cl_glide'])
-    cd0, cdi, pw = float(ae['cd0']), float(ae['cd_induced']), float(ae['propwash_share'])
+    cd0, cdi, pw = float(ae['cd0']), cd_induced(ae, env), float(ae['propwash_share'])
     wep_ratio = float(inv['wep_amps']) / float(inv['flight_amps'])
     ae_tp = round(1.0 + 1.5 * pw * (cd0 + cdi), 2)
     return {
@@ -95,7 +101,7 @@ def _drive_loads(he, or_, ae, inv, inf_fl):
     }
 
 
-def aero_blocks(crafts, inv, rho):
+def aero_blocks(crafts, inv, rho, env=None):
     sh = crafts['shared']
     qc, q15 = crafts['quadcopter'], crafts['quadcopter_15in']
     he, or_, ae = crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
@@ -167,7 +173,7 @@ def aero_blocks(crafts, inv, rho):
             'tail_arm': a_arm, 'stab_area': a_stab, 'fin_area': a_fin,
             'k_thrust': a_kt, 'k_drag': a_kq, 'blade_pitch': float(ae['prop_pitch_m']),
             'inflow_j0': j0, 'prop_inertia': float(ae['prop_kgm2']),
-            'cl_alpha': float(ae['cl_alpha']), 'cd0': float(ae['cd0']), 'cd_induced': float(ae['cd_induced']),
+            'cl_alpha': float(ae['cl_alpha']), 'cd0': float(ae['cd0']), 'cd_induced': cd_induced(ae, env),
             'elevator_limit': math.radians(float(ae['elevator_deg'])),
             'aileron_limit': math.radians(float(ae['aileron_deg'])),
             'rudder_limit': math.radians(float(ae['rudder_deg'])),
@@ -176,7 +182,7 @@ def aero_blocks(crafts, inv, rho):
             'k_yaw': round(float(ae['cn_rud']) * a_fin * a_arm, 8),
             'propwash_share': float(ae['propwash_share']), 'inflow_floor': inf_fl,
         }),
-        **_drive_loads(he, or_, ae, inv, inf_fl),
+        **_drive_loads(he, or_, ae, inv, inf_fl, env),
     }
 
 

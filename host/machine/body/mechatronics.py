@@ -198,12 +198,16 @@ def v_frac(inv) -> float:
     return round(1.0 - 2.0 * float(inv['deadtime_s']) * float(inv['pwm_hz']), 4)
 
 
+def dry_loss(inv, volts: float) -> float:
+    """Three-phase half-bridge capacitive switching loss Q_sw * f_pwm * V_bus (W)."""
+    return float(inv['switch_q_c']) * float(inv['pwm_hz']) * float(volts)
+
+
 def fan_curve(inv, hs, amb: float) -> tuple[float, float, float]:
     """(fan_temp_on C, fan_temp_full C, fan_idle_duty) from continuous flight switch loss vs junction ceiling."""
     t_sw, t_lam = float(inv['ceiling_c'][0]), float(inv['ceiling_c'][1])
     i_fl, v_bus = float(inv['flight_amps']), float(inv['volts'])
-    p_sw = (1.5 * i_fl * i_fl * float(inv['rds_ohm']) + float(inv['dry_loss_24v_w'])
-            + float(inv['dry_loss_w_per_v']) * (v_bus - 24.0))
+    p_sw = 1.5 * i_fl * i_fl * float(inv['rds_ohm']) + dry_loss(inv, v_bus)
     dt_sink = p_sw * float(hs['r_switches_to_sink'])
     return (round(amb + 0.25 * (t_lam - amb), 1), float(round(t_sw - dt_sink, -1)), 0.0)
 

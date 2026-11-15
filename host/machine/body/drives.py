@@ -26,7 +26,7 @@ import math
 from typing import Any
 
 from machine.body import linkage, mechatronics
-from machine.body.figure import ANKLE_H, BALL, SCALE, SEGMENTS, SHANK, THIGH
+from machine.body.figure import ANKLE_H, BALL, SCALE, SEGMENTS, SHANK, SOLE_HALF, THIGH, TOE_M
 from motor.pmsm import TORQUE_FACTOR
 
 #: The parts library and its build of it (machine/library, machine/humanoids): the tables below are
@@ -154,7 +154,10 @@ def mesh(joint):
 WAYS = {k: v['way'] for k, v in _BUILD['passive'].items()}
 PASSIVE = {k: (v.get('stiffness'), float(v.get('damping', 0.0)), float(v.get('rest', 0.0)))
            for k, v in _BUILD['passive'].items()}
-TOE_K, TOE_LOSS, TOE_REST = (float(_BUILD['toes'][k]) for k in ('stiffness', 'loss', 'rest'))
+TOE_K = float(_BUILD['toes'].get(
+    'stiffness', round(float(_MAT['solids']['carbon'][0]) * 1e9 * (2.0 * SOLE_HALF)
+                       * (SCALE * float(_BUILD['toes']['thick_m'])) ** 3 / (12.0 * TOE_M), 1)))
+TOE_LOSS, TOE_REST = float(_BUILD['toes']['loss']), float(_BUILD['toes']['rest'])
 TOE_RAD_S = float(_BUILD['toes'].get(
     'rad_s', round(math.sqrt(float(_WORLD['g_m_s2']) * (THIGH + SHANK)) / math.hypot(BALL, ANKLE_H))))
 

@@ -12,7 +12,7 @@ import importlib
 import math
 import os
 
-from machine.aircraft import aerolisp, text
+from machine.aircraft import aerolisp, compile as aircraft_compile, text
 from machine.aircraft.weather import wind_at
 from tools.cores import bodied
 
@@ -132,11 +132,15 @@ def rescaled(scope, units, built):
         scope[name] = built[name] * size ** metres * clock ** seconds
 
 
+SKID_MU = aircraft_compile.part('wingborne')['grip']
+
+
 def skids(skid_x, skid_m, strut_z, foot_m):
     """Four skid feet at `(-skid_x, skid_x)` by `strut_z`, `skid_m` under the frame, as MuJoCo
     `<geom>` tags."""
     return ''.join('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-                   'solref="0.01 1" friction="0.8 0.005 0.0001"/>' % (k, sx, -skid_m, sz, foot_m)
+                   'solref="%g 1" friction="%g 0.005 0.0001"/>'
+                   % (k, sx, -skid_m, sz, foot_m, 5.0 * STEP_S, SKID_MU)
                    for k, (sx, sz) in enumerate((sx, sz) for sx in (-skid_x, skid_x) for sz in strut_z))
 
 

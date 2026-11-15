@@ -78,8 +78,8 @@ def points(craft):
     lays them - and those that must not: the wingtips and the propeller's rim."""
     import numpy as np
     r, z = craft.PROP_R, craft.PROP_Z
-    tail = [tuple(p) + (0.0, 0.4) for p in craft.FORM['tail']]
-    wheels = [(x_sc * sx, by, bz, craft.FOOT_M, 0.3) for sx in (-craft.SKID_X, craft.SKID_X)
+    tail = [tuple(p) + (0.0, craft.TAIL_MU) for p in craft.FORM['tail']]
+    wheels = [(x_sc * sx, by, bz, craft.FOOT_M, craft.ROLL_MU) for sx in (-craft.SKID_X, craft.SKID_X)
               for by, bz, x_sc in ((craft.STRUT_Z[0], craft.GEAR_TAIL_Z, 0.45), (craft.STRUT_Z[1], craft.GEAR_MAIN_Z, 1.0))]
     rest = [tuple(p) for p in craft.FORM['tips']] + [(r, z, 0.0), (-r, z, 0.0), (0.0, z, r), (0.0, z, -r)]
     return np.array(tail + wheels, float), len(tail), np.array(rest, float)

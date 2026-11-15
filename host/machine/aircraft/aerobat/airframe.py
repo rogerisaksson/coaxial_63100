@@ -95,10 +95,11 @@ def row_from_payload(payload, base=None):
         payload, base or HOVER, MASS_KG * GRAVITY, KINEMATICS['horizontal']['orbit_speed'])
 
 
-ROLL_MU = _AB_CFG['roll_mu']
+ROLL_MU, TAIL_MU = _AB_CFG['roll_mu'], _AB_CFG['tail_mu']
+TAIL_S, WHEEL_S = _AB_CFG['tail_s'], _AB_CFG['wheel_s']
 #: The tail on asphalt, its fin 1 cm past the elevator, softer than the wheels: at their 0.03 s a
 #: touch read 37-143 N, 7-27 N m against the ailerons' 5.3.
-TAIL_ON = ' priority="1" solref="0.1 1" friction="0.4 0.005 0.0001"'
+TAIL_ON = ' priority="1" solref="%g 1" friction="%g 0.005 0.0001"' % (TAIL_S, TAIL_MU)
 
 
 def mjcf(things=()):
@@ -113,8 +114,8 @@ def mjcf(things=()):
     wheels = ((STRUT_Z[0], GEAR_TAIL_Z, 0.45), (STRUT_Z[1], GEAR_MAIN_Z, 1.0))
     for k, (sx, (by, bz, x_sc)) in enumerate((sx, w) for sx in (-SKID_X, SKID_X) for w in wheels):
         m += ('<geom name="skid%d" type="sphere" pos="%g %g %g" size="%g" '
-              'priority="1" solref="0.03 1" friction="%g 0.002 0.0001"/>'
-              % (k, x_sc * sx, by, bz, FOOT_M, ROLL_MU))
+              'priority="1" solref="%g 1" friction="%g 0.002 0.0001"/>'
+              % (k, x_sc * sx, by, bz, FOOT_M, WHEEL_S, ROLL_MU))
     pos = (-RUNWAY_M * math.sin(RUNWAY_RAD), SKID_M + FOOT_M, -RUNWAY_M * math.cos(RUNWAY_RAD))
     return quad.mjcf(things, m, pos, MASS_KG, INERTIA)
 

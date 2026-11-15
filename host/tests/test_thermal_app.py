@@ -135,12 +135,15 @@ def test_the_stand_in_is_mounted(report, lib):
 
 
 def test_the_heat_dry_loss_scales_with_bus_voltage(report, _lib):
-    """Dry switching loss in heat.py fits bench measurements: 2.4 W at 24 V to 4.4 W at 44 V."""
-    from machine.body import heat
+    """Capacitive switching loss Q_sw * f_pwm * V_bus scales with voltage, charge and PWM rate."""
+    from machine.body import heat, mechatronics
+    inv50 = mechatronics.library()['inverters']['coaxial_63050']
     report.check('dry loss is 2.4 W at 24 V', abs(heat.dry_loss(24.0) - 2.4) < 1e-6)
     report.check('dry loss is 4.4 W at 44 V', abs(heat.dry_loss(44.0) - 4.4) < 1e-6)
     report.check('dry loss at nominal 48 V is 4.8 W', abs(heat.dry_loss(48.0) - 4.8) < 1e-6)
     report.check('SWITCHING_W matches nominal 48 V dry loss', abs(heat.SWITCHING_W - 4.8) < 1e-6)
+    report.check('50 A board has half the switching charge at 48 V (2.4 W)',
+                 abs(heat.dry_loss(48.0, inv50) - 2.4) < 1e-6)
     h24 = heat.Heat([], volts=24.0)
     report.check('Heat instance with 24 V sets switching_w to 2.4 W', abs(h24.switching_w - 2.4) < 1e-6)
 

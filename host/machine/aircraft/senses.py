@@ -191,8 +191,10 @@ def aircraft_bus_layout_svg():
     from machine.aircraft.helicopter import airframe as heli_af
     from machine.aircraft.ornithopter import airframe as orni_af
     mbps, reg = edge.BAUD / 1e6, rtu.SETPOINT_REG
+    q_names = (('rotor_fl', 'rotor_fr', 'rotor_rr', 'rotor_rl') if quad.ROTORS == 4
+               else tuple('rotor_%02d' % i for i in range(quad.ROTORS)))
     quad_nodes = [(n, 'r%02d / reg %#06x' % (i, reg + 2 * i), '63100 / %.0f-%.0f A' % (pull.I_MAX, pull.I_WEP), True)
-                  for i, n in enumerate(('rotor_fl', 'rotor_fr', 'rotor_rr', 'rotor_rl'))]
+                  for i, n in enumerate(q_names)]
     heli_nodes = [
         ('main_drive', 'd00 / reg %#06x' % reg, '63100 / %.0f rad/s' % heli_af.GOV_RAD_S, True),
         ('tail_drive', 'd01 / reg %#06x' % (reg + 2), '63100 / %.0f rad/s' % heli_af.TAIL_GOV_RAD_S, True),
@@ -231,7 +233,7 @@ def aircraft_bus_layout_svg():
         '<rect width="1220" height="665" rx="10" fill="#020617"/>',
         '<g font-family="monospace">',
         '<text x="24" y="34" fill="#f8fafc" font-size="16" font-weight="bold">'
-        'COAXIAL 63100 -- %.0f Mbit/s RS485 Modbus RTU Aircraft Drive, Servo &amp; Avionics Buses (4 Airframes, 10 SIL Drives)</text>' % mbps,
+        'COAXIAL 63100 -- %.0f Mbit/s RS485 Modbus RTU Aircraft Drive, Servo &amp; Avionics Buses (4 Airframes, %d SIL Drives)</text>' % (mbps, quad.ROTORS + 6),
         '<text x="24" y="54" fill="#94a3b8" font-size="11">'
         'Generated from machine.aircraft.senses (GNSS=%.0f Hz, STAR=%.0f Hz), machine.aircraft.pull (I_MAX=%.0f A), flightpack (%dS %.0f V), and craft airframes</text>'
         % (GNSS[0], STAR[0], pull.I_MAX, flightpack.PACK_CELLS, flightpack.open_volts(1.0)),
@@ -283,7 +285,7 @@ def aircraft_software_layout_svg():
         ('#34d399', 'payload[66B]  aerolisp/aerokin'),
         ('#34d399', 'alpha, pull   wingborne.plane'),
         ('#fbbf24', 'acc, target_R helicopter.kit'),
-        ('#fbbf24', 'w[4], ctrl[4] aero/ &amp; laws'),
+        ('#fbbf24', 'w[%d], ctrl[4] aero/ &amp; laws' % quad.ROTORS),
         ('#f472b6', 'aeh_world_t   10x RK2 substep'),
         ('#f472b6', '%dS %.0f V LiPo  %.0f-%.0f A 63100' % (flightpack.PACK_CELLS, flightpack.open_volts(1.0), pull.I_MAX, pull.I_WEP)),
     )
@@ -311,7 +313,7 @@ def aircraft_software_layout_svg():
         )),
         ('inner dynamic SE(3) control &amp; allocation (240-%d Hz)' % quad_hz, (
             ('aero.c &amp; aero_turn.c', 'branch-free C11 core', 'impedance + CPG oscillator', 'tilt-prioritized SO(3) wrench'),
-            ('aero_share.c &amp; pull.py', 'active-set thrust share', '%.0f A / %.0f A WEP reach' % (pull.I_MAX, pull.I_WEP), 'out: 4x rotor rad/s'),
+            ('aero_share.c &amp; pull.py', 'active-set thrust share', '%.0f A / %.0f A WEP reach' % (pull.I_MAX, pull.I_WEP), 'out: %dx rotor rad/s' % quad.ROTORS),
             ('helicopter/law.py (se3)', 'collective + cyclic swash', 'tail anti-torque + piro', 'out: coll, cyc_p, cyc_r, tail'),
             ('ornithopter/law.py (se3)', 'stroke + pitch + roll_d', 'dive wing fold &amp; soar', 'out: 4x flapping controls'),
             ('aerobat/law.py (se3)', 'propeller + slipstream tail', 'WING.trimmed &amp; se3mpc blend', 'out: pitch, elev, ail, rud'),
@@ -319,7 +321,7 @@ def aircraft_software_layout_svg():
         ('C harness, MuJoCo sky &amp; 63100 drives (1 kHz)', (
             ('aero/test/harness.c', 'aeh_step_heli/orni/aerobat', '10-substep RK2 aerodynamics', '0 direct qpos/qvel writes'),
             ('quad/heli/orni/aerobat', 'MuJoCo 6-DOF rigid body', 'skids, wheels &amp; contacts', 'out: state(at,vel,turn,spin)'),
-            ('CoaxialDrives &amp; motion', '2-4x 63100 FOC boards', 'theta_hat phase-locked spin', 'out: actual rotor speeds'),
+            ('CoaxialDrives &amp; motion', '2-%dx 63100 FOC boards' % quad.ROTORS, 'theta_hat phase-locked spin', 'out: actual rotor speeds'),
             ('flightpack.py (%dS LiPo)' % flightpack.PACK_CELLS, '%.1f V open, %.2f ohm sag' % (flightpack.open_volts(1.0), flightpack.PACK_OHM), 'regenerative braking charge', 'out: bus volts &amp; amps'),
             ('STM32H743 &amp; Stand-In', '35 kHz FOC + cmd_aero.c', 'native:// &amp; emulator://', 'see: aircraft_bus_layout.svg'),
         )),

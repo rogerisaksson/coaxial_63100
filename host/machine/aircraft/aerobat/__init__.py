@@ -13,8 +13,8 @@ from machine.aircraft.aerobat.airframe import (A_DISC, BEHAVIORS, BLADE_PITCH, B
                                       INFLOW_J0, K_DRAG, K_PITCH, K_PITCH_Q, K_ROLL, K_ROLL_Q,
                                       K_THRUST, K_YAW, LISP_PATH, MANIFEST, MASS_KG, PROP_BASE,
                                       PROP_LOAD, PROP_R, PROP_SURF, PROP_Z, PROPWASH_SHARE, PULL_MAX,
-                                      RHO, ROTOR, RUNWAY_M, RUNWAY_RAD, SKID_M, SKID_X, STAB_SPAN,
-                                      STREAMS, STRUT_Z, STUNTS, TAIL_ARM, W_TOP, WING, WING_AREA,
+                                      RHO, ROLL_MU, ROTOR, RUNWAY_M, RUNWAY_RAD, SKID_M, SKID_X, STAB_SPAN,
+                                      STREAMS, STRUT_Z, STUNTS, TAIL_ARM, TAIL_MU, W_TOP, WING, WING_AREA,
                                       WING_CHORD, _aero_cda, _aero_inflow, _prop_drag, drive_loads,
                                       mjcf, prop_speed, row_from_payload, slipstream, surface_angles)
 from machine.aircraft.aerobat.law import Core

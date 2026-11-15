@@ -1,8 +1,9 @@
-# Inverters: disc diameter (m), phase amps, gate dead-time (s), mass (kg), axial height with parts
-# (m), bus ceiling (V), PWM switching frequency (Hz), encoder resolution and thermal/heatsink network.
-# Voltage utilization, laminate J/K and K/W, switch-to-laminate K/W, current-loop bandwidth, SOA
-# derating envelope and fan curve are derived by the static meta-compilers (`machine.body.drives`,
-# `mechatronics`, `peripherals`, `aircraft.compile`).
+# Inverters: disc diameter (m), phase amps, gate dead-time (s), bridge switching charge (C),
+# mass (kg), axial height with parts (m), bus ceiling (V), PWM switching frequency (Hz), encoder
+# resolution and thermal/heatsink network. Voltage utilization, capacitive switching loss,
+# laminate J/K and K/W, switch-to-laminate K/W, current-loop bandwidth, SOA derating envelope
+# and fan curve are derived by the static meta-compilers (`machine.body.drives`, `mechatronics`,
+# `peripherals`, `aircraft.compile`).
 
 [coaxial_63100]
 disc_m = 0.100
@@ -20,8 +21,7 @@ rds_alpha = 4.6e-3
 rds_beta = 1.2e-5
 shunt_ohm = 3.5e-3
 housekeeping_w = 1.33
-dry_loss_24v_w = 2.4
-dry_loss_w_per_v = 0.1
+switch_q_c = 2.0e-6
 switch_j_k = 0.35
 rth_jc = 0.69
 tj_max_c = 175.0
@@ -47,3 +47,4 @@ amps = 50.0
 flight_amps = 35.0
 wep_amps = 50.0
 kg = 0.12
+switch_q_c = 1.0e-6

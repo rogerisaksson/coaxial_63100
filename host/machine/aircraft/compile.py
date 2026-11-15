@@ -37,7 +37,7 @@ def _imp(kp_p, kd_p, kp_r, kd_r, kp_y, kd_y, kr_p=0.0, dr_p=0.0):
     })
 
 
-def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb):
+def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb, env=None):
     step_s, vf = round(100.0 / float(inv['pwm_hz']), 6), mechatronics.v_frac(inv)
     qc, he, or_, ae = crafts['quadcopter'], crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
     q_kt = polars.kt(rho, qc['ct'], qc['diameter_m'])
@@ -55,7 +55,7 @@ def _control_and_traj_blocks(crafts, inv, ar, can_j, rot_max_nm, rho, g, amb):
     pulse = float(or_['beat_pulse'])
     kp_o = 5.0 * round(kp_b * (1.0 + 0.06 * pulse) / 5.0)
     kp_yo = 5.0 * round(kp_yh * (1.0 + 0.1 * pulse) / 5.0)
-    cdi = float(ae['cd_induced'])
+    cdi = polars.cd_induced(ae, env)
     gyr_ae = float(ae['gyration_m'][2]) / float(ae['gyration_m'][1])
     kp_ap = float(round(kp_b * (1.0 + 0.5 * cdi), -1))
     kp_ar = 5.0 * round(kp_b * (1.0 + 0.5 * cdi * gyr_ae) / 5.0)
@@ -175,10 +175,16 @@ def _runtime_configs(env, crafts, mot, inv, ar, can_j, g):
                       'flare_s': round(2.0 * float(ar['descent_m_s']) / g, 1),
                       'touch_m_s': round(float(ar['descent_m_s']) / 8.0, 2)},
         'aerobat': {'dive_m_s': float(ar['climb_m_s']), 'roll_mu': float(ae['roll_mu']),
+                    'tail_mu': round(0.5 * float(env['mu_dry']), 2),
+                    'tail_s': round(50.0 * step_s, 2), 'wheel_s': round(15.0 * step_s, 2),
                     'touch_m': float(ae['tail_contact_m']), 'fast_m_s': (orb_v, round(0.8 * ar['v_stall'], 1)),
-                    'lined_m': (1.5, 2.0), 'lined_rad_s': math.radians(10.0), 'lined_m_s': 1.0,
-                    'authority': 0.7, 'gust_slow_s': 5.0, 'gust_rms_s': 3.0, 'gust_floor': 0.3,
-                    'path_pole': 0.35, 'push_s': 1.0},
+                    'lined_m': (float(ar['top_m']), float(ar['orbit_r_m'])),
+                    'lined_rad_s': math.radians(ar['alpha_run_deg']), 'lined_m_s': float(ar['nose_m_s']),
+                    'authority': round(math.sqrt(0.5), 1),
+                    'gust_slow_s': float(w['kinds']['gusty'][4]),
+                    'gust_rms_s': round(2.0 * float(w['eddy_s']), 1),
+                    'gust_floor': round(1.5 * float(w['kinds']['constant'][5]), 2),
+                    'path_pole': float(sh['inflow_floor']), 'push_s': round(5.0 / (0.01 / step_s), 1)},
         'mpc': {'k_floor': kf, 'c_floor': float(round(math.sqrt(0.5 * m_ae * kf))),
                 'skim_m': float(ae['tail_contact_m'])},
         'gimbal': {'mount': tuple(float(x) for x in gm['mount']), 'follow': float(ar['climb_m_s']),
@@ -213,8 +219,8 @@ def _build_aircraft():
     ar = polars.arena(crafts, rho, g)
     can_j = round(float(mat['rotor_ring_share']) * float(mot['kg']) * (0.5 * float(mot['can_m'])) ** 2, 7)
     rot_nm = 1.5 * float(mot['pole_pairs']) * float(mot['flux_vs']) * float(inv['flight_amps'])
-    blk = {**polars.aero_blocks(crafts, inv, rho), **polars.body_and_cooling_blocks(crafts, mat, inv, env, g),
-           **_control_and_traj_blocks(crafts, inv, ar, can_j, rot_nm, rho, g, amb)}
+    blk = {**polars.aero_blocks(crafts, inv, rho, env), **polars.body_and_cooling_blocks(crafts, mat, inv, env, g),
+           **_control_and_traj_blocks(crafts, inv, ar, can_j, rot_nm, rho, g, amb, env)}
     return {'blocks': blk, **_runtime_configs(env, crafts, mot, inv, ar, can_j, g)}
 
 

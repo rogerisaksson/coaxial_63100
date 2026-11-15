@@ -1,7 +1,7 @@
 """Physical, dynamic and kinematic block schemas and static scaling for AeroLisp."""
 import math
 
-from machine.aircraft import compile as aircraft_compile
+from machine.aircraft import compile as aircraft_compile, polars
 
 
 def _sp(s):
@@ -66,8 +66,13 @@ def _derive_block(kind, out, inherited, explicit):
         for k, p in (('disc_half_height', 1), ('blade_pitch', 1), ('k_thrust', 4), ('k_drag', 5)):
             if k not in explicit and k in inherited:
                 out[k] = inherited[k] * s ** p
-    elif kind == 'aero_surfaces' and 'wing_area' not in explicit and 'wing_span' in out and 'wing_chord' in out:
-        out['wing_area'] = out['wing_span'] * out['wing_chord']
+    elif kind == 'aero_surfaces':
+        if 'wing_area' not in explicit and 'wing_span' in out and 'wing_chord' in out:
+            out['wing_area'] = out['wing_span'] * out['wing_chord']
+        if ('wing_span' in explicit or 'wing_chord' in explicit) and 'cd_induced' not in explicit:
+            if out.get('wing_chord', 0.0) > 0.0:
+                out['cd_induced'] = polars.cd_induced(
+                    {'wing_span_m': out['wing_span'], 'wing_chord_m': out['wing_chord']})
     elif kind == 'rigid_body' and 'mass' in explicit and inherited.get('mass', 0.0) > 0.0:
         s = out['mass'] / inherited['mass']
         for ax in ('inertia_xx', 'inertia_yy', 'inertia_zz'):

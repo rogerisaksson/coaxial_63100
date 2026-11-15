@@ -32,13 +32,12 @@ _COOL = peripherals.cooling()
 #: 2nd-order silicon temperature coefficients of RDS_OHM (`thermal.c`).
 RDS_OHM, RDS_ALPHA, RDS_BETA, SHUNT_OHM, HOUSEKEEPING_W = (
     float(_inv[k]) for k in ('rds_ohm', 'rds_alpha', 'rds_beta', 'shunt_ohm', 'housekeeping_w'))
-_DRY_24V_W, _DRY_W_PER_V = float(_inv['dry_loss_24v_w']), float(_inv['dry_loss_w_per_v'])
 
 
-def dry_loss(volts=None):
-    """The three legs' dry switching loss, W, linear from 24 V (`inverters.toml`)."""
+def dry_loss(volts=None, inv=None):
+    """The three legs' capacitive switching loss Q_sw * f_pwm * V_bus, W (`inverters.toml`)."""
     v = drives.PACK_V if volts is None else float(volts)
-    return _DRY_24V_W + _DRY_W_PER_V * (v - 24.0)
+    return mechatronics.dry_loss(_inv if inv is None else inv, v)
 
 
 #: Switching watts with gates on, unshorted, at nominal pack voltage (`drives.PACK_V`).
