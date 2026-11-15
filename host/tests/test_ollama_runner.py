@@ -1021,8 +1021,9 @@ def test_tag_roster(r):
     r.check('no pick means no selection - the file runs whole',
             select(whole, set(), 1) == set())
 
+    # Every group measured: another suite records a few.
     sizes = counts.load().get('groups') or {}
-    if sizes:
+    if all(t.__name__ in sizes for t, _ in whole):
         measured = float(sum(sizes.get(t.__name__, 0) for t, _ in whole))
         for pct in (25, 50, 75):
             got = select(whole, {'reply'}, 1, pct)
