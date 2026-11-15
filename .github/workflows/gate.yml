@@ -1,0 +1,329 @@
+# The gate, one run a push, planned over the machines GitHub runs at once - twenty for a public repository; the
+# rest queue - by its first job (host/tools/dev/machines.py): the firmware's presets a machine each, the robot's C
+# targets a machine each, and the host's offline suites over what is left, in parts of equal work a Python
+# (tests/work.json: run_tests.py --part k/n, machine_detector.parts) - sixteen runners of the twenty, two Pythons
+# of eight parts. Asked by hand, the machines and each target's list are the inputs': fewer machines, fewer parts;
+# or a measure instead of cuts (`measure`: every suite to its end, the log the runner's measure of each suite's
+# work, laid by machine_detector.py --keep --tail); or a probe in place of the gate (`probe`: a suite run again
+# and again on a runner, side by side, its reds counted and a red run's tail kept:
+# gh workflow run gate.yml --ref BRANCH -f probe=test_native.py -f runner=ubuntu-24.04-arm).
+name: gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      machines:
+        description: machines at once (GitHub runs 20 for a public repository); the plan job's defaults where empty
+        default: ''
+      pythons:
+        description: the host's Pythons, a part each of what is left; the plan job's default where empty
+        default: ''
+      presets:
+        description: the firmware's presets, a machine each; the plan job's default where empty
+        default: ''
+      isas:
+        description: the robot's C targets held on their runners, a machine each; the plan job's default where empty
+        default: ''
+      measure:
+        description: every suite to its end, none cut - the runner's measure
+        type: boolean
+        default: false
+      probe:
+        description: a suite probed in place of the gate (run_tests.py --file), words after a colon its tests
+        default: ''
+      runner:
+        description: the runner it is probed on
+        type: choice
+        options: [ubuntu-24.04-arm, ubuntu-latest]
+        default: ubuntu-24.04-arm
+      isa:
+        description: the robot's cores' target probed (COAXIAL_ISA); none - the gate's, sve2 on an Arm
+        default: ''
+      jobs:
+        description: runners side by side probing
+        default: '16'
+      runs:
+        description: runs a runner probing
+        default: '6'
+      python:
+        description: the Python probing
+        default: '3.12'
+      trace:
+        description: the native transport's slow moments beside a red probe run (COAXIAL_NATIVE_TRACE)
+        type: boolean
+        default: false
+
+# A newer push on the same branch cancels the run under way: three pushes in ten minutes would queue sixty jobs
+# against twenty places. What is asked by hand runs on its own and is never cancelled.
+concurrency:
+  group: gate-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write        # the failure steps post the log tail as a commit comment
+
+jobs:
+  # The plan: the machines and each target's list - the inputs' where asked by hand, else these defaults, the one
+  # place they are stated (tools/dev/linux.py, pre_commit.py, readme.py and setup/machine.ps1 read the Pythons
+  # here) -, laid out by machines.py as the matrices below.
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      MACHINES: ${{ inputs.machines || '20' }}
+      PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}   # the declared floor, and the one it is developed on
+      PRESETS: ${{ inputs.presets || 'Debug Release' }}
+      ISAS: ${{ inputs.isas || 'sve2 avx512' }}
+      PROBE_JOBS: ${{ inputs.jobs || '0' }}
+    outputs:
+      pythons: ${{ steps.laid.outputs.pythons }}
+      presets: ${{ steps.laid.outputs.presets }}
+      arch: ${{ steps.laid.outputs.arch }}
+      parts: ${{ steps.laid.outputs.parts }}
+      n: ${{ steps.laid.outputs.n }}
+      probe: ${{ steps.laid.outputs.probe }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: laid
+        run: |
+          python3 host/tools/dev/machines.py "$MACHINES" "$PYTHONS" "$PRESETS" "$ISAS" >> "$GITHUB_OUTPUT"
+          echo "probe=$(python3 -c 'import json, os; print(json.dumps(list(range(1, int(os.environ["PROBE_JOBS"]) + 1))))')" >> "$GITHUB_OUTPUT"
+
+  # The offline gate: the suites that need no board, no ollama daemon and no bench - the same set
+  # `run_tests.py --offline` has always named - in the plan's parts of equal work (tests/work.json, the heaviest
+  # first into the lightest part: machine_detector.parts), a Python each. Every part reports: with fail-fast the
+  # first red cancelled the other Python's job and its verdict went unseen for weeks.
+  host:
+    if: ${{ !inputs.probe }}
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ${{ fromJSON(needs.plan.outputs.pythons) }}
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      # What the suites take from outside, kept in the Actions cache (.github/actions/inputs): their
+      # environment, and Mesa's EGL in software for the robot's eyes' renderer (machine.eyes.sight,
+      # MuJoCo's) - the runner has no display; without it mjr_makeContext raised and test_sight
+      # crashed. Fetched afresh every run, apt's mirrors not resolving failed the gate before a suite
+      # ran (f97eab6b, c3a6174a, 074c24b0).
+      - uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          constraints: host/constraints.txt     # one version a distribution, as on the desk and in the Linux containers
+          editable: host
+      # numpy's AVX2 paths on every runner, as on the desk and the EPYC 7763: on AVX-512 (Xeon 8370C/8573C,
+      # EPYC 9V45/9V74) numpy sent tan, asin, acos, atan2, exp and log to SVML, a last bit apart from the libm
+      # the robot's C calls, and its wrench magnified it past the robot's twins' bounds (5.33e-05 N m of
+      # tau at test_tick's pass 2298); OpenBLAS's kernel its C takes as numpy does (wbc_dot,
+      # wbc_matmul) - forced, it crashed Zen 4/5. The robot's C built for AVX2 on every runner too (x86-64-v3,
+      # tools/cores/build.py's TARGETS): one code for all.
+      - run: python tools/dev/run_tests.py --offline --part ${{ matrix.part }}/${{ needs.plan.outputs.n }} ${{ inputs.measure && '--measure' || '' }} 2>&1 | tee run.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
+          COAXIAL_ISA: avx2
+      # A red run must be readable without the Actions UI: the tail of the
+      # runner's own output lands as a commit comment, public like the repo.
+      - if: failure()
+        working-directory: host
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            -f body="$(printf 'CI host (%s, %s/%s) failed. Log tail:\n\n~~~\n' '${{ matrix.python }}' '${{ matrix.part }}' '${{ needs.plan.outputs.n }}'; cat tail.log; printf '\n~~~\n')" \
+            || true
+
+  # The firmware, built with the same presets the bench uses - `cmake --preset <name>`, then the build preset -
+  # on Arm's own GCC 14, the major the ST bundle ships; then the image itself on Renode.
+  firmware:
+    if: ${{ !inputs.probe }}
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: ${{ fromJSON(needs.plan.outputs.presets) }}
+    steps:
+      - uses: actions/checkout@v7
+      # Arm's GCC: the action keeps it in the Actions cache itself.
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '14.2.Rel1'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      # Everything else the job takes from outside - ninja and Renode as .github/inputs.txt pins them,
+      # the environment the emulator's suites run in - kept in the Actions cache: a run reaches nothing
+      # but GitHub (.github/actions/inputs). Fetched afresh every run, a mirror whose name did not
+      # resolve failed the job before it built (f97eab6b, c3a6174a).
+      - uses: ./.github/actions/inputs
+        with:
+          tools: 'true'
+          requirements: host/requirements.txt
+          editable: host
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }} 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+        shell: bash
+      # Zero warnings is the project's rule (CLAUDE.md), so it is the runner's.
+      - run: |
+          if grep -n "warning:" build.log; then
+            echo "the build must be warning-free"; exit 1
+          fi
+        shell: bash
+      # Both images: the application, and the bootloader it arrives through
+      # (docs/BOOT.md) - each sized, both kept.
+      - run: arm-none-eabi-size build/${{ matrix.preset }}/coaxial_63100.elf build/${{ matrix.preset }}/coaxial_63100_boot.elf
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coaxial_63100-${{ matrix.preset }}-elf
+          path: |
+            build/${{ matrix.preset }}/coaxial_63100.elf
+            build/${{ matrix.preset }}/coaxial_63100_boot.elf
+      # The image itself on Renode's STM32H753 (board/emu): the conformance suite and the
+      # wire sweeps against the ELF, CubeMX's code and the HAL included.
+      - run: python -X utf8 tests/test_emulator.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          COAXIAL_ELF: ../build/${{ matrix.preset }}/coaxial_63100.elf
+          COAXIAL_EMULATOR: required
+      # The stand-in against the firmware it stands in for, emulated: the same calls, the same
+      # shapes. Without a board the host's gate has nothing to compare it with.
+      - run: python -X utf8 tests/test_parity.py 2>&1 | tee -a ../build.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          COAXIAL_ELF: ../build/${{ matrix.preset }}/coaxial_63100.elf
+      # A red run must be readable without the Actions UI, like the host's.
+      - if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -c 60000 build.log > tail.log 2>/dev/null || true
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            -f body="$(printf 'CI firmware (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.preset }}'; cat tail.log; printf '\n~~~\n')" \
+            || true
+
+  # The robot's C built for another target than the gate's, its parity suites beside the robot's python on a runner
+  # that runs it: SVE2 on GitHub's arm64 runner (Cobalt 100, Neoverse N2 - numpy's einsums fused there, its
+  # OpenBLAS's own kernels), AVX-512 where the runner GitHub gives has it (EPYC 9V74, Xeon 8573C; an EPYC 7763 has
+  # none, and the job says so). SME2 is emulated on a desk alone (run_tests.py --linux --arch arm64 --isa sme2):
+  # hours under QEMU.
+  arch:
+    if: ${{ !inputs.probe }}
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.arch) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: held
+        run: |
+          if [ "${{ matrix.isa }}" != avx512 ] || grep -qw avx512f /proc/cpuinfo; then echo "runs=1" >> "$GITHUB_OUTPUT"
+          else echo "::notice::$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2): no AVX-512 on this runner, its suites not run"; fi
+      - if: steps.held.outputs.runs == '1'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - if: steps.held.outputs.runs == '1'
+        uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          constraints: host/constraints.txt
+          editable: host
+      - if: steps.held.outputs.runs == '1'
+        run: >-
+          python tools/dev/run_tests.py --offline --file test_aero_core.py --file test_borne.py --file test_mppi_core.py
+          --file test_native.py --file test_qp.py --file test_quick.py --file test_registry.py --file test_tick.py
+          --file test_wbc_core.py --file test_wear.py --file test_compiled.py --file test_sysid.py 2>&1 | tee run.log;
+          exit ${PIPESTATUS[0]}
+        shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          NPY_DISABLE_CPU_FEATURES: ${{ matrix.isa == 'avx512' && 'X86_V4 AVX512_ICL AVX512_SPR' || '' }}
+          COAXIAL_ISA: ${{ matrix.isa }}
+      - if: failure()
+        working-directory: host
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -c 60000 run.log > tail.log 2>/dev/null || echo "no gate ran: a step before it failed" > tail.log
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            -f body="$(printf 'CI arch (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.isa }}'; cat tail.log; printf '\n~~~\n')" \
+            || true
+
+  # A fault only a runner shows, probed there in place of the gate: the suite run again and again, side by side,
+  # its reds counted and a red run's tail kept. test_native's thermometers went red 1 to 9 % of runs on the N2
+  # alone, a limb 16 s behind the wall (native.send); found so in 96 runs a round, with its transport's slow
+  # moments (tools/cores/native_trace.py) where `trace`.
+  probe:
+    if: ${{ inputs.probe }}
+    needs: plan
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.probe) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python }}
+      - uses: ./.github/actions/inputs
+        with:
+          apt: libegl1 libgl1-mesa-dri
+          requirements: host/requirements.txt
+          constraints: host/constraints.txt
+          editable: host
+      # As the gate runs on each: on an x86 numpy's AVX2 paths and the robot's C for AVX2 (the host job), on an
+      # Arm its C for SVE2 (the arch job); `isa` another target.
+      - shell: bash
+        working-directory: host
+        env:
+          MUJOCO_GL: egl
+          FILE: ${{ inputs.probe }}
+          RUNS: ${{ inputs.runs }}
+          ISA: ${{ inputs.isa }}
+          TRACE: ${{ inputs.trace }}
+        run: |
+          if [ "$(uname -m)" = x86_64 ]; then
+            export NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR" COAXIAL_ISA="${ISA:-avx2}"
+          else
+            export COAXIAL_ISA="${ISA:-sve2}"
+          fi
+          [ "$TRACE" = true ] && export COAXIAL_NATIVE_TRACE="$RUNNER_TEMP/native.jsonl"
+          suite="${FILE%%:*}"
+          reds=0
+          for k in $(seq 1 "$RUNS"); do
+            python tools/dev/run_tests.py --offline --measure --file "$FILE" > out.txt 2>&1 || true
+            grep -E "^${suite} |^  ${suite}:" out.txt || true
+            if ! grep -qE "^${suite} +[0-9]+ passed, 0 failed" out.txt; then
+              reds=$((reds + 1))
+              echo "--- run $k red: its tail"; tail -80 out.txt
+              [ -n "$COAXIAL_NATIVE_TRACE" ] && [ -f "$COAXIAL_NATIVE_TRACE" ] && { echo "--- its transport's slow moments"; tail -40 "$COAXIAL_NATIVE_TRACE"; }
+            fi
+            [ -n "$COAXIAL_NATIVE_TRACE" ] && rm -f "$COAXIAL_NATIVE_TRACE"
+          done
+          echo "::notice::${suite} on $(uname -m) ($COAXIAL_ISA): $reds of $RUNS runs red"

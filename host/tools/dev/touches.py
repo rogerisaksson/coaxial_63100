@@ -1,6 +1,6 @@
 """What a change to each part of the tree reaches: a path's prefix, its suites."""
 from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOOT, BOOT_CLIENT, BOOT_CORE,
-                              CI, DEPENDS, ATLAS,
+                              CI, WORKFLOW, DEPENDS, ATLAS,
                               BROKER, COMPILED, QUICK, TICK, CONFORMANCE, PORTED, BORNE, REGISTRY, CONTROLLER, CORE, CTRL_CORE,
                               DAQ_API,
                               DAQ_CORE, DRIVE, DRIVE_OBSERVER, DSP, KERNEL, SHIELD, WAYFINDER, TUNE,
@@ -272,15 +272,16 @@ TOUCHES = (
     ('setup/',                                 (STRUCTURE, DEPENDS)),
     # What the tree asks of a new machine, written where setup reads it.
     ('host/requirements',                      (DEPENDS, STRUCTURE)),
-    ('host/constraints.txt',                   (DEPENDS, CI)),
+    ('host/constraints.txt',                   (DEPENDS, WORKFLOW)),
     ('host/tools/dev/pinned.py',               (DEPENDS, STRUCTURE)),
     ('host/tools/dev/depends.py',              (DEPENDS, STRUCTURE)),
     ('host/tools/dev/pre_commit.py',           (DEPENDS, STRUCTURE)),
-    ('host/tools/dev/ci.py',                   (CI, STRUCTURE)),
-    # The jobs' inputs from outside, pinned and kept (test_ci holds the table to its fetcher).
-    ('.github/',                               (CI, STRUCTURE)),
-    ('host/tools/dev/machine_detector.py',     (CI, STRUCTURE)),
-    ('host/tools/dev/linux.py',                (CI, STRUCTURE)),
+    ('host/tools/dev/ci.py',                   (CI, WORKFLOW, STRUCTURE)),
+    # The jobs' inputs from outside, pinned and kept (test_workflow holds the table to its fetcher).
+    ('.github/',                               (WORKFLOW, CI, STRUCTURE)),
+    ('host/tools/dev/machine_detector.py',     (CI, WORKFLOW, STRUCTURE)),
+    ('host/tools/dev/linux.py',                (WORKFLOW, STRUCTURE)),
+    ('host/tools/dev/machines.py',             (WORKFLOW, STRUCTURE)),
     # The README, laid out of its source and the tree: test_layout holds it, a structural suite.
     ('host/tools/dev/readme.py',               (STRUCTURE, 'test_ollama_runner.py')),
     # The atlas, the maps it composes and the page it lays: test_atlas holds them to the tree.

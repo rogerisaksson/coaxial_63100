@@ -8,14 +8,14 @@
 
 --arch arm64: the runner as an arm64 image, its processor emulated by the engine's QEMU (binfmt) - --cpu its
 QEMU_CPU (the vector lengths: sve-default-vector-length, sme-default-vector-length, in bytes); --isa the
-robot's cores' target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of host.yml's, which an x86
+robot's cores' target there (COAXIAL_ISA, tools/cores/build.py's TARGETS) in place of gate.yml's, which an x86
 runner's is.
 
-What .github/workflows/host.yml runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
+What .github/workflows/gate.yml's host job runs, run as it runs there. An image of its runner (.github/runner.Dockerfile):
 its Ubuntu release (`runs-on`), the archive's amd64v3 builds where this processor runs them, as the runner's
-image installs them, the apt packages and the Python host.yml names, the virtual environment its inputs action
+image installs them, the apt packages and the Python gate.yml names, the virtual environment its inputs action
 makes. The tree as it stands here - committed or not, nothing ignored - copied in as a checkout with its parent
-and installed as host.yml installs it; the gate run as the runner runs it: its user, CI true, the step's own
+and installed as gate.yml installs it; the gate run as the runner runs it: its user, CI true, the step's own
 environment, --offline.
 
 A container takes the runner's shape (PROCESSORS, MEMORY): whole cores of the engine's processors as its sysfs
@@ -30,6 +30,7 @@ disk, its network.
 import argparse
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -43,9 +44,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from tools.dev.suites import ROOT
 
-#: The tree's root, the workflow of the host's gate and the image of its runner.
+#: The tree's root, the workflow of the gate (its host job the one run here) and the image of its runner.
 REPO = ROOT.parent
-WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'host.yml', REPO / '.github' / 'runner.Dockerfile'
+WORKFLOW, DOCKERFILE = REPO / '.github' / 'workflows' / 'gate.yml', REPO / '.github' / 'runner.Dockerfile'
 #: GitHub's standard runner of a public repository: four logical processors - two cores of two threads, its
 #: own detector line says - and 16 GB; its /dev/shm a tmpfs of half of it (8.36 GB of 16.7 on both its
 #: architectures), where the robot's loop's rings are mapped (`machine.process.rcu`) - the engine's 64 MB
@@ -56,15 +57,17 @@ USER, UID, IMAGE = 'runner', 1001, 'coaxial-runner'
 #: The images' architectures as the engine names them, each as actions/python-versions names its builds: the
 #: runner's first.
 ARCHS = {'amd64': 'x64', 'arm64': 'arm64'}
-#: host.yml's gate's keys an x86 runner's alone: numpy's x86 sets disabled, the robot's cores' x86 target.
+#: gate.yml's host job's keys an x86 runner's alone: numpy's x86 sets disabled, the robot's cores' x86 target.
 X86_ENV = ('NPY_DISABLE_CPU_FEATURES', 'COAXIAL_ISA')
 #: Where a container is shown its processors online: glibc counts them there, and os.cpu_count with it.
 ONLINE = '/sys/devices/system/cpu/online'
+#: The plan job's one stated default of a list, quoted in its expression: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
+PLANNED = re.compile(r"'([^']*)'")
 #: The relay's arguments that ask for this host - a board, a model, a benchmark's priority -: not a container's.
 HOSTS = ('--conformance', '--live', '--model', '--sections', '--match', '--tags', '--only', '--bench')
 #: In the container, from its workspace: the tree a commit - a submodule its commit alone, an empty folder, as
 #: the runner's checkout leaves it -, the package installed as the inputs action does (no index), the gate as
-#: host.yml's step runs it, the relay's arguments after.
+#: gate.yml's host step runs it, the relay's arguments after.
 GATE = ('set -eo pipefail\n'
         'git init -q\n'
         'git -c user.name=%s -c user.email=%s@localhost commit --allow-empty -qm parent\n'
@@ -79,19 +82,20 @@ LIVE = []
 
 
 def workflow(path=WORKFLOW):
-    """What host.yml's gate runs on and runs: {'release': its runner's Ubuntu ('latest' of ubuntu-latest),
-    'pythons': its matrix, 'apt': the packages, 'requirements', 'constraints' (its lock, tools/dev/pinned.py) and
+    """What gate.yml's host job runs on and runs: {'release': its runner's Ubuntu ('latest' of ubuntu-latest),
+    'pythons': the plan job's default Pythons (its PYTHONS line, the one place they are stated), 'apt': the packages, 'requirements', 'constraints' (its lock, tools/dev/pinned.py) and
     'editable': what its inputs action is given, 'env': the gate's step's environment, 'directory': where that step
     runs}."""
     import yaml
     with open(path, encoding='utf-8') as f:
-        job = next(iter(yaml.safe_load(f)['jobs'].values()))
+        jobs = yaml.safe_load(f)['jobs']
+    job, planned = jobs['host'], PLANNED.search(str(jobs['plan']['env']['PYTHONS']))
     runs, steps = str(job['runs-on']), job['steps']
     if not runs.startswith('ubuntu-'):
-        raise SystemExit('linux: host.yml runs on %s - an image here is of an Ubuntu runner' % runs)
+        raise SystemExit('linux: gate.yml runs on %s - an image here is of an Ubuntu runner' % runs)
     given = next(step.get('with', {}) for step in steps if step.get('uses') == './.github/actions/inputs')
     gate = next(step for step in steps if 'run_tests.py' in step.get('run', ''))
-    return {'release': runs.split('-', 1)[1], 'pythons': [str(p) for p in job['strategy']['matrix']['python']],
+    return {'release': runs.split('-', 1)[1], 'pythons': planned.group(1).split() if planned else [],
             'apt': str(given.get('apt', '')).split(), 'requirements': given['requirements'],
             'constraints': given.get('constraints') or None, 'editable': given['editable'], 'env': {k: str(v) for k, v in gate.get('env', {}).items()},
             'directory': gate.get('working-directory', '.')}
@@ -119,7 +123,7 @@ def tagged(info, minor, arch='amd64'):
 
 
 def environment(info, arch='amd64', isa=None, cpu=None):
-    """A container's environment: host.yml's gate's - on another arch than the runner's without its x86 keys
+    """A container's environment: gate.yml's host job's - on another arch than the runner's without its x86 keys
     (X86_ENV) -, the robot's cores' target `isa` where given (COAXIAL_ISA), the emulated processor `cpu`
     (QEMU_CPU)."""
     env = {k: v for k, v in info['env'].items() if arch == next(iter(ARCHS)) or k not in X86_ENV}
@@ -293,16 +297,16 @@ def repository():
 
 
 def main(argv=None):
-    """The gate on Linux, a container a Python of host.yml's matrix (or those --python names), side by side: the
+    """The gate on Linux, a container a Python of gate.yml's matrix (or those --python names), side by side: the
     first exit code not 0 in the matrix's order, else 0; --build and --kept: its images alone."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
-    parser.add_argument('--python', action='append', help="a Python of host.yml's matrix, it alone (repeatable)")
+    parser.add_argument('--python', action='append', help="a Python of gate.yml's matrix, it alone (repeatable)")
     parser.add_argument('--build', action='store_true', help='build the images and stop')
     parser.add_argument('--fresh', action='store_true', help='build them from scratch, the base pulled anew')
     parser.add_argument('--kept', action='store_true', help='whether each image stands: 0 where all do')
     parser.add_argument('--arch', choices=list(ARCHS), default=next(iter(ARCHS)),
                         help="the image's architecture: arm64 emulated by the engine's QEMU")
-    parser.add_argument('--isa', help="the robot's cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--isa', help="the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
     parser.add_argument('--cpu', help="with --arch arm64: the emulated processor (QEMU_CPU)")
     args, relayed = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
     hosts = [arg for arg in relayed if arg.split('=', 1)[0] in HOSTS]
@@ -314,7 +318,7 @@ def main(argv=None):
     info = workflow()
     pythons = args.python or info['pythons']
     if not set(pythons) <= set(info['pythons']):
-        raise SystemExit("linux: host.yml's matrix is %s" % ', '.join(info['pythons']))
+        raise SystemExit("linux: gate.yml's matrix is %s" % ', '.join(info['pythons']))
     client = engine()
     if args.kept:
         stands = kept(client, info, pythons, args.arch)

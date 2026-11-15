@@ -9,15 +9,15 @@
 
 function Get-PythonGate {
     <#
-  The minors CI runs host/ on (.github/workflows/host.yml), oldest first: the floor, and last
+  The minors CI runs host/ on (.github/workflows/gate.yml), oldest first: the floor, and last
         the one it is developed on. Setup takes and installs only these: a newer python is one
         no suite has run on.
 #>
     # $script:, not $Root: Find-Python's own $root is the same name to PowerShell. The list
-    # flowed, python: ['3.12', '3.14'], or in a block, a - '3.12' line each.
-    $ci = Get-Content (Join-Path $script:Root '.github\workflows\host.yml') -Raw -ErrorAction SilentlyContinue
+    # plan job's one stated default: PYTHONS: ${{ inputs.pythons || '3.12 3.14' }}.
+    $ci = Get-Content (Join-Path $script:Root '.github\workflows\gate.yml') -Raw -ErrorAction SilentlyContinue
     $matrix = [regex]::Match([string]$ci,
-                             'python:[ \t]*(\[[^\]]*\]|(\s*-[ \t]*[''"]?\d+\.\d+[''"]?)+)').Groups[1].Value
+                             'PYTHONS:.*?''([\d. ]+)''').Groups[1].Value
     return @([regex]::Matches($matrix, '\d+\.\d+') | ForEach-Object { [version]$_.Value } | Sort-Object)
 }
 
@@ -266,8 +266,8 @@ function Test-Machine {
 
     $gate = Get-PythonGate
     if ($gate.Count -eq 0) {
-        Write-Item 'python' 'failed' '.github/workflows/host.yml names no python matrix: no minor to take'
-        Add-Todo 'give .github/workflows/host.yml its python matrix back - setup takes the minors CI runs'
+        Write-Item 'python' 'failed' '.github/workflows/gate.yml names no python matrix: no minor to take'
+        Add-Todo 'give .github/workflows/gate.yml its python matrix back - setup takes the minors CI runs'
         return $null
     }
     $python = Find-Python

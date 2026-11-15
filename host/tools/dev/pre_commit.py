@@ -80,9 +80,10 @@ PYTHONS = tuple(n + e for n in ('python', 'python3', 'py')
 
 
 def gate():
-    """[(major, minor)] CI runs host/ on, read as setup.ps1's Get-PythonGate reads them."""
-    with open(os.path.join(REPO, '.github', 'workflows', 'host.yml'), encoding='utf-8') as f:
-        m = re.search(r'''python:[ \t]*(\[[^\]]*\]|(\s*-[ \t]*['"]?\d+\.\d+['"]?)+)''', f.read())
+    """[(major, minor)] CI runs host/ on - gate.yml's plan job's PYTHONS -, read as setup.ps1's Get-PythonGate reads
+    them."""
+    with open(os.path.join(REPO, '.github', 'workflows', 'gate.yml'), encoding='utf-8') as f:
+        m = re.search(r"PYTHONS:.*?'([\d. ]+)'", f.read())     # the plan job's one stated default
     return sorted(tuple(map(int, v.split('.'))) for v in re.findall(r'\d+\.\d+', m[1] if m else ''))
 
 

@@ -156,6 +156,9 @@ PLACED = 'test_placed.py'
 DEPENDS = 'test_depends.py'
 #: What CI left red leads the suites that run first: a log tail read, FAILED_FIRST laid (tools.dev.ci).
 CI = 'test_ci.py'
+#: The gate as GitHub runs it: its one workflow's jobs and their inputs kept, the runner's image here, the robot's C
+#: for its target, its suites in parts of equal work (tools.dev.linux, machine_detector.parts, ci's reference).
+WORKFLOW = 'test_workflow.py'
 #: The robot's law's hand ports in C beside their python at every pass of its walk (tools.cores.surety, touch, twist, wait,
 #: brace).
 PORTED = 'test_ported.py'
@@ -258,7 +261,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    CTRL_CORE, WORLD_CORE, WIRE, NATIVE, NATIVE_HEAT, NATIVE_SYSID, EMULATOR,
                    SENSORLESS,
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
-                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, DEPENDS, CI, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
+                   WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, DEPENDS, CI, WORKFLOW, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
                    AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
@@ -348,7 +351,7 @@ JOINS = (
     (20, CTRL_CORE),
     (20, WORLD_CORE),
     (20, WBC_CORE),
-    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (20, DEPENDS), (20, CI), (35, PORTED), (20, BORNE), (20, REGISTRY),
+    (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (35, PORTED), (20, BORNE), (20, REGISTRY),
     (20, AERO_CORE),
     (20, MPPI_CORE),
     (20, WIRE),

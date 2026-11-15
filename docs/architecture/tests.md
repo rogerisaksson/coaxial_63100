@@ -19,9 +19,11 @@ its structure, the relay, tiers, CI. Each subject's suites: its document.
 - Tiers: `run_tests.ps1` sells checks by percentage; suites join by
   seconds per check. `touches.TOUCHES` maps a changed path to its suites;
   `CHEAP` ones settle without asking the model.
-- CI: `host.yml` runs `--offline` on Python 3.12 and 3.14; `firmware.yml`
-  builds both images in Debug and Release, fails on any warning, keeps the
-  ELFs; `arch` runs the C parity suites on CI's arm64 runner (`sve2`) and
+- CI: one workflow, `gate.yml`, twenty jobs a push: `host` runs `--offline`
+  on Python 3.12 and 3.14 in eight parts each (`--part k/8`, split by
+  tests/work.json); `firmware` builds both images in Debug and Release, fails
+  on any warning, keeps the ELFs; `arch` runs the C parity suites on CI's
+  arm64 runner (`sve2`) and
   with `avx512` where the x86 runner has it; `--linux` runs the gate in
   containers shaped as CI's runner.
 

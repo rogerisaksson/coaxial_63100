@@ -1,5 +1,5 @@
-# GitHub's runner of the host's gate (.github/workflows/host.yml) as an image here, built and run by
-# host/tools/dev/linux.py (run_tests.py --linux), which passes host.yml's own choices as the arguments below:
+# GitHub's runner of the host's gate (.github/workflows/gate.yml, its host job) as an image here, built and run by
+# host/tools/dev/linux.py (run_tests.py --linux), which passes gate.yml's own choices as the arguments below:
 # its Ubuntu release, its apt packages, its Python; and its processor's architecture as actions/python-versions
 # names it (x64; arm64 for an arm64 image, linux.py --arch). Built of this file, host/requirements.txt and
 # host/pyproject.toml alone.
@@ -17,7 +17,7 @@ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 # of x86-64-v3, as glibc's loader tells it, else the baseline's. Then what its image brings that the gate uses -
 # a compiler, git, python3 and the libraries the Pythons below link, xvfb (its readme's packages) and the GL
 # libraries it brings: PyOpenGL's EGL platform loads libGL, and importing mujoco crashed without it -, and
-# host.yml's packages as .github/apt.sh installs them.
+# gate.yml's packages as .github/apt.sh installs them.
 RUN if /lib64/ld-linux-x86-64.so.2 --help | grep -q 'x86-64-v3 (supported'; then \
       echo 'APT::Architecture-Variants "amd64v3";' > /etc/apt/apt.conf.d/99enable-amd64v3; fi; \
     apt-get update -qq; \
@@ -46,7 +46,7 @@ RUN . /etc/os-release; \
     rm -rf /tmp/python
 
 # Its environment as the inputs action (.github/actions/inputs) makes it: a virtual environment of the
-# requirements and what the package's build asks, each at the version host.yml's lock pins (host/constraints.txt,
+# requirements and what the package's build asks, each at the version gate.yml's lock pins (host/constraints.txt,
 # tools/dev/pinned.py) as the desk's and CI's are; the package itself is installed at each run.
 COPY --chown=${USER} requirements.txt constraints.txt pyproject.toml /tmp/inputs/
 RUN python=$(ls -d "${RUNNER_TOOL_CACHE}/Python/${PYTHON}".*/"${ARCH}"/bin/python3 | sort -V | tail -1); \

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""What GitHub's last host run told: its red suites run first here, its seconds the table's work.
+"""What GitHub's last gate run told: its red suites run first here, its seconds the table's work.
 
-    python tools/dev/ci.py          # GitHub asked (gh): the suites its last host run on main left red
-    python tools/dev/ci.py --green  # the last commit on main that host, firmware and both gates left green
+    python tools/dev/ci.py          # GitHub asked (gh): the suites its last gate run on main left red
+    python tools/dev/ci.py --green  # the last commit on main whose host, firmware and arch jobs, and whose gate whole, were green
 
 The run's red suites lead suites.FAILED_FIRST; what it measured raises tests/work.json (`machine_detector.py
---keep`). `--green` names the reference tree: the newest commit whose host run, whose firmware run, and whose
-both ended green (`green`, `whole`), each with how many commits HEAD is past it (`behind`) and its subject; a
+--keep`). `--green` names the reference tree: the newest commit whose host jobs, whose firmware jobs, whose arch
+jobs and whose gate whole ended green (`jobs_green`, `green`, `whole`; the workflows that held each before the
+gate was one count on), each with how many commits HEAD is past it (`behind`) and its subject; a
 red suite is A/B'd against a worktree at that commit and the fault read in the diff, not derived from first
 principles.
 
-The gate on GitHub stops at its first red suite and leaves its log's tail as a comment on its commit;
+The gate on GitHub runs in parts, each stopping at its first red suite and leaving its log's tail as a comment on
+its commit;
 `FAILED_FIRST` schedules suites right after the structural ones, so a run here says first whether the
 tree at hand still has them red. That tuple was kept by hand. The pre-commit asks GitHub at every commit
 (two calls of gh, 1.8 s beside its other checks) and lays what the last finished host run left red at the
@@ -28,10 +30,12 @@ import textwrap
 from tools.dev.suites import ROOT
 
 #: The file that holds FAILED_FIRST, from the repository's top; the workflow and the branch asked.
-SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites.py', 'host.yml', 'main'
+SUITES, WORKFLOW, BRANCH = 'host/tools/dev/suites.py', 'gate.yml', 'main'
 
-#: The workflows whose gates together are the system's: the host's suites and the target's firmware.
-WORKFLOWS = ('host.yml', 'firmware.yml')
+#: The gate's jobs whose greens are each a reference - the host's suites, the target's firmware, the robot's C on
+#: another target -, each with the workflow that held it before the gate was one (gate.yml): their greens count
+#: on, the host's last one of host.yml's (f169f839).
+JOBS = {'host': 'host.yml', 'firmware': 'firmware.yml', 'arch': 'host.yml'}
 
 #: How many of a workflow's green runs are asked at most, the newest first; `whole` meets in them.
 GREENS = 100
@@ -87,11 +91,15 @@ def told(runs):
 
 
 def last():
-    """(its commit, its gate's log tail - none where it was green -) of GitHub's last host run on main that
-    ended green or red, read off the comments it left on its commit; None where GitHub could not be asked
-    or no run told."""
-    run = told(_gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed',
-                   '--limit', '10', '--json', 'conclusion,headSha') or [])
+    """(its commit, its gate's log tail - none where it was green -) of GitHub's last gate run on main that
+    ended green or red - the host workflow's while the gate has none -, read off the comments it left on its
+    commit; None where GitHub could not be asked or no run told."""
+    run = None
+    for workflow in (WORKFLOW, JOBS['host']):
+        run = told(_gh('run', 'list', '--branch', BRANCH, '--workflow', workflow, '--status', 'completed',
+                       '--limit', '10', '--json', 'conclusion,headSha') or [])
+        if run is not None:
+            break
     if run is None:
         return None
     if run['conclusion'] != 'failure':
@@ -101,7 +109,7 @@ def last():
 
 
 def asked():
-    """(its commit, the suites it left red) of GitHub's last host run on main that ended green or red - none
+    """(its commit, the suites it left red) of GitHub's last gate run on main that ended green or red - none
     where it was green -; None where GitHub could not be asked."""
     got = last()
     return None if got is None else (got[0], red(got[1]))
@@ -139,14 +147,52 @@ def behind(sha):
     return None if count is None else int(count)
 
 
-def reference():
-    """{workflow: its newest green run on main or None} for WORKFLOWS, and 'both': the newest commit every
-    one of them left green (`whole`); None where GitHub could not be asked."""
-    found = {workflow: green(workflow) for workflow in WORKFLOWS}
-    if any(runs is None for runs in found.values()):
+def covered(job, jobs):
+    """Whether the gate's `job` (host, firmware, arch) ended green in a run's `jobs` (gh run view --json jobs): each
+    of its name - 'host (3.12, 3)', 'firmware (Release)', 'arch (ubuntu-latest, avx512)' - completed green, one
+    at least."""
+    own = [j for j in jobs if str(j.get('name', '')).split(' (')[0] == job]
+    return bool(own) and all(j.get('status') == 'completed' and j.get('conclusion') == 'success' for j in own)
+
+
+def jobs_green(limit=GREENS):
+    """{job: (commit, when, run) of the gate's newest run on main where it ended green, or None} for JOBS, read
+    off the newest `limit` finished runs: a run green whole says so of every job, another is asked for its jobs
+    (one call of gh a run, till each job has its green); None where GitHub could not be asked."""
+    runs = _gh('run', 'list', '--branch', BRANCH, '--workflow', WORKFLOW, '--status', 'completed',
+               '--limit', str(limit), '--json', 'headSha,createdAt,databaseId,conclusion')
+    if runs is None:
         return None
-    named = {workflow: (runs[0] if runs else None) for workflow, runs in found.items()}
-    named['both'] = whole(*found.values())
+    found = dict.fromkeys(JOBS)
+    for run in runs:
+        left = [job for job, got in found.items() if got is None]
+        if not left:
+            break
+        jobs = None if run.get('conclusion') == 'success' else \
+            (_gh('run', 'view', str(run['databaseId']), '--json', 'jobs') or {}).get('jobs', [])
+        for job in left:
+            if jobs is None or covered(job, jobs):
+                found[job] = (run['headSha'], run['createdAt'], run['databaseId'])
+    return found
+
+
+def newest(*runs):
+    """The newest of `runs` ((commit, when, run) or None) by when; None where all are None."""
+    return max((run for run in runs if run is not None), key=lambda run: run[1], default=None)
+
+
+def reference():
+    """{job: its newest green run on main or None} for JOBS - the gate's (`jobs_green`) or the workflow's that held
+    the job before -, and 'gate': the newest commit the gate left green whole - a gate run green, or a commit the
+    host's and the firmware's workflows both left green (`whole`); None where GitHub could not be asked."""
+    asked = {workflow: green(workflow) for workflow in dict.fromkeys(JOBS.values())}
+    if any(runs is None for runs in asked.values()):
+        return None
+    legacy = {workflow: runs or [] for workflow, runs in asked.items()}
+    # the gate's own, none while GitHub holds no run of its name yet (gh says no such workflow)
+    own, whole_ = jobs_green() or dict.fromkeys(JOBS), green(WORKFLOW) or []
+    named = {job: newest(own[job], legacy[workflow][0] if legacy[workflow] else None) for job, workflow in JOBS.items()}
+    named['gate'] = newest(whole_[0] if whole_ else None, whole(*legacy.values()))
     return named
 
 
@@ -178,24 +224,24 @@ def led(source, suites):
 
 
 def red_said():
-    """The line that tells what GitHub's last host run on main left red (`asked`); None where GitHub could
+    """The line that tells what GitHub's last gate run on main left red (`asked`); None where GitHub could
     not be asked."""
     got = asked()
     if got is None:
         return None
-    return ["ci: the last host run on %s (%s) left %s red" % (BRANCH, got[0][:8], ', '.join(got[1]) or 'nothing')]
+    return ["ci: the last gate run on %s (%s) left %s red" % (BRANCH, got[0][:8], ', '.join(got[1]) or 'nothing')]
 
 
 def green_said():
-    """The lines that tell the last commit each workflow and both left green (`reference`, `said`); None
+    """The lines that tell the last commit each job and the gate whole left green (`reference`, `said`); None
     where GitHub could not be asked."""
     named = reference()
     return None if named is None else said(named)
 
 
 def main(argv=None):
-    """GitHub asked, its answer said: the suites its last host run left red, or with --green the last commit
-    each workflow and both left green; 1 where it could not be asked, 2 on another word."""
+    """GitHub asked, its answer said: the suites its last gate run left red, or with --green the last commit
+    each job and the gate whole left green; 1 where it could not be asked, 2 on another word."""
     words = sys.argv[1:] if argv is None else list(argv)
     if words not in ([], ['--green']):
         print('usage: ci.py [--green]')

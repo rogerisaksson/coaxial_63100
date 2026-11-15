@@ -138,10 +138,10 @@ def setup(tree, _source):
 
 def python(tree, _source):
     """The Pythons CI runs the host on, and the host's package and its version."""
-    gate = re.search(r'python:[ \t]*\[([^\]]*)\]', tree.read('.github/workflows/host.yml'))
+    gate = re.search(r"PYTHONS:.*?'([\d. ]+)'", tree.read('.github/workflows/gate.yml'))     # the plan job's default
     version = re.search(r'^version\s*=\s*"([^"]+)"', tree.read('host/pyproject.toml'), re.M)
     if gate is None or version is None:
-        raise ValueError('host.yml names no pythons, or pyproject.toml no version')
+        raise ValueError('gate.yml names no pythons, or pyproject.toml no version')
     runs = re.findall(r'\d+\.\d+', gate.group(1))
     return textwrap.wrap('Python %s to %s is what CI runs the host on. The host is one package, '
                          '`coaxial63100` %s: `pip install -e host/`, which setup does.'

@@ -158,8 +158,9 @@ Evaluate the prompt and working tree before invoking any tool:
   + Green reference (mandatory before any red suite, fall, regression or CI
     red is reasoned about): the last commit GitHub's CI left wholly green is
     the reference, never first principles. Ask it
-    (`python -X utf8 host/tools/dev/ci.py` `--green`: host.yml, firmware.yml
-    and both, each its commit and how many commits HEAD is past it), check
+    (`python -X utf8 host/tools/dev/ci.py` `--green`: the gate's host, firmware
+    and arch jobs and the gate whole, each its commit and how many commits HEAD
+    is past it), check
     that commit out in a worktree and A/B the red suite there and here
     through the relay (`offered.py` and `wearing.py` by `--against TREE`).
     The fault lies in `git diff GREEN..HEAD`; where the span is long, bisect
@@ -195,8 +196,8 @@ Evaluate the prompt and working tree before invoking any tool:
     keeps a red suite from stopping the run, and host-time checks (test_qp's
     solve, test_wbc_core's tick) and test_mirrors' subprocess timeout fail
     there only - judge the parity tallies. A fault only a runner shows is
-    probed there (`gh workflow run probe.yml --ref BRANCH -f runner=...
-    -f file=test_x.py [-f trace=true]`: 16 jobs, six runs each), judged by
+    probed there (`gh workflow run gate.yml --ref BRANCH -f probe=test_x.py
+    -f runner=... [-f trace=true]`: 16 jobs, six runs each), judged by
     its count of reds and a red run's tail.
   + Empirical real-time performance (mandatory for rigid body simulation):
     Run the benchmarking and profiler tool

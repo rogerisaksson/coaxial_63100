@@ -117,6 +117,21 @@ def table(path=PATH):
     return got if isinstance(got, dict) else {}
 
 
+def parts(names, n, work_of=None):
+    """`names` in `n` parts of equal work (the table's, `work_of` where told), each part its suites in the given
+    order: the heaviest first into the lightest part so far, so the parts differ by one suite's work at most; a suite
+    the table has not weighs none. The gate's runners each take a part (gate.yml, run_tests.py --part k/n), the
+    same split on every machine."""
+    work = table() if work_of is None else work_of
+    load, held = [0.0] * n, [[] for _ in range(n)]
+    for name in sorted(names, key=lambda s: (-work.get(s, 0.0), s)):
+        k = min(range(n), key=lambda i: (load[i], i))
+        load[k] += work.get(name, 0.0)
+        held[k].append(name)
+    order = {name: i for i, name in enumerate(names)}
+    return [sorted(part, key=lambda name: order[name]) for part in held]
+
+
 def expected(seconds, paces, pace, work_of=None, suites=()):
     """{suite: s} a run expects on a host of `pace`: the tree's own record `seconds`, each by the pace it was
     run at (`paces`; one with none as it stands), for a suite the record has not, its work (`work_of`,

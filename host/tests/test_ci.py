@@ -3,10 +3,8 @@
 runner's work told; a job cut at its time says where it was (`tools.dev.focus`).
 
 No network: a gate's log tail as its comment holds it, and suites.py's own text. And a run fits the host it
-is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. And the jobs
-take what they need from outside kept (.github/actions/inputs), the tools pinned (.github/inputs.txt). And the
-robot's C built for the gate's target (`tools.cores.build.TARGETS`). And the last commit every gate left green
-named as the reference (`ci.whole`, `ci.behind`, `ci.said`)."""
+is on (`tools.dev.machine_detector`): a suite's seconds on hosts laid here, this one measured. The gate's
+workflow itself, its runner here and its parts are test_workflow's."""
 import json
 import os
 import pathlib
@@ -174,143 +172,10 @@ def test_a_batch_fits_whose_host_it_is(report):
                  m.said(here))
 
 
-def test_the_jobs_take_their_inputs_kept(report):
-    """.github/inputs.txt pins each tool a job takes from outside: a row a tool, the sha256 of what its
-    source serves, its program inside that, and an https archive of a kind .github/inputs.sh unpacks; a
-    tool's sources of one kind name one program. The workflows running the robot's suites (the gate, the
-    firmware's, the runner probe's) take their inputs through the inputs
-    action (.github/actions/inputs, kept in the Actions cache) and fetch nothing themselves - apt's
-    mirrors not resolving had failed the host's gate before a suite ran, three pushes running. Every
-    fetcher's fallbacks are checked by the inputs workflow, run when the fetcher changes."""
-    root = pathlib.Path(__file__).resolve().parents[2] / '.github'
-    rows = [line.split() for line in (root / 'inputs.txt').read_text(encoding='utf-8').splitlines()
-            if line.strip() and not line.startswith('#')]
-    kinds = ('.zip', '.tar.gz', '.deb')
-    bad = [row for row in rows if len(row) != 4 or not re.fullmatch('[0-9a-f]{64}', row[1])
-           or not row[3].startswith('https://') or not row[3].endswith(kinds)]
-    report.check('every pinned source: a tool, its sha256, its program, an https archive', rows and not bad,
-                 str(bad[:2]))
-    programs = {}
-    for tool, _sum, program, source in (row for row in rows if len(row) == 4 and row[3].endswith(kinds)):
-        programs.setdefault((tool, next(k for k in kinds if source.endswith(k))), set()).add(program)
-    report.check("a tool's sources of one kind name one program",
-                 all(len(names) == 1 for names in programs.values()), str(programs))
-    raw = [name for name in ('firmware.yml', 'host.yml', 'probe.yml')
-           if './.github/actions/inputs' not in (text := (root / 'workflows' / name).read_text(encoding='utf-8'))
-           or re.search(r'apt-get|curl |pip install', text)]
-    report.check('every job running the robot\'s suites takes its inputs kept, fetching nothing itself', not raw, str(raw))
-    health = (root / 'workflows' / 'inputs.yml').read_text(encoding='utf-8')
-    watched = re.findall(r'paths: \[([^\]]*)\]', health)
-    unchecked = [name for name in ('inputs.sh', 'apt.sh')
-                 if not watched or any("'.github/%s'" % name not in paths for paths in watched)
-                 or not re.search(r'run: bash \.github/%s --every' % re.escape(name), health)]
-    report.check("every fetcher's fallbacks checked, whenever it changes", not unchecked, str(unchecked))
-    jobs = re.findall(r'runs-on: (\S+)\n(?:(?!    runs-on).)*?run: bash \.github/apt\.sh --every', health, re.S)
-    report.check("apt's fallbacks checked on both machines it serves: the archive's on amd64, the ports' on arm64",
-                 'ubuntu-latest' in jobs and 'ubuntu-24.04-arm' in jobs, str(jobs))
-
-
-def test_the_runner_here_is_host_yml_s(report):
-    """`tools.dev.linux` on host.yml and on engines laid here: its image is of the release, the Pythons, the apt
-    packages and the gate's environment host.yml names; a container takes whole cores to the runner's four
-    processors - two of two threads, four of one -, apart from the first core and from each other, one set where
-    the engine has too few, none where it holds fewer than four; and this host counts what its group is given - the
-    system's own count too (glibc's, os.cpu_count): a container shown its processors online as Linux writes them,
-    an LF alone (with a CR glibc read the engine's 64)."""
-    from tools.dev import focus, linux
-    info = linux.workflow()
-    report.check("host.yml's own: an Ubuntu release, its matrix, its apt packages, its gate's environment and folder",
-                 bool(info['release']) and bool(info['pythons'])
-                 and all(re.fullmatch(r'\d+\.\d+', minor) for minor in info['pythons'])
-                 and 'libegl1' in info['apt'] and 'MUJOCO_GL' in info['env'] and info['directory'] == 'host', str(info))
-    smt, single = [0b11 << 2 * k for k in range(32)], [1 << k for k in range(8)]
-    took = [linux.shaped(smt, 2), linux.shaped(single, 2), linux.shaped(smt[:2], 2), linux.shaped(smt[:1], 1)]
-    report.check('two cores of two threads a container, apart; four of one, the first core last; one set of two '
-                 'cores; none of one core', took == [[0x3c, 0x3c0], [0x1e, 0xe1], [0xf], []], str(took))
-    told = focus.counted()
-    report.check("this host's count: its control group's where Linux tells one, the batch sized by the same",
-                 told is None or told == (focus.physical_cores(), focus.threads()), str(told))
-    report.check("and the system's own count the same: os.cpu_count, its group's processors online",
-                 told is None or os.cpu_count() == told[1], '%s of %s' % (os.cpu_count(), told))
-    action = (linux.REPO / '.github' / 'actions' / 'inputs' / 'action.yml').read_text(encoding='utf-8')
-    image = linux.DOCKERFILE.read_text(encoding='utf-8')
-    held = [bool(info['constraints']) and (linux.REPO / str(info['constraints'])).is_file(),
-            '${CONSTRAINTS:+-c "$CONSTRAINTS"}' in action, '${CONSTRAINTS:+"$CONSTRAINTS"}' in action,
-            '-c /tmp/inputs/constraints.txt' in image]
-    report.check("host.yml's environment held to its lock: the file there, CI installing through it and keying its "
-                 "cached environment by it, the runner's image installing through it", all(held), held)
-    arm = linux.environment(info, 'arm64', 'sme2', 'max,sve-default-vector-length=64')
-    own = linux.environment(info)
-    report.check("an arm64 container: host.yml's environment without its x86 keys, the robot's target and QEMU's processor "
-                 "named; the runner's as host.yml's; each image its own tag, the arch the image's build is told",
-                 not set(linux.X86_ENV) & set(arm) - {'COAXIAL_ISA'} and arm['COAXIAL_ISA'] == 'sme2'
-                 and arm['QEMU_CPU'] == 'max,sve-default-vector-length=64' and own == info['env']
-                 and linux.tagged(info, '3.12') != linux.tagged(info, '3.12', 'arm64') and '"${ARCH}"' in image,
-                 '%s | %s' % (arm, linux.tagged(info, '3.12', 'arm64')))
-
-
-def test_the_gate_builds_the_robots_c_for_its_target(report):
-    """host.yml's gate names the robot's cores' target (COAXIAL_ISA), one of `build.TARGETS`, its flags those
-    `native` gives under it, nothing contracted; a name none of them refused; unset, this host's own
-    (-march=native). And the probe (isa.c) says of this processor what numpy finds where nothing disables its
-    sets: AVX on x86-64-v2, AVX2 as x86-64-v3."""
-    from tools.cores import build
-    from tools.dev import linux
-    found = set(build._host().split(','))
-    off = set(os.environ.get('NPY_DISABLE_CPU_FEATURES', '').replace(',', ' ').split())
-    probed = {isa: (build.held(isa), needs <= found) for isa, needs in
-              (('avx', {'X86_V2', 'AVX'}), ('avx2', {'X86_V3'})) if not needs & off}
-    report.check("the probe's targets numpy's sets", all(a == b for a, b in probed.values()), str(probed))
-    isa, kept = linux.workflow()['env'].get('COAXIAL_ISA'), os.environ.pop('COAXIAL_ISA', None)
-    try:
-        os.environ['COAXIAL_ISA'] = str(isa)
-        given = build.native() if isa in build.TARGETS and build.held(isa) else None
-        os.environ['COAXIAL_ISA'] = 'none'
-        try:
-            build.native()
-            refused = False
-        except RuntimeError:
-            refused = True
-        del os.environ['COAXIAL_ISA']
-        own = build.native()
-    finally:
-        os.environ.pop('COAXIAL_ISA', None)
-        if kept is not None:
-            os.environ['COAXIAL_ISA'] = kept
-    report.check("the gate's target one of the robot's targets, its flags given under it, nothing contracted",
-                 isa in build.TARGETS and given in (None, ('-ffp-contract=off',) + build.TARGETS[isa]),
-                 '%s: %s' % (isa, given))
-    report.check('a name none of the robot\'s targets refused; unset, this host\'s own', refused
-                 and own[0] == '-ffp-contract=off' and all(flag.endswith('=native') for flag in own[1:]), str(own))
-
-
-def test_the_last_green_commit_is_the_reference(report):
-    """`ci.whole`: the newest commit green in every workflow's list, the lists newest first; `ci.behind`: how
-    many commits HEAD is past it, None for one not here; `ci.said`: a line a name - its commit, that distance
-    and its subject -, 'none green' where none ended green; `ci.main` on another word: usage, 2."""
-    import subprocess
-    from tools.dev import ci
-    host = [('c', '3', 3), ('b', '2', 2), ('a', '1', 1)]
-    firmware = [('d', '4', 4), ('b', '2', 2), ('a', '1', 1)]
-    report.check('the newest commit green in both lists, each newest first; none where they share none',
-                 ci.whole(host, firmware) == ('b', '2', 2) and ci.whole(host, [('z', '0', 0)]) is None
-                 and ci.whole(host) == host[0] and ci.whole([], firmware) is None, ci.whole(host, firmware))
-    head = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd=ci.ROOT).stdout.strip()
-    report.check('HEAD is 0 behind itself, its parent 1; a commit not here None',
-                 ci.behind(head) == 0 and ci.behind(head + '~1') == 1 and ci.behind('0' * 40) is None, ci.behind(head))
-    lines = ci.said({'host.yml': (head, '', 1), 'both': None})
-    report.check("a line a name: the commit, how far HEAD is past it, its subject; 'none green' where none",
-                 len(lines) == 2 and head[:8] in lines[0] and '0 commits behind HEAD' in lines[0]
-                 and lines[1].startswith('ci: both') and 'none green' in lines[1], lines)
-    report.check('another word: usage, 2', ci.main(['--red']) == 2 and ci.WORKFLOWS == ('host.yml', 'firmware.yml'))
-
-
 ROSTER = (test_a_log_tail_names_its_red_suites, test_a_tail_tells_the_runner_s_work,
           test_a_job_cut_at_its_time_says_where_it_was, test_the_red_suites_lead_those_that_run_first,
           test_a_suite_s_seconds_are_the_host_s, test_the_gate_s_suites_have_their_work,
-          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is,
-          test_the_jobs_take_their_inputs_kept, test_the_runner_here_is_host_yml_s,
-          test_the_gate_builds_the_robots_c_for_its_target, test_the_last_green_commit_is_the_reference)
+          test_a_table_laid_keeps_what_was_not_run, test_a_batch_fits_whose_host_it_is)
 
 
 def main(argv=None):

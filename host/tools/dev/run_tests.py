@@ -18,6 +18,7 @@ Exit code is 0 only if every requested suite ran and nothing in it failed.
 """
 import argparse
 import os
+import re
 import sys
 
 # The stand-in where no board answers, not an emulator a suite: the emulator's own suite names
@@ -75,6 +76,9 @@ def _options(argv):
                              % FULL_EVERY)
     parser.add_argument('--dry-run', action='store_true',
                         help='with --smart: print the choice and why')
+    parser.add_argument('--part', metavar='K/N',
+                        help="the k-th of n parts the suites split in by their work (tests/work.json, "
+                             "machine_detector.parts): the gate's runners take one each (gate.yml)")
     parser.add_argument('--sections',
                         help='which live sections: tools|sequence|language')
     parser.add_argument('--live', action='store_true',
@@ -135,11 +139,11 @@ def _options(argv):
     parser.add_argument('--linux', action='store_true',
                         help="this run on Linux: the offline gate in a container shaped as CI's runner "
                              '(tools/dev/linux.py) - its Ubuntu, its Pythons, two cores of two threads, 16 GB -, '
-                             "a container a Python of host.yml's matrix, side by side")
+                             "a container a Python of gate.yml's matrix, side by side")
     parser.add_argument('--python', action='append',
-                        help="with --linux: this Python of host.yml's matrix alone (repeatable)")
+                        help="with --linux: this Python of gate.yml's matrix alone (repeatable)")
     parser.add_argument('--arch', help="with --linux: the image's architecture - arm64 emulated (linux.py)")
-    parser.add_argument('--isa', help="with --linux: the robot's cores' target there (COAXIAL_ISA), in place of host.yml's")
+    parser.add_argument('--isa', help="with --linux: the robot's cores' target there (COAXIAL_ISA), in place of gate.yml's")
     parser.add_argument('--cpu', help='with --linux --arch arm64: the emulated processor (QEMU_CPU)')
     args = parser.parse_args(argv)
     if (args.python or args.arch or args.isa or args.cpu) and not args.linux:
@@ -160,6 +164,11 @@ def _options(argv):
     args.words = {name: tuple(filter(None, words.split(',')))
                   for name, _, words in (f.partition(':') for f in args.file)}
     args.file = list(args.words)
+    if args.part:
+        m = re.fullmatch(r'(\d+)/(\d+)', args.part)
+        if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+            parser.error('--part k/n, 1 <= k <= n: %s' % args.part)
+        args.part = (int(m.group(1)), int(m.group(2)))
     return args
 
 
@@ -179,6 +188,10 @@ def _run(args, tags, live_sections):
         suites = [name for name in suites if name not in NEEDS_BOARD]
     if not args.match and not args.only:
         suites[:0] = [name for name in STRUCTURES if name not in suites]
+    if args.part:
+        k, n = args.part
+        suites = machine_detector.parts(suites, n)[k - 1]
+        print('part %d of %d: %d suites - %s' % (k, n, len(suites), ', '.join(suites)), flush=True)
 
     # The model is held here, released in the finally.
     holding = LIVE in suites
