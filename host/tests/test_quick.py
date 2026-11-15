@@ -60,7 +60,10 @@ def test_a_part_called_whole_in_c_as_by_its_glue(report, c):
                 tally['calls'] += 1
                 tally['parts'].add(self.name)
             b.turns[0] = turn
-        return call(self, *args, paced=paced)
+        out = call(self, *args, paced=False if b is None else paced)
+        if self.c is None and self.job is not None:
+            self.job['done'].wait()
+        return out
     bodied.Compiled.__call__ = beside
     try:
         s = worker.session(walks=True)
