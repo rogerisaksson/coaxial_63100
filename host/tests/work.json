@@ -43,7 +43,7 @@
  "test_layout.py": 67.6,
  "test_leap.py": 266.8,
  "test_mcp.py": 69.9,
- "test_metacompiler.py": 17.2,
+ "test_metacompiler.py": 21.6,
  "test_mirrors.py": 445.9,
  "test_modbus_core.py": 23.6,
  "test_mppi_core.py": 67.4,
