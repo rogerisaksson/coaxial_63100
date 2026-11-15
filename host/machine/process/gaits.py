@@ -21,10 +21,18 @@ STUNT_TRANSIENT = ('approach', 'lower', 'seated_', 'sit_edge', 'recline', 'bed_r
                    'crouch_load', 'propulsion', 'flight_tuck', 'seat_land', 'step_off', 'drop', 'absorb')
 
 
+def rise_until(g):
+    """The shifted end time (`'rest'` row) of an active rise stunt on `g['labels']`, 0.0 with none."""
+    from machine.law import se2
+    if g.get('active_entry') not in se2.RISE_OF.values():
+        return 0.0
+    return max((w for w, n in g.get('labels', ()) if n == 'rest'), default=0.0)
+
+
 def in_stunt_transient(g):
     """Whether it is in a transient stunt phase or joint program (neither standing nor settled at rest)."""
     cur = sprung.doing(g)
-    return g.get('played') is not None or any(
+    return g.get('played') is not None or rise_until(g) > g['t'] or any(
         cur.startswith(p) if p.endswith('_') else (cur == p or cur.startswith(p + '_')) for p in STUNT_TRANSIENT)
 #: It has halted after a stop's brake: slower than HALT_M_S along its way with both soles touching (`leap.TOUCH_N`);
 #: its stand is said then, or at the brake's doubled horizon unmet. Each sole at a quarter of its weight instead
@@ -68,6 +76,30 @@ def start_mode(g, by, entry, at):
         sprung.said(g, 'init_walk', iw, ('init_walk',), at=at, reset=True)
     dt_lead = 0.80 if use_sway else (se2.init_lead(g) if use_iw else 0.0)
     sprung.said(g, *entry, at=at + dt_lead, reset=(name in se2.RESET_MODES))
+
+
+def queue_post_rise(g, gym, tw):
+    """Update the post-rise gait queued after `rise_until` while keeping twist zeroed through the rise."""
+    from machine.law import latent, se2
+    g['asked'] = (float(tw[0]), float(tw[1]), float(tw[2]))
+    g['governed'] = g['twist'] = (0.0, 0.0, 0.0)
+    active = max(abs(tw[0]), abs(tw[1]), abs(tw[2])) > 0.01
+    g['_twist_active'] = active
+    if active:
+        g['_twist_stop_until'] = g['t'] + 2.5
+    target = (se2.gait_for_twist(*g['asked']) or ('walk_back' if tw[0] < 0.0 else 'walk')) if active else 'stand'
+    was = g.get('_post_stunt') or 'stand'
+    t_res = rise_until(g)
+    if target == was or t_res <= g['t']:
+        return
+    rise_ae = g.get('active_entry')
+    g['tab'] = g['tab'][g['tab'][:, latent.AT] <= t_res + 1e-4]
+    g['labels'] = [(w, n) for w, n in g['labels'] if w <= t_res + 1e-4]
+    by = {e[0]: e for e in gym}
+    if target != 'stand' and target in by:
+        start_mode(g, by, by[target], at=t_res + 0.001)
+    g['governed'] = g['twist'] = (0.0, 0.0, 0.0)
+    g['_post_stunt'], g['active_entry'] = target, rise_ae
 
 
 def _queue_post_jump(g, by, entry):
@@ -271,7 +303,7 @@ def heard_say(g, gym, entry):
             r_entry = by[rm]
         sprung.said(g, *r_entry, at=t0, reset=(rm in se2.RESET_MODES))
         post_entry = by.get('stand', entry) if name == 'hop' else entry
-        start_mode(g, by, post_entry, at=t0 + se2.rise_lead(r_entry[1]))
+        start_mode(g, by, post_entry, at=t0 + se2.rise_lead(r_entry[1]) + 0.001)
         g['_post_stunt'] = post_entry[0]
         g['active_entry'] = rm
         g['governed'] = g['twist'] = (0.0, 0.0, 0.0)

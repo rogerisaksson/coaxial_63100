@@ -84,7 +84,11 @@ def heard(g, gym, command):
             kt = (0.0, 0.0, 0.0) if raw is None else (float(raw[0]), float(raw[1]), float(raw[2]))
             g['_key_twist'], g['_cocoon_cut'] = kt, False
         if not errand_step and 'say' not in command and gaits.in_stunt_transient(g):
-            if g.get('_post_stunt') is not None:
+            if gaits.rise_until(g) > g['t']:
+                tw_c = (0.0, 0.0, 0.0) if command['twist'] is None else _cocoon().refused(g, command['twist'])
+                g['_cocoon_cut'] = command['twist'] is not None and tw_c != g['_key_twist']
+                gaits.queue_post_rise(g, gym, tw_c)
+            elif g.get('_post_stunt') is not None:
                 tw_c = (0.0, 0.0, 0.0) if command['twist'] is None else _cocoon().refused(g, command['twist'])
                 g['_cocoon_cut'] = command['twist'] is not None and tw_c != g['_key_twist']
                 g['asked'] = (float(tw_c[0]), float(tw_c[1]), float(tw_c[2]))

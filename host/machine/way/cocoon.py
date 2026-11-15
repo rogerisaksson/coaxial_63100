@@ -42,11 +42,11 @@ def _rising(g):
         g.get('active_entry') in se2.RISE_OF.values() and (cur == 'init_walk' or gaits.in_stunt_transient(g)))
 
 
-def _deeper(o, d, half, off):
-    """Whether `d` at `o` inside `half` steps closer to the unexpanded box or its nearer face."""
+def _deeper(o, d, half, off, pad=None):
+    """Whether `d` at `o` inside `half` (or `half + pad`) steps closer to the unexpanded box or its nearer face."""
     import numpy as np
     h0 = np.maximum(half - (figure.WIDE_HALF - off)[:, None], 0.0)
-    over, od = half - np.abs(o), o * d
+    over, od = (half if pad is None else half + pad) - np.abs(o), o * d
     return (((o - np.clip(o, -h0, h0)) * d).sum(axis=1) < -1e-9) | (
         np.where(over[:, 0] < over[:, 1], od[:, 0], od[:, 1]) < -1e-9)
 
@@ -66,7 +66,8 @@ def clear_of_rise(g):
         return True
     q = furniture.where(g)
     o = np.einsum('nij,nj->ni', axes, np.array([float(q[0]), float(q[2])]) - c)
-    inside = (np.abs(o) <= half).all(axis=1)
+    pad = np.where(off > 0.0, 0.0, wayfinder.MARGIN)[:, None]
+    inside = (np.abs(o) <= half + pad).all(axis=1)
     if not inside.any():
         return True
     tw = g.get('asked', (0.0, 0.0, 0.0))
@@ -76,7 +77,7 @@ def clear_of_rise(g):
     h = float(g['heading'])
     d = axes @ np.array([(tw[0] * math.sin(h) + tw[1] * math.cos(h)) / v,
                          (tw[0] * math.cos(h) - tw[1] * math.sin(h)) / v])
-    return bool((inside & _deeper(o, d, half, off)).any())
+    return bool((inside & _deeper(o, d, half, off, pad)).any())
 
 
 def _vel_blocked(g):
