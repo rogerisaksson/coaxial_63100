@@ -1,4 +1,4 @@
-; The aerobat on a 2.3 kg frame (`crafts.toml` `[aerobat_heavy]`, compiled by `aircraft.compile`).
+; The aerobat on a 2.3 kg frame (`crafts.toml`'s `heavy_kg`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")

@@ -1,4 +1,4 @@
-; The ornithopter on a 2.5 kg frame (`crafts.toml` `[ornithopter_heavy]`, compiled by `aircraft.compile`).
+; The ornithopter on a 2.5 kg frame (`crafts.toml`'s `heavy_kg`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")

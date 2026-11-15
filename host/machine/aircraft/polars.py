@@ -188,20 +188,18 @@ def aero_blocks(crafts, inv, rho, env=None):
 
 def body_and_cooling_blocks(crafts, mat, inv, env, g):
     sink = inv['heatsink']
-    qc, qh = crafts['quadcopter'], crafts['quadcopter_heavy']
-    he, hh = crafts['helicopter'], crafts['helicopter_heavy']
-    or_, oh = crafts['ornithopter'], crafts['ornithopter_heavy']
-    ae, ah = crafts['aerobat'], crafts['aerobat_heavy']
+    qc, he, or_, ae = crafts['quadcopter'], crafts['helicopter'], crafts['ornithopter'], crafts['aerobat']
     q_n, q_m, q_arm = float(qc['rotors']), float(qc['mass_kg']), float(qc['arm_m'])
     q_c = round(q_m / q_n * q_arm * q_arm, 6)
-    qh_c = round(float(qh['mass_kg']) / q_n * q_arm * q_arm, 6)
+    qh_c = round(float(qc['heavy_kg']) / q_n * q_arm * q_arm, 6)
     base_rb = {'mass': q_m, 'gravity': g, 'inertia_xx': q_c, 'inertia_yy': 2.0 * q_c, 'inertia_zz': q_c,
                'skid_height': float(qc['skid_h_m']), 'foot_radius': float(crafts['shared']['foot_r_m'])}
     quad_rb = {**base_rb, 'hub_x': float(qc['hub_m'][0]), 'hub_y': float(qc['hub_m'][1]), 'hub_z': float(qc['hub_m'][2])}
 
-    def pod(cfg, rnd=True):
-        ix, iy, iz = (round(x, 3) if rnd else x for x in _gyr(cfg['mass_kg'], cfg['gyration_m']))
-        return {**base_rb, 'mass': float(cfg['mass_kg']), 'inertia_xx': ix, 'inertia_yy': iy, 'inertia_zz': iz,
+    def pod(cfg, frame='mass_kg'):
+        """A craft's body on its frame, or on its heavy one (`heavy_kg`): its radii of gyration kept."""
+        ix, iy, iz = (round(x, 3) if frame == 'mass_kg' else x for x in _gyr(cfg[frame], cfg['gyration_m']))
+        return {**base_rb, 'mass': float(cfg[frame]), 'inertia_xx': ix, 'inertia_yy': iy, 'inertia_zz': iz,
                 'skid_height': float(cfg['skid_h_m']), 'skid_span': float(cfg['skid_span_m']),
                 'strut_aft': float(cfg['strut_aft_m']), 'strut_fore': float(cfg['strut_fore_m'])}
 
@@ -216,14 +214,14 @@ def body_and_cooling_blocks(crafts, mat, inv, env, g):
     return {
         'base_airframe_2kg': ('rigid_body', base_rb),
         'quad_x_body': ('rigid_body', quad_rb),
-        'quad_x_body_heavy': ('rigid_body', {**quad_rb, 'mass': float(qh['mass_kg']),
+        'quad_x_body_heavy': ('rigid_body', {**quad_rb, 'mass': float(qc['heavy_kg']),
                                              'inertia_xx': qh_c, 'inertia_yy': 2.0 * qh_c, 'inertia_zz': qh_c}),
         'heli_pod_boom_body': ('rigid_body', pod(he)),
-        'heli_pod_boom_body_heavy': ('rigid_body', pod(hh, False)),
+        'heli_pod_boom_body_heavy': ('rigid_body', pod(he, 'heavy_kg')),
         'ornithopter_carapace_body': ('rigid_body', pod(or_)),
-        'ornithopter_carapace_body_heavy': ('rigid_body', pod(oh, False)),
+        'ornithopter_carapace_body_heavy': ('rigid_body', pod(or_, 'heavy_kg')),
         'aerobat_monoplane_body': ('rigid_body', pod(ae)),
-        'aerobat_monoplane_body_heavy': ('rigid_body', pod(ah, False)),
+        'aerobat_monoplane_body_heavy': ('rigid_body', pod(ae, 'heavy_kg')),
         'aluminium_finned_block': ('cooling', alu),
         'temp_controlled_fan': ('cooling', fan),
         'finned_aluminium_fan_sink': ('cooling', {**alu, **fan}),

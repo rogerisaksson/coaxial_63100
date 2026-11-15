@@ -244,8 +244,12 @@ def environment(name: str | None = ROBOT):
 
 
 def crafts():
-    """Declarative physical construction of every aircraft and variant (`aircraft/crafts.toml`)."""
-    return _resolve(_toml(os.path.join(HERE, 'aircraft', 'crafts.toml')))
+    """Declarative physical construction of every aircraft and variant (`aircraft/crafts.toml`): a craft its
+    own laid on `[shared]`, a variant (`extends`) its own on its craft."""
+    raw = _toml(os.path.join(HERE, 'aircraft', 'crafts.toml'))
+    shared = raw['shared']
+    return _resolve({name: cfg if name == 'shared' or 'extends' in cfg else _merged(shared, cfg)
+                     for name, cfg in raw.items()})
 
 
 def robots():

@@ -1,4 +1,4 @@
-; The helicopter on a 2.5 kg frame (`crafts.toml` `[helicopter_heavy]`, compiled by `aircraft.compile`).
+; The helicopter on a 2.5 kg frame (`crafts.toml`'s `heavy_kg`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")

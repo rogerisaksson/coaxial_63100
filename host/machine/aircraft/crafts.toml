@@ -1,12 +1,17 @@
 # Physical, electromechanical and aerodynamic construction of every craft and variant
-# (`mechatronics.crafts()`, compiled by `machine.aircraft.compile`).
+# (`mechatronics.crafts()`, compiled by `machine.aircraft.compile`): each craft its own laid on
+# `[shared]`, a variant (`extends`) on its craft.
 # All thrust/drag polars, control moment arms, drive load polars, rigid-body inertias, heatsink
 # curves, governor speeds, attitude impedances, ESO bandwidths and trajectory envelopes are derived
 # statically by `machine.aircraft.compile`.
 
+# What every craft has unless it states its own: its drive, its frame's mass and its heavy frame's
+# (kg), its body's drag area, the inflow's shares, a foot's radius and the camera's gimbal.
 [shared]
 motor = "outrunner_63100_14p"
 inverter = "coaxial_63100"
+mass_kg = 2.0
+heavy_kg = 2.5
 parasite_cda = 0.15
 inflow_j0 = 1.05
 inflow_floor = 0.35
@@ -18,8 +23,6 @@ tilt_deg = 8.0
 tilts_deg = [-70.0, 35.0]
 
 [quadcopter]
-kind = "rotors"
-mass_kg = 2.0
 rotors = 4
 arm_m = 0.30
 disc_height_m = 0.06
@@ -36,13 +39,7 @@ hub_m = [0.06, 0.03, 0.06]
 extends = "quadcopter"
 diameter_m = 0.3810
 
-[quadcopter_heavy]
-extends = "quadcopter"
-mass_kg = 2.5
-
 [helicopter]
-kind = "main_rotor"
-mass_kg = 2.0
 disc_height_m = 0.22
 diameter_m = 1.250
 pitch_m = 0.3556
@@ -60,13 +57,7 @@ skid_span_m = 0.17
 strut_aft_m = -0.10
 strut_fore_m = 0.16
 
-[helicopter_heavy]
-extends = "helicopter"
-mass_kg = 2.5
-
 [ornithopter]
-kind = "flapping_wings"
-mass_kg = 2.0
 wing_span_m = 0.56
 wing_chord_m = 0.085
 shoulder_x_m = 0.068
@@ -87,13 +78,8 @@ skid_span_m = 0.130
 strut_aft_m = -0.09
 strut_fore_m = 0.14
 
-[ornithopter_heavy]
-extends = "ornithopter"
-mass_kg = 2.5
-
 [aerobat]
-kind = "aero_surfaces"
-mass_kg = 2.0
+heavy_kg = 2.3
 parasite_cda = 0.016
 wing_span_m = 1.40
 wing_chord_m = 0.28
@@ -125,7 +111,3 @@ skid_h_m = 0.264
 skid_span_m = 0.147
 strut_aft_m = -0.819
 strut_fore_m = 0.093
-
-[aerobat_heavy]
-extends = "aerobat"
-mass_kg = 2.3

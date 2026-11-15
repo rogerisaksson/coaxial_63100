@@ -5,7 +5,8 @@ What a sheet states is read from the parts library and stated nowhere else, the 
 in `world.toml` alone; a motor the library and the rig's profiles both describe is one motor; a
 build compiled anew is the build its cache holds; an override moves the one number it names; a
 figure scaled keeps its angles and shares and moves its lengths no further than its scale; a craft
-loaded heavier keeps its radii of gyration; no compiled number is not a number.
+states what is its own alone, each key of it read, and on its heavy frame keeps its radii of
+gyration; no compiled number is not a number.
 The meta-compiler's cache keys and the generated files' texts: test_mirrors; the specs' own words: test_gynoid."""
 import ast
 import glob
@@ -14,6 +15,7 @@ import math
 import os
 import subprocess
 import sys
+import tomllib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -25,6 +27,8 @@ STAGE = {'FSW': 'pwm_hz', 'RDS_ON': 'rds_ohm', 'RTH_JC': 'rth_jc', 'T_J_MAX': 't
 #: A library motor's keys beside its rig profile's: the stand-in model's and the drive's record's.
 PROFILED = (('ohm', 'r', 'motor_r'), ('lq_h', 'lq', 'motor_lq'), ('flux_vs', 'lambda', 'motor_lambda'),
             ('pole_pairs', 'pole_pairs', 'motor_pole_pairs'))
+#: The crafts' spec's compilers, where a key it states is read: its polars, its blocks and its resolver.
+CRAFT_SOLVERS = ('machine/aircraft/polars.py', 'machine/aircraft/compile.py', 'machine/body/mechatronics.py')
 #: A gait number's unit by its name's end: a name ending in none of them is an angle or a share.
 UNITS = ('_m', '_m_s', '_s', '_hz', '_rad_s', '_1_s', '_1_s2', '_m_s2', '_n')
 #: A scaled build's gait as one line of JSON, asked of a process of its own (ROBOT is a process's).
@@ -225,6 +229,36 @@ def test_a_scaled_figure_follows_similarity(r):
         r.check('%s: its gait\'s angles and shares are the stock\'s' % name, not turned, turned)
 
 
+def test_a_craft_states_its_own_alone(r):
+    """`crafts.toml` as it is written: every key a craft states is read by its compilers, none
+    states again what it has of `[shared]` or of the craft it extends, and a craft resolved is
+    `[shared]` with its own laid on it, a variant its craft with its own."""
+    from machine.body import mechatronics
+    with open(os.path.join(HOST, 'machine', 'aircraft', 'crafts.toml'), 'rb') as f:
+        raw = tomllib.load(f)
+    read = ''
+    for name in CRAFT_SOLVERS:
+        with open(os.path.join(HOST, *name.split('/')), encoding='utf-8') as f:
+            read += f.read()
+    stated = set()
+    for cfg in raw.values():
+        for key, value in cfg.items():
+            stated |= {key, *(value if isinstance(value, dict) else ())}
+    unread = sorted(key for key in stated if "'%s'" % key not in read)
+    r.check('%d keys the crafts state, each read by a compiler' % len(stated), len(stated) > 60 and not unread, unread)
+    resolved, shared = mechatronics.crafts(), raw['shared']
+    again, apart = [], []
+    for name, cfg in raw.items():
+        base = resolved[cfg['extends']] if 'extends' in cfg else shared
+        own = {key: value for key, value in cfg.items() if key != 'extends'}
+        again += [(name, key) for key, value in own.items() if name != 'shared' and base.get(key) == value]
+        apart += [(name, key) for key in {*base, *own}
+                  if name != 'shared' and resolved[name].get(key) != own.get(key, base.get(key))]
+    r.check('no craft states again what it has of the shared or of its craft', not again, again)
+    r.check('a craft resolved is the shared with its own laid on it, a variant its craft\'s',
+            not apart and not any('extends' in cfg for cfg in resolved.values()), apart)
+
+
 def test_a_heavier_craft_keeps_its_radii(r):
     """A craft's heavy variant states a mass alone: its body's inertias grow by the mass's ratio,
     its geometry stays, and the hover thrust AeroLisp starts from is the quadcopter's weight."""
@@ -252,7 +286,8 @@ def test_a_heavier_craft_keeps_its_radii(r):
 ROSTER = (test_the_power_stage_is_the_librarys, test_the_worlds_gravity_is_stated_once,
           test_a_motor_and_its_profile_are_one, test_a_build_compiled_anew_is_its_cache,
           test_no_compiled_number_is_not_a_number, test_an_override_moves_the_number_it_names,
-          test_a_scaled_figure_follows_similarity, test_a_heavier_craft_keeps_its_radii)
+          test_a_scaled_figure_follows_similarity, test_a_craft_states_its_own_alone,
+          test_a_heavier_craft_keeps_its_radii)
 
 
 def main(argv=None):

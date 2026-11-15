@@ -1,4 +1,4 @@
-; The quad on a 2.5 kg frame (`crafts.toml` `[quadcopter_heavy]`, compiled by `aircraft.compile`).
+; The quad on a 2.5 kg frame (`crafts.toml`'s `heavy_kg`, compiled by `aircraft.compile`).
 
 (include "aerodynamics.lisp")
 (include "dynamics.lisp")
