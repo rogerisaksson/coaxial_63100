@@ -45,7 +45,7 @@ LAYERS = (
                       "firmware's.",
      ('host/coaxial/comm/', 'comms/', 'modbus/')),
     ('cores', 'trunk', 'The portable C11 cores, a step a pass, built for the MCU and for this host.',
-     ('wbc/', 'aero/', 'mppi/', 'drive/', 'ctrl/', 'thermal/', 'daq/', 'filter/')),
+     ('wbc/', 'aero/', 'mppi/', 'se3/', 'drive/', 'ctrl/', 'thermal/', 'daq/', 'filter/')),
     ('board', 'trunk', 'The MCU and its edge: boot, main and interrupts, the board layer, the build.',
      ('board/', 'core/', 'boot/', 'shtp/', 'cmake/', 'CMakeLists.txt', 'CMakePresets.json',
       'STM32H753xx_FLASH.ld', 'startup_stm32h753xx.s', 'coaxial_63100.ioc')),

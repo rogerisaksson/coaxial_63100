@@ -39,6 +39,7 @@ image.
 | `wbc/` | the robot's chain on its static model, the loop over it, the step without an active set | 13 | [kinematics](kinematics.md), [solvers](solvers.md) |
 | `aero/` | a frame flown from a compiled intent | 14 | [quad](quad.md) |
 | `mppi/` | a plane's rollouts for sampled predictive control: its forces, its floor, its cost; host only | | [aerodynamics](aerodynamics.md) |
+| `se3/` | a pose fitted to weighted points: a Gauss-Newton step about their centroid, no branch; host only | | [solvers](solvers.md) |
 
 ## Boot and the loop
 

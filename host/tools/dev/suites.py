@@ -25,7 +25,7 @@ STRUCTURES = (STRUCTURE, 'test_layout.py', 'test_mirrors.py', 'test_wire_shapes.
               METACOMPILER_CRAFTS)
 #: Suites with prior CI or local regressions, scheduled right after structural checks so a regression stops the run at once:
 #: what GitHub's last host run left red is laid at its head at every commit (tools/dev/ci.py, the pre-commit).
-FAILED_FIRST = ('test_sysid_live.py', 'test_ollama_runner.py', 'test_errands.py',
+FAILED_FIRST = ('test_errands.py', 'test_sysid_live.py', 'test_ollama_runner.py',
                 'test_views_apps.py', 'test_native.py', 'test_scenarios.py', 'test_mirrors.py',
                 'test_quick.py', 'test_sysid.py', 'test_introspect.py', 'test_wasd.py',
                 'test_ortho.py', 'test_tick.py', 'test_dsp.py', 'test_kernel.py',
@@ -243,6 +243,8 @@ SCENES = 'test_scenarios.py'
 AERO_CORE, STREAMS = 'test_aero_core.py', 'test_quad_streams.py'
 #: The plane's rollouts for its predictive control (mppi/, machine.aircraft.se3mpc).
 MPPI_CORE = 'test_mppi_core.py'
+#: A pose's step onto weighted points (se3/, tools.cores.se3): its form, its twin, its best pose.
+SE3_CORE = 'test_se3_core.py'
 
 #: The cyclic executive (machine.rig.cyclic): its steps against machine.rig.parts, a cycle on a toy rotor.
 CYCLIC = 'test_cyclic.py'
@@ -266,7 +268,7 @@ DEFAULT_SUITES = (STRUCTURES + (CORE, SHTP, DRIVE, DRIVE_OBSERVER, FILTER, THERM
                    BROKER, DAQ_API, CONTROLLER, GYNOID, SIGHT, CAMERA, GAZE, REACH, TERMS, GVS, REPLAYS, SCENES, WBC,
                    WBC_CORE, LEAP, WASD, WRENCH, CHAIN, QP, SYSID, SYSID_LIVE, COMPILED, QUICK, TICK, PLACED, DEPENDS, CI, WORKFLOW, PORTED, BORNE, REGISTRY, WEAR, ORTHO, POSTURES, FOURS, GROUNDWORK, SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, DSP, KERNEL, SHIELD, WAYFINDER, SAYS, INTROSPECT, GATE, TUNE, FLOOR, SITUATION, BUSES, ERRANDS, DOCKS,
                    CYCLIC, QUAD, QUAD_PULL,
-                   AERO_CORE, MPPI_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
+                   AERO_CORE, MPPI_CORE, SE3_CORE, STREAMS, QUAD_COURSE, SWEEP, BOOT)
                   + VIEWS
                   + (RENDER, GROUND, PAINT) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -357,6 +359,7 @@ JOINS = (
     (20, SYSID), (20, SYSID_LIVE), (20, COMPILED), (20, QUICK), (20, TICK), (20, PLACED), (20, DEPENDS), (20, CI), (20, WORKFLOW), (35, PORTED), (20, BORNE), (20, REGISTRY),
     (20, AERO_CORE),
     (20, MPPI_CORE),
+    (20, SE3_CORE),
     (20, WIRE),
     (20, SENSORLESS),
     (35, 'test_parity.py'),

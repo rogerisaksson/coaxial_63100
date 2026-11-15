@@ -13,8 +13,8 @@ order a table; the hardware at one edge.
 | Flow | tables of function pointers, walked in order | the cycle: poll, payload into memory, steps in table order, memory out and written |
 | I/O | the board layer fills buffers (the sync's latch, DMA, the IMU's record); the cores read them | one edge, `poll` and `push` over `Transport` (framing, CRC, turnaround): a lost frame leaves its row, counted, never raised into a step |
 
-- Target: the cores (`drive thermal ctrl daq filter wbc aero`, and `mppi` on
-  the host alone) are portable C11, built and tested on this host;
+- Target: the cores (`drive thermal ctrl daq filter wbc aero`, and `mppi` and
+  `se3` on the host alone) are portable C11, built and tested on this host;
   `drive_step(d, in, stage, out)` is one PWM period; `ctrl.c` steps a part
   through `FILTERS`, `ESTIMATORS`, `REGULATORS`, tables by kind.
 - Host: `machine/rig/cyclic.py` - `frame`, `state`, the parts as steps

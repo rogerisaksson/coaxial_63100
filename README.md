@@ -307,7 +307,7 @@ python host/tools/dev/cover.py --readme        # the gate under coverage, into d
 python -X utf8 docs/structure.py               # every folder's purpose; a folder: its files' synopses
 ```
 
-134 suites in `host/tests/`, each a plain script with its own tally.
+135 suites in `host/tests/`, each a plain script with its own tally.
 
 A run measures the host it is on as it starts - its cores, its pace with
 every baton busy (`host/tools/dev/machine_detector.py`) - and lays a
@@ -368,8 +368,8 @@ The board's schematic and layout: [Coaxial-63100 on CircuitMaker](https://worksp
 The firmware is C11 in layers, `core/` (CubeMX) -> `board/` -> `comms/` ->
 the portable cores, each core tested on this host through gcc.
 
-The 12 portable cores: `aero/` `boot/` `ctrl/` `daq/` `drive/` `filter/`
-`modbus/` `mppi/` `shtp/` `thermal/` `wbc/` `world/`.
+The 13 portable cores: `aero/` `boot/` `ctrl/` `daq/` `drive/` `filter/`
+`modbus/` `mppi/` `se3/` `shtp/` `thermal/` `wbc/` `world/`.
 
 <details><summary>The layers, the drive, the heat, the bootloader</summary>
 

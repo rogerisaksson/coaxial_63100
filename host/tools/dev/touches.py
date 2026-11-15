@@ -7,7 +7,7 @@ from tools.dev.suites import (AERO_CORE, MPPI_CORE, BENCH, BUSES, BOARD_MEM, BOO
                               EMULATOR, ERRANDS, FILTER, GVS, GYNOID, GROUND, HEATED, LEAP,
                               NATIVE, NATIVE_HEAT, NATIVE_SYSID, OLLAMA, ORTHO, POSTURES, FOURS, GROUNDWORK,
                               SUBSTRATE, CRAWL, BEDSIDE, VAULT, BALLISTIC, FLOOR, PAINT, QUADS,
-                              REACH, RENDER, REPLAYS, SCENES, SENSORLESS, SHTP, SIGHT, SITUATION,
+                              REACH, RENDER, REPLAYS, SCENES, SE3_CORE, SENSORLESS, SHTP, SIGHT, SITUATION,
                               STREAMS, STRUCTURE, SYSID, TERMS, THERMAL, THERMAL_APP, VIEWS, WBC,
                               WBC_CORE, WEAR, WIRE, WORLD_CORE, WRENCH)
 from tools.dev.touches_machine import MACHINE
@@ -67,6 +67,8 @@ TOUCHES = (
     ('host/lisp/aircraft/ornithopter.lisp',    ('test_helicopter.py', STRUCTURE)),
     ('host/tools/cores/mppi.py',               (MPPI_CORE, 'test_helicopter.py')),
     ('mppi/',                                  (MPPI_CORE, 'test_helicopter.py', STRUCTURE)),
+    ('host/tools/cores/se3.py',                (SE3_CORE,)),
+    ('se3/',                                   (SE3_CORE, STRUCTURE)),
     ('host/lisp/aircraft/aerobat.lisp',        ('test_helicopter.py', 'test_aerobat.py', STRUCTURE)),
     ('host/lisp/aircraft/',                    QUADS + (AERO_CORE, STREAMS, 'test_helicopter.py', 'test_aerobat.py')),
     ('host/coaxial/graphics/scenery.py',       QUADS + (RENDER, 'test_aerobat.py')),

@@ -253,7 +253,7 @@ jobs:
       - if: steps.held.outputs.runs == '1'
         run: >-
           python tools/dev/run_tests.py --offline --file test_aero_core.py --file test_borne.py --file test_mppi_core.py
-          --file test_native.py --file test_qp.py --file test_quick.py --file test_registry.py --file test_tick.py
+          --file test_native.py --file test_qp.py --file test_quick.py --file test_registry.py --file test_se3_core.py --file test_tick.py
           --file test_wbc_core.py --file test_wear.py --file test_compiled.py --file test_sysid.py 2>&1 | tee run.log;
           exit ${PIPESTATUS[0]}
         shell: bash
