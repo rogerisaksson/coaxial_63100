@@ -64,9 +64,9 @@ def test_its_model_holds_on_its_walk(report, c):
     report.check('it walks %.1f m in %.0f s on the world %.0f %% off' % (went, WALK_S, 100 * OFF), s['fallen_at'] is None and went > 3.0)
     fit, judge = at < SPLIT_S, at >= SPLIT_S
     models = {'build': c['body'].m, 'world': s['g']['world'].model}
-    for label, rows in (('stand', (Y, tau)), ('both', (np.concatenate([Y, Yw[fit]]), np.concatenate([tau, tw[fit]])))):
+    for label, more in (('stand', ()), ('both', ((Yw[fit], tw[fit]),))):
         fresh = wbc.Body(identified=False)
-        identified.correct(fresh, identified.correction(lay, c['body'], *rows))
+        identified.correct(fresh, identified.correction(lay, c['body'], Y, tau, *more))
         models[label] = fresh.m
     read = sysid.read(Yw[judge])
     rms = {label: sysid.misfit(Yw[judge], tw[judge], sysid.truth(lay, m)) for label, m in models.items()}

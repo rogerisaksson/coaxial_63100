@@ -1,12 +1,15 @@
 """Its corrections as identified, over its build: the least move that fits a campaign, kept, laid.
 
     deltas = identified.correction(lay, body, Y, tau)   # {name: correction} on body's model
+    deltas = identified.correction(lay, body, Y, tau, (Yw, tw))  # the walk's rows too, each share held out
     identified.save(path, deltas, got)                  # kept as TOML; IDENTIFIED its law's
     identified.correct(body, identified.load(path))     # laid over its law's model, whole
 
 Each link's mass and first moment and each drive's armature and friction move; a link's
 inertia about its centre stays as built and follows them about its origin, so every link stays
-a body. `wbc.Body` lays IDENTIFIED over its law's model when the file is there.
+a body. Fitted across campaigns, each link's and each drive's share of the move is laid as far
+as it harms no drive on a campaign it was not fitted on (`shares`). `wbc.Body` lays IDENTIFIED
+over its law's model when the file is there.
 """
 import os
 import tomllib
@@ -38,14 +41,57 @@ def _links(lay, m, theta):
     return out
 
 
-def correction(lay, body, Y, tau, ridge=RIDGE):
+def correction(lay, body, Y, tau, *campaigns, ridge=RIDGE):
     """The correction on `body`'s model that fits `Y` (N, driven, P) to `tau` (N, driven) with
     every parameter moved as little as the fit allows: each link's mass and first moment and
     each drive's armature and friction, least squares on their moves in UNITS, `ridge` of the
     regressor's mean column against each; a link's inertia about its
     centre stays as built and its inertia about its origin follows its mass and centre
     (linearised in the fit, exact in the result), so every link stays a body; no mass under
-    KEPT of itself, no drive parameter under none. {name: correction}."""
+    KEPT of itself, no drive parameter under none. {name: correction}. Given further
+    `campaigns` ((Y, tau) each) it fits them all, and each link's and each drive's share of the
+    move is laid as far as it harms no drive on a campaign it was not fitted on (`shares`):
+    fitted on the stand and its walk's first half, a shank's mass took its hem's torque and
+    raised the knee's misfit on the walk's second half 0.49 -> 2.13 N m while the drives' own
+    moves held - held out, the links' shares fall and the knee reads 0.46."""
+    import numpy as np
+    rows = [(Y, tau)] + list(campaigns)
+    delta = _fit(lay, body, np.concatenate([r[0] for r in rows]), np.concatenate([r[1] for r in rows]), ridge)
+    if campaigns:
+        delta = delta * shares(lay, body, rows, ridge)
+    return {n: float(d) for n, d in zip(lay['names'], delta) if d != 0.0}
+
+
+def shares(lay, body, rows, ridge=RIDGE):
+    """(P,) each column's share of a correction laid, 0 to 1: each link's ten and each drive's
+    three as one, as far as the move fitted on any one of `rows` ((Y, tau) campaigns) alone
+    harms none of the drives it enters on the others - a drive's misfit on rows held out is
+    quadratic in the share and falls while it is under 2 r.p / p.p (r its misfit as built on
+    them, p the group's move on its rows) -, the least over those drives and campaigns."""
+    import numpy as np
+    nominal = truth(lay, body.m)
+    n_b, n_d, P = len(lay['bodies']), len(lay['driven']), len(lay['names'])
+    groups = [(np.arange(10 * k, 10 * k + 10), np.flatnonzero(lay['above'][k, lay['driven']])) for k in range(n_b)]
+    groups += [(lay['drive'] + 3 * i + np.arange(3), np.array([i])) for i in range(n_d)]
+    share = np.ones(P)
+    fits = [_fit(lay, body, Yi, ti, ridge) for Yi, ti in rows]
+    for i, d in enumerate(fits):
+        for j, (Yh, th) in enumerate(rows):
+            if j == i:
+                continue
+            for cols, drives in groups:
+                part = np.zeros(P)
+                part[cols] = d[cols]
+                for k in drives:
+                    r0, p = th[:, k] - Yh[:, k] @ nominal, Yh[:, k] @ part
+                    pp = float(p @ p)
+                    if pp > 0.0:
+                        share[cols] = np.minimum(share[cols], max(0.0, 2.0 * float(r0 @ p) / pp))
+    return share
+
+
+def _fit(lay, body, Y, tau, ridge):
+    """theta less the build's of the correction fitted to `Y` and `tau` (`correction`), (P,)."""
     import numpy as np
     nominal = truth(lay, body.m)
     n_b, n_d = len(lay['bodies']), len(lay['driven'])
@@ -83,7 +129,7 @@ def correction(lay, body, Y, tau, ridge=RIDGE):
     for k in range(n_b):
         link, was = theta[10 * k:10 * k + 10], nominal[10 * k:10 * k + 10]
         link[4:] += shifted(float(link[0]), link[1:4]) - shifted(float(was[0]), was[1:4])
-    return {n: float(d) for n, d in zip(lay['names'], theta - nominal) if d != 0.0}
+    return theta - nominal
 
 
 def save(path, deltas, got):
