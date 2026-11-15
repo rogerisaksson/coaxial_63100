@@ -82,7 +82,11 @@
       (amplitude mode_pelvis_list 0.38) (amplitude mode_pelvis_turn 0.40)
       (amplitude mode_arm_swing 0.95))))
 
-;; smooth initiation into terrain gaits: single APA step before full stride
+;; the first step of the robot's walk, symmetric: lateral target 0.0 by measure. A stance shift set here
+;; (-0.012, an APA by hand) leaks a crab ask through the walk's 2000 ms blend (impedance's `across`), a
+;; lateral push on a 0.1 floor: ice, ice_told and play_moves fell at every start, the stance sole sliding
+;; back at 3.0 s, for 40 of 40 at 0.0; the first step's 16 cm lateral lurch is the green reference's too -
+;; an APA is the law's let-go gate to build (momentum_pivots.lisp, ignite-cyclic-clock), no target here
 (defbehavior init_walk
   (phase init (use stride_spring)
     (duration 700ms) (blend_duration 350ms)

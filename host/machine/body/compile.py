@@ -371,6 +371,11 @@ def _gait(st):
         'steer': _steer_gait(leg_m, v0, w_l, w0, w_task, w_law),
         'poise': {'margin_m': poise_margin, 'capture_s': round(2.0 / (3.0 * w0 * s_t), 2) * s_t,
                   'lift_eps': 0.02, 'gate_m': figure.PAD_M, 'early': 0.3},
+        # The robot's upper body posture admittance leads on velocity by tau_s (support.couple: err + tau (qd -
+        # ref_v)), half the observer's period, pi/w_eso. Stated 0.08 by hand once and derived to 0.08 twice
+        # since (0.25/(w0 s_t), 0.25 pi/(w_task s_t)), tau_s was measured against this: at 0.08 the hems swing
+        # 0.38 rad at 3244 rad/s^2, the world's own model misfits the walk's leg rows 1.2-2.4 N m for 0.3-0.4
+        # at 0.03, and motion.control's C and Python part 330 of 3033 passes on this desk (test_tick), none at 0.03.
         'support': {'tau_s': round(pi / (w_eso * s_t), 2) * s_t, 'eso_rad_s2': round(w_l * w_l, 1),
                     'eso_scale_rad_s2': round(2.0 * w_l * w_l, 1),
                     'sigma_rad': round(atan2(figure.UPPER_ARM + figure.FIST_R, leg_m), 2),
